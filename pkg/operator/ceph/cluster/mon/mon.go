@@ -386,12 +386,32 @@ func (c *Cluster) ConfigureArbiter() error {
 		return errors.Wrapf(err, "failed to find two failure domains %q in the CRUSH map", failureDomain)
 	}
 
+	// Before entering stretch mode, we must create at least one pool based on the default stretch rule
+	// Wait for the .mgr pool to be created, which we expect is defined as a CephBlockPool
+	// We may be able to remove this code waiting for the pool once this is in the ceph release:
+	//  https://github.com/ceph/ceph/pull/61371
+	logger.Info("enabling stretch mode... waiting for the builtin .mgr pool to be created")
+	err = wait.PollUntilContextTimeout(c.ClusterInfo.Context, pollInterval, totalWaitTime, true, func(ctx context.Context) (bool, error) {
+		return c.builtinMgrPoolExists(), nil
+	})
+	if err != nil {
+		return errors.Wrapf(err, "failed to wait for .mgr pool to be created before setting the stretch tiebreaker")
+	}
+
 	// Set the mon tiebreaker
 	if err := cephclient.SetMonStretchTiebreaker(c.context, c.ClusterInfo, c.arbiterMon, failureDomain); err != nil {
 		return errors.Wrap(err, "failed to set mon tiebreaker")
 	}
 
 	return nil
+}
+
+func (c *Cluster) builtinMgrPoolExists() bool {
+	_, err := cephclient.GetPoolDetails(c.context, c.ClusterInfo, ".mgr")
+
+	// If the call fails, either the pool does not exist or else there is some Ceph error.
+	// Either way, we want to wait for confirmation of the pool existing.
+	return err == nil
 }
 
 func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
