@@ -344,7 +344,7 @@ func commonOSDInit(cmd *cobra.Command) {
 	rook.SetLogLevel()
 	rook.LogStartupInfo(cmd.Flags())
 
-	clusterInfo.Monitors = opcontroller.ParseMonEndpoints(cfg.monEndpoints)
+	clusterInfo.InternalMonitors = opcontroller.ParseMonEndpoints(cfg.monEndpoints)
 }
 
 // use zone/region/hostname labels in the crushmap
