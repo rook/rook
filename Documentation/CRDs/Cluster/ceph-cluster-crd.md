@@ -156,8 +156,7 @@ A specific will contain a specific release of Ceph as well as security fixes fro
     This parameter is supported only for local Rook cluster running in normal mode,
     meaning that it will be ignored for external cluster (`spec.external.enabled: true`)
     or for `stretchedCluster`.
-    External monitors can be used in 2 zone k8s cluster to maintain mon quorum
-    when zone outage leads to outage of half of internal mons and k8s control plane.
+    For more details see [external mons](../../Storage-Configuration/Advanced/ceph-mon-health.md#external-monitors).
 * `zones`: The failure domain names where the Mons are expected to be deployed.
     There must be **at least three zones** specified in the list. Each zone can be
     backed by a different storage class by specifying the `volumeClaimTemplate`.

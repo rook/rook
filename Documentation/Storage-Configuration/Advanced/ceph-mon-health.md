@@ -124,3 +124,43 @@ CephCluster CR:
 - `spec.network.hostNetwork`: When enabled or disabled, Rook fails over all monitors, configuring them to enable or disable host networking.
 - `spec.network.Provider` : When updated from being empty to "host", Rook fails over all monitors, configuring them to enable or disable host networking.
 - `spec.network.multiClusterService`: When enabled or disabled, Rook fails over all monitors, configuring them to start (or stop) using service IPs compatible with the multi-cluster service.
+
+## External Monitors
+
+!!! attention
+    This feature is experimental.
+
+It is possible to have both Rook-managed and external monitors in the same Rook cluster.
+One use case for this is 2 datacenter aka 2-AZ (Availability Zone) setup. For 2-AZ setup, Zone outage will lead to loss of k8s control plane and a half of worker nodes hosting Rook mons.
+In this case remaining half of Rook cluster will not be able to form quorum and will be in a stuck state even if half of worker nodes are still up.
+To avoid this situation, external mons can be used to form quorum and keep the cluster running.
+
+If you have external monitors that are not managed by Rook, you have to inform Rook about them, otherwise Rook will remove unknown mons from the quorum. This is done by setting the `mon.externalMonIDs` field in the CephCluster CR. Internal `mon.count` ignores a number of `mon.externalMonIDs`. In other words, if `mon.count = 2`, Rook will spawn 2 internal mons no matter how many external mons are in the cluster and what is their health state. External monitors are supported only for local Rook cluster running in normal mode, meaning that `mon.externalMonIDs` will be ignored for external cluster (`spec.external.enabled: true`) or for `stretchedCluster`.
+
+Here is a step-by-step guide on how to add external monitors to a Rook cluster:
+
+1. Create a CephCluster CR with the `mon.externalMonIDs` field set to the external monitor IDs. For example:
+
+    ```yaml
+    spec:
+      mon:
+        # Spawn 2 Mons - one Mon in each AZ managed by Rook
+        count: 2
+        allowMultiplePerNode: false
+        # ID of external Mon
+        externalMonIDs:
+        - ext-mon-1 
+    ```
+
+    This will tell Rook to run 2 internal monitors in the cluster and to keep the external monitor with the ID `ext-mon-1` if it will be presented in the quorum.
+    It is also possible to add `externalMonIDs` to existing Cluster.
+2. Wait until the Rook cluster and internal mons are up and running.
+3. Manually deploy external monitor with the ID `ext-mon-1` somewhere outside of the Rook cluster and its availability zones. See [ceph guide](https://docs.ceph.com/en/reef/rados/operations/add-or-rm-mons/#adding-removing-monitors) on deploying monitors.
+4. Move external Mon to [disallow-mode](https://docs.ceph.com/en/reef/rados/operations/change-mon-elections/#rados-operations-disallow-mode) to make sure that it won't be elected as a leader. The purpose of external mode is maintaining quorum to elect a new leader in case of zone outage. External Mon will likely have higher latency to the cluster so it is not desired to be elected.
+5. Check that the external monitor is in the quorum by running `ceph status` or `ceph quorum_status` from the toolbox.
+6. Check that external mon is added to Rook mon endpoints:
+
+    ```console
+    $ kubectl -n rook-ceph get cm rook-ceph-mon-endpoints -o jsonpath='{.data.data}'
+    a=10.100.68.61:6789,b=10.103.201.172:6789,ext-mon-1=10.102.136.102:6789
+    ```
