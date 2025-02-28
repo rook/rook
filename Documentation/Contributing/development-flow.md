@@ -279,7 +279,7 @@ See the action details for an ssh connection to the Github runner.
 
 ## Commit structure
 
-Rook maintainers value clear, lengthy and explanatory commit messages.
+Rook maintainers value clear and detailed commit messages.
 
 Requirements for commits:
 
