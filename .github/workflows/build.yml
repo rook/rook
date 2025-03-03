@@ -18,7 +18,7 @@ permissions:
 jobs:
   macos-build:
     runs-on: macos-latest
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     steps:
       - name: checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -67,7 +67,7 @@ jobs:
 
   linux-build-all:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       fail-fast: false
       matrix:

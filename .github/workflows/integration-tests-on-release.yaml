@@ -17,6 +17,7 @@ permissions:
 
 jobs:
   TestCephHelmSuite:
+    if: github.repository == 'rook/rook'
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false

@@ -23,6 +23,7 @@ permissions:
 
 jobs:
   lint-test:
+    if: github.repository == 'rook/rook'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

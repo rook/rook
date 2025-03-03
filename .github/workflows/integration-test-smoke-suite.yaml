@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   TestCephSmokeSuite:
-    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    if: ${{ github.repository == 'rook/rook' && github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false

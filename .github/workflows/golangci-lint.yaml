@@ -21,6 +21,7 @@ permissions:
 
 jobs:
   golangci:
+    if: github.repository == 'rook/rook'
     name: golangci-lint
     runs-on: ubuntu-latest
     steps:

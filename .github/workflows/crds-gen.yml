@@ -26,6 +26,7 @@ permissions:
 
 jobs:
   crds-gen:
+    if: github.repository == 'rook/rook'
     runs-on: ubuntu-22.04
     steps:
       - name: checkout

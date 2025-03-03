@@ -19,7 +19,7 @@ permissions:
 jobs:
   canary:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -344,7 +344,7 @@ jobs:
 
   raw-disk-with-object:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -423,7 +423,7 @@ jobs:
 
   two-osds-in-device:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -475,7 +475,7 @@ jobs:
 
   osd-with-metadata-partition-device:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -525,7 +525,7 @@ jobs:
 
   osd-with-metadata-device:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -584,7 +584,7 @@ jobs:
 
   encryption:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -637,7 +637,7 @@ jobs:
 
   lvm:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -695,7 +695,7 @@ jobs:
 
   pvc:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -772,7 +772,7 @@ jobs:
 
   pvc-db:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -825,7 +825,7 @@ jobs:
 
   pvc-db-wal:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -881,7 +881,7 @@ jobs:
 
   encryption-pvc:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -950,7 +950,7 @@ jobs:
 
   encryption-pvc-db:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -1005,7 +1005,7 @@ jobs:
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -1070,7 +1070,7 @@ jobs:
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -1161,7 +1161,7 @@ jobs:
 
   encryption-pvc-kms-vault-k8s-auth:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -1232,7 +1232,7 @@ jobs:
 
   lvm-pvc:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -1290,7 +1290,7 @@ jobs:
 
   multi-cluster-mirroring:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -1550,7 +1550,7 @@ jobs:
 
   rgw-multisite-testing:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -1648,7 +1648,7 @@ jobs:
 
   encryption-pvc-kms-ibm-kp:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -1678,7 +1678,7 @@ jobs:
 
   multus-public-and-cluster:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
@@ -1760,7 +1760,7 @@ jobs:
 
   two-object-one-zone:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: ${{ github.repository == 'rook/rook' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     strategy:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}

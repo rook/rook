@@ -21,6 +21,7 @@ permissions:
 
 jobs:
   shellcheck:
+    if: github.repository == 'rook/rook'
     name: Shellcheck
     runs-on: ubuntu-latest
     steps:

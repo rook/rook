@@ -21,6 +21,7 @@ permissions:
 
 jobs:
   docs-check:
+    if: github.repository == 'rook/rook'
     name: docs-check
     runs-on: ubuntu-22.04
     steps:
