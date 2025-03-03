@@ -54,6 +54,10 @@ jobs:
           echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
           echo "GITHUB_REF"=${GITHUB_REF} >> $GITHUB_ENV
 
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: 3.13
+
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
