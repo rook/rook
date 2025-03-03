@@ -13,3 +13,5 @@ Object:
     See https://github.com/rook/rook/pull/15376 for more information.
 
 ## Features
+
+- Support external mons for local Rook cluster (see [#14733](https://github.com/rook/rook/issues/14733)).
