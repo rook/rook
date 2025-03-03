@@ -323,7 +323,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateClusterConfig(cephBlockPool
 	csiClusterConfigEntry := csi.CSIClusterConfigEntry{
 		Namespace: r.clusterInfo.Namespace,
 		ClusterInfo: cephcsi.ClusterInfo{
-			Monitors: csi.MonEndpoints(r.clusterInfo.Monitors, cephCluster.Spec.RequireMsgr2()),
+			Monitors: csi.MonEndpoints(r.clusterInfo.AllMonitors(), cephCluster.Spec.RequireMsgr2()),
 			RBD: cephcsi.RBD{
 				RadosNamespace: getRadosNamespaceName(cephBlockPoolRadosNamespace),
 			},

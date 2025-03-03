@@ -109,7 +109,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	}
 
 	// update the msgr2 flag
-	for _, m := range cluster.ClusterInfo.Monitors {
+	for _, m := range cluster.ClusterInfo.InternalMonitors {
 		// m.Endpoint=10.1.115.104:3300
 		monPort := util.GetPortFromEndpoint(m.Endpoint)
 		if monPort == client.Msgr2port {
@@ -123,7 +123,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	}
 
 	// Save CSI configmap
-	monEndpoints := csi.MonEndpoints(cluster.ClusterInfo.Monitors, cluster.Spec.RequireMsgr2())
+	monEndpoints := csi.MonEndpoints(cluster.ClusterInfo.InternalMonitors, cluster.Spec.RequireMsgr2())
 	csiConfigEntry := &csi.CSIClusterConfigEntry{
 		Namespace: cluster.ClusterInfo.Namespace,
 		ClusterInfo: cephcsi.ClusterInfo{
