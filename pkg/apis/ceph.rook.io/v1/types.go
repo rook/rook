@@ -1748,6 +1748,14 @@ type GatewaySpec struct {
 	// +optional
 	RgwConfig map[string]string `json:"rgwConfig,omitempty"`
 
+	// RgwConfigFromSecret works exactly like RgwConfig but takes config value from Secret Key reference.
+	// Values are modified at runtime without RGW restart.
+	// This feature is intended for advanced users. It allows breaking configurations to be easily
+	// applied. Use with caution.
+	// +nullable
+	// +optional
+	RgwConfigFromSecret map[string]v1.SecretKeySelector `json:"rgwConfigFromSecret,omitempty"`
+
 	// RgwCommandFlags sets Ceph RGW config values for the gateway clients that serve this object
 	// store. Values are modified at RGW startup, resulting in RGW pod restarts.
 	// This feature is intended for advanced users. It allows breaking configurations to be easily
