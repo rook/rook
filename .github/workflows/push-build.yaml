@@ -14,6 +14,7 @@ defaults:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   push-image-to-container-registry:
