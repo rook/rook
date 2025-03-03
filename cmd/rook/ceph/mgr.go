@@ -79,7 +79,7 @@ func runMgrSidecar(cmd *cobra.Command, args []string) error {
 	}
 
 	context := createContext()
-	clusterInfo.Monitors = opcontroller.ParseMonEndpoints(cfg.monEndpoints)
+	clusterInfo.InternalMonitors = opcontroller.ParseMonEndpoints(cfg.monEndpoints)
 	rook.LogStartupInfo(mgrSidecarCmd.Flags())
 
 	ownerRef := opcontroller.ClusterOwnerRef(clusterName, ownerRefID)

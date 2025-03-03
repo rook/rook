@@ -45,25 +45,25 @@ func TestStore(t *testing.T) {
 		sec, e := clientset.CoreV1().Secrets(ns).Get(ctxt, StoreName, metav1.GetOptions{})
 		assert.NoError(t, e)
 		mh := strings.Split(sec.StringData["mon_host"], ",") // list of mon ip:port pairs in cluster
-		expectedEndpoints := len(ci.Monitors)
+		expectedEndpoints := len(ci.InternalMonitors)
 		if mon1EndpointsEnabled {
 			expectedEndpoints *= 2
 		}
-		assert.Equal(t, expectedEndpoints, len(mh), ci.Monitors["a"].Endpoint) // we need to pass x2 since we split on "," above and that returns msgr1 and msgr2 addresses
-		mim := strings.Split(sec.StringData["mon_initial_members"], ",")       // list of mon ids in cluster
-		assert.Equal(t, len(ci.Monitors), len(mim))
+		assert.Equal(t, expectedEndpoints, len(mh), ci.InternalMonitors["a"].Endpoint) // we need to pass x2 since we split on "," above and that returns msgr1 and msgr2 addresses
+		mim := strings.Split(sec.StringData["mon_initial_members"], ",")               // list of mon ids in cluster
+		assert.Equal(t, len(ci.InternalMonitors), len(mim))
 		// make sure every mon has its id/ip:port in mon_initial_members/mon_host
 		for _, id := range mim {
 			// cannot use "assert.Contains(t, mh, ci.Monitors[id].Endpoint)"
 			// it looks like the value is not found but if present, it might be confused by the brackets
 			contains := false
 			for _, c := range mh {
-				if strings.Contains(c, ci.Monitors[id].Endpoint) {
+				if strings.Contains(c, ci.InternalMonitors[id].Endpoint) {
 					contains = true
 				}
 			}
 			assert.True(t, contains)
-			assert.Contains(t, mim, ci.Monitors[id].Name)
+			assert.Contains(t, mim, ci.InternalMonitors[id].Name)
 		}
 	}
 
@@ -80,14 +80,14 @@ func TestStore(t *testing.T) {
 
 	// Now run the same test for v1 endpoints
 	mon1EndpointsEnabled = true
-	for _, mon := range i1.Monitors {
+	for _, mon := range i1.InternalMonitors {
 		mon.Endpoint = "1.2.3.4:6789"
 	}
 	err = s.CreateOrUpdate(i1)
 	assert.NoError(t, err)
 	assertConfigStore(i1)
 
-	for _, mon := range i3.Monitors {
+	for _, mon := range i3.InternalMonitors {
 		mon.Endpoint = "1.2.3.4:6789"
 	}
 	err = s.CreateOrUpdate(i3)
