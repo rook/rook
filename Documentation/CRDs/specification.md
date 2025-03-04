@@ -7216,6 +7216,22 @@ This feature is intended for advanced users. It allows breaking configurations t
 applied. Use with caution.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>readAffinity</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ReadAffinity defines the read affinity policy to optimize the read requests for the RGW clients
+Note: Only supported for Ceph Tentacle (v20)
+localize: read from the nearest OSD based on crush location of the RGW client
+balance: picks a random OSD from the PG&rsquo;s active set
+default: read from the primary OSD</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.HTTPEndpointSpec">HTTPEndpointSpec

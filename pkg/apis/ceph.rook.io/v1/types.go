@@ -1755,6 +1755,15 @@ type GatewaySpec struct {
 	// +nullable
 	// +optional
 	RgwCommandFlags map[string]string `json:"rgwCommandFlags,omitempty"`
+
+	// ReadAffinity defines the read affinity policy to optimize the read requests for the RGW clients
+	// Note: Only supported for Ceph Tentacle (v20)
+	// localize: read from the nearest OSD based on crush location of the RGW client
+	// balance: picks a random OSD from the PG's active set
+	// default: read from the primary OSD
+	// +kubebuilder:validation:Enum=localize;balance;default
+	// +optional
+	ReadAffinity string `json:"readAffinity,omitempty"`
 }
 
 // RGWLoggingSpec is intended to extend the s3/swift logging for client operations
