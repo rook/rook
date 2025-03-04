@@ -24,10 +24,12 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func newConfig(t *testing.T) *clusterConfig {
@@ -208,6 +210,7 @@ func TestRgwConfigFromSecret(t *testing.T) {
 		store:       objectStore,
 		context:     objContext.Context,
 		clusterInfo: objContext.clusterInfo,
+		ownerInfo:   k8sutil.NewOwnerInfo(objectStore, runtime.NewScheme()),
 	}
 
 	rgwConfig := &rgwConfig{}
