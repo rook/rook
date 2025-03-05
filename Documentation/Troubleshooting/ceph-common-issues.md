@@ -99,7 +99,7 @@ After you verify the basic health of the running pods, next you will want to run
 The [rook-ceph-tools pod](ceph-toolbox.md) provides a simple environment to run Ceph tools. Once the pod is up and running, connect to the pod to execute Ceph commands to evaluate that current state of the cluster.
 
 ```console
-kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[*].metadata.name}') bash
+kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[*].metadata.name}') -- bash
 ```
 
 #### Ceph Commands
