@@ -8976,6 +8976,19 @@ CephExporterSpec
 <p>Ceph exporter configuration</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>excludePerfCounters</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ExcludePerfCounters determines whether export ceph daemon perf
+counters as prometheus metrics</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.MultiClusterServiceSpec">MultiClusterServiceSpec

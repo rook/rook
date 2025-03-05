@@ -3412,6 +3412,11 @@ func (in *MonitoringSpec) DeepCopyInto(out *MonitoringSpec) {
 		*out = new(CephExporterSpec)
 		**out = **in
 	}
+	if in.ExcludePerfCounters != nil {
+		in, out := &in.ExcludePerfCounters, &out.ExcludePerfCounters
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
