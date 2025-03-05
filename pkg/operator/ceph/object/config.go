@@ -194,6 +194,13 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 	if err != nil {
 		return configOptions, err
 	}
+	if rgwConfig.Auth.Keystone != nil && rgwConfig.KeystoneSecret != nil {
+		// set the owner reference on the secret to reconcile object store on secret changes
+		err = c.setControllerReference(rgwConfig.KeystoneSecret)
+		if err != nil {
+			logger.Errorf("failed to set owner reference to keystone secret %q: %v", rgwConfig.KeystoneSecret.Name, err)
+		}
+	}
 
 	if s3 := rgwConfig.Protocols.S3; s3 != nil {
 		if s3.AuthUseKeystone != nil {
@@ -238,6 +245,12 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, val.Key, val.Name)
 		}
 
+		// set the owner reference on the secret to reconcile object store on secret changes
+		err = c.setControllerReference(secret)
+		if err != nil {
+			logger.Errorf("failed to set owner reference to rgw config secret %q: %v", secret.Name, err)
+		}
+
 		if currVal, ok := configOptions[flag]; ok {
 			// RGW might break with some user-specified config overrides; log clearly to help triage
 			logger.Infof("overriding object store %q RGW config option %q with user-specified rgwConfigFromSecret",
@@ -249,6 +262,18 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 	}
 
 	return configOptions, nil
+}
+
+func (c *clusterConfig) setControllerReference(secret *v1.Secret) error {
+	err := c.ownerInfo.SetControllerReference(secret)
+	if err != nil {
+		return err
+	}
+	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Update(c.clusterInfo.Context, secret, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[string]string) (map[string]string, error) {
