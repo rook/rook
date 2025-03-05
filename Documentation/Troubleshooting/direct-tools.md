@@ -19,7 +19,7 @@ After the pod is started, connect to it like this:
 
 ```console
 kubectl -n rook-ceph get pod -l app=rook-direct-mount
-$ kubectl -n rook-ceph exec -it <pod> bash
+$ kubectl -n rook-ceph exec -it <pod> -- bash
 ```
 
 ## Block Storage Tools
