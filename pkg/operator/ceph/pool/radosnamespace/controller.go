@@ -310,7 +310,9 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 }
 
 func getRadosNamespaceName(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace) string {
-	if cephBlockPoolRadosNamespace.Spec.Name != "" {
+	if cephBlockPoolRadosNamespace.Spec.Name == "<implicit>" {
+		return ""
+	} else if cephBlockPoolRadosNamespace.Spec.Name != "" {
 		return cephBlockPoolRadosNamespace.Spec.Name
 	}
 	return cephBlockPoolRadosNamespace.Name
