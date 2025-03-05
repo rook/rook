@@ -3,7 +3,7 @@
  quay.io/ceph/ceph:v19.2.1
  quay.io/ceph/cosi:v0.1.2
  quay.io/cephcsi/cephcsi:v3.13.0
- quay.io/csiaddons/k8s-sidecar:v0.11.0
+ quay.io/csiaddons/k8s-sidecar:v0.12.0
  registry.k8s.io/sig-storage/csi-attacher:v4.8.0
  registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.13.0
  registry.k8s.io/sig-storage/csi-provisioner:v5.1.0
