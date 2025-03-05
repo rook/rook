@@ -390,6 +390,10 @@ spec:
       debug_rgw: "10" # int
       # debug-rgw: "20" # equivalent config keys can have dashes or underscores
       rgw_s3_auth_use_ldap: "true" # bool
+    rgwConfigFromSecret:
+      rgw_keystone_barbican_password: # name of rgw option with secret value
+        name: "barbican-secret" # name of K8s secret 
+        key: "password" # key of secret value in K8s secret.Data map[string]string
     rgwCommandFlags:
       rgw_dmclock_auth_res: "100.0" # float
       rgw_d4n_l1_datacache_persistent_path: /var/log/rook/rgwd4ncache # string
@@ -397,12 +401,13 @@ spec:
 ```
 
 * `rgwConfig` - These configurations are applied and modified at runtime, without RGW restart.
+* `rgwConfigFromSecret` - same as `rgwConfig` but config value is referenced from k8s secret.
 * `rgwCommandFlags` - These configurations are applied as CLI arguments and result in RGW daemons
     restarting when updates are applied. Restarts are desired behavior for some RGW configs.
 
 !!! note
-    Once an `rgwConfig` is set, it will not be removed from Ceph's central config store when removed
-    from the `rgwConfig` spec. Be sure to specifically set values back to their defaults once done.
+    Once an `rgwConfig` or `rgwConfigFromSecret` is set, it will not be removed from Ceph's central config store when removed
+    from the `rgwConfig` or `rgwConfigFromSecret` spec. Be sure to specifically set values back to their defaults once done.
     With this in mind, `rgwCommandFlags` may be a better choice for temporary config values like
     debug levels.
 
@@ -453,6 +458,34 @@ metadata:
 type: Opaque
 data:
     "bindpass.secret": aGVsbG8ud29ybGQK # hello.world
+```
+
+### Example - usage with `rgwConfigFromSecret`
+
+The sample configuration below demonstrates how to securely handle secret configuration parameters when setting up RGW for [Barbican integration](https://docs.ceph.com/en/latest/radosgw/config-ref/#barbican-settings).
+
+```yaml
+  # ...
+  gateway:
+    # ...
+    rgwConfig:
+      rgw_barbican_url: "http://barbican.example.com:9311"
+      rgw_keystone_barbican_domain: "domain"
+      rgw_keystone_barbican_project: "project" 
+      rgw_keystone_barbican_user: "user"
+    rgwConfigFromSecret:
+      rgw_keystone_barbican_password:
+        name: "barbican-secret"
+        key: "password"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: barbican-secret
+  namespace: rook-ceph
+type: Opaque
+data:
+  "password": aGVsbG8ud29ybGQK # hello.world
 ```
 
 ## Deleting a CephObjectStore

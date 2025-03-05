@@ -27,6 +27,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -215,10 +216,36 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 	for flag, val := range c.store.Spec.Gateway.RgwConfig {
 		if currVal, ok := configOptions[flag]; ok {
 			// RGW might break with some user-specified config overrides; log clearly to help triage
-			logger.Infof("overriding object store %q RGW config option %q (current value %q) with user-specified rgwConfig %q",
+			logger.Infof("overriding object store %q RGW config option %q with user-specified rgwConfig",
+				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag)
+			logger.Tracef("overriding object store %q RGW config option %q (current value %q) with user-specified rgwConfig %q",
 				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, currVal, val)
 		}
 		configOptions[flag] = val
+	}
+
+	for flag, val := range c.store.Spec.Gateway.RgwConfigFromSecret {
+		if val.Key == "" || val.Name == "" {
+			return nil, fmt.Errorf("invalid object store %q rgwConfigFromSecret value %q=%+v", fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, val)
+		}
+		secret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, val.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("unable to lookup secret for object store %q rgwConfigFromSecret %q=%+v", fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, val)
+		}
+		secretVal, ok := secret.Data[val.Key]
+		if !ok {
+			return nil, fmt.Errorf("unable to lookup secret for object store %q rgwConfigFromSecret %q: key %q not found in secret %q",
+				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, val.Key, val.Name)
+		}
+
+		if currVal, ok := configOptions[flag]; ok {
+			// RGW might break with some user-specified config overrides; log clearly to help triage
+			logger.Infof("overriding object store %q RGW config option %q with user-specified rgwConfigFromSecret",
+				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag)
+			logger.Tracef("overriding object store %q RGW config option %q (current value %q) with user-specified rgwConfigFromSecret %q",
+				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, currVal, secretVal)
+		}
+		configOptions[flag] = string(secretVal)
 	}
 
 	return configOptions, nil
