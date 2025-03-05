@@ -448,3 +448,22 @@ func SetPrimaryAffinity(context *clusterd.Context, clusterInfo *ClusterInfo, osd
 	logger.Infof("successfully applied osd.%d primary-affinity %q", osdID, affinity)
 	return nil
 }
+
+type OSDMetadata struct {
+	Id       int    `json:"id"`
+	HostName string `json:"hostname"`
+}
+
+// GetOSDMetadata returns the output of `ceph osd metadata`
+func GetOSDMetadata(context *clusterd.Context, clusterInfo *ClusterInfo) (*[]OSDMetadata, error) {
+	args := []string{"osd", "metadata"}
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get osd metadata")
+	}
+	var osdMetadata []OSDMetadata
+	if err := json.Unmarshal(buf, &osdMetadata); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal osd metadata response")
+	}
+	return &osdMetadata, nil
+}

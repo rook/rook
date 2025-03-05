@@ -182,7 +182,6 @@ spec:
   disruptionManagement:
     managePodBudgets: true
     osdMaintenanceTimeout: 30
-    pgHealthCheckTimeout: 0
   # security oriented settings
   # security:
   # Settings to enable key rotation for KEK(Key Encryption Key).
