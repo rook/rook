@@ -69,17 +69,17 @@ func (c *clusterConfig) portString() string {
 		if !c.store.Spec.IsHostNetwork(c.clusterSpec) {
 			port = rgwPortInternalPort
 		}
-		portString = fmt.Sprintf("port=%s", strconv.Itoa(int(port)))
+		portString = fmt.Sprintf("endpoint=$(POD_IP):%s", strconv.Itoa(int(port)))
 	}
 	if c.store.Spec.IsTLSEnabled() {
 		certPath := path.Join(certDir, certFilename)
 		// This is the beast backend
 		// Config is: http://docs.ceph.com/docs/master/radosgw/frontends/#id3
 		if port != 0 {
-			portString = fmt.Sprintf("%s ssl_port=%d ssl_certificate=%s",
+			portString = fmt.Sprintf("%s ssl_endpoint=$(POD_IP):%d ssl_certificate=%s",
 				portString, c.store.Spec.Gateway.SecurePort, certPath)
 		} else {
-			portString = fmt.Sprintf("ssl_port=%d ssl_certificate=%s",
+			portString = fmt.Sprintf("ssl_endpoint=$(POD_IP):%d ssl_certificate=%s",
 				c.store.Spec.Gateway.SecurePort, certPath)
 		}
 		secretType, _ := c.rgwTLSSecretType(c.store.Spec.Gateway.SSLCertificateRef)

@@ -62,14 +62,14 @@ func TestPortString(t *testing.T) {
 	cfg.clusterSpec.Network.HostNetwork = true
 	cfg.store.Spec.Gateway.Port = 80
 	result = cfg.portString()
-	assert.Equal(t, "port=80", result)
+	assert.Equal(t, "endpoint=$(POD_IP):80", result)
 
 	// Secure port on beast
 	cfg = newConfig(t)
 	cfg.store.Spec.Gateway.SecurePort = 443
 	cfg.store.Spec.Gateway.SSLCertificateRef = "some-k8s-key-secret"
 	result = cfg.portString()
-	assert.Equal(t, "ssl_port=443 ssl_certificate=/etc/ceph/private/rgw-cert.pem", result)
+	assert.Equal(t, "ssl_endpoint=$(POD_IP):443 ssl_certificate=/etc/ceph/private/rgw-cert.pem", result)
 
 	// Both ports on beast
 	cfg = newConfig(t)
@@ -79,7 +79,7 @@ func TestPortString(t *testing.T) {
 	cfg.store.Spec.Gateway.SecurePort = 443
 	cfg.store.Spec.Gateway.SSLCertificateRef = "some-k8s-key-secret"
 	result = cfg.portString()
-	assert.Equal(t, "port=80 ssl_port=443 ssl_certificate=/etc/ceph/private/rgw-cert.pem", result)
+	assert.Equal(t, "endpoint=$(POD_IP):80 ssl_endpoint=$(POD_IP):443 ssl_certificate=/etc/ceph/private/rgw-cert.pem", result)
 
 	// Secure port requires the cert on beast
 	cfg = newConfig(t)
@@ -91,7 +91,7 @@ func TestPortString(t *testing.T) {
 	cfg = newConfig(t)
 	cfg.store.Spec.Gateway.Port = 80
 	result = cfg.portString()
-	assert.Equal(t, "port=8080", result)
+	assert.Equal(t, "endpoint=$(POD_IP):8080", result)
 }
 
 func TestGenerateCephXUser(t *testing.T) {
