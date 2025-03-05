@@ -198,6 +198,11 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 		args = append(args, "--addrs", "::")
 	}
 
+	containerPort := corev1.ContainerPort{
+		ContainerPort: int32(DefaultMetricsPort),
+		Protocol:      corev1.ProtocolTCP,
+	}
+
 	container := corev1.Container{
 		Name:            "ceph-exporter",
 		Command:         []string{"ceph-exporter"},
@@ -205,6 +210,7 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 		Image:           cephImage,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
 		Env:             envVars,
+		Ports:           []corev1.ContainerPort{containerPort},
 		VolumeMounts:    volumeMounts,
 		Resources:       cephv1.GetCephExporterResources(cephCluster.Spec.Resources),
 		SecurityContext: controller.PodSecurityContext(),
