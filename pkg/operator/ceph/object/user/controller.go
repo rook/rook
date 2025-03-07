@@ -450,6 +450,9 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		return errors.Wrapf(err, "failed to set quotas for user %q", u.Name)
 	}
 
+	logger.Debugf("XXX userConfig %+v", userConfig)
+	logger.Debugf("XXX user %+v", user)
+
 	if len(userConfig.Keys) == 0 {
 		// use the keys already set on the user & remove all but one key
 		if len(user.Keys) == 0 {
