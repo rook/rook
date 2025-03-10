@@ -103,7 +103,7 @@ function test_demo_pool {
 
 function test_csi {
   timeout 360 bash -x <<-'EOF'
-    until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-)" -eq 6 ]]; do
+    until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c csi.)" -eq 7 ]]; do
       echo "waiting for csi pods to be ready"
       sleep 5
     done
