@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -43,17 +44,24 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/ptr"
 
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
 
 const (
+	// endpointSliceNameIPv4 is the name of the endpointslice with IPv4 mon addresses
+	endpointSliceNameIPv4 = "rook-ceph-active-mons-ipv4"
+	// endpointSliceNameIPv6 is the name of the endpointslice with IPv6 mon addresses
+	endpointSliceNameIPv6 = "rook-ceph-active-mons-ipv6"
 	// EndpointConfigMapName is the name of the configmap with mon endpoints
 	EndpointConfigMapName = "rook-ceph-mon-endpoints"
 	// EndpointDataKey is the name of the key inside the mon configmap to get the endpoints
@@ -77,6 +85,11 @@ const (
 	// DefaultMsgr2Port is the listening port of the messenger v2 protocol introduced in Ceph
 	// Nautilus. In Nautilus and a few Ceph releases after, Ceph can use both v1 and v2 protocols.
 	DefaultMsgr2Port int32 = 3300
+
+	// DefaultMsgr1PortName is the name used for the Ceph msgr1 TCP port
+	DefaultMsgr1PortName string = "tcp-msgr1"
+	// DefaultMsgr2PortName is the name used for the Ceph msgr2 TCP port
+	DefaultMsgr2PortName string = "tcp-msgr2"
 
 	// minimum amount of memory in MB to run the pod
 	cephMonPodMinimumMemory uint64 = 1024
@@ -1146,7 +1159,7 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig, requireAllInQuorum bool) 
 
 func (c *Cluster) saveMonConfig() error {
 	if err := c.persistExpectedMonDaemons(); err != nil {
-		return errors.Wrap(err, "failed to persist expected mons")
+		return errors.Wrap(err, "failed to persist expected mon daemons")
 	}
 
 	// Every time the mon config is updated, must also update the global config so that all daemons
@@ -1188,6 +1201,130 @@ func (c *Cluster) saveMonConfig() error {
 }
 
 func (c *Cluster) persistExpectedMonDaemons() error {
+	if err := c.persistExpectedMonDaemonsInConfigMap(); err != nil {
+		return errors.Wrap(err, "failed to persist expected mons in ConfigMap")
+	}
+
+	if err := c.persistExpectedMonDaemonsAsEndpointSlice(); err != nil {
+		return errors.Wrap(err, "failed to persist expected mons in EndpointSlice")
+	}
+	return nil
+}
+
+func (c *Cluster) persistExpectedMonDaemonsAsEndpointSlice() error {
+	monitors := c.ClusterInfo.AllMonitors()
+	if len(monitors) == 0 {
+		// Theoretically, we could now go ahead with the normal code path to
+		// delete (both IPv4 and IPv6) EndpointSlices, but 0 mons is certainly
+		// an error state, so it's better to do nothing destructive right now.
+		logger.Debug("no mon addresses found, skipping endpointslice resource reconciliation")
+		return nil
+	}
+
+	ipv4Addresses := []string{}
+	ipv6Addresses := []string{}
+
+	for _, mon := range monitors {
+		host, _, err := net.SplitHostPort(mon.Endpoint)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse mon addr %q", mon.Endpoint)
+		}
+		ip := net.ParseIP(host)
+		if ip == nil {
+			logger.Warningf("invalid IP parsed from mon endpoint: %s", mon.Endpoint)
+			continue
+		}
+		if ip.To4() != nil {
+			ipv4Addresses = append(ipv4Addresses, host)
+		} else {
+			ipv6Addresses = append(ipv6Addresses, host)
+		}
+	}
+
+	if err := c.createEndpointSliceForAddresses(ipv4Addresses, discoveryv1.AddressTypeIPv4); err != nil {
+		return err
+	}
+
+	if err := c.createEndpointSliceForAddresses(ipv6Addresses, discoveryv1.AddressTypeIPv6); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Cluster) createEndpointSliceForAddresses(addresses []string, addressType discoveryv1.AddressType) error {
+	client := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace)
+
+	sliceName := endpointSliceNameIPv4
+	if addressType == discoveryv1.AddressTypeIPv6 {
+		sliceName = endpointSliceNameIPv6
+	}
+
+	if len(addresses) == 0 {
+		logger.Debugf("no %s addresses found, deleting existing %q endpointslice if exists", addressType, sliceName)
+		if err := client.Delete(c.ClusterInfo.Context, sliceName, metav1.DeleteOptions{}); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debugf("endpointslice %q not found, nothing to delete", sliceName)
+			} else {
+				logger.Errorf("failed to delete endpointslice %q: %v", sliceName, err)
+			}
+		}
+		return nil
+	}
+
+	endpointSlicePorts := []discoveryv1.EndpointPort{}
+	endpointSlicePorts = append(endpointSlicePorts, discoveryv1.EndpointPort{
+		Name:     ptr.To(DefaultMsgr2PortName),
+		Port:     ptr.To(DefaultMsgr2Port),
+		Protocol: ptr.To(corev1.ProtocolTCP),
+	})
+	if !c.spec.RequireMsgr2() {
+		endpointSlicePorts = append(endpointSlicePorts, discoveryv1.EndpointPort{
+			Name:     ptr.To(DefaultMsgr1PortName),
+			Port:     ptr.To(DefaultMsgr1Port),
+			Protocol: ptr.To(corev1.ProtocolTCP),
+		})
+	}
+
+	endpointSlice := &discoveryv1.EndpointSlice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sliceName,
+			Namespace: c.Namespace,
+			Labels: map[string]string{
+				"kubernetes.io/service-name": "rook-ceph-active-mons",
+			},
+		},
+		Endpoints: []discoveryv1.Endpoint{
+			{
+				Addresses: addresses,
+			},
+		},
+		Ports:       endpointSlicePorts,
+		AddressType: addressType,
+	}
+
+	cephv1.GetClusterMetadataAnnotations(c.spec.Annotations).ApplyToObjectMeta(&endpointSlice.ObjectMeta)
+
+	if err := c.ownerInfo.SetControllerReference(endpointSlice); err != nil {
+		return errors.Wrapf(err, "failed to set controller reference on endpointslice %q", sliceName)
+	}
+
+	if _, err := client.Create(c.ClusterInfo.Context, endpointSlice, metav1.CreateOptions{}); err != nil {
+		if !kerrors.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "failed to create %s endpointslice", addressType)
+		}
+
+		logger.Debugf("updating existing %s endpointslice %s", addressType, sliceName)
+		if _, err = client.Update(c.ClusterInfo.Context, endpointSlice, metav1.UpdateOptions{}); err != nil {
+			return errors.Wrapf(err, "failed to update %s endpointslice", addressType)
+		}
+	}
+
+	logger.Infof("created/updated %s endpointslice with addresses: %+v", addressType, addresses)
+	return nil
+}
+
+func (c *Cluster) persistExpectedMonDaemonsInConfigMap() error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       EndpointConfigMapName,
@@ -1492,7 +1629,8 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 		return errors.Wrapf(err, "failed to commit maxMonId after starting mon %q", m.DaemonName)
 	}
 
-	// Persist the expected list of mons to the configmap in case the operator is interrupted before the mon failover is completed
+	// Persist the expected list of mons to the ConfigMap and EndpointSlice resources
+	// in case the operator is interrupted before the mon failover is completed.
 	// The config on disk won't be updated until the mon failover is completed
 	if err := c.persistExpectedMonDaemons(); err != nil {
 		return errors.Wrap(err, "failed to persist expected mon daemons")
