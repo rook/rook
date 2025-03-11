@@ -125,6 +125,32 @@ CephCluster CR:
 - `spec.network.Provider` : When updated from being empty to "host", Rook fails over all monitors, configuring them to enable or disable host networking.
 - `spec.network.multiClusterService`: When enabled or disabled, Rook fails over all monitors, configuring them to start (or stop) using service IPs compatible with the multi-cluster service.
 
+## Tracking Mon Endpoints
+
+An EndpointSlice resource provides dynamic DNS resolution, allowing clients to resolve mon endpoints via DNS without requiring manual updates. Dynamic DNS resolution helps address challenges such as virtual machine live migration by ensuring seamless and automatic updates to mon endpoint addresses. The Ceph client can connect to `rook-ceph-active-mons.<namespace>.svc.cluster.local` to dynamically resolve mon endpoints and receive automatic updates when mon IPs change.
+
+To enable the dynamic DNS resolution, create a headless service, that endpointslice resource references. Below is the required configuration for the headless service:
+
+```bash
+kubectl apply -f deploy/examples/headless-mon-service.yaml
+```
+
+To confirm the dynamic resolution of active mon endpoints, we can perform a check from within the cluster:
+
+```console
+$ nslookup rook-ceph-active-mons.rook-ceph.svc.cluster.local
+Server:    127.0.0.53
+Address:   127.0.0.53#53
+
+Non-authoritative answer:
+Name:   rook-ceph-active-mons.rook-ceph.svc.cluster.local
+Address: 10.233.49.126
+Name:   rook-ceph-active-mons.rook-ceph.svc.cluster.local
+Address: 10.233.37.99
+Name:   rook-ceph-active-mons.rook-ceph.svc.cluster.local
+Address: 10.233.1.212
+```
+
 ## External Monitors
 
 !!! attention
@@ -149,7 +175,7 @@ Here is a step-by-step guide on how to add external monitors to a Rook cluster:
         allowMultiplePerNode: false
         # ID of external Mon
         externalMonIDs:
-        - ext-mon-1 
+        - ext-mon-1
     ```
 
     This will tell Rook to create two internal monitors in the cluster and to keep the external monitor with the ID `ext-mon-1` if it is found in the quorum.
