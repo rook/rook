@@ -56,11 +56,13 @@ type clusterConfig struct {
 }
 
 type rgwConfig struct {
-	ResourceName string
-	DaemonID     string
-	Realm        string
-	ZoneGroup    string
-	Zone         string
+	ResourceName      string
+	DaemonID          string
+	Realm             string
+	ZoneGroup         string
+	Zone              string
+	FailureDomain     string
+	ReadReplicaPolicy string
 
 	Auth           cephv1.AuthSpec
 	KeystoneSecret *v1.Secret
@@ -130,14 +132,16 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 		resourceName := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, daemonLetterID)
 
 		rgwConfig := &rgwConfig{
-			ResourceName:   resourceName,
-			DaemonID:       daemonName,
-			Realm:          realmName,
-			ZoneGroup:      zoneGroupName,
-			Zone:           zoneName,
-			Auth:           c.store.Spec.Auth,
-			Protocols:      c.store.Spec.Protocols,
-			KeystoneSecret: keystoneSecret,
+			ResourceName:      resourceName,
+			DaemonID:          daemonName,
+			Realm:             realmName,
+			ZoneGroup:         zoneGroupName,
+			Zone:              zoneName,
+			Auth:              c.store.Spec.Auth,
+			Protocols:         c.store.Spec.Protocols,
+			KeystoneSecret:    keystoneSecret,
+			FailureDomain:     c.getRGWFailureDomain(),
+			ReadReplicaPolicy: c.store.Spec.Gateway.RgwConfig[radosReadReplicaPolicy],
 		}
 
 		// We set the owner reference of the Secret to the Object controller instead of the replicaset

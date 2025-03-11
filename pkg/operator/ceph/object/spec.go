@@ -29,8 +29,11 @@ import (
 	"github.com/hashicorp/vault/api"
 	"github.com/libopenstorage/secrets/vault"
 	"github.com/pkg/errors"
+	"github.com/rook/rook/cmd/rook/rook"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -46,6 +49,12 @@ const (
 	sseKMS             = "ssekms"
 	sseS3              = "sses3"
 	vaultPrefix        = "/v1/"
+
+	// Read Affinity settings for RGW clients to reduce cross-zone traffic
+	radosReadReplicaPolicy = "rados_replica_read_policy"
+	// read from the nearest OSD based on the crush location of the RGW client
+	localizedReadReplicaPolicy = "localize"
+
 	//nolint:gosec // since this is not leaking any hardcoded details
 	setupVaultTokenFile = `
 set -e
@@ -156,6 +165,18 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		PriorityClassName:  c.store.Spec.Gateway.PriorityClassName,
 		SecurityContext:    &v1.PodSecurityContext{},
 		ServiceAccountName: serviceAccountName,
+	}
+
+	if rgwConfig.ReadReplicaPolicy == localizedReadReplicaPolicy && c.clusterInfo.CephVersion.IsAtLeastTentacle() {
+		rookImageName := rook.GetOperatorImage(c.clusterInfo.Context, c.context.Clientset, "rook-ceph-operator")
+		nodeLabelInjectorContainer := nodeTopologyInjectorContainer(rookImageName)
+
+		// Add volumeMounts to `rgw` and `nodeLabelInjector` (init) containers to share the env file stored in /tmp
+		volume, volumeMount := getNodeLabelEnvContainerVolumeAndMount()
+		nodeLabelInjectorContainer.VolumeMounts = append(nodeLabelInjectorContainer.VolumeMounts, volumeMount)
+		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMount)
+		podSpec.InitContainers = append(podSpec.InitContainers, nodeLabelInjectorContainer)
+		podSpec.Volumes = append(podSpec.Volumes, volume)
 	}
 
 	opsLogFile := ""
@@ -360,24 +381,24 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		return v1.Container{}, errors.Wrap(err, "failed to generate default readiness probe")
 	}
 
+	args := append(
+		controller.DaemonFlags(c.clusterInfo, c.clusterSpec,
+			strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
+		"--foreground",
+		cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontendName, c.portString())),
+		cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
+		cephconfig.NewFlag("rgw realm", rgwConfig.Realm),
+		cephconfig.NewFlag("rgw zonegroup", rgwConfig.ZoneGroup),
+		cephconfig.NewFlag("rgw zone", rgwConfig.Zone),
+	)
+
+	cmd := c.getRGWContainerCMD(rgwConfig, &args)
+
 	container := v1.Container{
 		Name:            "rgw",
 		Image:           c.clusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
-		Command: []string{
-			"radosgw",
-		},
-		Args: append(
-			controller.DaemonFlags(c.clusterInfo, c.clusterSpec,
-				strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
-			"--foreground",
-			cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontendName, c.portString())),
-			cephconfig.NewFlag("host", controller.ContainerEnvVarReference(k8sutil.PodNameEnvVar)),
-			cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
-			cephconfig.NewFlag("rgw realm", rgwConfig.Realm),
-			cephconfig.NewFlag("rgw zonegroup", rgwConfig.ZoneGroup),
-			cephconfig.NewFlag("rgw zone", rgwConfig.Zone),
-		),
+		Command:         cmd,
 		VolumeMounts: append(
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolumeMount(),
@@ -1129,4 +1150,81 @@ func GetHostnameFromEndpoint(endpoint string) (string, error) {
 	}
 
 	return hostname, nil
+}
+
+func (c *clusterConfig) getRGWFailureDomain() string {
+	poolSpecs := make([]cephv1.PoolSpec, 0)
+	poolSpecs = append(poolSpecs, c.store.Spec.DataPool)
+	poolSpecs = append(poolSpecs, c.store.Spec.MetadataPool)
+	return topology.GetMinimumFailureDomain(poolSpecs)
+}
+
+func nodeTopologyInjectorContainer(imageName string) v1.Container {
+	return v1.Container{
+		Name:    "node-topology-injector",
+		Image:   imageName,
+		Command: []string{"rook"},
+		Args:    []string{"inject-node-topology"},
+		Env: []v1.EnvVar{
+			k8sutil.NodeEnvVar(),
+		},
+	}
+}
+
+func getNodeLabelEnvContainerVolumeAndMount() (v1.Volume, v1.VolumeMount) {
+	volName := "node-env"
+	v := v1.Volume{Name: volName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
+	m := v1.VolumeMount{Name: volName, MountPath: "/tmp"}
+	return v, m
+}
+
+func (c *clusterConfig) getRGWContainerCMD(rgwConfig *rgwConfig, args *[]string) []string {
+	// TODO: minimum ceph version should be tentacles
+	if rgwConfig.ReadReplicaPolicy == localizedReadReplicaPolicy && c.clusterInfo.CephVersion.IsAtLeastTentacle() {
+		*args = append(*args, cephconfig.NewFlag("crush location", fmt.Sprintf("\"%s\"", c.getRGWCrushLocation(rgwConfig))))
+		// TODO: this call should be made at the end of `makeDaemonContainer` method when all the arguments have been initialized.
+		normalizeArgsForScript(args)
+		rgwCmd := "source /tmp/env* && radosgw " + strings.Join(*args, " ")
+		return []string{"bash", "-x", "-c", rgwCmd}
+	}
+	return append([]string{"radosgw"}, *args...)
+}
+
+func (c *clusterConfig) getRGWCrushLocation(rgwConfig *rgwConfig) string {
+	crushRoot := client.GetCrushRootFromSpec(c.clusterSpec)
+	locArgs := []string{fmt.Sprintf("root=%s", crushRoot)}
+	// portable OSDs have crush locations set to PVC name instead of hostName. So don't set host crush location for RGW in case of portable OSDs.
+	if !isPortableDeviceSet(c.clusterSpec) {
+		locArgs = append(locArgs, fmt.Sprintf("%s=%s", cephv1.DefaultFailureDomain, "$host"))
+	}
+	if rgwConfig.FailureDomain != cephv1.DefaultFailureDomain {
+		locArgs = append(locArgs, fmt.Sprintf("%s=%s", rgwConfig.FailureDomain, fmt.Sprintf("$%s", rgwConfig.FailureDomain)))
+	}
+	loc := strings.Join(locArgs, " ")
+	return loc
+}
+
+func isPortableDeviceSet(c *cephv1.ClusterSpec) bool {
+	if c.Storage.StorageClassDeviceSets != nil {
+		for _, deviceSet := range c.Storage.StorageClassDeviceSets {
+			if deviceSet.Portable {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// normalizeArgsForScript add quotes arguments with white spaces.
+// For example `--rgw-frontends=beast port=8080` is converted into `--rgw-frontends="beast port=8080"`
+func normalizeArgsForScript(args *[]string) {
+	for i, arg := range *args {
+		argList := strings.SplitN(arg, "=", 2)
+		if len(argList) != 2 {
+			continue
+		}
+		if strings.Contains(argList[1], " ") {
+			(*args)[i] = fmt.Sprintf("%s=\"%s\"", argList[0], argList[1])
+		}
+	}
 }

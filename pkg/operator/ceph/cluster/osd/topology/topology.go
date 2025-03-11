@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
@@ -145,4 +146,34 @@ func GetDefaultTopologyLabels() string {
 	}
 
 	return strings.Join(Labels, ",")
+}
+
+// GetMinimumFailureDomain returns the minimum possible failure domain set across the pool spec
+func GetMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
+	if len(poolList) == 0 {
+		return cephv1.DefaultFailureDomain
+	}
+
+	//start with max as the min
+	minfailureDomainIndex := len(CRUSHMapLevelsOrdered) - 1
+	matched := false
+
+	for _, pool := range poolList {
+		for index, failureDomain := range CRUSHMapLevelsOrdered {
+			if index == minfailureDomainIndex {
+				// index is higher-than/equal-to the min
+				break
+			}
+			if pool.FailureDomain == failureDomain {
+				// new min found
+				matched = true
+				minfailureDomainIndex = index
+			}
+		}
+	}
+	if !matched {
+		logger.Debugf("could not match failure domain. defaulting to %q", cephv1.DefaultFailureDomain)
+		return cephv1.DefaultFailureDomain
+	}
+	return CRUSHMapLevelsOrdered[minfailureDomainIndex]
 }

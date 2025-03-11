@@ -22,6 +22,7 @@ package topology
 import (
 	"testing"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -152,5 +153,32 @@ func TestGetDefaultTopologyLabels(t *testing.T) {
 		"topology.rook.io/room," +
 		"topology.rook.io/datacenter"
 	assert.Equal(t, expectedLabels, GetDefaultTopologyLabels())
+
+}
+
+func TestGetMinimumFailureDomain(t *testing.T) {
+	poolList := []cephv1.PoolSpec{
+		{FailureDomain: "region"},
+		{FailureDomain: "zone"},
+	}
+
+	assert.Equal(t, "zone", GetMinimumFailureDomain(poolList))
+
+	poolList = []cephv1.PoolSpec{
+		{FailureDomain: "region"},
+		{FailureDomain: "zone"},
+		{FailureDomain: "host"},
+	}
+
+	assert.Equal(t, "host", GetMinimumFailureDomain(poolList))
+
+	// test default
+	poolList = []cephv1.PoolSpec{
+		{FailureDomain: "aaa"},
+		{FailureDomain: "bbb"},
+		{FailureDomain: "ccc"},
+	}
+
+	assert.Equal(t, "host", GetMinimumFailureDomain(poolList))
 
 }
