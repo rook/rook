@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -44,6 +45,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -54,6 +56,8 @@ import (
 )
 
 const (
+	// endpointSliceName is the name of the endpointslice with mon addresses
+	endpointSliceName = "rook-ceph-active-mons"
 	// EndpointConfigMapName is the name of the configmap with mon endpoints
 	EndpointConfigMapName = "rook-ceph-mon-endpoints"
 	// EndpointDataKey is the name of the key inside the mon configmap to get the endpoints
@@ -1147,7 +1151,7 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig, requireAllInQuorum bool) 
 
 func (c *Cluster) saveMonConfig() error {
 	if err := c.persistExpectedMonDaemons(); err != nil {
-		return errors.Wrap(err, "failed to persist expected mons")
+		return errors.Wrap(err, "failed to persist expected mon daemons")
 	}
 
 	// Every time the mon config is updated, must also update the global config so that all daemons
@@ -1189,6 +1193,91 @@ func (c *Cluster) saveMonConfig() error {
 }
 
 func (c *Cluster) persistExpectedMonDaemons() error {
+	if err := c.persistExpectedMonDaemonsInConfigMap(); err != nil {
+		return errors.Wrap(err, "failed to persist expected mons in ConfigMap")
+	}
+
+	if err := c.persistExpectedMonDaemonsAsEndpointSlice(); err != nil {
+		return errors.Wrap(err, "failed to persist expected mons in EndpointSlice")
+	}
+	return nil
+}
+
+func (c *Cluster) persistExpectedMonDaemonsAsEndpointSlice() error {
+	monitors := c.ClusterInfo.AllMonitors()
+
+	if len(monitors) == 0 {
+		logger.Debug("no mon addresses found, skipping endpointslice resource creation")
+		return nil
+	}
+
+	monAddresses := make([]string, 0, len(monitors))
+
+	for _, mon := range monitors {
+		host, _, err := net.SplitHostPort(mon.Endpoint)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse mon addr %q", mon.Endpoint)
+		}
+		monAddresses = append(monAddresses, host)
+	}
+
+	if len(monAddresses) == 0 {
+		logger.Debug("no mon addresses parsed, skipping endpointslice resource creation")
+		return nil
+	}
+
+	// Even in dual-stack clusters where c.spec.Network.IPFamily == "IPv6", we behave as single-stack —
+	// while Ceph itself supports dual-stack, Rook do not expose dual-stack identities for monitors.
+	// While monitor daemons may listen on both IP families, Rook only exposes a single-family address
+	// via the Kubernetes Service (usually IPv4 in most clusters). Monitor IPs are treated as core identities
+	// and cannot change.
+	// c.ClusterInfo.AllMonitors() always returns the mons Kubernetes Service addresses, not pod IPs,
+	// so the address family is consistent and reflects the correct IP type used in the cluster.
+	addressType := discoveryv1.AddressTypeIPv4
+	if net.ParseIP(monAddresses[0]).To4() == nil {
+		addressType = discoveryv1.AddressTypeIPv6
+	}
+
+	endpointSlice := &discoveryv1.EndpointSlice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      endpointSliceName,
+			Namespace: c.Namespace,
+			Labels: map[string]string{
+				"kubernetes.io/service-name": endpointSliceName,
+			},
+		},
+		Endpoints: []discoveryv1.Endpoint{
+			{
+				Addresses: monAddresses,
+			},
+		},
+		Ports:       nil,
+		AddressType: addressType,
+	}
+
+	cephv1.GetClusterMetadataAnnotations(c.spec.Annotations).ApplyToObjectMeta(&endpointSlice.ObjectMeta)
+
+	err := c.ownerInfo.SetControllerReference(endpointSlice)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set controller reference mon endpointslice %q", endpointSlice.Name)
+	}
+
+	if _, err := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Create(c.ClusterInfo.Context, endpointSlice, metav1.CreateOptions{}); err != nil {
+		if !kerrors.IsAlreadyExists(err) {
+			return errors.Wrap(err, "failed to create mon endpointslice")
+		}
+
+		logger.Debugf("updating endpointslice resource %s that already exists", endpointSlice.Name)
+		if _, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Update(c.ClusterInfo.Context, endpointSlice, metav1.UpdateOptions{}); err != nil {
+			return errors.Wrap(err, "failed to update mon endpointslice")
+		}
+	}
+
+	logger.Infof("created mon endpointslice %+v", endpointSlice.Endpoints)
+	return nil
+}
+
+func (c *Cluster) persistExpectedMonDaemonsInConfigMap() error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       EndpointConfigMapName,
@@ -1494,7 +1583,8 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 		return errors.Wrapf(err, "failed to commit maxMonId after starting mon %q", m.DaemonName)
 	}
 
-	// Persist the expected list of mons to the configmap in case the operator is interrupted before the mon failover is completed
+	// Persist the expected list of mons to the ConfigMap and EndpointSlice resources
+	// in case the operator is interrupted before the mon failover is completed.
 	// The config on disk won't be updated until the mon failover is completed
 	if err := c.persistExpectedMonDaemons(); err != nil {
 		return errors.Wrap(err, "failed to persist expected mon daemons")
