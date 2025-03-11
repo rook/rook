@@ -11,7 +11,7 @@ metadata:
 spec:
   metadataPool:
     replicated:
-      size: 1
+      size: 2
   dataPool:
     replicated:
       size: 1
@@ -20,3 +20,5 @@ spec:
     port: 80
     # securePort: 443
     instances: 1
+    rgwReadAffinity:
+      type: localize

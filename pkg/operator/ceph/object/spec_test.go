@@ -1528,3 +1528,46 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRGWCrushLocation(t *testing.T) {
+	c := &clusterConfig{
+		store:       simpleStore(),
+		clusterSpec: &cephv1.ClusterSpec{},
+	}
+
+	// Non portable OSDs with "host" failure Domain
+	c.store.Spec.Gateway.RgwReadAffinity = &cephv1.RgwReadAffinity{Type: "localize", FailureDomain: "host"}
+	assert.Equal(t, "root=default host=$host", c.getRGWCrushLocation())
+
+	// Non portable OSDs with "zone" failure Domain
+	c.store.Spec.Gateway.RgwReadAffinity = &cephv1.RgwReadAffinity{Type: "localize", FailureDomain: "zone"}
+	assert.Equal(t, "root=default host=$host zone=$zone", c.getRGWCrushLocation())
+
+	// Non portable OSDs with "rack" failure Domain
+	c.store.Spec.Gateway.RgwReadAffinity = &cephv1.RgwReadAffinity{Type: "localize", FailureDomain: "rack"}
+	assert.Equal(t, "root=default host=$host rack=$rack", c.getRGWCrushLocation())
+
+	// Non portable OSDs without any failure domain set by the customer in RgwReadAffnity
+	c.store.Spec.Gateway.RgwReadAffinity = &cephv1.RgwReadAffinity{Type: "localize", FailureDomain: ""}
+	assert.Equal(t, "root=default host=$host", c.getRGWCrushLocation())
+
+	// portable OSDs without any failure domain set by the customer in RgwReadAffnity. Assert that "host" should be set on crush location
+	c.store.Spec.Gateway.RgwReadAffinity = &cephv1.RgwReadAffinity{Type: "localize", FailureDomain: "zone"}
+	c.clusterSpec.Storage.StorageClassDeviceSets = []cephv1.StorageClassDeviceSet{
+		{
+			Name:     "set-1",
+			Portable: true,
+		},
+	}
+	assert.Equal(t, "root=default zone=$zone", c.getRGWCrushLocation())
+
+}
+
+func TestNormalizeArgsForScript(t *testing.T) {
+	args := []string{"a=b c"}
+	normalizeArgsForScript(&args)
+	assert.Equal(t, "a=\"b c\"", args[0])
+	args = []string{"a=b c d"}
+	normalizeArgsForScript(&args)
+	assert.Equal(t, "a=\"b c d\"", args[0])
+}

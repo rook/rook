@@ -18,6 +18,8 @@ limitations under the License.
 package object
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -32,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
@@ -41,6 +44,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -71,6 +75,12 @@ var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 var (
 	insecureSkipVerify = "insecureSkipVerify"
+)
+
+const (
+	nodeTopologyConfigMap         = "rook-ceph-node-topology"
+	nodeTopologyConfigMapKey      = "topologies.json"
+	nodeTopologyConfigMapLocation = "/etc/config"
 )
 
 func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName string, keystoneSecret *v1.Secret) error {
@@ -109,6 +119,18 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 	rgwsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.clusterInfo.Context, c.context, c.clusterInfo.Namespace, config.RgwType, AppName)
 	if err != nil {
 		return errors.Wrap(err, "failed to check for RGWs to skip reconcile")
+	}
+
+	// create NodeTopologyConfigMap in case of localized reads
+	if c.isLocalizedReadAffinitySet() {
+		nodeTopologyLabels, err := GetNodeTopologyLabels(c.clusterInfo.Context, c.context.Clientset)
+		if err != nil {
+			return errors.Wrap(err, "failed to node topology labels")
+		}
+		err = createOrUpdateNodeTopologyConfigMap(c.context, c.clusterInfo, nodeTopologyLabels)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create node TopologyConfigMap")
+		}
 	}
 
 	// start a new deployment and scale up
@@ -454,4 +476,47 @@ func genObjectStoreHTTPClient(objContext *Context, spec *cephv1.ObjectStoreSpec)
 		c.Transport = BuildTransportTLS(tlsCert, insecureTLS)
 	}
 	return c, tlsCert, nil
+}
+
+func GetNodeTopologyLabels(ctx context.Context, clientset kubernetes.Interface) (map[string]map[string]string, error) {
+	nodeTopologyLabels := make(map[string]map[string]string)
+	k8sNodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list kubernetes nodes. %v", err)
+	}
+	for _, node := range k8sNodes.Items {
+		labels, _ := topology.ExtractOSDTopologyFromLabels(node.GetLabels())
+		nodeTopologyLabels[node.GetName()] = labels
+
+	}
+	return nodeTopologyLabels, nil
+}
+
+func createOrUpdateNodeTopologyConfigMap(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, nodeToploggies map[string]map[string]string) error {
+	newConfigMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nodeTopologyConfigMap,
+			Namespace: clusterInfo.Namespace,
+		},
+		Data: map[string]string{},
+	}
+
+	topologyString, err := json.Marshal(nodeToploggies)
+	if err != nil {
+		return errors.Wrapf(err, "failed to convert node topologies to json string")
+	}
+
+	newConfigMap.Data[nodeTopologyConfigMapKey] = string(topologyString)
+
+	err = clusterInfo.OwnerInfo.SetControllerReference(newConfigMap)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference on %q configMap", newConfigMap.Name)
+	}
+
+	_, err = k8sutil.CreateOrUpdateConfigMap(clusterInfo.Context, context.Clientset, newConfigMap)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create or update %q configMap", newConfigMap.Name)
+	}
+
+	return nil
 }

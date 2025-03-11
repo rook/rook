@@ -190,6 +190,10 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 		configOptions["rgw_enable_ops_log"] = "false"
 	}
 
+	if c.store.Spec.Gateway.RgwReadAffinity != nil && c.clusterInfo.CephVersion.IsAtLeastTentacle() {
+		configOptions[radosReadReplicaPolicy] = c.store.Spec.Gateway.RgwReadAffinity.Type
+	}
+
 	configOptions, err := configureKeystoneAuthentication(rgwConfig, configOptions)
 	if err != nil {
 		return configOptions, err

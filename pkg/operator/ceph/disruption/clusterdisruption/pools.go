@@ -70,39 +70,10 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 		poolSpecs = append(poolSpecs, cephObjectStore.Spec.DataPool)
 
 	}
-	minFailureDomain := getMinimumFailureDomain(poolSpecs)
+	minFailureDomain := topology.GetMinimumFailureDomain(poolSpecs)
 
 	return cephObjectStoreList, cephFilesystemList, minFailureDomain, poolCount, nil
 
-}
-
-func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
-	if len(poolList) == 0 {
-		return cephv1.DefaultFailureDomain
-	}
-
-	//start with max as the min
-	minfailureDomainIndex := len(topology.CRUSHMapLevelsOrdered) - 1
-	matched := false
-
-	for _, pool := range poolList {
-		for index, failureDomain := range topology.CRUSHMapLevelsOrdered {
-			if index == minfailureDomainIndex {
-				// index is higher-than/equal-to the min
-				break
-			}
-			if pool.FailureDomain == failureDomain {
-				// new min found
-				matched = true
-				minfailureDomainIndex = index
-			}
-		}
-	}
-	if !matched {
-		logger.Debugf("could not match failure domain. defaulting to %q", cephv1.DefaultFailureDomain)
-		return cephv1.DefaultFailureDomain
-	}
-	return topology.CRUSHMapLevelsOrdered[minfailureDomainIndex]
 }
 
 // Setting naive minAvailable for RGW at: n - 1

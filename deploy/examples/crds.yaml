@@ -11984,6 +11984,28 @@ spec:
                         applied. Use with caution.
                       nullable: true
                       type: object
+                    rgwReadAffinity:
+                      description: |-
+                        RgwReadAffinity defines the read affinity policy to optimize the read requests for the RGW clients
+                        Note: Only supported for Ceph Tentacle (v20)
+                      properties:
+                        failureDomain:
+                          description: 'The failure domain: osd/host/(region or zone if available) - technically also any type in the crush map'
+                          type: string
+                        type:
+                          description: |-
+                            Type defines the RGW ReadAffinity type
+                            localize: read from the nearest OSD based on crush location of the RGW client
+                            balance: picks a random OSD from the PG's active set
+                            default: read from the primary OSD
+                          enum:
+                            - localize
+                            - balance
+                            - default
+                          type: string
+                      required:
+                        - type
+                      type: object
                     securePort:
                       description: The port the rgw service will be listening on (https)
                       format: int32
