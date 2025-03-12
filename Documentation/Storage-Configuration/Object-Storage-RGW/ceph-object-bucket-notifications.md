@@ -65,6 +65,24 @@ spec:
 #     disableVerifySSL: true [16]
 #     ackLevel: broker [17]
 #     useSSL: false [18]
+#     userRef: [19]
+#       name: foo-kafka
+#       key: user
+#     passRef: [20]
+#       name: foo-kafka
+#       key: pass
+```
+
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: foo-kafka
+  namespace: rook-ceph
+stringData:
+  user: bar
+  pass: baz
 ```
 
 1. `name` of the `CephBucketTopic`
@@ -100,6 +118,8 @@ spec:
     + “none”: message is considered “delivered” if sent to broker
     + “broker”: message is considered “delivered” if acked by broker (default)
 18. `useSSL` (optional) indicates that secure connection will be used for connecting with the broker (“false” by default)
+19.
+20.
 
 !!! note
     In case of Kafka and AMQP, the consumer of the notifications is not required to ack the notifications, since the broker persists the messages before delivering them to their final destinations.
