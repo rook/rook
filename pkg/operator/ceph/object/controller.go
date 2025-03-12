@@ -44,8 +44,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -142,7 +144,65 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		}
 	}
 
+	// Watch Secrets secrets annotated for the object store
+	err = c.Watch(source.Kind[client.Object](mgr.GetCache(),
+		&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
+		handler.EnqueueRequestsFromMapFunc(mapSecretToCR),
+		secretPredicate()))
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// Watch update and create secrets annotated with the object store name
+func secretPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			secret, ok := e.ObjectNew.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			annotations := secret.GetAnnotations()
+			return annotations[objectStoreDependentResourceAnnotation] != ""
+		},
+		CreateFunc: func(e event.CreateEvent) bool {
+			secret, ok := e.Object.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			annotations := secret.GetAnnotations()
+			return annotations[objectStoreDependentResourceAnnotation] != ""
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false // Ignore deletes for simplicity
+		},
+	}
+}
+
+// Maps secret annotated with the object store name to the object store CR
+func mapSecretToCR(_ context.Context, obj client.Object) []reconcile.Request {
+	secret, ok := obj.(*corev1.Secret)
+	if !ok {
+		return nil
+	}
+
+	value, exists := secret.GetAnnotations()[objectStoreDependentResourceAnnotation]
+	if !exists || value == "" {
+		return nil
+	}
+	objStoreNames := strings.Split(value, ",")
+	requests := make([]reconcile.Request, len(objStoreNames))
+	for i, objStoreName := range objStoreNames {
+		requests[i] = reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      strings.TrimSpace(objStoreName),
+				Namespace: secret.Namespace,
+			},
+		}
+	}
+	return requests
 }
 
 // Reconcile reads that state of the cluster for a cephObjectStore object and makes changes based on the state read

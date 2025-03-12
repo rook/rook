@@ -24,10 +24,12 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func newConfig(t *testing.T) *clusterConfig {
@@ -208,6 +210,7 @@ func TestRgwConfigFromSecret(t *testing.T) {
 		store:       objectStore,
 		context:     objContext.Context,
 		clusterInfo: objContext.clusterInfo,
+		ownerInfo:   k8sutil.NewOwnerInfo(objectStore, runtime.NewScheme()),
 	}
 
 	rgwConfig := &rgwConfig{}
@@ -230,4 +233,88 @@ func TestRgwConfigFromSecret(t *testing.T) {
 	got, err := c.generateMonConfigOptions(rgwConfig)
 	assert.NoError(t, err)
 	assert.EqualValues(t, "secVal", got["rgw_secret_conf_name"])
+}
+
+func Test_clusterConfig_setObectStoreReferenceAnnotation(t *testing.T) {
+	objectStore := simpleStore()
+	objStoreName := objectStore.Name
+	tests := []struct {
+		name              string
+		annotationsBefore map[string]string
+		wantAnnotations   map[string]string
+		wantErr           bool
+	}{
+		{
+			name:              "annotation set to secret without annotation",
+			annotationsBefore: nil,
+			wantAnnotations: map[string]string{
+				objectStoreDependentResourceAnnotation: objStoreName,
+			},
+		},
+		{
+			name:              "other annotations preserved",
+			annotationsBefore: map[string]string{"other": "annotation"},
+			wantAnnotations: map[string]string{
+				"other":                                "annotation",
+				objectStoreDependentResourceAnnotation: objStoreName,
+			},
+		},
+		{
+			name: "already exists",
+			annotationsBefore: map[string]string{
+				objectStoreDependentResourceAnnotation: objStoreName,
+			},
+			wantAnnotations: map[string]string{
+				objectStoreDependentResourceAnnotation: objStoreName,
+			},
+		},
+		{
+			name: "new obj store name appended to existing",
+			annotationsBefore: map[string]string{
+				objectStoreDependentResourceAnnotation: "some-store",
+			},
+			wantAnnotations: map[string]string{
+				objectStoreDependentResourceAnnotation: "some-store," + objStoreName,
+			},
+		},
+		{
+			name: "already exists in a list",
+			annotationsBefore: map[string]string{
+				objectStoreDependentResourceAnnotation: "some-store," + objStoreName,
+			},
+			wantAnnotations: map[string]string{
+				objectStoreDependentResourceAnnotation: "some-store," + objStoreName,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &clusterd.Context{
+				Clientset: test.New(t, 3),
+			}
+			info := cephclient.AdminTestClusterInfo("rook-ceph")
+			objectStore.Namespace = info.Namespace
+			c := &clusterConfig{
+				store:       objectStore,
+				context:     ctx,
+				clusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"),
+				ownerInfo:   k8sutil.NewOwnerInfo(objectStore, runtime.NewScheme()),
+			}
+			secret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "my-secret",
+					Namespace:   objectStore.Namespace,
+					Annotations: tt.annotationsBefore,
+				},
+			}
+			_, err := ctx.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
+			assert.NoError(t, err, "create secret")
+			if err := c.setObectStoreReferenceAnnotation(secret); (err != nil) != tt.wantErr {
+				t.Errorf("clusterConfig.setObectStoreReferenceAnnotation() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			got, err := ctx.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
+			assert.NoError(t, err, "get secret")
+			assert.EqualValues(t, tt.wantAnnotations, got.Annotations)
+		})
+	}
 }

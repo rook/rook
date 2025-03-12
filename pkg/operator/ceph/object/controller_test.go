@@ -24,8 +24,6 @@ import (
 	"testing"
 	"time"
 
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -42,10 +40,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -1032,4 +1032,117 @@ func TestDiffVersions(t *testing.T) {
 
 	// Compares the actual value of the pointer by dereferencing the pointer
 	assert.True(t, reflect.DeepEqual(runningCephVersion, *desiredCephVersion))
+}
+
+func Test_mapSecretToCR(t *testing.T) {
+	type args struct {
+		obj k8sclient.Object
+	}
+	tests := []struct {
+		name string
+		args args
+		want []reconcile.Request
+	}{
+		{
+			name: "secret without annotation",
+			args: args{
+				obj: &v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "secret",
+						Namespace:   "ns",
+						Annotations: nil,
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "secret without required annotation",
+			args: args{
+				obj: &v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "secret",
+						Namespace:   "ns",
+						Annotations: map[string]string{"foo": "bar"},
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "secret with single obj store reference",
+			args: args{
+				obj: &v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "secret",
+						Namespace: "ns",
+						Annotations: map[string]string{
+							objectStoreDependentResourceAnnotation: "store1",
+						},
+					},
+				},
+			},
+			want: []reconcile.Request{
+				{NamespacedName: types.NamespacedName{Name: "store1", Namespace: "ns"}},
+			},
+		},
+		{
+			name: "secret with multiple obj store references",
+			args: args{
+				obj: &v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "secret",
+						Namespace: "ns",
+						Annotations: map[string]string{
+							objectStoreDependentResourceAnnotation: "store1,store2",
+						},
+					},
+				},
+			},
+			want: []reconcile.Request{
+				{NamespacedName: types.NamespacedName{Name: "store1", Namespace: "ns"}},
+				{NamespacedName: types.NamespacedName{Name: "store2", Namespace: "ns"}},
+			},
+		},
+		{
+			name: "whitespaces are trimmed",
+			args: args{
+				obj: &v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "secret",
+						Namespace: "ns",
+						Annotations: map[string]string{
+							objectStoreDependentResourceAnnotation: " store1, store2 ",
+						},
+					},
+				},
+			},
+			want: []reconcile.Request{
+				{NamespacedName: types.NamespacedName{Name: "store1", Namespace: "ns"}},
+				{NamespacedName: types.NamespacedName{Name: "store2", Namespace: "ns"}},
+			},
+		},
+		{
+			name: "should be a secret",
+			args: args{
+				obj: &v1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "secret",
+						Namespace: "ns",
+						Annotations: map[string]string{
+							objectStoreDependentResourceAnnotation: "store1",
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := mapSecretToCR(context.TODO(), tt.args.obj); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("mapSecretToCR() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
