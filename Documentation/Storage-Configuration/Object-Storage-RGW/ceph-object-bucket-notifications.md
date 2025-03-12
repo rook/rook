@@ -66,6 +66,24 @@ spec:
 #     ackLevel: broker [17]
 #     useSSL: false [18]
 #     mechanism: SCRAM-SHA-512 [19]
+#     userRef: [20]
+#       name: foo-kafka
+#       key: user
+#     passRef: [21]
+#       name: foo-kafka
+#       key: pass
+```
+
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: foo-kafka
+  namespace: rook-ceph
+stringData:
+  user: bar
+  pass: baz
 ```
 
 1. `name` of the `CephBucketTopic`
@@ -107,6 +125,8 @@ spec:
     + “SCRAM-SHA-256”
     + “GSSAPI”
     + “OAUTHBEARER”
+20.
+21.
 
 !!! note
     In case of Kafka and AMQP, the consumer of the notifications is not required to ack the notifications, since the broker persists the messages before delivering them to their final destinations.

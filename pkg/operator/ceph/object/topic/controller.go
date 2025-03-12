@@ -19,6 +19,7 @@ package topic
 
 import (
 	"context"
+	"slices"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -28,12 +29,16 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -76,6 +81,95 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephBucketTopic{}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
 	if err != nil {
 		return err
+	}
+
+	// XXX watch for kafka secrets
+	// watch secrets referenced by CephBucketTopic.spec.endpoint.kafka.{userRef,passRef}
+	const (
+		// disable warning: G101: Potential hardcoded credentials (gosec)
+		// nolint:gosec
+		secretNameField = "spec.endpoint.kafka.secretNames"
+	)
+
+	err = mgr.GetFieldIndexer().IndexField(
+		context.TODO(),
+		&cephv1.CephBucketTopic{},
+		secretNameField,
+		func(obj client.Object) []string {
+			var secretNames []string
+			topic, ok := obj.(*cephv1.CephBucketTopic)
+			if !ok {
+				return nil
+			}
+
+			if topic.Spec.Endpoint.Kafka == nil {
+				return nil
+			}
+
+			kafka := topic.Spec.Endpoint.Kafka
+
+			if kafka.UserRef != nil {
+				secretNames = append(secretNames, kafka.UserRef.Name)
+			}
+
+			if kafka.PassRef != nil {
+				secretNames = append(secretNames, kafka.PassRef.Name)
+			}
+
+			slices.Sort(secretNames)
+			return slices.Compact(secretNames)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to setup IndexField for CephBucketTopic.Spec.Endpoint.Kafka.{UserRef,PassRef}")
+	}
+
+	// Always trigger a reconcile when a secret is deleted. This will cause a
+	// reconciliation failure to happen immediately in hopes of alerting the end
+	// user to the configuration problem.
+	changedOrDeleted := predicate.Or(
+		predicate.TypedResourceVersionChangedPredicate[*corev1.Secret]{},
+		predicate.TypedFuncs[*corev1.Secret]{
+			DeleteFunc: func(e event.TypedDeleteEvent[*corev1.Secret]) bool {
+				return true
+			},
+		},
+	)
+
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.Secret{},
+			handler.TypedEnqueueRequestsFromMapFunc(
+				func(ctx context.Context, secret *corev1.Secret) []reconcile.Request {
+					referencingTopics := &cephv1.CephBucketTopicList{}
+					err := r.(*ReconcileBucketTopic).client.List(ctx, referencingTopics, &client.ListOptions{
+						FieldSelector: fields.OneTermEqualSelector(secretNameField, secret.GetName()),
+						Namespace:     secret.GetNamespace(),
+					})
+					if err != nil {
+						logger.Errorf("failed to list CephBucketTopic(s) while handling event for secret %q in namespace %q. %v", secret.GetName(), secret.GetNamespace(), err)
+						return []reconcile.Request{}
+					}
+
+					requests := make([]reconcile.Request, len(referencingTopics.Items))
+					for i, item := range referencingTopics.Items {
+						requests[i] = reconcile.Request{
+							NamespacedName: types.NamespacedName{
+								Name:      item.GetName(),
+								Namespace: item.GetNamespace(),
+							},
+						}
+					}
+					logger.Tracef("CephBucketTopic(s) referencing Secret %q in namespace %q: %v", secret.GetName(), secret.GetNamespace(), requests)
+					return requests
+				},
+			),
+			changedOrDeleted,
+		),
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to configure watch for Secret(s)")
 	}
 
 	return nil
