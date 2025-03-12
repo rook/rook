@@ -19,6 +19,7 @@ package v1
 import (
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -2393,6 +2394,12 @@ type KafkaEndpointSpec struct {
 	// +kubebuilder:default=PLAIN
 	// +optional
 	Mechanism string `json:"mechanism,omitempty"`
+	// The kafka user name to use for authentication
+	// +optional
+	UserRef *corev1.SecretKeySelector `json:"UserRef,omitempty"`
+	// The kafka password to use for authentication
+	// +optional
+	PassRef *corev1.SecretKeySelector `json:"PassRef,omitempty"`
 }
 
 // +genclient
@@ -2407,7 +2414,15 @@ type CephBucketNotification struct {
 	Spec              BucketNotificationSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	Status *Status `json:"status,omitempty"`
+	Status *CephBucketNotificationStatus `json:"status,omitempty"`
+}
+
+// CephBucketNotificationStatus represents the status of a CephBucketNotification object
+type CephBucketNotificationStatus struct {
+	Status `json:",inline"`
+	// +optional
+	// +nullable
+	Secrets []SecretReference `json:"keys,omitempty"`
 }
 
 // CephBucketNotificationList represents a list Ceph Object Store Bucket Notification Topics
