@@ -2948,6 +2948,19 @@ int64
 <p>ObservedGeneration is the latest generation observed by the controller.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>secrets</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SecretReference">
+[]SecretReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CIDR">CIDR
@@ -7531,6 +7544,34 @@ string
 <td>
 <em>(Optional)</em>
 <p>The authentication mechanism for this topic (PLAIN/SCRAM-SHA-512/SCRAM-SHA-256/GSSAPI/OAUTHBEARER)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>UserSecretRef</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
+Kubernetes core/v1.SecretKeySelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The kafka user name to use for authentication</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>PasswordSecretRef</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
+Kubernetes core/v1.SecretKeySelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The kafka password to use for authentication</p>
 </td>
 </tr>
 </tbody>
@@ -12487,7 +12528,7 @@ int32
 <h3 id="ceph.rook.io/v1.SecretReference">SecretReference
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.BucketTopicStatus">BucketTopicStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus</a>)
 </p>
 <div>
 </div>

@@ -41,6 +41,7 @@ import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/rook/rook/tests/integration/object/bucketowner"
+	topickafka "github.com/rook/rook/tests/integration/object/topic/kafka"
 	"github.com/rook/rook/tests/integration/object/user/userkeys"
 )
 
@@ -156,6 +157,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable)
 	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable)
+	topickafka.TestBucketTopicKafka(s.T(), k8sh, installer, logger, tlsEnable)
 
 	bucketNotificationTestStoreName := "bucket-notification-" + storeName
 	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, swiftAndKeystone)
