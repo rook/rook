@@ -188,6 +188,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 			logger.Debugf("ceph cluster %q has cleanup policy, the cluster will soon go away, no need to reconcile the csi driver", cluster.Name)
 			return reconcile.Result{}, nil
 		}
+
 		holderEnabled := !csiHostNetworkEnabled || cluster.Spec.Network.IsMultus()
 		// Do we have a multus cluster or csi host network disabled?
 		// If so deploy the plugin holder with the fsid attached
@@ -242,7 +243,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	}
 	CustomCSICephConfigExists = exists
 
-	err = r.validateAndConfigureDrivers(serverVersion, ownerInfo)
+	err = r.validateAndConfigureDrivers(serverVersion, ownerInfo, cephClusters.Items[0].Spec.Resources)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure ceph csi")
 	}

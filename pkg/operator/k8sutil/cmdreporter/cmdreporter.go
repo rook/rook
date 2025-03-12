@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/util"
@@ -75,6 +77,7 @@ type cmdReporterCfg struct {
 	rookImage       string
 	runImage        string
 	imagePullPolicy v1.PullPolicy
+	resources       cephv1.ResourceSpec
 }
 
 // New creates a new CmdReporter.
@@ -96,6 +99,7 @@ func New(
 	cmd, args []string,
 	rookImage, runImage string,
 	imagePullPolicy v1.PullPolicy,
+	resources cephv1.ResourceSpec,
 ) (*CmdReporter, error) {
 	cfg := &cmdReporterCfg{
 		clientset:       clientset,
@@ -108,6 +112,7 @@ func New(
 		rookImage:       rookImage,
 		runImage:        runImage,
 		imagePullPolicy: imagePullPolicy,
+		resources:       resources,
 	}
 
 	// Validate contents of config struct, not inputs to function to catch any developer errors
@@ -341,6 +346,7 @@ func (cr *cmdReporterCfg) initContainers() []v1.Container {
 		},
 		Image:           cr.rookImage,
 		ImagePullPolicy: cr.imagePullPolicy,
+		Resources:       cephv1.GetCmdReporterResources(cr.resources),
 	}
 	_, copyBinsMount := copyBinariesVolAndMount()
 	c.VolumeMounts = []v1.VolumeMount{copyBinsMount}
@@ -371,6 +377,7 @@ func (cr *cmdReporterCfg) container() (*v1.Container, error) {
 		},
 		Image:           cr.runImage,
 		ImagePullPolicy: cr.imagePullPolicy,
+		Resources:       cephv1.GetCmdReporterResources(cr.resources),
 	}
 	if cr.needToCopyBinaries() {
 		_, copyBinsMount := copyBinariesVolAndMount()

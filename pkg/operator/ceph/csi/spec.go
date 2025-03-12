@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+
 	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -34,6 +36,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8scsi "k8s.io/api/storage/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
@@ -739,7 +742,7 @@ func (r *ReconcileCSI) applyCephClusterNetworkConfig(ctx context.Context, object
 }
 
 // ValidateCSIVersion checks if the configured ceph-csi image is supported
-func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCSIVersion, error) {
+func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo, resources cephv1.ResourceSpec) (*CephCSIVersion, error) {
 	timeout := 15 * time.Minute
 
 	logger.Infof("detecting the ceph csi image version for image %q", CSIParam.CSIPluginImage)
@@ -755,6 +758,7 @@ func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCS
 		r.opConfig.Image,
 		CSIParam.CSIPluginImage,
 		v1.PullPolicy(CSIParam.ImagePullPolicy),
+		resources,
 	)
 
 	if err != nil {
