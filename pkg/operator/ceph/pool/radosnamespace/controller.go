@@ -233,13 +233,24 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		return reconcile.Result{}, nil
 	}
 
+	cephBlockPoolRadosNamespaceName := cephBlockPoolRadosNamespace.Name
+	if cephBlockPoolRadosNamespace.Spec.Name != "" {
+		cephBlockPoolRadosNamespaceName = cephBlockPoolRadosNamespace.Spec.Name
+	}
+
 	if cephCluster.Spec.External.Enable {
-		logger.Debugf("external rados namespace %q creation is not supported, create it manually, the controller will assume it's there", namespacedName)
+		logger.Debug("skip creating external radosnamespace in external mode, create it manually, the controller will assume it's there")
 		err = r.updateClusterConfig(cephBlockPoolRadosNamespace, cephCluster)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 		}
 		r.updateStatus(r.client, namespacedName, cephv1.ConditionReady)
+		if csi.EnableCSIOperator() {
+			err = csi.CreateUpdateClientProfileRadosNamespace(r.clusterInfo.Context, r.client, r.clusterInfo, cephBlockPoolRadosNamespaceName, buildClusterID(cephBlockPoolRadosNamespace), cephCluster.Name)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for RadosNamespace")
+			}
+		}
 		return reconcile.Result{}, nil
 	}
 
@@ -260,6 +271,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	cephBlockPool := &cephv1.CephBlockPool{}
 	pool := cephBlockPoolRadosNamespace.Spec.BlockPoolName
 	cephBlockPoolNamespacedName := types.NamespacedName{Name: pool, Namespace: request.Namespace}
+
 	err = r.client.Get(r.opManagerContext, cephBlockPoolNamespacedName, cephBlockPool)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
@@ -298,7 +310,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	r.updateStatus(r.client, namespacedName, cephv1.ConditionReady)
 
 	if csi.EnableCSIOperator() {
-		err = csi.CreateUpdateClientProfileRadosNamespace(r.clusterInfo.Context, r.client, r.clusterInfo, cephBlockPoolNamespacedName, buildClusterID(cephBlockPoolRadosNamespace), cephCluster.Name)
+		err = csi.CreateUpdateClientProfileRadosNamespace(r.clusterInfo.Context, r.client, r.clusterInfo, cephBlockPoolRadosNamespaceName, buildClusterID(cephBlockPoolRadosNamespace), cephCluster.Name)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for RadosNamespace")
 		}

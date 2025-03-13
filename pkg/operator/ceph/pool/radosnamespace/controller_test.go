@@ -257,7 +257,9 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		objects := []runtime.Object{
 			cephBlockPoolRadosNamespace,
 			cephCluster,
+			cephBlockPool,
 		}
+
 		// Create a fake client to mock API calls.
 		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
 		c.Client = cl
