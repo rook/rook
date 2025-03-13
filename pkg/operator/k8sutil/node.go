@@ -381,8 +381,7 @@ func GenerateNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
 					Operator: v1.NodeSelectorOpIn,
 					Values:   nodeLabelValues,
 				}
-				newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions =
-					append(newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions, matchExpression)
+				newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions = append(newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions, matchExpression)
 			}
 		} else {
 			nodeLabelKey := strings.Trim(tmpNodeLabel[0], " ")
@@ -395,8 +394,7 @@ func GenerateNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
 					Key:      nodeLabelKey,
 					Operator: v1.NodeSelectorOpExists,
 				}
-				newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions =
-					append(newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions, matchExpression)
+				newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions = append(newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions, matchExpression)
 			}
 		}
 	}

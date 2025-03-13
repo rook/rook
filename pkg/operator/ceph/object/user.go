@@ -192,7 +192,6 @@ func CreateOrRecreateUserIfExists(c *Context, user ObjectUser, force bool) (*Obj
 }
 
 func ListUserBuckets(c *Context, id string, opts ...string) (string, error) {
-
 	args := []string{"bucket", "list", "--uid", id}
 	if opts != nil {
 		args = append(args, opts...)

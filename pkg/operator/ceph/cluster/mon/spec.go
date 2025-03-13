@@ -76,7 +76,6 @@ func (c *Cluster) getFailureDomainName() string {
 }
 
 func GetFailureDomainLabel(spec cephv1.ClusterSpec) string {
-
 	if spec.IsStretchCluster() && spec.Mon.StretchCluster.FailureDomainLabel != "" {
 		return spec.Mon.StretchCluster.FailureDomainLabel
 	}
@@ -381,7 +380,6 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 
 // UpdateCephDeploymentAndWait verifies a deployment can be stopped or continued
 func UpdateCephDeploymentAndWait(context *clusterd.Context, clusterInfo *client.ClusterInfo, deployment *apps.Deployment, daemonType, daemonName string, skipUpgradeChecks, continueUpgradeAfterChecksEvenIfNotHealthy bool) error {
-
 	callback := func(action string) error {
 		// At this point, we are in an upgrade
 		if skipUpgradeChecks {

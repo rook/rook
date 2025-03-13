@@ -134,13 +134,12 @@ func ListDevices(executor exec.Executor) ([]string, error) {
 
 // GetDevicePartitions gets partitions on a given device
 func GetDevicePartitions(device string, executor exec.Executor) (partitions []Partition, unusedSpace uint64, err error) {
-
 	var devicePath string
 	splitDevicePath := strings.Split(device, "/")
 	if len(splitDevicePath) == 1 {
-		devicePath = fmt.Sprintf("/dev/%s", device) //device path for OSD on devices.
+		devicePath = fmt.Sprintf("/dev/%s", device) // device path for OSD on devices.
 	} else {
-		devicePath = device //use the exact device path (like /mnt/<pvc-name>) in case of PVC block device
+		devicePath = device // use the exact device path (like /mnt/<pvc-name>) in case of PVC block device
 	}
 
 	output, err := executor.ExecuteCommandWithOutput("lsblk", devicePath,
@@ -339,7 +338,6 @@ func GetLVName(executor exec.Executor, devicePath string) (string, error) {
 
 // finds the disk uuid in the output of sgdisk
 func parseUUID(device, output string) (string, error) {
-
 	// find the line with the uuid
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {

@@ -241,7 +241,7 @@ var fakeMultiPeerCephBlockPool = cephv1.CephBlockPool{
 func saveMockDataInTempFile(data, filePattern string) error {
 	matches, _ := filepath.Glob(fmt.Sprintf("%s/%s*", os.TempDir(), filePattern))
 	for _, m := range matches {
-		file, err := os.OpenFile(m, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.OpenFile(m, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
 			return fmt.Errorf("failed to open file %q. %v", m, err)
 		}
@@ -265,7 +265,6 @@ var mockExecutor = &exectest.MockExecutor{
 			} else if args[3] == "mirrorPool2" {
 				return `{"pool_id": 2}`, nil
 			}
-
 		}
 		return "", nil
 	},
@@ -331,7 +330,7 @@ func TestSinglePeerMappings(t *testing.T) {
 	_, err := fakeContext.Clientset.CoreV1().Secrets(ns).Create(context.TODO(), &peer1Secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
-	//expected: &[{ClusterIDMapping:{peer1:rook-ceph-primary}. RBDPoolIDMapping:[{2:1}]}]
+	// expected: &[{ClusterIDMapping:{peer1:rook-ceph-primary}. RBDPoolIDMapping:[{2:1}]}]
 	actualMappings, err := getClusterPoolIDMap(
 		fakeContext,
 		clusterInfo,
@@ -451,9 +450,9 @@ func TestCreateOrUpdateConfig(t *testing.T) {
 
 	err = CreateOrUpdateConfig(context.TODO(), fakeContext, actualMappings)
 	assert.NoError(t, err)
-	//validateConfig(t, fakeContext, actualMappings)
+	// validateConfig(t, fakeContext, actualMappings)
 
-	//Update existing mapping config
+	// Update existing mapping config
 	mappings := *actualMappings
 	mappings = append(mappings, PeerIDMapping{
 		ClusterIDMapping: map[string]string{"peer2": ns},

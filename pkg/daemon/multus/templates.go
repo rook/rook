@@ -102,9 +102,11 @@ const (
 
 type daemonsetAppType string
 
-const imagePullDaemonSetAppType = "image pull"
-const hostCheckerDaemonsetAppType = "host checker"
-const clientDaemonSetAppType = "client"
+const (
+	imagePullDaemonSetAppType   = "image pull"
+	hostCheckerDaemonsetAppType = "host checker"
+	clientDaemonSetAppType      = "client"
+)
 
 func (vt *ValidationTest) generateWebServerTemplateConfig(placement PlacementConfig) webServerTemplateConfig {
 	return webServerTemplateConfig{

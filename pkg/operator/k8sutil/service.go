@@ -139,7 +139,6 @@ func ExportService(ctx context.Context, c *clusterd.Context, service *v1.Service
 	var exportedIP string
 	var serviceExportError error
 	exportedIP, err = GetExportedServiceIP(fmt.Sprintf("%s.%s.%s.svc.clusterset.local", clusterID, service.Name, service.Namespace))
-
 	if err != nil {
 		serviceExportError = errors.Wrapf(err, "failed to get exported service IP for %q", service.Name)
 		err := verifyExportedService(ctx, client, service.Name, service.Namespace)

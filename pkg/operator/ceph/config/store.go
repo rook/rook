@@ -71,7 +71,6 @@ func (s *Store) CreateOrUpdate(clusterInfo *cephclient.ClusterInfo) error {
 
 // update "mon_host" and "mon_initial_members" in the stored config
 func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephclient.ClusterInfo) error {
-
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// and "mon hosts" global config field
 	members, hosts := cephclient.PopulateMonHostMembers(clusterInfo)
@@ -119,16 +118,28 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephclient.ClusterInfo
 // "mon_host" and "mon_initial_members" information.
 func StoredMonHostEnvVars() []v1.EnvVar {
 	return []v1.EnvVar{
-		{Name: "ROOK_CEPH_MON_HOST",
+		{
+			Name: "ROOK_CEPH_MON_HOST",
 			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
-					Name: StoreName},
-					Key: monHostKey}}},
-		{Name: "ROOK_CEPH_MON_INITIAL_MEMBERS",
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: StoreName,
+					},
+					Key: monHostKey,
+				},
+			},
+		},
+		{
+			Name: "ROOK_CEPH_MON_INITIAL_MEMBERS",
 			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
-					Name: StoreName},
-					Key: monInitialMembersKey}}},
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: StoreName,
+					},
+					Key: monInitialMembersKey,
+				},
+			},
+		},
 	}
 }
 

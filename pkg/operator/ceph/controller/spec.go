@@ -149,7 +149,7 @@ func configOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	// If we don't set 0444 to the ceph.conf configuration file during its respawn (with exec) the ceph-mgr
 	// won't be able to read the ceph.conf and the container will die, the "restart" count will increase in k8s
 	// This will mislead users thinking something won't wrong but that a false positive
-	mode := int32(0444)
+	mode := int32(0o444)
 	projectionConfigMap := &v1.ConfigMapProjection{Items: []v1.KeyToPath{{Key: k8sutil.ConfigOverrideVal, Path: file, Mode: &mode}}}
 	projectionConfigMap.Name = name
 	configMapProjection := v1.VolumeProjection{
@@ -181,7 +181,8 @@ func ConfGeneratedInPodVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	name := "ceph-conf-emptydir"
 	dir := config.EtcCephDir
 	v := v1.Volume{Name: name, VolumeSource: v1.VolumeSource{
-		EmptyDir: &v1.EmptyDirVolumeSource{}}}
+		EmptyDir: &v1.EmptyDirVolumeSource{},
+	}}
 	// configmap's "config" to "/etc/ceph/ceph.conf"
 	m := v1.VolumeMount{
 		Name:      name,
@@ -193,7 +194,6 @@ func ConfGeneratedInPodVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 // PodVolumes fills in the volumes parameter with the common list of Kubernetes volumes for use in Ceph pods.
 // This function is only used for OSDs.
 func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, exporterHostPath string, confGeneratedInPod bool) []v1.Volume {
-
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath}}
@@ -238,7 +238,6 @@ func CephVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []
 // This function is only used by OSDs.
 func RookVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []v1.VolumeMount {
 	return CephVolumeMounts(dataPaths, confGeneratedInPod)
-
 }
 
 // DaemonVolumesBase returns the common / static set of volumes.
@@ -371,7 +370,7 @@ func DaemonFlags(cluster *client.ClusterInfo, spec *cephv1.ClusterSpec, daemonID
 		config.NewFlag("id", daemonID),
 		// Ceph daemons in Rook will run as 'ceph' instead of 'root'
 		// If we run on a version of Ceph does not these flags it will simply ignore them
-		//run ceph daemon process under the 'ceph' user
+		// run ceph daemon process under the 'ceph' user
 		config.NewFlag("setuser", "ceph"),
 		// run ceph daemon process under the 'ceph' group
 		config.NewFlag("setgroup", "ceph"),

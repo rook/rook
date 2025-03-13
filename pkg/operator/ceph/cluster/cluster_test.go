@@ -302,9 +302,9 @@ func TestTelemetry(t *testing.T) {
 			telemetry.ExternalModeEnabledKey:     "false",
 			telemetry.K8sNodeCount:               "3",
 			telemetry.CephFSNodeCount:            "0",
-			telemetry.RBDNodeCount:               "1", //should be 1
+			telemetry.RBDNodeCount:               "1", // should be 1
 			telemetry.NFSNodeCount:               "0",
-			telemetry.CephNodeCount:              "1", //should be 1
+			telemetry.CephNodeCount:              "1", // should be 1
 		}
 		c.reportTelemetry()
 	})
@@ -335,6 +335,7 @@ func TestTelemetry(t *testing.T) {
 		c.reportTelemetry()
 	})
 }
+
 func TestClusterFullSettings(t *testing.T) {
 	actualFullRatio := 0.95
 	actualBackfillFullRatio := 0.90

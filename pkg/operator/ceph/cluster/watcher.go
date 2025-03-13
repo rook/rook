@@ -189,7 +189,6 @@ func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.C
 			logger.Infof("Found taint: Key=%v, Value=%v on node %s\n", taint.Key, taint.Value, node.Name)
 			break
 		}
-
 	}
 
 	if nodeHasOutOfServiceTaint {
@@ -395,8 +394,8 @@ func pvSupportsMultiNodeAccess(accessModes []corev1.PersistentVolumeAccessMode) 
 
 func (c *clientCluster) fenceRbdImage(
 	ctx context.Context, node *corev1.Node, cluster *cephv1.CephCluster,
-	clusterInfo *cephclient.ClusterInfo, rbdPV corev1.PersistentVolume) error {
-
+	clusterInfo *cephclient.ClusterInfo, rbdPV corev1.PersistentVolume,
+) error {
 	logger.Debugf("rbd PV NAME %v", rbdPV.Spec.CSI.VolumeAttributes)
 	args := []string{"status", fmt.Sprintf("%s/%s", rbdPV.Spec.CSI.VolumeAttributes["pool"], rbdPV.Spec.CSI.VolumeAttributes["imageName"])}
 	cmd := cephclient.NewRBDCommand(c.context, clusterInfo, args)
@@ -425,8 +424,8 @@ func (c *clientCluster) fenceRbdImage(
 
 func (c *clientCluster) fenceCephFSSubvolume(
 	ctx context.Context, node *corev1.Node, cluster *cephv1.CephCluster,
-	clusterInfo *cephclient.ClusterInfo, cephFSPV corev1.PersistentVolume) error {
-
+	clusterInfo *cephclient.ClusterInfo, cephFSPV corev1.PersistentVolume,
+) error {
 	logger.Infof("fencing cephfs subvolume %q on node %q", cephFSPV.Name, node.Name)
 
 	status, err := cephclient.StatusWithUser(c.context, clusterInfo)

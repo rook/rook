@@ -435,7 +435,6 @@ func (p *Provisioner) initializeCreateOrGrant(bucket *bucket) error {
 }
 
 func (p *Provisioner) initializeDeleteOrRevoke(ob *bktv1alpha1.ObjectBucket) error {
-
 	sc, err := p.getStorageClassWithBackoff(ob.Spec.StorageClassName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get storage class for OB %q", ob.Name)
@@ -477,7 +476,6 @@ func (p *Provisioner) initializeDeleteOrRevoke(ob *bktv1alpha1.ObjectBucket) err
 
 // Return the OB struct with minimal fields filled in.
 func (p *Provisioner) composeObjectBucket(bucket *bucket) *bktv1alpha1.ObjectBucket {
-
 	conn := &bktv1alpha1.Connection{
 		Endpoint: &bktv1alpha1.Endpoint{
 			// if there are multiple endpoints on the object store, the OBC will get the endpoint

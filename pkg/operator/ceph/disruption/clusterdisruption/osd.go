@@ -323,8 +323,8 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 }
 
 func (r *ReconcileClusterDisruption) handleActiveDrains(allFailureDomains []string, drainingFailureDomain,
-	failureDomainType, namespace string, isClean bool) error {
-
+	failureDomainType, namespace string, isClean bool,
+) error {
 	for _, failureDomainName := range allFailureDomains {
 		// create blocking PDB for failure domains not currently draining
 		if failureDomainName != drainingFailureDomain {

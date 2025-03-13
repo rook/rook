@@ -86,7 +86,6 @@ func ApplyOperatorSettingsConfigmap(ctx context.Context, clientset kubernetes.In
 	namespacedName := types.NamespacedName{Namespace: os.Getenv(PodNamespaceEnvVar), Name: "rook-ceph-operator-config"}
 	logger.Debugf("loading operator settings configmap from %v", namespacedName)
 	opConfig, err := clientset.CoreV1().ConfigMaps(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
-
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			loadedOperatorSettings = true

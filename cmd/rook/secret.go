@@ -115,7 +115,7 @@ func getSecret(cmd *cobra.Command, args []string) {
 	}
 
 	// Write down the secret to a file
-	err = os.WriteFile(secretPath, []byte(s), 0400)
+	err = os.WriteFile(secretPath, []byte(s), 0o400)
 	if err != nil {
 		rook.TerminateFatal(errors.Wrapf(err, "failed to write secret %q file to %q", secretName, secretPath))
 	}

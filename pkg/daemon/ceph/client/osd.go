@@ -149,19 +149,18 @@ type SafeToDestroyStatus struct {
 // OsdTree represents the CRUSH hierarchy
 type OsdTree struct {
 	Nodes []struct {
-		ID          int    `json:"id"`
-		Name        string `json:"name"`
-		Type        string `json:"type"`
-		TypeID      int    `json:"type_id"`
-		Children    []int  `json:"children,omitempty"`
-		PoolWeights struct {
-		} `json:"pool_weights,omitempty"`
-		CrushWeight     float64 `json:"crush_weight,omitempty"`
-		Depth           int     `json:"depth,omitempty"`
-		Exists          int     `json:"exists,omitempty"`
-		Status          string  `json:"status,omitempty"`
-		Reweight        float64 `json:"reweight,omitempty"`
-		PrimaryAffinity float64 `json:"primary_affinity,omitempty"`
+		ID              int      `json:"id"`
+		Name            string   `json:"name"`
+		Type            string   `json:"type"`
+		TypeID          int      `json:"type_id"`
+		Children        []int    `json:"children,omitempty"`
+		PoolWeights     struct{} `json:"pool_weights,omitempty"`
+		CrushWeight     float64  `json:"crush_weight,omitempty"`
+		Depth           int      `json:"depth,omitempty"`
+		Exists          int      `json:"exists,omitempty"`
+		Status          string   `json:"status,omitempty"`
+		Reweight        float64  `json:"reweight,omitempty"`
+		PrimaryAffinity float64  `json:"primary_affinity,omitempty"`
 	} `json:"nodes"`
 	Stray []struct {
 		ID              int     `json:"id"`

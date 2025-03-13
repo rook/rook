@@ -50,9 +50,7 @@ const (
 	CopyBinariesMountDir = "/rook/copied-binaries"
 )
 
-var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "CmdReporter")
-)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "CmdReporter")
 
 type CmdReporterInterface interface {
 	Job() *batch.Job

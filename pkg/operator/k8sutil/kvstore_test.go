@@ -86,7 +86,6 @@ func TestSetValueStoreNotExist(t *testing.T) {
 	_, err = kv.GetValue(ctx, storeName, "key2")
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
-
 }
 
 func TestSetValueUpdate(t *testing.T) {

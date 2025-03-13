@@ -343,7 +343,6 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 	// Enable mirroring if needed
 	if cephFilesystem.Spec.Mirroring != nil {
-
 		// Disable mirroring on that filesystem if needed
 		if !cephFilesystem.Spec.Mirroring.Enabled {
 			err = cephclient.DisableFilesystemSnapshotMirror(r.context, r.clusterInfo, cephFilesystem.Name)

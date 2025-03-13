@@ -349,7 +349,6 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 				} else if args[0] == "lvm" && args[1] == "list" {
 					return `{}`, nil
 				}
-
 			} else if command == "stdbuf" {
 				if args[4] == "raw" && args[5] == "list" {
 					return cephVolumeRAWTestResult, nil

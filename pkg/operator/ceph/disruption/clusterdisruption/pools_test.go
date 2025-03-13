@@ -48,5 +48,4 @@ func TestGetMinimumFailureDomain(t *testing.T) {
 	}
 
 	assert.Equal(t, "host", getMinimumFailureDomain(poolList))
-
 }

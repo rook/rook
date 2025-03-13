@@ -81,7 +81,6 @@ func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, er
 		"bucket",
 		"stats",
 		"--bucket", bucketName)
-
 	if err != nil {
 		if strings.Contains(err.Error(), "exit status 2") {
 			return nil, true, errors.New("not found")

@@ -106,7 +106,6 @@ func TestMigrateForEncryption(t *testing.T) {
 		assert.Equal(t, 1, len(mc.osds))
 		assert.Equal(t, 1, mc.osds[1].ID)
 	})
-
 }
 
 func TestMigrationForOSDStore(t *testing.T) {
@@ -187,6 +186,7 @@ func createMigrationConfigmap(osdID, ns string, clientset *fake.Clientset) error
 	_, err := clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
 	return err
 }
+
 func TestIsLastOSDMigrationComplete(t *testing.T) {
 	namespace := "rook-ceph"
 	clientset := fake.NewSimpleClientset()

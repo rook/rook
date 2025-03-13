@@ -280,7 +280,8 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		rgwPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 			Name:      "rook-ceph-rgw-my-store-a-5fd6fb4489-xv65v",
 			Namespace: namespace,
-			Labels:    map[string]string{k8sutil.AppAttr: appName, "rgw": "my-store"}}}
+			Labels:    map[string]string{k8sutil.AppAttr: appName, "rgw": "my-store"},
+		}}
 
 		// Get the updated object.
 		// Create RGW pod
@@ -356,7 +357,8 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		rgwPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 			Name:      "rook-ceph-rgw-my-store-a-5fd6fb4489-xv65v",
 			Namespace: namespace,
-			Labels:    map[string]string{k8sutil.AppAttr: appName, "rgw": "my-store"}}}
+			Labels:    map[string]string{k8sutil.AppAttr: appName, "rgw": "my-store"},
+		}}
 
 		// Create a user in a different namespace, and where the cephcluster does exist
 		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}

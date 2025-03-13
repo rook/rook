@@ -27,9 +27,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 )
 
-var (
-	monitorDaemonList = []string{"mon", "osd", "status"}
-)
+var monitorDaemonList = []string{"mon", "osd", "status"}
 
 func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInfo *cephclient.ClusterInfo) {
 	var isEnabled bool

@@ -136,7 +136,7 @@ type OrchestrationStatus struct {
 }
 
 type osdProperties struct {
-	//crushHostname refers to the hostname or PVC name when the OSD is provisioned on Nodes or PVC block device, respectively.
+	// crushHostname refers to the hostname or PVC name when the OSD is provisioned on Nodes or PVC block device, respectively.
 	crushHostname       string
 	devices             []cephv1.Device
 	pvc                 corev1.PersistentVolumeClaimVolumeSource

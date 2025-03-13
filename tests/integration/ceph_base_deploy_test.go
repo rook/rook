@@ -35,9 +35,7 @@ const (
 	defaultNamespace = "default"
 )
 
-var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "integrationTest")
-)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "integrationTest")
 
 // Test to make sure all rook components are installed and Running
 func checkIfRookClusterIsInstalled(s *suite.Suite, k8sh *utils.K8sHelper, opNamespace, clusterNamespace string, mons int) {

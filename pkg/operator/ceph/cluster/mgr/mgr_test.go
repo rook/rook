@@ -293,7 +293,8 @@ func TestUpdateServiceSelectors(t *testing.T) {
 				Selector: map[string]string{
 					"app":                    "rook-ceph-mgr",
 					controller.DaemonIDLabel: "a",
-				}},
+				},
+			},
 		}
 		svc2 := corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: "svc2"},
@@ -301,7 +302,8 @@ func TestUpdateServiceSelectors(t *testing.T) {
 				Selector: map[string]string{
 					"app":                    "rook-ceph-mgr",
 					controller.DaemonIDLabel: "a",
-				}},
+				},
+			},
 		}
 		_, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(clusterInfo.Context, &svc1, metav1.CreateOptions{})
 		assert.NoError(t, err)
@@ -346,7 +348,7 @@ func TestConfigureModules(t *testing.T) {
 					lastModuleConfigured = args[3]
 				}
 			}
-			return "", nil //return "{\"key\":\"mysecurekey\"}", nil
+			return "", nil // return "{\"key\":\"mysecurekey\"}", nil
 		},
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "config" && args[1] == "set" && args[2] == "global" {
@@ -407,12 +409,14 @@ func TestApplyMonitoringLabels(t *testing.T) {
 	}
 	c := &Cluster{spec: clusterSpec}
 	sm := &monitoringv1.ServiceMonitor{Spec: monitoringv1.ServiceMonitorSpec{
-		Endpoints: []monitoringv1.Endpoint{{}}}}
+		Endpoints: []monitoringv1.Endpoint{{}},
+	}}
 
 	// Service Monitor RelabelConfigs updated when 'rook.io/managedBy' monitoring label is found
 	monitoringLabels := cephv1.LabelsSpec{
 		cephv1.KeyMonitoring: map[string]string{
-			"rook.io/managedBy": "storagecluster"},
+			"rook.io/managedBy": "storagecluster",
+		},
 	}
 	c.spec.Labels = monitoringLabels
 	applyMonitoringLabels(c, sm)
@@ -423,7 +427,8 @@ func TestApplyMonitoringLabels(t *testing.T) {
 	// Service Monitor RelabelConfigs not updated when the required monitoring label is not found
 	monitoringLabels = cephv1.LabelsSpec{
 		cephv1.KeyMonitoring: map[string]string{
-			"wrongLabelKey": "storagecluster"},
+			"wrongLabelKey": "storagecluster",
+		},
 	}
 	c.spec.Labels = monitoringLabels
 	sm.Spec.Endpoints[0].RelabelConfigs = nil
@@ -457,7 +462,7 @@ func TestCluster_configurePrometheusModule(t *testing.T) {
 					lastModuleConfigured = args[3]
 				}
 			}
-			return "", nil //return "{\"key\":\"mysecurekey\"}", nil
+			return "", nil // return "{\"key\":\"mysecurekey\"}", nil
 		},
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "config" && args[1] == "set" && args[2] == "mgr" {
@@ -532,5 +537,4 @@ func TestCluster_configurePrometheusModule(t *testing.T) {
 	assert.Equal(t, 1, modulesDisabled)
 	assert.Equal(t, "30002", configSettings["mgr/prometheus/server_port"])
 	assert.Equal(t, "60", configSettings["mgr/prometheus/scrape_interval"])
-
 }

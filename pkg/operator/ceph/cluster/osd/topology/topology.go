@@ -71,8 +71,10 @@ func rookTopologyLabelsOrdered() []string {
 
 func allKubernetesTopologyLabelsOrdered() []string {
 	return append(
-		append([]string{corev1.LabelTopologyRegion,
-			corev1.LabelTopologyZone},
+		append([]string{
+			corev1.LabelTopologyRegion,
+			corev1.LabelTopologyZone,
+		},
 			rookTopologyLabelsOrdered()...),
 		k8sutil.LabelHostname(), //  host is the lowest level in the crush map hierarchy
 	)

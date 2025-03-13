@@ -211,14 +211,16 @@ func TestGenerateSecretName(t *testing.T) {
 	cl := fake.NewClientBuilder().Build()
 
 	// start a basic cluster
-	c := &clusterConfig{&clusterd.Context{},
+	c := &clusterConfig{
+		&clusterd.Context{},
 		&client.ClusterInfo{},
 		&cephv1.CephObjectStore{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"}},
 		"v1.1.0",
 		&cephv1.ClusterSpec{},
 		&k8sutil.OwnerInfo{},
 		&config.DataPathMap{},
-		cl}
+		cl,
+	}
 	secret := c.generateSecretName("a")
 	assert.Equal(t, "rook-ceph-rgw-default-a-keyring", secret)
 }

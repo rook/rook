@@ -35,9 +35,7 @@ const (
 	shredBS      = "10M" // Shred's block size
 )
 
-var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cleanup")
-)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cleanup")
 
 // DiskSanitizer is simple struct to old the context to execute the commands
 type DiskSanitizer struct {
@@ -170,7 +168,8 @@ func (s *DiskSanitizer) buildShredArgs(disk string) []string {
 		"--force",
 		"--verbose",
 		fmt.Sprintf("--iterations=%s", strconv.Itoa(int(s.sanitizeDisksSpec.Iteration))),
-		disk}...)
+		disk,
+	}...)
 
 	return shredArgs
 }

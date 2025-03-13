@@ -61,10 +61,10 @@ func (o *ObjectUserOperation) GetUser(namespace string, store string, userid str
 // UserSecretExists Function to check that user secret was created
 func (o *ObjectUserOperation) UserSecretExists(namespace string, store string, userid string) bool {
 	message, err := o.k8sh.GetResource("-n", namespace, "secrets", "-l", "rook_object_store="+store, "-l", "user="+userid)
-	//GetResource(blah) returns success if blah is or is not found.
-	//err = success and found_sec not "No resources found." means it was found
-	//err = success and found_sec contains "No resources found." means it was not found
-	//err != success is another error
+	// GetResource(blah) returns success if blah is or is not found.
+	// err = success and found_sec not "No resources found." means it was found
+	// err = success and found_sec contains "No resources found." means it was not found
+	// err != success is another error
 	if err == nil && !strings.Contains(message, "No resources found") {
 		logger.Infof("Object User Secret Exists")
 		return true
@@ -75,7 +75,6 @@ func (o *ObjectUserOperation) UserSecretExists(namespace string, store string, u
 
 // ObjectUserCreate Function to create a object store user in rook
 func (o *ObjectUserOperation) Create(userid, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) error {
-
 	logger.Infof("creating the object store user via CRD")
 	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStoreUser(userid, displayName, store, usercaps, maxsize, maxbuckets, maxobjects)); err != nil {
 		return err
@@ -84,7 +83,6 @@ func (o *ObjectUserOperation) Create(userid, displayName, store, usercaps, maxsi
 }
 
 func (o *ObjectUserOperation) Delete(namespace string, userid string) error {
-
 	logger.Infof("Deleting the object store user via CRD")
 	if err := o.k8sh.DeleteResource("-n", namespace, "CephObjectStoreUser", userid); err != nil {
 		return err
