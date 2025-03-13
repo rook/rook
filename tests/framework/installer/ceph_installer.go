@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -143,6 +144,13 @@ func (h *CephInstaller) CreateCephOperator() (err error) {
 	_, err = h.k8shelper.KubectlWithStdin(h.Manifests.GetOperator(), createFromStdinArgs...)
 	if err != nil {
 		return errors.Errorf("Failed to create rook-operator pod: %v", err)
+	}
+
+	manifest := h.settings.readManifest("csi-operator.yaml")
+	manifest = strings.ReplaceAll(manifest, `namespace: rook-ceph`, `namespace: `+h.settings.OperatorNamespace)
+	_, err = h.k8shelper.KubectlWithStdin(manifest, createFromStdinArgs...)
+	if err != nil {
+		return errors.Errorf("Failed to create csi-operator pod: %v", err)
 	}
 
 	logger.Infof("Rook operator started")

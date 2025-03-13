@@ -228,11 +228,12 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		r.updateStatus(observedGeneration, namespacedName, cephv1.ConditionReady)
 		return reconcile.Result{}, nil
 	}
+
 	// Build the NamespacedName to fetch the Filesystem and make sure it exists, if not we cannot
 	// create the subvolume group
-
 	cephFilesystem := &cephv1.CephFilesystem{}
 	cephFilesystemNamespacedName := types.NamespacedName{Name: cephFilesystemSubVolumeGroup.Spec.FilesystemName, Namespace: request.Namespace}
+
 	err = r.client.Get(r.opManagerContext, cephFilesystemNamespacedName, cephFilesystem)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
@@ -272,7 +273,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 
 	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady)
 
-	if csi.EnableCSIOperator() {
+	if csi.EnableCSIOperator() || cephCluster.Spec.External.Enable {
 		err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemNamespacedName, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Name)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subVolGrp ns")
