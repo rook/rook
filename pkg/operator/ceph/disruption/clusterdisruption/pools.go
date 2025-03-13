@@ -73,7 +73,6 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	minFailureDomain := getMinimumFailureDomain(poolSpecs)
 
 	return cephObjectStoreList, cephFilesystemList, minFailureDomain, poolCount, nil
-
 }
 
 func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
@@ -81,7 +80,7 @@ func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
 		return cephv1.DefaultFailureDomain
 	}
 
-	//start with max as the min
+	// start with max as the min
 	minfailureDomainIndex := len(topology.CRUSHMapLevelsOrdered) - 1
 	matched := false
 

@@ -26,49 +26,49 @@ import (
 func TestValidatePinningValues(t *testing.T) {
 	// set Distributed correctly
 	var testDistributedData cephv1.CephFilesystemSubVolumeGroupSpecPinning
-	var testDistributedValue = 1
+	testDistributedValue := 1
 	testDistributedData.Distributed = &testDistributedValue
 	err := validatePinningValues(testDistributedData)
 	assert.NoError(t, err)
 
 	// set Distributed wrongly
 	var testDistributedData1 cephv1.CephFilesystemSubVolumeGroupSpecPinning
-	var testDistributedValue1 = 5
+	testDistributedValue1 := 5
 	testDistributedData1.Distributed = &testDistributedValue1
 	err = validatePinningValues(testDistributedData1)
 	assert.Error(t, err)
 
 	// set Random correctly
 	var testRandomData cephv1.CephFilesystemSubVolumeGroupSpecPinning
-	var testRandomdValue = 1.0
+	testRandomdValue := 1.0
 	testRandomData.Random = &testRandomdValue
 	err = validatePinningValues(testRandomData)
 	assert.NoError(t, err)
 
 	// set Random wrongly
 	var testRandomData1 cephv1.CephFilesystemSubVolumeGroupSpecPinning
-	var testRandomdValue1 = 5.0
+	testRandomdValue1 := 5.0
 	testRandomData1.Random = &testRandomdValue1
 	err = validatePinningValues(testRandomData1)
 	assert.Error(t, err)
 
 	// set export correctly
 	var testExportData cephv1.CephFilesystemSubVolumeGroupSpecPinning
-	var testExportValue = 1
+	testExportValue := 1
 	testExportData.Distributed = &testExportValue
 	err = validatePinningValues(testExportData)
 	assert.NoError(t, err)
 
 	// set export wrongly
 	var testExportData1 cephv1.CephFilesystemSubVolumeGroupSpecPinning
-	var testExportValue1 = 500
+	testExportValue1 := 500
 	testExportData1.Distributed = &testExportValue1
 	err = validatePinningValues(testExportData1)
 	assert.Error(t, err)
 
 	// more than one set at a time, error
 	var testData cephv1.CephFilesystemSubVolumeGroupSpecPinning
-	var testValue = 1
+	testValue := 1
 	testData.Distributed = &testValue
 	testData.Export = &testValue
 	err = validatePinningValues(testData)

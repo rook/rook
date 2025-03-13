@@ -85,12 +85,12 @@ func Test_cephBlockPoolDependents(t *testing.T) {
 	t.Run("one namespace", func(t *testing.T) {
 		c = newClusterdCtx(&cephv1.CephBlockPoolRadosNamespace{ObjectMeta: meta("namespace1")})
 		_, err := c.RookClientset.CephV1().CephBlockPoolRadosNamespaces(clusterInfo.Namespace).Create(ctx, &cephv1.CephBlockPoolRadosNamespace{ObjectMeta: meta("namespace1"), Spec: cephv1.CephBlockPoolRadosNamespaceSpec{
-			BlockPoolName: "replicapool"}}, v1.CreateOptions{})
+			BlockPoolName: "replicapool",
+		}}, v1.CreateOptions{})
 		assert.NoError(t, err)
 		assert.NoError(t, err)
 		deps, err := cephBlockPoolDependents(c, clusterInfo, bp)
 		assert.NoError(t, err)
 		assert.False(t, deps.Empty())
 	})
-
 }

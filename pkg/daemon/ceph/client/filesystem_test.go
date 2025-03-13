@@ -48,7 +48,8 @@ func TestFilesystemListMarshal(t *testing.T) {
 			MetadataPool:   "myfs1-metadata",
 			MetadataPoolID: 2,
 			DataPools:      []string{"myfs1-data"},
-			DataPoolIDs:    []int{1}},
+			DataPoolIDs:    []int{1},
+		},
 	}
 
 	assert.Equal(t, expectedFilesystems, filesystems)

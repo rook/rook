@@ -18,11 +18,9 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"syscall"
-
-	"strconv"
-
 	"regexp"
+	"strconv"
+	"syscall"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -65,10 +63,10 @@ func ListImagesInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterI
 		return nil, errors.Wrapf(err, "failed to list images for pool %s", poolName)
 	}
 
-	//The regex expression captures the json result at the end buf
-	//When logLevel is DEBUG buf contains log statements of librados (see tests for examples)
-	//It can happen that the end of the "real" output doesn't not contain a new line
-	//that's why looking for the end isn't an option here (anymore?)
+	// The regex expression captures the json result at the end buf
+	// When logLevel is DEBUG buf contains log statements of librados (see tests for examples)
+	// It can happen that the end of the "real" output doesn't not contain a new line
+	// that's why looking for the end isn't an option here (anymore?)
 	res := regexp.MustCompile(`(?m)^\[(.*)\]`).FindStringSubmatch(string(buf))
 	if len(res) == 0 {
 		return []CephBlockImage{}, nil

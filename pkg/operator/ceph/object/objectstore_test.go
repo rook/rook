@@ -556,7 +556,6 @@ func TestGetObjectBucketProvisioner(t *testing.T) {
 		_, err := GetObjectBucketProvisioner(testNamespace)
 		assert.Error(t, err)
 	})
-
 }
 
 func TestCheckDashboardUser(t *testing.T) {
@@ -846,7 +845,8 @@ func Test_createMultisite(t *testing.T) {
 		expectCommands expectCommands
 		wantErr        bool
 	}{
-		{"create realm, zonegroup, and zone; commit config",
+		{
+			"create realm, zonegroup, and zone; commit config",
 			commandReturns{
 				// nothing exists, and all should succeed
 			},
@@ -859,8 +859,10 @@ func Test_createMultisite(t *testing.T) {
 				createZone:          true,
 				commitConfigChanges: true,
 			},
-			expectNoErr},
-		{"fail creating realm",
+			expectNoErr,
+		},
+		{
+			"fail creating realm",
 			commandReturns{
 				failCreateRealm: true,
 			},
@@ -869,8 +871,10 @@ func Test_createMultisite(t *testing.T) {
 				createRealm: true,
 				// when we fail to create realm, we should not continue
 			},
-			expectErr},
-		{"fail creating zonegroup",
+			expectErr,
+		},
+		{
+			"fail creating zonegroup",
 			commandReturns{
 				failCreateZoneGroup: true,
 			},
@@ -881,8 +885,10 @@ func Test_createMultisite(t *testing.T) {
 				createZoneGroup: true,
 				// when we fail to create zonegroup, we should not continue
 			},
-			expectErr},
-		{"fail creating zone",
+			expectErr,
+		},
+		{
+			"fail creating zone",
 			commandReturns{
 				failCreateZone: true,
 			},
@@ -895,8 +901,10 @@ func Test_createMultisite(t *testing.T) {
 				createZone:      true,
 				// when we fail to create zone, we should not continue
 			},
-			expectErr},
-		{"fail commit config",
+			expectErr,
+		},
+		{
+			"fail commit config",
 			commandReturns{
 				failCommitConfigChanges: true,
 			},
@@ -909,8 +917,10 @@ func Test_createMultisite(t *testing.T) {
 				createZone:          true,
 				commitConfigChanges: true,
 			},
-			expectErr},
-		{"realm exists; create zonegroup and zone; commit config",
+			expectErr,
+		},
+		{
+			"realm exists; create zonegroup and zone; commit config",
 			commandReturns{
 				realmExists: true,
 			},
@@ -923,8 +933,10 @@ func Test_createMultisite(t *testing.T) {
 				createZone:          true,
 				commitConfigChanges: true,
 			},
-			expectNoErr},
-		{"realm and zonegroup exist; create zone; commit config",
+			expectNoErr,
+		},
+		{
+			"realm and zonegroup exist; create zone; commit config",
 			commandReturns{
 				realmExists:     true,
 				zoneGroupExists: true,
@@ -938,8 +950,10 @@ func Test_createMultisite(t *testing.T) {
 				createZone:          true,
 				commitConfigChanges: true,
 			},
-			expectNoErr},
-		{"realm, zonegroup, and zone exist; commit config",
+			expectNoErr,
+		},
+		{
+			"realm, zonegroup, and zone exist; commit config",
 			commandReturns{
 				realmExists:     true,
 				zoneGroupExists: true,
@@ -954,7 +968,8 @@ func Test_createMultisite(t *testing.T) {
 				createZone:          false,
 				commitConfigChanges: true,
 			},
-			expectNoErr},
+			expectNoErr,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -984,19 +999,20 @@ func Test_createMultisite(t *testing.T) {
 }
 
 func getExecutor() []exec.Executor {
-	executor := []exec.Executor{&exectest.MockExecutor{
-		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
-			if args[0] == "realm" {
-				return `{
+	executor := []exec.Executor{
+		&exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				if args[0] == "realm" {
+					return `{
 	"id": "237e6250-5f7d-4b85-9359-8cb2b1848507",
 	"name": "realm-a",
 	"current_period": "df665ecb-1762-47a9-9c66-f938d251c02a",
 	"epoch": 2
 }`, nil
-			}
-			return "", nil
+				}
+				return "", nil
+			},
 		},
-	},
 		&exectest.MockExecutor{
 			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 				if args[0] == "realm" {
@@ -1221,11 +1237,13 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"all the fields are empty",
+		{
+			"all the fields are empty",
 			args{zones: []zoneType{}, zoneEndpointList: []string{}, zoneName: ""},
 			false, true,
 		},
-		{"zoneName is empty",
+		{
+			"zoneName is empty",
 			args{
 				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint"}}},
 				zoneEndpointList: []string{"http://rgw-endpoint"},
@@ -1233,7 +1251,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			false, true,
 		},
-		{"new endpoint list is same existing containing single zone",
+		{
+			"new endpoint list is same existing containing single zone",
 			args{
 				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-1"}}},
 				zoneEndpointList: []string{"http://rgw-endpoint-1"},
@@ -1241,7 +1260,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			false, false,
 		},
-		{"new endpoint list to existing list is empty containing single zone",
+		{
+			"new endpoint list to existing list is empty containing single zone",
 			args{
 				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{}}},
 				zoneEndpointList: []string{"http://rgw-endpoint-1"},
@@ -1249,7 +1269,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"deleting endpoints from existing list containing single zone",
+		{
+			"deleting endpoints from existing list containing single zone",
 			args{
 				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-1"}}},
 				zoneEndpointList: []string{},
@@ -1257,14 +1278,17 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"zone not listed in zonegroup containing single zone",
-			args{zones: []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-1"}}},
+		{
+			"zone not listed in zonegroup containing single zone",
+			args{
+				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-1"}}},
 				zoneEndpointList: []string{"http://rgw-endpoint-2"},
 				zoneName:         "zone-2",
 			},
 			false, false,
 		},
-		{"new endpoint list is different from existing list containing single zone",
+		{
+			"new endpoint list is different from existing list containing single zone",
 			args{
 				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-1"}}},
 				zoneEndpointList: []string{"http://rgw-endpoint-2"},
@@ -1272,7 +1296,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"new endpoint list  has multiple entries is different from existing listed containing single zone",
+		{
+			"new endpoint list  has multiple entries is different from existing listed containing single zone",
 			args{
 				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-1"}}},
 				zoneEndpointList: []string{"http://rgw-endpoint-1", "http://rgw-endpoint-2"},
@@ -1280,7 +1305,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"new endpoint list removed one endpoint from existing list containing single zone",
+		{
+			"new endpoint list removed one endpoint from existing list containing single zone",
 			args{
 				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-1", "http://rgw-endpoint-2"}}},
 				zoneEndpointList: []string{"http://rgw-endpoint-1"},
@@ -1288,7 +1314,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"new endpoint list is different from existing listed containing single zone",
+		{
+			"new endpoint list is different from existing listed containing single zone",
 			args{
 				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-1", "http://rgw-endpoint-2"}}},
 				zoneEndpointList: []string{"http://rgw-endpoint-3"},
@@ -1296,7 +1323,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"new endpoint list is different from existing list but contains one similar endpoint containing single zone",
+		{
+			"new endpoint list is different from existing list but contains one similar endpoint containing single zone",
 			args{
 				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-1", "http://rgw-endpoint-2"}}},
 				zoneEndpointList: []string{"http://rgw-endpoint-2", "http://rgw-endpoint-3"},
@@ -1304,7 +1332,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"new endpoint list contains multiple different endpoints from existing list containing single zone",
+		{
+			"new endpoint list contains multiple different endpoints from existing list containing single zone",
 			args{
 				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-1", "http://rgw-endpoint-2"}}},
 				zoneEndpointList: []string{"http://rgw-endpoint-3", "http://rgw-endpoint-4"},
@@ -1312,7 +1341,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"deleting endpoint list containing multiple zone",
+		{
+			"deleting endpoint list containing multiple zone",
 			args{
 				zones: []zoneType{
 					{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-12"}},
@@ -1323,7 +1353,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"adding new endpoint list to empty containing multiple zone",
+		{
+			"adding new endpoint list to empty containing multiple zone",
 			args{
 				zones: []zoneType{
 					{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-11"}},
@@ -1334,7 +1365,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"zone not listed containing multiple zone",
+		{
+			"zone not listed containing multiple zone",
 			args{
 				zones: []zoneType{
 					{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-11", "http://rgw-endpoint-22"}},
@@ -1345,7 +1377,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			false, false,
 		},
-		{"new endpoint list have one new entry than existing list containing multiple zone",
+		{
+			"new endpoint list have one new entry than existing list containing multiple zone",
 			args{
 				zones: []zoneType{
 					{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-11", "http://rgw-endpoint-12"}},
@@ -1356,7 +1389,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"new endpoint list same as existing list containing multiple zone",
+		{
+			"new endpoint list same as existing list containing multiple zone",
 			args{
 				zones: []zoneType{
 					{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-11", "http://rgw-endpoint-12"}},
@@ -1367,7 +1401,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			false, false,
 		},
-		{"new endpoint list is different from existing list containing multiple zone",
+		{
+			"new endpoint list is different from existing list containing multiple zone",
 			args{
 				zones: []zoneType{
 					{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-11", "http://rgw-endpoint-12"}},
@@ -1378,7 +1413,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"new endpoint list have duplicate entries, containing multiple zone",
+		{
+			"new endpoint list have duplicate entries, containing multiple zone",
 			args{
 				zones: []zoneType{
 					{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-11", "http://rgw-endpoint-12"}},
@@ -1389,7 +1425,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"existing endpoint list have duplicate entries, containing multiple zone",
+		{
+			"existing endpoint list have duplicate entries, containing multiple zone",
 			args{
 				zones: []zoneType{
 					{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-11", "http://rgw-endpoint-12"}},
@@ -1400,7 +1437,8 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"both list have duplicate entries, containing multiple zone",
+		{
+			"both list have duplicate entries, containing multiple zone",
 			args{
 				zones: []zoneType{
 					{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-11", "http://rgw-endpoint-12"}},
@@ -1436,55 +1474,68 @@ func TestListsAreEqual(t *testing.T) {
 		args args
 		want bool
 	}{
-		{"lists are empty",
+		{
+			"lists are empty",
 			args{listA: []string{}, listB: []string{}},
 			true,
 		},
-		{"first list is empty",
+		{
+			"first list is empty",
 			args{listA: []string{"a"}, listB: []string{}},
 			false,
 		},
-		{"second list is empty",
+		{
+			"second list is empty",
 			args{listA: []string{}, listB: []string{"a"}},
 			false,
 		},
-		{"lists are equal with single entry",
+		{
+			"lists are equal with single entry",
 			args{listA: []string{"a"}, listB: []string{"a"}},
 			true,
 		},
-		{"lists are equal with multiple entries",
+		{
+			"lists are equal with multiple entries",
 			args{listA: []string{"a", "b"}, listB: []string{"a", "b"}},
 			true,
 		},
-		{"lists have different entries with same length",
+		{
+			"lists have different entries with same length",
 			args{listA: []string{"a", "b"}, listB: []string{"c", "d"}},
 			false,
 		},
-		{"lists have similar entries with different length",
+		{
+			"lists have similar entries with different length",
 			args{listA: []string{"a", "b"}, listB: []string{"a"}},
 			false,
 		},
-		{"lists have some similar entries with same length",
+		{
+			"lists have some similar entries with same length",
 			args{listA: []string{"a", "b"}, listB: []string{"c", "a"}},
 			false,
 		},
-		{"lists have similar entries with same length but order different",
+		{
+			"lists have similar entries with same length but order different",
 			args{listA: []string{"a", "b"}, listB: []string{"b", "a"}},
 			true,
 		},
-		{"lists have similar entries but contains duplicate",
+		{
+			"lists have similar entries but contains duplicate",
 			args{listA: []string{"a", "b", "b"}, listB: []string{"b", "a", "b"}},
 			true,
 		},
-		{"lists have similar entries but contains duplicate in first",
+		{
+			"lists have similar entries but contains duplicate in first",
 			args{listA: []string{"a", "b", "b"}, listB: []string{"a", "b"}},
 			false,
 		},
-		{"lists have all similar entries but length is different",
+		{
+			"lists have all similar entries but length is different",
 			args{listA: []string{"b", "b", "b"}, listB: []string{"b", "b"}},
 			false,
 		},
-		{"lists have different entries but contains duplicate in first",
+		{
+			"lists have different entries but contains duplicate in first",
 			args{listA: []string{"a", "b", "b"}, listB: []string{"c", "d"}},
 			false,
 		},

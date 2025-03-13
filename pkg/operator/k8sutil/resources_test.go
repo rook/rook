@@ -125,6 +125,7 @@ func TestYamlToContainerResource(t *testing.T) {
 	res, err = YamlToContainerResource(invalidData)
 	assert.Error(t, err)
 }
+
 func TestValidateOwner(t *testing.T) {
 	// global-scoped owner
 	ownerRef := &metav1.OwnerReference{}

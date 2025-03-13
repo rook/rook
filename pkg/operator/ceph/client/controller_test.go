@@ -71,7 +71,8 @@ func TestValidateClient(t *testing.T) {
 }
 
 func TestGenerateClient(t *testing.T) {
-	p := &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"},
+	p := &cephv1.CephClient{
+		ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"},
 		Spec: cephv1.ClientSpec{
 			Caps: map[string]string{
 				"osd": "allow *",
@@ -90,7 +91,8 @@ func TestGenerateClient(t *testing.T) {
 	assert.True(t, strings.Contains(strings.Join(caps, " "), "mds allow rwx"))
 
 	// Fail if caps are empty
-	p2 := &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client2", Namespace: "myns"},
+	p2 := &cephv1.CephClient{
+		ObjectMeta: metav1.ObjectMeta{Name: "client2", Namespace: "myns"},
 		Spec: cephv1.ClientSpec{
 			Caps: map[string]string{
 				"osd": "",

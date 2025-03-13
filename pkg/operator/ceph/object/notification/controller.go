@@ -53,10 +53,12 @@ const (
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", packageName)
 
-var waitForRequeueIfTopicNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
-var waitForRequeueIfNotificationNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
-var waitForRequeueIfObjectBucketNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
-var waitForRequeueIfNotificationNotDeleted = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
+var (
+	waitForRequeueIfTopicNotReady          = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
+	waitForRequeueIfNotificationNotReady   = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
+	waitForRequeueIfObjectBucketNotReady   = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
+	waitForRequeueIfNotificationNotDeleted = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
+)
 
 // ReconcileNotifications reconciles a CephbucketNotification
 type ReconcileNotifications struct {

@@ -105,6 +105,6 @@ func setSomeData(v reflect.Value) {
 	case reflect.Bool:
 		v.SetBool(true)
 	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64:
-		v.SetInt(0755)
+		v.SetInt(0o755)
 	}
 }

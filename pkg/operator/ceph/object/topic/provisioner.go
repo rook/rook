@@ -195,7 +195,6 @@ func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, error) 
 		Name:       &topic.Name,
 		Attributes: createTopicAttributes(topic),
 	})
-
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to provision CephBucketTopic %q", nsName)
 	}
@@ -223,7 +222,6 @@ func deleteTopic(p provisioner, topic *cephv1.CephBucketTopic) error {
 	}
 
 	_, err = snsClient.DeleteTopic(&sns.DeleteTopicInput{TopicArn: topic.Status.ARN})
-
 	if err != nil {
 		if err.(awserr.Error).Code() != sns.ErrCodeNotFoundException {
 			return errors.Wrapf(err, "failed to delete CephBucketTopic %q", nsName)

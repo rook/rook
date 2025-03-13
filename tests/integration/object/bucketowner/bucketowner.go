@@ -193,7 +193,6 @@ func WaitForPodLogContainingText(k8sh *utils.K8sHelper, namespace string, select
 
 	if len(pods.Items) == 0 {
 		return fmt.Errorf("no pods found with labels %v in namespace %q", selector, namespace)
-
 	}
 
 	// if there are multiple pods, just pick the first one

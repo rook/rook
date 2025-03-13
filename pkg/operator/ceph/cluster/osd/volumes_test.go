@@ -26,7 +26,7 @@ import (
 )
 
 func TestGetEncryptionVolume(t *testing.T) {
-	var m int32 = 0400
+	var m int32 = 0o400
 	c := &Cluster{}
 
 	// No KMS

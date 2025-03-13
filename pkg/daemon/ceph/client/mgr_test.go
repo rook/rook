@@ -49,7 +49,6 @@ func TestEnableModuleRetries(t *testing.T) {
 
 		moduleEnableRetries = moduleEnableRetries + 1
 		return "", errors.Errorf("unexpected ceph command %q", args)
-
 	}
 
 	clusterInfo := AdminTestClusterInfo("mycluster")

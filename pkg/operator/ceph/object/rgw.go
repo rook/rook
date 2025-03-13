@@ -69,9 +69,7 @@ type rgwConfig struct {
 
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
-var (
-	insecureSkipVerify = "insecureSkipVerify"
-)
+var insecureSkipVerify = "insecureSkipVerify"
 
 func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName string, keystoneSecret *v1.Secret) error {
 	logger.Infof("creating object store %q in namespace %q", c.store.Name, c.store.Namespace)

@@ -40,9 +40,7 @@ const (
 	removeEncryptedDeviceCmdTimeOut = 30 * time.Second
 )
 
-var (
-	luksLabelCephFSID = regexp.MustCompile("ceph_fsid=(.*)")
-)
+var luksLabelCephFSID = regexp.MustCompile("ceph_fsid=(.*)")
 
 func CloseEncryptedDevice(context *clusterd.Context, dmName string) error {
 	args := []string{"--verbose", "luksClose", dmName}
@@ -326,5 +324,4 @@ func isCephEncryptedBlock(context *clusterd.Context, currentClusterFSID string, 
 	}
 
 	return true
-
 }

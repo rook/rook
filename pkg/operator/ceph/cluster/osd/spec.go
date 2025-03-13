@@ -416,11 +416,17 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 		{Name: "ROOK_OSD_RESTART_INTERVAL", Value: strconv.Itoa(c.spec.Storage.FlappingRestartIntervalHours)},
 		{Name: "ROOK_OSD_UUID", Value: osd.UUID},
 		{Name: "ROOK_OSD_ID", Value: osdID},
-		{Name: "ROOK_CEPH_MON_HOST",
+		{
+			Name: "ROOK_CEPH_MON_HOST",
 			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
-					Name: "rook-ceph-config"},
-					Key: "mon_host"}}},
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: "rook-ceph-config",
+					},
+					Key: "mon_host",
+				},
+			},
+		},
 		{Name: "CEPH_ARGS", Value: "-m $(ROOK_CEPH_MON_HOST)"},
 		blockPathEnvVariable(osd.BlockPath),
 		cvModeEnvVariable(osd.CVMode),

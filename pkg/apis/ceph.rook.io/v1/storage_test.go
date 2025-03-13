@@ -156,7 +156,8 @@ func TestUseAllDevices(t *testing.T) {
 
 	storageSpec = StorageScopeSpec{
 		Selection: Selection{
-			UseAllDevices: newBool(true)}, // UseAllDevices is set to true on the storage spec
+			UseAllDevices: newBool(true),
+		}, // UseAllDevices is set to true on the storage spec
 	}
 	assert.True(t, storageSpec.AnyUseAllDevices())
 
@@ -271,7 +272,8 @@ func TestStorageScopeSpec_NodeWithNameExists(t *testing.T) {
 	spec.Nodes = []Node{
 		{Name: "node0-hostname"},
 		{Name: "node1"},
-		{Name: "node2"}}
+		{Name: "node2"},
+	}
 	assert.True(t, spec.NodeWithNameExists("node0-hostname"))
 	assert.False(t, spec.NodeWithNameExists("node0"))
 	assert.True(t, spec.NodeWithNameExists("node1"))

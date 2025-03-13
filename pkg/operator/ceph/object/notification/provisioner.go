@@ -76,7 +76,6 @@ func newS3Agent(p provisioner) (*object.S3Agent, error) {
 	adminOpsCtx, err := object.NewMultisiteAdminOpsContext(objContext, &objStore.Spec)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get admin Ops context for CephObjectStore %q", p.objectStoreName)
-
 	}
 	accessKey, secretKey, err := getUserCredentials(adminOpsCtx, p.opManagerContext, p.owner)
 	if err != nil {

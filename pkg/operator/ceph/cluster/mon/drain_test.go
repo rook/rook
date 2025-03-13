@@ -145,7 +145,6 @@ func TestAllowMonDrain(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 1, int(existingPDBV1.Spec.MaxUnavailable.IntValue()))
 	})
-
 }
 
 func TestBlockMonDrain(t *testing.T) {

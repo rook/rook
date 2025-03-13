@@ -44,8 +44,8 @@ type OsdAgent struct {
 // NewAgent is the instantiation of the OSD agent
 func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice string, forceFormat bool,
 	storeConfig config.StoreConfig, clusterInfo *cephclient.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore,
-	replaceOSD *oposd.OSDInfo, pvcBacked bool) *OsdAgent {
-
+	replaceOSD *oposd.OSDInfo, pvcBacked bool,
+) *OsdAgent {
 	return &OsdAgent{
 		devices:        devices,
 		metadataDevice: metadataDevice,

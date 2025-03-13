@@ -69,10 +69,14 @@ const (
 
 func TestOSDProperties(t *testing.T) {
 	osdProps := []osdProperties{
-		{pvc: corev1.PersistentVolumeClaimVolumeSource{ClaimName: "claim"},
-			metadataPVC: corev1.PersistentVolumeClaimVolumeSource{ClaimName: "claim"}},
-		{pvc: corev1.PersistentVolumeClaimVolumeSource{ClaimName: ""},
-			metadataPVC: corev1.PersistentVolumeClaimVolumeSource{ClaimName: ""}},
+		{
+			pvc:         corev1.PersistentVolumeClaimVolumeSource{ClaimName: "claim"},
+			metadataPVC: corev1.PersistentVolumeClaimVolumeSource{ClaimName: "claim"},
+		},
+		{
+			pvc:         corev1.PersistentVolumeClaimVolumeSource{ClaimName: ""},
+			metadataPVC: corev1.PersistentVolumeClaimVolumeSource{ClaimName: ""},
+		},
 	}
 	expected := [][2]bool{
 		{true, true},
@@ -275,7 +279,8 @@ func TestAddRemoveNode(t *testing.T) {
 	// simulate the OSD pod having been created
 	osdPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 		Name:   "osdPod",
-		Labels: map[string]string{k8sutil.AppAttr: AppName}}}
+		Labels: map[string]string{k8sutil.AppAttr: AppName},
+	}}
 	_, err = c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).Create(ctx, osdPod, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
@@ -660,21 +665,22 @@ func TestGetPreparePlacement(t *testing.T) {
 	assert.Nil(t, result.NodeAffinity)
 
 	// the osd daemon placement is specified
-	prop.placement = cephv1.Placement{NodeAffinity: &corev1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-			NodeSelectorTerms: []corev1.NodeSelectorTerm{
-				{
-					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{
-							Key:      "label1",
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{"bar", "baz"},
+	prop.placement = cephv1.Placement{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "label1",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"bar", "baz"},
+							},
 						},
 					},
 				},
 			},
 		},
-	},
 	}
 
 	result = prop.getPreparePlacement()
@@ -682,21 +688,22 @@ func TestGetPreparePlacement(t *testing.T) {
 	assert.Equal(t, "label1", result.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key)
 
 	// The prepare placement is specified and takes precedence over the osd placement
-	prop.preparePlacement = &cephv1.Placement{NodeAffinity: &corev1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-			NodeSelectorTerms: []corev1.NodeSelectorTerm{
-				{
-					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{
-							Key:      "label2",
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{"foo", "bar"},
+	prop.preparePlacement = &cephv1.Placement{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "label2",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"foo", "bar"},
+							},
 						},
 					},
 				},
 			},
 		},
-	},
 	}
 	result = prop.getPreparePlacement()
 	assert.Equal(t, 1, len(result.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms))
@@ -868,7 +875,6 @@ func TestUpdateCephStorageStatus(t *testing.T) {
 		assert.Equal(t, "ssd", cephCluster.Status.CephStorage.DeviceClasses[0].Name)
 		assert.Equal(t, 1, cephCluster.Status.CephStorage.OSD.StoreType["bluestore"])
 		assert.Equal(t, 0, cephCluster.Status.CephStorage.OSD.StoreType["bluestore-rdr"])
-
 	})
 
 	t.Run("verify bluestoreRDR OSD count in storage status", func(t *testing.T) {

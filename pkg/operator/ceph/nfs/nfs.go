@@ -186,7 +186,6 @@ func (r *ReconcileCephNFS) runGaneshaRadosGrace(nfs *cephv1.CephNFS, name, actio
 }
 
 func (r *ReconcileCephNFS) generateConfigMap(n *cephv1.CephNFS, name string) *v1.ConfigMap {
-
 	data := map[string]string{
 		"config": getGaneshaConfig(n, r.clusterInfo.CephVersion, name),
 	}
@@ -275,6 +274,7 @@ func (r *ReconcileCephNFS) removeServersFromDatabase(n *cephv1.CephNFS, newActiv
 
 	return nil
 }
+
 func instanceName(n *cephv1.CephNFS, name string) string {
 	return fmt.Sprintf("%s-%s-%s", AppName, n.Name, name)
 }

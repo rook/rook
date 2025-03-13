@@ -40,16 +40,17 @@ func TestPodSpec(t *testing.T) {
 		Dashboard:          cephv1.DashboardSpec{Port: 1234},
 		PriorityClassNames: map[cephv1.KeyType]string{cephv1.KeyMgr: "my-priority-class"},
 		DataDirHostPath:    "/var/lib/rook/",
-		Resources: cephv1.ResourceSpec{string(cephv1.KeyMgr): v1.ResourceRequirements{
-			Limits: v1.ResourceList{
-				v1.ResourceCPU:    *resource.NewQuantity(200.0, resource.BinarySI),
-				v1.ResourceMemory: *resource.NewQuantity(500.0, resource.BinarySI),
+		Resources: cephv1.ResourceSpec{
+			string(cephv1.KeyMgr): v1.ResourceRequirements{
+				Limits: v1.ResourceList{
+					v1.ResourceCPU:    *resource.NewQuantity(200.0, resource.BinarySI),
+					v1.ResourceMemory: *resource.NewQuantity(500.0, resource.BinarySI),
+				},
+				Requests: v1.ResourceList{
+					v1.ResourceCPU:    *resource.NewQuantity(100.0, resource.BinarySI),
+					v1.ResourceMemory: *resource.NewQuantity(250.0, resource.BinarySI),
+				},
 			},
-			Requests: v1.ResourceList{
-				v1.ResourceCPU:    *resource.NewQuantity(100.0, resource.BinarySI),
-				v1.ResourceMemory: *resource.NewQuantity(250.0, resource.BinarySI),
-			},
-		},
 		},
 	}
 	c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "rook/rook:myversion")

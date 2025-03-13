@@ -37,9 +37,7 @@ import (
 // TimeoutWaitingForMessage can be used to identify if an error is due to a timeout.
 const TimeoutWaitingForMessage = "exec timeout waiting for"
 
-var (
-	CephCommandsTimeout = 15 * time.Second
-)
+var CephCommandsTimeout = 15 * time.Second
 
 // Executor is the main interface for all the exec commands
 type Executor interface {

@@ -80,8 +80,10 @@ func New(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, spec ce
 	}
 }
 
-var waitForDeploymentToStart = k8sutil.WaitForDeploymentToStart
-var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
+var (
+	waitForDeploymentToStart = k8sutil.WaitForDeploymentToStart
+	updateDeploymentAndWait  = mon.UpdateCephDeploymentAndWait
+)
 
 // for backward compatibility, default to 1 mgr
 func (c *Cluster) getReplicas() int {

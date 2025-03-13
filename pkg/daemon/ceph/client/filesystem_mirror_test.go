@@ -115,7 +115,6 @@ func TestCreateFSMirrorBootstrapPeer(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = base64.StdEncoding.DecodeString(string(token))
 	assert.NoError(t, err)
-
 }
 
 func TestRemoveFilesystemMirrorPeer(t *testing.T) {

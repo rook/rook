@@ -463,7 +463,6 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 }
 
 func updatePoolCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec) error {
-
 	if !pool.EnableCrushUpdates {
 		logger.Debugf("Skipping crush rule update for pool %q: EnableCrushUpdates is disabled", pool.Name)
 		return nil
@@ -631,7 +630,6 @@ func createHybridCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, 
 }
 
 func updateCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo, ruleset string) error {
-
 	// Fetch the compiled crush map
 	compiledCRUSHMapFilePath, err := GetCompiledCrushMap(context, clusterInfo)
 	if err != nil {
@@ -658,7 +656,7 @@ func updateCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo, ruleset
 	}()
 
 	// Append plain rule to the decompiled crush map
-	f, err := os.OpenFile(filepath.Clean(decompiledCRUSHMapFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0400)
+	f, err := os.OpenFile(filepath.Clean(decompiledCRUSHMapFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o400)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open decompiled crush map %q", decompiledCRUSHMapFilePath)
 	}

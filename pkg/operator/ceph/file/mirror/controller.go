@@ -228,7 +228,6 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph filesystem mirror")
 	return reconcile.Result{}, *filesystemMirror, nil
-
 }
 
 func (r *ReconcileFilesystemMirror) reconcileFilesystemMirror(filesystemMirror *cephv1.CephFilesystemMirror) (reconcile.Result, error) {

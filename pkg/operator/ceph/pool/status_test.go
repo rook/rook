@@ -26,7 +26,6 @@ import (
 )
 
 func TestUpdateStatusInfo(t *testing.T) {
-
 	cephBlockPoolReplicated := &cephv1.CephBlockPool{
 		Spec: cephv1.NamedBlockPoolSpec{
 			Name: "test-pool-replicated",

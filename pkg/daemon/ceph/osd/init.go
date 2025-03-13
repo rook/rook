@@ -18,7 +18,6 @@ package osd
 
 import (
 	"fmt"
-
 	"path"
 
 	"github.com/rook/rook/pkg/clusterd"

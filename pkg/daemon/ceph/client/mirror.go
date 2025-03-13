@@ -69,7 +69,7 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 	}
 
 	// Write token into a file
-	err = os.WriteFile(tokenFilePath.Name(), token, 0400)
+	err = os.WriteFile(tokenFilePath.Name(), token, 0o400)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write token to file %q", tokenFilePath.Name())
 	}

@@ -41,9 +41,7 @@ const (
 	VaultTransitSecretEngineKey = "transit"
 )
 
-var (
-	vaultMandatoryConnectionDetails = []string{api.EnvVaultAddress}
-)
+var vaultMandatoryConnectionDetails = []string{api.EnvVaultAddress}
 
 // Used for unit tests mocking too as well as production code
 var (
@@ -147,7 +145,7 @@ func configTLS(ctx context.Context, clusterdContext *clusterd.Context, namespace
 			}
 
 			// Write into a file
-			err = os.WriteFile(file.Name(), secret.Data[tlsSecretKeyToCheck(tlsOption)], 0400)
+			err = os.WriteFile(file.Name(), secret.Data[tlsSecretKeyToCheck(tlsOption)], 0o400)
 			if err != nil {
 				return nil, removeCertFiles, errors.Wrapf(err, "failed to write k8s secret %q content to a file", tlsSecretName)
 			}

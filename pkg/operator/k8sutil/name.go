@@ -66,5 +66,4 @@ func NameToIndex(name string) (int, error) {
 		factor /= maxPerChar
 	}
 	return result, nil
-
 }

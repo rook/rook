@@ -26,9 +26,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-flags")
-)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-flags")
 
 func VerifyRequiredFlags(cmd *cobra.Command, requiredFlags []string) error {
 	var missingFlags []string

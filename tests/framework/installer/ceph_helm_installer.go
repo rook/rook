@@ -90,9 +90,11 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 func (h *CephInstaller) CreateRookCephClusterViaHelm() error {
 	return h.configureRookCephClusterViaHelm(false)
 }
+
 func (h *CephInstaller) UpgradeRookCephClusterViaHelm() error {
 	return h.configureRookCephClusterViaHelm(true)
 }
+
 func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 	values := map[string]interface{}{
 		"image": "rook/ceph:" + h.settings.RookVersion,

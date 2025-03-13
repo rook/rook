@@ -210,7 +210,8 @@ func getClusterPoolIDMap(clusterContext *clusterd.Context, clusterInfo *cephclie
 		defer os.Remove(configFile.Name())
 
 		// Build command
-		args := []string{"osd", "pool", "get", pool.Name, "all",
+		args := []string{
+			"osd", "pool", "get", pool.Name, "all",
 			fmt.Sprintf("--cluster=%s", decodedTokenToGo.Namespace),
 			fmt.Sprintf("--conf=%s", configFile.Name()),
 			fmt.Sprintf("--fsid=%s", decodedTokenToGo.ClusterFSID),

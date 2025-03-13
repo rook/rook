@@ -44,8 +44,8 @@ func UpdateCondition(ctx context.Context, c *clusterd.Context, namespaceName typ
 
 // UpdateClusterCondition function will export each condition into the cluster custom resource
 func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, namespaceName types.NamespacedName, observedGeneration int64, conditionType cephv1.ConditionType, status v1.ConditionStatus,
-	reason cephv1.ConditionReason, message string, preserveAllConditions bool) {
-
+	reason cephv1.ConditionReason, message string, preserveAllConditions bool,
+) {
 	// Keep the conditions that already existed if they are in the list of long-term conditions,
 	// otherwise discard the temporary conditions
 	var currentCondition *cephv1.Condition

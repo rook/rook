@@ -45,7 +45,8 @@ func newConfig(t *testing.T) *clusterConfig {
 		store: &cephv1.CephObjectStore{
 			Spec: cephv1.ObjectStoreSpec{
 				Gateway: cephv1.GatewaySpec{},
-			}},
+			},
+		},
 		clusterInfo: clusterInfo,
 		clusterSpec: clusterSpec,
 		context:     &clusterd.Context{Clientset: test.New(t, 3)},
@@ -156,7 +157,8 @@ func Test_clusterConfig_generateMonConfigOptions(t *testing.T) {
 			Gateway: cephv1.GatewaySpec{
 				DisableMultisiteSyncTraffic: true,
 				RgwConfig:                   map[string]string{"one": "add", "rgw_enable_usage_log": "false"},
-				RgwCommandFlags:             map[string]string{"two": "add", "rgw_zone": "bob"}},
+				RgwCommandFlags:             map[string]string{"two": "add", "rgw_zone": "bob"},
+			},
 		}, overlayOnDefaultConfigs("rgw_run_sync_thread", "false", "one", "add", "rgw_enable_usage_log", "false"), false},
 	}
 	for _, tt := range tests {

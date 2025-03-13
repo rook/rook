@@ -18,9 +18,10 @@ limitations under the License.
 package k8sutil
 
 import (
+	"testing"
+
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestGetServiceMonitor(t *testing.T) {

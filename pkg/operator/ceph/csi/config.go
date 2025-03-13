@@ -36,7 +36,6 @@ import (
 )
 
 func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephBlockPoolRadosNamespaceName, clusterID, clusterName string) error {
-
 	logger.Info("creating ceph-csi clientProfile CR for rados namespace")
 
 	csiOpClientProfile := &csiopv1a1.ClientProfile{}
@@ -74,7 +73,6 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 }
 
 func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephFilesystemSubVolumeGroupName, clusterID, clusterName string) error {
-
 	logger.Info("Creating ceph-csi clientProfile CR for subvolume group")
 
 	csiOpClientProfile := generateProfileSubVolumeGroupSpec(clusterInfo, cephFilesystemSubVolumeGroupName, clusterID, clusterName)

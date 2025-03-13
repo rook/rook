@@ -187,7 +187,6 @@ func (c *ClusterMap) UpdateClusterMap(namespace string, cluster *cephv1.CephClus
 		c.clusterMap = make(map[string]*cephv1.CephCluster)
 	}
 	c.clusterMap[namespace] = cluster
-
 }
 
 // GetClusterInfo looks up the context for the current ceph cluster.

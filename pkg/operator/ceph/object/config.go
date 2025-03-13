@@ -57,9 +57,7 @@ caps osd = "allow rwx"
 	rgwVaultDirName                 = "/etc/vault/rgw/"
 )
 
-var (
-	rgwFrontendName = "beast"
-)
+var rgwFrontendName = "beast"
 
 func (c *clusterConfig) portString() string {
 	var portString string
@@ -112,14 +110,15 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 }
 
 func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[string]string, error) {
-
-	requiredKeys := []string{"OS_PROJECT_DOMAIN_NAME",
+	requiredKeys := []string{
+		"OS_PROJECT_DOMAIN_NAME",
 		"OS_USER_DOMAIN_NAME",
 		"OS_PROJECT_DOMAIN_NAME",
 		"OS_USER_DOMAIN_NAME",
 		"OS_PROJECT_NAME",
 		"OS_USERNAME",
-		"OS_PASSWORD"}
+		"OS_PASSWORD",
+	}
 
 	data := make(map[string]string)
 	for key, value := range secret.Data {
@@ -154,7 +153,6 @@ func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[st
 }
 
 func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
-
 	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 	who := generateCephXUser(rgwConfig.ResourceName)
 
@@ -252,7 +250,6 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 }
 
 func configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[string]string) (map[string]string, error) {
-
 	keystone := rgwConfig.Auth.Keystone
 	if keystone == nil {
 		logger.Debug("Authentication with keystone is disabled")
@@ -275,7 +272,6 @@ func configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[str
 			lc != "s3" {
 
 			return nil, errors.New(fmt.Sprintf("ImplicitTenantSetting can only be 'swift', 's3', 'true' or 'false', not %q", string(keystone.ImplicitTenants)))
-
 		}
 
 		configOptions["rgw_keystone_implicit_tenants"] = lc

@@ -39,7 +39,6 @@ type HelmHelper struct {
 func NewHelmHelper(helmPath string) *HelmHelper {
 	executor := &exec.CommandExecutor{}
 	return &HelmHelper{executor: executor, HelmPath: helmPath}
-
 }
 
 // Execute is wrapper for executing helm commands
@@ -51,7 +50,6 @@ func (h *HelmHelper) Execute(args ...string) (string, error) {
 
 	}
 	return result, nil
-
 }
 
 func createValuesFile(path string, values map[string]interface{}) error {
@@ -118,7 +116,6 @@ func (h *HelmHelper) InstallLocalHelmChart(upgrade bool, namespace, chart string
 }
 
 func (h *HelmHelper) InstallVersionedChart(namespace, chart, version string, values map[string]interface{}) error {
-
 	logger.Infof("adding rook-release helm repo")
 	cmdArgs := []string{"repo", "add", "rook-release", "https://charts.rook.io/release"}
 	_, err := h.Execute(cmdArgs...)

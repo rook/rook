@@ -338,7 +338,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
 	}
 
-	var quotaEnabled = false
+	quotaEnabled := false
 	var maxSize int64 = -1
 	var maxObjects int64 = -1
 	if u.Spec.Quotas != nil {

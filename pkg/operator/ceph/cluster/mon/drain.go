@@ -32,7 +32,7 @@ const (
 
 func (c *Cluster) reconcileMonPDB() error {
 	if !c.spec.DisruptionManagement.ManagePodBudgets {
-		//TODO: Delete mon PDB
+		// TODO: Delete mon PDB
 		return nil
 	}
 
@@ -58,7 +58,8 @@ func (c *Cluster) createOrUpdateMonPDB(maxUnavailable int32) (controllerutil.Ope
 		MatchLabels: map[string]string{k8sutil.AppAttr: AppName},
 	}
 	pdb := &policyv1.PodDisruptionBudget{
-		ObjectMeta: objectMeta}
+		ObjectMeta: objectMeta,
+	}
 
 	mutateFunc := func() error {
 		pdb.Spec = policyv1.PodDisruptionBudgetSpec{

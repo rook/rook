@@ -232,9 +232,11 @@ func TestCephClusterDependents(t *testing.T) {
 		deps, err := CephClusterDependents(c, ns)
 		assert.NoError(t, err)
 		assert.False(t, deps.Empty())
-		assert.ElementsMatch(t, []string{"CephBlockPool", "CephRBDMirror", "CephFilesystem",
+		assert.ElementsMatch(t, []string{
+			"CephBlockPool", "CephRBDMirror", "CephFilesystem",
 			"CephFilesystemMirror", "CephObjectStore", "CephObjectStoreUser", "CephObjectZone",
-			"CephObjectZoneGroup", "CephObjectRealm", "CephNFS", "CephClient", "CephBucketTopic", "CephBucketNotification"}, deps.PluralKinds())
+			"CephObjectZoneGroup", "CephObjectRealm", "CephNFS", "CephClient", "CephBucketTopic", "CephBucketNotification",
+		}, deps.PluralKinds())
 		assert.ElementsMatch(t, []string{"pool-1"}, deps.OfKind("CephBlockPool"))
 		assert.ElementsMatch(t, []string{"rbdmirror-1", "rbdmirror-2"}, deps.OfKind("CephRBDMirror"))
 		assert.ElementsMatch(t, []string{"filesystem-1"}, deps.OfKind("CephFilesystem"))

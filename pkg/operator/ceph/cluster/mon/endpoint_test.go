@@ -25,7 +25,6 @@ import (
 )
 
 func TestMonFlattening(t *testing.T) {
-
 	// single endpoint
 	mons := map[string]*cephclient.MonInfo{
 		"foo": {Name: "foo", Endpoint: "1.2.3.4:5000"},

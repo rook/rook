@@ -73,8 +73,7 @@ func (p Placement) mergeNodeAffinity(nodeAffinity *v1.NodeAffinity) *v1.NodeAffi
 	// take the placement affinity node selectors without the need to merge
 	if len(p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0 {
 		// take the placement from the first option since the second isn't specified
-		result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms =
-			nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 		return result
 	}
 

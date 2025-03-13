@@ -118,7 +118,8 @@ func TestStartSecureDashboard(t *testing.T) {
 		OwnerInfo:   ownerInfo,
 		Context:     ctx,
 	}
-	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: clientset, Executor: executor},
+	c := &Cluster{
+		clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: clientset, Executor: executor},
 		spec: cephv1.ClusterSpec{
 			Dashboard:   cephv1.DashboardSpec{Port: 443, Enabled: true, SSL: true},
 			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v15"},

@@ -145,7 +145,8 @@ func TestParseLinuxIpAddrOutput(t *testing.T) {
 			ipAddrRawOutput: "",
 			want:            []LinuxIpAddrResult{},
 			wantErr:         true,
-		}, {
+		},
+		{
 			name:            "full output",
 			ipAddrRawOutput: ipAddrOutputMixedIPv4v6,
 			want: []LinuxIpAddrResult{

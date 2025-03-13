@@ -84,8 +84,10 @@ func (d *Discover) Start(ctx context.Context, namespace, discoverImage, security
 func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, discoverImage, securityAccount string, useCephVolume bool) error {
 	discoveryInterval := k8sutil.GetOperatorSetting(discoverIntervalEnv, defaultDiscoverInterval)
 
-	discoveryParameters := []string{"discover",
-		"--discover-interval", discoveryInterval}
+	discoveryParameters := []string{
+		"discover",
+		"--discover-interval", discoveryInterval,
+	}
 	if useCephVolume {
 		discoveryParameters = append(discoveryParameters, "--use-ceph-volume")
 	}
@@ -252,7 +254,6 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 		logger.Infof("rook-discover daemonset started")
 	}
 	return nil
-
 }
 
 func getLabels() map[string]string {
@@ -425,7 +426,7 @@ func GetAvailableDevices(ctx context.Context, clusterdContext *clusterd.Context,
 		}
 	} else if len(filter) >= 0 {
 		for i := range nodeDevices {
-			//TODO support filter based on other keys
+			// TODO support filter based on other keys
 			matched, err := regexp.Match(filter, []byte(nodeDevices[i].Name))
 			if err == nil && matched {
 				d := cephv1.Device{
