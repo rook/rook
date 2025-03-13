@@ -1039,9 +1039,10 @@ func Test_mapSecretToCR(t *testing.T) {
 		obj k8sclient.Object
 	}
 	tests := []struct {
-		name string
-		args args
-		want []reconcile.Request
+		name              string
+		existingObjStores []string
+		args              args
+		want              []reconcile.Request
 	}{
 		{
 			name: "secret without annotation",
@@ -1070,7 +1071,24 @@ func Test_mapSecretToCR(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "secret with single obj store reference",
+			name:              "object store does not exist",
+			existingObjStores: nil,
+			args: args{
+				obj: &v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "secret",
+						Namespace: "ns",
+						Annotations: map[string]string{
+							objectStoreDependentResourceAnnotation: "store1",
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name:              "secret with single obj store reference",
+			existingObjStores: []string{"store1", "store2", "store3"},
 			args: args{
 				obj: &v1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1087,7 +1105,8 @@ func Test_mapSecretToCR(t *testing.T) {
 			},
 		},
 		{
-			name: "secret with multiple obj store references",
+			name:              "secret with multiple obj store references",
+			existingObjStores: []string{"store1", "store2", "store3"},
 			args: args{
 				obj: &v1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1105,7 +1124,8 @@ func Test_mapSecretToCR(t *testing.T) {
 			},
 		},
 		{
-			name: "whitespaces are trimmed",
+			name:              "whitespaces are trimmed",
+			existingObjStores: []string{"store1", "store2", "store3"},
 			args: args{
 				obj: &v1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1123,7 +1143,8 @@ func Test_mapSecretToCR(t *testing.T) {
 			},
 		},
 		{
-			name: "should be a secret",
+			name:              "should be a secret",
+			existingObjStores: []string{"store1", "store2", "store3"},
 			args: args{
 				obj: &v1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1140,7 +1161,22 @@ func Test_mapSecretToCR(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mapSecretToCR(context.TODO(), tt.args.obj); !reflect.DeepEqual(got, tt.want) {
+			// create fake k8s cliend and add CephObjectStore objects
+			var objects []runtime.Object
+			for _, name := range tt.existingObjStores {
+				o := simpleStore()
+				o.Namespace = "ns"
+				o.Name = name
+				objects = append(objects, o)
+			}
+			s := scheme.Scheme
+			s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
+			s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreList{})
+			cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+
+			// test mapSecretToCR:
+			mapFunc := mapSecretToCR(cl)
+			if got := mapFunc(context.TODO(), tt.args.obj); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("mapSecretToCR() = %v, want %v", got, tt.want)
 			}
 		})

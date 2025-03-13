@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -147,7 +148,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Watch Secrets secrets annotated for the object store
 	err = c.Watch(source.Kind[client.Object](mgr.GetCache(),
 		&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
-		handler.EnqueueRequestsFromMapFunc(mapSecretToCR),
+		handler.EnqueueRequestsFromMapFunc(mapSecretToCR(mgr.GetClient())),
 		secretPredicate()))
 	if err != nil {
 		return err
@@ -176,33 +177,64 @@ func secretPredicate() predicate.Predicate {
 			return annotations[objectStoreDependentResourceAnnotation] != ""
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			return false // Ignore deletes for simplicity
+			secret, ok := e.Object.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			annotations := secret.GetAnnotations()
+			return annotations[objectStoreDependentResourceAnnotation] != ""
 		},
 	}
 }
 
 // Maps secret annotated with the object store name to the object store CR
-func mapSecretToCR(_ context.Context, obj client.Object) []reconcile.Request {
-	secret, ok := obj.(*corev1.Secret)
-	if !ok {
-		return nil
-	}
-
-	value, exists := secret.GetAnnotations()[objectStoreDependentResourceAnnotation]
-	if !exists || value == "" {
-		return nil
-	}
-	objStoreNames := strings.Split(value, ",")
-	requests := make([]reconcile.Request, len(objStoreNames))
-	for i, objStoreName := range objStoreNames {
-		requests[i] = reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      strings.TrimSpace(objStoreName),
-				Namespace: secret.Namespace,
-			},
+func mapSecretToCR(k8sClient client.Client) func(context.Context, client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		secret, ok := obj.(*corev1.Secret)
+		if !ok {
+			return nil
 		}
+
+		// get object store names from secret annotation
+		value, exists := secret.GetAnnotations()[objectStoreDependentResourceAnnotation]
+		if !exists || value == "" {
+			return nil
+		}
+		objStoreNames := strings.Split(value, ",")
+		// trim whitespaces from object store names
+		for i, objStoreName := range objStoreNames {
+			objStoreNames[i] = strings.TrimSpace(objStoreName)
+		}
+
+		// lookup object store CRs by name
+		objStores := cephv1.CephObjectStoreList{}
+		err := k8sClient.List(ctx, &objStores, client.InNamespace(secret.Namespace))
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debugf("cephObjectStore resource for annotated secret %q not found. Ignoring since object must be deleted.", secret.Name)
+				return nil
+			}
+			logger.Errorf("failed to list cephObjectStore resources for annotated secret %q", secret.Name)
+			// Error reading the object - requeue the request.
+			return nil
+		}
+
+		var requests []reconcile.Request
+		for _, objStore := range objStores.Items {
+			// filter object stores by name in secret annotation
+			if !slices.Contains(objStoreNames, objStore.Name) {
+				continue
+			}
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      objStore.Name,
+					Namespace: secret.Namespace,
+				},
+			})
+		}
+
+		return requests
 	}
-	return requests
 }
 
 // Reconcile reads that state of the cluster for a cephObjectStore object and makes changes based on the state read
