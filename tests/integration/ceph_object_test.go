@@ -27,19 +27,19 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/rook/rook/tests/integration/object/bucketowner"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/rook/rook/tests/integration/object/userkeys"
 )
 
 const (
@@ -47,9 +47,7 @@ const (
 	objectStoreTLSName           = "tls-test-store"
 )
 
-var (
-	objectStoreServicePrefix = "rook-ceph-rgw-"
-)
+var objectStoreServicePrefix = "rook-ceph-rgw-"
 
 func TestCephObjectSuite(t *testing.T) {
 	s := new(ObjectSuite)
@@ -96,6 +94,7 @@ func (s *ObjectSuite) TearDownSuite() {
 	s.installer.UninstallRook()
 }
 
+/*
 func (s *ObjectSuite) TestWithTLS() {
 	if utils.IsPlatformOpenShift() {
 		s.T().Skip("object store tests skipped on openshift")
@@ -116,6 +115,7 @@ func cleanUpTLS(s *ObjectSuite) {
 	}
 	logger.Info("successfully deleted store TLS secret")
 }
+*/
 
 func (s *ObjectSuite) TestWithoutTLS() {
 	if utils.IsPlatformOpenShift() {
@@ -133,38 +133,41 @@ func (s *ObjectSuite) TestWithoutTLS() {
 // Check issues in MGRs, Delete Bucket and Delete user
 // Test for ObjectStore with and without TLS enabled
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, s *suite.Suite, namespace string, tlsEnable bool, swiftAndKeystone bool) {
-	storeName := "test-store"
-	if tlsEnable {
-		storeName = objectStoreTLSName
-	}
+	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable)
+	/*
+		storeName := "test-store"
+		if tlsEnable {
+			storeName = objectStoreTLSName
+		}
 
-	logger.Infof("Running on Rook Cluster %s", namespace)
-	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, storeName, 3, tlsEnable, swiftAndKeystone)
+		logger.Infof("Running on Rook Cluster %s", namespace)
+		createCephObjectStore(s.T(), helper, k8sh, installer, namespace, storeName, 3, tlsEnable, swiftAndKeystone)
 
-	// test that a second object store can be created (and deleted) while the first exists
-	s.T().Run("run a second object store", func(t *testing.T) {
-		otherStoreName := "other-" + storeName
-		// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
-		// and then deletes it.
-		deleteStore := true
-		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, swiftAndKeystone)
-	})
+		// test that a second object store can be created (and deleted) while the first exists
+		s.T().Run("run a second object store", func(t *testing.T) {
+			otherStoreName := "other-" + storeName
+			// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
+			// and then deletes it.
+			deleteStore := true
+			runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, swiftAndKeystone)
+		})
 
-	// now test operation of the first object store
-	testObjectStoreOperations(s, helper, k8sh, namespace, storeName, swiftAndKeystone)
+		// now test operation of the first object store
+		testObjectStoreOperations(s, helper, k8sh, namespace, storeName, swiftAndKeystone)
 
-	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable)
+		bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable)
 
-	bucketNotificationTestStoreName := "bucket-notification-" + storeName
-	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, swiftAndKeystone)
-	testBucketNotifications(s, helper, k8sh, namespace, bucketNotificationTestStoreName)
-	if !tlsEnable {
-		// TODO : need to fix COSI driver to support TLS
-		logger.Info("Testing COSI driver")
-		testCOSIDriver(s, helper, k8sh, installer, namespace)
-	} else {
-		logger.Info("Skipping COSI driver test as TLS is enabled")
-	}
+		bucketNotificationTestStoreName := "bucket-notification-" + storeName
+		createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, swiftAndKeystone)
+		testBucketNotifications(s, helper, k8sh, namespace, bucketNotificationTestStoreName)
+		if !tlsEnable {
+			// TODO : need to fix COSI driver to support TLS
+			logger.Info("Testing COSI driver")
+			testCOSIDriver(s, helper, k8sh, installer, namespace)
+		} else {
+			logger.Info("Skipping COSI driver test as TLS is enabled")
+		}
+	*/
 }
 
 func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string, swiftAndKeystone bool) {

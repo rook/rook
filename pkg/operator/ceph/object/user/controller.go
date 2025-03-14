@@ -21,31 +21,35 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 
 	"github.com/ceph/go-ceph/rgw/admin"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/clusterd"
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/object"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
 const (
@@ -124,6 +128,77 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// watch secrets referenced by CephObjectStoreUser.spec.keys
+	const (
+		secretNameField = "spec.keys.secretNames"
+	)
+
+	err = mgr.GetFieldIndexer().IndexField(context.TODO(), &cephv1.CephObjectStoreUser{TypeMeta: controllerTypeMeta}, secretNameField, func(obj client.Object) []string {
+		var secretNames []string
+		for _, k := range obj.(*cephv1.CephObjectStoreUser).Spec.Keys {
+			if k.AccessKeyRef != nil && k.AccessKeyRef.Name != "" {
+				secretNames = append(secretNames, k.AccessKeyRef.Name)
+			}
+			if k.SecretKeyRef != nil && k.SecretKeyRef.Name != "" {
+				secretNames = append(secretNames, k.SecretKeyRef.Name)
+			}
+		}
+		slices.Sort(secretNames)
+		return slices.Compact(secretNames)
+	})
+	if err != nil {
+		logger.Errorf("failed to setup IndexField for CephObjectStoreUser.Spec.Keys. %v", err)
+		return err
+	}
+
+	// Always trigger a reconcile when a secret is deleted. This will cause a
+	// reconciliation failure to happen immediately in hopes of alerting the end
+	// user to the configuration problem.
+	changedOrDeleted := predicate.Or(
+		predicate.TypedResourceVersionChangedPredicate[*corev1.Secret]{},
+		predicate.TypedFuncs[*corev1.Secret]{
+			DeleteFunc: func(e event.TypedDeleteEvent[*corev1.Secret]) bool {
+				return true
+			},
+		},
+	)
+
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.Secret{},
+			handler.TypedEnqueueRequestsFromMapFunc(
+				func(ctx context.Context, secret *corev1.Secret) []reconcile.Request {
+					referencingUsers := &cephv1.CephObjectStoreUserList{}
+					err := r.(*ReconcileObjectStoreUser).client.List(ctx, referencingUsers, &client.ListOptions{
+						FieldSelector: fields.OneTermEqualSelector(secretNameField, secret.GetName()),
+						Namespace:     secret.GetNamespace(),
+					})
+					if err != nil {
+						logger.Errorf("failed to list CephObjectStoreUser(s) while handling events. %v", err)
+						return []reconcile.Request{}
+					}
+
+					requests := make([]reconcile.Request, len(referencingUsers.Items))
+					for i, item := range referencingUsers.Items {
+						requests[i] = reconcile.Request{
+							NamespacedName: types.NamespacedName{
+								Name:      item.GetName(),
+								Namespace: item.GetNamespace(),
+							},
+						}
+					}
+					return requests
+				},
+			),
+			changedOrDeleted,
+		),
+	)
+	if err != nil {
+		logger.Errorf("failed to configure watch for Secret(s). %v", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -134,9 +209,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 func (r *ReconcileObjectStoreUser) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, cephObjectStoreUser, err := r.reconcile(request)
+	if err != nil {
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+	}
 
 	return reporting.ReportReconcileResult(logger, r.recorder, request, &cephObjectStoreUser, reconcileResponse, err)
-
 }
 
 func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconcile.Result, cephv1.CephObjectStoreUser, error) {
@@ -215,12 +292,24 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		}
 		logger.Debugf("ObjectStore resource not ready in namespace %q, retrying in %q. %v",
 			clusterNamespace.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String(), err)
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, *cephObjectStoreUser, err
 	}
 
 	// Generate user config
-	userConfig := generateUserConfig(cephObjectStoreUser)
+	userConfig, err := r.generateUserConfig(cephObjectStoreUser)
+	if err != nil {
+		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to generate user config for %q", cephObjectStoreUser.Name)
+	}
+
+	// Set any provided key pair(s)
+	if len(cephObjectStoreUser.Spec.Keys) > 0 {
+		keys, err := r.generateUserKeySpec(cephObjectStoreUser)
+		if err != nil {
+			return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to generate UserKeySpec for %q", cephObjectStoreUser.Name)
+		}
+
+		userConfig.Keys = *keys
+	}
 
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
@@ -246,14 +335,12 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// validate the user settings
 	err = r.validateUser(cephObjectStoreUser)
 	if err != nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "invalid pool CR %q spec", cephObjectStoreUser.Name)
 	}
 
 	// CREATE/UPDATE CEPH USER
 	reconcileResponse, err = r.reconcileCephUser(cephObjectStoreUser, userConfig)
 	if err != nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
 	}
 
@@ -266,7 +353,6 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	tlsSecretName := store.Spec.Gateway.SSLCertificateRef
 	reconcileResponse, err = r.reconcileCephUserSecret(cephObjectStoreUser, userConfig, tlsSecretName)
 	if err != nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
 	}
 
@@ -294,7 +380,8 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	logCreateOrUpdate := fmt.Sprintf("retrieved existing ceph object user %q", u.Name)
 	var user admin.User
 	var err error
-	user, err = r.objContext.AdminOpsClient.GetUser(r.opManagerContext, *userConfig)
+	// lookup user by name only and not by access key
+	user, err = r.objContext.AdminOpsClient.GetUser(r.opManagerContext, admin.User{ID: u.Name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			user, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, *userConfig)
@@ -339,7 +426,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
 	}
 
-	var quotaEnabled = false
+	quotaEnabled := false
 	var maxSize int64 = -1
 	var maxObjects int64 = -1
 	if u.Spec.Quotas != nil {
@@ -363,12 +450,23 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		return errors.Wrapf(err, "failed to set quotas for user %q", u.Name)
 	}
 
-	// Set access and secret key
+	logger.Debugf("XXX userConfig %+v", userConfig)
+	logger.Debugf("XXX user %+v", user)
+
 	if len(userConfig.Keys) == 0 {
-		userConfig.Keys = make([]admin.UserKeySpec, 1)
+		// use the keys already set on the user & remove all but one key
+		if len(user.Keys) == 0 {
+			// something is wrong, there should be at least one key
+			return errors.Wrapf(err, "no keys set for user %q", u.Name)
+		}
+
+		userConfig.Keys = []admin.UserKeySpec{user.Keys[0]}
+		logger.Debugf("reducing user %q keypairs to %v", u.Name, userConfig.Keys)
 	}
-	userConfig.Keys[0].AccessKey = user.Keys[0].AccessKey
-	userConfig.Keys[0].SecretKey = user.Keys[0].SecretKey
+
+	if err := reconcileUserKeys(r.opManagerContext, r.objContext.AdminOpsClient, u.Name, userConfig.Keys); err != nil {
+		return errors.Wrapf(err, "failed to reconcile keys for user %q", u.Name)
+	}
 	logger.Info(logCreateOrUpdate)
 
 	return nil
@@ -434,7 +532,7 @@ func generateUserCaps(user admin.User) string {
 	return caps
 }
 
-func generateUserConfig(user *cephv1.CephObjectStoreUser) *admin.User {
+func (r *ReconcileObjectStoreUser) generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 	// Set DisplayName to match Name if DisplayName is not set
 	displayName := user.Spec.DisplayName
 	if len(displayName) == 0 {
@@ -505,7 +603,7 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) *admin.User {
 		}
 	}
 
-	return userConfig
+	return userConfig, nil
 }
 
 func generateCephUserSecretName(u *cephv1.CephObjectStoreUser) string {
@@ -549,16 +647,25 @@ func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *
 	// Generate Kubernetes Secret
 	secret := r.generateCephUserSecret(cephObjectStoreUser, userConfig, tlsSecretName)
 
-	// Set owner ref to the object store user object
-	err := controllerutil.SetControllerReference(cephObjectStoreUser, secret, r.scheme)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of ceph object user secret %q", secret.Name)
-	}
+	// only manage the secret if there are no explicit keys
+	if len(cephObjectStoreUser.Spec.Keys) == 0 {
+		// Set owner ref to the object store user object
+		if err := controllerutil.SetControllerReference(cephObjectStoreUser, secret, r.scheme); err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of ceph object user secret %q", secret.Name)
+		}
 
-	// Create Kubernetes Secret
-	err = opcontroller.CreateOrUpdateObject(r.opManagerContext, r.client, secret)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph object user %q secret", secret.Name)
+		// Create Kubernetes Secret
+		if err := opcontroller.CreateOrUpdateObject(r.opManagerContext, r.client, secret); err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph object user %q secret", secret.Name)
+		}
+	} else {
+		// remove the secret if explicit keys are set
+		if err := r.context.Clientset.CoreV1().Secrets(secret.Namespace).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{}); err != nil {
+			// if the secret is not found, we can ignore the error
+			if !kerrors.IsNotFound(err) {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to delete secret %q", secret.Name)
+			}
+		}
 	}
 
 	return reconcile.Result{}, nil
@@ -703,4 +810,109 @@ func (r *ReconcileObjectStoreUser) updateStatus(observedGeneration int64, name t
 		return
 	}
 	logger.Debugf("object store user %q status updated to %q", name, status)
+}
+
+// getSecretValue returns the value of key in a kubernetes secret
+func (r *ReconcileObjectStoreUser) getSecretValue(selector *corev1.SecretKeySelector, namespace string) (string, error) {
+	secret := &corev1.Secret{}
+	namespacedName := types.NamespacedName{
+		Name:      selector.Name,
+		Namespace: namespace,
+	}
+	if err := r.client.Get(r.opManagerContext, namespacedName, secret); err != nil {
+		return "", errors.Wrapf(err, "failed to get secret %q", namespacedName)
+	}
+	value, ok := secret.Data[selector.Key]
+	if !ok {
+		return "", errors.Errorf("failed to find key %q in secret %q", selector.Key, namespacedName)
+	}
+
+	return string(value), nil
+}
+
+// reconcileUserKeys ensures the user's RGW keys match exactly the targetKeys slice.  Any keys set on the user but not present in targetKeys are purged.
+func reconcileUserKeys(ctx context.Context, client *admin.API, userID string, targetKeys []admin.UserKeySpec) error {
+	// fetch the current user keys
+	userInfo, err := client.GetUser(ctx, admin.User{ID: userID})
+	if err != nil {
+		return errors.Wrapf(err, "failed to get user %q", userID)
+	}
+
+	// create a lookup for the targetkeys (by AccessKey)
+	targetMap := make(map[string]admin.UserKeySpec, len(targetKeys))
+	for _, k := range targetKeys {
+		targetMap[k.AccessKey] = k
+	}
+
+	syncdKeys := make([]admin.UserKeySpec, len(targetKeys))
+
+	// remove any keys configured for the user that aren't present in targetKeys
+	for _, existingKey := range userInfo.Keys {
+		targetKey, found := targetMap[existingKey.AccessKey]
+		if !found {
+			// RemoveKey() requires the UID to be set but GetUser() returns the list of keys with only .User set
+			rmKey := existingKey
+			rmKey.UID = userID
+
+			if err := client.RemoveKey(ctx, rmKey); err != nil {
+				return errors.Wrapf(err, "failed to remove key %q from user %q", existingKey.AccessKey, userID)
+			}
+			logger.Debugf("removed key %q from user %q as it is not in the target list", existingKey.AccessKey, userID)
+			continue
+		}
+		if existingKey.SecretKey != targetKey.SecretKey {
+			// key exists but needs to be updated; delete it so it will be recreated
+			// RemoveKey() requires the UID to be set but GetUser() returns the list of keys with only .User set
+			rmKey := existingKey
+			rmKey.UID = userID
+
+			if err := client.RemoveKey(ctx, rmKey); err != nil {
+				return errors.Wrapf(err, "failed to remove key %q from user %q", existingKey.AccessKey, userID)
+			}
+			logger.Debugf("removed key %q from user %q needs as it needs to be recreated", existingKey.AccessKey, userID)
+			continue
+		}
+		// else key exists and is correct, no action needed
+		// defer removal from targetMap until after the loop to avoid changing the map while iterating
+		syncdKeys = append(syncdKeys, targetKey)
+	}
+
+	// remove any keys from targetKeys that are already in sync
+	for _, k := range syncdKeys {
+		delete(targetMap, k.AccessKey)
+	}
+
+	// create each desired key
+	for _, k := range targetMap {
+		if _, err := client.CreateKey(ctx, k); err != nil {
+			return errors.Wrapf(err, "failed to create key %q for user %q", k.AccessKey, userID)
+		}
+		logger.Debugf("created key %q for user %q", k.AccessKey, userID)
+	}
+
+	return nil
+}
+
+// Construct a []admin.UserKeySpec from all secrets referenced from CephObjectStoreUser.Spec.Keys
+func (r *ReconcileObjectStoreUser) generateUserKeySpec(user *cephv1.CephObjectStoreUser) (*[]admin.UserKeySpec, error) {
+	keys := make([]admin.UserKeySpec, len(user.Spec.Keys))
+	for _, key := range user.Spec.Keys {
+		accessKey, err := r.getSecretValue(key.AccessKeyRef, user.Namespace)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get secret value")
+		}
+		secretKey, err := r.getSecretValue(key.SecretKeyRef, user.Namespace)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get secret value")
+		}
+
+		keys = append(keys, admin.UserKeySpec{
+			UID:       user.Name,
+			AccessKey: accessKey,
+			SecretKey: secretKey,
+			KeyType:   "s3",
+		})
+	}
+
+	return &keys, nil
 }
