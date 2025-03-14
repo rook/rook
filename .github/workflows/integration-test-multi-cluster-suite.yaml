@@ -65,7 +65,7 @@ jobs:
 
       - name: Artifact
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
-        if: failure()
+        if: always()
         with:
           name: ceph-multi-cluster-deploy-suite-artifact-${{ matrix.kubernetes-versions }}
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/

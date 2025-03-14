@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -67,9 +68,11 @@ func TestCephClientController(t *testing.T) {
 		},
 	}
 
+	csiOpClientProfile := &csiopv1a1.ClientProfile{}
 	// Objects to track in the fake client.
 	object := []runtime.Object{
 		cephFilesystemSubVolumeGroup,
+		csiOpClientProfile,
 	}
 
 	executor := &exectest.MockExecutor{
@@ -89,7 +92,7 @@ func TestCephClientController(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephClient{}, &cephv1.CephClusterList{})
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephClient{}, &cephv1.CephClusterList{}, csiOpClientProfile)
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()

@@ -21,6 +21,7 @@ import (
 	"os"
 	"testing"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -67,10 +68,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			Phase: "",
 		},
 	}
+	csiOpClientProfile := &csiopv1a1.ClientProfile{}
 
 	// Objects to track in the fake client.
 	object := []runtime.Object{
 		cephBlockPoolRadosNamespace,
+		csiOpClientProfile,
 	}
 
 	executor := &exectest.MockExecutor{
@@ -90,7 +93,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephClient{}, &cephv1.CephClusterList{})
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephClient{}, &cephv1.CephClusterList{}, csiOpClientProfile)
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
@@ -253,23 +256,44 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 	})
 
 	t.Run("success - external mode csi config is updated", func(t *testing.T) {
+
 		cephCluster.Spec.External.Enable = true
 		objects := []runtime.Object{
 			cephBlockPoolRadosNamespace,
 			cephCluster,
+			cephBlockPool,
 		}
+
+		cephCluster.Status.Phase = cephv1.ConditionReady
+		cephCluster.Status.CephStatus.Health = "HEALTH_OK"
+		cephBlockPool.Status.Phase = cephv1.ConditionReady
 		// Create a fake client to mock API calls.
 		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
 		c.Client = cl
 
+		executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "namespace" && args[1] == "create" {
+					return "", nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" {
+					return `{"mode":"disabled"}`, nil
+				}
+
+				return "", nil
+			},
+		}
+		c.Executor = executor
+
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
-			client:           cl,
-			scheme:           s,
-			context:          c,
-			opManagerContext: ctx,
-			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			client:                 cl,
+			scheme:                 s,
+			context:                c,
+			opManagerContext:       ctx,
+			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
 
 		// Enable CSI
