@@ -112,5 +112,4 @@ func TestDeleteMgrPDB(t *testing.T) {
 	// mgr PDB deleted
 	err = c.context.Client.Get(context.TODO(), fakeNamespaceName, existingPDBV1)
 	assert.Error(t, err)
-
 }

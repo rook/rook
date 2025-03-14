@@ -40,7 +40,6 @@ var (
 )
 
 func TestObjectChanged(t *testing.T) {
-
 	oldObject := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,

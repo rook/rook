@@ -37,7 +37,8 @@ func (d v1CsiDriver) createCSIDriverInfo(
 	ctx context.Context,
 	clientset kubernetes.Interface,
 	name, fsGroupPolicy string,
-	attachRequired, seLinuxMountRequired bool) error {
+	attachRequired, seLinuxMountRequired bool,
+) error {
 	mountInfo := false
 	// Create CSIDriver object
 	csiDriver := &v1k8scsi.CSIDriver{

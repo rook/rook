@@ -381,7 +381,8 @@ func TestCreateFilesystem(t *testing.T) {
 	context := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
-		Clientset: clientset}
+		Clientset: clientset,
+	}
 	fs := fsTest(fsName)
 	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Squid, Context: ctx}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
@@ -407,7 +408,8 @@ func TestCreateFilesystem(t *testing.T) {
 		context = &clusterd.Context{
 			Executor:  executor,
 			ConfigDir: configDir,
-			Clientset: clientset}
+			Clientset: clientset,
+		}
 		// add not named pool, with default naming
 		fs.Spec.DataPools = append(fs.Spec.DataPools, cephv1.NamedPoolSpec{
 			PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
@@ -447,7 +449,8 @@ func TestUpgradeFilesystem(t *testing.T) {
 	context := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
-		Clientset: clientset}
+		Clientset: clientset,
+	}
 	fs := fsTest(fsName)
 	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Squid, Context: ctx}
 
@@ -598,7 +601,8 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 	context := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
-		Clientset: clientset}
+		Clientset: clientset,
+	}
 	fs := cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{

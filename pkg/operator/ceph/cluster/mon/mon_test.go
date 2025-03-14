@@ -559,6 +559,7 @@ func TestFindAvailableZoneMon(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "", availableZone)
 }
+
 func TestFindAvailableZoneForStretchedMon(t *testing.T) {
 	c := &Cluster{spec: cephv1.ClusterSpec{
 		Mon: cephv1.MonSpec{
@@ -654,16 +655,24 @@ func TestMonVolumeClaimTemplate(t *testing.T) {
 	}{
 		{"no template", fields{cephv1.ClusterSpec{}}, args{&monConfig{Zone: "z1"}}, nil},
 		{"default template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{VolumeClaimTemplate: defaultTemplate}}}, args{&monConfig{Zone: "z1"}}, defaultTemplate.ToPVC()},
-		{"default template with 3 zones", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
-			VolumeClaimTemplate: defaultTemplate,
-			Zones:               []cephv1.MonZoneSpec{{Name: "z1"}, {Name: "z2"}, {Name: "z3"}}}}},
+		{
+			"default template with 3 zones",
+			fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
+				VolumeClaimTemplate: defaultTemplate,
+				Zones:               []cephv1.MonZoneSpec{{Name: "z1"}, {Name: "z2"}, {Name: "z3"}},
+			}}},
 			args{&monConfig{Zone: "z1"}},
-			defaultTemplate.ToPVC()},
-		{"overridden template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
-			VolumeClaimTemplate: defaultTemplate,
-			Zones:               []cephv1.MonZoneSpec{{Name: "z1", VolumeClaimTemplate: zoneTemplate}, {Name: "z2"}, {Name: "z3"}}}}},
+			defaultTemplate.ToPVC(),
+		},
+		{
+			"overridden template",
+			fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
+				VolumeClaimTemplate: defaultTemplate,
+				Zones:               []cephv1.MonZoneSpec{{Name: "z1", VolumeClaimTemplate: zoneTemplate}, {Name: "z2"}, {Name: "z3"}},
+			}}},
 			args{&monConfig{Zone: "z1"}},
-			zoneTemplate.ToPVC()},
+			zoneTemplate.ToPVC(),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -705,7 +714,8 @@ func TestRemoveExtraMonDeployments(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   "rook-ceph-mon-b",
 			Labels: map[string]string{"ceph_daemon_id": "b"},
-		}})
+		},
+	})
 	removed = c.checkForExtraMonResources(mons, deployments)
 	assert.Equal(t, "b", removed)
 
@@ -727,12 +737,14 @@ func TestRemoveExtraMonDeployments(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   "rook-ceph-mon-c",
 			Labels: map[string]string{"ceph_daemon_id": "c"},
-		}})
+		},
+	})
 	deployments = append(deployments, apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   "rook-ceph-mon-d",
 			Labels: map[string]string{"ceph_daemon_id": "d"},
-		}})
+		},
+	})
 	c.spec.Mon.Count = 3
 	removed = c.checkForExtraMonResources(mons, deployments)
 	assert.Equal(t, "", removed)
@@ -757,16 +769,24 @@ func TestStretchMonVolumeClaimTemplate(t *testing.T) {
 	}{
 		{"no template", fields{cephv1.ClusterSpec{}}, args{&monConfig{Zone: "z1"}}, nil},
 		{"default template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{VolumeClaimTemplate: defaultTemplate}}}, args{&monConfig{Zone: "z1"}}, defaultTemplate.ToPVC()},
-		{"default template with 3 zones", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
-			VolumeClaimTemplate: defaultTemplate,
-			StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.MonZoneSpec{{Name: "z1"}, {Name: "z2"}, {Name: "z3"}}}}}},
+		{
+			"default template with 3 zones",
+			fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
+				VolumeClaimTemplate: defaultTemplate,
+				StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.MonZoneSpec{{Name: "z1"}, {Name: "z2"}, {Name: "z3"}}},
+			}}},
 			args{&monConfig{Zone: "z1"}},
-			defaultTemplate.ToPVC()},
-		{"overridden template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
-			VolumeClaimTemplate: defaultTemplate,
-			StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.MonZoneSpec{{Name: "z1", VolumeClaimTemplate: zoneTemplate}, {Name: "z2"}, {Name: "z3"}}}}}},
+			defaultTemplate.ToPVC(),
+		},
+		{
+			"overridden template",
+			fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
+				VolumeClaimTemplate: defaultTemplate,
+				StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.MonZoneSpec{{Name: "z1", VolumeClaimTemplate: zoneTemplate}, {Name: "z2"}, {Name: "z3"}}},
+			}}},
 			args{&monConfig{Zone: "z1"}},
-			zoneTemplate.ToPVC()},
+			zoneTemplate.ToPVC(),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -831,7 +851,6 @@ func TestArbiterPlacement(t *testing.T) {
 }
 
 func TestCheckIfArbiterReady(t *testing.T) {
-
 	c := &Cluster{
 		Namespace: "ns",
 		spec: cephv1.ClusterSpec{
@@ -844,7 +863,8 @@ func TestCheckIfArbiterReady(t *testing.T) {
 					},
 				},
 			},
-		}}
+		},
+	}
 	crushZoneCount := 0
 	balanced := true
 	executor := &exectest.MockExecutor{
@@ -867,7 +887,6 @@ func TestCheckIfArbiterReady(t *testing.T) {
 						 ,{"id": -%d,"name": "zone%d~ssd","type_id": 1,"type_name": "zone","weight": 2056}`, i+5, i, weight, i+6, i)
 				}
 				return fmt.Sprintf(`{"buckets": [%s]}`, crushBuckets), nil
-
 			}
 			return "", fmt.Errorf("unrecognized output file command: %s %v", command, args)
 		},
@@ -919,7 +938,8 @@ func TestSkipReconcile(t *testing.T) {
 				k8sutil.AppAttr: AppName,
 				config.MonType:  "a",
 			},
-		}}
+		},
+	}
 
 	deployment, err := c.context.Clientset.AppsV1().Deployments(c.ClusterInfo.Namespace).Create(c.ClusterInfo.Context, monDeployment, metav1.CreateOptions{})
 	assert.NoError(t, err)
@@ -948,7 +968,8 @@ func TestHasMonPathChanged(t *testing.T) {
 			Labels: map[string]string{
 				"pvc_name": "test-pvc",
 			},
-		}}
+		},
+	}
 
 	pvcTemplate := &v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{

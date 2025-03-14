@@ -62,19 +62,23 @@ func TestMountsMatchVolumes(t *testing.T) {
 
 	volsMountsTestDef := test.VolumesAndMountsTestDefinition{
 		VolumesSpec: &test.VolumesSpec{
-			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes(dataPathMap, "/dev/sdc", clusterSpec.DataDirHostPath, false)},
+			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes(dataPathMap, "/dev/sdc", clusterSpec.DataDirHostPath, false),
+		},
 		MountsSpecItems: []*test.MountsSpec{
 			{Moniker: "CephVolumeMounts(true)", Mounts: CephVolumeMounts(dataPathMap, false)},
-			{Moniker: "RookVolumeMounts(true)", Mounts: RookVolumeMounts(dataPathMap, false)}},
+			{Moniker: "RookVolumeMounts(true)", Mounts: RookVolumeMounts(dataPathMap, false)},
+		},
 	}
 	volsMountsTestDef.TestMountsMatchVolumes(t)
 
 	volsMountsTestDef = test.VolumesAndMountsTestDefinition{
 		VolumesSpec: &test.VolumesSpec{
-			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes(dataPathMap, "/dev/sdc", clusterSpec.DataDirHostPath, true)},
+			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes(dataPathMap, "/dev/sdc", clusterSpec.DataDirHostPath, true),
+		},
 		MountsSpecItems: []*test.MountsSpec{
 			{Moniker: "CephVolumeMounts(false)", Mounts: CephVolumeMounts(dataPathMap, true)},
-			{Moniker: "RookVolumeMounts(false)", Mounts: RookVolumeMounts(dataPathMap, true)}},
+			{Moniker: "RookVolumeMounts(false)", Mounts: RookVolumeMounts(dataPathMap, true)},
+		},
 	}
 	volsMountsTestDef.TestMountsMatchVolumes(t)
 }
@@ -86,7 +90,7 @@ func TestCheckPodMemory(t *testing.T) {
 
 	// A value for the memory used in the tests
 	// nolint:gosec // G115 no overflow expected in the test
-	var memory_value = int64(PodMinimumMemory * 8 * uint64(math.Pow10(6)))
+	memory_value := int64(PodMinimumMemory * 8 * uint64(math.Pow10(6)))
 
 	// Case 1: No memory limits, no memory requested
 	test_resource := v1.ResourceRequirements{}
@@ -156,7 +160,8 @@ func TestBuildSocketPath(t *testing.T) {
 func TestGenerateLivenessProbeExecDaemon(t *testing.T) {
 	daemonID := "0"
 	probe := GenerateLivenessProbeExecDaemon(config.OsdType, daemonID)
-	expectedCommand := []string{"env",
+	expectedCommand := []string{
+		"env",
 		"-i",
 		"sh",
 		"-c",
@@ -192,10 +197,12 @@ func TestDaemonFlags(t *testing.T) {
 				},
 			},
 			daemonID: "daemon-id",
-			expected: []string{"--fsid=id", "--keyring=/etc/ceph/keyring-store/keyring", "--default-log-to-stderr=true", "--default-err-to-stderr=true",
+			expected: []string{
+				"--fsid=id", "--keyring=/etc/ceph/keyring-store/keyring", "--default-log-to-stderr=true", "--default-err-to-stderr=true",
 				"--default-mon-cluster-log-to-stderr=true", "--default-log-stderr-prefix=debug ", "--default-log-to-file=false", "--default-mon-cluster-log-to-file=false",
 				"--mon-host=$(ROOK_CEPH_MON_HOST)", "--mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS)", "--id=daemon-id", "--setuser=ceph", "--setgroup=ceph",
-				"--ms-bind-ipv4=false", "--ms-bind-ipv6=true"},
+				"--ms-bind-ipv4=false", "--ms-bind-ipv6=true",
+			},
 		},
 		{
 			label: "case 2: IPv6 disabled",
@@ -204,9 +211,11 @@ func TestDaemonFlags(t *testing.T) {
 			},
 			clusterSpec: &cephv1.ClusterSpec{},
 			daemonID:    "daemon-id",
-			expected: []string{"--fsid=id", "--keyring=/etc/ceph/keyring-store/keyring", "--default-log-to-stderr=true", "--default-err-to-stderr=true",
+			expected: []string{
+				"--fsid=id", "--keyring=/etc/ceph/keyring-store/keyring", "--default-log-to-stderr=true", "--default-err-to-stderr=true",
 				"--default-mon-cluster-log-to-stderr=true", "--default-log-stderr-prefix=debug ", "--default-log-to-file=false", "--default-mon-cluster-log-to-file=false",
-				"--mon-host=$(ROOK_CEPH_MON_HOST)", "--mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS)", "--id=daemon-id", "--setuser=ceph", "--setgroup=ceph"},
+				"--mon-host=$(ROOK_CEPH_MON_HOST)", "--mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS)", "--id=daemon-id", "--setuser=ceph", "--setgroup=ceph",
+			},
 		},
 	}
 

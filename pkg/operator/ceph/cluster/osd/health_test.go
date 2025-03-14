@@ -39,7 +39,7 @@ func TestOSDHealthCheck(t *testing.T) {
 	clientset := testexec.New(t, 2)
 	clusterInfo := client.AdminTestClusterInfo("fake")
 
-	var execCount = 0
+	execCount := 0
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)

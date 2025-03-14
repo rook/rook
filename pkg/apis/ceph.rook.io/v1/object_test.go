@@ -128,6 +128,7 @@ func TestValidateObjectStoreSpec(t *testing.T) {
 		assert.ErrorContains(t, err, `"*.invalid.dns.name"`)
 	})
 }
+
 func TestIsTLSEnabled(t *testing.T) {
 	objStore := &CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{

@@ -136,7 +136,8 @@ func (s *S3Agent) DeleteBucket(name string) (bool, error) {
 
 // PutObjectInBucket function puts an object in a bucket using s3 client
 func (s *S3Agent) PutObjectInBucket(bucketname string, body string, key string,
-	contentType string) (bool, error) {
+	contentType string,
+) (bool, error) {
 	_, err := s.Client.PutObject(&s3.PutObjectInput{
 		Body:        strings.NewReader(body),
 		Bucket:      &bucketname,
@@ -157,7 +158,6 @@ func (s *S3Agent) GetObjectInBucket(bucketname string, key string) (string, erro
 		Bucket: aws.String(bucketname),
 		Key:    aws.String(key),
 	})
-
 	if err != nil {
 		logger.Errorf("failed to retrieve object from bucket. %v", err)
 		return "ERROR_ OBJECT NOT FOUND", err

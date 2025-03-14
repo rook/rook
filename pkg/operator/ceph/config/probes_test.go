@@ -96,8 +96,10 @@ func integrationLivenessProbeCheck(t *testing.T, keyType cephv1.KeyType, livenes
 			FailureThreshold:    555,
 		}
 
-		l := &cephv1.ProbeSpec{Disabled: false,
-			Probe: userProbe}
+		l := &cephv1.ProbeSpec{
+			Disabled: false,
+			Probe:    userProbe,
+		}
 		livenessProbes[keyType] = l
 
 		container := v1.Container{StartupProbe: defaultProbe}
@@ -179,8 +181,10 @@ func integrationStartupProbeCheck(t *testing.T, keyType cephv1.KeyType, startupP
 			FailureThreshold:    555,
 		}
 
-		l := &cephv1.ProbeSpec{Disabled: false,
-			Probe: userProbe}
+		l := &cephv1.ProbeSpec{
+			Disabled: false,
+			Probe:    userProbe,
+		}
 		startupProbes[keyType] = l
 
 		container := v1.Container{StartupProbe: defaultProbe}

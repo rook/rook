@@ -47,9 +47,7 @@ const (
 	objectStoreTLSName           = "tls-test-store"
 )
 
-var (
-	objectStoreServicePrefix = "rook-ceph-rgw-"
-)
+var objectStoreServicePrefix = "rook-ceph-rgw-"
 
 func TestCephObjectSuite(t *testing.T) {
 	s := new(ObjectSuite)
@@ -107,6 +105,7 @@ func (s *ObjectSuite) TestWithTLS() {
 	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings.Namespace, tls, swiftAndKeystone)
 	cleanUpTLS(s)
 }
+
 func cleanUpTLS(s *ObjectSuite) {
 	err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
 	if err != nil {

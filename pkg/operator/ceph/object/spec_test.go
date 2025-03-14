@@ -386,24 +386,36 @@ func TestDefaultProbes(t *testing.T) {
 	//   - HTTP vs HTTPS vs both
 	for _, typ := range []ProbeType{ReadinessProbeType, StartupProbeType} {
 		tests = append(tests, []test{
-			{typ, "internal HTTP",
+			{
+				typ, "internal HTTP",
 				storeSpec{Port: 80},
-				want{Port: 8080, Protocol: HTTPProtocol}},
-			{typ, "host net HTTP",
+				want{Port: 8080, Protocol: HTTPProtocol},
+			},
+			{
+				typ, "host net HTTP",
 				storeSpec{Port: 8088, HostNetwork: true},
-				want{Port: 8088, Protocol: HTTPProtocol}},
-			{typ, "internal HTTPS",
+				want{Port: 8088, Protocol: HTTPProtocol},
+			},
+			{
+				typ, "internal HTTPS",
 				storeSpec{SecurePort: 8443},
-				want{Port: 8443, Protocol: HTTPSProtocol}},
-			{typ, "host net HTTPS",
+				want{Port: 8443, Protocol: HTTPSProtocol},
+			},
+			{
+				typ, "host net HTTPS",
 				storeSpec{SecurePort: 10443, HostNetwork: true},
-				want{Port: 10443, Protocol: HTTPSProtocol}},
-			{typ, "internal HTTP+HTTPS",
+				want{Port: 10443, Protocol: HTTPSProtocol},
+			},
+			{
+				typ, "internal HTTP+HTTPS",
 				storeSpec{Port: 80, SecurePort: 443},
-				want{Port: 8080, Protocol: HTTPProtocol}}, // uses HTTP
-			{typ, "host net HTTP+HTTPS",
+				want{Port: 8080, Protocol: HTTPProtocol},
+			}, // uses HTTP
+			{
+				typ, "host net HTTP+HTTPS",
 				storeSpec{Port: 10080, SecurePort: 10443, HostNetwork: true},
-				want{Port: 10080, Protocol: HTTPProtocol}}, // uses HTTP
+				want{Port: 10080, Protocol: HTTPProtocol},
+			}, // uses HTTP
 		}...)
 	}
 
@@ -915,7 +927,7 @@ func TestAWSServerSideEncryption(t *testing.T) {
 }
 
 func TestRgwCommandFlags(t *testing.T) {
-	//ctx := context.TODO()
+	// ctx := context.TODO()
 	// Placeholder
 	context := &clusterd.Context{Clientset: test.New(t, 3)}
 
@@ -1238,7 +1250,6 @@ func TestGetHostnameFromEndpoint(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			assert.Equal(t, tt.expected, res)
-
 		})
 	}
 }

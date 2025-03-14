@@ -30,26 +30,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	// must use plural kinds
-	cephClusterDependentListKinds []string = []string{
-		"CephBlockPoolList",
-		"CephRBDMirrorList",
-		"CephFilesystemList",
-		"CephFilesystemMirrorList",
-		"CephObjectStoreList",
-		"CephObjectStoreUserList",
-		"CephObjectZoneList",
-		"CephObjectZoneGroupList",
-		"CephObjectRealmList",
-		"CephNFSList",
-		"CephClientList",
-		"CephBucketTopic",
-		"CephBucketNotification",
-		"CephFilesystemSubVolumeGroup",
-		"CephBlockPoolRadosNamespace",
-	}
-)
+// must use plural kinds
+var cephClusterDependentListKinds []string = []string{
+	"CephBlockPoolList",
+	"CephRBDMirrorList",
+	"CephFilesystemList",
+	"CephFilesystemMirrorList",
+	"CephObjectStoreList",
+	"CephObjectStoreUserList",
+	"CephObjectZoneList",
+	"CephObjectZoneGroupList",
+	"CephObjectRealmList",
+	"CephNFSList",
+	"CephClientList",
+	"CephBucketTopic",
+	"CephBucketNotification",
+	"CephFilesystemSubVolumeGroup",
+	"CephBlockPoolRadosNamespace",
+}
 
 // CephClusterDependents returns a DependentList of dependents of a CephCluster in the namespace.
 func CephClusterDependents(c *clusterd.Context, namespace string) (*dependents.DependentList, error) {

@@ -105,6 +105,7 @@ mon:
 	}
 	assert.Equal(t, expected, Labels)
 }
+
 func TestLabelsApply(t *testing.T) {
 	tcs := []struct {
 		name     string
@@ -262,26 +263,36 @@ func TestToValidDNSLabel(t *testing.T) {
 		{"single : symbol", ":", ""},
 		{"single . symbol", ".", ""},
 		{"bunch of symbols", "`~!@#$%^&*()_+-={}[]\\|;':\",.<>/?", ""},
-		{"alphabet with symbols",
-			"a~b!c@d#e$f^g&h*i(j)k_l-m+n+o[p]q{r}s|t:u;v'w<x,y>z", "a-b-c-d-e-f-g-h-i-j-k-l-m-n-o-p-q-r-s-t-u-v-w-x-y-z"},
+		{
+			"alphabet with symbols",
+			"a~b!c@d#e$f^g&h*i(j)k_l-m+n+o[p]q{r}s|t:u;v'w<x,y>z", "a-b-c-d-e-f-g-h-i-j-k-l-m-n-o-p-q-r-s-t-u-v-w-x-y-z",
+		},
 		{"multiple symbols between letters", "a//b//c", "a-b-c"},
 		{"symbol before", "/a/b/c", "a-b-c"},
 		{"symbol after", "a/b/c/", "a-b-c"},
 		{"symbols before and after", "/a/b/c/", "a-b-c"},
 		{"multiple symbols before after between", "//a//b//c//", "a-b-c"},
 		{"mix of all tests except length", "//1a//B-c/d_f/../00-thing.ini/", "d1a-b-c-d-f-00-thing-ini"},
-		{"too long input -> middle trim",
+		{
+			"too long input -> middle trim",
 			"qwertyuiopqwertyuiopqwertyuiopaaqwertyuiopqwertyuiopqwertyuiopaa",
-			"qwertyuiopqwertyuiopqwertyuiop--wertyuiopqwertyuiopqwertyuiopaa"},
-		{"too long input but symbols allow for no middle trim",
+			"qwertyuiopqwertyuiopqwertyuiop--wertyuiopqwertyuiopqwertyuiopaa",
+		},
+		{
+			"too long input but symbols allow for no middle trim",
 			"/qwertyuiopqwerty/uiopqwertyuiop//qwertyuiopqwerty/uiopqwertyuiop/",
-			"qwertyuiopqwerty-uiopqwertyuiop-qwertyuiopqwerty-uiopqwertyuiop"},
-		{"max allowed length but starts with number -> middle trim",
+			"qwertyuiopqwerty-uiopqwertyuiop-qwertyuiopqwerty-uiopqwertyuiop",
+		},
+		{
+			"max allowed length but starts with number -> middle trim",
 			"123qwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiop",
-			"d123qwertyuiopqwertyuiopqwerty--pqwertyuiopqwertyuiopqwertyuiop"},
-		{"max allowed length ok",
+			"d123qwertyuiopqwertyuiopqwerty--pqwertyuiopqwertyuiopqwertyuiop",
+		},
+		{
+			"max allowed length ok",
 			"qwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiop123",
-			"qwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiop123"},
+			"qwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiop123",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -52,16 +52,20 @@ func TestArgumentsMatchExpected(t *testing.T) {
 		{"extra actuals", args{oneExp("-h"), act("-h", "-v")}, true},
 		{"complicated ; ok", args{
 			[][]string{{"-h"}, {"-vvv"}, {"-d", "3"}, {"--name=kit"}, {"--name", "sammy"}},
-			[]string{"-h", "-vvv", "-d", "3", "--name=kit", "--name", "sammy"}}, false},
+			[]string{"-h", "-vvv", "-d", "3", "--name=kit", "--name", "sammy"},
+		}, false},
 		{"complicated ; missing", args{
 			[][]string{{"-h"}, {"-vvv"}, {"-d", "3"}, {"--name=kit"}, {"--name", "sammy"}},
-			[]string{"-h", "-vvv", "-d", "3", "--name", "sammy"}}, true},
+			[]string{"-h", "-vvv", "-d", "3", "--name", "sammy"},
+		}, true},
 		{"complicated ; extra actuals", args{
 			[][]string{{"-h"}, {"-vvv"}, {"-d", "3"}, {"--name=kit"}, {"--name", "sammy"}},
-			[]string{"-h", "-vvv", "--i-am=extra", "-d", "3", "--name", "sammy"}}, true},
+			[]string{"-h", "-vvv", "--i-am=extra", "-d", "3", "--name", "sammy"},
+		}, true},
 		{"complicated ; double instance", args{
 			[][]string{{"-h"}, {"-vvv"}, {"-d", "3"}, {"--name=kit"}, {"--name", "sammy"}},
-			[]string{"-h", "-vvv", "-vvv", "-d", "3", "--name", "sammy"}}, true},
+			[]string{"-h", "-vvv", "-vvv", "-d", "3", "--name", "sammy"},
+		}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

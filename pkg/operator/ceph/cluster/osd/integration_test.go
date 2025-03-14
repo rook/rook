@@ -49,10 +49,8 @@ import (
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-var (
-	// global to allow creating helper functions that are not inline with test functions
-	testIDGenerator osdIDGenerator
-)
+// global to allow creating helper functions that are not inline with test functions
+var testIDGenerator osdIDGenerator
 
 // TODO: look into: failed to calculate diff between current deployment and newly generated one.
 //   Failed to generate strategic merge patch: map: map[] does not contain declared merge key: uid

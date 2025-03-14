@@ -63,7 +63,6 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 	volumes = append(volumes, keyring.Volume().CrashCollector())
 
 	mutateFunc := func() error {
-
 		// labels for the pod, the deployment, and the deploymentSelector
 		deploymentLabels := map[string]string{
 			k8sutil.LabelHostname(): nodeHostnameLabel,

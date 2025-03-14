@@ -980,7 +980,6 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 }
 
 func (c *Cluster) monVolumeClaimTemplate(mon *monConfig) *v1.PersistentVolumeClaim {
-
 	if c.spec.ZonesRequired() {
 		// If a stretch cluster, a zone can override the template from the default.
 
@@ -1316,7 +1315,6 @@ func (c *Cluster) commitMaxMonIDRequireIncrementing(desiredMaxMonID int, require
 var updateDeploymentAndWait = UpdateCephDeploymentAndWait
 
 func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
-
 	// Expand mon PVC if storage request for mon has increased in cephcluster crd
 	if c.monVolumeClaimTemplate(m) != nil {
 		desiredPvc, err := c.makeDeploymentPVC(m, false)

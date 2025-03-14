@@ -127,7 +127,6 @@ func TestNetworkCephIsHost(t *testing.T) {
 	assert.False(t, net.IsHost())
 	SetEnforceHostNetwork(true)
 	assert.True(t, net.IsHost())
-
 }
 
 func TestNetworkSpec(t *testing.T) {
@@ -175,7 +174,6 @@ func TestAddressRangesSpec_IsEmpty(t *testing.T) {
 	for _, spec := range nonEmptyTests {
 		assert.False(t, spec.IsEmpty())
 	}
-
 }
 
 func TestAddressRangesSpec_Validate(t *testing.T) {

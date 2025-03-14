@@ -81,10 +81,12 @@ func TestGetPodPhaseMap(t *testing.T) {
 }
 
 func newToleration(defaultSeconds int64, tolerationKey string) v1.Toleration {
-	return v1.Toleration{Key: tolerationKey,
+	return v1.Toleration{
+		Key:               tolerationKey,
 		Operator:          "Exists",
 		Effect:            "NoExecute",
-		TolerationSeconds: &defaultSeconds}
+		TolerationSeconds: &defaultSeconds,
+	}
 }
 
 func TestAddUnreachableNodeToleration(t *testing.T) {
@@ -170,7 +172,6 @@ func TestAddUnreachableNodeToleration(t *testing.T) {
 
 	assert.Equal(t, 1, len(podSpec.Tolerations))
 	assert.Equal(t, expectedURToleration, podSpec.Tolerations[0])
-
 }
 
 func testPodSpecPlacement(t *testing.T, requiredDuringScheduling bool, req, pref int, placement *cephv1.Placement) {

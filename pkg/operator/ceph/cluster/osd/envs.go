@@ -54,9 +54,7 @@ const (
 	tcmallocMaxTotalThreadCacheBytesEnv = "TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES"
 )
 
-var (
-	cephEnvConfigFile = "/etc/sysconfig/ceph"
-)
+var cephEnvConfigFile = "/etc/sysconfig/ceph"
 
 func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string, prepare bool) []v1.EnvVar {
 	envVars := []v1.EnvVar{
@@ -187,6 +185,7 @@ func crushInitialWeightEnvVar(crushInitialWeight string) v1.EnvVar {
 func encryptedDeviceEnvVar(encryptedDevice bool) v1.EnvVar {
 	return v1.EnvVar{Name: EncryptedDeviceEnvVarName, Value: strconv.FormatBool(encryptedDevice)}
 }
+
 func pvcNameEnvVar(pvcName string) v1.EnvVar {
 	return v1.EnvVar{Name: PVCNameEnvVarName, Value: pvcName}
 }
@@ -217,11 +216,17 @@ func cephVolumeEnvVar() []v1.EnvVar {
 
 func osdActivateEnvVar() []v1.EnvVar {
 	monEnvVars := []v1.EnvVar{
-		{Name: "ROOK_CEPH_MON_HOST",
+		{
+			Name: "ROOK_CEPH_MON_HOST",
 			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
-					Name: "rook-ceph-config"},
-					Key: "mon_host"}}},
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: "rook-ceph-config",
+					},
+					Key: "mon_host",
+				},
+			},
+		},
 		{Name: "CEPH_ARGS", Value: "-m $(ROOK_CEPH_MON_HOST)"},
 	}
 

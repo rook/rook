@@ -120,7 +120,8 @@ func createCOSIDriverContainer(cephCOSIDriver *cephv1.CephCOSIDriver) corev1.Con
 			"--driver-prefix=" + CephCOSIDriverPrefix,
 		},
 		Env: []corev1.EnvVar{
-			{Name: "POD_NAMESPACE", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}},
+			{Name: "POD_NAMESPACE", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}},
+		},
 		VolumeMounts: []corev1.VolumeMount{
 			{Name: cosiSocketVolumeName, MountPath: cosiSocketMountPath},
 		},
@@ -140,7 +141,8 @@ func createCOSISideCarContainer(cephCOSIDriver *cephv1.CephCOSIDriver) corev1.Co
 			"--v=5",
 		},
 		Env: []corev1.EnvVar{
-			{Name: "POD_NAMESPACE", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}},
+			{Name: "POD_NAMESPACE", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}},
+		},
 		VolumeMounts: []corev1.VolumeMount{
 			{Name: cosiSocketVolumeName, MountPath: cosiSocketMountPath},
 		},

@@ -86,7 +86,6 @@ func TestHostTree(t *testing.T) {
 	tree, err = HostTree(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"))
 	assert.Error(t, err)
 	assert.Equal(t, 0, len(tree.Nodes))
-
 }
 
 func TestOsdListNum(t *testing.T) {

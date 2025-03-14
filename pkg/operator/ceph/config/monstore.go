@@ -257,7 +257,7 @@ func (m *MonStore) setAll(who string, settings map[string]string) ([]string, err
 		return []string{}, errors.Wrapf(err, "failed to create assimilateConf temp dir for  %s.", who)
 	}
 
-	err = os.WriteFile(assimilateConfPath.Name(), []byte(""), 0600)
+	err = os.WriteFile(assimilateConfPath.Name(), []byte(""), 0o600)
 	if err != nil {
 		rook.TerminateFatal(errors.Wrapf(err, "failed to write config file"))
 	}

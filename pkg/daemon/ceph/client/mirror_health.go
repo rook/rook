@@ -28,9 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	defaultHealthCheckInterval = 1 * time.Minute
-)
+var defaultHealthCheckInterval = 1 * time.Minute
 
 type mirrorChecker struct {
 	context        *clusterd.Context
@@ -195,7 +193,8 @@ func updateRadosNamespaceStatusMirroring(c *mirrorChecker, mirrorStatus *cephv1.
 func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroringStatus *cephv1.MirroringStatusSummarySpec,
 	currentInfo *cephv1.MirroringInfoSpec, mirroringInfo *cephv1.MirroringInfo,
 	currentSnapSchedStatus *cephv1.SnapshotScheduleStatusSpec, snapSchedStatus []cephv1.SnapshotSchedulesSpec,
-	details string) (*cephv1.MirroringStatusSpec, *cephv1.MirroringInfoSpec, *cephv1.SnapshotScheduleStatusSpec) {
+	details string,
+) (*cephv1.MirroringStatusSpec, *cephv1.MirroringInfoSpec, *cephv1.SnapshotScheduleStatusSpec) {
 	mirroringStatusSpec := &cephv1.MirroringStatusSpec{}
 	mirroringInfoSpec := &cephv1.MirroringInfoSpec{}
 	snapshotScheduleStatusSpec := &cephv1.SnapshotScheduleStatusSpec{}

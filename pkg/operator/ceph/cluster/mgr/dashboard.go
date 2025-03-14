@@ -108,7 +108,6 @@ func (c *Cluster) configureDashboardModules() error {
 // Delete the manager per-daemon configuration. Returns true
 // if all the configuration entries have been delete successfully.
 func (c *Cluster) deleteManagerDaemonConfiguration() bool {
-
 	mgrKeysToDelete := []string{
 		"mgr/dashboard/url_prefix",
 		"mgr/dashboard/ssl",
@@ -141,7 +140,6 @@ func (c *Cluster) deleteManagerDaemonConfiguration() bool {
 }
 
 func (c *Cluster) configureDashboardModuleSettings() (bool, error) {
-
 	monStore := config.GetMonStore(c.context, c.clusterInfo)
 
 	// url prefix
@@ -227,7 +225,6 @@ func (c *Cluster) initializeSecureDashboard() (bool, error) {
 }
 
 func (c *Cluster) createSelfSignedCert() (bool, error) {
-
 	// Check if the cert already exists
 	args := []string{"config-key", "get", "mgr/dashboard/crt"}
 	output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)

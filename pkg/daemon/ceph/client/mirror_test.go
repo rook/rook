@@ -58,6 +58,7 @@ func TestCreateRBDMirrorBootstrapPeer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, bootstrapPeerToken, string(token))
 }
+
 func TestEnablePoolMirroring(t *testing.T) {
 	pool := cephv1.NamedPoolSpec{
 		Name: "pool-test",

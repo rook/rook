@@ -31,16 +31,22 @@ func TestPathToVolumeName(t *testing.T) {
 		{"convert to lower case", "ASDFGHJKLQWERTYUIOPZXCVBNM", "asdfghjklqwertyuiopzxcvbnm"},
 		{"preserve nums", "0123456789", "0123456789"},
 		{"preserve lower case", "qwertyuiopasdfghjklzxcvbnm", "qwertyuiopasdfghjklzxcvbnm"},
-		{"convert any non-lower-case-alphanum symbols to dash",
+		{
+			"convert any non-lower-case-alphanum symbols to dash",
 			"a/.;,=[]_~!@`#$%^&*()_+-<>?:\"\\'|}{z", // symbols on U.S. keyboard
-			"a---------------------------------z"},
-		{"various currency symbols", // only those written left-to-right
+			"a---------------------------------z",
+		},
+		{
+			"various currency symbols", // only those written left-to-right
 			"z£¢©®™¥€§฿₽₨₱¤₡₫ƒ₲₴₭č₾֏₣лвдине₤₺₼₥₦₱៛₹₪৳₸₩ła",
-			"z------------------------------------------a"},
+			"z------------------------------------------a",
+		},
 		{"full-width symbols", "q￠￥￦℃℉p", "q-----p"}, // only those written left-to-right
-		{"longer than 63 chars", // if you change the arg string, the hash on the end will change
+		{
+			"longer than 63 chars", // if you change the arg string, the hash on the end will change
 			"/this/is/some-path/.that/is_longer/than/$63/chars/1234567890/and/i'm/still/typing",
-			"this-is-some-path--that-i---7890-and-i-m-still-typing-b6b6f18b"},
+			"this-is-some-path--that-i---7890-and-i-m-still-typing-b6b6f18b",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

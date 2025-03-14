@@ -363,7 +363,6 @@ func TestCephBlockPoolController(t *testing.T) {
 					return "{}", nil
 				}
 				return "", nil
-
 			},
 		}
 		c.Executor = executor
@@ -718,7 +717,7 @@ func TestConfigureRBDStats(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "pool1,pool2", rbdStatsPools)
 
-	//Case 7: Duplicate entries should be removed from config
+	// Case 7: Duplicate entries should be removed from config
 	e = monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", "pool1,pool2,pool1")
 	assert.Nil(t, e)
 	err = configureRBDStats(context, clusterInfo, "")

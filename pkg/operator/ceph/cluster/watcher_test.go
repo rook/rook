@@ -444,7 +444,6 @@ func TestHandleNodeFailure(t *testing.T) {
 
 	err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, cephfsDriver, clusterns), Namespace: cephCluster.Namespace}, networkFenceCephFs)
 	assert.Error(t, err, kerrors.IsNotFound(err))
-
 }
 
 func TestGetCephVolumesInUse(t *testing.T) {

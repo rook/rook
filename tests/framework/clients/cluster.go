@@ -24,7 +24,6 @@ import (
 
 // IsClusterHealthy determines if the Rook cluster is currently healthy or not.
 func IsClusterHealthy(testClient *TestClient, namespace string) (bool, error) {
-
 	status, err := testClient.Status(namespace)
 	if err != nil {
 		return false, err

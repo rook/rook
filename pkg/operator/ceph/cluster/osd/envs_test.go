@@ -23,8 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	sysconfig = []byte(`# /etc/sysconfig/ceph
+var sysconfig = []byte(`# /etc/sysconfig/ceph
 #
 # Environment file for ceph daemon systemd unit files.
 #
@@ -42,7 +41,6 @@ TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES=134217728
 # currently active on the node.
 #
 CEPH_AUTO_RESTART_ON_UPGRADE=no`)
-)
 
 func TestCephVolumeEnvVar(t *testing.T) {
 	cvEnv := cephVolumeEnvVar()
@@ -86,7 +84,7 @@ func TestGetTcmallocMaxTotalThreadCacheBytes(t *testing.T) {
 	assert.Equal(t, "67108864", v.Value)
 
 	// Read the file now
-	err = os.WriteFile(file.Name(), sysconfig, 0400)
+	err = os.WriteFile(file.Name(), sysconfig, 0o400)
 	assert.NoError(t, err)
 	v = getTcmallocMaxTotalThreadCacheBytes("")
 	assert.Equal(t, "134217728", v.Value)

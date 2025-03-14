@@ -45,12 +45,15 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 		{"security = nil", nil, isOkay},
 		{"security empty", &NFSSecuritySpec{}, isOkay},
 		{"security.sssd empty", withSSSD(&SSSDSpec{}), isFailing},
-		{"security.sssd.sidecar empty",
+		{
+			"security.sssd.sidecar empty",
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{},
 			}),
-			isFailing},
-		{"security.sssd.sidecar fully specified",
+			isFailing,
+		},
+		{
+			"security.sssd.sidecar fully specified",
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image: "myimage",
@@ -59,8 +62,10 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 					},
 				},
 			}),
-			isOkay},
-		{"security.sssd.sidecar missing image",
+			isOkay,
+		},
+		{
+			"security.sssd.sidecar missing image",
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image: "",
@@ -69,16 +74,20 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 					},
 				},
 			}),
-			isFailing},
-		{"security.sssd.sidecar.sssdConfigFile empty",
+			isFailing,
+		},
+		{
+			"security.sssd.sidecar.sssdConfigFile empty",
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image:          "myimage",
 					SSSDConfigFile: SSSDSidecarConfigFile{},
 				},
 			}),
-			isOkay},
-		{"security.sssd.sidecar.sssdConfigFile.volumeSource empty",
+			isOkay,
+		},
+		{
+			"security.sssd.sidecar.sssdConfigFile.volumeSource empty",
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image: "myimage",
@@ -87,16 +96,20 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 					},
 				},
 			}),
-			isFailing},
-		{"security.sssd.sidecar.additionalFiles empty",
+			isFailing,
+		},
+		{
+			"security.sssd.sidecar.additionalFiles empty",
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image:           "myimage",
 					AdditionalFiles: AdditionalVolumeMounts{},
 				},
 			}),
-			isOkay},
-		{"security.sssd.sidecar.additionalFiles multiple valid",
+			isOkay,
+		},
+		{
+			"security.sssd.sidecar.additionalFiles multiple valid",
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image: "myimage",
@@ -107,8 +120,10 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 					},
 				},
 			}),
-			isOkay},
-		{"security.sssd.sidecar.additionalFiles one empty subDir",
+			isOkay,
+		},
+		{
+			"security.sssd.sidecar.additionalFiles one empty subDir",
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image: "myimage",
@@ -119,8 +134,10 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 					},
 				},
 			}),
-			isFailing},
-		{"security.sssd.sidecar.additionalFiles duplicate subDirs",
+			isFailing,
+		},
+		{
+			"security.sssd.sidecar.additionalFiles duplicate subDirs",
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image: "myimage",
@@ -131,8 +148,10 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 					},
 				},
 			}),
-			isFailing},
-		{"security.sssd.sidecar.additionalFiles one vol source empty",
+			isFailing,
+		},
+		{
+			"security.sssd.sidecar.additionalFiles one vol source empty",
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image: "myimage",
@@ -143,7 +162,8 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 					},
 				},
 			}),
-			isFailing},
+			isFailing,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

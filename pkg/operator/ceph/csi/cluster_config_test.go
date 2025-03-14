@@ -215,7 +215,6 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.Equal(t, "my-group", cc[2].CephFS.SubvolumeGroup)
 		assert.Equal(t, csiClusterConfigEntryMountOptions.CephFS.KernelMountOptions, cc[2].CephFS.KernelMountOptions)
 		assert.Equal(t, csiClusterConfigEntryMountOptions.CephFS.FuseMountOptions, cc[2].CephFS.FuseMountOptions)
-
 	})
 
 	t.Run("add a 4th mon to the 3rd cluster and subvolumegroup is preserved", func(t *testing.T) {

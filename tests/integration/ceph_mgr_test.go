@@ -227,6 +227,7 @@ func (s *CephMgrSuite) waitForOrchestrationModule() {
 	}
 	require.Nil(s.T(), err)
 }
+
 func (s *CephMgrSuite) TestDeviceLs() {
 	logger.Info("Testing .... <ceph orch device ls>")
 	deviceList, err := s.executeWithRetry([]string{"device", "ls"}, defaultTries)

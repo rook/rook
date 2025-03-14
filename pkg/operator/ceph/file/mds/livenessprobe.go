@@ -28,10 +28,8 @@ const (
 	mdsSuccessThreshold int32 = 1
 )
 
-var (
-	//go:embed livenessprobe.sh
-	mdsLivenessProbeCmdScript string
-)
+//go:embed livenessprobe.sh
+var mdsLivenessProbeCmdScript string
 
 type mdsLivenessProbeConfig struct {
 	MdsId          string

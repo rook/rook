@@ -31,10 +31,10 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "util")
 
 func WriteFile(filePath string, contentBuffer bytes.Buffer) error {
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0744); err != nil {
+	if err := os.MkdirAll(dir, 0o744); err != nil {
 		return fmt.Errorf("failed to create config file directory at %s: %+v", dir, err)
 	}
-	if err := os.WriteFile(filePath, contentBuffer.Bytes(), 0600); err != nil {
+	if err := os.WriteFile(filePath, contentBuffer.Bytes(), 0o600); err != nil {
 		return fmt.Errorf("failed to write config file to %s: %+v", filePath, err)
 	}
 
@@ -70,7 +70,7 @@ func CreateTempFile(content string) (*os.File, error) {
 	}
 
 	// Write content into file
-	err = os.WriteFile(file.Name(), []byte(content), 0400)
+	err = os.WriteFile(file.Name(), []byte(content), 0o400)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to write content into file")
 	}

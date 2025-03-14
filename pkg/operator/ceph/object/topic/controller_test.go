@@ -214,7 +214,8 @@ func TestCephBucketTopicController(t *testing.T) {
 				Namespace: namespace,
 			},
 			TypeMeta: metav1.TypeMeta{
-				Kind: "CephObjectStore"},
+				Kind: "CephObjectStore",
+			},
 			Spec: cephv1.ObjectStoreSpec{
 				Gateway: cephv1.GatewaySpec{
 					Port: int32(80),

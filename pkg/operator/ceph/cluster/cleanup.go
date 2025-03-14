@@ -42,7 +42,7 @@ import (
 )
 
 const (
-	clusterCleanUpPolicyRetryInterval = 5 //seconds
+	clusterCleanUpPolicyRetryInterval = 5 // seconds
 	// CleanupAppName is the cluster clean up job name
 	CleanupAppName = "rook-ceph-cleanup"
 )

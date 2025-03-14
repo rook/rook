@@ -68,7 +68,8 @@ func createOBResources(name, provisioner string) (*bktv1alpha1.ObjectBucketClaim
 					},
 				},
 				ClaimRef: &corev1.ObjectReference{
-					Name: name},
+					Name: name,
+				},
 			},
 			Status: bktv1alpha1.ObjectBucketStatus{
 				Phase: bktv1alpha1.ObjectBucketStatusPhaseBound,
@@ -92,7 +93,7 @@ func createBucketNotification(name string) *cephv1.CephBucketNotification {
 }
 
 func setNotificationLabels(labelList []string) map[string]string {
-	var label = make(map[string]string)
+	label := make(map[string]string)
 	for _, value := range labelList {
 		label[notificationLabelPrefix+value] = value
 	}

@@ -78,8 +78,8 @@ func resetValues() {
 	getWasInvoked = false
 	createdNotifications = nil
 	deletedNotifications = nil
-
 }
+
 func mockCleanup() {
 	resetValues()
 	createNotificationFunc = createNotification
@@ -146,8 +146,10 @@ func mockSetup(t *testing.T) {
 			return []string{testNotificationName}, nil
 		}
 		if bucket.Name == multipleDeleteBucketName || bucket.Name == multipleBothBucketName {
-			return []string{multipleDeleteBucketName + testNotificationName + "-1",
-				multipleDeleteBucketName + testNotificationName + "-2"}, nil
+			return []string{
+				multipleDeleteBucketName + testNotificationName + "-1",
+				multipleDeleteBucketName + testNotificationName + "-2",
+			}, nil
 		}
 		return nil, nil
 	}
