@@ -212,7 +212,7 @@ func (c *CephToolCommand) run() ([]byte, error) {
 				err = errors.Errorf("%s", err.Error())
 			}
 			if stderr != "" {
-				err = errors.Errorf("%s", stderr)
+				err = errors.Errorf("err=%s: stderr=%s", err.Error(), stderr)
 			}
 		} else if c.timeout == 0 {
 			output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
