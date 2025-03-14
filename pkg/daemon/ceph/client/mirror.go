@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -85,15 +86,27 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 		return err
 	}() //nolint // we don't want to return here
 
+	content, err := ioutil.ReadFile(tokenFilePath.Name())
+	if err != nil {
+		return fmt.Errorf("failed to read local file: %w", err)
+	}
+
+	command := fmt.Sprintf("echo '%s' > %s", string(content), tokenFilePath.Name())
+	copyargs := []string{command}
+	cmd := NewCommand(context, clusterInfo, copyargs)
+	output, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add rbd-mirror peer token for pool %q. %s", poolName, output)
+	}
+
 	// Build command
 	args := []string{"mirror", "pool", "peer", "bootstrap", "import", poolName, tokenFilePath.Name()}
 	if direction != "" {
 		args = append(args, "--direction", direction)
 	}
-	cmd := NewRBDCommand(context, clusterInfo, args)
-
+	cmd = NewRBDCommand(context, clusterInfo, args)
 	// Run command
-	output, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	output, err = cmd.RunWithTimeout(exec.CephCommandsTimeout)
 	if err != nil {
 		return errors.Wrapf(err, "failed to add rbd-mirror peer token for pool %q. %s", poolName, output)
 	}
