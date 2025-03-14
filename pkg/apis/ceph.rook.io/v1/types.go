@@ -1463,6 +1463,7 @@ type PeerStatSpec struct {
 // +kubebuilder:printcolumn:name="SecureEndpoint",type=string,JSONPath=`.status.info.secureEndpoint`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.gateway.instances,statuspath=.status.replicas,selectorpath=.status.selector
 type CephObjectStore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
@@ -1892,6 +1893,10 @@ type ZoneSpec struct {
 
 // ObjectStoreStatus represents the status of a Ceph Object Store resource
 type ObjectStoreStatus struct {
+	// +optional
+	Replicas int32 `json:"replicas"`
+	// +optional
+	Selector string `json:"selector"`
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
