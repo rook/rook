@@ -42,7 +42,6 @@ func testCOSIDriver(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sH
 	t.Run("Creating CephCOSIDriver CRD", func(t *testing.T) {
 		err := helper.COSIClient.CreateCOSI()
 		assert.NoError(t, err, "failed to create Ceph COSI Driver CRD")
-
 	})
 
 	operatorNamespace := cephinstaller.Manifests.Settings().OperatorNamespace

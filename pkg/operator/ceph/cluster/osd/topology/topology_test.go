@@ -50,7 +50,8 @@ func TestCleanTopologyLabels(t *testing.T) {
 		"topology.rook.io/datacenter": "d.datacenter",
 		"topology.rook.io/room":       "test",
 		"topology.rook.io/chassis":    "test",
-		"topology.rook.io/pod":        "test"}
+		"topology.rook.io/pod":        "test",
+	}
 	topology, affinity := ExtractOSDTopologyFromLabels(nodeLabels)
 	assert.Equal(t, 6, len(topology))
 	assert.Equal(t, "r-region", topology["region"])
@@ -152,5 +153,4 @@ func TestGetDefaultTopologyLabels(t *testing.T) {
 		"topology.rook.io/room," +
 		"topology.rook.io/datacenter"
 	assert.Equal(t, expectedLabels, GetDefaultTopologyLabels())
-
 }

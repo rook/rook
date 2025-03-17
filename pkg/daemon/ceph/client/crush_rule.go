@@ -57,9 +57,7 @@ rule %s {
 `
 )
 
-var (
-	stepEmit = &stepSpec{Operation: "emit"}
-)
+var stepEmit = &stepSpec{Operation: "emit"}
 
 func buildTwoStepPlainCrushRule(crushMap CrushMap, ruleName string, pool cephv1.PoolSpec) string {
 	var crushRuleInsert string

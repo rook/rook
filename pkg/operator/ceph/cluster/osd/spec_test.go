@@ -661,14 +661,15 @@ func TestOsdPrepareResources(t *testing.T) {
 	clusterInfo.SetName("test")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	spec := cephv1.ClusterSpec{
-		Resources: map[string]corev1.ResourceRequirements{"prepareosd": {
-			Limits: corev1.ResourceList{
-				corev1.ResourceCPU: *resource.NewQuantity(2000.0, resource.BinarySI),
+		Resources: map[string]corev1.ResourceRequirements{
+			"prepareosd": {
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU: *resource.NewQuantity(2000.0, resource.BinarySI),
+				},
+				Requests: corev1.ResourceList{
+					corev1.ResourceMemory: *resource.NewQuantity(250.0, resource.BinarySI),
+				},
 			},
-			Requests: corev1.ResourceList{
-				corev1.ResourceMemory: *resource.NewQuantity(250.0, resource.BinarySI),
-			},
-		},
 		},
 	}
 	c := New(context, clusterInfo, spec, "rook/rook:myversion")
@@ -839,38 +840,40 @@ func TestOSDPlacement(t *testing.T) {
 			ClaimName: "pvc1",
 		},
 	}
-	osdProps.placement = cephv1.Placement{NodeAffinity: &corev1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-			NodeSelectorTerms: []corev1.NodeSelectorTerm{
-				{
-					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{
-							Key:      "role",
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{"storage-node3"},
+	osdProps.placement = cephv1.Placement{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "role",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"storage-node3"},
+							},
 						},
 					},
 				},
 			},
 		},
-	},
 	}
 
-	osdProps.preparePlacement = &cephv1.Placement{NodeAffinity: &corev1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-			NodeSelectorTerms: []corev1.NodeSelectorTerm{
-				{
-					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{
-							Key:      "role",
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{"storage-node3"},
+	osdProps.preparePlacement = &cephv1.Placement{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "role",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"storage-node3"},
+							},
 						},
 					},
 				},
 			},
 		},
-	},
 	}
 
 	c := New(context, clusterInfo, spec, "rook/rook:myversion")

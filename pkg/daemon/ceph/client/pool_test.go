@@ -147,7 +147,6 @@ func TestSetPoolApplication(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, setAppName)
 	})
-
 }
 
 func TestCreateReplicaPoolWithFailureDomain(t *testing.T) {

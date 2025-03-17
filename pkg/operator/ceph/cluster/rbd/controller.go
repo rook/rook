@@ -252,7 +252,6 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph rbd mirror")
 	return reconcile.Result{}, *cephRBDMirror, nil
-
 }
 
 func (r *ReconcileCephRBDMirror) reconcileCreateCephRBDMirror(cephRBDMirror *cephv1.CephRBDMirror) (reconcile.Result, error) {

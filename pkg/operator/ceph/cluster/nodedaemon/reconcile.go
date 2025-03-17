@@ -269,7 +269,6 @@ func (r *ReconcileNode) createOrUpdateNodeDaemons(node corev1.Node, tolerations 
 					logger.Debug("service monitor for ceph exporter was enabled successfully")
 				}
 			}
-
 		}
 	}
 

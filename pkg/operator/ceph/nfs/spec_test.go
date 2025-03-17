@@ -46,22 +46,23 @@ func newDeploymentSpecTest(t *testing.T) (*ReconcileCephNFS, daemonConfig) {
 	}
 
 	s := scheme.Scheme
-	object := []runtime.Object{&cephv1.CephNFS{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		TypeMeta: controllerTypeMeta,
-		Spec: cephv1.NFSGaneshaSpec{
-			RADOS: cephv1.GaneshaRADOSSpec{
-				Pool:      "foo",
+	object := []runtime.Object{
+		&cephv1.CephNFS{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
 				Namespace: namespace,
 			},
-			Server: cephv1.GaneshaServerSpec{
-				Active: 1,
+			TypeMeta: controllerTypeMeta,
+			Spec: cephv1.NFSGaneshaSpec{
+				RADOS: cephv1.GaneshaRADOSSpec{
+					Pool:      "foo",
+					Namespace: namespace,
+				},
+				Server: cephv1.GaneshaServerSpec{
+					Active: 1,
+				},
 			},
 		},
-	},
 	}
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 

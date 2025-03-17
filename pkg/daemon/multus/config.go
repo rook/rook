@@ -30,10 +30,8 @@ import (
 	metavalidation "k8s.io/apimachinery/pkg/util/validation"
 )
 
-var (
-	//go:embed config.yaml
-	ConfigYaml string
-)
+//go:embed config.yaml
+var ConfigYaml string
 
 var (
 	DefaultValidationNamespace = "rook-ceph"

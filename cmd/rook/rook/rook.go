@@ -97,7 +97,7 @@ func init() {
 		zap.Encoder(logfmtEncoder))
 	log.SetLogger(logger)
 	// To disable controller runtime logging, instead set the null logger:
-	//log.SetLogger(logr.New(log.NullLogSink{}))
+	// log.SetLogger(logr.New(log.NullLogSink{}))
 }
 
 // SetLogLevel set log level based on provided log option.
@@ -107,7 +107,6 @@ func SetLogLevel() {
 
 // LogStartupInfo log the version number, arguments, and all final flag values (environment variable overrides have already been taken into account)
 func LogStartupInfo(cmdFlags *pflag.FlagSet) {
-
 	flagValues := flags.GetFlagsAndValues(cmdFlags, "secret|keyring")
 	logger.Infof("starting Rook %s with arguments '%s'", version.Version, strings.Join(os.Args, " "))
 	logger.Infof("flag values: %s", strings.Join(flagValues, ", "))
@@ -187,7 +186,7 @@ func TerminateOnError(err error, msg string) {
 // TerminateFatal terminates the process with an exit code of 1
 // and writes the given reason to stderr and the termination log file.
 func TerminateFatal(reason error) {
-	file, err := os.OpenFile(terminationLog, os.O_APPEND|os.O_WRONLY, 0600)
+	file, err := os.OpenFile(terminationLog, os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %v", err))
 	} else {

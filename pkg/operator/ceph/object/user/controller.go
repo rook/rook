@@ -136,7 +136,6 @@ func (r *ReconcileObjectStoreUser) Reconcile(context context.Context, request re
 	reconcileResponse, cephObjectStoreUser, err := r.reconcile(request)
 
 	return reporting.ReportReconcileResult(logger, r.recorder, request, &cephObjectStoreUser, reconcileResponse, err)
-
 }
 
 func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconcile.Result, cephv1.CephObjectStoreUser, error) {
@@ -339,7 +338,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
 	}
 
-	var quotaEnabled = false
+	quotaEnabled := false
 	var maxSize int64 = -1
 	var maxObjects int64 = -1
 	if u.Spec.Quotas != nil {

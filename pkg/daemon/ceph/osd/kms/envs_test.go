@@ -28,9 +28,11 @@ import (
 
 func TestVaultTLSEnvVarFromSecret(t *testing.T) {
 	t.Run("vault - no tls", func(t *testing.T) {
-		spec := cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
-			TokenSecretName:   "vault-token",
-			ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200"}}},
+		spec := cephv1.ClusterSpec{
+			Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
+				TokenSecretName:   "vault-token",
+				ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200"},
+			}},
 		}
 		envVars := ConfigToEnvVar(spec)
 		areEnvVarsSorted := sort.SliceIsSorted(envVars, func(i, j int) bool {
@@ -44,9 +46,11 @@ func TestVaultTLSEnvVarFromSecret(t *testing.T) {
 		assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_BACKEND_PATH", Value: "secret/"})
 	})
 	t.Run("vault tls", func(t *testing.T) {
-		spec := cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
-			TokenSecretName:   "vault-token",
-			ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200", "VAULT_CACERT": "vault-ca-cert-secret"}}},
+		spec := cephv1.ClusterSpec{
+			Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
+				TokenSecretName:   "vault-token",
+				ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200", "VAULT_CACERT": "vault-ca-cert-secret"},
+			}},
 		}
 		envVars := ConfigToEnvVar(spec)
 		areEnvVarsSorted := sort.SliceIsSorted(envVars, func(i, j int) bool {
@@ -60,9 +64,11 @@ func TestVaultTLSEnvVarFromSecret(t *testing.T) {
 		assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_TOKEN", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Key: "token"}}})
 	})
 	t.Run("ibm kp", func(t *testing.T) {
-		spec := cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
-			TokenSecretName:   "ibm-kp-token",
-			ConnectionDetails: map[string]string{"KMS_PROVIDER": TypeIBM, "IBM_KP_SERVICE_INSTANCE_ID": "1"}}},
+		spec := cephv1.ClusterSpec{
+			Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
+				TokenSecretName:   "ibm-kp-token",
+				ConnectionDetails: map[string]string{"KMS_PROVIDER": TypeIBM, "IBM_KP_SERVICE_INSTANCE_ID": "1"},
+			}},
 		}
 		envVars := ConfigToEnvVar(spec)
 		areEnvVarsSorted := sort.SliceIsSorted(envVars, func(i, j int) bool {

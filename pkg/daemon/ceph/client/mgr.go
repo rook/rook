@@ -25,9 +25,7 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
-var (
-	moduleEnableWaitTime = 5 * time.Second
-)
+var moduleEnableWaitTime = 5 * time.Second
 
 const (
 	readBalancerMode      = "read"

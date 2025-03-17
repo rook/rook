@@ -48,6 +48,7 @@ func TestVolumeExists(t *testing.T) {
 func vols(v ...v1.Volume) []v1.Volume {
 	return v
 }
+
 func TestVolumeIsEmptyDir(t *testing.T) {
 	emptyVolume := v1.Volume{Name: "e", VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
 	emptyAndHostVolume := v1.Volume{Name: "e&hp", VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}

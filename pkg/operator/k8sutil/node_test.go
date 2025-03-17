@@ -92,21 +92,22 @@ func TestValidNode(t *testing.T) {
 		nodeErr = createNode("nodeC", v1.NodeReady, clientset)
 		assert.Nil(t, nodeErr)
 
-		placement := cephv1.Placement{NodeAffinity: &v1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-				NodeSelectorTerms: []v1.NodeSelectorTerm{
-					{
-						MatchExpressions: []v1.NodeSelectorRequirement{
-							{
-								Key:      "testLabel",
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{"nodeC"},
+		placement := cephv1.Placement{
+			NodeAffinity: &v1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+					NodeSelectorTerms: []v1.NodeSelectorTerm{
+						{
+							MatchExpressions: []v1.NodeSelectorRequirement{
+								{
+									Key:      "testLabel",
+									Operator: v1.NodeSelectorOpIn,
+									Values:   []string{"nodeC"},
+								},
 							},
 						},
 					},
 				},
 			},
-		},
 		}
 		validNodes := GetValidNodes(context.TODO(), storage, clientset, placement)
 		assert.Equal(t, len(validNodes), 1)
@@ -262,7 +263,8 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 	rookNodes = []cephv1.Node{
 		{Name: "node0"},
 		{Name: "node2"},
-		{Name: "node5"}}
+		{Name: "node5"},
+	}
 	nodes, err = GetKubernetesNodesMatchingRookNodes(ctx, rookNodes, clientset)
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 2)
@@ -273,7 +275,8 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 	rookNodes = []cephv1.Node{
 		{Name: "node0"},
 		{Name: "node1"},
-		{Name: "node2"}}
+		{Name: "node2"},
+	}
 	nodes, err = GetKubernetesNodesMatchingRookNodes(ctx, rookNodes, clientset)
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 3)
@@ -315,7 +318,8 @@ func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
 	rookStorage.Nodes = []cephv1.Node{
 		{Name: "node0"},
 		{Name: "node1"},
-		{Name: "node2"}}
+		{Name: "node2"},
+	}
 	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
 	assert.Len(t, retNodes, 3)
 	// this should return nodes named by hostname if that is available
@@ -327,7 +331,8 @@ func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
 	rookStorage.Nodes = []cephv1.Node{
 		{Name: "node0-hostname"},
 		{Name: "node2"},
-		{Name: "node5"}}
+		{Name: "node5"},
+	}
 	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
 	assert.Len(t, retNodes, 2)
 	assert.Contains(t, retNodes, cephv1.Node{Name: "node0-hostname"})
@@ -345,7 +350,8 @@ func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
 	rookStorage.Nodes = []cephv1.Node{
 		{Name: "node0"},
 		{Name: "node1"},
-		{Name: "node2"}}
+		{Name: "node2"},
+	}
 	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
 	assert.Len(t, retNodes, 3)
 	// this should return nodes named by hostname if that is available
@@ -542,18 +548,18 @@ func TestGetNotReadyKubernetesNodes(t *testing.T) {
 	ctx := context.TODO()
 	clientset := optest.New(t, 0)
 
-	//when there is no node
+	// when there is no node
 	nodes, err := GetNotReadyKubernetesNodes(ctx, clientset)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(nodes))
 
-	//when all the nodes are in ready state
+	// when all the nodes are in ready state
 	clientset = optest.New(t, 2)
 	nodes, err = GetNotReadyKubernetesNodes(ctx, clientset)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(nodes))
 
-	//when there is a not ready node
+	// when there is a not ready node
 	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "failed",

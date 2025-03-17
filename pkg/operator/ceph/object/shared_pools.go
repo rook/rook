@@ -76,7 +76,7 @@ func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSha
 		return nil, fmt.Errorf("unable to get zone name: %w", err)
 	}
 
-	//deep copy source zone
+	// deep copy source zone
 	zone, err = deepCopyJson(zone)
 	if err != nil {
 		return nil, fmt.Errorf("unable to deep copy config for zone %s: %w", name, err)
@@ -138,11 +138,11 @@ func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSha
 		}
 	}
 	if len(idxToRemove) != 0 {
-		//delete placements from slice
+		// delete placements from slice
 		updated := make([]interface{}, 0, len(placements)-len(idxToRemove))
 		for i := range placements {
 			if _, ok := idxToRemove[i]; ok {
-				//remove
+				// remove
 				continue
 			}
 			updated = append(updated, placements[i])
@@ -153,7 +153,7 @@ func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSha
 	// add new placements from spec:
 	for placementID, p := range fromSpec {
 		if _, ok := inConfig[placementID]; ok {
-			//already in config
+			// already in config
 			continue
 		}
 		pObj, err := toObj(p)
@@ -281,7 +281,7 @@ func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}, default
 		return nil, fmt.Errorf("unable to get zonegroup name: %w", err)
 	}
 
-	//deep copy source group
+	// deep copy source group
 	group, err = deepCopyJson(group)
 	if err != nil {
 		return nil, fmt.Errorf("unable to deep copy config for zonegroup %s: %w", name, err)
@@ -332,11 +332,11 @@ func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}, default
 		}
 	}
 	if len(idxToRemove) != 0 {
-		//delete targets from slice
+		// delete targets from slice
 		updated := make([]interface{}, 0, len(currentTargets)-len(idxToRemove))
 		for i := range currentTargets {
 			if _, ok := idxToRemove[i]; ok {
-				//remove
+				// remove
 				continue
 			}
 			updated = append(updated, currentTargets[i])
@@ -347,7 +347,7 @@ func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}, default
 	// add new targets:
 	for targetName, target := range desiredTargets {
 		if _, ok := applied[targetName]; ok {
-			//already in config
+			// already in config
 			continue
 		}
 		tObj, err := toObj(target)
@@ -476,7 +476,7 @@ func updateZoneJSON(objContext *Context, zone map[string]interface{}) (map[strin
 		return nil, err
 	}
 	configFilename := path.Join(objContext.Context.ConfigDir, objContext.Name+".zonecfg")
-	if err := os.WriteFile(configFilename, configBytes, 0600); err != nil {
+	if err := os.WriteFile(configFilename, configBytes, 0o600); err != nil {
 		return nil, errors.Wrap(err, "failed to write zone config file")
 	}
 	defer os.Remove(configFilename)
@@ -513,7 +513,7 @@ func updateZoneGroupJSON(objContext *Context, group map[string]interface{}) (map
 		return nil, err
 	}
 	configFilename := path.Join(objContext.Context.ConfigDir, objContext.Name+".zonegroupcfg")
-	if err := os.WriteFile(configFilename, configBytes, 0600); err != nil {
+	if err := os.WriteFile(configFilename, configBytes, 0o600); err != nil {
 		return nil, errors.Wrap(err, "failed to write zonegroup config file")
 	}
 	defer os.Remove(configFilename)

@@ -74,7 +74,6 @@ func (e *MockExecutor) ExecuteCommandWithOutput(command string, arg ...string) (
 
 // ExecuteCommandWithTimeout mocks ExecuteCommandWithTimeout
 func (e *MockExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command string, arg ...string) (string, error) {
-
 	if e.MockExecuteCommandWithTimeout != nil {
 		return e.MockExecuteCommandWithTimeout(time.Second, command, arg...)
 	}

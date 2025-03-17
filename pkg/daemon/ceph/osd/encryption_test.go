@@ -27,8 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	luksDump = `LUKS header information
+var luksDump = `LUKS header information
 Version:        2
 Epoch:          13
 Metadata area:  12288 bytes
@@ -67,7 +66,6 @@ Digests:
                     ef 90 8d 81 46 37 78 b4 82 37 3b 84 e8 e7 d8 1b
         Digest:     6d 86 96 05 99 4f a9 48 87 54
                     5c ef 4b 99 3b 9d fa 0b 8f 8a`
-)
 
 func TestCloseEncryptedDevice(t *testing.T) {
 	executor := &exectest.MockExecutor{}

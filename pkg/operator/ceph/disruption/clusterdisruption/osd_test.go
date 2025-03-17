@@ -47,8 +47,10 @@ const (
 	healthyCephStatusRemapped = `{"fsid":"e32d91a2-24ff-4953-bc4a-6864d31dd2a0","health":{"status":"HEALTH_OK","checks":{},"mutes":[]},"election_epoch":3,"quorum":[0],"quorum_names":["a"],"quorum_age":1177701,"monmap":{"epoch":1,"min_mon_release_name":"reef","num_mons":1},"osdmap":{"epoch":1800,"num_osds":5,"num_up_osds":5,"osd_up_since":1699834324,"num_in_osds":5,"osd_in_since":1699834304,"num_remapped_pgs":11},"pgmap":{"pgs_by_state":[{"state_name":"active+clean","count":174},{"state_name":"active+remapped+backfilling","count":10},{"state_name":"active+clean+remapped","count":1}],"num_pgs":185,"num_pools":9,"num_objects":2383,"data_bytes":2222656224,"bytes_used":8793104384,"bytes_avail":18050441216,"bytes_total":26843545600,"misplaced_objects":139,"misplaced_total":7149,"misplaced_ratio":0.019443278780248985,"recovering_objects_per_sec":10,"recovering_bytes_per_sec":9739877,"recovering_keys_per_sec":0,"num_objects_recovered":62,"num_bytes_recovered":58471087,"num_keys_recovered":0,"write_bytes_sec":2982994,"read_op_per_sec":0,"write_op_per_sec":26},"fsmap":{"epoch":1,"by_rank":[],"up:standby":0},"mgrmap":{"available":true,"num_standbys":0,"modules":["iostat","nfs","prometheus","restful"],"services":{"prometheus":"http://10.244.0.36:9283/"}},"servicemap":{"epoch":1,"modified":"0.000000","services":{}},"progress_events":{}}`
 )
 
-var nodeName = "node01"
-var namespace = "rook-ceph"
+var (
+	nodeName  = "node01"
+	namespace = "rook-ceph"
+)
 
 var cephCluster = &cephv1.CephCluster{
 	ObjectMeta: metav1.ObjectMeta{Name: "ceph-cluster"},
@@ -140,7 +142,6 @@ func getFakeClusterInfo() *client.ClusterInfo {
 	sharedClusterMap := &ClusterMap{}
 	sharedClusterMap.UpdateClusterMap(namespace, cephCluster)
 	return sharedClusterMap.GetClusterInfo(namespace)
-
 }
 
 func TestGetOSDFailureDomains(t *testing.T) {
@@ -155,10 +156,14 @@ func TestGetOSDFailureDomains(t *testing.T) {
 	}{
 		{
 			name: "case 1: all osds are running",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
-				fakeOSDDeployment(3, 1)},
-			osdPods: []corev1.Pod{fakeOSDPod(1, nodeName), fakeOSDPod(2, nodeName),
-				fakeOSDPod(3, nodeName)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 1),
+			},
+			osdPods: []corev1.Pod{
+				fakeOSDPod(1, nodeName), fakeOSDPod(2, nodeName),
+				fakeOSDPod(3, nodeName),
+			},
 			node:                           nodeObj,
 			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
 			expectedOsdDownFailureDomains:  []string{},
@@ -166,10 +171,14 @@ func TestGetOSDFailureDomains(t *testing.T) {
 		},
 		{
 			name: "case 2: osd in zone-1 is pending and node is unschedulable",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
-				fakeOSDDeployment(3, 1)},
-			osdPods: []corev1.Pod{fakeOSDPod(1, ""), fakeOSDPod(2, nodeName),
-				fakeOSDPod(3, nodeName)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 1),
+			},
+			osdPods: []corev1.Pod{
+				fakeOSDPod(1, ""), fakeOSDPod(2, nodeName),
+				fakeOSDPod(3, nodeName),
+			},
 			node:                           nodeObj,
 			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
 			expectedOsdDownFailureDomains:  []string{"zone-1"},
@@ -177,10 +186,14 @@ func TestGetOSDFailureDomains(t *testing.T) {
 		},
 		{
 			name: "case 3: osd in zone-1 and zone-2 are pending and node is unschedulable",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 0),
-				fakeOSDDeployment(3, 1)},
-			osdPods: []corev1.Pod{fakeOSDPod(1, ""), fakeOSDPod(2, ""),
-				fakeOSDPod(3, nodeName)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 0),
+				fakeOSDDeployment(3, 1),
+			},
+			osdPods: []corev1.Pod{
+				fakeOSDPod(1, ""), fakeOSDPod(2, ""),
+				fakeOSDPod(3, nodeName),
+			},
 			node:                           nodeObj,
 			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
 			expectedOsdDownFailureDomains:  []string{"zone-1", "zone-2"},
@@ -188,10 +201,14 @@ func TestGetOSDFailureDomains(t *testing.T) {
 		},
 		{
 			name: "case 4: osd in zone-1 is pending but osd node is schedulable",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
-				fakeOSDDeployment(3, 1)},
-			osdPods: []corev1.Pod{fakeOSDPod(1, nodeName), fakeOSDPod(2, nodeName),
-				fakeOSDPod(3, nodeName)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 1),
+			},
+			osdPods: []corev1.Pod{
+				fakeOSDPod(1, nodeName), fakeOSDPod(2, nodeName),
+				fakeOSDPod(3, nodeName),
+			},
 			node:                           nodeObj,
 			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
 			expectedOsdDownFailureDomains:  []string{"zone-1"},
@@ -199,10 +216,14 @@ func TestGetOSDFailureDomains(t *testing.T) {
 		},
 		{
 			name: "case 5: osd in zone-1 is pending but osd node is not schedulable",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
-				fakeOSDDeployment(3, 1)},
-			osdPods: []corev1.Pod{fakeOSDPod(1, nodeName), fakeOSDPod(2, nodeName),
-				fakeOSDPod(3, nodeName)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 1),
+			},
+			osdPods: []corev1.Pod{
+				fakeOSDPod(1, nodeName), fakeOSDPod(2, nodeName),
+				fakeOSDPod(3, nodeName),
+			},
 			node:                           unschedulableNodeObj,
 			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
 			expectedOsdDownFailureDomains:  []string{"zone-1"},
@@ -246,8 +267,10 @@ func TestGetOSDFailureDomainsError(t *testing.T) {
 	}{
 		{
 			name: "case 1: one or more OSD deployment is missing crush location label",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
-				fakeOSDDeployment(3, 1)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 1),
+			},
 			expectedAllFailureDomains:      nil,
 			expectedDrainingFailureDomains: nil,
 			expectedOsdDownFailureDomains:  nil,
@@ -399,7 +422,6 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			assert.Equal(t, tc.expectedDrainingFailureDomainName, existingConfigMaps.Items[0].Data[drainingFailureDomainKey])
 			assert.Equal(t, tc.expectedSetNoOutValue, existingConfigMaps.Items[0].Data[setNoOut])
 		})
-
 	}
 }
 

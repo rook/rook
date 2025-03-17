@@ -30,7 +30,6 @@ import (
 )
 
 func TestExpandPVCIfRequired(t *testing.T) {
-
 	testcases := []struct {
 		label            string
 		currentPVCSize   string

@@ -62,6 +62,5 @@ func ObjectToCRMapper(ctx context.Context, c client.Client, ro runtime.Object, s
 			})
 		}
 		return results
-
 	}), nil
 }

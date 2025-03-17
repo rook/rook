@@ -82,7 +82,7 @@ mon_host = ` + monHost + `
 keyring = ` + keyring + `
 `
 
-	var fileMode os.FileMode = 0444 // read-only
+	var fileMode os.FileMode = 0o444 // read-only
 	err := os.WriteFile(cephclient.DefaultConfigFilePath(), []byte(cfg), fileMode)
 	if err != nil {
 		rook.TerminateFatal(errors.Wrapf(err, "failed to write config file"))

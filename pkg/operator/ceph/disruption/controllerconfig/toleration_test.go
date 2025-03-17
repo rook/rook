@@ -84,7 +84,7 @@ func TestTolerationSet(t *testing.T) {
 			Effect:   corev1.TaintEffectNoExecute,
 		},
 	}
-	//identical to uniqueTolerationsManualA
+	// identical to uniqueTolerationsManualA
 	uniqueTolerationsManualB := []corev1.Toleration{
 		// key1
 		//   exists
@@ -149,7 +149,7 @@ func TestTolerationSet(t *testing.T) {
 	for i := range uniqueTolerationsManualA {
 		tolerationsWithDuplicates = append(tolerationsWithDuplicates, uniqueTolerationsManualA[i])
 
-		//append the previous one again if it's within range, else append the last one
+		// append the previous one again if it's within range, else append the last one
 		if i > 0 {
 			tolerationsWithDuplicates = append(tolerationsWithDuplicates, uniqueTolerationsManualB[i-1])
 		} else {

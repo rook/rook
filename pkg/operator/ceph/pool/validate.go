@@ -45,7 +45,6 @@ func validatePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo
 
 // ValidatePoolSpec validates the Ceph block pool spec CR
 func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, p *cephv1.PoolSpec) error {
-
 	if p.IsHybridStoragePool() {
 		err := validateDeviceClasses(context, clusterInfo, p)
 		if err != nil {
@@ -186,7 +185,6 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 
 // validateDeviceClasses validates the primary and secondary device classes in the HybridStorageSpec
 func validateDeviceClasses(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, p *cephv1.PoolSpec) error {
-
 	primaryDeviceClass := p.Replicated.HybridStorage.PrimaryDeviceClass
 	secondaryDeviceClass := p.Replicated.HybridStorage.SecondaryDeviceClass
 

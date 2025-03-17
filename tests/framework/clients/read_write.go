@@ -69,7 +69,6 @@ func (f *ReadWriteOperation) Read(name string) (string, error) {
 	result, err := f.k8sh.Kubectl(args...)
 	if err != nil {
 		return "", fmt.Errorf("unable to write data to pod -- : %s", err)
-
 	}
 	return result, nil
 }

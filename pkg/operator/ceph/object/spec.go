@@ -76,8 +76,10 @@ var (
 	rgwAPIwithoutS3 = []string{"s3website", "swift", "swift_auth", "admin", "sts", "iam", "notifications"}
 )
 
-type ProbeType string
-type ProtocolType string
+type (
+	ProbeType    string
+	ProtocolType string
+)
 
 const (
 	StartupProbeType   ProbeType = "startup"
@@ -193,7 +195,8 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 			Name: certVolumeName,
 			VolumeSource: v1.VolumeSource{
 				Secret: secretVolSrc,
-			}}
+			},
+		}
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
 	// Check custom caBundle provided
@@ -206,13 +209,15 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 			Name: caBundleVolumeName,
 			VolumeSource: v1.VolumeSource{
 				Secret: customCaBundleVolSrc,
-			}}
+			},
+		}
 		podSpec.Volumes = append(podSpec.Volumes, customCaBundleVol)
 		updatedCaBundleVol := v1.Volume{
 			Name: caBundleUpdatedVolumeName,
 			VolumeSource: v1.VolumeSource{
 				EmptyDir: &v1.EmptyDirVolumeSource{},
-			}}
+			},
+		}
 		podSpec.Volumes = append(podSpec.Volumes, updatedCaBundleVol)
 		podSpec.InitContainers = append(podSpec.InitContainers,
 			c.createCaBundleUpdateInitContainer(rgwConfig))
@@ -815,7 +820,7 @@ func (c *clusterConfig) generateVolumeSourceWithTLSSecret() (*v1.SecretVolumeSou
 	// Because the Secret mount is owned by "root" and fsGroup breaks on OCP since we cannot predict it
 	// Also, we don't want to change the SCC for fsGroup to RunAsAny since it has a major broader impact
 	// Let's open the permissions a bit more so that everyone can read the cert.
-	userReadOnly := int32(0444)
+	userReadOnly := int32(0o444)
 	var secretVolSrc *v1.SecretVolumeSource
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {
 		secretVolSrc = &v1.SecretVolumeSource{
@@ -842,7 +847,8 @@ func (c *clusterConfig) generateVolumeSourceWithTLSSecret() (*v1.SecretVolumeSou
 			Items: []v1.KeyToPath{
 				{Key: v1.TLSCertKey, Path: certFilename, Mode: &userReadOnly},
 				{Key: v1.TLSPrivateKeyKey, Path: certKeyFileName, Mode: &userReadOnly},
-			}}
+			},
+		}
 	} else {
 		return nil, errors.New("no TLS certificates found")
 	}
@@ -853,7 +859,7 @@ func (c *clusterConfig) generateVolumeSourceWithTLSSecret() (*v1.SecretVolumeSou
 func (c *clusterConfig) generateVolumeSourceWithCaBundleSecret() (*v1.SecretVolumeSource, error) {
 	// Keep the ca-bundle as secure as possible in the container. Give only user read perms.
 	// Same as above for generateVolumeSourceWithTLSSecret function.
-	userReadOnly := int32(0400)
+	userReadOnly := int32(0o400)
 	caBundleVolSrc := &v1.SecretVolumeSource{
 		SecretName: c.store.Spec.Gateway.CaBundleRef,
 	}

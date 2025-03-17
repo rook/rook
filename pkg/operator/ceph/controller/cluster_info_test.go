@@ -37,7 +37,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 1)
 	configDir := "ns"
-	err := os.MkdirAll(configDir, 0755)
+	err := os.MkdirAll(configDir, 0o755)
 	assert.NoError(t, err)
 	defer os.RemoveAll(configDir)
 	adminSecret := "AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q==" //nolint:gosec // This is just a var name, not a real secret
@@ -46,7 +46,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 			logger.Infof("COMMAND: %s %v", command, args)
 			if command == "ceph-authtool" && args[0] == "--create-keyring" {
 				filename := args[1]
-				assert.NoError(t, os.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0600))
+				assert.NoError(t, os.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0o600))
 			}
 			return "", nil
 		},
@@ -57,7 +57,8 @@ func TestCreateClusterSecrets(t *testing.T) {
 	}
 	cephClusterSpec := &cephv1.ClusterSpec{
 		Network: cephv1.NetworkSpec{
-			Provider: cephv1.NetworkProviderMultus},
+			Provider: cephv1.NetworkProviderMultus,
+		},
 	}
 	namespace := "ns"
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()

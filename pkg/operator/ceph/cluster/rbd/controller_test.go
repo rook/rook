@@ -202,7 +202,6 @@ func TestCephRBDMirrorController(t *testing.T) {
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
-
 	})
 
 	t.Run("success - peers are configured", func(t *testing.T) {

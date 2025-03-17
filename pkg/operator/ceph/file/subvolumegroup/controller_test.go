@@ -362,5 +362,4 @@ func Test_formatPinning(t *testing.T) {
 	pinning.Random = &randomValue
 	pinningStatus = formatPinning(*pinning)
 	assert.Equal(t, "random=0.31", pinningStatus)
-
 }

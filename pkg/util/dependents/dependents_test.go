@@ -63,7 +63,6 @@ func TestDependentList(t *testing.T) {
 		containsExactlyOne(toString, "my-resource-1")
 		containsExactlyOne(toString, "my-resource-2")
 		containsExactlyOne(toString, "my-resource-3")
-
 	})
 
 	t.Run("multiple resources - multiple dependents", func(t *testing.T) {

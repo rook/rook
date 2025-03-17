@@ -494,20 +494,18 @@ func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID 
 			continue
 		}
 		if p.Spec.CSI.VolumeAttributes["clusterID"] == clusterID {
-			//check PV is created by drivers deployed by rook
+			// check PV is created by drivers deployed by rook
 			for _, d := range drivers {
 				if d == p.Spec.CSI.Driver {
 					return true, nil
 				}
 			}
-
 		}
 	}
 	return false, nil
 }
 
 func (r *ReconcileCephCluster) removeFinalizers(client client.Client, clusterName types.NamespacedName) error {
-
 	// Remove finalizer for rook-ceph-mon secret
 	name := types.NamespacedName{Name: mon.AppName, Namespace: clusterName.Namespace}
 	err := r.removeFinalizer(client, name, &corev1.Secret{}, mon.DisasterProtectionFinalizerName)

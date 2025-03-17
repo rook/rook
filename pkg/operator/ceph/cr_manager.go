@@ -56,17 +56,13 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
-var (
-	resourcesSchemeFuncs = []func(*runtime.Scheme) error{
-		clientgoscheme.AddToScheme,
-		cephv1.AddToScheme,
-	}
-)
+var resourcesSchemeFuncs = []func(*runtime.Scheme) error{
+	clientgoscheme.AddToScheme,
+	cephv1.AddToScheme,
+}
 
-var (
-	// EnableMachineDisruptionBudget checks whether machine disruption budget is enabled
-	EnableMachineDisruptionBudget bool
-)
+// EnableMachineDisruptionBudget checks whether machine disruption budget is enabled
+var EnableMachineDisruptionBudget bool
 
 // AddToManagerFuncsMaintenance is a list of functions to add all Controllers to the Manager (entrypoint for controller)
 var AddToManagerFuncsMaintenance = []func(manager.Manager, *controllerconfig.Context) error{

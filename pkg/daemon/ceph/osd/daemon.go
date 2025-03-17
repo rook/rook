@@ -44,16 +44,13 @@ const (
 	bluestoreSignature    = "bluestore block device"
 )
 
-var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
-)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
 
 // StartOSD starts an OSD on a device that was provisioned by ceph-volume
 func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string, pvcBackedOSD, lvBackedPV bool, cephArgs []string) error {
-
 	// ensure the config mount point exists
 	configDir := fmt.Sprintf("/var/lib/ceph/osd/ceph-%s", osdID)
-	err := os.Mkdir(configDir, 0750)
+	err := os.Mkdir(configDir, 0o750)
 	if err != nil {
 		logger.Errorf("failed to create config dir %q. %v", configDir, err)
 	}
@@ -119,7 +116,6 @@ func handleTerminate(context *clusterd.Context, lvPath, volumeGroupName string) 
 }
 
 func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
-
 	pid, err := context.Executor.ExecuteCommandWithOutput("fuser", "-a", lvPath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to retrieve process ID for %q", lvPath)

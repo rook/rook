@@ -27,8 +27,8 @@ import (
 )
 
 func (r *ReconcileCephBlockPool) reconcileAddBootstrapPeer(pool *cephv1.CephBlockPool,
-	namespacedName types.NamespacedName) (reconcile.Result, error) {
-
+	namespacedName types.NamespacedName,
+) (reconcile.Result, error) {
 	if pool.Spec.Mirroring.Peers == nil {
 		return reconcile.Result{}, nil
 	}

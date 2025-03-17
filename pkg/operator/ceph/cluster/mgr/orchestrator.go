@@ -29,9 +29,7 @@ const (
 	rookModuleName = "rook"
 )
 
-var (
-	orchestratorInitWaitTime = 5 * time.Second
-)
+var orchestratorInitWaitTime = 5 * time.Second
 
 // Ceph docs about the orchestrator modules: http://docs.ceph.com/docs/master/mgr/orchestrator_cli/
 func (c *Cluster) configureOrchestratorModules() error {
