@@ -45,7 +45,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -1035,150 +1034,110 @@ func TestDiffVersions(t *testing.T) {
 }
 
 func Test_mapSecretToCR(t *testing.T) {
-	type args struct {
-		obj k8sclient.Object
-	}
-	tests := []struct {
-		name              string
-		existingObjStores []string
-		args              args
-		want              []reconcile.Request
-	}{
-		{
-			name: "secret without annotation",
-			args: args{
-				obj: &v1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "secret",
-						Namespace:   "ns",
-						Annotations: nil,
-					},
-				},
+	t.Run("secret not referenced", func(t *testing.T) {
+		// create fake k8s cliend and add CephObjectStore objects
+		var objects []runtime.Object
+		o := simpleStore()
+		o.Namespace = "ns"
+		o.Name = "store1"
+		objects = append(objects, o)
+		s := scheme.Scheme
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreList{})
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		mapFunc := mapSecretToCR(cl)
+		got := mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret",
+				Namespace: "ns",
 			},
-			want: nil,
-		},
-		{
-			name: "secret without required annotation",
-			args: args{
-				obj: &v1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "secret",
-						Namespace:   "ns",
-						Annotations: map[string]string{"foo": "bar"},
-					},
-				},
-			},
-			want: nil,
-		},
-		{
-			name:              "object store does not exist",
-			existingObjStores: nil,
-			args: args{
-				obj: &v1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "secret",
-						Namespace: "ns",
-						Annotations: map[string]string{
-							objectStoreDependentResourceAnnotation: "store1",
-						},
-					},
-				},
-			},
-			want: nil,
-		},
-		{
-			name:              "secret with single obj store reference",
-			existingObjStores: []string{"store1", "store2", "store3"},
-			args: args{
-				obj: &v1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "secret",
-						Namespace: "ns",
-						Annotations: map[string]string{
-							objectStoreDependentResourceAnnotation: "store1",
-						},
-					},
-				},
-			},
-			want: []reconcile.Request{
-				{NamespacedName: types.NamespacedName{Name: "store1", Namespace: "ns"}},
-			},
-		},
-		{
-			name:              "secret with multiple obj store references",
-			existingObjStores: []string{"store1", "store2", "store3"},
-			args: args{
-				obj: &v1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "secret",
-						Namespace: "ns",
-						Annotations: map[string]string{
-							objectStoreDependentResourceAnnotation: "store1,store2",
-						},
-					},
-				},
-			},
-			want: []reconcile.Request{
-				{NamespacedName: types.NamespacedName{Name: "store1", Namespace: "ns"}},
-				{NamespacedName: types.NamespacedName{Name: "store2", Namespace: "ns"}},
-			},
-		},
-		{
-			name:              "whitespaces are trimmed",
-			existingObjStores: []string{"store1", "store2", "store3"},
-			args: args{
-				obj: &v1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "secret",
-						Namespace: "ns",
-						Annotations: map[string]string{
-							objectStoreDependentResourceAnnotation: " store1, store2 ",
-						},
-					},
-				},
-			},
-			want: []reconcile.Request{
-				{NamespacedName: types.NamespacedName{Name: "store1", Namespace: "ns"}},
-				{NamespacedName: types.NamespacedName{Name: "store2", Namespace: "ns"}},
-			},
-		},
-		{
-			name:              "should be a secret",
-			existingObjStores: []string{"store1", "store2", "store3"},
-			args: args{
-				obj: &v1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "secret",
-						Namespace: "ns",
-						Annotations: map[string]string{
-							objectStoreDependentResourceAnnotation: "store1",
-						},
-					},
-				},
-			},
-			want: nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// create fake k8s cliend and add CephObjectStore objects
-			var objects []runtime.Object
-			for _, name := range tt.existingObjStores {
-				o := simpleStore()
-				o.Namespace = "ns"
-				o.Name = name
-				objects = append(objects, o)
-			}
-			s := scheme.Scheme
-			s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
-			s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreList{})
-			cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-			// test mapSecretToCR:
-			mapFunc := mapSecretToCR(cl)
-			if got := mapFunc(context.TODO(), tt.args.obj); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("mapSecretToCR() = %v, want %v", got, tt.want)
-			}
 		})
-	}
+		assert.Empty(t, got, "expected empty list")
+	})
+	t.Run("secret referenced in rgw config", func(t *testing.T) {
+		// create fake k8s cliend and add CephObjectStore objects
+		var objects []runtime.Object
+		otherStore := simpleStore()
+		otherStore.Namespace = "ns"
+		otherStore.Name = "store1"
+		inConf := simpleStore()
+		inConf.Namespace = "ns"
+		inConf.Name = "store2"
+		inConf.Spec.Gateway.RgwConfigFromSecret = map[string]v1.SecretKeySelector{
+			"rgw": {Key: "key", LocalObjectReference: v1.LocalObjectReference{Name: "secret"}},
+		}
+		objects = append(objects, otherStore, inConf)
+		s := scheme.Scheme
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreList{})
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		mapFunc := mapSecretToCR(cl)
+		got := mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret",
+				Namespace: "ns",
+			},
+		})
+		assert.Len(t, got, 1, "expected 1 item")
+		assert.Equal(t, "store2", got[0].Name, "expected store2")
+
+		got = mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret-other",
+				Namespace: "ns",
+			},
+		})
+		assert.Empty(t, got, "empty: wrong secret name")
+
+		got = mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret",
+				Namespace: "ns-other",
+			},
+		})
+		assert.Empty(t, got, "empty: wrong secret ns")
+	})
+	t.Run("secret referenced in keystone config", func(t *testing.T) {
+		// create fake k8s cliend and add CephObjectStore objects
+		var objects []runtime.Object
+		otherStore := simpleStore()
+		otherStore.Namespace = "ns"
+		otherStore.Name = "store1"
+		inConf := simpleStore()
+		inConf.Namespace = "ns"
+		inConf.Name = "store2"
+		inConf.Spec.Auth.Keystone = &cephv1.KeystoneSpec{
+			ServiceUserSecretName: "secret",
+		}
+		objects = append(objects, otherStore, inConf)
+		s := scheme.Scheme
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreList{})
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		mapFunc := mapSecretToCR(cl)
+		got := mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret",
+				Namespace: "ns",
+			},
+		})
+		assert.Len(t, got, 1, "expected 1 item")
+		assert.Equal(t, "store2", got[0].Name, "expected store2")
+
+		got = mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret-other",
+				Namespace: "ns",
+			},
+		})
+		assert.Empty(t, got, "empty: wrong secret name")
+
+		got = mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret",
+				Namespace: "ns-other",
+			},
+		})
+		assert.Empty(t, got, "empty: wrong secret ns")
+	})
 }

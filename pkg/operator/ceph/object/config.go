@@ -19,7 +19,6 @@ package object
 import (
 	"fmt"
 	"path"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -39,24 +38,23 @@ caps mon = "allow rw"
 caps osd = "allow rwx"
 `
 
-	caBundleVolumeName                           = "rook-ceph-custom-ca-bundle"
-	caBundleUpdatedVolumeName                    = "rook-ceph-ca-bundle-updated"
-	caBundleTrustedDir                           = "/etc/pki/ca-trust/"
-	caBundleSourceCustomDir                      = caBundleTrustedDir + "source/anchors/"
-	caBundleExtractedDir                         = caBundleTrustedDir + "extracted/"
-	caBundleKeyName                              = "cabundle"
-	caBundleFileName                             = "custom-ca-bundle.crt"
-	certVolumeName                               = "rook-ceph-rgw-cert"
-	certDir                                      = "/etc/ceph/private"
-	certKeyName                                  = "cert"
-	certFilename                                 = "rgw-cert.pem"
-	certKeyFileName                              = "rgw-key.pem"
-	rgwPortInternalPort                    int32 = 8080
-	ServiceServingCertCAFile                     = "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
-	HttpTimeOut                                  = time.Second * 15
-	rgwVaultVolumeName                           = "rgw-vault-volume"
-	rgwVaultDirName                              = "/etc/vault/rgw/"
-	objectStoreDependentResourceAnnotation       = "cephobjectstore.rook.io/is-used-by"
+	caBundleVolumeName              = "rook-ceph-custom-ca-bundle"
+	caBundleUpdatedVolumeName       = "rook-ceph-ca-bundle-updated"
+	caBundleTrustedDir              = "/etc/pki/ca-trust/"
+	caBundleSourceCustomDir         = caBundleTrustedDir + "source/anchors/"
+	caBundleExtractedDir            = caBundleTrustedDir + "extracted/"
+	caBundleKeyName                 = "cabundle"
+	caBundleFileName                = "custom-ca-bundle.crt"
+	certVolumeName                  = "rook-ceph-rgw-cert"
+	certDir                         = "/etc/ceph/private"
+	certKeyName                     = "cert"
+	certFilename                    = "rgw-cert.pem"
+	certKeyFileName                 = "rgw-key.pem"
+	rgwPortInternalPort       int32 = 8080
+	ServiceServingCertCAFile        = "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
+	HttpTimeOut                     = time.Second * 15
+	rgwVaultVolumeName              = "rgw-vault-volume"
+	rgwVaultDirName                 = "/etc/vault/rgw/"
 )
 
 var (
@@ -196,13 +194,6 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 	if err != nil {
 		return configOptions, err
 	}
-	if rgwConfig.Auth.Keystone != nil && rgwConfig.KeystoneSecret != nil {
-		// set the owner reference on the secret to reconcile object store on secret changes
-		err = c.setObectStoreReferenceAnnotation(rgwConfig.KeystoneSecret)
-		if err != nil {
-			logger.Errorf("failed to set owner reference to keystone secret %q: %v", rgwConfig.KeystoneSecret.Name, err)
-		}
-	}
 
 	if s3 := rgwConfig.Protocols.S3; s3 != nil {
 		if s3.AuthUseKeystone != nil {
@@ -247,12 +238,6 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, val.Key, val.Name)
 		}
 
-		// set the owner reference on the secret to reconcile object store on secret changes
-		err = c.setObectStoreReferenceAnnotation(secret)
-		if err != nil {
-			logger.Errorf("failed to set owner reference to rgw config secret %q: %v", secret.Name, err)
-		}
-
 		if currVal, ok := configOptions[flag]; ok {
 			// RGW might break with some user-specified config overrides; log clearly to help triage
 			logger.Infof("overriding object store %q RGW config option %q with user-specified rgwConfigFromSecret",
@@ -264,28 +249,6 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 	}
 
 	return configOptions, nil
-}
-
-func (c *clusterConfig) setObectStoreReferenceAnnotation(secret *v1.Secret) error {
-	// add or update annotation with reference to objectstore to the secret
-	if secret.Annotations == nil {
-		secret.Annotations = map[string]string{}
-	}
-	var existing []string
-	if val := secret.Annotations[objectStoreDependentResourceAnnotation]; val != "" {
-		existing = strings.Split(val, ",")
-	}
-	if slices.Contains(existing, c.store.Name) {
-		return nil
-	}
-
-	existing = append(existing, c.store.Name)
-	secret.Annotations[objectStoreDependentResourceAnnotation] = strings.Join(existing, ",")
-	_, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Update(c.clusterInfo.Context, secret, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[string]string) (map[string]string, error) {

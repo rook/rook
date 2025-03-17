@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -157,53 +156,64 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// Watch update and create secrets annotated with the object store name
+// Watch all secrets not owned by Rook
 func secretPredicate() predicate.Predicate {
+	rookGV := cephv1.SchemeGroupVersion.String()
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			secret, ok := e.ObjectNew.(*corev1.Secret)
 			if !ok {
+				// not a secret
 				return false
 			}
-			annotations := secret.GetAnnotations()
-			return annotations[objectStoreDependentResourceAnnotation] != ""
+			// check if secret already owned by Rook:
+			for _, owner := range secret.OwnerReferences {
+				if owner.APIVersion == rookGV {
+					// already owned by Rook CR
+					return false
+				}
+			}
+			return true
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
 			secret, ok := e.Object.(*corev1.Secret)
 			if !ok {
+				// not a secret
 				return false
 			}
-			annotations := secret.GetAnnotations()
-			return annotations[objectStoreDependentResourceAnnotation] != ""
+			// check if secret already owned by Rook:
+			for _, owner := range secret.OwnerReferences {
+				if owner.APIVersion == rookGV {
+					// already owned by Rook CR
+					return false
+				}
+			}
+			return true
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			secret, ok := e.Object.(*corev1.Secret)
 			if !ok {
+				// not a secret
 				return false
 			}
-			annotations := secret.GetAnnotations()
-			return annotations[objectStoreDependentResourceAnnotation] != ""
+			// check if secret already owned by Rook:
+			for _, owner := range secret.OwnerReferences {
+				if owner.APIVersion == rookGV {
+					// already owned by Rook CR
+					return false
+				}
+			}
+			return true
 		},
 	}
 }
 
-// Maps secret annotated with the object store name to the object store CR
+// Maps secret referenced by object store to the object store CR
 func mapSecretToCR(k8sClient client.Client) func(context.Context, client.Object) []reconcile.Request {
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		secret, ok := obj.(*corev1.Secret)
 		if !ok {
 			return nil
-		}
-
-		// get object store names from secret annotation
-		value, exists := secret.GetAnnotations()[objectStoreDependentResourceAnnotation]
-		if !exists || value == "" {
-			return nil
-		}
-		objStoreNames := strings.Split(value, ",")
-		// trim whitespaces from object store names
-		for i, objStoreName := range objStoreNames {
-			objStoreNames[i] = strings.TrimSpace(objStoreName)
 		}
 
 		// lookup object store CRs by name
@@ -221,18 +231,25 @@ func mapSecretToCR(k8sClient client.Client) func(context.Context, client.Object)
 
 		var requests []reconcile.Request
 		for _, objStore := range objStores.Items {
-			// filter object stores by name in secret annotation
-			if !slices.Contains(objStoreNames, objStore.Name) {
+			found := false
+			// check if secret is referred in object store rgwConfigFromSecret:
+			for _, sec := range objStore.Spec.Gateway.RgwConfigFromSecret {
+				if sec.Name == secret.Name {
+					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: objStore.Name, Namespace: objStore.Namespace}})
+					found = true
+					break
+				}
+			}
+			if found {
+				// secret reference found, ObjectStore added to reconcile list.
+				// check next object store
 				continue
 			}
-			requests = append(requests, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      objStore.Name,
-					Namespace: secret.Namespace,
-				},
-			})
+			if objStore.Spec.Auth.Keystone != nil && objStore.Spec.Auth.Keystone.ServiceUserSecretName == secret.Name {
+				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: objStore.Name, Namespace: objStore.Namespace}})
+				continue
+			}
 		}
-
 		return requests
 	}
 }
