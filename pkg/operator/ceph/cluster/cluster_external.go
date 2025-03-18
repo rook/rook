@@ -176,6 +176,18 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		}
 	}
 
+	if csi.EnableCSIOperator() {
+		logger.Info("create cephConnection and defaultClientProfile for external mode")
+		err = csi.CreateUpdateCephConnection(c.context.Client, cluster.ClusterInfo, *cluster.Spec)
+		if err != nil {
+			return errors.Wrap(err, "failed to create/update cephConnection")
+		}
+		err = csi.CreateDefaultClientProfile(c.context.Client, cluster.ClusterInfo, cluster.ClusterInfo.NamespacedName())
+		if err != nil {
+			return errors.Wrap(err, "failed to create/update default client profile")
+		}
+	}
+
 	// We don't update the connection status since it is done by the health go routine
 	return nil
 }

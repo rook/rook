@@ -219,20 +219,31 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		return reconcile.Result{}, nil
 	}
 
+	cephFilesystemSubVolumeGroupName := cephFilesystemSubVolumeGroup.Name
+	if cephFilesystemSubVolumeGroup.Spec.Name != "" {
+		cephFilesystemSubVolumeGroupName = cephFilesystemSubVolumeGroup.Spec.Name
+	}
 	if cephCluster.Spec.External.Enable {
-		logger.Debug("external subvolume group creation is not supported, create it manually, the controller will assume it's there")
+		logger.Debug("skip creating external subvolume in external mode, create it manually, the controller will assume it's there")
 		err = r.updateClusterConfig(cephFilesystemSubVolumeGroup, cephCluster)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 		}
 		r.updateStatus(observedGeneration, namespacedName, cephv1.ConditionReady)
+		if csi.EnableCSIOperator() {
+			err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemSubVolumeGroupName, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Name)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subvolume")
+			}
+		}
 		return reconcile.Result{}, nil
 	}
+
 	// Build the NamespacedName to fetch the Filesystem and make sure it exists, if not we cannot
 	// create the subvolume group
-
 	cephFilesystem := &cephv1.CephFilesystem{}
 	cephFilesystemNamespacedName := types.NamespacedName{Name: cephFilesystemSubVolumeGroup.Spec.FilesystemName, Namespace: request.Namespace}
+
 	err = r.client.Get(r.opManagerContext, cephFilesystemNamespacedName, cephFilesystem)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
@@ -273,9 +284,9 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady)
 
 	if csi.EnableCSIOperator() {
-		err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemNamespacedName, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Name)
+		err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemSubVolumeGroupName, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Name)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subVolGrp ns")
+			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subvolumeGroup")
 		}
 	}
 
