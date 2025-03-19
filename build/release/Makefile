@@ -59,8 +59,10 @@ REMOTE_NAME ?= origin
 
 PLATFORMS ?= $(ALL_PLATFORMS)
 
+# "helm" flavor is for pushing to s3/https endpoint
+# "charts" flavor is for pushing to oci endpoint
 ifneq ($(filter master release-%,$(BRANCH_NAME)),)
-FLAVORS ?= output images docs helm
+FLAVORS ?= output images docs helm charts
 else
 FLAVORS ?= output
 override BRANCH_NAME := pr/$(BRANCH_NAME)
@@ -156,6 +158,17 @@ promote.helm: $(HELM)
 	$(S3_SYNC_DEL) $(HELM_TEMP) s3://$(HELM_S3_BUCKET)/$(CHANNEL)
 	rm -fr $(HELM_TEMP)
 
+define chart.targets
+promote.chart.$(1).$(2):
+	@echo === helm push $(2) to $(1)
+	$(HELM) push $(HELM_OUTPUT_DIR)/$(2)-$(VERSION).tgz oci://$(1)
+promote.all.charts: promote.chart.$(1).$(2)
+clean.chart.$(1).$(2):
+	@rm -fr $(HELM_OUTPUT_DIR)/$(2)-$(VERSION).tgz
+clean.all.charts: clean.chart.$(1).$(2)
+endef
+$(foreach r,$(REGISTRIES), $(foreach c,$(HELM_CHARTS),$(eval $(call chart.targets,$(r),$(c)))))
+
 # ====================================================================================
 # output
 
@@ -206,6 +219,10 @@ build.images: build.all.images
 publish.images: $(addprefix publish.manifest.image.,$(IMAGES))
 promote.images: $(addprefix promote.manifest.image.,$(IMAGES))
 clean.images: clean.all.images
+
+build.charts: build.all.charts
+promote.charts: promote.all.charts
+clean.charts: clean.all.charts
 
 # ====================================================================================
 # Help
