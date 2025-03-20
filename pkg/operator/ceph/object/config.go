@@ -40,23 +40,20 @@ caps mon = "allow rw"
 caps osd = "allow rwx"
 `
 
-	caBundleVolumeName              = "rook-ceph-custom-ca-bundle"
-	caBundleUpdatedVolumeName       = "rook-ceph-ca-bundle-updated"
-	caBundleTrustedDir              = "/etc/pki/ca-trust/"
-	caBundleSourceCustomDir         = caBundleTrustedDir + "source/anchors/"
-	caBundleExtractedDir            = caBundleTrustedDir + "extracted/"
-	caBundleKeyName                 = "cabundle"
-	caBundleFileName                = "custom-ca-bundle.crt"
-	certVolumeName                  = "rook-ceph-rgw-cert"
-	certDir                         = "/etc/ceph/private"
-	certKeyName                     = "cert"
-	certFilename                    = "rgw-cert.pem"
-	certKeyFileName                 = "rgw-key.pem"
-	rgwPortInternalPort       int32 = 8080
-	ServiceServingCertCAFile        = "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
-	HttpTimeOut                     = time.Second * 15
-	rgwVaultVolumeName              = "rgw-vault-volume"
-	rgwVaultDirName                 = "/etc/vault/rgw/"
+	caBundleVolumeName             = "rook-ceph-custom-ca-bundle"
+	caBundleKeyName                = "cabundle"
+	caBundleFileName               = "custom-ca-bundle.pem"
+	caBundleMountPath              = "/etc/ceph/rgw-ca-bundle/"
+	certVolumeName                 = "rook-ceph-rgw-cert"
+	certDir                        = "/etc/ceph/private"
+	certKeyName                    = "cert"
+	certFilename                   = "rgw-cert.pem"
+	certKeyFileName                = "rgw-key.pem"
+	rgwPortInternalPort      int32 = 8080
+	ServiceServingCertCAFile       = "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
+	HttpTimeOut                    = time.Second * 15
+	rgwVaultVolumeName             = "rgw-vault-volume"
+	rgwVaultDirName                = "/etc/vault/rgw/"
 )
 
 var rgwFrontendName = "beast"
