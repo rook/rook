@@ -7506,6 +7506,18 @@ string
 <p>The ack level required for this topic (none/broker)</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>mechanism</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The authentication mechanism for this topic (PLAIN/SCRAM-SHA-512/SCRAM-SHA-256/GSSAPI/OAUTHBEARER)</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.KerberosConfigFiles">KerberosConfigFiles
