@@ -960,6 +960,16 @@ spec:
                         disableVerifySSL:
                           description: Indicate whether the server certificate is validated by the client or not
                           type: boolean
+                        mechanism:
+                          default: PLAIN
+                          description: The authentication mechanism for this topic (PLAIN/SCRAM-SHA-512/SCRAM-SHA-256/GSSAPI/OAUTHBEARER)
+                          enum:
+                            - PLAIN
+                            - SCRAM-SHA-512
+                            - SCRAM-SHA-256
+                            - GSSAPI
+                            - OAUTHBEARER
+                          type: string
                         uri:
                           description: The URI of the Kafka endpoint to push notification to
                           minLength: 1

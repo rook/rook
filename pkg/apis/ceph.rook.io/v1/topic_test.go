@@ -111,6 +111,7 @@ func TestValidateKafkaTopicSpec(t *testing.T) {
 					UseSSL:           true,
 					DisableVerifySSL: true,
 					AckLevel:         "broker",
+					Mechanism:        "SCRAM-SHA-512",
 				},
 			},
 		},
