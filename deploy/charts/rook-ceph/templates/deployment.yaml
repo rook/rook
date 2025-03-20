@@ -118,6 +118,7 @@ spec:
 {{- end }}
 {{- if .Values.useOperatorHostNetwork }}
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
 {{- end }}
 {{- if .Values.nodeSelector }}
       nodeSelector:

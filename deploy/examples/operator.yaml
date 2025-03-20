@@ -687,8 +687,9 @@ spec:
           #- name: LIB_BUCKET_PROVISIONER_THREADS
           #  value: "5"
 
-      # Uncomment it to run rook operator on the host network
-      #hostNetwork: true
+      # Uncomment these two settings to run the operator on the host network
+      # hostNetwork: true
+      # dnsPolicy: ClusterFirstWithHostNet
       volumes:
         - name: rook-config
           emptyDir: {}
