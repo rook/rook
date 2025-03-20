@@ -280,17 +280,39 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 }
 
 func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) v1.Container {
-	caBundleMount := v1.VolumeMount{Name: caBundleVolumeName, MountPath: caBundleSourceCustomDir, ReadOnly: true}
+	caBundleMount := v1.VolumeMount{Name: caBundleVolumeName, MountPath: "/etc/ssl/custom-ca", ReadOnly: true}
 	volumeMounts := append(controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), caBundleMount)
 	updatedCaBundleDir := "/tmp/new-ca-bundle/"
 	updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: updatedCaBundleDir, ReadOnly: false}
 	volumeMounts = append(volumeMounts, updatedBundleMount)
 	return v1.Container{
 		Name:    "update-ca-bundle-initcontainer",
-		Command: []string{"/bin/bash", "-c"},
-		// copy all content of caBundleExtractedDir to avoid directory mount itself
+		Command: []string{"/bin/bash", "-c", "-x", "-e"},
 		Args: []string{
-			fmt.Sprintf("/usr/bin/update-ca-trust extract; cp -rf %s/* %s", caBundleExtractedDir, updatedCaBundleDir),
+			fmt.Sprintf(`
+OS_ID=$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | tr -d '"')
+OS_ID_LIKE=$(grep '^ID_LIKE=' /etc/os-release | cut -d'=' -f2 | tr -d '"')
+
+if [[ "$OS_ID" == "sles" || "$OS_ID" == "opensuse" || "$OS_ID_LIKE" == *"suse"* ]]; then
+    mv /etc/ssl/custom-ca/* /etc/pki/trust/anchors/
+	/usr/sbin/update-ca-certificates
+	CABUNDLE="/etc/ssl/ca-bundle.pem"
+elif [[ "$OS_ID" == "debian" || "$OS_ID" == "ubuntu" || "$OS_ID_LIKE" == *"debian"* ]]; then
+	mv /etc/ssl/custom-ca/* /usr/local/share/ca-certificates/
+	/usr/sbin/update-ca-certificates
+	CABUNDLE="/etc/ssl/certs/ca-certificates.crt"
+else
+    mv /etc/ssl/custom-ca/* /etc/pki/ca-trust/source/anchors/
+	/usr/bin/update-ca-trust extract
+	CABUNDLE="/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+fi
+
+if [ ! -f "$CABUNDLE" ]; then
+	echo "CA bundle not found at $CABUNDLE!" >&2
+	exit 1
+fi
+
+mv "$CABUNDLE" %s/updated-ca-bundle.crt`, updatedCaBundleDir),
 		},
 		Image:           c.clusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
@@ -401,8 +423,17 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		container.VolumeMounts = append(container.VolumeMounts, mount)
 	}
 	if c.store.Spec.Gateway.CaBundleRef != "" {
-		updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: caBundleExtractedDir, ReadOnly: true}
+		updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: "/etc/ssl/custom-ca", ReadOnly: true}
 		container.VolumeMounts = append(container.VolumeMounts, updatedBundleMount)
+		container.Env = append(container.Env,
+			v1.EnvVar{
+				// When the SSL_CERT_FILE environment variable is set,
+				// OpenSSL-based libraries will use the specified file path
+				// to locate the CA bundle for verifying TLS/SSL certificates
+				Name:  "SSL_CERT_FILE",
+				Value: "/etc/ssl/custom-ca/updated-ca-bundle.crt",
+			},
+		)
 	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
