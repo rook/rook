@@ -134,9 +134,12 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 func (r *ReconcileObjectStoreUser) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, cephObjectStoreUser, err := r.reconcile(request)
+	if err != nil {
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		logger.Errorf("failed to reconcile %v", err)
+	}
 
 	return reporting.ReportReconcileResult(logger, r.recorder, request, &cephObjectStoreUser, reconcileResponse, err)
-
 }
 
 func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconcile.Result, cephv1.CephObjectStoreUser, error) {
@@ -215,7 +218,6 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		}
 		logger.Debugf("ObjectStore resource not ready in namespace %q, retrying in %q. %v",
 			clusterNamespace.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String(), err)
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, *cephObjectStoreUser, err
 	}
 
@@ -246,14 +248,12 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// validate the user settings
 	err = r.validateUser(cephObjectStoreUser)
 	if err != nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "invalid pool CR %q spec", cephObjectStoreUser.Name)
 	}
 
 	// CREATE/UPDATE CEPH USER
 	reconcileResponse, err = r.reconcileCephUser(cephObjectStoreUser, userConfig)
 	if err != nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
 	}
 
@@ -266,7 +266,6 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	tlsSecretName := store.Spec.Gateway.SSLCertificateRef
 	reconcileResponse, err = r.reconcileCephUserSecret(cephObjectStoreUser, userConfig, tlsSecretName)
 	if err != nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
 	}
 
