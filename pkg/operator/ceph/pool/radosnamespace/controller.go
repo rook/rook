@@ -158,9 +158,13 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephBlockPoolRadosNamespace)
+	generationUpdated, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephBlockPoolRadosNamespace)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+	}
+	if generationUpdated {
+		logger.Infof("reconciling the rados namespace %q after adding finalizer", cephBlockPoolRadosNamespace.Name)
+		return reconcile.Result{}, nil
 	}
 
 	// The CR was just created, initializing status fields

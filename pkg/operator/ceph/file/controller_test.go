@@ -165,8 +165,9 @@ func TestCephFilesystemController(t *testing.T) {
 	// A Pool resource with metadata and spec.
 	fs := &cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:       name,
+			Namespace:  namespace,
+			Finalizers: []string{"cephfilesystem.ceph.rook.io"},
 		},
 		Spec: cephv1.FilesystemSpec{
 			MetadataServer: cephv1.MetadataServerSpec{

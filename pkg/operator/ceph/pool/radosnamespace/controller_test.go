@@ -56,9 +56,13 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 	// A cephBlockPoolRadosNamespace resource with metadata and spec.
 	cephBlockPoolRadosNamespace := &cephv1.CephBlockPoolRadosNamespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			UID:       types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
+			Name:       name,
+			Namespace:  namespace,
+			UID:        types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
+			Finalizers: []string{"cephblockpoolradosnamespace.ceph.rook.io"},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephBlockPoolRadosNamespace",
 		},
 		Spec: cephv1.CephBlockPoolRadosNamespaceSpec{
 			BlockPoolName: namespace,

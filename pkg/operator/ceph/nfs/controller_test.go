@@ -141,8 +141,9 @@ func TestCephNFSController(t *testing.T) {
 	baseCephNFS := func() *cephv1.CephNFS {
 		return &cephv1.CephNFS{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: namespace,
+				Name:       name,
+				Namespace:  namespace,
+				Finalizers: []string{"cephnfs.ceph.rook.io"},
 			},
 			Spec: cephv1.NFSGaneshaSpec{
 				RADOS: cephv1.GaneshaRADOSSpec{

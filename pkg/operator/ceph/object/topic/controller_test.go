@@ -71,8 +71,9 @@ func TestCephBucketTopicController(t *testing.T) {
 
 	bucketTopic := &cephv1.CephBucketTopic{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:       name,
+			Namespace:  namespace,
+			Finalizers: []string{"cephbuckettopic.ceph.rook.io"},
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind: "CephBucketTopic",

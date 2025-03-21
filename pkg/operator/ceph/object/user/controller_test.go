@@ -113,8 +113,9 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	cephObjectStore := &cephv1.CephObjectStore{}
 	objectUser := &cephv1.CephObjectStoreUser{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:       name,
+			Namespace:  namespace,
+			Finalizers: []string{"cephobjectstoreuser.ceph.rook.io"},
 		},
 		Spec: cephv1.ObjectStoreUserSpec{
 			Store: store,
