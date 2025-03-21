@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -1317,6 +1318,75 @@ func (c *Cluster) getActivatePVCInitContainer(osdProps osdProperties, osdID stri
 	return container
 }
 
+// var pvExpansion = `
+// osdSize=%d
+// pvcName=%s
+
+// pvcSize=$(kubectl get pvc $pvcName -o jsonpath='{.spec.resources.requests.storage}')
+// numericPvcSize="${pvcSize//[^0-9]/}"
+
+// # wait for the PVC to be expanded
+// while [ $numericPvcSize -ne $osdSize ]; do
+//   echo "PVC size not yet expanded, retrying in 2 seconds..."
+//   pvcSize=$(kubectl get pvc $pvcName -o jsonpath='{.spec.resources.requests.storage}')
+//   numericPvcSize="${pvcSize//[^0-9]/}"
+//   sleep 2
+// done
+
+// pvSize=$(kubectl get pv $(kubectl get pvc $pvcName -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.capacity.storage}')
+// numericPvSize="${pvSize//[^0-9]/}"
+
+// # wait for the PV to be expanded
+// while [ $numericPvSize != $osdSize ]; do
+//   echo "PV size not yet expanded, retrying in 2 seconds..."
+//   pvSize=$(kubectl get pv $(kubectl get pvc $pvcName -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.capacity.storage}')
+//   numericPvSize="${pvSize//[^0-9]/}"
+//   sleep 2
+// done
+// `
+
+var pvcExpansion = `
+osdSize=%d
+osdDataPath=%s
+timeout=%d
+START_TIME=$(date +%s)
+
+device=$(lsblk -o NAME,SIZE,MOUNTPOINT | grep "$osdDataPath" | awk '{print $1}' | cut -c 3-)
+parent_disk=$(lsblk -no PKNAME "/dev/$device")
+disk_size=$(lsblk -b -o NAME,SIZE | grep "^$parent_disk" | awk '{print $2}')
+
+# add the check-pv-expansion init container to check if the PVC needs to be expanded
+# before the exand-bluefs init container runs
+
+while [ $disk_size -ne $osdSize ]; do
+	CURRENT_TIME=$(date +%s)
+	ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+	if [[ $ELAPSED_TIME -ge $TIMEOUT ]]; then
+		echo "pv expansion timed out. Exiting loop."
+		exit 0
+	fi
+
+	ceph-bluestore-tool bluefs-bdev-expand --path $osdDataPath
+	device=$(lsblk -o NAME,SIZE,MOUNTPOINT | grep "$osdDataPath" | awk '{print $1}' | cut -c 3-)
+	parent_disk=$(lsblk -no PKNAME "/dev/$device")
+	disk_size=$(lsblk -b -o NAME,SIZE | grep "^$parent_disk" | awk '{print $2}')
+	sleep 2
+done
+
+echo "pv check and expansion completed"
+`
+
+func convertSizeToBytes(size string) (int64, error) {
+	// Parse the size string
+	quantity, err := resource.ParseQuantity(size)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to parse size %q", size)
+	}
+
+	// Convert the size to bytes
+	return quantity.Value(), nil
+}
+
 func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string) v1.Container {
 	/* Output example from 10GiB to 20GiB:
 
@@ -1329,15 +1399,26 @@ func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string
 
 	*/
 	osdDataPath := activateOSDMountPath + osdID
+	osdSize, err := convertSizeToBytes(osdProps.pvcSize)
+	timeout := 30
+
+	if err != nil {
+		logger.Errorf("failed to parse osd size. %v", err)
+		return v1.Container{}
+	}
 
 	return v1.Container{
 		Name:            expandOSDInitContainer,
 		Image:           c.spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
-			"ceph-bluestore-tool",
+			"/bin/bash",
+			"-x",
+			"-e",
+			"-m",
+			"-c",
+			fmt.Sprintf(pvcExpansion, osdSize, osdDataPath, timeout),
 		},
-		Args:            []string{"bluefs-bdev-expand", "--path", osdDataPath},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(osdDataPath, osdProps.pvc.ClaimName)},
 		SecurityContext: controller.PrivilegedContext(true),
 		Resources:       osdProps.resources,
