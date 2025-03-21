@@ -228,7 +228,7 @@ jobs:
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         if: failure()
         with:
-          name: ceph-smoke-suite-master-artifact
+          name: ceph-smoke-suite-main-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   object-suite-ceph-main:
@@ -268,7 +268,7 @@ jobs:
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         if: failure()
         with:
-          name: ceph-object-suite-master-artifact
+          name: ceph-object-suite-main-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   upgrade-from-squid-stable-to-squid-devel:
