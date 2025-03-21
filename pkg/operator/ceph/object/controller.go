@@ -221,37 +221,40 @@ func mapSecretToCR(k8sClient client.Client) func(context.Context, client.Object)
 		err := k8sClient.List(ctx, &objStores, client.InNamespace(secret.Namespace))
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debugf("cephObjectStore resource for annotated secret %q not found. Ignoring since object must be deleted.", secret.Name)
+				logger.Debugf("cephObjectStore resource for referenced secret %q not found. Ignoring since object must be deleted.", secret.Name)
 				return nil
 			}
-			logger.Errorf("failed to list cephObjectStore resources for annotated secret %q", secret.Name)
-			// Error reading the object - requeue the request.
+			logger.Errorf("failed to list cephObjectStore resources for referenced secret %q", secret.Name)
 			return nil
 		}
 
 		var requests []reconcile.Request
 		for _, objStore := range objStores.Items {
-			found := false
-			// check if secret is referred in object store rgwConfigFromSecret:
-			for _, sec := range objStore.Spec.Gateway.RgwConfigFromSecret {
-				if sec.Name == secret.Name {
-					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: objStore.Name, Namespace: objStore.Namespace}})
-					found = true
-					break
-				}
-			}
-			if found {
-				// secret reference found, ObjectStore added to reconcile list.
-				// check next object store
-				continue
-			}
-			if objStore.Spec.Auth.Keystone != nil && objStore.Spec.Auth.Keystone.ServiceUserSecretName == secret.Name {
-				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: objStore.Name, Namespace: objStore.Namespace}})
-				continue
+			// reconcile ObjectStore if it refers to the secret
+			if isObjStoreSpecContainsSecret(&objStore.Spec, secret) {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      objStore.Name,
+						Namespace: objStore.Namespace,
+					}})
 			}
 		}
 		return requests
 	}
+}
+
+func isObjStoreSpecContainsSecret(spec *cephv1.ObjectStoreSpec, secret *corev1.Secret) bool {
+	// check if secret is referred in object store rgwConfigFromSecret:
+	for _, sec := range spec.Gateway.RgwConfigFromSecret {
+		if sec.Name == secret.Name {
+			return true
+		}
+	}
+	// check if secret is referred in object store keystone service user secret:
+	if spec.Auth.Keystone != nil && spec.Auth.Keystone.ServiceUserSecretName == secret.Name {
+		return true
+	}
+	return false
 }
 
 // Reconcile reads that state of the cluster for a cephObjectStore object and makes changes based on the state read
