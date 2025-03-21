@@ -19,6 +19,7 @@ package v1
 import (
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -2349,6 +2350,12 @@ type KafkaEndpointSpec struct {
 	// +kubebuilder:default=broker
 	// +optional
 	AckLevel string `json:"ackLevel,omitempty"`
+	// The kafka user name to use for authentication
+	// +optional
+	UserRef *corev1.SecretKeySelector `json:"UserRef,omitempty"`
+	// The kafka password to use for authentication
+	// +optional
+	PassRef *corev1.SecretKeySelector `json:"PassRef,omitempty"`
 }
 
 // +genclient
