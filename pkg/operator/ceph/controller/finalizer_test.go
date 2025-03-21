@@ -46,9 +46,10 @@ func TestAddFinalizerIfNotPresent(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	assert.Empty(t, fakeObject.Finalizers)
-	err := AddFinalizerIfNotPresent(context.TODO(), cl, fakeObject)
+	generationUpdated, err := AddFinalizerIfNotPresent(context.TODO(), cl, fakeObject)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, fakeObject.Finalizers)
+	assert.False(t, generationUpdated)
 }
 
 func TestRemoveFinalizer(t *testing.T) {

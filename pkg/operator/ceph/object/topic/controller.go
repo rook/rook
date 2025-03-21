@@ -121,9 +121,13 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 	observedGeneration := cephBucketTopic.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephBucketTopic)
+	generationUpdated, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephBucketTopic)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to add finalizer to CephBucketTopic %q", request.NamespacedName)
+	}
+	if generationUpdated {
+		logger.Infof("reconciling the object bucket topic %q after adding finalizer", cephBucketTopic.Name)
+		return reconcile.Result{}, nil
 	}
 
 	// The CR was just created, initializing status fields

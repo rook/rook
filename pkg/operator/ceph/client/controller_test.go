@@ -127,9 +127,13 @@ func TestCephClientController(t *testing.T) {
 	// A Pool resource with metadata and spec.
 	cephClient := &cephv1.CephClient{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			UID:       types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
+			Name:       name,
+			Namespace:  namespace,
+			UID:        types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
+			Finalizers: []string{"cephclient.ceph.rook.io"},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephClient",
 		},
 		Spec: cephv1.ClientSpec{
 			Caps: map[string]string{
