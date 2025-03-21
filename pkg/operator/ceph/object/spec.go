@@ -17,10 +17,12 @@ limitations under the License.
 package object
 
 import (
+	"bufio"
 	"bytes"
 	_ "embed"
 	"fmt"
 	"net/url"
+	"os"
 	"path"
 	"slices"
 	"strings"
@@ -280,6 +282,8 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 }
 
 func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) v1.Container {
+	runtimeOSFamily := detectRuntimeOSFamily()
+	caBundleSourceCustomDir, caBundleExtractedDir, updateCACommand := getCABuncleConfig(runtimeOSFamily)
 	caBundleMount := v1.VolumeMount{Name: caBundleVolumeName, MountPath: caBundleSourceCustomDir, ReadOnly: true}
 	volumeMounts := append(controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), caBundleMount)
 	updatedCaBundleDir := "/tmp/new-ca-bundle/"
@@ -290,7 +294,7 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 		Command: []string{"/bin/bash", "-c"},
 		// copy all content of caBundleExtractedDir to avoid directory mount itself
 		Args: []string{
-			fmt.Sprintf("/usr/bin/update-ca-trust extract; cp -rf %s/* %s", caBundleExtractedDir, updatedCaBundleDir),
+			fmt.Sprintf("%s; cp -rf %s/* %s", updateCACommand, caBundleExtractedDir, updatedCaBundleDir),
 		},
 		Image:           c.clusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
@@ -401,6 +405,8 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		container.VolumeMounts = append(container.VolumeMounts, mount)
 	}
 	if c.store.Spec.Gateway.CaBundleRef != "" {
+		runtimeOSFamily := detectRuntimeOSFamily()
+		_, caBundleExtractedDir, _ := getCABuncleConfig(runtimeOSFamily)
 		updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: caBundleExtractedDir, ReadOnly: true}
 		container.VolumeMounts = append(container.VolumeMounts, updatedBundleMount)
 	}
@@ -1129,4 +1135,60 @@ func GetHostnameFromEndpoint(endpoint string) (string, error) {
 	}
 
 	return hostname, nil
+}
+
+// Detects Runtime OS family
+func detectRuntimeOSFamily() string {
+	file, err := os.Open("/etc/os-release")
+	if err != nil {
+		return "rhel" // Default to RHEL-like behavior
+	}
+	defer file.Close()
+
+	var osID, osIDLike string
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "ID=") {
+			osID = strings.Trim(strings.SplitN(line, "=", 2)[1], `"`)
+		} else if strings.HasPrefix(line, "ID_LIKE=") {
+			osIDLike = strings.Trim(strings.SplitN(line, "=", 2)[1], `"`)
+		}
+	}
+
+	// Normalize ID_LIKE field for better matching
+	if strings.Contains(osIDLike, "debian") || osID == "debian" || osID == "ubuntu" {
+		return "debian"
+	}
+	if strings.Contains(osIDLike, "suse") || osID == "sles" || osID == "opensuse" {
+		return "suse"
+	}
+
+	//defaulted to rhel
+	return "rhel"
+}
+
+// This function returns caBundleSourceCustomDir, caBundleExtractedDir folder
+// locations and updateCACommand according to OS family
+func getCABuncleConfig(runtimeOSFamily string) (string, string, string) {
+	var caBundleSourceCustomDir, caBundleExtractedDir, updateCACommand string
+
+	switch runtimeOSFamily {
+	case "debian":
+		caBundleSourceCustomDir = "/usr/local/share/ca-certificates/"
+		caBundleExtractedDir = "/etc/ssl/certs"
+		updateCACommand = "/usr/bin/update-ca-certificates"
+	case "suse":
+		caBundleSourceCustomDir = "/etc/pki/trust/source/anchors/"
+		caBundleExtractedDir = "/etc/ssl/"
+		updateCACommand = "/usr/sbin/update-ca-certificates"
+	default:
+		// by default it return rhel based config
+		caBundleSourceCustomDir = "/etc/pki/ca-trust/source/anchors/"
+		caBundleExtractedDir = "/etc/pki/ca-trust/extracted/"
+		updateCACommand = "/usr/bin/update-ca-trust extract"
+	}
+
+	return caBundleSourceCustomDir, caBundleExtractedDir, updateCACommand
 }
