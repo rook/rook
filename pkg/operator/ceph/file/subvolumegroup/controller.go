@@ -148,9 +148,13 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	observedGeneration := cephFilesystemSubVolumeGroup.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephFilesystemSubVolumeGroup)
+	addedFinalizer, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephFilesystemSubVolumeGroup)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+	}
+	if addedFinalizer {
+		logger.Infof("reconciling the subvolume group %q after adding finalizer", cephFilesystemSubVolumeGroup.Name)
+		return reconcile.Result{}, nil
 	}
 
 	// The CR was just created, initializing status fields

@@ -160,9 +160,13 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	observedGeneration := cephNFS.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephNFS)
+	addedFinalizer, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephNFS)
 	if err != nil {
 		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to add finalizer")
+	}
+	if addedFinalizer {
+		logger.Infof("reconciling the nfs %q after adding finalizer", cephNFS.Name)
+		return reconcile.Result{}, *cephNFS, nil
 	}
 
 	// The CR was just created, initializing status fields
