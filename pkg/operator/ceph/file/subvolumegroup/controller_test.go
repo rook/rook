@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -243,15 +244,18 @@ func TestCephClientController(t *testing.T) {
 
 	t.Run("success - external mode csi config is updated", func(t *testing.T) {
 		cephCluster.Spec.External.Enable = true
+		csiOpClientProfile := &csiopv1a1.ClientProfile{}
+
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1a1.ClientProfile{})
 		objects := []runtime.Object{
 			cephFilesystemSubVolumeGroup,
 			cephCluster,
+			csiOpClientProfile,
 		}
 		// Create a fake client to mock API calls.
 		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
 		c.Client = cl
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 		// Create a ReconcileCephFilesystemSubVolumeGroup object with the scheme and fake client.
 		r = &ReconcileCephFilesystemSubVolumeGroup{
 			client:           cl,

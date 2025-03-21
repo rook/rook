@@ -21,6 +21,7 @@ import (
 	"os"
 	"testing"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -254,17 +255,20 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 
 	t.Run("success - external mode csi config is updated", func(t *testing.T) {
 		cephCluster.Spec.External.Enable = true
+		csiOpClientProfile := &csiopv1a1.ClientProfile{}
+
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1a1.ClientProfile{}, &csiopv1a1.ClientProfile{})
 		objects := []runtime.Object{
 			cephBlockPoolRadosNamespace,
 			cephCluster,
 			cephBlockPool,
+			csiOpClientProfile,
 		}
 
 		// Create a fake client to mock API calls.
 		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
 		c.Client = cl
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
 			client:           cl,
