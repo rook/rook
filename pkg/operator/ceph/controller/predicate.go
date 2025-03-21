@@ -43,7 +43,6 @@ import (
 )
 
 const (
-	cephVersionLabelKey     = "ceph_version"
 	DoNotReconcileLabelName = "do_not_reconcile"
 )
 
@@ -86,11 +85,6 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
-				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
 				}
 
 			case *cephv1.CephObjectStoreUser:
@@ -212,11 +206,6 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
-				}
 
 			case *cephv1.CephNFS:
 				objNew := e.ObjectNew.(*cephv1.CephNFS)
@@ -236,11 +225,6 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
-				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
 				}
 
 			case *cephv1.CephRBDMirror:
@@ -262,11 +246,6 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
-				}
 
 			case *cephv1.CephClient:
 				objNew := e.ObjectNew.(*cephv1.CephClient)
@@ -286,11 +265,6 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
-				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
 				}
 
 			case *cephv1.CephFilesystemMirror:
@@ -312,11 +286,6 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
-				}
 
 			case *cephv1.CephBucketTopic:
 				objNew := e.ObjectNew.(*cephv1.CephBucketTopic)
@@ -336,11 +305,6 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
-				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
 				}
 
 			case *cephv1.CephBucketNotification:
@@ -362,11 +326,6 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
-				}
 
 			case *cephv1.CephFilesystemSubVolumeGroup:
 				objNew := e.ObjectNew.(*cephv1.CephFilesystemSubVolumeGroup)
@@ -386,11 +345,6 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
-				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
 				}
 
 			case *bktv1alpha1.ObjectBucketClaim:
@@ -431,11 +385,6 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping CephBlockPoolRadosNamespace resource %q update with unchanged spec", namespacedName)
 				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
-				}
 
 			case *cephv1.CephCOSIDriver:
 				objNew := e.ObjectNew.(*cephv1.CephCOSIDriver)
@@ -457,11 +406,6 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping CephCOSIDriver resource %q update with unchanged spec", namespacedName)
-				}
-				// Handling upgrades
-				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
-				if isUpgrade {
-					return true
 				}
 
 			}
@@ -677,28 +621,6 @@ func logErrorUnlessSensitive(msg string, err error, isSensitive bool) {
 	} else {
 		logger.Errorf("%s. %v", msg, err)
 	}
-}
-
-func isUpgrade(oldLabels, newLabels map[string]string) bool {
-	oldLabelVal, oldLabelKeyExist := oldLabels[cephVersionLabelKey]
-	newLabelVal, newLabelKeyExist := newLabels[cephVersionLabelKey]
-
-	// Nothing exists
-	if !oldLabelKeyExist && !newLabelKeyExist {
-		return false
-	}
-
-	// The new object has the label key so we reconcile
-	if !oldLabelKeyExist && newLabelKeyExist {
-		return true
-	}
-
-	// Both objects have the label and values are different so we reconcile
-	if (oldLabelKeyExist && newLabelKeyExist) && oldLabelVal != newLabelVal {
-		return true
-	}
-
-	return false
 }
 
 func isCanary(obj runtime.Object) bool {

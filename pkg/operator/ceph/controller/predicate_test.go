@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -85,33 +84,6 @@ func TestObjectChanged(t *testing.T) {
 	changed, err = objectChanged(oldObject, newObject, "foo")
 	assert.NoError(t, err)
 	assert.True(t, changed)
-}
-
-func TestIsUpgrade(t *testing.T) {
-	oldLabel := make(map[string]string)
-	newLabel := map[string]string{
-		"foo": "bar",
-	}
-
-	// no value do nothing
-	b := isUpgrade(oldLabel, newLabel)
-	assert.False(t, b)
-
-	// different value do something
-	newLabel["ceph_version"] = "19.2.0-squid"
-	b = isUpgrade(oldLabel, newLabel)
-	assert.True(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
-
-	// same value do nothing
-	oldLabel["ceph_version"] = "19.2.0-squid"
-	newLabel["ceph_version"] = "19.2.0-squid"
-	b = isUpgrade(oldLabel, newLabel)
-	assert.False(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
-
-	// different value do something
-	newLabel["ceph_version"] = "19.2.1-squid"
-	b = isUpgrade(oldLabel, newLabel)
-	assert.True(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
 }
 
 func TestIsValidEvent(t *testing.T) {
