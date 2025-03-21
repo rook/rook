@@ -615,7 +615,8 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 	return "", errors.Errorf("node selector not found on deployment for osd with pvc %q", pvcName)
 }
 
-func getOSDID(d *appsv1.Deployment) (int, error) {
+// GetOSDID returns OSD ID from the OSD deployment
+func GetOSDID(d *appsv1.Deployment) (int, error) {
 	osdID, err := strconv.Atoi(d.Labels[OsdIdLabelKey])
 	if err != nil {
 		// add a question to the user AFTER the error text to help them recover from user error
@@ -628,7 +629,7 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	container := d.Spec.Template.Spec.Containers[0]
 	var osd OSDInfo
 
-	osdID, err := getOSDID(d)
+	osdID, err := GetOSDID(d)
 	if err != nil {
 		return OSDInfo{}, err
 	}

@@ -189,7 +189,6 @@ spec:
   disruptionManagement:
     managePodBudgets: true
     osdMaintenanceTimeout: 30
-    pgHealthCheckTimeout: 0
   healthCheck:
     daemonHealth:
       mon:
