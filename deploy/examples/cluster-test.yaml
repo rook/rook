@@ -15,7 +15,8 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: quay.io/ceph/ceph:v19
+    # TODO: revert to original image after testing.
+    image: quay.ceph.io/ceph-ci/ceph:main
     allowUnsupported: true
   mon:
     count: 1

@@ -419,3 +419,12 @@ func evaluateJSONOrYAMLInput(nodeAffinity string) (*v1.NodeAffinity, error) {
 	}
 	return affinity, nil
 }
+
+// GetNodeLabels returns the node topology label for a given key
+func GetNodeLabels(ctx context.Context, clientset kubernetes.Interface, nodeName string) (map[string]string, error) {
+	node, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		return map[string]string{}, fmt.Errorf("failed to get node %q. %s ", nodeName, err)
+	}
+	return node.GetLabels(), nil
+}

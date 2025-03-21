@@ -20,3 +20,5 @@ spec:
     port: 80
     # securePort: 443
     instances: 1
+    rgwConfig:
+      rados_replica_read_policy: "localize"
