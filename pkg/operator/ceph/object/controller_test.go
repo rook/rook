@@ -24,8 +24,6 @@ import (
 	"testing"
 	"time"
 
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -42,6 +40,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -1032,4 +1031,113 @@ func TestDiffVersions(t *testing.T) {
 
 	// Compares the actual value of the pointer by dereferencing the pointer
 	assert.True(t, reflect.DeepEqual(runningCephVersion, *desiredCephVersion))
+}
+
+func Test_mapSecretToCR(t *testing.T) {
+	t.Run("secret not referenced", func(t *testing.T) {
+		// create fake k8s cliend and add CephObjectStore objects
+		var objects []runtime.Object
+		o := simpleStore()
+		o.Namespace = "ns"
+		o.Name = "store1"
+		objects = append(objects, o)
+		s := scheme.Scheme
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreList{})
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		mapFunc := mapSecretToCR(cl)
+		got := mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret",
+				Namespace: "ns",
+			},
+		})
+		assert.Empty(t, got, "expected empty list")
+	})
+	t.Run("secret referenced in rgw config", func(t *testing.T) {
+		// create fake k8s cliend and add CephObjectStore objects
+		var objects []runtime.Object
+		otherStore := simpleStore()
+		otherStore.Namespace = "ns"
+		otherStore.Name = "store1"
+		inConf := simpleStore()
+		inConf.Namespace = "ns"
+		inConf.Name = "store2"
+		inConf.Spec.Gateway.RgwConfigFromSecret = map[string]v1.SecretKeySelector{
+			"rgw": {Key: "key", LocalObjectReference: v1.LocalObjectReference{Name: "secret"}},
+		}
+		objects = append(objects, otherStore, inConf)
+		s := scheme.Scheme
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreList{})
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		mapFunc := mapSecretToCR(cl)
+		got := mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret",
+				Namespace: "ns",
+			},
+		})
+		assert.Len(t, got, 1, "expected 1 item")
+		assert.Equal(t, "store2", got[0].Name, "expected store2")
+
+		got = mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret-other",
+				Namespace: "ns",
+			},
+		})
+		assert.Empty(t, got, "empty: wrong secret name")
+
+		got = mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret",
+				Namespace: "ns-other",
+			},
+		})
+		assert.Empty(t, got, "empty: wrong secret ns")
+	})
+	t.Run("secret referenced in keystone config", func(t *testing.T) {
+		// create fake k8s cliend and add CephObjectStore objects
+		var objects []runtime.Object
+		otherStore := simpleStore()
+		otherStore.Namespace = "ns"
+		otherStore.Name = "store1"
+		inConf := simpleStore()
+		inConf.Namespace = "ns"
+		inConf.Name = "store2"
+		inConf.Spec.Auth.Keystone = &cephv1.KeystoneSpec{
+			ServiceUserSecretName: "secret",
+		}
+		objects = append(objects, otherStore, inConf)
+		s := scheme.Scheme
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreList{})
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		mapFunc := mapSecretToCR(cl)
+		got := mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret",
+				Namespace: "ns",
+			},
+		})
+		assert.Len(t, got, 1, "expected 1 item")
+		assert.Equal(t, "store2", got[0].Name, "expected store2")
+
+		got = mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret-other",
+				Namespace: "ns",
+			},
+		})
+		assert.Empty(t, got, "empty: wrong secret name")
+
+		got = mapFunc(context.TODO(), &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret",
+				Namespace: "ns-other",
+			},
+		})
+		assert.Empty(t, got, "empty: wrong secret ns")
+	})
 }

@@ -44,8 +44,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -142,7 +144,117 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		}
 	}
 
+	// Watch Secrets secrets annotated for the object store
+	err = c.Watch(source.Kind[client.Object](mgr.GetCache(),
+		&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
+		handler.EnqueueRequestsFromMapFunc(mapSecretToCR(mgr.GetClient())),
+		secretPredicate()))
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// Watch all secrets not owned by Rook
+func secretPredicate() predicate.Predicate {
+	rookGV := cephv1.SchemeGroupVersion.String()
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			secret, ok := e.ObjectNew.(*corev1.Secret)
+			if !ok {
+				// not a secret
+				return false
+			}
+			// check if secret already owned by Rook:
+			for _, owner := range secret.OwnerReferences {
+				if owner.APIVersion == rookGV {
+					// already owned by Rook CR
+					return false
+				}
+			}
+			return true
+		},
+		CreateFunc: func(e event.CreateEvent) bool {
+			secret, ok := e.Object.(*corev1.Secret)
+			if !ok {
+				// not a secret
+				return false
+			}
+			// check if secret already owned by Rook:
+			for _, owner := range secret.OwnerReferences {
+				if owner.APIVersion == rookGV {
+					// already owned by Rook CR
+					return false
+				}
+			}
+			return true
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			secret, ok := e.Object.(*corev1.Secret)
+			if !ok {
+				// not a secret
+				return false
+			}
+			// check if secret already owned by Rook:
+			for _, owner := range secret.OwnerReferences {
+				if owner.APIVersion == rookGV {
+					// already owned by Rook CR
+					return false
+				}
+			}
+			return true
+		},
+	}
+}
+
+// Maps secret referenced by object store to the object store CR
+func mapSecretToCR(k8sClient client.Client) func(context.Context, client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		secret, ok := obj.(*corev1.Secret)
+		if !ok {
+			return nil
+		}
+
+		// lookup object store CRs by name
+		objStores := cephv1.CephObjectStoreList{}
+		err := k8sClient.List(ctx, &objStores, client.InNamespace(secret.Namespace))
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debugf("cephObjectStore resource for referenced secret %q not found. Ignoring since object must be deleted.", secret.Name)
+				return nil
+			}
+			logger.Errorf("failed to list cephObjectStore resources for referenced secret %q", secret.Name)
+			return nil
+		}
+
+		var requests []reconcile.Request
+		for _, objStore := range objStores.Items {
+			// reconcile ObjectStore if it refers to the secret
+			if isObjStoreSpecContainsSecret(&objStore.Spec, secret) {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      objStore.Name,
+						Namespace: objStore.Namespace,
+					}})
+			}
+		}
+		return requests
+	}
+}
+
+func isObjStoreSpecContainsSecret(spec *cephv1.ObjectStoreSpec, secret *corev1.Secret) bool {
+	// check if secret is referred in object store rgwConfigFromSecret:
+	for _, sec := range spec.Gateway.RgwConfigFromSecret {
+		if sec.Name == secret.Name {
+			return true
+		}
+	}
+	// check if secret is referred in object store keystone service user secret:
+	if spec.Auth.Keystone != nil && spec.Auth.Keystone.ServiceUserSecretName == secret.Name {
+		return true
+	}
+	return false
 }
 
 // Reconcile reads that state of the cluster for a cephObjectStore object and makes changes based on the state read
