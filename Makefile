@@ -209,7 +209,6 @@ gen-rbac: $(HELM) $(YQ) ## Generate RBAC from Helm charts
 	@# output only stdout to the file; stderr for debugging should keep going to stderr
 	HELM=$(HELM) ./build/rbac/gen-common.sh
 	HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
-	HELM=$(HELM) ./build/rbac/gen-psp.sh
 
 gen.docs: docs
 docs: helm-docs

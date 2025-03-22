@@ -210,7 +210,7 @@ $(CONTROLLER_GEN):
 		rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 
-YQ_VERSION = v4.14.2
+YQ_VERSION = v4.45.1
 YQ := $(TOOLS_HOST_DIR)/yq-$(YQ_VERSION)
 export YQ
 $(YQ):
