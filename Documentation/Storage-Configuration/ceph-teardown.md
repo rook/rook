@@ -108,8 +108,12 @@ DISK="/dev/sdX"
 # Zap the disk to a fresh, usable state (zap-all is important, b/c MBR has to be clean)
 sgdisk --zap-all $DISK
 
-# Wipe a large portion of the beginning of the disk to remove more LVM metadata that may be present
-dd if=/dev/zero of="$DISK" bs=1M count=100 oflag=direct,dsync
+# Wipe portions of the disk to remove more LVM metadata that may be present
+dd if=/dev/zero of="$DISK" bs=1K count=200 oflag=direct,dsync seek=0 # Clear at offset 0
+dd if=/dev/zero of="$DISK" bs=1K count=200 oflag=direct,dsync seek=$((1 * 1024**2)) # Clear at offset 1GB
+dd if=/dev/zero of="$DISK" bs=1K count=200 oflag=direct,dsync seek=$((10 * 1024**2)) # Clear at offset 10GB
+dd if=/dev/zero of="$DISK" bs=1K count=200 oflag=direct,dsync seek=$((100 * 1024**2)) # Clear at offset 100GB
+dd if=/dev/zero of="$DISK" bs=1K count=200 oflag=direct,dsync seek=$((1000 * 1024**2)) # Clear at offset 1000GB
 
 # SSDs may be better cleaned with blkdiscard instead of dd
 blkdiscard $DISK
