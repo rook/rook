@@ -117,7 +117,14 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephFilesystem CRD object
-	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephFilesystem{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephFilesystem{TypeMeta: controllerTypeMeta},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephFilesystem]{},
+			opcontroller.WatchControllerPredicate[*cephv1.CephFilesystem](),
+		),
+	)
 	if err != nil {
 		return err
 	}
@@ -343,7 +350,6 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 	// Enable mirroring if needed
 	if cephFilesystem.Spec.Mirroring != nil {
-
 		// Disable mirroring on that filesystem if needed
 		if !cephFilesystem.Spec.Mirroring.Enabled {
 			err = cephclient.DisableFilesystemSnapshotMirror(r.context, r.clusterInfo, cephFilesystem.Name)

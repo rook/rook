@@ -116,10 +116,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the cephRBDMirror CRD object
-	s := source.Kind[client.Object](
-		mgr.GetCache(), &cephv1.CephRBDMirror{TypeMeta: controllerTypeMeta},
-		&handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
-	err = c.Watch(s)
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephRBDMirror{TypeMeta: controllerTypeMeta},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephRBDMirror]{},
+			opcontroller.WatchControllerPredicate[*cephv1.CephRBDMirror](),
+		),
+	)
 	if err != nil {
 		return err
 	}
@@ -252,7 +256,6 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph rbd mirror")
 	return reconcile.Result{}, *cephRBDMirror, nil
-
 }
 
 func (r *ReconcileCephRBDMirror) reconcileCreateCephRBDMirror(cephRBDMirror *cephv1.CephRBDMirror) (reconcile.Result, error) {

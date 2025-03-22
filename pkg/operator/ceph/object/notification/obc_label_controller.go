@@ -19,16 +19,11 @@ package notification
 
 import (
 	"context"
+	"reflect"
 	"strings"
 
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	"github.com/pkg/errors"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/clusterd"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
-	"github.com/rook/rook/pkg/operator/ceph/object/topic"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	kapiv1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,10 +32,19 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
+	"github.com/rook/rook/pkg/operator/ceph/object/topic"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 )
 
 const (
@@ -57,6 +61,42 @@ type ReconcileOBCLabels struct {
 	recorder         record.EventRecorder
 }
 
+func WatchControllerPredicate() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			logger.Debugf("create event from a CR: %q", e.Object.GetName())
+			return true
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			logger.Debugf("delete event from a CR: %q", e.Object.GetName())
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			objOld := e.ObjectOld.(*bktv1alpha1.ObjectBucketClaim)
+			objNew := e.ObjectNew.(*bktv1alpha1.ObjectBucketClaim)
+			logger.Debug("update event on ObjectBucketClaim CR")
+			// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+			IsDoNotReconcile := opcontroller.IsDoNotReconcile(objNew.GetLabels())
+			if IsDoNotReconcile {
+				logger.Debugf("object %q matched on update but %q label is set, doing nothing", objNew.Name, opcontroller.DoNotReconcileLabelName)
+				return false
+			}
+			if !reflect.DeepEqual(objOld.Labels, objNew.Labels) {
+				logger.Infof("CR labels has changed for %q", objNew.Name)
+				return true
+			} else if objOld.Spec.ObjectBucketName != objNew.Spec.ObjectBucketName {
+				logger.Infof("CR %q bucket name changed from %q to %q", objNew.Name, objOld.Spec.ObjectBucketName, objNew.Spec.ObjectBucketName)
+				return true
+			}
+			logger.Debugf("no change in CR %q", objNew.Name)
+			return false
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
+}
+
 func addOBCLabelReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
@@ -66,7 +106,14 @@ func addOBCLabelReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the OBC CRD object
-	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &bktv1alpha1.ObjectBucketClaim{}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&bktv1alpha1.ObjectBucketClaim{},
+			&handler.TypedEnqueueRequestForObject[*bktv1alpha1.ObjectBucketClaim]{},
+			opcontroller.WatchControllerPredicate[*bktv1alpha1.ObjectBucketClaim](),
+		),
+	)
 	if err != nil {
 		return err
 	}

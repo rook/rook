@@ -114,7 +114,14 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephBlockPool CRD object
-	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephBlockPool{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephBlockPool{TypeMeta: controllerTypeMeta},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephBlockPool]{},
+			opcontroller.WatchControllerPredicate[*cephv1.CephBlockPool](),
+		),
+	)
 	if err != nil {
 		return err
 	}
