@@ -279,7 +279,9 @@ func TestPersistMons(t *testing.T) {
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// Persist mon a
-	err := c.persistExpectedMonDaemons()
+	err := c.persistExpectedMonDaemonsInConfigMap()
+	assert.NoError(t, err)
+	err = c.persistExpectedMonDaemonsAsEndpointSlice()
 	assert.NoError(t, err)
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
@@ -287,10 +289,17 @@ func TestPersistMons(t *testing.T) {
 	assert.Equal(t, "a=1.2.3.1:3300", cm.Data[EndpointDataKey])
 	assert.Equal(t, map[string]string{"key": "value"}, cm.Annotations)
 
+	ep, err := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "1.2.3.1", ep.Endpoints[0].Addresses[0])
+	assert.Equal(t, map[string]string{"key": "value"}, cm.Annotations)
+
 	// Persist mon b, and remove mon a for simply testing the configmap is updated
 	c.ClusterInfo.InternalMonitors["b"] = &cephclient.MonInfo{Name: "b", Endpoint: "4.5.6.7:3300"}
 	delete(c.ClusterInfo.InternalMonitors, "a")
-	err = c.persistExpectedMonDaemons()
+	err = c.persistExpectedMonDaemonsInConfigMap()
+	assert.NoError(t, err)
+	err = c.persistExpectedMonDaemonsAsEndpointSlice()
 	assert.NoError(t, err)
 
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
