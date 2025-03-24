@@ -21,7 +21,33 @@ fi
 standbyMds=$(echo "$outp" | jq ".standbys | map(.name) | any(.[]; . == \"$MDS_ID\")")
 activeMds=$(echo "$outp" | jq ".filesystems[] | select(.mdsmap.fs_name == \"$FILESYSTEM_NAME\") | .mdsmap.info | map(.name) | any(.[]; . == \"$MDS_ID\")")
 
-if [[ $standbyMds == true || $activeMds == true ]]; then
+if [[ $standbyMds == true ]]; then
+    echo "MDS ID present in MDS map, no need to re-start the container"
+    exit 0
+elif [[ $activeMds == true ]]; then
+    # check for jorunal trimming issues
+    outh="$(ceph health detail ${COMMAND_PARMS})"
+    rc=$?
+    if [ $rc -ne 0 ]; then
+        echo "ceph health detail check failed with the following output:"
+        echo "$outh"
+        echo "$END_MSG"
+        exit 0
+    fi
+
+    trimmingErrors=$(echo "$outh" | jq ".checks| select(.[\"MDS_TRIM\"])|.MDS_TRIM")
+    if [ ! -z "$trimmingErrors" ]; then
+        ownErrors=$(echo "$trimmingErrors" | jq ".detail[]| select(.message|contains(\"Behind on trimming\"))|select(.message|startswith(\"mds.$MDS_ID\"))")
+        if [ ! -z "$ownErrors" ]; then
+            maxSegments=$(echo "$ownErrors" | jq ".message | match(\"max_segments: ([0-9]+)\")|.captures[0].string" -r)
+            semgmentLimit=$(( maxSegments * SEGMENTS_MULTIPLER ))
+            segments=$(echo "$ownErrors" | jq ".message | match(\"num_segments: ([0-9]+)\")|.captures[0].string" -r)
+            if [ $segments -gt $semgmentLimit ]; then
+                echo "Error: MDS is too much behind trimming. Limit $semgmentLimit but current is $segments"
+                exit 1
+            fi
+        fi
+    fi
     echo "MDS ID present in MDS map, no need to re-start the container"
     exit 0
 fi
