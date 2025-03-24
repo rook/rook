@@ -7,7 +7,7 @@ set -eEuo pipefail
 
 : ${YQ:=yq}
 
-if [[ "$($YQ --version)" != "yq (https://github.com/mikefarah/yq/) version 4."* ]]; then
+if [[ "$($YQ --version)" != "yq (https://github.com/mikefarah/yq/) version v4."* ]]; then
   echo "yq must be version 4.x"
   exit 1
 fi
