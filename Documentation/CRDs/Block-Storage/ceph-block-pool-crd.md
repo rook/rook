@@ -241,7 +241,7 @@ stretched) then you will have 2 replicas per datacenter where each replica ends 
 
 ### Add specific pool properties
 
-With `poolProperties` you can set any pool property:
+With `parameters` you can set any pool property:
 
 ```yaml
 spec:
@@ -254,7 +254,7 @@ For instance:
 ```yaml
 spec:
   parameters:
-    min_size: 1
+    min_size: "1"
 ```
 
 ### Erasure Coding
