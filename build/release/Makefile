@@ -186,7 +186,7 @@ $(foreach c,$(HELM_CHARTS),$(eval $(call chart.build,$(c))))
 define chart.targets
 promote.chart.$(1).$(2):
 	@echo === helm push $(2) to $(1)
-	$(HELM) push $(HELM_OUTPUT_DIR)/$(2)-$(VERSION).tgz oci://$(1)
+	$(HELM) push $(HELM_OUTPUT_DIR)/$(2)-$(HELM_CHART_VERSION).tgz oci://$(1)
 promote.all.charts: promote.chart.$(1).$(2)
 endef
 $(foreach r,$(REGISTRIES), $(foreach c,$(HELM_CHARTS),$(eval $(call chart.targets,$(r),$(c)))))
