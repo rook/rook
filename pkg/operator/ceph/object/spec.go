@@ -30,7 +30,9 @@ import (
 	"github.com/libopenstorage/secrets/vault"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -46,6 +48,12 @@ const (
 	sseKMS             = "ssekms"
 	sseS3              = "sses3"
 	vaultPrefix        = "/v1/"
+
+	// Read Affinity settings for RGW clients to reduce cross-zone traffic
+	radosReadReplicaPolicy = "rados_replica_read_policy"
+	// read from the nearest OSD based on the crush location of the RGW client
+	localizedReadReplicaPolicy = "localize"
+
 	//nolint:gosec // since this is not leaking any hardcoded details
 	setupVaultTokenFile = `
 set -e
@@ -67,6 +75,7 @@ fi
 chmod --verbose 700 $VAULT_TOKEN_NEW_PATH
 chown --recursive --verbose ceph:ceph $VAULT_TOKEN_NEW_PATH
 `
+	exportNodeToplogies = `$(jq -r --arg NODE "$NODE_NAME" '.[$NODE] | keys[] as $k | "export \($k)=\(.[$k])"' %s)`
 )
 
 var (
@@ -156,6 +165,12 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		PriorityClassName:  c.store.Spec.Gateway.PriorityClassName,
 		SecurityContext:    &v1.PodSecurityContext{},
 		ServiceAccountName: serviceAccountName,
+	}
+
+	if c.isLocalizedReadAffinitySet() {
+		volume, volumeMount := getNodeToplogyVolumeAndMount()
+		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMount)
+		podSpec.Volumes = append(podSpec.Volumes, volume)
 	}
 
 	opsLogFile := ""
@@ -360,24 +375,25 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		return v1.Container{}, errors.Wrap(err, "failed to generate default readiness probe")
 	}
 
+	args := append(
+		controller.DaemonFlags(c.clusterInfo, c.clusterSpec,
+			strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
+		"--foreground",
+		cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontendName, c.portString())),
+		cephconfig.NewFlag("host", controller.ContainerEnvVarReference(k8sutil.PodNameEnvVar)),
+		cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
+		cephconfig.NewFlag("rgw realm", rgwConfig.Realm),
+		cephconfig.NewFlag("rgw zonegroup", rgwConfig.ZoneGroup),
+		cephconfig.NewFlag("rgw zone", rgwConfig.Zone),
+	)
+
+	cmd := c.getRGWContainerCMD(&args)
+
 	container := v1.Container{
 		Name:            "rgw",
 		Image:           c.clusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
-		Command: []string{
-			"radosgw",
-		},
-		Args: append(
-			controller.DaemonFlags(c.clusterInfo, c.clusterSpec,
-				strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
-			"--foreground",
-			cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontendName, c.portString())),
-			cephconfig.NewFlag("host", controller.ContainerEnvVarReference(k8sutil.PodNameEnvVar)),
-			cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
-			cephconfig.NewFlag("rgw realm", rgwConfig.Realm),
-			cephconfig.NewFlag("rgw zonegroup", rgwConfig.ZoneGroup),
-			cephconfig.NewFlag("rgw zone", rgwConfig.Zone),
-		),
+		Command:         cmd,
 		VolumeMounts: append(
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolumeMount(),
@@ -1129,4 +1145,89 @@ func GetHostnameFromEndpoint(endpoint string) (string, error) {
 	}
 
 	return hostname, nil
+}
+
+func (c *clusterConfig) isLocalizedReadAffinitySet() bool {
+	if c.store.Spec.Gateway.RgwReadAffinity != nil && c.store.Spec.Gateway.RgwReadAffinity.Type == localizedReadReplicaPolicy {
+		if c.clusterInfo.CephVersion.IsAtLeastTentacle() {
+			return true
+		}
+		logger.Warning("can not set RGW read affinity for ceph version lower than v.20 (tentacles)")
+	}
+	return false
+}
+
+func getNodeToplogyVolumeAndMount() (v1.Volume, v1.VolumeMount) {
+	volName := "node-topology"
+	configMapSource := &v1.ConfigMapVolumeSource{
+		LocalObjectReference: v1.LocalObjectReference{Name: nodeTopologyConfigMap},
+		Items:                []v1.KeyToPath{{Key: nodeTopologyConfigMapKey, Path: nodeTopologyConfigMapKey}},
+	}
+	v := v1.Volume{Name: volName, VolumeSource: v1.VolumeSource{ConfigMap: configMapSource}}
+	m := v1.VolumeMount{Name: volName, MountPath: nodeTopologyConfigMapLocation}
+	return v, m
+}
+
+func (c *clusterConfig) getRGWContainerCMD(args *[]string) []string {
+	if c.isLocalizedReadAffinitySet() {
+		*args = append(*args, cephconfig.NewFlag("crush location", c.getRGWCrushLocation()))
+		normalizeArgsForScript(args)
+		jqScript := fmt.Sprintf(exportNodeToplogies, path.Join(nodeTopologyConfigMapLocation, nodeTopologyConfigMapKey))
+		rgwCmd := fmt.Sprintf("%s && radosgw ", jqScript) + strings.Join(*args, " ")
+		return []string{"bash", "-x", "-c", rgwCmd}
+	}
+
+	return append([]string{"radosgw"}, *args...)
+}
+
+func (c *clusterConfig) getRGWCrushLocation() string {
+	var rgwFailureDomain string
+	if c.store.Spec.Gateway.RgwReadAffinity != nil && c.store.Spec.Gateway.RgwReadAffinity.FailureDomain != "" {
+		rgwFailureDomain = c.store.Spec.Gateway.RgwReadAffinity.FailureDomain
+	} else {
+		rgwFailureDomain = c.getRGWFailureDomain()
+	}
+	crushRoot := client.GetCrushRootFromSpec(c.clusterSpec)
+	locArgs := []string{fmt.Sprintf("root=%s", crushRoot)}
+	// portable OSDs have crush locations set to PVC name instead of hostName. So don't set host crush location for RGW in case of portable OSDs.
+	if !isPortableDeviceSet(c.clusterSpec) {
+		locArgs = append(locArgs, fmt.Sprintf("%s=%s", cephv1.DefaultFailureDomain, "$host"))
+	}
+	if rgwFailureDomain != cephv1.DefaultFailureDomain {
+		locArgs = append(locArgs, fmt.Sprintf("%s=%s", rgwFailureDomain, fmt.Sprintf("$%s", rgwFailureDomain)))
+	}
+	loc := strings.Join(locArgs, " ")
+	return loc
+}
+
+func (c *clusterConfig) getRGWFailureDomain() string {
+	poolSpecs := make([]cephv1.PoolSpec, 0)
+	poolSpecs = append(poolSpecs, c.store.Spec.DataPool)
+	poolSpecs = append(poolSpecs, c.store.Spec.MetadataPool)
+	return topology.GetMinimumFailureDomain(poolSpecs)
+}
+
+func isPortableDeviceSet(c *cephv1.ClusterSpec) bool {
+	if c.Storage.StorageClassDeviceSets != nil {
+		for _, deviceSet := range c.Storage.StorageClassDeviceSets {
+			if deviceSet.Portable {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// normalizeArgsForScript add quotes arguments with white spaces.
+// For example `--rgw-frontends=beast port=8080` is converted into `--rgw-frontends="beast port=8080"`
+func normalizeArgsForScript(args *[]string) {
+	for i, arg := range *args {
+		argList := strings.SplitN(arg, "=", 2)
+		if len(argList) != 2 {
+			continue
+		}
+		if strings.Contains(argList[1], " ") {
+			(*args)[i] = fmt.Sprintf("%s=\"%s\"", argList[0], argList[1])
+		}
+	}
 }

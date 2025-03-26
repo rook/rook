@@ -149,4 +149,5 @@ roleRef:
   kind: ClusterRole
   name: objectstorage-provisioner-role
   apiGroup: rbac.authorization.k8s.io
+---
 {{- end }}
