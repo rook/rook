@@ -36,7 +36,7 @@ OLM_CATALOG_DIR="${DESTINATION_ROOT}/deploy/olm/deploy/crds"
 CEPH_CRDS_FILE_PATH="${DESTINATION_ROOT}/deploy/examples/crds.yaml"
 CEPH_HELM_CRDS_FILE_PATH="${DESTINATION_ROOT}/deploy/charts/rook-ceph/templates/resources.yaml"
 
-if [[ "$($YQ_BIN_PATH --version)" != "yq (https://github.com/mikefarah/yq/) version 4."* ]]; then
+if [[ "$($YQ_BIN_PATH --version)" != "yq (https://github.com/mikefarah/yq/) version v4."* ]]; then
   echo "yq must be version 4.x"
   exit 1
 fi

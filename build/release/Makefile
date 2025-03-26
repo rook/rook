@@ -59,8 +59,10 @@ REMOTE_NAME ?= origin
 
 PLATFORMS ?= $(ALL_PLATFORMS)
 
+# "helm" flavor is for pushing to s3/https endpoint
+# "charts" flavor is for pushing to oci endpoint
 ifneq ($(filter master release-%,$(BRANCH_NAME)),)
-FLAVORS ?= output images docs helm
+FLAVORS ?= output images docs helm charts
 else
 FLAVORS ?= output
 override BRANCH_NAME := pr/$(BRANCH_NAME)
@@ -156,6 +158,39 @@ promote.helm: $(HELM)
 	$(S3_SYNC_DEL) $(HELM_TEMP) s3://$(HELM_S3_BUCKET)/$(CHANNEL)
 	rm -fr $(HELM_TEMP)
 
+# set the helm cart version number.
+# you should not need to do this for the majority of scenarios.
+ifeq ($(origin HELM_CHART_VERSION), undefined)
+# this changes the third '.' to a '-':
+#   example v1.16.0.371.g4aec70601 -> v1.16.0-371.g4aec70601
+# as helm has strict rules on allowable versions to comply with SemVer2
+HELM_CHART_VERSION := $(shell echo "$(VERSION)" | sed 's/\./-/3' )
+endif
+export HELM_CHART_VERSION
+
+# we need to re-package the charts with the HELM_CHART_VERSION,
+# as there is a difference with the helm charts that was
+# created during the release scripts
+define chart.build
+build.chart.$(1):
+	@echo === helm package $(1)
+	mkdir -p $(HELM_OUTPUT_DIR)
+	$(HELM) package --version $(HELM_CHART_VERSION) --app-version $(VERSION) $(HELM_CHARTS_DIR)/$(1) --destination $(HELM_OUTPUT_DIR)
+build.all.charts: build.chart.$(1)
+clean.chart.$(1):
+	@rm -fr $(HELM_OUTPUT_DIR)/$(1)-$(HELM_CHART_VERSION).tgz
+clean.all.charts: clean.chart.$(1)
+endef
+$(foreach c,$(HELM_CHARTS),$(eval $(call chart.build,$(c))))
+
+define chart.targets
+promote.chart.$(1).$(2):
+	@echo === helm push $(2) to $(1)
+	$(HELM) push $(HELM_OUTPUT_DIR)/$(2)-$(HELM_CHART_VERSION).tgz oci://$(1)
+promote.all.charts: promote.chart.$(1).$(2)
+endef
+$(foreach r,$(REGISTRIES), $(foreach c,$(HELM_CHARTS),$(eval $(call chart.targets,$(r),$(c)))))
+
 # ====================================================================================
 # output
 
@@ -206,6 +241,10 @@ build.images: build.all.images
 publish.images: $(addprefix publish.manifest.image.,$(IMAGES))
 promote.images: $(addprefix promote.manifest.image.,$(IMAGES))
 clean.images: clean.all.images
+
+build.charts: build.all.charts
+promote.charts: promote.all.charts
+clean.charts: clean.all.charts
 
 # ====================================================================================
 # Help
