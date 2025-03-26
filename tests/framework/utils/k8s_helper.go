@@ -64,7 +64,7 @@ const (
 	RetryInterval = 5
 	// TestMountPath is the path inside a test pod where storage is mounted
 	TestMountPath = "/tmp/testrook"
-	//hostnameTestPrefix is a prefix added to the node hostname
+	// hostnameTestPrefix is a prefix added to the node hostname
 	hostnameTestPrefix = "test-prefix-this-is-a-very-long-hostname-"
 )
 
@@ -168,14 +168,11 @@ func (k8sh *K8sHelper) KubectlWithTimeout(timeout time.Duration, args ...string)
 
 // Kubectl is wrapper for executing kubectl commands and a timeout of 15 seconds
 func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
-
 	return k8sh.KubectlWithTimeout(15, args...)
-
 }
 
 // KubectlWithStdin is wrapper for executing kubectl commands in stdin
 func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, error) {
-
 	cmdStruct := CommandArgs{Command: cmd, PipeToStdIn: stdin, CmdArgs: args}
 	cmdOut := ExecuteCommand(cmdStruct)
 
@@ -191,7 +188,6 @@ func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, e
 	}
 
 	return cmdOut.StdOut, nil
-
 }
 
 func getManifestFromURL(url string) (string, error) {
@@ -262,7 +258,6 @@ func (k8sh *K8sHelper) DeleteResource(args ...string) error {
 
 // WaitForCustomResourceDeletion waits for the CRD deletion
 func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace, name string, checkerFunc func() error) error {
-
 	// wait for the operator to finalize and delete the CRD
 	for i := 0; i < 90; i++ {
 		err := checkerFunc()
@@ -629,7 +624,6 @@ func (k8sh *K8sHelper) GetService(servicename string, namespace string) (*v1.Ser
 
 // IsCRDPresent returns true if custom resource definition is present
 func (k8sh *K8sHelper) IsCRDPresent(crdName string) bool {
-
 	cmdArgs := []string{"get", "crd", crdName}
 
 	for i := 0; i < RetryLoop; i++ {
@@ -833,10 +827,11 @@ func (k8sh *K8sHelper) PrintStorageClasses(detailed bool) {
 }
 
 func (k8sh *K8sHelper) GetPodNamesForApp(appName, namespace string) ([]string, error) {
-	args := []string{"get", "pod", "-n", namespace, "-l", fmt.Sprintf("app=%s", appName),
-		"-o", "jsonpath={.items[*].metadata.name}"}
+	args := []string{
+		"get", "pod", "-n", namespace, "-l", fmt.Sprintf("app=%s", appName),
+		"-o", "jsonpath={.items[*].metadata.name}",
+	}
 	result, err := k8sh.Kubectl(args...)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pod names for app %s: %+v. output: %s", appName, err, result)
 	}
@@ -879,7 +874,6 @@ func (k8sh *K8sHelper) GetPodEvents(podNamePattern string, namespace string) (*v
 
 // IsPodInError returns true if a Pod is in error status with the given reason and contains the given message
 func (k8sh *K8sHelper) IsPodInError(podNamePattern, namespace, reason, containingMessage string) bool {
-
 	for i := 0; i < RetryLoop; i++ {
 		events, err := k8sh.GetPodEvents(podNamePattern, namespace)
 		if err != nil {
@@ -1015,7 +1009,6 @@ func (k8sh *K8sHelper) GetPVCStatus(namespace string, name string) (v1.Persisten
 	}
 
 	return pvc.Status.Phase, nil
-
 }
 
 // GetPVCVolumeName returns volume name of PVC
@@ -1040,7 +1033,6 @@ func (k8sh *K8sHelper) GetPVCAccessModes(namespace string, name string) ([]v1.Pe
 	}
 
 	return pvc.Status.AccessModes, nil
-
 }
 
 // GetPV returns PV by name
@@ -1125,13 +1117,11 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 	logger.Errorf("All pods with app Name %v not in %v phase ", podName, expectedPhase)
 	k8sh.PrintPodDescribe(namespace, "-l", listOpts.LabelSelector)
 	return false
-
 }
 
 // WaitUntilPodInNamespaceIsDeleted waits for 90s for a pod  in a namespace to be terminated
 // If the pod disappears within 90s true is returned,  if not false
 func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, namespace string) bool {
-
 	for i := 0; i < RetryLoop; i++ {
 		out, _ := k8sh.GetResource("-n", namespace, "pods", "-l", "app="+podNamePattern)
 		if !strings.Contains(out, podNamePattern) {
@@ -1163,7 +1153,6 @@ func (k8sh *K8sHelper) WaitUntilPodIsDeleted(name, namespace string) bool {
 // WaitUntilPVCIsBound waits for a PVC to be in bound state for 90 seconds
 // if PVC goes to Bound state within 90s True is returned, if not false
 func (k8sh *K8sHelper) WaitUntilPVCIsBound(namespace string, pvcname string) bool {
-
 	for i := 0; i < RetryLoop; i++ {
 		out, err := k8sh.GetPVCStatus(namespace, pvcname)
 		if err == nil {
@@ -1432,7 +1421,7 @@ func (k8sh *K8sHelper) createTestLogFile(platformName, name, namespace, testName
 	dir, _ := os.Getwd()
 	logDir := path.Join(dir, "_output/tests/")
 	if _, err := os.Stat(logDir); os.IsNotExist(err) {
-		err := os.MkdirAll(logDir, 0777)
+		err := os.MkdirAll(logDir, 0o777)
 		if err != nil {
 			logger.Errorf("Cannot get logs files dir for app : %v in namespace %v, err: %v", name, namespace, err)
 			return nil, err

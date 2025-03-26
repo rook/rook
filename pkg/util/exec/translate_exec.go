@@ -24,7 +24,6 @@ import (
 // This is useful to run the commands in a job with `kubectl run ...` when running the operator outside
 // of Kubernetes and need to run tools that require running inside the cluster.
 type TranslateCommandExecutor struct {
-
 	// Executor is probably a exec.CommandExecutor that will run the translated commands
 	Executor Executor
 

@@ -162,7 +162,6 @@ func NewBucketPolicy(ps ...PolicyStatement) *BucketPolicy {
 
 // PutBucketPolicy applies the policy to the bucket
 func (s *S3Agent) PutBucketPolicy(bucket string, policy BucketPolicy) (*s3.PutBucketPolicyOutput, error) {
-
 	confirmRemoveSelfBucketAccess := false
 	serializedPolicy, _ := json.Marshal(policy)
 	consumablePolicy := string(serializedPolicy)
@@ -252,9 +251,11 @@ func (ps *PolicyStatement) WithSID(sid string) *PolicyStatement {
 	return ps
 }
 
-const awsPrinciple = "AWS"
-const arnPrefixPrinciple = "arn:aws:iam:::user/%s"
-const arnPrefixResource = "arn:aws:s3:::%s"
+const (
+	awsPrinciple       = "AWS"
+	arnPrefixPrinciple = "arn:aws:iam:::user/%s"
+	arnPrefixResource  = "arn:aws:s3:::%s"
+)
 
 // ForPrincipals adds users to the PolicyStatement
 func (ps *PolicyStatement) ForPrincipals(users ...string) *PolicyStatement {

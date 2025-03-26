@@ -242,7 +242,6 @@ func (f *Filesystem) updateFilesystem(context *clusterd.Context, clusterInfo *ce
 
 // doFilesystemCreate starts the Ceph file daemons and creates the filesystem in Ceph.
 func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, spec cephv1.FilesystemSpec) error {
-
 	_, err := cephclient.GetFilesystem(context, clusterInfo, f.Name)
 	if err == nil {
 		logger.Infof("filesystem %q already exists", f.Name)

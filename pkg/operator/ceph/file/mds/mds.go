@@ -100,7 +100,7 @@ func (c *Cluster) Start() error {
 
 	// If attempt was made to prepare daemons for upgrade, make sure that an attempt is made to
 	// bring fs state back to desired when this method returns with any error or success.
-	var fsPreparedForUpgrade = false
+	fsPreparedForUpgrade := false
 
 	// upgrading MDS cluster needs to set max_mds to 1 and stop all stand-by MDSes first
 	isUpgrade, err := c.isCephUpgrade()
@@ -230,7 +230,6 @@ func (c *Cluster) startDeployment(ctx context.Context, daemonLetterID string) (s
 
 // isCephUpgrade determine if mds version inferior than image
 func (c *Cluster) isCephUpgrade() (bool, error) {
-
 	allVersions, err := cephclient.GetAllCephDaemonVersions(c.context, c.clusterInfo)
 	if err != nil {
 		return false, err
@@ -250,7 +249,6 @@ func (c *Cluster) isCephUpgrade() (bool, error) {
 }
 
 func (c *Cluster) upgradeMDS() error {
-
 	logger.Infof("upgrading MDS cluster for filesystem %q", c.fs.Name)
 
 	// 1. set allow_standby_replay to false

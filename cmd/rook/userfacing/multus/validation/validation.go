@@ -277,6 +277,7 @@ func (t *timeoutMinutes) Set(v string) error {
 	*t = timeoutMinutes(time.Duration(i) * time.Minute)
 	return nil
 }
+
 func (t timeoutMinutes) Type() string {
 	return "timeoutMinutes"
 }
@@ -295,6 +296,7 @@ func (t *timeoutSeconds) Set(v string) error {
 	*t = timeoutSeconds(time.Duration(i) * time.Second)
 	return nil
 }
+
 func (t timeoutSeconds) Type() string {
 	return "timeoutSeconds"
 }

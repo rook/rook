@@ -140,7 +140,6 @@ func (b *BucketOperation) GetSecretKey(obcName string) (string, error) {
 	}
 	decode, _ := b64.StdEncoding.DecodeString(SecretKey)
 	return string(decode), nil
-
 }
 
 // Checks whether MaxObject is updated for ob

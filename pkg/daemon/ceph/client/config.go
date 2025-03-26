@@ -108,9 +108,8 @@ func GenerateConnectionConfigWithSettings(context *clusterd.Context, clusterInfo
 
 // generateConfigFile generates and writes a config file to disk.
 func generateConfigFile(context *clusterd.Context, clusterInfo *ClusterInfo, pathRoot, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
-
 	// create the config directory
-	if err := os.MkdirAll(pathRoot, 0744); err != nil {
+	if err := os.MkdirAll(pathRoot, 0o744); err != nil {
 		return "", errors.Wrapf(err, "failed to create config directory at %q", pathRoot)
 	}
 
@@ -177,7 +176,6 @@ func getQualifiedUser(user string) string {
 
 // CreateDefaultCephConfig creates a default ceph config file.
 func CreateDefaultCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo) (*CephConfig, error) {
-
 	cephVersionEnv := os.Getenv("ROOK_CEPH_VERSION")
 	if cephVersionEnv != "" {
 		v, err := cephver.ExtractCephVersion(cephVersionEnv)
@@ -204,7 +202,6 @@ func CreateDefaultCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo
 
 // create a config file with global settings configured, and return an ini file
 func createGlobalConfigFileSection(context *clusterd.Context, clusterInfo *ClusterInfo, userConfig *CephConfig) (*ini.File, error) {
-
 	var ceph *CephConfig
 
 	if userConfig != nil {
@@ -290,7 +287,7 @@ func WriteCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo) error 
 	if err != nil {
 		return errors.Wrap(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
 	}
-	err = os.WriteFile(DefaultConfigFilePath(), src, 0600)
+	err = os.WriteFile(DefaultConfigFilePath(), src, 0o600)
 	if err != nil {
 		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %q", DefaultConfigFilePath())
 	}

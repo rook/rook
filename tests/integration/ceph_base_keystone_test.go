@@ -66,9 +66,7 @@ var testuserdata = map[string]map[string]string{
 }
 
 func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) error {
-
 	if err := initializePasswords(); err != nil {
-
 		return err
 	}
 
@@ -200,20 +198,16 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) er
 	}
 
 	for _, userdata := range testuserdata {
-
 		if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, userdata["project"], userdata["username"], userdata["password"])); err != nil {
 			logger.Errorf("Could not create openstack client deployment in namespace %s", namespace)
 			return err
 		}
-
 	}
 
 	return nil
-
 }
 
 func initializePasswords() error {
-
 	for user := range testuserdata {
 
 		var err error
@@ -228,7 +222,6 @@ func initializePasswords() error {
 	}
 
 	return nil
-
 }
 
 func createOpenStackClient(namespace string, project string, username string, password string) string {
@@ -298,7 +291,6 @@ spec:
 }
 
 func trustManagerBundle(namespace string) string {
-
 	return `apiVersion: trust.cert-manager.io/v1alpha1
 kind: Bundle
 metadata:
@@ -313,19 +305,15 @@ spec:
   target:
     secret:
       key: "cabundle"`
-
 }
 
 func installHelmChart(helmHelper *utils.HelmHelper, namespace string, chartName string, chart string, version string, settings ...string) error {
-
 	logger.Infof("installing helm chart %s with version %s", chart, version)
 
 	arguments := []string{"upgrade", "--install", "--debug", "--namespace", namespace, chartName, chart, "--version=" + version, "--wait"}
 
 	for _, setting := range settings {
-
 		arguments = append(arguments, "--set", setting)
-
 	}
 
 	_, err := helmHelper.Execute(arguments...)
@@ -335,11 +323,9 @@ func installHelmChart(helmHelper *utils.HelmHelper, namespace string, chartName 
 	}
 
 	return nil
-
 }
 
 func keystoneApiCaIssuer(namespace string) string {
-
 	return `apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
@@ -349,11 +335,9 @@ spec:
   ca:
     secretName: root-secret
 `
-
 }
 
 func keystoneApiCaCertificate(namespace string) string {
-
 	return `apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -370,11 +354,9 @@ spec:
     name: selfsigned-issuer
     kind: ClusterIssuer
     group: cert-manager.io`
-
 }
 
 func keystoneApiClusterIssuer(namespace string) string {
-
 	return `apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -383,11 +365,9 @@ metadata:
 spec:
   selfSigned: {}
 `
-
 }
 
 func keystoneService(namespace string) string {
-
 	return `apiVersion: v1
 kind: Service
 metadata:
@@ -409,11 +389,9 @@ spec:
   type: ClusterIP
 status:
   loadBalancer: {}`
-
 }
 
 func keystoneApiCertificate(namespace string) string {
-
 	return `
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -440,11 +418,9 @@ spec:
     name: my-ca-issuer
     kind: Issuer
 `
-
 }
 
 func keystoneDeployment(namespace string, adminpassword string) string {
-
 	return `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -575,11 +551,9 @@ spec:
         secret:
           defaultMode: 420
           secretName: keystone-api-tls`
-
 }
 
 func getKeystoneConfig() map[string][]byte {
-
 	returnMap := make(map[string][]byte)
 
 	keystoneConfig := `[DEFAULT]
@@ -600,11 +574,9 @@ enabled = false`
 	returnMap["keystone.conf"] = []byte(keystoneConfig)
 
 	return returnMap
-
 }
 
 func getKeystoneApache2CM(namespace string) map[string]string {
-
 	returnMap := make(map[string]string)
 
 	apache2Config := `LoadModule mpm_event_module modules/mod_mpm_event.so
@@ -655,11 +627,9 @@ TraceEnable Off`
 	returnMap["apache2.conf"] = apache2Config
 
 	return returnMap
-
 }
 
 func CleanUpKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
-
 	// Un-Install keystone with yaook
 	err := shelper.DeleteResource("-n", namespace, "configmap", "keystone-apache2-conf")
 	if err != nil {
@@ -678,7 +648,6 @@ func CleanUpKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 
 	//cert-manager related resources (including certificates and secrets) are not removed here
 	//(as they will be removed anyway on uninstalling cert-manager)
-
 }
 
 // Test Object StoreCreation on Rook that was installed via helm
@@ -696,100 +665,79 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 	// test with user with read+write access (member-role)
 
 	t.Run("create container (with user being a member)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"openstack", "container", "create", testContainerName,
 		)
-
 	})
 
 	t.Run("show container (with user being a member)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"openstack", "container", "show", testContainerName,
 		)
-
 	})
 
 	t.Run("create local testfile", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"bash", "-c", "echo test-content > /tmp/testfile",
 		)
-
 	})
 
 	// openstack object create testContainerName /testfile
 	t.Run("create object in container (using the local testfile) (with user being a member)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"openstack", "object", "create", testContainerName, "/tmp/testfile",
 		)
-
 	})
 
 	t.Run("list objects in container (with user being a member)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"openstack", "object", "list", testContainerName,
 		)
-
 	})
 
 	t.Run("show testfile object in container  (with user being a member)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"openstack", "object", "show", testContainerName, "/tmp/testfile",
 		)
-
 	})
 
 	t.Run("save testfile object from container to local disk  (with user being a member)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"openstack", "object", "save", "--file", "/tmp/testfile.saved", testContainerName, "/tmp/testfile",
 		)
-
 	})
 
 	t.Run("check testfile (with user being a member)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"bash", "-c", "diff /tmp/testfile /tmp/testfile.saved",
 		)
-
 	})
 
 	t.Run("delete object in container (with user being a member)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"openstack", "object", "delete", testContainerName, "/tmp/testfile",
 		)
-
 	})
 
 	t.Run("delete container (with user being a member)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"openstack", "container", "delete", testContainerName,
 		)
-
 	})
 
 	// unauthorized (?) access
 	// create container (with alice)
 	t.Run("prepare container for unauthorized access test (with user being a member)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"openstack", "container", "create", testContainerName,
@@ -812,134 +760,107 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 			testProjectName, "alice", true,
 			"openstack", "object", "list", testContainerName,
 		)
-
 	})
 
 	// try access container with id (with mallory, expect: denied)
 	t.Run("display a container (as unprivileged user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "mallory", false,
 			"openstack", "container", "show", testContainerName,
 		)
-
 	})
 
 	// try read access object with id (with mallory, expect: denied)
 	t.Run("show testfile object in container (as unprivileged user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "mallory", false,
 			"openstack", "object", "show", testContainerName, "/tmp/testfile",
 		)
-
 	})
 
 	// try write access object with id (with mallory, expect: denied)
 	t.Run("create local testfile", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "mallory", true,
 			"bash", "-c", "echo bad-content > /tmp/testfile",
 		)
-
 	})
 
 	// openstack object create testContainerName /testfile
 	t.Run("create object in container (using the local testfile) (as unprivileged user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "mallory", false,
 			"openstack", "object", "create", testContainerName, "/tmp/testfile",
 		)
-
 	})
 
 	// try deleting object (with mallory, expect: denied)
 	t.Run("delete object in container (as unprivileged user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "mallory", false,
 			"openstack", "object", "delete", testContainerName, "/tmp/testfile",
 		)
-
 	})
 
 	// try deleting container (with mallory, expect: denied)
 	t.Run("delete container (as unprivileged user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "mallory", false,
 			"openstack", "container", "delete", testContainerName,
 		)
-
 	})
 
 	// try access container with id (with rook-user, expect: success)
 	t.Run("show container (admin-user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "carol", true,
 			"openstack", "container", "show", testContainerName,
 		)
-
 	})
 
 	t.Run("create local testfile (admin-user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "carol", true,
 			"bash", "-c", "echo test-content > /tmp/testfile",
 		)
-
 	})
 
 	t.Run("create local testfile (admin-user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "carol", true,
 			"bash", "-c", "echo test-content > /tmp/testfile-rook-user",
 		)
-
 	})
 
 	// openstack object create testContainerName /testfile
 	// try write access object with id (with rook-user, expect: success)
 	t.Run("create object in container (using the local testfile) (admin-user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "carol", true,
 			"openstack", "object", "create", testContainerName, "/tmp/testfile-rook-user",
 		)
-
 	})
 
 	t.Run("list objects in container (admin-user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "carol", true,
 			"openstack", "object", "list", testContainerName,
 		)
-
 	})
 
 	// try read access object with id (with rook-user, expect: success)
 	t.Run("show testfile object in container (admin-user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "carol", true,
 			"openstack", "object", "show", testContainerName, "/tmp/testfile",
 		)
-
 	})
 
 	t.Run("save testfile object from container to local disk (admin-user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "carol", true,
 			"openstack", "object", "save", "--file", "/tmp/testfile.saved", testContainerName, "/tmp/testfile",
 		)
-
 	})
 
 	t.Run("check testfile (admin-user)", func(t *testing.T) {
@@ -947,31 +868,25 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 			testProjectName, "carol", true,
 			"bash", "-c", "diff /tmp/testfile /tmp/testfile.saved",
 		)
-
 	})
 
 	// try deleting object (with rook-user, expect: success)
 	t.Run("delete object in container (admin-user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "carol", true,
 			"openstack", "object", "delete", testContainerName, "/tmp/testfile",
 		)
-
 	})
 
 	t.Run("delete object in container (admin-user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "carol", true,
 			"openstack", "object", "delete", testContainerName, "/tmp/testfile-rook-user",
 		)
-
 	})
 
 	// try deleting container (with rook-user, expect: success)
 	t.Run("delete container (admin-user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "carol", true,
 			"openstack", "container", "delete", testContainerName,
@@ -989,7 +904,6 @@ func testInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, 
 
 	commandLine = append(commandLine, command...)
 	output, err := sh.KubectlWithTimeout(60, commandLine...)
-
 	if err != nil {
 		logger.Warningf("failed to execute command in openstack cli: %s: %s", commandLine, output)
 	}
@@ -997,26 +911,18 @@ func testInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, 
 	logger.Infof("%s", output)
 
 	if expectNoError {
-
 		assert.NoError(t, err)
-
 	} else {
-
 		assert.Error(t, err)
-
 	}
-
 }
 
 func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool, swiftAndKeystone bool, testContainerName string) {
-
 	t.Run("create test project in keystone", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
 			"openstack", "project", "create", testProjectName,
 		)
-
 	})
 
 	for _, value := range testuserdata {
@@ -1033,16 +939,12 @@ func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHel
 		})
 
 		if value["role"] != "" {
-
 			t.Run("assign test user "+value["username"]+" to project "+value["project"]+" in keystone", func(t *testing.T) {
-
 				testInOpenStackClient(t, k8sh, namespace,
 					"admin", "admin", true,
 					"openstack", "role", "add", "--user", value["username"], "--project", value["project"], value["role"],
 				)
-
 			})
-
 		}
 
 	}
@@ -1050,62 +952,47 @@ func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHel
 	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, swiftAndKeystone)
 
 	t.Run("create service swift in keystone", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
 			"openstack", "service", "create", "--name", "swift", "object-store",
 		)
-
 	})
 
 	t.Run("create internal swift endpoint in keystone", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
 			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", ""+rgwServiceUri(storeName, namespace)+"/foobar/v1",
 		)
-
 	})
 
 	t.Run("create admin swift endpoint in keystone", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
 			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", ""+rgwServiceUri(storeName, namespace)+"/foobar/v1",
 		)
-
 	})
 }
 
 func cleanupE2ETest(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName string, deleteStore bool, testContainerName string) {
-
 	t.Run("Delete swift endpoints in keystone", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
 			"bash", "-c", "openstack endpoint list -f json | jq '.[] | select(.\"Service Name\" == \"swift\") | .ID' -r | xargs openstack endpoint delete",
 		)
-
 	})
 
 	t.Run("Delete service swift in keystone", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
 			"openstack", "service", "delete", "swift",
 		)
-
 	})
 
 	if deleteStore {
-
 		t.Run("delete object store", func(t *testing.T) {
-
 			deleteObjectStore(t, k8sh, namespace, storeName)
 			assertObjectStoreDeletion(t, k8sh, namespace, storeName)
-
 		})
-
 	}
 
 	for _, value := range testuserdata {
@@ -1124,14 +1011,11 @@ func cleanupE2ETest(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName st
 	}
 
 	t.Run("delete test project in keystone", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
 			"openstack", "project", "delete", testProjectName,
 		)
-
 	})
-
 }
 
 func rgwServiceUri(storeName string, namespace string) string {
@@ -1150,12 +1034,10 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 	prepareE2ETest(t, helper, k8sh, installer, namespace, storeName, replicaSize, deleteStore, enableTLS, swiftAndKeystone, testContainerName)
 
 	t.Run("create container (with user being a member)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"openstack", "container", "create", testContainerName,
 		)
-
 	})
 
 	t.Run("create AWS config file", func(t *testing.T) {
@@ -1170,7 +1052,6 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 			testProjectName, "alice", true,
 			"bash", "-c", "aws --debug --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3api list-buckets",
 		)
-
 	})
 
 	t.Run("List bucket with S3", func(t *testing.T) {
@@ -1178,7 +1059,6 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 			testProjectName, "alice", true,
 			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3api list-buckets | jq '.Buckets | .[].Name' -r | grep "+testContainerName,
 		)
-
 	})
 
 	t.Run("List file with S3 created by OS", func(t *testing.T) {
@@ -1194,11 +1074,9 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 			testProjectName, "alice", true,
 			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 ls s3://"+testContainerName+"| grep testfile2",
 		)
-
 	})
 
 	t.Run("Upload test file using S3", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"bash", "-c", "echo test-content > /tmp/testfile",
@@ -1208,7 +1086,6 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 			testProjectName, "alice", true,
 			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 cp /tmp/testfile s3://"+testContainerName+"/testfile",
 		)
-
 	})
 
 	t.Run("save testfile object from container to local disk", func(t *testing.T) {
@@ -1233,7 +1110,6 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 	})
 
 	t.Run("delete container (admin-user)", func(t *testing.T) {
-
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
 			"openstack", "container", "delete", testContainerName,

@@ -19,9 +19,10 @@ package exec
 
 import (
 	"fmt"
-	kexec "k8s.io/client-go/util/exec"
 	"os/exec"
 	"syscall"
+
+	kexec "k8s.io/client-go/util/exec"
 )
 
 // CephCLIError is Ceph CLI Error type

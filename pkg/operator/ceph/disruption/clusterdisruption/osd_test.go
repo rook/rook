@@ -108,7 +108,6 @@ func getFakeClusterInfo() *client.ClusterInfo {
 	sharedClusterMap := &ClusterMap{}
 	sharedClusterMap.UpdateClusterMap(namespace, cephCluster)
 	return sharedClusterMap.GetClusterInfo(namespace)
-
 }
 
 func TestGetOSDFailureDomains(t *testing.T) {
@@ -124,8 +123,10 @@ func TestGetOSDFailureDomains(t *testing.T) {
 	}{
 		{
 			name: "case 1: all osds are running",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
-				fakeOSDDeployment(3, 1)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 1),
+			},
 			nodes:                          []corev1.Node{*getNodeObject("node-1", false), *getNodeObject("node-2", false), *getNodeObject("node-3", false)},
 			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
 			expectedOsdDownFailureDomains:  []string{},
@@ -134,8 +135,10 @@ func TestGetOSDFailureDomains(t *testing.T) {
 		},
 		{
 			name: "case 2: osd in zone-1 is pending and node is unschedulable",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
-				fakeOSDDeployment(3, 1)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 1),
+			},
 			nodes:                          []corev1.Node{*getNodeObject("node-1", true), *getNodeObject("node-2", false), *getNodeObject("node-3", false)},
 			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
 			expectedOsdDownFailureDomains:  []string{"zone-1"},
@@ -144,8 +147,10 @@ func TestGetOSDFailureDomains(t *testing.T) {
 		},
 		{
 			name: "case 3: osd in zone-1 and zone-2 are pending and node is unschedulable",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 0),
-				fakeOSDDeployment(3, 1)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 0),
+				fakeOSDDeployment(3, 1),
+			},
 			nodes:                          []corev1.Node{*getNodeObject("node-1", true), *getNodeObject("node-2", true), *getNodeObject("node-3", false)},
 			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
 			expectedOsdDownFailureDomains:  []string{"zone-1", "zone-2"},
@@ -154,8 +159,10 @@ func TestGetOSDFailureDomains(t *testing.T) {
 		},
 		{
 			name: "case 4: osd in zone-1 is pending but osd node is schedulable",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
-				fakeOSDDeployment(3, 1)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 1),
+			},
 			nodes:                          []corev1.Node{*getNodeObject("node-1", false), *getNodeObject("node-2", false), *getNodeObject("node-3", false)},
 			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
 			expectedOsdDownFailureDomains:  []string{"zone-1"},
@@ -164,8 +171,10 @@ func TestGetOSDFailureDomains(t *testing.T) {
 		},
 		{
 			name: "case 5: osd in zone-3 is pending and the osd node is not schedulable",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
-				fakeOSDDeployment(3, 0)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 0),
+			},
 			nodes:                          []corev1.Node{*getNodeObject("node-1", false), *getNodeObject("node-2", false), *getNodeObject("node-3", true)},
 			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
 			expectedOsdDownFailureDomains:  []string{"zone-3"},
@@ -222,8 +231,10 @@ func TestGetOSDFailureDomainsError(t *testing.T) {
 	}{
 		{
 			name: "case 1: one or more OSD deployment is missing crush location label",
-			osds: []appsv1.Deployment{fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
-				fakeOSDDeployment(3, 1)},
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 1),
+			},
 			expectedAllFailureDomains:      nil,
 			expectedDrainingFailureDomains: nil,
 			expectedOsdDownFailureDomains:  nil,
@@ -472,5 +483,4 @@ func TestSetPDBConfig(t *testing.T) {
 			assert.Equal(t, tc.expecteNoOutSetting, tc.pdbConfig.Data[setNoOut])
 		})
 	}
-
 }

@@ -34,8 +34,8 @@ import (
 
 func TestGenerateKey(t *testing.T) {
 	clientset := testop.New(t, 1)
-	var generateKey = ""
-	var failGenerateKey = false
+	generateKey := ""
+	failGenerateKey := false
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if failGenerateKey {

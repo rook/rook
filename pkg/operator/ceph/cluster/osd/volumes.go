@@ -192,7 +192,7 @@ func getUdevVolume() (v1.Volume, v1.VolumeMount) {
 
 func (c *Cluster) getEncryptionVolume(osdProps osdProperties) (v1.Volume, v1.VolumeMount) {
 	// Generate volume
-	var m int32 = 0400
+	var m int32 = 0o400
 	volume := v1.Volume{
 		Name: osdEncryptionVolName,
 		VolumeSource: v1.VolumeSource{

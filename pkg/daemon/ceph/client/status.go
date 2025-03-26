@@ -43,9 +43,7 @@ const (
 	defaultPgHealthyRegex    = `^(active\+clean|active\+clean\+scrubbing|active\+clean\+scrubbing\+deep)$`
 )
 
-var (
-	defaultPgHealthyRegexCompiled = regexp.MustCompile(defaultPgHealthyRegex)
-)
+var defaultPgHealthyRegexCompiled = regexp.MustCompile(defaultPgHealthyRegex)
 
 type CephStatus struct {
 	Health        HealthStatus `json:"health"`

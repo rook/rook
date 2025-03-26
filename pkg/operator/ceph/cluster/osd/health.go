@@ -35,9 +35,7 @@ const (
 	graceTime = 60 * time.Minute
 )
 
-var (
-	defaultHealthCheckInterval = 60 * time.Second
-)
+var defaultHealthCheckInterval = 60 * time.Second
 
 // OSDHealthMonitor defines OSD process monitoring
 type OSDHealthMonitor struct {
@@ -68,7 +66,6 @@ func NewOSDHealthMonitor(context *clusterd.Context, clusterInfo *client.ClusterI
 
 // Start runs monitoring logic for osds status at set intervals
 func (m *OSDHealthMonitor) Start(monitoringRoutines map[string]*opcontroller.ClusterHealth, daemon string) {
-
 	for {
 		// We must perform this check otherwise the case will check an index that does not exist anymore and
 		// we will get an invalid pointer error and the go routine will panic

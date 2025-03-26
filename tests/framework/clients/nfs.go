@@ -40,7 +40,6 @@ func CreateNFSOperation(k8sh *utils.K8sHelper, manifests installer.CephManifests
 
 // Create creates a filesystem in Rook
 func (n *NFSOperation) Create(namespace, name string, daemonCount int) error {
-
 	logger.Infof("creating the NFS pool")
 	if err := n.k8sh.ResourceOperation("apply", n.manifests.GetNFSPool()); err != nil {
 		return err

@@ -103,12 +103,11 @@ func SetFakeKubernetesVersion(clientset *fake.Clientset, semver string) {
 	if len(xyz) != 3 {
 		panic(fmt.Errorf("version not in 'vX.Y.Z' format: %s", semver))
 	}
-	fd.FakedServerVersion =
-		&version.Info{
-			Major:      xyz[0],
-			Minor:      xyz[1],
-			GitVersion: semver,
-		}
+	fd.FakedServerVersion = &version.Info{
+		Major:      xyz[0],
+		Minor:      xyz[1],
+		GitVersion: semver,
+	}
 }
 
 var (

@@ -294,7 +294,6 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph nfs")
 	return reconcile.Result{}, *cephNFS, nil
-
 }
 
 func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reconcile.Result, error) {

@@ -236,7 +236,8 @@ func mapSecretToCR(k8sClient client.Client) func(context.Context, client.Object)
 					NamespacedName: types.NamespacedName{
 						Name:      objStore.Name,
 						Namespace: objStore.Namespace,
-					}})
+					},
+				})
 			}
 		}
 		return requests

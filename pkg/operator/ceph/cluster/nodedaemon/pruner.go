@@ -68,6 +68,7 @@ func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv
 	}
 	return nil
 }
+
 func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, tolerations []corev1.Toleration) (controllerutil.OperationResult, error) {
 	objectMeta := metav1.ObjectMeta{
 		Name:      prunerName,

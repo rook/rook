@@ -218,7 +218,8 @@ func TestTrackMonsOutOfQuorum(t *testing.T) {
 		mapping:   &opcontroller.Mapping{},
 		context:   &clusterd.Context{Clientset: clientset, ConfigDir: tempDir},
 		ownerInfo: ownerInfo,
-		Namespace: "ns"}
+		Namespace: "ns",
+	}
 	c.ClusterInfo = &cephclient.ClusterInfo{InternalMonitors: map[string]*cephclient.MonInfo{
 		"a": {Name: "a", Endpoint: endpoint},
 		"b": {Name: "b", Endpoint: endpoint},
@@ -444,7 +445,8 @@ func TestAddRemoveMons(t *testing.T) {
 		"rook-ceph-mon-b",                    // b updated when c created
 		"rook-ceph-mon-b", "rook-ceph-mon-c", // b and c updated when d created
 		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", // etc.
-		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e"},
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e",
+	},
 		testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
@@ -762,7 +764,8 @@ func TestExternalMons_notInSpec_InQuorum(t *testing.T) {
 		"rook-ceph-mon-b",                    // b updated when c created
 		"rook-ceph-mon-b", "rook-ceph-mon-c", // b and c updated when d created
 		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", // etc.
-		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e"},
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e",
+	},
 		testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
@@ -852,7 +855,6 @@ func TestExternalMons_notInSpec_InQuorum(t *testing.T) {
 		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].Endpoint, mon.Endpoint)
 		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].OutOfQuorum, mon.OutOfQuorum)
 	}
-
 }
 
 func TestExternalMons_inSpec_notInQuorum(t *testing.T) {
@@ -893,7 +895,8 @@ func TestExternalMons_inSpec_notInQuorum(t *testing.T) {
 		"rook-ceph-mon-b",                    // b updated when c created
 		"rook-ceph-mon-b", "rook-ceph-mon-c", // b and c updated when d created
 		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", // etc.
-		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e"},
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e",
+	},
 		testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
@@ -975,7 +978,6 @@ func TestExternalMons_inSpec_notInQuorum(t *testing.T) {
 		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].Endpoint, mon.Endpoint)
 		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].OutOfQuorum, mon.OutOfQuorum)
 	}
-
 }
 
 func TestExternalMons_inSpec_inQuorum(t *testing.T) {
@@ -1016,7 +1018,8 @@ func TestExternalMons_inSpec_inQuorum(t *testing.T) {
 		"rook-ceph-mon-b",                    // b updated when c created
 		"rook-ceph-mon-b", "rook-ceph-mon-c", // b and c updated when d created
 		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", // etc.
-		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e"},
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e",
+	},
 		testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 

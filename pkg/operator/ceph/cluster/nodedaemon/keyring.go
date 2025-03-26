@@ -82,7 +82,6 @@ func createCrashCollectorKeyring(s *keyring.SecretStore) (string, error) {
 }
 
 func createOrUpdateCrashCollectorSecret(clusterInfo *client.ClusterInfo, crashCollectorSecretKey string, k *keyring.SecretStore) error {
-
 	keyring := fmt.Sprintf(crashKeyringTemplate, crashCollectorSecretKey)
 
 	crashCollectorSecret := map[string][]byte{
@@ -148,7 +147,6 @@ func createExporterKeyring(s *keyring.SecretStore) (string, error) {
 }
 
 func createOrUpdateExporterSecret(clusterInfo *client.ClusterInfo, exporterSecretKey string, k *keyring.SecretStore) error {
-
 	keyring := fmt.Sprintf(exporterKeyringTemplate, exporterSecretKey)
 
 	exporterSecret := map[string][]byte{

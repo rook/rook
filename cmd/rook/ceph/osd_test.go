@@ -200,7 +200,7 @@ func TestReadSecretFile(t *testing.T) {
 
 	// Write a test keyring
 	testSecret := "testkeyring"
-	err = os.WriteFile(path.Name(), []byte(testSecret), 0600)
+	err = os.WriteFile(path.Name(), []byte(testSecret), 0o600)
 	assert.NoError(t, err)
 
 	// Read the secret from the file

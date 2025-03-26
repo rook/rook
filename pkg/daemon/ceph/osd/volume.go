@@ -229,7 +229,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 	// Create a specific log directory so that each prepare command will have its own log
 	// Only do this if nothing is present so that we don't override existing logs
 	cvLogDir = path.Join(cephLogDir, a.nodeName)
-	err := os.MkdirAll(cvLogDir, 0750)
+	err := os.MkdirAll(cvLogDir, 0o750)
 	if err != nil {
 		logger.Errorf("failed to create ceph-volume log directory %q, continue with default %q. %v", cvLogDir, cephLogDir, err)
 		baseArgs = []string{"-oL", cephVolumeCmd, "raw", "prepare", storeFlag}
@@ -258,7 +258,8 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 		// This will make the devices.Entries larger than usual
 		if _, ok := devices.Entries["metadata"]; ok {
 			metadataDev = true
-			metadataArg = append(metadataArg, []string{"--block.db",
+			metadataArg = append(metadataArg, []string{
+				"--block.db",
 				devices.Entries["metadata"].Config.Name,
 			}...)
 
@@ -267,7 +268,8 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 
 		if _, ok := devices.Entries["wal"]; ok {
 			walDev = true
-			walArg = append(walArg, []string{"--block.wal",
+			walArg = append(walArg, []string{
+				"--block.wal",
 				devices.Entries["wal"].Config.Name,
 			}...)
 
@@ -375,7 +377,6 @@ func getEncryptedBlockPath(op, blockType string) string {
 
 // UpdateLVMConfig updates the lvm.conf file
 func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
-
 	input, err := os.ReadFile(lvmConfPath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read lvm config file %q", lvmConfPath)
@@ -405,7 +406,7 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 		}
 	}
 
-	if err = os.WriteFile(lvmConfPath, output, 0600); err != nil {
+	if err = os.WriteFile(lvmConfPath, output, 0o600); err != nil {
 		return errors.Wrapf(err, "failed to update lvm config file %q", lvmConfPath)
 	}
 
@@ -585,7 +586,7 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *DeviceOsdMapping) error {
 	storeFlag := a.storeConfig.GetStoreFlag()
 	logPath := "/tmp/ceph-log"
-	if err := os.MkdirAll(logPath, 0700); err != nil {
+	if err := os.MkdirAll(logPath, 0o700); err != nil {
 		return errors.Wrapf(err, "failed to create dir %q", logPath)
 	}
 
@@ -1238,7 +1239,7 @@ func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
 	// failure log later without also printing out past failures
 	// TODO: does this mess up expectations from the ceph log collector daemon?
 	logPath := "/tmp/ceph-log"
-	if err := os.MkdirAll(logPath, 0700); err != nil {
+	if err := os.MkdirAll(logPath, 0o700); err != nil {
 		return "", errors.Wrapf(err, "failed to create dir %q", logPath)
 	}
 	baseArgs := []string{"-oL", cephVolumeCmd, "--log-path", logPath}

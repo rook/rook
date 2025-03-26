@@ -134,18 +134,17 @@ func Test_updateExistingOSDs(t *testing.T) {
 		return true
 	}
 
-	updateMultipleDeploymentsAndWaitFunc =
-		func(
-			ctx context.Context,
-			clientset kubernetes.Interface,
-			deployments []*appsv1.Deployment,
-			listFunc func() (*appsv1.DeploymentList, error),
-		) k8sutil.Failures {
-			for _, d := range deployments {
-				deploymentsUpdated = append(deploymentsUpdated, d.Name)
-			}
-			return updateInjectFailures
+	updateMultipleDeploymentsAndWaitFunc = func(
+		ctx context.Context,
+		clientset kubernetes.Interface,
+		deployments []*appsv1.Deployment,
+		listFunc func() (*appsv1.DeploymentList, error),
+	) k8sutil.Failures {
+		for _, d := range deployments {
+			deploymentsUpdated = append(deploymentsUpdated, d.Name)
 		}
+		return updateInjectFailures
+	}
 
 	executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -381,7 +380,6 @@ func Test_updateExistingOSDs(t *testing.T) {
 		assert.Zero(t, errs.len())
 		assert.ElementsMatch(t, deploymentsUpdated, []string{})
 		assert.Equal(t, 1, updateQueue.Len()) // the OSD should remain
-
 	})
 
 	t.Run("PGs clean to upgrade OSD", func(t *testing.T) {
@@ -401,7 +399,6 @@ func Test_updateExistingOSDs(t *testing.T) {
 		assert.Zero(t, errs.len())
 		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(0)})
 		assert.Equal(t, 0, updateQueue.Len()) // should be done with updates
-
 	})
 
 	t.Run("continueUpgradesAfterChecksEvenIfUnhealthy = true", func(t *testing.T) {

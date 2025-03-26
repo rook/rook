@@ -158,7 +158,6 @@ func SetRevisionHistoryLimit() {
 	}
 	limit = int32(numval)
 	revisionHistoryLimit = &limit
-
 }
 
 func RevisionHistoryLimit() *int32 {
@@ -177,7 +176,7 @@ func ObcAdditionalConfigKeyIsAllowed(configField string) bool {
 // canIgnoreHealthErrStatusInReconcile determines whether a status of HEALTH_ERR in the CephCluster can be ignored safely.
 func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, controllerName string) bool {
 	// Get a list of all the keys causing the HEALTH_ERR status.
-	var healthErrKeys = make([]string, 0)
+	healthErrKeys := make([]string, 0)
 	for key, health := range cephCluster.Status.CephStatus.Details {
 		if health.Severity == "HEALTH_ERR" {
 			healthErrKeys = append(healthErrKeys, key)
@@ -239,7 +238,7 @@ func IsReadyToReconcile(ctx context.Context, c client.Client, namespacedName typ
 
 	// read the CR status of the cluster
 	if cephCluster.Status.CephStatus != nil {
-		var operatorDeploymentOk = cephCluster.Status.CephStatus.Health == "HEALTH_OK" || cephCluster.Status.CephStatus.Health == "HEALTH_WARN"
+		operatorDeploymentOk := cephCluster.Status.CephStatus.Health == "HEALTH_OK" || cephCluster.Status.CephStatus.Health == "HEALTH_WARN"
 
 		if operatorDeploymentOk || canIgnoreHealthErrStatusInReconcile(cephCluster, controllerName) {
 			logger.Debugf("%q: ceph status is %q, operator is ready to run ceph command, reconciling", controllerName, cephCluster.Status.CephStatus.Health)

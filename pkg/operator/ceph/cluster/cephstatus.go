@@ -39,10 +39,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	// defaultStatusCheckInterval is the interval to check the status of the ceph cluster
-	defaultStatusCheckInterval = 60 * time.Second
-)
+// defaultStatusCheckInterval is the interval to check the status of the ceph cluster
+var defaultStatusCheckInterval = 60 * time.Second
 
 // cephStatusChecker aggregates the mon/cluster info needed to check the health of the monitors
 type cephStatusChecker struct {
@@ -342,7 +340,6 @@ func (c *cephStatusChecker) getRookPodsOnNode(node string) ([]v1.Pod, error) {
 				break
 			}
 		}
-
 	}
 	return podsOnNode, nil
 }

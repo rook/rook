@@ -1291,7 +1291,8 @@ func TestInitializeBlock(t *testing.T) {
 			nodeName:    "node1",
 			storeConfig: config.StoreConfig{StoreType: "bluestore"},
 		}
-		context := &clusterd.Context{Executor: executor,
+		context := &clusterd.Context{
+			Executor: executor,
 			Devices: []*sys.LocalDisk{
 				{
 					Name:     "sda",
@@ -1351,7 +1352,8 @@ func TestInitializeBlock(t *testing.T) {
 			nodeName:    "node1",
 			storeConfig: config.StoreConfig{StoreType: "bluestore"},
 		}
-		context := &clusterd.Context{Executor: executor,
+		context := &clusterd.Context{
+			Executor: executor,
 			Devices: []*sys.LocalDisk{
 				{
 					Name:     "sda",
@@ -1433,7 +1435,8 @@ func TestInitializeBlock(t *testing.T) {
 			nodeName:    "node1",
 			storeConfig: config.StoreConfig{StoreType: "bluestore"},
 		}
-		context := &clusterd.Context{Executor: executor,
+		context := &clusterd.Context{
+			Executor: executor,
 			Devices: []*sys.LocalDisk{
 				{
 					Name:     "sda",
@@ -1477,7 +1480,8 @@ func TestInitializeBlock(t *testing.T) {
 			nodeName:    "node1",
 			storeConfig: config.StoreConfig{StoreType: "bluestore"},
 		}
-		context := &clusterd.Context{Executor: executor,
+		context := &clusterd.Context{
+			Executor: executor,
 			Devices: []*sys.LocalDisk{
 				{
 					Name:     "sda",
@@ -1964,7 +1968,6 @@ func TestInitializeBlockWithMD(t *testing.T) {
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed LV as metadataDevice test")
 	}
-
 }
 
 func TestAllowRawMode(t *testing.T) {
@@ -2114,5 +2117,4 @@ func TestLVMModeAllowed(t *testing.T) {
 	// encrypted part
 	storeConfig.EncryptedDevice = true
 	assert.False(t, lvmModeAllowed(device, storeConfig))
-
 }

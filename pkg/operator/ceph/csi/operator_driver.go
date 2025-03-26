@@ -38,7 +38,6 @@ import (
 )
 
 func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
-
 	if EnableRBD {
 		logger.Info("Creating RBD driver resources")
 		err := r.transferCSIDriverOwner(r.opManagerContext, RBDDriverName)
@@ -381,7 +380,6 @@ func createDriverNodePluginResouces(key string) csiopv1a1.NodePluginResourcesSpe
 
 // transferCSIDriverOwner update CSIDriver and returns the error if any
 func (r *ReconcileCSI) transferCSIDriverOwner(ctx context.Context, name string) error {
-
 	logger.Info("adding annotation to CSIDriver resource for csi-operator to own it")
 	csiDriver, err := r.context.Clientset.StorageV1().CSIDrivers().Get(ctx, name, metav1.GetOptions{})
 	if err != nil {

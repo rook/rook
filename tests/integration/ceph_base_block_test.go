@@ -298,8 +298,8 @@ func runBlockCSITest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite
 	assert.NoError(s.T(), err)
 
 	// ** FIX: WHY IS THE RWO VOLUME NOT BEING FENCED??? The second pod is starting successfully with the same PVC
-	//require.True(s.T(), k8sh.IsPodInError(otherPod, defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure block-test2 pod errors out while mounting the volume")
-	//logger.Infof("Block Storage successfully fenced")
+	// require.True(s.T(), k8sh.IsPodInError(otherPod, defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure block-test2 pod errors out while mounting the volume")
+	// logger.Infof("Block Storage successfully fenced")
 
 	logger.Infof("step 8: Delete fenced pod")
 	err = k8sh.DeletePod(k8sutil.DefaultNamespace, otherPod)
@@ -404,8 +404,8 @@ func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *s
 }
 
 func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterInfo *client.ClusterInfo,
-	poolName, storageClassName, blockName string) {
-
+	poolName, storageClassName, blockName string,
+) {
 	// Check initial number of blocks
 	initialBlocks, err := helper.BlockClient.ListAllImages(clusterInfo)
 	require.NoError(s.T(), err)
@@ -421,7 +421,8 @@ func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.
 }
 
 func createAndWaitForPVC(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterInfo *client.ClusterInfo,
-	storageClassName, blockName string) {
+	storageClassName, blockName string,
+) {
 	err := helper.BlockClient.CreatePVC(defaultNamespace, blockName, storageClassName, "ReadWriteOnce", "1M")
 	require.NoError(s.T(), err)
 	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, blockName))

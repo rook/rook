@@ -31,9 +31,7 @@ import (
 )
 
 func (r *ReconcileCSI) validateAndConfigureDrivers(ownerInfo *k8sutil.OwnerInfo) error {
-	var (
-		err error
-	)
+	var err error
 
 	if err = r.setParams(); err != nil {
 		return errors.Wrapf(err, "failed to configure CSI parameters")

@@ -129,7 +129,6 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 }
 
 func (r *ReconcileCSI) createImageSetConfigmap() (string, error) {
-
 	data := map[string]string{
 		"provisioner": CSIParam.ProvisionerImage,
 		"attacher":    CSIParam.AttacherImage,

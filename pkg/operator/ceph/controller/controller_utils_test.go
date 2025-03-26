@@ -43,7 +43,7 @@ func CreateTestClusterFromStatusDetails(details map[string]cephv1.CephHealthMess
 }
 
 func TestCanIgnoreHealthErrStatusInReconcile(t *testing.T) {
-	var cluster = CreateTestClusterFromStatusDetails(map[string]cephv1.CephHealthMessage{
+	cluster := CreateTestClusterFromStatusDetails(map[string]cephv1.CephHealthMessage{
 		"MDS_ALL_DOWN": {
 			Severity: "HEALTH_ERR",
 			Message:  "mds all down error",
@@ -196,6 +196,7 @@ func TestSetRevisionHistoryLimit(t *testing.T) {
 		assert.Equal(t, int32(10), *RevisionHistoryLimit())
 	})
 }
+
 func TestIsReadyToReconcile(t *testing.T) {
 	scheme := scheme.Scheme
 	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
@@ -252,7 +253,8 @@ func TestIsReadyToReconcile(t *testing.T) {
 				CleanupPolicy: cephv1.CleanupPolicySpec{
 					Confirmation: cephv1.DeleteDataDirOnHostsConfirmation,
 				},
-			}}
+			},
+		}
 		objects := []runtime.Object{cephCluster}
 		client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
 		c, ready, clusterExists, _ := IsReadyToReconcile(ctx.TODO(), client, clusterName, controllerName)
@@ -273,7 +275,8 @@ func TestIsReadyToReconcile(t *testing.T) {
 				CleanupPolicy: cephv1.CleanupPolicySpec{
 					Confirmation: cephv1.DeleteDataDirOnHostsConfirmation,
 				},
-			}}
+			},
+		}
 		objects := []runtime.Object{cephCluster}
 		client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
 		c, ready, clusterExists, _ := IsReadyToReconcile(ctx.TODO(), client, clusterName, controllerName)
@@ -290,26 +293,38 @@ func TestObcAllowAdditionalConfigFields(t *testing.T) {
 		shouldAllow      []string
 		shouldDisallow   []string
 	}{
-		{"not set", "<notset>",
+		{
+			"not set", "<notset>",
 			[]string{"maxObjects", "maxSize"}, // default allowlist is unlikely to need changing EVER
-			[]string{"bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "random"}},
-		{"set to empty", "",
+			[]string{"bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "random"},
+		},
+		{
+			"set to empty", "",
 			[]string{}, // admin can allow no quota options if desired
-			[]string{"maxObjects", "maxSize", "bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "random"}},
-		{"set to default", "maxObjects,maxSize",
+			[]string{"maxObjects", "maxSize", "bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "random"},
+		},
+		{
+			"set to default", "maxObjects,maxSize",
 			[]string{"maxObjects", "maxSize"},
-			[]string{"bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "random"}},
-		{"all quota fields", "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize",
+			[]string{"bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "random"},
+		},
+		{
+			"all quota fields", "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize",
 			[]string{"maxObjects", "maxSize", "bucketMaxObjects", "bucketMaxSize"},
-			[]string{"bucketPolicy", "bucketLifecycle", "bucketOwner", "random"}},
-		{"all fields", "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner",
+			[]string{"bucketPolicy", "bucketLifecycle", "bucketOwner", "random"},
+		},
+		{
+			"all fields", "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner",
 			[]string{"maxObjects", "maxSize", "bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner"},
-			[]string{"random"}},
+			[]string{"random"},
+		},
 		// this mechanism doesn't do any field checking - that isn't it's job - it merely handles
 		// allow-listing essentially arbitrary config keys
-		{"all fields including unknown", "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner,random",
+		{
+			"all fields including unknown", "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner,random",
 			[]string{"maxObjects", "maxSize", "bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "random"},
-			[]string{"otherRandom"}},
+			[]string{"otherRandom"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -81,12 +81,14 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 				Name: "rook-config",
 				VolumeSource: v1.VolumeSource{
 					EmptyDir: &v1.EmptyDirVolumeSource{},
-				}},
+				},
+			},
 			v1.Volume{
 				Name: "default-config-dir",
 				VolumeSource: v1.VolumeSource{
 					EmptyDir: &v1.EmptyDirVolumeSource{},
-				}},
+				},
+			},
 			mon.CephSecretVolume())
 
 		// Stretch the mgrs across hosts by default, or across a bigger failure domain for when zones are required like in case of stretched cluster
@@ -163,7 +165,6 @@ func (c *Cluster) makeChownInitContainer(mgrConfig *mgrConfig) v1.Container {
 }
 
 func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
-
 	container := v1.Container{
 		Name: "mgr",
 		Command: []string{
@@ -282,7 +283,6 @@ func (c *Cluster) makeCmdProxySidecarContainer(mgrConfig *mgrConfig) v1.Containe
 
 // MakeMetricsService generates the Kubernetes service object for the monitoring service
 func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) (*v1.Service, error) {
-
 	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
 	selectorLabels := c.buildSelectorLabels(labels)
 
@@ -317,7 +317,6 @@ func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) (*v1.Se
 }
 
 func (c *Cluster) makeDashboardService(name string) (*v1.Service, error) {
-
 	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
 	selectorLabels := c.buildSelectorLabels(labels)
 

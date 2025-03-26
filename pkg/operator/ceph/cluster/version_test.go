@@ -31,7 +31,6 @@ import (
 )
 
 func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
-
 	// 1st test
 	fakeImageVersion := cephver.Reef
 	fakeRunningVersions := []byte(`
@@ -98,8 +97,10 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 5 test - spec version and running cluster versions are identical --> we upgrade
-	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0,
-		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
+	fakeImageVersion = cephver.CephVersion{
+		Major: 19, Minor: 2, Extra: 0,
+		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc",
+	}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
@@ -115,8 +116,10 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.False(t, m)
 
 	// 6 test - spec version and running cluster have different commit ID
-	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0, Build: 139,
-		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
+	fakeImageVersion = cephver.CephVersion{
+		Major: 19, Minor: 2, Extra: 0, Build: 139,
+		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc",
+	}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
@@ -132,8 +135,10 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 7 test - spec version and running cluster have same commit ID
-	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0,
-		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
+	fakeImageVersion = cephver.CephVersion{
+		Major: 19, Minor: 2, Extra: 0,
+		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc",
+	}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {

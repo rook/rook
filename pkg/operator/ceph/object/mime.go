@@ -63,7 +63,9 @@ func (c *clusterConfig) mimeTypesVolume() v1.Volume {
 		VolumeSource: v1.VolumeSource{
 			ConfigMap: &v1.ConfigMapVolumeSource{LocalObjectReference: v1.LocalObjectReference{
 				Name: c.mimeTypesConfigMapName(),
-			}}}}
+			}},
+		},
+	}
 }
 
 func (c *clusterConfig) mimeTypesVolumeMount() v1.VolumeMount {

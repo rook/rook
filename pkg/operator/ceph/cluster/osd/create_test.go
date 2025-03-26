@@ -56,7 +56,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 
-	var oldCreateDaemonOnNodeFunc = createDaemonOnNodeFunc
+	oldCreateDaemonOnNodeFunc := createDaemonOnNodeFunc
 	defer func() {
 		createDaemonOnNodeFunc = oldCreateDaemonOnNodeFunc
 	}()
@@ -70,7 +70,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		return nil
 	}
 
-	var oldCreateDaemonOnPVCFunc = createDaemonOnPVCFunc
+	oldCreateDaemonOnPVCFunc := createDaemonOnPVCFunc
 	defer func() {
 		createDaemonOnPVCFunc = oldCreateDaemonOnPVCFunc
 	}()

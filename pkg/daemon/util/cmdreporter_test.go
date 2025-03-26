@@ -44,15 +44,20 @@ func TestCommandMarshallingUnmarshalling(t *testing.T) {
 	}{
 		{name: "one command only", args: args{cmd: []string{"one"}, args: []string{}}},
 		{name: "no command or args", args: args{
-			cmd: []string{}, args: []string{}}},
+			cmd: []string{}, args: []string{},
+		}},
 		{name: "no command w/ args", args: args{
-			cmd: []string{}, args: []string{"arg1", "arg2"}}},
+			cmd: []string{}, args: []string{"arg1", "arg2"},
+		}},
 		{name: "one command w/ args", args: args{
-			cmd: []string{"one"}, args: []string{"arg1", "arg2"}}},
+			cmd: []string{"one"}, args: []string{"arg1", "arg2"},
+		}},
 		{name: "multi command only", args: args{
-			cmd: []string{"one", "two", "three"}, args: []string{}}},
+			cmd: []string{"one", "two", "three"}, args: []string{},
+		}},
 		{name: "multi command and arg", args: args{
-			cmd: []string{"one", "two", "three"}, args: []string{"arg1", "arg2", "--", "arg3"}}},
+			cmd: []string{"one", "two", "three"}, args: []string{"arg1", "arg2", "--", "arg3"},
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

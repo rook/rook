@@ -33,9 +33,7 @@ const (
 	rootFSPath = "/rootfs"
 )
 
-var (
-	binPathsToCheck = []string{"/usr/sbin", "/sbin/", "/run/current-system/sw/bin", "/run/current-system/sw/sbin"}
-)
+var binPathsToCheck = []string{"/usr/sbin", "/sbin/", "/run/current-system/sw/bin", "/run/current-system/sw/sbin"}
 
 // NSEnter is an nsenter object
 type NSEnter struct {

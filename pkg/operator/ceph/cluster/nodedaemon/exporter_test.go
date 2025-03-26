@@ -201,12 +201,14 @@ func TestApplyCephExporterLabels(t *testing.T) {
 	cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
 
 	sm := &monitoringv1.ServiceMonitor{Spec: monitoringv1.ServiceMonitorSpec{
-		Endpoints: []monitoringv1.Endpoint{{}}}}
+		Endpoints: []monitoringv1.Endpoint{{}},
+	}}
 
 	// Service Monitor RelabelConfigs updated when 'rook.io/managedBy' monitoring label is found
 	monitoringLabels := cephv1.LabelsSpec{
 		cephv1.KeyCephExporter: map[string]string{
-			"rook.io/managedBy": "storagecluster"},
+			"rook.io/managedBy": "storagecluster",
+		},
 	}
 	cephCluster.Spec.Labels = monitoringLabels
 	applyCephExporterLabels(cephCluster, sm)
@@ -217,7 +219,8 @@ func TestApplyCephExporterLabels(t *testing.T) {
 	// Service Monitor RelabelConfigs not updated when the required monitoring label is not found
 	monitoringLabels = cephv1.LabelsSpec{
 		cephv1.KeyCephExporter: map[string]string{
-			"wrongLabelKey": "storagecluster"},
+			"wrongLabelKey": "storagecluster",
+		},
 	}
 	cephCluster.Spec.Labels = monitoringLabels
 	sm.Spec.Endpoints[0].RelabelConfigs = nil

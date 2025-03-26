@@ -129,7 +129,6 @@ func TestNewRBDCommand(t *testing.T) {
 		output, err := cmd.Run()
 		assert.NoError(t, err)
 		assert.Equal(t, "success", string(output))
-
 	})
 	t.Run("rbd command with multus", func(t *testing.T) {
 		clusterInfo := AdminTestClusterInfo("rook")
@@ -158,7 +157,6 @@ func TestNewRBDCommand(t *testing.T) {
 		// This is not the best but it shows we go through the right codepath
 		assert.EqualError(t, err, "context canceled")
 	})
-
 }
 
 func TestNewGaneshaRadosGraceCommand(t *testing.T) {

@@ -42,14 +42,13 @@ func TestMonStore_Set(t *testing.T) {
 	// us to cause it to return an error when it detects a keyword.
 	execedCmd := ""
 	execInjectErr := false
-	executor.MockExecuteCommandWithTimeout =
-		func(timeout time.Duration, command string, args ...string) (string, error) {
-			execedCmd = command + " " + strings.Join(args, " ")
-			if execInjectErr {
-				return "output from cmd with error", errors.New("mocked error")
-			}
-			return "", nil
+	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
+		execedCmd = command + " " + strings.Join(args, " ")
+		if execInjectErr {
+			return "output from cmd with error", errors.New("mocked error")
 		}
+		return "", nil
+	}
 
 	monStore := GetMonStore(ctx, client.AdminTestClusterInfo("mycluster"))
 
@@ -87,14 +86,13 @@ func TestMonStore_Delete(t *testing.T) {
 	// us to cause it to return an error when it detects a keyword.
 	execedCmd := ""
 	execInjectErr := false
-	executor.MockExecuteCommandWithTimeout =
-		func(timeout time.Duration, command string, args ...string) (string, error) {
-			execedCmd = command + " " + strings.Join(args, " ")
-			if execInjectErr {
-				return "output from cmd with error", errors.New("mocked error")
-			}
-			return "", nil
+	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
+		execedCmd = command + " " + strings.Join(args, " ")
+		if execInjectErr {
+			return "output from cmd with error", errors.New("mocked error")
 		}
+		return "", nil
+	}
 
 	monStore := GetMonStore(ctx, client.AdminTestClusterInfo("mycluster"))
 
@@ -126,14 +124,13 @@ func TestMonStore_GetDaemon(t *testing.T) {
 		"\"rgw_enable_usage_log\":{\"value\":\"true\",\"section\":\"client.rgw.test.a\",\"mask\":{}," +
 		"\"can_update_at_runtime\":true}}"
 	execInjectErr := false
-	executor.MockExecuteCommandWithTimeout =
-		func(timeout time.Duration, command string, args ...string) (string, error) {
-			execedCmd = command + " " + strings.Join(args, " ")
-			if execInjectErr {
-				return "output from cmd with error", errors.New("mocked error")
-			}
-			return execReturn, nil
+	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
+		execedCmd = command + " " + strings.Join(args, " ")
+		if execInjectErr {
+			return "output from cmd with error", errors.New("mocked error")
 		}
+		return execReturn, nil
+	}
 
 	monStore := GetMonStore(ctx, client.AdminTestClusterInfo("mycluster"))
 
@@ -172,11 +169,10 @@ func TestMonStore_DeleteDaemon(t *testing.T) {
 		"\"can_update_at_runtime\":true}," +
 		"\"rgw_enable_usage_log\":{\"value\":\"true\",\"section\":\"client.rgw.test.a\",\"mask\":{}," +
 		"\"can_update_at_runtime\":true}}"
-	executor.MockExecuteCommandWithTimeout =
-		func(timeout time.Duration, command string, args ...string) (string, error) {
-			execedCmd = command + " " + strings.Join(args, " ")
-			return execReturn, nil
-		}
+	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
+		execedCmd = command + " " + strings.Join(args, " ")
+		return execReturn, nil
+	}
 
 	monStore := GetMonStore(ctx, client.AdminTestClusterInfo("mycluster"))
 
@@ -197,11 +193,10 @@ func TestMonStore_SetAll(t *testing.T) {
 	// create a mock command runner which creates a simple string of the command it ran, and allow
 	// us to cause it to return an error when it detects a keyword.
 	appliedSettings := false
-	executor.MockExecuteCommandWithTimeout =
-		func(timeout time.Duration, command string, args ...string) (string, error) {
-			appliedSettings = true
-			return "", nil
-		}
+	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
+		appliedSettings = true
+		return "", nil
+	}
 
 	monStore := GetMonStore(ctx, client.AdminTestClusterInfo("mycluster"))
 

@@ -185,7 +185,6 @@ func AddDataPoolToFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo
 
 // SetNumMDSRanks sets the number of mds ranks (max_mds) for a Ceph filesystem.
 func SetNumMDSRanks(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, activeMDSCount int32) error {
-
 	// Always tell Ceph to set the new max_mds value
 	args := []string{"fs", "set", fsName, "max_mds", strconv.Itoa(int(activeMDSCount))}
 	if _, err := NewCephCommand(context, clusterInfo, args).Run(); err != nil {
@@ -372,7 +371,6 @@ func WaitForNoStandbys(context *clusterd.Context, clusterInfo *ClusterInfo, fsNa
 		}
 		return !filesystemHasStandby(mdsDump, fsName), nil
 	})
-
 	if err != nil {
 		return errors.Wrap(err, "timeout waiting for no standbys")
 	}

@@ -150,8 +150,10 @@ func (s *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
 func (s *MultiClusterDeploySuite) setupMultiClusterCore() {
 	root, err := utils.FindRookRoot()
 	require.NoError(s.T(), err, "failed to get rook root")
-	cmdArgs := utils.CommandArgs{Command: filepath.Join(root, localPathPVCmd),
-		CmdArgs: []string{installer.TestScratchDevice()}}
+	cmdArgs := utils.CommandArgs{
+		Command: filepath.Join(root, localPathPVCmd),
+		CmdArgs: []string{installer.TestScratchDevice()},
+	}
 	cmdOut := utils.ExecuteCommand(cmdArgs)
 	require.NoError(s.T(), cmdOut.Err)
 

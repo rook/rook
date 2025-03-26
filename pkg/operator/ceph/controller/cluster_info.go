@@ -197,7 +197,7 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 	}
 
 	dir := path.Join(context.ConfigDir, namespace)
-	if err = os.MkdirAll(dir, 0744); err != nil {
+	if err = os.MkdirAll(dir, 0o744); err != nil {
 		return nil, errors.Wrapf(err, "failed to create dir %s", dir)
 	}
 
@@ -212,7 +212,8 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 		"--cap", "mon", "'allow *'",
 		"--cap", "osd", "'allow *'",
 		"--cap", "mgr", "'allow *'",
-		"--cap", "mds", "'allow'"}
+		"--cap", "mds", "'allow'",
+	}
 	adminSecret, err := genSecret(context.Executor, dir, cephclient.AdminUsername, args)
 	if err != nil {
 		return nil, err
@@ -228,6 +229,7 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 		},
 	}, nil
 }
+
 func genSecret(executor exec.Executor, configDir, name string, args []string) (string, error) {
 	path := path.Join(configDir, fmt.Sprintf("%s.keyring", name))
 	path = strings.Replace(path, "..", ".", 1)

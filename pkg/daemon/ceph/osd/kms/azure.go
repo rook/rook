@@ -88,7 +88,7 @@ func azureKVCert(ctx context.Context, context *clusterd.Context, namespace strin
 		return nil, removeCertFiles, errors.Wrapf(err, "failed to generate temp file for k8s secret %q content", clientCertSecretName)
 	}
 
-	err = os.WriteFile(file.Name(), secret.Data["CLIENT_CERT"], 0400)
+	err = os.WriteFile(file.Name(), secret.Data["CLIENT_CERT"], 0o400)
 	if err != nil {
 		return nil, removeCertFiles, errors.Wrapf(err, "failed to write k8s secret %q content to a file", clientCertSecretName)
 	}

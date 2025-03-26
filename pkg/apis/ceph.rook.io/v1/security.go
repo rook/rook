@@ -24,9 +24,7 @@ import (
 	"github.com/libopenstorage/secrets/vault"
 )
 
-var (
-	VaultTLSConnectionDetails = []string{api.EnvVaultCACert, api.EnvVaultClientCert, api.EnvVaultClientKey}
-)
+var VaultTLSConnectionDetails = []string{api.EnvVaultCACert, api.EnvVaultClientCert, api.EnvVaultClientKey}
 
 // IsEnabled return whether a KMS is configured
 func (kms *KeyManagementServiceSpec) IsEnabled() bool {

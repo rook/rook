@@ -344,7 +344,11 @@ func networkStatusVolumeAndMount() (corev1.Volume, corev1.VolumeMount) {
 					Path: "network-status",
 					FieldRef: &corev1.ObjectFieldSelector{
 						FieldPath: `metadata.annotations['` + nadv1.NetworkStatusAnnot + `']`,
-					}}}}}}
+					},
+				}},
+			},
+		},
+	}
 	mnt := corev1.VolumeMount{
 		Name:      "network-status",
 		MountPath: "/var/lib/rook/multus",

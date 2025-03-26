@@ -55,8 +55,9 @@ func TestValidateConnectionDetails(t *testing.T) {
 			Name:      "kmip-token",
 			Namespace: ns,
 		},
-		Data: map[string][]byte{"CLIENT_CERT": []byte("bar"),
-			"CLIENT_KEY": []byte("bar"),
+		Data: map[string][]byte{
+			"CLIENT_CERT": []byte("bar"),
+			"CLIENT_KEY":  []byte("bar"),
 		},
 	}
 	tlsSecret := &v1.Secret{
@@ -176,7 +177,6 @@ func TestValidateConnectionDetails(t *testing.T) {
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to validate kms configuration (missing token in spec)")
 		ibmKMSSpec.TokenSecretName = "ibm-token"
-
 	})
 
 	t.Run("ibm kp - token present but no key for service key", func(t *testing.T) {

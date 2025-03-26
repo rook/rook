@@ -17,10 +17,9 @@ package client
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
-
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -187,7 +186,6 @@ func TestListImageLogLevelInfo(t *testing.T) {
 				return `[]`, nil
 			} else {
 				return `[{"image":"image1","size":1048576,"format":2},{"image":"image2","size":2048576,"format":2},{"image":"image3","size":3048576,"format":2}]`, nil
-
 			}
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)

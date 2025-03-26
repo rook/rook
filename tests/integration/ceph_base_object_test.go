@@ -242,8 +242,8 @@ func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, s
 
 func createCephObjectUser(
 	s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
-	namespace, storeName, userID string, checkQuotaAndCaps bool) {
-
+	namespace, storeName, userID string, checkQuotaAndCaps bool,
+) {
 	maxObjectInt, err := strconv.Atoi(maxObject)
 	assert.Nil(s.T(), err)
 	logger.Infof("creating CephObjectStore user %q for store %q in namespace %q", userID, storeName, namespace)
@@ -262,8 +262,8 @@ func createCephObjectUser(
 
 func checkCephObjectUser(
 	s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
-	namespace, storeName, userID string, checkQuotaAndCaps bool) {
-
+	namespace, storeName, userID string, checkQuotaAndCaps bool,
+) {
 	logger.Infof("checking object store \"%s/%s\" user %q", namespace, storeName, userID)
 	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userID))
 
@@ -289,8 +289,10 @@ func generateRgwTlsCertSecret(t *testing.T, helper *clients.TestClient, k8sh *ut
 	root, err := utils.FindRookRoot()
 	require.NoError(t, err, "failed to get rook root")
 	tlscertdir := t.TempDir()
-	cmdArgs := utils.CommandArgs{Command: filepath.Join(root, "tests/scripts/generate-tls-config.sh"),
-		CmdArgs: []string{tlscertdir, rgwServiceName, namespace}}
+	cmdArgs := utils.CommandArgs{
+		Command: filepath.Join(root, "tests/scripts/generate-tls-config.sh"),
+		CmdArgs: []string{tlscertdir, rgwServiceName, namespace},
+	}
 	cmdOut := utils.ExecuteCommand(cmdArgs)
 	require.NoError(t, cmdOut.Err)
 	tlsKeyIn, err := os.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".key"))

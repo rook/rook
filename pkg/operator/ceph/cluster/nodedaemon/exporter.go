@@ -50,9 +50,7 @@ const (
 	exporterKeyName                  = "rook-ceph-exporter-keyring"
 )
 
-var (
-	MinVersionForCephExporter = cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
-)
+var MinVersionForCephExporter = cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
 
 // createOrUpdateCephExporter is a wrapper around controllerutil.CreateOrUpdate
 func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations []corev1.Toleration, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) (controllerutil.OperationResult, error) {
@@ -88,7 +86,6 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 		keyring.Volume().Exporter())
 
 	mutateFunc := func() error {
-
 		// labels for the pod, the deployment, and the deploymentSelector
 		deploymentLabels := map[string]string{
 			k8sutil.LabelHostname(): nodeHostnameLabel,

@@ -48,7 +48,7 @@ func Test_tlsSecretPath(t *testing.T) {
 }
 
 func TestVaultSecretVolumeAndMount(t *testing.T) {
-	m := int32(0444)
+	m := int32(0o444)
 	type args struct {
 		config          map[string]string
 		tokenSecretName string
@@ -59,8 +59,10 @@ func TestVaultSecretVolumeAndMount(t *testing.T) {
 		want []v1.VolumeProjection
 	}{
 		{"empty", args{config: map[string]string{"foo": "bar"}, tokenSecretName: ""}, []v1.VolumeProjection{}},
-		{"single ca", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}, tokenSecretName: ""}, []v1.VolumeProjection{
-			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}}},
+		{
+			"single ca", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}, tokenSecretName: ""}, []v1.VolumeProjection{
+				{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
+			},
 		},
 		{"ca and client cert", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret", "VAULT_CLIENT_CERT": "vault-client-cert"}, tokenSecretName: ""}, []v1.VolumeProjection{
 			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
@@ -71,8 +73,10 @@ func TestVaultSecretVolumeAndMount(t *testing.T) {
 			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-client-cert"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.crt", Mode: &m}}, Optional: nil}},
 			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-client-key"}, Items: []v1.KeyToPath{{Key: "key", Path: "vault.key", Mode: &m}}, Optional: nil}},
 		}},
-		{"token file", args{tokenSecretName: "vault-token", config: map[string]string{"foo": "bar"}}, []v1.VolumeProjection{
-			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}}},
+		{
+			"token file", args{tokenSecretName: "vault-token", config: map[string]string{"foo": "bar"}}, []v1.VolumeProjection{
+				{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}},
+			},
 		},
 		{"token and ca", args{tokenSecretName: "vault-token", config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}}, []v1.VolumeProjection{
 			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
@@ -100,7 +104,7 @@ func TestVaultSecretVolumeAndMount(t *testing.T) {
 }
 
 func TestVaultVolumeAndMountWithCustomName(t *testing.T) {
-	m := int32(0444)
+	m := int32(0o444)
 	type args struct {
 		config          map[string]string
 		tokenSecretName string
@@ -114,27 +118,39 @@ func TestVaultVolumeAndMountWithCustomName(t *testing.T) {
 	}{
 		{"empty without custom name", args{config: map[string]string{}, tokenSecretName: "", customName: ""}, v1.Volume{}, v1.VolumeMount{}},
 		{"no kms related configs without custom name", args{config: map[string]string{"foo": "bar"}, tokenSecretName: "", customName: ""}, v1.Volume{Name: secrets.TypeVault, VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{}}}}, v1.VolumeMount{Name: secrets.TypeVault, ReadOnly: true, MountPath: EtcVaultDir}},
-		{"only cert passed without custom name", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}, tokenSecretName: "", customName: ""}, v1.Volume{Name: secrets.TypeVault, VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
-			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}}}}}}, v1.VolumeMount{Name: secrets.TypeVault, ReadOnly: true, MountPath: EtcVaultDir},
+		{
+			"only cert passed without custom name", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}, tokenSecretName: "", customName: ""}, v1.Volume{Name: secrets.TypeVault, VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
+				{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
+			}}}}, v1.VolumeMount{Name: secrets.TypeVault, ReadOnly: true, MountPath: EtcVaultDir},
 		},
-		{"only token passed without custom name", args{tokenSecretName: "vault-token", config: map[string]string{"foo": "bar"}, customName: ""}, v1.Volume{Name: secrets.TypeVault, VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
-			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}}}}}}, v1.VolumeMount{Name: secrets.TypeVault, ReadOnly: true, MountPath: EtcVaultDir},
+		{
+			"only token passed without custom name", args{tokenSecretName: "vault-token", config: map[string]string{"foo": "bar"}, customName: ""}, v1.Volume{Name: secrets.TypeVault, VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
+				{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}},
+			}}}}, v1.VolumeMount{Name: secrets.TypeVault, ReadOnly: true, MountPath: EtcVaultDir},
 		},
-		{"both token and cert passed without custom name", args{tokenSecretName: "vault-token", config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}, customName: ""}, v1.Volume{Name: secrets.TypeVault, VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
-			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
-			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}}}}}}, v1.VolumeMount{Name: secrets.TypeVault, ReadOnly: true, MountPath: EtcVaultDir},
+		{
+			"both token and cert passed without custom name", args{tokenSecretName: "vault-token", config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}, customName: ""}, v1.Volume{Name: secrets.TypeVault, VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
+				{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
+				{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}},
+			}}}}, v1.VolumeMount{Name: secrets.TypeVault, ReadOnly: true, MountPath: EtcVaultDir},
 		},
 		{"empty with custom name", args{config: map[string]string{}, tokenSecretName: "", customName: "custom"}, v1.Volume{}, v1.VolumeMount{}},
 		{"no kms related configs with custom name", args{config: map[string]string{"foo": "bar"}, tokenSecretName: "", customName: "custom"}, v1.Volume{Name: secrets.TypeVault + "custom", VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{}}}}, v1.VolumeMount{Name: secrets.TypeVault + "custom", ReadOnly: true, MountPath: path.Join(EtcVaultDir, "custom")}},
-		{"only cert passed with custom name", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}, tokenSecretName: "", customName: "custom"}, v1.Volume{Name: secrets.TypeVault + "custom", VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
-			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}}}}}}, v1.VolumeMount{Name: secrets.TypeVault + "custom", ReadOnly: true, MountPath: path.Join(EtcVaultDir, "custom")},
+		{
+			"only cert passed with custom name", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}, tokenSecretName: "", customName: "custom"}, v1.Volume{Name: secrets.TypeVault + "custom", VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
+				{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
+			}}}}, v1.VolumeMount{Name: secrets.TypeVault + "custom", ReadOnly: true, MountPath: path.Join(EtcVaultDir, "custom")},
 		},
-		{"only token passed with custom name", args{tokenSecretName: "vault-token", config: map[string]string{"foo": "bar"}, customName: "custom"}, v1.Volume{Name: secrets.TypeVault + "custom", VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
-			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}}}}}}, v1.VolumeMount{Name: secrets.TypeVault + "custom", ReadOnly: true, MountPath: path.Join(EtcVaultDir, "custom")},
+		{
+			"only token passed with custom name", args{tokenSecretName: "vault-token", config: map[string]string{"foo": "bar"}, customName: "custom"}, v1.Volume{Name: secrets.TypeVault + "custom", VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
+				{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}},
+			}}}}, v1.VolumeMount{Name: secrets.TypeVault + "custom", ReadOnly: true, MountPath: path.Join(EtcVaultDir, "custom")},
 		},
-		{"both token and cert passed with custom name", args{tokenSecretName: "vault-token", config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}, customName: "custom"}, v1.Volume{Name: secrets.TypeVault + "custom", VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
-			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
-			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}}}}}}, v1.VolumeMount{Name: secrets.TypeVault + "custom", ReadOnly: true, MountPath: path.Join(EtcVaultDir, "custom")},
+		{
+			"both token and cert passed with custom name", args{tokenSecretName: "vault-token", config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}, customName: "custom"}, v1.Volume{Name: secrets.TypeVault + "custom", VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: []v1.VolumeProjection{
+				{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
+				{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}},
+			}}}}, v1.VolumeMount{Name: secrets.TypeVault + "custom", ReadOnly: true, MountPath: path.Join(EtcVaultDir, "custom")},
 		},
 	}
 	for _, tt := range tests {
@@ -146,13 +162,12 @@ func TestVaultVolumeAndMountWithCustomName(t *testing.T) {
 			if !reflect.DeepEqual(gotVolMount, tt.wantVolMount) {
 				t.Errorf("VaultVolumeAndMountWithCustomName() = %v, want %v", gotVolMount, tt.wantVolMount)
 			}
-
 		})
 	}
 }
 
 func TestKMIPVolumeAndMount(t *testing.T) {
-	mode := int32(0444)
+	mode := int32(0o444)
 	tokenSecretName := "kmip-credentials"
 	type args struct {
 		tokenSecretName string
@@ -174,7 +189,6 @@ func TestKMIPVolumeAndMount(t *testing.T) {
 					Projected: &v1.ProjectedVolumeSource{
 						Sources: []v1.VolumeProjection{
 							{
-
 								Secret: &v1.SecretProjection{
 									LocalObjectReference: v1.LocalObjectReference{
 										Name: tokenSecretName,

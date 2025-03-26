@@ -25,7 +25,6 @@ import (
 )
 
 func TestClusterMap(t *testing.T) {
-
 	sharedClusterMap := &ClusterMap{}
 
 	clusterInfo := sharedClusterMap.GetClusterInfo("rook-ceph-0")

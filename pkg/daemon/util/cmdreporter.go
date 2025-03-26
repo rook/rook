@@ -49,9 +49,7 @@ const (
 	CmdReporterConfigMapRetcodeKey = "retcode"
 )
 
-var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "job-reporter-cmd")
-)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "job-reporter-cmd")
 
 // CmdReporter is a process intended to be run in simple Kubernetes jobs. The CmdReporter runs a
 // command in a job and stores the results in a ConfigMap which can be read by the operator.

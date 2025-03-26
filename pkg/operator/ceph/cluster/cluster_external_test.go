@@ -42,5 +42,4 @@ func TestValidateExternalClusterSpec(t *testing.T) {
 	err = validateExternalClusterSpec(c)
 	assert.NoError(t, err, err)
 	assert.Equal(t, uint16(9283), c.Spec.Monitoring.ExternalMgrPrometheusPort)
-
 }
