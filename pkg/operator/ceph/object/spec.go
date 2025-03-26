@@ -46,6 +46,14 @@ const (
 	sseKMS             = "ssekms"
 	sseS3              = "sses3"
 	vaultPrefix        = "/v1/"
+
+	// Read Affinity settings for RGW clients to reduce cross-zone traffic
+	radosReadReplicaPolicy = "rados_replica_read_policy"
+	// read from a random OSD from the PG's active set
+	balanceReadReplicaPolicy = "balance"
+	// read from the primary OSD
+	defaultReadReplicaPolicy = "default"
+
 	//nolint:gosec // since this is not leaking any hardcoded details
 	setupVaultTokenFile = `
 set -e
@@ -377,7 +385,6 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 				strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
 			"--foreground",
 			cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontendName, c.portString())),
-			cephconfig.NewFlag("host", controller.ContainerEnvVarReference(k8sutil.PodNameEnvVar)),
 			cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
 			cephconfig.NewFlag("rgw realm", rgwConfig.Realm),
 			cephconfig.NewFlag("rgw zonegroup", rgwConfig.ZoneGroup),
@@ -456,6 +463,25 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 	}
 	if hostingOptions != "" {
 		container.Args = append(container.Args, hostingOptions)
+	}
+
+	// set RGW read Affinity
+	isCrushLocationSet := false
+	if c.store.Spec.Gateway.ReadAffinity != nil {
+		if c.clusterInfo.CephVersion.IsAtLeastTentacle() {
+			container.Args = append(container.Args, cephconfig.NewFlag(radosReadReplicaPolicy, c.store.Spec.Gateway.ReadAffinity.Type))
+			// set crush location if `balance` and `default` mode are not set.
+			if c.store.Spec.Gateway.ReadAffinity.Type != balanceReadReplicaPolicy && c.store.Spec.Gateway.ReadAffinity.Type != defaultReadReplicaPolicy {
+				container.Command = []string{"bash", "-x", "-c", `exec radosgw --crush-location="host=${NODE_NAME//./-}" "$@"`}
+				isCrushLocationSet = true
+			}
+		} else {
+			logger.Warning("can't set RGW read affinity for ceph version below v20 (tentacle)")
+		}
+	}
+
+	if !isCrushLocationSet {
+		container.Args = append(container.Args, cephconfig.NewFlag("host", controller.ContainerEnvVarReference(k8sutil.PodNameEnvVar)))
 	}
 
 	// user configs are very last arguments so that they override what Rook might be setting before
