@@ -154,8 +154,10 @@ vet: ## Runs lint checks on go sources.
 	@$(MAKE) go.vet
 
 fmt: ## Check formatting of go sources.
-	@$(MAKE) go.init
 	@$(MAKE) go.fmt
+
+fmt-fix:  ## Reformatting of go sources.
+	@$(MAKE) go.fmt-fix
 
 .PHONY: markdownlint
 markdownlint: ## Check formatting of documentation sources
@@ -164,10 +166,6 @@ markdownlint: ## Check formatting of documentation sources
 .PHONY: yamllint
 yamllint:
 	yamllint -c .yamllint deploy/examples/ --no-warnings
-
-.PHONY: golangci-lint
-golangci-lint:
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
 
 .PHONY: lint
 lint: yamllint pylint shellcheck vet markdownlint golangci-lint ## Run various linters

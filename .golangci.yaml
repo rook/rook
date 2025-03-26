@@ -1,0 +1,58 @@
+---
+version: "2"
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - gosec
+    - ineffassign
+    - staticcheck
+    - unused
+  exclusions:
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - staticcheck
+        text: "QF1003:" # could use tagged switch on errCode (staticcheck)
+      - linters:
+          - staticcheck
+        text: "ST1005:" # error strings should not be capitalized (staticcheck)
+      - linters:
+          - staticcheck
+        text: "QF1008:" # could remove embedded field "Connection" from selector (staticcheck)
+      - linters:
+          - staticcheck
+        text: "QF1007:" # could merge conditional assignment into variable declaration (staticcheck)
+      - linters:
+          - staticcheck
+        text: "ST1023:" # should omit type string from declaration; it will be inferred from the right-hand side (staticcheck)
+      - linters:
+          - staticcheck
+        text: "QF1001:" # could apply De Morgan's law (staticcheck)
+      - linters:
+          - staticcheck
+        text: "QF1002:" # could use tagged switch on args[0] (staticcheck)
+      - linters:
+          - staticcheck
+        text: "QF1011:" # could omit type string from declaration; it will be inferred from the right-hand side (staticcheck)
+      - linters:
+          - staticcheck
+        text: "QF1004:" # could use strings.ReplaceAll instead (staticcheck)
+      - linters:
+          - staticcheck
+        text: "ST1008:" # error should be returned as the last argument (staticcheck)
+      - linters:
+          - staticcheck
+        text: "ST1019" # package "github.com/rook/rook/pkg/daemon/ceph/client" is being imported more than once (staticcheck)
+      - linters:
+          - staticcheck
+        text: "QF1006:" # could lift into loop condition (staticcheck)
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
