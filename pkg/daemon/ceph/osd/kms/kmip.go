@@ -51,7 +51,8 @@ const (
 	// cryptographicLength of the key.
 	cryptographicLength = 256
 
-	//nolint:gosec, value not credential, just configuration keys.
+	// value not credential, just configuration keys.
+	//nolint:gosec
 	kmipEndpoint         = "KMIP_ENDPOINT"
 	kmipTLSServerName    = "TLS_SERVER_NAME"
 	kmipReadTimeOut      = "READ_TIMEOUT"

@@ -153,11 +153,14 @@ vet: ## Runs lint checks on go sources.
 	@$(MAKE) go.init
 	@$(MAKE) go.vet
 
-fmt: ## Check formatting of go sources.
+fmt: $(YQ) ## Check formatting of go sources.
 	@$(MAKE) go.fmt
 
-fmt-fix:  ## Reformatting of go sources.
+fmt-fix: $(YQ) ## Reformatting of go sources.
 	@$(MAKE) go.fmt-fix
+ 
+golangci-lint: $(YQ)
+	@$(MAKE) go.golangci-lint
 
 .PHONY: markdownlint
 markdownlint: ## Check formatting of documentation sources

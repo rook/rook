@@ -71,7 +71,16 @@ GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 GO_VERSION := $(shell $(GO) version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
 GO_FULL_VERSION := $(shell $(GO) version)
 
-GOLANGCI_LINT_VERSION := $(strip $(shell yq .jobs.golangci.steps[2].with.version .github/workflows/golangci-lint.yaml))
+YQ_VERSION = v4.45.1
+YQ := $(TOOLS_HOST_DIR)/yq-$(YQ_VERSION)
+export YQ
+$(YQ):
+	@echo === installing yq $(YQ_VERSION) $(REAL_HOST_PLATFORM)
+	@mkdir -p $(TOOLS_HOST_DIR)
+	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(REAL_HOST_PLATFORM) -o $(YQ)
+	@chmod +x $(YQ)
+
+GOLANGCI_LINT_VERSION := $(strip $(shell $(YQ) .jobs.golangci.steps[2].with.version .github/workflows/golangci-lint.yaml))
 GOLANGCI_LINT := $(TOOLS_HOST_DIR)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 
 GO_OUT_DIR := $(abspath $(OUTPUT_DIR)/bin/$(PLATFORM))
@@ -152,8 +161,8 @@ go.fmt: $(GOLANGCI_LINT)
 go.fmt-fix: $(GOLANGCI_LINT)
 	@$(GOLANGCI_LINT) fmt
 
-.PHONY: golangci-lint
-golangci-lint: $(GOLANGCI_LINT)
+.PHONY: go.golangci-lint
+go.golangci-lint: $(GOLANGCI_LINT)
 	@$(GOLANGCI_LINT) run
 
 go.validate: go.vet go.fmt
@@ -211,14 +220,6 @@ $(CONTROLLER_GEN):
 		rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 
-YQ_VERSION = v4.45.1
-YQ := $(TOOLS_HOST_DIR)/yq-$(YQ_VERSION)
-export YQ
-$(YQ):
-	@echo === installing yq $(YQ_VERSION) $(REAL_HOST_PLATFORM)
-	@mkdir -p $(TOOLS_HOST_DIR)
-	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(REAL_HOST_PLATFORM) -o $(YQ)
-	@chmod +x $(YQ)
 
 export CODE_GENERATOR_VERSION=0.31.3
 export CODE_GENERATOR=$(TOOLS_HOST_DIR)/code-generator-$(CODE_GENERATOR_VERSION)
