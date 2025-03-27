@@ -28,16 +28,16 @@ import (
 )
 
 // updateStatus updates a pool CR with the given status
-func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64) {
+func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64) bool {
 	pool := &cephv1.CephBlockPool{}
 	err := r.client.Get(r.opManagerContext, poolName, pool)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
-			return
+			return true
 		}
 		logger.Warningf("failed to retrieve pool %q to update status to %q. %v", poolName, status, err)
-		return
+		return false
 	}
 
 	if pool.Status == nil {
@@ -56,9 +56,10 @@ func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, sta
 	}
 	if err := reporting.UpdateStatus(r.client, pool); err != nil {
 		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
-		return
+		return false
 	}
 	logger.Debugf("pool %q status updated to %q", poolName, status)
+	return true
 }
 
 func updateStatusInfo(cephBlockPool *cephv1.CephBlockPool) {
