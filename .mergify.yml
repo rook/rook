@@ -15,59 +15,6 @@ pull_request_rules:
       comment:
         message: Hi @{{author}}, this pull request was opened against a release branch, is it expected? Normally patches should go in the master branch first and then be backported to release branches.
 
-  # release-1.13 branch
-  - name: automerge backport release-1.13
-    conditions:
-      - author=mergify[bot]
-      - base=release-1.13
-      - label!=do-not-merge
-      - "status-success=DCO"
-      - "check-success=linux-build-all (1.21)"
-      - "check-success=unittests"
-      - "check-success=golangci-lint"
-      - "check-success=codegen"
-      - "check-success=codespell"
-      - "check-success=lint"
-      - "check-success=modcheck"
-      - "check-success=Shellcheck"
-      - "check-success=yaml-linter"
-      - "check-success=lint-test"
-      - "check-success=gen-rbac"
-      - "check-success=crds-gen"
-      - "check-success=docs-check"
-      - "check-success=pylint"
-      - "check-success=canary"
-      - "check-success=raw-disk"
-      - "check-success=two-osds-in-device"
-      - "check-success=osd-with-metadata-device"
-      - "check-success=encryption"
-      - "check-success=lvm"
-      - "check-success=pvc"
-      - "check-success=pvc-db"
-      - "check-success=pvc-db-wal"
-      - "check-success=encryption-pvc"
-      - "check-success=encryption-pvc-db"
-      - "check-success=encryption-pvc-db-wal"
-      - "check-success=encryption-pvc-kms-vault-token-auth"
-      - "check-success=encryption-pvc-kms-vault-k8s-auth"
-      - "check-success=lvm-pvc"
-      - "check-success=rgw-multisite-testing"
-      - "check-success=TestCephSmokeSuite (v1.23.17)"
-      - "check-success=TestCephSmokeSuite (v1.29.0)"
-      - "check-success=TestCephHelmSuite (v1.23.17)"
-      - "check-success=TestCephHelmSuite (v1.29.0)"
-      - "check-success=TestCephMultiClusterDeploySuite (v1.29.0)"
-      - "check-success=TestCephObjectSuite (v1.29.0)"
-      - "check-success=TestCephUpgradeSuite (v1.23.17)"
-      - "check-success=TestCephUpgradeSuite (v1.29.0)"
-      - "check-success=TestHelmUpgradeSuite (v1.23.17)"
-      - "check-success=TestHelmUpgradeSuite (v1.29.0)"
-    actions:
-      merge:
-        method: merge
-      dismiss_reviews: {}
-      delete_head_branch: {}
-
   # release-1.14 branch
   - name: automerge backport release-1.14
     conditions:
@@ -243,14 +190,62 @@ pull_request_rules:
       dismiss_reviews: {}
       delete_head_branch: {}
 
-  # release-1.13 branch
-  - actions:
-      backport:
-        branches:
-          - release-1.13
+  # release-1.17 branch
+  - name: automerge backport release-1.17
     conditions:
-      - label=backport-release-1.13
-    name: backport release-1.13
+      - author=mergify[bot]
+      - base=release-1.17
+      - label!=do-not-merge
+      - "status-success=DCO"
+      - "check-success=linux-build-all (1.22)"
+      - "check-success=unittests"
+      - "check-success=golangci-lint"
+      - "check-success=codegen"
+      - "check-success=codespell"
+      - "check-success=lint"
+      - "check-success=modcheck"
+      - "check-success=Shellcheck"
+      - "check-success=yaml-linter"
+      - "check-success=lint-test"
+      - "check-success=gen-rbac"
+      - "check-success=crds-gen"
+      - "check-success=docs-check"
+      - "check-success=pylint"
+      - "check-success=canary-tests / canary (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / raw-disk-with-object (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / two-osds-in-device (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / osd-with-metadata-partition-device (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / osd-with-metadata-device (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / lvm (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / pvc (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / pvc-db (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / pvc-db-wal (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc-db (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc-db-wal (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc-kms-vault-token-auth (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc-kms-vault-k8s-auth (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / lvm-pvc (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / multi-cluster-mirroring (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc-kms-ibm-kp (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / multus-public-and-cluster (quay.io/ceph/ceph:v19)"
+      - "check-success=TestCephSmokeSuite (v1.27.16)"
+      - "check-success=TestCephSmokeSuite (v1.32.0)"
+      - "check-success=TestCephHelmSuite (v1.27.16)"
+      - "check-success=TestCephHelmSuite (v1.32.0)"
+      - "check-success=TestCephMultiClusterDeploySuite (v1.32.0)"
+      - "check-success=TestCephObjectSuite (v1.27.16)"
+      - "check-success=TestCephObjectSuite (v1.32.0)"
+      - "check-success=TestCephUpgradeSuite (v1.27.16)"
+      - "check-success=TestCephUpgradeSuite (v1.32.0)"
+      - "check-success=TestHelmUpgradeSuite (v1.27.16)"
+      - "check-success=TestHelmUpgradeSuite (v1.32.0)"
+    actions:
+      merge:
+        method: merge
+      dismiss_reviews: {}
+      delete_head_branch: {}
 
   # release-1.14 branch
   - actions:
@@ -278,3 +273,12 @@ pull_request_rules:
     conditions:
       - label=backport-release-1.16
     name: backport release-1.16
+
+  # release-1.17 branch
+  - actions:
+      backport:
+        branches:
+          - release-1.17
+    conditions:
+      - label=backport-release-1.17
+    name: backport release-1.17
