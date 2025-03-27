@@ -18,6 +18,7 @@ limitations under the License.
 package pool
 
 import (
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -28,16 +29,16 @@ import (
 )
 
 // updateStatus updates a pool CR with the given status
-func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64) {
+func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64) error {
 	pool := &cephv1.CephBlockPool{}
 	err := r.client.Get(r.opManagerContext, poolName, pool)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
-			return
+			return nil
 		}
 		logger.Warningf("failed to retrieve pool %q to update status to %q. %v", poolName, status, err)
-		return
+		return errors.Wrapf(err, "failed to retrieve pool %q to update status to %q", poolName, status)
 	}
 
 	if pool.Status == nil {
@@ -56,9 +57,10 @@ func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, sta
 	}
 	if err := reporting.UpdateStatus(r.client, pool); err != nil {
 		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
-		return
+		return errors.Wrapf(err, "failed to set pool %q status to %q", pool.Name, status)
 	}
 	logger.Debugf("pool %q status updated to %q", poolName, status)
+	return nil
 }
 
 func updateStatusInfo(cephBlockPool *cephv1.CephBlockPool) {
