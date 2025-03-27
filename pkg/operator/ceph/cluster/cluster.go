@@ -129,19 +129,39 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 		return c.ClusterInfo.Context.Err()
 	}
 
-	// Execute actions after the monitors are up and running
-	logger.Debug("monitors are up and running, executing post actions")
-	err = c.postMonStartupActions()
-	if err != nil {
-		return errors.Wrap(err, "failed to execute post actions after all the ceph monitors started")
-	}
+	// Execute post-monitor actions and start mgr concurrently
+	logger.Debug("monitors are up and running, executing post actions and starting ceph mgr concurrently")
 
-	// Start Ceph manager
-	controller.UpdateCondition(c.ClusterInfo.Context, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph Mgr(s)")
-	mgrs := mgr.New(c.context, c.ClusterInfo, *c.Spec, rookImage)
-	err = mgrs.Start()
-	if err != nil {
-		return errors.Wrap(err, "failed to start ceph mgr")
+	var wg sync.WaitGroup
+	errChan := make(chan error, 2)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := c.postMonStartupActions(); err != nil {
+			errChan <- errors.Wrap(err, "failed to execute post actions after all the ceph monitors started")
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		controller.UpdateCondition(c.ClusterInfo.Context, c.context, c.namespacedName,
+			k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue,
+			cephv1.ClusterProgressingReason, "Configuring Ceph Mgr(s)")
+		mgrs := mgr.New(c.context, c.ClusterInfo, *c.Spec, rookImage)
+		if err := mgrs.Start(); err != nil {
+			errChan <- errors.Wrap(err, "failed to start ceph mgr")
+		}
+	}()
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
 	}
 
 	// Start the OSDs
