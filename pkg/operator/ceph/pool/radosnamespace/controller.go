@@ -161,9 +161,9 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing)
 	}
 
-	poolAndRadosNamespaceName := fmt.Sprintf("%s/%s", cephBlockPoolRadosNamespace.Spec.BlockPoolName, getRadosNamespaceName(cephBlockPoolRadosNamespace))
-	if getRadosNamespaceName(cephBlockPoolRadosNamespace) == "" {
-		poolAndRadosNamespaceName = cephBlockPoolRadosNamespace.Spec.BlockPoolName
+	poolAndRadosNamespaceName := cephBlockPoolRadosNamespace.Spec.BlockPoolName
+	if rns := getRadosNamespaceName(cephBlockPoolRadosNamespace); rns != "" {
+		poolAndRadosNamespaceName = fmt.Sprintf("%s/%s", cephBlockPoolRadosNamespace.Spec.BlockPoolName, rns)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -325,8 +325,8 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 }
 
 func getRadosNamespaceName(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace) string {
-	if cephBlockPoolRadosNamespace.Spec.Name == "<implicit>" {
-		return ""
+	if cephBlockPoolRadosNamespace.Spec.Name == cephclient.ImplicitNamespaceKey {
+		return cephclient.ImplicitNamespaceVal
 	} else if cephBlockPoolRadosNamespace.Spec.Name != "" {
 		return cephBlockPoolRadosNamespace.Spec.Name
 	}

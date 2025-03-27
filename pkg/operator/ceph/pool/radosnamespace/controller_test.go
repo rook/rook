@@ -27,6 +27,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -620,19 +621,28 @@ func TestGetRadosNamespaceName(t *testing.T) {
 		args cephv1.CephBlockPoolRadosNamespace
 		want string
 	}{
-		{"implicit-namespace", cephv1.CephBlockPoolRadosNamespace{
-			ObjectMeta: metav1.ObjectMeta{Name: "cr-name1"},
-			Spec:       cephv1.CephBlockPoolRadosNamespaceSpec{Name: "<implicit>"}},
-			"",
+		{
+			"implicit-namespace",
+			cephv1.CephBlockPoolRadosNamespace{
+				ObjectMeta: metav1.ObjectMeta{Name: "cr-name1"},
+				Spec:       cephv1.CephBlockPoolRadosNamespaceSpec{Name: cephclient.ImplicitNamespaceKey},
+			},
+			cephclient.ImplicitNamespaceVal,
 		},
-		{"valid-namespace", cephv1.CephBlockPoolRadosNamespace{
-			ObjectMeta: metav1.ObjectMeta{Name: "cr-name2"},
-			Spec:       cephv1.CephBlockPoolRadosNamespaceSpec{Name: "valid-ns"}},
+		{
+			"valid-namespace",
+			cephv1.CephBlockPoolRadosNamespace{
+				ObjectMeta: metav1.ObjectMeta{Name: "cr-name2"},
+				Spec:       cephv1.CephBlockPoolRadosNamespaceSpec{Name: "valid-ns"},
+			},
 			"valid-ns",
 		},
-		{"empty-namespace", cephv1.CephBlockPoolRadosNamespace{
-			ObjectMeta: metav1.ObjectMeta{Name: "cr-name3"},
-			Spec:       cephv1.CephBlockPoolRadosNamespaceSpec{}},
+		{
+			"empty-namespace",
+			cephv1.CephBlockPoolRadosNamespace{
+				ObjectMeta: metav1.ObjectMeta{Name: "cr-name3"},
+				Spec:       cephv1.CephBlockPoolRadosNamespaceSpec{},
+			},
 			"cr-name3",
 		},
 	}
