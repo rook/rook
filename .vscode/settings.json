@@ -25,4 +25,7 @@
     "Documentation/**/*.md",
     "!Documentation/Helm-Charts",
   ],
+  "gopls": {
+    "formatting.gofumpt": true
+  }
 }
