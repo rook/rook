@@ -1426,7 +1426,7 @@ class RadosJSON:
         r1 = r.json()
         if r1 is None or r1.get("info") is None:
             sys.stderr.write(
-                f"The provided rgw Endpoint, '{self._arg_parser.rgw_endpoint}', is invalid."
+                f"The provided rgw endpoint, '{self._arg_parser.rgw_endpoint}', is invalid with http status code: {r.status_code}"
             )
             return (
                 "",

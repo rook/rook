@@ -215,11 +215,11 @@ jobs:
           rgw_endpoint=$(kubectl get service -n rook-ceph -l rgw=store-a |  awk '/rgw/ {print $3":80"}')
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # pass the valid rgw-endpoint of same ceph cluster
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-zone-name store-a --rgw-zonegroup-name store-a --rgw-realm-name store-a 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
           tests/scripts/github-action-helper.sh check_empty_file output.txt
           rm -f output.txt
           # pass the invalid rgw-endpoint of different ceph cluster
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint 10.108.96.128:80  2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint 10.108.96.128:80 --rgw-zone-name store-a --rgw-zonegroup-name store-a --rgw-realm-name store-a 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
           if [ -s output.txt ]; then
             echo "script run completed with stderr error after passing the wrong rgw-endpoint: $output"
             rm -f output.txt
@@ -229,11 +229,11 @@ jobs:
             exit 1
           fi
           # pass the valid rgw-endpoint of same ceph cluster with --rgw-tls-cert-path
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-tls-cert-path my-cert 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-tls-cert-path my-cert --rgw-zone-name store-a --rgw-zonegroup-name store-a --rgw-realm-name store-a 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
           tests/scripts/github-action-helper.sh check_empty_file output.txt
           rm -f output.txt
           # pass the valid rgw-endpoint of same ceph cluster with --rgw-skip-tls
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-skip-tls true 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-skip-tls true --rgw-zone-name store-a --rgw-zonegroup-name store-a --rgw-realm-name store-a 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
           tests/scripts/github-action-helper.sh check_empty_file output.txt
           rm -f output.txt
 
