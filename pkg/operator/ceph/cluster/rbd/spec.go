@@ -57,7 +57,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 		// ceph-client.rbd-mirror.a.log
 		// <CLUSTER_FSID>-client.rbd-mirror-peer.log
 		logRotationFilter := "*-client.rbd-mirror*"
-		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(logRotationFilter, r.clusterInfo.Namespace, *r.cephClusterSpec))
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(logRotationFilter, r.clusterInfo.Namespace, *r.cephClusterSpec, nil))
 	}
 
 	// Replace default unreachable node toleration
