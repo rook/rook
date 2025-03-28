@@ -588,6 +588,70 @@ kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o jsonpa
 kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o jsonpath='{.data.SecretKey}' | base64 --decode
 ```
 
+### Managing User S3 Credentials
+
+The default behavior of `CephObjectStoreUser` is to place the S3 credentials generated when an RGW user is created into a Kubernetes Secret.
+The s3 credential(s) may also be explicitly set via `.spec.keys`.
+This field requires at least one keypair must and there is no maximum limit.
+When `.spec.keys` is present, no `Secret` is created for the user.
+If an existing `CephObjectStoreUser` is being transited to using explicit keys, the existing `Secret` will be deleted.
+Conversely, if a `.spec.keys` is patched out of an existing `CephObjectStoreUser` all except one of keypairs set on the user will be purged and a `Secret` will be created holding the only remaining keypair.
+
+!!! important
+    When `.spec.keys` is not set, all but **one** keypair will be removed from the rgw user.
+    When `.spec.keys` is set, any keypair not explicitly specified will be removed from the rgw user.
+
+Example of explicitly managing the rgw user's keypairs:
+
+```yaml
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: foo
+  namespace: rook-ceph
+spec:
+  store: my-store
+  clusterNamespace: rook-ceph
+  keys:
+    - acccessKeyRef
+        name: foo-s3
+        key: AWS_ACCESS_KEY_ID
+      secretKeyRef
+        name: foo-s3
+        key: AWS_SECRET_ACCESS_KEY
+    - acccessKeyRef
+        name: bar-s3
+        key: AWS_ACCESS_KEY_ID
+      secretKeyRef
+        name: bar-s3
+        key: AWS_SECRET_ACCESS_KEY
+```
+
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: foo-s3
+  namespace: rook-ceph
+data:
+  AWS_ACCESS_KEY_ID: baz
+  AWS_SECRET_ACCESS_KEY:baz
+```
+
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bar-s3
+  namespace: rook-ceph
+data:
+  AWS_ACCESS_KEY_ID: qux
+  AWS_SECRET_ACCESS_KEY: quxbar
+```
+
 ## Enable TLS
 
 TLS is critical for securing object storage data access, and it is assumed as a default by many S3
