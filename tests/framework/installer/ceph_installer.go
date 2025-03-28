@@ -271,10 +271,6 @@ func (h *CephInstaller) CreateCephCluster() error {
 
 func (h *CephInstaller) waitForCluster() error {
 	monWaitLabel := "app=rook-ceph-mon,mon_daemon=true"
-	if h.Manifests.Settings().RookVersion == Version1_15 {
-		// TODO: Remove this when upgrade test is from v1.15.7 since prior releases do not have the mon_daemon label
-		monWaitLabel = "app=rook-ceph-mon"
-	}
 	if err := h.k8shelper.WaitForPodCount(monWaitLabel, h.settings.Namespace, h.settings.Mons); err != nil {
 		return err
 	}
@@ -472,7 +468,7 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 }
 
 func (h *CephInstaller) InstallCSIOperator() error {
-	if h.settings.RookVersion == Version1_15 {
+	if h.settings.RookVersion == Version1_16 {
 		logger.Infof("Skipping the CSI operator installation for previous version of Rook")
 		return nil
 	}
