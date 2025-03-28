@@ -799,7 +799,7 @@ func GetLogRotateConfig(c cephv1.ClusterSpec) (resource.Quantity, string) {
 }
 
 // LogCollectorContainer rotate logs
-func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, additionalLogFiles ...string) *v1.Container {
+func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, env []v1.EnvVar, additionalLogFiles ...string) *v1.Container {
 	maxLogSize, periodicity := GetLogRotateConfig(c)
 	rotation := "7"
 
@@ -829,11 +829,12 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, additional
 		Resources:       cephv1.GetLogCollectorResources(c.Resources),
 		// We need a TTY for the bash job control (enabled by -m)
 		TTY: true,
+		Env: env,
 	}
 }
 
 // rgw operations will be logged in sidecar ops-log
-func RgwOpsLogSidecarContainer(opsLogFile, ns string, c cephv1.ClusterSpec, Resources v1.ResourceRequirements) *v1.Container {
+func RgwOpsLogSidecarContainer(opsLogFile, ns string, c cephv1.ClusterSpec, env []v1.EnvVar, Resources v1.ResourceRequirements) *v1.Container {
 	return &v1.Container{
 		Name: "ops-log",
 		Command: []string{
@@ -849,6 +850,7 @@ func RgwOpsLogSidecarContainer(opsLogFile, ns string, c cephv1.ClusterSpec, Reso
 		Resources:       Resources,
 		// We need a TTY for the bash job control (enabled by -m)
 		TTY: true,
+		Env: env,
 	}
 }
 
