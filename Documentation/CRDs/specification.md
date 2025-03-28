@@ -7491,6 +7491,34 @@ string
 <p>The ack level required for this topic (none/broker)</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>UserRef</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
+Kubernetes core/v1.SecretKeySelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The kafka user name to use for authentication</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>PassRef</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
+Kubernetes core/v1.SecretKeySelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The kafka password to use for authentication</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.KerberosConfigFiles">KerberosConfigFiles
