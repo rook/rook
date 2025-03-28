@@ -22,18 +22,17 @@ import (
 	"testing"
 
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
-
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
-
-	"github.com/coreos/pkg/capnslog"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -614,4 +613,45 @@ func Test_buildClusterID(t *testing.T) {
 	cephBlockPoolRadosNamespace := &cephv1.CephBlockPoolRadosNamespace{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Name: longName}, Spec: cephv1.CephBlockPoolRadosNamespaceSpec{BlockPoolName: "replicapool"}}
 	clusterID := buildClusterID(cephBlockPoolRadosNamespace)
 	assert.Equal(t, "2a74e5201e6ff9d15916ce2109c4f868", clusterID)
+}
+
+func TestGetRadosNamespaceName(t *testing.T) {
+	tests := []struct {
+		name string
+		args cephv1.CephBlockPoolRadosNamespace
+		want string
+	}{
+		{
+			"implicit-namespace",
+			cephv1.CephBlockPoolRadosNamespace{
+				ObjectMeta: metav1.ObjectMeta{Name: "cr-name1"},
+				Spec:       cephv1.CephBlockPoolRadosNamespaceSpec{Name: cephclient.ImplicitNamespaceKey},
+			},
+			cephclient.ImplicitNamespaceVal,
+		},
+		{
+			"valid-namespace",
+			cephv1.CephBlockPoolRadosNamespace{
+				ObjectMeta: metav1.ObjectMeta{Name: "cr-name2"},
+				Spec:       cephv1.CephBlockPoolRadosNamespaceSpec{Name: "valid-ns"},
+			},
+			"valid-ns",
+		},
+		{
+			"empty-namespace",
+			cephv1.CephBlockPoolRadosNamespace{
+				ObjectMeta: metav1.ObjectMeta{Name: "cr-name3"},
+				Spec:       cephv1.CephBlockPoolRadosNamespaceSpec{},
+			},
+			"cr-name3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getRadosNamespaceName(&tt.args); got != tt.want {
+				t.Errorf("getRadosNamespaceName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
