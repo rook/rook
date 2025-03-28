@@ -60,6 +60,7 @@ func TestCreateRBDMirrorBootstrapPeer(t *testing.T) {
 }
 
 func TestEnablePoolMirroring(t *testing.T) {
+	poolInfo := `{"mode":"image","site_name":"9ea62548-53fa-4e43-b4b4-c5d1a43ae570","mirror_uuid":"c0336a10-612b-4e0d-bd7e-f0723812b22b","remote_namespace":"namespace2","peers":[{"uuid":"bea16887-9d44-432f-8f80-24259ad6022c","direction":"rx-tx","site_name":"3530db15-c9f6-41ab-9a9b-ce0c9c9fc331","mirror_uuid":"cb144924-37d8-41d7-84d6-badb76d500b1","client_name":"client.rbd-mirror-peer"}]}`
 	pool := cephv1.NamedPoolSpec{
 		Name: "pool-test",
 		PoolSpec: cephv1.PoolSpec{
@@ -69,10 +70,16 @@ func TestEnablePoolMirroring(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		if args[0] == "mirror" {
-			assert.Equal(t, "pool", args[1])
-			assert.Equal(t, "enable", args[2])
-			assert.Equal(t, pool.Name, args[3])
-			assert.Equal(t, pool.Mirroring.Mode, args[4])
+			if args[2] == "enable" {
+				assert.Equal(t, "pool", args[1])
+				assert.Equal(t, pool.Name, args[3])
+				assert.Equal(t, pool.Mirroring.Mode, args[4])
+				return "", nil
+			} else if args[2] == "info" {
+				assert.Equal(t, "pool", args[1])
+				assert.Equal(t, pool.Name, args[3])
+				return poolInfo, nil
+			}
 			return "", nil
 		}
 		return "", errors.New("unknown command")

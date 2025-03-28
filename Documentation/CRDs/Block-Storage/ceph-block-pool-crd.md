@@ -220,7 +220,7 @@ stretched) then you will have 2 replicas per datacenter where each replica ends 
 
 * `mirroring`: Sets up mirroring of the pool
     * `enabled`: whether mirroring is enabled on that pool (default: false)
-    * `mode`: mirroring mode to run, possible values are "pool" or "image" (required). Refer to the [mirroring modes Ceph documentation](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#enable-mirroring) for more details.
+    * `mode`: mirroring mode to run, possible values are "pool", "image" or "init-only" (required). Refer to the [mirroring modes Ceph documentation](https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#enable-mirroring) for more details.
     * `snapshotSchedules`: schedule(s) snapshot at the **pool** level. One or more schedules are supported.
         * `interval`: frequency of the snapshots. The interval can be specified in days, hours, or minutes using d, h, m suffix respectively.
         * `startTime`: optional, determines at what time the snapshot process starts, specified using the ISO 8601 time format.
