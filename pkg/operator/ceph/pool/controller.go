@@ -335,7 +335,9 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling
-		r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration)
+		if !r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration) {
+			return opcontroller.ImmediateRetryResult, *cephBlockPool, nil
+		}
 
 		if cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
 			// Stop monitoring the mirroring status of this pool
@@ -365,7 +367,9 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		}
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling
-		r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration)
+		if !r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration) {
+			return opcontroller.ImmediateRetryResult, *cephBlockPool, nil
+		}
 
 		// Stop monitoring the mirroring status of this pool
 		if blockPoolContextsExists && r.blockPoolContexts[blockPoolChannelKey].started {
