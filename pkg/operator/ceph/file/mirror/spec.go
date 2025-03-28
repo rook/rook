@@ -55,7 +55,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 	if r.cephClusterSpec.LogCollector.Enabled {
 		shareProcessNamespace := true
 		podSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
-		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-%s", user), r.clusterInfo.Namespace, *r.cephClusterSpec))
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-%s", user), r.clusterInfo.Namespace, *r.cephClusterSpec, nil))
 	}
 
 	// Replace default unreachable node toleration
