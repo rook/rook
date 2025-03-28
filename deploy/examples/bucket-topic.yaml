@@ -25,3 +25,4 @@ spec:
     #   disableVerifySSL: true
     #   ackLevel: broker # none, broker (default)
     #   useSSL: false
+    #   mechanism: PLAIN
