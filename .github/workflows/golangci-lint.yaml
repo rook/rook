@@ -31,22 +31,13 @@ jobs:
         with:
           go-version: "1.23"
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6.5.2
+        uses: golangci/golangci-lint-action@1481404843c368bc19ca9406f87d6e0fc97bdcfd # v7.0.0
         with:
-          # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
-          version: v1.62
-
-          # Optional: working directory, useful for monorepos
-          # working-directory: somedir
-
-          # Optional: golangci-lint command line arguments.
-          args: -E gosec -E gofmt -E gofumpt --timeout=10m
-
+          # `version` is parsed by build/makelib/golang.mk
+          # Do not change the structure of this job without updating the parsing logic.
+          version: v2.0.2
           # actions/setup-go already handles caching
           skip-cache: true
-
-          # Optional: show only new issues if it's a pull request. The default value is `false`.
-          # only-new-issues: true
 
   govulncheck:
     name: govulncheck
