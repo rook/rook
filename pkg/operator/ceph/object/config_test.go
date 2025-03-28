@@ -107,7 +107,6 @@ func TestGenerateCephXUser(t *testing.T) {
 // RGW configs determined here are applied to the running RGW
 func Test_clusterConfig_generateMonConfigOptions(t *testing.T) {
 	defaultConfigs := map[string]string{
-		"rgw_enable_ops_log":         "false",
 		"rgw_enable_usage_log":       "true",
 		"rgw_log_nonexistent_bucket": "true",
 		"rgw_log_object_name_utc":    "true",
