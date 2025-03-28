@@ -125,7 +125,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the cephObjectStore CRD object
-	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephObjectStore{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephObjectStore{TypeMeta: controllerTypeMeta},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephObjectStore]{},
+			opcontroller.WatchControllerPredicate[*cephv1.CephObjectStore](),
+		),
+	)
 	if err != nil {
 		return err
 	}
