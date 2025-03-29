@@ -44,9 +44,9 @@ func (c *Cluster) createService(mon *monConfig) (*v1.Service, error) {
 
 	// If the mon port was not msgr2, add the msgr1 port
 	if mon.Port != DefaultMsgr2Port {
-		addServicePort(svcDef, "tcp-msgr1", mon.Port)
+		addServicePort(svcDef, DefaultMsgr1PortName, mon.Port)
 	}
-	addServicePort(svcDef, "tcp-msgr2", DefaultMsgr2Port)
+	addServicePort(svcDef, DefaultMsgr2PortName, DefaultMsgr2Port)
 
 	// Set the ClusterIP if the service does not exist and we expect a certain cluster IP
 	// For example, in disaster recovery the service might have been deleted accidentally, but we have the
