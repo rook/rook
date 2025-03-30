@@ -71,7 +71,7 @@ func SubVolumeGroupCleanup(context *clusterd.Context, clusterInfo *client.Cluste
 	}
 
 	if retErr != nil {
-		return errors.Wrapf(err, "clean up for cephFS subVolumeGroup %q didn't complete successfully.", svg)
+		return errors.Wrapf(retErr, "clean up for cephFS subVolumeGroup %q didn't complete successfully.", svg)
 	}
 	logger.Infof("successfully cleaned up cephFS subVolumeGroup %q", svg)
 	return nil
