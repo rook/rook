@@ -127,6 +127,21 @@ func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController
 	}
 }
 
+func watchOwnedCoreObject[T client.Object](c controller.Controller, mgr manager.Manager, obj T) error {
+	return c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			obj,
+			handler.TypedEnqueueRequestForOwner[T](
+				mgr.GetScheme(),
+				mgr.GetRESTMapper(),
+				&cephv1.CephCluster{},
+			),
+			opcontroller.WatchPredicateForNonCRDObject[T](&cephv1.CephCluster{TypeMeta: ControllerTypeMeta}, mgr.GetScheme()),
+		),
+	)
+}
+
 func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context, opConfig opcontroller.OperatorConfig) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
@@ -146,22 +161,21 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	}
 
 	// Watch for changes on the CephCluster CR object
-	s := source.Kind[client.Object](
-		mgr.GetCache(), &cephv1.CephCluster{TypeMeta: ControllerTypeMeta},
-		&handler.EnqueueRequestForObject{}, watchControllerPredicate(opManagerContext, mgr.GetClient()),
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephCluster{TypeMeta: ControllerTypeMeta},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephCluster]{},
+			watchControllerPredicate(opManagerContext, mgr.GetClient()),
+		),
 	)
-	err = c.Watch(s)
 	if err != nil {
 		return err
 	}
 
 	// Watch all other resources of the Ceph Cluster
 	for _, t := range objectsToWatch {
-		err = c.Watch(
-			source.Kind[client.Object](
-				mgr.GetCache(), t, handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &cephv1.CephCluster{}),
-				opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephCluster{TypeMeta: ControllerTypeMeta}, mgr.GetScheme())),
-		)
+		err = watchOwnedCoreObject(c, mgr, t)
 		if err != nil {
 			return err
 		}
@@ -169,18 +183,35 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 
 	// Build Handler function to return the list of ceph clusters
 	// This is used by the watchers below
-	handlerFunc, err := opcontroller.ObjectToCRMapper(opManagerContext, mgr.GetClient(), &cephv1.CephClusterList{}, mgr.GetScheme())
+	nodeHandler, err := opcontroller.ObjectToCRMapper[*cephv1.CephClusterList, *corev1.Node](
+		opManagerContext,
+		mgr.GetClient(),
+		&cephv1.CephClusterList{},
+		mgr.GetScheme(),
+	)
 	if err != nil {
 		return err
 	}
 
 	// Watch for nodes additions and updates
-	nodeKind := source.Kind[client.Object](
-		mgr.GetCache(),
-		&corev1.Node{TypeMeta: metav1.TypeMeta{Kind: "Node", APIVersion: corev1.SchemeGroupVersion.String()}},
-		handler.EnqueueRequestsFromMapFunc(handlerFunc),
-		predicateForNodeWatcher(opManagerContext, mgr.GetClient(), context, opConfig.OperatorNamespace))
-	err = c.Watch(nodeKind)
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.Node{TypeMeta: metav1.TypeMeta{Kind: "Node", APIVersion: corev1.SchemeGroupVersion.String()}},
+			handler.TypedEnqueueRequestsFromMapFunc(nodeHandler),
+			predicateForNodeWatcher(opManagerContext, mgr.GetClient(), context, opConfig.OperatorNamespace),
+		),
+	)
+	if err != nil {
+		return err
+	}
+
+	cmHandler, err := opcontroller.ObjectToCRMapper[*cephv1.CephClusterList, *corev1.ConfigMap](
+		opManagerContext,
+		mgr.GetClient(),
+		&cephv1.CephClusterList{},
+		mgr.GetScheme(),
+	)
 	if err != nil {
 		return err
 	}
@@ -190,11 +221,14 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	disableVal := k8sutil.GetOperatorSetting(disableHotplugEnv, "false")
 	if disableVal != "true" {
 		logger.Info("enabling hotplug orchestration")
-		s := source.Kind[client.Object](
-			mgr.GetCache(),
-			&corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}},
-			handler.EnqueueRequestsFromMapFunc(handlerFunc), predicateForHotPlugCMWatcher(mgr.GetClient()))
-		err = c.Watch(s)
+		err = c.Watch(
+			source.Kind(
+				mgr.GetCache(),
+				&corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}},
+				handler.TypedEnqueueRequestsFromMapFunc(cmHandler),
+				predicateForHotPlugCMWatcher(mgr.GetClient()),
+			),
+		)
 		if err != nil {
 			return err
 		}

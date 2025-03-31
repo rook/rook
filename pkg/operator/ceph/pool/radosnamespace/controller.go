@@ -108,7 +108,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephBlockPoolRadosNamespace CRD object
-	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephBlockPoolRadosNamespace{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephBlockPoolRadosNamespace{TypeMeta: controllerTypeMeta},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephBlockPoolRadosNamespace]{},
+			opcontroller.WatchControllerPredicate[*cephv1.CephBlockPoolRadosNamespace](mgr.GetScheme()),
+		),
+	)
 	if err != nil {
 		return err
 	}
