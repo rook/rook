@@ -11878,6 +11878,25 @@ spec:
                     priorityClassName:
                       description: PriorityClassName sets priority classes on the rgw pods
                       type: string
+                    readAffinity:
+                      description: |-
+                        ReadAffinity defines the RGW read affinity policy to optimize the read requests for the RGW clients
+                        Note: Only supported from Ceph Tentacle (v20)
+                      properties:
+                        type:
+                          description: |-
+                            Type defines the RGW ReadAffinity type
+                            localize: read from the nearest OSD based on crush location of the RGW client
+                            balance: picks a random OSD from the PG's active set
+                            default: read from the primary OSD
+                          enum:
+                            - localize
+                            - balance
+                            - default
+                          type: string
+                      required:
+                        - type
+                      type: object
                     resources:
                       description: The resource requirements for the rgw pods
                       nullable: true

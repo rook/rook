@@ -7230,6 +7230,21 @@ This feature is intended for advanced users. It allows breaking configurations t
 applied. Use with caution.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>readAffinity</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.RgwReadAffinity">
+RgwReadAffinity
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ReadAffinity defines the RGW read affinity policy to optimize the read requests for the RGW clients
+Note: Only supported from Ceph Tentacle (v20)</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.HTTPEndpointSpec">HTTPEndpointSpec
@@ -12030,6 +12045,37 @@ HybridStorageSpec
 <div>
 <p>ResourceSpec is a collection of ResourceRequirements that describes the compute resource requirements</p>
 </div>
+<h3 id="ceph.rook.io/v1.RgwReadAffinity">RgwReadAffinity
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>type</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Type defines the RGW ReadAffinity type
+localize: read from the nearest OSD based on crush location of the RGW client
+balance: picks a random OSD from the PG&rsquo;s active set
+default: read from the primary OSD</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.S3Spec">S3Spec
 </h3>
 <p>
