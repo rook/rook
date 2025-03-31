@@ -21,6 +21,7 @@ import (
 	_ "embed"
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -1536,6 +1537,83 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 			if gotDisable != tt.wantDisable {
 				t.Errorf("getRGWProbePath() gotDisable = %v, want %v", gotDisable, tt.wantDisable)
 			}
+		})
+	}
+}
+
+func TestRgwReadAffinity(t *testing.T) {
+	context := &clusterd.Context{Clientset: test.New(t, 3)}
+
+	store := simpleStore()
+	info := clienttest.CreateTestClusterInfo(1)
+	info.Namespace = store.Namespace
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
+
+	c := &clusterConfig{
+		clusterInfo: info,
+		store:       store,
+		context:     context,
+		rookVersion: "rook/rook:myversion",
+		clusterSpec: &cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v19.3"},
+			Network: cephv1.NetworkSpec{
+				HostNetwork: true,
+			},
+		},
+		DataPathMap: data,
+	}
+
+	resourceName := fmt.Sprintf("%s-%s", AppName, c.store.Name)
+	rgwConfig := &rgwConfig{
+		ResourceName: resourceName,
+		DaemonID:     "default",
+	}
+
+	tests := []struct {
+		name                  string
+		cephVersion           cephver.CephVersion
+		readAffinity          string
+		isReadAffinityArgSet  bool
+		isCrushLocationArgSet bool
+	}{
+		{
+			name:                  "ceph version is less than v.20",
+			cephVersion:           cephver.CephVersion{Major: 17, Minor: 2, Extra: 3},
+			readAffinity:          "localize",
+			isReadAffinityArgSet:  false,
+			isCrushLocationArgSet: false,
+		},
+		{
+			name:                  "ceph version is v.20 and localized read affinity is set",
+			cephVersion:           cephver.CephVersion{Major: 20, Minor: 0, Extra: 0},
+			readAffinity:          "localize",
+			isReadAffinityArgSet:  true,
+			isCrushLocationArgSet: true,
+		},
+		{
+			name:                  "ceph version is v.20 and balanced read affinity is set",
+			cephVersion:           cephver.CephVersion{Major: 20, Minor: 0, Extra: 0},
+			readAffinity:          "balance",
+			isReadAffinityArgSet:  true,
+			isCrushLocationArgSet: false,
+		},
+		{
+			name:                  "ceph version is v.20 and default read affinity is set",
+			cephVersion:           cephver.CephVersion{Major: 20, Minor: 0, Extra: 0},
+			readAffinity:          "default",
+			isReadAffinityArgSet:  true,
+			isCrushLocationArgSet: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.clusterInfo.CephVersion = tt.cephVersion
+			c.store.Spec.Gateway.ReadAffinity = &cephv1.RgwReadAffinity{Type: tt.readAffinity}
+			container, err := c.makeDaemonContainer(rgwConfig)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.isReadAffinityArgSet, slices.Contains(container.Args, fmt.Sprintf("--rados-replica-read-policy=%s", tt.readAffinity)))
+			assert.Equal(t, tt.isCrushLocationArgSet, slices.Contains(container.Command, `exec radosgw --crush-location="host=${NODE_NAME//./-}" "$@"`))
 		})
 	}
 }
