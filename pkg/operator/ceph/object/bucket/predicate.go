@@ -21,7 +21,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -29,49 +29,60 @@ import (
 
 const rookOBCWatchOperatorNamespace = "ROOK_OBC_WATCH_OPERATOR_NAMESPACE"
 
-// predicateController is the predicate function to trigger reconcile on operator configuration cm change
-func predicateController(ctx context.Context, c client.Client) predicate.Funcs {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			// if the operator configuration file is created we want to reconcile
-			if cm, ok := e.Object.(*v1.ConfigMap); ok {
-				// It's probably fine to use the Generation value here. The case where the operator was stopped and the
-				// ConfigMap was created is low since the cm is always present these days
-				return cm.Name == controller.OperatorSettingConfigMapName && cm.Generation == 1
-			}
+// reconcile on ConfigMap change
+func cmPredicate[T *corev1.ConfigMap]() predicate.TypedFuncs[T] {
+	return predicate.TypedFuncs[T]{
+		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
+			cm := (*corev1.ConfigMap)(e.Object)
 
-			// If a Ceph Cluster is created we want to reconcile the bucket provisioner
-			if _, ok := e.Object.(*cephv1.CephCluster); ok {
-				// If there are more than one ceph cluster in the same namespace do not reconcile
-				return !controller.DuplicateCephClusters(ctx, c, e.Object, false)
-			}
-
-			return false
+			return cm.Name == controller.OperatorSettingConfigMapName && cm.Generation == 1
 		},
 
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			if old, ok := e.ObjectOld.(*v1.ConfigMap); ok {
-				if new, ok := e.ObjectNew.(*v1.ConfigMap); ok {
-					if old.Name == controller.OperatorSettingConfigMapName && new.Name == controller.OperatorSettingConfigMapName {
-						if old.Data[rookOBCWatchOperatorNamespace] != new.Data[rookOBCWatchOperatorNamespace] {
-							logger.Infof("%s changed. reconciling bucket controller", rookOBCWatchOperatorNamespace)
+		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
+			cmOld := (*corev1.ConfigMap)(e.ObjectOld)
+			cmNew := (*corev1.ConfigMap)(e.ObjectNew)
 
-							// We reload the manager so that the controller restarts and goes
-							// through the CreateFunc again. Then the CephCluster watcher will be triggered
-							controller.ReloadManager()
-						}
-					}
+			if cmOld.GetName() == controller.OperatorSettingConfigMapName && cmNew.GetName() == controller.OperatorSettingConfigMapName {
+				if cmOld.Data[rookOBCWatchOperatorNamespace] != cmNew.Data[rookOBCWatchOperatorNamespace] {
+					logger.Infof("%s changed. reconciling bucket controller", rookOBCWatchOperatorNamespace)
+
+					// We reload the manager so that the controller restarts and goes
+					// through the CreateFunc again. Then the CephCluster watcher will be triggered
+					controller.ReloadManager()
 				}
 			}
 
 			return false
 		},
 
-		DeleteFunc: func(e event.DeleteEvent) bool {
+		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
 			return false
 		},
 
-		GenericFunc: func(e event.GenericEvent) bool {
+		GenericFunc: func(e event.TypedGenericEvent[T]) bool {
+			return false
+		},
+	}
+}
+
+// trigger reconcile on CephCluster change
+func cephClusterPredicate[T *cephv1.CephCluster](ctx context.Context, c client.Client) predicate.TypedFuncs[T] {
+	return predicate.TypedFuncs[T]{
+		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
+			// If a Ceph Cluster is created we want to reconcile the bucket provisioner
+			// If there are more than one ceph cluster in the same namespace do not reconcile
+			return !controller.DuplicateCephClusters(ctx, c, e.Object, false)
+		},
+
+		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
+			return false
+		},
+
+		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
+			return false
+		},
+
+		GenericFunc: func(e event.TypedGenericEvent[T]) bool {
 			return false
 		},
 	}

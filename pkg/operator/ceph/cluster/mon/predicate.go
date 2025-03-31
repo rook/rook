@@ -27,26 +27,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-func PredicateMonEndpointChanges() predicate.Funcs {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
+func PredicateMonEndpointChanges[T *corev1.ConfigMap]() predicate.TypedFuncs[T] {
+	return predicate.TypedFuncs[T]{
+		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
 			return false
 		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
+		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
 			return false
 		},
-		GenericFunc: func(e event.GenericEvent) bool {
+		GenericFunc: func(e event.TypedGenericEvent[T]) bool {
 			return false
 		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			cmNew, ok := e.ObjectNew.(*corev1.ConfigMap)
-			if !ok {
-				return false
-			}
-			cmOld, ok := e.ObjectOld.(*corev1.ConfigMap)
-			if !ok {
-				return false
-			}
+		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
+			cmOld := (*corev1.ConfigMap)(e.ObjectOld)
+			cmNew := (*corev1.ConfigMap)(e.ObjectNew)
 			if cmNew.GetName() == EndpointConfigMapName {
 				if wereMonEndpointsUpdated(cmOld.Data, cmNew.Data) {
 					logger.Info("monitor endpoints changed, updating the bootstrap peer token")

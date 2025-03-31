@@ -116,6 +116,21 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 	}
 }
 
+func watchOwnedCoreObject[T client.Object](c controller.Controller, mgr manager.Manager, obj T) error {
+	return c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			obj,
+			handler.TypedEnqueueRequestForOwner[T](
+				mgr.GetScheme(),
+				mgr.GetRESTMapper(),
+				&cephv1.CephObjectStore{},
+			),
+			opcontroller.WatchPredicateForNonCRDObject[T](&cephv1.CephObjectStore{TypeMeta: controllerTypeMeta}, mgr.GetScheme()),
+		),
+	)
+}
+
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
@@ -125,30 +140,35 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the cephObjectStore CRD object
-	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephObjectStore{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephObjectStore{TypeMeta: controllerTypeMeta},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephObjectStore]{},
+			opcontroller.WatchControllerPredicate[*cephv1.CephObjectStore](mgr.GetScheme()),
+		),
+	)
 	if err != nil {
 		return err
 	}
 
 	// Watch all other resources
 	for _, t := range objectsToWatch {
-		ownerRequest := handler.EnqueueRequestForOwner(
-			mgr.GetScheme(),
-			mgr.GetRESTMapper(),
-			&cephv1.CephObjectStore{},
-		)
-		err = c.Watch(source.Kind[client.Object](mgr.GetCache(), t, ownerRequest,
-			opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephObjectStore{TypeMeta: controllerTypeMeta}, mgr.GetScheme())))
+		err = watchOwnedCoreObject(c, mgr, t)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Watch Secrets secrets annotated for the object store
-	err = c.Watch(source.Kind[client.Object](mgr.GetCache(),
-		&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
-		handler.EnqueueRequestsFromMapFunc(mapSecretToCR(mgr.GetClient())),
-		secretPredicate()))
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
+			handler.TypedEnqueueRequestsFromMapFunc(mapSecretToCR(mgr.GetClient())),
+			secretPredicate(),
+		),
+	)
 	if err != nil {
 		return err
 	}
@@ -157,15 +177,12 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 }
 
 // Watch all secrets not owned by Rook
-func secretPredicate() predicate.Predicate {
+func secretPredicate[T *corev1.Secret]() predicate.TypedPredicate[T] {
 	rookGV := cephv1.SchemeGroupVersion.String()
-	return predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			secret, ok := e.ObjectNew.(*corev1.Secret)
-			if !ok {
-				// not a secret
-				return false
-			}
+	return predicate.TypedFuncs[T]{
+		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
+			secret := (*corev1.Secret)(e.ObjectNew)
+
 			// check if secret already owned by Rook:
 			for _, owner := range secret.OwnerReferences {
 				if owner.APIVersion == rookGV {
@@ -175,12 +192,9 @@ func secretPredicate() predicate.Predicate {
 			}
 			return true
 		},
-		CreateFunc: func(e event.CreateEvent) bool {
-			secret, ok := e.Object.(*corev1.Secret)
-			if !ok {
-				// not a secret
-				return false
-			}
+		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
+			secret := (*corev1.Secret)(e.Object)
+
 			// check if secret already owned by Rook:
 			for _, owner := range secret.OwnerReferences {
 				if owner.APIVersion == rookGV {
@@ -190,12 +204,8 @@ func secretPredicate() predicate.Predicate {
 			}
 			return true
 		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			secret, ok := e.Object.(*corev1.Secret)
-			if !ok {
-				// not a secret
-				return false
-			}
+		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
+			secret := (*corev1.Secret)(e.Object)
 			// check if secret already owned by Rook:
 			for _, owner := range secret.OwnerReferences {
 				if owner.APIVersion == rookGV {
@@ -209,13 +219,8 @@ func secretPredicate() predicate.Predicate {
 }
 
 // Maps secret referenced by object store to the object store CR
-func mapSecretToCR(k8sClient client.Client) func(context.Context, client.Object) []reconcile.Request {
-	return func(ctx context.Context, obj client.Object) []reconcile.Request {
-		secret, ok := obj.(*corev1.Secret)
-		if !ok {
-			return nil
-		}
-
+func mapSecretToCR(k8sClient client.Client) handler.TypedMapFunc[*corev1.Secret, reconcile.Request] {
+	return func(ctx context.Context, secret *corev1.Secret) []reconcile.Request {
 		// lookup object store CRs by name
 		objStores := cephv1.CephObjectStoreList{}
 		err := k8sClient.List(ctx, &objStores, client.InNamespace(secret.Namespace))

@@ -73,12 +73,14 @@ func add(ctx context.Context, context *clusterd.Context, mgr manager.Manager, r 
 	logger.Infof("%s successfully started", controllerName)
 
 	// Watch for ConfigMap (operator config)
-	s := source.Kind[client.Object](
-		mgr.GetCache(),
-		&v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}},
-		&handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()),
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}},
+			&handler.TypedEnqueueRequestForObject[*v1.ConfigMap]{},
+			operatorSettingConfigMapPredicate(),
+		),
 	)
-	err = c.Watch(s)
 	if err != nil {
 		return err
 	}

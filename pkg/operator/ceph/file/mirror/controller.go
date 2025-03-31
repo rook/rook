@@ -98,6 +98,21 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 	}
 }
 
+func watchOwnedCoreObject[T client.Object](c controller.Controller, mgr manager.Manager, obj T) error {
+	return c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			obj,
+			handler.TypedEnqueueRequestForOwner[T](
+				mgr.GetScheme(),
+				mgr.GetRESTMapper(),
+				&cephv1.CephFilesystemMirror{},
+			),
+			opcontroller.WatchPredicateForNonCRDObject[T](&cephv1.CephFilesystemMirror{TypeMeta: controllerTypeMeta}, mgr.GetScheme()),
+		),
+	)
+}
+
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
@@ -107,19 +122,21 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephFilesystemMirror CRD object
-	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephFilesystemMirror{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephFilesystemMirror{TypeMeta: controllerTypeMeta},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephFilesystemMirror]{},
+			opcontroller.WatchControllerPredicate[*cephv1.CephFilesystemMirror](mgr.GetScheme()),
+		),
+	)
 	if err != nil {
 		return err
 	}
 
 	// Watch all other resources
 	for _, t := range objectsToWatch {
-		ownerRequest := handler.EnqueueRequestForOwner(
-			mgr.GetScheme(),
-			mgr.GetRESTMapper(),
-			&cephv1.CephFilesystemMirror{},
-		)
-		err = c.Watch(source.Kind[client.Object](mgr.GetCache(), t, ownerRequest, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephFilesystemMirror{TypeMeta: controllerTypeMeta}, mgr.GetScheme())))
+		err = watchOwnedCoreObject(c, mgr, t)
 		if err != nil {
 			return err
 		}

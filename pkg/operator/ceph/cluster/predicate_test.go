@@ -20,17 +20,12 @@ import (
 	"testing"
 	"time"
 
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestIsHotPlugCM(t *testing.T) {
-	blockPool := &cephv1.CephBlockPool{}
-
-	assert.False(t, isHotPlugCM(blockPool))
-
 	cm := &corev1.ConfigMap{}
 	assert.False(t, isHotPlugCM(cm))
 
