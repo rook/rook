@@ -15,3 +15,4 @@ Object:
 ## Features
 
 - Support external mons for local Rook cluster (see [#14733](https://github.com/rook/rook/issues/14733)).
+- Manage EndpointSlice resources containing monitor IPs to support DNS-based resolution for Ceph clients (see [#14986](https://github.com/rook/rook/issues/14986)).
