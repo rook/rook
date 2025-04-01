@@ -101,6 +101,7 @@ func TestTopicAttributesCreation(t *testing.T) {
 	t.Run("test Kafka attributes", func(t *testing.T) {
 		uri := "kafka://my-kafka-service:9092"
 		ackLevel := "broker"
+		mechanism := "SCRAM-SHA-512"
 		expectedAttrs := map[string]*string{
 			"OpaqueData":      &emptyString,
 			"persistent":      &falseString,
@@ -108,6 +109,7 @@ func TestTopicAttributesCreation(t *testing.T) {
 			"verify-ssl":      &trueString,
 			"kafka-ack-level": &ackLevel,
 			"use-ssl":         &trueString,
+			"mechanism":       &mechanism,
 		}
 		bucketTopic := &cephv1.CephBucketTopic{
 			ObjectMeta: metav1.ObjectMeta{
@@ -122,9 +124,10 @@ func TestTopicAttributesCreation(t *testing.T) {
 				ObjectStoreNamespace: namespace,
 				Endpoint: cephv1.TopicEndpointSpec{
 					Kafka: &cephv1.KafkaEndpointSpec{
-						URI:      uri,
-						AckLevel: ackLevel,
-						UseSSL:   true,
+						URI:       uri,
+						AckLevel:  ackLevel,
+						UseSSL:    true,
+						Mechanism: mechanism,
 					},
 				},
 			},
