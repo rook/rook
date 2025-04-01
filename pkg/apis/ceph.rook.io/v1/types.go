@@ -1087,7 +1087,8 @@ type MirroringSpec struct {
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 
-	// Mode is the mirroring mode: either pool or image
+	// Mode is the mirroring mode: pool, image or init-only.
+	// +kubebuilder:validation:Enum=pool;image;init-only
 	// +optional
 	Mode string `json:"mode,omitempty"`
 
@@ -3449,7 +3450,7 @@ type RadosNamespaceMirroring struct {
 	// RemoteNamespace is the name of the CephBlockPoolRadosNamespace on the secondary cluster CephBlockPool
 	// +optional
 	RemoteNamespace *string `json:"remoteNamespace"`
-	// Mode is the mirroring mode; either pool or image
+	// Mode is the mirroring mode; either pool or image.
 	// +kubebuilder:validation:Enum="";pool;image
 	Mode RadosNamespaceMirroringMode `json:"mode"`
 	// SnapshotSchedules is the scheduling of snapshot for mirrored images

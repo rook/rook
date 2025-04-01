@@ -350,9 +350,12 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			if r.blockPoolContexts[blockPoolChannelKey].started {
 				logger.Debug("pool monitoring go routine already running!")
 			} else {
-				r.blockPoolContexts[blockPoolChannelKey].started = true
-				// Run the goroutine to update the mirroring status
-				go checker.CheckMirroring(r.blockPoolContexts[blockPoolChannelKey].internalCtx)
+				if cephBlockPool.Spec.Mirroring.Mode != "init-only" {
+					r.blockPoolContexts[blockPoolChannelKey].started = true
+					// Run the goroutine to update the mirroring status and skip when blockpool mirroing mode in init-only as radosnamespace mirroring is the right place to check
+					// mirroring status when blockpool mirroring mode is init-only.
+					go checker.CheckMirroring(r.blockPoolContexts[blockPoolChannelKey].internalCtx)
+				}
 			}
 		}
 
