@@ -43,8 +43,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/utils/ptr"
 )
 
 // generate a standard mon config from a mon id w/ default port and IP 2.4.6.{1,2,3,...}
@@ -278,8 +281,15 @@ func TestPersistMons(t *testing.T) {
 	c := New(context.TODO(), &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{Annotations: cephv1.AnnotationsSpec{cephv1.KeyClusterMetadata: cephv1.Annotations{"key": "value"}}}, ownerInfo)
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
+	expectedPorts := []discoveryv1.EndpointPort{
+		{Name: ptr.To(DefaultMsgr2PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr2Port)},
+		{Name: ptr.To(DefaultMsgr1PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr1Port)},
+	}
+
 	// Persist mon a
-	err := c.persistExpectedMonDaemons()
+	err := c.persistExpectedMonDaemonsInConfigMap()
+	assert.NoError(t, err)
+	err = c.persistExpectedMonDaemonsAsEndpointSlice()
 	assert.NoError(t, err)
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
@@ -287,15 +297,142 @@ func TestPersistMons(t *testing.T) {
 	assert.Equal(t, "a=1.2.3.1:3300", cm.Data[EndpointDataKey])
 	assert.Equal(t, map[string]string{"key": "value"}, cm.Annotations)
 
+	ep, err := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv4, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "1.2.3.1", ep.Endpoints[0].Addresses[0])
+	assert.ElementsMatch(t, expectedPorts, ep.Ports)
+	assert.Equal(t, map[string]string{"key": "value"}, cm.Annotations)
+
 	// Persist mon b, and remove mon a for simply testing the configmap is updated
 	c.ClusterInfo.InternalMonitors["b"] = &cephclient.MonInfo{Name: "b", Endpoint: "4.5.6.7:3300"}
 	delete(c.ClusterInfo.InternalMonitors, "a")
-	err = c.persistExpectedMonDaemons()
+	err = c.persistExpectedMonDaemonsInConfigMap()
+	assert.NoError(t, err)
+	err = c.persistExpectedMonDaemonsAsEndpointSlice()
 	assert.NoError(t, err)
 
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "b=4.5.6.7:3300", cm.Data[EndpointDataKey])
+
+	ep, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv4, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "4.5.6.7", ep.Endpoints[0].Addresses[0])
+	assert.ElementsMatch(t, expectedPorts, ep.Ports)
+	assert.Equal(t, map[string]string{"key": "value"}, cm.Annotations)
+}
+
+func TestCreateEndpointSlices(t *testing.T) {
+	clientset := test.New(t, 1)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+
+	// RequireMsgr2=false
+	c := New(context.TODO(), &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	expectedPorts := []discoveryv1.EndpointPort{
+		{Name: ptr.To(DefaultMsgr2PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr2Port)},
+		{Name: ptr.To(DefaultMsgr1PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr1Port)},
+	}
+	testCreateEndpointSlicesForCluster(t, c, expectedPorts)
+
+	// RequireMsgr2=true
+	c = New(
+		context.TODO(),
+		&clusterd.Context{Clientset: clientset},
+		"ns",
+		cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{
+				Connections: &cephv1.ConnectionsSpec{
+					RequireMsgr2: true,
+				},
+			},
+		}, ownerInfo)
+	expectedPorts = []discoveryv1.EndpointPort{
+		{Name: ptr.To(DefaultMsgr2PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr2Port)},
+	}
+	testCreateEndpointSlicesForCluster(t, c, expectedPorts)
+}
+
+func testCreateEndpointSlicesForCluster(t *testing.T, c *Cluster, expectedPorts []discoveryv1.EndpointPort) {
+	ipv4Addresses := []string{"10.0.0.1", "10.0.0.2", "10.0.0.3"}
+	ipv4Mons := []cephclient.MonInfo{
+		{Name: "a", Endpoint: fmt.Sprintf("%s:6789", ipv4Addresses[0])},
+		{Name: "b", Endpoint: fmt.Sprintf("%s:6789", ipv4Addresses[1])},
+		{Name: "c", Endpoint: fmt.Sprintf("%s:6789", ipv4Addresses[2])},
+	}
+	ipv6Addresses := []string{"2001:db8::1", "2001:db8::2", "2001:db8::3"}
+	ipv6Mons := []cephclient.MonInfo{
+		{Name: "d", Endpoint: fmt.Sprintf("[%s]:6789", ipv6Addresses[0])},
+		{Name: "e", Endpoint: fmt.Sprintf("[%s]:6789", ipv6Addresses[1])},
+		{Name: "f", Endpoint: fmt.Sprintf("[%s]:6789", ipv6Addresses[2])},
+	}
+
+	// IPv4 test
+	c.ClusterInfo.InternalMonitors = map[string]*cephclient.MonInfo{}
+	for _, mon := range ipv4Mons {
+		c.ClusterInfo.InternalMonitors[mon.Name] = &mon
+	}
+
+	err := c.persistExpectedMonDaemonsAsEndpointSlice()
+	assert.NoError(t, err)
+
+	epSliceIPv4, err := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv4, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, discoveryv1.AddressTypeIPv4, epSliceIPv4.AddressType)
+	assert.Len(t, epSliceIPv4.Endpoints, 1)
+	assert.ElementsMatch(t, ipv4Addresses, epSliceIPv4.Endpoints[0].Addresses)
+	assert.ElementsMatch(t, expectedPorts, epSliceIPv4.Ports)
+
+	_, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv6, metav1.GetOptions{})
+	assert.True(t, kerrors.IsNotFound(err))
+
+	// IPv6 test
+	c.ClusterInfo.InternalMonitors = map[string]*cephclient.MonInfo{}
+	for _, mon := range ipv6Mons {
+		c.ClusterInfo.InternalMonitors[mon.Name] = &mon
+	}
+
+	err = c.persistExpectedMonDaemonsAsEndpointSlice()
+	assert.NoError(t, err)
+
+	_, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv4, metav1.GetOptions{})
+	assert.True(t, kerrors.IsNotFound(err))
+
+	epSliceIPv6, err := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv6, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, discoveryv1.AddressTypeIPv6, epSliceIPv6.AddressType)
+	assert.Len(t, epSliceIPv6.Endpoints, 1)
+	assert.ElementsMatch(t, ipv6Addresses, epSliceIPv6.Endpoints[0].Addresses)
+	assert.ElementsMatch(t, expectedPorts, epSliceIPv6.Ports)
+
+	// Mixed IPv4 and IPv6 test.
+	// Note that this normally doesn't happen, because rook uses only IPv4 or
+	// only IPv6 mons. But in the future, migration between IPv4 and IPv6 might
+	// be supported, and then, during migration, the old mons would use the
+	// old IP family and the new mons would use the new IP family.
+	c.ClusterInfo.InternalMonitors = map[string]*cephclient.MonInfo{}
+	for _, mon := range ipv4Mons {
+		c.ClusterInfo.InternalMonitors[mon.Name] = &mon
+	}
+	for _, mon := range ipv6Mons {
+		c.ClusterInfo.InternalMonitors[mon.Name] = &mon
+	}
+
+	err = c.persistExpectedMonDaemonsAsEndpointSlice()
+	assert.NoError(t, err)
+
+	epSliceIPv4, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv4, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, discoveryv1.AddressTypeIPv4, epSliceIPv4.AddressType)
+	assert.Len(t, epSliceIPv4.Endpoints, 1)
+	assert.ElementsMatch(t, ipv4Addresses, epSliceIPv4.Endpoints[0].Addresses)
+	assert.ElementsMatch(t, expectedPorts, epSliceIPv4.Ports)
+
+	epSliceIPv6, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv6, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, discoveryv1.AddressTypeIPv6, epSliceIPv6.AddressType)
+	assert.Len(t, epSliceIPv6.Endpoints, 1)
+	assert.ElementsMatch(t, ipv6Addresses, epSliceIPv6.Endpoints[0].Addresses)
+	assert.ElementsMatch(t, expectedPorts, epSliceIPv6.Ports)
 }
 
 func TestSaveMonEndpoints(t *testing.T) {

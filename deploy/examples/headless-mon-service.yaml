@@ -1,0 +1,9 @@
+# Create a headless service which will effectively referenced by the EndpointSlice resources
+# of the same name which is created automatically by Rook
+apiVersion: v1
+kind: Service
+metadata:
+  name: rook-ceph-active-mons
+  namespace: rook-ceph # namespace:cluster
+spec:
+  clusterIP: None # headless service

@@ -313,7 +313,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		SecurityContext: controller.PodSecurityContext(),
 		Ports: []corev1.ContainerPort{
 			{
-				Name:          "tcp-msgr2",
+				Name:          DefaultMsgr2PortName,
 				ContainerPort: DefaultMsgr2Port,
 				Protocol:      corev1.ProtocolTCP,
 			},
@@ -350,7 +350,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 	} else {
 		// Add messenger 1 port
 		container.Ports = append(container.Ports, corev1.ContainerPort{
-			Name:          "tcp-msgr1",
+			Name:          DefaultMsgr1PortName,
 			ContainerPort: monConfig.Port,
 			Protocol:      corev1.ProtocolTCP,
 		})
