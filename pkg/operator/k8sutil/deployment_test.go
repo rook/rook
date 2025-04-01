@@ -266,8 +266,8 @@ func TestWaitForDeploymentsToUpdate(t *testing.T) {
 		waitForDeploymentPeriod = oldPeriod
 		waitForDeploymentTimeout = oldTimeout
 	}()
-	waitForDeploymentPeriod = 1 * time.Millisecond
-	waitForDeploymentTimeout = 3 * time.Millisecond
+	waitForDeploymentPeriod = 3 * time.Millisecond
+	waitForDeploymentTimeout = 9 * time.Millisecond
 
 	timesCalled := 0
 	// generate a status that is not ready when first called but becomes ready later
