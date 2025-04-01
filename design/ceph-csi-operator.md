@@ -3,7 +3,7 @@ title: Integrate Ceph-CSI operator with Rook
 target-version: release-1.15
 ---
 
-# Integrate Ceph-CSI operator with Rook
+# Integrate Ceph-CSI operator with Rook1
 
 ## Overview
 
