@@ -176,6 +176,7 @@ func createTopicAttributes(topic *cephv1.CephBucketTopic) map[string]*string {
 		attr["kafka-ack-level"] = &topic.Spec.Endpoint.Kafka.AckLevel
 		verifySSL = strconv.FormatBool(!topic.Spec.Endpoint.Kafka.DisableVerifySSL)
 		attr["verify-ssl"] = &verifySSL
+		attr["mechanism"] = &topic.Spec.Endpoint.Kafka.Mechanism
 	}
 
 	return attr

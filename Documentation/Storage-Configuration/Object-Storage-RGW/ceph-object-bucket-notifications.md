@@ -65,6 +65,7 @@ spec:
 #     disableVerifySSL: true [16]
 #     ackLevel: broker [17]
 #     useSSL: false [18]
+#     mechanism: SCRAM-SHA-512 [19]
 ```
 
 1. `name` of the `CephBucketTopic`
@@ -100,6 +101,12 @@ spec:
     + “none”: message is considered “delivered” if sent to broker
     + “broker”: message is considered “delivered” if acked by broker (default)
 18. `useSSL` (optional) indicates that secure connection will be used for connecting with the broker (“false” by default)
+19. `mechanism` (optional) select which authentication mechanism to use, one of:
+    + “PLAIN” (default)
+    + “SCRAM-SHA-512”
+    + “SCRAM-SHA-256”
+    + “GSSAPI”
+    + “OAUTHBEARER”
 
 !!! note
     In case of Kafka and AMQP, the consumer of the notifications is not required to ack the notifications, since the broker persists the messages before delivering them to their final destinations.
