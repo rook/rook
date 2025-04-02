@@ -69,7 +69,7 @@ func pdbPredicate[T *policyv1.PodDisruptionBudget]() predicate.TypedFuncs[T] {
 		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
 			pdb := (*policyv1.PodDisruptionBudget)(e.ObjectNew)
 
-			// reconcile for the main PDB update event when first OSD goes down, that is,  when `DisruptionsAllowed` gets updated to 0.
+			// reconcile for the main PDB update event when first OSD goes down, that is, when `DisruptionsAllowed` gets updated to 0.
 			return pdb.Name == osdPDBAppName && pdb.Spec.MaxUnavailable.IntVal == 1 && pdb.Status.DisruptionsAllowed == 0
 		},
 		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
