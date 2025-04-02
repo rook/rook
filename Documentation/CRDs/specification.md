@@ -13759,7 +13759,7 @@ string
 </em>
 </td>
 <td>
-<p>RGW Zone the Object Store is in</p>
+<p>CephObjectStoreZone name this CephObjectStore is part of</p>
 </td>
 </tr>
 </tbody>

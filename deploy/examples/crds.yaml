@@ -12780,7 +12780,7 @@ spec:
                   nullable: true
                   properties:
                     name:
-                      description: RGW Zone the Object Store is in
+                      description: CephObjectStoreZone name this CephObjectStore is part of
                       type: string
                   required:
                     - name
