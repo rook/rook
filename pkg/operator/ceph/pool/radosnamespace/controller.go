@@ -161,7 +161,10 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing)
 	}
 
-	poolAndRadosNamespaceName := fmt.Sprintf("%s/%s", cephBlockPoolRadosNamespace.Spec.BlockPoolName, getRadosNamespaceName(cephBlockPoolRadosNamespace))
+	poolAndRadosNamespaceName := cephBlockPoolRadosNamespace.Spec.BlockPoolName
+	if rns := getRadosNamespaceName(cephBlockPoolRadosNamespace); rns != "" {
+		poolAndRadosNamespaceName = fmt.Sprintf("%s/%s", cephBlockPoolRadosNamespace.Spec.BlockPoolName, rns)
+	}
 
 	// Make sure a CephCluster is present otherwise do nothing
 	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
@@ -322,7 +325,9 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 }
 
 func getRadosNamespaceName(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace) string {
-	if cephBlockPoolRadosNamespace.Spec.Name != "" {
+	if cephBlockPoolRadosNamespace.Spec.Name == cephclient.ImplicitNamespaceKey {
+		return cephclient.ImplicitNamespaceVal
+	} else if cephBlockPoolRadosNamespace.Spec.Name != "" {
 		return cephBlockPoolRadosNamespace.Spec.Name
 	}
 	return cephBlockPoolRadosNamespace.Name
@@ -366,6 +371,10 @@ func (r *ReconcileCephBlockPoolRadosNamespace) createOrUpdateRadosNamespace(ceph
 	namespacedName := fmt.Sprintf("%s/%s", cephBlockPoolRadosNamespace.Namespace, cephBlockPoolRadosNamespace.Name)
 	logger.Infof("creating ceph blockpool rados namespace %q", namespacedName)
 
+	if getRadosNamespaceName(cephBlockPoolRadosNamespace) == "" {
+		logger.Info("can't create empty radosnamepace as it is already present.")
+		return nil
+	}
 	err := cephclient.CreateRadosNamespace(r.context, r.clusterInfo, cephBlockPoolRadosNamespace.Spec.BlockPoolName, getRadosNamespaceName(cephBlockPoolRadosNamespace))
 	if err != nil {
 		return errors.Wrapf(err, "failed to create ceph blockpool rados namespace %q", cephBlockPoolRadosNamespace.Name)
@@ -378,6 +387,11 @@ func (r *ReconcileCephBlockPoolRadosNamespace) createOrUpdateRadosNamespace(ceph
 func (r *ReconcileCephBlockPoolRadosNamespace) deleteRadosNamespace(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace) error {
 	namespacedName := fmt.Sprintf("%s/%s", cephBlockPoolRadosNamespace.Namespace, cephBlockPoolRadosNamespace.Name)
 	logger.Infof("deleting ceph blockpool rados namespace object %q", namespacedName)
+
+	if getRadosNamespaceName(cephBlockPoolRadosNamespace) == "" {
+		logger.Info("can't delete empty radosnamepace as it present by default.")
+		return nil
+	}
 
 	if err := cephclient.DeleteRadosNamespace(r.context, r.clusterInfo, cephBlockPoolRadosNamespace.Spec.BlockPoolName, getRadosNamespaceName(cephBlockPoolRadosNamespace)); err != nil {
 		return errors.Wrapf(err, "failed to delete ceph blockpool rados namespace %q", cephBlockPoolRadosNamespace.Name)
@@ -437,6 +451,10 @@ func checkBlockPoolMirroring(cephBlockPool *cephv1.CephBlockPool) bool {
 
 func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace, cephBlockPool *cephv1.CephBlockPool) error {
 	poolAndRadosNamespaceName := fmt.Sprintf("%s/%s", cephBlockPool.Name, getRadosNamespaceName(cephBlockPoolRadosNamespace))
+	if getRadosNamespaceName(cephBlockPoolRadosNamespace) == "" {
+		poolAndRadosNamespaceName = cephBlockPool.Name
+	}
+
 	mirrorInfo, err := cephclient.GetPoolMirroringInfo(r.context, r.clusterInfo, poolAndRadosNamespaceName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get mirroring info for the radosnamespace %q", poolAndRadosNamespaceName)

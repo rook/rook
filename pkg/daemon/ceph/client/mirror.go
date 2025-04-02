@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/exec"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -50,6 +51,13 @@ type Images struct {
 	// Name of the pool image
 	Name string
 }
+
+const (
+	mirrorModeDisabled   = "disabled"
+	mirrorModeInitOnly   = "init-only"
+	ImplicitNamespaceKey = "<implicit>"
+	ImplicitNamespaceVal = ""
+)
 
 var (
 	rbdMirrorPeerCaps                     = []string{"mon", "profile rbd-mirror-peer", "osd", "profile rbd"}
@@ -118,6 +126,20 @@ func CreateRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 // enablePoolMirroring turns on mirroring on that pool by specifying the mirroring type
 func enablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec) error {
 	logger.Infof("enabling mirroring type %q for pool %q", pool.Mirroring.Mode, pool.Name)
+
+	if pool.Mirroring.Mode == mirrorModeInitOnly && !clusterInfo.CephVersion.IsAtLeastTentacle() {
+		return fmt.Errorf("ceph version %q does not support mirroring mode %s, minimum ceph version required is %q", clusterInfo.CephVersion.String(), pool.Mirroring.Mode, version.Tentacle.String())
+	}
+
+	mirrorInfo, err := GetPoolMirroringInfo(context, clusterInfo, pool.Name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get mirroring info for the pool %q", pool.Name)
+	}
+
+	if pool.Mirroring.Mode == mirrorInfo.Mode {
+		logger.Debugf("mirroring is already enabled on the pool %s with mode %s", pool.Name, mirrorInfo.Mode)
+		return nil
+	}
 
 	// Build command
 	args := []string{"mirror", "pool", "enable", pool.Name, pool.Mirroring.Mode}
@@ -374,6 +396,10 @@ func EnableRBDRadosNamespaceMirroring(context *clusterd.Context, clusterInfo *Cl
 	// remove the check when the min supported version is 20.0.0
 	if !clusterInfo.CephVersion.IsAtLeast(radosNamespaceMirroringMinimumVersion) {
 		return errors.Errorf("ceph version %q does not support mirroring in rados namespace %q with --remote-namespace flag, supported version are v20 and above.", clusterInfo.CephVersion.String(), poolAndRadosNamespaceName)
+	}
+
+	if remoteNamespace != nil && *remoteNamespace == ImplicitNamespaceKey {
+		*remoteNamespace = ImplicitNamespaceVal
 	}
 
 	args := []string{"mirror", "pool", "enable", poolAndRadosNamespaceName, mode}
