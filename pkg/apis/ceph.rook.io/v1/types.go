@@ -22,6 +22,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // ***************************************************************************
@@ -2002,6 +2003,15 @@ type ObjectStoreUserStatus struct {
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// +optional
+	// +nullable
+	Keys []SecretReference `json:"keys,omitempty"`
+}
+
+type SecretReference struct {
+	v1.SecretReference `json:",secretReference"`
+	UID                types.UID `json:"uid,omitempty"`
+	ResourceVersion    string    `json:"resourceVersion,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -2027,6 +2037,10 @@ type ObjectStoreUserSpec struct {
 	// +optional
 	// +nullable
 	Quotas *ObjectUserQuotaSpec `json:"quotas,omitempty"`
+	// Allows specifying credentials for the user. If not provided, the operator
+	// will generate them.
+	// +optional
+	Keys []ObjectUserKey `json:"keys,omitempty"`
 	// The namespace where the parent CephCluster and CephObjectStore are found
 	// +optional
 	ClusterNamespace string `json:"clusterNamespace,omitempty"`
@@ -2115,6 +2129,15 @@ type ObjectUserQuotaSpec struct {
 	// +optional
 	// +nullable
 	MaxObjects *int64 `json:"maxObjects,omitempty"`
+}
+
+// ObjectUserKey defines a set of rgw user access credentials to be retrieved
+// from secret resources.
+type ObjectUserKey struct {
+	// Secret key selector for the access_key (commonly referred to as AWS_ACCESS_KEY_ID).
+	AccessKeyRef *v1.SecretKeySelector `json:"accessKeyRef,omitempty"`
+	// Secret key selector for the secret_key (commonly referred to as AWS_SECRET_ACCESS_KEY).
+	SecretKeyRef *v1.SecretKeySelector `json:"secretKeyRef,omitempty"`
 }
 
 // +genclient
