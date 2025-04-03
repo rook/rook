@@ -31,7 +31,7 @@ const (
 
 var orchestratorInitWaitTime = 5 * time.Second
 
-// Ceph docs about the orchestrator modules: http://docs.ceph.com/docs/master/mgr/orchestrator_cli/
+// Ceph docs about the orchestrator modules: https://docs.ceph.com/en/latest/mgr/orchestrator/
 func (c *Cluster) configureOrchestratorModules() error {
 	if err := client.MgrEnableModule(c.context, c.clusterInfo, rookModuleName, true); err != nil {
 		return errors.Wrap(err, "failed to enable mgr rook module")
