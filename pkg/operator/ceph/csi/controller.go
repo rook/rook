@@ -18,6 +18,7 @@ package csi
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 
@@ -186,6 +187,11 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop Drivers")
 			}
 
+			err = r.deleteCSIDriverObject()
+			if err != nil {
+				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to delete Drivers object")
+			}
+
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -199,6 +205,11 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		err = r.stopDrivers()
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop Drivers")
+		}
+
+		err = r.deleteCSIDriverObject()
+		if err != nil {
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to delete Drivers object")
 		}
 
 		return reconcile.Result{}, nil
@@ -267,6 +278,23 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to reconcile csi-op config CR")
 			}
 			return reconcileResult, nil
+		}
+	}
+
+	if disableCSI {
+		err := r.stopDrivers()
+		if err != nil {
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop csi Drivers")
+		}
+		RBDDriverName = fmt.Sprintf("%s.rbd.csi.ceph.com", r.opConfig.OperatorNamespace)
+		CephFSDriverName = fmt.Sprintf("%s.cephfs.csi.ceph.com", r.opConfig.OperatorNamespace)
+		NFSDriverName = fmt.Sprintf("%s.nfs.csi.ceph.com", r.opConfig.OperatorNamespace)
+		driverNames := []string{RBDDriverName, CephFSDriverName, NFSDriverName}
+		for _, driverName := range driverNames {
+			err = r.transferCSIDriverOwner(r.opManagerContext, driverName)
+			if err != nil {
+				return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to create update %s driver for csi-operator driver CR", driverName)
+			}
 		}
 	}
 
