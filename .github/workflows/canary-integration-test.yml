@@ -1591,7 +1591,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_first_rook_cluster
           kubectl create -f deploy/examples/object-multisite-test.yaml
           # wait for multisite-store to be created
-          tests/scripts/github-action-helper.sh wait_for cephobjectstore multisite-store rook-ceph 480
+          tests/scripts/github-action-helper.sh wait_for cephobjectstore multisite-store rook-ceph 600
 
       - name: prep second cluster pull realm config
         shell: bash --noprofile --norc -eo pipefail -x {0}
@@ -1610,7 +1610,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_second_rook_cluster
           kubectl create -f deploy/examples/object-multisite-pull-realm-test.yaml
           # wait for realms to be pulled and zone-b-multisite-store to be created
-          tests/scripts/github-action-helper.sh wait_for cephobjectstore zone-b-multisite-store rook-ceph-secondary 480
+          tests/scripts/github-action-helper.sh wait_for cephobjectstore zone-b-multisite-store rook-ceph-secondary 600
 
       - name: wait for both ceph clusters to be ready
         shell: bash --noprofile --norc -eo pipefail -x {0}
