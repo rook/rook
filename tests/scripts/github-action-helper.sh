@@ -562,7 +562,7 @@ function get_secret_key() {
 }
 
 function s3cmd() {
-  command timeout 150 s3cmd -v --config=s3cfg --access_key="${S3CMD_ACCESS_KEY}" --secret_key="${S3CMD_SECRET_KEY}" "$@"
+  command timeout 200 s3cmd -v --config=s3cfg --access_key="${S3CMD_ACCESS_KEY}" --secret_key="${S3CMD_SECRET_KEY}" "$@"
 }
 
 function write_object_read_from_replica_cluster() {
