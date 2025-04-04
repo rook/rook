@@ -48,7 +48,16 @@ func (r *ReconcileCSI) validateAndConfigureDrivers(ownerInfo *k8sutil.OwnerInfo)
 	}
 
 	// Check whether RBD or CephFS needs to be disabled
-	return r.stopDrivers()
+	err = r.stopDrivers()
+	if err != nil {
+		return errors.Wrap(err, "failed to stop Drivers")
+	}
+
+	err = r.deleteCSIDriverObject()
+	if err != nil {
+		return errors.Wrap(err, "failed to delete Drivers object")
+	}
+	return nil
 }
 
 func (r *ReconcileCSI) setParams() error {
