@@ -1560,7 +1560,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider debugging it
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
