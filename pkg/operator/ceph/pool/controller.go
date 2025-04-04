@@ -173,9 +173,13 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	observedGeneration := cephBlockPool.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephBlockPool)
+	addedFinalizer, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephBlockPool)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrap(err, "failed to add finalizer")
+	}
+	if addedFinalizer {
+		logger.Infof("reconciling the ceph block pool %q after adding finalizer", cephBlockPool.Name)
+		return reconcile.Result{}, *cephBlockPool, nil
 	}
 
 	// The CR was just created, initializing status fields

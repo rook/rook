@@ -240,9 +240,13 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephCluster)
+	addedFinalizer, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephCluster)
 	if err != nil {
 		return reconcile.Result{}, *cephCluster, errors.Wrap(err, "failed to add finalizer")
+	}
+	if addedFinalizer {
+		logger.Infof("reconciling the ceph cluster %q after adding finalizer", cephCluster.Name)
+		return reconcile.Result{}, *cephCluster, nil
 	}
 
 	// DELETE: the CR was deleted

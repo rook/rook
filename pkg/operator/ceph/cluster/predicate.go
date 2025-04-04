@@ -188,6 +188,9 @@ func watchControllerPredicate(ctx context.Context, c client.Client) predicate.Fu
 
 					return false
 
+				} else if controller.FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to cluster %q, proceeding with reconcile", objNew.Name)
+					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}

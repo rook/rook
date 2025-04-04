@@ -83,6 +83,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to object store %q, proceeding with reconcile", objNew.Name)
+					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
@@ -102,6 +105,9 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to object store user %q, proceeding with reconcile", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -123,6 +129,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to object realm %q, proceeding with reconcile", objNew.Name)
+					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
@@ -142,6 +151,9 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to object zone group %q, proceeding with reconcile", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -163,6 +175,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to object zone %q, proceeding with reconcile", objNew.Name)
+					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
@@ -182,6 +197,9 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to blockpool %q, proceeding with reconcile", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -203,6 +221,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to filesystem %q, proceeding with reconcile", objNew.Name)
+					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
@@ -222,6 +243,9 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to nfs %q, proceeding with reconcile", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -243,6 +267,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to rbdmirror %q, proceeding with reconcile", objNew.Name)
+					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
@@ -262,6 +289,9 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to ceph client %q, proceeding with reconcile", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -283,6 +313,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to filesystem mirror %q, proceeding with reconcile", objNew.Name)
+					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
@@ -302,6 +335,9 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to bucket topic %q, proceeding with reconcile", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -323,6 +359,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to bucket notification %q, proceeding with reconcile", objNew.Name)
+					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
@@ -342,6 +381,9 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to subvolumegroup %q, proceeding with reconcile", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -382,6 +424,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CephBlockPoolRadosNamespace CR %q is going be deleted", namespacedName)
 					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to rados namespace %q, proceeding with reconcile", objNew.Name)
+					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping CephBlockPoolRadosNamespace resource %q update with unchanged spec", namespacedName)
 				}
@@ -404,6 +449,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CephCOSIDriver CR %q is going be deleted", namespacedName)
 					return true
+				} else if FinalizerAdded(objOld, objNew) {
+					logger.Infof("finalizer added to cosi driver %q, proceeding with reconcile", objNew.Name)
+					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping CephCOSIDriver resource %q update with unchanged spec", namespacedName)
 				}
@@ -415,6 +463,10 @@ func WatchControllerPredicate() predicate.Funcs {
 			return false
 		},
 	}
+}
+
+func FinalizerAdded(oldObj, newObj client.Object) bool {
+	return len(oldObj.GetFinalizers()) == 0 && len(newObj.GetFinalizers()) > 0
 }
 
 func objectToBeDeleted(oldObj, newObj client.Object) bool {
