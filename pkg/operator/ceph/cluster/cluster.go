@@ -144,6 +144,13 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 		return errors.Wrap(err, "failed to start ceph mgr")
 	}
 
+	// Execute actions after the managers are up and running
+	logger.Debug("managers are up and running, executing post actions")
+	err = c.postMgrStartupActions()
+	if err != nil {
+		return errors.Wrap(err, "failed to execute post actions after all the ceph managers started")
+	}
+
 	// Start the OSDs
 	controller.UpdateCondition(c.ClusterInfo.Context, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph OSDs")
 	osds := osd.New(c.context, c.ClusterInfo, *c.Spec, rookImage)
@@ -470,11 +477,6 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrap(err, "failed to configure msgr2")
 	}
 
-	// Set config store options
-	if err := c.updateConfigStoreFromCRD(); err != nil {
-		return errors.Wrap(err, "")
-	}
-
 	if err := c.configureStorageSettings(); err != nil {
 		return errors.Wrap(err, "failed to configure storage settings")
 	}
@@ -494,6 +496,13 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrap(err, "failed to create cluster rbd bootstrap peer token")
 	}
 
+	return nil
+}
+
+func (c *cluster) postMgrStartupActions() error {
+	if err := c.updateConfigStoreFromCRD(); err != nil {
+		return errors.Wrap(err, "failed to set config store options")
+	}
 	return nil
 }
 
