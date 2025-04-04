@@ -110,6 +110,7 @@ rules:
   - endpoints
   - services
   - endpointslices
+  - endpointslices/restricted
   verbs:
   - get
   - list
