@@ -38,7 +38,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi/peermap"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -91,23 +91,27 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler, opCon
 	}
 
 	// Watch for ConfigMap (operator config)
-	configmapKind := source.Kind[client.Object](
-		mgr.GetCache(),
-		&v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}},
-		&handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient(), opConfig.OperatorNamespace),
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}},
+			&handler.TypedEnqueueRequestForObject[*corev1.ConfigMap]{},
+			cmPredicate(),
+		),
 	)
-	err = c.Watch(configmapKind)
 	if err != nil {
 		return err
 	}
 
 	// Watch for CephCluster
-	clusterKind := source.Kind[client.Object](
-		mgr.GetCache(),
-		&cephv1.CephCluster{TypeMeta: metav1.TypeMeta{Kind: "CephCluster", APIVersion: v1.SchemeGroupVersion.String()}},
-		&handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient(), opConfig.OperatorNamespace),
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephCluster{TypeMeta: metav1.TypeMeta{Kind: "CephCluster", APIVersion: corev1.SchemeGroupVersion.String()}},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephCluster]{},
+			cephClusterPredicate(ctx, mgr.GetClient(), opConfig.OperatorNamespace),
+		),
 	)
-	err = c.Watch(clusterKind)
 	if err != nil {
 		return err
 	}
