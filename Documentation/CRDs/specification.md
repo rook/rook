@@ -247,8 +247,8 @@ NotificationFilterSpec
 <td>
 <code>status</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.Status">
-Status
+<a href="#ceph.rook.io/v1.CephBucketNotificationStatus">
+CephBucketNotificationStatus
 </a>
 </em>
 </td>
@@ -3477,6 +3477,52 @@ int64
 </em>
 </td>
 <td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephBucketNotificationStatus">CephBucketNotificationStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>)
+</p>
+<div>
+<p>CephBucketNotificationStatus represents the status of a CephBucketNotification object</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>Status</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Status">
+Status
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>Status</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>keys</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SecretReference">
+[]SecretReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
@@ -7531,6 +7577,34 @@ string
 <td>
 <em>(Optional)</em>
 <p>The authentication mechanism for this topic (PLAIN/SCRAM-SHA-512/SCRAM-SHA-256/GSSAPI/OAUTHBEARER)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>UserRef</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
+Kubernetes core/v1.SecretKeySelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The kafka user name to use for authentication</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>PassRef</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
+Kubernetes core/v1.SecretKeySelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The kafka password to use for authentication</p>
 </td>
 </tr>
 </tbody>
@@ -12487,7 +12561,7 @@ int32
 <h3 id="ceph.rook.io/v1.SecretReference">SecretReference
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotificationStatus">CephBucketNotificationStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus</a>)
 </p>
 <div>
 </div>
@@ -13039,7 +13113,7 @@ int
 <h3 id="ceph.rook.io/v1.Status">Status
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>, <a href="#ceph.rook.io/v1.CephFilesystemMirror">CephFilesystemMirror</a>, <a href="#ceph.rook.io/v1.CephNFS">CephNFS</a>, <a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>, <a href="#ceph.rook.io/v1.CephObjectZone">CephObjectZone</a>, <a href="#ceph.rook.io/v1.CephObjectZoneGroup">CephObjectZoneGroup</a>, <a href="#ceph.rook.io/v1.CephRBDMirror">CephRBDMirror</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephFilesystemMirror">CephFilesystemMirror</a>, <a href="#ceph.rook.io/v1.CephNFS">CephNFS</a>, <a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>, <a href="#ceph.rook.io/v1.CephObjectZone">CephObjectZone</a>, <a href="#ceph.rook.io/v1.CephObjectZoneGroup">CephObjectZoneGroup</a>, <a href="#ceph.rook.io/v1.CephRBDMirror">CephRBDMirror</a>, <a href="#ceph.rook.io/v1.CephBucketNotificationStatus">CephBucketNotificationStatus</a>)
 </p>
 <div>
 <p>Status represents the status of an object</p>
