@@ -62,7 +62,7 @@ func TestObjectToCRMapper(t *testing.T) {
 		{NamespacedName: client.ObjectKey{Name: "my-pool", Namespace: "rook-ceph"}},
 	}
 
-	handlerFunc, err := ObjectToCRMapper(context.TODO(), cl, objects[0], s)
+	handlerFunc, err := ObjectToCRMapper[*cephv1.CephFilesystemList, runtime.Object](context.TODO(), cl, &cephv1.CephFilesystemList{}, s)
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, fakeRequest, handlerFunc(context.TODO(), fs))
 }

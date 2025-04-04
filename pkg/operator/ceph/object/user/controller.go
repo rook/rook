@@ -110,21 +110,31 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephObjectStoreUser CRD object
-	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephObjectStoreUser{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephObjectStoreUser{TypeMeta: controllerTypeMeta},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephObjectStoreUser]{},
+			opcontroller.WatchControllerPredicate[*cephv1.CephObjectStoreUser](mgr.GetScheme()),
+		),
+	)
 	if err != nil {
 		return err
 	}
 
 	// Watch secrets
-	ownerRequest := handler.EnqueueRequestForOwner(
-		mgr.GetScheme(),
-		mgr.GetRESTMapper(),
-		&cephv1.CephObjectStoreUser{},
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
+			handler.TypedEnqueueRequestForOwner[*corev1.Secret](
+				mgr.GetScheme(),
+				mgr.GetRESTMapper(),
+				&cephv1.CephObjectStoreUser{},
+			),
+			opcontroller.WatchPredicateForNonCRDObject[*corev1.Secret](&cephv1.CephObjectStoreUser{TypeMeta: controllerTypeMeta}, mgr.GetScheme()),
+		),
 	)
-	secretSource := source.Kind[client.Object](mgr.GetCache(), &corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}}, ownerRequest,
-		opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephObjectStoreUser{TypeMeta: controllerTypeMeta}, mgr.GetScheme()),
-	)
-	err = c.Watch(secretSource)
 	if err != nil {
 		return err
 	}

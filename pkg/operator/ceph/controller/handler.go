@@ -19,32 +19,25 @@ package controller
 import (
 	"context"
 
-	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // ObjectToCRMapper returns the list of a given object type metadata
 // It is used to trigger a reconcile object Kind A when watching object Kind B
 // So we reconcile Kind A instead of Kind B
 // For instance, we watch for CephCluster CR changes but want to reconcile CephFilesystem based on a Spec change
-func ObjectToCRMapper(ctx context.Context, c client.Client, ro runtime.Object, scheme *runtime.Scheme) (handler.MapFunc, error) {
-	if _, ok := ro.(metav1.ListInterface); !ok {
-		return nil, errors.Errorf("expected a metav1.ListInterface, got %T instead", ro)
-	}
-
-	gvk, err := apiutil.GVKForObject(ro, scheme)
+func ObjectToCRMapper[List client.ObjectList, T runtime.Object](ctx context.Context, c client.Client, list List, scheme *runtime.Scheme) (handler.TypedMapFunc[T, reconcile.Request], error) {
+	gvk, err := apiutil.GVKForObject(list, scheme)
 	if err != nil {
 		return nil, err
 	}
 
-	// return handler.EnqueueRequestsFromMapFunc(func(o client.Object) []ctrl.Request {
-	return handler.MapFunc(func(ctx context.Context, o client.Object) []ctrl.Request {
+	return func(ctx context.Context, obj T) []reconcile.Request {
 		list := &unstructured.UnstructuredList{}
 		list.SetGroupVersionKind(gvk)
 		err := c.List(ctx, list)
@@ -52,9 +45,9 @@ func ObjectToCRMapper(ctx context.Context, c client.Client, ro runtime.Object, s
 			return nil
 		}
 
-		results := []ctrl.Request{}
+		results := []reconcile.Request{}
 		for _, obj := range list.Items {
-			results = append(results, ctrl.Request{
+			results = append(results, reconcile.Request{
 				NamespacedName: client.ObjectKey{
 					Namespace: obj.GetNamespace(),
 					Name:      obj.GetName(),
@@ -62,5 +55,5 @@ func ObjectToCRMapper(ctx context.Context, c client.Client, ro runtime.Object, s
 			})
 		}
 		return results
-	}), nil
+	}, nil
 }

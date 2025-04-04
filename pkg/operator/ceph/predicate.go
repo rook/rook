@@ -18,59 +18,54 @@ limitations under the License.
 package operator
 
 import (
-	"context"
-
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	v1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // predicateController is the predicate function to trigger reconcile on operator configuration cm change
-func predicateController(ctx context.Context, client client.Client) predicate.Funcs {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			if cm, ok := e.Object.(*v1.ConfigMap); ok {
-				return cm.Name == controller.OperatorSettingConfigMapName
-			}
-			return false
+func operatorSettingConfigMapPredicate[T *corev1.ConfigMap]() predicate.TypedFuncs[T] {
+	return predicate.TypedFuncs[T]{
+		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
+			obj := (*corev1.ConfigMap)(e.Object)
+
+			return obj.GetName() == controller.OperatorSettingConfigMapName
 		},
 
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			if old, ok := e.ObjectOld.(*v1.ConfigMap); ok {
-				if new, ok := e.ObjectNew.(*v1.ConfigMap); ok {
-					if old.Name == controller.OperatorSettingConfigMapName && new.Name == controller.OperatorSettingConfigMapName {
-						if old.Data["ROOK_CURRENT_NAMESPACE_ONLY"] != new.Data["ROOK_CURRENT_NAMESPACE_ONLY"] {
-							logger.Debug("ROOK_CURRENT_NAMESPACE_ONLY config updated, reloading the manager")
-							controller.ReloadManager()
+		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
+			objOld := (*corev1.ConfigMap)(e.ObjectOld)
+			objNew := (*corev1.ConfigMap)(e.ObjectNew)
 
-							// No need to ask for reconciliation since the context is going to be terminated when
-							// the signal is caught and the reconcile will run when the controller starts.
-							return false
-						}
+			if objOld.GetName() == controller.OperatorSettingConfigMapName && objNew.GetName() == controller.OperatorSettingConfigMapName {
+				if objOld.Data["ROOK_CURRENT_NAMESPACE_ONLY"] != objNew.Data["ROOK_CURRENT_NAMESPACE_ONLY"] {
+					logger.Debug("ROOK_CURRENT_NAMESPACE_ONLY config updated, reloading the manager")
+					controller.ReloadManager()
 
-						// We still want to reconcile the operator manager if the configmap is updated
-						return true
-					}
-				}
-			}
-
-			return false
-		},
-
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			if cm, ok := e.Object.(*v1.ConfigMap); ok {
-				if cm.Name == controller.OperatorSettingConfigMapName {
-					logger.Debug("operator configmap deleted, not reconciling")
+					// No need to ask for reconciliation since the context is going to be terminated when
+					// the signal is caught and the reconcile will run when the controller starts.
 					return false
 				}
+
+				// We still want to reconcile the operator manager if the configmap is updated
+				return true
 			}
 
 			return false
 		},
 
-		GenericFunc: func(e event.GenericEvent) bool {
+		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
+			obj := (*corev1.ConfigMap)(e.Object)
+
+			if obj.GetName() == controller.OperatorSettingConfigMapName {
+				logger.Debug("operator configmap deleted, not reconciling")
+				return false
+			}
+
+			return false
+		},
+
+		GenericFunc: func(e event.TypedGenericEvent[T]) bool {
 			return false
 		},
 	}

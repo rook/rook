@@ -94,13 +94,27 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	logger.Info("successfully started")
 	// Watch for changes to CephCOSIDriver
-	err = controller.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephCOSIDriver{}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	err = controller.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephCOSIDriver{},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephCOSIDriver]{},
+			opcontroller.WatchControllerPredicate[*cephv1.CephCOSIDriver](mgr.GetScheme()),
+		),
+	)
 	if err != nil {
 		return errors.Wrap(err, "failed to watch for CephCOSIDriver object changes")
 	}
 
 	// Watch for changes to CephObjectStore as arbitrary resource and predicate functions
-	err = controller.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephObjectStore{}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	err = controller.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephObjectStore{},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephObjectStore]{},
+			opcontroller.WatchControllerPredicate[*cephv1.CephObjectStore](mgr.GetScheme()),
+		),
+	)
 	if err != nil {
 		return errors.Wrap(err, "failed to watch for CephObjectStore object changes")
 	}

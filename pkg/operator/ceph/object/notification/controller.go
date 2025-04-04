@@ -102,7 +102,14 @@ func addNotificationReconciler(mgr manager.Manager, r reconcile.Reconciler) erro
 	logger.Info("successfully started")
 
 	// Watch for changes on the OBC CRD object
-	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephBucketNotification{}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&cephv1.CephBucketNotification{},
+			&handler.TypedEnqueueRequestForObject[*cephv1.CephBucketNotification]{},
+			opcontroller.WatchControllerPredicate[*cephv1.CephBucketNotification](mgr.GetScheme()),
+		),
+	)
 	if err != nil {
 		return err
 	}

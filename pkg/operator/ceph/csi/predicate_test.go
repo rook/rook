@@ -24,116 +24,118 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-func Test_predicateController(t *testing.T) {
+func Test_cmPredicate(t *testing.T) {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
-	var (
-		client    client.WithWatch
-		namespace v1.Namespace
-		p         predicate.Funcs
-		c         event.CreateEvent
-		d         event.DeleteEvent
-		u         event.UpdateEvent
-		cm        v1.ConfigMap
-		cm2       v1.ConfigMap
-		cluster   cephv1.CephCluster
-		cluster2  cephv1.CephCluster
-	)
-
-	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &v1.ConfigMap{}, &v1.ConfigMapList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
-	client = fake.NewClientBuilder().WithScheme(s).Build()
-
-	t.Run("create event is not the one we are looking for", func(t *testing.T) {
-		c = event.CreateEvent{Object: &namespace}
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.False(t, p.Create(c))
-	})
 
 	t.Run("create event is a CM but not the operator config", func(t *testing.T) {
-		c = event.CreateEvent{Object: &cm}
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.False(t, p.Create(c))
+		cm := &corev1.ConfigMap{}
+		e := event.TypedCreateEvent[*corev1.ConfigMap]{Object: cm}
+		p := cmPredicate()
+		assert.False(t, p.Create(e))
 	})
 
 	t.Run("delete event is a CM and it's not the operator config", func(t *testing.T) {
-		d = event.DeleteEvent{Object: &cm}
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.False(t, p.Delete(d))
+		cm := &corev1.ConfigMap{}
+		e := event.TypedDeleteEvent[*corev1.ConfigMap]{Object: cm}
+		p := cmPredicate()
+		assert.False(t, p.Delete(e))
 	})
 
 	t.Run("create event is a CM and it's the operator config", func(t *testing.T) {
-		cm.Name = "rook-ceph-operator-config"
-		c = event.CreateEvent{Object: &cm}
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.True(t, p.Create(c))
+		cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-operator-config"}}
+		e := event.TypedCreateEvent[*corev1.ConfigMap]{Object: cm}
+		p := cmPredicate()
+		assert.True(t, p.Create(e))
 	})
 
 	t.Run("delete event is a CM and it's the operator config", func(t *testing.T) {
-		d = event.DeleteEvent{Object: &cm}
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.True(t, p.Delete(d))
+		cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-operator-config"}}
+		e := event.TypedDeleteEvent[*corev1.ConfigMap]{Object: cm}
+		p := cmPredicate()
+		assert.True(t, p.Delete(e))
 	})
 
 	t.Run("update event is a CM and it's the operator config but nothing changed", func(t *testing.T) {
-		u = event.UpdateEvent{ObjectOld: &cm, ObjectNew: &cm}
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.False(t, p.Update(u))
+		cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-operator-config"}}
+		e := event.TypedUpdateEvent[*corev1.ConfigMap]{ObjectOld: cm, ObjectNew: cm}
+		p := cmPredicate()
+		assert.False(t, p.Update(e))
 	})
 
 	t.Run("update event is a CM and the content changed with correct setting", func(t *testing.T) {
+		cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-operator-config"}}
+		cm2 := cm.DeepCopy()
 		cm.Data = map[string]string{"foo": "bar"}
-		cm2.Name = "rook-ceph-operator-config"
 		cm2.Data = map[string]string{"CSI_PROVISIONER_REPLICAS": "2"}
-		u = event.UpdateEvent{ObjectOld: &cm, ObjectNew: &cm2}
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.True(t, p.Update(u))
+		e := event.TypedUpdateEvent[*corev1.ConfigMap]{ObjectOld: cm, ObjectNew: cm2}
+		p := cmPredicate()
+		assert.True(t, p.Update(e))
 	})
+}
+
+func Test_cephClusterPredicate(t *testing.T) {
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &corev1.ConfigMap{}, &corev1.ConfigMapList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
 
 	t.Run("create event is a CephCluster and it's the first instance and a cm is present", func(t *testing.T) {
-		cm.Namespace = "rook-ceph"
-		err := client.Create(context.TODO(), &cm)
-		assert.NoError(t, err)
-		cluster.Generation = 1
-		c = event.CreateEvent{Object: &cluster}
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.True(t, p.Create(c))
+		client := fake.NewClientBuilder().WithScheme(s).Build()
+
+		cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-operator-config", Namespace: "rook-ceph"}}
+		err := client.Create(context.TODO(), cm)
+		require.NoError(t, err)
+
+		cluster := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Generation: 1}}
+		e := event.TypedCreateEvent[*cephv1.CephCluster]{Object: cluster}
+		p := cephClusterPredicate(context.TODO(), client, "rook-ceph")
+		assert.True(t, p.Create(e))
 	})
 
 	t.Run("create event is a CephCluster and it's not the first instance", func(t *testing.T) {
-		cluster.Generation = 2
-		c = event.CreateEvent{Object: &cluster}
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.False(t, p.Create(c))
+		client := fake.NewClientBuilder().WithScheme(s).Build()
+
+		cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-operator-config", Namespace: "rook-ceph"}}
+		err := client.Create(context.TODO(), cm)
+		require.NoError(t, err)
+
+		cluster := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Generation: 2}}
+		e := event.TypedCreateEvent[*cephv1.CephCluster]{Object: cluster}
+		p := cephClusterPredicate(context.TODO(), client, "rook-ceph")
+		assert.False(t, p.Create(e))
 	})
 
 	t.Run("create event is a CephCluster and it's not the first instance but no cm so we reconcile", func(t *testing.T) {
-		err := client.Delete(context.TODO(), &cm)
-		assert.NoError(t, err)
-		cluster.Generation = 2
-		c = event.CreateEvent{Object: &cluster}
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.True(t, p.Create(c))
+		client := fake.NewClientBuilder().WithScheme(s).Build()
+
+		cluster := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Generation: 2}}
+		e := event.TypedCreateEvent[*cephv1.CephCluster]{Object: cluster}
+		p := cephClusterPredicate(context.TODO(), client, "rook-ceph")
+		assert.True(t, p.Create(e))
 	})
 
 	t.Run("create event is a CephCluster and a cluster already exists - not reconciling", func(t *testing.T) {
-		cluster.Name = "ceph1"
-		cluster2.Name = "ceph2"
-		cluster.Namespace = "rook-ceph"
-		cluster2.Namespace = "rook-ceph"
-		err := client.Create(context.TODO(), &cluster)
-		assert.NoError(t, err)
-		err = client.Create(context.TODO(), &cluster2)
-		assert.NoError(t, err)
-		c = event.CreateEvent{Object: &cluster2}
-		assert.Equal(t, "rook-ceph", c.Object.GetNamespace())
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.False(t, p.Create(c))
+		client := fake.NewClientBuilder().WithScheme(s).Build()
+
+		{
+			cluster := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: "ceph1", Namespace: "rook-ceph", Generation: 2}}
+			err := client.Create(context.TODO(), cluster)
+			require.NoError(t, err)
+		}
+
+		cluster := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: "ceph2", Namespace: "rook-ceph"}}
+		err := client.Create(context.TODO(), cluster)
+		require.NoError(t, err)
+
+		e := event.TypedCreateEvent[*cephv1.CephCluster]{Object: cluster}
+		p := cephClusterPredicate(context.TODO(), client, "rook-ceph")
+		assert.False(t, p.Create(e))
 	})
 }

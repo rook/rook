@@ -185,9 +185,6 @@ func TestIsCMToIgnoreOnDelete(t *testing.T) {
 }
 
 func TestIsSecretToIgnoreOnUpdate(t *testing.T) {
-	blockPool := &cephv1.CephBlockPool{}
-	assert.False(t, isSecretToIgnoreOnUpdate(blockPool))
-
 	s := &corev1.Secret{}
 	assert.False(t, isSecretToIgnoreOnUpdate(s))
 
