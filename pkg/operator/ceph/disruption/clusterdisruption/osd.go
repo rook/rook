@@ -268,7 +268,6 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 				maxUnavailableOSDCount = 1
 			} else {
 				maxUnavailableOSDCount = len(downOSDs) + 1
-				resetPDBConfig(pdbStateMap)
 			}
 		} else {
 			maxUnavailableOSDCount = len(downOSDs) + 1
