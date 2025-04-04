@@ -101,6 +101,7 @@ NFS_CORE_PARAM {
 	Enable_NLM = false;
 	Enable_RQUOTA = false;
 	Protocols = 4;
+	allow_set_io_flusher_fail = true;
 }
 
 MDCACHE {
