@@ -253,6 +253,10 @@ function create_cluster_prerequisites() {
   (cd "${REPO_DIR}/deploy/examples" && kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml)
 }
 
+function remove_cluster_prerequisites() {
+  (cd "${REPO_DIR}/deploy/examples" && kubectl delete -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml)
+}
+
 function deploy_manifest_with_local_build() {
   sed -i 's/.*ROOK_CSI_ENABLE_NFS:.*/  ROOK_CSI_ENABLE_NFS: \"true\"/g' $1
   if [[ "$USE_LOCAL_BUILD" != "false" ]]; then
@@ -790,6 +794,15 @@ function test_object_separate_pools() {
     echo "Found $errors errors"
     exit $errors
   fi
+}
+
+function delete_cluster() {
+  kubectl --namespace rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
+  kubectl --namespace rook-ceph delete cephcluster rook-ceph
+  kubectl --namespace rook-ceph logs deploy/rook-ceph-operator
+  wait_for_cleanup_pod
+  kubectl --namespace rook-ceph delete --ignore-not-found=true -f deploy/examples/operator.yaml
+  remove_cluster_prerequisites
 }
 
 FUNCTION="$1"
