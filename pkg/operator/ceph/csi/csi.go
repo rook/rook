@@ -135,8 +135,6 @@ func (r *ReconcileCSI) setParams() error {
 		CSIParam.EnableOMAPGenerator = true
 	}
 
-	CSIParam.EnableCSIDriverSeLinuxMount = true
-
 	CSIParam.EnableRBDSnapshotter = true
 	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_ENABLE_RBD_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableRBDSnapshotter = false
