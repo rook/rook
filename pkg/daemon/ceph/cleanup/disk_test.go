@@ -18,11 +18,14 @@ package cleanup
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,10 +36,30 @@ func TestBuildDataSource(t *testing.T) {
 	assert.Equal(t, "/dev/zero", s.buildDataSource())
 }
 
-func TestBuildShredArgs(t *testing.T) {
+func TestBuildShredCommands(t *testing.T) {
 	var i int32 = 1
-	c := &clusterd.Context{}
-	disk := "/dev/sda"
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("OUTPUT for %s %v", command, args)
+
+			if command == "lsblk" {
+				if strings.Contains(args[0], "sda") { // 2TB
+					return `NAME="sdb" SIZE="2000000000000" TYPE="disk" PKNAME=""`, nil
+				}
+				return "", nil
+			}
+
+			if command == "sgdisk" {
+				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		},
+	}
+
+	c := &clusterd.Context{Executor: executor}
+
 	type fields struct {
 		context           *clusterd.Context
 		clusterInfo       *client.ClusterInfo
@@ -46,12 +69,20 @@ func TestBuildShredArgs(t *testing.T) {
 		name   string
 		fields fields
 		disk   string
-		want   []string
+		want   []ShredCommand
 	}{
-		{"quick-zero", fields{c, &client.ClusterInfo{}, &cephv1.SanitizeDisksSpec{Method: cephv1.SanitizeMethodQuick, Iteration: i, DataSource: cephv1.SanitizeDataSourceZero}}, disk, []string{"--size=10M", "--random-source=/dev/zero", "--force", "--verbose", "--iterations=1", "/dev/sda"}},
-		{"quick-random", fields{c, &client.ClusterInfo{}, &cephv1.SanitizeDisksSpec{Method: cephv1.SanitizeMethodQuick, Iteration: i, DataSource: cephv1.SanitizeDataSourceRandom}}, disk, []string{"--zero", "--size=10M", "--force", "--verbose", "--iterations=1", "/dev/sda"}},
-		{"complete-zero", fields{c, &client.ClusterInfo{}, &cephv1.SanitizeDisksSpec{Method: cephv1.SanitizeMethodComplete, Iteration: i, DataSource: cephv1.SanitizeDataSourceZero}}, disk, []string{"--random-source=/dev/zero", "--force", "--verbose", "--iterations=1", "/dev/sda"}},
-		{"complete-random", fields{c, &client.ClusterInfo{}, &cephv1.SanitizeDisksSpec{Method: cephv1.SanitizeMethodComplete, Iteration: i, DataSource: cephv1.SanitizeDataSourceRandom}}, disk, []string{"--zero", "--force", "--verbose", "--iterations=1", "/dev/sda"}},
+		{"quick-zero", fields{c, &client.ClusterInfo{}, &cephv1.SanitizeDisksSpec{Method: cephv1.SanitizeMethodQuick, Iteration: i, DataSource: cephv1.SanitizeDataSourceZero}}, "/dev/sda", []ShredCommand{
+			{command: "ceph-volume", args: []string{"lvm", "zap", "/dev/sda"}},
+		}},
+		{"quick-random", fields{c, &client.ClusterInfo{}, &cephv1.SanitizeDisksSpec{Method: cephv1.SanitizeMethodQuick, Iteration: i, DataSource: cephv1.SanitizeDataSourceRandom}}, "/dev/sda", []ShredCommand{
+			{command: "ceph-volume", args: []string{"lvm", "zap", "/dev/sda"}},
+		}},
+		{"complete-zero-2tb", fields{c, &client.ClusterInfo{}, &cephv1.SanitizeDisksSpec{Method: cephv1.SanitizeMethodComplete, Iteration: i, DataSource: cephv1.SanitizeDataSourceZero}}, "/dev/sda", []ShredCommand{
+			{command: "shred", args: []string{"--random-source=/dev/zero", "--force", "--verbose", "--iterations=1", "/dev/sda"}},
+		}},
+		{"complete-random-2tb", fields{c, &client.ClusterInfo{}, &cephv1.SanitizeDisksSpec{Method: cephv1.SanitizeMethodComplete, Iteration: i, DataSource: cephv1.SanitizeDataSourceRandom}}, "/dev/sda", []ShredCommand{
+			{command: "shred", args: []string{"--zero", "--force", "--verbose", "--iterations=1", "/dev/sda"}},
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -60,7 +91,7 @@ func TestBuildShredArgs(t *testing.T) {
 				clusterInfo:       tt.fields.clusterInfo,
 				sanitizeDisksSpec: tt.fields.sanitizeDisksSpec,
 			}
-			if got := s.buildShredArgs(tt.disk); !reflect.DeepEqual(got, tt.want) {
+			if got := s.buildShredCommands(tt.disk); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DiskSanitizer.buildShredArgs() = %v, want %v", got, tt.want)
 			}
 		})
