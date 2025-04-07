@@ -31,8 +31,14 @@ import (
 )
 
 const (
-	shredUtility = "shred"
-	shredBS      = "10M" // Shred's block size
+	quickShredUtility                  = "dd"
+	quickShredInitialBS         uint64 = 10 * 1024 * 1024 // Quick shred's offset 0 block size
+	quickShredInitialBlockCount uint64 = 1                // Quick shred's offset 0 block count
+	quickShredOffsetsBS         uint64 = 1024             // Quick shred's 1/10/100/1000 GB offsets block size
+	quickShredOffsetsBlockCount uint64 = 200              // Quick shred's 1/10/100/1000 GB offsets block count
+
+	completeShredUtility = "shred"
+	completeShredBS      = "10M" // Shred's block size
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cleanup")
@@ -42,6 +48,12 @@ type DiskSanitizer struct {
 	context           *clusterd.Context
 	clusterInfo       *client.ClusterInfo
 	sanitizeDisksSpec *cephv1.SanitizeDisksSpec
+}
+
+// ShredCommand is a struct that defines a shred command with its arguments
+type ShredCommand struct {
+	command string
+	args    []string
 }
 
 // NewDiskSanitizer is function that returns a full filled DiskSanitizer object
@@ -154,11 +166,6 @@ func (s *DiskSanitizer) buildShredArgs(disk string) []string {
 		shredArgs = append(shredArgs, "--zero")
 	}
 
-	// If this is a quick pass let's just overwrite the first 10MB
-	if s.sanitizeDisksSpec.Method == cephv1.SanitizeMethodQuick {
-		shredArgs = append(shredArgs, fmt.Sprintf("--size=%s", shredBS))
-	}
-
 	// If the data source for randomness is zero
 	if s.sanitizeDisksSpec.DataSource == cephv1.SanitizeDataSourceZero {
 		shredArgs = append(shredArgs, fmt.Sprintf("--random-source=%s", s.buildDataSource()))
@@ -174,6 +181,71 @@ func (s *DiskSanitizer) buildShredArgs(disk string) []string {
 	return shredArgs
 }
 
+func (s *DiskSanitizer) buildQuickShredCommands(disk, dataSource string) []ShredCommand {
+	var quickShredCommands []ShredCommand
+
+	diskInfo, err := clusterd.PopulateDeviceInfo(disk, s.context.Executor)
+	if err != nil {
+		return nil
+	}
+
+	// Shred more data at offset 0
+	quickShredCommands = append(quickShredCommands, ShredCommand{command: quickShredUtility, args: []string{
+		fmt.Sprintf("if=%s", dataSource),
+		fmt.Sprintf("of=%s", disk),
+		fmt.Sprintf("bs=%d", quickShredInitialBS),
+		fmt.Sprintf("count=%d", quickShredInitialBlockCount),
+		"oflag=direct,dsync",
+		"seek=0",
+	}})
+
+	// Shred at offsets 1GB, 10GB, 100GB, 1000GB
+	var i uint64
+	for i = 1; i <= 1000; i *= 10 {
+		offset := 1024 * 1024 * i
+		shredUntil := quickShredOffsetsBS * (offset + quickShredOffsetsBlockCount)
+
+		// Break if disk size is less than offset + shred size
+		if shredUntil > diskInfo.Size {
+			break
+		}
+
+		quickShredCommands = append(quickShredCommands, ShredCommand{command: quickShredUtility, args: []string{
+			fmt.Sprintf("if=%s", dataSource),
+			fmt.Sprintf("of=%s", disk),
+			fmt.Sprintf("bs=%d", quickShredOffsetsBS),
+			fmt.Sprintf("count=%d", quickShredOffsetsBlockCount),
+			"oflag=direct,dsync",
+			fmt.Sprintf("seek=%d", offset),
+		}})
+	}
+
+	return quickShredCommands
+}
+
+func (s *DiskSanitizer) buildShredCommands(disk string) []ShredCommand {
+	var shredCommands []ShredCommand
+
+	if s.sanitizeDisksSpec.Method == cephv1.SanitizeMethodQuick {
+		if s.sanitizeDisksSpec.DataSource == cephv1.SanitizeDataSourceRandom {
+			shredCommands = append(shredCommands, s.buildQuickShredCommands(disk, "/dev/urandom")...)
+		}
+
+		shredCommands = append(shredCommands, s.buildQuickShredCommands(disk, "/dev/zero")...)
+
+		return shredCommands
+	}
+
+	if s.sanitizeDisksSpec.DataSource == cephv1.SanitizeDataSourceZero {
+		shredCommands = append(shredCommands, ShredCommand{command: completeShredUtility, args: s.buildShredArgs(disk)})
+		return shredCommands
+	}
+
+	shredCommands = append(shredCommands, ShredCommand{command: completeShredUtility, args: s.buildShredArgs(disk)})
+
+	return shredCommands
+}
+
 func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfo, wg *sync.WaitGroup) {
 	// On return, notify the WaitGroup that we’re done
 	defer wg.Done()
@@ -183,14 +255,16 @@ func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfo, wg *sync.W
 			continue
 		}
 
-		output, err := s.context.Executor.ExecuteCommandWithCombinedOutput(shredUtility, s.buildShredArgs(device)...)
+		for _, shredCmd := range s.buildShredCommands(device) {
+			output, err := s.context.Executor.ExecuteCommandWithCombinedOutput(shredCmd.command, shredCmd.args...)
 
-		logger.Infof("%s\n", output)
+			logger.Infof("%s\n", output)
 
-		if err != nil {
-			logger.Errorf("failed to sanitize osd disk %q. %s. %v", device, output, err)
-		} else {
-			logger.Infof("successfully sanitized osd disk %q", device)
+			if err != nil {
+				logger.Errorf("failed to execute sanitization command for osd disk %q. output: %s, error: %v", device, output, err)
+			} else {
+				logger.Infof("successfully executed sanitization command for osd disk %q", device)
+			}
 		}
 
 		// If the device is encrypted let's close it after sanitizing its content
