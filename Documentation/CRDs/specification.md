@@ -247,8 +247,8 @@ NotificationFilterSpec
 <td>
 <code>status</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.CephBucketNotificationStatus">
-CephBucketNotificationStatus
+<a href="#ceph.rook.io/v1.Status">
+Status
 </a>
 </em>
 </td>
@@ -2948,6 +2948,19 @@ int64
 <p>ObservedGeneration is the latest generation observed by the controller.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>secrets</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SecretReference">
+[]SecretReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CIDR">CIDR
@@ -3477,52 +3490,6 @@ int64
 </em>
 </td>
 <td>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="ceph.rook.io/v1.CephBucketNotificationStatus">CephBucketNotificationStatus
-</h3>
-<p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>)
-</p>
-<div>
-<p>CephBucketNotificationStatus represents the status of a CephBucketNotification object</p>
-</div>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>Status</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.Status">
-Status
-</a>
-</em>
-</td>
-<td>
-<p>
-(Members of <code>Status</code> are embedded into this type.)
-</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>keys</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.SecretReference">
-[]SecretReference
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
@@ -12561,7 +12528,7 @@ int32
 <h3 id="ceph.rook.io/v1.SecretReference">SecretReference
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotificationStatus">CephBucketNotificationStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.BucketTopicStatus">BucketTopicStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus</a>)
 </p>
 <div>
 </div>
@@ -13113,7 +13080,7 @@ int
 <h3 id="ceph.rook.io/v1.Status">Status
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephFilesystemMirror">CephFilesystemMirror</a>, <a href="#ceph.rook.io/v1.CephNFS">CephNFS</a>, <a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>, <a href="#ceph.rook.io/v1.CephObjectZone">CephObjectZone</a>, <a href="#ceph.rook.io/v1.CephObjectZoneGroup">CephObjectZoneGroup</a>, <a href="#ceph.rook.io/v1.CephRBDMirror">CephRBDMirror</a>, <a href="#ceph.rook.io/v1.CephBucketNotificationStatus">CephBucketNotificationStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>, <a href="#ceph.rook.io/v1.CephFilesystemMirror">CephFilesystemMirror</a>, <a href="#ceph.rook.io/v1.CephNFS">CephNFS</a>, <a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>, <a href="#ceph.rook.io/v1.CephObjectZone">CephObjectZone</a>, <a href="#ceph.rook.io/v1.CephObjectZoneGroup">CephObjectZoneGroup</a>, <a href="#ceph.rook.io/v1.CephRBDMirror">CephRBDMirror</a>)
 </p>
 <div>
 <p>Status represents the status of an object</p>

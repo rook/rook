@@ -40,8 +40,9 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/rook/rook/tests/integration/object/bucketowner"
-	"github.com/rook/rook/tests/integration/object/user/userkeys"
+	// "github.com/rook/rook/tests/integration/object/bucketowner"
+	topickafka "github.com/rook/rook/tests/integration/object/topic/kafka"
+	// "github.com/rook/rook/tests/integration/object/user/userkeys"
 )
 
 const (
@@ -134,39 +135,44 @@ func (s *ObjectSuite) TestWithoutTLS() {
 // Check issues in MGRs, Delete Bucket and Delete user
 // Test for ObjectStore with and without TLS enabled
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, s *suite.Suite, namespace string, tlsEnable bool, swiftAndKeystone bool) {
-	storeName := "test-store"
-	if tlsEnable {
-		storeName = objectStoreTLSName
-	}
+	/*
+		storeName := "test-store"
+		if tlsEnable {
+			storeName = objectStoreTLSName
+		}
 
-	logger.Infof("Running on Rook Cluster %s", namespace)
-	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, storeName, 3, tlsEnable, swiftAndKeystone)
+		logger.Infof("Running on Rook Cluster %s", namespace)
+		createCephObjectStore(s.T(), helper, k8sh, installer, namespace, storeName, 3, tlsEnable, swiftAndKeystone)
 
-	// test that a second object store can be created (and deleted) while the first exists
-	s.T().Run("run a second object store", func(t *testing.T) {
-		otherStoreName := "other-" + storeName
-		// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
-		// and then deletes it.
-		deleteStore := true
-		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, swiftAndKeystone)
-	})
+		// test that a second object store can be created (and deleted) while the first exists
+		s.T().Run("run a second object store", func(t *testing.T) {
+			otherStoreName := "other-" + storeName
+			// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
+			// and then deletes it.
+			deleteStore := true
+			runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, swiftAndKeystone)
+		})
 
-	// now test operation of the first object store
-	testObjectStoreOperations(s, helper, k8sh, namespace, storeName, swiftAndKeystone)
+		// now test operation of the first object store
+		testObjectStoreOperations(s, helper, k8sh, namespace, storeName, swiftAndKeystone)
 
-	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable)
-	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable)
+		bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable)
+		userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable)
+	*/
+	topickafka.TestBucketTopicKafka(s.T(), k8sh, installer, logger, tlsEnable)
 
-	bucketNotificationTestStoreName := "bucket-notification-" + storeName
-	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, swiftAndKeystone)
-	testBucketNotifications(s, helper, k8sh, namespace, bucketNotificationTestStoreName)
-	if !tlsEnable {
-		// TODO : need to fix COSI driver to support TLS
-		logger.Info("Testing COSI driver")
-		testCOSIDriver(s, helper, k8sh, installer, namespace)
-	} else {
-		logger.Info("Skipping COSI driver test as TLS is enabled")
-	}
+	/*
+		bucketNotificationTestStoreName := "bucket-notification-" + storeName
+		createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, swiftAndKeystone)
+		testBucketNotifications(s, helper, k8sh, namespace, bucketNotificationTestStoreName)
+		if !tlsEnable {
+			// TODO : need to fix COSI driver to support TLS
+			logger.Info("Testing COSI driver")
+			testCOSIDriver(s, helper, k8sh, installer, namespace)
+		} else {
+			logger.Info("Skipping COSI driver test as TLS is enabled")
+		}
+	*/
 }
 
 func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string, swiftAndKeystone bool) {

@@ -2301,6 +2301,8 @@ type BucketTopicStatus struct {
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// +optional
+	Secrets []SecretReference `json:"secrets,omitempty"`
 }
 
 // CephBucketTopicList represents a list Ceph Object Store Bucket Notification Topics
@@ -2414,15 +2416,7 @@ type CephBucketNotification struct {
 	Spec              BucketNotificationSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	Status *CephBucketNotificationStatus `json:"status,omitempty"`
-}
-
-// CephBucketNotificationStatus represents the status of a CephBucketNotification object
-type CephBucketNotificationStatus struct {
-	Status `json:",inline"`
-	// +optional
-	// +nullable
-	Secrets []SecretReference `json:"keys,omitempty"`
+	Status *Status `json:"status,omitempty"`
 }
 
 // CephBucketNotificationList represents a list Ceph Object Store Bucket Notification Topics

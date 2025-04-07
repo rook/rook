@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -233,8 +234,8 @@ func TestCephBucketTopicController(t *testing.T) {
 
 		// mock the provisioner
 		expectedARN := "arn:aws:sns:" + store + "::" + bucketTopic.Name
-		createTopicFunc = func(p provisioner, topic *cephv1.CephBucketTopic) (*string, error) {
-			return &expectedARN, nil
+		createTopicFunc = func(p provisioner, topic *cephv1.CephBucketTopic) (*string, *map[types.UID]*corev1.Secret, error) {
+			return &expectedARN, nil, nil
 		}
 		defer func() { createTopicFunc = createTopic }()
 		res, err := r.Reconcile(ctx, req)

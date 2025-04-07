@@ -817,7 +817,7 @@ spec:
                 - topic
               type: object
             status:
-              description: CephBucketNotificationStatus represents the status of a CephBucketNotification object
+              description: Status represents the status of an object
               properties:
                 conditions:
                   items:
@@ -840,27 +840,6 @@ spec:
                         description: ConditionType represent a resource's status
                         type: string
                     type: object
-                  type: array
-                keys:
-                  items:
-                    properties:
-                      name:
-                        description: name is unique within a namespace to reference a secret resource.
-                        type: string
-                      namespace:
-                        description: namespace defines the space within which the secret name must be unique.
-                        type: string
-                      resourceVersion:
-                        type: string
-                      uid:
-                        description: |-
-                          UID is a type that holds unique ID values, including UUIDs.  Because we
-                          don't ONLY use UUIDs, this is an alias to string.  Being a type captures
-                          intent and helps make sure that UIDs and names do not get conflated.
-                        type: string
-                    type: object
-                    x-kubernetes-map-type: atomic
-                  nullable: true
                   type: array
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.
@@ -1082,6 +1061,26 @@ spec:
                   type: integer
                 phase:
                   type: string
+                secrets:
+                  items:
+                    properties:
+                      name:
+                        description: name is unique within a namespace to reference a secret resource.
+                        type: string
+                      namespace:
+                        description: namespace defines the space within which the secret name must be unique.
+                        type: string
+                      resourceVersion:
+                        type: string
+                      uid:
+                        description: |-
+                          UID is a type that holds unique ID values, including UUIDs.  Because we
+                          don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+                          intent and helps make sure that UIDs and names do not get conflated.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  type: array
               type: object
               x-kubernetes-preserve-unknown-fields: true
           required:
