@@ -90,7 +90,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 			if !ok {
 				return false
 			}
-			// reconcile for the main PDB update event when first OSD goes down, that is,  when `DisruptionsAllowed` gets updated to 0.
+			// reconcile for the main PDB update event when first OSD goes down, that is, when `DisruptionsAllowed` gets updated to 0.
 			return pdb.Name == osdPDBAppName && pdb.Spec.MaxUnavailable.IntVal == 1 && pdb.Status.DisruptionsAllowed == 0
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
