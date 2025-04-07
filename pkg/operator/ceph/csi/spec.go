@@ -70,7 +70,6 @@ type Param struct {
 	EnableNFSSnapshotter                     bool
 	EnableCSIAddonsSideCar                   bool
 	MountCustomCephConf                      bool
-	EnableCSIDriverSeLinuxMount              bool
 	EnableCSIEncryption                      bool
 	EnableCSITopology                        bool
 	EnableLiveness                           bool
@@ -635,7 +634,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		err = csiDriverobj.createCSIDriverInfo(
 			r.opManagerContext, r.context.Clientset,
 			RBDDriverName, k8sutil.GetOperatorSetting("CSI_RBD_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
-			tp.Param.RBDAttachRequired, CSIParam.EnableCSIDriverSeLinuxMount)
+			tp.Param.RBDAttachRequired)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
 		}
@@ -644,7 +643,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		err = csiDriverobj.createCSIDriverInfo(
 			r.opManagerContext, r.context.Clientset,
 			CephFSDriverName, k8sutil.GetOperatorSetting("CSI_CEPHFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
-			tp.Param.CephFSAttachRequired, CSIParam.EnableCSIDriverSeLinuxMount)
+			tp.Param.CephFSAttachRequired)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
 		}
@@ -652,7 +651,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 	if EnableNFS {
 		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset,
 			NFSDriverName, k8sutil.GetOperatorSetting("CSI_NFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
-			tp.Param.NFSAttachRequired, CSIParam.EnableCSIDriverSeLinuxMount)
+			tp.Param.NFSAttachRequired)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", NFSDriverName)
 		}
