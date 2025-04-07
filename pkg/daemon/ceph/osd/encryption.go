@@ -282,7 +282,7 @@ func addEncryptionKey(context *clusterd.Context, disk, passphrase, newPassphrase
 		disk, output)
 }
 
-func removeEncryptedDevice(context *clusterd.Context, target string) error {
+func RemoveEncryptedDevice(context *clusterd.Context, target string) error {
 	args := []string{"remove", "--force", target}
 	output, err := context.Executor.ExecuteCommandWithTimeout(removeEncryptedDeviceCmdTimeOut, "dmsetup", args...)
 	// ignore error if no device was found.
@@ -317,4 +317,27 @@ func isCephEncryptedBlock(context *clusterd.Context, currentClusterFSID string, 
 	}
 
 	return true
+}
+
+// GetBackingDeviceForEncryptedBlock returns the backing device for an encrypted block.
+func GetBackingDeviceForEncryptedBlock(context *clusterd.Context, disk string) (string, error) {
+	output, err := context.Executor.ExecuteCommandWithOutput(cryptsetupBinary, "status", disk, "-v")
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to run cryptsetup status on %s", disk)
+	}
+
+	// Example output line: "device:  /dev/sdb1"
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "device:") {
+			parts := strings.Fields(line)
+			logger.Infof("parts: %s", parts)
+			if len(parts) == 2 {
+				return parts[1], nil
+			}
+		}
+	}
+
+	return "", errors.Errorf("failed to find backing device for encrypted block %q", disk)
 }
