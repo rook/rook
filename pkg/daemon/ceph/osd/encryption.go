@@ -282,7 +282,7 @@ func addEncryptionKey(context *clusterd.Context, disk, passphrase, newPassphrase
 		disk, output)
 }
 
-func removeEncryptedDevice(context *clusterd.Context, target string) error {
+func RemoveEncryptedDevice(context *clusterd.Context, target string) error {
 	args := []string{"remove", "--force", target}
 	output, err := context.Executor.ExecuteCommandWithTimeout(removeEncryptedDeviceCmdTimeOut, "dmsetup", args...)
 	// ignore error if no device was found.
