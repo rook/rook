@@ -627,6 +627,9 @@ cephObjectStores:
     ingress:
       # Enable an ingress for the ceph-objectstore
       enabled: false
+      # The ingress port by default will be the object store's "securePort" (if set), or the gateway "port".
+      # To override those defaults, set this ingress port to the desired port.
+      # port: 80
       # annotations: {}
       # host:
       #   name: objectstore.example.com
