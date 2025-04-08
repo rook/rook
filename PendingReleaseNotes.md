@@ -12,11 +12,13 @@ Object:
     new `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS` to enable users to set potentially risky options.
     See https://github.com/rook/rook/pull/15376 for more information.
 
-- Add credentials/keys management to CephObjectStoreUser. Note that this will
-    cause manually created credentials/keys on an rgw user to be purged. This
-    behavior is necessary to ensure that keys that were explicitly declared and
-    then undeclared are purged. This could be a user observable regression.
-    (see [#15359](https://github.com/rook/rook/issues/15359)
+- Add first-class credential management to CephObjectStoreUser. Existing S3 users provisioned via
+    CephObjectStoreUser resources no longer allow multiple credentials to exist on underlying S3
+    users, unless explicitly managed by Rook. Rook will purge all but one of the undeclared
+    credentials. This could be a user observable regression for administrators who manually
+    edited/rotated S3 user credentials for CephObjectStoreUsers. Affected users should make use of
+    the new credential management feature instead.
+    For more details, see [#15359](https://github.com/rook/rook/issues/15359).
 
 ## Features
 
