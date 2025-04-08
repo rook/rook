@@ -1,7 +1,7 @@
 {{- range .Values.cephObjectStores }}
 {{- if dig "ingress" "enabled" false . }}
 ---
-apiVersion: {{ include "capabilities.ingress.apiVersion" $ }}
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ .name }}
@@ -16,16 +16,11 @@ spec:
         paths:
           - path: {{ .ingress.host.path | default "/" }}
             backend:
-{{- if (eq "networking.k8s.io/v1" (include "capabilities.ingress.apiVersion" $)) }}
               service:
                 name: rook-ceph-rgw-{{ .name }}
                 port:
-                  number: {{ .spec.gateway.securePort | default .spec.gateway.port }}
+                  number: {{ .ingress.port | default .spec.gateway.securePort | default .spec.gateway.port }}
             pathType: {{ .ingress.host.pathType | default "Prefix" }}
-{{- else }}
-              serviceName: rook-ceph-rgw-{{ .name }}
-              servicePort: {{ .spec.gateway.securePort | default .spec.gateway.port }}
-{{- end }}
   {{- with .ingress.ingressClassName }}
   ingressClassName: {{ . }}
   {{- end }}
