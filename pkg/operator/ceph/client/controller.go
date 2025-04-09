@@ -158,9 +158,13 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 	observedGeneration := cephClient.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephClient)
+	generationUpdated, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephClient)
 	if err != nil {
 		return reconcile.Result{}, *cephClient, errors.Wrap(err, "failed to add finalizer")
+	}
+	if generationUpdated {
+		logger.Infof("reconciling the cephclient %q after adding finalizer", cephClient.Name)
+		return reconcile.Result{}, *cephClient, nil
 	}
 
 	// The CR was just created, initializing status fields

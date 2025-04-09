@@ -104,7 +104,8 @@ func WatchControllerPredicate[T client.Object](scheme *runtime.Scheme) predicate
 				logger.Debugf("resource %q: %q is going to be deleted", kind, nsName)
 				return true
 			} else if objOld.GetGeneration() != objNew.GetGeneration() {
-				logger.Debugf("skipping resource %q: %q, update event with unchanged spec", kind, nsName)
+				logger.Debugf("reconciling %s %q with changed generation", kind, nsName.String())
+				return true
 			}
 			return false
 		},

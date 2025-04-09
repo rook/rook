@@ -183,7 +183,8 @@ func watchControllerPredicate[T *cephv1.CephCluster](ctx context.Context, c clie
 				return false
 
 			} else if objOld.GetGeneration() != objNew.GetGeneration() {
-				logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
+				logger.Debugf("reconciling CephCluster %q with changed generation", objNew.Name)
+				return true
 			}
 
 			return false
