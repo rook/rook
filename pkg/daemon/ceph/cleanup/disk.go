@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/util/display"
 )
 
 const (
@@ -41,7 +42,16 @@ const (
 	completeShredBS      = "10M" // Shred's block size
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cleanup")
+var (
+	quickShredOffsets = []uint64{ // Quick shred's 1/10/100/1000 GB offsets
+		1 * display.GiB,
+		10 * display.GiB,
+		100 * display.GiB,
+		1000 * display.GiB,
+	}
+
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cleanup")
+)
 
 // DiskSanitizer is simple struct to old the context to execute the commands
 type DiskSanitizer struct {
@@ -200,10 +210,9 @@ func (s *DiskSanitizer) buildQuickShredCommands(disk, dataSource string) []Shred
 	}})
 
 	// Shred at offsets 1GB, 10GB, 100GB, 1000GB
-	var i uint64
-	for i = 1; i <= 1000; i *= 10 {
-		offset := 1024 * 1024 * i
-		shredUntil := quickShredOffsetsBS * (offset + quickShredOffsetsBlockCount)
+	for _, offset := range quickShredOffsets {
+
+		shredUntil := offset + quickShredOffsetsBS*quickShredOffsetsBlockCount
 
 		// Break if disk size is less than offset + shred size
 		if shredUntil > diskInfo.Size {
@@ -215,7 +224,7 @@ func (s *DiskSanitizer) buildQuickShredCommands(disk, dataSource string) []Shred
 			fmt.Sprintf("of=%s", disk),
 			fmt.Sprintf("bs=%d", quickShredOffsetsBS),
 			fmt.Sprintf("count=%d", quickShredOffsetsBlockCount),
-			"oflag=direct,dsync",
+			"oflag=direct,dsync,seek_bytes",
 			fmt.Sprintf("seek=%d", offset),
 		}})
 	}
