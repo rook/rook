@@ -211,7 +211,6 @@ func (s *DiskSanitizer) buildQuickShredCommands(disk, dataSource string) []Shred
 
 	// Shred at offsets 1GB, 10GB, 100GB, 1000GB
 	for _, offset := range quickShredOffsets {
-
 		shredUntil := offset + quickShredOffsetsBS*quickShredOffsetsBlockCount
 
 		// Break if disk size is less than offset + shred size
@@ -283,6 +282,18 @@ func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfo, wg *sync.W
 				logger.Errorf("failed to close encrypted osd disk %q. %v", device, err)
 			} else {
 				logger.Infof("successfully closed encrypted osd disk %q", device)
+			}
+
+			for _, shredCmd := range s.buildShredCommands(device) {
+				output, err := s.context.Executor.ExecuteCommandWithCombinedOutput(shredCmd.command, shredCmd.args...)
+
+				logger.Infof("%s\n", output)
+
+				if err != nil {
+					logger.Errorf("failed to execute sanitization command for osd disk %q. output: %s, error: %v", device, output, err)
+				} else {
+					logger.Infof("successfully executed sanitization command for osd disk %q", device)
+				}
 			}
 		}
 	}
