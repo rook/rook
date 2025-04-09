@@ -469,14 +469,18 @@ jobs:
 
       - name: teardown cluster with cleanup policy
         run: |
-          kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
-          kubectl -n rook-ceph delete cephcluster rook-ceph
+          kubectl -n rook-ceph patch cephcluster my-cluster --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
+          kubectl -n rook-ceph patch configmap rook-ceph-mon-endpoints --type merge -p '{"metadata":{"finalizers": []}}'
+          kubectl -n rook-ceph patch secrets rook-ceph-mon --type merge -p '{"metadata":{"finalizers": []}}'
+          kubectl -n rook-ceph delete cephblockpool builtin-mgr
+          kubectl -n rook-ceph delete cephcluster my-cluster
           kubectl -n rook-ceph logs deploy/rook-ceph-operator
           tests/scripts/github-action-helper.sh wait_for_cleanup_pod
           kubectl -n rook-ceph delete -f deploy/examples/operator.yaml
           kubectl -n rook-ceph delete -f deploy/examples/common.yaml
           kubectl -n rook-ceph delete -f deploy/examples/crds.yaml
           kubectl -n rook-ceph delete  --ignore-not-found=true -f deploy/examples/csi/nfs/rbac.yaml
+          kubectl -n rook-ceph delete  --ignore-not-found=true -f deploy/examples/monitoring/rbac.yaml
           lsblk
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           sudo head --bytes=60 ${BLOCK}1
@@ -501,23 +505,6 @@ jobs:
 
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
-
-      - name: teardown cluster with cleanup policy
-        run: |
-          kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
-          kubectl -n rook-ceph delete cephcluster rook-ceph
-          kubectl -n rook-ceph logs deploy/rook-ceph-operator
-          tests/scripts/github-action-helper.sh wait_for_cleanup_pod
-          lsblk
-          export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
-          sudo head --bytes=60 ${BLOCK}1
-          sudo head --bytes=60 ${BLOCK}2
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
       - name: collect common logs
         if: always()
