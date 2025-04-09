@@ -143,7 +143,11 @@ endif
 install: build.common
 	@$(MAKE) go.install
 
-check test: ## Runs unit tests.
+.PHONY: check
+check: test ## Runs checks (unit tests)
+
+.PHONY: test
+test: ## Runs unit tests.
 	@$(MAKE) go.test.unit
 
 test-integration: ## Runs integration tests.
@@ -171,12 +175,15 @@ yamllint:
 	yamllint -c .yamllint deploy/examples/ --no-warnings
 
 .PHONY: lint
-lint: yamllint pylint shellcheck vet markdownlint golangci-lint ## Run various linters
+lint: yamllint pylint shellcheck checkmake vet markdownlint golangci-lint ## Run various linters
 
 .PHONY: pylint
 pylint:
 	pylint $(shell find $(ROOT_DIR) -name '*.py') -E
 
+.PHONY: checkmake
+checkmake:
+	checkmake Makefile
 .PHONY: shellcheck
 shellcheck:
 	shellcheck --severity=warning --format=gcc --shell=bash $(shell find $(ROOT_DIR) -type f -name '*.sh') build/reset build/sed-in-place
@@ -211,8 +218,9 @@ gen-rbac: $(HELM) $(YQ) ## Generate RBAC from Helm charts
 	HELM=$(HELM) ./build/rbac/gen-common.sh
 	HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
 
-gen.docs: docs
-docs: helm-docs
+gen.docs: docs ## generate docs
+.PHONY: docs
+docs: helm-docs ## generate documentation
 gen.helm-docs: helm-docs
 helm-docs: $(HELM_DOCS) ## Use helm-docs to generate documentation from helm charts
 	$(HELM_DOCS) -c deploy/charts/rook-ceph \
@@ -243,7 +251,7 @@ generate: gen.codegen gen.crds gen.rbac gen.docs gen.crd-docs ## Update all gene
 # ====================================================================================
 # Help
 define HELPTEXT
-Options:
+available options:
     DEBUG        Whether to generate debug symbols. Default is 0.
     IMAGES       Backend images to make. All by default. See: /rook/images/ dir
     PLATFORM     The platform to build.
