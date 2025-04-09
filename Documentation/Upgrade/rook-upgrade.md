@@ -71,6 +71,36 @@ those releases.
     new `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS` to enable users to set potentially risky options.
     See [#15376](https://github.com/rook/rook/pull/15376) for more information.
 
+* Kafka notifications configured via CephBucketTopic resources will now default
+    to setting the Kafka authentication mechanism to `PLAIN`. Previously, no auth
+    mechanism was specified by default.  It was possible to set the auth mechanism
+    via `CephBucketTopic.spec.endpoint.kafka.opaqueData`.  However, setting
+    `&mechanism=<auth type>` via `opaqueData` is no longer possible. If any auth
+    mechanism other than `PLAIN` is in use, modification to `CephBucketTopic`
+    resources is required.
+
+    A Kafka authentication failure due to the auth mechanism changing to `PLAIN`
+    will manifest in the rgw pod logs as:
+
+    ```console
+    debug 2025-04-09T16:42:43.840+0000 7f49799fa640  1 RDKAFKA-3-FAIL: rdkafka#producer-2: [thrd:sasl_ssl://kafka.example.com:9094/boo]: sasl_ssl://kafka.example.com:9094/bootstrap: SASL PLAIN mechanism handshake failed: Broker: Unsupported SASL mechanism: broker's supported mechanisms: SCRAM-SHA-512 (after 101ms in state AUTH_HANDSHAKE, 1 identical error(s) suppressed)
+    ```
+
+    This may be resolved by migrating from using `opaqueData` to the new
+    `CephBucketTopic.spec.endpoint.kafka.mechanism` field. E.g.:
+
+    ```console
+    -  opaqueData: "&mechanism=SCRAM-SHA-512"
+       endpoint:
+         kafka:
+           uri: kafka://kafka.example.com:9094
+           ackLevel: broker
+           useSSL: true
+    +      mechanism: SCRAM-SHA-512
+    ```
+
+    See [#15554](https://github.com/rook/rook/pull/15554)
+
 ## Considerations
 
 With this upgrade guide, there are a few notes to consider:

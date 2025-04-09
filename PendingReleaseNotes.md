@@ -20,6 +20,14 @@ Object:
     the new credential management feature instead.
     For more details, see [#15359](https://github.com/rook/rook/issues/15359).
 
+- Kafka notifications configured via CephBucketTopic resources will now default
+    to setting the Kafka authentication mechanism to `PLAIN`. Previously, no auth
+    mechanism was specified by default.  It was possible to set the auth mechanism
+    via `CephBucketTopic.spec.endpoint.kafka.opaqueData`.  However, setting
+    `&mechanism=<auth type>` via `opaqueData` is no longer possible. If any auth
+    mechanism other than `PLAIN` is in use, modification to `CephBucketTopic`
+    resources is required.
+
 ## Features
 
 - Support external mons for local Rook cluster (see [#14733](https://github.com/rook/rook/issues/14733)).
