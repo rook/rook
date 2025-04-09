@@ -178,9 +178,13 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrap(err, "failed to add finalizer")
 	}
 
+	var statusErr error
 	// The CR was just created, initializing status fields
 	if cephBlockPool.Status == nil {
-		r.updateStatus(request.NamespacedName, cephv1.ConditionProgressing, k8sutil.ObservedGenerationNotAvailable)
+		err = r.updateStatus(request.NamespacedName, cephv1.ConditionProgressing, k8sutil.ObservedGenerationNotAvailable)
+		if err != nil {
+			logger.Errorf("failed to update %q status to %q: %v", request.NamespacedName, cephv1.ConditionProgressing, err)
+		}
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -298,7 +302,10 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			logger.Info(opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephBlockPool, nil
 		}
-		r.updateStatus(request.NamespacedName, cephv1.ConditionFailure, k8sutil.ObservedGenerationNotAvailable)
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionFailure, k8sutil.ObservedGenerationNotAvailable)
+		if statusErr != nil {
+			logger.Errorf("failed to update %q status to %q: %v", request.NamespacedName, cephv1.ConditionFailure, statusErr)
+		}
 		return reconcileResponse, *cephBlockPool, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
 	}
 
@@ -313,7 +320,10 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// Always create a bootstrap peer token in case another cluster wants to add us as a peer
 		reconcileResponse, err = opcontroller.CreateBootstrapPeerSecret(r.context, clusterInfo, cephBlockPool, k8sutil.NewOwnerInfo(cephBlockPool, r.scheme))
 		if err != nil {
-			r.updateStatus(request.NamespacedName, cephv1.ConditionFailure, k8sutil.ObservedGenerationNotAvailable)
+			statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionFailure, k8sutil.ObservedGenerationNotAvailable)
+			if statusErr != nil {
+				logger.Errorf("failed to update %q status to %q: %v", request.NamespacedName, cephv1.ConditionFailure, statusErr)
+			}
 			return reconcileResponse, *cephBlockPool, errors.Wrapf(err, "failed to create rbd-mirror bootstrap peer for pool %q.", cephBlockPool.GetName())
 		}
 
@@ -335,7 +345,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling
-		r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration)
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration)
 
 		if cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
 			// Stop monitoring the mirroring status of this pool
@@ -365,7 +375,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		}
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling
-		r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration)
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration)
 
 		// Stop monitoring the mirroring status of this pool
 		if blockPoolContextsExists && r.blockPoolContexts[blockPoolChannelKey].started {
@@ -373,6 +383,10 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			// Reset the MirrorHealthCheckSpec
 			checker.UpdateStatusMirroring(nil, nil, nil, "")
 		}
+	}
+
+	if statusErr != nil {
+		return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrapf(statusErr, "failed to update status of pool %q to %q.", cephBlockPool.Name, cephv1.ConditionReady)
 	}
 
 	// Return and do not requeue
