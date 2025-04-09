@@ -163,6 +163,7 @@ func TestCephObjectZoneController(t *testing.T) {
 			Name:       name,
 			Namespace:  namespace,
 			Generation: 0,
+			Finalizers: []string{"cephobjectzone.ceph.rook.io"},
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind: "CephObjectZone",

@@ -42,7 +42,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func TestCephClientController(t *testing.T) {
+func TestFilesystemSubvolumeGroupController(t *testing.T) {
 	ctx := context.TODO()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
@@ -56,9 +56,13 @@ func TestCephClientController(t *testing.T) {
 	// A cephFilesystemSubVolumeGroup resource with metadata and spec.
 	cephFilesystemSubVolumeGroup := &cephv1.CephFilesystemSubVolumeGroup{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			UID:       types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
+			Name:       name,
+			Namespace:  namespace,
+			UID:        types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
+			Finalizers: []string{"cephfilesystemsubvolumegroup.ceph.rook.io"},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephFilesystemSubvolumeGroup",
 		},
 		Spec: cephv1.CephFilesystemSubVolumeGroupSpec{
 			FilesystemName: namespace,

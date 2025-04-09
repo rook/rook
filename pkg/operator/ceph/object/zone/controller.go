@@ -158,10 +158,15 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 	observedGeneration := cephObjectZone.ObjectMeta.Generation
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectZone)
+	generationUpdated, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectZone)
 	if err != nil {
 		return reconcile.Result{}, *cephObjectZone, errors.Wrap(err, "failed to add finalizer")
 	}
+	if generationUpdated {
+		logger.Infof("reconciling the object zone %q after adding finalizer", cephObjectZone.Name)
+		return reconcile.Result{}, *cephObjectZone, nil
+	}
+
 	// The CR was just created, initializing status fields
 	if cephObjectZone.Status == nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)

@@ -214,9 +214,13 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	observedGeneration := cephFilesystem.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephFilesystem)
+	generationUpdated, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephFilesystem)
 	if err != nil {
 		return reconcile.Result{}, *cephFilesystem, errors.Wrap(err, "failed to add finalizer")
+	}
+	if generationUpdated {
+		logger.Infof("reconciling the filesystem %q after adding finalizer", cephFilesystem.Name)
+		return reconcile.Result{}, *cephFilesystem, nil
 	}
 
 	// The CR was just created, initialize status as 'Progressing'

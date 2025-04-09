@@ -343,8 +343,9 @@ func TestCephObjectStoreController(t *testing.T) {
 		// A Pool resource with metadata and spec.
 		objectStore := &cephv1.CephObjectStore{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      store,
-				Namespace: namespace,
+				Name:       store,
+				Namespace:  namespace,
+				Finalizers: []string{"cephobjectstore.ceph.rook.io"},
 			},
 			Spec:     cephv1.ObjectStoreSpec{MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}}, DataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}}},
 			TypeMeta: controllerTypeMeta,
@@ -632,8 +633,9 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 
 	objectStore := &cephv1.CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      store,
-			Namespace: namespace,
+			Name:       store,
+			Namespace:  namespace,
+			Finalizers: []string{"cephobjectstore.ceph.rook.io"},
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind: "CephObjectStore",

@@ -245,9 +245,13 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	observedGeneration := cephObjectStoreUser.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectStoreUser)
+	generationUpdated, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectStoreUser)
 	if err != nil {
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to add finalizer")
+	}
+	if generationUpdated {
+		logger.Infof("reconciling the object user %q after adding finalizer", cephObjectStoreUser.Name)
+		return reconcile.Result{}, *cephObjectStoreUser, nil
 	}
 
 	clusterNamespace := request.NamespacedName
