@@ -76,7 +76,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, fsNamespacedname types.Na
 	if c.clusterSpec.LogCollector.Enabled {
 		shareProcessNamespace := true
 		podSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
-		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-mds.%s", mdsConfig.DaemonID), c.clusterInfo.Namespace, *c.clusterSpec))
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-mds.%s", mdsConfig.DaemonID), c.clusterInfo.Namespace, *c.clusterSpec, nil))
 	}
 
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
