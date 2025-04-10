@@ -44,7 +44,7 @@ var (
 			  "rank": 0,
 			  "name": "myfs-b",
 			  "status": "up:active",
-			  "gid": 14716
+			  "gid": 13999249051405999408
 			}
 		  ],
 		  "up:standby": 1
