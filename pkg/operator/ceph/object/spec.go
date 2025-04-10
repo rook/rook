@@ -95,6 +95,8 @@ const (
 
 	HTTPProtocol  ProtocolType = "HTTP"
 	HTTPSProtocol ProtocolType = "HTTPS"
+
+	PodIPEnvVar string = "${POD_IP}"
 )
 
 type rgwProbeConfig struct {
@@ -103,6 +105,7 @@ type rgwProbeConfig struct {
 	Protocol ProtocolType
 	Port     string
 	Path     string
+	Host     string
 }
 
 func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment, error) {
@@ -373,6 +376,15 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		return v1.Container{}, errors.Wrap(err, "failed to generate default readiness probe")
 	}
 
+	containerEnvVars := append(controller.DaemonEnvVars(c.clusterSpec), v1.EnvVar{
+		Name: "POD_IP",
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath: "status.podIP",
+			},
+		},
+	})
+
 	container := v1.Container{
 		Name:            "rgw",
 		Image:           c.clusterSpec.CephVersion.Image,
@@ -394,7 +406,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolumeMount(),
 		),
-		Env:             controller.DaemonEnvVars(c.clusterSpec),
+		Env:             containerEnvVars,
 		Resources:       c.store.Spec.Gateway.Resources,
 		StartupProbe:    startupProbe,
 		LivenessProbe:   noLivenessProbe(),
@@ -530,6 +542,7 @@ func (c *clusterConfig) defaultReadinessProbe() (*v1.Probe, error) {
 		Protocol:  proto,
 		Port:      port.String(),
 		Path:      probePath,
+		Host:      PodIPEnvVar,
 	}
 	script, err := renderProbe(cfg)
 	if err != nil {
@@ -599,6 +612,7 @@ func (c *clusterConfig) defaultStartupProbe() (*v1.Probe, error) {
 		Protocol:  proto,
 		Port:      port.String(),
 		Path:      probePath,
+		Host:      PodIPEnvVar,
 	}
 
 	script, err := renderProbe(cfg)
