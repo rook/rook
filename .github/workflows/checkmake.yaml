@@ -31,5 +31,5 @@ jobs:
           sudo apt-get install -y wget
           wget https://github.com/mrtazz/checkmake/releases/download/0.2.2/checkmake-0.2.2.linux.amd64
           sudo install ./checkmake-0.2.2.linux.amd64  /usr/local/bin/checkmake
-      - name: Run CeckMake
+      - name: Run CheckMake
         run: make checkmake
