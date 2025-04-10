@@ -149,7 +149,7 @@ type Fsmap struct {
 		Rank         int    `json:"rank"`
 		Name         string `json:"name"`
 		Status       string `json:"status"`
-		Gid          int    `json:"gid"`
+		Gid          uint64 `json:"gid"`
 	} `json:"by_rank"`
 	UpStandby int `json:"up:standby"`
 }
