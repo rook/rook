@@ -144,9 +144,18 @@ A specific will contain a specific release of Ceph as well as security fixes fro
     This setting only applies to new monitors that are created when the requested
     number of monitors increases, or when a monitor fails and is recreated. An
     [example CRD configuration is provided below](./pvc-cluster.md).
+
+    **Note:** This field should not be used if you are defining a specific `volumeClaimTemplate`
+    for each zone in the `zones` section, as it will be overridden by the zone-specific configurations.
+
 * `failureDomainLabel`: The label that is expected on each node where the mons
     are expected to be deployed. The labels must be found in the list of
     well-known [topology labels](#osd-topology).
+
+    **Note:** This setting is an alternative to specifying a `topologySpreadConstraints` rule with the
+    chosen label (e.g., `topology.kubernetes.io/zone`) for the mons under the `placement` section, as
+    described in the [Placement Configuration Settings](#placement-configuration-settings).
+
 * `externalMonIDs`: ID list of external mons deployed outside of Rook cluster
     and not managed by Rook. If set, Rook will not remove external mons from quorum
     and populate external mons addresses to mon endpoints for CSI.
@@ -167,6 +176,11 @@ A specific will contain a specific release of Ceph as well as security fixes fro
         This setting only applies to new monitors that are created when the requested
         number of monitors increases, or when a monitor fails and is recreated. An
         [example CRD configuration is provided below](./pvc-cluster.md).
+
+    **Note:** Configuring this section applies specific affinity rules to assign each mon to one
+    of the specified zones. When this section is used, there is no need to define mon placement
+    under the[Placement Configuration Settings](#placement-configuration-settings), as the zone
+    settings will take precedence.
 
 * `stretchCluster`: The stretch cluster settings that define the zones (or other failure domain labels) across which to configure the cluster.
     * `failureDomainLabel`: The label that is expected on each node where the cluster is expected to be deployed. The labels must be found
@@ -405,8 +419,11 @@ In stretch clusters, if the `arbiter` placement is specified, that placement wil
 Neither will the `arbiter` placement be merged with the `all` placement to allow the arbiter to be fully independent of other daemon placement.
 The remaining mons will still use the `mon` and/or `all` sections.
 
-!!! note
-    Placement of OSD pods is controlled using the [Storage Class Device Set](#storage-class-device-sets), not the general `placement` configuration.
+Other considerations of the placement settings include:
+    - If OSDs are defined using `storageClassDeviceSets`, placement settings must be specified within each device set and the `osd` key here will be ignored.
+    - If OSDs are created via other settings (e.g., `useAllDevices` or `storage.nodes`), the `osd` key in this section applies.
+    - When `zones` are configured in the `mon` settings, specific affinity rules are automatically generated to assign each mon to one of the defined zones, without needing to configure this section.
+    - Other components from separate CRDs, such as metadata servers in the `CephFilesystem` CRD, have their own placement configurations and are not affected by this section, even if the `all` key is used.
 
 A Placement configuration is specified (according to the kubernetes PodSpec) as:
 
