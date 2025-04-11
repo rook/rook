@@ -159,6 +159,9 @@ metadata:
   name: ` + m.settings.ClusterName + `
   namespace: ` + m.settings.Namespace + `
 spec:
+  cephConfig:
+    global:
+      rgw_allow_notification_secrets_in_cleartext: "true"
   resources: null
   dataDirHostPath: ` + m.settings.DataDirHostPath + `
   cephVersion:
