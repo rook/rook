@@ -567,7 +567,17 @@ func (c *cluster) shouldSetClusterFullSettings() bool {
 
 func (c *cluster) updateConfigStoreFromCRD() error {
 	monStore := config.GetMonStore(c.context, c.ClusterInfo)
-	return monStore.SetAllMultiple(c.Spec.CephConfig)
+	cephConfigFromSecret, err := c.fetchCephConfigFromSecrets()
+	if err != nil {
+		return err
+	}
+	if err := monStore.SetAllMultiple(cephConfigFromSecret); err != nil {
+		return err
+	}
+	if err := monStore.SetAllMultiple(c.Spec.CephConfig); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *cluster) reportTelemetry() {
@@ -740,4 +750,44 @@ func (c *cluster) configureMsgr2() error {
 	}
 
 	return nil
+}
+
+func (c *cluster) fetchCephConfigFromSecrets() (map[string]map[string]string, error) {
+	result := make(map[string]map[string]string)
+
+	for module, keys := range c.Spec.CephConfigFromSecret {
+		result[module] = make(map[string]string)
+
+		for key, selector := range keys {
+			val, err := c.fetchSecretValue(selector)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get value for key %q in module %q from secret %q: %w",
+					key, module, selector.LocalObjectReference.Name, err)
+			}
+
+			logger.Debugf("setting Ceph config key %q in module %q from secret %q",
+				key, module, selector.LocalObjectReference.Name)
+			logger.Tracef("setting Ceph config key %q in module %q to value %q from secret %q",
+				key, module, val, selector.LocalObjectReference.Name)
+			result[module][key] = val
+		}
+	}
+
+	return result, nil
+}
+
+func (c *cluster) fetchSecretValue(selector v1.SecretKeySelector) (string, error) {
+	secret, err := c.context.Clientset.CoreV1().Secrets(c.ClusterInfo.Namespace).Get(
+		c.ClusterInfo.Context, selector.LocalObjectReference.Name, metav1.GetOptions{},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to get secret %q: %w", selector.LocalObjectReference.Name, err)
+	}
+
+	val, ok := secret.Data[selector.Key]
+	if !ok {
+		return "", fmt.Errorf("secret %q is missing key %q", selector.LocalObjectReference.Name, selector.Key)
+	}
+
+	return string(val), nil
 }
