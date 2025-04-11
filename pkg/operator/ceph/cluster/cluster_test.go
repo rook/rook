@@ -18,6 +18,7 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"strings"
@@ -33,11 +34,14 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/ini.v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPreClusterStartValidation(t *testing.T) {
@@ -430,4 +434,164 @@ func TestClusterFullSettings(t *testing.T) {
 		assert.False(t, setNearFullRatio)
 		assert.False(t, setBackfillFullRatio)
 	})
+}
+
+func TestFetchCephConfigFromSecrets(t *testing.T) {
+	tests := []struct {
+		name                 string
+		cephConfigFromSecret map[string]map[string]v1.SecretKeySelector
+		secrets              []*v1.Secret
+		expectedOutput       map[string]map[string]string
+		expectErr            bool
+	}{
+		{
+			name: "module with valid secret and key (foo)",
+			cephConfigFromSecret: map[string]map[string]v1.SecretKeySelector{
+				"foo": {
+					"foo/bar": {
+						LocalObjectReference: v1.LocalObjectReference{Name: "secret-foo"},
+						Key:                  "val",
+					},
+				},
+			},
+			secrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret-foo", Namespace: "rook-ceph"},
+					Data:       map[string][]byte{"val": []byte("alpha")},
+				},
+			},
+			expectedOutput: map[string]map[string]string{
+				"foo": {"foo/bar": "alpha"},
+			},
+			expectErr: false,
+		},
+		{
+			name: "module with missing key in existing secret (bar)",
+			cephConfigFromSecret: map[string]map[string]v1.SecretKeySelector{
+				"bar": {
+					"bar/baz": {
+						LocalObjectReference: v1.LocalObjectReference{Name: "secret-bar"},
+						Key:                  "val",
+					},
+				},
+			},
+			secrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret-bar", Namespace: "rook-ceph"},
+					Data:       map[string][]byte{"not-val": []byte("noop")},
+				},
+			},
+			expectErr: true,
+		},
+		{
+			name: "module with missing secret (bar)",
+			cephConfigFromSecret: map[string]map[string]v1.SecretKeySelector{
+				"bar": {
+					"bar/baz": {
+						LocalObjectReference: v1.LocalObjectReference{Name: "missing-secret"},
+						Key:                  "val",
+					},
+				},
+			},
+			secrets:   []*v1.Secret{},
+			expectErr: true,
+		},
+		{
+			name: "multiple modules with valid keys",
+			cephConfigFromSecret: map[string]map[string]v1.SecretKeySelector{
+				"foo": {
+					"foo/key1": {
+						LocalObjectReference: v1.LocalObjectReference{Name: "secret-1"},
+						Key:                  "k1",
+					},
+				},
+				"bar": {
+					"bar/key2": {
+						LocalObjectReference: v1.LocalObjectReference{Name: "secret-2"},
+						Key:                  "k2",
+					},
+				},
+			},
+			secrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret-1", Namespace: "rook-ceph"},
+					Data:       map[string][]byte{"k1": []byte("v1")},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret-2", Namespace: "rook-ceph"},
+					Data:       map[string][]byte{"k2": []byte("v2")},
+				},
+			},
+			expectedOutput: map[string]map[string]string{
+				"foo": {"foo/key1": "v1"},
+				"bar": {"bar/key2": "v2"},
+			},
+			expectErr: false,
+		},
+		{
+			name: "multiple modules with one valid key and one missing key",
+			cephConfigFromSecret: map[string]map[string]v1.SecretKeySelector{
+				"foo": {
+					"foo/key": {
+						LocalObjectReference: v1.LocalObjectReference{Name: "secret-foo"},
+						Key:                  "valid-key",
+					},
+				},
+				"bar": {
+					"bar/key": {
+						LocalObjectReference: v1.LocalObjectReference{Name: "secret-bar"},
+						Key:                  "missing-key",
+					},
+				},
+			},
+			secrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret-foo", Namespace: "rook-ceph"},
+					Data:       map[string][]byte{"valid-key": []byte("ok")},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "secret-bar", Namespace: "rook-ceph"},
+					Data:       map[string][]byte{"not-the-key": []byte("noop")},
+				},
+			},
+			expectErr: true,
+		},
+		{
+			name:                 "cephConfigFromSecret is nil",
+			cephConfigFromSecret: nil,
+			secrets:              []*v1.Secret{},
+			expectedOutput:       map[string]map[string]string{},
+			expectErr:            false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clientset := test.New(t, 1)
+			clusterInfo := cephclient.AdminTestClusterInfo("rook-ceph")
+
+			for _, s := range tc.secrets {
+				_, err := clientset.CoreV1().Secrets(s.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+				assert.NoError(t, err)
+			}
+
+			c := &cluster{
+				context: &clusterd.Context{
+					Clientset: clientset,
+				},
+				ClusterInfo: clusterInfo,
+				Spec: &cephv1.ClusterSpec{
+					CephConfigFromSecret: tc.cephConfigFromSecret,
+				},
+			}
+
+			result, err := c.fetchCephConfigFromSecrets()
+			if tc.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedOutput, result)
+			}
+		})
+	}
 }
