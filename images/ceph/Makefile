@@ -16,7 +16,7 @@ include ../image.mk
 
 # ====================================================================================
 # Image Build Options
-CEPH_VERSION ?= v19.2.1-20250202
+CEPH_VERSION ?= v19.2.2-20250409
 
 REGISTRY_NAME = quay.io
 BASEIMAGE = $(REGISTRY_NAME)/ceph/ceph:$(CEPH_VERSION)
