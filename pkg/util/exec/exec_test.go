@@ -147,7 +147,7 @@ func TestExecuteCommandWithTimeout(t *testing.T) {
 		{
 			name: "test stdin",
 			args: args{
-				timeout: 30 * time.Second,
+				timeout: 2 * time.Second,
 				command: "cat",
 				stdin:   &testString,
 				arg:     []string{},
@@ -158,7 +158,7 @@ func TestExecuteCommandWithTimeout(t *testing.T) {
 		{
 			name: "test nil stdin",
 			args: args{
-				timeout: 30 * time.Second,
+				timeout: 2 * time.Second,
 				command: "echo",
 				stdin:   nil,
 				arg:     []string{testString},
@@ -167,12 +167,23 @@ func TestExecuteCommandWithTimeout(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "test err return",
+			args: args{
+				timeout: 2 * time.Second,
+				command: "false",
+				stdin:   nil,
+				arg:     []string{},
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
 			name: "test timeout",
 			args: args{
-				timeout: 0 * time.Second,
-				command: "cat",
+				timeout: 5 * time.Millisecond,
+				command: "sleep",
 				stdin:   &testString,
-				arg:     []string{},
+				arg:     []string{"2"},
 			},
 			want:    "",
 			wantErr: true,
