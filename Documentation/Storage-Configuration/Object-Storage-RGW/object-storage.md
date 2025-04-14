@@ -614,16 +614,16 @@ spec:
   store: my-store
   clusterNamespace: rook-ceph
   keys:
-    - acccessKeyRef
+    - accessKeyRef:
         name: foo-s3
         key: AWS_ACCESS_KEY_ID
-      secretKeyRef
+      secretKeyRef:
         name: foo-s3
         key: AWS_SECRET_ACCESS_KEY
-    - acccessKeyRef
+    - accessKeyRef:
         name: bar-s3
         key: AWS_ACCESS_KEY_ID
-      secretKeyRef
+      secretKeyRef:
         name: bar-s3
         key: AWS_SECRET_ACCESS_KEY
 ```
