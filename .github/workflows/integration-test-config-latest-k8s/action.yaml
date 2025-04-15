@@ -8,6 +8,17 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tool-cache: true
+        large-packages: false # takes a long time to run
+        android: false
+        dotnet: false
+        haskell: false
+
     - name: setup golang
       uses: actions/setup-go@v5
       with:
