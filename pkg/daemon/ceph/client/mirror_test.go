@@ -21,7 +21,9 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
+
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -84,7 +86,7 @@ func TestEnablePoolMirroring(t *testing.T) {
 		}
 		return "", errors.New("unknown command")
 	}
-	context := &clusterd.Context{Executor: executor}
+	context := &clusterd.Context{Executor: executor, RookClientset: rookclient.NewSimpleClientset()}
 
 	err := enablePoolMirroring(context, AdminTestClusterInfo("mycluster"), pool)
 	assert.NoError(t, err)
