@@ -186,6 +186,7 @@ spec:
   cephConfig:
     global:
       mon_data_avail_warn: "10"
+      mon_data_avail_crit: "1"
   healthCheck:
     daemonHealth:
       mon:
