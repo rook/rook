@@ -47,6 +47,13 @@ spec:
       mon:
         interval: 45s
         timeout: 600s
+    livenessProbe:
+      mgr:
+        disabled: true
+    # Change pod startup probe timing or threshold values. Works for all mon,mgr,osd daemons.
+    startupProbe:
+      mgr:
+        disabled: true
   priorityClassNames:
     all: system-node-critical
     mgr: system-cluster-critical

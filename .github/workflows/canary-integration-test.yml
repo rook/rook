@@ -737,6 +737,7 @@ jobs:
         run: |
           yq write -i deploy/examples/operator.yaml "data.ROOK_CEPH_ALLOW_LOOP_DEVICES" --style=double "true"
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.cephVersion.image" quay.ceph.io/ceph-ci/ceph:main
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 3
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
@@ -1810,6 +1811,147 @@ jobs:
       - name: verify that only one zone exists
         run: |
           [[ $(tests/scripts/github-action-helper.sh radosgw-admin zone list | jq '.zones | length') == "1" ]]
+
+      - name: collect common logs
+        if: always()
+        uses: ./.github/workflows/collect-logs
+        with:
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
+
+  radosns-init-only-mirroring:
+    runs-on: ubuntu-22.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
+
+      - name: use local disk into two partitions
+        run: |
+          tests/scripts/github-action-helper.sh use_local_disk
+          export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
+          sudo lsblk
+
+      - name: deploy first cluster rook
+        run: |
+          tests/scripts/github-action-helper.sh deploy_first_rook_cluster
+          cd deploy/examples/
+
+          sed -i "/resources:/,/ # priorityClassName:/d" filesystem-mirror.yaml
+          kubectl create -f rbdmirror.yaml -f filesystem-mirror.yaml
+
+      # cephfs-mirroring is a push operation
+      # running bootstrap create on secondary and bootstrap import on primary. mirror daemons on primary.
+      - name: deploy second cluster rook
+        run: |
+          tests/scripts/github-action-helper.sh deploy_second_rook_cluster
+          cd deploy/examples/
+          yq w -i rbdmirror.yaml metadata.namespace rook-ceph-secondary
+          kubectl create -f rbdmirror.yaml
+
+      - name: wait for ceph cluster 1 to be ready
+        run: |
+          mkdir -p test
+          tests/scripts/validate_cluster.sh osd 1
+          kubectl -n rook-ceph  wait --for=condition=ready pod -l app=rook-ceph-tools --timeout 40s
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph config set global debug_rbd_mirror 30
+          kubectl -n rook-ceph get pods
+
+      - name: create replicated mirrored pool on cluster 1
+        run: |
+          cd deploy/examples/
+          yq w -i pool-test.yaml spec.mirroring.enabled true
+          yq w -i pool-test.yaml spec.mirroring.mode init-only
+          kubectl create -f pool-test.yaml
+          timeout 180 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool to be created on cluster 1" && sleep 1; done'
+
+      - name: create mirrored rados namespace on cluster 1
+        run: |
+          cd deploy/examples/
+          sed -i "/resources:/,/ # priorityClassName:/d" radosnamespace-mirrored.yaml
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace1
+          yq w -i radosnamespace-mirrored.yaml spec.name '<implicit>'
+          yq w -i radosnamespace-mirrored.yaml spec.mirroring.remoteNamespace '<implicit>'
+          kubectl create -f radosnamespace-mirrored.yaml
+          timeout 250 sh -c 'until [ "$(kubectl -n rook-ceph get CephBlockPoolRadosNamespace namespace1 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for radosNamespace namespace1 to be created on cluster 1" && sleep 1; done'
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace-a
+
+      - name: create replicated mirrored pool on cluster 2
+        run: |
+          cd deploy/examples/
+          kubectl -n rook-ceph-secondary  wait --for=condition=ready pod -l app=rook-ceph-tools --timeout 40s
+          kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- ceph config set global debug_rbd_mirror 30
+          yq w -i pool-test.yaml metadata.namespace rook-ceph-secondary
+          kubectl create -f pool-test.yaml
+          timeout 180 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool to be created on cluster 2" && sleep 1; done'
+
+      - name: create mirrored rados namespace on cluster 2
+        run: |
+          cd deploy/examples/
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace2
+          yq w -i radosnamespace-mirrored.yaml spec.name '<implicit>'
+          yq w -i radosnamespace-mirrored.yaml spec.mirroring.remoteNamespace '<implicit>'
+          yq w -i radosnamespace-mirrored.yaml metadata.namespace rook-ceph-secondary
+          kubectl create -f radosnamespace-mirrored.yaml
+          timeout 250 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get CephBlockPoolRadosNamespace namespace2 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for radosNamespace namespace2 to be created on cluster 2" && sleep 1; done'
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace-a
+          yq w -i radosnamespace-mirrored.yaml metadata.namespace rook-ceph
+          yq w -i radosnamespace-mirrored.yaml spec.mirroring.remoteNamespace namespace-a
+
+      - name: create images in the pools
+        run: |
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd create replicapool/test -s 1G
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd mirror image enable replicapool/test snapshot
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd info replicapool/test
+
+
+      - name: copy block mirror peer secret into the other cluster for replicapool
+        run: |
+          kubectl -n rook-ceph get secret pool-peer-token-replicapool -o yaml > pool-peer-token-replicapool.yaml
+          yq delete --inplace pool-peer-token-replicapool.yaml metadata.ownerReferences
+          yq write --inplace pool-peer-token-replicapool.yaml metadata.namespace rook-ceph-secondary
+          yq write --inplace pool-peer-token-replicapool.yaml metadata.name pool-peer-token-replicapool-config
+          kubectl create --namespace=rook-ceph-secondary -f pool-peer-token-replicapool.yaml
+
+      - name: copy block mirror peer secret into the other cluster for replicapool2 (using cluster global peer)
+        run: |
+          kubectl -n rook-ceph get secret cluster-peer-token-my-cluster -o yaml > cluster-peer-token-my-cluster.yaml
+          yq delete --inplace cluster-peer-token-my-cluster.yaml metadata.ownerReferences
+          yq write --inplace cluster-peer-token-my-cluster.yaml metadata.namespace rook-ceph-secondary
+          yq write --inplace cluster-peer-token-my-cluster.yaml metadata.name cluster-peer-token-my-cluster-config
+          kubectl create --namespace=rook-ceph-secondary -f cluster-peer-token-my-cluster.yaml
+
+      - name: add block mirror peer secret to the other cluster for replicapool
+        run: |
+          kubectl -n rook-ceph-secondary patch cephblockpool replicapool --type merge -p '{"spec":{"mirroring":{"peers": {"secretNames": ["pool-peer-token-replicapool-config"]}}}}'
+
+      - name: verify image has been mirrored for replicapool
+        run: |
+          # let's wait a bit for the image to be present
+          timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd ls replicapool|grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored in pool replicapool" && sleep 1; done'
+
+      - name: display cephblockpoolradosnamespace and image status
+        run: |
+          timeout 80 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpoolradosnamespace namespace2 -o jsonpath='{.status.mirroringStatus.summary.daemon_health}'|grep -c OK)" -eq 1 ]; do echo "waiting for mirroring status to be updated in replicapool" && sleep 1; done'
+          kubectl -n rook-ceph-secondary get cephblockpoolradosnamespace namespace2 -o yaml
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
 
       - name: collect common logs
         if: always()

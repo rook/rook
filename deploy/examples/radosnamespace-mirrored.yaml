@@ -6,7 +6,7 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 spec:
   # The name of the RADOS namespace. If not set, the default is the name of the CR.
-  # name: namespace-a
+  name: <implicit>
   # blockPoolName is the name of the CephBlockPool CR where the namespace will be created.
   blockPoolName: replicapool
   mirroring:

@@ -29,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/exec"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -137,28 +136,8 @@ func enablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, po
 		return errors.Wrapf(err, "failed to get mirroring info for the pool %q", pool.Name)
 	}
 
-	// List all the radosnamespace and get the mirroring mode for the implicit namespace
-	namespaces, err := context.RookClientset.CephV1().CephBlockPoolRadosNamespaces(clusterInfo.Namespace).List(clusterInfo.Context, metav1.ListOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "failed to lsit namespace for pool %q", pool.Name)
-	}
-
-	implicitMirroringMode := ""
-	for _, namespace := range namespaces.Items {
-		if namespace.Spec.BlockPoolName == pool.Name && namespace.Spec.Name == ImplicitNamespaceKey {
-			if namespace.Spec.Mirroring != nil {
-				implicitMirroringMode = string(namespace.Spec.Mirroring.Mode)
-				break
-			}
-		}
-	}
-
-	// When the mirroring mode is applied for the implicit namespace, it gets selected at the pool level
-	// if the mirroring mode is init-only at the pool CR and mirroring mode is image in the implicit namespace CR
-	// when we do the rbd mirror pool info <pool-name> we will get image as got changed from init-mode to image mode due
-	// implicit namespace mirroring mode.
-	if pool.Mirroring.Mode == mirrorInfo.Mode || pool.Mirroring.Mode == implicitMirroringMode {
-		logger.Debugf("mirroring is already enabled on the pool %s with mode %s", pool.Name, mirrorInfo.Mode)
+	if mirrorInfo.Mode != "" && mirrorInfo.Mode != "disabled" && pool.Mirroring.Mode != mirrorInfo.Mode {
+		logger.Debugf("mirroring is already enabled on the pool %s with mode %s, Disable and re-enable mirroring to configure to different mode", pool.Name, mirrorInfo.Mode)
 		return nil
 	}
 

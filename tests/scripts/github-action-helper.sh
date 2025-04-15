@@ -268,7 +268,7 @@ function deploy_manifest_with_local_build() {
 # Deploy toolbox with same ceph version as the cluster-test for ci
 function deploy_toolbox() {
   cd "${REPO_DIR}/deploy/examples"
-  sed -i 's/image: quay\.io\/ceph\/ceph:.*/image: quay.io\/ceph\/ceph:v18/' toolbox.yaml
+  sed -i 's/image: quay\.io\/ceph\/ceph:.*/image: quay.ceph.io\/ceph-ci\/ceph:main/' toolbox.yaml
   kubectl create -f toolbox.yaml
 }
 
