@@ -5,6 +5,9 @@ kind: Ingress
 metadata:
   name: {{ template "clusterName" . }}-dashboard
   namespace: {{ .Release.Namespace }} # namespace:cluster
+  {{- if .Values.ingress.dashboard.labels }}
+  labels: {{- toYaml .Values.ingress.dashboard.labels | nindent 4 }}
+  {{- end}}
   {{- if .Values.ingress.dashboard.annotations }}
   annotations: {{- toYaml .Values.ingress.dashboard.annotations | nindent 4 }}
   {{- end }}
