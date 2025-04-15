@@ -183,6 +183,9 @@ spec:
   disruptionManagement:
     managePodBudgets: true
     osdMaintenanceTimeout: 30
+  cephConfig:
+    global:
+      mon_data_avail_warn: "10"
   healthCheck:
     daemonHealth:
       mon:
