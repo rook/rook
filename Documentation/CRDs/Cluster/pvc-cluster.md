@@ -18,7 +18,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v19.2.1
+    image: quay.io/ceph/ceph:v19.2.2
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -72,7 +72,7 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: quay.io/ceph/ceph:v19.2.1
+    image: quay.io/ceph/ceph:v19.2.2
     allowUnsupported: false
   dashboard:
     enabled: true
@@ -128,7 +128,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v19.2.1
+    image: quay.io/ceph/ceph:v19.2.2
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
