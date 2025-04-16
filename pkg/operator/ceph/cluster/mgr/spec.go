@@ -103,7 +103,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	if c.spec.LogCollector.Enabled {
 		shareProcessNamespace := true
 		podSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
-		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-mgr.%s", mgrConfig.DaemonID), c.clusterInfo.Namespace, c.spec))
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-mgr.%s", mgrConfig.DaemonID), c.clusterInfo.Namespace, c.spec, nil))
 	}
 
 	// Replace default unreachable node toleration

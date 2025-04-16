@@ -715,7 +715,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 			shareProcessNamespace := true
 			podTemplateSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
 		}
-		podTemplateSpec.Spec.Containers = append(podTemplateSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-osd.%s", osdID), c.clusterInfo.Namespace, c.spec))
+		podTemplateSpec.Spec.Containers = append(podTemplateSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-osd.%s", osdID), c.clusterInfo.Namespace, c.spec, nil))
 	}
 
 	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureStartupProbe(podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck.StartupProbe[cephv1.KeyOSD])
