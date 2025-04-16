@@ -20,11 +20,11 @@ package topic
 import (
 	"context"
 	"crypto/hmac"
-
 	//nolint:gosec // sha1 is needed for v2 signatures
 	"crypto/sha1"
 	"encoding/base64"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -43,6 +43,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -143,9 +144,12 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 	return snsClient, nil
 }
 
-func createTopicAttributes(topic *cephv1.CephBucketTopic) map[string]*string {
+func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[string]*string, *map[types.UID]*corev1.Secret, error) {
 	attr := make(map[string]*string)
 	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
+	// Currently, referencedSecrets is only used by the kafka endpoint but it
+	// could be used by other endpoints in the future.
+	referencedSecrets := make(map[types.UID]*corev1.Secret)
 
 	attr["OpaqueData"] = &topic.Spec.OpaqueData
 	persistent := strconv.FormatBool(topic.Spec.Persistent)
@@ -169,8 +173,48 @@ func createTopicAttributes(topic *cephv1.CephBucketTopic) map[string]*string {
 		attr["cloudevents"] = &cloudEvents
 	}
 	if topic.Spec.Endpoint.Kafka != nil {
-		logger.Infof("creating CephBucketTopic %q with endpoint %q", nsName, topic.Spec.Endpoint.Kafka.URI)
-		attr["push-endpoint"] = &topic.Spec.Endpoint.Kafka.URI
+		kafka := topic.Spec.Endpoint.Kafka
+
+		uri, err := url.Parse(kafka.URI)
+		if err != nil {
+			// URI could contain a passphrase...
+			return nil, nil, errors.Wrapf(err, "failed to parse CephBucketTopic %q .spec.endpoint.kafka.URI %q", nsName, kafka.URI)
+		}
+
+		// If UserSecretRef or PasswordRef is set, we need to parse the URI and insert the
+		// credentials as http basic auth. If basic auth was already set as part of
+		// the URI string, it will be overridden.
+		if kafka.UserSecretRef != nil || kafka.PasswordSecretRef != nil {
+			var user, pass string
+
+			if kafka.UserSecretRef != nil {
+				var secret *corev1.Secret
+				user, secret, err = p.getSecretValue(kafka.UserSecretRef, topic.Namespace)
+				if err != nil {
+					return nil, nil, errors.Wrapf(err, "failed to get secret value from CephBucketTopic %q .spec.endpoint.kafka.userSecretRef %q", nsName, kafka.UserSecretRef)
+				}
+
+				logger.Debugf("CephBucketTopic %q references secret %q", nsName, client.ObjectKeyFromObject(secret))
+				referencedSecrets[secret.UID] = secret
+			}
+			if kafka.PasswordSecretRef != nil {
+				var secret *corev1.Secret
+				pass, secret, err = p.getSecretValue(kafka.PasswordSecretRef, topic.Namespace)
+				if err != nil {
+					return nil, nil, errors.Wrapf(err, "failed to get secret value from CephBucketTopic %q .spec.endpoint.kafka.passwordSecretRef %q", nsName, kafka.PasswordSecretRef)
+				}
+				logger.Debugf("CephBucketTopic %q references secret %q", nsName, client.ObjectKeyFromObject(secret))
+				referencedSecrets[secret.UID] = secret
+			}
+
+			uri.User = url.UserPassword(user, pass)
+		}
+
+		// do not log passphrases, if set
+		logger.Infof("creating CephBucketTopic %q with endpoint %q", nsName, uri.Redacted())
+
+		kafkaUri := uri.String()
+		attr["push-endpoint"] = &kafkaUri
 		useSSL = strconv.FormatBool(topic.Spec.Endpoint.Kafka.UseSSL)
 		attr["use-ssl"] = &useSSL
 		attr["kafka-ack-level"] = &topic.Spec.Endpoint.Kafka.AckLevel
@@ -179,30 +223,34 @@ func createTopicAttributes(topic *cephv1.CephBucketTopic) map[string]*string {
 		attr["mechanism"] = &topic.Spec.Endpoint.Kafka.Mechanism
 	}
 
-	return attr
+	return attr, &referencedSecrets, nil
 }
 
 // Allow overriding this function for unit tests
 var createTopicFunc = createTopic
 
-func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, error) {
+func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, *map[types.UID]*corev1.Secret, error) {
 	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
 
 	snsClient, err := createSNSClient(p, types.NamespacedName{Name: topic.Spec.ObjectStoreName, Namespace: topic.Spec.ObjectStoreNamespace})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create SNS client for CephBucketTopic %q provisioning", nsName)
+		return nil, nil, errors.Wrapf(err, "failed to create SNS client for CephBucketTopic %q provisioning", nsName)
+	}
+	attr, referencedSecrets, err := createTopicAttributes(p, topic)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to generate topic attributes for CephBucketTopic %q", nsName)
 	}
 	topicOutput, err := snsClient.CreateTopic(&sns.CreateTopicInput{
 		Name:       &topic.Name,
-		Attributes: createTopicAttributes(topic),
+		Attributes: attr,
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to provision CephBucketTopic %q", nsName)
+		return nil, nil, errors.Wrapf(err, "failed to provision CephBucketTopic %q", nsName)
 	}
 
 	logger.Infof("CephBucketTopic %q created with ARN %q", nsName, *topicOutput.TopicArn)
 
-	return topicOutput.TopicArn, nil
+	return topicOutput.TopicArn, referencedSecrets, nil
 }
 
 // Allow overriding this function for unit tests
@@ -257,4 +305,22 @@ func GetProvisioned(cl client.Client, ctx context.Context, topicName types.Names
 	logger.Debugf("CephBucketTopic %q found with valid ARN %q", topicName, topicARN)
 
 	return bucketTopic, nil
+}
+
+// getSecretValue returns the value of key in a kubernetes secret
+func (p *provisioner) getSecretValue(selector *corev1.SecretKeySelector, namespace string) (string, *corev1.Secret, error) {
+	secret := &corev1.Secret{}
+	namespacedName := types.NamespacedName{
+		Name:      selector.Name,
+		Namespace: namespace,
+	}
+	if err := p.client.Get(p.opManagerContext, namespacedName, secret); err != nil {
+		return "", nil, errors.Wrapf(err, "failed to get secret %q", namespacedName)
+	}
+	value, ok := secret.Data[selector.Key]
+	if !ok {
+		return "", nil, errors.Errorf("failed to find key %q in secret %q", selector.Key, namespacedName)
+	}
+
+	return string(value), secret, nil
 }

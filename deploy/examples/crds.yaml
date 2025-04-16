@@ -954,6 +954,50 @@ spec:
                     kafka:
                       description: Spec of Kafka endpoint
                       properties:
+                        PasswordSecretRef:
+                          description: The kafka password to use for authentication
+                          properties:
+                            key:
+                              description: The key of the secret to select from.  Must be a valid secret key.
+                              type: string
+                            name:
+                              default: ""
+                              description: |-
+                                Name of the referent.
+                                This field is effectively required, but due to backwards compatibility is
+                                allowed to be empty. Instances of this type with an empty value here are
+                                almost certainly wrong.
+                                More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              type: string
+                            optional:
+                              description: Specify whether the Secret or its key must be defined
+                              type: boolean
+                          required:
+                            - key
+                          type: object
+                          x-kubernetes-map-type: atomic
+                        UserSecretRef:
+                          description: The kafka user name to use for authentication
+                          properties:
+                            key:
+                              description: The key of the secret to select from.  Must be a valid secret key.
+                              type: string
+                            name:
+                              default: ""
+                              description: |-
+                                Name of the referent.
+                                This field is effectively required, but due to backwards compatibility is
+                                allowed to be empty. Instances of this type with an empty value here are
+                                almost certainly wrong.
+                                More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              type: string
+                            optional:
+                              description: Specify whether the Secret or its key must be defined
+                              type: boolean
+                          required:
+                            - key
+                          type: object
+                          x-kubernetes-map-type: atomic
                         ackLevel:
                           default: broker
                           description: The ack level required for this topic (none/broker)
@@ -1017,6 +1061,26 @@ spec:
                   type: integer
                 phase:
                   type: string
+                secrets:
+                  items:
+                    properties:
+                      name:
+                        description: name is unique within a namespace to reference a secret resource.
+                        type: string
+                      namespace:
+                        description: namespace defines the space within which the secret name must be unique.
+                        type: string
+                      resourceVersion:
+                        type: string
+                      uid:
+                        description: |-
+                          UID is a type that holds unique ID values, including UUIDs.  Because we
+                          don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+                          intent and helps make sure that UIDs and names do not get conflated.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  type: array
               type: object
               x-kubernetes-preserve-unknown-fields: true
           required:
