@@ -15,3 +15,5 @@ deploy/olm/templates/*
 site/
 public/
 __pycache__/
+
+vendor/
