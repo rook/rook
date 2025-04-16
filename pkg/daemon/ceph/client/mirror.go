@@ -136,8 +136,8 @@ func enablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, po
 		return errors.Wrapf(err, "failed to get mirroring info for the pool %q", pool.Name)
 	}
 
-	if pool.Mirroring.Mode == mirrorInfo.Mode {
-		logger.Debugf("mirroring is already enabled on the pool %s with mode %s", pool.Name, mirrorInfo.Mode)
+	if mirrorInfo.Mode != "" && mirrorInfo.Mode != "disabled" && pool.Mirroring.Mode != mirrorInfo.Mode {
+		logger.Errorf("mirroring is already enabled on the pool %s with mode %s, Disable and re-enable mirroring to configure to different mode", pool.Name, mirrorInfo.Mode)
 		return nil
 	}
 
