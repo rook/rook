@@ -249,6 +249,22 @@ The simplest way to trigger the update is to add [annotations or labels](../../C
 to the CephCluster CR for the daemons you want to restart. The operator will then proceed with a rolling
 update, similar to any other update to the cluster.
 
+### Node-specific OSD settings
+
+The OSD ceph config settings can also be customized per-node. This may be helpful for some ceph.conf settings that need to be unique per node depending on the hardware. This can be configured by creating a node-specific configmap that will be loaded for all OSDs and OSD prepare jobs on that node, instead of the default settings that are loaded from the rook-config-override configmap.
+
+The node-specific configmaps must have the label:
+
+```yaml
+node.config.rook.io/osd
+```
+
+The configmaps must follow the naming convention:
+
+```yaml
+rook-config-override-<hostname>
+```
+
 ### Example
 
 In this example we will set the default pool `size` to two, and tell OSD
