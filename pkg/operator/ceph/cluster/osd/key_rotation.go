@@ -279,7 +279,7 @@ func (c *Cluster) reconcileKeyRotationCronJob() error {
 			continue
 		}
 
-		logger.Infof("starting OSD key rotation cron job for osd %q", osd.ID)
+		logger.Infof("starting OSD key rotation cron job for osd %d", osd.ID)
 		cj, err := c.makeKeyRotationCronJob(pvcName, osd, osdProps)
 		if err != nil {
 			return errors.Wrap(err, "failed to make key rotation cron job")
