@@ -19,6 +19,8 @@ package topic
 
 import (
 	"context"
+	"slices"
+	"sort"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -28,12 +30,16 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -85,6 +91,95 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// watch for kafka secrets
+	// watch secrets referenced by CephBucketTopic.spec.endpoint.kafka.{userSecretRef,passwordSecretRef}
+	const (
+		// disable warning: G101: Potential hardcoded credentials (gosec)
+		// nolint:gosec
+		secretNameField = "spec.endpoint.kafka.secretNames"
+	)
+
+	err = mgr.GetFieldIndexer().IndexField(
+		context.TODO(),
+		&cephv1.CephBucketTopic{},
+		secretNameField,
+		func(obj client.Object) []string {
+			var secretNames []string
+			topic, ok := obj.(*cephv1.CephBucketTopic)
+			if !ok {
+				return nil
+			}
+
+			if topic.Spec.Endpoint.Kafka == nil {
+				return nil
+			}
+
+			kafka := topic.Spec.Endpoint.Kafka
+
+			if kafka.UserSecretRef != nil {
+				secretNames = append(secretNames, kafka.UserSecretRef.Name)
+			}
+
+			if kafka.PasswordSecretRef != nil {
+				secretNames = append(secretNames, kafka.PasswordSecretRef.Name)
+			}
+
+			slices.Sort(secretNames)
+			return slices.Compact(secretNames)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to setup IndexField for CephBucketTopic.Spec.Endpoint.Kafka.{UserSecretRef,PasswordSecretRef}")
+	}
+
+	// Always trigger a reconcile when a secret is deleted. This will cause a
+	// reconciliation failure to happen immediately in hopes of alerting the end
+	// user to the configuration problem.
+	changedOrDeleted := predicate.Or(
+		predicate.TypedResourceVersionChangedPredicate[*corev1.Secret]{},
+		predicate.TypedFuncs[*corev1.Secret]{
+			DeleteFunc: func(e event.TypedDeleteEvent[*corev1.Secret]) bool {
+				return true
+			},
+		},
+	)
+
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.Secret{},
+			handler.TypedEnqueueRequestsFromMapFunc(
+				func(ctx context.Context, secret *corev1.Secret) []reconcile.Request {
+					referencingTopics := &cephv1.CephBucketTopicList{}
+					err := r.(*ReconcileBucketTopic).client.List(ctx, referencingTopics, &client.ListOptions{
+						FieldSelector: fields.OneTermEqualSelector(secretNameField, secret.GetName()),
+						Namespace:     secret.GetNamespace(),
+					})
+					if err != nil {
+						logger.Errorf("failed to list CephBucketTopic(s) while handling event for secret %q in namespace %q. %v", secret.GetName(), secret.GetNamespace(), err)
+						return []reconcile.Request{}
+					}
+
+					requests := make([]reconcile.Request, len(referencingTopics.Items))
+					for i, item := range referencingTopics.Items {
+						requests[i] = reconcile.Request{
+							NamespacedName: types.NamespacedName{
+								Name:      item.GetName(),
+								Namespace: item.GetNamespace(),
+							},
+						}
+					}
+					logger.Tracef("CephBucketTopic(s) referencing Secret %q in namespace %q: %v", secret.GetName(), secret.GetNamespace(), requests)
+					return requests
+				},
+			),
+			changedOrDeleted,
+		),
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to configure watch for Secret(s)")
+	}
+
 	return nil
 }
 
@@ -96,7 +191,7 @@ func (r *ReconcileBucketTopic) Reconcile(context context.Context, request reconc
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus, nil)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus, nil, nil)
 		logger.Errorf("failed to reconcile %v", err)
 	}
 
@@ -128,11 +223,6 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 	if generationUpdated {
 		logger.Infof("reconciling the object bucket topic %q after adding finalizer", cephBucketTopic.Name)
 		return reconcile.Result{}, nil
-	}
-
-	// The CR was just created, initializing status fields
-	if cephBucketTopic.Status == nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus, nil)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -188,24 +278,24 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// Start object reconciliation, updating status for this
-	r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcilingStatus, nil)
+	r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcilingStatus, nil, nil)
 
 	// create topic
-	topicARN, err := r.createCephBucketTopic(cephBucketTopic)
+	topicARN, referencedSecrets, err := r.createCephBucketTopic(cephBucketTopic)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "topic creation failed for CephBucketTopic %q", request.NamespacedName)
 	}
 
 	// update ObservedGeneration in status a the end of reconcile
 	// Set Ready status, we are done reconciling
-	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus, topicARN)
+	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus, topicARN, referencedSecrets)
 
 	// Return and do not requeue
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileBucketTopic) createCephBucketTopic(topic *cephv1.CephBucketTopic) (topicARN *string, err error) {
-	topicARN, err = createTopicFunc(
+func (r *ReconcileBucketTopic) createCephBucketTopic(topic *cephv1.CephBucketTopic) (topicARN *string, referencedSecrets *map[types.UID]*corev1.Secret, err error) {
+	topicARN, referencedSecrets, err = createTopicFunc(
 		provisioner{
 			client:           r.client,
 			context:          r.context,
@@ -232,7 +322,7 @@ func (r *ReconcileBucketTopic) deleteCephBucketTopic(topic *cephv1.CephBucketTop
 }
 
 // updateStatus updates the topic with a given status
-func (r *ReconcileBucketTopic) updateStatus(observedGeneration int64, nsName types.NamespacedName, status string, topicARN *string) {
+func (r *ReconcileBucketTopic) updateStatus(observedGeneration int64, nsName types.NamespacedName, status string, topicARN *string, referencedSecrets *map[types.UID]*corev1.Secret) {
 	topic := &cephv1.CephBucketTopic{}
 	if err := r.client.Get(r.opManagerContext, nsName, topic); err != nil {
 		if kerrors.IsNotFound(err) {
@@ -251,6 +341,32 @@ func (r *ReconcileBucketTopic) updateStatus(observedGeneration int64, nsName typ
 	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 		topic.Status.ObservedGeneration = observedGeneration
 	}
+
+	logger.Debugf("updating CephBucketTopic %q .status.secrets to %+v.", nsName, referencedSecrets)
+
+	if referencedSecrets != nil {
+		secretsStatus := []cephv1.SecretReference{}
+
+		for _, secret := range *referencedSecrets {
+			secretsStatus = append(secretsStatus, cephv1.SecretReference{
+				SecretReference: corev1.SecretReference{
+					Name:      secret.Name,
+					Namespace: secret.Namespace,
+				},
+				UID:             secret.UID,
+				ResourceVersion: secret.ResourceVersion,
+			})
+		}
+
+		// assume map key ordering is unstable between reconciles and sort the slice
+		// by secret name
+		sort.Slice(secretsStatus, func(i, j int) bool {
+			return secretsStatus[i].Name < secretsStatus[j].Name
+		})
+
+		topic.Status.Secrets = secretsStatus
+	}
+
 	if err := reporting.UpdateStatus(r.client, topic); err != nil {
 		logger.Errorf("failed to set CephBucketTopic %q status to %q. error %v", nsName, status, err)
 		return

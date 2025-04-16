@@ -192,6 +192,7 @@ spec:
   cephConfig:
     global:
       mon_data_avail_warn: "10"
+      rgw_allow_notification_secrets_in_cleartext: "true"
   healthCheck:
     daemonHealth:
       mon:

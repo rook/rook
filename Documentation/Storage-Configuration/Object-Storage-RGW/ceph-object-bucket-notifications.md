@@ -66,50 +66,67 @@ spec:
 #     ackLevel: broker [17]
 #     useSSL: false [18]
 #     mechanism: SCRAM-SHA-512 [19]
+#     userSecretRef: [20]
+#       name: foo-kafka
+#       key: user
+#     passwordSecretRef: [21]
+#       name: foo-kafka
+#       key: pass
+```
+
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: foo-kafka
+  namespace: rook-ceph
+stringData:
+  user: bar
+  pass: baz
 ```
 
 1. `name` of the `CephBucketTopic`
-    + In case of AMQP endpoint, the name is used for the AMQP topic (“routing key” for a topic exchange)
+    + In case of AMQP endpoint, the name is used for the AMQP topic ("routing key" for a topic exchange)
     + In case of Kafka endpoint, the name is used as the Kafka topic
 2. `namespace`(optional) of the `CephBucketTopic`. Should match the namespace of the CephBucketNotification associated with this CephBucketTopic, and the OBC with the label referencing the CephBucketNotification
 3. `objectStoreName` is the name of the object store in which the topic should be created. This must be the same object store used for the buckets associated with the notifications referencing this topic.
 4. `objectStoreNamespace` is the namespace of the object store in which the topic should be created
 5. `opaqueData` (optional) is added to all notifications triggered by a notifications associated with the topic
-6. `persistent` (optional) indicates whether notifications to this endpoint are persistent (=asynchronous) or sent synchronously (“false” by default)
+6. `persistent` (optional) indicates whether notifications to this endpoint are persistent (=asynchronous) or sent synchronously (`false` by default)
 7. `endpoint` to which to send the notifications to. Exactly one of the endpoints must be defined: `http`, `amqp`, `kafka`
 8. `http` (optional) hold the spec for an HTTP endpoint. The format of the URI would be: `http[s]://<fqdn>[:<port>][/<resource>]`
     + port defaults to: 80/443 for HTTP/S accordingly
-9. `disableVerifySSL` indicates whether the RGW is going to verify the SSL certificate of the HTTP server in case HTTPS is used ("false" by default)
-10. `sendCloudEvents`: (optional) send the notifications with the [CloudEvents header](https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md). ("false" by default)
+9. `disableVerifySSL` indicates whether the RGW is going to verify the SSL certificate of the HTTP server in case HTTPS is used (`false` by default)
+10. `sendCloudEvents`: (optional) send the notifications with the [CloudEvents header](https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md). (`false` by default)
 11. `amqp` (optional) hold the spec for an AMQP endpoint. The format of the URI would be: `amqp[s]://[<user>:<password>@]<fqdn>[:<port>][/<vhost>]`
     + port defaults to: 5672/5671 for AMQP/S accordingly
     + user/password defaults to: guest/guest
     + user/password may only be provided if HTTPS is used with the RGW. If not, topic creation request will be rejected
     + vhost defaults to: “/”
-12. `disableVerifySSL` (optional) indicates whether the RGW is going to verify the SSL certificate of the AMQP server in case AMQPS is used ("false" by default)
+12. `disableVerifySSL` (optional) indicates whether the RGW is going to verify the SSL certificate of the AMQP server in case AMQPS is used (`false` by default)
 13. `ackLevel` (optional) indicates what kind of ack the RGW is waiting for after sending the notifications:
-    + “none”: message is considered “delivered” if sent to broker
-    + “broker”: message is considered “delivered” if acked by broker (default)
-    + “routable”: message is considered “delivered” if broker can route to a consumer
+    + `none`: message is considered "delivered" if sent to broker
+    + `broker`: message is considered "delivered" if acked by broker (default)
+    + `routable`: message is considered "delivered" if broker can route to a consumer
 14. `exchange` in the AMQP broker that would route the notifications. Different topics pointing to the same endpoint must use the same exchange
 15. `kafka` (optional) hold the spec for a Kafka endpoint. The format of the URI would be: `kafka://[<user>:<password>@]<fqdn>[:<port]`
     + port defaults to: 9092
     + user/password may only be provided if HTTPS is used with the RGW. If not, topic creation request will be rejected
     + user/password may only be provided together with `useSSL`, if not, the connection to the broker would fail
-16. `disableVerifySSL` (optional) indicates whether the RGW is going to verify the SSL certificate of the Kafka server in case `useSSL` flag is used ("false" by default)
+16. `disableVerifySSL` (optional) indicates whether the RGW is going to verify the SSL certificate of the Kafka server in case `useSSL` flag is used (`false` by default)
 17. `ackLevel` (optional) indicates what kind of ack the RGW is waiting for after sending the notifications:
-    + “none”: message is considered “delivered” if sent to broker
-    + “broker”: message is considered “delivered” if acked by broker (default)
-18. `useSSL` (optional) indicates that secure connection will be used for connecting with the broker (“false” by default)
+    + `none`: message is considered "delivered" if sent to broker
+    + `broker`: message is considered "delivered" if acked by broker (default)
+18. `useSSL` (optional) indicates that secure connection will be used for connecting with the broker (`false` by default)
 19. `mechanism` (optional) select which authentication mechanism to use, one of:
-    + “PLAIN” (default)
-    + “SCRAM-SHA-512”
-    + “SCRAM-SHA-256”
-    + “GSSAPI”
-    + “OAUTHBEARER”
-
-!!! note
-    In case of Kafka and AMQP, the consumer of the notifications is not required to ack the notifications, since the broker persists the messages before delivering them to their final destinations.
+    + `PLAIN` (default)
+    + `SCRAM-SHA-512`
+    + `SCRAM-SHA-256`
+    + `GSSAPI`
+    + `OAUTHBEARER`
+20. `userSecretRef` (optional) A [SecretKeySelector](https://pkg.go.dev/k8s.io/api/core/v1#SecretKeySelector) to set the Kafka endpoint username
+21. `passwordSecretRef` (optional) A [SecretKeySelector](https://pkg.go.dev/k8s.io/api/core/v1#SecretKeySelector) to set the Kafka endpoint password
 
 ### CephBucketNotification Custom Resource
 
