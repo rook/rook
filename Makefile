@@ -162,7 +162,7 @@ fmt: $(YQ) ## Check formatting of go sources.
 
 fmt-fix: $(YQ) ## Reformatting of go sources.
 	@$(MAKE) go.fmt-fix
- 
+
 golangci-lint: $(YQ)
 	@$(MAKE) go.golangci-lint
 
@@ -253,7 +253,6 @@ generate: gen.codegen gen.crds gen.rbac gen.docs gen.crd-docs ## Update all gene
 define HELPTEXT
 available options:
     DEBUG        Whether to generate debug symbols. Default is 0.
-    IMAGES       Backend images to make. All by default. See: /rook/images/ dir
     PLATFORM     The platform to build.
     SUITE        The test suite to run.
     TESTFILTER   Tests to run in a suite.

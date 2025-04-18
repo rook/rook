@@ -100,11 +100,8 @@ SED_IN_PLACE = $(ROOT_DIR)/build/sed-in-place
 export SED_IN_PLACE
 
 # This is a neat little target that prints any variable value from the Makefile
-# Usage: make echo.IMAGES echo.PLATFORM
+# Usage: make echo.PLATFORM
 echo.%: ; @echo $* = $($*)
-
-# Select which images (backends) to make; default to all possible images
-IMAGES ?= ceph
 
 COMMA := ,
 SPACE :=

@@ -181,7 +181,7 @@ function build_rook() {
   fi
   GOPATH=$(go env GOPATH) make clean
   for _ in $(seq 1 3); do
-    if ! o=$(make -j"$(nproc)" IMAGES='ceph' "$build_type"); then
+    if ! o=$(make -j"$(nproc)" "$build_type"); then
       case "$o" in
       *"$NETWORK_ERROR"*)
         echo "network failure occurred, retrying..."

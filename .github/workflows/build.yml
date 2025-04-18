@@ -36,7 +36,7 @@ jobs:
 
       - name: build rook
         run: |
-          GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
+          GOPATH=$(go env GOPATH) make clean && make -j$nproc BUILD_CONTAINER_IMAGE=false build
 
       - name: validate build
         run: tests/scripts/validate_modified_files.sh build
