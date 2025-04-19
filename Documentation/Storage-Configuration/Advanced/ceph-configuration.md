@@ -209,7 +209,7 @@ ceph osd pool set rbd pg_num 512
 ## Custom `ceph.conf` Settings
 
 !!! info
-    The advised method for controlling Ceph configuration is to use the [`cephConfig:` structure](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-config)
+    The advised method for controlling Ceph configuration is to use the [`cephConfig`](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-config) and [`cephConfigFromSecret`](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-config-from-secret)
     in the `CephCluster` CRD.
     <br><br>It is highly recommended that this only be used when absolutely necessary and that the `config` be
     reset to an empty string if/when the configurations are no longer necessary. Configurations in the
