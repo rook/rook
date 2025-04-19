@@ -167,7 +167,7 @@ enable_rook_orchestrator() {
 
 enable_monitoring() {
     echo "Enabling monitoring"
-    $KUBECTL create -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.71.1/bundle.yaml
+    $KUBECTL create -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.82.0/bundle.yaml
     $KUBECTL wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus-operator --timeout=30s
     $KUBECTL apply -f monitoring/rbac.yaml
     $KUBECTL apply -f monitoring/service-monitor.yaml

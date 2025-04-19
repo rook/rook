@@ -21,7 +21,7 @@ First the Prometheus operator needs to be started in the cluster so it can watch
 A full explanation can be found in the [Prometheus operator repository on GitHub](https://github.com/prometheus-operator/prometheus-operator), but the quick instructions can be found here:
 
 ```console
-kubectl create -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.71.1/bundle.yaml
+kubectl create -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.82.0/bundle.yaml
 ```
 
 !!! note
@@ -256,7 +256,7 @@ To clean up all the artifacts created by the monitoring walk-through, copy/paste
 kubectl delete -f service-monitor.yaml
 kubectl delete -f prometheus.yaml
 kubectl delete -f prometheus-service.yaml
-kubectl delete -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.71.1/bundle.yaml
+kubectl delete -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.82.0/bundle.yaml
 ```
 
 Then the rest of the instructions in the [Prometheus Operator docs](https://github.com/prometheus-operator/prometheus-operator#removal) can be followed to finish cleaning up.
