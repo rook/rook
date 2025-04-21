@@ -13,18 +13,17 @@ function  build() {
     $MAKE mod.check
 }
 
-function publish() {
+function publish_images_and_docs() {
     build
     $MAKE -C build/release build BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=${TAG_WITH_SUFFIX} GIT_API_TOKEN=${GIT_API_TOKEN}
     git status &
     git diff &
-    $MAKE -C build/release publish BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=${TAG_WITH_SUFFIX} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW} GIT_API_TOKEN=${GIT_API_TOKEN}
+    $MAKE -C build/release publish BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=${TAG_WITH_SUFFIX} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW} GIT_API_TOKEN=${GIT_API_TOKEN} TAGGED_RELEASE=${TAGGED_RELEASE}
 }
 
-function promote() {
-    # automatically promote the master builds
-    echo "Promoting from branch ${BRANCH_NAME}"
-    $MAKE -C build/release promote BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=${TAG_WITH_SUFFIX} CHANNEL=${CHANNEL} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}
+function publish_charts() {
+    echo "Publishing helm charts for release build"
+    $MAKE -C build/release promote BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=${TAG_WITH_SUFFIX} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}
 }
 
 #############
@@ -46,14 +45,12 @@ if [ -n "${GIT_API_TOKEN}" ]; then
     export DOCS_GIT_REPO="https://${GIT_API_TOKEN}@${DOCS_GIT_REPO}"
 fi
 
-SHOULD_PROMOTE=true
+TAGGED_RELEASE=false
 if [[ ${GITHUB_REF} =~ master ]]; then
     echo "Publishing from master"
-    CHANNEL=master
 else
     echo "Tagging with suffix for release and tagged builds"
     TAG_WITH_SUFFIX=true
-    CHANNEL=release
 
     # If a tag, find the source release branch
     if [[ $BRANCH_NAME = v* ]]; then
@@ -64,15 +61,15 @@ else
             exit 1
         fi
         echo "Publishing tag ${TAG_NAME} in branch ${BRANCH_NAME}"
+        TAGGED_RELEASE=true
     else
         echo "Publishing from release branch ${BRANCH_NAME}"
-        SHOULD_PROMOTE=false
     fi
 fi
 
 
-publish
+publish_images_and_docs
 
-if [[ "$SHOULD_PROMOTE" = true ]]; then
-  promote
+if [[ "$TAGGED_RELEASE" = true ]]; then
+  publish_charts
 fi
