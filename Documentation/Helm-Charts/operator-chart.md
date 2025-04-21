@@ -14,7 +14,6 @@ This chart bootstraps a [rook-ceph-operator](https://github.com/rook/rook) deplo
 
 ## Prerequisites
 
-* Kubernetes 1.22+
 * Helm 3.x
 
 See the [Helm support matrix](https://helm.sh/docs/topics/version_skew/) for more details.
@@ -28,11 +27,9 @@ The Ceph Operator helm chart will install the basic components necessary to crea
 
 The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended that the rook operator be installed into the `rook-ceph` namespace (you will install your clusters into separate namespaces).
 
-Rook currently publishes builds of the Ceph operator to the `release` and `master` channels.
-
 ### **Release**
 
-The release channel is the most recent release of Rook that is considered stable for the community.
+The `release` channel is the most recent release of Rook that is considered stable for the community.
 
 ```console
 helm repo add rook-release https://charts.rook.io/release
