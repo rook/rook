@@ -180,12 +180,12 @@ publish.image.$(1).$(2):
 	@$(DOCKERCMD) push $(1)/ceph-$(2):$(VERSION)
 	@$(DOCKERCMD) push $(1)/ceph-$(2):$(BRANCH_NAME)
 
-publish.all.images: publish.image.$(1).$(2)
+publish.all.images.$(1): publish.image.$(1).$(2)
 endef
 $(foreach r,$(REGISTRIES), $(foreach a,$(IMAGE_ARCHS),$(eval $(call repo.targets,$(r),$(a)))))
 
 define repo.manifest.targets
-publish.manifest.image.$(1): $(MANIFEST_TOOL)
+publish.manifest.image.$(1): publish.all.images.$(1) $(MANIFEST_TOOL)
 	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(1)/ceph-ARCH:$(VERSION) --target $(1)/ceph:$(VERSION)
 	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(1)/ceph-ARCH:$(BRANCH_NAME) --target $(1)/ceph:$(BRANCH_NAME)
 
