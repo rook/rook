@@ -162,7 +162,7 @@ func (r *ReconcileOBCLabels) reconcile(request reconcile.Request) (reconcile.Res
 
 	// reschedule if ObjectBucket was not created yet
 	if obc.Spec.ObjectBucketName == "" {
-		logger.Infof("ObjectBucketClaim %q resource did not create the bucket yet. will retry", request.NamespacedName)
+		logger.Debugf("ObjectBucketClaim %q resource did not create the bucket yet. will retry", request.NamespacedName)
 		return waitForRequeueIfObjectBucketNotReady, nil
 	}
 
