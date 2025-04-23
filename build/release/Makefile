@@ -17,14 +17,6 @@ all: build
 include ../makelib/common.mk
 include ../makelib/helm.mk
 
-# ====================================================================================
-# Options
-
-CHANNEL ?= master
-ifeq ($(filter master release,$(CHANNEL)),)
-$(error invalid channel $(CHANNEL))
-endif
-
 # When running the tag pipeline or release build we always want to add the alpha, beta, or rc suffix
 # if provided. Otherwise, it's a master build where we don't want to apply the suffix.
 ifneq ($(TAG_WITH_SUFFIX),true)
@@ -55,29 +47,27 @@ ifeq ($(COMMIT_HASH),)
 override COMMIT_HASH := $(shell git rev-parse HEAD)
 endif
 
-REMOTE_NAME ?= origin
-
 PLATFORMS ?= $(ALL_PLATFORMS)
 
 # "helm" flavor is for pushing to s3/https endpoint
 # "charts" flavor is for pushing to oci endpoint
-ifneq ($(filter master release-%,$(BRANCH_NAME)),)
 FLAVORS ?= output images docs helm charts
-else
-FLAVORS ?= output
-override BRANCH_NAME := pr/$(BRANCH_NAME)
-endif
 
 DOCKER_REGISTRY ?= docker.io/rook
 QUAY_REGISTRY ?= quay.io/rook
 GHCR_REGISTRY ?= ghcr.io/rook
-REGISTRIES ?= $(DOCKER_REGISTRY) $(QUAY_REGISTRY) $(GHCR_REGISTRY)
+ifeq ($(TAGGED_RELEASE),false)
+# Publish always to dockerhub, including master and interim builds
+REGISTRIES = $(DOCKER_REGISTRY)
+else
+# Publish the images to all registries for tagged releases
+REGISTRIES = $(DOCKER_REGISTRY) $(QUAY_REGISTRY) $(GHCR_REGISTRY)
+endif
 IMAGE_ARCHS := $(subst linux_,,$(filter linux_%,$(PLATFORMS)))
 IMAGE_PLATFORMS := $(subst _,/,$(subst $(SPACE),$(COMMA),$(filter linux_%,$(PLATFORMS))))
 IMAGE_PLATFORMS_COMMA := $(shell echo "$(IMAGE_PLATFORMS)" | sed 's/ /,/g' | sed 's/.$$//')
 
 S3_BUCKET ?= rook.releases
-S3_CP := aws s3 cp --only-show-errors
 S3_SYNC := aws s3 sync --only-show-errors
 S3_SYNC_DEL := aws s3 sync --only-show-errors --delete
 
@@ -99,32 +89,9 @@ $(MANIFEST_TOOL):
 build: $(addprefix build.,$(FLAVORS)) ;
 publish: $(addprefix publish.,$(FLAVORS)) ;
 promote: $(addprefix promote.,$(FLAVORS)) ;
-clean: $(addprefix clean.,$(FLAVORS)) ;
 
 # catch all for unimplemented targets / flavors
 %: ; @:
-
-# ====================================================================================
-# tagging a release
-
-VERSION_REGEX := ^v\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)[-]*\([alpha|beta|rc]\)*[\.]*\([0-9]*\)$$
-VERSION_VALID := $(shell echo "$(VERSION)" | grep -q '$(VERSION_REGEX)' && echo 1 || echo 0)
-VERSION_MAJOR := $(shell echo "$(VERSION)" | sed -e 's/$(VERSION_REGEX)/\1/')
-VERSION_MINOR := $(shell echo "$(VERSION)" | sed -e 's/$(VERSION_REGEX)/\2/')
-VERSION_PATCH := $(shell echo "$(VERSION)" | sed -e 's/$(VERSION_REGEX)/\3/')
-
-tag:
-ifneq ($(VERSION_VALID),1)
-	$(error invalid version $(VERSION), must be a semantic version with v[Major].[Minor].[Patch] and an optional suffix such as -alpha.0, -beta.1, or -rc.2)
-endif
-	@echo === tagging commit hash $(COMMIT_HASH) with $(VERSION) and parsed v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
-	git tag -f -m "release $(VERSION)" $(VERSION) $(COMMIT_HASH)
-	git push $(REMOTE_NAME) $(VERSION)
-	set -e; if ! git ls-remote --heads $(REMOTE_NAME) | grep -q refs/heads/release-$(VERSION_MAJOR).$(VERSION_MINOR); then \
-		echo === creating new release branch release-$(VERSION_MAJOR).$(VERSION_MINOR) ;\
-		git branch -f release-$(VERSION_MAJOR).$(VERSION_MINOR) $(COMMIT_HASH) ;\
-		git push $(REMOTE_NAME) release-$(VERSION_MAJOR).$(VERSION_MINOR) ;\
-	fi
 
 # ====================================================================================
 # docs
@@ -146,16 +113,16 @@ publish.docs:
 
 # ====================================================================================
 # helm
-
+HELM_CHANNEL = release
 HELM_TEMP := $(shell mktemp -d)
-HELM_URL := $(HELM_BASE_URL)/$(CHANNEL)
+HELM_URL := $(HELM_BASE_URL)/$(HELM_CHANNEL)
 
 promote.helm: $(HELM)
 #	copy existing charts to a temp dir, then combine with new charts, reindex, and upload
-	$(S3_SYNC) s3://$(HELM_S3_BUCKET)/$(CHANNEL) $(HELM_TEMP)
+	$(S3_SYNC) s3://$(HELM_S3_BUCKET)/$(HELM_CHANNEL) $(HELM_TEMP)
 	$(S3_SYNC) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)/charts $(HELM_TEMP)
 	$(HELM) repo index --url $(HELM_URL) $(HELM_TEMP)
-	$(S3_SYNC_DEL) $(HELM_TEMP) s3://$(HELM_S3_BUCKET)/$(CHANNEL)
+	$(S3_SYNC_DEL) $(HELM_TEMP) s3://$(HELM_S3_BUCKET)/$(HELM_CHANNEL)
 	rm -fr $(HELM_TEMP)
 
 # set the helm cart version number.
@@ -177,9 +144,6 @@ build.chart.$(1):
 	mkdir -p $(HELM_OUTPUT_DIR)
 	$(HELM) package --version $(HELM_CHART_VERSION) --app-version $(VERSION) $(HELM_CHARTS_DIR)/$(1) --destination $(HELM_OUTPUT_DIR)
 build.all.charts: build.chart.$(1)
-clean.chart.$(1):
-	@rm -fr $(HELM_OUTPUT_DIR)/$(1)-$(HELM_CHART_VERSION).tgz
-clean.all.charts: clean.chart.$(1)
 endef
 $(foreach c,$(HELM_CHARTS),$(eval $(call chart.build,$(c))))
 
@@ -197,54 +161,42 @@ $(foreach r,$(REGISTRIES), $(foreach c,$(HELM_CHARTS),$(eval $(call chart.target
 publish.output:
 	$(S3_SYNC_DEL) $(OUTPUT_DIR) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)
 promote.output:
-	$(S3_SYNC_DEL) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION) s3://$(S3_BUCKET)/$(CHANNEL)/$(VERSION)
-	$(S3_SYNC_DEL) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION) s3://$(S3_BUCKET)/$(CHANNEL)/current
+	$(S3_SYNC_DEL) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION) s3://$(S3_BUCKET)/$(HELM_CHANNEL)/$(VERSION)
+	$(S3_SYNC_DEL) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION) s3://$(S3_BUCKET)/$(HELM_CHANNEL)/current
 
 # ====================================================================================
 # images
 
-# 1: registry 2: image, 3: arch
+# 1: registry 2: arch
 define repo.targets
-build.image.$(1).$(2).$(3):
-	$(DOCKERCMD) tag $(BUILD_REGISTRY)/$(2)-$(3) $(1)/$(2)-$(3):$(VERSION)
-	@# Save image as _output/images/linux_<arch>/<image>.tar.gz (no builds for darwin or windows)
-	mkdir -p $(OUTPUT_DIR)/images/linux_$(3)
-	$(DOCKERCMD) save $(BUILD_REGISTRY)/$(2)-$(3) | gzip -c > $(OUTPUT_DIR)/images/linux_$(3)/$(2).tar.gz
-build.all.images: build.image.$(1).$(2).$(3)
-publish.image.$(1).$(2).$(3): ; @$(DOCKERCMD) push $(1)/$(2)-$(3):$(VERSION)
-publish.all.images: publish.image.$(1).$(2).$(3)
-# tag the master image, but do not tag the release image with a generic channel tag
-promote.image.$(1).$(2).$(3):
-	$(DOCKERCMD) pull $(1)/$(2)-$(3):$(VERSION)
-	$(DOCKERCMD) tag $(1)/$(2)-$(3):$(VERSION) $(1)/$(2)-$(3):$(CHANNEL)
-	[ "$(CHANNEL)" = "release" ] || $(DOCKERCMD) push $(1)/$(2)-$(3):$(CHANNEL)
-promote.all.images: promote.image.$(1).$(2).$(3)
-clean.image.$(1).$(2).$(3):
-	[ -z "$$$$($(DOCKERCMD) images -q $(1)/$(2)-$(3):$(VERSION))" ] || $(DOCKERCMD) rmi $(1)/$(2)-$(3):$(VERSION)
-	[ -z "$$$$($(DOCKERCMD) images -q $(1)/$(2)-$(3):$(CHANNEL))" ] || $(DOCKERCMD) rmi $(1)/$(2)-$(3):$(CHANNEL)
-clean.all.images: clean.image.$(1).$(2).$(3)
+build.image.$(1).$(2):
+	$(DOCKERCMD) tag $(BUILD_REGISTRY)/ceph-$(2) $(1)/ceph-$(2):$(VERSION)
+	$(DOCKERCMD) tag $(BUILD_REGISTRY)/ceph-$(2) $(1)/ceph-$(2):$(BRANCH_NAME)
+	@# Save image as _output/images/linux_<arch>/ceph.tar.gz (no builds for darwin or windows)
+	mkdir -p $(OUTPUT_DIR)/images/linux_$(2)
+	$(DOCKERCMD) save $(BUILD_REGISTRY)/ceph-$(2) | gzip -c > $(OUTPUT_DIR)/images/linux_$(2)/ceph.tar.gz
+build.all.images: build.image.$(1).$(2)
+publish.image.$(1).$(2):
+	@$(DOCKERCMD) push $(1)/ceph-$(2):$(VERSION)
+	@$(DOCKERCMD) push $(1)/ceph-$(2):$(BRANCH_NAME)
+
+publish.all.images.$(1): publish.image.$(1).$(2)
 endef
-$(foreach r,$(REGISTRIES), $(foreach i,$(IMAGES), $(foreach a,$(IMAGE_ARCHS),$(eval $(call repo.targets,$(r),$(i),$(a))))))
+$(foreach r,$(REGISTRIES), $(foreach a,$(IMAGE_ARCHS),$(eval $(call repo.targets,$(r),$(a)))))
 
-publish.manifest.image.%: publish.all.images $(MANIFEST_TOOL)
-	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(DOCKER_REGISTRY)/$*-ARCH:$(VERSION) --target $(DOCKER_REGISTRY)/$*:$(VERSION)
-	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(QUAY_REGISTRY)/$*-ARCH:$(VERSION) --target $(QUAY_REGISTRY)/$*:$(VERSION)
-	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(GHCR_REGISTRY)/$*-ARCH:$(VERSION) --target $(GHCR_REGISTRY)/$*:$(VERSION)
+define repo.manifest.targets
+publish.manifest.image.$(1): publish.all.images.$(1) $(MANIFEST_TOOL)
+	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(1)/ceph-ARCH:$(VERSION) --target $(1)/ceph:$(VERSION)
+	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(1)/ceph-ARCH:$(BRANCH_NAME) --target $(1)/ceph:$(BRANCH_NAME)
 
-# add the "master" tag to the master image, but do not add the "release" tag for the release channel
-promote.manifest.image.%: promote.all.images $(MANIFEST_TOOL)
-	[ "$(CHANNEL)" = "release" ] || $(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(DOCKER_REGISTRY)/$*-ARCH:$(VERSION) --target $(DOCKER_REGISTRY)/$*:$(CHANNEL)
-	[ "$(CHANNEL)" = "release" ] || $(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(QUAY_REGISTRY)/$*-ARCH:$(VERSION) --target $(QUAY_REGISTRY)/$*:$(CHANNEL)
-	[ "$(CHANNEL)" = "release" ] || $(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(GHCR_REGISTRY)/$*-ARCH:$(VERSION) --target $(GHCR_REGISTRY)/$*:$(CHANNEL)
+publish.images: publish.manifest.image.$(1)
+endef
+$(foreach r,$(REGISTRIES),$(eval $(call repo.manifest.targets,$(r))))
+
 
 build.images: build.all.images
-publish.images: $(addprefix publish.manifest.image.,$(IMAGES))
-promote.images: $(addprefix promote.manifest.image.,$(IMAGES))
-clean.images: clean.all.images
-
 build.charts: build.all.charts
 promote.charts: promote.all.charts
-clean.charts: clean.all.charts
 
 # ====================================================================================
 # Help
@@ -255,16 +207,12 @@ help:
 	@echo ''
 	@echo 'Targets:'
 	@echo '    build        Build all release artifacts.'
-	@echo '    clean        Remove all release artifacts.'
 	@echo '    publish      Publish all release artifacts.'
-	@echo '    promote      Promote a build to a channel.'
-	@echo '    tag          Tag a build for release.'
+	@echo '    promote      Publish the helm charts.'
 	@echo ''
 	@echo 'Options:'
 	@echo '    VERSION      Sets the release version.'
 	@echo '    BRANCH_NAME  Name of the branch we are releasing from.'
-	@echo '    CHANNEL      Sets the release channel. Can be set to master,'
-	@echo '                 or release. Default is not set.'
 	@echo '    PLATFORMS    The supported platforms to build when running.'
 	@echo '                 the build.all target. The default is'
 	@echo '                 all supported platforms'
