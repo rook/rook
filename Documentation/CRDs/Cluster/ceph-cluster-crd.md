@@ -108,6 +108,7 @@ For more details on the mons and when to choose a number other than `3`, see the
 * `cleanupPolicy`: [cleanup policy settings](#cleanup-policy)
 * `security`: [security page for key management configuration](../../Storage-Configuration/Advanced/key-management-system.md)
 * `cephConfig`: [Set Ceph config options using the Ceph Mon config store](#ceph-config)
+* `cephConfigFromSecret`: [Set Ceph config options using the Ceph Mon config store via Kubernetes secret reference](#ceph-config-from-secret)
 * `csi`: [Set CSI Driver options](#csi-driver-options)
 
 ### Ceph container images
@@ -886,6 +887,29 @@ should be used instead.
     user's responsibility.
 
 The operator does not unset any removed config options, it is the user's responsibility to unset or set the default value for each removed option manually using the Ceph CLI.
+
+## Ceph Config From Secret
+
+In addition to `cephConfig`, Ceph configuration values can be provided via Kubernetes Secrets using `cephConfigFromSecret`. This is useful for referencing sensitive values such as passwords or tokens that shouldn't be stored directly in the CR.
+
+The structure mirrors `cephConfig`, but instead of string values, each config entry references a Kubernetes `SecretKeySelector`, specifying:
+
+- name: the name of the secret (in the same namespace as the `CephCluster`)
+- key: the key inside the secret that holds the desired value
+
+```yaml
+spec:
+  cephConfigFromSecret:
+    mgr:
+      mgr/dashboard/GRAFANA_API_PASSWORD:
+        name: grafana-api-credential # name of the Kubernetes secret
+        key: password                # key of the secret value in Kubernetes secret.Data map[string]string
+```
+
+If a given config key is defined in both `cephConfigFromSecret` and `cephConfig`, the value from `cephConfig` takes precedence.
+
+!!! warning
+    If a value from `cephConfigFromSecret` cannot be retrieved — for example, if the referenced Secret or key is missing — Rook will return a reconciliation error. This ensures that configuration provided via `cephConfigFromSecret` is applied reliably, as it is treated as a declarative and intentional configuration by the admin.
 
 ## CSI Driver Options
 

@@ -239,6 +239,11 @@ type ClusterSpec struct {
 	// +optional
 	// +nullable
 	CephConfig map[string]map[string]string `json:"cephConfig,omitempty"`
+
+	// CephConfigFromSecret works exactly like CephConfig but takes config value from Secret Key reference.
+	// +optional
+	// +nullable
+	CephConfigFromSecret map[string]map[string]v1.SecretKeySelector `json:"cephConfigFromSecret,omitempty"`
 }
 
 // CSIDriverSpec defines CSI Driver settings applied per cluster.
