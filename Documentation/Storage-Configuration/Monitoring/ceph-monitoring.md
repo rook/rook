@@ -86,8 +86,9 @@ Following is an example to configure the Prometheus endpoint in the CephCluster 
 ```YAML
 spec:
     dashboard:
-    prometheusEndpoint: http://192.168.61.204:30900
-    prometheusEndpointSSLVerify: true
+        enabled: true
+        prometheusEndpoint: http://192.168.61.204:30900
+        prometheusEndpointSSLVerify: true
 ```
 
 !!! note
