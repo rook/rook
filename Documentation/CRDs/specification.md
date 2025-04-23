@@ -1048,6 +1048,18 @@ map[string]map[string]string
 <p>Ceph Config options</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>cephConfigFromSecret</code><br/>
+<em>
+map[string]map[string]k8s.io/api/core/v1.SecretKeySelector
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CephConfigFromSecret works exactly like CephConfig but takes config value from Secret Key reference.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -4903,6 +4915,18 @@ map[string]map[string]string
 <td>
 <em>(Optional)</em>
 <p>Ceph Config options</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cephConfigFromSecret</code><br/>
+<em>
+map[string]map[string]k8s.io/api/core/v1.SecretKeySelector
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CephConfigFromSecret works exactly like CephConfig but takes config value from Secret Key reference.</p>
 </td>
 </tr>
 </tbody>

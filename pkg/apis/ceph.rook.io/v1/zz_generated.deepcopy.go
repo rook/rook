@@ -2046,6 +2046,23 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 			(*out)[key] = outVal
 		}
 	}
+	if in.CephConfigFromSecret != nil {
+		in, out := &in.CephConfigFromSecret, &out.CephConfigFromSecret
+		*out = make(map[string]map[string]corev1.SecretKeySelector, len(*in))
+		for key, val := range *in {
+			var outVal map[string]corev1.SecretKeySelector
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = make(map[string]corev1.SecretKeySelector, len(*in))
+				for key, val := range *in {
+					(*out)[key] = *val.DeepCopy()
+				}
+			}
+			(*out)[key] = outVal
+		}
+	}
 	return
 }
 
