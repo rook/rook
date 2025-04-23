@@ -88,7 +88,7 @@ To publish a new patch release build, follow these steps:
 4. Tag the branch:
 
     ```console
-    # make sure no files are checked out locally, then proceed:
+    # make sure no files are modified locally, then proceed:
     BRANCH_NAME=<release branch> # e.g., release-1.12
     git fetch --all
     git checkout $BRANCH_NAME
