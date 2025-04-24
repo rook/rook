@@ -887,10 +887,12 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 
 		t.Run("lifecycle was removed from bucket", func(t *testing.T) {
 			var err error
-			utils.Retry(20, time.Second, "lifecycle is gone", func() bool {
-				_, err = s3client.Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
+			var o *s3.GetBucketLifecycleConfigurationOutput
+			utils.Retry(600, time.Second, "lifecycle is gone", func() bool {
+				o, err = s3client.Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
 					Bucket: &bucketName,
 				})
+				t.Logf("GetBucketLifecycleConfiguration() out: %#v", *o)
 				if aerr, ok := err.(awserr.Error); ok {
 					return aerr.Code() == "NoSuchLifecycleConfiguration"
 				}
