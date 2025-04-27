@@ -93,7 +93,9 @@ func TestReportReconcileResult(t *testing.T) {
 	reconcileRequest := reconcile.Request{NamespacedName: types.NamespacedName{Name: name, Namespace: namespace}}
 
 	successMsg := `successfully configured CephCluster "rook-ceph/my-cluster"`
+	requeueMsg := `requeuing CephCluster "rook-ceph/my-cluster"`
 	successEvent := `Normal ReconcileSucceeded ` + successMsg
+	requeueEvent := `Normal ReconcileRequeuing ` + requeueMsg
 
 	fakeErr := errors.New("fake-err")
 	errorMsg := `failed to reconcile CephCluster "rook-ceph/my-cluster". fake-err`
@@ -131,9 +133,9 @@ func TestReportReconcileResult(t *testing.T) {
 			cephCluster, inResult, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, inResult, result)
-		assert.Equal(t, successMsg, strings.TrimSpace(logBuf.String()))
+		assert.Equal(t, requeueMsg, strings.TrimSpace(logBuf.String()))
 		assert.Len(t, recorder.Events, 1)
-		assert.Equal(t, successEvent, <-recorder.Events)
+		assert.Equal(t, requeueEvent, <-recorder.Events)
 	})
 
 	t.Run("failed reconcile with requeue", func(t *testing.T) {
