@@ -34,7 +34,7 @@ func TestCephCSIKeyringRBDProvisionerCaps(t *testing.T) {
 
 func TestCephCSIKeyringCephFSNodeCaps(t *testing.T) {
 	caps := cephCSIKeyringCephFSNodeCaps()
-	assert.Equal(t, caps, []string{"mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs *=*", "mds", "allow rw"})
+	assert.Equal(t, caps, []string{"mon", "allow r", "mgr", "allow rw", "osd", "allow rwx tag cephfs metadata=*, allow rw tag cephfs data=*", "mds", "allow rw"})
 }
 
 func TestCephCSIKeyringCephFSProvisionerCaps(t *testing.T) {
