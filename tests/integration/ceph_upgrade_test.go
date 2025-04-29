@@ -364,7 +364,8 @@ func (s *UpgradeSuite) verifyRookUpgrade(numOSDs int) {
 func (s *UpgradeSuite) waitForUpgradedDaemons(previousVersion, versionLabel string, numOSDs int, waitForMDS bool) {
 	// wait for the mon(s) to be updated
 	monsNotOldVersion := fmt.Sprintf("app=rook-ceph-mon,%s!=%s", versionLabel, previousVersion)
-	err := s.k8sh.WaitForDeploymentCount(monsNotOldVersion, s.namespace, s.settings.Mons)
+	// extend the timeout for this check because it can take 6+ minutes to pull ceph-ci images
+	err := s.k8sh.WaitForDeploymentCountWithRetries(monsNotOldVersion, s.namespace, s.settings.Mons, utils.RetryLoop+120)
 	require.NoError(s.T(), err, "mon(s) didn't update")
 	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(monsNotOldVersion, s.namespace)
 	require.NoError(s.T(), err)
