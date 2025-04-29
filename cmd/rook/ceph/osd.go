@@ -66,22 +66,23 @@ var osdRemoveCmd = &cobra.Command{
 }
 
 var (
-	osdDataDeviceFilter     string
-	osdDataDevicePathFilter string
-	ownerRefID              string
-	clusterName             string
-	osdID                   int
-	replaceOSDID            int
-	osdStoreType            string
-	osdStringID             string
-	osdUUID                 string
-	osdIsDevice             bool
-	pvcBackedOSD            bool
-	blockPath               string
-	lvBackedPV              bool
-	osdIDsToRemove          string
-	preservePVC             string
-	forceOSDRemoval         string
+	osdDataDeviceFilter         string
+	osdDataDevicePathFilter     string
+	ownerRefID                  string
+	clusterName                 string
+	osdID                       int
+	replaceOSDID                int
+	osdStoreType                string
+	osdStringID                 string
+	osdUUID                     string
+	osdIsDevice                 bool
+	pvcBackedOSD                bool
+	blockPath                   string
+	lvBackedPV                  bool
+	osdIDsToRemove              string
+	preservePVC                 string
+	forceOSDRemoval             string
+	wipeDeviceFromOtherClusters bool
 )
 
 const (
@@ -102,6 +103,7 @@ func addOSDFlags(command *cobra.Command) {
 	provisionCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 	provisionCmd.Flags().BoolVar(&cfg.pvcBacked, "pvc-backed-osd", false, "true to specify a block mode pvc is backing the OSD")
+	provisionCmd.Flags().BoolVar(&wipeDeviceFromOtherClusters, "wipe-device-from-other-clusters", false, "wipe the OSD devices that are configured for a different ceph cluster")
 	// flags for generating the osd config
 	osdConfigCmd.Flags().IntVar(&osdID, "osd-id", -1, "osd id for which to generate config")
 	osdConfigCmd.Flags().BoolVar(&osdIsDevice, "is-device", false, "whether the osd is a device")
@@ -278,6 +280,15 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	if cfg.metadataDevice != "" {
 		metaDevice = cfg.metadataDevice
+	}
+
+	// Wipe the desired OSD disks in case they belong to a different ceph cluster.
+	if cfg.pvcBacked && wipeDeviceFromOtherClusters {
+		logger.Info("checking for OSD disks from a different cluster")
+		err := agent.WipeDevicesFromOtherClusters(context)
+		if err != nil {
+			return errors.Wrapf(err, "failed to wipe devices from other clusters")
+		}
 	}
 
 	err = osddaemon.Provision(context, agent, crushLocation, topologyAffinity, deviceFilter, metaDevice)

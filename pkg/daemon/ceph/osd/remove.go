@@ -262,23 +262,34 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 	}
 	logger.Infof("successfully destroyed osd.%d", osdInfo.ID)
 
+	err = WipeOSDDisk(context, osdInfo, isPVC)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to clean the OSD disk %q for OSD ID %d", osdInfo.BlockPath, osdInfo.ID)
+	}
+
+	logger.Info("successfully destroyed OSD %d", osdInfo.ID)
+
+	return osdInfo, nil
+}
+
+// WipeOSDDisk cleans the OSD disks using "ceph-volume lvm zap" ultilty
+func WipeOSDDisk(context *clusterd.Context, osdInfo *oposd.OSDInfo, isPVC bool) error {
 	// in case of OSD on PVs, fetch the actual device name for the mounted /mnt/<pvc-name>
 	if isPVC {
 		pvcName := os.Getenv(oposd.PVCNameEnvVarName)
-
 		// remove the dm device
 		if osdInfo.Encrypted {
 			target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
-			err = removeEncryptedDevice(context, target)
+			err := removeEncryptedDevice(context, target)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to remove dm device %q", target)
+				logger.Warningf("failed to remove stale dm device %q: %q", target, err)
 			}
 		}
 		// fetch the actual device for cleanup
 		blockPath := fmt.Sprintf("/mnt/%s", pvcName)
 		diskInfo, err := clusterd.PopulateDeviceInfo(blockPath, context.Executor)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get device info for %q", blockPath)
+			return errors.Wrapf(err, "failed to get device info for %q", blockPath)
 		}
 		osdInfo.BlockPath = diskInfo.RealPath
 	}
@@ -286,11 +297,10 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 	logger.Infof("zap OSD.%d path %q", osdInfo.ID, osdInfo.BlockPath)
 	output, err := context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", "ceph-volume", "lvm", "zap", osdInfo.BlockPath, "--destroy")
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to zap osd.%d path %q. %s.", osdInfo.ID, osdInfo.BlockPath, output)
+		return errors.Wrapf(err, "failed to zap osd.%d path %q. %s.", osdInfo.ID, osdInfo.BlockPath, output)
 	}
 
 	logger.Infof("%s\n", output)
 	logger.Infof("successfully zapped osd.%d path %q", osdInfo.ID, osdInfo.BlockPath)
-
-	return osdInfo, nil
+	return nil
 }
