@@ -853,6 +853,62 @@ func (a *OsdAgent) appendDeviceClassArg(device *DeviceOsdIDEntry, args []string)
 	return args
 }
 
+// WipeDevicesFromOtherClusters wipes the OSD backed disks if they have metadata from a different ceph cluster.
+// The wiped disks can then be used to prepare OSDs for the current ceph cluster.
+func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error {
+	args := []string{"raw", "list", "--format", "json"}
+
+	result, err := callCephVolume(context, args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve ceph-volume raw list results")
+	}
+
+	var existingOSDs map[string]osdInfoBlock
+	err = json.Unmarshal([]byte(result), &existingOSDs)
+	if err != nil {
+		return errors.Wrapf(err, "failed to unmarshal ceph-volume raw list results")
+	}
+
+	if len(existingOSDs) == 0 {
+		logger.Info("no existing OSDs were found. No disks to be wiped")
+		return nil
+	}
+
+	for _, existingOSD := range existingOSDs {
+		// Wipe the devices that will be used for preparing OSD but already have OSD metadata from another ceph cluster
+		if existingOSD.CephFsid != a.clusterInfo.FSID {
+			device := desiredDeviceFromOtherCluster(context.Devices, existingOSD.Device)
+			if device != nil {
+				logger.Infof("begin wiping OSD %d device %q belonging to a different ceph cluster %q ", existingOSD.OsdID, existingOSD.Device, existingOSD.CephFsid)
+				logger.Infof("zap OSD.%d on device path %q", existingOSD.OsdID, existingOSD.Device)
+				output, err := context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", cephVolumeCmd, "lvm", "zap", existingOSD.Device)
+				if err != nil {
+					return errors.Wrapf(err, "failed to zap osd.%d path %q. %s.", existingOSD.OsdID, existingOSD.Device, output)
+				}
+				logger.Infof("ceph-volume output: %s", output)
+				logger.Infof("successfully zapped osd.%d path %q", existingOSD.OsdID, existingOSD.Device)
+				logger.Infof("completed wiping OSD %d device belonging to a different ceph cluster", existingOSD.OsdID)
+				// Since the device is wiped clean, clear the stale filesystem reference on the disk so that the wiped disk is not filtered out for filesystem check.
+				device.Filesystem = ""
+			} else {
+				logger.Infof("skip wiping OSD %d device belonging to a different ceph cluster %q since not a desired device", existingOSD.OsdID, existingOSD.CephFsid)
+			}
+		}
+	}
+
+	return nil
+}
+
+// desiredDeviceFromOtherCluster returns that desired device that needs to be wiped as it belongs to another cluster
+func desiredDeviceFromOtherCluster(desiredDevices []*sys.LocalDisk, deviceFromOtherCluster string) *sys.LocalDisk {
+	for _, desiredDevice := range desiredDevices {
+		if desiredDevice.RealPath == deviceFromOtherCluster {
+			return desiredDevice
+		}
+	}
+	return nil
+}
+
 func lvmPreReq(context *clusterd.Context) error {
 	// Check for the presence of LVM on the host when NOT running on PVC
 	// since this scenario is still using LVM
