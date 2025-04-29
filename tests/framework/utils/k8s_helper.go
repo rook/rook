@@ -1527,13 +1527,13 @@ func IsKubectlErrorNotFound(output string, err error) bool {
 // WaitForDeploymentCount waits until the desired number of deployments with the label exist. The
 // deployments are not guaranteed to be running, only existing.
 func (k8sh *K8sHelper) WaitForDeploymentCount(label, namespace string, count int) error {
-	return k8sh.waitForDeploymentCountWithRetries(label, namespace, count, RetryLoop)
+	return k8sh.WaitForDeploymentCountWithRetries(label, namespace, count, RetryLoop)
 }
 
 // WaitForDeploymentCountWithRetries waits until the desired number of deployments with the label
 // exist, retrying the specified number of times. The deployments are not guaranteed to be running,
 // only existing.
-func (k8sh *K8sHelper) waitForDeploymentCountWithRetries(label, namespace string, count, retries int) error {
+func (k8sh *K8sHelper) WaitForDeploymentCountWithRetries(label, namespace string, count, retries int) error {
 	ctx := context.TODO()
 	options := metav1.ListOptions{LabelSelector: label}
 	for i := 0; i < retries; i++ {
