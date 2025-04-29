@@ -2118,3 +2118,40 @@ func TestLVMModeAllowed(t *testing.T) {
 	storeConfig.EncryptedDevice = true
 	assert.False(t, lvmModeAllowed(device, storeConfig))
 }
+
+func TestWipeDevicesFromOtherClusters(t *testing.T) {
+	agent := &OsdAgent{
+		clusterInfo: &cephclient.ClusterInfo{
+			FSID: "c03d7353-96e5-4a41-98de-830dfff97d06",
+		},
+	}
+
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		if contains(args, "raw") && contains(args, "list") {
+			return cephVolumeRAWTestResult, nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+
+	// "/dev/vdc" should not be zapped
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		devicePath := "/dev/vdc"
+		logger.Infof("%s %v", command, args)
+
+		if contains(args, "zap") {
+			if contains(args, devicePath) {
+				return "", errors.Errorf("device %s should not be zapped", devicePath)
+			}
+			return "", nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	context := &clusterd.Context{
+		Devices: []*sys.LocalDisk{{RealPath: "/dev/vdb"}},
+	}
+	context.Executor = executor
+	err := agent.WipeDevicesFromOtherClusters(context)
+	assert.NoError(t, err)
+}

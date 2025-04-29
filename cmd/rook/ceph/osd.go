@@ -66,22 +66,23 @@ var osdRemoveCmd = &cobra.Command{
 }
 
 var (
-	osdDataDeviceFilter     string
-	osdDataDevicePathFilter string
-	ownerRefID              string
-	clusterName             string
-	osdID                   int
-	replaceOSDID            int
-	osdStoreType            string
-	osdStringID             string
-	osdUUID                 string
-	osdIsDevice             bool
-	pvcBackedOSD            bool
-	blockPath               string
-	lvBackedPV              bool
-	osdIDsToRemove          string
-	preservePVC             string
-	forceOSDRemoval         string
+	osdDataDeviceFilter          string
+	osdDataDevicePathFilter      string
+	ownerRefID                   string
+	clusterName                  string
+	osdID                        int
+	replaceOSDID                 int
+	osdStoreType                 string
+	osdStringID                  string
+	osdUUID                      string
+	osdIsDevice                  bool
+	pvcBackedOSD                 bool
+	blockPath                    string
+	lvBackedPV                   bool
+	osdIDsToRemove               string
+	preservePVC                  string
+	forceOSDRemoval              string
+	wipeDevicesFromOtherClusters bool
 )
 
 const (
@@ -102,6 +103,7 @@ func addOSDFlags(command *cobra.Command) {
 	provisionCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 	provisionCmd.Flags().BoolVar(&cfg.pvcBacked, "pvc-backed-osd", false, "true to specify a block mode pvc is backing the OSD")
+	provisionCmd.Flags().BoolVar(&wipeDevicesFromOtherClusters, "wipe-devices-from-other-clusters", false, "wipe the OSD devices that are configured for a different ceph cluster")
 	// flags for generating the osd config
 	osdConfigCmd.Flags().IntVar(&osdID, "osd-id", -1, "osd id for which to generate config")
 	osdConfigCmd.Flags().BoolVar(&osdIsDevice, "is-device", false, "whether the osd is a device")
@@ -274,7 +276,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	}
 
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, forceFormat,
-		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, replaceOSD, cfg.pvcBacked)
+		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, replaceOSD, cfg.pvcBacked, wipeDevicesFromOtherClusters)
 
 	if cfg.metadataDevice != "" {
 		metaDevice = cfg.metadataDevice
