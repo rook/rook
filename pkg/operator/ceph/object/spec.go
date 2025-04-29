@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -457,6 +458,23 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			cephconfig.NewFlag("rgw_enable_ops_log", "true"),
 			cephconfig.NewFlag("rgw_ops_log_file_path", opsLogAbsFilename),
 		)
+	} else {
+		// older version of Rook was using mon db to store rgw ops log config params.
+		// cleanup previous value in case if ops log was enabled in older version:
+		// TODO: only needed in Rook v1.17. remove after
+		monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
+		who := generateCephXUser(rgwConfig.ResourceName)
+		prevVal, _ := monStore.Get(who, "rgw_enable_ops_log")
+		if prevOpsEnabled, _ := strconv.ParseBool(prevVal); prevOpsEnabled {
+			err := monStore.Delete(who, "rgw_enable_ops_log")
+			if err != nil {
+				return v1.Container{}, errors.Wrapf(err, "failed to delete rgw_enable_ops_log from mon db")
+			}
+			err = monStore.Delete(who, "rgw_ops_log_file_path")
+			if err != nil {
+				return v1.Container{}, errors.Wrapf(err, "failed to delete rgw_ops_log_file_path from mon db")
+			}
+		}
 	}
 
 	if flags := buildRGWConfigFlags(c.store); len(flags) != 0 {

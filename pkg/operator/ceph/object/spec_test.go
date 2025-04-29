@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -88,7 +89,24 @@ func TestPodSpecs(t *testing.T) {
 	info.CephVersion = cephver.Squid
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 
+	executorFunc := func(command string, args ...string) (string, error) {
+		idResponse := `{"id":"test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return idResponse, nil
+	}
+	executorFuncTimeout := func(timeout time.Duration, command string, args ...string) (string, error) {
+		testResponse := `{"id": "test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return testResponse, nil
+	}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput:         executorFunc,
+		MockExecuteCommandWithCombinedOutput: executorFunc,
+		MockExecuteCommandWithTimeout:        executorFuncTimeout,
+	}
+
 	c := &clusterConfig{
+		context:     &clusterd.Context{Executor: executor},
 		clusterInfo: info,
 		store:       store,
 		rookVersion: "rook/rook:myversion",
@@ -157,6 +175,22 @@ func TestSSLPodSpec(t *testing.T) {
 	info.Namespace = store.Namespace
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 	store.Spec.Gateway.SecurePort = 443
+	executorFunc := func(command string, args ...string) (string, error) {
+		idResponse := `{"id":"test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return idResponse, nil
+	}
+	executorFuncTimeout := func(timeout time.Duration, command string, args ...string) (string, error) {
+		testResponse := `{"id": "test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return testResponse, nil
+	}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput:         executorFunc,
+		MockExecuteCommandWithCombinedOutput: executorFunc,
+		MockExecuteCommandWithTimeout:        executorFuncTimeout,
+	}
+	context.Executor = executor
 
 	c := &clusterConfig{
 		clusterInfo: info,
@@ -715,7 +749,23 @@ func TestMakeRGWPodSpec(t *testing.T) {
 	store := simpleStore()
 	info := clienttest.CreateTestClusterInfo(1)
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
+	executorFunc := func(command string, args ...string) (string, error) {
+		idResponse := `{"id":"test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return idResponse, nil
+	}
+	executorFuncTimeout := func(timeout time.Duration, command string, args ...string) (string, error) {
+		testResponse := `{"id": "test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return testResponse, nil
+	}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput:         executorFunc,
+		MockExecuteCommandWithCombinedOutput: executorFunc,
+		MockExecuteCommandWithTimeout:        executorFuncTimeout,
+	}
 	c := &clusterConfig{
+		context:     &clusterd.Context{Executor: executor},
 		store:       store,
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
@@ -772,6 +822,22 @@ func TestAWSServerSideEncryption(t *testing.T) {
 	info.CephVersion = cephver.CephVersion{Major: 17, Minor: 2, Extra: 3}
 	info.Namespace = store.Namespace
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
+	executorFunc := func(command string, args ...string) (string, error) {
+		idResponse := `{"id":"test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return idResponse, nil
+	}
+	executorFuncTimeout := func(timeout time.Duration, command string, args ...string) (string, error) {
+		testResponse := `{"id": "test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return testResponse, nil
+	}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput:         executorFunc,
+		MockExecuteCommandWithCombinedOutput: executorFunc,
+		MockExecuteCommandWithTimeout:        executorFuncTimeout,
+	}
+	context.Executor = executor
 
 	c := &clusterConfig{
 		clusterInfo: info,
@@ -937,6 +1003,22 @@ func TestRgwCommandFlags(t *testing.T) {
 	info.CephVersion = cephver.CephVersion{Major: 18, Minor: 2, Extra: 0}
 	info.Namespace = store.Namespace
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
+	executorFunc := func(command string, args ...string) (string, error) {
+		idResponse := `{"id":"test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return idResponse, nil
+	}
+	executorFuncTimeout := func(timeout time.Duration, command string, args ...string) (string, error) {
+		testResponse := `{"id": "test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return testResponse, nil
+	}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput:         executorFunc,
+		MockExecuteCommandWithCombinedOutput: executorFunc,
+		MockExecuteCommandWithTimeout:        executorFuncTimeout,
+	}
+	context.Executor = executor
 
 	c := &clusterConfig{
 		clusterInfo: info,
@@ -1549,6 +1631,22 @@ func TestRgwReadAffinity(t *testing.T) {
 	info.Namespace = store.Namespace
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 
+	executorFunc := func(command string, args ...string) (string, error) {
+		idResponse := `{"id":"test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return idResponse, nil
+	}
+	executorFuncTimeout := func(timeout time.Duration, command string, args ...string) (string, error) {
+		testResponse := `{"id": "test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return testResponse, nil
+	}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput:         executorFunc,
+		MockExecuteCommandWithCombinedOutput: executorFunc,
+		MockExecuteCommandWithTimeout:        executorFuncTimeout,
+	}
+	context.Executor = executor
 	c := &clusterConfig{
 		clusterInfo: info,
 		store:       store,
