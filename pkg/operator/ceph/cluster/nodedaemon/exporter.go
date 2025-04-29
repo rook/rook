@@ -196,6 +196,7 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 	}
 
 	containerPort := corev1.ContainerPort{
+		Name:          "http-metrics",
 		ContainerPort: int32(DefaultMetricsPort),
 		Protocol:      corev1.ProtocolTCP,
 	}
