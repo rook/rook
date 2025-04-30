@@ -200,7 +200,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 	if c.spec.LogCollector.Enabled {
 		shareProcessNamespace := true
 		podSpec.ShareProcessNamespace = &shareProcessNamespace
-		podSpec.Containers = append(podSpec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("%s.%s", cephMonCommand, monConfig.DaemonName), c.ClusterInfo.Namespace, c.spec))
+		podSpec.Containers = append(podSpec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("%s.%s", cephMonCommand, monConfig.DaemonName), c.ClusterInfo.Namespace, c.spec, nil))
 	}
 
 	// Replace default unreachable node toleration

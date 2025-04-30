@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -82,6 +83,31 @@ var (
 	rgwProbeScriptTemplate string
 
 	rgwAPIwithoutS3 = []string{"s3website", "swift", "swift_auth", "admin", "sts", "iam", "notifications"}
+
+	// used to pass Pod name and namespaces to Pod container arguments.
+	podNameEnvVars = []v1.EnvVar{
+		{
+			Name: "POD_NS",
+			ValueFrom: &v1.EnvVarSource{
+				FieldRef: &v1.ObjectFieldSelector{
+					FieldPath: "metadata.namespace",
+				},
+			},
+		},
+		{
+			Name: "POD_NAME",
+			ValueFrom: &v1.EnvVarSource{
+				FieldRef: &v1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+	}
+	// Filename to store RGW ops log per pod.
+	// Relies on the on environment variables to get the pod name and namespace.
+	// podNameEnvVars have to be passed to to log collector container.
+	opsLogFilename    = "ops-log.$(POD_NS).$(POD_NAME).log"
+	opsLogAbsFilename = path.Join(cephconfig.VarLogCephDir, opsLogFilename)
 )
 
 type (
@@ -168,16 +194,11 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		ServiceAccountName: serviceAccountName,
 	}
 
-	opsLogFile := ""
 	if opsLogSidecar := c.store.Spec.Gateway.OpsLogSidecar; opsLogSidecar != nil {
-		// Generate ops log file name based on rgw daemon ID
-		opsLogName := fmt.Sprintf("ops-log-%s.log", getDaemonName(rgwConfig))
-		opsLogFile = path.Join(cephconfig.VarLogCephDir, opsLogName)
-
 		// Add the side-car container named ops-log
 		podSpec.Containers = append(podSpec.Containers,
-			*controller.RgwOpsLogSidecarContainer(opsLogName,
-				c.clusterInfo.Namespace, *c.clusterSpec,
+			*controller.RgwOpsLogSidecarContainer(opsLogFilename,
+				c.clusterInfo.Namespace, *c.clusterSpec, podNameEnvVars,
 				opsLogSidecar.Resources))
 	}
 
@@ -187,7 +208,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		podSpec.ShareProcessNamespace = &shareProcessNamespace
 		podSpec.Containers = append(podSpec.Containers,
 			*controller.LogCollectorContainer(getDaemonName(rgwConfig),
-				c.clusterInfo.Namespace, *c.clusterSpec, opsLogFile))
+				c.clusterInfo.Namespace, *c.clusterSpec, podNameEnvVars, opsLogAbsFilename))
 	}
 
 	// Replace default unreachable node toleration
@@ -429,6 +450,30 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		}
 		if c.store.Spec.Security.KeyManagementService.IsTLSEnabled() {
 			container.Args = append(container.Args, c.sseKMSVaultTLSOptions(kmsEnabled)...)
+		}
+	}
+	if c.store.Spec.Gateway.OpsLogSidecar != nil {
+		container.Env = append(container.Env, podNameEnvVars...)
+		container.Args = append(container.Args,
+			cephconfig.NewFlag("rgw_enable_ops_log", "true"),
+			cephconfig.NewFlag("rgw_ops_log_file_path", opsLogAbsFilename),
+		)
+	} else {
+		// older version of Rook was using mon db to store rgw ops log config params.
+		// cleanup previous value in case if ops log was enabled in older version:
+		// TODO: only needed in Rook v1.17. remove after
+		monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
+		who := generateCephXUser(rgwConfig.ResourceName)
+		prevVal, _ := monStore.Get(who, "rgw_enable_ops_log")
+		if prevOpsEnabled, _ := strconv.ParseBool(prevVal); prevOpsEnabled {
+			err := monStore.Delete(who, "rgw_enable_ops_log")
+			if err != nil {
+				return v1.Container{}, errors.Wrapf(err, "failed to delete rgw_enable_ops_log from mon db")
+			}
+			err = monStore.Delete(who, "rgw_ops_log_file_path")
+			if err != nil {
+				return v1.Container{}, errors.Wrapf(err, "failed to delete rgw_ops_log_file_path from mon db")
+			}
 		}
 	}
 
