@@ -33,6 +33,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -45,14 +46,15 @@ import (
 )
 
 type clusterConfig struct {
-	context     *clusterd.Context
-	clusterInfo *cephclient.ClusterInfo
-	store       *cephv1.CephObjectStore
-	rookVersion string
-	clusterSpec *cephv1.ClusterSpec
-	ownerInfo   *k8sutil.OwnerInfo
-	DataPathMap *config.DataPathMap
-	client      client.Client
+	context               *clusterd.Context
+	clusterInfo           *cephclient.ClusterInfo
+	store                 *cephv1.CephObjectStore
+	rookVersion           string
+	clusterSpec           *cephv1.ClusterSpec
+	ownerInfo             *k8sutil.OwnerInfo
+	DataPathMap           *config.DataPathMap
+	client                client.Client
+	shouldRotateCephxKeys bool
 }
 
 type rgwConfig struct {
@@ -140,7 +142,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 
 		// We set the owner reference of the Secret to the Object controller instead of the replicaset
 		// because we watch for that resource and reconcile if anything happens to it
-		_, err = c.generateKeyring(rgwConfig)
+		secretResourceVersion, err := c.generateKeyring(rgwConfig)
 		if err != nil {
 			return errors.Wrap(err, "failed to create rgw keyring")
 		}
@@ -179,6 +181,9 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 		if err != nil {
 			return errors.Wrapf(err, "failed to set annotation for deployment %q", deployment.Name)
 		}
+
+		// apply cephx secret resource version to pod to ensure it restarts when keyring updates
+		deployment.Spec.Template.Annotations[keyring.CephxKeyIdentifierAnnotation] = secretResourceVersion
 
 		_, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(c.clusterInfo.Context, deployment, metav1.CreateOptions{})
 		if createErr != nil {
