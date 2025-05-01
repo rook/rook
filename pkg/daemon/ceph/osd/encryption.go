@@ -68,7 +68,7 @@ func setKEKinEnv(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo)
 	// KMS details are passed by the Operator as env variables in the pod
 	// The token if any is mounted in the provisioner pod as an env variable so the secrets lib will
 	// pick it up
-	clusterSpec := &v1.ClusterSpec{Security: v1.SecuritySpec{KeyManagementService: v1.KeyManagementServiceSpec{ConnectionDetails: kms.ConfigEnvsToMapString()}}}
+	clusterSpec := &v1.ClusterSpec{Security: v1.ClusterSecuritySpec{KeyManagementService: v1.KeyManagementServiceSpec{ConnectionDetails: kms.ConfigEnvsToMapString()}}}
 
 	// The ibm key protect library does not read any environment variables, so we must set the
 	// service api key (coming from the secret mounted as environment variable) in the KMS

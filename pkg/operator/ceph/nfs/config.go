@@ -89,7 +89,8 @@ func (r *ReconcileCephNFS) generateKeyring(n *cephv1.CephNFS, name string) error
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, user, key, osdCaps)
-	return s.CreateOrUpdate(instanceName(n, name), keyring)
+	_, err = s.CreateOrUpdate(instanceName(n, name), keyring)
+	return err
 }
 
 func getGaneshaConfig(n *cephv1.CephNFS, version cephver.CephVersion, name string) string {

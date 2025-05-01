@@ -43,7 +43,7 @@ func addCephVersionLabel(cephVersion version.CephVersion, labels map[string]stri
 
 // GetCephVersionLabel returns a formatted serialization of a provided CephVersion for use in resource labels.
 func GetCephVersionLabel(cephVersion version.CephVersion) string {
-	return fmt.Sprintf("%d.%d.%d-%d",
+	return fmt.Sprintf("%d.%d.%d-%d", // DO NOT CHANGE FORMAT FROM "Maj.Min.Ext-Bld"
 		cephVersion.Major, cephVersion.Minor, cephVersion.Extra, cephVersion.Build)
 }
 

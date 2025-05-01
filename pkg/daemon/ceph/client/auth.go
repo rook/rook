@@ -17,9 +17,11 @@ package client
 
 import (
 	"encoding/json"
+	"syscall"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 // AuthGetOrCreate will either get or create a user with the given capabilities.  The keyring for the
@@ -102,6 +104,37 @@ func AuthGetCaps(context *clusterd.Context, clusterInfo *ClusterInfo, name strin
 	}
 
 	return caps, err
+}
+
+// AuthRotate rotates a daemon's cephx auth key, retaining existing caps.
+func AuthRotate(context *clusterd.Context, clusterInfo *ClusterInfo, name string) (string, error) {
+	logger.Infof("rotating ceph auth key %q", name)
+	args := []string{"auth", "rotate", name}
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.EINVAL) {
+			// `ceph auth rotate` is not yet present in all ceph versions. as long as the command
+			// invocation is correct, EINVAL means the ceph version doesn't have the rotate
+			// subcommand added in: https://github.com/ceph/ceph/pull/58121
+			// all version of ceph v20 (tentacle) and higher should have the command present
+			return "", errors.Wrapf(err, "failed auth rotate %s. operator or cluster ceph version does not support ceph auth rotate", name)
+		}
+		return "", errors.Wrapf(err, "failed auth rotate %s", name)
+	}
+
+	var data []map[string]interface{}
+	err = json.Unmarshal(buf, &data)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to unmarshal auth rotate %s response", name)
+	}
+	if len(data) < 1 {
+		return "", errors.Errorf("auth rotate %s returned no results", name)
+	}
+	if len(data) > 1 {
+		logger.Infof("auth rotate %s returned more than 1 result; continuing using the first result", name)
+	}
+
+	return data[0]["key"].(string), nil
 }
 
 // AuthDelete will delete the given user.
