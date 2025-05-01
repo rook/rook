@@ -70,7 +70,7 @@ func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, daemonConfig.DaemonID, key)
-	return keyring, s.CreateOrUpdate(daemonConfig.ResourceName, keyring)
+	return s.CreateOrUpdate(daemonConfig.ResourceName, keyring)
 }
 
 func fullDaemonName(daemonID string) string {

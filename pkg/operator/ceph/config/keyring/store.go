@@ -34,6 +34,9 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-cfg-keyring")
 
 const (
 	keyringFileName = "keyring"
+
+	// KeyringAnnotation identifies a Kubernetes Secret as a cephx keyring file
+	KeyringAnnotation = "cephx-keyring"
 )
 
 // SecretStore is a helper to store Ceph daemon keyrings as Kubernetes secrets.
@@ -77,13 +80,26 @@ func (k *SecretStore) GenerateKey(user string, access []string) (string, error) 
 	return key, nil
 }
 
+// RotateKey rotates a key for a Ceph user without modifying permissions. It returns the new key on success.
+func (k *SecretStore) RotateKey(user string) (string, error) {
+	key, err := client.AuthRotate(k.context, k.clusterInfo, user)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to rotate key for %q", user)
+	}
+	return key, nil
+}
+
 // CreateOrUpdate creates or updates the keyring secret for the resource with the keyring specified.
+// Returns the secret resource version.
 // WARNING: Do not use "rook-ceph-admin" as the resource name; conflicts with the AdminStore.
-func (k *SecretStore) CreateOrUpdate(resourceName string, keyring string) error {
+func (k *SecretStore) CreateOrUpdate(resourceName string, keyring string) (string, error) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      keyringSecretName(resourceName),
 			Namespace: k.clusterInfo.Namespace,
+			Annotations: map[string]string{
+				KeyringAnnotation: "",
+			},
 		},
 		StringData: map[string]string{
 			keyringFileName: keyring,
@@ -92,7 +108,7 @@ func (k *SecretStore) CreateOrUpdate(resourceName string, keyring string) error 
 	}
 	err := k.ownerInfo.SetControllerReference(secret)
 	if err != nil {
-		return errors.Wrapf(err, "failed to set owner reference to keyring secret %q", secret.Name)
+		return "", errors.Wrapf(err, "failed to set owner reference to keyring secret %q", secret.Name)
 	}
 
 	return k.CreateSecret(secret)
@@ -109,24 +125,27 @@ func (k *SecretStore) Delete(resourceName string) error {
 	return nil
 }
 
-// CreateSecret creates or update a kubernetes secret
-func (k *SecretStore) CreateSecret(secret *v1.Secret) error {
+// CreateSecret creates or update a kubernetes secret.
+// Returns the resource version of the secret.
+func (k *SecretStore) CreateSecret(secret *v1.Secret) (string, error) {
 	secretName := secret.ObjectMeta.Name
 	_, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Get(k.clusterInfo.Context, secretName, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debugf("creating secret for %s", secretName)
-			if _, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Create(k.clusterInfo.Context, secret, metav1.CreateOptions{}); err != nil {
-				return errors.Wrapf(err, "failed to create secret for %s", secretName)
+			s, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Create(k.clusterInfo.Context, secret, metav1.CreateOptions{})
+			if err != nil {
+				return "", errors.Wrapf(err, "failed to create secret for %s", secretName)
 			}
-			return nil
+			return s.ResourceVersion, nil
 		}
-		return errors.Wrapf(err, "failed to get secret for %s", secretName)
+		return "", errors.Wrapf(err, "failed to get secret for %s", secretName)
 	}
 
 	logger.Debugf("updating secret for %s", secretName)
-	if _, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Update(k.clusterInfo.Context, secret, metav1.UpdateOptions{}); err != nil {
-		return errors.Wrapf(err, "failed to update secret for %s", secretName)
+	s, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Update(k.clusterInfo.Context, secret, metav1.UpdateOptions{})
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to update secret for %s", secretName)
 	}
-	return nil
+	return s.ResourceVersion, nil
 }
