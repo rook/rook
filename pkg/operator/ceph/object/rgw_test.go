@@ -79,7 +79,7 @@ func TestStartRGW(t *testing.T) {
 
 	// start a basic cluster
 	ownerInfo := client.NewMinimumOwnerInfoWithOwnerRef()
-	c := &clusterConfig{context, info, store, version, &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
+	c := &clusterConfig{context, info, store, version, &cephv1.ClusterSpec{}, ownerInfo, data, r.client, false}
 
 	t.Run("Deployment is created", func(t *testing.T) {
 		store.Spec.Gateway.Instances = 1
@@ -168,7 +168,7 @@ func TestCreateObjectStore(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
 	ownerInfo := client.NewMinimumOwnerInfoWithOwnerRef()
-	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
+	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, ownerInfo, data, r.client, false}
 	err := c.createOrUpdateStore(store.Name, store.Name, store.Name, nil)
 	assert.Nil(t, err)
 }
@@ -216,7 +216,7 @@ func TestCreateObjectStoreWithKeystoneAndS3(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
 	ownerInfo := client.NewMinimumOwnerInfoWithOwnerRef()
-	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
+	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, ownerInfo, data, r.client, false}
 	err := c.createOrUpdateStore(store.Name, store.Name, store.Name, nil)
 	assert.Nil(t, err)
 }
@@ -246,7 +246,9 @@ func TestGenerateSecretName(t *testing.T) {
 		&cephv1.ClusterSpec{},
 		&k8sutil.OwnerInfo{},
 		&config.DataPathMap{},
-		cl}
+		cl,
+		false,
+	}
 	secret := c.generateSecretName("a")
 	assert.Equal(t, "rook-ceph-rgw-default-a-keyring", secret)
 }

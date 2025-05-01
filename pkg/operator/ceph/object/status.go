@@ -32,12 +32,12 @@ import (
 )
 
 func (r *ReconcileCephObjectStore) setFailedStatus(observedGeneration int64, name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
-	updateStatus(r.opManagerContext, observedGeneration, r.client, name, cephv1.ConditionFailure, map[string]string{})
+	updateStatus(r.opManagerContext, observedGeneration, r.client, name, cephv1.ConditionFailure, map[string]string{}, nil)
 	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
 }
 
 // updateStatus updates an object with a given status
-func updateStatus(ctx context.Context, observedGeneration int64, client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
+func updateStatus(ctx context.Context, observedGeneration int64, client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string, cephx *cephv1.CephxStatus) {
 	// Updating the status is important to users, but we can still keep operating if there is a
 	// failure. Retry a few times to give it our best effort attempt.
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -76,6 +76,10 @@ func updateStatus(ctx context.Context, observedGeneration int64, client client.C
 		securePort := objectStore.Spec.Gateway.SecurePort
 		if securePort > 0 {
 			objectStore.Status.Endpoints.Secure = getAllDNSEndpoints(objectStore, securePort, true)
+		}
+
+		if cephx != nil {
+			objectStore.Status.Cephx.Daemon = *cephx
 		}
 
 		if err := reporting.UpdateStatus(client, objectStore); err != nil {

@@ -103,7 +103,7 @@ func createOrUpdateCrashCollectorSecret(clusterInfo *client.ClusterInfo, crashCo
 	}
 
 	// Create Kubernetes Secret
-	err = k.CreateSecret(s)
+	_, err = k.CreateSecret(s)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", s.Name, clusterInfo.Namespace)
 	}
@@ -169,7 +169,7 @@ func createOrUpdateExporterSecret(clusterInfo *client.ClusterInfo, exporterSecre
 	}
 
 	// Create Kubernetes Secret
-	err = k.CreateSecret(s)
+	_, err = k.CreateSecret(s)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", s.Name, clusterInfo.Namespace)
 	}
