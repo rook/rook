@@ -36,7 +36,7 @@ func TestGetEncryptionVolume(t *testing.T) {
 	assert.Equal(t, v1.VolumeMount{Name: "osd-encryption-key", ReadOnly: true, MountPath: "/etc/ceph"}, vM)
 
 	// With KMS
-	c.spec.Security = cephv1.SecuritySpec{
+	c.spec.Security = cephv1.ClusterSecuritySpec{
 		KeyManagementService: cephv1.KeyManagementServiceSpec{
 			ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault"},
 		},
