@@ -580,6 +580,9 @@ data:
 
   #  Custom label to identify node hostname. If not set `kubernetes.io/hostname` will be used
   ROOK_CUSTOM_HOSTNAME_LABEL: ""
+
+  # TODO: TEST TEST TEST TEST : REMOVE THIS BEFORE MERGING
+  ROOK_ROTATE_CEPHX_KEYS: "true"
 ---
 # OLM: BEGIN OPERATOR DEPLOYMENT
 apiVersion: apps/v1

@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -103,6 +104,17 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
 		return "", err
+	}
+
+	if opcontroller.RotateCephxKeysEnabled() {
+		// this may rotate the key immediately after the key is first generated, but it should be
+		// harmless and only one API call for all scenarios
+		logger.Debugf("rotating cephx key for CephObjectStore %q", c.store.Name)
+		newKey, err := s.RotateKey(user)
+		if err != nil {
+			logger.Infof("failed to rotate cephx key for CephObjectStore %q. %v", c.store.Name, err)
+		}
+		key = newKey
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, user, key)

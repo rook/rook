@@ -77,6 +77,15 @@ func (k *SecretStore) GenerateKey(user string, access []string) (string, error) 
 	return key, nil
 }
 
+// RotateKey rotates a key for a Ceph user without modifying permissions. It returns the new key on success.
+func (k *SecretStore) RotateKey(user string) (string, error) {
+	key, err := client.AuthRotate(k.context, k.clusterInfo, user)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to rotate key for %q", user)
+	}
+	return key, nil
+}
+
 // CreateOrUpdate creates or updates the keyring secret for the resource with the keyring specified.
 // WARNING: Do not use "rook-ceph-admin" as the resource name; conflicts with the AdminStore.
 func (k *SecretStore) CreateOrUpdate(resourceName string, keyring string) error {
