@@ -188,7 +188,7 @@ func TestDeletePool(t *testing.T) {
 	// delete a pool that exists
 	p := &cephv1.NamedPoolSpec{Name: "mypool"}
 	err := deletePool(context, clusterInfo, p)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// succeed even if the pool doesn't exist
 	p = &cephv1.NamedPoolSpec{Name: "otherpool"}
@@ -199,7 +199,7 @@ func TestDeletePool(t *testing.T) {
 	failOnDelete = true
 	p = &cephv1.NamedPoolSpec{Name: "mypool"}
 	err = deletePool(context, clusterInfo, p)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 }
 
 // TestCephBlockPoolController runs ReconcileCephBlockPool.Reconcile() against a
@@ -562,6 +562,131 @@ func TestCephBlockPoolController(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
 		assert.Nil(t, pool.Status.MirroringStatus)
+	})
+}
+
+func TestDeletionBlocked(t *testing.T) {
+	// A Pool resource with metadata and spec.
+	pool := &cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pool",
+			Namespace: "ns",
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephBlockPool",
+		},
+		Status: &cephv1.CephBlockPoolStatus{},
+	}
+	object := []runtime.Object{pool}
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion,
+		&cephv1.CephBlockPoolList{},
+		&cephv1.CephBlockPoolRadosNamespaceList{},
+		&cephv1.CephBlockPool{},
+		&cephv1.CephBlockPoolRadosNamespace{},
+	)
+	blockImageCount := 0
+	rnsImageCount := 0
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if args[0] == "pool" {
+				if args[1] == "stats" {
+					response := "{\"images\":{\"count\":%d,\"provisioned_bytes\":0,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
+					if args[4] == "--namespace" {
+						return fmt.Sprintf(response, rnsImageCount), nil
+					} else {
+						return fmt.Sprintf(response, blockImageCount), nil
+					}
+				}
+			}
+			return "not implemented", nil
+		},
+	}
+	c := &clusterd.Context{
+		Executor:      executor,
+		Clientset:     testop.New(t, 1),
+		RookClientset: rookclient.NewSimpleClientset(),
+	}
+	// Create a ReconcileCephBlockPool object with the scheme and fake client.
+	r := &ReconcileCephBlockPool{
+		client:            cl,
+		scheme:            s,
+		context:           c,
+		blockPoolContexts: make(map[string]*blockPoolHealth),
+		opManagerContext:  context.TODO(),
+		recorder:          record.NewFakeRecorder(5),
+		clusterInfo:       cephclient.AdminTestClusterInfo("mycluster"),
+	}
+	cephCluster := &cephv1.CephCluster{}
+	t.Run("deletion is allowed with no images or rns", func(t *testing.T) {
+		err := r.handleDeletionBlocked(pool, cephCluster)
+		assert.NoError(t, err)
+
+		result := &cephv1.CephBlockPool{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, pool.Name, result.Name)
+		assert.Equal(t, pool.Namespace, result.Namespace)
+		assert.Equal(t, 2, len(pool.Status.Conditions))
+		assert.Equal(t, "PoolDeletionIsBlocked", string(pool.Status.Conditions[0].Type))
+		assert.Equal(t, v1.ConditionFalse, pool.Status.Conditions[0].Status)
+		assert.Equal(t, "PoolEmpty", string(pool.Status.Conditions[0].Reason))
+		assert.Equal(t, "DeletionIsBlocked", string(pool.Status.Conditions[1].Type))
+		assert.Equal(t, v1.ConditionFalse, pool.Status.Conditions[1].Status)
+		assert.Equal(t, "ObjectHasNoDependents", string(pool.Status.Conditions[1].Reason))
+	})
+	t.Run("image prevents deletion", func(t *testing.T) {
+		blockImageCount = 1
+		err := r.handleDeletionBlocked(pool, cephCluster)
+		assert.Error(t, err)
+
+		result := &cephv1.CephBlockPool{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, pool.Name, result.Name)
+		assert.Equal(t, pool.Namespace, result.Namespace)
+		assert.Equal(t, 2, len(pool.Status.Conditions))
+		assert.Equal(t, "PoolDeletionIsBlocked", string(pool.Status.Conditions[0].Type))
+		assert.Equal(t, v1.ConditionTrue, pool.Status.Conditions[0].Status)
+		assert.Equal(t, "PoolNotEmpty", string(pool.Status.Conditions[0].Reason))
+		assert.Equal(t, "DeletionIsBlocked", string(pool.Status.Conditions[1].Type))
+		assert.Equal(t, v1.ConditionFalse, pool.Status.Conditions[1].Status)
+		assert.Equal(t, "ObjectHasNoDependents", string(pool.Status.Conditions[1].Reason))
+	})
+	t.Run("rados namespace prevents deletion", func(t *testing.T) {
+		radosNamespace := &cephv1.CephBlockPoolRadosNamespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-rns",
+				Namespace: pool.Namespace,
+			},
+			Spec: cephv1.CephBlockPoolRadosNamespaceSpec{
+				BlockPoolName: pool.Name,
+			},
+		}
+		_, err := c.RookClientset.CephV1().CephBlockPoolRadosNamespaces(pool.Namespace).Create(context.TODO(), radosNamespace, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		// A radosnamespaces prevents deletion of the pool
+		blockImageCount = 0
+		rnsImageCount = 1
+		err = r.handleDeletionBlocked(pool, cephCluster)
+		assert.Error(t, err)
+
+		result := &cephv1.CephBlockPool{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, pool.Name, result.Name)
+		assert.Equal(t, pool.Namespace, result.Namespace)
+		assert.Equal(t, 2, len(pool.Status.Conditions))
+		assert.Equal(t, "PoolDeletionIsBlocked", string(pool.Status.Conditions[0].Type))
+		assert.Equal(t, v1.ConditionTrue, pool.Status.Conditions[0].Status)
+		assert.Equal(t, "PoolNotEmpty", string(pool.Status.Conditions[0].Reason))
+		assert.Equal(t, "DeletionIsBlocked", string(pool.Status.Conditions[1].Type))
+		assert.Equal(t, v1.ConditionTrue, pool.Status.Conditions[1].Status)
+		assert.Equal(t, "ObjectHasDependents", string(pool.Status.Conditions[1].Reason))
 	})
 }
 

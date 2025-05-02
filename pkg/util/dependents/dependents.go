@@ -40,6 +40,21 @@ func DeletionBlockedDueToDependentsCondition(blocked bool, message string) cephv
 	}
 }
 
+func DeletionBlockedDueToNonEmptyPoolCondition(blocked bool, message string) cephv1.Condition {
+	status := corev1.ConditionFalse
+	reason := cephv1.PoolEmptyReason
+	if blocked {
+		status = corev1.ConditionTrue
+		reason = cephv1.PoolNotEmptyReason
+	}
+	return cephv1.Condition{
+		Type:    cephv1.ConditionPoolDeletionIsBlocked,
+		Status:  status,
+		Reason:  reason,
+		Message: message,
+	}
+}
+
 // A DependentList represents a list of dependents of a resource. Each dependent has a plural Kind
 // and a list of names of dependent resources.
 type DependentList struct {
