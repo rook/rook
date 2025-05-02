@@ -20,16 +20,18 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/util/dependents"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const radosNamespacesKeyName = "CephBlockPoolRadosNamespaces"
+
 // cephBlockPoolDependents returns the rbd namespaces (s) which exist in the rbd pool that should block
 // deletion.
-func cephBlockPoolDependents(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, blockpool *v1.CephBlockPool) (*dependents.DependentList, error) {
+func cephBlockPoolDependents(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, blockpool *cephv1.CephBlockPool) (*dependents.DependentList, error) {
 	nsName := fmt.Sprintf("%s/%s", blockpool.Namespace, blockpool.Name)
 	baseErrMsg := fmt.Sprintf("failed to get dependents of CephBlockPool %q", nsName)
 
@@ -40,9 +42,9 @@ func cephBlockPoolDependents(clusterdCtx *clusterd.Context, clusterInfo *client.
 	if err != nil {
 		return deps, errors.Wrapf(err, "%s. failed to list CephBlockPoolRadosNamespace for CephBlockPool %q", baseErrMsg, nsName)
 	}
-	for _, namespace := range namespaces.Items {
+	for i, namespace := range namespaces.Items {
 		if namespace.Spec.BlockPoolName == blockpool.Name {
-			deps.Add("CephBlockPoolRadosNamespaces", namespace.Name)
+			deps.Add(radosNamespacesKeyName, cephv1.GetRadosNamespaceName(&namespaces.Items[i]))
 		}
 		logger.Debugf("found CephBlockPoolRadosNamespace %q that does not depend on CephBlockPool %q", namespace.Name, nsName)
 	}

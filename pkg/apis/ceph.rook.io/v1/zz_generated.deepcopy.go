@@ -502,6 +502,13 @@ func (in *CephBlockPoolRadosNamespaceStatus) DeepCopyInto(out *CephBlockPoolRado
 		*out = new(SnapshotScheduleStatusSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 

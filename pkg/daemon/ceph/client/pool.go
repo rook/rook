@@ -220,13 +220,25 @@ func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clus
 		true /* enableECOverwrite */)
 }
 
-func IsPoolEmpty(context *clusterd.Context, clusterInfo *ClusterInfo, name string) (bool, error) {
-	logger.Debugf("checking if pool %q is empty", name)
+func IsPoolEmpty(context *clusterd.Context, clusterInfo *ClusterInfo, name string, radosNamespaces []string) (bool, string, error) {
+	logger.Debugf("checking if pool %q in namespace %q is empty", name, clusterInfo.Namespace)
+
 	isEmpty, err := checkIsPoolEmpty(context, clusterInfo, name)
 	if err != nil {
-		return false, err
+		return false, fmt.Sprintf("failed to check if pool %q is empty", name), err
 	}
-	return isEmpty, nil
+	if !isEmpty {
+		return false, fmt.Sprintf("pool %q contains images or snapshots and cannot be deleted", name), nil
+	}
+	// Check the rados namespaces for images/snapshots
+	for _, radosNamespace := range radosNamespaces {
+		containsImages, err := checkForImagesInRadosNamespace(context, clusterInfo, name, radosNamespace)
+		if err != nil || containsImages {
+			return false, fmt.Sprintf("rados namespace %q contains images or snapshots preventing pool %q deletion", radosNamespace, name), nil
+		}
+	}
+	// No images/snapshots found in the pool or rados namespaces
+	return true, fmt.Sprintf("pool %q is empty and can be deleted", name), nil
 }
 
 func checkForImagesInPool(context *clusterd.Context, clusterInfo *ClusterInfo, name string) error {

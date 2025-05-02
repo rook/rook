@@ -104,6 +104,28 @@ spec:
             status:
               description: Status represents the status of a CephBlockPool Rados Namespace
               properties:
+                conditions:
+                  items:
+                    description: Condition represents a status condition on any Rook-Ceph Custom Resource.
+                    properties:
+                      lastHeartbeatTime:
+                        format: date-time
+                        type: string
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        type: string
+                      reason:
+                        description: ConditionReason is a reason for a condition
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        description: ConditionType represent a resource's status
+                        type: string
+                    type: object
+                  type: array
                 info:
                   additionalProperties:
                     type: string
