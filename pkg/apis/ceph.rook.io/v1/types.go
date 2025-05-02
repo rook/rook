@@ -568,6 +568,12 @@ const (
 	// ObjectHasNoDependentsReason represents when a resource object has no dependents that are
 	// blocking deletion.
 	ObjectHasNoDependentsReason ConditionReason = "ObjectHasNoDependents"
+	// PoolNotEmptyReason represents when a pool contains images or snapshots that are blocking
+	// deletion.
+	PoolNotEmptyReason ConditionReason = "PoolNotEmpty"
+	// PoolEmptyReason represents when a pool does not contain images or snapshots that are blocking
+	// deletion.
+	PoolEmptyReason ConditionReason = "PoolEmpty"
 )
 
 // ConditionType represent a resource's status
@@ -589,6 +595,8 @@ const (
 
 	// ConditionDeletionIsBlocked represents when deletion of the object is blocked.
 	ConditionDeletionIsBlocked ConditionType = "DeletionIsBlocked"
+	// ConditionPoolDeletionIsBlocked represents when deletion of the object is blocked.
+	ConditionPoolDeletionIsBlocked ConditionType = "PoolDeletionIsBlocked"
 )
 
 // ClusterState represents the state of a Ceph Cluster
