@@ -3388,6 +3388,18 @@ SnapshotScheduleStatusSpec
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>conditions</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Condition">
+[]Condition
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus
@@ -5149,7 +5161,7 @@ The default is not set.</p>
 <h3 id="ceph.rook.io/v1.Condition">Condition
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>, <a href="#ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus</a>, <a href="#ceph.rook.io/v1.ClusterStatus">ClusterStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>, <a href="#ceph.rook.io/v1.Status">Status</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>, <a href="#ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus</a>, <a href="#ceph.rook.io/v1.ClusterStatus">ClusterStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>, <a href="#ceph.rook.io/v1.Status">Status</a>)
 </p>
 <div>
 <p>Condition represents a status condition on any Rook-Ceph Custom Resource.</p>
@@ -5275,6 +5287,22 @@ deletion.</p>
 <td><p>ObjectHasNoDependentsReason represents when a resource object has no dependents that are
 blocking deletion.</p>
 </td>
+</tr><tr><td><p>&#34;PoolEmpty&#34;</p></td>
+<td><p>PoolEmptyReason represents when a pool does not contain images or snapshots that are blocking
+deletion.</p>
+</td>
+</tr><tr><td><p>&#34;PoolNotEmpty&#34;</p></td>
+<td><p>PoolNotEmptyReason represents when a pool contains images or snapshots that are blocking
+deletion.</p>
+</td>
+</tr><tr><td><p>&#34;RadosNamespaceEmpty&#34;</p></td>
+<td><p>RadosNamespaceEmptyReason represents when a rados namespace does not contain images or snapshots that are blocking
+deletion.</p>
+</td>
+</tr><tr><td><p>&#34;RadosNamespaceNotEmpty&#34;</p></td>
+<td><p>RadosNamespaceNotEmptyReason represents when a rados namespace contains images or snapshots that are blocking
+deletion.</p>
+</td>
 </tr><tr><td><p>&#34;ReconcileFailed&#34;</p></td>
 <td><p>ReconcileFailed represents when a resource reconciliation failed.</p>
 </td>
@@ -5316,8 +5344,14 @@ blocking deletion.</p>
 </tr><tr><td><p>&#34;Failure&#34;</p></td>
 <td><p>ConditionFailure represents Failure state of an object</p>
 </td>
+</tr><tr><td><p>&#34;PoolDeletionIsBlocked&#34;</p></td>
+<td><p>ConditionPoolDeletionIsBlocked represents when deletion of the object is blocked.</p>
+</td>
 </tr><tr><td><p>&#34;Progressing&#34;</p></td>
 <td><p>ConditionProgressing represents Progressing state of an object</p>
+</td>
+</tr><tr><td><p>&#34;RadosNamespaceDeletionIsBlocked&#34;</p></td>
+<td><p>ConditionRadosNSDeletionIsBlocked represents when deletion of the object is blocked.</p>
 </td>
 </tr><tr><td><p>&#34;Ready&#34;</p></td>
 <td><p>ConditionReady represents Ready state of an object</p>
