@@ -7572,7 +7572,7 @@ string
 </tr>
 <tr>
 <td>
-<code>UserSecretRef</code><br/>
+<code>userSecretRef</code><br/>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
 Kubernetes core/v1.SecretKeySelector
@@ -7586,7 +7586,7 @@ Kubernetes core/v1.SecretKeySelector
 </tr>
 <tr>
 <td>
-<code>PasswordSecretRef</code><br/>
+<code>passwordSecretRef</code><br/>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
 Kubernetes core/v1.SecretKeySelector

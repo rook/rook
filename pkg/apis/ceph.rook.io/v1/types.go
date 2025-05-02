@@ -2403,10 +2403,10 @@ type KafkaEndpointSpec struct {
 	Mechanism string `json:"mechanism,omitempty"`
 	// The kafka user name to use for authentication
 	// +optional
-	UserSecretRef *corev1.SecretKeySelector `json:"UserSecretRef,omitempty"`
+	UserSecretRef *corev1.SecretKeySelector `json:"userSecretRef,omitempty"`
 	// The kafka password to use for authentication
 	// +optional
-	PasswordSecretRef *corev1.SecretKeySelector `json:"PasswordSecretRef,omitempty"`
+	PasswordSecretRef *corev1.SecretKeySelector `json:"passwordSecretRef,omitempty"`
 }
 
 // +genclient

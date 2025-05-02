@@ -954,7 +954,27 @@ spec:
                     kafka:
                       description: Spec of Kafka endpoint
                       properties:
-                        PasswordSecretRef:
+                        ackLevel:
+                          default: broker
+                          description: The ack level required for this topic (none/broker)
+                          enum:
+                            - none
+                            - broker
+                          type: string
+                        disableVerifySSL:
+                          description: Indicate whether the server certificate is validated by the client or not
+                          type: boolean
+                        mechanism:
+                          default: PLAIN
+                          description: The authentication mechanism for this topic (PLAIN/SCRAM-SHA-512/SCRAM-SHA-256/GSSAPI/OAUTHBEARER)
+                          enum:
+                            - PLAIN
+                            - SCRAM-SHA-512
+                            - SCRAM-SHA-256
+                            - GSSAPI
+                            - OAUTHBEARER
+                          type: string
+                        passwordSecretRef:
                           description: The kafka password to use for authentication
                           properties:
                             key:
@@ -976,7 +996,14 @@ spec:
                             - key
                           type: object
                           x-kubernetes-map-type: atomic
-                        UserSecretRef:
+                        uri:
+                          description: The URI of the Kafka endpoint to push notification to
+                          minLength: 1
+                          type: string
+                        useSSL:
+                          description: Indicate whether to use SSL when communicating with the broker
+                          type: boolean
+                        userSecretRef:
                           description: The kafka user name to use for authentication
                           properties:
                             key:
@@ -998,33 +1025,6 @@ spec:
                             - key
                           type: object
                           x-kubernetes-map-type: atomic
-                        ackLevel:
-                          default: broker
-                          description: The ack level required for this topic (none/broker)
-                          enum:
-                            - none
-                            - broker
-                          type: string
-                        disableVerifySSL:
-                          description: Indicate whether the server certificate is validated by the client or not
-                          type: boolean
-                        mechanism:
-                          default: PLAIN
-                          description: The authentication mechanism for this topic (PLAIN/SCRAM-SHA-512/SCRAM-SHA-256/GSSAPI/OAUTHBEARER)
-                          enum:
-                            - PLAIN
-                            - SCRAM-SHA-512
-                            - SCRAM-SHA-256
-                            - GSSAPI
-                            - OAUTHBEARER
-                          type: string
-                        uri:
-                          description: The URI of the Kafka endpoint to push notification to
-                          minLength: 1
-                          type: string
-                        useSSL:
-                          description: Indicate whether to use SSL when communicating with the broker
-                          type: boolean
                       required:
                         - uri
                       type: object
