@@ -884,6 +884,40 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 	return nil
 }
 
+func (a *OsdAgent) WipeDevicesFromOtherClusters2(context *clusterd.Context) error {
+	args := []string{"raw", "list", "--format", "json"}
+
+	result, err := callCephVolume(context, args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve ceph-volume raw list results")
+	}
+
+	var cephVolumeResult map[string]osdInfoBlock
+	err = json.Unmarshal([]byte(result), &cephVolumeResult)
+	if err != nil {
+		return errors.Wrapf(err, "failed to unmarshal ceph-volume raw list results")
+	}
+
+	if len(cephVolumeResult) == 0 {
+		logger.Info("no existing OSDs found")
+		return nil
+	}
+
+	for _, result := range cephVolumeResult {
+		if result.CephFsid != a.clusterInfo.FSID {
+			logger.Infof("BEGIN wiping OSD %d device belonging to a different ceph cluster %q ", result.OsdID, result.CephFsid)
+			osdInfo := &oposd.OSDInfo{ID: result.OsdID, BlockPath: result.Device, Encrypted: strings.Contains(result.Device, "-dmcrypt")}
+			err := WipeOSDDisk(context, osdInfo, a.pvcBacked)
+			if err != nil {
+				return errors.Wrapf(err, "failed to wipe OSD %d disk %q", osdInfo.ID, osdInfo.BlockPath)
+			}
+			logger.Infof("COMPLETED wiping OSD %d device belonging to a different ceph cluster", result.OsdID)
+		}
+	}
+
+	return nil
+}
+
 func lvmPreReq(context *clusterd.Context) error {
 	// Check for the presence of LVM on the host when NOT running on PVC
 	// since this scenario is still using LVM
