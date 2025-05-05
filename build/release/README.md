@@ -85,7 +85,7 @@ It takes the new version as its only argument for invocation.
 
 example:
 ```console
-tests/scripts/set-release-ver.sh v1.17.2
+build/release/set-release-ver.sh v1.17.2
 ```
 
 To publish a new patch release build, follow these steps:
