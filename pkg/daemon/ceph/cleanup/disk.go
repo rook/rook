@@ -258,12 +258,29 @@ func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfo, wg *sync.W
 	// On return, notify the WaitGroup that we’re done
 	defer wg.Done()
 
-	for _, device := range []string{osdInfo.BlockPath, osdInfo.MetadataPath, osdInfo.WalPath} {
+	for _, device := range []string{osdInfo.BlockPath /*, osdInfo.MetadataPath, osdInfo.WalPath*/} {
 		if device == "" {
 			continue
 		}
 
-		for _, shredCmd := range s.buildShredCommands(device) {
+		// output, err := s.context.Executor.ExecuteCommandWithCombinedOutput("ceph-volume", "lvm", "zap", "--destroy", "--osd-id", strconv.Itoa(osdInfo.ID))
+
+		fmt.Printf("%+v\n", osdInfo)
+
+		osdInfo, err := osd.DestroyOSD(s.context, s.clusterInfo, osdInfo.ID, true)
+		if err != nil {
+			logger.Errorf("failed to destroy osd. %v", err)
+		}
+
+		logger.Infof("%v\n", osdInfo)
+
+		/*if err != nil {
+			logger.Errorf("failed to execute sanitization command for osd disk %q. output: %s, error: %v", device, output, err)
+		} else {
+			logger.Infof("successfully executed sanitization command for osd disk %q", device)
+		}*/
+
+		/*for _, shredCmd := range s.buildShredCommands(device) {
 			output, err := s.context.Executor.ExecuteCommandWithCombinedOutput(shredCmd.command, shredCmd.args...)
 
 			logger.Infof("%s\n", output)
@@ -273,7 +290,7 @@ func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfo, wg *sync.W
 			} else {
 				logger.Infof("successfully executed sanitization command for osd disk %q", device)
 			}
-		}
+		}*/
 
 		// If the device is encrypted let's close it after sanitizing its content
 		if osdInfo.Encrypted {
@@ -282,18 +299,6 @@ func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfo, wg *sync.W
 				logger.Errorf("failed to close encrypted osd disk %q. %v", device, err)
 			} else {
 				logger.Infof("successfully closed encrypted osd disk %q", device)
-			}
-
-			for _, shredCmd := range s.buildShredCommands(device) {
-				output, err := s.context.Executor.ExecuteCommandWithCombinedOutput(shredCmd.command, shredCmd.args...)
-
-				logger.Infof("%s\n", output)
-
-				if err != nil {
-					logger.Errorf("failed to execute sanitization command for osd disk %q. output: %s, error: %v", device, output, err)
-				} else {
-					logger.Infof("successfully executed sanitization command for osd disk %q", device)
-				}
 			}
 		}
 	}
