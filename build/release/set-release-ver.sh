@@ -12,8 +12,7 @@ FROM_TAG=$(grep "docker.io/rook/ceph" deploy/examples/images.txt | awk -F : '{ p
 echo "Updating from $FROM_TAG to $TO_TAG..."
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-rook_root="${scriptdir}/../.."
-SED="${rook_root}/build/sed-in-place"
+SED="${scriptdir}/../sed-in-place"
 
 FILES_DOCS=(
  Documentation/Getting-Started/quickstart.md
