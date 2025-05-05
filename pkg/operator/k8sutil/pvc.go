@@ -26,19 +26,19 @@ import (
 )
 
 // ExpandPVCIfRequired will expand the PVC if requested size is greater than the actual size of existing PVC
-func ExpandPVCIfRequired(ctx context.Context, client client.Client, desiredPVC *v1.PersistentVolumeClaim, currentPVC *v1.PersistentVolumeClaim) {
+func ExpandPVCIfRequired(ctx context.Context, client client.Client, desiredPVC *v1.PersistentVolumeClaim, currentPVC *v1.PersistentVolumeClaim) bool {
 	desiredSize, desiredOK := desiredPVC.Spec.Resources.Requests[v1.ResourceStorage]
 	currentSize, currentOK := currentPVC.Spec.Resources.Requests[v1.ResourceStorage]
 	if !desiredOK || !currentOK {
 		logger.Debugf("desired or current size are not specified for PVC %q", currentPVC.Name)
-		return
+		return false
 	}
 
 	if desiredSize.Value() > currentSize.Value() {
 
 		if currentPVC.Spec.StorageClassName == nil || *(currentPVC.Spec.StorageClassName) == "" {
 			logger.Infof("cannot expand PVC %q because storage class is not provided", currentPVC.ObjectMeta.Name)
-			return
+			return false
 		}
 
 		// get StorageClass
@@ -46,12 +46,12 @@ func ExpandPVCIfRequired(ctx context.Context, client client.Client, desiredPVC *
 		err := client.Get(ctx, types.NamespacedName{Name: *(currentPVC.Spec.StorageClassName)}, storageClass)
 		if err != nil {
 			logger.Errorf("failed to get storageClass %q. %v", *(currentPVC.Spec.StorageClassName), err)
-			return
+			return false
 		}
 
 		if storageClass.AllowVolumeExpansion == nil || !*(storageClass.AllowVolumeExpansion) {
 			logger.Infof("cannot expand PVC %q. storage class %q does not allow expansion", currentPVC.ObjectMeta.Name, storageClass.ObjectMeta.Name)
-			return
+			return false
 		}
 
 		currentPVC.Spec.Resources.Requests[v1.ResourceStorage] = desiredSize
@@ -59,10 +59,12 @@ func ExpandPVCIfRequired(ctx context.Context, client client.Client, desiredPVC *
 		if err = client.Update(ctx, currentPVC); err != nil {
 			// log the error, but don't fail the reconcile
 			logger.Errorf("failed to update PVC size. %v", err)
-			return
+			return false
 		}
 		logger.Infof("successfully updated PVC %q size", currentPVC.Name)
+		return true
 	} else if desiredSize.Value() < currentSize.Value() {
 		logger.Warningf("ignoring request to shrink PVC %q size from %s to %s, only expansion is allowed", currentPVC.Name, currentSize.String(), desiredSize.String())
 	}
+	return false
 }

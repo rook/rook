@@ -1463,7 +1463,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to fetch pvc for mon %q", m.ResourceName)
 		}
-		k8sutil.ExpandPVCIfRequired(c.ClusterInfo.Context, c.context.Client, desiredPvc, existingPvc)
+		_ = k8sutil.ExpandPVCIfRequired(c.ClusterInfo.Context, c.context.Client, desiredPvc, existingPvc)
 	}
 
 	logger.Infof("deployment for mon %s already exists. updating if needed",
