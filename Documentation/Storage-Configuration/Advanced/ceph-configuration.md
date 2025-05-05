@@ -49,7 +49,7 @@ sed -i.bak \
   common.yaml operator.yaml cluster.yaml # add other files or change these as desired for your config
 
 # You need to use `apply` for all Ceph clusters after the first if you have only one Operator
-kubectl apply -f common.yaml -f operator.yaml -f cluster.yaml # add other files as desired for yourconfig
+kubectl apply -f crds.yaml -f common.yaml -f operator.yaml -f cluster.yaml # add other files as desired for yourconfig
 ```
 
 Also see the CSI driver
