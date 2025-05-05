@@ -254,13 +254,13 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 		return nil, errors.Wrapf(err, "failed to get OSD info for OSD.%d", id)
 	}
 
-	logger.Infof("destroying osd.%d", osdInfo.ID)
+	/*logger.Infof("destroying osd.%d", osdInfo.ID)
 	destroyOSDArgs := []string{"osd", "destroy", fmt.Sprintf("osd.%d", osdInfo.ID), "--yes-i-really-mean-it"}
 	_, err = client.NewCephCommand(context, clusterInfo, destroyOSDArgs).Run()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to destroy osd.%d.", osdInfo.ID)
 	}
-	logger.Infof("successfully destroyed osd.%d", osdInfo.ID)
+	logger.Infof("successfully destroyed osd.%d", osdInfo.ID)*/
 
 	if isPVC && osdInfo.Encrypted {
 		// remove the dm device
