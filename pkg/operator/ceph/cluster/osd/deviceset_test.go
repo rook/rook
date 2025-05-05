@@ -26,10 +26,12 @@ import (
 	testexec "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	k8stesting "k8s.io/client-go/testing"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestPrepareDeviceSets(t *testing.T) {
@@ -300,4 +302,29 @@ func TestCreateValidImageVersionLabel(t *testing.T) {
 	assert.Equal(t, "rook_ceph_master", createValidImageVersionLabel(image))
 	image = ".invalid_label"
 	assert.Equal(t, "", createValidImageVersionLabel(image))
+}
+
+func TestCheckAllPvcResize(t *testing.T) {
+	ctx := context.TODO()
+	s := runtime.NewScheme()
+	_ = corev1.AddToScheme(s)
+	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(&corev1.PersistentVolumeClaim{}).WithStatusSubresource(&corev1.PersistentVolumeClaim{}).Build()
+	namespace := "testns"
+	pvcResizeMap := make(map[string]pvcResize)
+
+	pvcResizeMap["pvc1"] = pvcResize{
+		desiredSize:     resource.MustParse("10Gi"),
+		actualSize:      resource.MustParse("5Gi"),
+		resizeConfirmed: false,
+	}
+
+	assert.False(t, checkAllPvcResize(ctx, client, namespace, pvcResizeMap))
+
+	pvcResizeMap["pvc1"] = pvcResize{
+		desiredSize:     resource.MustParse("10Gi"),
+		actualSize:      resource.MustParse("10Gi"),
+		resizeConfirmed: true,
+	}
+
+	assert.True(t, checkAllPvcResize(ctx, client, namespace, pvcResizeMap))
 }
