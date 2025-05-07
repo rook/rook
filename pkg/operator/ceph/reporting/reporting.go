@@ -169,6 +169,28 @@ func ReportReconcileResult(
 	return reconcileResponse, err
 }
 
+func GenerateConditionBlockedDueToDependents(obj statusConditionGetter, deps *dependents.DependentList) (string, types.NamespacedName, cephv1.Condition) {
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
+	nsName := types.NamespacedName{
+		Namespace: obj.GetNamespace(),
+		Name:      obj.GetName(),
+	}
+	blockedMsg := deps.StringWithHeader("%s %q will not be deleted until all dependents are removed", kind, nsName.String())
+
+	return kind, nsName, dependents.DeletionBlockedDueToDependentsCondition(true, blockedMsg)
+}
+
+func GenerateConditionUnblockedDueToDependents(obj statusConditionGetter) (string, types.NamespacedName, cephv1.Condition) {
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
+	nsName := types.NamespacedName{
+		Namespace: obj.GetNamespace(),
+		Name:      obj.GetName(),
+	}
+	safeMsg := fmt.Sprintf("%s %q has no dependent custom resources blocking deletion", kind, nsName.String())
+
+	return kind, nsName, dependents.DeletionBlockedDueToDependentsCondition(false, safeMsg)
+}
+
 // ReportDeletionBlockedDueToDependents reports that deletion of a Rook-Ceph object is blocked due
 // to the given dependents in 3 ways:
 // 1. to the given logger
@@ -177,33 +199,33 @@ func ReportReconcileResult(
 func ReportDeletionBlockedDueToDependents(
 	ctx context.Context, logger *capnslog.PackageLogger, client client.Client, obj statusConditionGetter, deps *dependents.DependentList,
 ) error {
-	kind := obj.GetObjectKind().GroupVersionKind().Kind
-	nsName := types.NamespacedName{
-		Namespace: obj.GetNamespace(),
-		Name:      obj.GetName(),
-	}
-	blockedMsg := deps.StringWithHeader("%s %q will not be deleted until all dependents are removed", kind, nsName.String())
+	kind, nsName, blockedCond := GenerateConditionBlockedDueToDependents(obj, deps)
 
 	// 1. log
-	logger.Info(blockedMsg)
+	logger.Info(blockedCond.Message)
 
 	// 2. condition
-	blockedCond := dependents.DeletionBlockedDueToDependentsCondition(true, blockedMsg)
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if err := client.Get(ctx, nsName, obj); err != nil {
-			return errors.Wrapf(err, "failed to get latest %s %q", kind, nsName.String())
-		}
-		if err := UpdateStatusCondition(client, obj, blockedCond); err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return errors.Wrapf(err, "on condition %s", blockedMsg)
+	if err := UpdateStatusConditionsWithRetry(ctx, client, obj, nsName, kind, blockedCond); err != nil {
+		return err
 	}
 
 	// 3. error for later FailedReconcile message
-	return errors.New(blockedMsg)
+	return errors.New(blockedCond.Message)
+}
+
+func UpdateStatusConditionsWithRetry(
+	ctx context.Context, client client.Client, obj statusConditionGetter,
+	nsName types.NamespacedName, kind string, conditions ...cephv1.Condition,
+) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := client.Get(ctx, nsName, obj); err != nil {
+			return errors.Wrapf(err, "failed to get latest %s %q", kind, nsName.String())
+		}
+		if err := UpdateStatusCondition(client, obj, conditions...); err != nil {
+			return errors.Wrapf(err, "failed to update %s %q status conditions", kind, nsName.String())
+		}
+		return nil
+	})
 }
 
 // ReportDeletionNotBlockedDueToDependents reports that deletion of a Rook-Ceph object is proceeding
@@ -214,32 +236,17 @@ func ReportDeletionBlockedDueToDependents(
 func ReportDeletionNotBlockedDueToDependents(
 	ctx context.Context, logger *capnslog.PackageLogger, client client.Client, recorder record.EventRecorder, obj statusConditionGetter,
 ) {
-	kind := obj.GetObjectKind().GroupVersionKind().Kind
-	nsName := types.NamespacedName{
-		Namespace: obj.GetNamespace(),
-		Name:      obj.GetName(),
-	}
-	safeMsg := fmt.Sprintf("%s %q can be deleted safely", kind, nsName.String())
+	kind, nsName, unblockedCond := GenerateConditionUnblockedDueToDependents(obj)
 	deletingMsg := fmt.Sprintf("deleting %s %q", kind, nsName.String())
 
 	// 1. log
-	logger.Infof("%s. %s", safeMsg, deletingMsg)
+	logger.Infof("%s. %s", unblockedCond.Message, deletingMsg)
 
 	// 2. event
 	recorder.Event(obj, corev1.EventTypeNormal, string(cephv1.DeletingReason), deletingMsg)
 
 	// 3. condition
-	unblockedCond := dependents.DeletionBlockedDueToDependentsCondition(false, safeMsg)
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if err := client.Get(ctx, nsName, obj); err != nil {
-			return errors.Wrapf(err, "failed to get latest %s %q", kind, nsName.String())
-		}
-		if err := UpdateStatusCondition(client, obj, unblockedCond); err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
+	if err := UpdateStatusConditionsWithRetry(ctx, client, obj, nsName, kind, unblockedCond); err != nil {
 		logger.Warningf("continuing deletion of %s %q without setting the condition. %v", kind, nsName.String(), err)
 	}
 }

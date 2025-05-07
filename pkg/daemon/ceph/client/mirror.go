@@ -53,10 +53,8 @@ type Images struct {
 }
 
 const (
-	mirrorModeDisabled   = "disabled"
-	mirrorModeInitOnly   = "init-only"
-	ImplicitNamespaceKey = "<implicit>"
-	ImplicitNamespaceVal = ""
+	mirrorModeDisabled = "disabled"
+	mirrorModeInitOnly = "init-only"
 )
 
 var (
@@ -398,8 +396,8 @@ func EnableRBDRadosNamespaceMirroring(context *clusterd.Context, clusterInfo *Cl
 		return errors.Errorf("ceph version %q does not support mirroring in rados namespace %q with --remote-namespace flag, supported version are v20 and above.", clusterInfo.CephVersion.String(), poolAndRadosNamespaceName)
 	}
 
-	if remoteNamespace != nil && *remoteNamespace == ImplicitNamespaceKey {
-		*remoteNamespace = ImplicitNamespaceVal
+	if remoteNamespace != nil && *remoteNamespace == cephv1.ImplicitNamespaceKey {
+		*remoteNamespace = cephv1.ImplicitNamespaceVal
 	}
 
 	args := []string{"mirror", "pool", "enable", poolAndRadosNamespaceName, mode}
