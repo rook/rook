@@ -31,11 +31,11 @@ jobs:
         with:
           go-version: "1.23"
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@1481404843c368bc19ca9406f87d6e0fc97bdcfd # v7.0.0
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8.0.0
         with:
           # `version` is parsed by build/makelib/golang.mk
           # Do not change the structure of this job without updating the parsing logic.
-          version: v2.0.2
+          version: v2.1.6
           # actions/setup-go already handles caching
           skip-cache: true
 
