@@ -51,14 +51,7 @@ PLATFORMS ?= $(ALL_PLATFORMS)
 
 # "helm" flavor is for pushing to s3/https endpoint
 # "charts" flavor is for pushing to oci endpoint
-FLAVORS ?= output images helm charts
-
-# Only publish the docs if in master branch or if this is a tagged release.
-ifeq ($(shell echo $(BRANCH_NAME)),master)
-FLAVORS += docs
-else ifeq ($(TAGGED_RELEASE),true)
-FLAVORS += docs
-endif
+FLAVORS ?= output images docs helm charts
 
 DOCKER_REGISTRY ?= docker.io/rook
 QUAY_REGISTRY ?= quay.io/rook
