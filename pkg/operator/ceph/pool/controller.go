@@ -26,6 +26,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/util/dependents"
 	"github.com/rook/rook/pkg/util/exec"
 
 	"github.com/pkg/errors"
@@ -254,15 +255,10 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	poolSpec := cephBlockPool.ToNamedPoolSpec()
 	// DELETE: the CR was deleted
 	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
-		deps, err := cephBlockPoolDependents(r.context, r.clusterInfo, cephBlockPool)
-		if err != nil {
-			return reconcile.Result{}, *cephBlockPool, err
-		}
-		if !deps.Empty() {
-			err := reporting.ReportDeletionBlockedDueToDependents(r.opManagerContext, logger, r.client, cephBlockPool, deps)
+		if err := r.handleDeletionBlocked(cephBlockPool, &cephCluster); err != nil {
 			return opcontroller.WaitForRequeueIfFinalizerBlocked, *cephBlockPool, err
 		}
-		reporting.ReportDeletionNotBlockedDueToDependents(r.opManagerContext, logger, r.client, r.recorder, cephBlockPool)
+
 		// If the ceph block pool is still in the map, we must remove it during CR deletion
 		// We must remove it first otherwise the checker will panic since the status/info will be nil
 		r.cancelMirrorMonitoring(cephBlockPool)
@@ -272,12 +268,6 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		logger.Infof("deleting pool %q", poolSpec.Name)
 		err = deletePool(r.context, clusterInfo, &poolSpec)
 		if err != nil {
-			if opcontroller.ForceDeleteRequested(cephBlockPool.GetAnnotations()) {
-				cleanupErr := r.cleanup(cephBlockPool, &cephCluster)
-				if cleanupErr != nil {
-					return reconcile.Result{}, *cephBlockPool, errors.Wrapf(cleanupErr, "failed to create clean up job for ceph blockpool %q", cephBlockPool.Name)
-				}
-			}
 			return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrapf(err, "failed to delete pool %q. ", cephBlockPool.Name)
 		}
 
@@ -415,6 +405,64 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	// Return and do not requeue
 	logger.Debug("done reconciling")
 	return reconcile.Result{}, *cephBlockPool, nil
+}
+
+// handlePoolDeletionBlocked updates the blockpool CR status with conditions about
+// whether the pool is empty or has dependents that block deletion.
+// If the pool is not empty and force deletion is specified, create a cleanup job
+// to delete the images and snapshots forcefully.
+func (r *ReconcileCephBlockPool) handleDeletionBlocked(cephBlockPool *cephv1.CephBlockPool, cephCluster *cephv1.CephCluster) error {
+	poolSpec := cephBlockPool.ToNamedPoolSpec()
+	deletionBlocked := false
+
+	deps, err := cephBlockPoolDependents(r.context, r.clusterInfo, cephBlockPool)
+	if err != nil {
+		return err
+	}
+	var depCondition cephv1.Condition
+	if deps.Empty() {
+		_, _, depCondition = reporting.GenerateConditionUnblockedDueToDependents(cephBlockPool)
+	} else {
+		deletionBlocked = true
+		_, _, depCondition = reporting.GenerateConditionBlockedDueToDependents(cephBlockPool, deps)
+	}
+	logger.Info(depCondition.Message)
+
+	radosNamespaces := deps.OfKind(radosNamespacesKeyName)
+	isEmpty, emptyMessage, err := cephclient.IsPoolEmpty(r.context, r.clusterInfo, poolSpec.Name, radosNamespaces)
+	if err != nil {
+		return err
+	}
+	var emptyCondition cephv1.Condition
+	if isEmpty {
+		emptyCondition = dependents.DeletionBlockedDueToNonEmptyPoolCondition(false, emptyMessage)
+	} else {
+		deletionBlocked = true
+		emptyCondition = dependents.DeletionBlockedDueToNonEmptyPoolCondition(true, emptyMessage)
+	}
+	logger.Info(emptyCondition.Message)
+
+	nsName := types.NamespacedName{Namespace: cephBlockPool.Namespace, Name: cephBlockPool.Name}
+	err = reporting.UpdateStatusConditionsWithRetry(
+		r.opManagerContext, r.client, cephBlockPool, nsName, cephBlockPool.Kind, emptyCondition, depCondition)
+	if err != nil {
+		logger.Warningf("failed to update %q status with deletion blocked conditions: %v", nsName.String(), err)
+	}
+
+	if !isEmpty {
+		// Force deletion if desired
+		if opcontroller.ForceDeleteRequested(cephBlockPool.GetAnnotations()) {
+			cleanupErr := r.cleanup(cephBlockPool, cephCluster)
+			if cleanupErr != nil {
+				return errors.Wrapf(cleanupErr, "failed to create clean up job for ceph blockpool %q", cephBlockPool.Name)
+			}
+		}
+	}
+
+	if deletionBlocked {
+		return errors.Errorf("pool %q cannot be deleted because it is not empty or has dependents", cephBlockPool.Name)
+	}
+	return nil
 }
 
 func (r *ReconcileCephBlockPool) reconcileCreatePool(clusterInfo *cephclient.ClusterInfo, cephCluster *cephv1.ClusterSpec, cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {

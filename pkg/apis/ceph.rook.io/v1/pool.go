@@ -95,6 +95,10 @@ func (p *CephBlockPool) GetStatusConditions() *[]Condition {
 	return &p.Status.Conditions
 }
 
+func (p *CephBlockPoolRadosNamespace) GetStatusConditions() *[]Condition {
+	return &p.Status.Conditions
+}
+
 // SnapshotSchedulesEnabled returns whether snapshot schedules are desired
 func (p *MirroringSpec) SnapshotSchedulesEnabled() bool {
 	return len(p.SnapshotSchedules) > 0

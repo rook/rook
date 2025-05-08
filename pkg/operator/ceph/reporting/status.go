@@ -51,14 +51,17 @@ func UpdateStatus(client client.Client, obj client.Object) error {
 // UpdateStatusCondition updates (or adds to) the status condition to the given object. The object
 // is updated with the latest version from the server on a successful update.
 func UpdateStatusCondition(
-	client client.Client, obj statusConditionGetter, newCond cephv1.Condition,
+	client client.Client, obj statusConditionGetter, newConditions ...cephv1.Condition,
 ) error {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	nsName := fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
 
-	cephv1.SetStatusCondition(obj.GetStatusConditions(), newCond)
+	for _, newCondition := range newConditions {
+		cephv1.SetStatusCondition(obj.GetStatusConditions(), newCondition)
+	}
+
 	if err := UpdateStatus(client, obj); err != nil {
-		return errors.Wrapf(err, "failed to update %s %q status condition %s=%s", kind, nsName, newCond.Type, newCond.Status)
+		return errors.Wrapf(err, "failed to update %s %q status conditions", kind, nsName)
 	}
 
 	return nil

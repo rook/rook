@@ -69,25 +69,27 @@ func getRadosNamespaceStatistics(context *clusterd.Context, clusterInfo *Cluster
 	return &poolStats, nil
 }
 
-func checkForImagesInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, namespaceName string) error {
+// checkForImagesInRadosNamespace checks if there are any images or snapshots in the specified rados namespace.
+// If there are images or snapshots, it returns true and an error with details.
+func checkForImagesInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, namespaceName string) (bool, error) {
 	logger.Debugf("checking any images/snapshots present in pool %s/%s in k8s namespace %q", poolName, namespaceName, clusterInfo.Namespace)
 	stats, err := getRadosNamespaceStatistics(context, clusterInfo, poolName, namespaceName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to list images/snapshots in pool %s/%s", poolName, namespaceName)
+		return false, errors.Wrapf(err, "failed to list images/snapshots in pool %s/%s", poolName, namespaceName)
 	}
 	if stats.Images.Count == 0 && stats.Images.SnapCount == 0 {
 		logger.Infof("no images/snapshots present in pool %s/%s in k8s namespace %q", poolName, namespaceName, clusterInfo.Namespace)
-		return nil
+		return false, nil
 	}
 
-	return errors.Errorf("pool %s/%s contains %d images and %d snapshots", poolName, namespaceName, stats.Images.Count, stats.Images.SnapCount)
+	return true, errors.Errorf("pool %s/%s contains %d images and %d snapshots", poolName, namespaceName, stats.Images.Count, stats.Images.SnapCount)
 }
 
 // DeleteRadosNamespace delete a rados namespace.
-func DeleteRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, namespaceName string) error {
-	err := checkForImagesInRadosNamespace(context, clusterInfo, poolName, namespaceName)
+func DeleteRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, namespaceName string) (bool, error) {
+	containsImages, err := checkForImagesInRadosNamespace(context, clusterInfo, poolName, namespaceName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to check if pool %s/%s has rbd images", poolName, namespaceName)
+		return containsImages, errors.Wrapf(err, "failed to check if pool %s/%s has rbd images", poolName, namespaceName)
 	}
 	logger.Infof("deleting rados namespace %s/%s in k8s namespace %q", poolName, namespaceName, clusterInfo.Namespace)
 	args := []string{"namespace", "remove", "--pool", poolName, "--namespace", namespaceName}
@@ -97,12 +99,12 @@ func DeleteRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, p
 	if err != nil {
 		code, ok := exec.ExitStatus(err)
 		if !ok || code != int(syscall.ENOENT) {
-			return errors.Wrapf(err, "failed to delete rados namespace %s/%s. %s", poolName, namespaceName, output)
+			return false, errors.Wrapf(err, "failed to delete rados namespace %s/%s. %s", poolName, namespaceName, output)
 		}
 	}
 
 	logger.Infof("successfully deleted rados namespace %s/%s in k8s namespace %q", poolName, namespaceName, clusterInfo.Namespace)
-	return nil
+	return false, nil
 }
 
 // ListRadosNamespacesInPool lists the rados namespaces in a pool

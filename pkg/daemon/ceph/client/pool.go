@@ -220,22 +220,54 @@ func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clus
 		true /* enableECOverwrite */)
 }
 
+func IsPoolEmpty(context *clusterd.Context, clusterInfo *ClusterInfo, name string, radosNamespaces []string) (bool, string, error) {
+	logger.Debugf("checking if pool %q in namespace %q is empty", name, clusterInfo.Namespace)
+
+	isEmpty, err := checkIsPoolEmpty(context, clusterInfo, name)
+	if err != nil {
+		return false, fmt.Sprintf("failed to check if pool %q is empty", name), err
+	}
+	if !isEmpty {
+		return false, fmt.Sprintf("pool %q contains images or snapshots and cannot be deleted", name), nil
+	}
+	// Check the rados namespaces for images/snapshots
+	for _, radosNamespace := range radosNamespaces {
+		containsImages, err := checkForImagesInRadosNamespace(context, clusterInfo, name, radosNamespace)
+		if err != nil || containsImages {
+			return false, fmt.Sprintf("rados namespace %q contains images or snapshots preventing pool %q deletion", radosNamespace, name), nil
+		}
+	}
+	// No images/snapshots found in the pool or rados namespaces
+	return true, fmt.Sprintf("pool %q is empty and can be deleted", name), nil
+}
+
 func checkForImagesInPool(context *clusterd.Context, clusterInfo *ClusterInfo, name string) error {
+	isEmpty, err := checkIsPoolEmpty(context, clusterInfo, name)
+	if err != nil {
+		return err
+	}
+	if isEmpty {
+		return nil
+	}
+	return errors.Errorf("pool %q contains images/snapshots", name)
+}
+
+func checkIsPoolEmpty(context *clusterd.Context, clusterInfo *ClusterInfo, name string) (bool, error) {
 	var err error
 	logger.Debugf("checking any images/snapshots present in pool %q", name)
 	stats, err := GetPoolStatistics(context, clusterInfo, name)
 	if err != nil {
 		if strings.Contains(err.Error(), "No such file or directory") {
-			return nil
+			return false, nil
 		}
-		return errors.Wrapf(err, "failed to list images/snapshots in pool %s", name)
+		return false, errors.Wrapf(err, "failed to list images/snapshots in pool %s", name)
 	}
 	if stats.Images.Count == 0 && stats.Images.SnapCount == 0 {
 		logger.Infof("no images/snapshots present in pool %q", name)
-		return nil
+		return true, nil
 	}
 
-	return errors.Errorf("pool %q contains images/snapshots", name)
+	return false, nil
 }
 
 // DeletePool purges a pool from Ceph
