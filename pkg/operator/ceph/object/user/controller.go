@@ -364,7 +364,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	r.updateKeyStatus(request.NamespacedName, referencedSecrets)
 
 	// CREATE/UPDATE KUBERNETES SECRET
-	store, err := r.getObjectStore(cephObjectStoreUser.Spec.Store)
+	store, err := r.getObjectStore(cephObjectStoreUser)
 	if err != nil {
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to get object store %q", cephObjectStoreUser.Spec.Store)
 	}
@@ -494,7 +494,7 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 		return errors.Wrapf(err, "failed to detect if object store %q is initialized", u.Spec.Store)
 	}
 
-	store, err := r.getObjectStore(u.Spec.Store)
+	store, err := r.getObjectStore(u)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get object store %q", u.Spec.Store)
 	}
@@ -677,7 +677,7 @@ func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *
 }
 
 func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *cephv1.CephObjectStoreUser) error {
-	cephObjectStore, err := r.getObjectStore(cephObjectStoreUser.Spec.Store)
+	cephObjectStore, err := r.getObjectStore(cephObjectStoreUser)
 	if err != nil {
 		return err
 	}
@@ -705,25 +705,28 @@ func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *c
 	return errors.New("no rgw pod found")
 }
 
-func (r *ReconcileObjectStoreUser) getObjectStore(storeName string) (*cephv1.CephObjectStore, error) {
+func (r *ReconcileObjectStoreUser) getObjectStore(user *cephv1.CephObjectStoreUser) (*cephv1.CephObjectStore, error) {
+	storeName := user.Spec.Store
+	nsName := client.ObjectKeyFromObject(user)
+
 	// check if CephObjectStore CR is created
 	objectStores := &cephv1.CephObjectStoreList{}
 	err := r.client.List(r.opManagerContext, objectStores)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			return nil, errors.Wrapf(err, "CephObjectStore %q could not be found", storeName)
+			return nil, errors.Wrapf(err, "could not find CephObjectStore %q referenced by CephObjectStoreUser %q", storeName, nsName)
 		}
-		return nil, errors.Wrap(err, "failed to get CephObjectStore")
+		return nil, errors.Wrapf(err, "failed to list CephObjectStore(s) for CephObjectStoreUser %q", nsName)
 	}
 
 	for _, store := range objectStores.Items {
 		if store.Name == storeName {
-			logger.Infof("CephObjectStore %q found", storeName)
+			logger.Debugf("found CephObjectStore %q referenced by CephObjectStoreUser %q", storeName, nsName)
 			return &store, nil
 		}
 	}
 
-	return nil, errors.Errorf("CephObjectStore %q could not be found", storeName)
+	return nil, errors.Errorf("could not find CephObjectStore %q referenced by CephObjectStoreUser %q", storeName, nsName)
 }
 
 func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.CephObjectStoreUser) (*corev1.PodList, error) {
