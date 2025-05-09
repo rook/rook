@@ -34,6 +34,9 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-cfg-keyring")
 
 const (
 	keyringFileName = "keyring"
+
+	// KeyringAnnotation identifies a Kubernetes Secret as a cephx keyring file
+	KeyringAnnotation = "rook-cephx-keyring"
 )
 
 // SecretStore is a helper to store Ceph daemon keyrings as Kubernetes secrets.
@@ -93,6 +96,9 @@ func (k *SecretStore) CreateOrUpdate(resourceName string, keyring string) error 
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      keyringSecretName(resourceName),
 			Namespace: k.clusterInfo.Namespace,
+			Annotations: map[string]string{
+				KeyringAnnotation: "",
+			},
 		},
 		StringData: map[string]string{
 			keyringFileName: keyring,

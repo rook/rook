@@ -20,3 +20,7 @@ spec:
     port: 80
     # securePort: 443
     instances: 1
+    rgwConfig:
+      debug_ms: "1"
+      debug_monc: "20"
+      debug_auth: "30"

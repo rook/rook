@@ -121,7 +121,20 @@ func AuthRotate(context *clusterd.Context, clusterInfo *ClusterInfo, name string
 		}
 		return "", errors.Wrapf(err, "failed auth rotate %s", name)
 	}
-	return parseAuthKey(buf)
+
+	var data []map[string]interface{}
+	err = json.Unmarshal(buf, &data)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to unmarshal auth rotate %s response", name)
+	}
+	if len(data) < 1 {
+		return "", errors.Errorf("auth rotate %s returned no results", name)
+	}
+	if len(data) > 1 {
+		logger.Infof("auth rotate %s returned more than 1 result; continuing using the first result", name)
+	}
+
+	return data[0]["key"].(string), nil
 }
 
 // AuthDelete will delete the given user.
