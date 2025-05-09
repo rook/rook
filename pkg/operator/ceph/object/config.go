@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -103,6 +104,21 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
 		return "", err
+	}
+
+	// TODO: it's probably best to only rotate on rook/ceph version updates, but that metric doesn't
+	// exist right now. since this feature can't be used by production rook users, should we leave
+	// isUpgrade determination for a later date?
+	if opcontroller.RotateCephxKeysEnabled() {
+		// this may rotate the key immediately after the key is first generated, but it should be
+		// harmless and only one API call for all scenarios
+		logger.Infof("rotating cephx key for CephObjectStore %q", c.store.Name)
+		newKey, err := s.RotateKey(user)
+		if err != nil {
+			logger.Infof("failed to rotate cephx key for CephObjectStore %q; continuing without key rotation %v", c.store.Name, err)
+		} else {
+			key = newKey
+		}
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, user, key)
