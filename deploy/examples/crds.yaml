@@ -2854,7 +2854,7 @@ spec:
                       type: string
                       x-kubernetes-validations:
                         - message: network provider must be disabled (reverted to empty string) before a new provider is enabled
-                          rule: self == '' || self == oldSelf
+                          rule: self == '' || oldSelf == '' || self == oldSelf
                     selectors:
                       additionalProperties:
                         type: string
