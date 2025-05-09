@@ -239,9 +239,17 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to get CephObjectStoreUser")
 	}
+
+	// Make sure a CephCluster is present otherwise do nothing
+	clusterNamespace := request.NamespacedName
+	clusterNamespace.Namespace = clusterStoreNamespace(cephObjectStoreUser)
+	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, clusterNamespace, controllerName)
+	if !cephClusterExists {
+		return reconcile.Result{}, *cephObjectStoreUser, fmt.Errorf("no CephCluster found in namespace %q", clusterNamespace)
+	}
 	// update observedGeneration local variable with current generation value,
 	// because generation can be changed before reconcile got completed
-	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished.
 	observedGeneration := cephObjectStoreUser.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
@@ -254,16 +262,12 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, *cephObjectStoreUser, nil
 	}
 
-	clusterNamespace := request.NamespacedName
-	clusterNamespace.Namespace = clusterStoreNamespace(cephObjectStoreUser)
-
 	// The CR was just created, initializing status fields
 	if cephObjectStoreUser.Status == nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, clusterNamespace, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteUser() function since everything is gone already
