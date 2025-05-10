@@ -1,0 +1,314 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ceph-csi-cephfs-ctrlplugin-sa
+  namespace: rook-b
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ceph-csi-cephfs-nodeplugin-sa
+  namespace: rook-b
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: ceph-csi-operator
+  name: ceph-csi-controller-manager
+  namespace: rook-b
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ceph-csi-nfs-ctrlplugin-sa
+  namespace: rook-b
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ceph-csi-nfs-nodeplugin-sa
+  namespace: rook-b
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ceph-csi-rbd-ctrlplugin-sa
+  namespace: rook-b
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ceph-csi-rbd-nodeplugin-sa
+  namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ceph-csi-cephfs-ctrlplugin-r
+  namespace: rook-b
+rules:
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - watch
+      - list
+      - delete
+      - update
+      - create
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - csiaddonsnodes
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: ceph-csi-operator
+  name: ceph-csi-leader-election-role
+  namespace: rook-b
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ceph-csi-rbd-ctrlplugin-r
+  namespace: rook-b
+rules:
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - watch
+      - list
+      - delete
+      - update
+      - create
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - csiaddonsnodes
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ceph-csi-rbd-nodeplugin-r
+  namespace: rook-b
+rules:
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - csiaddonsnodes
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ceph-csi-cephfs-ctrlplugin-rb
+  namespace: rook-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ceph-csi-cephfs-ctrlplugin-r
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-cephfs-ctrlplugin-sa
+    namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: ceph-csi-operator
+  name: ceph-csi-leader-election-rolebinding
+  namespace: rook-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ceph-csi-leader-election-role
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-controller-manager
+    namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ceph-csi-rbd-ctrlplugin-rb
+  namespace: rook-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ceph-csi-rbd-ctrlplugin-r
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-rbd-ctrlplugin-sa
+    namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ceph-csi-rbd-nodeplugin-rb
+  namespace: rook-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ceph-csi-rbd-nodeplugin-r
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-rbd-nodeplugin-sa
+    namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ceph-csi-cephfs-ctrlplugin-crb-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ceph-csi-cephfs-ctrlplugin-cr
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-cephfs-ctrlplugin-sa
+    namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ceph-csi-cephfs-nodeplugin-crb-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ceph-csi-cephfs-nodeplugin-cr
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-cephfs-nodeplugin-sa
+    namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: ceph-csi-operator
+  name: ceph-csi-manager-rolebinding-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ceph-csi-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-controller-manager
+    namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ceph-csi-nfs-ctrlplugin-crb-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ceph-csi-nfs-ctrlplugin-cr
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-nfs-ctrlplugin-sa
+    namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ceph-csi-nfs-nodeplugin-crb-b
+roleRef:
+  kind: ClusterRole
+  name: ceph-csi-nfs-nodeplugin-cr
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-nfs-nodeplugin-sa
+    namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: ceph-csi-operator
+  name: ceph-csi-proxy-rolebinding-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ceph-csi-proxy-role
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-controller-manager
+    namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ceph-csi-rbd-ctrlplugin-crb-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ceph-csi-rbd-ctrlplugin-cr
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-rbd-ctrlplugin-sa
+    namespace: rook-b
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ceph-csi-rbd-nodeplugin-crb-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ceph-csi-rbd-nodeplugin-cr
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-rbd-nodeplugin-sa
+    namespace: rook-b
