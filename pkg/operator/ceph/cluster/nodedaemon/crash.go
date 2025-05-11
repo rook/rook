@@ -147,7 +147,7 @@ func getCrashDirInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
 		},
 		Image:           cephCluster.Spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
-		SecurityContext: controller.PodSecurityContext(),
+		SecurityContext: controller.DefaultContainerSecurityContext(),
 		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
 		VolumeMounts:    controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath),
 	}
@@ -163,7 +163,7 @@ func getCrashChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container
 		controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath),
 		cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		controller.PodSecurityContext(),
+		controller.DefaultContainerSecurityContext(),
 		"",
 	)
 }

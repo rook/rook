@@ -726,8 +726,12 @@ func HostPathRequiresPrivileged() bool {
 	return os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"
 }
 
-// PodSecurityContext detects if the pod needs privileges to run
-func PodSecurityContext() *v1.SecurityContext {
+func CephMonRunAsRoot() bool {
+	return os.Getenv("ROOK_CEPH_MON_RUN_AS_ROOT") == "true"
+}
+
+// DefaultContainerSecurityContext detects if the container needs privileges to run
+func DefaultContainerSecurityContext() *v1.SecurityContext {
 	privileged := HostPathRequiresPrivileged()
 
 	return &v1.SecurityContext{
@@ -743,7 +747,7 @@ func PodSecurityContext() *v1.SecurityContext {
 
 // PodSecurityContext detects if the pod needs privileges to run
 func CephSecurityContext() *v1.SecurityContext {
-	context := PodSecurityContext()
+	context := DefaultContainerSecurityContext()
 	cephUserID := CephUserID
 	context.RunAsUser = &cephUserID
 	context.RunAsGroup = &cephUserID
@@ -824,7 +828,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, env []v1.E
 		Image:           c.CephVersion.Image,
 		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),
 		VolumeMounts:    DaemonVolumeMounts(opconfig.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), "", c.DataDirHostPath),
-		SecurityContext: PodSecurityContext(),
+		SecurityContext: DefaultContainerSecurityContext(),
 		Resources:       cephv1.GetLogCollectorResources(c.Resources),
 		// We need a TTY for the bash job control (enabled by -m)
 		TTY: true,
@@ -845,7 +849,7 @@ func RgwOpsLogSidecarContainer(opsLogFile, ns string, c cephv1.ClusterSpec, env 
 		Image:           c.CephVersion.Image,
 		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),
 		VolumeMounts:    DaemonVolumeMounts(opconfig.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), "", c.DataDirHostPath),
-		SecurityContext: PodSecurityContext(),
+		SecurityContext: DefaultContainerSecurityContext(),
 		Resources:       Resources,
 		// We need a TTY for the bash job control (enabled by -m)
 		TTY: true,
