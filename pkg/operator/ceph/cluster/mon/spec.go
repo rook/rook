@@ -32,6 +32,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -176,6 +177,15 @@ func (c *Cluster) makeDeploymentPVC(m *monConfig, canary bool) (*corev1.Persiste
 	return pvc, nil
 }
 
+func makeMonSecurityContext() *corev1.PodSecurityContext {
+	if controller.CephMonRunAsRoot() {
+		return &corev1.PodSecurityContext{
+			RunAsUser: ptr.To(int64(0)),
+		}
+	}
+	return &corev1.PodSecurityContext{}
+}
+
 func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, error) {
 	logger.Debugf("monConfig: %+v", monConfig)
 	podSpec := corev1.PodSpec{
@@ -192,7 +202,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 		Volumes:            controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		HostNetwork:        monConfig.UseHostNetwork,
 		PriorityClassName:  cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
-		SecurityContext:    &corev1.PodSecurityContext{},
+		SecurityContext:    makeMonSecurityContext(),
 		ServiceAccountName: k8sutil.DefaultServiceAccount,
 	}
 
@@ -257,7 +267,7 @@ func (c *Cluster) makeChownInitContainer(monConfig *monConfig) corev1.Container 
 		controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		cephv1.GetMonResources(c.spec.Resources),
-		controller.PodSecurityContext(),
+		controller.DefaultContainerSecurityContext(),
 		"",
 	)
 }
@@ -278,7 +288,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) corev1.Container 
 		Image:           c.spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
-		SecurityContext: controller.PodSecurityContext(),
+		SecurityContext: controller.DefaultContainerSecurityContext(),
 		// filesystem creation does not require ports to be exposed
 		Env:       controller.DaemonEnvVars(&c.spec),
 		Resources: cephv1.GetMonResources(c.spec.Resources),
@@ -310,7 +320,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		Image:           c.spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
-		SecurityContext: controller.PodSecurityContext(),
+		SecurityContext: controller.DefaultContainerSecurityContext(),
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          DefaultMsgr2PortName,
