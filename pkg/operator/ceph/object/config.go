@@ -106,9 +106,51 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 		return "", err
 	}
 
-	// TODO: it's probably best to only rotate on rook/ceph version updates, but that metric doesn't
-	// exist right now. since this feature can't be used by production rook users, should we leave
-	// isUpgrade determination for a later date?
+	/*
+	   TODO: heuristic for determining when to rotate that isn't "every reconcile"
+
+	   Brainstorming:
+
+	   Track keys based on to-be-deployed ceph image version when key was rotated?
+	   - version inspection is done widely in rook with `currentAndDesiredCephVersion` calls already
+	   - just via `ceph versions` output, no distinction between RGWs for different CephObjectStores,
+	     so approximation or CRD/status tracking will have to be done
+	   - way to refresh key when ceph version is updated w/o doing inspection of running daemon versions each time
+	   - the only deployments in Rook that are analyzed before being updated are OSDs (and maybe mons)
+	     - simple design we should try to keep
+	   - if rotate keys every ceph update, daemons should be restarting anyway
+	   - have option to put rotated version on pod annotation to ensure restart happens
+	   - once we update the pod with the ceph version the key is for, we SHOULD NOT rotate again
+	     because we wouldn't have a way to make sure the pod restarts
+	     - this might require CRD status tracking of the ceph version the key is for
+	   - in reality, the version of the MONS that are running determines the key version, so
+	     can/should we use that info to our advantage or instead of version in image? - probably yes
+	   - PRO: rotating keys requires pod restart (or daemon reinit at least), and aligning to ceph ver changes means no unnecessary restarts
+	   - CON: this method doesn't allow one-time rotation to be initiated - only when ceph ver changes
+
+	   rotate keys based on timing?
+	   - keep status that has `date -u` from when the key was rotated, applied to secret, and status updated
+	   - input, `ROOK_ROTATE_CEPHX_KEYS_PERIOD: <time.Duration>` (e.g. 2160h0m0s (90 days), 0 means don't rotate?)
+	   - input, `ROOK_ROTATE_CEPHX_KEYS_OLDER_THAN: time in date -u format` to do onetime rotation
+	   - user can do key rotation when desired, and no need to invent another mechanic
+	   - can slap the approximate time when the key was rotated as an annotation on the pod to restart
+	   - will still probably have to track last reconcile rotation time on CRD status? -- can do better?
+	   - PRO: allows one-time rotation
+	   - CON: rotation is not aligned with when pod would normally restart
+
+	   proposal:
+	   on each CRD status, store version of ceph (mons) that generated the key
+	   during reconcile, if ceph mons ver > CRD status key ver, rotate keys during that reconcile
+	     - if reconcile fails in the middle, how do we prevent re-rotation where we can no longer
+	       update the deployment with guaranteed pod restart? Do we need to apply the approximate
+	       rotation timestamp to the pod to ensure restart on any
+	   at end of reconcile, update CRD status with ceph mon version that generated the key
+
+	   hoping to hear back from patrick about `ceph tell` command that instructs daemons to reinit
+	   to have another option
+
+	*/
+
 	if opcontroller.RotateCephxKeysEnabled() {
 		// this may rotate the key immediately after the key is first generated, but it should be
 		// harmless and only one API call for all scenarios
