@@ -302,7 +302,26 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				immediateExecuteArgs = append(immediateExecuteArgs, []string{crushDeviceClassFlag, crushDeviceClass}...)
 			}
 
+			logger.Info()
+			logger.Info()
+			logger.Infof("CHECKING IF ENCRYPTED %v", isEncrypted)
+			logger.Info()
+			logger.Info()
 			if isEncrypted {
+				input, err := os.ReadFile("/etc/dmcrypt/luks_key")
+				if err != nil {
+					return "", "", "", errors.Wrap(err, "failed to read encryption secret file /etc/dmcrypt")
+				}
+				err = os.Setenv(oposd.CephVolumeEncryptedKeyEnvVarName, string(input))
+				if err != nil {
+					return "", "", "", errors.Wrap(err, "failed to set dmcrypt encryption key env variable for ceph-volume")
+				}
+
+				logger.Info(string(input))
+				logger.Info()
+				logger.Infof("INSIDE IF CHECKING THE ENV VAR %s IS SET OR NOT %s", oposd.CephVolumeEncryptedKeyEnvVarName, os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName))
+				logger.Info()
+				logger.Info()
 				immediateExecuteArgs = append(immediateExecuteArgs, encryptedFlag)
 			}
 
@@ -315,7 +334,11 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			if walDev {
 				immediateExecuteArgs = append(immediateExecuteArgs, walArg...)
 			}
-
+			logger.Info()
+			logger.Info()
+			logger.Infof("OUTSIDE IF CHECKING THE ENV VAR %s IS SET OR NOT %s", oposd.CephVolumeEncryptedKeyEnvVarName, os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName))
+			logger.Info()
+			logger.Info()
 			// execute ceph-volume with the device
 			op, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, immediateExecuteArgs...)
 			if err != nil {
@@ -334,6 +357,11 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			if !isEncrypted {
 				blockPath = deviceArg
 			} else {
+				err := os.Unsetenv(oposd.CephVolumeEncryptedKeyEnvVarName)
+				if err != nil {
+					return "", "", "", errors.Wrapf(err, "failed to unsetenv %s for dmcrypt", oposd.CephVolumeEncryptedKeyEnvVarName)
+				}
+
 				blockPath = getEncryptedBlockPath(op, oposd.DmcryptBlockType)
 				if blockPath == "" {
 					return "", "", "", errors.New("failed to get encrypted block path from ceph-volume lvm prepare output")
