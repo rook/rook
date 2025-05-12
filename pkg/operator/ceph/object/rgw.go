@@ -109,6 +109,11 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 		return errors.Wrap(err, "failed to check for RGWs to skip reconcile")
 	}
 
+	if rgwsToSkipReconcile.Has(c.store.Name) {
+		logger.Warningf("skipping reconcile of rgw deployment %q with label %q", c.store.Name, cephv1.SkipReconcileLabelKey)
+		return nil
+	}
+
 	// start a new deployment and scale up
 	// We force a single deployment and later set the deployment replica to the "instances" value
 	desiredRgwInstances := 1
@@ -116,11 +121,6 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 		var err error
 
 		daemonLetterID := k8sutil.IndexToName(i)
-
-		if rgwsToSkipReconcile.Has(daemonLetterID) {
-			logger.Warningf("skipping reconcile of rgw daemon %q with label %q", daemonLetterID, cephv1.SkipReconcileLabelKey)
-			return nil
-		}
 
 		// Each rgw is id'ed by <store_name>-<letterID>
 		daemonName := fmt.Sprintf("%s-%s", c.store.Name, daemonLetterID)
