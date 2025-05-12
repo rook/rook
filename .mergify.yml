@@ -236,16 +236,16 @@ pull_request_rules:
       - "check-success=canary-tests / two-object-one-zone (quay.io/ceph/ceph:v19)"
       - "check-success=canary-tests / two-osds-in-device (quay.io/ceph/ceph:v19)"
       - "check-success=TestCephHelmSuite (v1.28.15)"
-      - "check-success=TestCephHelmSuite (v1.32.3)"
-      - "check-success=TestCephMultiClusterDeploySuite (v1.32.3)"
+      - "check-success=TestCephHelmSuite (v1.33.0)"
+      - "check-success=TestCephMultiClusterDeploySuite (v1.33.0)"
       - "check-success=TestCephObjectSuite (v1.28.15)"
-      - "check-success=TestCephObjectSuite (v1.32.3)"
+      - "check-success=TestCephObjectSuite (v1.33.0)"
       - "check-success=TestCephSmokeSuite (v1.28.15)"
-      - "check-success=TestCephSmokeSuite (v1.32.3)"
+      - "check-success=TestCephSmokeSuite (v1.33.0)"
       - "check-success=TestCephUpgradeSuite (v1.28.15)"
-      - "check-success=TestCephUpgradeSuite (v1.32.3)"
+      - "check-success=TestCephUpgradeSuite (v1.33.0)"
       - "check-success=TestHelmUpgradeSuite (v1.28.15)"
-      - "check-success=TestHelmUpgradeSuite (v1.32.3)"
+      - "check-success=TestHelmUpgradeSuite (v1.33.0)"
     actions:
       merge:
         method: merge
