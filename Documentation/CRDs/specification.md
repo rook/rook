@@ -8754,6 +8754,46 @@ StatesSpec
 <p>States is the various state for all mirrored images</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>image_states</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.StatesSpec">
+StatesSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImageStates is the various state for all mirrored images</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>group_health</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>GroupHealth is the health of the mirrored image group</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>group_states</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.StatesSpec">
+StatesSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>GroupStates is the various state for all mirrored image groups</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.Module">Module
