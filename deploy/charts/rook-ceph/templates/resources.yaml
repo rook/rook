@@ -187,12 +187,68 @@ spec:
                         daemon_health:
                           description: DaemonHealth is the health of the mirroring daemon
                           type: string
+                        group_health:
+                          description: GroupHealth is the health of the mirrored image group
+                          nullable: true
+                          type: string
+                        group_states:
+                          description: GroupStates is the various state for all mirrored image groups
+                          nullable: true
+                          properties:
+                            error:
+                              description: Error is when the mirroring state is errored
+                              type: integer
+                            replaying:
+                              description: Replaying is when the replay of the mirroring journal is on-going
+                              type: integer
+                            starting_replay:
+                              description: StartingReplay is when the replay of the mirroring journal starts
+                              type: integer
+                            stopped:
+                              description: Stopped is when the mirroring state is stopped
+                              type: integer
+                            stopping_replay:
+                              description: StopReplaying is when the replay of the mirroring journal stops
+                              type: integer
+                            syncing:
+                              description: Syncing is when the image is syncing
+                              type: integer
+                            unknown:
+                              description: Unknown is when the mirroring state is unknown
+                              type: integer
+                          type: object
                         health:
                           description: Health is the mirroring health
                           type: string
                         image_health:
                           description: ImageHealth is the health of the mirrored image
                           type: string
+                        image_states:
+                          description: ImageStates is the various state for all mirrored images
+                          nullable: true
+                          properties:
+                            error:
+                              description: Error is when the mirroring state is errored
+                              type: integer
+                            replaying:
+                              description: Replaying is when the replay of the mirroring journal is on-going
+                              type: integer
+                            starting_replay:
+                              description: StartingReplay is when the replay of the mirroring journal starts
+                              type: integer
+                            stopped:
+                              description: Stopped is when the mirroring state is stopped
+                              type: integer
+                            stopping_replay:
+                              description: StopReplaying is when the replay of the mirroring journal stops
+                              type: integer
+                            syncing:
+                              description: Syncing is when the image is syncing
+                              type: integer
+                            unknown:
+                              description: Unknown is when the mirroring state is unknown
+                              type: integer
+                          type: object
                         states:
                           description: States is the various state for all mirrored images
                           nullable: true
@@ -619,12 +675,68 @@ spec:
                         daemon_health:
                           description: DaemonHealth is the health of the mirroring daemon
                           type: string
+                        group_health:
+                          description: GroupHealth is the health of the mirrored image group
+                          nullable: true
+                          type: string
+                        group_states:
+                          description: GroupStates is the various state for all mirrored image groups
+                          nullable: true
+                          properties:
+                            error:
+                              description: Error is when the mirroring state is errored
+                              type: integer
+                            replaying:
+                              description: Replaying is when the replay of the mirroring journal is on-going
+                              type: integer
+                            starting_replay:
+                              description: StartingReplay is when the replay of the mirroring journal starts
+                              type: integer
+                            stopped:
+                              description: Stopped is when the mirroring state is stopped
+                              type: integer
+                            stopping_replay:
+                              description: StopReplaying is when the replay of the mirroring journal stops
+                              type: integer
+                            syncing:
+                              description: Syncing is when the image is syncing
+                              type: integer
+                            unknown:
+                              description: Unknown is when the mirroring state is unknown
+                              type: integer
+                          type: object
                         health:
                           description: Health is the mirroring health
                           type: string
                         image_health:
                           description: ImageHealth is the health of the mirrored image
                           type: string
+                        image_states:
+                          description: ImageStates is the various state for all mirrored images
+                          nullable: true
+                          properties:
+                            error:
+                              description: Error is when the mirroring state is errored
+                              type: integer
+                            replaying:
+                              description: Replaying is when the replay of the mirroring journal is on-going
+                              type: integer
+                            starting_replay:
+                              description: StartingReplay is when the replay of the mirroring journal starts
+                              type: integer
+                            stopped:
+                              description: Stopped is when the mirroring state is stopped
+                              type: integer
+                            stopping_replay:
+                              description: StopReplaying is when the replay of the mirroring journal stops
+                              type: integer
+                            syncing:
+                              description: Syncing is when the image is syncing
+                              type: integer
+                            unknown:
+                              description: Unknown is when the mirroring state is unknown
+                              type: integer
+                          type: object
                         states:
                           description: States is the various state for all mirrored images
                           nullable: true
