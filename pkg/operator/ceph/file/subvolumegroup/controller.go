@@ -239,14 +239,15 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 				}
 				return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 			}
+		} else {
+			logger.Infof("Removing finalizer from SVG CR %s without checking if the subvolume group contains any data as more than one SVG(count %d) contains the same filesystem and same SVG.", cephFilesystemSubVolumeGroup.Name, len(cephFsSvgList.Items))
 		}
+
 		if len(cephFsSvgList.Items) <= 1 {
 			err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Namespace, r.clusterInfo, nil)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 			}
-		} else {
-			logger.Infof("Removing finalizer from SVG CR %s without checking if the subvolume group contains any data as more than one SVG(count %d) contains the same filesystem and same SVG.", cephFilesystemSubVolumeGroup.Name, len(cephFsSvgList.Items))
 		}
 
 		// Remove finalizer
