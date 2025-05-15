@@ -937,6 +937,18 @@ type MirroringStatusSummarySpec struct {
 	// +optional
 	// +nullable
 	States StatesSpec `json:"states,omitempty"`
+	// ImageStates is the various state for all mirrored images
+	// +optional
+	// +nullable
+	ImageStates *StatesSpec `json:"image_states,omitempty"`
+	// GroupHealth is the health of the mirrored image group
+	// +optional
+	// +nullable
+	GroupHealth string `json:"group_health,omitempty"`
+	// GroupStates is the various state for all mirrored image groups
+	// +optional
+	// +nullable
+	GroupStates StatesSpec `json:"group_states,omitempty"`
 }
 
 // StatesSpec are rbd images mirroring state
