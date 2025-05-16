@@ -638,6 +638,11 @@ spec:
             # For more details see https://github.com/rook/rook/issues/1314#issuecomment-355799641
             - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
               value: "false"
+            # Whether to run Ceph mon pods as root (runAsUser: 0) at the pod level.
+            # Set this to true if mon pods are CrashLooping on SELinux-enabled systems despite other settings.
+            # For more context, see https://github.com/rook/rook/issues/15564
+            - name: ROOK_CEPH_MON_RUN_AS_ROOT
+              value: "false"
             # Provide customised regex as the values using comma. For eg. regex for rbd based volume, value will be like "(?i)rbd[0-9]+".
             # In case of more than one regex, use comma to separate between them.
             # Default regex will be "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"

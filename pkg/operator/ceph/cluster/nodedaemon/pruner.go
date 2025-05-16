@@ -144,7 +144,7 @@ func getCrashPruneContainer(cephCluster cephv1.CephCluster) corev1.Container {
 		Env:             envVars,
 		VolumeMounts:    volumeMounts,
 		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		SecurityContext: controller.PodSecurityContext(),
+		SecurityContext: controller.DefaultContainerSecurityContext(),
 	}
 
 	return container
