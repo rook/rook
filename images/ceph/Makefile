@@ -19,7 +19,7 @@ include ../image.mk
 CEPH_VERSION ?= v19.2.2-20250409
 
 REGISTRY_NAME = quay.io
-BASEIMAGE = $(REGISTRY_NAME)/ceph/ceph:$(CEPH_VERSION)
+BASEIMAGE = quay.ceph.io/ceph-ci/ceph:main
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 OPERATOR_SDK_VERSION = v1.25.0
 # TODO: update to yq v4 - v3 end of life in Aug 2021 ; v4 removes the 'yq delete' cmd and changes syntax
