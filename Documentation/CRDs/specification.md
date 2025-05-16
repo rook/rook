@@ -4500,6 +4500,19 @@ bool
 <p>AllowUninstallWithVolumes defines whether we can proceed with the uninstall if they are RBD images still present</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>wipeDevicesFromOtherClusters</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>WipeDevicesFromOtherClusters wipes the OSD disks belonging to other clusters. This is useful in scenarios where ceph cluster
+was reinstalled but OSD disk still contains the metadata from previous ceph cluster.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ClientSpec">ClientSpec
