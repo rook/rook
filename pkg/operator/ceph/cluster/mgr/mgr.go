@@ -323,7 +323,9 @@ func (c *Cluster) reconcileServices() error {
 	// enable monitoring if `monitoring: enabled: true`
 	if c.spec.Monitoring.Enabled {
 		if err := c.EnableServiceMonitor(); err != nil {
-			return errors.Wrap(err, "failed to enable service monitor")
+			// We don't want to return an error to block the cluster reconcile
+			// since monitoring is an optional service.
+			logger.Errorf("failed to enable service monitor, prometheus may need to be installed. %v", err)
 		}
 	}
 
