@@ -241,15 +241,6 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 			},
 		}
 		podSpec.Volumes = append(podSpec.Volumes, customCaBundleVol)
-		updatedCaBundleVol := v1.Volume{
-			Name: caBundleUpdatedVolumeName,
-			VolumeSource: v1.VolumeSource{
-				EmptyDir: &v1.EmptyDirVolumeSource{},
-			},
-		}
-		podSpec.Volumes = append(podSpec.Volumes, updatedCaBundleVol)
-		podSpec.InitContainers = append(podSpec.InitContainers,
-			c.createCaBundleUpdateInitContainer(rgwConfig))
 	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
@@ -311,27 +302,6 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	podTemplateSpec.Spec.Containers[0].VolumeMounts = append(podTemplateSpec.Spec.Containers[0].VolumeMounts, addMounts...)
 
 	return podTemplateSpec, nil
-}
-
-func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) v1.Container {
-	caBundleMount := v1.VolumeMount{Name: caBundleVolumeName, MountPath: caBundleSourceCustomDir, ReadOnly: true}
-	volumeMounts := append(controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), caBundleMount)
-	updatedCaBundleDir := "/tmp/new-ca-bundle/"
-	updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: updatedCaBundleDir, ReadOnly: false}
-	volumeMounts = append(volumeMounts, updatedBundleMount)
-	return v1.Container{
-		Name:    "update-ca-bundle-initcontainer",
-		Command: []string{"/bin/bash", "-c"},
-		// copy all content of caBundleExtractedDir to avoid directory mount itself
-		Args: []string{
-			fmt.Sprintf("/usr/bin/update-ca-trust extract; cp -rf %s/* %s", caBundleExtractedDir, updatedCaBundleDir),
-		},
-		Image:           c.clusterSpec.CephVersion.Image,
-		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
-		VolumeMounts:    volumeMounts,
-		Resources:       c.store.Spec.Gateway.Resources,
-		SecurityContext: controller.PodSecurityContext(),
-	}
 }
 
 // The vault token is passed as Secret for rgw container. So it is mounted as read only.
@@ -433,10 +403,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certDir, ReadOnly: true}
 		container.VolumeMounts = append(container.VolumeMounts, mount)
 	}
-	if c.store.Spec.Gateway.CaBundleRef != "" {
-		updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: caBundleExtractedDir, ReadOnly: true}
-		container.VolumeMounts = append(container.VolumeMounts, updatedBundleMount)
-	}
+
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
 		logger.Errorf("failed to enable SSE-KMS. %v", err)
@@ -532,6 +499,63 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 	// user configs are very last arguments so that they override what Rook might be setting before
 	for flag, val := range c.store.Spec.Gateway.RgwCommandFlags {
 		container.Args = append(container.Args, cephconfig.NewFlag(flag, val))
+	}
+
+	if c.store.Spec.Gateway.CaBundleRef != "" {
+		// Mount custom ca volume mount to container
+		caBundleMount := v1.VolumeMount{Name: caBundleVolumeName, MountPath: "/etc/ssl/custom-ca", ReadOnly: true}
+		container.VolumeMounts = append(controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), caBundleMount)
+
+		// capture the final, fully-built entrypoint and flags
+		realCmd := container.Command
+		realArgs := container.Args
+
+		// build the bootstrapper script
+		script := fmt.Sprintf(`
+
+set +e
+
+OS_ID=$(grep -h '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+OS_ID_LIKE=$(grep -h '^ID_LIKE=' /etc/os-release | cut -d= -f2 | tr -d '"')
+
+# helper wrappers: hide only stdout, let stderr through, then warn
+_copy() {
+  cp "$@" >/dev/null || echo "WARNING: failed to copy $*" >&2
+}
+_update() {
+  "$@" >/dev/null || echo "WARNING: failed to run $*" >&2
+}
+
+if [[ "$OS_ID" == "sles" || "$OS_ID" == "opensuse" || "$OS_ID_LIKE" == *suse* ]]; then
+    _copy /etc/ssl/custom-ca/*.crt /etc/pki/trust/anchors/
+    _update /usr/sbin/update-ca-certificates
+elif [[ "$OS_ID" == "debian" || "$OS_ID" == "ubuntu" || "$OS_ID_LIKE" == *debian* ]]; then
+    mkdir -p /usr/local/share/ca-certificates/ >/dev/null \
+      || echo "WARNING: failed to create ca-cert dir" >&2
+    _copy /etc/ssl/custom-ca/*.crt /usr/local/share/ca-certificates/
+    _update /usr/sbin/update-ca-certificates
+else
+    _copy /etc/ssl/custom-ca/*.crt /etc/pki/ca-trust/source/anchors/
+    _update /usr/bin/update-ca-trust extract
+fi
+
+# verify merged bundle exists, but don’t fail if it’s missing
+if [[ ! -f /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt && \
+      ! -f /etc/ssl/certs/ca-certificates.crt && \
+	  ! -f /etc/ssl/ca-bundle.pem]]; then
+    echo "WARNING: merged CA bundle not found; continuing without custom certificates" >&2
+else
+    echo "Custom CA bundle installed successfully" >&2
+fi
+
+set -x
+
+exec %s %s
+`, strings.Join(realCmd, " "), strings.Join(realArgs, " "))
+
+		// override the container's entrypoint with our bootstrap script
+		container.Command = []string{"/bin/bash", "-c", "-x", "-e", script}
+		container.Args = nil
 	}
 
 	return container, nil
