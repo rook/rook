@@ -164,6 +164,23 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 		if err != nil {
 			return errors.Wrap(err, "failed to set kek as an environment variable")
 		}
+		input, err := os.ReadFile("/etc/dmcrypt/luks_key")
+		if err != nil {
+			return errors.Wrap(err, "failed to read encryption secret file /etc/dmcrypt")
+		}
+		err = os.Setenv(oposd.CephVolumeEncryptedKeyEnvVarName, string(input))
+		if err != nil {
+			return errors.Wrap(err, "failed to set dmcrypt encryption key env variable for ceph-volume")
+		}
+		oldVar := os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName + "_OLD")
+		newVar := os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName)
+		logger.Infof("OLD == NEW? %t", oldVar == newVar)
+		logger.Infof("OLD ENV VAR: %s", oldVar)
+		logger.Infof("NEW ENV VAR: %s", newVar)
+
+		logger.Info(string(input))
+		logger.Info()
+		logger.Info()
 	}
 
 	// Print dmsetup version

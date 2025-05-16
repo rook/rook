@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"gopkg.in/ini.v1"
@@ -189,19 +190,19 @@ func pvcNameEnvVar(pvcName string) v1.EnvVar {
 	return v1.EnvVar{Name: PVCNameEnvVarName, Value: pvcName}
 }
 
-// func cephVolumeRawEncryptedEnvVarFromSecret(osdProps osdProperties) v1.EnvVar {
-// 	return v1.EnvVar{
-// 		Name: CephVolumeEncryptedKeyEnvVarName,
-// 		ValueFrom: &v1.EnvVarSource{
-// 			SecretKeyRef: &v1.SecretKeySelector{
-// 				LocalObjectReference: v1.LocalObjectReference{
-// 					Name: kms.GenerateOSDEncryptionSecretName(osdProps.pvc.ClaimName),
-// 				},
-// 				Key: kms.OsdEncryptionSecretNameKeyName,
-// 			},
-// 		},
-// 	}
-// }
+func cephVolumeRawEncryptedEnvVarFromSecret(osdProps osdProperties) v1.EnvVar {
+	return v1.EnvVar{
+		Name: CephVolumeEncryptedKeyEnvVarName + "_OLD",
+		ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: kms.GenerateOSDEncryptionSecretName(osdProps.pvc.ClaimName),
+				},
+				Key: kms.OsdEncryptionSecretNameKeyName,
+			},
+		},
+	}
+}
 
 func cephVolumeEnvVar() []v1.EnvVar {
 	return []v1.EnvVar{

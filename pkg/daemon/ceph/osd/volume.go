@@ -316,6 +316,11 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				if err != nil {
 					return "", "", "", errors.Wrap(err, "failed to set dmcrypt encryption key env variable for ceph-volume")
 				}
+				oldVar := os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName + "_OLD")
+				newVar := os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName)
+				logger.Infof("OLD == NEW? %t", oldVar == newVar)
+				logger.Infof("OLD ENV VAR: %s", oldVar)
+				logger.Infof("NEW ENV VAR: %s", newVar)
 
 				logger.Info(string(input))
 				logger.Info()
