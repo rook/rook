@@ -172,9 +172,9 @@ func (r *ReconcileCSI) setParams() error {
 		CSIParam.EnableCSIEncryption = true
 	}
 
-	CSIParam.CSIEnableMetadata = false
-	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_ENABLE_METADATA", "false"), "true") {
-		CSIParam.CSIEnableMetadata = true
+	CSIParam.CSIEnableMetadata = true
+	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_ENABLE_METADATA", "true"), "false") {
+		CSIParam.CSIEnableMetadata = false
 	}
 
 	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {
