@@ -129,7 +129,7 @@ func New(
 		return nil, fmt.Errorf("command [%+v] must be specified", cfg.cmd)
 	}
 	if cfg.rookImage == "" || cfg.runImage == "" {
-		return nil, fmt.Errorf("Rook image [%s] and run image [%s] must be specified", cfg.rookImage, cfg.runImage)
+		return nil, fmt.Errorf("rook image [%s] and run image [%s] must be specified", cfg.rookImage, cfg.runImage)
 	}
 
 	job, err := cfg.initJobSpec()

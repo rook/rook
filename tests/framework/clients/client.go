@@ -90,5 +90,5 @@ func (c *ClientOperation) Update(clusterInfo *client.ClusterInfo, clientName str
 		time.Sleep(2 * time.Second)
 	}
 
-	return nil, fmt.Errorf("Unable to update client")
+	return nil, fmt.Errorf("unable to update client")
 }
