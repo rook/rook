@@ -55,7 +55,7 @@ func (b *BlockOperation) Create(manifest string, size int) (string, error) {
 	args := []string{"apply", "-f", "-"}
 	result, err := b.k8sClient.KubectlWithStdin(manifest, args...)
 	if err != nil {
-		return "", fmt.Errorf("Unable to create block -- : %s", err)
+		return "", fmt.Errorf("unable to create block -- : %s", err)
 	}
 	return result, nil
 }
@@ -128,7 +128,7 @@ func (b *BlockOperation) DeleteBlock(manifest string) (string, error) {
 	args := []string{"delete", "-f", "-"}
 	result, err := b.k8sClient.KubectlWithStdin(manifest, args...)
 	if err != nil {
-		return "", fmt.Errorf("Unable to delete block -- : %s", err)
+		return "", fmt.Errorf("unable to delete block -- : %s", err)
 	}
 	return result, nil
 }

@@ -65,7 +65,7 @@ type CmdReporter struct {
 // NewCmdReporter creates a new CmdReporter and returns an error if cmd, configMapName, or Namespace aren't specified.
 func NewCmdReporter(context context.Context, clientset kubernetes.Interface, cmd, args []string, configMapName, namespace string) (*CmdReporter, error) {
 	if clientset == nil {
-		return nil, fmt.Errorf("Kubernetes client interface was not specified")
+		return nil, fmt.Errorf("kubernetes client interface was not specified")
 	}
 	if len(cmd) == 0 || cmd[0] == "" {
 		return nil, fmt.Errorf("cmd was not specified")
@@ -226,8 +226,8 @@ func (r *CmdReporter) saveToConfigMap(stdout, stderr string, retcode int) error 
 		cm.Labels[k8sutil.AppAttr] = CmdReporterAppName
 	} else if ok && app != "" && app != CmdReporterAppName {
 		// label is set and not equal to the cmd-reporter app name
-		return fmt.Errorf("ConfigMap [%s] already has label [%s] that differs from cmd-reporter's "+
-			"label [%s]; this may indicate that it is not safe for cmd-reporter to modify the ConfigMap.",
+		return fmt.Errorf("configMap [%s] already has label [%s] that differs from cmd-reporter's "+
+			"label [%s]; this may indicate that it is not safe for cmd-reporter to modify the ConfigMap",
 			r.configMapName, fmt.Sprintf("%s=%s", k8sutil.AppAttr, app), fmt.Sprintf("%s=%s", k8sutil.AppAttr, CmdReporterAppName))
 	}
 
