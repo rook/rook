@@ -501,25 +501,25 @@ csi:
     # -- Kubernetes CSI provisioner image repository
     repository: registry.k8s.io/sig-storage/csi-provisioner
     # -- Provisioner image tag
-    tag: v5.1.0
+    tag: v5.2.0
 
   snapshotter:
     # -- Kubernetes CSI snapshotter image repository
     repository: registry.k8s.io/sig-storage/csi-snapshotter
     # -- Snapshotter image tag
-    tag: v8.2.0
+    tag: v8.2.1
 
   attacher:
     # -- Kubernetes CSI Attacher image repository
     repository: registry.k8s.io/sig-storage/csi-attacher
     # -- Attacher image tag
-    tag: v4.8.0
+    tag: v4.8.1
 
   resizer:
     # -- Kubernetes CSI resizer image repository
     repository: registry.k8s.io/sig-storage/csi-resizer
     # -- Resizer image tag
-    tag: v1.13.1
+    tag: v1.13.2
 
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
