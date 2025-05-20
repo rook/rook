@@ -72,7 +72,7 @@ func TestMergeResourceRequirements(t *testing.T) {
 }
 
 func TestYamlToContainerResourceArray(t *testing.T) {
-	var validData string = `
+	validData := `
 - name: rbdplugin
   resource:
     requests:
@@ -93,7 +93,7 @@ func TestYamlToContainerResourceArray(t *testing.T) {
 	assert.Len(t, res, 2)
 	assert.NoError(t, err)
 
-	var invalidData string = `
+	invalidData := `
 	invalid:
 	  data: 512Mi
 	invalid:
@@ -105,7 +105,7 @@ func TestYamlToContainerResourceArray(t *testing.T) {
 }
 
 func TestYamlToContainerResource(t *testing.T) {
-	var validData string = `
+	validData := `
   resources:
     requests:
       memory: 512Mi
@@ -116,7 +116,7 @@ func TestYamlToContainerResource(t *testing.T) {
 	res, err := YamlToContainerResource(validData)
 	assert.NoError(t, err)
 	assert.Equal(t, res.Requests.Memory().String(), "512Mi")
-	var invalidData string = `
+	invalidData := `
 	invalid:
 	  data: 512Mi
 	invalid:

@@ -148,7 +148,7 @@ func TestSetEnforceHostNetwork(t *testing.T) {
 	assert.False(t, EnforceHostNetwork())
 
 	// test invalid setting
-	var value string = "foo"
+	value := "foo"
 	logger.Infof("testing invalid value'%v' for %v", value, enforceHostNetworkSettingName)
 	os.Setenv(enforceHostNetworkSettingName, value)
 	SetEnforceHostNetwork()
@@ -176,7 +176,7 @@ func TestSetRevisionHistoryLimit(t *testing.T) {
 		assert.Nil(t, RevisionHistoryLimit())
 	})
 
-	var value string = "foo"
+	value := "foo"
 	t.Run("ROOK_REVISION_HISTORY_LIMIT: test invalid value 'foo'", func(t *testing.T) {
 		os.Setenv(revisionHistoryLimitSettingName, value)
 		SetRevisionHistoryLimit()

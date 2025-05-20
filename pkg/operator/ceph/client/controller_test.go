@@ -17,7 +17,6 @@ limitations under the License.
 package client
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"strings"
@@ -83,9 +82,7 @@ func TestGenerateClient(t *testing.T) {
 	}
 
 	client, caps := genClientEntity(p)
-	equal := bytes.Compare([]byte(client), []byte("client.client1"))
-	var res bool = equal == 0
-	assert.True(t, res)
+	assert.Equal(t, []byte(client), []byte("client.client1"))
 	assert.True(t, strings.Contains(strings.Join(caps, " "), "osd allow *"))
 	assert.True(t, strings.Contains(strings.Join(caps, " "), "mon allow rw"))
 	assert.True(t, strings.Contains(strings.Join(caps, " "), "mds allow rwx"))
@@ -102,9 +99,7 @@ func TestGenerateClient(t *testing.T) {
 	}
 
 	client, _ = genClientEntity(p2)
-	equal = bytes.Compare([]byte(client), []byte("client.client2"))
-	res = equal == 0
-	assert.True(t, res)
+	assert.Equal(t, []byte(client), []byte("client.client2"))
 }
 
 func TestCephClientController(t *testing.T) {
