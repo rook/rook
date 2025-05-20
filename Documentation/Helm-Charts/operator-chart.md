@@ -50,7 +50,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `containerSecurityContext` | Set the container security context for the operator | `{"capabilities":{"drop":["ALL"]},"runAsGroup":2016,"runAsNonRoot":true,"runAsUser":2016}` |
 | `crds.enabled` | Whether the helm chart should create and update the CRDs. If false, the CRDs must be managed independently with deploy/examples/crds.yaml. **WARNING** Only set during first deployment. If later disabled the cluster may be DESTROYED. If the CRDs are deleted in this case, see [the disaster recovery guide](https://rook.io/docs/rook/latest/Troubleshooting/disaster-recovery/#restoring-crds-after-deletion) to restore them. | `true` |
 | `csi.attacher.repository` | Kubernetes CSI Attacher image repository | `"registry.k8s.io/sig-storage/csi-attacher"` |
-| `csi.attacher.tag` | Attacher image tag | `"v4.8.0"` |
+| `csi.attacher.tag` | Attacher image tag | `"v4.8.1"` |
 | `csi.cephFSAttachRequired` | Whether to skip any attach operation altogether for CephFS PVCs. See more details [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object). If cephFSAttachRequired is set to false it skips the volume attachments and makes the creation of pods using the CephFS PVC fast. **WARNING** It's highly discouraged to use this for CephFS RWO volumes. Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details. | `true` |
 | `csi.cephFSFSGroupPolicy` | Policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted. supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html | `"File"` |
 | `csi.cephFSKernelMountOptions` | Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options. Set to "ms_mode=secure" when connections.encrypted is enabled in CephCluster CR | `nil` |
@@ -110,7 +110,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.pluginPriorityClassName` | PriorityClassName to be set on csi driver plugin pods | `"system-node-critical"` |
 | `csi.pluginTolerations` | Array of tolerations in YAML format which will be added to CephCSI plugin DaemonSet | `nil` |
 | `csi.provisioner.repository` | Kubernetes CSI provisioner image repository | `"registry.k8s.io/sig-storage/csi-provisioner"` |
-| `csi.provisioner.tag` | Provisioner image tag | `"v5.1.0"` |
+| `csi.provisioner.tag` | Provisioner image tag | `"v5.2.0"` |
 | `csi.provisionerNodeAffinity` | The node labels for affinity of the CSI provisioner deployment [^1] | `nil` |
 | `csi.provisionerPriorityClassName` | PriorityClassName to be set on csi driver provisioner pods | `"system-cluster-critical"` |
 | `csi.provisionerReplicas` | Set replicas for csi provisioner deployment | `2` |
@@ -124,14 +124,14 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.registrar.repository` | Kubernetes CSI registrar image repository | `"registry.k8s.io/sig-storage/csi-node-driver-registrar"` |
 | `csi.registrar.tag` | Registrar image tag | `"v2.13.0"` |
 | `csi.resizer.repository` | Kubernetes CSI resizer image repository | `"registry.k8s.io/sig-storage/csi-resizer"` |
-| `csi.resizer.tag` | Resizer image tag | `"v1.13.1"` |
+| `csi.resizer.tag` | Resizer image tag | `"v1.13.2"` |
 | `csi.serviceMonitor.enabled` | Enable ServiceMonitor for Ceph CSI drivers | `false` |
 | `csi.serviceMonitor.interval` | Service monitor scrape interval | `"10s"` |
 | `csi.serviceMonitor.labels` | ServiceMonitor additional labels | `{}` |
 | `csi.serviceMonitor.namespace` | Use a different namespace for the ServiceMonitor | `nil` |
 | `csi.sidecarLogLevel` | Set logging level for Kubernetes-csi sidecar containers. Supported values from 0 to 5. 0 for general useful logs (the default), 5 for trace level verbosity. | `0` |
 | `csi.snapshotter.repository` | Kubernetes CSI snapshotter image repository | `"registry.k8s.io/sig-storage/csi-snapshotter"` |
-| `csi.snapshotter.tag` | Snapshotter image tag | `"v8.2.0"` |
+| `csi.snapshotter.tag` | Snapshotter image tag | `"v8.2.1"` |
 | `csi.topology.domainLabels` | domainLabels define which node labels to use as domains for CSI nodeplugins to advertise their domains | `nil` |
 | `csi.topology.enabled` | Enable topology based provisioning | `false` |
 | `currentNamespaceOnly` | Whether the operator should watch cluster CRD in its own namespace or not | `false` |
