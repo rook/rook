@@ -117,7 +117,7 @@ func setNetworkCIDRs(clusterdCtx *clusterd.Context, clusterInfo *cephclient.Clus
 
 	logger.Infof("ensuring cluster %q %q network is configured to use CIDR(s) %q", ns, cephNet, settingVal)
 	if len(cidrs) > 0 {
-		var s monStoreInterface = getMonStoreFunc(clusterdCtx, clusterInfo)
+		s := getMonStoreFunc(clusterdCtx, clusterInfo)
 		changed, err := s.SetIfChanged("global", settingKey, settingVal)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set CIDR(s) %q on cluster %q %q network", settingVal, cephNet, ns)

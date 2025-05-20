@@ -27,16 +27,10 @@ linters:
         text: "QF1007:" # could merge conditional assignment into variable declaration (staticcheck)
       - linters:
           - staticcheck
-        text: "ST1023:" # should omit type string from declaration; it will be inferred from the right-hand side (staticcheck)
-      - linters:
-          - staticcheck
         text: "QF1001:" # could apply De Morgan's law (staticcheck)
       - linters:
           - staticcheck
         text: "QF1002:" # could use tagged switch on args[0] (staticcheck)
-      - linters:
-          - staticcheck
-        text: "QF1011:" # could omit type string from declaration; it will be inferred from the right-hand side (staticcheck)
       - linters:
           - staticcheck
         text: "QF1004:" # could use strings.ReplaceAll instead (staticcheck)
