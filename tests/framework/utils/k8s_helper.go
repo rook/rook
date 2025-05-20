@@ -161,7 +161,7 @@ func (k8sh *K8sHelper) KubectlWithTimeout(timeout time.Duration, args ...string)
 			// allow the tests to continue if we were deleting a resource that timed out
 			return result, nil
 		}
-		return result, fmt.Errorf("Failed to run: %s %v : %v", cmd, args, err)
+		return result, fmt.Errorf("failed to run: %s %v : %v", cmd, args, err)
 	}
 	return result, nil
 }
@@ -181,7 +181,7 @@ func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, e
 		if strings.Contains(cmdOut.Err.Error(), "(NotFound)") || strings.Contains(cmdOut.StdErr, "(NotFound)") {
 			return cmdOut.StdErr, kerrors.NewNotFound(schema.GroupResource{}, "")
 		}
-		return cmdOut.StdErr, fmt.Errorf("Failed to run stdin: %s %v : %v", cmd, args, cmdOut.StdErr)
+		return cmdOut.StdErr, fmt.Errorf("failed to run stdin: %s %v : %v", cmd, args, cmdOut.StdErr)
 	}
 	if cmdOut.StdOut == "" {
 		return cmdOut.StdErr, nil
@@ -239,7 +239,7 @@ func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) error {
 		return nil
 	}
 	logger.Errorf("Failed to execute kubectl %v -- %v", args, err)
-	return fmt.Errorf("Could Not create resource in args : %v -- %v", args, err)
+	return fmt.Errorf("could Not create resource in args : %v -- %v", args, err)
 }
 
 // DeletePod performs a kubectl delete pod on the given pod
@@ -273,7 +273,7 @@ func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace, name string, che
 		return err
 	}
 	logger.Errorf("gave up deleting custom resource %q ", name)
-	return fmt.Errorf("Timed out waiting for deletion of custom resource %q", name)
+	return fmt.Errorf("timed out waiting for deletion of custom resource %q", name)
 }
 
 // DeleteResource performs a kubectl delete on give args.
@@ -287,7 +287,7 @@ func (k8sh *K8sHelper) DeleteResourceAndWait(wait bool, args ...string) error {
 	if err == nil {
 		return nil
 	}
-	return fmt.Errorf("Could Not delete resource in k8s -- %v", err)
+	return fmt.Errorf("could Not delete resource in k8s -- %v", err)
 }
 
 // GetResource performs a kubectl get on give args
@@ -297,7 +297,7 @@ func (k8sh *K8sHelper) GetResource(args ...string) (string, error) {
 	if err == nil {
 		return result, nil
 	}
-	return result, fmt.Errorf("Could Not get resource in k8s -- %v", err)
+	return result, fmt.Errorf("could Not get resource in k8s -- %v", err)
 }
 
 func (k8sh *K8sHelper) CreateNamespace(namespace string) error {
@@ -345,7 +345,7 @@ func (k8sh *K8sHelper) WaitForPodCount(label, namespace string, count int) error
 		logger.Infof("waiting for %d pods (found %d) with label %s in namespace %s", count, len(pods.Items), label, namespace)
 		time.Sleep(RetryInterval * time.Second)
 	}
-	return fmt.Errorf("Giving up waiting for pods with label %s in namespace %s", label, namespace)
+	return fmt.Errorf("giving up waiting for pods with label %s in namespace %s", label, namespace)
 }
 
 func (k8sh *K8sHelper) WaitForStatusPhase(namespace, kind, name, desiredPhase string, timeout time.Duration) error {
@@ -416,7 +416,7 @@ func (k8sh *K8sHelper) WaitForLabeledPodsToRunWithRetries(label string, namespac
 	} else {
 		k8sh.PrintPodDescribe(namespace, lastPod.Name)
 	}
-	return fmt.Errorf("Giving up waiting for pod with label %s in namespace %s to be running", label, namespace)
+	return fmt.Errorf("giving up waiting for pod with label %s in namespace %s to be running", label, namespace)
 }
 
 // WaitUntilPodWithLabelDeleted returns true if a Pod is deleted within 90s else returns false
@@ -617,7 +617,7 @@ func (k8sh *K8sHelper) GetService(servicename string, namespace string) (*v1.Ser
 	ctx := context.TODO()
 	result, err := k8sh.Clientset.CoreV1().Services(namespace).Get(ctx, servicename, getOpts)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot find service %s in namespace %s, err-- %v", servicename, namespace, err)
+		return nil, fmt.Errorf("cannot find service %s in namespace %s, err-- %v", servicename, namespace, err)
 	}
 	return result, nil
 }
@@ -848,7 +848,7 @@ func (k8sh *K8sHelper) GetPodDetails(podNamePattern string, namespace string) (s
 	}
 	result, err := k8sh.Kubectl(args...)
 	if err != nil || strings.Contains(result, "No resources found") {
-		return "", fmt.Errorf("Cannot find pod in with name like %s in namespace : %s -- %v", podNamePattern, namespace, err)
+		return "", fmt.Errorf("cannot find pod in with name like %s in namespace : %s -- %v", podNamePattern, namespace, err)
 	}
 	return strings.TrimSpace(result), nil
 }
@@ -860,7 +860,7 @@ func (k8sh *K8sHelper) GetPodEvents(podNamePattern string, namespace string) (*v
 	result, err := k8sh.Clientset.CoreV1().RESTClient().Get().RequestURI(uri).DoRaw(ctx)
 	if err != nil {
 		logger.Errorf("Cannot get events for pod %v in namespace %v, err: %v", podNamePattern, namespace, err)
-		return nil, fmt.Errorf("Cannot get events for pod %s in namespace %s, err: %v", podNamePattern, namespace, err)
+		return nil, fmt.Errorf("cannot get events for pod %s in namespace %s, err: %v", podNamePattern, namespace, err)
 	}
 
 	events := v1.EventList{}
@@ -901,12 +901,12 @@ func (k8sh *K8sHelper) GetPodHostIP(podNamePattern string, namespace string) (st
 	podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, listOpts)
 	if err != nil {
 		logger.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
-		return "", fmt.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
+		return "", fmt.Errorf("cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
 	}
 
 	if len(podList.Items) < 1 {
 		logger.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
-		return "", fmt.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
+		return "", fmt.Errorf("cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
 	}
 	return podList.Items[0].Status.HostIP, nil
 }
@@ -918,7 +918,7 @@ func (k8sh *K8sHelper) GetServiceNodePort(serviceName string, namespace string) 
 	svc, err := k8sh.Clientset.CoreV1().Services(namespace).Get(ctx, serviceName, getOpts)
 	if err != nil {
 		logger.Errorf("Cannot get service : %v in namespace %v, err: %v", serviceName, namespace, err)
-		return "", fmt.Errorf("Cannot get service : %v in namespace %v, err: %v", serviceName, namespace, err)
+		return "", fmt.Errorf("cannot get service : %v in namespace %v, err: %v", serviceName, namespace, err)
 	}
 	np := svc.Spec.Ports[0].NodePort
 	return strconv.FormatInt(int64(np), 10), nil
@@ -931,7 +931,7 @@ func (k8sh *K8sHelper) IsStorageClassPresent(name string) (bool, error) {
 	if strings.Contains(result, name) {
 		return true, nil
 	}
-	return false, fmt.Errorf("Storageclass %s not found, err ->%v", name, err)
+	return false, fmt.Errorf("storageclass %s not found, err ->%v", name, err)
 }
 
 func (k8sh *K8sHelper) IsDefaultStorageClassPresent() (bool, error) {

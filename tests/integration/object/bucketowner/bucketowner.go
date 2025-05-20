@@ -206,7 +206,7 @@ func WaitForPodLogContainingText(k8sh *utils.K8sHelper, namespace string, select
 
 	logStream, err := req.Stream(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to stream logs from pod %q: %v", selectedPod.Name, err)
+		return fmt.Errorf("failed to stream logs from pod %q: %v", selectedPod.Name, err)
 	}
 	defer logStream.Close()
 
@@ -220,7 +220,7 @@ func WaitForPodLogContainingText(k8sh *utils.K8sHelper, namespace string, select
 	}
 	// Check for scanner error (could be context timeout, etc.)
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("Error reading log stream: %v", err)
+		return fmt.Errorf("error reading log stream: %v", err)
 	}
 
 	return nil

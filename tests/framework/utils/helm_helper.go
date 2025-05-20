@@ -46,7 +46,7 @@ func (h *HelmHelper) Execute(args ...string) (string, error) {
 	result, err := h.executor.ExecuteCommandWithOutput(h.HelmPath, args...)
 	if err != nil {
 		logger.Errorf("Errors Encountered while executing helm command %v: %v", result, err)
-		return result, fmt.Errorf("Failed to run helm command on args %v : %v , err -> %v", args, result, err)
+		return result, fmt.Errorf("failed to run helm command on args %v : %v , err -> %v", args, result, err)
 
 	}
 	return result, nil
@@ -164,7 +164,7 @@ func (h *HelmHelper) DeleteLocalRookHelmChart(namespace, deployName string) erro
 	_, err := h.Execute(cmdArgs...)
 	if err != nil {
 		logger.Errorf("could not delete helm chart with name  %v : %v", deployName, err)
-		return fmt.Errorf("Failed to delete helm chart with name  %v : %v", deployName, err)
+		return fmt.Errorf("failed to delete helm chart with name  %v : %v", deployName, err)
 	}
 
 	return nil
