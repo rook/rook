@@ -52,22 +52,22 @@ func ArgumentsMatchExpected(actualArgs []string, expectedArgs [][]string) error 
 		validArgMatcher := strings.Join(arg, " ")
 		// We join each individual argument together the same was as the big string
 		if validArgMatcher == "" {
-			return fmt.Errorf("Expected argument %v evaluated to empty string; ArgumentsMatchExpected() doesn't know what to do", arg)
+			return fmt.Errorf("expected argument %v evaluated to empty string; ArgumentsMatchExpected() doesn't know what to do", arg)
 		}
 		matches := strings.Count(fullArgString, validArgMatcher)
 		if matches > 1 {
-			return fmt.Errorf("More than one instance of flag '%s' in: %s; ArgumentsMatchExpected() doesn't know what to do",
+			return fmt.Errorf("more than one instance of flag '%s' in: %s; ArgumentsMatchExpected() doesn't know what to do",
 				validArgMatcher, fullArgString)
 		} else if matches == 1 {
 			// Remove the instance of the valid match so we can't match to it any more
 			fullArgString = strings.Replace(fullArgString, validArgMatcher, "", 1)
 		} else { // zero matches
-			return fmt.Errorf("Expected argument '%s' missing in: %s\n(It's possible the same arg is in expectedArgs twice.)",
+			return fmt.Errorf("expected argument '%s' missing in: %s\n(It's possible the same arg is in expectedArgs twice.)",
 				validArgMatcher, strings.Join(actualArgs, " "))
 		}
 	}
 	if remainingArgs := strings.Trim(fullArgString, " "); remainingArgs != "" {
-		return fmt.Errorf("The actual arguments have additional args specified: %s", remainingArgs)
+		return fmt.Errorf("the actual arguments have additional args specified: %s", remainingArgs)
 	}
 	return nil
 }
