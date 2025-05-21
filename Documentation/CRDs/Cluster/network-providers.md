@@ -50,7 +50,7 @@ for data traffic. Use `addressRanges` to specify this. For example:
         - "192.168.200.0/24"
 ```
 
-This `public` and `cluster` translate directly to Ceph's `public_network` and `host_network`
+This `public` and `cluster` translate directly to Ceph's `public_network` and `cluster_network`
 configurations.
 
 The default network provider cannot make use of these configurations.
