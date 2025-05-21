@@ -21,6 +21,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -28,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 )
@@ -48,11 +48,21 @@ func getNFSUserID(nodeID string) string {
 	return fmt.Sprintf("nfs-ganesha.%s", nodeID)
 }
 
-func getNFSClientID(n *cephv1.CephNFS, name string) string {
-	return fmt.Sprintf("client.%s", getNFSUserID(getNFSNodeID(n, name)))
+func getNFSClientID(name string) string {
+	return fmt.Sprintf("client.%s", getNFSUserID(getNFSNodeID(name)))
 }
 
-func getNFSNodeID(n *cephv1.CephNFS, name string) string {
+func getNFSNodeID(name string) string {
+	nodeid, err := k8sutil.NameToIndex(name)
+	if err != nil {
+		logger.Errorf("failed to convert name %s to nodeID: %v", name, err)
+		return "0"
+	}
+
+	return strconv.Itoa(nodeid)
+}
+
+func getDeprecatedNFSNodeID(n *cephv1.CephNFS, name string) string {
 	return fmt.Sprintf("%s.%s", n.Name, name)
 }
 
@@ -78,7 +88,7 @@ func (r *ReconcileCephNFS) generateKeyring(n *cephv1.CephNFS, name string) error
 	}
 
 	caps := []string{"mon", "allow r", "osd", osdCaps}
-	user := getNFSClientID(n, name)
+	user := getNFSClientID(name)
 
 	ownerInfo := k8sutil.NewOwnerInfo(n, r.scheme)
 	s := keyring.GetSecretStore(r.context, r.clusterInfo, ownerInfo)
@@ -92,8 +102,8 @@ func (r *ReconcileCephNFS) generateKeyring(n *cephv1.CephNFS, name string) error
 	return s.CreateOrUpdate(instanceName(n, name), keyring)
 }
 
-func getGaneshaConfig(n *cephv1.CephNFS, version cephver.CephVersion, name string) string {
-	nodeID := getNFSNodeID(n, name)
+func getGaneshaConfig(n *cephv1.CephNFS, name string) string {
+	nodeID := getNFSNodeID(name)
 	userID := getNFSUserID(nodeID)
 	url := getRadosURL(n)
 	return `

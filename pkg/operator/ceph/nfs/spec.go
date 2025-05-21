@@ -207,7 +207,7 @@ func (r *ReconcileCephNFS) connectionConfigInitContainer(nfs *cephv1.CephNFS, na
 	_, cephConfigMount := cephConfigVolumeAndMount()
 
 	return controller.GenerateMinimalCephConfInitContainer(
-		getNFSClientID(nfs, name),
+		getNFSClientID(name),
 		keyring.VolumeMount().KeyringFilePath(),
 		r.cephClusterSpec.CephVersion.Image,
 		r.cephClusterSpec.CephVersion.ImagePullPolicy,
