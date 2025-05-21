@@ -29,6 +29,7 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -206,4 +207,99 @@ func TestReconcileCephNFS_upCephNFS(t *testing.T) {
 		names = append(names, svc.Name)
 	}
 	assert.ElementsMatch(t, []string{"rook-ceph-nfs-my-nfs-a", "rook-ceph-nfs-my-nfs-b"}, names)
+}
+
+func TestReconcileCephNFS_SkipReconcile(t *testing.T) {
+	ns := "skip-reconcile-nfs"
+
+	s := scheme.Scheme
+
+	clientset := k8sfake.NewSimpleClientset()
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("executing command: %s %+v", command, args)
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return `{"key":"mysecurekey"}`, nil
+			}
+			if args[0] == "versions" {
+				// Return a fake version map like Ceph would
+				return `{
+				"mon": {"ceph version 15.2.14 (xxxx) octopus": 1},
+				"mgr": {"ceph version 15.2.14 (xxxx) octopus": 1},
+				"osd": {"ceph version 15.2.14 (xxxx) octopus": 3},
+				"mds": {"ceph version 15.2.14 (xxxx) octopus": 1},
+				"nfs": {"ceph version 15.2.14 (xxxx) octopus": 1}
+			}`, nil
+			}
+			panic(errors.Errorf("unexpected command %s %v", command, args))
+		},
+	}
+
+	client := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects().Build()
+
+	c := &clusterd.Context{
+		Executor:  executor,
+		Client:    client,
+		Clientset: clientset,
+	}
+
+	r := &ReconcileCephNFS{
+		scheme:  s,
+		context: c,
+		clusterInfo: &cephclient.ClusterInfo{
+			FSID:        "fsid-test",
+			CephVersion: cephver.Squid,
+			Context:     context.TODO(),
+			Namespace:   ns,
+		},
+		cephClusterSpec: &cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{
+				Image: "quay.io/ceph/ceph:v15",
+			},
+		},
+	}
+
+	nfs := &cephv1.CephNFS{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "skip-nfs",
+			Namespace: ns,
+		},
+		Spec: cephv1.NFSGaneshaSpec{
+			Server: cephv1.GaneshaServerSpec{
+				Active: 1, // Only one NFS daemon
+			},
+			RADOS: cephv1.GaneshaRADOSSpec{
+				Pool:      "myfs-data0",
+				Namespace: "nfs-ns",
+			},
+		},
+	}
+
+	// Pre-create deployment with skip-reconcile label
+	skipDep := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-nfs-skip-nfs-a",
+			Namespace: ns,
+			Labels: map[string]string{
+				cephv1.SkipReconcileLabelKey: "true",
+			},
+		},
+	}
+	_, err := r.context.Clientset.AppsV1().Deployments(ns).Create(context.TODO(), skipDep, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	err = r.upCephNFS(nfs)
+	assert.NoError(t, err)
+
+	// Assert that deployment still exists and no new ones were added
+	deps, err := r.context.Clientset.AppsV1().Deployments(ns).List(context.TODO(), metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Len(t, deps.Items, 1)
+	assert.Equal(t, "rook-ceph-nfs-skip-nfs-a", deps.Items[0].Name)
+
+	// Assert that no service was created
+	svcs, err := r.context.Clientset.CoreV1().Services(ns).List(context.TODO(), metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Len(t, svcs.Items, 0)
 }
