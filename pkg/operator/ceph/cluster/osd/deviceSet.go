@@ -331,7 +331,7 @@ func createValidImageVersionLabel(image string) string {
 	cephImageVersion := re.ReplaceAllString(image, "_")
 
 	if validation.IsValidLabelValue(cephImageVersion) != nil {
-		logger.Infof("image %q contains invalid character, skipping adding label", image)
+		logger.Debugf("image %q contains invalid character, skipping adding label", image)
 		cephImageVersion = ""
 	}
 	return cephImageVersion
