@@ -5306,6 +5306,9 @@ deletion.</p>
 </tr><tr><td><p>&#34;ReconcileFailed&#34;</p></td>
 <td><p>ReconcileFailed represents when a resource reconciliation failed.</p>
 </td>
+</tr><tr><td><p>&#34;ReconcileRequeuing&#34;</p></td>
+<td><p>ReconcileRequeuing represents when a resource reconciliation requeue.</p>
+</td>
 </tr><tr><td><p>&#34;ReconcileStarted&#34;</p></td>
 <td><p>ReconcileStarted represents when a resource reconciliation started.</p>
 </td>

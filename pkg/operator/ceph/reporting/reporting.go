@@ -156,6 +156,10 @@ func ReportReconcileResult(
 			// intent.
 			return reconcileResponse, nil
 		}
+	} else if reconcileResponse.Requeue {
+		msg := fmt.Sprintf("requeuing %s %q", kind, nsName)
+		logger.Debug(msg)
+		recorder.Event(objCopy, corev1.EventTypeNormal, string(cephv1.ReconcileRequeuing), msg)
 	} else {
 		successMsg := fmt.Sprintf("successfully configured %s %q", kind, nsName)
 
