@@ -91,7 +91,7 @@ func (c *clusterConfig) portString() string {
 
 func generateCephXUser(name string) string {
 	user := strings.TrimPrefix(name, AppName)
-	return "client.rgw" + strings.Replace(user, "-", ".", -1)
+	return "client.rgw" + strings.ReplaceAll(user, "-", ".")
 }
 
 func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {

@@ -354,7 +354,7 @@ func (c *Cluster) scaleDownDeployments(replicas int32, activeCount int32, desire
 				logger.Errorf("failed to delete mds deployment. %v", err)
 			}
 
-			daemonName := strings.Replace(d.GetName(), fmt.Sprintf("%s-", AppName), "", -1)
+			daemonName := strings.ReplaceAll(d.GetName(), fmt.Sprintf("%s-", AppName), "")
 			err := c.DeleteMdsCephObjects(daemonName)
 			if err != nil {
 				logger.Errorf("%v", err)

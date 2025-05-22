@@ -320,8 +320,8 @@ func legacyDeviceSetPVCID(deviceSetName string, setIndex int) string {
 // This is the new function that generates the labels
 // It includes the pvcTemplateName in it
 func deviceSetPVCID(deviceSetName, pvcTemplateName string, setIndex int) string {
-	cleanName := strings.Replace(pvcTemplateName, " ", "-", -1)
-	deviceSetName = strings.Replace(deviceSetName, ".", "-", -1)
+	cleanName := strings.ReplaceAll(pvcTemplateName, " ", "-")
+	deviceSetName = strings.ReplaceAll(deviceSetName, ".", "-")
 	return fmt.Sprintf("%s-%s-%d", deviceSetName, cleanName, setIndex)
 }
 

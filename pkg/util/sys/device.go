@@ -376,7 +376,7 @@ func parseKeyValuePairString(propsRaw string) map[string]string {
 		if len(kvp) == 2 {
 			// first element is the final key, second element is the final value
 			// (don't forget to remove surrounding quotes from the value)
-			propMap[kvp[0]] = strings.Replace(kvp[1], `"`, "", -1)
+			propMap[kvp[0]] = strings.ReplaceAll(kvp[1], `"`, "")
 		}
 	}
 
