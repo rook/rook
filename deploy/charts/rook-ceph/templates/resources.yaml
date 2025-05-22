@@ -13,6 +13,9 @@ spec:
     kind: CephBlockPoolRadosNamespace
     listKind: CephBlockPoolRadosNamespaceList
     plural: cephblockpoolradosnamespaces
+    shortNames:
+      - cephbprns
+      - cephrns
     singular: cephblockpoolradosnamespace
   scope: Namespaced
   versions:
@@ -347,6 +350,8 @@ spec:
     kind: CephBlockPool
     listKind: CephBlockPoolList
     plural: cephblockpools
+    shortNames:
+      - cephbp
     singular: cephblockpool
   scope: Namespaced
   versions:
@@ -842,6 +847,8 @@ spec:
     kind: CephBucketNotification
     listKind: CephBucketNotificationList
     plural: cephbucketnotifications
+    shortNames:
+      - cephbn
     singular: cephbucketnotification
   scope: Namespaced
   versions:
@@ -1005,6 +1012,8 @@ spec:
     kind: CephBucketTopic
     listKind: CephBucketTopicList
     plural: cephbuckettopics
+    shortNames:
+      - cephbt
     singular: cephbuckettopic
   scope: Namespaced
   versions:
@@ -1239,6 +1248,8 @@ spec:
     kind: CephClient
     listKind: CephClientList
     plural: cephclients
+    shortNames:
+      - cephcl
     singular: cephclient
   scope: Namespaced
   versions:
@@ -1323,6 +1334,8 @@ spec:
     kind: CephCluster
     listKind: CephClusterList
     plural: cephclusters
+    shortNames:
+      - ceph
     singular: cephcluster
   scope: Namespaced
   versions:
@@ -6471,6 +6484,8 @@ spec:
     kind: CephFilesystemMirror
     listKind: CephFilesystemMirrorList
     plural: cephfilesystemmirrors
+    shortNames:
+      - cephfsm
     singular: cephfilesystemmirror
   scope: Namespaced
   versions:
@@ -7146,6 +7161,8 @@ spec:
     kind: CephFilesystem
     listKind: CephFilesystemList
     plural: cephfilesystems
+    shortNames:
+      - cephfs
     singular: cephfilesystem
   scope: Namespaced
   versions:
@@ -8734,6 +8751,9 @@ spec:
     kind: CephFilesystemSubVolumeGroup
     listKind: CephFilesystemSubVolumeGroupList
     plural: cephfilesystemsubvolumegroups
+    shortNames:
+      - cephfssvg
+      - cephsvg
     singular: cephfilesystemsubvolumegroup
   scope: Namespaced
   versions:
@@ -8875,6 +8895,7 @@ spec:
     plural: cephnfses
     shortNames:
       - nfs
+      - cephnfs
     singular: cephnfs
   scope: Namespaced
   versions:
@@ -10856,6 +10877,8 @@ spec:
     kind: CephObjectRealm
     listKind: CephObjectRealmList
     plural: cephobjectrealms
+    shortNames:
+      - cephor
     singular: cephobjectrealm
   scope: Namespaced
   versions:
@@ -10947,6 +10970,8 @@ spec:
     kind: CephObjectStore
     listKind: CephObjectStoreList
     plural: cephobjectstores
+    shortNames:
+      - cephos
     singular: cephobjectstore
   scope: Namespaced
   versions:
@@ -13100,6 +13125,7 @@ spec:
     shortNames:
       - rcou
       - objectuser
+      - cephosu
     singular: cephobjectstoreuser
   scope: Namespaced
   versions:
@@ -13416,6 +13442,8 @@ spec:
     kind: CephObjectZoneGroup
     listKind: CephObjectZoneGroupList
     plural: cephobjectzonegroups
+    shortNames:
+      - cephozg
     singular: cephobjectzonegroup
   scope: Namespaced
   versions:
@@ -13512,6 +13540,8 @@ spec:
     kind: CephObjectZone
     listKind: CephObjectZoneList
     plural: cephobjectzones
+    shortNames:
+      - cephoz
     singular: cephobjectzone
   scope: Namespaced
   versions:
@@ -14082,6 +14112,8 @@ spec:
     kind: CephRBDMirror
     listKind: CephRBDMirrorList
     plural: cephrbdmirrors
+    shortNames:
+      - cephrbdm
     singular: cephrbdmirror
   scope: Namespaced
   versions:
