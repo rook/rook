@@ -24,9 +24,6 @@ linters:
         text: "QF1008:" # could remove embedded field "Connection" from selector (staticcheck)
       - linters:
           - staticcheck
-        text: "QF1007:" # could merge conditional assignment into variable declaration (staticcheck)
-      - linters:
-          - staticcheck
         text: "QF1001:" # could apply De Morgan's law (staticcheck)
       - linters:
           - staticcheck
