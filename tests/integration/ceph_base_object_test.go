@@ -178,7 +178,7 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 		assert.Nil(t, err)
 
 		for _, objectStore := range objectStores.Items {
-			err, output := installer.Execute("radosgw-admin", []string{"user", "info", "--uid=dashboard-admin", fmt.Sprintf("--rgw-realm=%s", objectStore.GetName())}, namespace)
+			output, err := installer.Execute("radosgw-admin", []string{"user", "info", "--uid=dashboard-admin", fmt.Sprintf("--rgw-realm=%s", objectStore.GetName())}, namespace)
 			logger.Infof("output: %s", output)
 			if err != nil {
 				// Just log the error until we get a more reliable way to wait for the user to be created

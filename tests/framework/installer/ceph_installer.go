@@ -201,15 +201,15 @@ func (h *CephInstaller) CreateRookToolbox(manifests CephManifests) (err error) {
 }
 
 // Execute a command in the ceph toolbox
-func (h *CephInstaller) Execute(command string, parameters []string, namespace string) (error, string) {
+func (h *CephInstaller) Execute(command string, parameters []string, namespace string) (string, error) {
 	clusterInfo := client.AdminTestClusterInfo(namespace)
 	cmd, args := client.FinalizeCephCommandArgs(command, clusterInfo, parameters, h.k8shelper.MakeContext().ConfigDir)
 	result, err := h.k8shelper.MakeContext().Executor.ExecuteCommandWithOutput(cmd, args...)
 	if err != nil {
 		logger.Warningf("Error executing command %q: <%v>", command, err)
-		return err, result
+		return result, err
 	}
-	return nil, result
+	return result, nil
 }
 
 // CreateCephCluster creates rook cluster via kubectl

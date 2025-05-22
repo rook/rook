@@ -54,7 +54,7 @@ func (r *snsResolverV2) ResolveEndpoint(ctx context.Context, params sns.Endpoint
 }
 
 func GetS3Credentials(objectStore *cephv1.CephObjectStore, installer *installer.CephInstaller) (string, string, error) {
-	err, output := installer.Execute("radosgw-admin", []string{"user", "info", "--uid=dashboard-admin", fmt.Sprintf("--rgw-realm=%s", objectStore.Name)}, objectStore.Namespace)
+	output, err := installer.Execute("radosgw-admin", []string{"user", "info", "--uid=dashboard-admin", fmt.Sprintf("--rgw-realm=%s", objectStore.Name)}, objectStore.Namespace)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to get user info")
 	}
