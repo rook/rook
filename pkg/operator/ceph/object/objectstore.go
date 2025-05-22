@@ -181,10 +181,7 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 		return errors.Wrap(err, "failed to delete realm")
 	}
 
-	lastStore := false
-	if len(stores) == 1 && stores[0] == objContext.Name {
-		lastStore = true
-	}
+	lastStore := len(stores) == 1 && stores[0] == objContext.Name
 
 	if !spec.PreservePoolsOnDelete {
 		if EmptyPool(spec.DataPool) && EmptyPool(spec.MetadataPool) {

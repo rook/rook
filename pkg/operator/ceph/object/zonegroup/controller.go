@@ -233,10 +233,7 @@ func (r *ReconcileObjectZoneGroup) createCephZoneGroup(zoneGroup *cephv1.CephObj
 		return reconcile.Result{}, errors.Wrapf(err, "failed to parse `radosgw-admin period get` output")
 	}
 
-	zoneGroupIsMaster := false
-	if masterZoneGroup == "" {
-		zoneGroupIsMaster = true
-	}
+	zoneGroupIsMaster := masterZoneGroup == ""
 
 	// create zone group
 	output, err = object.RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)

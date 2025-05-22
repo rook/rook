@@ -309,10 +309,7 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 		return errors.Wrap(err, "failed to parse `radosgw-admin zonegroup get` output")
 	}
 
-	zoneIsMaster := false
-	if zoneGroupJson.MasterZoneID == "" {
-		zoneIsMaster = true
-	}
+	zoneIsMaster := zoneGroupJson.MasterZoneID == ""
 
 	// create/update zone
 	_, err = object.RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneGroupArg, zoneArg)

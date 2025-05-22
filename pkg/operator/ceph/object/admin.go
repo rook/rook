@@ -471,16 +471,13 @@ func GetAdminOPSUserCredentials(objContext *Context, spec *cephv1.ObjectStoreSpe
 	}
 	logger.Debugf("creating s3 user object %q for object store %q", userConfig.UserID, objContext.Name)
 
-	forceUserCreation := false
 	// If the cluster where we are running the rgw user create for the admin ops user is configured
 	// as a secondary cluster the gateway will error out with:
 	// 		Please run the command on master zone. Performing this operation on non-master zone leads to
 	// 		inconsistent metadata between zones
 	// It is safe to force it since the creation will return that the user already exists since it
 	// has been created by the primary cluster. In this case, we simply read the user details.
-	if spec.IsMultisite() {
-		forceUserCreation = true
-	}
+	forceUserCreation := spec.IsMultisite()
 
 	user, rgwerr, err := CreateUser(objContext, userConfig, forceUserCreation)
 	if err != nil {

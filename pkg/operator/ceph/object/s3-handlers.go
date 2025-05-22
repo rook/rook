@@ -44,10 +44,7 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 	if debug {
 		logLevel = aws.LogDebug
 	}
-	tlsEnabled := false
-	if len(tlsCert) > 0 || insecure {
-		tlsEnabled = true
-	}
+	tlsEnabled := len(tlsCert) > 0 || insecure
 	if httpClient == nil {
 		httpClient = &http.Client{
 			Timeout: HttpTimeOut,
