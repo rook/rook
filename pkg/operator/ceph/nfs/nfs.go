@@ -27,6 +27,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/core/v1"
@@ -54,8 +55,18 @@ type daemonConfig struct {
 
 // Create the ganesha server
 func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS) error {
+	nfsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(r.clusterInfo.Context, r.context, n.Namespace, config.NfsType, AppName)
+	if err != nil {
+		return errors.Wrap(err, "failed to check for NFS daemons to skip reconcile")
+	}
+
 	for i := 0; i < n.Spec.Server.Active; i++ {
 		id := k8sutil.IndexToName(i)
+
+		if nfsToSkipReconcile.Has(id) {
+			logger.Warningf("skipping reconcile of nfs daemon %q with label %q", id, cephv1.SkipReconcileLabelKey)
+			continue
+		}
 
 		configName, configHash, err := r.createConfigMap(n, id)
 		if err != nil {
