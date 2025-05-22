@@ -233,3 +233,30 @@ func (c *Cluster) getEncryptionVolume(osdProps osdProperties) (v1.Volume, v1.Vol
 
 	return volume, volumeMounts
 }
+
+func (c *Cluster) getEncryptionVolumeForDmcrypt(osdProps osdProperties) (v1.Volume, v1.VolumeMount) {
+	// Generate volume
+	volume := v1.Volume{
+		Name: osdEncryptionVolName,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: kms.GenerateOSDEncryptionSecretName(osdProps.pvc.ClaimName),
+				Items: []v1.KeyToPath{
+					{
+						Key:  kms.OsdEncryptionSecretNameKeyName,
+						Path: encryptionKeyFileName,
+					},
+				},
+			},
+		},
+	}
+
+	// Mounts /etc/ceph/luks_key
+	volumeMounts := v1.VolumeMount{
+		Name:      osdEncryptionVolName,
+		ReadOnly:  true,
+		MountPath: "/etc/dmcrypt",
+	}
+
+	return volume, volumeMounts
+}

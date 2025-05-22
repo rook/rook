@@ -192,7 +192,7 @@ func pvcNameEnvVar(pvcName string) v1.EnvVar {
 
 func cephVolumeRawEncryptedEnvVarFromSecret(osdProps osdProperties) v1.EnvVar {
 	return v1.EnvVar{
-		Name: CephVolumeEncryptedKeyEnvVarName,
+		Name: CephVolumeEncryptedKeyEnvVarName + "_OLD",
 		ValueFrom: &v1.EnvVarSource{
 			SecretKeyRef: &v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{

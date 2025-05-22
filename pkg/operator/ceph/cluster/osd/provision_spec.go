@@ -128,8 +128,12 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 				if c.spec.Security.KeyManagementService.IsKMIPKMS() {
 					volumeKMIP, _ := kms.KMIPVolumeAndMount(c.spec.Security.KeyManagementService.TokenSecretName)
 					volumes = append(volumes, volumeKMIP)
+					vol, _ := c.getEncryptionVolumeForDmcrypt(osdProps)
+					volumes = append(volumes, vol)
 				}
 			}
+			vol, _ := c.getEncryptionVolumeForDmcrypt(osdProps)
+			volumes = append(volumes, vol)
 		}
 	} else {
 		// If not running on PVC we mount the rootfs of the host to validate the presence of the LVM package
@@ -297,9 +301,13 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 					envVars = append(envVars, cephVolumeRawEncryptedEnvVarFromSecret(osdProps))
 					_, volmeMountsKMIP := kms.KMIPVolumeAndMount(c.spec.Security.KeyManagementService.TokenSecretName)
 					volumeMounts = append(volumeMounts, volmeMountsKMIP)
+					_, volMount := c.getEncryptionVolumeForDmcrypt(osdProps)
+					volumeMounts = append(volumeMounts, volMount)
 				}
 			} else {
 				envVars = append(envVars, cephVolumeRawEncryptedEnvVarFromSecret(osdProps))
+				_, volMount := c.getEncryptionVolumeForDmcrypt(osdProps)
+				volumeMounts = append(volumeMounts, volMount)
 			}
 		}
 	} else {
