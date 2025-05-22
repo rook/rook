@@ -89,7 +89,7 @@ var (
 // when they are specified as "some config key" in one section, "some_config_key" in another
 // section, and "some-config-key" in yet another section.
 func normalizeKey(key string) string {
-	return strings.Replace(strings.Replace(key, " ", "_", -1), "-", "_", -1)
+	return strings.ReplaceAll(strings.ReplaceAll(key, " ", "_"), "-", "_")
 }
 
 // NewFlag returns the key-value pair in the format of a Ceph command line-compatible flag.
@@ -97,7 +97,7 @@ func NewFlag(key, value string) string {
 	// A flag is a normalized key with underscores replaced by dashes.
 	// "debug default" ~normalize~> "debug_default" ~to~flag~> "debug-default"
 	n := normalizeKey(key)
-	f := strings.Replace(n, "_", "-", -1)
+	f := strings.ReplaceAll(n, "_", "-")
 	return fmt.Sprintf("--%s=%s", f, value)
 }
 

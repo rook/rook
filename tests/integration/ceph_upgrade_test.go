@@ -313,7 +313,7 @@ func (s *UpgradeSuite) gatherLogs(systemNamespace, testSuffix string) {
 	if installer.TestLogCollectionLevel() == "all" {
 		s.k8sh.PrintPodDescribe(s.namespace)
 	}
-	n := strings.Replace(s.T().Name(), "/", "_", -1) + testSuffix
+	n := strings.ReplaceAll(s.T().Name(), "/", "_") + testSuffix
 	s.installer.GatherAllRookLogs(n, systemNamespace, s.namespace)
 }
 

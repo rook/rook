@@ -69,7 +69,7 @@ func (k8sh *K8sHelper) snapshotController(action string) error {
 	if err != nil {
 		return err
 	}
-	controllerManifest = strings.Replace(controllerManifest, "canary", snapshotterVersion, -1)
+	controllerManifest = strings.ReplaceAll(controllerManifest, "canary", snapshotterVersion)
 	logger.Infof("snapshot controller: %s", controllerManifest)
 
 	_, err = k8sh.KubectlWithStdin(controllerManifest, action, "-f", "-")

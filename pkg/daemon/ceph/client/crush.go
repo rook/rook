@@ -152,7 +152,7 @@ func GetCrushHostName(context *clusterd.Context, clusterInfo *ClusterInfo, osdID
 
 // NormalizeCrushName replaces . with -
 func NormalizeCrushName(name string) string {
-	return strings.Replace(name, ".", "-", -1)
+	return strings.ReplaceAll(name, ".", "-")
 }
 
 // Obtain the cluster-wide default crush root from the cluster spec

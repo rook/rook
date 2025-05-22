@@ -249,7 +249,7 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 				zoneGetCalled = true
 				if sharedDataPoolAlreadySet == "" && sharedMetaPoolAlreadySet == "" {
 					replaceDataPool := "rgw-data-pool:store-a.buckets.data"
-					return strings.Replace(objectZoneJson, replaceDataPool, "datapool:store-a.buckets.data", -1), nil
+					return strings.ReplaceAll(objectZoneJson, replaceDataPool, "datapool:store-a.buckets.data"), nil
 				}
 				return fmt.Sprintf(objectZoneSharedPoolsJsonTempl, sharedMetaPoolAlreadySet, sharedDataPoolAlreadySet), nil
 			} else if args[1] == "set" {
