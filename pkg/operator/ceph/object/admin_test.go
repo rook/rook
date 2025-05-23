@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/test"
@@ -153,7 +152,7 @@ func TestRunAdminCommandNoMultisite(t *testing.T) {
 	})
 
 	t.Run("with multus - we use the remote executor", func(t *testing.T) {
-		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: "multus"}
+		objContext.clusterInfo.NetworkSpec = cephv1.NetworkSpec{Provider: "multus"}
 		_, err := RunAdminCommandNoMultisite(objContext, true, []string{"zone", "get"}...)
 		assert.Error(t, err)
 

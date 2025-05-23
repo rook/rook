@@ -22,11 +22,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
-func SubVolumeGroupCleanup(context *clusterd.Context, clusterInfo *client.ClusterInfo, fsName, svg, poolName, csiNamespace string) error {
+func SubVolumeGroupCleanup(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, fsName, svg, poolName, csiNamespace string) error {
 	logger.Infof("starting clean up cephFS subVolumeGroup resource %q", svg)
 
 	subVolumeList, err := cephclient.ListSubvolumesInGroup(context, clusterInfo, fsName, svg)
@@ -77,7 +76,7 @@ func SubVolumeGroupCleanup(context *clusterd.Context, clusterInfo *client.Cluste
 	return nil
 }
 
-func CancelPendingClones(context *clusterd.Context, clusterInfo *client.ClusterInfo, snapshots cephclient.SubVolumeSnapshots, fsName, subvol, svg string) error {
+func CancelPendingClones(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, snapshots cephclient.SubVolumeSnapshots, fsName, subvol, svg string) error {
 	for _, snapshot := range snapshots {
 		logger.Infof("deleting any pending clones of snapshot %q of subvolume %q of group %q", snapshot.Name, subvol, svg)
 		pendingClones, err := cephclient.ListSubVolumeSnapshotPendingClones(context, clusterInfo, fsName, subvol, snapshot.Name, svg)
@@ -94,7 +93,7 @@ func CancelPendingClones(context *clusterd.Context, clusterInfo *client.ClusterI
 	return nil
 }
 
-func DeleteSubVolumeSnapshots(context *clusterd.Context, clusterInfo *client.ClusterInfo, snapshots cephclient.SubVolumeSnapshots, fsName, subvol, svg string) error {
+func DeleteSubVolumeSnapshots(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, snapshots cephclient.SubVolumeSnapshots, fsName, subvol, svg string) error {
 	for _, snapshot := range snapshots {
 		logger.Infof("deleting snapshot %q for subvolume %q in group %q", snapshot.Name, subvol, svg)
 		err := cephclient.DeleteSubvolumeSnapshot(context, clusterInfo, fsName, subvol, svg, snapshot.Name)
@@ -106,7 +105,7 @@ func DeleteSubVolumeSnapshots(context *clusterd.Context, clusterInfo *client.Clu
 	return nil
 }
 
-func CleanUpOMAPDetails(context *clusterd.Context, clusterInfo *client.ClusterInfo, objName, poolName, namespace string) error {
+func CleanUpOMAPDetails(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, objName, poolName, namespace string) error {
 	omapValue := getOMAPValue(objName)
 	if omapValue == "" {
 		return errors.New(fmt.Sprintf("failed to get OMAP value for object %q", objName))
