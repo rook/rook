@@ -15,7 +15,7 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: quay.io/ceph/ceph:v19
+    image: quay.ceph.io/ceph-ci/ceph:main-arm64
     allowUnsupported: true
   mon:
     count: 1
@@ -27,7 +27,9 @@ spec:
     allowMultiplePerNode: true
     modules:
       - name: rook
-        enabled: true
+        enabled: false
+      - name: cephadm
+        enabled: false
   dashboard:
     enabled: true
   crashCollector:
@@ -59,6 +61,25 @@ spec:
       bdev_flock_retry: "20"
       bluefs_buffered_io: "false"
       mon_data_avail_warn: "10"
+      auth_service_ticket_ttl: "30" # default 60*60=1_hr
+      auth_mon_ticket_ttl: "120" # default '72_hr' (259,200 ?)
+    mds:
+      debug_auth: "30"
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: rook-config-override
+  namespace: rook-ceph # namespace:cluster
+data:
+  # auth_service_ticket_ttl doesn't seem to have effect when set via mon config kv store
+  # will conf override have diff behavior?
+  # or is it that auth_mon_ticket_ttl is the actual controlling config?
+  # gonna try both to stop wasting my time
+  config: |
+    [global]
+    auth_service_ticket_ttl = 30
+    auth_mon_ticket_ttl = 120
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
