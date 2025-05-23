@@ -19,7 +19,6 @@ package cosi
 import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -51,7 +50,7 @@ func createCephCOSIDriverDeployment(cephCOSIDriver *cephv1.CephCOSIDriver) (*app
 			Labels:    getCOSILabels(cephCOSIDriver.Name, cephCOSIDriver.Namespace),
 		},
 		Spec: appsv1.DeploymentSpec{
-			RevisionHistoryLimit: controller.RevisionHistoryLimit(),
+			RevisionHistoryLimit: opcontroller.RevisionHistoryLimit(),
 			Replicas:             &replica,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: getCOSILabels(cephCOSIDriver.Name, cephCOSIDriver.Namespace),
@@ -73,7 +72,7 @@ func setCOSILabels(label map[string]string) {
 }
 
 func getCOSILabels(name, namespace string) map[string]string {
-	label := controller.AppLabels(name, namespace)
+	label := opcontroller.AppLabels(name, namespace)
 	setCOSILabels(label)
 	return label
 }

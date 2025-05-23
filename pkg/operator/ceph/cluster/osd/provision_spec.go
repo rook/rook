@@ -27,7 +27,6 @@ import (
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
-	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	batch "k8s.io/api/batch/v1"
@@ -77,7 +76,7 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 	}
 
 	k8sutil.AddRookVersionLabelToJob(job)
-	controller.AddCephVersionLabelToJob(c.clusterInfo.CephVersion, job)
+	opcontroller.AddCephVersionLabelToJob(c.clusterInfo.CephVersion, job)
 	err = c.clusterInfo.OwnerInfo.SetControllerReference(job)
 	if err != nil {
 		return nil, err
@@ -103,7 +102,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 
 	// ceph-volume is currently set up to use /etc/ceph/ceph.conf; this means no user config
 	// overrides will apply to ceph-volume, but this is unnecessary anyway
-	volumes := append(controller.PodVolumes(provisionConfig.DataPathMap, c.spec.DataDirHostPath, c.spec.DataDirHostPath, true), copyBinariesVolume)
+	volumes := append(opcontroller.PodVolumes(provisionConfig.DataPathMap, c.spec.DataDirHostPath, c.spec.DataDirHostPath, true), copyBinariesVolume)
 	volumes = c.updateCephConfigVolume(volumes, osdProps.crushHostname)
 
 	// create a volume on /dev so the pod can access devices on the host
@@ -239,14 +238,14 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		envVars = append(envVars, metadataDeviceEnvVar(osdProps.metadataDevice))
 	}
 
-	volumeMounts := append(controller.CephVolumeMounts(provisionConfig.DataPathMap, true), []v1.VolumeMount{
+	volumeMounts := append(opcontroller.CephVolumeMounts(provisionConfig.DataPathMap, true), []v1.VolumeMount{
 		{Name: "devices", MountPath: "/dev"},
 		{Name: "udev", MountPath: "/run/udev"},
 		copyBinariesMount,
 		mon.CephSecretVolumeMount(),
 	}...)
 
-	if controller.LoopDevicesAllowed() {
+	if opcontroller.LoopDevicesAllowed() {
 		envVars = append(envVars, v1.EnvVar{Name: "CEPH_VOLUME_ALLOW_LOOP_DEVICES", Value: "true"})
 	}
 
@@ -334,7 +333,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		Args:            []string{"ceph", "osd", "provision"},
 		Name:            "provision",
 		Image:           c.spec.CephVersion.Image,
-		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
+		ImagePullPolicy: opcontroller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    volumeMounts,
 		Env:             envVars,
 		EnvFrom:         getEnvFromSources(),

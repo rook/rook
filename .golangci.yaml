@@ -27,9 +27,6 @@ linters:
         text: "QF1001:" # could apply De Morgan's law (staticcheck)
       - linters:
           - staticcheck
-        text: "ST1019" # package "github.com/rook/rook/pkg/daemon/ceph/client" is being imported more than once (staticcheck)
-      - linters:
-          - staticcheck
         text: "QF1006:" # could lift into loop condition (staticcheck)
 formatters:
   enable:

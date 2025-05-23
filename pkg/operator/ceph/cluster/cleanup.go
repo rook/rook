@@ -29,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
-	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
@@ -76,7 +75,7 @@ func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHo
 		jobName := k8sutil.TruncateNodeNameForJob("cluster-cleanup-job-%s", hostName)
 		podSpec := c.cleanUpJobTemplateSpec(cluster, monSecret, clusterFSID)
 		podSpec.Spec.NodeSelector = map[string]string{k8sutil.LabelHostname(): hostName}
-		labels := controller.AppLabels(CleanupAppName, cluster.Namespace)
+		labels := opcontroller.AppLabels(CleanupAppName, cluster.Namespace)
 		labels[CleanupAppName] = "true"
 		job := &batch.Job{
 			ObjectMeta: metav1.ObjectMeta{
@@ -122,7 +121,7 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 			{Name: sanitizeDataSource, Value: cluster.Spec.CleanupPolicy.SanitizeDisks.DataSource.String()},
 			{Name: sanitizeIteration, Value: strconv.Itoa(int(cluster.Spec.CleanupPolicy.SanitizeDisks.Iteration))},
 		}...)
-		if controller.LoopDevicesAllowed() {
+		if opcontroller.LoopDevicesAllowed() {
 			envVars = append(envVars, v1.EnvVar{Name: "CEPH_VOLUME_ALLOW_LOOP_DEVICES", Value: "true"})
 		}
 	}
@@ -131,7 +130,7 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 	// See https://tracker.ceph.com/issues/53511
 	// Also, it's hard to catch the ceph version since the cluster is being deleted so not
 	// implementing a version check and simply always run this as root
-	securityContext := controller.PrivilegedContext(true)
+	securityContext := opcontroller.PrivilegedContext(true)
 
 	return v1.Container{
 		Name:            "host-cleanup",
@@ -256,7 +255,7 @@ func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 }
 
 func (c *ClusterController) getCleanUpDetails(cephClusterSpec *cephv1.ClusterSpec, namespace string) (string, string, error) {
-	clusterInfo, _, _, err := controller.LoadClusterInfo(c.context, c.OpManagerCtx, namespace, cephClusterSpec)
+	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(c.context, c.OpManagerCtx, namespace, cephClusterSpec)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to get cluster info")
 	}
