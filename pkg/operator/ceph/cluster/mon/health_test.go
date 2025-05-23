@@ -29,7 +29,6 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	"github.com/rook/rook/pkg/operator/test"
@@ -799,7 +798,7 @@ func TestExternalMons_notInSpec_InQuorum(t *testing.T) {
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
-	monsFromCM := controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	monsFromCM := opcontroller.ParseMonEndpoints(cm.Data[EndpointDataKey])
 	assert.Len(t, monsFromCM, 5)
 	for id, mon := range monsFromCM {
 		assert.Equal(t, inital5Mons[id].Name, mon.Name)
@@ -824,7 +823,7 @@ func TestExternalMons_notInSpec_InQuorum(t *testing.T) {
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
-	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	monsFromCM = opcontroller.ParseMonEndpoints(cm.Data[EndpointDataKey])
 	assert.Len(t, monsFromCM, 4)
 	for id, mon := range monsFromCM {
 		assert.Equal(t, inital5Mons[id].Name, mon.Name)
@@ -848,7 +847,7 @@ func TestExternalMons_notInSpec_InQuorum(t *testing.T) {
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
-	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	monsFromCM = opcontroller.ParseMonEndpoints(cm.Data[EndpointDataKey])
 	assert.Len(t, monsFromCM, 5)
 	for id, mon := range monsFromCM {
 		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].Name, mon.Name)
@@ -924,7 +923,7 @@ func TestExternalMons_inSpec_notInQuorum(t *testing.T) {
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
-	monsFromCM := controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	monsFromCM := opcontroller.ParseMonEndpoints(cm.Data[EndpointDataKey])
 	assert.Len(t, monsFromCM, 5)
 	for id, mon := range monsFromCM {
 		assert.Equal(t, inital5Mons[id].Name, mon.Name)
@@ -947,7 +946,7 @@ func TestExternalMons_inSpec_notInQuorum(t *testing.T) {
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
-	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	monsFromCM = opcontroller.ParseMonEndpoints(cm.Data[EndpointDataKey])
 	assert.Len(t, monsFromCM, 4)
 	for id, mon := range monsFromCM {
 		assert.Equal(t, inital5Mons[id].Name, mon.Name)
@@ -971,7 +970,7 @@ func TestExternalMons_inSpec_notInQuorum(t *testing.T) {
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
-	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	monsFromCM = opcontroller.ParseMonEndpoints(cm.Data[EndpointDataKey])
 	assert.Len(t, monsFromCM, 5)
 	for id, mon := range monsFromCM {
 		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].Name, mon.Name)
@@ -1055,7 +1054,7 @@ func TestExternalMons_inSpec_inQuorum(t *testing.T) {
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "ext-mon-id", cm.Data[EndpointExternalMonsKey])
-	monsFromCM := controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	monsFromCM := opcontroller.ParseMonEndpoints(cm.Data[EndpointDataKey])
 	assert.Len(t, monsFromCM, 6)
 	for id, mon := range monsFromCM {
 		if id == "ext-mon-id" {
@@ -1084,7 +1083,7 @@ func TestExternalMons_inSpec_inQuorum(t *testing.T) {
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "ext-mon-id", cm.Data[EndpointExternalMonsKey])
-	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	monsFromCM = opcontroller.ParseMonEndpoints(cm.Data[EndpointDataKey])
 	assert.Len(t, monsFromCM, 5)
 	for id, mon := range monsFromCM {
 		if id == "ext-mon-id" {
@@ -1119,7 +1118,7 @@ func TestExternalMons_inSpec_inQuorum(t *testing.T) {
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "ext-mon-id", cm.Data[EndpointExternalMonsKey])
-	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	monsFromCM = opcontroller.ParseMonEndpoints(cm.Data[EndpointDataKey])
 	assert.Len(t, monsFromCM, 6)
 	for id, mon := range monsFromCM {
 		if id == "ext-mon-id" {

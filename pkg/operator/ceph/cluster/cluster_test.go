@@ -34,7 +34,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"github.com/rook/rook/pkg/operator/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -567,7 +566,7 @@ func TestFetchCephConfigFromSecrets(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			clientset := test.New(t, 1)
+			clientset := testop.New(t, 1)
 			clusterInfo := cephclient.AdminTestClusterInfo("rook-ceph")
 
 			for _, s := range tc.secrets {

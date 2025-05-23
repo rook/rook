@@ -45,7 +45,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -160,7 +159,7 @@ type monConfig struct {
 }
 
 type SchedulingResult struct {
-	Node             *v1.Node
+	Node             *corev1.Node
 	CanaryDeployment *apps.Deployment
 	CanaryPVC        string
 }
@@ -695,7 +694,7 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	// the canary and real monitor deployments will mount the same storage. to
 	// avoid issues with the real deployment, the canary should be careful not
 	// to modify the storage by instead running an innocuous command.
-	d.Spec.Template.Spec.InitContainers = []v1.Container{}
+	d.Spec.Template.Spec.InitContainers = []corev1.Container{}
 	d.Spec.Template.Spec.Containers[0].Image = c.rookImage
 	d.Spec.Template.Spec.Containers[0].Command = []string{"sleep"} // sleep responds to signals so we don't need to wrap it
 	d.Spec.Template.Spec.Containers[0].Args = []string{"3600"}
@@ -992,7 +991,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 	return nil
 }
 
-func (c *Cluster) monVolumeClaimTemplate(mon *monConfig) *v1.PersistentVolumeClaim {
+func (c *Cluster) monVolumeClaimTemplate(mon *monConfig) *corev1.PersistentVolumeClaim {
 	if c.spec.ZonesRequired() {
 		// If a stretch cluster, a zone can override the template from the default.
 
@@ -1325,7 +1324,7 @@ func (c *Cluster) createEndpointSliceForAddresses(addresses []string, addressTyp
 }
 
 func (c *Cluster) persistExpectedMonDaemonsInConfigMap() error {
-	configMap := &v1.ConfigMap{
+	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       EndpointConfigMapName,
 			Namespace:  c.Namespace,
@@ -1652,7 +1651,7 @@ func isMonIPUpdateRequiredForHostNetwork(mon string, isMonUsingHostNetwork bool,
 	return false
 }
 
-func hasMonPathChanged(d *apps.Deployment, claim *v1.PersistentVolumeClaim) bool {
+func hasMonPathChanged(d *apps.Deployment, claim *corev1.PersistentVolumeClaim) bool {
 	if d.Labels["pvc_name"] == "" && claim != nil {
 		logger.Infof("skipping update for mon %q where path has changed from hostPath to pvc", d.Name)
 		return true
