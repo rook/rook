@@ -253,7 +253,6 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get OSD info for OSD.%d", id)
 	}
-
 	logger.Infof("destroying osd.%d", osdInfo.ID)
 	destroyOSDArgs := []string{"osd", "destroy", fmt.Sprintf("osd.%d", osdInfo.ID), "--yes-i-really-mean-it"}
 	_, err = client.NewCephCommand(context, clusterInfo, destroyOSDArgs).Run()
@@ -267,13 +266,13 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 		pvcName := os.Getenv(oposd.PVCNameEnvVarName)
 
 		// remove the dm device
-		if osdInfo.Encrypted {
-			target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
-			err = removeEncryptedDevice(context, target)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to remove dm device %q", target)
-			}
+		// if osdInfo.Encrypted {
+		target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
+		err = removeEncryptedDevice(context, target)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to remove dm device %q", target)
 		}
+		//}
 		// fetch the actual device for cleanup
 		blockPath := fmt.Sprintf("/mnt/%s", pvcName)
 		diskInfo, err := clusterd.PopulateDeviceInfo(blockPath, context.Executor)
