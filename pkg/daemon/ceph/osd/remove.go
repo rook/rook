@@ -119,12 +119,12 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 
 	// Remove the OSD deployment
 	deploymentName := fmt.Sprintf("rook-ceph-osd-%d", osdID)
-	deployment, err := clusterdContext.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Get(clusterInfo.Context, deploymentName, metav1.GetOptions{})
+	deployment, err := clusterdContext.Clientset.AppsV1().Deployments(clusterInfo.ClusterNamespace()).Get(clusterInfo.Context, deploymentName, metav1.GetOptions{})
 	if err != nil {
 		logger.Errorf("failed to fetch the deployment %q. %v", deploymentName, err)
 	} else {
 		logger.Infof("removing the OSD deployment %q", deploymentName)
-		if err := k8sutil.DeleteDeployment(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.Namespace, deploymentName); err != nil {
+		if err := k8sutil.DeleteDeployment(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.ClusterNamespace(), deploymentName); err != nil {
 			if err != nil {
 				// Continue purging the OSD even if the deployment fails to be deleted
 				logger.Errorf("failed to delete deployment for OSD %d. %v", osdID, err)
@@ -164,14 +164,14 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 
 func removeOSDPrepareJob(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, pvcName string) {
 	labelSelector := fmt.Sprintf("%s=%s", oposd.OSDOverPVCLabelKey, pvcName)
-	prepareJobList, err := clusterdContext.Clientset.BatchV1().Jobs(clusterInfo.Namespace).List(clusterInfo.Context, metav1.ListOptions{LabelSelector: labelSelector})
+	prepareJobList, err := clusterdContext.Clientset.BatchV1().Jobs(clusterInfo.ClusterNamespace()).List(clusterInfo.Context, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil && !kerrors.IsNotFound(err) {
 		logger.Errorf("failed to list osd prepare jobs with pvc %q. %v ", pvcName, err)
 	}
 	// Remove osd prepare job
 	for _, prepareJob := range prepareJobList.Items {
 		logger.Infof("removing the osd prepare job %q", prepareJob.GetName())
-		if err := k8sutil.DeleteBatchJob(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.Namespace, prepareJob.GetName(), false); err != nil {
+		if err := k8sutil.DeleteBatchJob(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.ClusterNamespace(), prepareJob.GetName(), false); err != nil {
 			if err != nil {
 				// Continue with the cleanup even if the job fails to be deleted
 				logger.Errorf("failed to delete prepare job for osd %q. %v", prepareJob.GetName(), err)
@@ -181,7 +181,7 @@ func removeOSDPrepareJob(clusterdContext *clusterd.Context, clusterInfo *client.
 }
 
 func removePVCs(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, dataPVCName string, preservePVC bool) {
-	dataPVC, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Get(clusterInfo.Context, dataPVCName, metav1.GetOptions{})
+	dataPVC, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.ClusterNamespace()).Get(clusterInfo.Context, dataPVCName, metav1.GetOptions{})
 	if err != nil {
 		logger.Errorf("failed to get pvc for OSD %q. %v", dataPVCName, err)
 		return
@@ -192,7 +192,7 @@ func removePVCs(clusterdContext *clusterd.Context, clusterInfo *client.ClusterIn
 
 	labelSelector := fmt.Sprintf("%s=%s,%s=%s", oposd.CephDeviceSetLabelKey, deviceSet, oposd.CephSetIndexLabelKey, setIndex)
 	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
-	pvcs, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).List(clusterInfo.Context, listOptions)
+	pvcs, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.ClusterNamespace()).List(clusterInfo.Context, listOptions)
 	if err != nil {
 		logger.Errorf("failed to get pvcs for OSD %q. %v", dataPVCName, err)
 		return
@@ -205,13 +205,13 @@ func removePVCs(clusterdContext *clusterd.Context, clusterInfo *client.ClusterIn
 			logger.Infof("detach the OSD PVC %q from Rook", pvc.Name)
 			delete(labels, oposd.CephDeviceSetPVCIDLabelKey)
 			pvc.SetLabels(labels)
-			if _, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Update(clusterInfo.Context, &pvcs.Items[i], metav1.UpdateOptions{}); err != nil {
+			if _, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.ClusterNamespace()).Update(clusterInfo.Context, &pvcs.Items[i], metav1.UpdateOptions{}); err != nil {
 				logger.Errorf("failed to remove label %q from pvc for OSD %q. %v", oposd.CephDeviceSetPVCIDLabelKey, pvc.Name, err)
 			}
 		} else {
 			// Remove the OSD PVC
 			logger.Infof("removing the OSD PVC %q", pvc.Name)
-			if err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Delete(clusterInfo.Context, pvc.Name, metav1.DeleteOptions{}); err != nil {
+			if err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.ClusterNamespace()).Delete(clusterInfo.Context, pvc.Name, metav1.DeleteOptions{}); err != nil {
 				if err != nil {
 					// Continue deleting the OSD PVC even if PVC deletion fails
 					logger.Errorf("failed to delete pvc %q for OSD. %v", pvc.Name, err)
