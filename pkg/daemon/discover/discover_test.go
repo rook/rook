@@ -412,8 +412,8 @@ func TestGetCephVolumeInventory(t *testing.T) {
 		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
 			run++
 			logger.Infof("run %d command %s", run, command)
-			switch {
-			case run == 1:
+			switch run {
+			case 1:
 				return `[{"available": true, "rejected_reasons": [], "sys_api": {"scheduler_mode": "noop",
 "rotational": "0", "vendor": "ATA", "human_readable_size": "25.00 GB", "sectors": 0, "sas_device_handle": "",
 "partitions": {}, "rev": "1.0", "sas_address": "", "locked": 0, "sectorsize": "512", "removable": "0", "path": "/dev/sdb",
@@ -426,13 +426,13 @@ func TestGetCephVolumeInventory(t *testing.T) {
  "model": "VBOX HARDDISK", "ro": "0", "nr_requests": "128", "size": 34359738368.0}, "lvs": [{"comment": "not used by ceph", "name": "swap"},
   {"comment": "not used by ceph", "name": "root"}], "path": "/dev/sda"}]
 				`, nil
-			case run == 2: // No data returned from Ceph Volume
+			case 2: // No data returned from Ceph Volume
 				return ``, nil
-			case run == 3: // No devices returned from Ceph Volume
+			case 3: // No devices returned from Ceph Volume
 				return `[]`, nil
-			case run == 4: // Error executing Ceph Volume
+			case 4: // Error executing Ceph Volume
 				return ``, fmt.Errorf("unexplainable error")
-			case run == 5: // A device without sys_api data
+			case 5: // A device without sys_api data
 				return `[{"available": true }]`, nil
 			}
 			return "", nil

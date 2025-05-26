@@ -495,8 +495,8 @@ func testCreateStretchCrushRule(t *testing.T, alreadyExists bool) {
 			}
 		}
 		if command == "crushtool" {
-			switch {
-			case args[0] == "--decompile" || args[0] == "--compile":
+			switch args[0] {
+			case "--decompile", "--compile":
 				if alreadyExists {
 					return "", errors.New("--compile or --decompile not expected for already existing crush rule")
 				}
@@ -626,8 +626,8 @@ func testCreateHybridCrushRule(t *testing.T, alreadyExists bool) {
 			}
 		}
 		if command == "crushtool" {
-			switch {
-			case args[0] == "--decompile" || args[0] == "--compile":
+			switch args[0] {
+			case "--decompile", "--compile":
 				if alreadyExists {
 					return "", errors.New("--compile or --decompile not expected for already existing crush rule")
 				}

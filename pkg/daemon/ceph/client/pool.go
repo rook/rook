@@ -187,11 +187,12 @@ func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clus
 		return errors.New("pool name must be specified")
 	}
 	// Override the application name for built-in pools
-	if pool.Name == ".mgr" {
+	switch pool.Name {
+	case ".mgr":
 		pool.Application = "mgr"
-	} else if pool.Name == ".nfs" {
+	case ".nfs":
 		pool.Application = "nfs"
-	} else if pool.Name == ".rgw.root" {
+	case ".rgw.root":
 		pool.Application = "rgw"
 	}
 

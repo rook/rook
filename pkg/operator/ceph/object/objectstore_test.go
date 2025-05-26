@@ -594,9 +594,10 @@ func TestCheckDashboardUser(t *testing.T) {
 	objContext.Context.Executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "dashboard" {
-				if args[1] == "get-rgw-api-access-key" {
+				switch args[1] {
+				case "get-rgw-api-access-key":
 					return access_key, nil
-				} else if args[1] == "get-rgw-api-secret-key" {
+				case "get-rgw-api-secret-key":
 					return secret_key, nil
 				}
 			}
@@ -626,9 +627,10 @@ func TestCheckDashboardUser(t *testing.T) {
 	objContext.Context.Executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "dashboard" {
-				if args[1] == "get-rgw-api-access-key" {
+				switch args[1] {
+				case "get-rgw-api-access-key":
 					return "incorrect", nil
-				} else if args[1] == "get-rgw-api-secret-key" {
+				case "get-rgw-api-secret-key":
 					return "incorrect", nil
 				}
 			}
@@ -663,9 +665,10 @@ func TestDashboard(t *testing.T) {
 		},
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "user" {
-				if args[1] == "info" {
+				switch args[1] {
+				case "info":
 					return "no user info saved", nil
-				} else if args[1] == "create" {
+				case "create":
 					return dashboardAdminCreateJSON, nil
 				}
 			}

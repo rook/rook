@@ -70,17 +70,19 @@ func TestEnablePoolMirroring(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		if args[0] == "mirror" {
-			if args[2] == "enable" {
+			switch args[2] {
+			case "enable":
 				assert.Equal(t, "pool", args[1])
 				assert.Equal(t, pool.Name, args[3])
 				assert.Equal(t, pool.Mirroring.Mode, args[4])
 				return "", nil
-			} else if args[2] == "info" {
+			case "info":
 				assert.Equal(t, "pool", args[1])
 				assert.Equal(t, pool.Name, args[3])
 				return poolInfo, nil
+			default:
+				return "", nil
 			}
-			return "", nil
 		}
 		return "", errors.New("unknown command")
 	}

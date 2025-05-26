@@ -18,9 +18,6 @@ linters:
     rules:
       - linters:
           - staticcheck
-        text: "QF1003:" # could use tagged switch on errCode (staticcheck)
-      - linters:
-          - staticcheck
         text: "QF1008:" # could remove embedded field "Connection" from selector (staticcheck)
       - linters:
           - staticcheck
@@ -28,9 +25,6 @@ linters:
       - linters:
           - staticcheck
         text: "QF1001:" # could apply De Morgan's law (staticcheck)
-      - linters:
-          - staticcheck
-        text: "QF1002:" # could use tagged switch on args[0] (staticcheck)
       - linters:
           - staticcheck
         text: "ST1019" # package "github.com/rook/rook/pkg/daemon/ceph/client" is being imported more than once (staticcheck)

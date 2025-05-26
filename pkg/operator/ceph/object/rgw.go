@@ -404,17 +404,18 @@ func GetTlsCaCert(objContext *Context, objectStoreSpec *cephv1.ObjectStoreSpec) 
 		if err != nil {
 			return nil, false, errors.Wrapf(err, "failed to get secret %q containing TLS certificate defined in %q", objectStoreSpec.Gateway.SSLCertificateRef, objContext.Name)
 		}
-		if tlsSecretCert.Type == v1.SecretTypeOpaque {
+		switch tlsSecretCert.Type {
+		case v1.SecretTypeOpaque:
 			tlsCert, ok = tlsSecretCert.Data[certKeyName]
 			if !ok {
 				return nil, false, errors.Errorf("failed to get TLS certificate from secret, token is %q but key %q does not exist", v1.SecretTypeOpaque, certKeyName)
 			}
-		} else if tlsSecretCert.Type == v1.SecretTypeTLS {
+		case v1.SecretTypeTLS:
 			tlsCert, ok = tlsSecretCert.Data[v1.TLSCertKey]
 			if !ok {
 				return nil, false, errors.Errorf("failed to get TLS certificate from secret, token is %q but key %q does not exist", v1.SecretTypeTLS, v1.TLSCertKey)
 			}
-		} else {
+		default:
 			return nil, false, errors.Errorf("failed to get TLS certificate from secret, unknown secret type %q", tlsSecretCert.Type)
 		}
 		// If the secret contains an indication that the TLS connection should be insecure, then

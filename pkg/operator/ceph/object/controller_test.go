@@ -678,9 +678,10 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 				return realmGetMultisiteJSON, nil
 			}
 			if args[0] == "zonegroup" {
-				if args[1] == "get" {
+				switch args[1] {
+				case "get":
 					return zoneGroupGetMultisiteJSON, nil
-				} else if args[1] == "modify" {
+				case "modify":
 					zoneGroupGetMultisiteJSON = zoneGroupGetMultisiteJSONWithEndpoint
 					return zoneGroupGetMultisiteJSON, nil
 				}

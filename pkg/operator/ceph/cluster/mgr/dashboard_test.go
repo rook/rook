@@ -88,9 +88,10 @@ func TestStartSecureDashboard(t *testing.T) {
 		logger.Infof("command: %s %v", command, args)
 		exitCodeResponse = 0
 		if args[1] == "module" {
-			if args[2] == "enable" {
+			switch args[2] {
+			case "enable":
 				enables++
-			} else if args[2] == "disable" {
+			case "disable":
 				disables++
 			}
 		}
