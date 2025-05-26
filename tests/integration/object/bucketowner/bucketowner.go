@@ -342,7 +342,7 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 
 		// the rgw admin api is used to verify bucket ownership
 		t.Run("setup rgw admin api client", func(t *testing.T) {
-			err, output := installer.Execute("radosgw-admin", []string{"user", "info", "--uid=dashboard-admin", fmt.Sprintf("--rgw-realm=%s", objectStore.Name)}, objectStore.Namespace)
+			output, err := installer.Execute("radosgw-admin", []string{"user", "info", "--uid=dashboard-admin", fmt.Sprintf("--rgw-realm=%s", objectStore.Name)}, objectStore.Namespace)
 			require.NoError(t, err)
 
 			// extract api creds from json output

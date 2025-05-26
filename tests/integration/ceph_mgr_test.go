@@ -117,7 +117,7 @@ func (s *CephMgrSuite) executeWithRetry(command []string, maxRetries int) (strin
 	tries := 0
 	orchestratorCommand := append([]string{"orch"}, command...)
 	for {
-		err, output := s.installer.Execute("ceph", orchestratorCommand, s.namespace)
+		output, err := s.installer.Execute("ceph", orchestratorCommand, s.namespace)
 		tries++
 		if err != nil {
 			if maxRetries == 1 {
@@ -150,7 +150,7 @@ volumeBindingMode: WaitForFirstConsumer
 `
 	err := s.k8sh.ResourceOperation("apply", localStorageClass)
 	if err == nil {
-		err, _ = s.installer.Execute("ceph", []string{"config", "set", "mgr", "mgr/rook/storage_class", storageClassName}, s.namespace)
+		_, err = s.installer.Execute("ceph", []string{"config", "set", "mgr", "mgr/rook/storage_class", storageClassName}, s.namespace)
 		if err == nil {
 			logger.Infof("Storage class %q set in manager config", storageClassName)
 		} else {
@@ -163,7 +163,7 @@ volumeBindingMode: WaitForFirstConsumer
 
 func (s *CephMgrSuite) enableOrchestratorModule() {
 	logger.Info("Enabling Rook orchestrator module: <ceph mgr module enable rook --force>")
-	err, output := s.installer.Execute("ceph", []string{"mgr", "module", "enable", "rook", "--force"}, s.namespace)
+	output, err := s.installer.Execute("ceph", []string{"mgr", "module", "enable", "rook", "--force"}, s.namespace)
 	logger.Infof("output: %s", output)
 	if err != nil {
 		logger.Infof("Failed to enable rook orchestrator module: %q", err)
