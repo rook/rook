@@ -32,7 +32,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -137,7 +136,7 @@ done
 func configOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	secretAndConfigMapVolumeProjections := []v1.VolumeProjection{}
 	name := k8sutil.ConfigOverrideName // configmap name and name of volume
-	dir := config.EtcCephDir
+	dir := opconfig.EtcCephDir
 	file := "ceph.conf"
 	// TL;DR: mount the configmap's "config" to a file called "ceph.conf" with 0444 permissions
 	// security: allow to be read by everyone since now ceph processes run as 'ceph' and not 'root' user
@@ -179,7 +178,7 @@ func configOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 // ConfGeneratedInPodVolumeAndMount generate an empty dir of /etc/ceph
 func ConfGeneratedInPodVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	name := "ceph-conf-emptydir"
-	dir := config.EtcCephDir
+	dir := opconfig.EtcCephDir
 	v := v1.Volume{Name: name, VolumeSource: v1.VolumeSource{
 		EmptyDir: &v1.EmptyDirVolumeSource{},
 	}}
@@ -193,7 +192,7 @@ func ConfGeneratedInPodVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 
 // PodVolumes fills in the volumes parameter with the common list of Kubernetes volumes for use in Ceph pods.
 // This function is only used for OSDs.
-func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, exporterHostPath string, confGeneratedInPod bool) []v1.Volume {
+func PodVolumes(dataPaths *opconfig.DataPathMap, dataDirHostPath string, exporterHostPath string, confGeneratedInPod bool) []v1.Volume {
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath}}
@@ -217,7 +216,7 @@ func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, exporterH
 
 // CephVolumeMounts returns the common list of Kubernetes volume mounts for Ceph containers.
 // This function is only used for OSDs.
-func CephVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []v1.VolumeMount {
+func CephVolumeMounts(dataPaths *opconfig.DataPathMap, confGeneratedInPod bool) []v1.VolumeMount {
 	_, configMount := configOverrideConfigMapVolumeAndMount()
 	if confGeneratedInPod {
 		_, configMount = ConfGeneratedInPodVolumeAndMount()
@@ -236,12 +235,12 @@ func CephVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []
 
 // RookVolumeMounts returns the common list of Kubernetes volume mounts for Rook containers.
 // This function is only used by OSDs.
-func RookVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []v1.VolumeMount {
+func RookVolumeMounts(dataPaths *opconfig.DataPathMap, confGeneratedInPod bool) []v1.VolumeMount {
 	return CephVolumeMounts(dataPaths, confGeneratedInPod)
 }
 
 // DaemonVolumesBase returns the common / static set of volumes.
-func DaemonVolumesBase(dataPaths *config.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.Volume {
+func DaemonVolumesBase(dataPaths *opconfig.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.Volume {
 	configOverrideVolume, _ := configOverrideConfigMapVolumeAndMount()
 	vols := []v1.Volume{
 		configOverrideVolume,
@@ -276,7 +275,7 @@ func DaemonVolumesDataPVC(pvcName string) v1.Volume {
 
 // DaemonVolumesDataHostPath returns HostPath volume source for daemon container
 // data.
-func DaemonVolumesDataHostPath(dataPaths *config.DataPathMap) []v1.Volume {
+func DaemonVolumesDataHostPath(dataPaths *opconfig.DataPathMap) []v1.Volume {
 	vols := []v1.Volume{}
 	if dataPaths.ContainerDataDir == "" {
 		// no data is stored in container, and therefore no data can be persisted to host
@@ -304,7 +303,7 @@ func DaemonVolumesContainsPVC(volumes []v1.Volume) bool {
 
 // DaemonVolumes returns the pod volumes used by all Ceph daemons. If keyring resource name is
 // empty, there will be no keyring volume created from a secret.
-func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.Volume {
+func DaemonVolumes(dataPaths *opconfig.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.Volume {
 	vols := DaemonVolumesBase(dataPaths, keyringResourceName, dataDirHostPath)
 	vols = append(vols, DaemonVolumesDataHostPath(dataPaths)...)
 	return vols
@@ -313,7 +312,7 @@ func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string, da
 // DaemonVolumeMounts returns volume mounts which correspond to the DaemonVolumes. These
 // volume mounts are shared by most all Ceph daemon containers, both init and standard. If keyring
 // resource name is empty, there will be no keyring mounted in the container.
-func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.VolumeMount {
+func DaemonVolumeMounts(dataPaths *opconfig.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.VolumeMount {
 	_, configOverrideMount := configOverrideConfigMapVolumeAndMount()
 	mounts := []v1.VolumeMount{
 		configOverrideMount,
@@ -366,14 +365,14 @@ func AddVolumeMountSubPath(podSpec *v1.PodSpec, volumeMountName string) {
 // DaemonFlags returns the command line flags used by all Ceph daemons.
 func DaemonFlags(cluster *client.ClusterInfo, spec *cephv1.ClusterSpec, daemonID string) []string {
 	flags := append(
-		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath()),
-		config.NewFlag("id", daemonID),
+		opconfig.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath()),
+		opconfig.NewFlag("id", daemonID),
 		// Ceph daemons in Rook will run as 'ceph' instead of 'root'
 		// If we run on a version of Ceph does not these flags it will simply ignore them
 		// run ceph daemon process under the 'ceph' user
-		config.NewFlag("setuser", "ceph"),
+		opconfig.NewFlag("setuser", "ceph"),
 		// run ceph daemon process under the 'ceph' group
-		config.NewFlag("setgroup", "ceph"),
+		opconfig.NewFlag("setgroup", "ceph"),
 	)
 	flags = append(flags, NetworkBindingFlags(cluster, spec)...)
 
@@ -383,9 +382,9 @@ func DaemonFlags(cluster *client.ClusterInfo, spec *cephv1.ClusterSpec, daemonID
 // AdminFlags returns the command line flags used for Ceph commands requiring admin authentication.
 func AdminFlags(cluster *client.ClusterInfo) []string {
 	return append(
-		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().AdminKeyringFilePath()),
-		config.NewFlag("setuser", "ceph"),
-		config.NewFlag("setgroup", "ceph"),
+		opconfig.DefaultFlags(cluster.FSID, keyring.VolumeMount().AdminKeyringFilePath()),
+		opconfig.NewFlag("setuser", "ceph"),
+		opconfig.NewFlag("setgroup", "ceph"),
 	)
 }
 
@@ -397,16 +396,16 @@ func NetworkBindingFlags(cluster *client.ClusterInfo, spec *cephv1.ClusterSpec) 
 	if !spec.Network.DualStack {
 		switch spec.Network.IPFamily {
 		case cephv1.IPv4:
-			args = append(args, config.NewFlag("ms-bind-ipv4", "true"))
-			args = append(args, config.NewFlag("ms-bind-ipv6", "false"))
+			args = append(args, opconfig.NewFlag("ms-bind-ipv4", "true"))
+			args = append(args, opconfig.NewFlag("ms-bind-ipv6", "false"))
 
 		case cephv1.IPv6:
-			args = append(args, config.NewFlag("ms-bind-ipv4", "false"))
-			args = append(args, config.NewFlag("ms-bind-ipv6", "true"))
+			args = append(args, opconfig.NewFlag("ms-bind-ipv4", "false"))
+			args = append(args, opconfig.NewFlag("ms-bind-ipv6", "true"))
 		}
 	} else {
-		args = append(args, config.NewFlag("ms-bind-ipv4", "true"))
-		args = append(args, config.NewFlag("ms-bind-ipv6", "true"))
+		args = append(args, opconfig.NewFlag("ms-bind-ipv4", "true"))
+		args = append(args, opconfig.NewFlag("ms-bind-ipv6", "true"))
 	}
 
 	return args
@@ -425,7 +424,7 @@ func DaemonEnvVars(cephClusterSpec *cephv1.ClusterSpec) []v1.EnvVar {
 
 	return append(
 		cephDaemonsEnvVars,
-		config.StoredMonHostEnvVars()...,
+		opconfig.StoredMonHostEnvVars()...,
 	)
 }
 
@@ -529,7 +528,7 @@ func CheckPodMemory(name string, resources v1.ResourceRequirements, cephPodMinim
 // directory. This is a race condition for all daemons; therefore, do this in an init container.
 // See more discussion here: https://github.com/rook/rook/pull/3594#discussion_r312279176
 func ChownCephDataDirsInitContainer(
-	dpm config.DataPathMap,
+	dpm opconfig.DataPathMap,
 	containerImage string,
 	containerImagePullPolicy v1.PullPolicy,
 	volumeMounts []v1.VolumeMount,
@@ -542,8 +541,8 @@ func ChownCephDataDirsInitContainer(
 		"--verbose",
 		"--recursive",
 		"ceph:ceph",
-		config.VarLogCephDir,
-		config.VarLibCephCrashDir,
+		opconfig.VarLogCephDir,
+		opconfig.VarLibCephCrashDir,
 		daemonSocketDir,
 	)
 	if configDir != "" {
@@ -604,7 +603,7 @@ cat ` + cfgPath + `
 		Image:           containerImage,
 		ImagePullPolicy: containerImagePullPolicy,
 		VolumeMounts:    volumeMounts,
-		Env:             config.StoredMonHostEnvVars(),
+		Env:             opconfig.StoredMonHostEnvVars(),
 		Resources:       resources,
 		SecurityContext: securityContext,
 	}
@@ -690,7 +689,7 @@ func GenerateStartupProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 	probe.InitialDelaySeconds = 10
 	probe.PeriodSeconds = 10
 
-	if daemonType == config.OsdType {
+	if daemonType == opconfig.OsdType {
 		probe.FailureThreshold = startupProbeFailuresDaemonOSD
 	} else {
 		probe.FailureThreshold = startupProbeFailuresDaemonDefault
@@ -716,7 +715,7 @@ func (c *daemonConfig) buildSocketPath() string {
 
 func (c *daemonConfig) buildAdminSocketCommand() string {
 	command := "status"
-	if c.daemonType == config.MonType {
+	if c.daemonType == opconfig.MonType {
 		command = "mon_status"
 	}
 
@@ -824,7 +823,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, env []v1.E
 		},
 		Image:           c.CephVersion.Image,
 		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),
-		VolumeMounts:    DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), "", c.DataDirHostPath),
+		VolumeMounts:    DaemonVolumeMounts(opconfig.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), "", c.DataDirHostPath),
 		SecurityContext: PodSecurityContext(),
 		Resources:       cephv1.GetLogCollectorResources(c.Resources),
 		// We need a TTY for the bash job control (enabled by -m)
@@ -841,11 +840,11 @@ func RgwOpsLogSidecarContainer(opsLogFile, ns string, c cephv1.ClusterSpec, env 
 			"bash",
 			"-x", // Enable debugging mode
 			"-c", // Run the following command
-			fmt.Sprintf("tail -n+1 -F %s", path.Join(config.VarLogCephDir, opsLogFile)),
+			fmt.Sprintf("tail -n+1 -F %s", path.Join(opconfig.VarLogCephDir, opsLogFile)),
 		},
 		Image:           c.CephVersion.Image,
 		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),
-		VolumeMounts:    DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), "", c.DataDirHostPath),
+		VolumeMounts:    DaemonVolumeMounts(opconfig.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), "", c.DataDirHostPath),
 		SecurityContext: PodSecurityContext(),
 		Resources:       Resources,
 		// We need a TTY for the bash job control (enabled by -m)

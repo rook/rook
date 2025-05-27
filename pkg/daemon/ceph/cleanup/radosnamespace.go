@@ -21,11 +21,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
-func RadosNamespaceCleanup(context *clusterd.Context, clusterInfo *client.ClusterInfo, poolName, radosNamespace string) error {
+func RadosNamespaceCleanup(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, poolName, radosNamespace string) error {
 	logger.Infof("starting clean up of CephBlockPoolRadosNamespace %q resources in cephblockpool %q", radosNamespace, poolName)
 
 	err := cleanupImages(context, clusterInfo, poolName, radosNamespace)
@@ -38,7 +37,7 @@ func RadosNamespaceCleanup(context *clusterd.Context, clusterInfo *client.Cluste
 	return nil
 }
 
-func cleanupImages(context *clusterd.Context, clusterInfo *client.ClusterInfo, poolName, radosNamespace string) error {
+func cleanupImages(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, poolName, radosNamespace string) error {
 	msg := fmt.Sprintf("cephblockpool %q", poolName)
 	if radosNamespace != "" {
 		msg = fmt.Sprintf("%s in rados namespace %q", msg, radosNamespace)
@@ -80,7 +79,7 @@ func cleanupImages(context *clusterd.Context, clusterInfo *client.ClusterInfo, p
 	return retErr
 }
 
-func BlockPoolCleanup(context *clusterd.Context, clusterInfo *client.ClusterInfo, poolName string) error {
+func BlockPoolCleanup(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, poolName string) error {
 	logger.Infof("starting clean up of CephBlockPool %q resource", poolName)
 
 	err := cleanupImages(context, clusterInfo, poolName, "")

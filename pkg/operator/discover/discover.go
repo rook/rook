@@ -30,7 +30,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
-	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
@@ -124,7 +123,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 							Name:            discoverDaemonsetName,
 							Image:           discoverImage,
 							Args:            discoveryParameters,
-							SecurityContext: controller.PrivilegedContext(true),
+							SecurityContext: opcontroller.PrivilegedContext(true),
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      "dev",
@@ -235,7 +234,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 		ds.Spec.Template.ObjectMeta.Labels = podLabels
 	}
 
-	if controller.LoopDevicesAllowed() {
+	if opcontroller.LoopDevicesAllowed() {
 		ds.Spec.Template.Spec.Containers[0].Env = append(ds.Spec.Template.Spec.Containers[0].Env,
 			v1.EnvVar{Name: "CEPH_VOLUME_ALLOW_LOOP_DEVICES", Value: "true"})
 	}

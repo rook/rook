@@ -30,7 +30,6 @@ import (
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
-	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/installer"
@@ -576,7 +575,7 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 			require.NoError(t, err)
 			obName := liveObc.Spec.ObjectBucketName
 
-			var liveOb *v1alpha1.ObjectBucket
+			var liveOb *bktv1alpha1.ObjectBucket
 			inSync := utils.Retry(40, time.Second, "OB is Bound", func() bool {
 				var err error
 				liveOb, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
@@ -628,7 +627,7 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 		})
 
 		t.Run(fmt.Sprintf("obc %q has bucketOwner %q set", obc2.Name, obc2.Spec.AdditionalConfig["bucketOwner"]), func(t *testing.T) {
-			var liveObc *v1alpha1.ObjectBucketClaim
+			var liveObc *bktv1alpha1.ObjectBucketClaim
 			obcBound := utils.Retry(40, time.Second, "OBC is Bound", func() bool {
 				var err error
 				liveObc, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc2.Name, metav1.GetOptions{})
@@ -636,7 +635,7 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 					return false
 				}
 
-				return liveObc.Status.Phase == v1alpha1.ObjectBucketClaimStatusPhaseBound
+				return liveObc.Status.Phase == bktv1alpha1.ObjectBucketClaimStatusPhaseBound
 			})
 			require.True(t, obcBound)
 
@@ -649,7 +648,7 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 			require.NoError(t, err)
 			obName := liveObc.Spec.ObjectBucketName
 
-			var liveOb *v1alpha1.ObjectBucket
+			var liveOb *bktv1alpha1.ObjectBucket
 			obBound := utils.Retry(40, time.Second, "OB is Bound", func() bool {
 				var err error
 				liveOb, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
@@ -657,7 +656,7 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 					return false
 				}
 
-				return liveOb.Status.Phase == v1alpha1.ObjectBucketStatusPhaseBound
+				return liveOb.Status.Phase == bktv1alpha1.ObjectBucketStatusPhaseBound
 			})
 			require.True(t, obBound)
 
@@ -757,7 +756,7 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(obcBogusOwner.Namespace).Get(ctx, obcBogusOwner.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
-			assert.True(t, v1alpha1.ObjectBucketClaimStatusPhasePending == liveObc.Status.Phase)
+			assert.True(t, bktv1alpha1.ObjectBucketClaimStatusPhasePending == liveObc.Status.Phase)
 		})
 
 		t.Run(fmt.Sprintf("user %q does not exist", obcBogusOwner.Spec.AdditionalConfig["bucketOwner"]), func(t *testing.T) {
