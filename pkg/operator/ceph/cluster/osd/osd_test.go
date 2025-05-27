@@ -399,12 +399,13 @@ func TestPostReconcileUpdateOSDProperties(t *testing.T) {
 					return osdDFResults, nil
 				}
 				if args[1] == "crush" {
-					if args[2] == "rm-device-class" {
+					switch args[2] {
+					case "rm-device-class":
 						removedDeviceClassOSD = args[3]
-					} else if args[2] == "set-device-class" {
+					case "set-device-class":
 						setDeviceClass = args[3]
 						setDeviceClassOSD = args[4]
-					} else if args[2] == "reweight" {
+					case "reweight":
 						osdID = append(osdID, args[3])
 						crushWeight = append(crushWeight, args[4])
 					}

@@ -476,15 +476,16 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 				}
 			}
 			if req.Method == http.MethodPut {
-				if req.URL.RawQuery == "enabled=false&format=json&max-objects=-1&max-size=-1&quota=&quota-type=user&uid=my-user" ||
-					req.URL.RawQuery == "enabled=true&format=json&max-objects=10000&max-size=-1&quota=&quota-type=user&uid=my-user" ||
-					req.URL.RawQuery == "enabled=true&format=json&max-objects=-1&max-size=10000000000&quota=&quota-type=user&uid=my-user" ||
-					req.URL.RawQuery == "enabled=true&format=json&max-objects=10000&max-size=10000000000&quota=&quota-type=user&uid=my-user" {
+				switch req.URL.RawQuery {
+				case "enabled=false&format=json&max-objects=-1&max-size=-1&quota=&quota-type=user&uid=my-user",
+					"enabled=true&format=json&max-objects=10000&max-size=-1&quota=&quota-type=user&uid=my-user",
+					"enabled=true&format=json&max-objects=-1&max-size=10000000000&quota=&quota-type=user&uid=my-user",
+					"enabled=true&format=json&max-objects=10000&max-size=10000000000&quota=&quota-type=user&uid=my-user":
 					return &http.Response{
 						StatusCode: 200,
 						Body:       io.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
 					}, nil
-				} else if req.URL.RawQuery == "caps=&format=json&uid=my-user&user-caps=users%3Dread%3Bbuckets%3Dwrite%3Broles%3D%2A%3Binfo%3Dread%2C%20write%3B" {
+				case "caps=&format=json&uid=my-user&user-caps=users%3Dread%3Bbuckets%3Dwrite%3Broles%3D%2A%3Binfo%3Dread%2C%20write%3B":
 					return &http.Response{
 						StatusCode: 200,
 						Body:       io.NopCloser(bytes.NewReader([]byte(userCapsJSON))),

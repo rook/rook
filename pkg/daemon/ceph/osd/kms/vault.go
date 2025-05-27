@@ -236,11 +236,12 @@ func validateVaultConnectionDetails(ctx context.Context, clusterdContext *cluste
 }
 
 func tlsSecretKeyToCheck(tlsOption string) string {
-	if tlsOption == api.EnvVaultCACert || tlsOption == api.EnvVaultClientCert {
+	switch tlsOption {
+	case api.EnvVaultCACert, api.EnvVaultClientCert:
 		return vaultCACertSecretKeyName
-	} else if tlsOption == api.EnvVaultClientKey {
+	case api.EnvVaultClientKey:
 		return vaultKeySecretKeyName
+	default:
+		return ""
 	}
-
-	return ""
 }

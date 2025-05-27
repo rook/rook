@@ -260,9 +260,10 @@ var mockExecutor = &exectest.MockExecutor{
 		logger.Infof("Command: %s %v", command, args)
 		// Fake pool details for "rook-ceph-primary" cluster
 		if args[0] == "osd" && args[1] == "pool" && args[2] == "get" && strings.HasSuffix(args[6], ns) {
-			if args[3] == "mirrorPool1" {
+			switch args[3] {
+			case "mirrorPool1":
 				return `{"pool_id": 1}`, nil
-			} else if args[3] == "mirrorPool2" {
+			case "mirrorPool2":
 				return `{"pool_id": 2}`, nil
 			}
 		}
@@ -271,13 +272,14 @@ var mockExecutor = &exectest.MockExecutor{
 	MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "osd" && args[1] == "pool" && args[2] == "get" && strings.HasSuffix(args[5], "peer1") {
-			if args[3] == "mirrorPool1" {
+			switch args[3] {
+			case "mirrorPool1":
 				err := saveMockDataInTempFile(`{"pool_id": 2}`, peerPoolTempFile)
 				if err != nil {
 					return "", err
 				}
 				return `{"pool_id": 2}`, nil
-			} else if args[3] == "mirrorPool2" {
+			case "mirrorPool2":
 				err := saveMockDataInTempFile(`{"pool_id": 3}`, peerPoolTempFile)
 				if err != nil {
 					return "", err
@@ -286,13 +288,14 @@ var mockExecutor = &exectest.MockExecutor{
 			}
 		}
 		if args[0] == "osd" && args[1] == "pool" && args[2] == "get" && strings.HasSuffix(args[5], "peer2") {
-			if args[3] == "mirrorPool1" {
+			switch args[3] {
+			case "mirrorPool1":
 				err := saveMockDataInTempFile(`{"pool_id": 3}`, peerPoolTempFile)
 				if err != nil {
 					return "", err
 				}
 				return `{"pool_id": 3}`, nil
-			} else if args[3] == "mirrorPool2" {
+			case "mirrorPool2":
 				err := saveMockDataInTempFile(`{"pool_id": 4}`, peerPoolTempFile)
 				if err != nil {
 					return "", err
@@ -301,13 +304,13 @@ var mockExecutor = &exectest.MockExecutor{
 			}
 		}
 		if args[0] == "osd" && args[1] == "pool" && args[2] == "get" && strings.HasSuffix(args[5], "peer3") {
-			if args[3] == "mirrorPool1" {
+			switch args[3] {
+			case "mirrorPool1":
 				err := saveMockDataInTempFile(`{"pool_id": 4}`, peerPoolTempFile)
 				if err != nil {
 					return "", err
 				}
-				return `{"pool_id": 4}`, nil
-			} else if args[3] == "mirrorPool2" {
+			case "mirrorPool2":
 				err := saveMockDataInTempFile(`{"pool_id": 5}`, peerPoolTempFile)
 				if err != nil {
 					return "", err

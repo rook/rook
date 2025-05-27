@@ -75,11 +75,12 @@ func TestRadosRemoveObject(t *testing.T) {
 				subCommand := arg[4]
 				assert.Equal(t, arg[5], "someobj")
 
-				if subCommand == "stat" {
+				switch subCommand {
+				case "stat":
 					return "", nil // successful stat means obj exists
-				} else if subCommand == "rm" {
+				case "rm":
 					return "", errors.New("induced rm error")
-				} else {
+				default:
 					panic(fmt.Sprintf("unhandled subcommand %q", subCommand))
 				}
 			},

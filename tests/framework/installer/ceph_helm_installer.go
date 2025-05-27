@@ -200,11 +200,12 @@ func (h *CephInstaller) ConfirmHelmClusterInstalledCorrectly() error {
 
 	foundStorageClasses := 0
 	for _, storageClass := range storageClassList.Items {
-		if storageClass.Name == BlockPoolSCName {
+		switch storageClass.Name {
+		case BlockPoolSCName:
 			foundStorageClasses++
-		} else if storageClass.Name == FilesystemSCName {
+		case FilesystemSCName:
 			foundStorageClasses++
-		} else if storageClass.Name == ObjectStoreSCName {
+		case ObjectStoreSCName:
 			foundStorageClasses++
 		}
 	}

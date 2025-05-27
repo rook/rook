@@ -117,21 +117,21 @@ func TestGetPartitions(t *testing.T) {
 		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
 			run++
 			logger.Infof("run %d command %s", run, command)
-			switch {
-			case run == 1:
+			switch run {
+			case 1:
 				return `NAME="sdc" SIZE="100000" TYPE="disk" PKNAME=""`, nil
-			case run == 2:
+			case 2:
 				return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME=""
 NAME="sdb2" SIZE="10" TYPE="part" PKNAME="sdb"
 NAME="sdb3" SIZE="20" TYPE="part" PKNAME="sdb"
 NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
-			case run == 3:
+			case 3:
 				return fmt.Sprintf(udevPartOutput, "ROOK-OSD0-DB"), nil
-			case run == 4:
+			case 4:
 				return fmt.Sprintf(udevPartOutput, "ROOK-OSD0-BLOCK"), nil
-			case run == 5:
+			case 5:
 				return fmt.Sprintf(udevPartOutput, "ROOK-OSD0-WAL"), nil
-			case run == 6:
+			case 6:
 				return `NAME="sda" SIZE="19818086400" TYPE="disk" PKNAME=""
 NAME="sda4" SIZE="1073741824" TYPE="part" PKNAME="sda"
 NAME="sda2" SIZE="2097152" TYPE="part" PKNAME="sda"
@@ -141,7 +141,7 @@ NAME="sda3" SIZE="1073741824" TYPE="part" PKNAME="sda"
 NAME="usr" SIZE="1065345024" TYPE="crypt" PKNAME="sda3"
 NAME="sda1" SIZE="134217728" TYPE="part" PKNAME="sda"
 NAME="sda6" SIZE="134217728" TYPE="part" PKNAME="sda"`, nil
-			case run == 14:
+			case 14:
 				return `NAME="dm-0" SIZE="100000" TYPE="lvm" PKNAME=""
 NAME="ceph--89fa04fa--b93a--4874--9364--c95be3ec01c6-osd--data--70847bdb--2ec1--4874--98ba--d87d4860a70d" SIZE="31138512896" TYPE="lvm" PKNAME=""`, nil
 			}

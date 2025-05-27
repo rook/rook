@@ -550,11 +550,12 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			// It is particularly useful when a metadata PVC is used because we need to identify it in the map
 			// So the entry must be named "metadata" so it can accessed later
 			if agent.pvcBacked {
-				if device.Type == pvcDataTypeDevice {
+				switch device.Type {
+				case pvcDataTypeDevice:
 					available.Entries[pvcDataTypeDevice] = deviceInfo
-				} else if device.Type == pvcMetadataTypeDevice {
+				case pvcMetadataTypeDevice:
 					available.Entries[pvcMetadataTypeDevice] = deviceInfo
-				} else if device.Type == pvcWalTypeDevice {
+				case pvcWalTypeDevice:
 					available.Entries[pvcWalTypeDevice] = deviceInfo
 				}
 			} else {

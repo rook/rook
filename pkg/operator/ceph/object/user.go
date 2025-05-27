@@ -178,9 +178,10 @@ func CreateOrRecreateUserIfExists(c *Context, user ObjectUser, force bool) (*Obj
 		return nil, errCode, err
 	}
 
-	if errCode == RGWErrorNone {
+	switch errCode {
+	case RGWErrorNone:
 		return objUser, errCode, err
-	} else if errCode == ErrorCodeFileExists {
+	case ErrorCodeFileExists:
 		// If the user already exists, delete and re-create it
 		_, err := DeleteUser(c, user.UserID)
 		if err != nil {
