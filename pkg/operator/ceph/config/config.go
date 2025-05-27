@@ -49,6 +49,9 @@ const (
 	// RgwType defines the rgw DaemonType
 	RgwType = "rgw"
 
+	// NfsType defines the nfs DaemonType
+	NfsType = "nfs"
+
 	// RbdMirrorType defines the rbd-mirror DaemonType
 	RbdMirrorType = "rbd-mirror"
 

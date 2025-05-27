@@ -26,11 +26,16 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -206,4 +211,119 @@ func TestReconcileCephNFS_upCephNFS(t *testing.T) {
 		names = append(names, svc.Name)
 	}
 	assert.ElementsMatch(t, []string{"rook-ceph-nfs-my-nfs-a", "rook-ceph-nfs-my-nfs-b"}, names)
+}
+
+func TestUpCephNFS_SkipsReconcile(t *testing.T) {
+	ns := "skip-nfs-test"
+	s := scheme.Scheme
+	daemonID := "a"
+
+	clientset := k8sfake.NewSimpleClientset()
+	client := fake.NewClientBuilder().WithScheme(s).Build()
+
+	dep := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-nfs-my-nfs-a",
+			Namespace: ns,
+			Labels: map[string]string{
+				k8sutil.AppAttr:              AppName,
+				cephv1.SkipReconcileLabelKey: "true",
+				config.NfsType:               daemonID,
+			},
+		},
+	}
+	_, err := clientset.AppsV1().Deployments(ns).Create(context.TODO(), dep, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	executor := &exectest.MockExecutor{}
+
+	r := &ReconcileCephNFS{
+		scheme: s,
+		context: &clusterd.Context{
+			Executor:  executor,
+			Client:    client,
+			Clientset: clientset,
+		},
+		clusterInfo: &cephclient.ClusterInfo{
+			FSID:        "fsid-test",
+			CephVersion: cephver.Squid,
+			Context:     context.TODO(),
+			Namespace:   ns,
+		},
+		cephClusterSpec: &cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{
+				Image: "quay.io/ceph/ceph:v19",
+			},
+		},
+	}
+
+	nfs := &cephv1.CephNFS{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-nfs",
+			Namespace: ns,
+		},
+		Spec: cephv1.NFSGaneshaSpec{
+			Server: cephv1.GaneshaServerSpec{
+				Active: 1,
+			},
+			RADOS: cephv1.GaneshaRADOSSpec{
+				Pool:      "myfs-pool",
+				Namespace: "nfs-ns",
+			},
+		},
+	}
+
+	err = r.upCephNFS(nfs)
+	assert.NoError(t, err)
+}
+
+func TestUpCephNFS_SkipReconcileFails(t *testing.T) {
+	ns := "skip-nfs-test-fail"
+	s := scheme.Scheme
+
+	// Create a clientset that always returns error for List
+	clientset := &k8sfake.Clientset{}
+	clientset.PrependReactor("list", "deployments", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New("simulated list failure")
+	})
+
+	r := &ReconcileCephNFS{
+		scheme: s,
+		context: &clusterd.Context{
+			Executor:  &exectest.MockExecutor{},
+			Client:    fake.NewClientBuilder().WithScheme(s).Build(),
+			Clientset: clientset,
+		},
+		clusterInfo: &cephclient.ClusterInfo{
+			FSID:        "fsid-fail",
+			CephVersion: cephver.Squid,
+			Context:     context.TODO(),
+			Namespace:   ns,
+		},
+		cephClusterSpec: &cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{
+				Image: "quay.io/ceph/ceph:v19",
+			},
+		},
+	}
+
+	nfs := &cephv1.CephNFS{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-nfs-fail",
+			Namespace: ns,
+		},
+		Spec: cephv1.NFSGaneshaSpec{
+			Server: cephv1.GaneshaServerSpec{
+				Active: 1,
+			},
+			RADOS: cephv1.GaneshaRADOSSpec{
+				Pool:      "some-pool",
+				Namespace: "nfs-ns",
+			},
+		},
+	}
+
+	err := r.upCephNFS(nfs)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to check for NFS daemons to skip reconcile")
 }
