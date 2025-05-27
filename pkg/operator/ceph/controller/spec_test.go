@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -571,4 +572,69 @@ func TestDaemonEnvVars(t *testing.T) {
 
 	got = ApplyNetworkEnv(clusterSpec)
 	assert.Equal(t, want, got)
+}
+
+func TestGetDaemonsToSkipReconcile(t *testing.T) {
+	tests := []struct {
+		name             string
+		labels           map[string]string
+		expectedSkip     bool
+		expectedDaemonID string
+	}{
+		{
+			name: "has skip-reconcile label",
+			labels: map[string]string{
+				k8sutil.AppAttr:              "rook-ceph-nfs",
+				cephv1.SkipReconcileLabelKey: "true",
+				config.NfsType:               "a",
+			},
+			expectedSkip:     true,
+			expectedDaemonID: "a",
+		},
+		{
+			name: "no skip-reconcile label",
+			labels: map[string]string{
+				k8sutil.AppAttr: "rook-ceph-nfs",
+				config.NfsType:  "b",
+			},
+			expectedSkip:     false,
+			expectedDaemonID: "b",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			namespace := "rook-ceph"
+			daemonName := "nfs"
+			appLabel := "rook-ceph-nfs"
+
+			clientset := test.New(t, 1)
+
+			dep := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("%s-%s-%s", appLabel, daemonName, tt.expectedDaemonID),
+					Namespace: namespace,
+					Labels:    tt.labels,
+				},
+			}
+
+			_, err := clientset.AppsV1().Deployments(namespace).Create(context.TODO(), dep, metav1.CreateOptions{})
+			assert.NoError(t, err)
+
+			clusterdCtx := &clusterd.Context{
+				Clientset: clientset,
+			}
+
+			result, err := GetDaemonsToSkipReconcile(context.TODO(), clusterdCtx, namespace, daemonName, appLabel)
+			assert.NoError(t, err)
+
+			if tt.expectedSkip {
+				assert.Len(t, result, 1)
+				assert.True(t, result.Has(tt.expectedDaemonID), "expected daemon ID %q to be skipped", tt.expectedDaemonID)
+			} else {
+				assert.Len(t, result, 0)
+				assert.False(t, result.Has(tt.expectedDaemonID), "expected daemon ID %q NOT to be skipped", tt.expectedDaemonID)
+			}
+		})
+	}
 }
