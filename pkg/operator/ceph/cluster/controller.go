@@ -94,7 +94,7 @@ type ClusterController struct {
 	OpManagerCtx   context.Context
 }
 
-// ReconcileCephCluster reconciles a CephFilesystem object
+// ReconcileCephCluster reconciles a CephCluster object
 type ReconcileCephCluster struct {
 	client            client.Client
 	scheme            *apituntime.Scheme
