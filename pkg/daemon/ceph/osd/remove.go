@@ -256,9 +256,9 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 	logger.Infof("destroying osd.%d", osdInfo.ID)
 	destroyOSDArgs := []string{"osd", "destroy", fmt.Sprintf("osd.%d", osdInfo.ID), "--yes-i-really-mean-it"}
 	_, err = client.NewCephCommand(context, clusterInfo, destroyOSDArgs).Run()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to destroy osd.%d.", osdInfo.ID)
-	}
+	// err != nil {
+		//return nil, errors.Wrapf(err, "failed to destroy osd.%d.", osdInfo.ID)
+	//}
 	logger.Infof("successfully destroyed osd.%d", osdInfo.ID)
 
 	// in case of OSD on PVs, fetch the actual device name for the mounted /mnt/<pvc-name>
@@ -279,6 +279,7 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get device info for %q", blockPath)
 		}
+		logger.Infof("%+v\n", diskInfo)
 		osdInfo.BlockPath = diskInfo.RealPath
 	}
 
