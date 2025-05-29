@@ -130,8 +130,8 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 
 	   rotate keys based on timing?
 	   - keep status that has `date -u` from when the key was rotated, applied to secret, and status updated
-	   - input, `ROOK_ROTATE_CEPHX_KEYS_PERIOD: <time.Duration>` (e.g. 2160h0m0s (90 days), 0 means don't rotate?)
-	   - input, `ROOK_ROTATE_CEPHX_KEYS_OLDER_THAN: time in date -u format` to do onetime rotation
+	   - input, `ROOK_ROTATE_LOCAL_CEPHX_KEYS_PERIOD: <time.Duration>` (e.g. 2160h0m0s (90 days), 0 means don't rotate?)
+	   - input, `ROOK_ROTATE_LOCAL_CEPHX_KEYS_OLDER_THAN: time in date -u format` to do onetime rotation
 	   - user can do key rotation when desired, and no need to invent another mechanic
 	   - can slap the approximate time when the key was rotated as an annotation on the pod to restart
 	   - will still probably have to track last reconcile rotation time on CRD status? -- can do better?

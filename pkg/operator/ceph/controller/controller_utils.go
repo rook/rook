@@ -67,7 +67,7 @@ const (
 	OperatorNotInitializedMessage = "skipping reconcile since operator is still initializing"
 
 	// operator config: allow enabling/disabling regular, automatic cephx key rotation
-	rotateCephxKeysSettingName  string = "ROOK_ROTATE_CEPHX_KEYS"
+	rotateCephxKeysSettingName  string = "ROOK_ROTATE_LOCAL_CEPHX_KEYS"
 	rotateCephxKeysDefaultValue string = "false"
 )
 

@@ -155,9 +155,8 @@ func objectChanged(oldObj, newObj runtime.Object, objectName string) (bool, erro
 		logger.Debugf("object %q diff is [redacted for Secrets]", objectName)
 		isSensitive = true
 
-		// keyring secrets are a special case. rook updates these secrets during reconciliation as
-		// needed, and daemon pods automatically get updated keys with no need for a repeated
-		// reconcile. when key rotation is enabled, this helps avoid reconcile loops
+		// keyring secrets are a special case. rook updates these during reconciliation as needed,
+		// and daemon pods automatically get updated keys with no need for another reconcile
 		if _, ok := s.ObjectMeta.Annotations[keyring.KeyringAnnotation]; ok {
 			logger.Debugf("not reconciling update to cephx keyring secret %q", objectName)
 			return false, nil

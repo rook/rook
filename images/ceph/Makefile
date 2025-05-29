@@ -18,7 +18,7 @@ include ../image.mk
 # Image Build Options
 
 # ===== TESTING TESTING TESTING TESTING =====
-CEPH_VERSION ?= main-arm64
+CEPH_VERSION ?= wip-pdonnell-68f47b56-debug-arm64
 REGISTRY_NAME = quay.ceph.io
 BASEIMAGE = $(REGISTRY_NAME)/ceph-ci/ceph:$(CEPH_VERSION)
 # ===== TESTING TESTING TESTING TESTING =====
