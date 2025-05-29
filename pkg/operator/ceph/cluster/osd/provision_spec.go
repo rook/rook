@@ -294,12 +294,9 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 				}
 				envVars = append(envVars, kms.ConfigToEnvVar(c.spec)...)
 				if c.spec.Security.KeyManagementService.IsKMIPKMS() {
-					envVars = append(envVars, cephVolumeRawEncryptedEnvVarFromSecret(osdProps))
 					_, volmeMountsKMIP := kms.KMIPVolumeAndMount(c.spec.Security.KeyManagementService.TokenSecretName)
 					volumeMounts = append(volumeMounts, volmeMountsKMIP)
 				}
-			} else {
-				envVars = append(envVars, cephVolumeRawEncryptedEnvVarFromSecret(osdProps))
 			}
 		}
 	} else {
