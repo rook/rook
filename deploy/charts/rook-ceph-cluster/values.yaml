@@ -30,6 +30,8 @@ toolbox:
   tolerations: []
   # -- Toolbox affinity
   affinity: {}
+  # -- Toolbox labels
+  labels: {}
   # -- Toolbox container security context
   containerSecurityContext:
     runAsNonRoot: true

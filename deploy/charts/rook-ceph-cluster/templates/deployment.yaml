@@ -7,6 +7,9 @@ metadata:
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
     app: rook-ceph-tools
+    {{- if .Values.toolbox.labels }}
+    {{- toYaml .Values.toolbox.labels | nindent 4 }}
+    {{- end }}
 spec:
   replicas: 1
 {{- if .Values.revisionHistoryLimit }}
@@ -19,6 +22,9 @@ spec:
     metadata:
       labels:
         app: rook-ceph-tools
+        {{- if .Values.toolbox.labels }}
+        {{- toYaml .Values.toolbox.labels | nindent 8 }}
+        {{- end }}
     spec:
       dnsPolicy: ClusterFirstWithHostNet
 {{- $network := .Values.cephClusterSpec.network | default dict -}}
