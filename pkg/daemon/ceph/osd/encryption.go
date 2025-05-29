@@ -70,13 +70,6 @@ func setKEKinEnv(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo)
 	// pick it up
 	clusterSpec := &v1.ClusterSpec{Security: v1.SecuritySpec{KeyManagementService: v1.KeyManagementServiceSpec{ConnectionDetails: kms.ConfigEnvsToMapString()}}}
 
-	// If KMS is not enabled this code does not need to run since we attach the KEK value from the
-	// Kubernetes Secret in the provision pod spec (mounted as an environment variable)
-	if !clusterSpec.Security.KeyManagementService.IsEnabled() {
-		logger.Debug("cluster-wide encryption is enabled with kubernetes secrets and the kek is attached to the provision env spec")
-		return nil
-	}
-
 	// The ibm key protect library does not read any environment variables, so we must set the
 	// service api key (coming from the secret mounted as environment variable) in the KMS
 	// connection details. These details are used to build the client connection
