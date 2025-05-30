@@ -129,7 +129,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+          kubernetes-version: "1.33.1"
 
       - name: TestCephSmokeSuite
         run: |
@@ -169,7 +169,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+          kubernetes-version: "1.33.1"
 
       - name: TestCephSmokeSuite
         run: |
@@ -191,6 +191,46 @@ jobs:
           name: ceph-smoke-suite-squid-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
+  smoke-suite-tentacle-devel:
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-config-latest-k8s
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: "1.33.1"
+
+      - name: TestCephSmokeSuite
+        run: |
+          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="tentacle-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
+
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="smoke-ns"
+          export OPERATOR_NAMESPACE="smoke-ns-system"
+          tests/scripts/collect-logs.sh
+
+      - name: Artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: ceph-smoke-suite-tentacle-artifact
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
   smoke-suite-ceph-main:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-22.04
@@ -209,7 +249,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+          kubernetes-version: "1.33.1"
 
       - name: TestCephSmokeSuite
         run: |
@@ -249,7 +289,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+          kubernetes-version: "1.33.1"
 
       - name: TestCephObjectSuite
         run: |
@@ -289,7 +329,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+          kubernetes-version: "1.33.1"
 
       - name: TestCephUpgradeSuite
         run: |
@@ -330,7 +370,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+          kubernetes-version: "1.33.1"
 
       - name: TestCephUpgradeSuite
         run: |
