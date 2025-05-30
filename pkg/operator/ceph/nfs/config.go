@@ -96,7 +96,7 @@ func getGaneshaConfig(n *cephv1.CephNFS, version cephver.CephVersion, name strin
 	nodeID := getNFSNodeID(n, name)
 	userID := getNFSUserID(nodeID)
 	url := getRadosURL(n)
-	return `
+	config := `
 NFS_CORE_PARAM {
 	Enable_NLM = false;
 	Enable_RQUOTA = false;
@@ -137,7 +137,18 @@ RGW {
 }
 
 %url	` + url + `
+
 `
+
+	if version.IsAtLeast(cephver.Tentacle) {
+		config += `
+Ceph {
+	use_old_uuid = true;
+}
+`
+	}
+
+	return config
 }
 
 func ganeshaKrbConfigBlock(kerberosSpec *cephv1.KerberosSpec) string {
