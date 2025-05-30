@@ -3030,6 +3030,11 @@ type CleanupPolicySpec struct {
 	// AllowUninstallWithVolumes defines whether we can proceed with the uninstall if they are RBD images still present
 	// +optional
 	AllowUninstallWithVolumes bool `json:"allowUninstallWithVolumes,omitempty"`
+
+	// WipeDevicesFromOtherClusters wipes the OSD disks belonging to other clusters. This is useful in scenarios where ceph cluster
+	// was reinstalled but OSD disk still contains the metadata from previous ceph cluster.
+	// +optional
+	WipeDevicesFromOtherClusters bool `json:"wipeDevicesFromOtherClusters"`
 }
 
 // CleanupConfirmationProperty represents the cleanup confirmation
