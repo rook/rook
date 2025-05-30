@@ -216,7 +216,7 @@ func TestReconcileCephNFS_upCephNFS(t *testing.T) {
 func TestUpCephNFS_SkipsReconcile(t *testing.T) {
 	ns := "skip-nfs-test"
 	s := scheme.Scheme
-	daemonID := "a"
+	daemonID := "my-nfs-a"
 
 	clientset := k8sfake.NewSimpleClientset()
 	client := fake.NewClientBuilder().WithScheme(s).Build()
