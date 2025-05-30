@@ -53,7 +53,8 @@ import (
 )
 
 const (
-	controllerName = "ceph-fs-subvolumegroup-controller"
+	controllerName             = "ceph-fs-subvolumegroup-controller"
+	cephSVGFileSystemNameIndex = "FilesystemName/subvolumeGroupName"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
@@ -79,6 +80,16 @@ type ReconcileCephFilesystemSubVolumeGroup struct {
 // Add creates a new CephFilesystemSubVolumeGroup Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	if err := mgr.GetFieldIndexer().IndexField(opManagerContext, &cephv1.CephFilesystemSubVolumeGroup{}, cephSVGFileSystemNameIndex, func(obj client.Object) []string {
+		svg, ok := obj.(*cephv1.CephFilesystemSubVolumeGroup)
+		if !ok {
+			return nil
+		}
+
+		return []string{fmt.Sprintf("%s/%s", svg.Spec.FilesystemName, getSubvolumeGroupName(svg))}
+	}); err != nil {
+		return fmt.Errorf("failed to index CephFilesystemSubVolumeGroup by %s: %v", cephSVGFileSystemNameIndex, err)
+	}
 	return add(mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
@@ -201,10 +212,25 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	// DELETE: the CR was deleted
 	if !cephFilesystemSubVolumeGroup.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("deleting subvolume group %q", namespacedName)
+
+		cephFsSvgList := &cephv1.CephFilesystemSubVolumeGroupList{}
+		namespaceListOpts := client.InNamespace(cephCluster.Namespace)
+		// List cephFilesystemSubvolumeGroup CR based on filesystem and spec.name
+		matchingKey := fmt.Sprintf("%s/%s", cephFilesystemSubVolumeGroup.Spec.FilesystemName, getSubvolumeGroupName(cephFilesystemSubVolumeGroup))
+		err = r.client.List(r.opManagerContext, cephFsSvgList, &client.MatchingFields{cephSVGFileSystemNameIndex: matchingKey}, namespaceListOpts)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to list cephFilesystemSubvolumeGroup")
+		}
+
 		// On external cluster, we don't delete the subvolume group, it has to be deleted manually
 		if cephCluster.Spec.External.Enable {
 			logger.Warningf("external subvolume group %q deletion is not supported, delete it manually", namespacedName)
-		} else {
+		} else if len(cephFsSvgList.Items) <= 1 {
+			// If we have more than one cephFilesystemSubvolumeGroup CR with same spec.filesystem and same spec.name,
+			// skip the call to deleteSubVolumeGroup(). This allows the finalizer to be removed without
+			// checking if the subvolume group contains any data. Thus, any extra CRs referencing the same
+			// subvolume group and filesystem can be easily deleted. Only the last subvolumegroup CR referencing the same
+			// svg would actually check if there is data in the svg.
 			err = r.deleteSubVolumeGroup(cephFilesystemSubVolumeGroup, &cephCluster)
 			if err != nil {
 				if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
@@ -213,11 +239,15 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 				}
 				return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 			}
+		} else {
+			logger.Infof("Removing finalizer from SVG CR %s without checking if the subvolume group contains any data as more than one SVG(count %d) contains the same filesystem and same SVG.", cephFilesystemSubVolumeGroup.Name, len(cephFsSvgList.Items))
 		}
 
-		err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Namespace, r.clusterInfo, nil)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
+		if len(cephFsSvgList.Items) <= 1 {
+			err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Namespace, r.clusterInfo, nil)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
+			}
 		}
 
 		// Remove finalizer

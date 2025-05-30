@@ -52,7 +52,8 @@ import (
 )
 
 const (
-	controllerName = "blockpool-rados-namespace-controller"
+	controllerName   = "blockpool-rados-namespace-controller"
+	cephRNSNameIndex = "blockPoolName/radosNamespaceName"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
@@ -87,6 +88,16 @@ type mirrorHealth struct {
 // Manager. The Manager will set fields on the Controller and Start it when the
 // Manager is Started.
 func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	if err := mgr.GetFieldIndexer().IndexField(opManagerContext, &cephv1.CephBlockPoolRadosNamespace{}, cephRNSNameIndex, func(obj client.Object) []string {
+		rns, ok := obj.(*cephv1.CephBlockPoolRadosNamespace)
+		if !ok {
+			return nil
+		}
+
+		return []string{fmt.Sprintf("%s/%s", rns.Spec.BlockPoolName, cephv1.GetRadosNamespaceName(rns))}
+	}); err != nil {
+		return fmt.Errorf("failed to index CephRadosNamespaceName by %s: %v", cephRNSNameIndex, err)
+	}
 	return add(mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
@@ -214,11 +225,25 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 
 	// DELETE: the CR was deleted
 	if !radosNamespace.GetDeletionTimestamp().IsZero() {
+		cephRNSList := &cephv1.CephBlockPoolRadosNamespaceList{}
+		namespaceListOpts := client.InNamespace(cephCluster.Namespace)
+		// List cephBlockPoolRadosNamespace CR based on spec.blockPoolName and spec.name
+		matchingKey := fmt.Sprintf("%s/%s", radosNamespace.Spec.BlockPoolName, cephv1.GetRadosNamespaceName(radosNamespace))
+		err = r.client.List(r.opManagerContext, cephRNSList, &client.MatchingFields{cephRNSNameIndex: matchingKey}, namespaceListOpts)
+		if err != nil {
+			return reconcile.Result{}, radosNamespace, errors.Wrap(err, "failed to list cephBlockPoolRadosNamespace")
+		}
+
 		logger.Debugf("delete cephBlockPoolRadosNamespace %q", namespacedName)
 		// On external cluster, we don't delete the rados namespace, it has to be deleted manually
 		if cephCluster.Spec.External.Enable {
 			logger.Warning("external rados namespace %q deletion is not supported, delete it manually", namespacedName)
-		} else {
+		} else if len(cephRNSList.Items) <= 1 {
+			// If we have more than one cephBlockPoolRadosNamespace CR with same spec.blockPoolName and same spec.name,
+			// skip the call to deleteRadosNamespace(). This allows the finalizer to be removed without
+			// checking if the radosnamespaceName contains any data. Thus, any extra CRs referencing the same
+			// spec.name and spec.blockPoolName can be easily deleted. Only the last radosNamespace CR referencing the same
+			// blockPoolName would actually check if there is data in the radosNamespace.
 			if containsImages, err := r.deleteRadosNamespace(radosNamespace, &cephCluster); err != nil {
 				if containsImages {
 					return opcontroller.WaitForRequeueIfFinalizerBlocked, radosNamespace, err
@@ -232,11 +257,17 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 			// If the ceph block pool is still in the map, we must remove it during CR deletion
 			// We must remove it first otherwise the checker will panic since the status/info will be nil
 			r.cancelMirrorMonitoring(radosNamespaceChannelKeyName(radosNamespace.Namespace, poolAndRadosNamespaceName))
+		} else {
+			logger.Infof("Removing finalizer from RNS CR %s without checking if the radosnamespaceName contains any data since more than one RNS(count %d) contains the same blockPool and rados name", radosNamespace.Name, len(cephRNSList.Items))
 		}
-		err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(radosNamespace), cephCluster.Namespace, r.clusterInfo, nil)
-		if err != nil {
-			return reconcile.Result{}, radosNamespace, errors.Wrap(err, "failed to save cluster config")
+
+		if len(cephRNSList.Items) <= 1 {
+			err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(radosNamespace), cephCluster.Namespace, r.clusterInfo, nil)
+			if err != nil {
+				return reconcile.Result{}, radosNamespace, errors.Wrap(err, "failed to save cluster config")
+			}
 		}
+
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, radosNamespace)
 		if err != nil {
