@@ -439,6 +439,23 @@ type ClusterStatus struct {
 	CephStatus  *CephStatus     `json:"ceph,omitempty"`
 	CephStorage *CephStorage    `json:"storage,omitempty"`
 	CephVersion *ClusterVersion `json:"version,omitempty"`
+
+	// TODO: this is not part of the CephObjectStore/RGW work, but some struct decisions made here
+	// will affect other components, so let's have a rough idea of the CephCluster status API while
+	// doing this design.
+	CephxKeyringsVersions struct {
+		// TODO: We can track these separately (all mons, all mgrs, all OSDs) or track once for the
+		// whole CephCluster. IMO, once for the whole cluster is fine, but separate is an option
+		Mon     CephxKeyringsVersion
+		Mgr     CephxKeyringsVersion
+		Osd     CephxKeyringsVersion
+		Cluster CephxKeyringsVersion
+
+		// at minimum CSI must be tracked separately, and must be optional for clusters where CSI
+		// management is disabled
+		CSI CephxKeyringsVersion
+	} `json:"cephxKeyringsVersions,omitempty"`
+
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -522,6 +539,11 @@ type ClusterVersion struct {
 	Image   string `json:"image,omitempty"`
 	Version string `json:"version,omitempty"`
 }
+
+// CephxKeyringsVersion reports the Ceph version that minted the associated CephX keyring(s).
+// Empty represents that an unknown Ceph version minted the CephX keyring(s).
+// IMPORTANT: This field must be directly comparable to ClusterVersion.Version.
+type CephxKeyringsVersion string
 
 // CephHealthMessage represents the health message of a Ceph Cluster
 type CephHealthMessage struct {

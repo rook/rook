@@ -65,6 +65,10 @@ const (
 
 	// OperatorNotInitializedMessage is the message we print when the Operator is not ready to reconcile, typically the ceph.conf has not been generated yet
 	OperatorNotInitializedMessage = "skipping reconcile since operator is still initializing"
+
+	// operator config: allow enabling/disabling regular, automatic cephx key rotation
+	rotateCephxKeysSettingName  string = "ROOK_ROTATE_LOCAL_CEPHX_KEYS"
+	rotateCephxKeysDefaultValue string = "false"
 )
 
 var (
@@ -171,6 +175,11 @@ func SetObcAllowAdditionalConfigFields() {
 
 func ObcAdditionalConfigKeyIsAllowed(configField string) bool {
 	return slices.Contains(obcAllowAdditionalConfigFields, configField)
+}
+
+// RotateCephxKeysEnabled returns true if the operator is configured to regularly rotate cephx keys
+func RotateCephxKeysEnabled() bool {
+	return k8sutil.GetOperatorSetting(rotateCephxKeysSettingName, rotateCephxKeysDefaultValue) == "true"
 }
 
 // canIgnoreHealthErrStatusInReconcile determines whether a status of HEALTH_ERR in the CephCluster can be ignored safely.

@@ -29,6 +29,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -150,9 +151,16 @@ func objectChanged(oldObj, newObj runtime.Object, objectName string) (bool, erro
 
 	// Do not leak details of diff if the object contains sensitive data (e.g., it is a Secret)
 	isSensitive := false
-	if _, ok := new.(*corev1.Secret); ok {
+	if s, ok := new.(*corev1.Secret); ok {
 		logger.Debugf("object %q diff is [redacted for Secrets]", objectName)
 		isSensitive = true
+
+		// keyring secrets are a special case. rook updates these during reconciliation as needed,
+		// and daemon pods automatically get updated keys with no need for another reconcile
+		if _, ok := s.ObjectMeta.Annotations[keyring.KeyringAnnotation]; ok {
+			logger.Debugf("not reconciling update to cephx keyring secret %q", objectName)
+			return false, nil
+		}
 	} else {
 		logger.Debugf("object %q diff is %s", objectName, diff.String())
 		isSensitive = false
