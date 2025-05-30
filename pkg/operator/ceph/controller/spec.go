@@ -994,7 +994,7 @@ func GetDaemonsToSkipReconcile(ctx context.Context, clusterd *clusterd.Context, 
 	result := sets.New[string]()
 	for _, deployment := range deployments.Items {
 		if daemonID, ok := deployment.Labels[daemonName]; ok {
-			logger.Infof("found %s %q pod to skip reconcile", daemonID, daemonName)
+			logger.Infof("found %q %q pod to skip reconcile", daemonID, daemonName)
 			result.Insert(daemonID)
 		}
 	}

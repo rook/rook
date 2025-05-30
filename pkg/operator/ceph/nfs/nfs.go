@@ -63,7 +63,7 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS) error {
 	for i := 0; i < n.Spec.Server.Active; i++ {
 		id := k8sutil.IndexToName(i)
 
-		if nfsToSkipReconcile.Has(id) {
+		if nfsToSkipReconcile.Has(fmt.Sprintf("%s-%s", n.Name, id)) {
 			logger.Warningf("skipping reconcile of nfs daemon %q with label %q", id, cephv1.SkipReconcileLabelKey)
 			continue
 		}
