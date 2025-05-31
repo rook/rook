@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cleanup "github.com/rook/rook/pkg/daemon/ceph/cleanup"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/daemon/ceph/osd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
@@ -114,6 +115,13 @@ func startHostCleanUp(cmd *cobra.Command, args []string) error {
 			Iteration:  sanitizeIteration,
 		},
 	)
+
+	osdRawList, err := osd.GetCephVolumeRawOSDs(createContext(), clusterInfo, clusterInfo.FSID, "", "", "", false, true)
+	if err != nil {
+		rook.TerminateFatal(fmt.Errorf("failed to get ceph volume raw osd list. %v", err))
+	}
+
+	fmt.Printf("%+v\n", osdRawList)
 
 	// Start OSD wipe process
 	s.StartSanitizeDisks()

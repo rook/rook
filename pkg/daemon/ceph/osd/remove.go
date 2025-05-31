@@ -18,8 +18,8 @@ package osd
 
 import (
 	"fmt"
-	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -253,33 +253,36 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get OSD info for OSD.%d", id)
 	}
-
 	logger.Infof("destroying osd.%d", osdInfo.ID)
 	destroyOSDArgs := []string{"osd", "destroy", fmt.Sprintf("osd.%d", osdInfo.ID), "--yes-i-really-mean-it"}
-	_, err = client.NewCephCommand(context, clusterInfo, destroyOSDArgs).Run()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to destroy osd.%d.", osdInfo.ID)
-	}
+	_, _ = client.NewCephCommand(context, clusterInfo, destroyOSDArgs).Run()
+	// if err != nil {
+	// return nil, errors.Wrapf(err, "failed to destroy osd.%d.", osdInfo.ID)
+	//}
 	logger.Infof("successfully destroyed osd.%d", osdInfo.ID)
 
 	// in case of OSD on PVs, fetch the actual device name for the mounted /mnt/<pvc-name>
 	if isPVC {
-		pvcName := os.Getenv(oposd.PVCNameEnvVarName)
+		// pvcName := os.Getenv(oposd.PVCNameEnvVarName)
+		pvcName := strings.TrimPrefix(osdInfo.BlockPath, "/mnt/")
+		pvcName = strings.TrimPrefix(osdInfo.BlockPath, "/dev/mapper/")
+		pvcName = strings.TrimSuffix(pvcName, "-block-dmcrypt")
 
 		// remove the dm device
-		if osdInfo.Encrypted {
-			target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
-			err = removeEncryptedDevice(context, target)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to remove dm device %q", target)
-			}
-		}
+		// if osdInfo.Encrypted {
+		// target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
+		// err = removeEncryptedDevice(context, target)
+		// if err != nil {
+		// return nil, errors.Wrapf(err, "failed to remove dm device %q", target)
+		// }
+		//}
 		// fetch the actual device for cleanup
 		blockPath := fmt.Sprintf("/mnt/%s", pvcName)
 		diskInfo, err := clusterd.PopulateDeviceInfo(blockPath, context.Executor)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get device info for %q", blockPath)
 		}
+		logger.Infof("%+v\n", diskInfo)
 		osdInfo.BlockPath = diskInfo.RealPath
 	}
 
