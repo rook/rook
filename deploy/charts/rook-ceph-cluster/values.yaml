@@ -55,6 +55,28 @@ monitoring:
   metricsDisabled: false
   # -- Whether to create the Prometheus rules for Ceph alerts
   createPrometheusRules: false
+  # -- Edit Prometheus rules for Ceph alerts
+  editPrometheusRules: {}
+  # Tune an existing rule
+  # osd:
+  #   CephOSDDownHigh:
+  #     for: "10m"
+  # Disable an existing rule
+  # mgr:
+  #   CephMgrModuleCrash:
+  #     disabled: true
+  # Add a custom rule
+  # mon:
+  #   MyCustomRule:
+  #     alert: "MyCustomRule"
+  #     annotations:
+  #       description: "My custom alert description"
+  #       summary: "My custom alert summary"
+  #     expr: "some_metric == 1"
+  #     for: "5m"
+  #     labels:
+  #       severity: "warning"
+  #       type: "ceph_custom"
   # -- The namespace in which to create the prometheus rules, if different from the rook cluster namespace.
   # If you have multiple rook-ceph clusters in the same k8s cluster, choose the same namespace (ideally, namespace with prometheus
   # deployed) to set rulesNamespaceOverride for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions.
