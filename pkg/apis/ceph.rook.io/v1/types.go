@@ -2528,7 +2528,7 @@ type RGWServiceSpec struct {
 
 // +genclient
 // +genclient:noStatus
-// +kubebuilder:resource:shortName=nfs;cephnfs,path=cephnfses
+// +kubebuilder:resource:shortName=nfs,path=cephnfses
 
 // CephNFS represents a Ceph NFS
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
