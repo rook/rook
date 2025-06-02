@@ -8895,7 +8895,6 @@ spec:
     plural: cephnfses
     shortNames:
       - nfs
-      - cephnfs
     singular: cephnfs
   scope: Namespaced
   versions:
