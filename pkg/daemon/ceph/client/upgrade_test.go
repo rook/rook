@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -25,6 +26,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client/fake"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -351,4 +353,46 @@ func TestOSDUpdateShouldCheckOkToStop(t *testing.T) {
 		treeOutput = fake.OsdTreeOutput(0, 1)
 		assert.True(t, OSDUpdateShouldCheckOkToStop(context, clusterInfo))
 	})
+}
+
+func TestLeastUptodateDaemonVersion(t *testing.T) {
+	clusterCtx := &clusterd.Context{
+		Executor: &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if command != "ceph" || args[0] != "versions" {
+					panic("not a 'ceph versions' call")
+				}
+				return `{
+  "mon": {
+    "ceph version 20.3.0-661-g68f47b56 (68f47b56a9717515844599c880de2b56a7135786) tentacle (dev - Debug)": 2,
+    "ceph version 20.3.0-660-ababababa (abababababababababababababababababababab) tentacle (dev - Debug)": 1
+  },
+  "mgr": {
+    "ceph version 20.3.0-661-g68f47b56 (68f47b56a9717515844599c880de2b56a7135786) tentacle (dev - Debug)": 1
+  },
+  "osd": {
+    "ceph version 20.3.0-661-g68f47b56 (68f47b56a9717515844599c880de2b56a7135786) tentacle (dev - Debug)": 4
+  },
+  "overall": {
+    "ceph version 20.3.0-661-g68f47b56 (68f47b56a9717515844599c880de2b56a7135786) tentacle (dev - Debug)": 8
+  }
+}`, nil
+			},
+		},
+	}
+	clusterInfo := ClusterInfo{}
+	ctx := context.TODO()
+	clusterInfo.Context = ctx
+
+	passed := 0
+	iterations := 100
+	for i := range iterations { // iterate the test to ensure consistent detection (#15930)
+		got, err := LeastUptodateDaemonVersion(clusterCtx, &clusterInfo, "mon")
+		assert.NoError(t, err)
+		pass := assert.Equalf(t, cephver.CephVersion{Major: 20, Minor: 3, Extra: 0, Build: 660, CommitID: "abababababababababababababababababababab"}, got, "i=%d: got %#v", i, got)
+		if pass {
+			passed++
+		}
+	}
+	assert.Equal(t, iterations, passed)
 }
