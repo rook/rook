@@ -133,7 +133,7 @@ RADOS_URLS {
 }
 
 RGW {
-        name = "client.` + userID + `";
+	name = "client.` + userID + `";
 }
 
 %url	` + url + `
