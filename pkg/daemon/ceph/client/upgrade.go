@@ -234,15 +234,23 @@ func LeastUptodateDaemonVersion(context *clusterd.Context, clusterInfo *ClusterI
 	if err != nil {
 		return vv, errors.Wrap(err, "failed to find daemon map entry")
 	}
+
+	maxInt := 65535
+
+	vv = cephver.CephVersion{Major: maxInt, Minor: maxInt, Extra: maxInt, Build: maxInt, CommitID: ""}
 	for v := range r {
 		version, err := cephver.ExtractCephVersion(v)
 		if err != nil {
-			return vv, errors.Wrap(err, "failed to extract ceph version")
+			return cephver.CephVersion{}, errors.Wrap(err, "failed to extract ceph version")
 		}
-		vv = *version
-		// break right after the first iteration
-		// the first one is always the least up-to-date
-		break
+
+		if cephver.IsInferior(*version, vv) {
+			vv = *version
+		}
+	}
+
+	if vv.Major == maxInt {
+		return cephver.CephVersion{}, errors.Wrap(err, "failed to determine least ceph version")
 	}
 
 	return vv, nil
