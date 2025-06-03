@@ -961,14 +961,14 @@ func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHel
 	t.Run("create internal swift endpoint in keystone", func(t *testing.T) {
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
-			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", ""+rgwServiceUri(storeName, namespace)+"/foobar/v1",
+			"openstack", "endpoint", "create", "--region", "RegionOne", "--enable", "swift", "internal", ""+rgwServiceUri(storeName, namespace)+"/foobar/v1",
 		)
 	})
 
 	t.Run("create admin swift endpoint in keystone", func(t *testing.T) {
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
-			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", ""+rgwServiceUri(storeName, namespace)+"/foobar/v1",
+			"openstack", "endpoint", "create", "--region", "RegionOne", "--enable", "swift", "admin", ""+rgwServiceUri(storeName, namespace)+"/foobar/v1",
 		)
 	})
 }
