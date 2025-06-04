@@ -308,6 +308,22 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				return "", nil
 			} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", fsName + "-data1", "size", "1"}) {
 				return "", nil
+			} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", fsName + "-metadata", "target_size_ratio", "0"}) {
+				return "", nil
+			} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", fsName + "-data0", "target_size_ratio", "0"}) {
+				return "", nil
+			} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", fsName + "-data1", "target_size_ratio", "0"}) {
+				return "", nil
+			} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", fsName + "-named-pool", "target_size_ratio", "0"}) {
+				return "", nil
+			} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", fsName + "-metadata", "compression_mode", ""}) {
+				return "", nil
+			} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", fsName + "-data0", "compression_mode", ""}) {
+				return "", nil
+			} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", fsName + "-data1", "compression_mode", ""}) {
+				return "", nil
+			} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", fsName + "-named-pool", "compression_mode", ""}) {
+				return "", nil
 			} else if reflect.DeepEqual(args[0:4], []string{"fs", "add_data_pool", fsName, fsName + "-data1"}) {
 				*addDataPoolCount++
 				return "", nil

@@ -326,11 +326,11 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 		pool.Parameters = make(map[string]string)
 	}
 
-	if pool.Replicated.IsTargetRatioEnabled() {
+	if _, ok := pool.Parameters[targetSizeRatioProperty]; !ok {
 		pool.Parameters[targetSizeRatioProperty] = strconv.FormatFloat(pool.Replicated.TargetSizeRatio, 'f', -1, 32)
 	}
 
-	if pool.IsCompressionEnabled() {
+	if _, ok := pool.Parameters[CompressionModeProperty]; !ok && pool.CompressionMode != "" {
 		pool.Parameters[CompressionModeProperty] = pool.CompressionMode
 	}
 

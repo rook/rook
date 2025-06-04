@@ -1083,6 +1083,7 @@ type ReplicatedSpec struct {
 	Size uint `json:"size"`
 
 	// TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
+	// +kubebuilder:validation:Minimum=0
 	// +optional
 	TargetSizeRatio float64 `json:"targetSizeRatio,omitempty"`
 
