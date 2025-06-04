@@ -2,7 +2,7 @@
 
 temp="/tmp/rook-tests-scripts-helm"
 
-helm_version="${HELM_VERSION:-"v3.8.0"}"
+helm_version="${HELM_VERSION:-"v3.18.2"}"
 arch="${ARCH:-}"
 
 detectArch() {
