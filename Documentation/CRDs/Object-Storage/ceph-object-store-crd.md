@@ -181,9 +181,12 @@ The gateway settings correspond to the RGW daemon settings.
 * `sslCertificateRef`: If specified, this is the name of the Kubernetes secret(`opaque` or `tls`
     type) that contains the TLS certificate to be used for secure connections to the object store.
     If it is an opaque Kubernetes Secret, Rook will look in the secret provided at the `cert` key name. The value of the `cert` key must be
-    in the format expected by the [RGW service](https://docs.ceph.com/docs/master/install/ceph-deploy/install-ceph-gateway/#using-ssl-with-civetweb):
-    "The server key, server certificate, and any other CA or intermediate certificates be supplied in
-    one file. Each of these items must be in PEM form." They are scenarios where the certificate DNS is set for a particular domain
+    in the format expected by the [RGW service](https://docs.ceph.com/en/reef/radosgw/frontends/#beast).
+    If the certificate in the `cert` key name is issued by an internal CA, the entire certificate chain can be appended
+    together starting with the leaf cert first, any intermediary certs, and finally the root cert. The beast frontend will only
+    use the first cert in the chain, but the rook operator will use the entire chain when connecting to the RGW for management.
+
+    There are scenarios where the certificate DNS is set for a particular domain
     that does not include the local Kubernetes DNS, namely the object store DNS service endpoint. If
     adding the service DNS name to the certificate is not empty another key can be specified in the
     secret's data: `insecureSkipVerify: true` to skip the certificate verification. It is not
@@ -191,7 +194,10 @@ The gateway settings correspond to the RGW daemon settings.
     custom verification is used.
 * `caBundleRef`: If specified, this is the name of the Kubernetes secret (type `opaque`) that
     contains additional custom ca-bundle to use. The secret must be in the same namespace as the Rook
-    cluster. Rook will look in the secret provided at the `cabundle` key name.
+    cluster. Rook will look in the secret provided at the `cabundle` key name. This bundle is used used by RGW to verify
+    external applications that RGW connects to. For example: LDAP servers, or a different RGW realm for multisite connections.
+    This bundle is **not** used by the rook operator when connecting to the RGW. See the notes on `sslCertificateRef` on
+    how to load the entire certificate chain into `cert` for use by the operator instead.
 * `hostNetwork`: Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
 * `port`: The port on which the Object service will be reachable. If host networking is enabled, the RGW daemons will also listen on that port. If running on SDN, the RGW daemon listening port will be 8080 internally.
 * `securePort`: The secure port on which RGW pods will be listening. A TLS certificate must be
