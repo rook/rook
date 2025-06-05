@@ -170,6 +170,10 @@ golangci-lint: $(YQ)
 markdownlint: ## Check formatting of documentation sources
 	markdownlint-cli2 "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs
 
+.PHONY: markdownlint.fix
+markdownlint.fix: ## Check and fix formatting of documentation sources
+	markdownlint-cli2 "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --fix --config .markdownlint-cli2.cjs
+
 .PHONY: yamllint
 yamllint:
 	yamllint -c .yamllint deploy/examples/ --no-warnings
