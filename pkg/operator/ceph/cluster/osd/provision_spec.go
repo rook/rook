@@ -204,6 +204,10 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	// enable debug logging in the prepare job
 	envVars = append(envVars, setDebugLogLevelEnvVar(true))
 
+	if c.spec.CleanupPolicy.WipeDevicesFromOtherClusters {
+		envVars = append(envVars, wipeDevicesFromOtherClustersEnvVar())
+	}
+
 	// only 1 of device list, device filter, device path filter and use all devices can be specified.  We prioritize in that order.
 	if len(osdProps.devices) > 0 {
 		configuredDevices := []config.ConfiguredDevice{}

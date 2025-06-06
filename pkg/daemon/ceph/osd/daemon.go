@@ -201,6 +201,15 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 
 	context.Devices = rawDevices
 
+	// Wipe the desired OSD disks in case they belong to a different ceph cluster.
+	if agent.wipeDevicesFromOtherClusters {
+		logger.Info("checking for OSD disks from a different cluster")
+		err := agent.WipeDevicesFromOtherClusters(context)
+		if err != nil {
+			return errors.Wrapf(err, "failed to wipe devices from other clusters")
+		}
+	}
+
 	logger.Info("creating and starting the osds")
 
 	// determine the set of devices that can/should be used for OSDs.

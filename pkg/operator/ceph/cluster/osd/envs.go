@@ -51,6 +51,7 @@ const (
 	ReplaceOSDIDVarName                 = "ROOK_REPLACE_OSD"
 	CrushRootVarName                    = "ROOK_CRUSHMAP_ROOT"
 	tcmallocMaxTotalThreadCacheBytesEnv = "TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES"
+	wipeDevicesFromOtherClustersVarName = "ROOK_WIPE_DEVICES_FROM_OTHER_CLUSTERS"
 )
 
 var cephEnvConfigFile = "/etc/sysconfig/ceph"
@@ -143,6 +144,10 @@ func walDeviceEnvVar(walDevice string) v1.EnvVar {
 
 func pvcBackedOSDEnvVar(pvcBacked string) v1.EnvVar {
 	return v1.EnvVar{Name: PVCBackedOSDVarName, Value: pvcBacked}
+}
+
+func wipeDevicesFromOtherClustersEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: wipeDevicesFromOtherClustersVarName, Value: "true"}
 }
 
 func setDebugLogLevelEnvVar(debug bool) v1.EnvVar {

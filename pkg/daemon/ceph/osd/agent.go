@@ -30,32 +30,34 @@ const (
 
 // OsdAgent represents the OSD struct of an agent
 type OsdAgent struct {
-	clusterInfo    *cephclient.ClusterInfo
-	nodeName       string
-	forceFormat    bool
-	devices        []DesiredDevice
-	metadataDevice string
-	storeConfig    config.StoreConfig
-	kv             *k8sutil.ConfigMapKVStore
-	pvcBacked      bool
-	replaceOSD     *oposd.OSDInfo
+	clusterInfo                  *cephclient.ClusterInfo
+	nodeName                     string
+	forceFormat                  bool
+	devices                      []DesiredDevice
+	metadataDevice               string
+	storeConfig                  config.StoreConfig
+	kv                           *k8sutil.ConfigMapKVStore
+	pvcBacked                    bool
+	replaceOSD                   *oposd.OSDInfo
+	wipeDevicesFromOtherClusters bool
 }
 
 // NewAgent is the instantiation of the OSD agent
 func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice string, forceFormat bool,
 	storeConfig config.StoreConfig, clusterInfo *cephclient.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore,
-	replaceOSD *oposd.OSDInfo, pvcBacked bool,
+	replaceOSD *oposd.OSDInfo, pvcBacked, wipDevicesFromOtherClusters bool,
 ) *OsdAgent {
 	return &OsdAgent{
-		devices:        devices,
-		metadataDevice: metadataDevice,
-		forceFormat:    forceFormat,
-		storeConfig:    storeConfig,
-		clusterInfo:    clusterInfo,
-		nodeName:       nodeName,
-		kv:             kv,
-		pvcBacked:      pvcBacked,
-		replaceOSD:     replaceOSD,
+		devices:                      devices,
+		metadataDevice:               metadataDevice,
+		forceFormat:                  forceFormat,
+		storeConfig:                  storeConfig,
+		clusterInfo:                  clusterInfo,
+		nodeName:                     nodeName,
+		kv:                           kv,
+		pvcBacked:                    pvcBacked,
+		replaceOSD:                   replaceOSD,
+		wipeDevicesFromOtherClusters: wipDevicesFromOtherClusters,
 	}
 }
 
