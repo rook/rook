@@ -46,5 +46,4 @@ case "${1:-}" in
     *)
         echo "usage:" >&2
         echo "  $0 up" >&2
-        echo "  $0 clean" >&2
 esac
