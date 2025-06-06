@@ -96,11 +96,7 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 
 	err := createECPoolForApp(context, AdminTestClusterInfo("mycluster"), "mypoolprofile", p, DefaultPGCount, overwrite)
 	assert.Nil(t, err)
-	if compressionMode != "" {
-		assert.True(t, compressionModeCreated)
-	} else {
-		assert.False(t, compressionModeCreated)
-	}
+	assert.True(t, compressionModeCreated)
 }
 
 func TestSetPoolApplication(t *testing.T) {
@@ -246,11 +242,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 	err := createReplicatedPoolForApp(context, AdminTestClusterInfo("mycluster"), clusterSpec, p, DefaultPGCount)
 	assert.Nil(t, err)
 	assert.True(t, crushRuleCreated)
-	if compressionMode != "" {
-		assert.True(t, compressionModeCreated)
-	} else {
-		assert.False(t, compressionModeCreated)
-	}
+	assert.True(t, compressionModeCreated)
 }
 
 func TestUpdateFailureDomain(t *testing.T) {

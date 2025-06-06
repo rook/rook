@@ -574,6 +574,7 @@ spec:
                       type: string
                     targetSizeRatio:
                       description: TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
+                      minimum: 0
                       type: number
                   required:
                     - size
@@ -7362,6 +7363,7 @@ spec:
                             type: string
                           targetSizeRatio:
                             description: TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
+                            minimum: 0
                             type: number
                         required:
                           - size
@@ -7550,6 +7552,7 @@ spec:
                           type: string
                         targetSizeRatio:
                           description: TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
+                          minimum: 0
                           type: number
                       required:
                         - size
@@ -11210,6 +11213,7 @@ spec:
                           type: string
                         targetSizeRatio:
                           description: TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
+                          minimum: 0
                           type: number
                       required:
                         - size
@@ -12810,6 +12814,7 @@ spec:
                           type: string
                         targetSizeRatio:
                           description: TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
+                          minimum: 0
                           type: number
                       required:
                         - size
@@ -13741,6 +13746,7 @@ spec:
                           type: string
                         targetSizeRatio:
                           description: TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
+                          minimum: 0
                           type: number
                       required:
                         - size
@@ -13924,6 +13930,7 @@ spec:
                           type: string
                         targetSizeRatio:
                           description: TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
+                          minimum: 0
                           type: number
                       required:
                         - size
