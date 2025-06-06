@@ -44,10 +44,13 @@ type ClusterInfo struct {
 	// ExternalMons - external montiros listed in CephCluster.spec.mon.externalMonIDs when Rook managing local cluster.
 	ExternalMons map[string]*MonInfo
 	CephVersion  cephver.CephVersion
-	Namespace    string
-	OwnerInfo    *k8sutil.OwnerInfo
+	// Rook operator namespace.
+	Namespace string
+	OwnerInfo *k8sutil.OwnerInfo
 	// Hide the name of the cluster since in 99% of uses we want to use the cluster namespace.
 	// If the CR name is needed, access it through the NamespacedName() method.
+	// Since it's almost always the same as the cluster namespace, the name is
+	// also being returned by the ClusterNamespace() method.
 	name              string
 	OsdUpgradeTimeout time.Duration
 	NetworkSpec       cephv1.NetworkSpec
@@ -105,6 +108,13 @@ func (c *ClusterInfo) NamespacedName() types.NamespacedName {
 		panic("name is not set on the clusterInfo")
 	}
 	return types.NamespacedName{Namespace: c.Namespace, Name: c.name}
+}
+
+func (c *ClusterInfo) ClusterNamespace() string {
+	if c.name != "" {
+		return c.name
+	}
+	return c.Namespace
 }
 
 // AdminClusterInfo() creates a ClusterInfo with the basic info to access the cluster
