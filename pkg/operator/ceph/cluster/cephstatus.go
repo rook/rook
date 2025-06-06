@@ -258,7 +258,7 @@ func (c *ClusterController) updateClusterCephVersion(image string, cephVersion c
 
 	cephClusterVersion := &cephv1.ClusterVersion{
 		Image:   image,
-		Version: opcontroller.GetCephVersionLabel(cephVersion),
+		Version: opcontroller.GetCephVersionLabel(cephVersion), // DO NOT CHANGE FORMAT FROM "Maj.Min.Ext-Bld"
 	}
 	// update the Ceph version on the retrieved cluster object
 	// do not overwrite the ceph status that is updated in a separate goroutine

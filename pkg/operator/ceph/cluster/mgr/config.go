@@ -98,5 +98,5 @@ func (c *Cluster) generateKeyring(m *mgrConfig) (string, error) {
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, m.DaemonID, key)
-	return keyring, s.CreateOrUpdate(m.ResourceName, keyring)
+	return s.CreateOrUpdate(m.ResourceName, keyring)
 }
