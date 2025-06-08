@@ -17,13 +17,15 @@ limitations under the License.
 package bucket
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
@@ -217,12 +219,15 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	// generate the bucket policy if it isn't managed by the user
 
 	// if the policy does not exist, we'll create a new and append the statement to it
-	policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
+	policy, err := p.s3Agent.GetBucketPolicy(context.TODO(), p.bucketName)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() != "NoSuchBucketPolicy" {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) {
+			if apiErr.ErrorCode() != "NoSuchBucketPolicy" {
 				return nil, err
 			}
+		} else {
+			return nil, err
 		}
 	}
 
@@ -238,7 +243,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	} else {
 		policy = policy.ModifyBucketPolicy(*statement)
 	}
-	out, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
+	out, err := p.s3Agent.PutBucketPolicy(context.TODO(), p.bucketName, *policy)
 
 	logger.Infof("PutBucketPolicy output: %v", out)
 	if err != nil {
@@ -312,12 +317,12 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 
 		// Ignore cases where there is no bucket policy. This may have occurred if an error ended a Grant()
 		// call before the policy was attached to the bucket
-		policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
+		policy, err := p.s3Agent.GetBucketPolicy(context.TODO(), p.bucketName)
 		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NoSuchBucketPolicy" {
+			var apiErr smithy.APIError
+			if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchBucketPolicy" {
 				policy = nil
 				logger.Errorf("no bucket policy for bucket %q, so no need to drop policy", p.bucketName)
-
 			} else {
 				logger.Errorf("error getting policy for bucket %q. %v", p.bucketName, err)
 				return err
@@ -337,7 +342,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			} else {
 				policy = policy.ModifyBucketPolicy(*statement)
 			}
-			out, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
+			out, err := p.s3Agent.PutBucketPolicy(context.TODO(), p.bucketName, *policy)
 			logger.Infof("PutBucketPolicy output: %v", out)
 			if err != nil {
 				return errors.Wrap(err, "failed to update policy")
@@ -349,7 +354,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		// drop policy if present
 		if policy != nil {
 			policy = policy.DropPolicyStatements(p.cephUserName)
-			_, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
+			_, err := p.s3Agent.PutBucketPolicy(context.TODO(), p.bucketName, *policy)
 			if err != nil {
 				return err
 			}
@@ -740,15 +745,21 @@ func (p *Provisioner) setBucketPolicy(additionalConfig *additionalConfigSpec) er
 	svc := p.s3Agent.Client
 	var livePolicy *string
 
-	policyResp, err := svc.GetBucketPolicy(&s3.GetBucketPolicyInput{
-		Bucket: &p.bucketName,
-	})
+	policyResp, err := svc.GetBucketPolicy(
+		context.TODO(), // or ctx if you already have one
+		&s3.GetBucketPolicyInput{
+			Bucket: &p.bucketName,
+		},
+	)
 	if err != nil {
 		// when no policy is set, an err with code "NoSuchBucketPolicy" is returned
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() != "NoSuchBucketPolicy" {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) {
+			if apiErr.ErrorCode() != "NoSuchBucketPolicy" {
 				return errors.Wrapf(err, "failed to fetch policy for bucket %q", p.bucketName)
 			}
+		} else {
+			return errors.Wrapf(err, "unexpected error fetching policy for bucket %q", p.bucketName)
 		}
 	} else {
 		livePolicy = policyResp.Policy
@@ -763,18 +774,24 @@ func (p *Provisioner) setBucketPolicy(additionalConfig *additionalConfigSpec) er
 	logger.Debugf("Policy for bucket %q has changed. diff:%s", p.bucketName, diff)
 	if additionalConfig.bucketPolicy == nil {
 		// if policy is out of sync and the new policy is nil, we should delete the live policy
-		_, err = svc.DeleteBucketPolicy(&s3.DeleteBucketPolicyInput{
-			Bucket: &p.bucketName,
-		})
+		_, err = svc.DeleteBucketPolicy(
+			context.TODO(),
+			&s3.DeleteBucketPolicyInput{
+				Bucket: &p.bucketName,
+			},
+		)
 		if err != nil {
 			return errors.Wrapf(err, "failed to delete policy for bucket %q", p.bucketName)
 		}
 	} else {
 		// set the new policy
-		_, err = svc.PutBucketPolicy(&s3.PutBucketPolicyInput{
-			Bucket: &p.bucketName,
-			Policy: additionalConfig.bucketPolicy,
-		})
+		_, err = svc.PutBucketPolicy(
+			context.TODO(),
+			&s3.PutBucketPolicyInput{
+				Bucket: &p.bucketName,
+				Policy: additionalConfig.bucketPolicy,
+			},
+		)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set policy for bucket %q", p.bucketName)
 		}
@@ -787,13 +804,17 @@ func (p *Provisioner) setBucketLifecycle(additionalConfig *additionalConfigSpec)
 	svc := p.s3Agent.Client
 	var liveLc *s3.GetBucketLifecycleConfigurationOutput
 
-	liveLc, err := svc.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
-		Bucket: &p.bucketName,
-	})
+	liveLc, err := svc.GetBucketLifecycleConfiguration(
+		context.TODO(),
+		&s3.GetBucketLifecycleConfigurationInput{
+			Bucket: &p.bucketName,
+		},
+	)
 	if err != nil {
 		// when no lifecycle configuration is set, an err with a "code" of
 		// NoSuchLifecycleConfiguration is returned
-		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NoSuchLifecycleConfiguration" {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchLifecycleConfiguration" {
 			logger.Debugf("no lifecycle configuration set for bucket %q", p.bucketName)
 		} else {
 			return errors.Wrapf(err, "failed to fetch lifecycle configuration for bucket %q", p.bucketName)
@@ -802,7 +823,7 @@ func (p *Provisioner) setBucketLifecycle(additionalConfig *additionalConfigSpec)
 
 	// parse the conf supplied lifecycle configuration json as aws-sdk-go will not operate on a
 	// json string
-	confLc := &s3.BucketLifecycleConfiguration{}
+	confLc := &s3types.BucketLifecycleConfiguration{}
 	// don't try to parse the conf json if it is nil
 	if additionalConfig.bucketLifecycle != nil {
 		err = json.Unmarshal([]byte(*additionalConfig.bucketLifecycle), confLc)
@@ -820,7 +841,7 @@ func (p *Provisioner) setBucketLifecycle(additionalConfig *additionalConfigSpec)
 	// convert the api returned GetBucketLifecycleConfigurationOutput to a
 	// BucketLifecycleConfiguration for apples to apples comparison to determine
 	// sync state
-	diffLiveLc := &s3.BucketLifecycleConfiguration{Rules: liveLc.Rules}
+	diffLiveLc := &s3types.BucketLifecycleConfiguration{Rules: liveLc.Rules}
 
 	// note that the xml serialization of the rules returned by rgw sorts the
 	// rules by "ID".  The rule ordering from the
@@ -834,18 +855,24 @@ func (p *Provisioner) setBucketLifecycle(additionalConfig *additionalConfigSpec)
 	logger.Debugf("Lifecycle configuration for bucket %q has changed. diff:%s", p.bucketName, diff)
 	if additionalConfig.bucketLifecycle == nil {
 		// if policy is out of sync and the new policy is nil, delete the live policy
-		_, err = svc.DeleteBucketLifecycle(&s3.DeleteBucketLifecycleInput{
-			Bucket: &p.bucketName,
-		})
+		_, err = svc.DeleteBucketLifecycle(
+			context.TODO(),
+			&s3.DeleteBucketLifecycleInput{
+				Bucket: &p.bucketName,
+			},
+		)
 		if err != nil {
 			return errors.Wrapf(err, "failed to delete lifecycle configuration for bucket %q", p.bucketName)
 		}
 	} else {
 		// set the new policy
-		_, err = svc.PutBucketLifecycleConfiguration(&s3.PutBucketLifecycleConfigurationInput{
-			Bucket:                 &p.bucketName,
-			LifecycleConfiguration: confLc,
-		})
+		_, err = svc.PutBucketLifecycleConfiguration(
+			context.TODO(),
+			&s3.PutBucketLifecycleConfigurationInput{
+				Bucket:                 &p.bucketName,
+				LifecycleConfiguration: confLc,
+			},
+		)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set lifecycle configuration for bucket %q", p.bucketName)
 		}

@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	"github.com/stretchr/testify/assert"
@@ -190,10 +190,10 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		assert.NotEqual(t, 4, i)
 	})
 
-	context := k8sh.MakeContext()
+	context_new := k8sh.MakeContext()
 	objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(ctx, storeName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	rgwcontext, err := rgw.NewMultisiteContext(context, clusterInfo, objectStore)
+	rgwcontext, err := rgw.NewMultisiteContext(context_new, clusterInfo, objectStore)
 	assert.Nil(t, err)
 	t.Run("create ObjectBucketClaim", func(t *testing.T) {
 		logger.Infof("create OBC %q with storageclass %q - using reclaim policy 'delete' so buckets don't block deletion", obcName, bucketStorageClassName)
@@ -544,9 +544,12 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		})
 
 		t.Run("policy was applied verbatim to bucket", func(t *testing.T) {
-			policyResp, err := s3client.Client.GetBucketPolicy(&s3.GetBucketPolicyInput{
-				Bucket: &bucketName,
-			})
+			policyResp, err := s3client.Client.GetBucketPolicy(
+				context.TODO(),
+				&s3.GetBucketPolicyInput{
+					Bucket: &bucketName,
+				},
+			)
 			require.NoError(t, err)
 			assert.Equal(t, bucketPolicy1, *policyResp.Policy)
 		})
@@ -591,9 +594,12 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		t.Run("policy update applied verbatim to bucket", func(t *testing.T) {
 			var livePolicy string
 			utils.Retry(20, time.Second, "policy changed", func() bool {
-				policyResp, err := s3client.Client.GetBucketPolicy(&s3.GetBucketPolicyInput{
-					Bucket: &bucketName,
-				})
+				policyResp, err := s3client.Client.GetBucketPolicy(
+					context.TODO(),
+					&s3.GetBucketPolicyInput{
+						Bucket: &bucketName,
+					},
+				)
 				if err != nil {
 					return false
 				}
@@ -644,9 +650,12 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		t.Run("policy was removed from bucket", func(t *testing.T) {
 			var err error
 			utils.Retry(20, time.Second, "policy is gone", func() bool {
-				_, err = s3client.Client.GetBucketPolicy(&s3.GetBucketPolicyInput{
-					Bucket: &bucketName,
-				})
+				_, err := s3client.Client.GetBucketPolicy(
+					context.TODO(),
+					&s3.GetBucketPolicyInput{
+						Bucket: &bucketName,
+					},
+				)
 				return err != nil
 			})
 			require.Error(t, err)
@@ -779,9 +788,12 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		})
 
 		t.Run("lifecycle was applied verbatim to bucket", func(t *testing.T) {
-			liveLc, err := s3client.Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
-				Bucket: &bucketName,
-			})
+			liveLc, err := s3client.Client.GetBucketLifecycleConfiguration(
+				context.TODO(),
+				&s3.GetBucketLifecycleConfigurationInput{
+					Bucket: &bucketName,
+				},
+			)
 			require.NoError(t, err)
 
 			confLc := &s3.GetBucketLifecycleConfigurationOutput{}
@@ -836,9 +848,12 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			require.NoError(t, err)
 
 			utils.Retry(20, time.Second, "lifecycle changed", func() bool {
-				liveLc, err = s3client.Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
-					Bucket: &bucketName,
-				})
+				liveLc, err = s3client.Client.GetBucketLifecycleConfiguration(
+					context.TODO(),
+					&s3.GetBucketLifecycleConfigurationInput{
+						Bucket: &bucketName,
+					},
+				)
 				if err != nil {
 					return false
 				}
@@ -888,9 +903,12 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		t.Run("lifecycle was removed from bucket", func(t *testing.T) {
 			var err error
 			utils.Retry(20, time.Second, "lifecycle is gone", func() bool {
-				_, err = s3client.Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
-					Bucket: &bucketName,
-				})
+				_, err = s3client.Client.GetBucketLifecycleConfiguration(
+					context.TODO(),
+					&s3.GetBucketLifecycleConfigurationInput{
+						Bucket: &bucketName,
+					},
+				)
 				if aerr, ok := err.(awserr.Error); ok {
 					return aerr.Code() == "NoSuchLifecycleConfiguration"
 				}

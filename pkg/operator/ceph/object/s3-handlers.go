@@ -18,16 +18,20 @@ package object
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"net/http"
+	"net/url"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	awssession "github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	smithy "github.com/aws/smithy-go"
+	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/pkg/errors"
 )
 
@@ -36,13 +40,30 @@ const CephRegion = "us-east-1"
 
 // S3Agent wraps the s3.S3 structure to allow for wrapper methods
 type S3Agent struct {
-	Client *s3.S3
+	Client *s3.Client
+}
+type staticS3Resolver struct {
+	URL string
+}
+
+func (r staticS3Resolver) ResolveEndpoint(_ context.Context, _ s3.EndpointParameters) (smithyendpoints.Endpoint, error) {
+	parsedURL, err := url.Parse(r.URL)
+	if err != nil {
+		return smithyendpoints.Endpoint{}, err
+	}
+	props := smithy.Properties{}
+	props.Set("authSigningRegion", CephRegion)
+
+	return smithyendpoints.Endpoint{
+		URI:        *parsedURL,
+		Properties: props,
+	}, nil
 }
 
 func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte, insecure bool, httpClient *http.Client) (*S3Agent, error) {
-	logLevel := aws.LogOff
+	var clientLogMode aws.ClientLogMode = 0
 	if debug {
-		logLevel = aws.LogDebug
+		clientLogMode = aws.LogRequestWithBody | aws.LogResponseWithBody
 	}
 	tlsEnabled := false
 	if len(tlsCert) > 0 || insecure {
@@ -57,21 +78,19 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 		}
 	}
 
-	session, err := awssession.NewSession(
-		aws.NewConfig().
-			WithRegion(CephRegion).
-			WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
-			WithEndpoint(endpoint).
-			WithS3ForcePathStyle(true).
-			WithMaxRetries(5).
-			WithDisableSSL(!tlsEnabled).
-			WithHTTPClient(httpClient).
-			WithLogLevel(logLevel),
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(CephRegion),
+		config.WithHTTPClient(httpClient),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to load AWS config")
 	}
-	svc := s3.New(session)
+	svc := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.UsePathStyle = true
+		o.EndpointResolverV2 = staticS3Resolver{URL: endpoint}
+		o.ClientLogMode = clientLogMode
+	})
 	return &S3Agent{
 		Client: svc,
 	}, nil
@@ -97,15 +116,16 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 		Bucket: &name,
 	}
 
-	_, err := s.Client.CreateBucket(bucketInput)
+	_, err := s.Client.CreateBucket(context.TODO(), bucketInput)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			logger.Debugf("DEBUG: after s3 call, ok=%v, aerr=%v", ok, aerr)
-			switch aerr.Code() {
-			case s3.ErrCodeBucketAlreadyExists:
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) {
+			logger.Debugf("DEBUG: after s3 call, code=%v, message=%v", apiErr.ErrorCode(), apiErr.ErrorMessage())
+			switch apiErr.ErrorCode() {
+			case "BucketAlreadyExists":
 				logger.Debugf("bucket %q already exists", name)
 				return nil
-			case s3.ErrCodeBucketAlreadyOwnedByYou:
+			case "BucketAlreadyOwnedByYou":
 				logger.Debugf("bucket %q already owned by you", name)
 				return nil
 			}
@@ -123,22 +143,19 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 
 // DeleteBucket function deletes given bucket using s3 client
 func (s *S3Agent) DeleteBucket(name string) (bool, error) {
-	_, err := s.Client.DeleteBucket(&s3.DeleteBucketInput{
+	_, err := s.Client.DeleteBucket(context.TODO(), &s3.DeleteBucketInput{
 		Bucket: aws.String(name),
 	})
 	if err != nil {
 		logger.Errorf("failed to delete bucket. %v", err)
 		return false, err
-
 	}
 	return true, nil
 }
 
 // PutObjectInBucket function puts an object in a bucket using s3 client
-func (s *S3Agent) PutObjectInBucket(bucketname string, body string, key string,
-	contentType string,
-) (bool, error) {
-	_, err := s.Client.PutObject(&s3.PutObjectInput{
+func (s *S3Agent) PutObjectInBucket(bucketname string, body string, key string, contentType string) (bool, error) {
+	_, err := s.Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Body:        strings.NewReader(body),
 		Bucket:      &bucketname,
 		Key:         &key,
@@ -147,22 +164,21 @@ func (s *S3Agent) PutObjectInBucket(bucketname string, body string, key string,
 	if err != nil {
 		logger.Errorf("failed to put object in bucket. %v", err)
 		return false, err
-
 	}
 	return true, nil
 }
 
 // GetObjectInBucket function retrieves an object from a bucket using s3 client
 func (s *S3Agent) GetObjectInBucket(bucketname string, key string) (string, error) {
-	result, err := s.Client.GetObject(&s3.GetObjectInput{
+	result, err := s.Client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(bucketname),
 		Key:    aws.String(key),
 	})
 	if err != nil {
 		logger.Errorf("failed to retrieve object from bucket. %v", err)
 		return "ERROR_ OBJECT NOT FOUND", err
-
 	}
+
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(result.Body)
 	if err != nil {
@@ -174,22 +190,18 @@ func (s *S3Agent) GetObjectInBucket(bucketname string, key string) (string, erro
 
 // DeleteObjectInBucket function deletes given bucket using s3 client
 func (s *S3Agent) DeleteObjectInBucket(bucketname string, key string) (bool, error) {
-	_, err := s.Client.DeleteObject(&s3.DeleteObjectInput{
+	_, err := s.Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
 		Bucket: aws.String(bucketname),
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchBucket:
-				return true, nil
-			case s3.ErrCodeNoSuchKey:
-				return true, nil
-			}
+		var nfe *s3types.NoSuchBucket
+		var nke *s3types.NoSuchKey
+		if errors.As(err, &nfe) || errors.As(err, &nke) {
+			return true, nil // safe to ignore
 		}
 		logger.Errorf("failed to delete object from bucket. %v", err)
 		return false, err
-
 	}
 	return true, nil
 }

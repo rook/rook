@@ -17,11 +17,12 @@ limitations under the License.
 package notification
 
 import (
-	"net/http"
+	"context"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go/aws/awsutil"
 	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 type DeleteBucketNotificationRequestInput struct {
@@ -66,24 +67,29 @@ func (s *DeleteBucketNotificationRequestInput) Validate() error {
 
 const opDeleteBucketNotification = "DeleteBucketNotification"
 
-func DeleteBucketNotificationRequest(c *s3.S3, input *DeleteBucketNotificationRequestInput, notificationId string) *request.Request {
-	op := &request.Operation{
-		Name:       opDeleteBucketNotification,
-		HTTPMethod: http.MethodDelete,
-		HTTPPath:   "/{Bucket}?notification",
+func DeleteBucketNotification(ctx context.Context, client *s3.Client, bucketName string, notificationId string) error {
+	// Get the current configuration
+	current, err := client.GetBucketNotificationConfiguration(ctx, &s3.GetBucketNotificationConfigurationInput{
+		Bucket: &bucketName,
+	})
+	if err != nil {
+		return err
 	}
 
-	if len(notificationId) > 0 {
-		op.HTTPPath = "/{Bucket}?notification=" + notificationId
-	}
-	if input == nil {
-		input = &DeleteBucketNotificationRequestInput{}
+	// Filter out the notification to delete
+	filtered := make([]s3types.TopicConfiguration, 0, len(current.TopicConfigurations))
+	for _, config := range current.TopicConfigurations {
+		if config.Id == nil || *config.Id != notificationId {
+			filtered = append(filtered, config)
+		}
 	}
 
-	return c.NewRequest(op, input, nil)
-}
-
-func DeleteBucketNotification(c *s3.S3, input *DeleteBucketNotificationRequestInput, notificationId string) error {
-	req := DeleteBucketNotificationRequest(c, input, notificationId)
-	return req.Send()
+	// Update the bucket notification configuration
+	_, err = client.PutBucketNotificationConfiguration(ctx, &s3.PutBucketNotificationConfigurationInput{
+		Bucket: &bucketName,
+		NotificationConfiguration: &s3types.NotificationConfiguration{
+			TopicConfigurations: filtered,
+		},
+	})
+	return err
 }
