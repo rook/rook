@@ -20,7 +20,8 @@ package notification
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
@@ -94,39 +95,37 @@ func newS3Agent(p provisioner) (*object.S3Agent, error) {
 }
 
 // TODO: convert all rules without restrictions once the AWS SDK supports that
-func createS3FilterRules(filterRules []cephv1.NotificationKeyFilterRule) (s3FilterRules []*s3.FilterRule) {
+func createS3FilterRules(filterRules []cephv1.NotificationKeyFilterRule) (s3FilterRules []s3types.FilterRule) {
 	for _, rule := range filterRules {
-		s3FilterRules = append(s3FilterRules, &s3.FilterRule{
-			Name:  &rule.DeepCopy().Name,
-			Value: &rule.DeepCopy().Value,
+		s3FilterRules = append(s3FilterRules, s3types.FilterRule{
+			Name:  s3types.FilterRuleName(rule.Name),
+			Value: &rule.Value,
 		})
 	}
 	return
 }
 
-func createS3Filter(filter *cephv1.NotificationFilterSpec) *s3.NotificationConfigurationFilter {
+func createS3Filter(filter *cephv1.NotificationFilterSpec) *s3types.NotificationConfigurationFilter {
 	if filter == nil {
 		return nil
 	}
-	return &s3.NotificationConfigurationFilter{
-		Key: &s3.KeyFilter{
+	return &s3types.NotificationConfigurationFilter{
+		Key: &s3types.S3KeyFilter{
 			FilterRules: createS3FilterRules(filter.KeyFilters),
 		},
 	}
 }
 
-func createS3Events(events []cephv1.BucketNotificationEvent) []*string {
-	// in the AWS S3 library "Events" is required field
-	// but in our CR it is optional. indicating notifications on all events
+func createS3Events(events []cephv1.BucketNotificationEvent) []s3types.Event {
 	if len(events) == 0 {
-		createdEvent := "s3:ObjectCreated:*"
-		removedEvent := "s3:ObjectRemoved:*"
-		return []*string{&createdEvent, &removedEvent}
+		return []s3types.Event{
+			s3types.Event("s3:ObjectCreated:*"),
+			s3types.Event("s3:ObjectRemoved:*"),
+		}
 	}
-	s3Events := []*string{}
+	s3Events := []s3types.Event{}
 	for _, event := range events {
-		stringEvent := string(event)
-		s3Events = append(s3Events, &stringEvent)
+		s3Events = append(s3Events, s3types.Event(event))
 	}
 	return s3Events
 }
@@ -141,10 +140,11 @@ var createNotification = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, t
 	if err != nil {
 		return errors.Wrapf(err, "failed to create S3 agent for CephBucketNotification %q provisioning for bucket %q", bnName, bucketName)
 	}
-	_, err = s3Agent.Client.PutBucketNotificationConfiguration(&s3.PutBucketNotificationConfigurationInput{
+	ctx := context.TODO()
+	_, err = s3Agent.Client.PutBucketNotificationConfiguration(ctx, &s3.PutBucketNotificationConfigurationInput{
 		Bucket: &bucketName,
-		NotificationConfiguration: &s3.NotificationConfiguration{
-			TopicConfigurations: []*s3.TopicConfiguration{
+		NotificationConfiguration: &s3types.NotificationConfiguration{
+			TopicConfigurations: []s3types.TopicConfiguration{
 				{
 					Events:   createS3Events(notification.Spec.Events),
 					Filter:   createS3Filter(notification.Spec.Filter),
@@ -173,7 +173,8 @@ var getAllRGWNotifications = func(p provisioner, ob *bktv1alpha1.ObjectBucket) (
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create S3 agent for CephBucketNotification provisioning for bucket %q", bucketName)
 	}
-	nc, err := s3Agent.Client.GetBucketNotificationConfiguration(&s3.GetBucketNotificationConfigurationRequest{
+	ctx := context.TODO()
+	nc, err := s3Agent.Client.GetBucketNotificationConfiguration(ctx, &s3.GetBucketNotificationConfigurationInput{
 		Bucket:              &bucketName,
 		ExpectedBucketOwner: &ownerName,
 	})
@@ -201,9 +202,12 @@ var deleteNotification = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, n
 	if err != nil {
 		return errors.Wrapf(err, "failed to create S3 agent for deleting all bucket notifications from bucket %q", bucketName)
 	}
-	if err := DeleteBucketNotification(s3Agent.Client, &DeleteBucketNotificationRequestInput{
-		Bucket: &bucket.Spec.Endpoint.BucketName,
-	}, notificationId); err != nil {
+	if err := DeleteBucketNotification(
+		context.TODO(),
+		s3Agent.Client,
+		bucket.Spec.Endpoint.BucketName,
+		notificationId,
+	); err != nil {
 		return errors.Wrapf(err, "failed to delete bucket notification %q from bucket %q", notificationId, bucketName)
 	}
 
