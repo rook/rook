@@ -1498,6 +1498,11 @@ spec:
                             - quick
                           type: string
                       type: object
+                    wipeDevicesFromOtherClusters:
+                      description: |-
+                        WipeDevicesFromOtherClusters wipes the OSD disks belonging to other clusters. This is useful in scenarios where ceph cluster
+                        was reinstalled but OSD disk still contains the metadata from previous ceph cluster.
+                      type: boolean
                   type: object
                 continueUpgradeAfterChecksEvenIfNotHealthy:
                   description: ContinueUpgradeAfterChecksEvenIfNotHealthy defines if an upgrade should continue even if PGs are not clean
