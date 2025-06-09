@@ -1,4 +1,5 @@
-{{- if and .Values.monitoring .Values.monitoring.createPrometheusRules }}
+{{- if .Values.monitoring }}
+{{- if .Values.monitoring.createPrometheusRules }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -17,8 +18,10 @@ metadata:
   namespace: {{ default .Release.Namespace .Values.monitoring.rulesNamespaceOverride }}
 spec:
   {{- $rulesFile := "prometheus/localrules.yaml" }}
-  {{- if and .Values.cephClusterSpec.external .Values.cephClusterSpec.external.enable }}
-    {{- $rulesFile = "prometheus/externalrules.yaml" }}
+  {{- if .Values.cephClusterSpec.external }}
+    {{- if .Values.cephClusterSpec.external.enable }}
+      {{- $rulesFile = "prometheus/externalrules.yaml" }}
+    {{- end }}
   {{- end }}
   {{- $defaultRules := .Files.Get $rulesFile | fromYaml }}
   groups:
@@ -42,4 +45,5 @@ spec:
         {{- toYaml $rules | nindent 8 }}
     {{- end }}
   {{- end }}
+{{- end }}
 {{- end }}
