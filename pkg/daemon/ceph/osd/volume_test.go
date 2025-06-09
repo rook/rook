@@ -272,6 +272,24 @@ var cephVolumeRAWTestResult = `{
 }
 `
 
+var cephVolumeRAWEncryptedTestResult = `{
+    "0": {
+        "ceph_fsid": "4bfe8b72-5e69-4330-b6c0-4d914db8ab89",
+        "device": "/dev/mapper/set2-data-0jkntr-block-dmcrypt",
+        "osd_id": 0,
+        "osd_uuid": "c03d7353-96e5-4a41-98de-830dfff97d06",
+        "type": "bluestore"
+    },
+    "1": {
+        "ceph_fsid": "4bfe8b72-5e69-4330-b6c0-4d914db8ab89",
+        "device": "/dev/mapper/set3-data-0sc77p-block-dmcrypt",
+        "osd_id": 1,
+        "osd_uuid": "62132914-e779-48cf-8f55-fbc9692c8ce5",
+        "type": "bluestore"
+    }
+}
+`
+
 var cephVolumeRawPartitionTestResult = `{
 	"0": {
         "ceph_fsid": "4bfe8b72-5e69-4330-b6c0-4d914db8ab89",
@@ -2135,13 +2153,13 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
 
-	// "/dev/vdc" should not be zapped
+	// `ceph-volume raw list` returns OSDs on "vdb" and "vdc" but only "vdb" should be zapped
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
-		devicePath := "/dev/vdc"
+		devicePath := "/dev/vdb"
 		logger.Infof("%s %v", command, args)
 
 		if contains(args, "zap") {
-			if contains(args, devicePath) {
+			if !contains(args, devicePath) {
 				return "", errors.Errorf("device %s should not be zapped", devicePath)
 			}
 			return "", nil
@@ -2153,5 +2171,31 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	}
 	context.Executor = executor
 	err := agent.WipeDevicesFromOtherClusters(context)
+	assert.NoError(t, err)
+
+	// `ceph-volume raw list` returns dmcrypt devices on "vdb" and "vdc" but only "vdb" should be zapped
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		if contains(args, "raw") && contains(args, "list") {
+			return cephVolumeRAWEncryptedTestResult, nil
+		}
+		if command == cryptsetupBinary && args[0] == "status" && args[1] == "/dev/mapper/set2-data-0jkntr-block-dmcrypt" {
+			return `type: LUKS1
+			        device: /dev/vdb`,
+				nil
+		}
+		if command == cryptsetupBinary && args[0] == "status" && args[1] == "/dev/mapper/set3-data-0sc77p-block-dmcrypt" {
+			return `type: LUKS1
+			        device: /dev/vdc`,
+				nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+
+	context = &clusterd.Context{
+		Devices: []*sys.LocalDisk{{RealPath: "/dev/vdb"}},
+	}
+	context.Executor = executor
+	err = agent.WipeDevicesFromOtherClusters(context)
 	assert.NoError(t, err)
 }
