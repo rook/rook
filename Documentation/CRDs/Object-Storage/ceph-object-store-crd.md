@@ -192,6 +192,7 @@ The gateway settings correspond to the RGW daemon settings.
     secret's data: `insecureSkipVerify: true` to skip the certificate verification. It is not
     recommended to enable this option since TLS is susceptible to machine-in-the-middle attacks unless
     custom verification is used.
+
 * `caBundleRef`: If specified, this is the name of the Kubernetes secret (type `opaque`) that
     contains additional custom ca-bundle to use. The secret must be in the same namespace as the Rook
     cluster. Rook will look in the secret provided at the `cabundle` key name. This bundle is used used by RGW to verify
