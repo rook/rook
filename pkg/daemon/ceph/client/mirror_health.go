@@ -112,7 +112,7 @@ func (c *mirrorChecker) CheckMirroringHealth() error {
 	}
 
 	// On success
-	if mirrorStatus.Summary != nil {
+	if mirrorStatus != nil {
 		c.UpdateStatusMirroring(mirrorStatus.Summary, mirrorInfo, snapSchedStatus, "")
 	}
 	return nil
