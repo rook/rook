@@ -123,18 +123,24 @@ eof
 }
 
 function importClusterID() {
+  echo "Entering importClusterID"
   if [ -n "$RADOS_NAMESPACE" ]; then
+    echo "Creating rados namespace"
     createRadosNamespaceCR
-    timeout 20 sh -c "until [ $($KUBECTL -n "$NAMESPACE" get CephBlockPoolRadosNamespace/"$RADOS_NAMESPACE" -o jsonpath='{.status.phase}' | grep -c "Ready") -eq 1 ]; do echo "waiting for radosNamespace to get created" && sleep 1; done"
+    timeout 20 bash -c "while ! $KUBECTL -n \"$NAMESPACE\" get CephBlockPoolRadosNamespace/\"$RADOS_NAMESPACE\" -o jsonpath='{.status.phase}' | grep -q \"Ready\"; do echo \"waiting for radosNamespace to get created\"; sleep 1; done"
     CLUSTER_ID_RBD=$($KUBECTL -n "$NAMESPACE" get cephblockpoolradosnamespace.ceph.rook.io/"$RADOS_NAMESPACE" -o jsonpath='{.status.info.clusterID}')
     RBD_STORAGE_CLASS_NAME=ceph-rbd-$RADOS_NAMESPACE
   fi
   if [ -n "$SUBVOLUME_GROUP" ]; then
-    createSubvolumeGroupCR
-    timeout 20 sh -c "until [ $($KUBECTL -n "$NAMESPACE" get CephFilesystemSubVolumeGroup/"$SUBVOLUME_GROUP" -o jsonpath='{.status.phase}' | grep -c "Ready") -eq 1 ]; do echo "waiting for radosNamespace to get created" && sleep 1; done"
+    if ! $KUBECTL -n "$NAMESPACE" get CephFilesystemSubVolumeGroup/"$SUBVOLUME_GROUP" &>/dev/null; then
+      echo "Creating subvolume group"
+      createSubvolumeGroupCR
+      timeout 20 bash -c "while ! $KUBECTL -n \"$NAMESPACE\" get CephFilesystemSubVolumeGroup/\"$SUBVOLUME_GROUP\" -o jsonpath='{.status.phase}' | grep -q \"Ready\"; do echo \"waiting for subvolumegroup to get created\"; sleep 1; done"
+    fi
     CLUSTER_ID_CEPHFS=$($KUBECTL -n "$NAMESPACE" get cephfilesystemsubvolumegroup.ceph.rook.io/"$SUBVOLUME_GROUP" -o jsonpath='{.status.info.clusterID}')
-    CEPHFS_STORAGE_CLASS_NAME=cephfs-$SUBVOLUME_GROUP
+    CEPHFS_STORAGE_CLASS_NAME=cephfs
   fi
+  echo "Exiting importClusterID"
 }
 
 function importSecret() {
@@ -404,7 +410,9 @@ eof
 ########
 # MAIN #
 ########
+echo "Starting script execution"
 checkEnvVars
+echo "Completed checkEnvVars"
 createClusterNamespace
 importClusterID
 importSecret
@@ -436,6 +444,7 @@ if [ -n "$CEPHFS_FS_NAME" ] && [ -n "$CEPHFS_POOL_NAME" ]; then
   createCephFSStorageClass
 fi
 if [ -n "$TOPOLOGY_POOLS" ] && [ -n "$TOPOLOGY_FAILURE_DOMAIN_LABEL" ] && [ -n "$TOPOLOGY_FAILURE_DOMAIN_VALUES" ]; then
-  createTopology
+  echo "Skipping createTopology for debugging"
+  # createTopology
   createRBDTopologyStorageClass
 fi
