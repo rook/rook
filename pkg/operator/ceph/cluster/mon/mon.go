@@ -550,7 +550,7 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion, clusterName s
 
 	k := keyring.GetSecretStore(c.context, c.ClusterInfo, c.ownerInfo)
 	// store the keyring which all mons share
-	if err := k.CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring()); err != nil {
+	if _, err := k.CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring()); err != nil {
 		return errors.Wrap(err, "failed to save mon keyring secret")
 	}
 	// also store the admin keyring for other daemons that might need it during init

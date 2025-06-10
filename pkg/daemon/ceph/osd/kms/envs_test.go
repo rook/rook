@@ -29,7 +29,7 @@ import (
 func TestVaultTLSEnvVarFromSecret(t *testing.T) {
 	t.Run("vault - no tls", func(t *testing.T) {
 		spec := cephv1.ClusterSpec{
-			Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
+			Security: cephv1.ClusterSecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
 				TokenSecretName:   "vault-token",
 				ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200"},
 			}},
@@ -47,7 +47,7 @@ func TestVaultTLSEnvVarFromSecret(t *testing.T) {
 	})
 	t.Run("vault tls", func(t *testing.T) {
 		spec := cephv1.ClusterSpec{
-			Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
+			Security: cephv1.ClusterSecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
 				TokenSecretName:   "vault-token",
 				ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200", "VAULT_CACERT": "vault-ca-cert-secret"},
 			}},
@@ -65,7 +65,7 @@ func TestVaultTLSEnvVarFromSecret(t *testing.T) {
 	})
 	t.Run("ibm kp", func(t *testing.T) {
 		spec := cephv1.ClusterSpec{
-			Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
+			Security: cephv1.ClusterSecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
 				TokenSecretName:   "ibm-kp-token",
 				ConnectionDetails: map[string]string{"KMS_PROVIDER": TypeIBM, "IBM_KP_SERVICE_INSTANCE_ID": "1"},
 			}},
@@ -100,7 +100,7 @@ func TestConfigEnvsToMapString(t *testing.T) {
 	envs = ConfigEnvsToMapString()
 	assert.Equal(t, 3, len(envs))
 	assert.True(t, envs["KMS_PROVIDER"] == "vault")
-	clusterSpec := &cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: envs}}}
+	clusterSpec := &cephv1.ClusterSpec{Security: cephv1.ClusterSecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: envs}}}
 	assert.True(t, clusterSpec.Security.KeyManagementService.IsEnabled())
 }
 
@@ -115,7 +115,7 @@ func TestVaultConfigToEnvVar(t *testing.T) {
 	}{
 		{
 			"vault - no backend path",
-			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault"}}}}},
+			args{spec: cephv1.ClusterSpec{Security: cephv1.ClusterSecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault"}}}}},
 			[]v1.EnvVar{
 				{Name: "KMS_PROVIDER", Value: "vault"},
 				{Name: "VAULT_BACKEND_PATH", Value: "secret/"},
@@ -123,7 +123,7 @@ func TestVaultConfigToEnvVar(t *testing.T) {
 		},
 		{
 			"vault - with backend path",
-			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_BACKEND_PATH": "foo/"}}}}},
+			args{spec: cephv1.ClusterSpec{Security: cephv1.ClusterSecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_BACKEND_PATH": "foo/"}}}}},
 			[]v1.EnvVar{
 				{Name: "KMS_PROVIDER", Value: "vault"},
 				{Name: "VAULT_BACKEND_PATH", Value: "foo/"},
@@ -131,7 +131,7 @@ func TestVaultConfigToEnvVar(t *testing.T) {
 		},
 		{
 			"vault - test with tls config",
-			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_CACERT": "my-secret-name"}}}}},
+			args{spec: cephv1.ClusterSpec{Security: cephv1.ClusterSecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_CACERT": "my-secret-name"}}}}},
 			[]v1.EnvVar{
 				{Name: "KMS_PROVIDER", Value: "vault"},
 				{Name: "VAULT_BACKEND_PATH", Value: "secret/"},
@@ -140,7 +140,7 @@ func TestVaultConfigToEnvVar(t *testing.T) {
 		},
 		{
 			"ibm kp - IBM_KP_SERVICE_API_KEY is removed from the details",
-			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": TypeIBM, "IBM_KP_SERVICE_API_KEY": "foo", "IBM_KP_SERVICE_INSTANCE_ID": "1"}, TokenSecretName: "ibm-kp-token"}}}},
+			args{spec: cephv1.ClusterSpec{Security: cephv1.ClusterSecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": TypeIBM, "IBM_KP_SERVICE_API_KEY": "foo", "IBM_KP_SERVICE_INSTANCE_ID": "1"}, TokenSecretName: "ibm-kp-token"}}}},
 			[]v1.EnvVar{
 				{Name: "IBM_KP_SERVICE_API_KEY", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "ibm-kp-token"}, Key: "IBM_KP_SERVICE_API_KEY"}}},
 				{Name: "IBM_KP_SERVICE_INSTANCE_ID", Value: "1"},
@@ -149,7 +149,7 @@ func TestVaultConfigToEnvVar(t *testing.T) {
 		},
 		{
 			"kmip - token details is removed from the details",
-			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": TypeKMIP, "CLIENT_KEY": "foo", "CLIENT_CERT": "foo", "CA_CERT": "foo", "TLS_SERVER_NAME": "pykmip"}, TokenSecretName: "kmip-token"}}}},
+			args{spec: cephv1.ClusterSpec{Security: cephv1.ClusterSecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": TypeKMIP, "CLIENT_KEY": "foo", "CLIENT_CERT": "foo", "CA_CERT": "foo", "TLS_SERVER_NAME": "pykmip"}, TokenSecretName: "kmip-token"}}}},
 			[]v1.EnvVar{
 				{Name: "KMIP_KMS_PROVIDER", Value: TypeKMIP},
 				{Name: "KMIP_TLS_SERVER_NAME", Value: "pykmip"},

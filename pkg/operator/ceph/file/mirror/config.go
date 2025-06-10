@@ -59,5 +59,5 @@ func (r *ReconcileFilesystemMirror) generateKeyring(daemonConfig *daemonConfig) 
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, key)
-	return keyring, s.CreateOrUpdate(daemonConfig.ResourceName, keyring)
+	return s.CreateOrUpdate(daemonConfig.ResourceName, keyring)
 }

@@ -998,8 +998,8 @@ CephClusterHealthCheckSpec
 <td>
 <code>security</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.SecuritySpec">
-SecuritySpec
+<a href="#ceph.rook.io/v1.ClusterSecuritySpec">
+ClusterSecuritySpec
 </a>
 </em>
 </td>
@@ -4424,6 +4424,123 @@ One of Always, Never, IfNotPresent.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.CephxConfig">CephxConfig
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterCephxConfig">ClusterCephxConfig</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>keyRotationPolicy</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxKeyRotationPolicy">
+CephxKeyRotationPolicy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
+One of Disabled, or KeyGeneration. Default Disabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>keyGeneration</code><br/>
+<em>
+uint32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
+is KeyGeneration and ignored for other policies. If this is set to greater than the current
+key generation, relevant keys will be rotated, and the generation value will be updated to
+this new value (generation values are not necessarily incremental, though that is the
+intended use case). If this is set to less than or equal to the current key generation, keys
+are not rotated.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephxKeyRotationPolicy">CephxKeyRotationPolicy
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephxConfig">CephxConfig</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;Disabled&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;KeyGeneration&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephxStatus">CephxStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>keyGeneration</code><br/>
+<em>
+uint32
+</em>
+</td>
+<td>
+<p>KeyGeneration represents the CephX key generation for the last successful reconcile.
+For all newly-created resources, this field is set to <code>1</code>.
+When keys are rotated due to any rotation policy, the generation is incremented or updated to
+the configured policy generation.
+Generation <code>0</code> indicates that keys existed prior to the implementation of key tracking.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>keyCephVersion</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>KeyCephVersion reports the Ceph version that created the current generation&rsquo;s keys. This is
+same string format as reported by <code>CephCluster.status.version.version</code> to allow them to be
+compared. E.g., <code>20.2.0-0</code>.
+For all newly-created resources, this field set to the version of Ceph that created the key.
+The special value &ldquo;Uninitialized&rdquo; indicates that keys are being created for the first time.
+An empty string indicates that the version is unknown, as expected in brownfield deployments.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.CleanupConfirmationProperty">CleanupConfirmationProperty
 (<code>string</code> alias)</h3>
 <p>
@@ -4550,6 +4667,97 @@ map[string]string
 </em>
 </td>
 <td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.ClusterCephxConfig">ClusterCephxConfig
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterSecuritySpec">ClusterSecuritySpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>daemon</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxConfig">
+CephxConfig
+</a>
+</em>
+</td>
+<td>
+<p>Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
+Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.ClusterSecuritySpec">ClusterSecuritySpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterSpec">ClusterSpec</a>)
+</p>
+<div>
+<p>ClusterSecuritySpec is the CephCluster security spec to include various security items such as kms</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>kms</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.KeyManagementServiceSpec">
+KeyManagementServiceSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KeyManagementService is the main Key Management option</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>keyRotation</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.KeyRotationSpec">
+KeyRotationSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KeyRotation defines options for rotation of OSD disk encryption keys.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ClusterCephxConfig">
+ClusterCephxConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CephX configures CephX key settings. More: <a href="https://docs.ceph.com/en/latest/dev/cephx/">https://docs.ceph.com/en/latest/dev/cephx/</a></p>
 </td>
 </tr>
 </tbody>
@@ -4892,8 +5100,8 @@ CephClusterHealthCheckSpec
 <td>
 <code>security</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.SecuritySpec">
-SecuritySpec
+<a href="#ceph.rook.io/v1.ClusterSecuritySpec">
+ClusterSecuritySpec
 </a>
 </em>
 </td>
@@ -7812,7 +8020,7 @@ securely add the file via annotations on the CephNFS spec (passed to the NFS ser
 <h3 id="ceph.rook.io/v1.KeyManagementServiceSpec">KeyManagementServiceSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreSecuritySpec">ObjectStoreSecuritySpec</a>, <a href="#ceph.rook.io/v1.SecuritySpec">SecuritySpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterSecuritySpec">ClusterSecuritySpec</a>, <a href="#ceph.rook.io/v1.ObjectStoreSecuritySpec">ObjectStoreSecuritySpec</a>, <a href="#ceph.rook.io/v1.SecuritySpec">SecuritySpec</a>)
 </p>
 <div>
 <p>KeyManagementServiceSpec represent various details of the KMS server</p>
@@ -7854,7 +8062,7 @@ string
 <h3 id="ceph.rook.io/v1.KeyRotationSpec">KeyRotationSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.SecuritySpec">SecuritySpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterSecuritySpec">ClusterSecuritySpec</a>, <a href="#ceph.rook.io/v1.SecuritySpec">SecuritySpec</a>)
 </p>
 <div>
 <p>KeyRotationSpec represents the settings for Key Rotation.</p>
@@ -8042,6 +8250,36 @@ int
 <div>
 <p>LabelsSpec is the main spec label for all daemons</p>
 </div>
+<h3 id="ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>daemon</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxStatus">
+CephxStatus
+</a>
+</em>
+</td>
+<td>
+<p>Daemon shows the CephX key status for local Ceph daemons associated with this resources.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.LogCollectorSpec">LogCollectorSpec
 </h3>
 <p>
@@ -10488,6 +10726,18 @@ map[string]string
 </tr>
 <tr>
 <td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.LocalCephxStatus">
+LocalCephxStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
 <code>conditions</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.Condition">
@@ -12691,7 +12941,7 @@ string
 <h3 id="ceph.rook.io/v1.SecuritySpec">SecuritySpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterSpec">ClusterSpec</a>, <a href="#ceph.rook.io/v1.ObjectStoreSecuritySpec">ObjectStoreSecuritySpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreSecuritySpec">ObjectStoreSecuritySpec</a>)
 </p>
 <div>
 <p>SecuritySpec is security spec to include various security items such as kms</p>
