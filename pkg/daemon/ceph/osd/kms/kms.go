@@ -164,16 +164,16 @@ func (c *Config) PutSecret(secretName, secretValue string) error {
 // GetSecret returns an encrypted key from a KMS
 func (c *Config) GetSecret(secretName string) (string, error) {
 	var value string
-	if c.IsK8s() {
-		// Retrieve the secret from Kubernetes Secrets
+
+	switch {
+	case c.IsK8s():
 		value, err := c.getKubernetesSecret(secretName)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to get secret from kubernetes secret")
 		}
 		return value, nil
-	}
-	if c.IsVault() {
-		// Retrieve the secret from Vault
+
+	case c.IsVault():
 		v, err := InitVault(c.ClusterInfo.Context, c.context, c.ClusterInfo.Namespace, c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to init vault")
@@ -184,8 +184,9 @@ func (c *Config) GetSecret(secretName string) (string, error) {
 		if err != nil {
 			return "", errors.Wrap(err, "failed to get secret from vault")
 		}
-	}
-	if c.IsIBMKeyProtect() {
+		return value, nil
+
+	case c.IsIBMKeyProtect():
 		kpClient, err := InitKeyProtect(c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to init ibm key protect")
@@ -195,8 +196,9 @@ func (c *Config) GetSecret(secretName string) (string, error) {
 			return "", errors.Wrap(err, "failed to get secret from ibm key protect")
 		}
 		value = string(keyObject.Payload)
-	}
-	if c.IsKMIP() {
+		return value, nil
+
+	case c.IsKMIP():
 		uniqueIdentifier, err := c.getKubernetesSecret(secretName)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to get unique id")
@@ -211,8 +213,9 @@ func (c *Config) GetSecret(secretName string) (string, error) {
 		if err != nil {
 			return "", errors.Wrap(err, "failed to get key from kmip")
 		}
-	}
-	if c.IsAzure() {
+		return value, nil
+
+	case c.IsAzure():
 		v, err := InitAzure(c.ClusterInfo.Context, c.context, c.ClusterInfo.Namespace, c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to init azure key vault")
@@ -221,6 +224,7 @@ func (c *Config) GetSecret(secretName string) (string, error) {
 		if err != nil {
 			return "", errors.Wrap(err, "failed to get secret from azure key vault")
 		}
+		return value, nil
 	}
 
 	return value, nil
