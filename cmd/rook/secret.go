@@ -114,6 +114,10 @@ func getSecret(cmd *cobra.Command, args []string) {
 		rook.TerminateFatal(errors.Wrapf(err, "failed to get secret %q", secretName))
 	}
 
+	if s == "" {
+		rook.TerminateFatal(errors.Errorf("secret key %q is empty", secretName))
+	}
+
 	// Write down the secret to a file
 	err = os.WriteFile(secretPath, []byte(s), 0o400)
 	if err != nil {
