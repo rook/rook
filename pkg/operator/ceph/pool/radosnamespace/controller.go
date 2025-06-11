@@ -402,7 +402,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) createOrUpdateRadosNamespace(ceph
 	logger.Infof("creating ceph blockpool rados namespace %q", namespacedName)
 
 	if cephv1.GetRadosNamespaceName(cephBlockPoolRadosNamespace) == "" {
-		logger.Info("can't create empty radosnamespace %q in the namespace %q as it is already present", cephBlockPoolRadosNamespace.Name, cephBlockPoolRadosNamespace.Namespace)
+		logger.Infof("can't create empty radosnamespace %q in the namespace %q as it is already present", cephBlockPoolRadosNamespace.Name, cephBlockPoolRadosNamespace.Namespace)
 		return nil
 	}
 	err := cephclient.CreateRadosNamespace(r.context, r.clusterInfo, cephBlockPoolRadosNamespace.Spec.BlockPoolName, cephv1.GetRadosNamespaceName(cephBlockPoolRadosNamespace))
