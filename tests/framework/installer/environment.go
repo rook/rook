@@ -18,11 +18,18 @@ package installer
 
 import (
 	"os"
+	"os/exec"
 )
 
-// testHelmPath gets the helm path
-func testHelmPath() string {
-	return getEnvVarWithDefault("TEST_HELM_PATH", "/tmp/rook-tests-scripts-helm/helm")
+// TestHelmPath gets the path of the helm binary
+func TestHelmPath() string {
+	helmPath := os.Getenv("TEST_HELM_PATH")
+	if helmPath == "" {
+		if path, err := exec.LookPath("helm"); err == nil {
+			helmPath = path
+		}
+	}
+	return helmPath
 }
 
 // TestLogCollectionLevel gets whether to collect all logs

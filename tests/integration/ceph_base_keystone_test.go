@@ -18,7 +18,6 @@ package integration
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
@@ -85,12 +84,7 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) er
 	// the helm installer uses the rook repository and cannot be used as is
 	// therefore parts of the installer are adapted here
 
-	// use helm path from environment (the same is used by the helm installer)
-	helmPath := os.Getenv("TEST_HELM_PATH")
-	if helmPath == "" {
-		helmPath = "/tmp/rook-tests-scripts-helm/helm"
-	}
-	helmHelper := utils.NewHelmHelper(helmPath)
+	helmHelper := utils.NewHelmHelper(installer.TestHelmPath())
 
 	// add the cert-manager helm repo
 	logger.Infof("adding cert-manager helm repo")

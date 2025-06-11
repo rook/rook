@@ -80,6 +80,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Helm
+        uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
+        with:
+          version: v3.18.2
+
       - name: consider debugging
         uses: ./.github/workflows/tmate_debug
         with:
@@ -94,7 +99,6 @@ jobs:
       - name: TestHelmUpgradeSuite
         run: |
           tests/scripts/github-action-helper.sh create_helm_tag
-          tests/scripts/helm.sh up
 
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
           export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
