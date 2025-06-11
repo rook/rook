@@ -32,6 +32,42 @@ CSI keys are a special case that best fits into the non-daemon case. Rotation of
 Ceph-CSI's RBD and CephFS volume mounts associated with application pod PVCs. This rotation may
 require administrators to reboot or drain/undrain all nodes with Ceph-CSI PVCs.
 
+### Overlapping rotation
+
+When CSI keys are updated, users must drain/undrain (or reboot) all nodes to transition PVC mounts
+from using old key to new key.
+
+Users with many nodes may not be able to update them all within the (2 * `auth_service_ticket_ttl`)
+window. Some users with very large k8s clusters might only drain/reboot a portion of their nodes
+during a maintenance window over a period of several days. (Service ticket TTL could be extended,
+but extending it to several days would also have Ceph security implications that are best avoided
+if possible)
+
+In cases where the rotated key can't be picked up quickly, the alternative is for Rook to create a
+new ceph client (user) with the new key without deleting the old user/key. Then, Rook updates the
+CSI secrets to have the new user+key. This would begin the window in which users can drain/reboot
+nodes. Any new PVC mounts would use the new key, and old mounts would continue operating happily
+since the old user+key are not yet destroyed.
+
+After the user is done with node updates, the user should have some way of indicating to Rook that
+the old key is no longer needed, telling Rook it is safe to delete the old key. Autodetection might
+be possible, but let's leave that for a future exercise.
+
+For clarity, this design could be called "overlapping" rotation, and the design elsewhere in this
+doc "in-place" rotation.
+
+Overlapping rotation will be implemented for 3 key types:
+
+- CSI keys
+- RBD mirror peer keys (not daemon keys)
+- CephFS mirror peer (not daemon keys)
+
+Overlapping rotation will not be implemented for the CephClient resource because each CephClient
+represents a single client, which is a single client ID and its corresponding key. For users or
+systems that propagate CephClient credentials, overlapping rotation can be accomplished by creating
+a new CephClient, propagating the new client credentials as needed, then deleting the old CephClient
+after completion.
+
 ## User interfaces
 
 ### Key rotation base interface
@@ -39,6 +75,7 @@ require administrators to reboot or drain/undrain all nodes with Ceph-CSI PVCs.
 ```yaml
 keyRotationPolicy: Disabled | WithCephVersionUpgrade | KeyGeneration
 keyGeneration: <int> # used with KeyGeneration
+keepPriorKeyCount: <int> # only present to configure overlapping rotation
 ```
 
 - `keyRotationPolicy` (string): select a key rotation policy:
@@ -52,6 +89,13 @@ keyGeneration: <int> # used with KeyGeneration
     to this new value (generation values are not necessarily incremental, though that is the
     intended use case).
     If this is set to less than or equal to the current key generation, keys are not rotated.
+
+API for overlapping rotation:
+
+- `keepPriorKeyCount` (int): only available for components that use overlapping key rotation. This
+    tells Rook how many prior keys to keep active. Generally, this would be set to `1` to allow for
+    a migration period for applications. If desired, set this to `0` to delete prior keys after
+    migration.
 
 ### Enabling daemon key rotations
 
@@ -106,8 +150,10 @@ reconcile as needed if/when the user modifies the configuration(s).
 
 Ceph-CSI deployments (if managed by Rook) are managed in the operator namespace, but keys are
 created on a per-CephCluster basis. Thus, a CephCluster configuration option (like above) is most
-appropriate. CSI key rotations may require manual administrator action to reboot or drain/undrain
-nodes to PVCs, so Rook must allow users to initiate one-time key rotations.
+appropriate. CSI key rotations require manual administrator action to reboot or drain/undrain
+nodes to remount PVCs with the new key, so Rook will avoid automatic rotation and only implement
+one-time rotation options. To allow for an arbitrarily-long maintenance window for admins to perform
+node actions, CSI will use overlapping rotation.
 
 ```yaml
 spec:
@@ -118,6 +164,7 @@ spec:
       csi:
         keyRotationPolicy: Disabled | KeyGeneration
         keyGeneration: <int> # used with KeyGeneration
+        keepPriorKeyCount: 1
       # (room for future spec.security.cephx options)
     # (room for future spec.security options)
   # ...
@@ -203,6 +250,10 @@ rotation is complete.
 These statuses will be filled on all Rook resources when CephX keys are first created, even when key
 rotation is not enabled. This will ensure that users can always know the Ceph version and generation
 of minted keys -- or, by absence, show that the info is unknown.
+
+For keys rotated via the overlapping mechanism, this status is also added:
+
+- `priorKeyCount` (int): the number of prior keys currently kept active.
 
 ## Design details
 
@@ -309,6 +360,7 @@ For a CephCluster reconcile:
         csi:
           keyGeneration: 2 # e.g.
           keyCephVersion: "20.2.1" # e.g.
+          priorKeyCount: 1 # e.g.
     ```
 
 ### CephFilesystem example
@@ -341,6 +393,9 @@ For the non-daemon (peer) key:
 2. When key rotation is indicated, the peer key is rotated.
 3. Once reconciliation is nearing completion, the status is updated.
 
+Because peer keys might be rotated locally and need an unknown amount of time for the peer to be
+updated, overlapping rotation will be used.
+
 Example showing input spec and output status, for clarity:
 
 ```yaml
@@ -352,6 +407,7 @@ spec:
       peer:
         keyRotationPolicy: KeyGeneration
         keyGeneration: 2
+        keepPriorKeyCount: 1
   # ...
 status:
   # ...
@@ -363,9 +419,11 @@ status:
       # before rotation
       keyGeneration: 1
       keyCephVersion: "20.2.0"
+      priorKeyCount: 0
       ## after rotation
       # keyGeneration: 2
       # keyCephVersion: "20.2.2"
+      # priorKeyCount: 1
 ```
 
 ### CephClient example
