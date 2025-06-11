@@ -135,9 +135,6 @@ with open('/etc/ceph/ceph.conf', 'w') as configfile:
     config.write(configfile)
 "
 
-# create new keyring
-ceph -n client.admin auth get-or-create osd."$OSD_ID" mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' -k /etc/ceph/admin-keyring-store/keyring
-
 # active the osd with ceph-volume
 if [[ "$CV_MODE" == "lvm" ]]; then
 	TMP_DIR=$(mktemp -d)
@@ -609,6 +606,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 		initContainers = append(initContainers, *activateOSDContainer)
 		initContainers = append(initContainers, c.getExpandInitContainer(osdProps, c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, *osd))
 	}
+
+	// key update init container must go after activate
+	adminKeyVol, cephxContainer := c.getCephxKeyUpdateInitContainer(osdID, osdProps)
+	if !volumeExistsWithName(volumes, adminKeyVol.Name) {
+		volumes = append(volumes, adminKeyVol)
+	}
+	initContainers = append(initContainers, cephxContainer)
 
 	// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD
 	// process starts, which can cause the pod to fail without the lifecycle hook's chown command
@@ -1381,6 +1385,83 @@ func (c *Cluster) getEncryptedStatusPVCInitContainer(mountPath string, osdProps 
 	}
 }
 
+// init container to get (or create, if needed) the most up-to-date keyring for the given OSD and
+// update the OSD config directory keyring file. this allows OSD cephx keys to be rotated without
+// causing OSD pod crash loops.
+//
+// this must come after OSD activate init container because 'ceph-bluestore-tool' (and consequently,
+// 'ceph-volume activate') pulls the keyring from the OSD disk's bluestore data and overwrites the
+// config dir's keyring file, even when the on-disk key is not the most up-to-date.
+func (c *Cluster) getCephxKeyUpdateInitContainer(osdID string, osdProps osdProperties) (v1.Volume, v1.Container) {
+	volMounts := []v1.VolumeMount{
+		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: opconfig.EtcCephDir},
+	}
+
+	adminKeyringVol, adminKeyringVolMount := cephkey.Volume().Admin(), cephkey.VolumeMount().Admin()
+	volMounts = append(volMounts, adminKeyringVolMount)
+
+	// OSD config dir is at /var/lib/ceph/osd/ceph-<id>
+	osdConfigMountPath := activateOSDMountPath + osdID
+
+	if osdProps.onPVC() {
+		// assumption: bridge vol will already be added to pod spec for PVC OSDs
+		volMounts = append(volMounts, getPvcOSDBridgeMountActivate(osdConfigMountPath, osdProps.pvc.ClaimName))
+	} else {
+		// assumption: activate OSD volume will already be added to pod spec for non-PVC OSDs at the
+		// correct location for mounting to /var/lib/ceph/osd/ceph-<id>
+		volMounts = append(volMounts,
+			v1.VolumeMount{Name: activateOSDVolumeName, MountPath: osdConfigMountPath},
+		)
+	}
+
+	keyUpdateScript := `
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o xtrace
+
+OSD_ID="` + osdID + `"
+KEYRING_FILE=/var/lib/ceph/osd/ceph-"${OSD_ID}"/keyring
+
+ceph --name client.admin auth get-or-create osd."${OSD_ID}" \
+  mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' \
+  --keyring /etc/ceph/admin-keyring-store/keyring > "$KEYRING_FILE"
+`
+
+	envVars := []v1.EnvVar{
+		{
+			Name: "ROOK_CEPH_MON_HOST",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: "rook-ceph-config",
+					},
+					Key: "mon_host",
+				},
+			},
+		},
+		{Name: "CEPH_ARGS", Value: "--mon-host=$(ROOK_CEPH_MON_HOST)"},
+	}
+
+	container := v1.Container{
+		Command: []string{
+			"/bin/bash",
+			"-c",
+			keyUpdateScript,
+		},
+		Name:            "cephx-keyring-update",
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
+		VolumeMounts:    volMounts,
+		SecurityContext: controller.PrivilegedContext(true),
+		Env:             envVars,
+		EnvFrom:         getEnvFromSources(),
+		Resources:       osdProps.resources,
+	}
+
+	return adminKeyringVol, container
+}
+
 func (c *Cluster) getOSDContainerPorts() []v1.ContainerPort {
 	var ports []v1.ContainerPort
 	if c.spec.RequireMsgr2() {
@@ -1445,4 +1526,13 @@ func getOSDCmd(cmd []string, interval int) []string {
 		return append([]string{"bash", "-x", "-c", cephOSDStart, "--"}, cmd...)
 	}
 	return cmd
+}
+
+func volumeExistsWithName(vols []v1.Volume, name string) bool {
+	for _, v := range vols {
+		if v.Name == name {
+			return true
+		}
+	}
+	return false
 }
