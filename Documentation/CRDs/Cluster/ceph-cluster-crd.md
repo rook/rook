@@ -344,15 +344,15 @@ The following storage selection settings are specific to Ceph and do not apply t
 * `encryptedDevice`**: Encrypt OSD volumes using dmcrypt ("true" or "false"). By default this option is disabled. See [encryption](http://docs.ceph.com/docs/master/ceph-volume/lvm/encryption/) for more information on encryption in Ceph. (Resizing is not supported for host-based clusters.)
 * `crushRoot`: The value of the `root` CRUSH map label. The default is `default`. Generally, you should not need to change this. However, if any of your topology labels may have the value `default`, you need to change `crushRoot` to avoid conflicts, since CRUSH map values need to be unique.
 
-Allowed configurations are:
+Supported configurations are:
 
 | block device type | host-based cluster                                                                                | PVC-based cluster                                                               |
 | :---------------- | :------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------ |
-| disk              |                                                                                                   |                                                                                 |
+| disk              | supported                                                                                         | supported                                                                         |
 | part              | `encryptedDevice` must be `false`                                                                 | `encrypted` must be `false`                                                     |
 | lvm               | `metadataDevice` must be `""`, `osdsPerDevice` must be `1`, and `encryptedDevice` must be `false` | `metadata.name` must not be `metadata` or `wal` and `encrypted` must be `false` |
-| crypt             |                                                                                                   |                                                                                 |
-| mpath             |                                                                                                   |                                                                                 |
+| crypt             | not supported                                                                                     | supported                                                                         |
+| mpath             | supported                                                                                         | supported                                                                         |
 
 #### Limitations of metadata device
 - If `metadataDevice` is specified in the global OSD configuration or in the node level OSD configuration, the metadata device will be shared between all OSDs on the same node. In other words, OSDs will be initialized by `lvm batch`. In this case, we can't use partition device.
