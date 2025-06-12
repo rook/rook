@@ -37,7 +37,6 @@ jobs:
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
           tests/scripts/github-action-helper.sh create_helm_tag
-          tests/scripts/helm.sh up
           export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
           SKIP_TEST_CLEANUP=false SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephHelmSuite github.com/rook/rook/tests/integration
 
@@ -193,8 +192,6 @@ jobs:
       - name: TestHelmUpgradeSuite
         run: |
           tests/scripts/github-action-helper.sh create_helm_tag
-          tests/scripts/helm.sh up
-
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
           export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
           go test -v -timeout 1800s -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration

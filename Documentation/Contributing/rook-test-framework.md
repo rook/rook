@@ -61,6 +61,9 @@ export TEST_BASE_DIR=WORKING_DIR
 export TEST_SCRATCH_DEVICE=/dev/vdb
 ```
 
+The `helm` tool is expected to be installed on the system. If it is not available in the `$PATH`, set the variable `TEST_HELM_PATH`.
+otherwise, it should be set to the non-standard location of the  `helm` binary.
+
 Set `TEST_SCRATCH_DEVICE` to the correct block device name based on the driver that's being used.
 
 !!! hint
