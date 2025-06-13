@@ -424,29 +424,32 @@ func (r *ReconcileCephBlockPoolRadosNamespace) deleteRadosNamespace(radosNamespa
 		return false, nil
 	}
 
+	deletionBlocked := false
 	containsImages, deleteErr := cephclient.DeleteRadosNamespace(r.context, r.clusterInfo, radosNamespace.Spec.BlockPoolName, name)
 	// If deleteErr is not nil, it means the deletion failed, but we still want to
 	// report a condition whether the rados namespace contains images
+
+	var emptyCondition cephv1.Condition
 	if containsImages {
-		var emptyCondition cephv1.Condition
-		if containsImages {
-			emptyCondition = dependents.DeletionBlockedDueToNonEmptyRadosNSCondition(
-				true,
-				fmt.Sprintf("rados namespace %q contains images or snapshots and cannot be deleted", radosNamespace.Name))
-		} else {
-			emptyCondition = dependents.DeletionBlockedDueToNonEmptyRadosNSCondition(
-				false,
-				fmt.Sprintf("rados namespace %q is empty and can be deleted", radosNamespace.Name))
-		}
-		logger.Info(emptyCondition.Message)
+		emptyCondition = dependents.DeletionBlockedDueToNonEmptyRadosNSCondition(
+			true,
+			fmt.Sprintf("rados namespace %q contains images or snapshots and cannot be deleted", radosNamespace.Name))
+		deletionBlocked = true
+	} else {
+		emptyCondition = dependents.DeletionBlockedDueToNonEmptyRadosNSCondition(
+			false,
+			fmt.Sprintf("rados namespace %q is empty and can be deleted", radosNamespace.Name))
+	}
+	logger.Info(emptyCondition.Message)
 
-		err := reporting.UpdateStatusConditionsWithRetry(
-			r.opManagerContext, r.client, radosNamespace, nsName, radosNamespace.Kind, emptyCondition)
-		if err != nil {
-			logger.Warningf("failed to update %q status with deletion blocked conditions: %v", nsName.String(), err)
-		}
+	err := reporting.UpdateStatusConditionsWithRetry(
+		r.opManagerContext, r.client, radosNamespace, nsName, radosNamespace.Kind, emptyCondition)
+	if err != nil {
+		logger.Warningf("failed to update %q status with deletion blocked conditions: %v", nsName.String(), err)
+	}
 
-		// Force deletion if desired
+	// Force deletion if desired
+	if containsImages {
 		if opcontroller.ForceDeleteRequested(radosNamespace.GetAnnotations()) {
 			cleanupErr := r.cleanup(radosNamespace, cephCluster)
 			if cleanupErr != nil {
@@ -457,6 +460,10 @@ func (r *ReconcileCephBlockPoolRadosNamespace) deleteRadosNamespace(radosNamespa
 
 	if deleteErr != nil {
 		return containsImages, errors.Wrapf(deleteErr, "failed to delete rados namespace %q", radosNamespace.Name)
+	}
+
+	if deletionBlocked {
+		return containsImages, errors.Errorf("deletion of rados namespace %q is blocked due to images or snapshots present in it", nsName.String())
 	}
 
 	logger.Infof("deleted rados namespace %q", nsName.String())
