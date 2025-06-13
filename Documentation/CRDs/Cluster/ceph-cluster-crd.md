@@ -378,15 +378,15 @@ The following storage selection settings are specific to Ceph and do not apply t
 * `enableCrushUpdates`: Enables rook to update the pool crush rule using Pool Spec. Can cause data remapping if crush rule changes, Defaults to false.
 * `migration`: Existing PVC based OSDs can be migrated to enable or disable encryption. Refer to the [osd management](../../Storage-Configuration/Advanced/ceph-osd-mgmt.md/#osd-encryption-as-day-2-operation) topic for details.
 
-Allowed configurations are:
+Supported configurations are:
 
 | block device type | host-based cluster                                                                                | PVC-based cluster                                                               |
 | :---------------- | :------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------ |
-| disk              |                                                                                                   |                                                                                 |
+| disk              | supported                                                                                         | supported                                                                         |
 | part              | `encryptedDevice` must be `false`                                                                 | `encrypted` must be `false`                                                     |
 | lvm               | `metadataDevice` must be `""`, `osdsPerDevice` must be `1`, and `encryptedDevice` must be `false` | `metadata.name` must not be `metadata` or `wal` and `encrypted` must be `false` |
-| crypt             |                                                                                                   |                                                                                 |
-| mpath             |                                                                                                   |                                                                                 |
+| crypt             | not supported                                                                                     | supported                                                                         |
+| mpath             | supported                                                                                         | supported                                                                         |
 
 #### Limitations of metadata device
 
