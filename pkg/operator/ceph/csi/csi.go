@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -364,5 +365,28 @@ func (r *ReconcileCSI) setParams() error {
 		}
 	}
 
+	return nil
+}
+
+func (r *ReconcileCSI) deleteRookCSICMIfExists() error {
+	logger.Debug("checking for existing rook-ceph-csi-config configmap to delete...")
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ConfigName,
+			Namespace: r.opConfig.OperatorNamespace,
+		},
+	}
+
+	err := r.client.Delete(r.opManagerContext, cm)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debugf("configmap %q not found. Ignoring since it must already be deleted", ConfigName)
+			return nil
+		}
+		return errors.Wrapf(err, "failed to delete configmap %q in namespace %q", ConfigName, r.opConfig.OperatorNamespace)
+	}
+
+	logger.Debugf("successfully deleted configmap %q in namespace %q", ConfigName, r.opConfig.OperatorNamespace)
 	return nil
 }
