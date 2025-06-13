@@ -67,7 +67,8 @@ spec:
 - Local disk sanitization can be further configured by the admin with following options:
   - `method`: use `complete` to sanitize the entire disk and `quick` (default) to sanitize only ceph's metadata.
   - `dataSource`: indicate where to get random bytes from to write on the disk. Possible choices are `zero` (default) or `random`.
-  Using random sources will consume entropy from the system and will take much more time then the zero source.
+  The `random` source only works with the `complete` method. The `quick` method will use the `zero` source.
+  Using random sources will consume entropy from the system and will take much more time than the zero source.
   - `iteration`: overwrite N times instead of the default (1). Takes an integer value.
 - If `allowUninstallWithVolumes` is `false` (default), then operator would wait for the PVCs to be deleted before finally deleting the cluster.
 
