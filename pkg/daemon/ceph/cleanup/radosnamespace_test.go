@@ -83,6 +83,10 @@ func TestRadosNamespace(t *testing.T) {
 				assert.Equal(t, "test-pool/test-namespace/16e35cfa56a7", args[5])
 				return "", nil
 			}
+			if args[0] == "status" {
+				assert.Equal(t, "test-pool/csi-vol-136268e8-5386-4453-a6bd-9dca381d187d", args[1])
+				return `{}`, nil
+			}
 			return "", errors.New("unknown command")
 		}
 		context := &clusterd.Context{Executor: executor}
@@ -136,10 +140,45 @@ func TestBlockPoolCleanup(t *testing.T) {
 				assert.Equal(t, "test-pool/16e35cfa56a7", args[5])
 				return "", nil
 			}
+			if args[0] == "status" {
+				assert.Equal(t, "test-pool/csi-vol-136268e8-5386-4453-a6bd-9dca381d187d", args[1])
+				return `{}`, nil
+			}
 			return "", errors.New("unknown command")
 		}
 		context := &clusterd.Context{Executor: executor}
 		err := BlockPoolCleanup(context, clusterInfo, poolName)
 		assert.NoError(t, err)
 	})
+}
+
+func TestGetClientIPs(t *testing.T) {
+	images := []cephclient.CephBlockImage{
+		{
+			Name: "image1",
+		},
+		{
+			Name: "image2",
+		},
+	}
+
+	// assert that only unique client IPs are returned
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "status" && args[1] == "test-pool/image1" {
+			return `{"watchers":[{"address":"192.168.39.137:0/3762982934"}, {"address":"192.168.39.137:0/3762982934"}]}`, nil
+		}
+		if args[0] == "status" && args[1] == "test-pool/image2" {
+			return `{"watchers":[{"address":"192.168.39.137:0/3762982934"}, {"address":"192.168.39.137:0/3762982934"}]}`, nil
+		}
+		return "", errors.New("unknown command")
+	}
+	context := &clusterd.Context{Executor: executor}
+	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
+	ips, err := getClientIPs(context, clusterInfo, images, "test-pool", "testrns")
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(ips))
+	actualIP, _ := ips.PopAny()
+	assert.Equal(t, "192.168.39.137", actualIP)
 }
