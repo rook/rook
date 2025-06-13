@@ -429,10 +429,10 @@ func (r *ReconcileCephBlockPool) handleDeletionBlocked(cephBlockPool *cephv1.Cep
 	logger.Info(depCondition.Message)
 
 	radosNamespaces := deps.OfKind(radosNamespacesKeyName)
-	isEmpty, emptyMessage, err := cephclient.IsPoolEmpty(r.context, r.clusterInfo, poolSpec.Name, radosNamespaces)
-	if err != nil {
-		return err
-	}
+	isEmpty, emptyMessage, deleteErr := cephclient.IsPoolEmpty(r.context, r.clusterInfo, poolSpec.Name, radosNamespaces)
+	// If err is not nil, it means the deletion failed, but we still want to
+	// report a condition whether the blockPool contains images
+
 	var emptyCondition cephv1.Condition
 	if isEmpty {
 		emptyCondition = dependents.DeletionBlockedDueToNonEmptyPoolCondition(false, emptyMessage)
@@ -457,6 +457,10 @@ func (r *ReconcileCephBlockPool) handleDeletionBlocked(cephBlockPool *cephv1.Cep
 				return errors.Wrapf(cleanupErr, "failed to create clean up job for ceph blockpool %q", cephBlockPool.Name)
 			}
 		}
+	}
+
+	if deleteErr != nil {
+		return deleteErr
 	}
 
 	if deletionBlocked {
