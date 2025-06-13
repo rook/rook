@@ -83,6 +83,10 @@ func TestRadosNamespace(t *testing.T) {
 				assert.Equal(t, "test-pool/test-namespace/16e35cfa56a7", args[5])
 				return "", nil
 			}
+			if args[0] == "status" {
+				assert.Equal(t, "test-pool/csi-vol-136268e8-5386-4453-a6bd-9dca381d187d", args[1])
+				return `{}`, nil
+			}
 			return "", errors.New("unknown command")
 		}
 		context := &clusterd.Context{Executor: executor}
@@ -135,6 +139,10 @@ func TestBlockPoolCleanup(t *testing.T) {
 				// pool-name/image-id
 				assert.Equal(t, "test-pool/16e35cfa56a7", args[5])
 				return "", nil
+			}
+			if args[0] == "status" {
+				assert.Equal(t, "test-pool/csi-vol-136268e8-5386-4453-a6bd-9dca381d187d", args[1])
+				return `{}`, nil
 			}
 			return "", errors.New("unknown command")
 		}
