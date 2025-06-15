@@ -722,6 +722,29 @@ func (r *ReconcileCSI) deleteCSIDriverResources(daemonset, deployment, service, 
 	return nil
 }
 
+func (r *ReconcileCSI) deleteRookCSICMIfExists() error {
+	logger.Debug("checking for existing rook-ceph-csi-config configmap to delete...")
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ConfigName,
+			Namespace: r.opConfig.OperatorNamespace,
+		},
+	}
+
+	err := r.client.Delete(r.opManagerContext, cm)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debugf("configmap %q not found. Ignoring since it must already be deleted", ConfigName)
+			return nil
+		}
+		return errors.Wrapf(err, "failed to delete configmap %q in namespace %q", ConfigName, r.opConfig.OperatorNamespace)
+	}
+
+	logger.Infof("successfully deleted configmap %q in namespace %q", ConfigName, r.opConfig.OperatorNamespace)
+	return nil
+}
+
 func (r *ReconcileCSI) applyCephClusterNetworkConfig(ctx context.Context, objectMeta *metav1.ObjectMeta) error {
 	cephClusters, err := r.context.RookClientset.CephV1().CephClusters(objectMeta.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {

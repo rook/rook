@@ -266,6 +266,10 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 			if err != nil {
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop csi Drivers")
 			}
+			err = r.deleteRookCSICMIfExists()
+			if err != nil {
+				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to delete rook-ceph-csi-config configmap")
+			}
 			err = r.reconcileOperatorConfig(cluster, clusterInfo)
 			if err != nil {
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to reconcile csi-op config CR")
