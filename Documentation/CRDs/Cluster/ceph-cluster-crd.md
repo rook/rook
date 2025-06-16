@@ -872,14 +872,14 @@ spec:
 ```
 
 The Rook operator will actively apply these values, whereas the
-[ceph.conf settings](../../Storage-Configuration/Advanced/ceph-configuration/#custom-cephconf-settings)
+[ceph.conf settings](../../Storage-Configuration/Advanced/ceph-configuration.md#custom-cephconf-settings)
 only take effect after the Ceph daemon pods are restarted.
 
-If both these `cephConfig` and [ceph.conf settings](../../Storage-Configuration/Advanced/ceph-configuration/#custom-cephconf-settings)
+If both these `cephConfig` and [ceph.conf settings](../../Storage-Configuration/Advanced/ceph-configuration.md#custom-cephconf-settings)
 are applied, the `cephConfig` settings will take higher precedence if there is an overlap.
 
 If Ceph settings need to be applied to mons before quorum is initially created, the
-[ceph.conf settings](../../Storage-Configuration/Advanced/ceph-configuration/#custom-cephconf-settings)
+[ceph.conf settings](../../Storage-Configuration/Advanced/ceph-configuration.md#custom-cephconf-settings)
 should be used instead.
 
 !!! warning
