@@ -2,6 +2,8 @@
 
 ## Breaking Changes
 
+- Rook now validates node topology during CephCluster creation to prevent misconfigured CRUSH hierarchies. If child labels like `topology.rook.io/rack` are duplicated across zones, cluster creation will fail. The check applies only to new clusters without OSDs; existing clusters will log a warning and continue. To bypass, set `ROOK_SKIP_OSD_TOPOLOGY_CHECK=true` in the operator configmap. See [#16017](https://github.com/rook/rook/pull/16017) for details.
+
 
 ## Features
 
