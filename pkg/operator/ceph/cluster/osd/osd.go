@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -52,6 +53,7 @@ var (
 	logger                   = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
 	waitForHealthyPGInterval = 10 * time.Second
 	waitForHealthyPGTimeout  = 15 * time.Minute
+	topologyValidated        bool
 )
 
 const (
@@ -198,12 +200,36 @@ func (c *Cluster) validateOSDSettings() error {
 	return nil
 }
 
+func (c *Cluster) validateTopologyAcrossNodes() error {
+	if os.Getenv("ROOK_SKIP_OSD_TOPOLOGY_CHECK") == "true" {
+		return nil
+	}
+	if topologyValidated {
+		return nil
+	}
+
+	nodelist, err := c.context.Clientset.CoreV1().Nodes().List(c.clusterInfo.Context, metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to list nodes for topology validation")
+	}
+
+	if err := topology.CheckTopologyConflicts(&nodelist.Items); err != nil {
+		return err
+	}
+
+	topologyValidated = true
+	return nil
+}
+
 // Start the osd management
 func (c *Cluster) Start() error {
 	namespace := c.clusterInfo.Namespace
 	config := c.newProvisionConfig()
 	errs := newProvisionErrors()
 
+	if err := c.validateTopologyAcrossNodes(); err != nil {
+		return errors.Wrap(err, "skipping osd reconcile until topology node labels are corrected")
+	}
 	if err := c.validateOSDSettings(); err != nil {
 		return err
 	}
