@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -52,6 +53,7 @@ var (
 	logger                   = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
 	waitForHealthyPGInterval = 10 * time.Second
 	waitForHealthyPGTimeout  = 15 * time.Minute
+	topologyValidated        bool
 )
 
 const (
@@ -198,12 +200,58 @@ func (c *Cluster) validateOSDSettings() error {
 	return nil
 }
 
+func (c *Cluster) validateTopologyAcrossNodes() error {
+	if os.Getenv("ROOK_SKIP_OSD_TOPOLOGY_CHECK") == "true" {
+		logger.Debugf("Skipping topology validation due to ROOK_SKIP_OSD_TOPOLOGY_CHECK=true")
+		return nil
+	}
+	if topologyValidated {
+		logger.Debug("Skipping topology validation because it was already validated")
+		return nil
+	}
+
+	logger.Info("Validating node topology across all cluster nodes")
+
+	nodelist, err := c.context.Clientset.CoreV1().Nodes().List(c.clusterInfo.Context, metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("Failed to list nodes for topology validation: %v", err)
+		return errors.Wrap(err, "failed to list nodes for topology validation")
+	}
+
+	if err := topology.CheckTopologyConflicts(&nodelist.Items); err != nil {
+		// Check if there are any existing OSDs
+		osdList, listErr := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(c.clusterInfo.Context, metav1.ListOptions{
+			LabelSelector: "app=rook-ceph-osd",
+		})
+		if listErr != nil {
+			logger.Errorf("Failed to list OSD pods: %v", listErr)
+			return err // fail safe
+		}
+
+		if len(osdList.Items) == 0 {
+			logger.Errorf("Topology conflict detected in new cluster: %v", err)
+			return err
+		}
+
+		// Existing OSDs found — log and continue
+		logger.Warningf("Topology conflict detected, but OSDs already exist: %v. Skipping failure.", err)
+		return nil
+	}
+
+	logger.Info("Node topology validation passed without conflicts")
+	topologyValidated = true
+	return nil
+}
+
 // Start the osd management
 func (c *Cluster) Start() error {
 	namespace := c.clusterInfo.Namespace
 	config := c.newProvisionConfig()
 	errs := newProvisionErrors()
 
+	if err := c.validateTopologyAcrossNodes(); err != nil {
+		return errors.Wrap(err, "skipping osd reconcile until topology node labels are corrected")
+	}
 	if err := c.validateOSDSettings(); err != nil {
 		return err
 	}
