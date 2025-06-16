@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -53,6 +54,7 @@ var (
 	logger                   = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
 	waitForHealthyPGInterval = 10 * time.Second
 	waitForHealthyPGTimeout  = 15 * time.Minute
+	topologyValidated        bool
 )
 
 const (
@@ -203,12 +205,54 @@ func (c *Cluster) validateOSDSettings() error {
 	return nil
 }
 
+func (c *Cluster) validateTopologyAcrossNodes() error {
+	if os.Getenv("ROOK_SKIP_OSD_TOPOLOGY_CHECK") == "true" {
+		logger.Debugf("Skipping topology validation due to ROOK_SKIP_OSD_TOPOLOGY_CHECK=true")
+		return nil
+	}
+	if topologyValidated {
+		logger.Debug("Skipping topology validation because it was already validated")
+		return nil
+	}
+
+	logger.Info("Validating node topology across all cluster nodes")
+
+	nodelist, err := c.context.Clientset.CoreV1().Nodes().List(c.clusterInfo.Context, metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to list nodes for topology validation")
+	}
+
+	if err := topology.CheckTopologyConflicts(&nodelist.Items); err != nil {
+		// Check if there are any existing OSDs
+		osdRunning, err := k8sutil.PodsRunningWithLabel(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, "app=rook-ceph-osd")
+		if err != nil {
+			logger.Errorf("Failed to list OSD pods: %v", err)
+			return err // fail safe
+		}
+
+		if osdRunning == 0 {
+			return errors.Wrap(err, "topology conflict detected in new cluster")
+		}
+
+		// Existing OSDs found — log and continue
+		logger.Warningf("Topology conflict detected, but skipping failure since OSDs already exist. %v", err)
+		return nil
+	}
+
+	logger.Info("Node topology validation passed without conflicts")
+	topologyValidated = true
+	return nil
+}
+
 // Start the osd management
 func (c *Cluster) Start() error {
 	namespace := c.clusterInfo.Namespace
 	config := c.newProvisionConfig()
 	errs := newProvisionErrors()
 
+	if err := c.validateTopologyAcrossNodes(); err != nil {
+		return errors.Wrap(err, "skipping osd reconcile until topology node labels are corrected")
+	}
 	if err := c.validateOSDSettings(); err != nil {
 		return err
 	}
