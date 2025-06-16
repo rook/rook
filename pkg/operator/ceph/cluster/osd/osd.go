@@ -198,12 +198,112 @@ func (c *Cluster) validateOSDSettings() error {
 	return nil
 }
 
+func (c *Cluster) ValidateTopologyAcrossNodes() error {
+	nodes, err := k8sutil.GetKubernetesNodesMatchingRookNodes(c.clusterInfo.Context, c.spec.Storage.Nodes, c.context.Clientset)
+	if err != nil {
+		return errors.Wrap(err, "failed to list nodes for topology validation")
+	}
+
+	return checkTopologyConflicts(nodes)
+}
+
+func checkTopologyConflicts(nodes []corev1.Node) error {
+	hierarchy := []string{
+		"kubernetes.io/hostname",
+		"topology.kubernetes.io/region",
+		"topology.kubernetes.io/zone",
+		"topology.rook.io/datacenter",
+		"topology.rook.io/room",
+		"topology.rook.io/pod",
+		"topology.rook.io/pdu",
+		"topology.rook.io/row",
+		"topology.rook.io/rack",
+		"topology.rook.io/chassis",
+	}
+
+	// 1. Conflict: Same child value used under multiple parents
+	for i := len(hierarchy) - 1; i > 0; i-- {
+		childKey := hierarchy[i]
+		parentKeys := hierarchy[:i]
+
+		childToParents := map[string]map[string]struct{}{}
+
+		for _, node := range nodes {
+			labels := node.GetLabels()
+			childVal := labels[childKey]
+			if childVal == "" {
+				continue
+			}
+			childVal = cephclient.NormalizeCrushName(childVal)
+
+			for _, parentKey := range parentKeys {
+				parentVal := labels[parentKey]
+				if parentVal == "" {
+					continue
+				}
+				parentVal = cephclient.NormalizeCrushName(parentVal)
+				parentID := fmt.Sprintf("%s=%s", parentKey, parentVal)
+
+				if _, ok := childToParents[childVal]; !ok {
+					childToParents[childVal] = map[string]struct{}{}
+				}
+				childToParents[childVal][parentID] = struct{}{}
+			}
+		}
+
+		for childVal, parentSet := range childToParents {
+			if len(parentSet) > 1 {
+				var parents []string
+				for p := range parentSet {
+					parents = append(parents, p)
+				}
+				return fmt.Errorf("invalid topology: label %q value %q appears under multiple parent domains: %v",
+					childKey, childVal, parents)
+			}
+		}
+	}
+
+	// 2. Conflict: Same value reused across multiple topology keys
+	valueToKeys := map[string]map[string]struct{}{}
+
+	for _, node := range nodes {
+		labels := node.GetLabels()
+		for _, key := range hierarchy {
+			val := labels[key]
+			if val == "" {
+				continue
+			}
+			val = cephclient.NormalizeCrushName(val)
+
+			if _, ok := valueToKeys[val]; !ok {
+				valueToKeys[val] = map[string]struct{}{}
+			}
+			valueToKeys[val][key] = struct{}{}
+		}
+	}
+
+	for val, keys := range valueToKeys {
+		if len(keys) > 1 {
+			var keyList []string
+			for k := range keys {
+				keyList = append(keyList, k)
+			}
+			return fmt.Errorf("invalid topology: value %q is used in multiple label keys: %v", val, keyList)
+		}
+	}
+
+	return nil
+}
+
 // Start the osd management
 func (c *Cluster) Start() error {
 	namespace := c.clusterInfo.Namespace
 	config := c.newProvisionConfig()
 	errs := newProvisionErrors()
 
+	if err := c.ValidateTopologyAcrossNodes(); err != nil {
+		return err
+	}
 	if err := c.validateOSDSettings(); err != nil {
 		return err
 	}
