@@ -148,7 +148,10 @@ chart to start managing the cluster:
 
 ### **Development Build**
 
-To deploy from a local build from your development environment:
+To deploy from a local build from your development environment there are two steps:
+
+1. [Deploy the operator chart](operator-chart.md#development-build), in particular to get the CRDs.
+2. Deploy the cluster chart:
 
 ```console
 cd deploy/charts/rook-ceph-cluster
