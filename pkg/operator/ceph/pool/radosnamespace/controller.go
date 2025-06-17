@@ -427,25 +427,25 @@ func (r *ReconcileCephBlockPoolRadosNamespace) deleteRadosNamespace(radosNamespa
 	containsImages, deleteErr := cephclient.DeleteRadosNamespace(r.context, r.clusterInfo, radosNamespace.Spec.BlockPoolName, name)
 	// If deleteErr is not nil, it means the deletion failed, but we still want to
 	// report a condition whether the rados namespace contains images
+	var emptyCondition cephv1.Condition
 	if containsImages {
-		var emptyCondition cephv1.Condition
-		if containsImages {
-			emptyCondition = dependents.DeletionBlockedDueToNonEmptyRadosNSCondition(
-				true,
-				fmt.Sprintf("rados namespace %q contains images or snapshots and cannot be deleted", radosNamespace.Name))
-		} else {
-			emptyCondition = dependents.DeletionBlockedDueToNonEmptyRadosNSCondition(
-				false,
-				fmt.Sprintf("rados namespace %q is empty and can be deleted", radosNamespace.Name))
-		}
-		logger.Info(emptyCondition.Message)
+		emptyCondition = dependents.DeletionBlockedDueToNonEmptyRadosNSCondition(
+			true,
+			fmt.Sprintf("rados namespace %q contains images or snapshots and cannot be deleted", radosNamespace.Name))
+	} else {
+		emptyCondition = dependents.DeletionBlockedDueToNonEmptyRadosNSCondition(
+			false,
+			fmt.Sprintf("rados namespace %q is empty and can be deleted", radosNamespace.Name))
+	}
+	logger.Info(emptyCondition.Message)
 
-		err := reporting.UpdateStatusConditionsWithRetry(
-			r.opManagerContext, r.client, radosNamespace, nsName, radosNamespace.Kind, emptyCondition)
-		if err != nil {
-			logger.Warningf("failed to update %q status with deletion blocked conditions: %v", nsName.String(), err)
-		}
+	err := reporting.UpdateStatusConditionsWithRetry(
+		r.opManagerContext, r.client, radosNamespace, nsName, radosNamespace.Kind, emptyCondition)
+	if err != nil {
+		logger.Warningf("failed to update %q status with deletion blocked conditions: %v", nsName.String(), err)
+	}
 
+	if containsImages {
 		// Force deletion if desired
 		if opcontroller.ForceDeleteRequested(radosNamespace.GetAnnotations()) {
 			cleanupErr := r.cleanup(radosNamespace, cephCluster)
