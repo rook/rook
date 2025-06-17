@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -163,4 +164,44 @@ func getImageSpecInRadosNamespace(poolName, namespace, imageID string) string {
 
 func getImageSnapshotSpec(poolName, imageName, snapshot string) string {
 	return fmt.Sprintf("%s/%s@%s", poolName, imageName, snapshot)
+}
+
+type RBDStatus struct {
+	Watchers []struct {
+		Address string `json:"address"`
+	} `json:"watchers"`
+}
+
+// GetWatcherIPs returns a list of watcher IPs of the RBD image.
+// The RBD status output is parsed to get the desired IPs.
+// For example: `192.168.39.137:0/3762982934“ IP format returned in the RBD status output is parsed as 192.168.39.137
+func (r RBDStatus) GetWatcherIPs() []string {
+	watcherIPList := []string{}
+	for _, watcher := range r.Watchers {
+		watcherIP := strings.Split(watcher.Address, ":0")[0]
+		watcherIPList = append(watcherIPList, watcherIP)
+	}
+	return watcherIPList
+}
+
+// GetRBDImageStatus returns the status of the RDB image.
+func GetRBDImageStatus(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, imageName, namespace string) (RBDStatus, error) {
+	args := []string{"status", getImageSpec(imageName, poolName)}
+	if namespace != "" {
+		args = append(args, "--namespace", namespace)
+	}
+	var rbdStatusObj RBDStatus
+	cmd := NewRBDCommand(context, clusterInfo, args)
+	cmd.JsonOutput = true
+	buf, err := cmd.Run()
+	if err != nil {
+		return rbdStatusObj, errors.Wrapf(err, "failed to get status of the image %q in cephblockpool %q", imageName, poolName)
+	}
+
+	err = json.Unmarshal(buf, &rbdStatusObj)
+	if err != nil {
+		return rbdStatusObj, errors.Wrap(err, "failed to unmarshal rbd status output")
+	}
+
+	return rbdStatusObj, nil
 }

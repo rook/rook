@@ -22,6 +22,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"k8s.io/apimachinery/pkg/util/sets"
+)
+
+const (
+
+	// ClientBlocklistDuration is the duration (in seconds) for which the client IP will be blocklisted
+	ClientBlocklistDuration = "1200"
 )
 
 func RadosNamespaceCleanup(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, poolName, radosNamespace string) error {
@@ -45,6 +52,11 @@ func cleanupImages(context *clusterd.Context, clusterInfo *cephclient.ClusterInf
 	images, err := cephclient.ListImagesInRadosNamespace(context, clusterInfo, poolName, radosNamespace)
 	if err != nil {
 		return errors.Wrapf(err, "failed to list images in %s", msg)
+	}
+
+	err = blocklistClientIPs(context, clusterInfo, images, poolName, radosNamespace)
+	if err != nil {
+		return errors.Wrap(err, "failed to add client IPs to the blocklist")
 	}
 
 	var retErr error
@@ -90,4 +102,49 @@ func BlockPoolCleanup(context *clusterd.Context, clusterInfo *cephclient.Cluster
 
 	logger.Infof("successfully cleaned up CephBlockPool %q resource", poolName)
 	return nil
+}
+
+func blocklistClientIPs(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, images []cephclient.CephBlockImage, poolName, radosNamespace string) error {
+	ips, err := getClientIPs(context, clusterInfo, images, poolName, radosNamespace)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get client IPs for all the images in pool %q in namespace %q", poolName, radosNamespace)
+	}
+
+	if len(ips) == 0 {
+		logger.Info("no client IPs found for images in pool %q in rados namespace %q", poolName, radosNamespace)
+	}
+
+	for ip := range ips {
+		logger.Infof("blocklist client IP %q for images in pool %q in namespace %q", ip, poolName, radosNamespace)
+		err = cephclient.BlocklistIP(context, clusterInfo, ip, ClientBlocklistDuration)
+		if err != nil {
+			return errors.Wrapf(err, "failed to blocklist IP  %q in pool %q in namespace %q", ip, poolName, radosNamespace)
+		}
+		logger.Infof("successfully blocklisted client IP %q in pool %q in namespace %q", ip, poolName, radosNamespace)
+	}
+
+	return nil
+}
+
+func getClientIPs(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, images []cephclient.CephBlockImage, poolName, radosNamespace string) (sets.Set[string], error) {
+	clientIPs := sets.New[string]()
+	for _, image := range images {
+		rbdStatus, err := cephclient.GetRBDImageStatus(context, clusterInfo, poolName, image.Name, radosNamespace)
+		if err != nil {
+			return clientIPs, errors.Wrapf(err, "failed to list watchers for the image %q in %s", image.Name, radosNamespace)
+		}
+		ips := rbdStatus.GetWatcherIPs()
+		if len(ips) == 0 {
+			logger.Infof("no watcher IPs found for image %q in pool %q in namespace %q", image.Name, poolName, radosNamespace)
+			continue
+		}
+
+		logger.Infof("watcher IPs for image %q in pool %q in namespace %q: %v", image.Name, poolName, radosNamespace, ips)
+		for _, ip := range ips {
+			clientIPs.Insert(ip)
+		}
+	}
+
+	logger.Infof("client IPs : %v", clientIPs)
+	return clientIPs, nil
 }
