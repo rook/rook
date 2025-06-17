@@ -130,8 +130,8 @@ do.build.platform.%:
 do.build.parallel: $(foreach p,$(PLATFORMS_TO_BUILD_FOR), do.build.platform.$(p))
 
 build: build.common ## Only build for linux platform
-	@$(MAKE) go.build PLATFORM=linux_$(GOHOSTARCH)
-	@$(MAKE) -C images PLATFORM=linux_$(GOHOSTARCH)
+	@$(MAKE) go.build PLATFORM=linux_$(GOARCH)
+	@$(MAKE) -C images PLATFORM=linux_$(GOARCH)
 
 build.all: build.common ## Build source code for all platforms.
 ifneq ($(GOHOSTARCH),amd64)
