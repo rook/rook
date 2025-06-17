@@ -36,6 +36,10 @@ func RotateKeyEncryptionKey(context *clusterd.Context, kms *kms.Config, secretNa
 		return errors.Wrapf(err, "failed to get secret %q", secretName)
 	}
 
+	if currentKey == "" {
+		return errors.Errorf("the secret %q is empty, cannot rotate the key", secretName)
+	}
+
 	// Ensure currentKey is in slot 1.
 	for _, devicePath := range devicePaths {
 		logger.Infof("adding the current key to slot %q of the device %q", slotOne, devicePath)
@@ -79,6 +83,7 @@ func RotateKeyEncryptionKey(context *clusterd.Context, kms *kms.Config, secretNa
 	if err != nil {
 		return errors.Wrapf(err, "failed to get secret %q", secretName)
 	}
+
 	if keyInKMS != newKey {
 		return errors.New("failed to verify the new key in the KMS, the fetched key is not the same as the new key")
 	}
