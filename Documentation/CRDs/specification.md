@@ -5058,6 +5058,19 @@ CephxStatus
 </tr>
 <tr>
 <td>
+<code>osd</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxStatus">
+CephxStatus
+</a>
+</em>
+</td>
+<td>
+<p>OSD shows the CephX key status of of OSDs</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>rbdMirrorPeer</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.CephxStatus">

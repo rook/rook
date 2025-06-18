@@ -166,7 +166,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, AppName, deployment.Spec.Template.ObjectMeta.Name)
 	assert.Equal(t, AppName, deployment.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.clusterInfo.Namespace, deployment.Spec.Template.ObjectMeta.Labels["rook_cluster"])
-	assert.Equal(t, 1, len(deployment.Spec.Template.ObjectMeta.Annotations))
+	assert.Equal(t, 2, len(deployment.Spec.Template.ObjectMeta.Annotations))
 
 	assert.Equal(t, 4, len(deployment.Spec.Template.Spec.InitContainers))
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
