@@ -842,7 +842,7 @@ func TestUpdateCephStorageStatus(t *testing.T) {
 	c := New(context, clusterInfo, cephCluster.Spec, "myversion")
 
 	t.Run("verify ssd device class added to storage status", func(t *testing.T) {
-		err := c.updateCephStorageStatus()
+		err := c.updateCephOsdStorageStatus()
 		assert.NoError(t, err)
 		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
 		assert.NoError(t, err)
@@ -868,7 +868,7 @@ func TestUpdateCephStorageStatus(t *testing.T) {
 		if _, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 			logger.Errorf("Error creating fake deployment: %v", err)
 		}
-		err := c.updateCephStorageStatus()
+		err := c.updateCephOsdStorageStatus()
 		assert.NoError(t, err)
 		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
 		assert.NoError(t, err)
@@ -896,7 +896,7 @@ func TestUpdateCephStorageStatus(t *testing.T) {
 		if _, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 			logger.Errorf("Error creating fake deployment: %v", err)
 		}
-		err := c.updateCephStorageStatus()
+		err := c.updateCephOsdStorageStatus()
 		assert.NoError(t, err)
 		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
 		assert.NoError(t, err)
@@ -904,6 +904,211 @@ func TestUpdateCephStorageStatus(t *testing.T) {
 		assert.Equal(t, "ssd", cephCluster.Status.CephStorage.DeviceClasses[0].Name)
 		assert.Equal(t, 1, cephCluster.Status.CephStorage.OSD.StoreType["bluestore-rdr"])
 		assert.Equal(t, 1, cephCluster.Status.CephStorage.OSD.StoreType["bluestore"])
+	})
+}
+
+func Test_updateCephOsdStorageStatus_cephx(t *testing.T) {
+	ctx := context.TODO()
+	clusterInfo := cephclient.AdminTestClusterInfo("fake")
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
+			if args[1] == "crush" && args[2] == "class" && args[3] == "ls" {
+				// Mock executor for OSD crush class list command, returning ssd as available device class
+				return `["ssd"]`, nil
+			}
+			return "", nil
+		},
+	}
+
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testing",
+			Namespace: "fake",
+		},
+		Spec: cephv1.ClusterSpec{},
+	}
+	// Objects to track in the fake client.
+	object := []runtime.Object{
+		cephCluster,
+	}
+	s := scheme.Scheme
+	// Create a fake client to mock API calls.
+	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
+	context := &clusterd.Context{
+		Executor:  executor,
+		Client:    client,
+		Clientset: testexec.New(t, 2),
+	}
+
+	// Initializing an OSD monitoring
+	c := New(context, clusterInfo, cephCluster.Spec, "myversion")
+
+	// Tests are not independent and rely on prior tests's changes
+
+	t.Run("no osd deployments, no cephcluster status", func(t *testing.T) {
+		err := c.updateCephOsdStorageStatus()
+		assert.NoError(t, err)
+		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.Nil(t, cephCluster.Status.Cephx)
+	})
+
+	t.Run("unset cephx status, no cephcluster status", func(t *testing.T) {
+		deployment := &apps.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "osd0",
+				Namespace: clusterInfo.Namespace,
+				Labels: map[string]string{
+					k8sutil.AppAttr:     AppName,
+					k8sutil.ClusterAttr: clusterInfo.Namespace,
+					OsdIdLabelKey:       "0",
+				},
+			},
+			Spec: apps.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{},
+					},
+				},
+			},
+		}
+		_, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		err = c.updateCephOsdStorageStatus()
+		assert.NoError(t, err)
+		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.NotNil(t, cephCluster.Status.Cephx)
+		assert.Empty(t, cephCluster.Status.Cephx.OSD)
+	})
+
+	t.Run("empty string cephx status, no cephcluster status", func(t *testing.T) {
+		deployment := &apps.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "osd0",
+				Namespace: clusterInfo.Namespace,
+				Labels: map[string]string{
+					k8sutil.AppAttr:     AppName,
+					k8sutil.ClusterAttr: clusterInfo.Namespace,
+					OsdIdLabelKey:       "0",
+				},
+			},
+			Spec: apps.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							cephxStatusAnnotationKey: ``,
+						},
+					},
+				},
+			},
+		}
+		_, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+		assert.NoError(t, err)
+
+		err = c.updateCephOsdStorageStatus()
+		assert.NoError(t, err)
+		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.NotNil(t, cephCluster.Status.Cephx)
+		assert.Empty(t, cephCluster.Status.Cephx.OSD)
+	})
+
+	t.Run("gen 1 cephx status", func(t *testing.T) {
+		deployment := &apps.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "osd0",
+				Namespace: clusterInfo.Namespace,
+				Labels: map[string]string{
+					k8sutil.AppAttr:     AppName,
+					k8sutil.ClusterAttr: clusterInfo.Namespace,
+					OsdIdLabelKey:       "0",
+				},
+			},
+			Spec: apps.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							cephxStatusAnnotationKey: `{"keyGeneration": 1, "keyCephVersion": "v20"}`,
+						},
+					},
+				},
+			},
+		}
+		_, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+		assert.NoError(t, err)
+
+		err = c.updateCephOsdStorageStatus()
+		assert.NoError(t, err)
+		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.NotNil(t, cephCluster.Status.Cephx)
+		assert.Equal(t, cephv1.CephxStatus{KeyGeneration: 1, KeyCephVersion: "v20"}, *cephCluster.Status.Cephx.OSD)
+	})
+
+	t.Run("gen 1 and unset cephx status", func(t *testing.T) {
+		deployment := &apps.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "osd1",
+				Namespace: clusterInfo.Namespace,
+				Labels: map[string]string{
+					k8sutil.AppAttr:     AppName,
+					k8sutil.ClusterAttr: clusterInfo.Namespace,
+					OsdIdLabelKey:       "1",
+				},
+			},
+			Spec: apps.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{},
+					},
+				},
+			},
+		}
+		_, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		err = c.updateCephOsdStorageStatus()
+		assert.NoError(t, err)
+		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.NotNil(t, cephCluster.Status.Cephx)
+		assert.Equal(t, cephv1.CephxStatus{KeyGeneration: 0, KeyCephVersion: ""}, *cephCluster.Status.Cephx.OSD)
+	})
+
+	t.Run("gen 1 and gen 2 cephx status", func(t *testing.T) {
+		deployment := &apps.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "osd1",
+				Namespace: clusterInfo.Namespace,
+				Labels: map[string]string{
+					k8sutil.AppAttr:     AppName,
+					k8sutil.ClusterAttr: clusterInfo.Namespace,
+					OsdIdLabelKey:       "1",
+				},
+			},
+			Spec: apps.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							cephxStatusAnnotationKey: `{"keyGeneration": 2, "keyCephVersion": "v19"}`,
+						},
+					},
+				},
+			},
+		}
+		_, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+		assert.NoError(t, err)
+
+		err = c.updateCephOsdStorageStatus()
+		assert.NoError(t, err)
+		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.NotNil(t, cephCluster.Status.Cephx)
+		assert.Equal(t, cephv1.CephxStatus{KeyGeneration: 1, KeyCephVersion: "v20"}, *cephCluster.Status.Cephx.OSD)
 	})
 }
 
