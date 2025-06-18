@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -168,6 +169,22 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 			errs.addError("%v", errors.Wrapf(err, "failed to update OSD %d", osdID))
 			continue
 		}
+
+		// TODO: fix this to have the right runningCephVersion and desiredCephVersion
+		runningCephVersion := c.cluster.clusterInfo.CephVersion
+		desiredCephVersion := c.cluster.clusterInfo.CephVersion
+		shouldRotate, err := keyring.ShouldRotateCephxKeys(c.cluster.spec.Security.CephX.Daemon,
+			runningCephVersion, desiredCephVersion, osdInfo.CephxStatus)
+		if err != nil {
+			errs.addError("%v", errors.Wrapf(err, "failed to determine if cephx key for OSD %d needs rotated", osdID))
+		}
+		if shouldRotate {
+			// TODO: do rotation
+		}
+		updatedCephxStatus := keyring.UpdatedCephxStatus(shouldRotate, c.cluster.spec.Security.CephX.Daemon,
+			c.cluster.clusterInfo.CephVersion, osdInfo.CephxStatus)
+		logger.Debugf("updating OSD deployment %q with cephx status %#v", depName, updatedCephxStatus) // ===== TESTING TESTING TESTING TESTING =====
+		osdInfo.CephxStatus = updatedCephxStatus
 
 		var updatedDep *appsv1.Deployment
 

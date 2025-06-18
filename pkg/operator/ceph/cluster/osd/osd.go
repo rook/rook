@@ -20,6 +20,7 @@ package osd
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -75,6 +76,9 @@ const (
 	osdStore                       = "osd-store"
 	deviceType                     = "device-type"
 	encrypted                      = "encrypted"
+
+	// TODO: make this private (uncapitalized) if not used outside 'package osd'
+	CephxStatusAnnotationKey = "cephx-status"
 )
 
 // Cluster keeps track of the OSDs
@@ -119,12 +123,13 @@ type OSDInfo struct {
 	CVMode        string `json:"lv-mode"`
 	Store         string `json:"store"`
 	// Ensure the OSD daemon has affinity with the same topology from the OSD prepare pod
-	TopologyAffinity string `json:"topologyAffinity"`
-	Encrypted        bool   `json:"encrypted"`
-	ExportService    bool   `json:"exportService"`
-	NodeName         string `json:"nodeName"`
-	PVCName          string `json:"pvcName"`
-	DeviceType       string `json:"device-type"`
+	TopologyAffinity string             `json:"topologyAffinity"`
+	Encrypted        bool               `json:"encrypted"`
+	ExportService    bool               `json:"exportService"`
+	NodeName         string             `json:"nodeName"`
+	PVCName          string             `json:"pvcName"`
+	DeviceType       string             `json:"device-type"`
+	CephxStatus      cephv1.CephxStatus `json:"cephxStatus"`
 }
 
 // OrchestrationStatus represents the status of an OSD orchestration
@@ -723,6 +728,16 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	if isPVC {
 		osd.PVCName = d.Labels[OSDOverPVCLabelKey]
 	}
+
+	cephxStatus := cephv1.CephxStatus{}
+	cephxRaw, ok := d.Spec.Template.Annotations[CephxStatusAnnotationKey]
+	if ok {
+		if err := json.Unmarshal([]byte(cephxRaw), &cephxStatus); err != nil {
+			return OSDInfo{}, errors.Wrapf(err, "failed to unmarshal cephx status %q for deployment %q", cephxRaw, d.Name)
+		}
+	}
+	osd.CephxStatus = cephxStatus
+	logger.Debugf("cephx status annotation (present? %t) for existing OSD deployment %q: %#v", ok, d.Name, cephxStatus) // ===== TESTING TESTING TESTING TESTING =====
 
 	return osd, nil
 }
