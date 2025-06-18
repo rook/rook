@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclientfake "github.com/rook/rook/pkg/daemon/ceph/client/fake"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -778,4 +779,156 @@ func Test_existenceList(t *testing.T) {
 	l.Add(1)
 	assert.True(t, l.Exists(1))
 	assert.Equal(t, 4, l.Len())
+}
+
+func TestCluster_rotateCephxKey(t *testing.T) {
+	// auth rotate returns an array instead of a single object
+	rotatedKeyJson := `[{"key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="}]`
+	rotateCalledForEntity := ""
+	sharedExecutor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			t.Logf("command: %s %v", command, args)
+			if command == "ceph" && args[0] == "auth" && args[1] == "rotate" {
+				rotateCalledForEntity = args[2]
+				return rotatedKeyJson, nil
+			}
+			panic(fmt.Sprintf("unexpected command %q %v", command, args))
+		},
+	}
+
+	newTest := func(daemonCephxConfig cephv1.CephxConfig) *Cluster {
+		rotateCalledForEntity = "" // reset to empty each test
+
+		clusterd := clusterd.Context{
+			Executor: sharedExecutor,
+		}
+		clusterInfo := cephclient.ClusterInfo{
+			Context:     context.TODO(),
+			Namespace:   "ns",
+			CephVersion: cephver.CephVersion{Major: 20, Minor: 2},
+		}
+		return &Cluster{
+			context:     &clusterd,
+			clusterInfo: &clusterInfo,
+			spec: cephv1.ClusterSpec{
+				Security: cephv1.ClusterSecuritySpec{
+					CephX: cephv1.ClusterCephxConfig{
+						Daemon: daemonCephxConfig,
+					},
+				},
+			},
+		}
+	}
+
+	t.Run("empty status and config", func(t *testing.T) {
+		c := newTest(cephv1.CephxConfig{})
+		osdInfo := OSDInfo{
+			ID:          1,
+			CephxStatus: cephv1.CephxStatus{},
+		}
+
+		cephxStatus, err := c.rotateCephxKey(osdInfo)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.CephxStatus{}, cephxStatus)
+		assert.Equal(t, rotateCalledForEntity, "")
+	})
+
+	t.Run("empty status, disabled config", func(t *testing.T) { // brownfield, no rotation
+		c := newTest(cephv1.CephxConfig{
+			KeyRotationPolicy: "Disabled",
+			KeyGeneration:     3,
+		})
+		osdInfo := OSDInfo{
+			ID:          1,
+			CephxStatus: cephv1.CephxStatus{},
+		}
+
+		cephxStatus, err := c.rotateCephxKey(osdInfo)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.CephxStatus{}, cephxStatus)
+		assert.Equal(t, rotateCalledForEntity, "")
+	})
+
+	t.Run("empty status, enabled config", func(t *testing.T) { // brownfield with rotation
+		c := newTest(cephv1.CephxConfig{
+			KeyRotationPolicy: "KeyGeneration",
+			KeyGeneration:     3,
+		})
+		osdInfo := OSDInfo{
+			ID:          1,
+			CephxStatus: cephv1.CephxStatus{},
+		}
+
+		cephxStatus, err := c.rotateCephxKey(osdInfo)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.CephxStatus{KeyCephVersion: "20.2.0-0", KeyGeneration: 3}, cephxStatus)
+		assert.Equal(t, rotateCalledForEntity, "osd.1")
+	})
+
+	t.Run("undefined status, empty config", func(t *testing.T) { // greenfield, no rotation
+		c := newTest(cephv1.CephxConfig{})
+		osdInfo := OSDInfo{
+			ID:          1,
+			CephxStatus: keyring.UninitializedCephxStatus(), // shouldn't happen in reality
+		}
+
+		cephxStatus, err := c.rotateCephxKey(osdInfo)
+		assert.NoError(t, err)
+		// results in unnecessary OSD restart, but ensures that future rotations aren't blocked
+		// in the unlikely event the uninitialized status is erroneously applied to osd deployment
+		assert.Equal(t, cephv1.CephxStatus{KeyCephVersion: "20.2.0-0", KeyGeneration: 1}, cephxStatus)
+		assert.Equal(t, rotateCalledForEntity, "")
+	})
+
+	t.Run("set status, empty config", func(t *testing.T) {
+		c := newTest(cephv1.CephxConfig{})
+		osdInfo := OSDInfo{
+			ID:          1,
+			CephxStatus: cephv1.CephxStatus{KeyGeneration: 1, KeyCephVersion: "19.2.6-0"},
+		}
+
+		cephxStatus, err := c.rotateCephxKey(osdInfo)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.CephxStatus{KeyCephVersion: "19.2.6-0", KeyGeneration: 1}, cephxStatus)
+		assert.Equal(t, rotateCalledForEntity, "")
+	})
+
+	t.Run("set status, enabled config", func(t *testing.T) {
+		c := newTest(cephv1.CephxConfig{
+			KeyRotationPolicy: "KeyGeneration",
+			KeyGeneration:     4,
+		})
+		osdInfo := OSDInfo{
+			ID:          2,
+			CephxStatus: cephv1.CephxStatus{KeyGeneration: 1, KeyCephVersion: "19.2.6-0"},
+		}
+
+		cephxStatus, err := c.rotateCephxKey(osdInfo)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.CephxStatus{KeyCephVersion: "20.2.0-0", KeyGeneration: 4}, cephxStatus)
+		assert.Equal(t, rotateCalledForEntity, "osd.2")
+	})
+
+	t.Run("auth rotate failure", func(t *testing.T) {
+		// this case shouldn't happen in code, but it could repair a botched greenfield deploy
+		c := newTest(cephv1.CephxConfig{
+			KeyRotationPolicy: "KeyGeneration",
+			KeyGeneration:     4,
+		})
+		c.context.Executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
+				rotateCalledForEntity = arg[2]
+				return "", fmt.Errorf("mock error")
+			},
+		}
+		osdInfo := OSDInfo{
+			ID:          2,
+			CephxStatus: cephv1.CephxStatus{KeyGeneration: 1, KeyCephVersion: "19.2.6-0"},
+		}
+
+		cephxStatus, err := c.rotateCephxKey(osdInfo)
+		assert.Error(t, err)
+		assert.Equal(t, cephv1.CephxStatus{KeyCephVersion: "19.2.6-0", KeyGeneration: 1}, cephxStatus)
+		assert.Equal(t, rotateCalledForEntity, "osd.2")
+	})
 }

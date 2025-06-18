@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -168,6 +169,13 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 			errs.addError("%v", errors.Wrapf(err, "failed to update OSD %d", osdID))
 			continue
 		}
+
+		cephxStatus, err := c.cluster.rotateCephxKey(osdInfo)
+		if err != nil {
+			// user-desired rotation failed, so report an error, but continue to try to update the OSD deployment
+			errs.addError("%v", errors.Wrapf(err, "failed to rotate cephx key for OSD %d", osdID))
+		}
+		osdInfo.CephxStatus = cephxStatus // returned status is always correct
 
 		var updatedDep *appsv1.Deployment
 
@@ -389,4 +397,36 @@ func (c *Cluster) getOSDDeployments() (*appsv1.DeploymentList, error) {
 		return nil, errors.Wrap(err, "failed to query existing OSD deployments to check if they need to be updated")
 	}
 	return deps, nil
+}
+
+// if needed, rotate cephx key for the OSD
+// always returns the cephx status that should be applied to the OSD annotation, even in error case
+func (c *Cluster) rotateCephxKey(osdInfo OSDInfo) (cephv1.CephxStatus, error) {
+	// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
+	runningCephVersion := c.clusterInfo.CephVersion
+	desiredCephVersion := c.clusterInfo.CephVersion
+	shouldRotate, err := keyring.ShouldRotateCephxKeys(c.spec.Security.CephX.Daemon,
+		runningCephVersion, desiredCephVersion, osdInfo.CephxStatus)
+	if err != nil {
+		return osdInfo.CephxStatus, errors.Wrapf(err, "failed to determine if cephx key for OSD %d needs rotated", osdInfo.ID)
+	}
+
+	didRotateCephxStatus := keyring.UpdatedCephxStatus(true, c.spec.Security.CephX.Daemon,
+		c.clusterInfo.CephVersion, osdInfo.CephxStatus)
+	didNotRotateCephxStatus := keyring.UpdatedCephxStatus(false, c.spec.Security.CephX.Daemon,
+		c.clusterInfo.CephVersion, osdInfo.CephxStatus)
+
+	if !shouldRotate {
+		return didNotRotateCephxStatus, nil
+	}
+
+	logger.Infof("rotating cephx key of OSD %d for CephCluster in namespace %q", osdInfo.ID, c.clusterInfo.Namespace)
+	user := fmt.Sprintf("osd.%d", osdInfo.ID)
+	// Note: OSD key is not stored in k8s secret; rotated key is picked up by OSD init container
+	_, err = cephclient.AuthRotate(c.context, c.clusterInfo, user)
+	if err != nil {
+		return didNotRotateCephxStatus, errors.Wrapf(err, "failed to rotate cephx key for OSD %d", osdInfo.ID)
+	}
+
+	return didRotateCephxStatus, nil
 }

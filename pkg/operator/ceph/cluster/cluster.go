@@ -748,6 +748,7 @@ func (c *cluster) configureMsgr2() error {
 func initClusterCephxStatus(c *clusterd.Context, cluster *cephv1.CephCluster) error {
 	uninitializedStatus := keyring.UninitializedCephxStatus()
 	cluster.Status.Cephx = &cephv1.ClusterCephxStatus{
+		OSD:           &uninitializedStatus,
 		RBDMirrorPeer: &uninitializedStatus,
 		Mgr:           &uninitializedStatus,
 		CSI: &cephv1.CephxStatusWithKeyCount{
