@@ -121,7 +121,7 @@ promote.helm: $(HELM)
 #	copy existing charts to a temp dir, then combine with new charts, reindex, and upload
 	$(S3_SYNC) s3://$(HELM_S3_BUCKET)/$(HELM_CHANNEL) $(HELM_TEMP)
 	$(S3_SYNC) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)/charts $(HELM_TEMP)
-	$(HELM) repo index --url $(HELM_URL) $(HELM_TEMP)
+	$(HELM) repo index --url $(HELM_URL) --merge $(HELM_TEMP)/index.yaml $(HELM_TEMP)
 	$(S3_SYNC_DEL) $(HELM_TEMP) s3://$(HELM_S3_BUCKET)/$(HELM_CHANNEL)
 	rm -fr $(HELM_TEMP)
 
