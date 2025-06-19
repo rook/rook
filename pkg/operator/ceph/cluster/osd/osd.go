@@ -941,15 +941,11 @@ func (c *Cluster) deleteOSDDeployment(osdID int) error {
 	deploymentName := fmt.Sprintf("rook-ceph-osd-%d", osdID)
 	logger.Infof("removing the OSD deployment %q", deploymentName)
 	if err := k8sutil.DeleteDeployment(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, deploymentName); err != nil {
-		if err != nil {
-			if kerrors.IsNotFound(err) {
-				logger.Debugf("osd deployment %q not found. Ignoring since object must be deleted.", deploymentName)
-			} else {
-				return errors.Wrapf(err, "failed to delete OSD deployment %q.", deploymentName)
-			}
+		if !kerrors.IsNotFound(err) {
+			return errors.Wrapf(err, "failed to delete OSD deployment %q.", deploymentName)
 		}
+		logger.Debugf("osd deployment %q not found. Ignoring since object must be deleted.", deploymentName)
 	}
-
 	return nil
 }
 
