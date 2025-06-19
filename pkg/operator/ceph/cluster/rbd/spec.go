@@ -107,7 +107,7 @@ func (r *ReconcileCephRBDMirror) makeChownInitContainer(daemonConfig *daemonConf
 		controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 		rbdMirror.Spec.Resources,
-		controller.PodSecurityContext(),
+		controller.DefaultContainerSecurityContext(),
 		"",
 	)
 }
@@ -128,7 +128,7 @@ func (r *ReconcileCephRBDMirror) makeMirroringDaemonContainer(daemonConfig *daem
 		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 		Env:             controller.DaemonEnvVars(r.cephClusterSpec),
 		Resources:       rbdMirror.Spec.Resources,
-		SecurityContext: controller.PodSecurityContext(),
+		SecurityContext: controller.DefaultContainerSecurityContext(),
 		WorkingDir:      config.VarLogCephDir,
 		// TODO:
 		// Not implemented at this point since the socket name is '/run/ceph/ceph-client.rbd-mirror.a.1.94362516231272.asok'
