@@ -45,6 +45,8 @@ Stopping the cluster and destroying the Minikube virtual machine can be done wit
 minikube delete
 ```
 
+**Note:** Fedora 41+ users: Use `--driver=qemu2` instead of `kvm2` due to virtualization changes in recent Fedora releases.
+
 ## Install Helm
 
 Install the `helm` tool to use the helm charts rook provides. Depending on your operating system,
