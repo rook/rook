@@ -951,3 +951,56 @@ func TestValidateOSDSettings(t *testing.T) {
 		assert.Error(t, c.validateOSDSettings())
 	})
 }
+
+func TestCheckTopologyConflicts(t *testing.T) {
+	node := func(name string, labels map[string]string) corev1.Node {
+		return corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   name,
+				Labels: labels,
+			},
+		}
+	}
+
+	t.Run("valid: multiple racks in same zone", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.kubernetes.io/zone": "zone1", "topology.rook.io/rack": "rack1"}),
+			node("node-b", map[string]string{"topology.kubernetes.io/zone": "zone1", "topology.rook.io/rack": "rack2"}),
+			node("node-c", map[string]string{"topology.kubernetes.io/zone": "zone1", "topology.rook.io/rack": "rack3"}),
+			node("node-d", map[string]string{"topology.kubernetes.io/zone": "zone1", "topology.rook.io/rack": "rack3"}),
+		}
+		err := checkTopologyConflicts(nodes)
+		assert.NoError(t, err)
+	})
+
+	t.Run("invalid: same rack across zones", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.kubernetes.io/zone": "zone1", "topology.rook.io/rack": "rack1"}),
+			node("node-b", map[string]string{"topology.kubernetes.io/zone": "zone2", "topology.rook.io/rack": "rack1"}),
+			node("node-c", map[string]string{"topology.kubernetes.io/zone": "zone3", "topology.rook.io/rack": "rack3"}),
+		}
+		err := checkTopologyConflicts(nodes)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "rack1")
+	})
+
+	t.Run("invalid: same row across datacenters", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.rook.io/datacenter": "dc1", "topology.rook.io/row": "row1"}),
+			node("node-b", map[string]string{"topology.rook.io/datacenter": "dc2", "topology.rook.io/row": "row1"}),
+		}
+		err := checkTopologyConflicts(nodes)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "row1")
+	})
+
+	t.Run("invalid: overlapping zone and row values", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.kubernetes.io/zone": "X", "topology.rook.io/row": "Y"}),
+			node("node-b", map[string]string{"topology.kubernetes.io/zone": "Y", "topology.rook.io/row": "Z"}),
+		}
+		err := checkTopologyConflicts(nodes)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Y") // overlap between parent (zone) and child (row)
+	})
+}
