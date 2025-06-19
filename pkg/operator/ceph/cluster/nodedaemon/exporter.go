@@ -121,7 +121,7 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 		// wait for previous exporter pod to be deleted, before creating a new one
 		// to avoid fighting for the same socket file
 		deploy.Spec.Strategy.Type = appsv1.RecreateDeploymentStrategyType
-
+		hostNetwork := ExporterIsHost(cephCluster)
 		var terminationGracePeriodSeconds int64 = 2
 		deploy.Spec.Template = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
@@ -137,7 +137,7 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 				},
 				Tolerations:                   tolerations,
 				RestartPolicy:                 corev1.RestartPolicyAlways,
-				HostNetwork:                   cephCluster.Spec.Network.IsHost(),
+				HostNetwork:                   hostNetwork,
 				Volumes:                       volumes,
 				PriorityClassName:             cephv1.GetCephExporterPriorityClassName(cephCluster.Spec.PriorityClassNames),
 				TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
@@ -190,9 +190,18 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 		"--stats-period", statsPeriod,
 	}
 
-	// If DualStack or IPv6 is enabled ensure ceph-exporter binds to both IPv6 and IPv4 interfaces.
-	if cephCluster.Spec.Network.DualStack || cephCluster.Spec.Network.IPFamily == "IPv6" {
-		args = append(args, "--addrs", "::")
+	// Determine network binding based on HostNetwork and IP settings
+	if cephCluster.Spec.Monitoring.Exporter == nil || cephCluster.Spec.Monitoring.Exporter.HostNetwork == nil {
+		if cephCluster.Spec.Network.DualStack || cephCluster.Spec.Network.IPFamily == "IPv6" {
+			args = append(args, "--addrs", "::")
+		}
+	} else {
+		hostNetwork := ExporterIsHost(cephCluster)
+		if hostNetwork {
+			if cephCluster.Spec.Network.DualStack || cephCluster.Spec.Network.IPFamily == "IPv6" {
+				args = append(args, "--addrs", "::")
+			}
+		}
 	}
 
 	containerPort := corev1.ContainerPort{
@@ -307,4 +316,12 @@ func generateExporterEnvVar() corev1.EnvVar {
 	env := corev1.EnvVar{Name: "CEPH_ARGS", Value: val}
 
 	return env
+}
+
+func ExporterIsHost(cephCluster cephv1.CephCluster) bool {
+	hostNetwork := cephCluster.Spec.Network.IsHost()
+	if cephCluster.Spec.Monitoring.Exporter != nil && cephCluster.Spec.Monitoring.Exporter.HostNetwork != nil {
+		hostNetwork = *cephCluster.Spec.Monitoring.Exporter.HostNetwork
+	}
+	return hostNetwork
 }
