@@ -140,11 +140,12 @@ func formatTopologyAffinity(label, value string) string {
 }
 
 // GetDefaultTopologyLabels returns the supported default topology labels.
+// Note: The labels should be ordered from lowest to highest priority.
 func GetDefaultTopologyLabels() string {
-	Labels := []string{k8sutil.LabelHostname(), corev1.LabelZoneRegionStable, corev1.LabelZoneFailureDomainStable}
+	labels := []string{}
 	for _, label := range CRUSHTopologyLabels {
-		Labels = append(Labels, topologyLabelPrefix+label)
+		labels = append(labels, topologyLabelPrefix+label)
 	}
-
-	return strings.Join(Labels, ",")
+	labels = append(labels, corev1.LabelZoneFailureDomainStable, corev1.LabelZoneRegionStable, k8sutil.LabelHostname())
+	return strings.Join(labels, ",")
 }

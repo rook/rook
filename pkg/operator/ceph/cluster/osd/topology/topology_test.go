@@ -129,28 +129,28 @@ func TestTopologyLabels(t *testing.T) {
 }
 
 func TestGetDefaultTopologyLabels(t *testing.T) {
-	expectedLabels := "kubernetes.io/hostname," +
-		"topology.kubernetes.io/region," +
-		"topology.kubernetes.io/zone," +
-		"topology.rook.io/chassis," +
+	expectedLabels := "topology.rook.io/chassis," +
 		"topology.rook.io/rack," +
 		"topology.rook.io/row," +
 		"topology.rook.io/pdu," +
 		"topology.rook.io/pod," +
 		"topology.rook.io/room," +
-		"topology.rook.io/datacenter"
+		"topology.rook.io/datacenter," +
+		"topology.kubernetes.io/zone," +
+		"topology.kubernetes.io/region," +
+		"kubernetes.io/hostname"
 	assert.Equal(t, expectedLabels, GetDefaultTopologyLabels())
 
 	t.Setenv("ROOK_CUSTOM_HOSTNAME_LABEL", "my_custom_hostname_label")
-	expectedLabels = "my_custom_hostname_label," +
-		"topology.kubernetes.io/region," +
-		"topology.kubernetes.io/zone," +
-		"topology.rook.io/chassis," +
+	expectedLabels = "topology.rook.io/chassis," +
 		"topology.rook.io/rack," +
 		"topology.rook.io/row," +
 		"topology.rook.io/pdu," +
 		"topology.rook.io/pod," +
 		"topology.rook.io/room," +
-		"topology.rook.io/datacenter"
+		"topology.rook.io/datacenter," +
+		"topology.kubernetes.io/zone," +
+		"topology.kubernetes.io/region," +
+		"my_custom_hostname_label"
 	assert.Equal(t, expectedLabels, GetDefaultTopologyLabels())
 }
