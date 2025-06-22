@@ -315,7 +315,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	referencedSecrets := &map[types.UID]*corev1.Secret{}
 	// Set any provided key pair(s)
-	if len(cephObjectStoreUser.Spec.Keys) > 0 {
+	if cephObjectStoreUser.GetDeletionTimestamp().IsZero() && len(cephObjectStoreUser.Spec.Keys) > 0 {
 		var keys *[]admin.UserKeySpec
 		keys, referencedSecrets, err = r.generateUserKeySpec(cephObjectStoreUser)
 		if err != nil {
