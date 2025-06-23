@@ -329,6 +329,26 @@ type ClusterCephxConfig struct {
 	// Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
 	// Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
 	Daemon CephxConfig `json:"daemon,omitempty"`
+
+	// CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
+	// CSI key rotation can affect existing PV connections, so take care when exercising this option.
+	CSI CephXConfigWithPriorCount `json:"csi,omitempty"`
+}
+
+type CephXConfigWithPriorCount struct {
+	CephxConfig `json:",inline"` // inline core CephxConfig
+
+	// KeepPriorKeyCountMax tells Rook how many prior keys to keep active.
+	// Generally, this would be set to 1 to allow for a migration period for applications.
+	// If desired, set this to 0 to delete prior keys after migration.
+	// This config only applies to prior keys that already exist.
+	// If PriorKeyCount is set to 2 while only a single key currently exists, only a single prior key will be kept,
+	// and the reported status will only indicate the actual number of prior keys,
+	// not necessarily a reflection of PriorKeyCount config here.
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=10
+	KeepPriorKeyCountMax uint8 `json:"keepPriorKeyCountMax,omitempty"`
 }
 
 type CephxConfig struct {
@@ -703,6 +723,13 @@ type CephxStatus struct {
 	KeyCephVersion string `json:"keyCephVersion,omitempty"`
 }
 
+type CephxStatusWithKeyCount struct {
+	CephxStatus `json:",inline"` // inline core CephxStatus
+
+	// PriorKeyCount reports the number of prior-generation CephX keys that remain active for the related component
+	PriorKeyCount uint8 `json:"priorKeyCount,omitempty"`
+}
+
 // UninitializedCephxKeyCephVersion is a special value for CephxStatus.KeyCephVersion that is
 // applied when a resource status is first initialized. Rook replaces this value with the current
 // Ceph version after keys are first created and the resource is reconciled successfully.
@@ -719,6 +746,9 @@ type ClusterCephxStatus struct {
 	Mgr *CephxStatus `json:"mgr,omitempty"`
 	// RBDMirrorPeer represents the cephx key rotation status of the `rbd-mirror-peer` user
 	RBDMirrorPeer *CephxStatus `json:"rbdMirrorPeer,omitempty"`
+
+	// CSI shows the CephX key status for Ceph-CSI components.
+	CSI *CephxStatusWithKeyCount `json:"csi,omitempty"`
 }
 
 // MonSpec represents the specification of the monitor

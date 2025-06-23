@@ -394,7 +394,7 @@ func (c *ClusterController) reconcileCephCluster(clusterObj *cephv1.CephCluster,
 	cluster, ok := c.clusterMap[clusterObj.Namespace]
 	if !ok {
 		// It's a new cluster so let's populate the struct
-		cluster = newCluster(c.OpManagerCtx, clusterObj, c.context, ownerInfo)
+		cluster = newCluster(c.OpManagerCtx, clusterObj, c.context, ownerInfo, c.rookImage)
 	}
 	cluster.namespacedName = c.namespacedName
 	// updating observedGeneration in cluster if it's not the first reconcile
