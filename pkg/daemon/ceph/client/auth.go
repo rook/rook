@@ -24,6 +24,16 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 )
 
+type AuthDump struct {
+	AuthDump []AuthEntry `json:"auth_dump"`
+}
+
+type AuthEntry struct {
+	Entity string            `json:"entity"`
+	Key    string            `json:"key"`
+	Caps   map[string]string `json:"caps"`
+}
+
 // AuthGetOrCreate will either get or create a user with the given capabilities.  The keyring for the
 // user will be written to the given keyring path.
 func AuthGetOrCreate(context *clusterd.Context, clusterInfo *ClusterInfo, name, keyringPath string, caps []string) error {
@@ -154,4 +164,20 @@ func parseAuthKey(buf []byte) (string, error) {
 		return "", errors.Wrap(err, "failed to unmarshal get/create key response")
 	}
 	return resp["key"].(string), nil
+}
+
+func AuthLS(context *clusterd.Context, clusterInfo *ClusterInfo) ([]AuthDump, error) {
+	authArgs := []string{"auth", "ls"}
+	output, err := NewCephCommand(context, clusterInfo, authArgs).Run()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list ceph auth ls")
+	}
+
+	var auth []AuthDump
+	err = json.Unmarshal(output, &auth)
+	if err != nil {
+		return auth, errors.Wrapf(err, "failed to unmarshal auth ls response. %s", string(output))
+	}
+
+	return auth, err
 }

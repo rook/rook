@@ -329,6 +329,24 @@ type ClusterCephxConfig struct {
 	// Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
 	// Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
 	Daemon CephxConfig `json:"daemon,omitempty"`
+
+	// CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
+	// CSI key rotation can affect existing PV connections, so take care when exercising this option.
+	CSI CephXConfigWithPriorCount `json:"csi,omitempty"`
+}
+
+type CephXConfigWithPriorCount struct {
+	CephxConfig `json:",inline"` // inline core CephxConfig
+
+	// PriorKeyCount available for components that use overlapping key rotation or
+	// for non-local Ceph daemon eg. CSI, RBD/CephFS mirror.
+	// This tells Rook how many prior keys to keep active.
+	// Generally, this would be set to 1 to allow for a migration period for applications.
+	// If desired, set this to 0 to delete prior keys after migration
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=10
+	KeepPriorKeyCount uint32 `json:"KeepPriorKeyCount,omitempty"`
 }
 
 type CephxConfig struct {
@@ -499,7 +517,8 @@ type ClusterStatus struct {
 	CephVersion *ClusterVersion `json:"version,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
-	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	ObservedGeneration int64            `json:"observedGeneration,omitempty"`
+	Cephx              LocalCephxStatus `json:"cephx,omitempty"`
 }
 
 // CephDaemonsVersions show the current ceph version for different ceph daemons
@@ -702,6 +721,13 @@ type CephxStatus struct {
 	KeyCephVersion string `json:"keyCephVersion,omitempty"`
 }
 
+type CephxStatusWithKeyCount struct {
+	CephxStatus `json:",inline"` // inline core CephxStatus
+
+	// PriorKeyCount reports the number of prior-generation CephX keys that remain active for the related component
+	PriorKeyCount uint32 `json:"priorKeyCount,omitempty"`
+}
+
 // UninitializedCephxKeyCephVersion is a special value for CephxStatus.KeyCephVersion that is
 // applied when a resource status is first initialized. Rook replaces this value with the current
 // Ceph version after keys are first created and the resource is reconciled successfully.
@@ -710,6 +736,9 @@ const UninitializedCephxKeyCephVersion string = "Uninitialized"
 type LocalCephxStatus struct {
 	// Daemon shows the CephX key status for local Ceph daemons associated with this resources.
 	Daemon CephxStatus `json:"daemon,omitempty"`
+
+	// CSI shows the CephX key status for Ceph-CSI components.
+	CSI CephxStatus `json:"csi,omitempty"`
 }
 
 // MonSpec represents the specification of the monitor
