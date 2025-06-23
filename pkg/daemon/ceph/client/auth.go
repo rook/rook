@@ -24,6 +24,16 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 )
 
+// AuthListOutput contains list of ceph user details contains entries, keys.
+type AuthListOutput struct {
+	AuthDump []AuthListEntry `json:"auth_dump"`
+}
+
+// AuthListEntry contains only entity field for each user.
+type AuthListEntry struct {
+	Entity string `json:"entity"`
+}
+
 // AuthGetOrCreate will either get or create a user with the given capabilities.  The keyring for the
 // user will be written to the given keyring path.
 func AuthGetOrCreate(context *clusterd.Context, clusterInfo *ClusterInfo, name, keyringPath string, caps []string) error {
@@ -154,4 +164,23 @@ func parseAuthKey(buf []byte) (string, error) {
 		return "", errors.Wrap(err, "failed to unmarshal get/create key response")
 	}
 	return resp["key"].(string), nil
+}
+
+// AuthList will list all the ceph user.
+func AuthList(context *clusterd.Context, clusterInfo *ClusterInfo) (AuthListOutput, error) {
+	authArgs := []string{"auth", "ls"}
+	output, err := NewCephCommand(context, clusterInfo, authArgs).Run()
+	if err != nil {
+		return AuthListOutput{}, errors.Wrap(err, "failed to list ceph auth ls")
+	}
+
+	var auth AuthListOutput
+	err = json.Unmarshal(output, &auth)
+	if err != nil {
+		// insecure trace logging will show the raw response if debugging required
+		logger.Tracef("failed to unmarshal auth ls response: %s", string(output))
+		return auth, errors.Wrap(err, "failed to unmarshal auth ls response")
+	}
+
+	return auth, err
 }
