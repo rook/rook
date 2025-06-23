@@ -4424,10 +4424,58 @@ One of Always, Never, IfNotPresent.</p>
 </tr>
 </tbody>
 </table>
-<h3 id="ceph.rook.io/v1.CephxConfig">CephxConfig
+<h3 id="ceph.rook.io/v1.CephXConfigWithPriorCount">CephXConfigWithPriorCount
 </h3>
 <p>
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterCephxConfig">ClusterCephxConfig</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>CephxConfig</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxConfig">
+CephxConfig
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>CephxConfig</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>KeepPriorKeyCount</code><br/>
+<em>
+uint32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PriorKeyCount available for components that use overlapping key rotation or
+for non-local Ceph daemon eg. CSI, RBD/CephFS mirror.
+This tells Rook how many prior keys to keep active.
+Generally, this would be set to 1 to allow for a migration period for applications.
+If desired, set this to 0 to delete prior keys after migration</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephxConfig">CephxConfig
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephXConfigWithPriorCount">CephXConfigWithPriorCount</a>, <a href="#ceph.rook.io/v1.ClusterCephxConfig">ClusterCephxConfig</a>)
 </p>
 <div>
 </div>
@@ -4496,7 +4544,7 @@ are not rotated.</p>
 <h3 id="ceph.rook.io/v1.CephxStatus">CephxStatus
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephxStatusWithKeyCount">CephxStatusWithKeyCount</a>, <a href="#ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus</a>)
 </p>
 <div>
 </div>
@@ -4537,6 +4585,46 @@ compared. E.g., <code>20.2.0-0</code>.
 For all newly-created resources, this field set to the version of Ceph that created the key.
 The special value &ldquo;Uninitialized&rdquo; indicates that keys are being created for the first time.
 An empty string indicates that the version is unknown, as expected in brownfield deployments.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephxStatusWithKeyCount">CephxStatusWithKeyCount
+</h3>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>CephxStatus</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxStatus">
+CephxStatus
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>CephxStatus</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>priorKeyCount</code><br/>
+<em>
+uint32
+</em>
+</td>
+<td>
+<p>PriorKeyCount reports the number of prior-generation CephX keys that remain active for the related component</p>
 </td>
 </tr>
 </tbody>
@@ -4698,6 +4786,20 @@ CephxConfig
 <td>
 <p>Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
 Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>csi</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephXConfigWithPriorCount">
+CephXConfigWithPriorCount
+</a>
+</em>
+</td>
+<td>
+<p>CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
+CSI key rotation can affect existing PV connections, so take care when exercising this option.</p>
 </td>
 </tr>
 </tbody>
@@ -5307,6 +5409,18 @@ int64
 <td>
 <em>(Optional)</em>
 <p>ObservedGeneration is the latest generation observed by the controller.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.LocalCephxStatus">
+LocalCephxStatus
+</a>
+</em>
+</td>
+<td>
 </td>
 </tr>
 </tbody>
@@ -8253,7 +8367,7 @@ int
 <h3 id="ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterStatus">ClusterStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>)
 </p>
 <div>
 </div>
@@ -8276,6 +8390,19 @@ CephxStatus
 </td>
 <td>
 <p>Daemon shows the CephX key status for local Ceph daemons associated with this resources.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>csi</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxStatus">
+CephxStatus
+</a>
+</em>
+</td>
+<td>
+<p>CSI shows the CephX key status for Ceph-CSI components.</p>
 </td>
 </tr>
 </tbody>
