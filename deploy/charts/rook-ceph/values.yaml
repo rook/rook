@@ -22,11 +22,11 @@ crds:
 
 # -- Pod resource requests & limits
 resources:
-  limits:
-    memory: 512Mi
-  requests:
-    cpu: 200m
-    memory: 128Mi
+  # limits:
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 200m
+  #   memory: 128Mi
 
 # -- Kubernetes [`nodeSelector`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector) to add to the Deployment.
 nodeSelector: {}
@@ -80,6 +80,7 @@ allowLoopDevices: false
 # Settings for whether to disable the drivers or other daemons if they are not
 # needed
 csi:
+  enableCSIOperator: true
   # -- Enable Ceph CSI RBD driver
   enableRbdDriver: true
   # -- Enable Ceph CSI CephFS driver

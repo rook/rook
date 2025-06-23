@@ -84,6 +84,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.disableCsiDriver` | Disable the CSI driver. | `"false"` |
 | `csi.enableCSIEncryption` | Enable Ceph CSI PVC encryption support | `false` |
 | `csi.enableCSIHostNetwork` | Enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary in some network configurations where the SDN does not provide access to an external cluster or there is significant drop in read/write performance | `true` |
+| `csi.enableCSIOperator` |  | `true` |
 | `csi.enableCephfsDriver` | Enable Ceph CSI CephFS driver | `true` |
 | `csi.enableCephfsSnapshotter` | Enable Snapshotter in CephFS provisioner pod | `true` |
 | `csi.enableLiveness` | Enable Ceph CSI Liveness sidecar deployment | `false` |
@@ -163,7 +164,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `pspEnable` | If true, create & use PSP resources | `false` |
 | `rbacAggregate.enableOBCs` | If true, create a ClusterRole aggregated to [user facing roles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles) for objectbucketclaims | `false` |
 | `rbacEnable` | If true, create & use RBAC resources | `true` |
-| `resources` | Pod resource requests & limits | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"200m","memory":"128Mi"}}` |
+| `resources` | Pod resource requests & limits | `nil` |
 | `revisionHistoryLimit` | The revision history limit for all pods created by Rook. If blank, the K8s default is 10. | `nil` |
 | `scaleDownOperator` | If true, scale down the rook operator. This is useful for administrative actions where the rook operator must be scaled down, while using gitops style tooling to deploy your helm charts. | `false` |
 | `tolerations` | List of Kubernetes [`tolerations`](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) to add to the Deployment. | `[]` |
