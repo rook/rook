@@ -314,6 +314,10 @@ func updateCsiConfigMapOwnerRefs(ctx context.Context, namespace string, clientse
 // CephFilesystemSubVolumeGroup) or for other supplementary entries, the clusterID should be unique
 // and different from the namespace so as not to disrupt CephCluster configurations.
 func SaveClusterConfig(clientset kubernetes.Interface, clusterID, clusterNamespace string, clusterInfo *cephclient.ClusterInfo, newCsiClusterConfigEntry *CSIClusterConfigEntry) error {
+	if EnableCSIOperator() {
+		logger.Debugf("csi-operator is enabled no need to save/update csi config in configmap %q", configName)
+		return nil
+	}
 	// csi is deployed into the same namespace as the operator
 	csiNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	if csiNamespace == "" {
@@ -391,6 +395,11 @@ func updateCSIDriverOptions(curr, clusterKey string,
 // SaveCSIDriverOptions, similar to SaveClusterConfig, updates the config map used by ceph-csi
 // with CSI driver options such as read affinity, kernel mount options and fuse mount options.
 func SaveCSIDriverOptions(clientset kubernetes.Interface, clusterNamespace string, clusterInfo *cephclient.ClusterInfo) error {
+	if EnableCSIOperator() {
+		logger.Debugf("csi-operator is enabled no need to save/update csi config in configmap %q", configName)
+		return nil
+	}
+
 	// csi is deployed into the same namespace as the operator
 	csiNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	if csiNamespace == "" {
