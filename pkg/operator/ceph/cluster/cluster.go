@@ -70,7 +70,7 @@ type cluster struct {
 	observedGeneration int64
 }
 
-func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Context, ownerInfo *k8sutil.OwnerInfo) *cluster {
+func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Context, ownerInfo *k8sutil.OwnerInfo, rookImage string) *cluster {
 	return &cluster{
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
@@ -480,7 +480,7 @@ func (c *cluster) skipMDSSanityChecks(skip bool) error {
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
 	// Create CSI Kubernetes Secrets
-	err := csi.CreateCSISecrets(c.context, c.ClusterInfo)
+	err := csi.CreateCSISecrets(c.context, c.ClusterInfo, c.namespacedName)
 	if err != nil {
 		return errors.Wrap(err, "failed to create csi kubernetes secrets")
 	}
@@ -654,6 +654,9 @@ func initClusterCephxStatus(c *clusterd.Context, cluster *cephv1.CephCluster) er
 	cluster.Status.Cephx = &cephv1.ClusterCephxStatus{
 		RBDMirrorPeer: &uninitializedStatus,
 		Mgr:           &uninitializedStatus,
+		CSI: &cephv1.CephxStatusWithKeyCount{
+			CephxStatus: uninitializedStatus,
+		},
 	}
 
 	if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
