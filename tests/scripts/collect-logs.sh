@@ -16,6 +16,7 @@ CEPH_CMD="kubectl -n ${CLUSTER_NAMESPACE} exec deploy/rook-ceph-tools -- ceph --
 $CEPH_CMD -s >"${LOG_DIR}"/ceph-status.txt
 $CEPH_CMD osd dump >"${LOG_DIR}"/ceph-osd-dump.txt
 $CEPH_CMD report >"${LOG_DIR}"/ceph-report.txt
+$CEPH_CMD auth ls >"${LOG_DIR}"/ceph-auth-ls.txt
 
 NAMESPACES=("$CLUSTER_NAMESPACE")
 if [[ "$OPERATOR_NAMESPACE" != "$CLUSTER_NAMESPACE" ]]; then
