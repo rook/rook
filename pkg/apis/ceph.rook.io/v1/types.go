@@ -477,6 +477,11 @@ type CephExporterSpec struct {
 	// Time to wait before sending requests again to exporter server (seconds)
 	// +kubebuilder:default=5
 	StatsPeriodSeconds int64 `json:"statsPeriodSeconds,omitempty"`
+
+	// Whether host networking is enabled for CephExporter. If not set, the network settings from CephCluster.spec.networking will be applied.
+	// +nullable
+	// +optional
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // ClusterStatus represents the status of a Ceph cluster

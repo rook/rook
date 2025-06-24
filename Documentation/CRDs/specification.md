@@ -3867,6 +3867,18 @@ int64
 <p>Time to wait before sending requests again to exporter server (seconds)</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>hostNetwork</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether host networking is enabled for CephExporter. If not set, the network settings from CephCluster.spec.networking will be applied.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus
