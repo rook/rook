@@ -311,21 +311,6 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, *cephObjectStoreUser, err
 	}
 
-	// Generate user config
-	userConfig := generateUserConfig(cephObjectStoreUser)
-
-	referencedSecrets := &map[types.UID]*corev1.Secret{}
-	// Set any provided key pair(s)
-	if cephObjectStoreUser.GetDeletionTimestamp().IsZero() && len(cephObjectStoreUser.Spec.Keys) > 0 {
-		var keys *[]admin.UserKeySpec
-		keys, referencedSecrets, err = r.generateUserKeySpec(cephObjectStoreUser)
-		if err != nil {
-			return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to generate UserKeySpec for %q", cephObjectStoreUser.Name)
-		}
-
-		userConfig.Keys = *keys
-	}
-
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("deleting object store user %q", request.NamespacedName)
@@ -345,6 +330,23 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, *cephObjectStoreUser, nil
+	}
+
+	// CR is not deleted, continue reconciling
+
+	// Generate user config
+	userConfig := generateUserConfig(cephObjectStoreUser)
+
+	referencedSecrets := &map[types.UID]*corev1.Secret{}
+	// Set any provided key pair(s)
+	if len(cephObjectStoreUser.Spec.Keys) > 0 {
+		var keys *[]admin.UserKeySpec
+		keys, referencedSecrets, err = r.generateUserKeySpec(cephObjectStoreUser)
+		if err != nil {
+			return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to generate UserKeySpec for %q", cephObjectStoreUser.Name)
+		}
+
+		userConfig.Keys = *keys
 	}
 
 	// validate the user settings
