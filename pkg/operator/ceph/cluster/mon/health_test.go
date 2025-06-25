@@ -300,6 +300,34 @@ func TestEvictMonOnSameNode(t *testing.T) {
 	assert.Equal(t, 3, c.maxMonID)
 }
 
+func TestHostNetworkFailover(t *testing.T) {
+	ctx := context.TODO()
+	context := &clusterd.Context{}
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
+
+	t.Run("should stop mon on default network", func(t *testing.T) {
+		assert.True(t, c.stopMonDuringFailover("a"))
+	})
+
+	t.Run("should not stop mon on host network", func(t *testing.T) {
+		c.spec.Network.Provider = "host"
+		assert.False(t, c.stopMonDuringFailover("a"))
+	})
+
+	t.Run("should stop mon converting to host network", func(t *testing.T) {
+		c.spec.Network.Provider = "host"
+		c.monsToFailover["a"] = &monConfig{UseHostNetwork: false}
+		assert.True(t, c.stopMonDuringFailover("a"))
+	})
+
+	t.Run("should stop mon converting from host network", func(t *testing.T) {
+		c.spec.Network.Provider = ""
+		c.monsToFailover["a"] = &monConfig{UseHostNetwork: true}
+		assert.True(t, c.stopMonDuringFailover("a"))
+	})
+}
+
 func createTestMonPod(t *testing.T, clientset kubernetes.Interface, c *Cluster, name, node string) {
 	m := &monConfig{ResourceName: resourceName(name), DaemonName: name, DataPathMap: &config.DataPathMap{}}
 	d, err := c.makeDeployment(m, false)
