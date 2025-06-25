@@ -14,7 +14,7 @@ This chart bootstraps a [rook-ceph-operator](https://github.com/rook/rook) deplo
 
 ## Prerequisites
 
-* Helm 3.x
+* Helm 3.13+
 
 See the [Helm support matrix](https://helm.sh/docs/topics/version_skew/) for more details.
 
