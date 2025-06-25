@@ -19,6 +19,7 @@ package nodedaemon
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"testing"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -34,6 +35,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -45,6 +47,7 @@ func assertCephExporterArgs(t *testing.T, args []string, ipv6 bool) {
 	} else {
 		expectedArgsLen = 8
 	}
+
 	argsLen := len(args)
 	assert.Equal(t, expectedArgsLen, argsLen)
 	assert.Equal(t, "--sock-dir", args[0])
@@ -144,33 +147,191 @@ func TestCreateOrUpdateCephExporter(t *testing.T) {
 }
 
 func TestCephExporterBindAddress(t *testing.T) {
-	t.Run("IPv4", func(t *testing.T) {
+	prioLimit, statsPeriod := defaultPrioLimit, defaultStatsPeriod
+	prioLimitString, err := strconv.ParseInt(prioLimit, 10, 64)
+	assert.NoError(t, err, "failed to parse prioLimit")
+	statsPeriodString, err := strconv.ParseInt(statsPeriod, 10, 64)
+	assert.NoError(t, err, "failed to parse statsPeriod")
+
+	// Test cases for exporterHostNetwork is not set and cephCluster.Spec.Network.HostNetwork=true
+	t.Run("IPv4 and exporterHostNetwork is not set and cephCluster.Spec.Network.HostNetwork=true", func(t *testing.T) {
 		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
 		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
 		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
 		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
 
+		cephCluster.Spec.Network.HostNetwork = true
+
 		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
 		assertCephExporterArgs(t, exporterContainer.Args, false)
 	})
 
-	t.Run("IPv6 via DualStack", func(t *testing.T) {
+	t.Run("IPv6 via DualStack and exporterHostNetwork is not set and cephCluster.Spec.Network.HostNetwork=true", func(t *testing.T) {
 		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
 		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
 		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
 		cephCluster.Spec.Network.DualStack = true
 		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
 
+		cephCluster.Spec.Network.HostNetwork = true
+
 		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
 		assertCephExporterArgs(t, exporterContainer.Args, true)
 	})
 
-	t.Run("IPv6 via IPFamily", func(t *testing.T) {
+	t.Run("IPv6 via IPFamily and exporterHostNetwork is not set and cephCluster.Spec.Network.HostNetwork=true", func(t *testing.T) {
 		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
 		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
 		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
 		cephCluster.Spec.Network.IPFamily = "IPv6"
 		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		cephCluster.Spec.Network.HostNetwork = true
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, true)
+	})
+
+	// Test cases for exporterHostNetwork is not set and cephCluster.Spec.Network.HostNetwork=false
+	t.Run("IPv4 and exporterHostNetwork is not set and cephCluster.Spec.Network.HostNetwork=true", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		cephCluster.Spec.Network.HostNetwork = false
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, false)
+	})
+
+	t.Run("IPv6 via DualStack and exporterHostNetwork is not set and cephCluster.Spec.Network.HostNetwork=false", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephCluster.Spec.Network.DualStack = true
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		cephCluster.Spec.Network.HostNetwork = false
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, true)
+	})
+
+	t.Run("IPv6 via IPFamily and exporterHostNetwork is not set and cephCluster.Spec.Network.HostNetwork=false", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephCluster.Spec.Network.IPFamily = "IPv6"
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		cephCluster.Spec.Network.HostNetwork = false
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, true)
+	})
+
+	// Test cases for exporterHostNetwork=false and cephCluster.Spec.Network.HostNetwork=true
+	t.Run("IPv4 and exporterHostNetwork=false and cephCluster.Spec.Network.HostNetwork=true", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
+		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
+
+		cephCluster.Spec.Network.HostNetwork = true
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, false)
+	})
+
+	t.Run("IPv6 via DualStack and exporterHostNetwork=false and cephCluster.Spec.Network.HostNetwork=true", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephCluster.Spec.Network.DualStack = true
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
+		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
+
+		cephCluster.Spec.Network.HostNetwork = true
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, true)
+	})
+	t.Run("IPv6 via IPFamily and exporterHostNetwork=false and cephCluster.Spec.Network.HostNetwork=true", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephCluster.Spec.Network.IPFamily = "IPv6"
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
+		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
+
+		cephCluster.Spec.Network.HostNetwork = true
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, true)
+	})
+
+	// Test cases for exporterHostNetwork=false and cephCluster.Spec.Network.HostNetwork=false
+	t.Run("IPv4 and exporterHostNetwork=false and cephCluster.Spec.Network.HostNetwork=false", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
+		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
+
+		cephCluster.Spec.Network.HostNetwork = false
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, false)
+	})
+
+	t.Run("IPv6 via DualStack and exporterHostNetwork=false and cephCluster.Spec.Network.HostNetwork=false", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephCluster.Spec.Network.DualStack = true
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
+		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
+
+		cephCluster.Spec.Network.HostNetwork = false
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, true)
+	})
+	t.Run("IPv6 via IPFamily and HostNetwork=false and cephCluster.Spec.Network.HostNetwork=false", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephCluster.Spec.Network.IPFamily = "IPv6"
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
+		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
+
+		cephCluster.Spec.Network.HostNetwork = false
 
 		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
 		assertCephExporterArgs(t, exporterContainer.Args, true)
