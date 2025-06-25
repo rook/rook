@@ -16,7 +16,7 @@ This chart is a simple packaging of templates that will optionally create Rook r
 
 ## Prerequisites
 
-* Helm 3.x
+* Helm 3.13+
 * Install the [Rook Operator chart](operator-chart.md)
 
 ## Installing
