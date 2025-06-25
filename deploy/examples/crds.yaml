@@ -2775,6 +2775,10 @@ spec:
                     exporter:
                       description: Ceph exporter configuration
                       properties:
+                        hostNetwork:
+                          description: Whether host networking is enabled for CephExporter. If not set, the network settings from CephCluster.spec.networking will be applied.
+                          nullable: true
+                          type: boolean
                         perfCountersPrioLimit:
                           default: 5
                           description: Only performance counters greater than or equal to this option are fetched
