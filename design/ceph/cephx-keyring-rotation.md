@@ -56,17 +56,16 @@ be possible, but let's leave that for a future exercise.
 For clarity, this design could be called "overlapping" rotation, and the design elsewhere in this
 doc "in-place" rotation.
 
-Overlapping rotation will be implemented for 3 key types:
-
-- CSI keys
-- RBD mirror peer tokens (not daemon keys)
-- CephFS mirror peer token (not daemon keys)
+Overlapping rotation will be implemented for only CSI keys.
 
 Overlapping rotation will not be implemented for the CephClient resource because each CephClient
 represents a single client, which is a single client ID and its corresponding key. For users or
 systems that propagate CephClient credentials, overlapping rotation can be accomplished by creating
 a new CephClient, propagating the new client credentials as needed, then deleting the old CephClient
 after completion.
+
+In the future, overlapping rotation would be beneficial for the RBD/CephFS mirror peering keys.
+Currently, the user name for RBD peering is hardcoded, making overlapping rotation impossible.
 
 ## User interfaces
 
@@ -96,6 +95,23 @@ API for overlapping rotation:
     tells Rook how many prior keys to keep active. Generally, this would be set to `1` to allow for
     a migration period for applications. If desired, set this to `0` to delete prior keys after
     migration.
+
+Alternative key rotation policy designs that were rejected:
+
+Rook could use a string like `once` as an input, but Rook would have to record when `once` was first
+observed so that it doesn't repeat rotations with every reconcile.
+
+Rook could alternatively use a string like `always` and expect the user to unset `always` after they
+see that rotation is complete, but this requires the user to monitor the rotation status and change
+config in a clunky way that might risk manual errors.
+
+Rook could use the Ceph version as the "older-than" selection, but that would only allow CSI key
+rotations when the Ceph version changes. For a user already at the latest Ceph version, they
+wouldn't have the option to rotate CSI keys on demand.
+
+Rook could use a `DATETIME` string to initiate rotation for keys minted/rotated before a certain
+time, but it is hard to track rotation time well when many keys are involved. Generation allows for
+a more clear representation of actual state and provides a simple interface.
 
 ### Enabling daemon key rotations
 
@@ -173,21 +189,6 @@ spec:
 Note on `keyRotationPolicy` for CSI. `WithCephVersionUpgrade` will not be supported for CSI keys
 unless we can validate that the keys can safely be rotated without the risk of affecting existing
 PVC mount connectivity. Rook will return an error if this value is given.
-
-Rook could use a string like `once` as an input, but Rook would have to record when `once` was first
-observed so that it doesn't repeat rotations with every reconcile.
-
-Rook could alternatively use a string like `always` and expect the user to unset `always` after they
-see that rotation is complete, but this requires the user to monitor the rotation status and change
-config in a clunky way that might risk manual errors.
-
-Rook could use the Ceph version as the "older-than" selection, but that would only allow CSI key
-rotations when the Ceph version changes. For a user already at the latest Ceph version, they
-wouldn't have the option to rotate CSI keys on demand.
-
-Rook could use a `DATETIME` string to initiate rotation for keys minted/rotated before a certain
-time, but it is hard to track rotation time well when many keys are involved. Generation allows for
-a more clear representation of actual state and provides a simple interface.
 
 ### Enabling non-daemon key rotation
 
@@ -307,6 +308,14 @@ Ceph daemon to ensure key rotation is applied:
 With separated daemon key info tracking, the status will look like so:
 
 ```yaml
+spec:
+  security:
+    cephx:
+      daemon: {}
+      csi: {}
+      # I don't really like having this on the CephCluster config. I wonder if we could move this
+      # to the CephRBDMirror CR without messing up users
+      rbdMirrorPeer: {}
 status:
   # ...
   cephx:
@@ -320,6 +329,15 @@ status:
       keyGeneration: 3 # e.g.
       keyCephVersion: "20.2.2" # e.g.
     osd:
+      keyGeneration: 3 # e.g.
+      keyCephVersion: "20.2.2" # e.g.
+    rbdMirrorPeer: # cluster-level RBD mirror peer key (client.rbd-mirror-peer)
+      keyGeneration: 3 # e.g.
+      keyCephVersion: "20.2.2" # e.g.
+    crashCollector:
+      keyGeneration: 3 # e.g.
+      keyCephVersion: "20.2.2" # e.g.
+    exporter:
       keyGeneration: 3 # e.g.
       keyCephVersion: "20.2.2" # e.g.
     csi: {} # discussed more below, but some CSI keys and need to be in this status
@@ -355,7 +373,35 @@ For a CephCluster reconcile:
           priorKeyCount: 1 # e.g.
     ```
 
+### CephBlockPool example
+
+When mirroring is enabled on a CephBlockPools, it results in Rook creating an RBD mirror peering
+token for the pool. The key housed within the token is hardcoded in Ceph to use the
+`client.rbd-mirror-peer` user and key. Therefore, the singular RBD mirror key is rotated at the
+CephCluster level (above), but Rook should still update CephBlockPool statuses to identify when the
+peering token has been updated to use the latest peer token.
+
+For token updates, the CephBlockPool controller should reconcile when the parent CephCluster's
+`status.cephx.rbdMirrorPeer` is updated. When the CephBlockPool controller reconciles and creates
+its bootstrap token, it should copy `CephCluster.status.cephx.rbdMirrorPeer` to its own
+`status.cephx.peerToken`, which will indicate that the token has been updated with the latest key
+after a CephCluster key rotation event.
+
+```yaml
+kind: CephBlockPool
+# ...
+status:
+  # ...
+  cephx:
+    peerToken:
+      keyGeneration: 2
+      keyCephVersion: "20.2.2"
+```
+
 ### CephFilesystem example
+
+<!--
+TODO: update this after CephFilesystem mirror peer information is determined
 
 CephFilesystem MDSes each have a daemon key. The filesystem also has a mirror token.
 
@@ -369,46 +415,34 @@ For daemon keys (Rook creates at least 2 MDSes for each CephFilesystem):
 For the peer token:
 
 1. Reconciliation reads `CephFilesystem.spec.mirroring.peerToken` configs to determine if the
-    reconcile should rotate.
+    reconcile should rotate. ################### TODO: needs update
 2. When key rotation is indicated, the peer token is rotated.
 3. Once reconciliation is nearing completion, the status is updated.
-
-Because peer tokens might be rotated locally and need an unknown amount of time for the peer to be
-updated, overlapping rotation will be used.
 
 Example showing the complete input spec and output status, for clarity:
 
 ```yaml
 kind: CephFilesystem
 # ...
-spec:
-  # ...
-  mirroring:
-    # ...
-    peerToken:
-      keyRotationPolicy: KeyGeneration
-      keyGeneration: 2
-      keepPriorKeyCount: 1
-  # ...
 status:
-  # ...
-  cephx:
+    # ...
+    cephx:
     daemon:
-      keyGeneration: 3
-      keyCephVersion: "20.2.2"
+keyGeneration: 3
+keyCephVersion: "20.2.2"
     peerToken:
-      # before rotation
-      keyGeneration: 1
-      keyCephVersion: "20.2.0"
-      priorKeyCount: 0
-      ## after rotation
-      # keyGeneration: 2
-      # keyCephVersion: "20.2.2"
-      # priorKeyCount: 1
+# before rotation
+keyGeneration: 1
+keyCephVersion: "20.2.0"
+priorKeyCount: 0
+## after rotation
+# keyGeneration: 2
+# keyCephVersion: "20.2.2"
+# priorKeyCount: 1
 ```
 
 CephBlockPool will follow the same design pattern but will not have a `status.cephx.daemon` field as
-it has no associated daemon.
+it has no associated daemon. -->
 
 ### CephClient example
 
