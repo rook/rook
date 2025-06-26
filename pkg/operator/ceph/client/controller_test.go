@@ -312,5 +312,21 @@ func TestBuildUpdateStatusInfo(t *testing.T) {
 
 	statusInfo := generateStatusInfo(cephClient)
 	assert.NotEmpty(t, statusInfo["secretName"])
-	assert.Equal(t, "rook-ceph-client-client-ocp", statusInfo["secretName"])
+	assert.Equal(t, generateCephUserSecretName(cephClient), statusInfo["secretName"])
+}
+
+func TestCustomSecretname(t *testing.T) {
+	secretName := "test-secret"
+	cephClient := &cephv1.CephClient{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "client-ocp",
+		},
+		Spec: cephv1.ClientSpec{
+			SecretName: secretName,
+		},
+	}
+
+	statusInfo := generateStatusInfo(cephClient)
+	assert.NotEmpty(t, statusInfo["secretName"])
+	assert.Equal(t, secretName, statusInfo["secretName"])
 }
