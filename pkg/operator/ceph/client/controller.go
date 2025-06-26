@@ -399,5 +399,8 @@ func generateStatusInfo(client *cephv1.CephClient) map[string]string {
 }
 
 func generateCephUserSecretName(client *cephv1.CephClient) string {
+	if client.Spec.SecretName != "" {
+		return client.Spec.SecretName // return the secret name as requested by user.
+	}
 	return fmt.Sprintf("rook-ceph-client-%s", client.Name)
 }

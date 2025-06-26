@@ -1293,6 +1293,19 @@ spec:
                   x-kubernetes-preserve-unknown-fields: true
                 name:
                   type: string
+                removeSecret:
+                  description: |-
+                    RemoveSecret indicates whether the current secret for this ceph client should be removed or not.
+                    If true, the K8s secret will be deleted, but the cephx keyring will remain until the CR is deleted.
+                  type: boolean
+                secretName:
+                  description: |-
+                    SecretName is the name of the secret created for this ceph client.
+                    If not specified, the default name is "rook-ceph-client-" as a prefix to the CR name.
+                  type: string
+                  x-kubernetes-validations:
+                    - message: SecretName is immutable and cannot be changed
+                      rule: self == oldSelf
               required:
                 - caps
               type: object
