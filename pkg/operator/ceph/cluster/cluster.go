@@ -459,10 +459,15 @@ func (c *cluster) preMonStartupActions(cephVersion cephver.CephVersion) error {
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
 	// Create CSI Kubernetes Secrets
-	if err := csi.CreateCSISecrets(c.context, c.ClusterInfo); err != nil {
-		return errors.Wrap(err, "failed to create csi kubernetes secrets")
+	skipCSIUserCreation, err := strconv.ParseBool(k8sutil.GetOperatorSetting("ROOK_CSI_SKIP_USER_CREATION", "false"))
+	if err != nil {
+		logger.Error("failed to part ROOK_CSI_ENABLE_NFS err: %s", err)
 	}
-
+	if skipCSIUserCreation {
+		if err := csi.CreateCSISecrets(c.context, c.ClusterInfo); err != nil {
+			return errors.Wrap(err, "failed to create csi kubernetes secrets")
+		}
+	}
 	// Create crash collector Kubernetes Secret
 	if err := nodedaemon.CreateCrashCollectorSecret(c.context, c.ClusterInfo); err != nil {
 		return errors.Wrap(err, "failed to create crash collector kubernetes secret")
