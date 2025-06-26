@@ -3086,6 +3086,9 @@ type ClientSpec struct {
 	Name string `json:"name,omitempty"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Caps map[string]string `json:"caps"`
+	// CephX configures CephX key settings. More: https://docs.ceph.com/en/latest/dev/cephx/
+	// +optional
+	CephX ClusterCephxConfig `json:"cephx,omitempty"`
 }
 
 // CephClientStatus represents the Status of Ceph Client
@@ -3098,6 +3101,8 @@ type CephClientStatus struct {
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// +optional
+	Cephx LocalCephxStatus `json:"cephx,omitempty"`
 }
 
 // CleanupPolicySpec represents a Ceph Cluster cleanup policy

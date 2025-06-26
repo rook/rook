@@ -600,6 +600,20 @@ map[string]string
 <td>
 </td>
 </tr>
+<tr>
+<td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ClusterCephxConfig">
+ClusterCephxConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CephX configures CephX key settings. More: <a href="https://docs.ceph.com/en/latest/dev/cephx/">https://docs.ceph.com/en/latest/dev/cephx/</a></p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -3654,6 +3668,19 @@ int64
 <p>ObservedGeneration is the latest generation observed by the controller.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.LocalCephxStatus">
+LocalCephxStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CephClusterHealthCheckSpec">CephClusterHealthCheckSpec
@@ -4681,12 +4708,26 @@ map[string]string
 <td>
 </td>
 </tr>
+<tr>
+<td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ClusterCephxConfig">
+ClusterCephxConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CephX configures CephX key settings. More: <a href="https://docs.ceph.com/en/latest/dev/cephx/">https://docs.ceph.com/en/latest/dev/cephx/</a></p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ClusterCephxConfig">ClusterCephxConfig
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterSecuritySpec">ClusterSecuritySpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClientSpec">ClientSpec</a>, <a href="#ceph.rook.io/v1.ClusterSecuritySpec">ClusterSecuritySpec</a>)
 </p>
 <div>
 </div>
@@ -8265,7 +8306,7 @@ int
 <h3 id="ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephClientStatus">CephClientStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>)
 </p>
 <div>
 </div>
