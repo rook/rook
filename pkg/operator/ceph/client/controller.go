@@ -37,6 +37,8 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -46,6 +48,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -169,7 +172,11 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 
 	// The CR was just created, initializing status fields
 	if cephClient.Status == nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionProgressing)
+		cephxUninitialized := keyring.UninitializedCephxStatus()
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionProgressing, &cephxUninitialized)
+		cephClient.Status = &cephv1.CephClientStatus{
+			Cephx: cephxUninitialized,
+		}
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -227,20 +234,38 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, *cephClient, errors.Wrapf(err, "failed to validate client %q arguments", cephClient.Name)
 	}
 
-	// Create or Update client
-	err = r.createOrUpdateClient(cephClient)
+	// Check the ceph version of the running monitors
+	runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
 			logger.Info(opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephClient, nil
 		}
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure)
+		return reconcile.Result{}, *cephClient, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
+	}
+
+	shouldRotateCephxKeys, err := keyring.ShouldRotateCephxKeys(
+		cephClient.Spec.Security.CephX, runningCephVersion, runningCephVersion, cephClient.Status.Cephx)
+	if err != nil {
+		return reconcile.Result{}, *cephClient, errors.Wrap(err, "failed to determine if cephx keys should be rotated")
+	}
+
+	// Create or Update client
+	err = r.createOrUpdateClient(cephClient, shouldRotateCephxKeys)
+	if err != nil {
+		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+			logger.Info(opcontroller.OperatorNotInitializedMessage)
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephClient, nil
+		}
+		var nilCephxStatus *cephv1.CephxStatus = nil // leave cephx status as-is
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nilCephxStatus)
 		return reconcile.Result{}, *cephClient, errors.Wrapf(err, "failed to create or update client %q", cephClient.Name)
 	}
 
 	// update status with latest ObservedGeneration value at the end of reconcile
 	// Success! Let's update the status
-	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady)
+	cephxStatus := keyring.UpdatedCephxStatus(shouldRotateCephxKeys, cephClient.Spec.Security.CephX, runningCephVersion, cephClient.Status.Cephx)
+	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, &cephxStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
@@ -248,7 +273,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 }
 
 // Create the client
-func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient) error {
+func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient, shouldRotateCephxKeys bool) error {
 	logger.Infof("creating client %s in namespace %s", cephClient.Name, cephClient.Namespace)
 
 	// Generate the CephX details
@@ -268,11 +293,25 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 		}
 	}
 
+	if shouldRotateCephxKeys {
+		// rotate the CephX key if the user requested it
+		logger.Infof("rotating cephx key for CephClient %v", types.NamespacedName{Name: cephClient.Name, Namespace: cephClient.Namespace})
+
+		rotatedKey, err := cephclient.AuthRotate(r.context, r.clusterInfo, clientEntity)
+		if err != nil {
+			return errors.Wrapf(err, "failed to rotate cephx key for client %q", cephClient.Name)
+		} else {
+			key = rotatedKey
+		}
+	}
 	// Generate Kubernetes Secret
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateCephUserSecretName(cephClient),
 			Namespace: cephClient.Namespace,
+			Annotations: map[string]string{
+				keyring.KeyringAnnotation: "",
+			},
 		},
 		StringData: map[string]string{
 			cephClient.Name: key,
@@ -375,31 +414,41 @@ func generateClientName(name string) string {
 }
 
 // updateStatus updates an object with a given status
-func (r *ReconcileCephClient) updateStatus(observedGeneration int64, name types.NamespacedName, status cephv1.ConditionType) {
-	cephClient := &cephv1.CephClient{}
-	if err := r.client.Get(r.opManagerContext, name, cephClient); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephClient resource not found. Ignoring since object must be deleted.")
-			return
+func (r *ReconcileCephClient) updateStatus(observedGeneration int64, name types.NamespacedName, status cephv1.ConditionType, cephx *cephv1.CephxStatus) {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cephClient := &cephv1.CephClient{}
+		if err := r.client.Get(r.opManagerContext, name, cephClient); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephClient resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve ceph client %q to update status to %q. %v", name, status, err)
+			return errors.Wrapf(err, "failed to retrieve ceph client %q to update status to %q", name, status)
 		}
-		logger.Warningf("failed to retrieve ceph client %q to update status to %q. %v", name, status, err)
-		return
-	}
-	if cephClient.Status == nil {
-		cephClient.Status = &cephv1.CephClientStatus{}
+		if cephClient.Status == nil {
+			cephClient.Status = &cephv1.CephClientStatus{}
+		}
+
+		cephClient.Status.Phase = status
+		if cephClient.Status.Phase == cephv1.ConditionReady {
+			cephClient.Status.Info = generateStatusInfo(cephClient)
+		}
+		if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+			cephClient.Status.ObservedGeneration = observedGeneration
+		}
+		if cephx != nil {
+			cephClient.Status.Cephx = *cephx
+		}
+		if err := reporting.UpdateStatus(r.client, cephClient); err != nil {
+			logger.Errorf("failed to set ceph client %q status to %q. %v", name, status, err)
+			return errors.Wrapf(err, "failed to set ceph client %q status to %q", name, status)
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Error(err)
 	}
 
-	cephClient.Status.Phase = status
-	if cephClient.Status.Phase == cephv1.ConditionReady {
-		cephClient.Status.Info = generateStatusInfo(cephClient)
-	}
-	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
-		cephClient.Status.ObservedGeneration = observedGeneration
-	}
-	if err := reporting.UpdateStatus(r.client, cephClient); err != nil {
-		logger.Errorf("failed to set ceph client %q status to %q. %v", name, status, err)
-		return
-	}
 	logger.Debugf("ceph client %q status updated to %q", name, status)
 }
 
