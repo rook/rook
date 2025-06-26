@@ -6,8 +6,12 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 spec:
   caps:
-    mon: 'profile rbd'
-    osd: 'profile rbd pool=images'
+    mon: "profile rbd"
+    osd: "profile rbd pool=images"
+  # security:
+  #   cephx:
+  #     keyRotationPolicy: "KeyGeneration"
+  #     keyGeneration: 2
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephClient
@@ -16,5 +20,9 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 spec:
   caps:
-    mon: 'profile rbd'
-    osd: 'profile rbd pool=volumes, profile rbd pool=vms, profile rbd-read-only pool=images'
+    mon: "profile rbd"
+    osd: "profile rbd pool=volumes, profile rbd pool=vms, profile rbd-read-only pool=images"
+  # security:
+  #   cephx:
+  #     keyRotationPolicy: "KeyGeneration"
+  #     keyGeneration: 3
