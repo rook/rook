@@ -385,10 +385,6 @@ func (r *ReconcileCephClient) deleteClient(cephClient *cephv1.CephClient) error 
 
 // ValidateClient the client arguments
 func ValidateClient(context *clusterd.Context, cephClient *cephv1.CephClient) error {
-	// Validate name
-	if cephClient.Name == "" {
-		return errors.New("missing name")
-	}
 	reservedNames := regexp.MustCompile("^admin$|^rgw.*$|^rbd-mirror$|^osd.[0-9]*$|^bootstrap-(mds|mgr|mon|osd|rgw|^rbd-mirror)$")
 	if reservedNames.Match([]byte(cephClient.Name)) {
 		return errors.Errorf("ignoring reserved name %q", cephClient.Name)
