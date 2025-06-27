@@ -1560,6 +1560,11 @@ spec:
                           description: Enables read affinity for CSI driver.
                           type: boolean
                       type: object
+                    skipUserCreation:
+                      description: |-
+                        SkipUserCreation determines whether CSI users and their associated secrets should be skipped.
+                        If set to true, the user must manually manage these secrets.
+                      type: boolean
                   type: object
                 dashboard:
                   description: Dashboard settings

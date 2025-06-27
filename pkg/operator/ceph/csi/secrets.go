@@ -17,6 +17,8 @@ limitations under the License.
 package csi
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -172,6 +174,13 @@ func createOrUpdateCSISecret(clusterInfo *client.ClusterInfo, csiRBDProvisionerS
 
 // CreateCSISecrets creates all the Kubernetes CSI Secrets
 func CreateCSISecrets(context *clusterd.Context, clusterInfo *client.ClusterInfo) error {
+	if clusterInfo.CSIDriverSpec.SkipUserCreation {
+		if err := deleteOwnedCSISecretsByCephCluster(context, clusterInfo); err != nil {
+			return err
+		}
+		logger.Info("CSI user creation is disabled; skipping user and secret creation")
+		return nil
+	}
 	k := keyring.GetSecretStore(context, clusterInfo, clusterInfo.OwnerInfo)
 
 	// Create CSI RBD Provisioner Ceph key
@@ -201,6 +210,29 @@ func CreateCSISecrets(context *clusterd.Context, clusterInfo *client.ClusterInfo
 	// Create or update Kubernetes CSI secret
 	if err := createOrUpdateCSISecret(clusterInfo, csiRBDProvisionerSecretKey, csiRBDNodeSecretKey, csiCephFSProvisionerSecretKey, csiCephFSNodeSecretKey, k); err != nil {
 		return errors.Wrap(err, "failed to create kubernetes csi secret")
+	}
+
+	return nil
+}
+
+func deleteOwnedCSISecretsByCephCluster(context *clusterd.Context, clusterInfo *client.ClusterInfo) error {
+	ownerRef := metav1.OwnerReference{
+		APIVersion: "ceph.rook.io/v1",
+		Kind:       "CephCluster",
+		Name:       clusterInfo.NamespacedName().Name,
+	}
+	secrets := []string{CsiRBDNodeSecret, CsiRBDProvisionerSecret, CsiCephFSNodeSecret, CsiCephFSProvisionerSecret}
+	for _, secretName := range secrets {
+		err := k8sutil.DeleteSecretIfOwnedBy(
+			clusterInfo.Context,
+			context.Clientset,
+			secretName,
+			clusterInfo.Namespace,
+			ownerRef,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to delete secret %q: %w", secretName, err)
+		}
 	}
 
 	return nil
