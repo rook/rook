@@ -255,6 +255,10 @@ type CSIDriverSpec struct {
 	// CephFS defines CSI Driver settings for CephFS driver.
 	// +optional
 	CephFS CSICephFSSpec `json:"cephfs,omitempty"`
+	// SkipUserCreation determines whether CSI users and their associated secrets should be skipped.
+	// If set to true, the user must manually manage these secrets.
+	// +optional
+	SkipUserCreation bool `json:"skipUserCreation,omitempty"`
 }
 
 // CSICephFSSpec defines the settings for CephFS CSI driver.
