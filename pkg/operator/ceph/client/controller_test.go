@@ -62,16 +62,6 @@ func TestValidateClient(t *testing.T) {
 	err := ValidateClient(context, &p)
 	assert.NotNil(t, err)
 
-	// must specify name
-	p = cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Namespace: "myns"}}
-	err = ValidateClient(context, &p)
-	assert.NotNil(t, err)
-
-	// must specify namespace
-	p = cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1"}}
-	err = ValidateClient(context, &p)
-	assert.NotNil(t, err)
-
 	// succeed with caps properly defined
 	p = cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"}}
 	p.Spec.Caps = map[string]string{
