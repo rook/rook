@@ -24,6 +24,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestOrderedCRUSHLabels(t *testing.T) {
@@ -153,4 +154,154 @@ func TestGetDefaultTopologyLabels(t *testing.T) {
 		"topology.rook.io/room," +
 		"topology.rook.io/datacenter"
 	assert.Equal(t, expectedLabels, GetDefaultTopologyLabels())
+}
+
+func TestCheckTopologyConflicts(t *testing.T) {
+	node := func(name string, labels map[string]string) corev1.Node {
+		return corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   name,
+				Labels: labels,
+			},
+		}
+	}
+
+	t.Run("valid: multiple racks in same zone", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.kubernetes.io/zone": "zone1", "topology.rook.io/rack": "rack1"}),
+			node("node-b", map[string]string{"topology.kubernetes.io/zone": "zone1", "topology.rook.io/rack": "rack2"}),
+			node("node-c", map[string]string{"topology.kubernetes.io/zone": "zone1", "topology.rook.io/rack": "rack3"}),
+			node("node-d", map[string]string{"topology.kubernetes.io/zone": "zone1", "topology.rook.io/rack": "rack3"}),
+		}
+		err := CheckTopologyConflicts(nodes)
+		assert.NoError(t, err)
+	})
+
+	t.Run("invalid: same rack across zones", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.kubernetes.io/zone": "zone1", "topology.rook.io/rack": "rack1"}),
+			node("node-b", map[string]string{"topology.kubernetes.io/zone": "zone2", "topology.rook.io/rack": "rack1"}),
+			node("node-c", map[string]string{"topology.kubernetes.io/zone": "zone3", "topology.rook.io/rack": "rack3"}),
+		}
+		err := CheckTopologyConflicts(nodes)
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid: same row across datacenters", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.rook.io/datacenter": "dc1", "topology.rook.io/row": "row1"}),
+			node("node-b", map[string]string{"topology.rook.io/datacenter": "dc2", "topology.rook.io/row": "row1"}),
+		}
+		err := CheckTopologyConflicts(nodes)
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid: overlapping zone and row values", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.kubernetes.io/zone": "X", "topology.rook.io/row": "Y"}),
+			node("node-b", map[string]string{"topology.kubernetes.io/zone": "Y", "topology.rook.io/row": "Z"}),
+		}
+		err := CheckTopologyConflicts(nodes)
+		assert.Error(t, err)
+	})
+
+	t.Run("valid: only zone labels used", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.kubernetes.io/zone": "zone1"}),
+			node("node-b", map[string]string{"topology.kubernetes.io/zone": "zone2"}),
+			node("node-c", map[string]string{"topology.kubernetes.io/zone": "zone3"}),
+		}
+		err := CheckTopologyConflicts(nodes)
+		assert.NoError(t, err)
+	})
+
+	t.Run("valid: only rack labels used", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.rook.io/rack": "rack1"}),
+			node("node-b", map[string]string{"topology.rook.io/rack": "rack2"}),
+			node("node-c", map[string]string{"topology.rook.io/rack": "rack3"}),
+		}
+		err := CheckTopologyConflicts(nodes)
+		assert.NoError(t, err)
+	})
+
+	t.Run("valid: same rack label on all nodes without parent", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.rook.io/rack": "shared"}),
+			node("node-b", map[string]string{"topology.rook.io/rack": "shared"}),
+		}
+		err := CheckTopologyConflicts(nodes)
+		assert.NoError(t, err)
+	})
+
+	t.Run("invalid: same value reused for different topology keys", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{"topology.kubernetes.io/zone": "shared"}),
+			node("node-b", map[string]string{"topology.rook.io/rack": "shared"}),
+		}
+		err := CheckTopologyConflicts(nodes)
+		assert.Error(t, err)
+	})
+	t.Run("valid: region-zone-hostname topology", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("master-0", map[string]string{
+				"kubernetes.io/hostname":        "master-0",
+				"topology.kubernetes.io/region": "us-south",
+				"topology.kubernetes.io/zone":   "us-south-1",
+			}),
+			node("master-1", map[string]string{
+				"kubernetes.io/hostname":        "master-1",
+				"topology.kubernetes.io/region": "us-south",
+				"topology.kubernetes.io/zone":   "us-south-2",
+			}),
+			node("master-2", map[string]string{
+				"kubernetes.io/hostname":        "master-2",
+				"topology.kubernetes.io/region": "us-south",
+				"topology.kubernetes.io/zone":   "us-south-3",
+			}),
+			node("worker-1", map[string]string{
+				"kubernetes.io/hostname":        "worker-1",
+				"topology.kubernetes.io/region": "us-south",
+				"topology.kubernetes.io/zone":   "us-south-1",
+			}),
+			node("worker-2", map[string]string{
+				"kubernetes.io/hostname":        "worker-2",
+				"topology.kubernetes.io/region": "us-south",
+				"topology.kubernetes.io/zone":   "us-south-2",
+			}),
+			node("worker-3", map[string]string{
+				"kubernetes.io/hostname":        "worker-3",
+				"topology.kubernetes.io/region": "us-south",
+				"topology.kubernetes.io/zone":   "us-south-3",
+			}),
+		}
+		err := CheckTopologyConflicts(nodes)
+		assert.NoError(t, err)
+	})
+	t.Run("invalid: rack reused under multiple zones", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-1", map[string]string{
+				"kubernetes.io/hostname":        "infra-zone1",
+				"topology.kubernetes.io/region": "us-south",
+				"topology.kubernetes.io/zone":   "zone1",
+				"topology.rook.io/rack":         "rack1",
+			}),
+			node("node-2", map[string]string{
+				"kubernetes.io/hostname":        "infra-zone2",
+				"topology.kubernetes.io/region": "us-south",
+				"topology.kubernetes.io/zone":   "zone2",
+				"topology.rook.io/rack":         "rack1",
+			}),
+			node("node-3", map[string]string{
+				"kubernetes.io/hostname":        "infra-zone3",
+				"topology.kubernetes.io/region": "us-south",
+				"topology.kubernetes.io/zone":   "zone3",
+				"topology.rook.io/rack":         "rack1",
+			}),
+		}
+
+		err := CheckTopologyConflicts(nodes)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), `"topology.rook.io/rack"`)
+	})
 }
