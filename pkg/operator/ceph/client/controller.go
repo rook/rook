@@ -203,7 +203,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 
 	// DELETE: the CR was deleted
 	if !cephClient.GetDeletionTimestamp().IsZero() {
-		logger.Debugf("deleting pool %q", cephClient.Name)
+		logger.Debugf("deleting client %q", cephClient.Name)
 		err := r.deleteClient(cephClient)
 		if err != nil {
 			return reconcile.Result{}, *cephClient, errors.Wrapf(err, "failed to delete ceph client %q", cephClient.Name)
