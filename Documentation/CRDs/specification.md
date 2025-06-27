@@ -3120,6 +3120,19 @@ CSICephFSSpec
 <p>CephFS defines CSI Driver settings for CephFS driver.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>skipUserCreation</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SkipUserCreation determines whether CSI users and their associated secrets should be skipped.
+If set to true, the user must manually manage these secrets.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.Capacity">Capacity
