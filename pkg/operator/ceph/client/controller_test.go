@@ -104,6 +104,22 @@ func TestGenerateClient(t *testing.T) {
 
 	client, _ = genClientEntity(p2)
 	assert.Equal(t, []byte(client), []byte("client.client2"))
+
+	// test client name override
+	p = &cephv1.CephClient{
+		ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"},
+		Spec: cephv1.ClientSpec{
+			Name: "client-override",
+			Caps: map[string]string{
+				"osd": "allow *",
+				"mon": "allow rw",
+				"mds": "allow rwx",
+			},
+		},
+	}
+
+	client, _ = genClientEntity(p)
+	assert.Equal(t, []byte(client), []byte("client.client-override"))
 }
 
 func TestCephClientController(t *testing.T) {
