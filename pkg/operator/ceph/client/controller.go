@@ -285,34 +285,45 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 		},
 		Type: k8sutil.RookType,
 	}
+	return r.reconcileCephClientSecret(cephClient, secret)
+}
 
-	// Set CephClient owner ref to the Secret
-	err = controllerutil.SetControllerReference(cephClient, secret, r.scheme)
-	if err != nil {
-		return errors.Wrapf(err, "failed to set owner reference to ceph client secret %q", secret.Name)
+func (r *ReconcileCephClient) reconcileCephClientSecret(
+	cephClient *cephv1.CephClient,
+	secret *v1.Secret,
+) error {
+	// Fetch existing secret
+	_, getSecretErr := r.context.Clientset.CoreV1().
+		Secrets(secret.Namespace).
+		Get(r.clusterInfo.Context, secret.Name, metav1.GetOptions{})
+	if getSecretErr != nil && !kerrors.IsNotFound(getSecretErr) {
+		return errors.Wrapf(getSecretErr, "error fetching secret %q", secret.Name)
 	}
 
-	// Create or Update Kubernetes Secret
-	_, err = r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Get(r.clusterInfo.Context, secret.Name, metav1.GetOptions{})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debugf("creating secret for %q", secret.Name)
-			if _, err := r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Create(r.clusterInfo.Context, secret, metav1.CreateOptions{}); err != nil {
-				return errors.Wrapf(err, "failed to create secret for %q", secret.Name)
-			}
-			logger.Infof("created client %q", cephClient.Name)
-			return nil
+	if err := controllerutil.SetControllerReference(cephClient, secret, r.scheme); err != nil {
+		return errors.Wrapf(err, "failed to set owner reference on secret %q", secret.Name)
+	}
+
+	// Delete the secret if required
+	if cephClient.Spec.RemoveSecret {
+		if getSecretErr == nil {
+			return k8sutil.DeleteSecretIfOwnedBy(r.clusterInfo.Context, r.context.Clientset,
+				secret.Name, secret.Namespace, *metav1.GetControllerOf(secret))
 		}
-		return errors.Wrapf(err, "failed to get secret for %q", secret.Name)
-	}
-	logger.Debugf("updating secret for %s", secret.Name)
-	_, err = r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Update(r.clusterInfo.Context, secret, metav1.UpdateOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "failed to update secret for %q", secret.Name)
+		return nil
 	}
 
-	logger.Infof("updated client %q", cephClient.Name)
-	return nil
+	if kerrors.IsNotFound(getSecretErr) {
+		logger.Debugf("creating secret %q", secret.Namespace+"/"+secret.Name)
+		if _, err := r.context.Clientset.CoreV1().
+			Secrets(secret.Namespace).Create(r.clusterInfo.Context, secret, metav1.CreateOptions{}); err != nil {
+			return errors.Wrapf(err, "failed to create secret %q", secret.Name)
+		}
+		logger.Infof("created secret for CephClient %q", cephClient.Namespace+"/"+cephClient.Name)
+		return nil
+	}
+
+	return k8sutil.UpdateSecretIfOwnedBy(r.clusterInfo.Context, r.context.Clientset, secret)
 }
 
 // Delete the client
@@ -394,10 +405,17 @@ func (r *ReconcileCephClient) updateStatus(observedGeneration int64, name types.
 
 func generateStatusInfo(client *cephv1.CephClient) map[string]string {
 	m := make(map[string]string)
-	m["secretName"] = generateCephUserSecretName(client)
+	// Set only if the secret is managed by the client
+	if !client.Spec.RemoveSecret {
+		m["secretName"] = generateCephUserSecretName(client)
+	}
+
 	return m
 }
 
 func generateCephUserSecretName(client *cephv1.CephClient) string {
+	if client.Spec.SecretName != "" {
+		return client.Spec.SecretName // return the secret name as requested by user.
+	}
 	return fmt.Sprintf("rook-ceph-client-%s", client.Name)
 }
