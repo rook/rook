@@ -21,6 +21,9 @@ spec:
         requireSafeReplicaSize: false
   preserveFilesystemOnDelete: false
   metadataServer:
+    startupProbe:
+      probe:
+        timeoutSeconds: 15
     activeCount: 1
     activeStandby: true
 ---

@@ -1057,6 +1057,7 @@ func getreturnErrString() []string {
 func Test_createMultisiteConfigurations(t *testing.T) {
 	executor := getExecutor()
 	returnErrString := getreturnErrString()
+	store := &cephv1.CephObjectStore{}
 	for i := 0; i < 4; i++ {
 		ctx := &clusterd.Context{
 			Executor: executor[i],
@@ -1064,7 +1065,7 @@ func Test_createMultisiteConfigurations(t *testing.T) {
 		objContext := NewContext(ctx, &client.ClusterInfo{Namespace: "my-cluster"}, "my-store")
 		realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 
-		err := createMultisiteConfigurations(objContext, "realm", realmArg, "create")
+		err := createMultisiteConfigurations(objContext, store, "realm", realmArg, "create")
 		if i == 0 {
 			assert.NoError(t, err)
 		} else {
