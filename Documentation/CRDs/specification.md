@@ -1998,6 +1998,18 @@ A common use case for hosting configuration is to inform Rook of endpoints that 
 wildcards, which in turn allows virtual host-style bucket addressing.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>defaultRealm</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Set this realm as the default in Ceph. Only one realm should be default.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -10733,6 +10745,18 @@ ObjectStoreHostingSpec
 <p>Hosting settings for the object store.
 A common use case for hosting configuration is to inform Rook of endpoints that support DNS
 wildcards, which in turn allows virtual host-style bucket addressing.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultRealm</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Set this realm as the default in Ceph. Only one realm should be default.</p>
 </td>
 </tr>
 </tbody>
