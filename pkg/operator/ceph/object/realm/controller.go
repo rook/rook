@@ -210,6 +210,17 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 		}
 	}
 
+	// Set the realm as default if specified and supported
+	if cephObjectRealm.Spec.DefaultRealm {
+		objContext := object.NewContext(r.context, r.clusterInfo, cephObjectRealm.Namespace)
+		realmArg := fmt.Sprintf("--rgw-realm=%s", cephObjectRealm.Name)
+		_, err := object.RunAdminCommandNoMultisite(objContext, false, "realm", "default", realmArg)
+		if err != nil {
+			return r.setFailedStatus(observedGeneration, cephObjectRealm, request.NamespacedName, "failed to set realm as default", err)
+		}
+		logger.Debugf("set realm %q as default", cephObjectRealm.Name)
+	}
+
 	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
 	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
