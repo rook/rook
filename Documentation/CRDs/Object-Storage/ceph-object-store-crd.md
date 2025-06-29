@@ -96,6 +96,10 @@ When the `zone` section is set pools with the object stores name will not be cre
     This is useful for applications that need object store credentials to be created in their own namespace,
     where neither OBCs nor COSI is being used to create buckets. The default is empty.
 
+### Realm
+
+* `defaultRealm`: When set to true, Rook will mark the CephObjectStore's realm as the default realm in the Ceph cluster. Only one realm can be marked default. Ceph does not allow default to be unassigned after it is assigned; a different realm can be marked default instead.
+
 ## Auth Settings
 
 The `auth`-section allows the configuration of authentication providers in addition to the regular authentication mechanism.
@@ -399,7 +403,7 @@ spec:
       rgw_s3_auth_use_ldap: "true" # bool
     rgwConfigFromSecret:
       rgw_keystone_barbican_password: # name of rgw option with secret value
-        name: "barbican-secret" # name of K8s secret 
+        name: "barbican-secret" # name of K8s secret
         key: "password" # key of secret value in K8s secret.Data map[string]string
     rgwCommandFlags:
       rgw_dmclock_auth_res: "100.0" # float
@@ -478,7 +482,7 @@ The sample configuration below demonstrates how to securely handle secret config
     rgwConfig:
       rgw_barbican_url: "http://barbican.example.com:9311"
       rgw_keystone_barbican_domain: "domain"
-      rgw_keystone_barbican_project: "project" 
+      rgw_keystone_barbican_project: "project"
       rgw_keystone_barbican_user: "user"
     rgwConfigFromSecret:
       rgw_keystone_barbican_password:
