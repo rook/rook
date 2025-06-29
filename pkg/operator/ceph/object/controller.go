@@ -629,6 +629,12 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to create object store %q", cephObjectStore.Name)
 		}
+		if cephObjectStore.Spec.DefaultRealm {
+			logger.Debugf("marking realm %q as default for object store %q", realmName, cephObjectStore.Name)
+			if err := SetDefaultRealm(objContext, realmName); err != nil {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to set realm %q as default", realmName)
+			}
+		}
 	}
 
 	return reconcile.Result{}, nil
