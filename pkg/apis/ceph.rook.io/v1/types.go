@@ -1671,6 +1671,10 @@ type ObjectStoreSpec struct {
 	// +nullable
 	// +optional
 	Hosting *ObjectStoreHostingSpec `json:"hosting,omitempty"`
+
+	// Set this realm as the default in Ceph. Only one realm should be default.
+	// +optional
+	DefaultRealm bool `json:"defaultRealm,omitempty"`
 }
 
 // ObjectSharedPoolsSpec represents object store pool info when configuring RADOS namespaces in existing pools.
