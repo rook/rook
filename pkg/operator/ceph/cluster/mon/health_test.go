@@ -25,6 +25,7 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
@@ -39,10 +40,13 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestCheckHealth(t *testing.T) {
 	ctx := context.TODO()
+	name := "test"
+	namespace := "ns"
 	var deploymentsUpdated *[]*apps.Deployment
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
@@ -55,15 +59,37 @@ func TestCheckHealth(t *testing.T) {
 			return clienttest.MonInQuorumResponse(), nil
 		},
 	}
+	fakeCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: cephv1.ClusterSpec{
+			Security: cephv1.ClusterSecuritySpec{
+				CephX: cephv1.ClusterCephxConfig{
+					RBDMirrorPeer: cephv1.CephxConfig{},
+				},
+			},
+		},
+		Status: cephv1.ClusterStatus{
+			Cephx: &cephv1.ClusterCephxStatus{
+				RBDMirrorPeer: &cephv1.CephxStatus{},
+			},
+		},
+	}
+
 	clientset := test.New(t, 1)
+	client := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(fakeCluster).Build()
 	configDir := t.TempDir()
 	context := &clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
 		Executor:  executor,
+		Client:    client,
 	}
+
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	c := New(ctx, context, namespace, cephv1.ClusterSpec{}, ownerInfo)
 	// clusterInfo is nil so we return err
 	err := c.checkHealth(ctx)
 	assert.NotNil(t, err)
@@ -90,6 +116,9 @@ func TestCheckHealth(t *testing.T) {
 	}
 
 	c.ClusterInfo.Context = ctx
+	c.ClusterInfo.SetName(name)
+	c.ClusterInfo.Namespace = namespace
+
 	err = c.checkHealth(ctx)
 	assert.Nil(t, err)
 	logger.Infof("mons after checkHealth: %v", c.ClusterInfo.InternalMonitors)
