@@ -488,3 +488,36 @@ func GetSpec(obj client.Object) interface{} {
 
 	return spec.Interface()
 }
+
+func WatchPeerTokenSecretPredicate[T *corev1.Secret]() predicate.TypedFuncs[T] {
+	return predicate.TypedFuncs[T]{
+		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
+			newSecret := (*corev1.Secret)(e.Object)
+			// reconcile when secret is created
+			if strings.Contains(newSecret.GetName(), clusterMirrorBootstrapPeerSecretName) {
+				logger.Debugf("peer token create event for secret %q in the namespace %q", newSecret.GetName(), newSecret.GetNamespace())
+				return true
+			}
+			return false
+		},
+		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
+			newSecret := (*corev1.Secret)(e.ObjectNew)
+			oldSecret := (*corev1.Secret)(e.ObjectOld)
+			if !strings.Contains(newSecret.GetName(), clusterMirrorBootstrapPeerSecretName) {
+				return false
+			}
+			// reconcile if the peer token data has changed
+			newData := newSecret.Data["token"]
+			oldData := oldSecret.Data["token"]
+			if string(newData) != string(oldData) {
+				logger.Debugf("peer token update event for secret %q in the namespace %q", newSecret.GetName(), newSecret.GetNamespace())
+				return true
+			}
+			return false
+		},
+		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
+			// Do not reconcile when secret is deleted
+			return false
+		},
+	}
+}
