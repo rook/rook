@@ -476,7 +476,7 @@ So the scenario looks like:
  6. Repeat the steps flipping source and destination to enable
     bi-directional mirroring
 */
-func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterInfo *ClusterInfo) ([]byte, error) {
+func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterInfo *ClusterInfo, rotateMirrorPeerKey bool) ([]byte, error) {
 	fullClientName := getQualifiedUser(rbdMirrorPeerKeyringID)
 	logger.Infof("create rbd-mirror bootstrap peer token %q", fullClientName)
 	key, err := AuthGetOrCreateKey(context, clusterInfo, fullClientName, rbdMirrorPeerCaps)
@@ -484,6 +484,15 @@ func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterI
 		return nil, errors.Wrapf(err, "failed to create rbd-mirror peer key %q", fullClientName)
 	}
 	logger.Infof("successfully created rbd-mirror bootstrap peer token for cluster %q", clusterInfo.NamespacedName().Name)
+
+	if rotateMirrorPeerKey {
+		logger.Infof("rotating cephx key for rbd-mirror peer key %q in namespace %q", fullClientName, clusterInfo.Namespace)
+		newKey, err := AuthRotate(context, clusterInfo, fullClientName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to rotate rbd-mirror peer key for %q", fullClientName)
+		}
+		key = newKey
+	}
 
 	mons := sets.New[string]()
 	for _, mon := range clusterInfo.AllMonitors() {
