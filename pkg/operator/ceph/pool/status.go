@@ -26,40 +26,53 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 // updateStatus updates a pool CR with the given status
-func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64) error {
-	pool := &cephv1.CephBlockPool{}
-	err := r.client.Get(r.opManagerContext, poolName, pool)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
-			return nil
+func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64, cephx *cephv1.CephxStatus) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		pool := &cephv1.CephBlockPool{}
+		err := r.client.Get(r.opManagerContext, poolName, pool)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve pool %q to update status to %q. %v", poolName, status, err)
+			return errors.Wrapf(err, "failed to retrieve pool %q to update status to %q", poolName, status)
 		}
-		logger.Warningf("failed to retrieve pool %q to update status to %q. %v", poolName, status, err)
-		return errors.Wrapf(err, "failed to retrieve pool %q to update status to %q", poolName, status)
+
+		if pool.Status == nil {
+			pool.Status = &cephv1.CephBlockPoolStatus{}
+		}
+
+		// add pool ID to the status
+		if status == cephv1.ConditionReady && pool.Status.PoolID == 0 {
+			r.updatePoolID(pool)
+		}
+
+		pool.Status.Phase = status
+		updateStatusInfo(pool)
+		if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+			pool.Status.ObservedGeneration = observedGeneration
+		}
+
+		if cephx != nil {
+			pool.Status.Cephx.PeerToken = *cephx
+		}
+
+		if err := reporting.UpdateStatus(r.client, pool); err != nil {
+			logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
+			return errors.Wrapf(err, "failed to set pool %q status to %q", pool.Name, status)
+		}
+		logger.Debugf("pool %q status updated to %q", poolName, status)
+		return nil
+	})
+	if err != nil {
+		logger.Error(err)
 	}
 
-	if pool.Status == nil {
-		pool.Status = &cephv1.CephBlockPoolStatus{}
-	}
-
-	// add pool ID to the status
-	if status == cephv1.ConditionReady && pool.Status.PoolID == 0 {
-		r.updatePoolID(pool)
-	}
-
-	pool.Status.Phase = status
-	updateStatusInfo(pool)
-	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
-		pool.Status.ObservedGeneration = observedGeneration
-	}
-	if err := reporting.UpdateStatus(r.client, pool); err != nil {
-		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
-		return errors.Wrapf(err, "failed to set pool %q status to %q", pool.Name, status)
-	}
-	logger.Debugf("pool %q status updated to %q", poolName, status)
 	return nil
 }
 
