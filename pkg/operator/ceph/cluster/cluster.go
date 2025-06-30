@@ -40,8 +40,10 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	rookversion "github.com/rook/rook/pkg/version"
@@ -57,17 +59,18 @@ const (
 var telemetryMutex sync.Mutex
 
 type cluster struct {
-	ClusterInfo        *client.ClusterInfo
-	context            *clusterd.Context
-	Namespace          string
-	Spec               *cephv1.ClusterSpec
-	clusterMetadata    metav1.ObjectMeta
-	namespacedName     types.NamespacedName
-	mons               *mon.Cluster
-	ownerInfo          *k8sutil.OwnerInfo
-	isUpgrade          bool
-	monitoringRoutines map[string]*controller.ClusterHealth
-	observedGeneration int64
+	ClusterInfo         *client.ClusterInfo
+	context             *clusterd.Context
+	Namespace           string
+	Spec                *cephv1.ClusterSpec
+	clusterMetadata     metav1.ObjectMeta
+	namespacedName      types.NamespacedName
+	mons                *mon.Cluster
+	ownerInfo           *k8sutil.OwnerInfo
+	isUpgrade           bool
+	monitoringRoutines  map[string]*controller.ClusterHealth
+	clusterKeysToRotate KeysToRotate
+	observedGeneration  int64
 }
 
 func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Context, ownerInfo *k8sutil.OwnerInfo) *cluster {
@@ -75,15 +78,16 @@ func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Co
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
 		// identity can be established.
-		ClusterInfo:        client.AdminClusterInfo(ctx, c.Namespace, c.Name),
-		Namespace:          c.Namespace,
-		Spec:               &c.Spec,
-		clusterMetadata:    c.ObjectMeta,
-		context:            context,
-		namespacedName:     types.NamespacedName{Namespace: c.Namespace, Name: c.Name},
-		monitoringRoutines: make(map[string]*controller.ClusterHealth),
-		ownerInfo:          ownerInfo,
-		mons:               mon.New(ctx, context, c.Namespace, c.Spec, ownerInfo),
+		ClusterInfo:         client.AdminClusterInfo(ctx, c.Namespace, c.Name),
+		Namespace:           c.Namespace,
+		Spec:                &c.Spec,
+		clusterMetadata:     c.ObjectMeta,
+		context:             context,
+		namespacedName:      types.NamespacedName{Namespace: c.Namespace, Name: c.Name},
+		monitoringRoutines:  make(map[string]*controller.ClusterHealth),
+		ownerInfo:           ownerInfo,
+		mons:                mon.New(ctx, context, c.Namespace, c.Spec, ownerInfo),
+		clusterKeysToRotate: KeysToRotate{},
 		// update observedGeneration with current generation value,
 		// because generation can be changed before reconcile got completed
 		// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
@@ -99,6 +103,12 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 		return errors.Wrap(err, "failed to populate config override config map")
 	}
 	c.ClusterInfo.SetName(c.namespacedName.Name)
+
+	// initialize cephXstatus for all the daemons
+	err = c.initClusterCephxStatus()
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize cephxStatus")
+	}
 
 	// Execute actions before the monitors are up and running, if needed during upgrades.
 	// These actions would be skipped in a new cluster.
@@ -128,6 +138,15 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 	if c.ClusterInfo.Context.Err() != nil {
 		return c.ClusterInfo.Context.Err()
 	}
+
+	// Get all the keys to be rotated
+	clusterKeysToRotate, err := c.GetKeysToRotate(rookImage)
+	if err != nil {
+		return errors.Wrap(err, "failed to get cluster keys to rotate")
+	}
+	c.clusterKeysToRotate = *clusterKeysToRotate
+
+	logger.Debugf("cluster keys to rotate: %+v", c.clusterKeysToRotate)
 
 	// Execute actions after the monitors are up and running
 	logger.Debug("monitors are up and running, executing post actions")
@@ -492,8 +511,13 @@ func (c *cluster) postMonStartupActions() error {
 	}
 
 	// Create cluster-wide RBD bootstrap peer token
-	if _, err := controller.CreateBootstrapPeerSecret(c.context, c.ClusterInfo, &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: c.namespacedName.Name, Namespace: c.Namespace}}, c.ownerInfo); err != nil {
+	if _, err := controller.CreateBootstrapPeerSecret(c.context, c.ClusterInfo, &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: c.namespacedName.Name, Namespace: c.Namespace}}, c.ownerInfo, c.clusterKeysToRotate.RBDMirrorPeer); err != nil {
 		return errors.Wrap(err, "failed to create cluster rbd bootstrap peer token")
+	}
+	// Update CephX Status for rbd-mirror-peer
+	err := c.UpdateClusterCephxStatus(keyring.RBDMirrorPeerCephx, c.clusterKeysToRotate.RBDMirrorPeer)
+	if err != nil {
+		return errors.Wrap(err, "failed to update the cephxStatus after rotating rbd-mirrir-peer user key")
 	}
 
 	return nil
@@ -790,4 +814,87 @@ func (c *cluster) fetchSecretValue(selector v1.SecretKeySelector) (string, error
 	}
 
 	return string(val), nil
+}
+
+// UpdateClusterCephxStatus fetches the latest cephCluster instance and updates cephxStatus for a particular ceph daemon
+func (c *cluster) UpdateClusterCephxStatus(cephxDeamonType string, didRotate bool) error {
+	cluster := &cephv1.CephCluster{}
+	if err := c.context.Client.Get(c.ClusterInfo.Context, c.namespacedName, cluster); err != nil {
+		return errors.Wrapf(err, "failed to get cluster %v to update the conditions.", c.namespacedName)
+	}
+
+	switch cephxDeamonType {
+	case keyring.RBDMirrorPeerCephx:
+		cluster.Status.CephX.RBDMirrorPeer = keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.RBDMirrorPeer, c.ClusterInfo.CephVersion, cluster.Status.CephX.RBDMirrorPeer)
+		logger.Infof("updating %q cephxStatus to %v", cephxDeamonType, cluster.Status.CephX.RBDMirrorPeer)
+	default:
+		return errors.Errorf("invalid cephxDaemonType %q", cephxDeamonType)
+	}
+
+	if err := reporting.UpdateStatus(c.context.Client, cluster); err != nil {
+		return errors.Wrapf(err, "failed to update cluster cephx Status for daemonType %q", cephxDeamonType)
+	}
+
+	logger.Info("successfully updated the cephxStatus for %q", cephxDeamonType)
+
+	return nil
+}
+
+// initClusterCephxStatus set `Uninitialized` state for the cephXstatus for new clusters.
+func (c *cluster) initClusterCephxStatus() error {
+	cluster := &cephv1.CephCluster{}
+	if err := c.context.Client.Get(c.ClusterInfo.Context, c.namespacedName, cluster); err != nil {
+		return errors.Wrapf(err, "failed to get cluster %v to update the cephx status.", c.namespacedName)
+	}
+
+	if cluster.Status.CephX != nil {
+		return nil
+	}
+
+	cluster.Status.CephX = &cephv1.ClusterCephxStatus{
+		RBDMirrorPeer: keyring.UninitializedCephxStatus(),
+	}
+
+	if err := reporting.UpdateStatus(c.context.Client, cluster); err != nil {
+		return errors.Wrapf(err, "failed to update cluster cephx status")
+	}
+
+	return nil
+}
+
+// KeysToRotate defines type of keys that need rotation.
+type KeysToRotate struct {
+	RBDMirrorPeer bool
+}
+
+// GetKeysToRotate returns the KeysToRotate struct that defines the type of keys that need rotation.
+func (c *cluster) GetKeysToRotate(rookImage string) (*KeysToRotate, error) {
+	toRotate := KeysToRotate{
+		RBDMirrorPeer: false,
+	}
+
+	desiredCephVersion := c.ClusterInfo.CephVersion
+	// check the least version for OSD since mons might have been upgraded by now.
+	runningCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.ClusterInfo, config.OsdType)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get the lowest running ceph version in the cluster %v.", c.namespacedName)
+	}
+
+	cephObj := &cephv1.CephCluster{}
+	if err := c.context.Client.Get(c.ClusterInfo.Context, c.namespacedName, cephObj); err != nil {
+		return nil, errors.Wrapf(err, "failed to get cluster %v to update the conditions.", c.namespacedName)
+	}
+
+	// check if rbd-mirror-peer user keys should be rotated.
+	if cephObj.Status.CephX == nil {
+		toRotate.RBDMirrorPeer = false
+	} else {
+		shouldRotateRBDMirrorPeer, err := keyring.ShouldRotateCephxKeys(cephObj.Spec.Security.CephX.RBDMirrorPeer, runningCephVersion, desiredCephVersion, cephObj.Status.CephX.RBDMirrorPeer)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to check if rbd-mirrir-peer client should be rotated or not")
+		}
+		toRotate.RBDMirrorPeer = shouldRotateRBDMirrorPeer
+	}
+
+	return &toRotate, nil
 }

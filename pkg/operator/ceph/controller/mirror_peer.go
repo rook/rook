@@ -47,7 +47,7 @@ const (
 	FSMirrorBootstrapPeerSecretName = "fsMirrorBootstrapPeerSecretName"
 )
 
-func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, object client.Object, ownerInfo *k8sutil.OwnerInfo) (reconcile.Result, error) {
+func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, object client.Object, ownerInfo *k8sutil.OwnerInfo, rotateMirrorPeerKey bool) (reconcile.Result, error) {
 	var err error
 	var ns, name, daemonType string
 	var bootstrapToken []byte
@@ -72,7 +72,7 @@ func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.Cl
 		ns = objectType.Namespace
 		daemonType = "cluster-rbd"
 		// Create rbd mirror bootstrap peer token
-		bootstrapToken, err = cephclient.CreateRBDMirrorBootstrapPeerWithoutPool(ctx, clusterInfo)
+		bootstrapToken, err = cephclient.CreateRBDMirrorBootstrapPeerWithoutPool(ctx, clusterInfo, rotateMirrorPeerKey)
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrapf(err, "failed to create %s-mirror bootstrap peer", daemonType)
 		}

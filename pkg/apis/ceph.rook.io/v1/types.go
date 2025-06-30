@@ -325,6 +325,10 @@ type ClusterCephxConfig struct {
 	// Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
 	// Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
 	Daemon CephxConfig `json:"daemon,omitempty"`
+	// RBDMirrorPeer configures CephX key settings of the `rbd-mirror-peer` user that is used for creating
+	// bootstrap peer token used connect peer clusters. Rotating the `rbd-mirror-peer` user key will update
+	// the mirror peer token.
+	RBDMirrorPeer CephxConfig `json:"rbdMirrorPeer,omitempty"`
 }
 
 type CephxConfig struct {
@@ -486,13 +490,14 @@ type CephExporterSpec struct {
 
 // ClusterStatus represents the status of a Ceph cluster
 type ClusterStatus struct {
-	State       ClusterState    `json:"state,omitempty"`
-	Phase       ConditionType   `json:"phase,omitempty"`
-	Message     string          `json:"message,omitempty"`
-	Conditions  []Condition     `json:"conditions,omitempty"`
-	CephStatus  *CephStatus     `json:"ceph,omitempty"`
-	CephStorage *CephStorage    `json:"storage,omitempty"`
-	CephVersion *ClusterVersion `json:"version,omitempty"`
+	State       ClusterState        `json:"state,omitempty"`
+	Phase       ConditionType       `json:"phase,omitempty"`
+	Message     string              `json:"message,omitempty"`
+	Conditions  []Condition         `json:"conditions,omitempty"`
+	CephStatus  *CephStatus         `json:"ceph,omitempty"`
+	CephX       *ClusterCephxStatus `json:"cephX,omitempty"`
+	CephStorage *CephStorage        `json:"storage,omitempty"`
+	CephVersion *ClusterVersion     `json:"version,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -706,6 +711,15 @@ const UninitializedCephxKeyCephVersion string = "Uninitialized"
 type LocalCephxStatus struct {
 	// Daemon shows the CephX key status for local Ceph daemons associated with this resources.
 	Daemon CephxStatus `json:"daemon,omitempty"`
+
+	// PeerToken shows the rotation status of the peer token associated with the `rbd-mirror-peer` user.
+	PeerToken CephxStatus `json:"peerToken,omitempty"`
+}
+
+// ClusterCephxStatus defines the cephX key rotation status of various daemons on the cephCluster resource
+type ClusterCephxStatus struct {
+	// RBDMirrorPeer show the CephX key rotation status of the `rbd-mirror-peer` user
+	RBDMirrorPeer CephxStatus `json:"rbdMirrorPeer,omitempty"`
 }
 
 // MonSpec represents the specification of the monitor
@@ -966,6 +980,8 @@ type MirrorHealthCheckSpec struct {
 type CephBlockPoolStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
+	// +optional
+	Cephx LocalCephxStatus `json:"cephx,omitempty"`
 	// +optional
 	MirroringStatus *MirroringStatusSpec `json:"mirroringStatus,omitempty"`
 	// +optional
