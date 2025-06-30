@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -94,6 +95,13 @@ func (c *createConfig) createNewOSDsFromStatus(
 			logger.Debugf("not creating deployment for OSD %d which already exists", osd.ID)
 			continue
 		}
+
+		// osd prepare jobs don't generate cephx status info for OSDs. since this is a new OSD
+		// deployment, generate a first-deploy cephx status
+		osd.CephxStatus = keyring.UpdatedCephxStatus(false, c.cluster.spec.Security.CephX.Daemon,
+			c.cluster.clusterInfo.CephVersion, keyring.UninitializedCephxStatus())
+		logger.Debugf("creating new OSD deployment for OSD.%d with cephx status %#v", osd.ID, osd.CephxStatus) // ===== TESTING TESTING TESTING TESTING =====
+
 		if status.PvcBackedOSD {
 			logger.Infof("creating OSD %d on PVC %q", osd.ID, nodeOrPVCName)
 			err := createDaemonOnPVCFunc(c.cluster, &status.OSDs[i], nodeOrPVCName, c.provisionConfig)
