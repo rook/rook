@@ -65,7 +65,7 @@ get_minikube_driver() {
 	    exit 1
         fi
     elif [[ "$os" == "Linux" ]]; then
-        echo "kvm2"
+        echo "qemu2"
     else
         echo "Unknown/Unsupported OS"
 	exit 1
