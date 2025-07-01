@@ -280,13 +280,13 @@ func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (r
 	}
 
 	// the realm's secret key and access key are randomly generated and then encoded to base64
-	accessKey, err := mgr.GeneratePassword(accessKeyLength)
+	accessKey, err := mgr.GeneratePassword(accessKeyLength, mgr.AccessKey)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "access key failed to generate")
 	}
 	accessKey = base64.StdEncoding.EncodeToString([]byte(accessKey))
 
-	secretKey, err := mgr.GeneratePassword(secretKeyLength)
+	secretKey, err := mgr.GeneratePassword(secretKeyLength, mgr.DefaultKey)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to generate secret key")
 	}
