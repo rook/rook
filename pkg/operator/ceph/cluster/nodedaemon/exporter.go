@@ -164,7 +164,7 @@ func getCephExporterChownInitContainer(cephCluster cephv1.CephCluster) corev1.Co
 		controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
 		mounts,
 		cephv1.GetCephExporterResources(cephCluster.Spec.Resources),
-		controller.PodSecurityContext(),
+		controller.DefaultContainerSecurityContext(),
 		"",
 	)
 }
@@ -211,7 +211,7 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 		Ports:           []corev1.ContainerPort{containerPort},
 		VolumeMounts:    volumeMounts,
 		Resources:       cephv1.GetCephExporterResources(cephCluster.Spec.Resources),
-		SecurityContext: controller.PodSecurityContext(),
+		SecurityContext: controller.DefaultContainerSecurityContext(),
 	}
 
 	return container

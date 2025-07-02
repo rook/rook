@@ -322,3 +322,20 @@ func TestGetFailureDomainLabel(t *testing.T) {
 		})
 	}
 }
+
+func TestMakeMonSecurityContext(t *testing.T) {
+	t.Run("returns root context when env is true", func(t *testing.T) {
+		t.Setenv("ROOK_CEPH_MON_RUN_AS_ROOT", "true")
+		sc := makeMonSecurityContext()
+		assert.NotNil(t, sc)
+		assert.NotNil(t, sc.RunAsUser)
+		assert.Equal(t, int64(0), *sc.RunAsUser)
+	})
+
+	t.Run("returns default context when env is not true", func(t *testing.T) {
+		t.Setenv("ROOK_CEPH_MON_RUN_AS_ROOT", "false")
+		sc := makeMonSecurityContext()
+		assert.NotNil(t, sc)
+		assert.Nil(t, sc.RunAsUser)
+	})
+}
