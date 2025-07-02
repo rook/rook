@@ -148,3 +148,64 @@ func GetDefaultTopologyLabels() string {
 
 	return strings.Join(Labels, ",")
 }
+
+// CheckTopologyConflicts verifies that:
+// 1. No child domain (e.g. rack) has fewer distinct values than its parent (e.g. zone).
+// 2. No topology value is used under more than one label key.
+func CheckTopologyConflicts(nodes *[]corev1.Node) error {
+	// 1. Build our ordered list of topology labels (region -> zone -> rack -> …), dropping hostname.
+	allLabels := allKubernetesTopologyLabelsOrdered()
+	var topologyHierarchy []string
+	for _, lbl := range allLabels {
+		if lbl != k8sutil.LabelHostname() {
+			topologyHierarchy = append(topologyHierarchy, lbl)
+		}
+	}
+
+	// 2. Gather distinct values for each topology key.
+	topologyValues := make(map[string]map[string]struct{}, len(topologyHierarchy))
+	for _, key := range topologyHierarchy {
+		topologyValues[key] = make(map[string]struct{})
+	}
+	for _, node := range *nodes {
+		labels := node.GetLabels()
+		for _, key := range topologyHierarchy {
+			v := client.NormalizeCrushName(labels[key])
+			if v == "" {
+				continue
+			}
+			topologyValues[key][v] = struct{}{}
+		}
+	}
+
+	// 3. Parent-child count check: each child domain must have bigger or equal values than its parent.
+	for i, parentKey := range topologyHierarchy[:len(topologyHierarchy)-1] {
+		parentCount := len(topologyValues[parentKey])
+		for _, childKey := range topologyHierarchy[i+1:] {
+			childCount := len(topologyValues[childKey])
+			if childCount > 0 && childCount < parentCount {
+				return fmt.Errorf(
+					"invalid topology: parent %q has %d values but child %q has %d",
+					parentKey, parentCount, childKey, childCount,
+				)
+			}
+		}
+	}
+
+	// 4. Cross-key uniqueness: no value reused across multiple label keys.
+	valueToFirstKey := make(map[string]string)
+	for key, vals := range topologyValues {
+		for v := range vals {
+			if firstKey, ok := valueToFirstKey[v]; ok {
+				return fmt.Errorf(
+					"invalid topology: value %q appears under both %q and %q",
+					v, firstKey, key,
+				)
+			}
+			valueToFirstKey[v] = key
+		}
+	}
+
+	// 5. All checks passed.
+	return nil
+}
