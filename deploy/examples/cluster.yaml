@@ -163,6 +163,7 @@ spec:
       method: quick
       # dataSource indicate where to get random bytes from to write on the disk
       # possible choices are 'zero' (default) or 'random'
+      # the 'random' source only works with the 'complete' method, the 'quick' method will use the 'zero' source
       # using random sources will consume entropy from the system and will take much more time then the zero source
       dataSource: zero
       # iteration overwrite N times instead of the default (1)

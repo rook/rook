@@ -758,6 +758,42 @@ jobs:
           kubectl -n rook-ceph delete cephcluster rook-ceph
           kubectl -n rook-ceph logs deploy/rook-ceph-operator
           tests/scripts/github-action-helper.sh wait_for_cleanup_pod
+          kubectl -n rook-ceph delete --ignore-not-found=true -f deploy/examples/operator.yaml
+          tests/scripts/github-action-helper.sh remove_cluster_prerequisites
+          lsblk
+          export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          sudo head --bytes=60 ${BLOCK}1
+          sudo head --bytes=60 ${BLOCK}2
+          sudo head --bytes=60 /dev/loop1
+
+      - name: recreate cluster prerequisites
+        run: |
+          export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          tests/scripts/localPathPV.sh "$BLOCK"
+          tests/scripts/loopDevicePV.sh 1
+          tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: redeploy cluster
+        run: |
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+      - name: wait for prepare pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 3
+
+      - name: wait for ceph to be ready
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 3
+
+      - name: check-ownerreferences
+        run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+      - name: teardown cluster with cleanup policy
+        run: |
+          kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
+          kubectl -n rook-ceph delete cephcluster rook-ceph
+          kubectl -n rook-ceph logs deploy/rook-ceph-operator
+          tests/scripts/github-action-helper.sh wait_for_cleanup_pod
           lsblk
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           sudo head --bytes=60 ${BLOCK}1
@@ -873,6 +909,14 @@ jobs:
           tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
           kubectl -n rook-ceph get pods
 
+      - name: teardown cluster with cleanup policy
+        run: |
+          tests/scripts/github-action-helper.sh delete_cluster
+          export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          sudo head --bytes=60 ${BLOCK}1
+          sudo head --bytes=60 ${BLOCK}2
+          sudo lsblk
+
       - name: collect common logs
         if: always()
         uses: ./.github/workflows/collect-logs
@@ -933,10 +977,38 @@ jobs:
 
       - name: teardown cluster with cleanup policy
         run: |
-          kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
-          kubectl -n rook-ceph delete cephcluster rook-ceph
-          kubectl -n rook-ceph logs deploy/rook-ceph-operator
-          tests/scripts/github-action-helper.sh wait_for_cleanup_pod
+          tests/scripts/github-action-helper.sh delete_cluster
+          export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          sudo head --bytes=60 ${BLOCK}1
+          sudo head --bytes=60 ${BLOCK}2
+          sudo lsblk
+
+      - name: recreate cluster prerequisites
+        run: |
+          export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          tests/scripts/localPathPV.sh "$BLOCK"
+          tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: redeploy cluster
+        run: |
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
+          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+      - name: wait for prepare pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
+
+      - name: wait for ceph to be ready
+        run: |
+          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+          kubectl -n rook-ceph get secrets
+          sudo lsblk
+
+      - name: teardown cluster with cleanup policy
+        run: |
+          tests/scripts/github-action-helper.sh delete_cluster
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           sudo head --bytes=60 ${BLOCK}1
           sudo head --bytes=60 ${BLOCK}2

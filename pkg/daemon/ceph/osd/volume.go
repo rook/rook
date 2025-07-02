@@ -886,7 +886,7 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 			if osdDisk != nil {
 				deviceToWipe := osdDisk.RealPath
 				if encryptedBlock != "" {
-					err = removeEncryptedDevice(context, encryptedBlock)
+					err = RemoveEncryptedDevice(context, encryptedBlock)
 					if err != nil {
 						logger.Warningf("failed to remove stale dm device %q: %q", encryptedBlock, err)
 						continue
@@ -1130,7 +1130,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 
 				target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
 				// remove stale dm device left by previous OSD.
-				err = removeEncryptedDevice(context, target)
+				err = RemoveEncryptedDevice(context, target)
 				if err != nil {
 					logger.Warningf("failed to remove stale dm device %q: %q", target, err)
 				}
