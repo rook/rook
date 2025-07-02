@@ -710,9 +710,14 @@ func (c *Cluster) failoverMon(name string) error {
 	logger.Infof("starting new mon: %+v", m)
 
 	// Scale down the failed mon to allow a new one to start
-	if err := c.updateMonDeploymentReplica(name, false); err != nil {
-		// attempt to continue with the failover even if the bad mon could not be stopped
-		logger.Warningf("failed to stop mon %q for failover. %v", name, err)
+	// If on host network, don't scale down the mon since we don't want to schedule a new
+	// mon with the same host ip. With host networking, when failing over the mon, we either
+	// require another eligible node without a mon, or we expect the down mon to come back online.
+	if !c.spec.Network.IsHost() {
+		if err := c.updateMonDeploymentReplica(name, false); err != nil {
+			// attempt to continue with the failover even if the bad mon could not be stopped
+			logger.Warningf("failed to stop mon %q for failover. %v", name, err)
+		}
 	}
 
 	// If the mon failover is not successful, revert the failover
