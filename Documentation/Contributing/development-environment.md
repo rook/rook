@@ -18,7 +18,7 @@ issues deploying Rook.
 
 To install Minikube follow the [official
 guide](https://minikube.sigs.k8s.io/docs/start/). It is recommended to use the
-kvm2 driver when running on a Linux machine and the hyperkit driver when running on a MacOS. Both
+qemu2 driver when running on a Linux machine and the hyperkit driver when running on a MacOS. Both
 allow to create and attach additional disks to the virtual machine. This is required for the Ceph
 OSD to consume one drive.  We don't recommend any other drivers for Rook. You will need a Minikube
 version 1.23 or higher.
@@ -27,7 +27,7 @@ Starting the cluster on Minikube is as simple as running:
 
 ```console
 # On Linux
-minikube start --disk-size=40g --extra-disks=1 --driver kvm2
+minikube start --disk-size=40g --extra-disks=1 --driver qemu2
 
 # On MacOS with Intel processor
 minikube start --disk-size=40g --extra-disks=1 --driver hyperkit
