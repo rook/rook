@@ -142,7 +142,7 @@ cephClusterSpec:
   mon:
     # Set the number of mons to be started. Generally recommended to be 3.
     # For highest availability, an odd number of mons should be specified.
-    count: 3
+    count: 1
     # The mons should be on unique nodes. For production, at least 3 nodes are recommended for this reason.
     # Mons should only be allowed on the same node for test environments where data loss is acceptable.
     allowMultiplePerNode: false
@@ -217,7 +217,7 @@ cephClusterSpec:
 
   # enable log collector, daemons will log on files and rotate
   logCollector:
-    enabled: true
+    enabled: false
     periodicity: daily # one of: hourly, daily, weekly, monthly
     maxLogSize: 500M # SUFFIX may be 'M' or 'G'. Must be at least 1M.
 
@@ -298,66 +298,66 @@ cephClusterSpec:
   #   dashboard:
 
   resources:
-    mgr:
-      limits:
-        memory: "1Gi"
-      requests:
-        cpu: "500m"
-        memory: "512Mi"
-    mon:
-      limits:
-        memory: "2Gi"
-      requests:
-        cpu: "1000m"
-        memory: "1Gi"
-    osd:
-      limits:
-        memory: "4Gi"
-      requests:
-        cpu: "1000m"
-        memory: "4Gi"
-    prepareosd:
-      # limits: It is not recommended to set limits on the OSD prepare job
-      #         since it's a one-time burst for memory that must be allowed to
-      #         complete without an OOM kill.  Note however that if a k8s
-      #         limitRange guardrail is defined external to Rook, the lack of
-      #         a limit here may result in a sync failure, in which case a
-      #         limit should be added.  1200Mi may suffice for up to 15Ti
-      #         OSDs ; for larger devices 2Gi may be required.
-      #         cf. https://github.com/rook/rook/pull/11103
-      requests:
-        cpu: "500m"
-        memory: "50Mi"
-    mgr-sidecar:
-      limits:
-        memory: "100Mi"
-      requests:
-        cpu: "100m"
-        memory: "40Mi"
-    crashcollector:
-      limits:
-        memory: "60Mi"
-      requests:
-        cpu: "100m"
-        memory: "60Mi"
-    logcollector:
-      limits:
-        memory: "1Gi"
-      requests:
-        cpu: "100m"
-        memory: "100Mi"
-    cleanup:
-      limits:
-        memory: "1Gi"
-      requests:
-        cpu: "500m"
-        memory: "100Mi"
-    exporter:
-      limits:
-        memory: "128Mi"
-      requests:
-        cpu: "50m"
-        memory: "50Mi"
+    # mgr:
+    #   limits:
+    #     memory: "1Gi"
+    #   requests:
+    #     cpu: "500m"
+    #     memory: "512Mi"
+    # mon:
+    #   limits:
+    #     memory: "2Gi"
+    #   requests:
+    #     cpu: "1000m"
+    #     memory: "1Gi"
+    # osd:
+    #   limits:
+    #     memory: "4Gi"
+    #   requests:
+    #     cpu: "1000m"
+    #     memory: "4Gi"
+    # prepareosd:
+    #   # limits: It is not recommended to set limits on the OSD prepare job
+    #   #         since it's a one-time burst for memory that must be allowed to
+    #   #         complete without an OOM kill.  Note however that if a k8s
+    #   #         limitRange guardrail is defined external to Rook, the lack of
+    #   #         a limit here may result in a sync failure, in which case a
+    #   #         limit should be added.  1200Mi may suffice for up to 15Ti
+    #   #         OSDs ; for larger devices 2Gi may be required.
+    #   #         cf. https://github.com/rook/rook/pull/11103
+    #   requests:
+    #     cpu: "500m"
+    #     memory: "50Mi"
+    # mgr-sidecar:
+    #   limits:
+    #     memory: "100Mi"
+    #   requests:
+    #     cpu: "100m"
+    #     memory: "40Mi"
+    # crashcollector:
+    #   limits:
+    #     memory: "60Mi"
+    #   requests:
+    #     cpu: "100m"
+    #     memory: "60Mi"
+    # logcollector:
+    #   limits:
+    #     memory: "1Gi"
+    #   requests:
+    #     cpu: "100m"
+    #     memory: "100Mi"
+    # cleanup:
+    #   limits:
+    #     memory: "1Gi"
+    #   requests:
+    #     cpu: "500m"
+    #     memory: "100Mi"
+    # exporter:
+    #   limits:
+    #     memory: "128Mi"
+    #   requests:
+    #     cpu: "50m"
+    #     memory: "50Mi"
 
   # The option to automatically remove OSDs that are out and are safe to destroy.
   removeOSDsIfOutAndSafeToRemove: false
