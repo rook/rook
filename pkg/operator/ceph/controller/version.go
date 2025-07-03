@@ -125,7 +125,7 @@ func CurrentAndDesiredCephVersion(ctx context.Context, rookImage, namespace, job
 		return nil, nil, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
 	}
 
-	return desiredCephVersion, &runningMonDaemonVersion, nil
+	return &runningMonDaemonVersion, desiredCephVersion, nil
 }
 
 func ErrorCephUpgradingRequeue(runningCephVersion, desiredCephVersion *cephver.CephVersion) error {
