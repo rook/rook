@@ -55,6 +55,13 @@ var (
 	removeMgrDaemonConfiguration = true
 )
 
+type KeyType int
+
+const (
+	DefaultKey KeyType = iota
+	AccessKey
+)
+
 func (c *Cluster) configureDashboardService() error {
 	dashboardService, err := c.makeDashboardService(AppName)
 	if err != nil {
@@ -322,7 +329,7 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 	}
 
 	// Generate a password
-	password, err := GeneratePassword(passwordLength)
+	password, err := GeneratePassword(passwordLength, DefaultKey)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to generate password")
 	}
@@ -351,9 +358,15 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 	return password, nil
 }
 
-func GeneratePassword(length int) (string, error) {
+func GeneratePassword(length int, keyType KeyType) (string, error) {
 	//nolint:gosec // because of the word password
-	const passwordChars = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+	passwordChars := "!\"#$%&'()*+,-.0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+
+	if keyType == DefaultKey {
+		//nolint:gosec // because of the word password
+		passwordChars += "/"
+	}
+
 	passwd, err := GenerateRandomBytes(length)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to generate password")
