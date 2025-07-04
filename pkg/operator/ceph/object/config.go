@@ -109,7 +109,7 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 		logger.Infof("rotating cephx key for CephObjectStore %q", c.store.Name)
 		newKey, err := s.RotateKey(user)
 		if err != nil {
-			logger.Infof("failed to rotate cephx key for CephObjectStore %q; continuing without key rotation %v", c.store.Name, err)
+			return "", errors.Wrapf(err, "failed to rotate cephx key for CephObjectStore %q", c.store.Name)
 		} else {
 			key = newKey
 		}
