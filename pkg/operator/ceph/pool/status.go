@@ -29,7 +29,7 @@ import (
 )
 
 // updateStatus updates a pool CR with the given status
-func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64) error {
+func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64, cephx *cephv1.CephxStatus) error {
 	pool := &cephv1.CephBlockPool{}
 	err := r.client.Get(r.opManagerContext, poolName, pool)
 	if err != nil {
@@ -55,6 +55,11 @@ func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, sta
 	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 		pool.Status.ObservedGeneration = observedGeneration
 	}
+
+	if cephx != nil {
+		pool.Status.Cephx.PeerToken = *cephx
+	}
+
 	if err := reporting.UpdateStatus(r.client, pool); err != nil {
 		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
 		return errors.Wrapf(err, "failed to set pool %q status to %q", pool.Name, status)

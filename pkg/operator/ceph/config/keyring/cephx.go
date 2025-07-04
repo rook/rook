@@ -28,12 +28,15 @@ import (
 
 var CephAuthRotateSupportedVersion = version.CephVersion{Major: 20, Minor: 2, Extra: 0}
 
-// CephxKeyIdentifierAnnotation is the annotation that should be applied to pod specs to
-// ensure that pods restart after keys are rotated (and not restarted when keys are not rotated).
-// The keyring secret resourceVersion is suggested but not always available.
-//
-//nolint:gosec // G101: this is not hardcoded credentials
-const CephxKeyIdentifierAnnotation = "cephx-key-identifier"
+const (
+	// CephxKeyIdentifierAnnotation is the annotation that should be applied to pod specs to
+	// ensure that pods restart after keys are rotated (and not restarted when keys are not rotated).
+	// The keyring secret resourceVersion is suggested but not always available.
+	//
+	//nolint:gosec // G101: this is not hardcoded credentials
+	CephxKeyIdentifierAnnotation = "cephx-key-identifier"
+	RBDMirrorPeerCephx           = "rbd-mirror-peer"
+)
 
 // ShouldRotateCephxKeys determines whether CephX keys should be rotated based on the CephX key
 // rotation config, the version of Ceph present in the image being deployed (desiredCephVersion),
