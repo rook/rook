@@ -334,7 +334,7 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			labelSelector := "rgw=" + storeName
 			services, err := k8sh.Clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 			assert.Nil(t, err)
-			assert.Equal(t, 1, len(services.Items))
+			assert.Equal(t, 2, len(services.Items))
 			s3endpoint := services.Items[0].Spec.ClusterIP + ":80"
 
 			secret, err := k8sh.Clientset.CoreV1().Secrets(namespace).Get(ctx, bucketName, metav1.GetOptions{})

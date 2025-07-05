@@ -6,7 +6,7 @@ inputs:
     required: true
   debug-ci:
     description: "boolean for debug-ci label in PR"
-    requnred: false
+    required: false
 runs:
   using: "composite"
   steps:
