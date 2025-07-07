@@ -216,7 +216,7 @@ func (r *ReconcileCephNFS) connectionConfigInitContainer(nfs *cephv1.CephNFS, na
 			keyring.VolumeMount().Resource(instanceName(nfs, name)),
 		},
 		nfs.Spec.Server.Resources,
-		controller.PodSecurityContext(),
+		controller.DefaultContainerSecurityContext(),
 	)
 }
 
@@ -250,7 +250,7 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 		},
 		Env:             controller.DaemonEnvVars(r.cephClusterSpec),
 		Resources:       nfs.Spec.Server.Resources,
-		SecurityContext: controller.PodSecurityContext(),
+		SecurityContext: controller.DefaultContainerSecurityContext(),
 		LivenessProbe:   r.defaultGaneshaLivenessProbe(nfs),
 	}
 	return cephconfig.ConfigureLivenessProbe(container, nfs.Spec.Server.LivenessProbe)
