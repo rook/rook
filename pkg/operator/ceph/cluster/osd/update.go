@@ -171,7 +171,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		}
 
 		// handle cephx key rotation for the OSD
-		// TODO: fix this to have the right runningCephVersion and desiredCephVersion
+		// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
 		runningCephVersion := c.cluster.clusterInfo.CephVersion
 		desiredCephVersion := c.cluster.clusterInfo.CephVersion
 		shouldRotate, err := keyring.ShouldRotateCephxKeys(c.cluster.spec.Security.CephX.Daemon,
@@ -182,11 +182,11 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		didRotate := false
 		if shouldRotate {
 			logger.Infof("rotating cephx key for CephCluster ns:%q OSD %d", c.cluster.clusterInfo.Namespace, osdID)
-			s := keyring.GetSecretStore(c.cluster.context, c.cluster.clusterInfo, c.cluster.clusterInfo.OwnerInfo)
 			user := fmt.Sprintf("osd.%d", osdID)
-			_, err := s.RotateKey(user)
+			// OSD key is not stored in k8s secret; rotated key is picked up by OSD init container
+			_, err := cephclient.AuthRotate(c.cluster.context, c.cluster.clusterInfo, user)
 			if err != nil {
-				// user-desired rotation failed, so record an error, but continue to try to update the OSD deployment
+				// user-desired rotation failed, so report an error, but continue to try to update the OSD deployment
 				errs.addError("%v", errors.Wrapf(err, "failed to rotate cephx key for OSD %d", osdID))
 				didRotate = false
 			} else {
@@ -197,7 +197,6 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		// daemon restart. important b/c osd update is often interrupted by reconcile requeues
 		updatedCephxStatus := keyring.UpdatedCephxStatus(didRotate, c.cluster.spec.Security.CephX.Daemon,
 			c.cluster.clusterInfo.CephVersion, osdInfo.CephxStatus)
-		logger.Debugf("updating OSD deployment %q with cephx status %#v", depName, updatedCephxStatus) // ===== TESTING TESTING TESTING TESTING =====
 		osdInfo.CephxStatus = updatedCephxStatus
 
 		var updatedDep *appsv1.Deployment

@@ -653,7 +653,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 			Name:   AppName,
 			Labels: osdLabels,
 			Annotations: map[string]string{
-				CephxStatusAnnotationKey: string(cephxStatusVal),
+				cephxStatusAnnotationKey: string(cephxStatusVal),
 			},
 		},
 		Spec: v1.PodSpec{

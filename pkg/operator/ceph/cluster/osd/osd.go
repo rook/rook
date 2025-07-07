@@ -77,8 +77,8 @@ const (
 	deviceType                     = "device-type"
 	encrypted                      = "encrypted"
 
-	// TODO: make this private (uncapitalized) if not used outside 'package osd'
-	CephxStatusAnnotationKey = "cephx-status"
+	// CephxStatus is applied to each OSD deployment as value of this annotation key
+	cephxStatusAnnotationKey = "cephx-status"
 )
 
 // Cluster keeps track of the OSDs
@@ -300,6 +300,12 @@ func (c *Cluster) Start() error {
 	if err != nil {
 		return errors.Wrap(err, "failed post reconcile of osd properties")
 	}
+
+	// TODO: update CephCluster status
+	// if a user initiates rotation but then decides partway through not to continue,
+	// we can have a non-homogeneous state where some osds are at gen A / cephversion A
+	// others at gen B / cephversion B. extreme examples could have all OSDs at diff values
+	// tracking every OSD seems unnecessary and bloated -- what about tracking min and max vals?
 
 	err = c.updateCephStorageStatus()
 	if err != nil {
@@ -730,14 +736,13 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	}
 
 	cephxStatus := cephv1.CephxStatus{}
-	cephxRaw, ok := d.Spec.Template.Annotations[CephxStatusAnnotationKey]
+	cephxRaw, ok := d.Spec.Template.Annotations[cephxStatusAnnotationKey]
 	if ok {
 		if err := json.Unmarshal([]byte(cephxRaw), &cephxStatus); err != nil {
 			return OSDInfo{}, errors.Wrapf(err, "failed to unmarshal cephx status %q for deployment %q", cephxRaw, d.Name)
 		}
 	}
 	osd.CephxStatus = cephxStatus
-	logger.Debugf("cephx status annotation (present? %t) for existing OSD deployment %q: %#v", ok, d.Name, cephxStatus) // ===== TESTING TESTING TESTING TESTING =====
 
 	return osd, nil
 }
