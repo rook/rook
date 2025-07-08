@@ -633,6 +633,21 @@ func Test_buildClusterID(t *testing.T) {
 	cephBlockPoolRadosNamespace := &cephv1.CephBlockPoolRadosNamespace{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Name: longName}, Spec: cephv1.CephBlockPoolRadosNamespaceSpec{BlockPoolName: "replicapool"}}
 	clusterID := buildClusterID(cephBlockPoolRadosNamespace)
 	assert.Equal(t, "2a74e5201e6ff9d15916ce2109c4f868", clusterID)
+
+	// test user provided clusterID
+	inputClusterID := "test-clusterID"
+	cephBlockPoolRadosNamespace = &cephv1.CephBlockPoolRadosNamespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "rook-ceph",
+			Name:      longName,
+		},
+		Spec: cephv1.CephBlockPoolRadosNamespaceSpec{
+			BlockPoolName: "replicapool",
+			ClusterID:     inputClusterID,
+		},
+	}
+	clusterID = buildClusterID(cephBlockPoolRadosNamespace)
+	assert.Equal(t, inputClusterID, clusterID)
 }
 
 func TestGetRadosNamespaceName(t *testing.T) {
