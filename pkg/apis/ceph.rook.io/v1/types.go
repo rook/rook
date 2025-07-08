@@ -1263,15 +1263,20 @@ type ErasureCodedSpec struct {
 	// Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
 	// This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
 	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Number of erasure-code parity chunks is immutable"
 	CodingChunks uint `json:"codingChunks"`
 
 	// Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
 	// The number of chunks required to recover an object when any single OSD is lost is the same
 	// as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
 	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Number of erasure-code data chunks is immutable"
 	DataChunks uint `json:"dataChunks"`
 
-	// The algorithm for erasure coding
+	// The algorithm for erasure coding.
+	// If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+	// +kubebuilder:validation:Enum=isa;jerasure
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Erasure-code algorithm is immutable"
 	// +optional
 	Algorithm string `json:"algorithm,omitempty"`
 }
