@@ -28,7 +28,7 @@ jobs:
 
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version: "1.23"
+          go-version: "1.24"
 
         # docker/setup-qemu action installs QEMU static binaries, which are used to run builders for architectures other than the host.
       - name: set up QEMU
