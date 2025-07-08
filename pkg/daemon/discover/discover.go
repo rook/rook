@@ -42,7 +42,7 @@ import (
 )
 
 const (
-	discoverDaemonUdev = "DISCOVER_DAEMON_UDEV_BLACKLIST"
+	DiscoverDaemonUdev = "DISCOVER_DAEMON_UDEV_BLACKLIST"
 )
 
 var (
@@ -200,7 +200,7 @@ func udevBlockMonitor(c chan struct{}, period time.Duration) {
 	// get discoverDaemonUdevBlacklist from the environment variable
 	// if user doesn't provide any regex; generate the default regex
 	// else use the regex provided by user
-	discoverUdev := os.Getenv(discoverDaemonUdev)
+	discoverUdev := os.Getenv(DiscoverDaemonUdev)
 	if discoverUdev == "" {
 		discoverUdev = "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"
 	}

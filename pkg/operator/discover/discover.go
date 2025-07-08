@@ -147,6 +147,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 								k8sutil.NamespaceEnvVar(),
 								k8sutil.NodeEnvVar(),
 								k8sutil.NameEnvVar(),
+								{Name: discoverDaemon.DiscoverDaemonUdev, Value: os.Getenv(discoverDaemon.DiscoverDaemonUdev)},
 							},
 						},
 					},
