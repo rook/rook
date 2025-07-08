@@ -3272,6 +3272,20 @@ RadosNamespaceMirroring
 <p>Mirroring configuration of CephBlockPoolRadosNamespace</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>clusterID</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ClusterID to be used for this RadosNamespace in the CSI configuration.
+It must be unique among all Ceph clusters managed by Rook.
+If not specified, the clusterID will be generated and can be found in the CR status.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -3343,6 +3357,20 @@ RadosNamespaceMirroring
 <td>
 <em>(Optional)</em>
 <p>Mirroring configuration of CephBlockPoolRadosNamespace</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>clusterID</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ClusterID to be used for this RadosNamespace in the CSI configuration.
+It must be unique among all Ceph clusters managed by Rook.
+If not specified, the clusterID will be generated and can be found in the CR status.</p>
 </td>
 </tr>
 </tbody>

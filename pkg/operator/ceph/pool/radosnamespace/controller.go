@@ -488,6 +488,9 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateStatus(client client.Client
 }
 
 func buildClusterID(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace) string {
+	if cephBlockPoolRadosNamespace.Spec.ClusterID != "" {
+		return cephBlockPoolRadosNamespace.Spec.ClusterID
+	}
 	clusterID := fmt.Sprintf("%s-%s-block-%s", cephBlockPoolRadosNamespace.Namespace, cephBlockPoolRadosNamespace.Spec.BlockPoolName, cephv1.GetRadosNamespaceName(cephBlockPoolRadosNamespace))
 	return k8sutil.Hash(clusterID)
 }
