@@ -80,7 +80,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	volumeMounts := agentDS.Spec.Template.Spec.Containers[0].VolumeMounts
 	assert.Equal(t, 3, len(volumeMounts))
 	envs := agentDS.Spec.Template.Spec.Containers[0].Env
-	assert.Equal(t, 3, len(envs))
+	assert.Equal(t, 4, len(envs))
 	image := agentDS.Spec.Template.Spec.Containers[0].Image
 	assert.Equal(t, "rook/rook:myversion", image)
 	assert.Nil(t, agentDS.Spec.Template.Spec.Tolerations)
