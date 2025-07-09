@@ -444,14 +444,25 @@ spec:
                   description: The erasure code settings
                   properties:
                     algorithm:
-                      description: The algorithm for erasure coding
+                      description: |-
+                        The algorithm for erasure coding.
+                        If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                      enum:
+                        - isa
+                        - jerasure
                       type: string
+                      x-kubernetes-validations:
+                        - message: Erasure-code algorithm is immutable
+                          rule: self == oldSelf
                     codingChunks:
                       description: |-
                         Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
                         This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                       minimum: 0
                       type: integer
+                      x-kubernetes-validations:
+                        - message: Number of erasure-code parity chunks is immutable
+                          rule: self == oldSelf
                     dataChunks:
                       description: |-
                         Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -459,6 +470,9 @@ spec:
                         as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                       minimum: 0
                       type: integer
+                      x-kubernetes-validations:
+                        - message: Number of erasure-code data chunks is immutable
+                          rule: self == oldSelf
                   required:
                     - codingChunks
                     - dataChunks
@@ -7298,14 +7312,25 @@ spec:
                         description: The erasure code settings
                         properties:
                           algorithm:
-                            description: The algorithm for erasure coding
+                            description: |-
+                              The algorithm for erasure coding.
+                              If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                            enum:
+                              - isa
+                              - jerasure
                             type: string
+                            x-kubernetes-validations:
+                              - message: Erasure-code algorithm is immutable
+                                rule: self == oldSelf
                           codingChunks:
                             description: |-
                               Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
                               This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                             minimum: 0
                             type: integer
+                            x-kubernetes-validations:
+                              - message: Number of erasure-code parity chunks is immutable
+                                rule: self == oldSelf
                           dataChunks:
                             description: |-
                               Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -7313,6 +7338,9 @@ spec:
                               as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                             minimum: 0
                             type: integer
+                            x-kubernetes-validations:
+                              - message: Number of erasure-code data chunks is immutable
+                                rule: self == oldSelf
                         required:
                           - codingChunks
                           - dataChunks
@@ -7487,14 +7515,25 @@ spec:
                       description: The erasure code settings
                       properties:
                         algorithm:
-                          description: The algorithm for erasure coding
+                          description: |-
+                            The algorithm for erasure coding.
+                            If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                          enum:
+                            - isa
+                            - jerasure
                           type: string
+                          x-kubernetes-validations:
+                            - message: Erasure-code algorithm is immutable
+                              rule: self == oldSelf
                         codingChunks:
                           description: |-
                             Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
                             This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
+                          x-kubernetes-validations:
+                            - message: Number of erasure-code parity chunks is immutable
+                              rule: self == oldSelf
                         dataChunks:
                           description: |-
                             Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -7502,6 +7541,9 @@ spec:
                             as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                          x-kubernetes-validations:
+                            - message: Number of erasure-code data chunks is immutable
+                              rule: self == oldSelf
                       required:
                         - codingChunks
                         - dataChunks
@@ -11151,14 +11193,25 @@ spec:
                       description: The erasure code settings
                       properties:
                         algorithm:
-                          description: The algorithm for erasure coding
+                          description: |-
+                            The algorithm for erasure coding.
+                            If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                          enum:
+                            - isa
+                            - jerasure
                           type: string
+                          x-kubernetes-validations:
+                            - message: Erasure-code algorithm is immutable
+                              rule: self == oldSelf
                         codingChunks:
                           description: |-
                             Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
                             This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
+                          x-kubernetes-validations:
+                            - message: Number of erasure-code parity chunks is immutable
+                              rule: self == oldSelf
                         dataChunks:
                           description: |-
                             Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -11166,6 +11219,9 @@ spec:
                             as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                          x-kubernetes-validations:
+                            - message: Number of erasure-code data chunks is immutable
+                              rule: self == oldSelf
                       required:
                         - codingChunks
                         - dataChunks
@@ -12752,14 +12808,25 @@ spec:
                       description: The erasure code settings
                       properties:
                         algorithm:
-                          description: The algorithm for erasure coding
+                          description: |-
+                            The algorithm for erasure coding.
+                            If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                          enum:
+                            - isa
+                            - jerasure
                           type: string
+                          x-kubernetes-validations:
+                            - message: Erasure-code algorithm is immutable
+                              rule: self == oldSelf
                         codingChunks:
                           description: |-
                             Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
                             This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
+                          x-kubernetes-validations:
+                            - message: Number of erasure-code parity chunks is immutable
+                              rule: self == oldSelf
                         dataChunks:
                           description: |-
                             Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -12767,6 +12834,9 @@ spec:
                             as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                          x-kubernetes-validations:
+                            - message: Number of erasure-code data chunks is immutable
+                              rule: self == oldSelf
                       required:
                         - codingChunks
                         - dataChunks
@@ -13709,14 +13779,25 @@ spec:
                       description: The erasure code settings
                       properties:
                         algorithm:
-                          description: The algorithm for erasure coding
+                          description: |-
+                            The algorithm for erasure coding.
+                            If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                          enum:
+                            - isa
+                            - jerasure
                           type: string
+                          x-kubernetes-validations:
+                            - message: Erasure-code algorithm is immutable
+                              rule: self == oldSelf
                         codingChunks:
                           description: |-
                             Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
                             This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
+                          x-kubernetes-validations:
+                            - message: Number of erasure-code parity chunks is immutable
+                              rule: self == oldSelf
                         dataChunks:
                           description: |-
                             Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -13724,6 +13805,9 @@ spec:
                             as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                          x-kubernetes-validations:
+                            - message: Number of erasure-code data chunks is immutable
+                              rule: self == oldSelf
                       required:
                         - codingChunks
                         - dataChunks
@@ -13893,14 +13977,25 @@ spec:
                       description: The erasure code settings
                       properties:
                         algorithm:
-                          description: The algorithm for erasure coding
+                          description: |-
+                            The algorithm for erasure coding.
+                            If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                          enum:
+                            - isa
+                            - jerasure
                           type: string
+                          x-kubernetes-validations:
+                            - message: Erasure-code algorithm is immutable
+                              rule: self == oldSelf
                         codingChunks:
                           description: |-
                             Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
                             This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
+                          x-kubernetes-validations:
+                            - message: Number of erasure-code parity chunks is immutable
+                              rule: self == oldSelf
                         dataChunks:
                           description: |-
                             Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -13908,6 +14003,9 @@ spec:
                             as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                          x-kubernetes-validations:
+                            - message: Number of erasure-code data chunks is immutable
+                              rule: self == oldSelf
                       required:
                         - codingChunks
                         - dataChunks
