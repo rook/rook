@@ -463,6 +463,13 @@ class RadosJSON:
             required=False,
             help="comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the `topology-pools` list",
         )
+        output_group.add_argument(
+            "--cephx-key-rotation",
+            default=True,
+            required=False,
+            help="Enable cephx key rotation for the users created by this script, this will create a new user with suffix `-rotated` and update the secrets with the new key,"
+            + "use for rotataing csi and healthchecker users keys",
+        )
 
         upgrade_group = argP.add_argument_group("upgrade")
         upgrade_group.add_argument(
@@ -476,7 +483,8 @@ class RadosJSON:
             + "in case of cephfs users if you have passed --cephfs-filesystem-name flag while creating user then while upgrading it will be mandatory too"
             + "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage  --run-as-user client.csi-rbd-node-rookstorage-replicapool`"
             + "PS: An existing non-restricted user cannot be converted to a restricted user by upgrading."
-            + "Upgrade flag should only be used to append new permissions to users, it shouldn't be used for changing user already applied permission, for example you shouldn't change in which pool user has access",
+            + "Upgrade flag should only be used to append new permissions to users, it shouldn't be used for changing user already applied permission, for example you shouldn't change in which pool user has access"
+            + "if --cephx-key-rotation was set, it adds `-rotated` suffix to the user name, for example: `client.csi-rbd-node-rookstorage-replicapool-rotated`",
         )
 
         # Add command-line arguments
@@ -876,6 +884,9 @@ class RadosJSON:
                 entity = f"{entity}-{k8s_cluster_name}-{cephfs_filesystem}"
                 caps["osd"] = f"allow rw tag cephfs metadata={cephfs_filesystem}"
 
+        if self._arg_parser.cephx_key_rotation:
+            entity = f"{entity}-rotated"
+
         return caps, entity
 
     def get_cephfs_node_caps_and_entity(self):
@@ -898,6 +909,9 @@ class RadosJSON:
             else:
                 entity = f"{entity}-{k8s_cluster_name}-{cephfs_filesystem}"
                 caps["osd"] = f"allow rw tag cephfs *={cephfs_filesystem}"
+
+        if self._arg_parser.cephx_key_rotation:
+            entity = f"{entity}-rotated"
 
         return caps, entity
 
@@ -968,6 +982,9 @@ class RadosJSON:
             else:
                 caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
+        if self._arg_parser.cephx_key_rotation:
+            entity = f"{entity}-rotated"
+
         return caps, entity
 
     def get_rbd_node_caps_and_entity(self):
@@ -1003,6 +1020,9 @@ class RadosJSON:
             else:
                 caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
+        if self._arg_parser.cephx_key_rotation:
+            entity = f"{entity}-rotated"
+
         return caps, entity
 
     def get_defaultUser_caps_and_entity(self):
@@ -1013,6 +1033,9 @@ class RadosJSON:
             "osd": f"profile rbd-read-only, allow rwx pool={self._arg_parser.rgw_pool_prefix}.rgw.meta, allow r pool=.rgw.root, allow rw pool={self._arg_parser.rgw_pool_prefix}.rgw.control, allow rx pool={self._arg_parser.rgw_pool_prefix}.rgw.log, allow x pool={self._arg_parser.rgw_pool_prefix}.rgw.buckets.index",
             "mds": "allow *",
         }
+
+        if self._arg_parser.cephx_key_rotation:
+            entity = f"{entity}-rotated"
 
         return caps, entity
 
@@ -1212,6 +1235,7 @@ class RadosJSON:
                 f"'auth get-or-create {self.run_as_user}' command failed\n"
                 f"Error: {err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST}"
             )
+
         return str(json_out[0]["key"])
 
     def get_ceph_dashboard_link(self):
@@ -1806,7 +1830,9 @@ class RadosJSON:
         ):
             json_out.append(
                 {
-                    "name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                    "name": self.get_secret_name(
+                        self.out_map["CSI_RBD_NODE_SECRET_NAME"]
+                    ),
                     "kind": "Secret",
                     "data": {
                         "userID": self.out_map["CSI_RBD_NODE_SECRET_NAME"],
@@ -1821,7 +1847,9 @@ class RadosJSON:
         ):
             json_out.append(
                 {
-                    "name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
+                    "name": self.get_secret_name(
+                        self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]
+                    ),
                     "kind": "Secret",
                     "data": {
                         "userID": self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"],
@@ -1836,7 +1864,9 @@ class RadosJSON:
         ):
             json_out.append(
                 {
-                    "name": f"rook-{self.out_map['CSI_CEPHFS_PROVISIONER_SECRET_NAME']}",
+                    "name": self.get_secret_name(
+                        self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"]
+                    ),
                     "kind": "Secret",
                     "data": {
                         "adminID": self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"],
@@ -1851,7 +1881,9 @@ class RadosJSON:
         ):
             json_out.append(
                 {
-                    "name": f"rook-{self.out_map['CSI_CEPHFS_NODE_SECRET_NAME']}",
+                    "name": self.get_secret_name(
+                        self.out_map["CSI_CEPHFS_NODE_SECRET_NAME"]
+                    ),
                     "kind": "Secret",
                     "data": {
                         "adminID": self.out_map["CSI_CEPHFS_NODE_SECRET_NAME"],
@@ -1893,9 +1925,15 @@ class RadosJSON:
                     "kind": "StorageClass",
                     "data": {
                         "pool": self.out_map["RBD_POOL_NAME"],
-                        "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
-                        "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
-                        "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                        "csi.storage.k8s.io/provisioner-secret-name": self.get_secret_name(
+                            self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]
+                        ),
+                        "csi.storage.k8s.io/controller-expand-secret-name": self.get_secret_name(
+                            self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]
+                        ),
+                        "csi.storage.k8s.io/node-stage-secret-name": self.get_secret_name(
+                            self.out_map["CSI_RBD_NODE_SECRET_NAME"]
+                        ),
                     },
                 }
             )
@@ -1908,9 +1946,15 @@ class RadosJSON:
                         "data": {
                             "dataPool": self.out_map["RBD_POOL_NAME"],
                             "pool": self.out_map["RBD_METADATA_EC_POOL_NAME"],
-                            "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
-                            "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
-                            "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                            "csi.storage.k8s.io/provisioner-secret-name": self.get_secret_name(
+                                self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]
+                            ),
+                            "csi.storage.k8s.io/controller-expand-secret-name": self.get_secret_name(
+                                self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]
+                            ),
+                            "csi.storage.k8s.io/node-stage-secret-name": self.get_secret_name(
+                                self.out_map["CSI_RBD_NODE_SECRET_NAME"]
+                            ),
                         },
                     }
                 )
@@ -1921,9 +1965,15 @@ class RadosJSON:
                         "kind": "StorageClass",
                         "data": {
                             "pool": self.out_map["RBD_POOL_NAME"],
-                            "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
-                            "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
-                            "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                            "csi.storage.k8s.io/provisioner-secret-name": self.get_secret_name(
+                                self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]
+                            ),
+                            "csi.storage.k8s.io/controller-expand-secret-name": self.get_secret_name(
+                                self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]
+                            ),
+                            "csi.storage.k8s.io/node-stage-secret-name": self.get_secret_name(
+                                self.out_map["CSI_RBD_NODE_SECRET_NAME"]
+                            ),
                         },
                     }
                 )
@@ -1947,9 +1997,15 @@ class RadosJSON:
                             "TOPOLOGY_FAILURE_DOMAIN_VALUES"
                         ],
                         "topologyPools": self.out_map["TOPOLOGY_POOLS"],
-                        "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
-                        "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
-                        "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                        "csi.storage.k8s.io/provisioner-secret-name": self.get_secret_name(
+                            self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]
+                        ),
+                        "csi.storage.k8s.io/controller-expand-secret-name": self.get_secret_name(
+                            self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]
+                        ),
+                        "csi.storage.k8s.io/node-stage-secret-name": self.get_secret_name(
+                            self.out_map["CSI_RBD_NODE_SECRET_NAME"]
+                        ),
                     },
                 }
             )
@@ -1963,9 +2019,15 @@ class RadosJSON:
                     "data": {
                         "fsName": self.out_map["CEPHFS_FS_NAME"],
                         "pool": self.out_map["CEPHFS_POOL_NAME"],
-                        "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_CEPHFS_PROVISIONER_SECRET_NAME']}",
-                        "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_CEPHFS_PROVISIONER_SECRET_NAME']}",
-                        "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_CEPHFS_NODE_SECRET_NAME']}",
+                        "csi.storage.k8s.io/provisioner-secret-name": self.get_secret_name(
+                            self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"]
+                        ),
+                        "csi.storage.k8s.io/controller-expand-secret-name": self.get_secret_name(
+                            self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"]
+                        ),
+                        "csi.storage.k8s.io/node-stage-secret-name": self.get_secret_name(
+                            self.out_map["CSI_CEPHFS_NODE_SECRET_NAME"]
+                        ),
                     },
                 }
             )
@@ -2005,6 +2067,14 @@ class RadosJSON:
 
         return json.dumps(json_out) + LINESEP
 
+    def get_secret_name(self, entity):
+        # remove "rotated" suffix if key rotation is enabled
+        if self._arg_parser.cephx_key_rotation:
+            if entity.endswith("-rotated"):
+                return f"rook-{entity[: -len('-rotated')]}"
+
+        return f"rook-{entity}"
+
     def upgrade_users_permissions(self):
         users = [
             "client.csi-cephfs-node",
@@ -2013,6 +2083,16 @@ class RadosJSON:
             "client.csi-rbd-provisioner",
             "client.healthchecker",
         ]
+
+        if self._arg_parser.cephx_key_rotation:
+            users += [
+                "client.csi-cephfs-node-rotated",
+                "client.csi-cephfs-provisioner-rotated",
+                "client.csi-rbd-node-rotated",
+                "client.csi-rbd-provisioner-rotated",
+                "client.healthchecker-rotated",
+            ]
+
         if self.run_as_user != "" and self.run_as_user not in users:
             users.append(self.run_as_user)
         for user in users:

@@ -312,6 +312,38 @@ jobs:
           # default value should be used
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --config-file /etc/ceph/external-config.ini
 
+      - name: test key rotation with --cephx-key-rotation
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          output1=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephx-key-rotation false)
+
+          # check if it create a csi rbd key
+          if kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node; then
+            echo "csi rbd key created successfully"
+          else
+            echo "csi rbd key not created"
+            exit 1
+          fi
+
+          # rotate the key
+          output2=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephx-key-rotation true)
+
+          # check if it rotate the csi rbd key
+          if kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rotated; then
+            echo "csi rbd key rotated successfully"
+          else
+            echo "csi rbd key not rotated"
+            exit 1
+          fi
+
+          # check the content of the secret, it should be changed
+          if [ "$output1" != "$output2" ]; then
+            echo "csi rbd key rotated successfully"
+          else
+            echo "csi rbd key not rotated"
+            exit 1
+          fi
+
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
 

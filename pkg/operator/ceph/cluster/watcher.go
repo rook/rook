@@ -685,7 +685,7 @@ func (c *clientCluster) onDeviceCMUpdate(oldObj, newObj runtime.Object) bool {
 func (c *clientCluster) getCephCluster() *cephv1.CephCluster {
 	clusterList := &cephv1.CephClusterList{}
 
-	err := c.client.List(context.TODO(), clusterList, client.InNamespace(c.namespace))
+	err := c.client.List(context.TODO(), clusterList, client.InNamespace(c.namespace), client.Limit(3))
 	if err != nil {
 		logger.Debugf("%q: failed to fetch CephCluster %v", controllerName, err)
 		return &cephv1.CephCluster{}
