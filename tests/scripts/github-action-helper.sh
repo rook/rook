@@ -740,6 +740,30 @@ function install_minikube_with_none_driver() {
   sudo -E minikube start --kubernetes-version="$1" --driver=none --memory 6g --cpus=2 --addons ingress --cni=calico
 }
 
+function check_keys_exists() {
+  toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  for key in "${@}"; do
+    if kubectl -n rook-ceph exec "$toolbox" -- ceph auth get "$key"; then
+      echo "key '$key' exists"
+    else
+      echo "key '$key' not exists"
+      exit 1
+    fi
+  done
+}
+
+function check_keys_not_exists() {
+  toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  for key in "${@}"; do
+    if kubectl -n rook-ceph exec "$toolbox" -- ceph auth get "$key"; then
+      echo "key '$key' exists"
+      exit 1
+    else
+      echo "key '$key' not exists"
+    fi
+  done
+}
+
 FUNCTION="$1"
 shift # remove function arg now that we've recorded it
 # call the function with the remainder of the user-provided args

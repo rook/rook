@@ -88,6 +88,7 @@ function importClusterID() {
 }
 
 function importSecret() {
+  userID=$(getUserId "$ROOK_EXTERNAL_USERNAME")
   if ! kubectl -n "$NAMESPACE" get secret "$MON_SECRET_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
@@ -99,10 +100,15 @@ function importSecret() {
       --from-literal="$MON_SECRET_FSID_KEYNAME"="$ROOK_EXTERNAL_FSID" \
       --from-literal="$MON_SECRET_ADMIN_KEYRING_KEYNAME"="$ROOK_EXTERNAL_ADMIN_SECRET" \
       --from-literal="$MON_SECRET_MON_KEYRING_KEYNAME"="$ROOK_EXTERNAL_MONITOR_SECRET" \
-      --from-literal="$MON_SECRET_CEPH_USERNAME_KEYNAME"="$ROOK_EXTERNAL_USERNAME" \
+      --from-literal="$MON_SECRET_CEPH_USERNAME_KEYNAME"="$userID" \
       --from-literal="$MON_SECRET_CEPH_SECRET_KEYNAME"="$ROOK_EXTERNAL_USER_SECRET"
   else
     echo "secret $MON_SECRET_NAME already exists"
+    $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "$MON_SECRET_NAME" \
+      -p "{\"stringData\":{\"$MON_SECRET_CEPH_USERNAME_KEYNAME\":\"$userID\"}}"
   fi
 }
 
@@ -120,7 +126,18 @@ function importConfigMap() {
   fi
 }
 
+function getUserId(){
+  id="$1"
+  if [ -z "$CEPHX_KEY_GENERATION" ] || [ "$CEPHX_KEY_GENERATION" == 0 ]; then
+    echo "$id"
+  else
+    result="$id.$CEPHX_KEY_GENERATION"
+    echo "$result"
+  fi
+}
+
 function importCsiRBDNodeSecret() {
+  userID=$(getUserId "$CSI_RBD_NODE_SECRET_NAME")
   if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_RBD_NODE_SECRET_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
@@ -128,14 +145,20 @@ function importCsiRBDNodeSecret() {
       generic \
       --type="kubernetes.io/rook" \
       "rook-""$CSI_RBD_NODE_SECRET_NAME" \
-      --from-literal=userID="$CSI_RBD_NODE_SECRET_NAME" \
+      --from-literal=userID="$userID" \
       --from-literal=userKey="$CSI_RBD_NODE_SECRET"
   else
-    echo "secret rook-$CSI_RBD_NODE_SECRET_NAME already exists"
+    echo "secret 'rook-$CSI_RBD_NODE_SECRET_NAME' already exists"
+    $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "rook-$CSI_RBD_NODE_SECRET_NAME" \
+      -p "{\"stringData\":{\"adminID\":\"$userID\",\"adminKey\":\"$CSI_CEPHFS_NODE_SECRET\"}}"
   fi
 }
 
 function importCsiRBDProvisionerSecret() {
+  userID=$(getUserId "$CSI_RBD_PROVISIONER_SECRET_NAME")
   if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_RBD_PROVISIONER_SECRET_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
@@ -143,14 +166,20 @@ function importCsiRBDProvisionerSecret() {
       generic \
       --type="kubernetes.io/rook" \
       "rook-""$CSI_RBD_PROVISIONER_SECRET_NAME" \
-      --from-literal=userID="$CSI_RBD_PROVISIONER_SECRET_NAME" \
+      --from-literal=userID="$userID" \
       --from-literal=userKey="$CSI_RBD_PROVISIONER_SECRET"
   else
-    echo "secret $CSI_RBD_PROVISIONER_SECRET_NAME already exists"
+    echo "secret 'rook-$CSI_RBD_PROVISIONER_SECRET_NAME' already exists"
+    $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "rook-$CSI_RBD_PROVISIONER_SECRET_NAME" \
+      -p "{\"stringData\":{\"adminID\":\"$userID\",\"adminKey\":\"$CSI_CEPHFS_NODE_SECRET\"}}"
   fi
 }
 
 function importCsiCephFSNodeSecret() {
+  userID=$(getUserId "$CSI_CEPHFS_NODE_SECRET_NAME")
   if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_CEPHFS_NODE_SECRET_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
@@ -158,14 +187,20 @@ function importCsiCephFSNodeSecret() {
       generic \
       --type="kubernetes.io/rook" \
       "rook-""$CSI_CEPHFS_NODE_SECRET_NAME" \
-      --from-literal=adminID="$CSI_CEPHFS_NODE_SECRET_NAME" \
+      --from-literal=adminID="$userID" \
       --from-literal=adminKey="$CSI_CEPHFS_NODE_SECRET"
   else
-    echo "secret $CSI_CEPHFS_NODE_SECRET_NAME already exists"
-  fi
+    echo "secret 'rook-$CSI_CEPHFS_NODE_SECRET_NAME' already exists"
+      $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "rook-$CSI_CEPHFS_NODE_SECRET_NAME" \
+      -p "{\"stringData\":{\"adminID\":\"$userID\",\"adminKey\":\"$CSI_CEPHFS_NODE_SECRET\"}}"
+    fi
 }
 
 function importCsiCephFSProvisionerSecret() {
+  userID=$(getUserId "$CSI_CEPHFS_PROVISIONER_SECRET_NAME")
   if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
@@ -173,10 +208,15 @@ function importCsiCephFSProvisionerSecret() {
       generic \
       --type="kubernetes.io/rook" \
       "rook-""$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
-      --from-literal=adminID="$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
+      --from-literal=adminID="$userID" \
       --from-literal=adminKey="$CSI_CEPHFS_PROVISIONER_SECRET"
   else
-    echo "secret $CSI_CEPHFS_PROVISIONER_SECRET_NAME already exists"
+    echo "secret 'rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME' already exists"
+    $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
+      -p "{\"stringData\":{\"adminID\":\"$userID\",\"adminKey\":\"$CSI_CEPHFS_NODE_SECRET\"}}"
   fi
 }
 
