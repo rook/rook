@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -283,6 +284,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 		expectedSetNoOutValue             string
 		expectedOSDPDBCount               int
 		expectedMaxUnavailableCount       int
+		excludedOSDs                      []string
 		expectedDrainingFailureDomainName string
 	}{
 		{
@@ -356,18 +358,20 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			expectedDrainingFailureDomainName: "",
 		},
 		{
-			name:                  "case 6: Cluster is healthy but OSDs are down. MaxUnavailable should be set to 1 + number of down OSDs",
+			name:                  "case 6: Cluster is healthy but OSDs are down. MaxUnavailable should be set to 1 and down OSDs excluded from PDB",
 			fakeCephStatus:        healthyCephStatus,
 			allFailureDomains:     []string{"zone-1", "zone-2", "zone-3"},
 			osdDownFailureDomains: []string{},
-			// OSD 0 and 1 are down but ceph health is good. So maxUnavailable should be set to 3.
+			// OSD 0 and 1 are down but ceph health is good. Max unavailable should be set to 1, and we should exclude OSD
+			// 0 and 1 from the default PDB.
 			downOSDs:                          []int{0, 1},
 			configMap:                         fakePDBConfigMap("zone-1"),
 			activeNodeDrains:                  []string{},
 			pgHealthyRegex:                    "",
 			expectedSetNoOutValue:             "",
 			expectedOSDPDBCount:               1,
-			expectedMaxUnavailableCount:       3,
+			expectedMaxUnavailableCount:       1,
+			excludedOSDs:                      []string{"0", "1"},
 			expectedDrainingFailureDomainName: "",
 		},
 	}
@@ -405,6 +409,20 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			assert.Equal(t, tc.expectedOSDPDBCount, len(existingPDBsV1.Items))
 			for _, pdb := range existingPDBsV1.Items {
 				assert.Equal(t, tc.expectedMaxUnavailableCount, pdb.Spec.MaxUnavailable.IntValue())
+				if len(tc.excludedOSDs) > 0 {
+					assert.Equal(t, []metav1.LabelSelectorRequirement{
+						{
+							Key:      k8sutil.AppAttr,
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{osdPDBAppName},
+						},
+						{
+							Key:      osdPDBOsdIdLabel,
+							Operator: metav1.LabelSelectorOpNotIn,
+							Values:   tc.excludedOSDs,
+						},
+					}, pdb.Spec.Selector.MatchExpressions)
+				}
 			}
 			// assert that config map is updated with correct failure domain
 			existingConfigMaps := &corev1.ConfigMapList{}
