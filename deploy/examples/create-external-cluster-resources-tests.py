@@ -66,18 +66,18 @@ class TestRadosJSON(unittest.TestCase):
 
     def test_method_create_cephCSIKeyring_cephFSProvisioner(self):
         csiKeyring = self.rjObj.create_cephCSIKeyring_user(
-            "client.csi-cephfs-provisioner"
+            "client.csi-cephfs-provisioner", 0
         )
         print(f"cephCSIKeyring without restricting it to a metadata pool. {csiKeyring}")
         self.rjObj._arg_parser.restricted_auth_permission = True
         self.rjObj._arg_parser.k8s_cluster_name = "openshift-storage"
         csiKeyring = self.rjObj.create_cephCSIKeyring_user(
-            "client.csi-cephfs-provisioner"
+            "client.csi-cephfs-provisioner", 0
         )
         print(f"cephCSIKeyring for a specific cluster. {csiKeyring}")
         self.rjObj._arg_parser.cephfs_filesystem_name = "myfs"
         csiKeyring = self.rjObj.create_cephCSIKeyring_user(
-            "client.csi-cephfs-provisioner"
+            "client.csi-cephfs-provisioner", 0
         )
         print(f"cephCSIKeyring for a specific metadata pool and cluster. {csiKeyring}")
 
@@ -85,7 +85,7 @@ class TestRadosJSON(unittest.TestCase):
         self.rjObj.cluster.return_val = 1
         self.rjObj.cluster.err_message = "Dummy Error"
         try:
-            self.rjObj.create_checkerKey("client.healthchecker")
+            self.rjObj.create_checkerKey("client.healthchecker", 0)
             self.fail("Failed to raise an exception, 'ext.ExecutionFailureException'")
         except ext.ExecutionFailureException as err:
             print(f"Successfully thrown error.\nError: {err}")
