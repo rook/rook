@@ -312,6 +312,66 @@ jobs:
           # default value should be used
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --config-file /etc/ceph/external-config.ini
 
+      - name: test key rotation with --cephx-key-rotate
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          output1=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool)
+
+          # check if it create a csi rbd key
+          if kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node; then
+            echo "csi rbd key created successfully"
+          else
+            echo "csi rbd key not created"
+            exit 1
+          fi
+
+          # rotate the key
+          output2=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephx-key-rotate rotate)
+
+          # check if it rotate the csi keys are rotated
+          if kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node.1; then
+            echo "csi rbd node key rotated successfully"
+          else
+            echo "csi rbd node key not rotated"
+            exit 1
+          fi
+          if kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner.1; then
+            echo "csi rbd provisioner key rotated successfully"
+          else
+            echo "csi rbd provisioner key not rotated"
+            exit 1
+          fi
+          if kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-cephfs-node.1; then
+            echo "csi cephfs node key rotated successfully"
+          else
+            echo "csi cephfs node key not rotated"
+            exit 1
+          fi
+          if kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-cephfs-provisioner.1; then
+            echo "csi cephfs provisioner key rotated successfully"
+          else
+            echo "csi cephfs provisioner key not rotated"
+            exit 1
+          fi
+
+          # check the content of the secret, it should be changed
+          if [ "$output1" != "$output2" ]; then
+            echo "csi rbd key rotated successfully"
+          else
+            echo "csi rbd key not rotated"
+            exit 1
+          fi
+
+          # revert the key
+          output3=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephx-key-rotate revert)
+          # check if it revert the csi rbd key, it should be same as output1
+          if [ "$output1" == "$output3" ]; then
+            echo "csi rbd key reverted successfully"
+          else
+            echo "csi rbd key not reverted"
+            exit 1
+          fi
+
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
 
