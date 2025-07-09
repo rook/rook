@@ -43,6 +43,8 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 * `--topology-failure-domain-label`: (optional) K8s cluster failure domain label (example: zone, rack, or host) for the topology-pools that match the ceph domain
 * `--topology-failure-domain-values`: (optional) Comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the `topology-pools` list
 * `--config-file`: Path to the configuration file, Priority: command-line-args > config.ini values > default values
+* `--cephx-key-rotate`: Enable cephx key rotation for the users created by this script. This will create a new user with suffix `.{x}` and update the secrets with the new key. Set `--cephx-key-rotation rotate` to initiate rotation. To revert keys to the prior generation, set `--cephx-key-rotation revert`
+Note: If user are reverting to prior generation, then the user should manually delete the prior used user keys from the cluster after reverting.
 
 ## 2. Copy the bash output
 

@@ -15,6 +15,7 @@ Upgrading the cluster would be different for restricted caps and non-restricted 
 2. If the consumer cluster has restricted caps
 
     Restricted users created using `--restricted-auth-permission` flag need to pass mandatory flags: '`--rbd-data-pool-name`(if it is a rbd user), `--k8s-cluster-name` and `--run-as-user`' flags while upgrading, in case of cephfs users if you have passed `--cephfs-filesystem-name` flag while creating CSI users then while upgrading it will be mandatory too. In this example the user would be `client.csi-rbd-node-rookstorage-replicapool` (following the pattern `csi-user-clusterName-poolName`)
+    If --cephx-key-rotate was set, it adds `.{x}` suffix to the user name, for example: `client.csi-rbd-node-rookstorage-replicapool.1`
 
     ```console
     python3 create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --run-as-user client.csi-rbd-node-rookstorage-replicapool
