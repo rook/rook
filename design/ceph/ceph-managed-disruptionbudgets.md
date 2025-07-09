@@ -19,9 +19,15 @@ The failure domain will be determined by the smallest failure domain of all the 
 
 #### Types of OSD PDBs:
 - `Default` PDB:
+<<<<<<< HEAD
     - Named as `rook-ceph-osd`
     - It allows one healthy OSD to go down, by setting `maxUnavailable=1`, on any failure domain.
     - Sometimes one or more OSDs can be down (disk failure, etc) without any node drain but PGs would still be `active+clean`. In that case, the `maxUnavailable` is set to `1+number of down OSDs`
+=======
+    - Named `rook-ceph-osd`
+    - Allows one healthy OSD to go down by setting `maxUnavailable=1` on any failure domain.
+    - Sometimes one or more OSDs might down (non-overlapping drive failures, for example) without any node drained, but PGs are still `active+clean`. In that case, the downed OSDs are excluded from the PDB through label match expressions.
+>>>>>>> 60a15306e (osd: exclude down OSDs from main PDB when cluster is clean)
 - `Blocking` PDBs
     - Named as `rook-ceph-osd-<failureDomainType>-<FailureDomainName>`. For example: `rook-ceph-osd-zone-zone-a`
     - These PDBs are created on the entire failure domain.
@@ -71,8 +77,24 @@ a common way of deploying kubernetes. This will also work to mitigate manual dra
 - `noout` is not added if the OSD is down but there is no node drain.
 
 #### OSDs down due to reasons other than node drain:
+<<<<<<< HEAD
 - OSDs can be down due to various reasons other than a node drain event. For example, disk failure.
 - If the PGs are active+clean even after the OSDs are down, then the operator will update the `maxUnavailable` count to `1+number of down OSDs` in the main PDB.
+=======
+- OSDs may be down for other reasons, e.g. drive failure.
+- If all PGs are `active+clean` despite `down` OSD, the Rook operator will exclude the down OSDs in the main PDB like so (assume OSDs 1,3,5 are down):
+```yaml
+  maxUnavailable: 1
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["rook-ceph-osd"]
+      - key: osd
+        operator: NotIn
+        values: ["1", "3", "5"]
+```
+>>>>>>> 60a15306e (osd: exclude down OSDs from main PDB when cluster is clean)
 - This will allow other healthy OSDs to be drained.
 
 ### Mon, Mgr, MDS, RGW, RBDMirror

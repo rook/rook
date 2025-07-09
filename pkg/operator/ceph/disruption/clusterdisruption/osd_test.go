@@ -19,7 +19,12 @@ package clusterdisruption
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
+
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -307,6 +312,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 		expectedSetNoOutValue             string
 		expectedOSDPDBCount               int
 		expectedMaxUnavailableCount       int
+		excludedOSDs                      []string
 		expectedDrainingFailureDomainName string
 	}{
 		{
@@ -380,18 +386,20 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			expectedDrainingFailureDomainName: "",
 		},
 		{
-			name:                  "case 6: Cluster is healthy but OSDs are down. MaxUnavailable should be set to 1 + number of down OSDs",
+			name:                  "case 6: Cluster is healthy but OSDs are down. MaxUnavailable should be set to 1 and down OSDs excluded from PDB",
 			fakeCephStatus:        healthyCephStatus,
 			allFailureDomains:     []string{"zone-1", "zone-2", "zone-3"},
 			osdDownFailureDomains: []string{},
-			// OSD 0 and 1 are down but ceph health is good. So maxUnavailable should be set to 3.
+			// OSD 0 and 1 are down but ceph health is good. Max unavailable should be set to 1, and we should exclude OSD
+			// 0 and 1 from the default PDB.
 			downOSDs:                          []int{0, 1},
 			configMap:                         fakePDBConfigMap("zone-1"),
 			activeNodeDrains:                  []string{},
 			pgHealthyRegex:                    "",
 			expectedSetNoOutValue:             "",
 			expectedOSDPDBCount:               1,
-			expectedMaxUnavailableCount:       3,
+			expectedMaxUnavailableCount:       1,
+			excludedOSDs:                      []string{"0", "1"},
 			expectedDrainingFailureDomainName: "",
 		},
 	}
@@ -427,9 +435,50 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			err = r.client.List(context.TODO(), existingPDBsV1)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedOSDPDBCount, len(existingPDBsV1.Items))
-			for _, pdb := range existingPDBsV1.Items {
-				assert.Equal(t, tc.expectedMaxUnavailableCount, pdb.Spec.MaxUnavailable.IntValue())
+			if tc.expectedDrainingFailureDomainName != "" {
+				// active drains, validate PDBs for non-draining zone
+				nonDrainingZones := slices.DeleteFunc(tc.allFailureDomains, func(zone string) bool {
+					return zone == tc.expectedDrainingFailureDomainName
+				})
+				for i, zone := range nonDrainingZones {
+					maxUnavailable := intstr.FromInt32(int32(tc.expectedMaxUnavailableCount)) // nolint:gosec // G115 no overflow expected
+					expectedPDBSpec := policyv1.PodDisruptionBudgetSpec{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								fmt.Sprintf(osd.TopologyLocationLabel, "zone"): zone,
+							},
+						},
+						MaxUnavailable: &maxUnavailable,
+					}
+					assert.Equal(t, expectedPDBSpec, existingPDBsV1.Items[i].Spec)
+				}
+			} else {
+				// no active drains, validate default PDB
+				defaultPDB := existingPDBsV1.Items[0]
+				expectedMatchExpressions := []metav1.LabelSelectorRequirement{
+					{
+						Key:      k8sutil.AppAttr,
+						Operator: metav1.LabelSelectorOpIn,
+						Values:   []string{osdPDBAppName},
+					},
+				}
+				if len(tc.excludedOSDs) > 0 {
+					expectedMatchExpressions = append(expectedMatchExpressions, metav1.LabelSelectorRequirement{
+						Key:      osdPDBOsdIdLabel,
+						Operator: metav1.LabelSelectorOpNotIn,
+						Values:   tc.excludedOSDs,
+					})
+				}
+				maxUnavailable := intstr.FromInt32(int32(tc.expectedMaxUnavailableCount)) // nolint:gosec // G115 no overflow expected
+				expectedPDBSpec := policyv1.PodDisruptionBudgetSpec{
+					Selector: &metav1.LabelSelector{
+						MatchExpressions: expectedMatchExpressions,
+					},
+					MaxUnavailable: &maxUnavailable,
+				}
+				assert.Equal(t, expectedPDBSpec, defaultPDB.Spec)
 			}
+
 			// assert that config map is updated with correct failure domain
 			existingConfigMaps := &corev1.ConfigMapList{}
 			err = r.client.List(context.TODO(), existingConfigMaps)
