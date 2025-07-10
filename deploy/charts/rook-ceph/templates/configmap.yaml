@@ -43,6 +43,7 @@ data:
   CSI_ENABLE_HOST_NETWORK: {{ .Values.csi.enableCSIHostNetwork | quote }}
   CSI_ENABLE_METADATA: {{ .Values.csi.enableMetadata | quote }}
   CSI_ENABLE_VOLUME_GROUP_SNAPSHOT: {{ .Values.csi.enableVolumeGroupSnapshot | quote }}
+  ROOK_USE_CSI_OPERATOR: {{ .Values.csi.enableCSIOperator | quote }}
 {{- if .Values.csi.csiDriverNamePrefix }}
   CSI_DRIVER_NAME_PREFIX: {{ .Values.csi.csiDriverNamePrefix | quote }}
 {{- end }}

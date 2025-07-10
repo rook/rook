@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "ceph-csi-operator.fullname" . }}-rbd-nodeplugin-rb
+  labels:
+  {{- include "ceph-csi-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: '{{ include "ceph-csi-operator.fullname" . }}-rbd-nodeplugin-r'
+subjects:
+- kind: ServiceAccount
+  name: '{{ include "ceph-csi-operator.fullname" . }}-rbd-nodeplugin-sa'
+  namespace: '{{ .Release.Namespace }}'

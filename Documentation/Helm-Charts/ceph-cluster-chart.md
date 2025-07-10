@@ -58,15 +58,9 @@ The following table lists the configurable parameters of the rook-operator chart
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `cephBlockPools` | A list of CephBlockPool configurations to deploy | See [below](#ceph-block-pools) |
-| `cephBlockPoolsVolumeSnapshotClass` | Settings for the block pool snapshot class | See [RBD Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#rbd-snapshots) |
 | `cephClusterSpec` | Cluster configuration. | See [below](#ceph-cluster-spec) |
-| `cephFileSystemVolumeSnapshotClass` | Settings for the filesystem snapshot class | See [CephFS Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#cephfs-snapshots) |
-| `cephFileSystems` | A list of CephFileSystem configurations to deploy | See [below](#ceph-file-systems) |
-| `cephObjectStores` | A list of CephObjectStore configurations to deploy | See [below](#ceph-object-stores) |
 | `clusterName` | The metadata.name of the CephCluster CR | The same as the namespace |
 | `configOverride` | Cluster ceph.conf override | `nil` |
-| `csiDriverNamePrefix` | CSI driver name prefix for cephfs, rbd and nfs. | `namespace name where rook-ceph operator is deployed` |
 | `ingress.dashboard` | Enable an ingress for the ceph-dashboard | `{}` |
 | `kubeVersion` | Optional override of the target kubernetes version | `nil` |
 | `monitoring.createPrometheusRules` | Whether to create the Prometheus rules for Ceph alerts | `false` |
@@ -84,7 +78,6 @@ The following table lists the configurable parameters of the rook-operator chart
 | `toolbox.image` | Toolbox image, defaults to the image used by the Ceph cluster | `nil` |
 | `toolbox.labels` | Toolbox labels | `{}` |
 | `toolbox.priorityClassName` | Set the priority class for the toolbox if desired | `nil` |
-| `toolbox.resources` | Toolbox resources | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"100m","memory":"128Mi"}}` |
 | `toolbox.tolerations` | Toolbox tolerations | `[]` |
 
 ### **Ceph Cluster Spec**

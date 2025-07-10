@@ -80,12 +80,13 @@ allowLoopDevices: false
 # Settings for whether to disable the drivers or other daemons if they are not
 # needed
 csi:
+  enableCSIOperator: true
   # -- Enable Ceph CSI RBD driver
   enableRbdDriver: true
   # -- Enable Ceph CSI CephFS driver
   enableCephfsDriver: true
   # -- Disable the CSI driver.
-  disableCsiDriver: "false"
+  disableCsiDriver: "true"
 
   # -- Enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary
   # in some network configurations where the SDN does not provide access to an external cluster or

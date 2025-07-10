@@ -1,0 +1,49 @@
+ceph-csi-operator:
+  fullnameOverride: ceph-csi-
+cephfsCtrlpluginSa:
+  serviceAccount:
+    annotations: {}
+cephfsNodepluginSa:
+  serviceAccount:
+    annotations: {}
+controllerManager:
+  manager:
+    args:
+      - --leader-elect
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
+    env:
+      csiServiceAccountPrefix: ceph-csi-
+      watchNamespace: ""
+    image:
+      repository: quay.io/cephcsi/ceph-csi-operator
+      tag: v0.3.1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 64Mi
+  podSecurityContext:
+    runAsNonRoot: true
+  replicas: 1
+  serviceAccount:
+    annotations: {}
+kubernetesClusterDomain: cluster.local
+nfsCtrlpluginSa:
+  serviceAccount:
+    annotations: {}
+nfsNodepluginSa:
+  serviceAccount:
+    annotations: {}
+rbdCtrlpluginSa:
+  serviceAccount:
+    annotations: {}
+rbdNodepluginSa:
+  serviceAccount:
+    annotations: {}

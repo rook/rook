@@ -7,6 +7,10 @@ icon: https://rook.io/images/rook-logo.svg
 sources:
   - https://github.com/rook/rook
 dependencies:
-- name: library
-  version: "0.0.1"
-  repository: "file://../library"
+  - name: library
+    version: "0.0.1"
+    repository: "file://../library"
+  - name: ceph-csi-operator
+    version: 0.3.1
+    repository: "file://../ceph-csi-operator"
+    alias: ceph-csi-operator
