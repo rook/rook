@@ -263,7 +263,7 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 		// remove the dm device
 		if osdInfo.Encrypted {
 			target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
-			err = removeEncryptedDevice(context, target)
+			err = RemoveEncryptedDevice(context, target)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to remove dm device %q", target)
 			}
