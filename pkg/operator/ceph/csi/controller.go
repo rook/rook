@@ -21,7 +21,7 @@ import (
 	"os"
 	"strconv"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -116,7 +116,7 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler, opCon
 		return err
 	}
 
-	err = csiopv1a1.AddToScheme(mgr.GetScheme())
+	err = csiopv1.AddToScheme(mgr.GetScheme())
 	if err != nil {
 		return err
 	}

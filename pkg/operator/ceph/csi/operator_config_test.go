@@ -20,7 +20,7 @@ import (
 	"context"
 	"testing"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -71,7 +71,7 @@ func TestReconcileCSI_createOrUpdateOperatorConfig(t *testing.T) {
 			},
 		},
 	}
-	opConfig := &csiopv1a1.OperatorConfig{}
+	opConfig := &csiopv1.OperatorConfig{}
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme

@@ -19,7 +19,7 @@ package csi
 import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	k8scsiv1 "k8s.io/api/storage/v1"
@@ -36,7 +36,7 @@ const (
 func (r *ReconcileCSI) createOrUpdateOperatorConfig(cluster cephv1.CephCluster) error {
 	logger.Info("Creating ceph-CSI operator config CR")
 
-	opConfig := &csiopv1a1.OperatorConfig{}
+	opConfig := &csiopv1.OperatorConfig{}
 	opConfig.Name = opConfigCRName
 	opConfig.Namespace = r.opConfig.OperatorNamespace
 
@@ -72,15 +72,15 @@ func (r *ReconcileCSI) createOrUpdateOperatorConfig(cluster cephv1.CephCluster) 
 	return nil
 }
 
-func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opConfig *csiopv1a1.OperatorConfig, imageSetCmName string) csiopv1a1.OperatorConfigSpec {
-	cephfsClientType := csiopv1a1.KernelCephFsClient
+func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opConfig *csiopv1.OperatorConfig, imageSetCmName string) csiopv1.OperatorConfigSpec {
+	cephfsClientType := csiopv1.KernelCephFsClient
 	if CSIParam.ForceCephFSKernelClient == "false" {
-		cephfsClientType = csiopv1a1.AutoDetectCephFsClient
+		cephfsClientType = csiopv1.AutoDetectCephFsClient
 	}
 
-	opConfig.Spec = csiopv1a1.OperatorConfigSpec{
-		DriverSpecDefaults: &csiopv1a1.DriverSpec{
-			Log: &csiopv1a1.LogSpec{
+	opConfig.Spec = csiopv1.OperatorConfigSpec{
+		DriverSpecDefaults: &csiopv1.DriverSpec{
+			Log: &csiopv1.LogSpec{
 				Verbosity: int(CSIParam.LogLevel),
 			},
 			ImageSet: &v1.LocalObjectReference{
@@ -90,20 +90,20 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 			EnableMetadata:   &CSIParam.CSIEnableMetadata,
 			GenerateOMapInfo: &CSIParam.EnableOMAPGenerator,
 			FsGroupPolicy:    k8scsiv1.FileFSGroupPolicy,
-			NodePlugin: &csiopv1a1.NodePluginSpec{
-				PodCommonSpec: csiopv1a1.PodCommonSpec{
+			NodePlugin: &csiopv1.NodePluginSpec{
+				PodCommonSpec: csiopv1.PodCommonSpec{
 					PrioritylClassName: &CSIParam.ProvisionerPriorityClassName,
 					Affinity: &v1.Affinity{
 						NodeAffinity: getNodeAffinity(pluginNodeAffinityEnv, &v1.NodeAffinity{}),
 					},
 					Tolerations: getToleration(pluginTolerationsEnv, []v1.Toleration{}),
 				},
-				Resources:              csiopv1a1.NodePluginResourcesSpec{},
+				Resources:              csiopv1.NodePluginResourcesSpec{},
 				KubeletDirPath:         CSIParam.KubeletDirPath,
 				EnableSeLinuxHostMount: &CSIParam.EnablePluginSelinuxHostMount,
 			},
-			ControllerPlugin: &csiopv1a1.ControllerPluginSpec{
-				PodCommonSpec: csiopv1a1.PodCommonSpec{
+			ControllerPlugin: &csiopv1.ControllerPluginSpec{
+				PodCommonSpec: csiopv1.PodCommonSpec{
 					PrioritylClassName: &CSIParam.PluginPriorityClassName,
 					Affinity: &v1.Affinity{
 						NodeAffinity: getNodeAffinity(provisionerNodeAffinityEnv, &v1.NodeAffinity{}),
@@ -111,14 +111,14 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 					Tolerations: getToleration(provisionerTolerationsEnv, []v1.Toleration{}),
 				},
 				Replicas:  &CSIParam.ProvisionerReplicas,
-				Resources: csiopv1a1.ControllerPluginResourcesSpec{},
+				Resources: csiopv1.ControllerPluginResourcesSpec{},
 			},
 			DeployCsiAddons:  &CSIParam.EnableCSIAddonsSideCar,
 			CephFsClientType: cephfsClientType,
 		},
 	}
 	if CSIParam.EnableCSIEncryption {
-		opConfig.Spec.DriverSpecDefaults.Encryption = &csiopv1a1.EncryptionSpec{
+		opConfig.Spec.DriverSpecDefaults.Encryption = &csiopv1.EncryptionSpec{
 			ConfigMapRef: v1.LocalObjectReference{
 				Name: "rook-ceph-csi-kms-config",
 			},

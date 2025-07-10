@@ -27,7 +27,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,14 +38,14 @@ import (
 func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephBlockPoolRadosNamespaceName, clusterID, clusterName string) error {
 	logger.Info("creating ceph-csi clientProfile CR for rados namespace")
 
-	csiOpClientProfile := &csiopv1a1.ClientProfile{}
+	csiOpClientProfile := &csiopv1.ClientProfile{}
 	csiOpClientProfile.Name = clusterID
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
-	csiOpClientProfile.Spec = csiopv1a1.ClientProfileSpec{
+	csiOpClientProfile.Spec = csiopv1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
 			Name: clusterName,
 		},
-		Rbd: &csiopv1a1.RbdConfigSpec{
+		Rbd: &csiopv1.RbdConfigSpec{
 			RadosNamespace: cephBlockPoolRadosNamespaceName,
 		},
 	}
@@ -99,15 +99,15 @@ func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Clien
 	return nil
 }
 
-func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, cephFilesystemSubVolumeGroupName, clusterID, clusterName string) *csiopv1a1.ClientProfile {
-	csiOpClientProfile := &csiopv1a1.ClientProfile{}
+func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, cephFilesystemSubVolumeGroupName, clusterID, clusterName string) *csiopv1.ClientProfile {
+	csiOpClientProfile := &csiopv1.ClientProfile{}
 	csiOpClientProfile.Name = clusterID
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
-	csiOpClientProfile.Spec = csiopv1a1.ClientProfileSpec{
+	csiOpClientProfile.Spec = csiopv1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
 			Name: clusterName,
 		},
-		CephFs: &csiopv1a1.CephFsConfigSpec{
+		CephFs: &csiopv1.CephFsConfigSpec{
 			SubVolumeGroup: cephFilesystemSubVolumeGroupName,
 		},
 	}
@@ -136,10 +136,10 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 		}
 	}()
 
-	csiOpClientProfile := &csiopv1a1.ClientProfile{}
+	csiOpClientProfile := &csiopv1.ClientProfile{}
 	csiOpClientProfile.Name = clusterInfo.Namespace
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
-	csiOpClientProfile.Spec = csiopv1a1.ClientProfileSpec{
+	csiOpClientProfile.Spec = csiopv1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
 			Name: namespaced.Name,
 		},
@@ -149,14 +149,14 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 		if clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions != "" {
 			kernelMountKeyVal := strings.Split(clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions, "=")
 			if len(kernelMountKeyVal) >= 2 {
-				csiOpClientProfile.Spec.CephFs = &csiopv1a1.CephFsConfigSpec{
+				csiOpClientProfile.Spec.CephFs = &csiopv1.CephFsConfigSpec{
 					KernelMountOptions: map[string]string{kernelMountKeyVal[0]: kernelMountKeyVal[1]},
 				}
 			}
 		} else if clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions != "" {
 			fuseMountKeyVal := strings.Split(clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions, "=")
 			if len(fuseMountKeyVal) >= 2 {
-				csiOpClientProfile.Spec.CephFs = &csiopv1a1.CephFsConfigSpec{
+				csiOpClientProfile.Spec.CephFs = &csiopv1.CephFsConfigSpec{
 					FuseMountOptions: map[string]string{fuseMountKeyVal[0]: fuseMountKeyVal[1]},
 				}
 			}

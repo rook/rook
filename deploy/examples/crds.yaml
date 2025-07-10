@@ -2864,7 +2864,9 @@ spec:
                     externalMgrEndpoints:
                       description: ExternalMgrEndpoints points to an existing Ceph prometheus exporter endpoint
                       items:
-                        description: EndpointAddress is a tuple that describes single IP address.
+                        description: |-
+                          EndpointAddress is a tuple that describes single IP address.
+                          Deprecated: This API is deprecated in v1.33+.
                         properties:
                           hostname:
                             description: The Hostname of this endpoint
