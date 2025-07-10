@@ -490,13 +490,14 @@ type CephExporterSpec struct {
 
 // ClusterStatus represents the status of a Ceph cluster
 type ClusterStatus struct {
-	State       ClusterState    `json:"state,omitempty"`
-	Phase       ConditionType   `json:"phase,omitempty"`
-	Message     string          `json:"message,omitempty"`
-	Conditions  []Condition     `json:"conditions,omitempty"`
-	CephStatus  *CephStatus     `json:"ceph,omitempty"`
-	CephStorage *CephStorage    `json:"storage,omitempty"`
-	CephVersion *ClusterVersion `json:"version,omitempty"`
+	State       ClusterState        `json:"state,omitempty"`
+	Phase       ConditionType       `json:"phase,omitempty"`
+	Message     string              `json:"message,omitempty"`
+	Conditions  []Condition         `json:"conditions,omitempty"`
+	CephStatus  *CephStatus         `json:"ceph,omitempty"`
+	Cephx       *ClusterCephxStatus `json:"cephx,omitempty"`
+	CephStorage *CephStorage        `json:"storage,omitempty"`
+	CephVersion *ClusterVersion     `json:"version,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -710,6 +711,12 @@ const UninitializedCephxKeyCephVersion string = "Uninitialized"
 type LocalCephxStatus struct {
 	// Daemon shows the CephX key status for local Ceph daemons associated with this resources.
 	Daemon CephxStatus `json:"daemon,omitempty"`
+}
+
+// ClusterCephxStatus defines the cephx key rotation status of various daemons on the cephCluster resource
+type ClusterCephxStatus struct {
+	// RBDMirrorPeer show the cephx key rotation status of the `rbd-mirror-peer` user
+	RBDMirrorPeer *CephxStatus `json:"rbdMirrorPeer,omitempty"`
 }
 
 // MonSpec represents the specification of the monitor
