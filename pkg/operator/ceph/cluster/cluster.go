@@ -38,8 +38,10 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	rookversion "github.com/rook/rook/pkg/version"
@@ -641,6 +643,20 @@ func (c *cluster) configureMsgr2() error {
 
 	} else {
 		logger.Warningf("network compression requires Ceph Quincy (v17) or newer, skipping for current ceph %q", c.ClusterInfo.CephVersion.String())
+	}
+
+	return nil
+}
+
+// initClusterCephxStatus set `Uninitialized` state for the cephXstatus for new clusters.
+func initClusterCephxStatus(c *clusterd.Context, cluster *cephv1.CephCluster) error {
+	uninitializedStatus := keyring.UninitializedCephxStatus()
+	cluster.Status.Cephx = &cephv1.ClusterCephxStatus{
+		RBDMirrorPeer: &uninitializedStatus,
+	}
+
+	if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
+		return errors.Wrapf(err, "failed to update cluster cephx status")
 	}
 
 	return nil
