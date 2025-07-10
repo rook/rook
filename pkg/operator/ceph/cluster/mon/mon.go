@@ -132,7 +132,7 @@ type Cluster struct {
 	isUpgrade          bool
 	arbiterMon         string
 	// list of mons to be failed over
-	monsToFailover sets.Set[string]
+	monsToFailover map[string]*monConfig
 }
 
 // monConfig for a single monitor
@@ -180,7 +180,7 @@ func New(ctx context.Context, clusterdContext *clusterd.Context, namespace strin
 		ClusterInfo: &cephclient.ClusterInfo{
 			Context: ctx,
 		},
-		monsToFailover: sets.New[string](),
+		monsToFailover: map[string]*monConfig{},
 	}
 }
 
@@ -1557,13 +1557,13 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 	if deploymentExists {
 		// skip update if mon path has changed
 		if hasMonPathChanged(existingDeployment, c.spec.Mon.VolumeClaimTemplate.ToPVC()) {
-			c.monsToFailover.Insert(m.DaemonName)
+			c.monsToFailover[m.DaemonName] = m
 			return nil
 		}
 
 		// skip update if mon fail over is required due to change in hostnetwork settings
 		if isMonIPUpdateRequiredForHostNetwork(m.DaemonName, m.UseHostNetwork, &c.spec.Network) {
-			c.monsToFailover.Insert(m.DaemonName)
+			c.monsToFailover[m.DaemonName] = m
 			return nil
 		}
 

@@ -45,7 +45,6 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
 )
 
@@ -124,7 +123,7 @@ func newCluster(context *clusterd.Context, namespace string, allowMultiplePerNod
 			Schedule: map[string]*opcontroller.MonScheduleInfo{},
 		},
 		ownerInfo:      ownerInfo,
-		monsToFailover: sets.New[string](),
+		monsToFailover: map[string]*monConfig{},
 	}
 }
 
