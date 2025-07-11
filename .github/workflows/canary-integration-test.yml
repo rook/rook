@@ -754,12 +754,7 @@ jobs:
 
       - name: teardown cluster with cleanup policy
         run: |
-          kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
-          kubectl -n rook-ceph delete cephcluster rook-ceph
-          kubectl -n rook-ceph logs deploy/rook-ceph-operator
-          tests/scripts/github-action-helper.sh wait_for_cleanup_pod
-          kubectl -n rook-ceph delete --ignore-not-found=true -f deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh remove_cluster_prerequisites
+          tests/scripts/github-action-helper.sh delete_cluster
           lsblk
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           sudo head --bytes=60 ${BLOCK}1
@@ -790,10 +785,7 @@ jobs:
 
       - name: teardown cluster with cleanup policy
         run: |
-          kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
-          kubectl -n rook-ceph delete cephcluster rook-ceph
-          kubectl -n rook-ceph logs deploy/rook-ceph-operator
-          tests/scripts/github-action-helper.sh wait_for_cleanup_pod
+          tests/scripts/github-action-helper.sh delete_cluster
           lsblk
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           sudo head --bytes=60 ${BLOCK}1
