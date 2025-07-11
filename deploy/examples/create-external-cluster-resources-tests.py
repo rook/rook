@@ -50,6 +50,7 @@ class TestRadosJSON(unittest.TestCase):
         self.rjObj.shutdown()
 
     def test_method_main_output(self):
+        self.rjObj._arg_parser.cephx_key_rotation = False
         print("JSON Output")
         self.rjObj._arg_parser.format = "json"
         self.rjObj.main()
@@ -65,6 +66,7 @@ class TestRadosJSON(unittest.TestCase):
             print(f"Exception thrown successfully: {err}")
 
     def test_method_create_cephCSIKeyring_cephFSProvisioner(self):
+        self.rjObj._arg_parser.cephx_key_rotation = False
         csiKeyring = self.rjObj.create_cephCSIKeyring_user(
             "client.csi-cephfs-provisioner"
         )
@@ -82,6 +84,7 @@ class TestRadosJSON(unittest.TestCase):
         print(f"cephCSIKeyring for a specific metadata pool and cluster. {csiKeyring}")
 
     def test_non_zero_return_and_error(self):
+        self.rjObj._arg_parser.cephx_key_rotation = False
         self.rjObj.cluster.return_val = 1
         self.rjObj.cluster.err_message = "Dummy Error"
         try:
@@ -166,6 +169,7 @@ class TestRadosJSON(unittest.TestCase):
             print(f"Successfully thrown error: {err}")
 
     def test_upgrade_user_permissions(self):
+        self.rjObj._arg_parser.cephx_key_rotation = False
         self.rjObj = ext.RadosJSON(
             [
                 "--upgrade",
@@ -234,6 +238,7 @@ class TestRadosJSON(unittest.TestCase):
                 print(f"Exception thrown successfully: {err}")
 
     def test_skip_monitoring_endpoint_no_prometheus(self):
+        self.rjObj._arg_parser.cephx_key_rotation = False
         cmd_key = '{"format": "json", "prefix": "status"}'
         cmd_out = self.rjObj.cluster.cmd_output_map[cmd_key]
         cmd_json_out = json.loads(cmd_out)
@@ -264,6 +269,7 @@ class TestRadosJSON(unittest.TestCase):
             self.fail("MONITORING_ENDPOINT_PORT should be empty")
 
     def test_skip_monitoring_endpoint(self):
+        self.rjObj._arg_parser.cephx_key_rotation = False
         self.rjObj._arg_parser.skip_monitoring_endpoint = True
         self.rjObj.main()
 
