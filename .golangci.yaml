@@ -28,6 +28,19 @@ linters:
       - linters:
           - staticcheck
         text: "QF1006:" # could lift into loop condition (staticcheck)
+      - linters:
+          - staticcheck
+        text: "res.Requeue is deprecated"
+      - linters:
+          - staticcheck
+        text: "v1.Endpoints is deprecated"
+      - linters:
+          - staticcheck
+        text: "v1.EndpointSubset is deprecated"
+      - linters:
+        - staticcheck
+        text: "reconcileResponse.Requeue is deprecated"
+
 formatters:
   enable:
     - gofmt
