@@ -9,3 +9,7 @@ spec:
   # name: namespace-a
   # blockPoolName is the name of the CephBlockPool CR where the namespace will be created.
   blockPoolName: replicapool
+  # ClusterID to be used for this RadosNamespace in the CSI configuration.
+  # It must be unique among all Ceph clusters managed by Rook.
+  # If not specified, the clusterID will be generated and can be found in the CR status.
+  # clusterID: namespace-a
