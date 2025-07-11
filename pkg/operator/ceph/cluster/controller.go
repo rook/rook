@@ -384,6 +384,13 @@ func (c *ClusterController) reconcileCephCluster(clusterObj *cephv1.CephCluster,
 		return nil
 	}
 
+	if clusterObj.Status.Cephx == nil {
+		err := initClusterCephxStatus(c.context, clusterObj)
+		if err != nil {
+			return errors.Wrap(err, "failed to initialized cluster cephx status")
+		}
+	}
+
 	cluster, ok := c.clusterMap[clusterObj.Namespace]
 	if !ok {
 		// It's a new cluster so let's populate the struct

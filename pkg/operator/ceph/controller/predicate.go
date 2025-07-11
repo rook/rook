@@ -488,3 +488,28 @@ func GetSpec(obj client.Object) interface{} {
 
 	return spec.Interface()
 }
+
+func WatchPeerTokenSecretPredicate[T *corev1.Secret]() predicate.TypedFuncs[T] {
+	return predicate.TypedFuncs[T]{
+		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
+			// Do not reconcile when PDB is created
+			return false
+		},
+		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
+			newSecret := (*corev1.Secret)(e.ObjectNew)
+			oldSecret := (*corev1.Secret)(e.ObjectOld)
+
+			// reconcile if the peer token data has changed
+			newData, _ := newSecret.Data["token"]
+			oldData, _ := oldSecret.Data["token"]
+			if string(newData) != string(oldData) {
+				return true
+			}
+			return false
+		},
+		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
+			// Do not reconcile when PDB is deleted
+			return false
+		},
+	}
+}
