@@ -68,9 +68,10 @@ type cluster struct {
 	isUpgrade          bool
 	monitoringRoutines map[string]*controller.ClusterHealth
 	observedGeneration int64
+	RookImage          string
 }
 
-func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Context, ownerInfo *k8sutil.OwnerInfo) *cluster {
+func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Context, ownerInfo *k8sutil.OwnerInfo, rookImage string) *cluster {
 	return &cluster{
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
@@ -88,6 +89,7 @@ func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Co
 		// because generation can be changed before reconcile got completed
 		// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 		observedGeneration: c.ObjectMeta.Generation,
+		RookImage:          rookImage,
 	}
 }
 
@@ -459,7 +461,7 @@ func (c *cluster) preMonStartupActions(cephVersion cephver.CephVersion) error {
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
 	// Create CSI Kubernetes Secrets
-	if err := csi.CreateCSISecrets(c.context, c.ClusterInfo); err != nil {
+	if err := csi.CreateCSISecrets(c.context, c.ClusterInfo, c.Spec, c.namespacedName); err != nil {
 		return errors.Wrap(err, "failed to create csi kubernetes secrets")
 	}
 
