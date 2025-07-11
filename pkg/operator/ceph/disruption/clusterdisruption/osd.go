@@ -490,6 +490,9 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 // hasOSDNodeDrained returns true if OSD pod is not assigned to any node or if the OSD node is not schedulable
 func hasOSDNodeDrained(ctx context.Context, c client.Client, osdNodeName string) (bool, error) {
 	node, err := getNode(ctx, c, osdNodeName)
+	if apierrors.IsNotFound(err) {
+		return true, nil
+	}
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to get node %q", osdNodeName)
 	}
