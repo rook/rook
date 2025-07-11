@@ -1,0 +1,143 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clientprofilemappings.csi.ceph.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  labels:
+  {{- include "ceph-csi-operator.labels" . | nindent 4 }}
+spec:
+  group: csi.ceph.io
+  names:
+    kind: ClientProfileMapping
+    listKind: ClientProfileMappingList
+    plural: clientprofilemappings
+    singular: clientprofilemapping
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: ClientProfileMapping is the Schema for the clientprofilemappings
+          API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ClientProfileMappingSpec defines the desired state of ClientProfileMapping
+            properties:
+              mappings:
+                items:
+                  description: MappingsSpec define a mapping between a local and remote
+                    profiles
+                  properties:
+                    blockPoolIdMapping:
+                      items:
+                        items:
+                          type: string
+                        maxItems: 2
+                        minItems: 2
+                        type: array
+                      type: array
+                    localClientProfile:
+                      type: string
+                    remoteClientProfile:
+                      type: string
+                  required:
+                  - localClientProfile
+                  - remoteClientProfile
+                  type: object
+                type: array
+            required:
+            - mappings
+            type: object
+          status:
+            description: ClientProfileMappingStatus defines the observed state of ClientProfileMapping
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+  - deprecated: true
+    deprecationWarning: v1alpha1 is deprecated, please use v1
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ClientProfileMapping is the Schema for the clientprofilemappings
+          API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ClientProfileMappingSpec defines the desired state of ClientProfileMapping
+            properties:
+              mappings:
+                items:
+                  description: MappingsSpec define a mapping between a local and remote
+                    profiles
+                  properties:
+                    blockPoolIdMapping:
+                      items:
+                        items:
+                          type: string
+                        maxItems: 2
+                        minItems: 2
+                        type: array
+                      type: array
+                    localClientProfile:
+                      type: string
+                    remoteClientProfile:
+                      type: string
+                  required:
+                  - localClientProfile
+                  - remoteClientProfile
+                  type: object
+                type: array
+            required:
+            - mappings
+            type: object
+          status:
+            description: ClientProfileMappingStatus defines the observed state of ClientProfileMapping
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

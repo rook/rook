@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "ceph-csi-operator.fullname" . }}-nfs-ctrlplugin-crb
+  labels:
+  {{- include "ceph-csi-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: '{{ include "ceph-csi-operator.fullname" . }}-nfs-ctrlplugin-cr'
+subjects:
+- kind: ServiceAccount
+  name: '{{ include "ceph-csi-operator.fullname" . }}-nfs-ctrlplugin-sa'
+  namespace: '{{ .Release.Namespace }}'
