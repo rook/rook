@@ -4547,7 +4547,7 @@ are not rotated.</p>
 <h3 id="ceph.rook.io/v1.CephxStatus">CephxStatus
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterCephxStatus">ClusterCephxStatus</a>, <a href="#ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus</a>)
 </p>
 <div>
 </div>
@@ -4775,6 +4775,37 @@ CephxConfig
 <td>
 <p>Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
 Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.ClusterCephxStatus">ClusterCephxStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterStatus">ClusterStatus</a>)
+</p>
+<div>
+<p>ClusterCephxStatus defines the cephx key rotation status of various daemons on the cephCluster resource</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>rbdMirrorPeer</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxStatus">
+CephxStatus
+</a>
+</em>
+</td>
+<td>
+<p>RBDMirrorPeer show the cephx key rotation status of the <code>rbd-mirror-peer</code> user</p>
 </td>
 </tr>
 </tbody>
@@ -5344,6 +5375,18 @@ string
 <em>
 <a href="#ceph.rook.io/v1.CephStatus">
 CephStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ClusterCephxStatus">
+ClusterCephxStatus
 </a>
 </em>
 </td>
