@@ -20,6 +20,7 @@ package osd
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -75,6 +76,9 @@ const (
 	osdStore                       = "osd-store"
 	deviceType                     = "device-type"
 	encrypted                      = "encrypted"
+
+	// CephxStatus is applied to each OSD deployment as value of this annotation key
+	cephxStatusAnnotationKey = "cephx-status"
 )
 
 // Cluster keeps track of the OSDs
@@ -119,12 +123,13 @@ type OSDInfo struct {
 	CVMode        string `json:"lv-mode"`
 	Store         string `json:"store"`
 	// Ensure the OSD daemon has affinity with the same topology from the OSD prepare pod
-	TopologyAffinity string `json:"topologyAffinity"`
-	Encrypted        bool   `json:"encrypted"`
-	ExportService    bool   `json:"exportService"`
-	NodeName         string `json:"nodeName"`
-	PVCName          string `json:"pvcName"`
-	DeviceType       string `json:"device-type"`
+	TopologyAffinity string             `json:"topologyAffinity"`
+	Encrypted        bool               `json:"encrypted"`
+	ExportService    bool               `json:"exportService"`
+	NodeName         string             `json:"nodeName"`
+	PVCName          string             `json:"pvcName"`
+	DeviceType       string             `json:"device-type"`
+	CephxStatus      cephv1.CephxStatus `json:"cephxStatus"`
 }
 
 // OrchestrationStatus represents the status of an OSD orchestration
@@ -295,6 +300,12 @@ func (c *Cluster) Start() error {
 	if err != nil {
 		return errors.Wrap(err, "failed post reconcile of osd properties")
 	}
+
+	// TODO: update CephCluster status
+	// if a user initiates rotation but then decides partway through not to continue,
+	// we can have a non-homogeneous state where some osds are at gen A / cephversion A
+	// others at gen B / cephversion B. extreme examples could have all OSDs at diff values
+	// tracking every OSD seems unnecessary and bloated -- what about tracking min and max vals?
 
 	err = c.updateCephStorageStatus()
 	if err != nil {
@@ -723,6 +734,15 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	if isPVC {
 		osd.PVCName = d.Labels[OSDOverPVCLabelKey]
 	}
+
+	cephxStatus := cephv1.CephxStatus{}
+	cephxRaw, ok := d.Spec.Template.Annotations[cephxStatusAnnotationKey]
+	if ok {
+		if err := json.Unmarshal([]byte(cephxRaw), &cephxStatus); err != nil {
+			return OSDInfo{}, errors.Wrapf(err, "failed to unmarshal cephx status %q for deployment %q", cephxRaw, d.Name)
+		}
+	}
+	osd.CephxStatus = cephxStatus
 
 	return osd, nil
 }

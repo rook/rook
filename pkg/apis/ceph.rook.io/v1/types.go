@@ -495,7 +495,7 @@ type ClusterStatus struct {
 	Message     string              `json:"message,omitempty"`
 	Conditions  []Condition         `json:"conditions,omitempty"`
 	CephStatus  *CephStatus         `json:"ceph,omitempty"`
-	Cephx       *ClusterCephxStatus `json:"cephx,omitempty"`
+	Cephx       *ClusterCephxStatus `json:"cephx,omitempty"` // TODO: need to set +nullable? check
 	CephStorage *CephStorage        `json:"storage,omitempty"`
 	CephVersion *ClusterVersion     `json:"version,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
@@ -715,8 +715,11 @@ type LocalCephxStatus struct {
 
 // ClusterCephxStatus defines the cephx key rotation status of various daemons on the cephCluster resource
 type ClusterCephxStatus struct {
-	// RBDMirrorPeer show the cephx key rotation status of the `rbd-mirror-peer` user
-	RBDMirrorPeer *CephxStatus `json:"rbdMirrorPeer,omitempty"`
+	// OSD shows the CephX key status of of OSDs
+	OSD *CephxStatus `json:"osd,omitempty"`
+
+	// RBDMirrorPeer show the CephX key status of the `rbd-mirror-peer` user
+	RBDMirrorPeer *CephxStatus `json:"rbdMirrorPeer,omitempty"` // TODO: need to set nullable? check
 }
 
 // MonSpec represents the specification of the monitor

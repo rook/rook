@@ -250,7 +250,11 @@ func IsReadyToReconcile(ctx context.Context, c client.Client, namespacedName typ
 		if ok && len(details) == 1 && strings.Contains(message.Message, "Error initializing cluster client") {
 			logger.Infof("%s: skipping reconcile since operator is still initializing", controllerName)
 		} else {
-			logger.Infof("%s: CephCluster %q found but skipping reconcile since ceph health is %+v", controllerName, cephCluster.Name, cephCluster.Status.CephStatus)
+			// TESTING TESTING TESTING
+			logger.Debugf("%q: ceph status is %q, forcing reconcile anyway", controllerName, cephCluster.Status.CephStatus.Health)
+			return cephCluster, true, cephClusterExists, WaitForRequeueIfCephClusterNotReady
+			// TESTING TESTING TESTING (and below line is what should exist)
+			// logger.Infof("%s: CephCluster %q found but skipping reconcile since ceph health is %+v", controllerName, cephCluster.Name, cephCluster.Status.CephStatus)
 		}
 	}
 
