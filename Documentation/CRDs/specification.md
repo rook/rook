@@ -4797,6 +4797,19 @@ Ceph cluster. Daemon CephX keys can be rotated without affecting client connecti
 <tbody>
 <tr>
 <td>
+<code>mgr</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxStatus">
+CephxStatus
+</a>
+</em>
+</td>
+<td>
+<p>Mgr represents the cephx key rotation status of the ceph manager daemon</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>rbdMirrorPeer</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.CephxStatus">
@@ -4805,7 +4818,7 @@ CephxStatus
 </em>
 </td>
 <td>
-<p>RBDMirrorPeer show the cephx key rotation status of the <code>rbd-mirror-peer</code> user</p>
+<p>RBDMirrorPeer represents the cephx key rotation status of the <code>rbd-mirror-peer</code> user</p>
 </td>
 </tr>
 </tbody>
