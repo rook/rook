@@ -130,8 +130,9 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 				"nginx.ingress.kubernetes.io/rewrite-target": "/ceph-dashboard/$2",
 			},
 			"host": map[string]interface{}{
-				"name": "localhost",
-				"path": "/ceph-dashboard(/|$)(.*)",
+				"name":     "localhost",
+				"path":     "/ceph-dashboard(/|$)(.*)",
+				"pathType": "ImplementationSpecific",
 			},
 		},
 	}
