@@ -626,6 +626,20 @@ map[string]string
 <td>
 </td>
 </tr>
+<tr>
+<td>
+<code>security</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ClientSecuritySpec">
+ClientSecuritySpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Security represents security settings</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -3668,6 +3682,19 @@ int64
 <p>ObservedGeneration is the latest generation observed by the controller.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxStatus">
+CephxStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CephClusterHealthCheckSpec">CephClusterHealthCheckSpec
@@ -4441,7 +4468,7 @@ One of Always, Never, IfNotPresent.</p>
 <h3 id="ceph.rook.io/v1.CephxConfig">CephxConfig
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterCephxConfig">ClusterCephxConfig</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClientSecuritySpec">ClientSecuritySpec</a>, <a href="#ceph.rook.io/v1.ClusterCephxConfig">ClusterCephxConfig</a>)
 </p>
 <div>
 </div>
@@ -4510,7 +4537,7 @@ are not rotated.</p>
 <h3 id="ceph.rook.io/v1.CephxStatus">CephxStatus
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterCephxStatus">ClusterCephxStatus</a>, <a href="#ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephClientStatus">CephClientStatus</a>, <a href="#ceph.rook.io/v1.ClusterCephxStatus">ClusterCephxStatus</a>, <a href="#ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus</a>)
 </p>
 <div>
 </div>
@@ -4633,6 +4660,38 @@ bool
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.ClientSecuritySpec">ClientSecuritySpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClientSpec">ClientSpec</a>)
+</p>
+<div>
+<p>ClinetSecuritySpec represents security settings for a Ceph Client</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxConfig">
+CephxConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CephX configures CephX key settings. More: <a href="https://docs.ceph.com/en/latest/dev/cephx/">https://docs.ceph.com/en/latest/dev/cephx/</a></p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ClientSpec">ClientSpec
 </h3>
 <p>
@@ -4694,6 +4753,20 @@ map[string]string
 </em>
 </td>
 <td>
+</td>
+</tr>
+<tr>
+<td>
+<code>security</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ClientSecuritySpec">
+ClientSecuritySpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Security represents security settings</p>
 </td>
 </tr>
 </tbody>
