@@ -19,9 +19,10 @@ package mgr
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -87,10 +88,19 @@ func (c *Cluster) generateKeyring(m *mgrConfig) (string, error) {
 		return "", err
 	}
 
+	if c.shouldRotateCephxKeys {
+		logger.Infof("rotating cephx key for mgr daemon %q in the namespace %q", m.ResourceName, c.clusterInfo.Namespace)
+		newKey, err := s.RotateKey(user)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to rotate cephx key for mgr daemon %q", m.ResourceName)
+		}
+		key = newKey
+	}
+
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
 	err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Delete(c.clusterInfo.Context, m.ResourceName, metav1.DeleteOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			logger.Debugf("legacy mgr key %q is already removed", m.ResourceName)
 		} else {
 			logger.Warningf("legacy mgr key %q could not be removed. %v", m.ResourceName, err)
