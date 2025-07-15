@@ -90,6 +90,7 @@ func kubernetesTopologyLabelToCRUSHLabel(label string) string {
 
 // ExtractTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
 func extractTopologyFromLabels(labels map[string]string) (map[string]string, string) {
+	logger.Infof("extractTopologyFromLabels: labels = %+v", labels)
 	topology := make(map[string]string)
 
 	// The topology affinity for the osd is the lowest topology label found in the hierarchy,
@@ -102,7 +103,7 @@ func extractTopologyFromLabels(labels map[string]string) (map[string]string, str
 	// for the topology affinity
 	for _, label := range allKubernetesTopologyLabels {
 		topologyID := kubernetesTopologyLabelToCRUSHLabel(label)
-		if value, ok := labels[label]; ok {
+		if value, ok := labels[label]; ok && value != "" {
 			topology[topologyID] = value
 			if topologyID != "host" {
 				topologyAffinity = formatTopologyAffinity(label, value)
