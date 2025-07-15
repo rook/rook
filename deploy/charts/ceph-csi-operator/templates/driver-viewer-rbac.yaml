@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "ceph-csi-operator.fullname" . }}-driver-viewer-role
+  labels:
+  {{- include "ceph-csi-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - drivers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - drivers/status
+  verbs:
+  - get

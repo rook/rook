@@ -232,6 +232,1071 @@ rules:
     resources: ["tokenreviews"]
     verbs: ["create"]
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-cephconnection-viewer-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - cephconnections
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - cephconnections/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-cephconnections-editor-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - cephconnections
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - cephconnections/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-cephfs-ctrlplugin-cr
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - csinodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - update
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - volumeattachments
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - volumeattachments/status
+    verbs:
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims/status
+    verbs:
+      - patch
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshots
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshotclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshotcontents
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - update
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshotcontents/status
+    verbs:
+      - update
+      - patch
+  - apiGroups:
+      - groupsnapshot.storage.k8s.io
+    resources:
+      - volumegroupsnapshotclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - groupsnapshot.storage.k8s.io
+    resources:
+      - volumegroupsnapshotcontents
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - groupsnapshot.storage.k8s.io
+    resources:
+      - volumegroupsnapshotcontents/status
+    verbs:
+      - update
+      - patch
+  - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotcontents
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotcontents/status
+    verbs:
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts/token
+    verbs:
+      - create
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-cephfs-nodeplugin-cr
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts/token
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-clientprofile-viewer-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofiles
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofiles/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-clientprofilemapping-editor-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofilemappings
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofilemappings/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-clientprofilemapping-viewer-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofilemappings
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofilemappings/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-clientprofiles-editor-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofiles
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofiles/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-driver-editor-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - drivers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - drivers/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-driver-viewer-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - drivers
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - drivers/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-manager-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - daemonsets
+      - deployments
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - cephconnections
+    verbs:
+      - delete
+      - get
+      - list
+      - update
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofilemappings
+      - clientprofiles
+      - drivers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofilemappings/finalizers
+      - clientprofiles/finalizers
+      - drivers/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofilemappings/status
+      - clientprofiles/status
+      - drivers/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - operatorconfigs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - csidrivers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-metrics-auth-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-metrics-reader
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - nonResourceURLs:
+      - /metrics
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-nfs-ctrlplugin-cr
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - update
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - csinodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshotclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshotcontents
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshotcontents/status
+    verbs:
+      - update
+      - patch
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshots
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims/status
+    verbs:
+      - patch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - volumeattachments
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - volumeattachments/status
+    verbs:
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-nfs-nodeplugin-cr
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-operatorconfig-editor-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - operatorconfigs
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - operatorconfigs/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-operatorconfig-viewer-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - operatorconfigs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - operatorconfigs/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-rbd-ctrlplugin-cr
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - volumeattachments
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - volumeattachments/status
+    verbs:
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - csinodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims/status
+    verbs:
+      - patch
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshots
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshotclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshotcontents
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - update
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshotcontents/status
+    verbs:
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts/token
+    verbs:
+      - create
+  - apiGroups:
+      - groupsnapshot.storage.k8s.io
+    resources:
+      - volumegroupsnapshotclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - groupsnapshot.storage.k8s.io
+    resources:
+      - volumegroupsnapshotcontents
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - groupsnapshot.storage.k8s.io
+    resources:
+      - volumegroupsnapshotcontents/status
+    verbs:
+      - update
+      - patch
+  - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotcontents
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotcontents/status
+    verbs:
+      - update
+      - patch
+  - apiGroups:
+      - replication.storage.openshift.io
+    resources:
+      - volumegroupreplicationcontents
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - replication.storage.openshift.io
+    resources:
+      - volumegroupreplicationclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: release-name-ceph-csi-operator-rbd-nodeplugin-cr
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - volumeattachments
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts/token
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+---
 # The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -709,6 +1774,142 @@ roleRef:
   name: rbd-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-cephfs-ctrlplugin-crb
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'release-name-ceph-csi-operator-cephfs-ctrlplugin-cr'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-cephfs-ctrlplugin-sa'
+    namespace: 'rook-ceph'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-cephfs-nodeplugin-crb
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'release-name-ceph-csi-operator-cephfs-nodeplugin-cr'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-cephfs-nodeplugin-sa'
+    namespace: 'rook-ceph'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-manager-rolebinding
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'release-name-ceph-csi-operator-manager-role'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-controller-manager'
+    namespace: 'rook-ceph'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-metrics-auth-rolebinding
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'release-name-ceph-csi-operator-metrics-auth-role'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-controller-manager'
+    namespace: 'rook-ceph'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-nfs-ctrlplugin-crb
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'release-name-ceph-csi-operator-nfs-ctrlplugin-cr'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-nfs-ctrlplugin-sa'
+    namespace: 'rook-ceph'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-nfs-nodeplugin-crb
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: ""
+  kind: ClusterRole
+  name: 'release-name-ceph-csi-operator-nfs-nodeplugin-cr'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-nfs-nodeplugin-sa'
+    namespace: 'rook-ceph'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-rbd-ctrlplugin-crb
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'release-name-ceph-csi-operator-rbd-ctrlplugin-cr'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-rbd-ctrlplugin-sa'
+    namespace: 'rook-ceph'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-rbd-nodeplugin-crb
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'release-name-ceph-csi-operator-rbd-nodeplugin-cr'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-rbd-nodeplugin-sa'
+    namespace: 'rook-ceph'
+---
 # Grant the rook system daemons cluster-wide access to manage the Rook CRDs, PVCs, and storage classes
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -848,6 +2049,189 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments/finalizers", "daemonsets/finalizers"]
     verbs: ["update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-ceph-csi-operator-cephfs-ctrlplugin-r
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - watch
+      - list
+      - delete
+      - update
+      - create
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - csiaddonsnodes
+    verbs:
+      - get
+      - watch
+      - list
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - replicasets
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - deployments/finalizers
+      - daemonsets/finalizers
+    verbs:
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-ceph-csi-operator-leader-election-role
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-ceph-csi-operator-rbd-ctrlplugin-r
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - watch
+      - list
+      - delete
+      - update
+      - create
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - csiaddonsnodes
+    verbs:
+      - get
+      - watch
+      - list
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - replicasets
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - deployments/finalizers
+      - daemonsets/finalizers
+    verbs:
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-name-ceph-csi-operator-rbd-nodeplugin-r
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+rules:
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - csiaddonsnodes
+    verbs:
+      - get
+      - watch
+      - list
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - replicasets
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - deployments/finalizers
+      - daemonsets/finalizers
+    verbs:
+      - update
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1085,6 +2469,74 @@ roleRef:
   name: rbd-external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-cephfs-ctrlplugin-rb
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: 'release-name-ceph-csi-operator-cephfs-ctrlplugin-r'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-cephfs-ctrlplugin-sa'
+    namespace: 'rook-ceph'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-leader-election-rolebinding
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: 'release-name-ceph-csi-operator-leader-election-role'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-controller-manager'
+    namespace: 'rook-ceph'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-rbd-ctrlplugin-rb
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: 'release-name-ceph-csi-operator-rbd-ctrlplugin-r'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-rbd-ctrlplugin-sa'
+    namespace: 'rook-ceph'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-name-ceph-csi-operator-rbd-nodeplugin-rb
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: 'release-name-ceph-csi-operator-rbd-nodeplugin-r'
+subjects:
+  - kind: ServiceAccount
+    name: 'release-name-ceph-csi-operator-rbd-nodeplugin-sa'
+    namespace: 'rook-ceph'
+---
 # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1205,6 +2657,76 @@ metadata:
     app.kubernetes.io/name: cosi-driver-ceph
 # imagePullSecrets:
 #   - name: my-registry-secret
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-name-ceph-csi-operator-cephfs-ctrlplugin-sa
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+  annotations: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-name-ceph-csi-operator-cephfs-nodeplugin-sa
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+  annotations: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-name-ceph-csi-operator-controller-manager
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+  annotations: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-name-ceph-csi-operator-nfs-ctrlplugin-sa
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+  annotations: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-name-ceph-csi-operator-nfs-nodeplugin-sa
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+  annotations: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-name-ceph-csi-operator-rbd-ctrlplugin-sa
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+  annotations: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-name-ceph-csi-operator-rbd-nodeplugin-sa
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "0.2.0"
+  annotations: {}
 ---
 # Service account for the job that reports the Ceph version in an image
 apiVersion: v1
