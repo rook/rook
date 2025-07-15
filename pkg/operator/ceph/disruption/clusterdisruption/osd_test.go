@@ -181,6 +181,30 @@ func TestGetOSDFailureDomains(t *testing.T) {
 			expectedDrainingFailureDomains: []string{"zone-3"},
 			expectedDownOSDs:               []int{3},
 		},
+		{
+			name: "case 6: osd in zone-3 is pending and the osd node does not exist",
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 0),
+			},
+			nodes:                          []corev1.Node{*getNodeObject("node-1", false), *getNodeObject("node-2", false)},
+			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
+			expectedOsdDownFailureDomains:  []string{"zone-3"},
+			expectedDrainingFailureDomains: []string{"zone-3"},
+			expectedDownOSDs:               []int{3},
+		},
+		{
+			name: "case 7: osd in zone-1 and zone-2 are pending and node does not exist",
+			osds: []appsv1.Deployment{
+				fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 0),
+				fakeOSDDeployment(3, 1),
+			},
+			nodes:                          []corev1.Node{*getNodeObject("node-3", false)},
+			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
+			expectedOsdDownFailureDomains:  []string{"zone-1", "zone-2"},
+			expectedDrainingFailureDomains: []string{"zone-1", "zone-2"},
+			expectedDownOSDs:               []int{1, 2},
+		},
 	}
 
 	for _, tc := range testcases {
@@ -426,9 +450,16 @@ func TestHasNodeDrained(t *testing.T) {
 	assert.False(t, expected)
 
 	// Expecting node drain because OSD pod is assigned to an unschedulable node
-	osdDeployment = fakeOSDDeployment(2, 2)
+	osdDeployment = fakeOSDDeployment(2, 0)
 	r = getFakeReconciler(t, getNodeObject("node-2", true), osdDeployment.DeepCopy(), &corev1.ConfigMap{})
 	expected, err = hasOSDNodeDrained(ctx, r.client, "node-2")
+	assert.NoError(t, err)
+	assert.True(t, expected)
+
+	// Expecting node drain because OSD pod is assigned to a non existent node
+	osdDeployment = fakeOSDDeployment(3, 0)
+	r = getFakeReconciler(t, osdDeployment.DeepCopy(), &corev1.ConfigMap{})
+	expected, err = hasOSDNodeDrained(ctx, r.client, "node-3")
 	assert.NoError(t, err)
 	assert.True(t, expected)
 }
