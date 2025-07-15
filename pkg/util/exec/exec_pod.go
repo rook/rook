@@ -25,6 +25,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -132,4 +133,34 @@ func execute(ctx context.Context, method string, url *url.URL, config *rest.Conf
 
 func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutputWithTimeout(ctx context.Context, appLabel, containerName, namespace string, cmd ...string) (string, string, error) {
 	return e.ExecCommandInContainerWithFullOutput(ctx, appLabel, containerName, namespace, append([]string{"timeout", strconv.Itoa(int(CephCommandsTimeout.Seconds()))}, cmd...)...)
+}
+
+func (e *RemotePodCommandExecutor) CopyLocalFileToContainer(ctx context.Context, appLabel, containerName, namespace string, srcPath, dstPath string) error {
+	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appLabel)}
+	pods, err := e.ClientSet.CoreV1().Pods(namespace).List(ctx, options)
+	if err != nil {
+		return err
+	}
+	if len(pods.Items) == 0 {
+		return errors.Errorf("no pods found with selector %q", appLabel)
+	}
+	file, err := os.Open(srcPath)
+	if err != nil {
+		return fmt.Errorf("failed to open local file: %w", err)
+	}
+	defer file.Close()
+	stdOut, stdErr, err := e.ExecWithOptions(ctx, ExecOptions{
+		Command:            []string{"sh", "-c", fmt.Sprintf("cat - > %s", dstPath)},
+		Namespace:          namespace,
+		PodName:            pods.Items[0].Name,
+		ContainerName:      containerName,
+		Stdin:              file,
+		CaptureStdout:      true,
+		CaptureStderr:      true,
+		PreserveWhitespace: false,
+	})
+	if err != nil {
+		return fmt.Errorf("%w: unable to copy file, stdOut=%q, stdErr=%q", err, stdOut, stdErr)
+	}
+	return nil
 }
