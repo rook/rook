@@ -78,6 +78,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `monitoring.rulesNamespaceOverride` | The namespace in which to create the prometheus rules, if different from the rook cluster namespace. If you have multiple rook-ceph clusters in the same k8s cluster, choose the same namespace (ideally, namespace with prometheus deployed) to set rulesNamespaceOverride for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions. | `nil` |
 | `operatorNamespace` | Namespace of the main rook operator | `"rook-ceph"` |
 | `pspEnable` | Create & use PSP resources. Set this to the same value as the rook-ceph chart. | `false` |
+| `route.dashboard` | Enable an HTTPRoute for the ceph-dashboard | `{}` |
 | `toolbox.affinity` | Toolbox affinity | `{}` |
 | `toolbox.containerSecurityContext` | Toolbox container security context | `{"capabilities":{"drop":["ALL"]},"runAsGroup":2016,"runAsNonRoot":true,"runAsUser":2016}` |
 | `toolbox.enabled` | Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md) | `false` |
