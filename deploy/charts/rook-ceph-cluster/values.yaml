@@ -449,6 +449,24 @@ ingress:
     ## to set the ingress class
     # ingressClassName: nginx
 
+route:
+  # -- Enable an HTTPRoute for the ceph-dashboard
+  dashboard:
+    {}
+    # labels:
+    #   external-dns/private: "true"
+    # annotations:
+    #   external-dns.alpha.kubernetes.io/hostname: dashboard.example.com
+    #   nginx.ingress.kubernetes.io/rewrite-target: /ceph-dashboard/$2
+    # host:
+    #   name: dashboard.example.com
+    #   path: "/"
+    #   pathType: PathPrefix
+    # parentRefs:
+    #   - name: internal
+    #     namespace: kube-system
+    #     sectionName: https
+
 # -- A list of CephBlockPool configurations to deploy
 # @default -- See [below](#ceph-block-pools)
 cephBlockPools:
@@ -653,6 +671,21 @@ cephObjectStores:
       #     - objectstore.example.com
       #   secretName: ceph-objectstore-tls
       # ingressClassName: nginx
+    route:
+      # Enable an ingress for the ceph-objectstore
+      enabled: false
+      # The ingress port by default will be the object store's "securePort" (if set), or the gateway "port".
+      # To override those defaults, set this ingress port to the desired port.
+      # port: 80
+      # annotations: {}
+      # host:
+      #   name: objectstore.example.com
+      #   path: /
+      #   pathType: PathPrefix
+      # parentRefs:
+      #   - name: internal
+      #     namespace: kube-system
+      #     sectionName: https
 ## cephECBlockPools are disabled by default, please remove the comments and set desired values to enable it
 ## For erasure coded a replicated metadata pool is required.
 ## https://rook.io/docs/rook/latest/CRDs/Shared-Filesystem/ceph-filesystem-crd/#erasure-coded
