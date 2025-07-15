@@ -64,3 +64,21 @@ If any setting is unspecified, a suitable default will be used automatically.
 !!! note
     Only one out of (export, distributed, random) can be set at a time.
     By default pinning is set with value: `distributed=1`.
+
+## Create a storage class for the subvolume group
+
+* Create a CephFilesystem CR 
+* Create a CephFilesystemSubvolumegroup CR 
+* Extract the `clusterID` from the status of the CephFilesystemSubvolumegroup CR:
+
+    ```bash
+    kubectl -n rook-ceph get cephfilesystemsubvolumegroup <name> -o jsonpath="{.status.info.clusterID}"
+    ```
+    
+    ```yaml
+    status:
+        info:
+            clusterID: 80fc4f4bacc064be641633e6ed25ba7e
+    ```
+
+* Set the `clusterID` in the `StorageClass`, `VolumeSnapshotClass`, and `VolumeGroupSnapshotClass` to this value instead of the name of the cluster namespace
