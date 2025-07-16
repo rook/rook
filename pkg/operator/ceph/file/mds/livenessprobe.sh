@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # do not use 'set -e -u' etc. because it is important to only fail this probe when failure is certain
 # spurious failures risk destabilizing ceph or the filesystem
 
@@ -21,7 +21,7 @@ fi
 standbyMds=$(echo "$outp" | jq ".standbys | map(.name) | any(.[]; . == \"$MDS_ID\")")
 activeMds=$(echo "$outp" | jq ".filesystems[] | select(.mdsmap.fs_name == \"$FILESYSTEM_NAME\") | .mdsmap.info | map(.name) | any(.[]; . == \"$MDS_ID\")")
 
-if [[ $standbyMds == true || $activeMds == true ]]; then
+if [ "$standbyMds" = "true" ] || [ "$activeMds" = "true" ]; then
     echo "MDS ID present in MDS map, no need to re-start the container"
     exit 0
 fi
