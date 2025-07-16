@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -230,6 +231,31 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 
 	// If Multus is enabled we proxy all the command to the mgr sidecar
 	if c.clusterInfo.NetworkSpec.IsMultus() {
+		// check if remote command arguments contains file path:
+		srcFile, dstFile := "", ""
+		for i, arg := range args {
+			if strings.HasPrefix(arg, "--infile=") {
+				srcFile = strings.TrimPrefix(arg, "--infile=")
+				// place dest file to tmp dir and update cmd argument
+				dstFile = "/tmp/" + filepath.Base(srcFile)
+				args[i] = strings.ReplaceAll(arg, srcFile, dstFile)
+			}
+		}
+		if srcFile != "" {
+			// remote command contains file as argument
+			// copy file to remote container
+			err = c.Context.RemoteExecutor.CopyLocalFileToContainer(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxyInitContainerName, c.clusterInfo.Namespace, srcFile, dstFile)
+			if err != nil {
+				return "", err
+			}
+			defer func() {
+				// cleanup copied file in remote container
+				_, stdErr, cleanupErr := c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutput(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxyInitContainerName, c.clusterInfo.Namespace, []string{"rm", dstFile}...)
+				if cleanupErr != nil {
+					logger.Errorf("failed to cleanup remote file %q: %s - %s", dstFile, cleanupErr, stdErr)
+				}
+			}()
+		}
 		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
 	} else {
 		command, args := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
