@@ -49,6 +49,16 @@ func (c *Cluster) generateKeyring(m *mdsConfig) (string, error) {
 		return "", err
 	}
 
+	if c.shouldRotateCephxKeys {
+		logger.Infof("rotating cephx key for CephFileSystem %q", m.ResourceName)
+		newKey, err := s.RotateKey(user)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to rotate cephx key for CephFileSystem %q", m.ResourceName)
+		} else {
+			key = newKey
+		}
+	}
+
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
 	err = c.context.Clientset.CoreV1().Secrets(c.fs.Namespace).Delete(c.clusterInfo.Context, m.ResourceName, metav1.DeleteOptions{})
 	if err != nil {

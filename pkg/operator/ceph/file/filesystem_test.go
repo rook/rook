@@ -241,6 +241,8 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				return "{\"key\":\"mysecurekey\"}", nil
 			} else if contains(args, "auth") && contains(args, "del") {
 				return "", nil
+			} else if contains(args, "auth") && contains(args, "rotate") {
+				return `[{"key":"myrotatedkey"}]`, nil
 			} else if contains(args, "config") && contains(args, "mds_cache_memory_limit") {
 				return "", nil
 			} else if contains(args, "set") && contains(args, "max_mds") {
@@ -338,7 +340,7 @@ func TestCreateFilesystem(t *testing.T) {
 
 	t.Run("start basic filesystem", func(t *testing.T) {
 		// start a basic cluster
-		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
+		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/", false)
 		assert.Nil(t, err)
 		validateStart(ctx, t, context, fs)
 		assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -346,7 +348,7 @@ func TestCreateFilesystem(t *testing.T) {
 	})
 
 	t.Run("start again should no-op", func(t *testing.T) {
-		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
+		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/", false)
 		assert.Nil(t, err)
 		validateStart(ctx, t, context, fs)
 		assert.ElementsMatch(t, []string{fmt.Sprintf("rook-ceph-mds-%s-a", fsName), fmt.Sprintf("rook-ceph-mds-%s-b", fsName)}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -367,7 +369,7 @@ func TestCreateFilesystem(t *testing.T) {
 			Name:     "named-pool",
 			PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
 		})
-		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
+		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/", false)
 		assert.Nil(t, err)
 		validateStart(ctx, t, context, fs)
 		assert.ElementsMatch(t, []string{fmt.Sprintf("rook-ceph-mds-%s-a", fsName), fmt.Sprintf("rook-ceph-mds-%s-b", fsName)}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -377,8 +379,8 @@ func TestCreateFilesystem(t *testing.T) {
 	})
 
 	t.Run("multi filesystem creation should succeed", func(t *testing.T) {
-		clusterInfo.CephVersion = version.Pacific
-		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
+		clusterInfo.CephVersion = version.Quincy
+		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/", false)
 		assert.NoError(t, err)
 	})
 }
@@ -403,7 +405,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 
 	// start a basic cluster for upgrade
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
+	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/", false)
 	assert.NoError(t, err)
 	validateStart(ctx, t, context, fs)
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -416,7 +418,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset,
 	}
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/", false)
 	assert.NoError(t, err)
 
 	// test fail standby daemon failed
@@ -500,7 +502,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset,
 	}
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/", false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "fail mds failed")
 }
@@ -536,12 +538,12 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 
 	// start a basic cluster
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
+	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/", false)
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 
 	// starting again should be a no-op
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/", false)
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 }
