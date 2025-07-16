@@ -133,3 +133,7 @@ func execute(ctx context.Context, method string, url *url.URL, config *rest.Conf
 func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutputWithTimeout(ctx context.Context, appLabel, containerName, namespace string, cmd ...string) (string, string, error) {
 	return e.ExecCommandInContainerWithFullOutput(ctx, appLabel, containerName, namespace, append([]string{"timeout", strconv.Itoa(int(CephCommandsTimeout.Seconds()))}, cmd...)...)
 }
+
+func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutputWithTimeoutTool(ctx context.Context, appLabel, containerName, namespace string, cmd ...string) (string, string, error) {
+	return e.ExecCommandInContainerWithFullOutput(ctx, appLabel, containerName, namespace, append([]string{"sh", "-c"}, cmd...)...)
+}
