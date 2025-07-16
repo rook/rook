@@ -1436,7 +1436,8 @@ type CephFilesystemStatus struct {
 	// Use only info and put mirroringStatus in it?
 	// +optional
 	// +nullable
-	Info map[string]string `json:"info,omitempty"`
+	Info  map[string]string `json:"info,omitempty"`
+	Cephx LocalCephxStatus  `json:"cephx,omitempty"`
 	// MirroringStatus is the filesystem mirroring status
 	// +optional
 	MirroringStatus *FilesystemMirroringInfoSpec `json:"mirroringStatus,omitempty"`

@@ -50,9 +50,10 @@ func createFilesystem(
 	clusterSpec *cephv1.ClusterSpec,
 	ownerInfo *k8sutil.OwnerInfo,
 	dataDirHostPath string,
+	shouldRotateCephxKeys bool,
 ) error {
 	logger.Infof("start running mdses for filesystem %q", fs.Name)
-	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, ownerInfo, dataDirHostPath)
+	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, ownerInfo, dataDirHostPath, shouldRotateCephxKeys)
 	if err := c.Start(); err != nil {
 		return err
 	}
@@ -91,7 +92,7 @@ func deleteFilesystem(
 	ownerInfo *k8sutil.OwnerInfo,
 	dataDirHostPath string,
 ) error {
-	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, ownerInfo, dataDirHostPath)
+	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, ownerInfo, dataDirHostPath, false)
 
 	// Delete mds CephX keys and configuration in centralized mon database
 	replicas := fs.Spec.MetadataServer.ActiveCount * 2
