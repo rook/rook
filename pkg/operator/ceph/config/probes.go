@@ -72,25 +72,27 @@ func GetProbeWithDefaults(desiredProbe, currentProbe *v1.Probe) *v1.Probe {
 	//
 	// Let's always force the default handler, there is no reason to change it anyway since the underlying content is generated based on the daemon's name
 	// so we can not make it generic via the spec
-	newProbe.ProbeHandler = currentProbe.ProbeHandler
-
-	// If the user has not specified thresholds and timeouts, set them to the same values as
-	// in the default liveness probe created by Rook.
-	if newProbe.FailureThreshold == 0 {
-		newProbe.FailureThreshold = currentProbe.FailureThreshold
+	if currentProbe != nil {
+		newProbe.ProbeHandler = currentProbe.ProbeHandler
+		// If the user has not specified thresholds and timeouts, set them to the same values as
+		// in the default liveness probe created by Rook.
+		if newProbe.FailureThreshold == 0 {
+			newProbe.FailureThreshold = currentProbe.FailureThreshold
+		}
+		if newProbe.PeriodSeconds == 0 {
+			newProbe.PeriodSeconds = currentProbe.PeriodSeconds
+		}
+		if newProbe.SuccessThreshold == 0 {
+			newProbe.SuccessThreshold = currentProbe.SuccessThreshold
+		}
+		if newProbe.TimeoutSeconds == 0 {
+			newProbe.TimeoutSeconds = currentProbe.TimeoutSeconds
+		}
+		if newProbe.InitialDelaySeconds == 0 {
+			newProbe.InitialDelaySeconds = currentProbe.InitialDelaySeconds
+		}
+	} else {
+		logger.Warning("currentProbe is nil, using only desiredProbe values")
 	}
-	if newProbe.PeriodSeconds == 0 {
-		newProbe.PeriodSeconds = currentProbe.PeriodSeconds
-	}
-	if newProbe.SuccessThreshold == 0 {
-		newProbe.SuccessThreshold = currentProbe.SuccessThreshold
-	}
-	if newProbe.TimeoutSeconds == 0 {
-		newProbe.TimeoutSeconds = currentProbe.TimeoutSeconds
-	}
-	if newProbe.InitialDelaySeconds == 0 {
-		newProbe.InitialDelaySeconds = currentProbe.InitialDelaySeconds
-	}
-
 	return &newProbe
 }
