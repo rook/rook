@@ -4870,6 +4870,19 @@ Ceph cluster. Daemon CephX keys can be rotated without affecting client connecti
 <tbody>
 <tr>
 <td>
+<code>osd</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxStatus">
+CephxStatus
+</a>
+</em>
+</td>
+<td>
+<p>OSD shows the CephX key status of of OSDs</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>rbdMirrorPeer</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.CephxStatus">
@@ -4878,7 +4891,7 @@ CephxStatus
 </em>
 </td>
 <td>
-<p>RBDMirrorPeer show the cephx key rotation status of the <code>rbd-mirror-peer</code> user</p>
+<p>RBDMirrorPeer show the CephX key status of the <code>rbd-mirror-peer</code> user</p>
 </td>
 </tr>
 </tbody>
@@ -5476,6 +5489,7 @@ CephStorage
 </em>
 </td>
 <td>
+<p>TODO: need to set +nullable? check</p>
 </td>
 </tr>
 <tr>
