@@ -265,4 +265,20 @@ func TestGetProbeWithDefaults(t *testing.T) {
 		assert.Equal(t, desiredProbe.SuccessThreshold, int32(4))
 		assert.Equal(t, desiredProbe.TimeoutSeconds, int32(5))
 	})
+	t.Run("nil current probe", func(t *testing.T) {
+		desiredProbe := &v1.Probe{
+			FailureThreshold:    1,
+			PeriodSeconds:       2,
+			SuccessThreshold:    3,
+			TimeoutSeconds:      4,
+			InitialDelaySeconds: 5,
+		}
+		result := GetProbeWithDefaults(desiredProbe, nil)
+
+		assert.Equal(t, result.FailureThreshold, int32(1))
+		assert.Equal(t, result.PeriodSeconds, int32(2))
+		assert.Equal(t, result.SuccessThreshold, int32(3))
+		assert.Equal(t, result.TimeoutSeconds, int32(4))
+		assert.Equal(t, result.InitialDelaySeconds, int32(5))
+	})
 }
