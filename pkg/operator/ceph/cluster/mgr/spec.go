@@ -126,9 +126,10 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      mgrConfig.ResourceName,
-			Namespace: c.clusterInfo.Namespace,
-			Labels:    c.getPodLabels(mgrConfig, true),
+			Name:        mgrConfig.ResourceName,
+			Namespace:   c.clusterInfo.Namespace,
+			Labels:      c.getPodLabels(mgrConfig, true),
+			Annotations: cephv1.GetMgrAnnotations(c.spec.Annotations),
 		},
 		Spec: apps.DeploymentSpec{
 			RevisionHistoryLimit: controller.RevisionHistoryLimit(),
