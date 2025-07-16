@@ -43,6 +43,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+var (
+	namespace        = "rook-ceph"
+	name             = "my-user"
+	dummyVersionsRaw = `
+{
+	"mon": {
+		"ceph version 20.2.0 (0000000000000000) tentacle (stable)": 3
+	}
+}`
+)
+
 func TestValidateClient(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
 
@@ -154,6 +165,9 @@ func TestCephClientController(t *testing.T) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
+			if args[0] == "versions" {
+				return dummyVersionsRaw, nil
+			}
 
 			return "", nil
 		},
@@ -254,6 +268,9 @@ func TestCephClientController(t *testing.T) {
 			}
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return `{"key":"AQCvzWBeIV9lFRAAninzm+8XFxbSfTiPwoX50g=="}`, nil
+			}
+			if args[0] == "versions" {
+				return dummyVersionsRaw, nil
 			}
 
 			return "", nil
@@ -534,4 +551,258 @@ func TestReconcileCephClient_reconcileCephClientSecret(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestKeyRotation(t *testing.T) {
+	// test key rotation end-to-end
+
+	ctx := context.TODO()
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
+
+	// create cephclient for test
+	cephClient := &cephv1.CephClient{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test",
+			Namespace:  namespace,
+			UID:        types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
+			Finalizers: []string{"cephclient.ceph.rook.io"},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephClient",
+		},
+		Spec: cephv1.ClientSpec{
+			Caps: map[string]string{
+				"osd": "allow *",
+				"mon": "allow *",
+			},
+			SecretName: "testSecret",
+		},
+	}
+
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namespace,
+			Namespace: namespace,
+		},
+		Status: cephv1.ClusterStatus{
+			Phase: cephv1.ConditionReady,
+			CephStatus: &cephv1.CephStatus{
+				Health: "HEALTH_OK",
+			},
+		},
+	}
+
+	// auth rotate returns an array instead of a single object
+	rotatedKeyJson := `[{"key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="}]`
+	userKey := `{"key":"AQCvzWBeIV9lFRAAninzm+8XFxbSfTiPwoX50g=="}`
+	userKeyValue := "AQCvzWBeIV9lFRAAninzm+8XFxbSfTiPwoX50g=="
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "status" {
+				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+			}
+			if args[0] == "auth" && args[1] == "rotate" {
+				t.Logf("rotating key and returning: %s", rotatedKeyJson)
+				return rotatedKeyJson, nil
+			}
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return userKey, nil
+			}
+			if args[0] == "versions" {
+				return dummyVersionsRaw, nil
+			}
+			return "", nil
+		},
+	}
+
+	clientset := testop.New(t, 3)
+	c := &clusterd.Context{
+		Executor:  executor,
+		Clientset: clientset,
+	}
+
+	// Mock clusterInfo
+	secrets := map[string][]byte{
+		"fsid":         []byte(name),
+		"mon-secret":   []byte("monsecret"),
+		"admin-secret": []byte("adminsecret"),
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon",
+			Namespace: namespace,
+		},
+		Data: secrets,
+		Type: k8sutil.RookType,
+	}
+	_, err := c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephClient{}, &cephv1.CephClusterList{})
+
+	// Create a fake client to mock API calls.
+	objects := []runtime.Object{
+		cephClient,
+		cephCluster,
+	}
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+
+	r := &ReconcileCephClient{
+		client:           cl,
+		scheme:           s,
+		context:          c,
+		opManagerContext: ctx,
+		recorder:         record.NewFakeRecorder(10),
+	}
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      cephClient.Name,
+			Namespace: namespace,
+		},
+	}
+
+	// NOTE: these unit subtests are not independent. they share state between tests
+
+	// Rotation is not tested exhaustively for every config. The tests are most concerned with
+	// ensuring rotation does happen based on inputs and that outputs are updated as expected, for
+	// both brownfield and greenfield cases. Cephx helper functions for determining when to rotate
+	// and how to update the status are well tested, so we use good-faith assumption that the
+	// reconcile implementation uses those, allowing tests here to focus on only the UX aspects
+
+	t.Run("first reconcile", func(t *testing.T) {
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		cephClient := &cephv1.CephClient{}
+		err = cl.Get(ctx, req.NamespacedName, cephClient)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(1), cephClient.Status.Cephx.KeyGeneration)
+		assert.Equal(t, "20.2.0-0", cephClient.Status.Cephx.KeyCephVersion)
+
+		// get the secret and check the keyring
+		secret, err := clientset.CoreV1().Secrets(namespace).Get(ctx, "testSecret", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Contains(t, secret.StringData["userKey"], userKeyValue)
+	})
+
+	t.Run("subsequent reconcile - retain cephx status", func(t *testing.T) {
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		cephClient := &cephv1.CephClient{}
+		err = cl.Get(ctx, req.NamespacedName, cephClient)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(1), cephClient.Status.Cephx.KeyGeneration)
+		assert.Equal(t, "20.2.0-0", cephClient.Status.Cephx.KeyCephVersion)
+
+		// get the secret and check the keyring
+		secret, err := clientset.CoreV1().Secrets(namespace).Get(ctx, "testSecret", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Contains(t, secret.StringData["userKey"], userKeyValue)
+	})
+
+	t.Run("brownfield reconcile - retain unknown cephx status", func(t *testing.T) {
+		cephClient := &cephv1.CephClient{}
+		err = cl.Get(ctx, req.NamespacedName, cephClient)
+		assert.NoError(t, err)
+		cephClient.Status.Cephx = cephv1.CephxStatus{}
+		err = cl.Update(ctx, cephClient)
+		assert.NoError(t, err)
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		err = cl.Get(ctx, req.NamespacedName, cephClient)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.CephxStatus{}, cephClient.Status.Cephx)
+
+		// get the secret and check the keyring
+		secret, err := clientset.CoreV1().Secrets(namespace).Get(ctx, "testSecret", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Contains(t, secret.StringData["userKey"], userKeyValue)
+	})
+
+	t.Run("rotate key - brownfield unknown status becomes known", func(t *testing.T) {
+		cephClient := &cephv1.CephClient{}
+		err = cl.Get(ctx, req.NamespacedName, cephClient)
+		assert.NoError(t, err)
+		cephClient.Spec.Security.CephX = cephv1.CephxConfig{
+			KeyRotationPolicy: "KeyGeneration",
+			KeyGeneration:     2,
+		}
+		err = cl.Update(ctx, cephClient)
+		assert.NoError(t, err)
+
+		rotatedKeyJson = `[{"key":"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=="}]`
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		err = cl.Get(ctx, req.NamespacedName, cephClient)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(2), cephClient.Status.Cephx.KeyGeneration)
+		assert.Equal(t, "20.2.0-0", cephClient.Status.Cephx.KeyCephVersion)
+
+		// get the secret and check the keyring
+		secret, err := clientset.CoreV1().Secrets(namespace).Get(ctx, "testSecret", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Contains(t, secret.StringData["userKey"], "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB==")
+	})
+
+	t.Run("brownfield reconcile - no further rotation happens", func(t *testing.T) {
+		// if rotation happens when it shouldn't, this will let us know by later comparison
+		rotatedKeyJson = `[{"key":"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=="}]`
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		cephClient := &cephv1.CephClient{}
+		err = cl.Get(ctx, req.NamespacedName, cephClient)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(2), cephClient.Status.Cephx.KeyGeneration)
+		assert.Equal(t, "20.2.0-0", cephClient.Status.Cephx.KeyCephVersion)
+
+		// get the secret and check the keyring
+		secret, err := clientset.CoreV1().Secrets(namespace).Get(ctx, "testSecret", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotContains(t, secret.StringData["userKey"], "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC==")
+	})
+
+	t.Run("rotate key - cephx status updated", func(t *testing.T) {
+		cephClient := &cephv1.CephClient{}
+		err = cl.Get(ctx, req.NamespacedName, cephClient)
+		assert.NoError(t, err)
+		cephClient.Spec.Security.CephX = cephv1.CephxConfig{
+			KeyRotationPolicy: "KeyGeneration",
+			KeyGeneration:     5,
+		}
+		err = cl.Update(ctx, cephClient)
+		assert.NoError(t, err)
+
+		rotatedKeyJson = `[{"key":"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=="}]`
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		err = cl.Get(ctx, req.NamespacedName, cephClient)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(5), cephClient.Status.Cephx.KeyGeneration)
+		assert.Equal(t, "20.2.0-0", cephClient.Status.Cephx.KeyCephVersion)
+
+		// get the secret and check the keyring
+		secret, err := clientset.CoreV1().Secrets(namespace).Get(ctx, "testSecret", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Contains(t, secret.StringData["userKey"], "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC==")
+	})
 }
