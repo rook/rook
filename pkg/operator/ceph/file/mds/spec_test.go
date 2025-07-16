@@ -75,6 +75,7 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 		fs,
 		&k8sutil.OwnerInfo{},
 		"/var/lib/rook/",
+		false,
 	)
 	mdsTestConfig := &mdsConfig{
 		DaemonID:     "myfs-a",

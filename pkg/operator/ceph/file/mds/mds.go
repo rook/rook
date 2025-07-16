@@ -32,6 +32,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -54,12 +55,13 @@ const (
 
 // Cluster represents a Ceph mds cluster.
 type Cluster struct {
-	clusterInfo     *cephclient.ClusterInfo
-	context         *clusterd.Context
-	clusterSpec     *cephv1.ClusterSpec
-	fs              cephv1.CephFilesystem
-	ownerInfo       *k8sutil.OwnerInfo
-	dataDirHostPath string
+	clusterInfo           *cephclient.ClusterInfo
+	context               *clusterd.Context
+	clusterSpec           *cephv1.ClusterSpec
+	fs                    cephv1.CephFilesystem
+	ownerInfo             *k8sutil.OwnerInfo
+	dataDirHostPath       string
+	shouldRotateCephxKeys bool
 }
 
 type mdsConfig struct {
@@ -76,14 +78,16 @@ func NewCluster(
 	fs cephv1.CephFilesystem,
 	ownerInfo *k8sutil.OwnerInfo,
 	dataDirHostPath string,
+	shouldRotateCephxKeys bool,
 ) *Cluster {
 	return &Cluster{
-		clusterInfo:     clusterInfo,
-		context:         context,
-		clusterSpec:     clusterSpec,
-		fs:              fs,
-		ownerInfo:       ownerInfo,
-		dataDirHostPath: dataDirHostPath,
+		clusterInfo:           clusterInfo,
+		context:               context,
+		clusterSpec:           clusterSpec,
+		fs:                    fs,
+		ownerInfo:             ownerInfo,
+		dataDirHostPath:       dataDirHostPath,
+		shouldRotateCephxKeys: shouldRotateCephxKeys,
 	}
 }
 
@@ -169,7 +173,7 @@ func (c *Cluster) startDeployment(ctx context.Context, daemonLetterID string) (s
 	}
 
 	// create unique key for each mds saved to k8s secret
-	_, err := c.generateKeyring(mdsConfig)
+	secretResourceVersion, err := c.generateKeyring(mdsConfig)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
 	}
@@ -196,6 +200,10 @@ func (c *Cluster) startDeployment(ctx context.Context, daemonLetterID string) (s
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create deployment")
 	}
+
+	// apply cephx secret resource version to the deployment to ensure it restarts when keyring updates
+	d.Spec.Template.Annotations[keyring.CephxKeyIdentifierAnnotation] = secretResourceVersion
+
 	// Set owner ref to cephFilesystem object
 	err = c.ownerInfo.SetControllerReference(d)
 	if err != nil {
