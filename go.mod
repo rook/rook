@@ -1,8 +1,6 @@
 module github.com/rook/rook
 
-go 1.23.0
-
-toolchain go1.23.4
+go 1.24.3
 
 replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
