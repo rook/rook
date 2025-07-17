@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -280,4 +281,12 @@ var ClusterResource = k8sutil.CustomResource{
 	Version:    cephv1.Version,
 	Kind:       reflect.TypeOf(cephv1.CephCluster{}).Name(),
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
+}
+
+// RecoverAndLogException handles and logs panics from a controller Reconcile loop.
+func RecoverAndLogException() {
+	if r := recover(); r != nil {
+		logger.Errorf("Panic: %v", r)
+		logger.Errorf("Stack trace:\n%s", string(debug.Stack()))
+	}
 }
