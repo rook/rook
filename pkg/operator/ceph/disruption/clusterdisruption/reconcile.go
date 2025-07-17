@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
@@ -68,6 +69,7 @@ type ReconcileClusterDisruption struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileClusterDisruption) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
+	defer opcontroller.RecoverAndLogException()
 	// wrapping reconcile because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	result, err := r.reconcile(request)
 	if err != nil {

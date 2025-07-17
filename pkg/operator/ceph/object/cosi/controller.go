@@ -125,6 +125,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Reconcile reads that state of the cluster for a CephCOSIDriver object and makes changes based on the state read
 // and what is in the CephCOSIDriver.Spec
 func (r *ReconcileCephCOSIDriver) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
+	defer opcontroller.RecoverAndLogException()
 	reconcileResponse, cephCOSIDriver, err := r.reconcile(request)
 
 	return reporting.ReportReconcileResult(logger, r.recorder, request, &cephCOSIDriver, reconcileResponse, err)
