@@ -4003,6 +4003,18 @@ map[string]string
 </tr>
 <tr>
 <td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.LocalCephxStatus">
+LocalCephxStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
 <code>mirroringStatus</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.FilesystemMirroringInfoSpec">
@@ -4868,6 +4880,19 @@ Ceph cluster. Daemon CephX keys can be rotated without affecting client connecti
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<code>mds</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxStatus">
+CephxStatus
+</a>
+</em>
+</td>
+<td>
+<p>Mds represents the cephx key rotation status of the cephFileSystem MDS daemons</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>rbdMirrorPeer</code><br/>
@@ -8446,7 +8471,7 @@ int
 <h3 id="ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>)
 </p>
 <div>
 </div>

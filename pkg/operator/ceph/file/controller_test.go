@@ -194,13 +194,6 @@ func TestCephFilesystemController(t *testing.T) {
 		},
 	}
 
-	clientset := test.New(t, 3)
-	c := &clusterd.Context{
-		Executor:      executor,
-		RookClientset: rookclient.NewSimpleClientset(),
-		Clientset:     clientset,
-	}
-
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
@@ -208,6 +201,14 @@ func TestCephFilesystemController(t *testing.T) {
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	clientset := test.New(t, 3)
+	c := &clusterd.Context{
+		Executor:      executor,
+		RookClientset: rookclient.NewSimpleClientset(),
+		Clientset:     clientset,
+		Client:        cl,
+	}
+
 	// Create a ReconcileCephFilesystem object with the scheme and fake client.
 	r := &ReconcileCephFilesystem{
 		client:           cl,
@@ -228,13 +229,23 @@ func TestCephFilesystemController(t *testing.T) {
 	}
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      namespace,
+			Name:      name,
 			Namespace: namespace,
+		},
+		Spec: cephv1.ClusterSpec{
+			Security: cephv1.ClusterSecuritySpec{
+				CephX: cephv1.ClusterCephxConfig{
+					Daemon: cephv1.CephxConfig{},
+				},
+			},
 		},
 		Status: cephv1.ClusterStatus{
 			Phase: "",
 			CephStatus: &cephv1.CephStatus{
 				Health: "",
+			},
+			Cephx: &cephv1.ClusterCephxStatus{
+				Mds: &cephv1.CephxStatus{},
 			},
 		},
 	}
@@ -287,7 +298,7 @@ func TestCephFilesystemController(t *testing.T) {
 		cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
 		// Create a fake client to mock API calls.
-		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(fs, cephCluster).Build()
 
 		executor = &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -307,6 +318,7 @@ func TestCephFilesystemController(t *testing.T) {
 			},
 		}
 		c.Executor = executor
+		c.Client = cl
 
 		// Create a ReconcileCephFilesystem object with the scheme and fake client.
 		r = &ReconcileCephFilesystem{

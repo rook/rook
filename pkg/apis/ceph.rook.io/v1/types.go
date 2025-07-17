@@ -715,6 +715,8 @@ type LocalCephxStatus struct {
 
 // ClusterCephxStatus defines the cephx key rotation status of various daemons on the cephCluster resource
 type ClusterCephxStatus struct {
+	// Mds represents the cephx key rotation status of the cephFileSystem MDS daemons
+	Mds *CephxStatus `json:"mds,omitempty"`
 	// RBDMirrorPeer show the cephx key rotation status of the `rbd-mirror-peer` user
 	RBDMirrorPeer *CephxStatus `json:"rbdMirrorPeer,omitempty"`
 }
@@ -1434,7 +1436,8 @@ type CephFilesystemStatus struct {
 	// Use only info and put mirroringStatus in it?
 	// +optional
 	// +nullable
-	Info map[string]string `json:"info,omitempty"`
+	Info  map[string]string `json:"info,omitempty"`
+	Cephx LocalCephxStatus  `json:"cephx,omitempty"`
 	// MirroringStatus is the filesystem mirroring status
 	// +optional
 	MirroringStatus *FilesystemMirroringInfoSpec `json:"mirroringStatus,omitempty"`

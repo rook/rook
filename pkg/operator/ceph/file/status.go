@@ -28,7 +28,7 @@ import (
 )
 
 // updateStatus updates a fs CR with the given status
-func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) *cephv1.CephFilesystem {
+func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string, cephx *cephv1.CephxStatus) *cephv1.CephFilesystem {
 	fs := &cephv1.CephFilesystem{}
 	err := r.client.Get(r.opManagerContext, namespacedName, fs)
 	if err != nil {
@@ -49,6 +49,11 @@ func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespa
 	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 		fs.Status.ObservedGeneration = observedGeneration
 	}
+
+	if cephx != nil {
+		fs.Status.Cephx.Daemon = *cephx
+	}
+
 	if err := reporting.UpdateStatus(r.client, fs); err != nil {
 		logger.Warningf("failed to set filesystem %q status to %q. %v", fs.Name, status, err)
 		return nil
