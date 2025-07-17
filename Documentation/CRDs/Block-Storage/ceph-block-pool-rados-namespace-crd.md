@@ -50,6 +50,8 @@ If any setting is unspecified, a suitable default will be used automatically.
 
 - `blockPoolName`: The metadata name of the CephBlockPool CR where the rados namespace will be created.
 
+- `clusterID`: ClusterID to be used for this rados namespace in the CSI configuration. If it is not set, Rook will auto-generate the clusterID.
+
 - `mirroring`: Sets up mirroring of the rados namespace (requires Ceph v20 or newer)
     - `mode`: mirroring mode to run, possible values are "pool" or "image" (required). Refer to the [mirroring modes Ceph documentation](https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#namespace-configuration) for more details
     - `remoteNamespace`: Name of the rados namespace on the peer cluster where the namespace should get mirrored. The default is the same rados namespace.

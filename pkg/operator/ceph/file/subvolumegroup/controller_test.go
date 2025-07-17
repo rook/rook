@@ -345,6 +345,20 @@ func Test_buildClusterID(t *testing.T) {
 	cephFilesystemSubVolumeGroup := &cephv1.CephFilesystemSubVolumeGroup{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Name: longName}, Spec: cephv1.CephFilesystemSubVolumeGroupSpec{FilesystemName: "myfs"}}
 	clusterID := buildClusterID(cephFilesystemSubVolumeGroup)
 	assert.Equal(t, "29e92135b7e8c014079b9f9f3566777d", clusterID)
+
+	inputClusterID := "test-clusterId"
+	cephFilesystemSubVolumeGroup = &cephv1.CephFilesystemSubVolumeGroup{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "rook-ceph",
+			Name:      longName,
+		},
+		Spec: cephv1.CephFilesystemSubVolumeGroupSpec{
+			FilesystemName: "myfs",
+			ClusterID:      inputClusterID,
+		},
+	}
+	clusterID = buildClusterID(cephFilesystemSubVolumeGroup)
+	assert.Equal(t, inputClusterID, clusterID)
 }
 
 func Test_formatPinning(t *testing.T) {
