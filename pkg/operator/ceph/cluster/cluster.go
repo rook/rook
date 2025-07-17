@@ -799,6 +799,7 @@ func initClusterCephxStatus(c *clusterd.Context, cluster *cephv1.CephCluster) er
 	uninitializedStatus := keyring.UninitializedCephxStatus()
 	cluster.Status.Cephx = &cephv1.ClusterCephxStatus{
 		RBDMirrorPeer: &uninitializedStatus,
+		Mgr:           &uninitializedStatus,
 	}
 
 	if err := reporting.UpdateStatus(c.Client, cluster); err != nil {

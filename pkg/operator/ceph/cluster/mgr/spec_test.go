@@ -77,7 +77,7 @@ func TestPodSpec(t *testing.T) {
 		podTemplate.RunFullSuite(config.MgrType, "a", AppName, "ns", "quay.io/ceph/ceph:myceph",
 			"200", "100", "500", "250", /* resources */
 			"my-priority-class", "test", "cephclusters.ceph.rook.io", "ceph-mgr")
-		assert.Equal(t, 2, len(d.Spec.Template.Annotations))
+		assert.Equal(t, 3, len(d.Spec.Template.Annotations))
 		assert.Equal(t, 1, len(d.Spec.Template.Spec.Containers))
 		assert.Equal(t, 6, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))
 	})
@@ -86,7 +86,7 @@ func TestPodSpec(t *testing.T) {
 		c.spec.Network.Provider = "multus"
 		d, err := c.makeDeployment(&mgrTestConfig)
 		assert.NoError(t, err)
-		assert.Equal(t, 3, len(d.Spec.Template.Annotations))                                                                                                                              // Multus annotations
+		assert.Equal(t, 4, len(d.Spec.Template.Annotations))                                                                                                                              // Multus annotations
 		assert.Equal(t, 2, len(d.Spec.Template.Spec.Containers))                                                                                                                          // mgr pod + sidecar
 		assert.Equal(t, cephclient.CommandProxyInitContainerName, d.Spec.Template.Spec.Containers[1].Name)                                                                                // sidecar pod
 		assert.Equal(t, 7, len(d.Spec.Template.Spec.Containers[1].VolumeMounts))                                                                                                          // + admin keyring

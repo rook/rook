@@ -715,7 +715,9 @@ type LocalCephxStatus struct {
 
 // ClusterCephxStatus defines the cephx key rotation status of various daemons on the cephCluster resource
 type ClusterCephxStatus struct {
-	// RBDMirrorPeer show the cephx key rotation status of the `rbd-mirror-peer` user
+	// Mgr represents the cephx key rotation status of the ceph manager daemon
+	Mgr *CephxStatus `json:"mgr,omitempty"`
+	// RBDMirrorPeer represents the cephx key rotation status of the `rbd-mirror-peer` user
 	RBDMirrorPeer *CephxStatus `json:"rbdMirrorPeer,omitempty"`
 }
 
