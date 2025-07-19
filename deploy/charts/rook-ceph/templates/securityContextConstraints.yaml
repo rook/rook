@@ -38,6 +38,10 @@ volumes:
 users:
   # A user needs to be added for each rook service account.
   - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-system
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-default
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-mgr
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-osd
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-rgw 
 ---
 # scc for the CSI driver
 kind: SecurityContextConstraints
