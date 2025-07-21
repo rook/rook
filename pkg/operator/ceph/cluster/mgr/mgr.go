@@ -30,13 +30,16 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
@@ -62,11 +65,12 @@ const (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
 type Cluster struct {
-	context     *clusterd.Context
-	clusterInfo *cephclient.ClusterInfo
-	rookVersion string
-	exitCode    func(err error) (int, bool)
-	spec        cephv1.ClusterSpec
+	context               *clusterd.Context
+	clusterInfo           *cephclient.ClusterInfo
+	rookVersion           string
+	exitCode              func(err error) (int, bool)
+	spec                  cephv1.ClusterSpec
+	shouldRotateCephxKeys bool
 }
 
 // New creates an instance of the mgr
@@ -120,6 +124,15 @@ func (c *Cluster) Start() error {
 		return errors.Wrap(err, "failed to check for mgrs to skip reconcile")
 	}
 
+	c.shouldRotateCephxKeys, err = shouldRotateMgrKeys(c.context, c.clusterInfo)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if cephx keys for mgr daemons in the namespace %q should be rotated", c.clusterInfo.Namespace)
+	}
+
+	if c.shouldRotateCephxKeys {
+		logger.Infof("cephx keys for mgr daemons in the namespace %q will be rotated", c.clusterInfo.Namespace)
+	}
+
 	for _, daemonID := range daemonIDs {
 		if c.clusterInfo.Context.Err() != nil {
 			return c.clusterInfo.Context.Err()
@@ -133,7 +146,7 @@ func (c *Cluster) Start() error {
 
 		// We set the owner reference of the Secret to the Object controller instead of the replicaset
 		// because we watch for that resource and reconcile if anything happens to it
-		_, err := c.generateKeyring(mgrConfig)
+		secretResourceVersion, err := c.generateKeyring(mgrConfig)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
 		}
@@ -143,6 +156,9 @@ func (c *Cluster) Start() error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to create deployment")
 		}
+
+		// apply cephx secret resource version to the deployment to ensure it restarts when keyring updates
+		d.Spec.Template.Annotations[keyring.CephxKeyIdentifierAnnotation] = secretResourceVersion
 
 		// Set the deployment hash as an annotation
 		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
@@ -174,6 +190,11 @@ func (c *Cluster) Start() error {
 			// wait for the new deployment
 			deploymentsToWaitFor = append(deploymentsToWaitFor, newDeployment)
 		}
+	}
+
+	err = updateMgrCephxStatus(c.context, c.clusterInfo, c.shouldRotateCephxKeys)
+	if err != nil {
+		return errors.Wrap(err, "failed to update cephx status for mgr daemons")
 	}
 
 	// Insecure global IDs should be disabled for new clusters immediately.
@@ -590,4 +611,44 @@ func applyMonitoringLabels(c *Cluster, serviceMonitor *monitoringv1.ServiceMonit
 			logger.Debug("monitoring labels not specified")
 		}
 	}
+}
+
+func shouldRotateMgrKeys(c *clusterd.Context, clusterInfo *cephclient.ClusterInfo) (bool, error) {
+	clusterObj := &cephv1.CephCluster{}
+	if err := c.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), clusterObj); err != nil {
+		return false, errors.Wrapf(err, "failed to get cluster %v.", clusterInfo.NamespacedName())
+	}
+	desiredCephVersion := clusterInfo.CephVersion
+	// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
+	runningCephVersion := clusterInfo.CephVersion
+
+	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, *clusterObj.Status.Cephx.Mgr)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to check if mgr daemon keys should be rotated or not")
+	}
+
+	return shouldRotateKeys, nil
+}
+
+func updateMgrCephxStatus(c *clusterd.Context, clusterInfo *cephclient.ClusterInfo, didRotate bool) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cluster := &cephv1.CephCluster{}
+		if err := c.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cluster); err != nil {
+			return errors.Wrapf(err, "failed to get cluster %v to update the conditions.", clusterInfo.NamespacedName())
+		}
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, *cluster.Status.Cephx.Mgr)
+		cluster.Status.Cephx.Mgr = &updatedStatus
+		logger.Debugf("updating mgr daemon cephx status to %+v", cluster.Status.Cephx.Mgr)
+		if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
+			return errors.Wrap(err, "failed to update cluster cephx status for mgr daemon")
+		}
+		logger.Info("successfully updated the cephx status for mgr daemon")
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to update cluster cephx status for mgr daemon")
+	}
+
+	return nil
 }
