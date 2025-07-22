@@ -147,7 +147,12 @@ define chart.build
 build.chart.$(1):
 	@echo === helm package $(1)
 	mkdir -p $(HELM_OUTPUT_DIR)
-	$(HELM) package --version $(HELM_CHART_VERSION) --app-version $(VERSION) $(HELM_CHARTS_DIR)/$(1) --destination $(HELM_OUTPUT_DIR)
+	@rm -rf $(OUTPUT_DIR)/$(1)
+	@cp -aL $(HELM_CHARTS_DIR)/$(1) $(OUTPUT_DIR)
+	@echo === building helm dependencies for $(1)
+	@$(SED_IN_PLACE) 's|file://../library|file://$(HELM_CHARTS_DIR)/library|g' $(OUTPUT_DIR)/$(1)/Chart.yaml
+	@cd $(OUTPUT_DIR)/$(1) && $(HELM) dependency build
+	$(HELM) package --version $(HELM_CHART_VERSION) --app-version $(VERSION) $(OUTPUT_DIR)/$(1) --destination $(HELM_OUTPUT_DIR)
 build.all.charts: build.chart.$(1)
 endef
 $(foreach c,$(HELM_CHARTS),$(eval $(call chart.build,$(c))))

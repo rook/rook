@@ -40,6 +40,9 @@ $(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz: $(HELM) $(HELM_OUTPUT_DIR) $(shell find 
 	@echo === helm package $(1)
 	@rm -rf $(OUTPUT_DIR)/$(1)
 	@cp -aL $(HELM_CHARTS_DIR)/$(1) $(OUTPUT_DIR)
+	@echo === building helm dependencies for $(1)
+	@$(SED_IN_PLACE) 's|file://../library|file://$(HELM_CHARTS_DIR)/library|g' $(OUTPUT_DIR)/$(1)/Chart.yaml
+	@cd $(OUTPUT_DIR)/$(1) && $(HELM) dependency build
 	@$(SED_IN_PLACE) 's|master|$(VERSION)|g' $(OUTPUT_DIR)/$(1)/values.yaml
 	@$(HELM) lint $(abspath $(OUTPUT_DIR)/$(1)) --set image.tag=$(VERSION)
 	@$(HELM) package --version $(VERSION) --app-version $(VERSION) -d $(HELM_OUTPUT_DIR) $(abspath $(OUTPUT_DIR)/$(1))
@@ -52,6 +55,38 @@ $(HELM_INDEX): $(HELM) $(HELM_OUTPUT_DIR)
 	@$(HELM) repo index $(HELM_OUTPUT_DIR)
 
 helm.build: $(HELM_INDEX)
+
+# Update helm chart dependencies
+define helm.dependency.update
+helm.dependency.update.$(1): $(HELM)
+	@echo === updating helm dependencies for $(1)
+	@cd $(HELM_CHARTS_DIR)/$(1) && $(HELM) dependency update
+helm.dependency.update: helm.dependency.update.$(1)
+endef
+$(foreach p,$(HELM_CHARTS),$(eval $(call helm.dependency.update,$(p))))
+
+# Build helm chart dependencies
+define helm.dependency.build
+helm.dependency.build.$(1): $(HELM)
+	@echo === building helm dependencies for $(1)
+	@cd $(HELM_CHARTS_DIR)/$(1) && $(HELM) dependency build
+helm.dependency.build: helm.dependency.build.$(1)
+endef
+$(foreach p,$(HELM_CHARTS),$(eval $(call helm.dependency.build,$(p))))
+
+# Clean up helm dependency artifacts from source directories
+define helm.dependency.clean
+helm.dependency.clean.$(1):
+	@echo === cleaning up dependency artifacts for $(1)
+	@rm -f $(HELM_CHARTS_DIR)/$(1)/charts/*.tgz
+helm.dependency.clean: helm.dependency.clean.$(1)
+endef
+$(foreach p,$(HELM_CHARTS),$(eval $(call helm.dependency.clean,$(p))))
+
+.PHONY: helm.dependency.update helm.dependency.build helm.dependency.clean
+helm.dependency.update: ## Update helm chart dependencies for all charts
+helm.dependency.build: ## Build helm chart dependencies for all charts
+helm.dependency.clean: ## Clean up helm dependency artifacts (.tgz files) from source directories
 
 # ====================================================================================
 # Makefile helper functions for helm-docs: https://github.com/norwoodj/helm-docs
