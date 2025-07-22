@@ -31,6 +31,7 @@ data:
 {{- end }}
 
 {{- if .Values.csi }}
+  ROOK_USE_CSI_OPERATOR: {{ .Values.csi.rookUseCsiOperator | quote }}
   ROOK_CSI_ENABLE_RBD: {{ .Values.csi.enableRbdDriver | quote }}
   ROOK_CSI_ENABLE_CEPHFS: {{ .Values.csi.enableCephfsDriver | quote }}
   ROOK_CSI_DISABLE_DRIVER: {{ .Values.csi.disableCsiDriver | quote }}

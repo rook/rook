@@ -5,6 +5,12 @@
 
 /_output
 
+deploy/charts/rook-ceph/charts/ceph-csi-operator-*
+deploy/charts/rook-ceph/charts/library-*
+deploy/charts/rook-ceph-cluster/charts/library-*
+deploy/charts/rook-ceph/Chart.lock
+deploy/charts/rook-ceph-cluster/Chart.lock
+
 /tests/integration/rook-test/
 
 # OLM related stuff
