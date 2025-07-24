@@ -228,7 +228,10 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	// The CR was just created, initialize status as 'Progressing'
 	if cephFilesystem.Status == nil {
 		cephxUninitialized := keyring.UninitializedCephxStatus()
-		updatedCephFS := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionProgressing, nil, &cephxUninitialized)
+		updatedCephFS, err := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionProgressing, nil, &cephxUninitialized)
+		if err != nil {
+			return reconcile.Result{}, *cephFilesystem, errors.Wrapf(err, "failed to initialize cephx status for cephFileSystem %q", request.NamespacedName)
+		}
 		if updatedCephFS == nil || updatedCephFS.Status == nil {
 			return reconcile.Result{}, *cephFilesystem, errors.Errorf("failed to update ceph filesystem status")
 		}
@@ -372,13 +375,19 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	logger.Debug("reconciling ceph filesystem store deployments")
 	reconcileResponse, err = r.reconcileCreateFilesystem(cephFilesystem)
 	if err != nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil, nil)
+		_, err := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil, nil)
+		if err != nil {
+			return reconcile.Result{}, *cephFilesystem, errors.Wrapf(err, "failed to set failure status on cephFileSystem %q when file system creation failed", request.NamespacedName)
+		}
 		return reconcileResponse, *cephFilesystem, err
 	}
 
 	// update Mds cephx status
 	cephxStatus := keyring.UpdatedCephxStatus(r.shouldRotateCephxKeys, cephCluster.Spec.Security.CephX.Daemon, r.clusterInfo.CephVersion, cephFilesystem.Status.Cephx.Daemon)
-	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionProgressing, nil, &cephxStatus)
+	_, err = r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionProgressing, nil, &cephxStatus)
+	if err != nil {
+		return reconcile.Result{}, *cephFilesystem, errors.Wrapf(err, "failed to set cephx status for cephFileSystem %q", request.NamespacedName)
+	}
 
 	statusUpdated := false
 	// Enable mirroring if needed
@@ -402,7 +411,10 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 			logger.Info("reconciling create cephfs-mirror peer configuration")
 			reconcileResponse, err = opcontroller.CreateBootstrapPeerSecret(r.context, r.clusterInfo, cephFilesystem, k8sutil.NewOwnerInfo(cephFilesystem, r.scheme))
 			if err != nil {
-				r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil, nil)
+				_, err := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil, nil)
+				if err != nil {
+					return reconcile.Result{}, *cephFilesystem, errors.Wrapf(err, "failed to set failure status on cephFileSystem %q when peer secret bootstrap failed", request.NamespacedName)
+				}
 				return reconcileResponse, *cephFilesystem,
 					errors.Wrapf(err, "failed to create cephfs-mirror bootstrap peer for filesystem %q.", cephFilesystem.Name)
 			}
@@ -416,9 +428,11 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 			// update ObservedGeneration in status at the end of reconcile
 			// Set Ready status, we are done reconciling
-			if r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem), &cephxStatus) != nil {
-				statusUpdated = true
+			_, err = r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem), &cephxStatus)
+			if err != nil {
+				return reconcile.Result{}, *cephFilesystem, errors.Wrapf(err, "failed to set ready status for cephFileSystem %q", request.NamespacedName)
 			}
+			statusUpdated = true
 
 			// Run go routine check for mirroring status
 			if !cephFilesystem.Spec.StatusCheck.Mirror.Disabled {
@@ -438,7 +452,10 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling$
 		// TODO: set status to Ready **only** if the filesystem is ready
-		r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, nil, &cephxStatus)
+		_, err := r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, nil, &cephxStatus)
+		if err != nil {
+			return reconcile.Result{}, *cephFilesystem, errors.Wrapf(err, "failed to set ready status for cephFileSystem %q", request.NamespacedName)
+		}
 	}
 
 	return reconcile.Result{}, *cephFilesystem, nil
