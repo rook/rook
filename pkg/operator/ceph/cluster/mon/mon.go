@@ -41,6 +41,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -51,6 +52,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
@@ -133,6 +135,8 @@ type Cluster struct {
 	arbiterMon         string
 	// list of mons to be failed over
 	monsToFailover map[string]*monConfig
+	// reference to the secret that stores mon key
+	monKeySecretResourceVersion string
 }
 
 // monConfig for a single monitor
@@ -550,9 +554,12 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion, clusterName s
 
 	k := keyring.GetSecretStore(c.context, c.ClusterInfo, c.ownerInfo)
 	// store the keyring which all mons share
-	if _, err := k.CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring()); err != nil {
+	secretResourceVersion, err := k.CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring())
+	if err != nil {
 		return errors.Wrap(err, "failed to save mon keyring secret")
 	}
+	c.monKeySecretResourceVersion = secretResourceVersion
+
 	// also store the admin keyring for other daemons that might need it during init
 	if err := k.Admin().CreateOrUpdate(c.ClusterInfo, c.context, c.spec.Annotations); err != nil {
 		return errors.Wrap(err, "failed to save admin keyring secret")
@@ -1516,6 +1523,9 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 		return err
 	}
 
+	// apply cephx secret resource version to the deployment to ensure it restarts after key is rotated
+	d.Spec.Template.Annotations[keyring.CephxKeyIdentifierAnnotation] = c.monKeySecretResourceVersion
+
 	// Set the deployment hash as an annotation
 	err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
 	if err != nil {
@@ -1790,4 +1800,68 @@ func (c *Cluster) acquireOrchestrationLock() {
 func (c *Cluster) releaseOrchestrationLock() {
 	c.orchestrationMutex.Unlock()
 	logger.Debugf("Released lock for mon orchestration")
+}
+
+func (c *Cluster) RotateMonCephxKeys(clusterObj *cephv1.CephCluster) (bool, error) {
+	desiredCephVersion := c.ClusterInfo.CephVersion
+	// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
+	runningCephVersion := c.ClusterInfo.CephVersion
+
+	shouldRotateMonKeys, err := keyring.ShouldRotateCephxKeys(clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, *clusterObj.Status.Cephx.Mon)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to check if mon daemon keys should be rotated in the namespace %q", c.ClusterInfo.Namespace)
+	}
+
+	if !shouldRotateMonKeys {
+		logger.Debugf("cephx key rotation for mon daemon in the namespace %q is not required", c.ClusterInfo.Namespace)
+		return shouldRotateMonKeys, nil
+	}
+
+	logger.Infof("cephx keys for mon daemons in the namespace %q will be rotated", c.ClusterInfo.Namespace)
+
+	k := keyring.GetSecretStore(c.context, c.ClusterInfo, c.ClusterInfo.OwnerInfo)
+	newKey, err := k.RotateKey(controller.MonCephxUser)
+	if err != nil {
+		return shouldRotateMonKeys, errors.Wrapf(err, "failed to rotate cephx key for mon daemon in the namespace %q", c.ClusterInfo.Namespace)
+	}
+
+	c.ClusterInfo.MonitorSecret = newKey
+
+	// update the mon-secret key in the cluster access secret
+	err = controller.UpdateClusterAccessSecret(c.context.Clientset, c.ClusterInfo)
+	if err != nil {
+		return shouldRotateMonKeys, errors.Wrapf(err, "failed to update the rook-ceph-mon secret after rotating the mon cephx keys in the namespace %q", c.ClusterInfo.Namespace)
+	}
+
+	// update the keyring which all mons share
+	if _, err := k.CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring()); err != nil {
+		return shouldRotateMonKeys, errors.Wrapf(err, "failed to save mon keyring secret after rotating the mon cephx keys in the namespace %q", c.ClusterInfo.Namespace)
+	}
+
+	logger.Infof("successfully rotated cephx keys for mon daemons in the namespace %q", c.ClusterInfo.Namespace)
+
+	return shouldRotateMonKeys, nil
+}
+
+func (c *Cluster) UpdateMonCephxStatus(didRotate bool) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cluster := &cephv1.CephCluster{}
+		if err := c.context.Client.Get(c.ClusterInfo.Context, c.ClusterInfo.NamespacedName(), cluster); err != nil {
+			return errors.Wrapf(err, "failed to get cluster %v to update the mon cephx status.", c.ClusterInfo.NamespacedName())
+		}
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, c.ClusterInfo.CephVersion, *cluster.Status.Cephx.Mon)
+		cluster.Status.Cephx.Mon = &updatedStatus
+		logger.Debugf("updating mon daemon cephx status to %+v", cluster.Status.Cephx.Mgr)
+		if err := reporting.UpdateStatus(c.context.Client, cluster); err != nil {
+			return errors.Wrapf(err, "failed to update cluster cephx status for mon daemon in the namespace %q", c.ClusterInfo.Namespace)
+		}
+		logger.Infof("successfully updated the cephx status for mon daemon in the namespace %q", c.ClusterInfo.Namespace)
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrapf(err, "failed to update cluster cephx status for mon daemon in the namespace %q", c.ClusterInfo.Namespace)
+	}
+
+	return nil
 }
