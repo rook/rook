@@ -20,41 +20,54 @@ package file
 import (
 	"time"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 // updateStatus updates a fs CR with the given status
-func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) *cephv1.CephFilesystem {
+func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string, cephx *cephv1.CephxStatus) (*cephv1.CephFilesystem, error) {
 	fs := &cephv1.CephFilesystem{}
-	err := r.client.Get(r.opManagerContext, namespacedName, fs)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephFilesystem resource not found. Ignoring since object must be deleted.")
-			return nil
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.client.Get(r.opManagerContext, namespacedName, fs)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debugf("CephFilesystem resource %q not found. Ignoring since object must be deleted.", namespacedName.String())
+				return nil
+			}
+			return errors.Wrapf(err, "failed to retrieve filesystem %q to update status to %q.", namespacedName.String(), status)
 		}
-		logger.Warningf("failed to retrieve filesystem %q to update status to %q. %v", namespacedName, status, err)
+
+		if fs.Status == nil {
+			fs.Status = &cephv1.CephFilesystemStatus{}
+		}
+
+		fs.Status.Phase = status
+		fs.Status.Info = info
+		if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+			fs.Status.ObservedGeneration = observedGeneration
+		}
+
+		if cephx != nil {
+			fs.Status.Cephx.Daemon = *cephx
+		}
+
+		if err := reporting.UpdateStatus(r.client, fs); err != nil {
+			return errors.Wrapf(err, "failed to set filesystem %q status to %q.", namespacedName.String(), status)
+		}
+
 		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	if fs.Status == nil {
-		fs.Status = &cephv1.CephFilesystemStatus{}
-	}
-
-	fs.Status.Phase = status
-	fs.Status.Info = info
-	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
-		fs.Status.ObservedGeneration = observedGeneration
-	}
-	if err := reporting.UpdateStatus(r.client, fs); err != nil {
-		logger.Warningf("failed to set filesystem %q status to %q. %v", fs.Name, status, err)
-		return nil
-	}
-	logger.Debugf("filesystem %q status updated to %q", fs.Name, status)
-	return fs
+	logger.Debugf("filesystem %q status updated to %q", namespacedName.String(), status)
+	return fs, nil
 }
 
 // updateStatusBucket updates an object with a given status

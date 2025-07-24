@@ -1210,6 +1210,7 @@ func (in *CephFilesystemStatus) DeepCopyInto(out *CephFilesystemStatus) {
 			(*out)[key] = val
 		}
 	}
+	out.Cephx = in.Cephx
 	if in.MirroringStatus != nil {
 		in, out := &in.MirroringStatus, &out.MirroringStatus
 		*out = new(FilesystemMirroringInfoSpec)
