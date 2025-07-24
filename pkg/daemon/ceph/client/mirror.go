@@ -85,6 +85,20 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 		return err
 	}() //nolint // we don't want to return here
 
+	if clusterInfo.NetworkSpec.IsMultus() {
+		err = context.RemoteExecutor.CopyLocalFileToContainer(clusterInfo.Context, ProxyAppLabel, CommandProxyInitContainerName, clusterInfo.Namespace, tokenFilePath.Name(), tokenFilePath.Name())
+		if err != nil {
+			return err
+		}
+		defer func() {
+			// cleanup copied file in remote container
+			_, stdErr, cleanupErr := context.RemoteExecutor.ExecCommandInContainerWithFullOutput(clusterInfo.Context, ProxyAppLabel, CommandProxyInitContainerName, clusterInfo.Namespace, []string{"rm", tokenFilePath.Name()}...)
+			if cleanupErr != nil {
+				logger.Errorf("failed to cleanup remote file %q: %s - %s", tokenFilePath.Name(), cleanupErr, stdErr)
+			}
+		}()
+	}
+
 	// Build command
 	args := []string{"mirror", "pool", "peer", "bootstrap", "import", poolName, tokenFilePath.Name()}
 	if direction != "" {
