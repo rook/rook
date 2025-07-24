@@ -30,10 +30,12 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -45,7 +47,9 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 // generate a standard mon config from a mon id w/ default port and IP 2.4.6.{1,2,3,...}
@@ -1164,4 +1168,85 @@ func TestIsMonIPUpdateRequiredForHostNetwork(t *testing.T) {
 		monUsingHostNetwork := false
 		assert.True(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
 	})
+}
+
+func TestRotateMonCephxKeys(t *testing.T) {
+	ctx := context.TODO()
+	namespace := "default"
+	context, err := newTestStartCluster(t, namespace)
+	assert.NoError(t, err)
+	c := newCluster(context, namespace, true, v1.ResourceRequirements{})
+
+	uninitializedStatus := keyring.UninitializedCephxStatus()
+	cluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namespace,
+			Namespace: namespace,
+		},
+		Spec: cephv1.ClusterSpec{
+			Security: cephv1.ClusterSecuritySpec{
+				CephX: cephv1.ClusterCephxConfig{
+					Daemon: cephv1.CephxConfig{},
+				},
+			},
+		},
+		Status: cephv1.ClusterStatus{
+			Cephx: &cephv1.ClusterCephxStatus{
+				Mon: &uninitializedStatus,
+			},
+		},
+	}
+
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+	s.AddKnownTypes(v1.SchemeGroupVersion, &v1.Secret{})
+
+	object := []runtime.Object{
+		cluster,
+	}
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+			if args[0] == "auth" && args[1] == "rotate" {
+				return `[{"key":"myrotatedkey"}]`, nil
+			}
+			return "", errors.New("unknown command")
+		},
+	}
+	c.context = &clusterd.Context{Clientset: test.New(t, 5), Executor: executor, Client: cl}
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
+	c.ClusterInfo.CephVersion = keyring.CephAuthRotateSupportedVersion
+
+	// create rook-ceph-mon secret
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      AppName,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{opcontroller.MonSecretNameKey: []byte("bar")},
+	}
+
+	_, err = c.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// No key rotation required
+	shouldRotate, err := c.RotateMonCephxKeys(cluster)
+	assert.NoError(t, err)
+	assert.False(t, shouldRotate)
+
+	// verify key is rotated in the secret
+	cluster.Spec.Security.CephX.Daemon.KeyRotationPolicy = cephv1.KeyGenerationCephxKeyRotationPolicy
+	cluster.Spec.Security.CephX.Daemon.KeyGeneration = 2
+	cluster.Status.Cephx.Mon.KeyGeneration = 1
+	cluster.Status.Cephx.Mon.KeyCephVersion = keyring.CephAuthRotateSupportedVersion.String()
+	err = c.context.Client.Update(ctx, cluster)
+	assert.NoError(t, err)
+	shouldRotate, err = c.RotateMonCephxKeys(cluster)
+	assert.NoError(t, err)
+	assert.True(t, shouldRotate)
+	secret, err = c.context.Clientset.CoreV1().Secrets(namespace).Get(c.ClusterInfo.Context, AppName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "myrotatedkey", string(secret.Data[opcontroller.MonSecretNameKey]))
 }
