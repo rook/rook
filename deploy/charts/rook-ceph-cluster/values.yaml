@@ -467,6 +467,12 @@ route:
     #     namespace: kube-system
     #     sectionName: https
 
+# -- A List of Ceph Features to be Installed
+cephFeatures:
+  cephBlock: true
+  cephFileSystem: true
+  cephObjectStore: true
+
 # -- A list of CephBlockPool configurations to deploy
 # @default -- See [below](#ceph-block-pools)
 cephBlockPools:

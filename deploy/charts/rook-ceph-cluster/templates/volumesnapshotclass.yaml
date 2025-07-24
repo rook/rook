@@ -1,9 +1,10 @@
 {{- $root := . -}}
 {{- $filesystemvsc := .Values.cephFileSystemVolumeSnapshotClass -}}
 {{- $blockpoolvsc := .Values.cephBlockPoolsVolumeSnapshotClass -}}
-
+{{- $featurecephfilesystem := .Values.cephFeatures.cephFileSystem -}}
+{{- $featurecephblock := .Values.cephFeatures.cephBlock -}}
 ---
-{{- if default false $filesystemvsc.enabled }}
+{{- if and (eq $featurecephfilesystem true) (default false $filesystemvsc.enabled) }}
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
@@ -33,7 +34,7 @@ deletionPolicy: {{ default "Delete" $filesystemvsc.deletionPolicy }}
 {{- end }}
 
 ---
-{{- if default false $blockpoolvsc.enabled }}
+{{- if and (eq $featurecephblock true) (default false $blockpoolvsc.enabled) }}
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:

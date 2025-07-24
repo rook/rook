@@ -1,3 +1,4 @@
+{{- if eq .Values.cephFeatures.cephObjectStore true }}
 {{- range .Values.cephObjectStores }}
 {{- if dig "ingress" "enabled" false . }}
 ---
@@ -27,5 +28,6 @@ spec:
   {{- with .ingress.tls }}
   tls: {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

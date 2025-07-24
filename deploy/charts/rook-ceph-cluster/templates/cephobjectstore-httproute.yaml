@@ -1,3 +1,4 @@
+{{- if eq .Values.cephFeatures.cephObjectStore true }}
 {{- range .Values.cephObjectStores }}
 {{- if dig "route" "enabled" false . }}
 ---
@@ -21,5 +22,6 @@ spec:
     - path:
         type: {{ .route.host.pathType | default "Prefix" }}
         value: {{ .route.host.path | default "/" }}
+{{- end }}
 {{- end }}
 {{- end }}

@@ -1,4 +1,5 @@
 {{- $root := . -}}
+{{- if eq .Values.cephFeatures.cephBlock true }}
 {{- range $ecblockpool := .Values.cephECBlockPools -}}
 ---
 apiVersion: ceph.rook.io/v1
@@ -63,5 +64,6 @@ parameters:
 #mounter: rbd-nbd
 allowVolumeExpansion: {{ $ecblockpool.storageClass.allowVolumeExpansion }}
 reclaimPolicy: {{ $ecblockpool.storageClass.reclaimPolicy }}
+{{ end }}
 {{ end }}
 {{ end }}

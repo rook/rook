@@ -1,4 +1,5 @@
 {{- $root := . -}}
+{{- if eq .Values.cephFeatures.cephFileSystem true }}
 {{- range $filesystem := .Values.cephFileSystems -}}
 ---
 apiVersion: ceph.rook.io/v1
@@ -63,5 +64,6 @@ mountOptions:
   - {{ . }}
   {{- end }}
 {{- end }}
+{{ end }}
 {{ end }}
 {{ end }}

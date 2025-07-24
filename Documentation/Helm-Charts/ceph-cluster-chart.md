@@ -58,13 +58,16 @@ The following table lists the configurable parameters of the rook-operator chart
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
+| `cephFeatures.cephBlock` | Enable ceph block feature to be deploy | `true` |
+| `cephFeatures.cephFileSystem` | Enable ceph file system feature to be deploy | `true` |
+| `cephFeatures.cephObjectStore` | Enable ceph object store to be deploy | `true` |
 | `cephBlockPools` | A list of CephBlockPool configurations to deploy | See [below](#ceph-block-pools) |
 | `cephBlockPoolsVolumeSnapshotClass` | Settings for the block pool snapshot class | See [RBD Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#rbd-snapshots) |
-| `cephClusterSpec` | Cluster configuration. | See [below](#ceph-cluster-spec) |
 | `cephFileSystemVolumeSnapshotClass` | Settings for the filesystem snapshot class | See [CephFS Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#cephfs-snapshots) |
 | `cephFileSystems` | A list of CephFileSystem configurations to deploy | See [below](#ceph-file-systems) |
 | `cephObjectStores` | A list of CephObjectStore configurations to deploy | See [below](#ceph-object-stores) |
 | `clusterName` | The metadata.name of the CephCluster CR | The same as the namespace |
+| `cephClusterSpec` | Cluster configuration. | See [below](#ceph-cluster-spec) |
 | `configOverride` | Cluster ceph.conf override | `nil` |
 | `csiDriverNamePrefix` | CSI driver name prefix for cephfs, rbd and nfs. | `namespace name where rook-ceph operator is deployed` |
 | `ingress.dashboard` | Enable an ingress for the ceph-dashboard | `{}` |
