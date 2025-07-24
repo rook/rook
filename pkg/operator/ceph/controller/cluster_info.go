@@ -68,6 +68,8 @@ const (
 	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
 	AppName                         = "rook-ceph-mon"
 	DisasterProtectionFinalizerName = cephv1.CustomResourceGroup + "/disaster-protection"
+	// MonCephxUser represents the cephx user name for all the mon daemons
+	MonCephxUser = "mon."
 )
 
 var (
@@ -202,7 +204,7 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 	}
 
 	// generate the mon secret
-	monSecret, err := genSecret(context.Executor, dir, "mon.", []string{"--cap", "mon", "'allow *'"})
+	monSecret, err := genSecret(context.Executor, dir, MonCephxUser, []string{"--cap", "mon", "'allow *'"})
 	if err != nil {
 		return nil, err
 	}
@@ -392,6 +394,24 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 	}
 	if _, err = clientset.CoreV1().Secrets(namespace).Create(clusterInfo.Context, secret, metav1.CreateOptions{}); err != nil {
 		return errors.Wrap(err, "failed to save mon secrets")
+	}
+
+	return nil
+}
+
+// UpdateClusterAccessSecret updates the rook-ceph-mon secret
+func UpdateClusterAccessSecret(clientset kubernetes.Interface, clusterInfo *cephclient.ClusterInfo) error {
+	secret, err := clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(clusterInfo.Context, AppName, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to get secret %q in the namespace %q", AppName, clusterInfo.Namespace)
+	}
+
+	secret.Data[MonSecretNameKey] = []byte(clusterInfo.MonitorSecret)
+
+	logger.Infof("updating secret %q in the namespace %q", secret.Name, clusterInfo.Namespace)
+	_, err = clientset.CoreV1().Secrets(clusterInfo.Namespace).Update(clusterInfo.Context, secret, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to update secret %q in the namespace %q", secret.Name, clusterInfo.Namespace)
 	}
 
 	return nil
