@@ -626,11 +626,8 @@ discover:
   podLabels: # "key1=value1,key2=value2"
   # -- Add resources to discover daemon pods
   resources:
-  #   - limits:
-  #       memory: 512Mi
-  #   - requests:
-  #       cpu: 100m
-  #       memory: 128Mi
+  # resources: |
+  #   '{"resources":{"requests":{"memory":"128Mi","cpu":"100m"},"limits":{"memory":"512Mi"}}}'
 
 # -- Custom label to identify node hostname. If not set `kubernetes.io/hostname` will be used
 customHostnameLabel:
