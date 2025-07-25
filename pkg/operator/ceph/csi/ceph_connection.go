@@ -25,7 +25,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,7 +33,7 @@ import (
 
 func CreateUpdateCephConnection(c client.Client, clusterInfo *cephclient.ClusterInfo, clusterSpec cephv1.ClusterSpec) error {
 	logger.Infof("Configuring ceph connection CR %q in namespace %q", clusterInfo.NamespacedName().Name, clusterInfo.NamespacedName().Namespace)
-	csiCephConnection := &csiopv1a1.CephConnection{}
+	csiCephConnection := &csiopv1.CephConnection{}
 
 	csiCephConnection.Name = clusterInfo.NamespacedName().Name
 	csiCephConnection.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
@@ -68,10 +68,10 @@ func CreateUpdateCephConnection(c client.Client, clusterInfo *cephclient.Cluster
 	return nil
 }
 
-func generateCephConnSpec(c client.Client, clusterInfo *cephclient.ClusterInfo, csiClusterConnSpec csiopv1a1.CephConnectionSpec, clusterSpec cephv1.ClusterSpec) (csiopv1a1.CephConnectionSpec, error) {
+func generateCephConnSpec(c client.Client, clusterInfo *cephclient.ClusterInfo, csiClusterConnSpec csiopv1.CephConnectionSpec, clusterSpec cephv1.ClusterSpec) (csiopv1.CephConnectionSpec, error) {
 	if clusterSpec.CSI.ReadAffinity.Enabled {
-		csiClusterConnSpec = csiopv1a1.CephConnectionSpec{
-			ReadAffinity: &csiopv1a1.ReadAffinitySpec{
+		csiClusterConnSpec = csiopv1.CephConnectionSpec{
+			ReadAffinity: &csiopv1.ReadAffinitySpec{
 				CrushLocationLabels: clusterSpec.CSI.ReadAffinity.CrushLocationLabels,
 			},
 		}

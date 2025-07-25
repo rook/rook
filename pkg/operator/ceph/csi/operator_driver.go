@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"strings"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -81,7 +81,7 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 		return err
 	}
 
-	rbdDriver := &csiopv1a1.Driver{
+	rbdDriver := &csiopv1.Driver{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
@@ -91,7 +91,7 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 	}
 
 	rbdDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(rbdPluginResource)
-	rbdDriver.Spec.Liveness = &csiopv1a1.LivenessSpec{
+	rbdDriver.Spec.Liveness = &csiopv1.LivenessSpec{
 		MetricsPort: int(CSIParam.RBDLivenessMetricsPort),
 	}
 	rbdDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(rbdProvisionerResource)
@@ -101,7 +101,7 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 
 	if CSIParam.CSIDomainLabels != "" {
 		domainLabels := strings.Split(CSIParam.CSIDomainLabels, ",")
-		rbdDriver.Spec.NodePlugin.Topology = &csiopv1a1.TopologySpec{
+		rbdDriver.Spec.NodePlugin.Topology = &csiopv1.TopologySpec{
 			DomainLabels: domainLabels,
 		}
 	}
@@ -127,7 +127,7 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 		return err
 	}
 
-	cephFsDriver := &csiopv1a1.Driver{
+	cephFsDriver := &csiopv1.Driver{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
@@ -136,13 +136,13 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 		Spec: spec,
 	}
 
-	cephFsDriver.Spec.SnapshotPolicy = csiopv1a1.NoneSnapshotPolicy
+	cephFsDriver.Spec.SnapshotPolicy = csiopv1.NoneSnapshotPolicy
 	if CSIParam.VolumeGroupSnapshotCLIFlag != "" {
-		cephFsDriver.Spec.SnapshotPolicy = csiopv1a1.VolumeGroupSnapshotPolicy
+		cephFsDriver.Spec.SnapshotPolicy = csiopv1.VolumeGroupSnapshotPolicy
 	}
 
 	cephFsDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(cephFSPluginResource)
-	cephFsDriver.Spec.Liveness = &csiopv1a1.LivenessSpec{
+	cephFsDriver.Spec.Liveness = &csiopv1.LivenessSpec{
 		MetricsPort: int(CSIParam.CephFSLivenessMetricsPort),
 	}
 
@@ -153,7 +153,7 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 
 	if CSIParam.CSIDomainLabels != "" {
 		domainLabels := strings.Split(CSIParam.CSIDomainLabels, ",")
-		cephFsDriver.Spec.NodePlugin.Topology = &csiopv1a1.TopologySpec{
+		cephFsDriver.Spec.NodePlugin.Topology = &csiopv1.TopologySpec{
 			DomainLabels: domainLabels,
 		}
 	}
@@ -179,7 +179,7 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 		return err
 	}
 
-	NFSDriver := &csiopv1a1.Driver{
+	NFSDriver := &csiopv1.Driver{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
@@ -197,7 +197,7 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 
 	if CSIParam.CSIDomainLabels != "" {
 		domainLabels := strings.Split(CSIParam.CSIDomainLabels, ",")
-		NFSDriver.Spec.NodePlugin.Topology = &csiopv1a1.TopologySpec{
+		NFSDriver.Spec.NodePlugin.Topology = &csiopv1.TopologySpec{
 			DomainLabels: domainLabels,
 		}
 	}
@@ -216,7 +216,7 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 	return nil
 }
 
-func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.ClusterInfo, driverResource *csiopv1a1.Driver) error {
+func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.ClusterInfo, driverResource *csiopv1.Driver) error {
 	spec := driverResource.Spec
 
 	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: driverResource.Name, Namespace: r.opConfig.OperatorNamespace}, driverResource)
@@ -243,18 +243,18 @@ func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.Clust
 	return nil
 }
 
-func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1a1.DriverSpec, error) {
-	cephfsClientType := csiopv1a1.KernelCephFsClient
+func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1.DriverSpec, error) {
+	cephfsClientType := csiopv1.KernelCephFsClient
 	if CSIParam.ForceCephFSKernelClient == "false" {
-		cephfsClientType = csiopv1a1.AutoDetectCephFsClient
+		cephfsClientType = csiopv1.AutoDetectCephFsClient
 	}
 	imageSetCmName, err := r.createImageSetConfigmap()
 	if err != nil {
-		return csiopv1a1.DriverSpec{}, errors.Wrapf(err, "failed to create ceph-CSI operator config ImageSetConfigmap for CR %s", opConfigCRName)
+		return csiopv1.DriverSpec{}, errors.Wrapf(err, "failed to create ceph-CSI operator config ImageSetConfigmap for CR %s", opConfigCRName)
 	}
 
-	return csiopv1a1.DriverSpec{
-		Log: &csiopv1a1.LogSpec{
+	return csiopv1.DriverSpec{
+		Log: &csiopv1.LogSpec{
 			Verbosity: int(CSIParam.LogLevel),
 		},
 		ImageSet: &corev1.LocalObjectReference{
@@ -264,20 +264,20 @@ func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1a1.DriverS
 		EnableMetadata:   &CSIParam.CSIEnableMetadata,
 		GenerateOMapInfo: &CSIParam.EnableOMAPGenerator,
 		FsGroupPolicy:    k8scsiv1.FileFSGroupPolicy,
-		NodePlugin: &csiopv1a1.NodePluginSpec{
-			PodCommonSpec: csiopv1a1.PodCommonSpec{
+		NodePlugin: &csiopv1.NodePluginSpec{
+			PodCommonSpec: csiopv1.PodCommonSpec{
 				PrioritylClassName: &CSIParam.ProvisionerPriorityClassName,
 				Affinity: &corev1.Affinity{
 					NodeAffinity: getNodeAffinity(pluginNodeAffinityEnv, &corev1.NodeAffinity{}),
 				},
 				Tolerations: getToleration(pluginTolerationsEnv, []corev1.Toleration{}),
 			},
-			Resources:              csiopv1a1.NodePluginResourcesSpec{},
+			Resources:              csiopv1.NodePluginResourcesSpec{},
 			KubeletDirPath:         CSIParam.KubeletDirPath,
 			EnableSeLinuxHostMount: &CSIParam.EnablePluginSelinuxHostMount,
 		},
-		ControllerPlugin: &csiopv1a1.ControllerPluginSpec{
-			PodCommonSpec: csiopv1a1.PodCommonSpec{
+		ControllerPlugin: &csiopv1.ControllerPluginSpec{
+			PodCommonSpec: csiopv1.PodCommonSpec{
 				PrioritylClassName: &CSIParam.PluginPriorityClassName,
 				Affinity: &corev1.Affinity{
 					NodeAffinity: getNodeAffinity(provisionerNodeAffinityEnv, &corev1.NodeAffinity{}),
@@ -285,15 +285,15 @@ func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1a1.DriverS
 				Tolerations: getToleration(provisionerTolerationsEnv, []corev1.Toleration{}),
 			},
 			Replicas:  &CSIParam.ProvisionerReplicas,
-			Resources: csiopv1a1.ControllerPluginResourcesSpec{},
+			Resources: csiopv1.ControllerPluginResourcesSpec{},
 		},
 		DeployCsiAddons:  &CSIParam.EnableCSIAddonsSideCar,
 		CephFsClientType: cephfsClientType,
 	}, nil
 }
 
-func createDriverControllerPluginResources(key string) csiopv1a1.ControllerPluginResourcesSpec {
-	controllerPluginResources := csiopv1a1.ControllerPluginResourcesSpec{}
+func createDriverControllerPluginResources(key string) csiopv1.ControllerPluginResourcesSpec {
+	controllerPluginResources := csiopv1.ControllerPluginResourcesSpec{}
 	resource := getComputeResource(key)
 
 	for _, r := range resource {
@@ -345,8 +345,8 @@ func createDriverControllerPluginResources(key string) csiopv1a1.ControllerPlugi
 	return controllerPluginResources
 }
 
-func createDriverNodePluginResouces(key string) csiopv1a1.NodePluginResourcesSpec {
-	nodePluginResources := csiopv1a1.NodePluginResourcesSpec{}
+func createDriverNodePluginResouces(key string) csiopv1.NodePluginResourcesSpec {
+	nodePluginResources := csiopv1.NodePluginResourcesSpec{}
 	resource := getComputeResource(key)
 
 	for _, r := range resource {

@@ -20,26 +20,26 @@ import (
 	"context"
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-// CreateOrUpdateEndpoint creates a service or updates the service declaratively if it already exists.
-func CreateOrUpdateEndpoint(ctx context.Context, clientset kubernetes.Interface, namespace string, endpointDefinition *v1.Endpoints) (*v1.Endpoints, error) {
-	name := endpointDefinition.Name
-	logger.Debugf("creating endpoint %q. %v", name, endpointDefinition.Subsets)
-	ep, err := clientset.CoreV1().Endpoints(namespace).Create(ctx, endpointDefinition, metav1.CreateOptions{})
+// CreateOrUpdateEndpointSlice creates an endpoint slice or updates the endpoint slice declaratively if it already exists.
+func CreateOrUpdateEndpointSlice(ctx context.Context, clientset kubernetes.Interface, namespace string, endpointSliceDefinition *discoveryv1.EndpointSlice) (*discoveryv1.EndpointSlice, error) {
+	name := endpointSliceDefinition.Name
+	logger.Debugf("creating endpoint slice %q. %v", name, endpointSliceDefinition.Endpoints)
+	es, err := clientset.DiscoveryV1().EndpointSlices(namespace).Create(ctx, endpointSliceDefinition, metav1.CreateOptions{})
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return nil, fmt.Errorf("failed to create endpoint %q. %v", name, err)
+			return nil, fmt.Errorf("failed to create endpoint slice %q. %v", name, err)
 		}
-		ep, err = clientset.CoreV1().Endpoints(namespace).Update(ctx, endpointDefinition, metav1.UpdateOptions{})
+		es, err = clientset.DiscoveryV1().EndpointSlices(namespace).Update(ctx, endpointSliceDefinition, metav1.UpdateOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to update endpoint %q. %v", name, err)
+			return nil, fmt.Errorf("failed to update endpoint slice %q. %v", name, err)
 		}
 	}
 
-	return ep, err
+	return es, err
 }

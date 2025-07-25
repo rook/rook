@@ -37,9 +37,11 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -725,29 +727,31 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 	return svc
 }
 
-func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore) *v1.Endpoints {
+func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore) *discoveryv1.EndpointSlice {
 	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace, true)
 
-	k8sEndpointAddrs := []v1.EndpointAddress{}
+	// Convert to string addresses
+	k8sEndpointAddrs := []string{}
 	for _, rookEndpoint := range cephObjectStore.Spec.Gateway.ExternalRgwEndpoints {
-		k8sEndpointAddr := v1.EndpointAddress{
-			IP:       rookEndpoint.IP,
-			Hostname: rookEndpoint.Hostname,
-		}
-		k8sEndpointAddrs = append(k8sEndpointAddrs, k8sEndpointAddr)
+		k8sEndpointAddrs = append(k8sEndpointAddrs, rookEndpoint.IP)
 	}
 
-	endpoints := &v1.Endpoints{
+	endpoints := &discoveryv1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(cephObjectStore.Name),
 			Namespace: cephObjectStore.Namespace,
 			Labels:    labels,
 		},
-		Subsets: []v1.EndpointSubset{
+		AddressType: discoveryv1.AddressTypeIPv4,
+		Endpoints: []discoveryv1.Endpoint{
 			{
 				Addresses: k8sEndpointAddrs,
+				Conditions: discoveryv1.EndpointConditions{
+					Ready: ptr.To(true),
+				},
 			},
 		},
+		Ports: []discoveryv1.EndpointPort{},
 	}
 
 	addPortToEndpoint(endpoints, "http", cephObjectStore.Spec.Gateway.Port)
@@ -766,7 +770,7 @@ func (c *clusterConfig) reconcileExternalEndpoint(cephObjectStore *cephv1.CephOb
 		return errors.Wrapf(err, "failed to set owner reference to ceph object store endpoint %q", endpoint.Name)
 	}
 
-	_, err = k8sutil.CreateOrUpdateEndpoint(c.clusterInfo.Context, c.context.Clientset, cephObjectStore.Namespace, endpoint)
+	_, err = k8sutil.CreateOrUpdateEndpointSlice(c.clusterInfo.Context, c.context.Clientset, cephObjectStore.Namespace, endpoint)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create or update object store %q endpoint", cephObjectStore.Name)
 	}
@@ -868,16 +872,15 @@ func addPort(service *v1.Service, name string, port, destPort int32) {
 	})
 }
 
-func addPortToEndpoint(endpoints *v1.Endpoints, name string, port int32) {
+func addPortToEndpoint(endpoints *discoveryv1.EndpointSlice, name string, port int32) {
 	if port == 0 {
 		return
 	}
-	endpoints.Subsets[0].Ports = append(endpoints.Subsets[0].Ports, v1.EndpointPort{
-		Name:     name,
-		Port:     port,
-		Protocol: v1.ProtocolTCP,
-	},
-	)
+	endpoints.Ports = append(endpoints.Ports, discoveryv1.EndpointPort{
+		Name:     ptr.To(name),
+		Port:     ptr.To(port),
+		Protocol: ptr.To(v1.ProtocolTCP),
+	})
 }
 
 func getLabels(name, namespace string, includeNewLabels bool) map[string]string {

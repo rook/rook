@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
@@ -55,7 +55,7 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 	clusterName := "testClusterName"
 	cephBlockPoolRadosNamespacedName := types.NamespacedName{Namespace: ns, Name: "cephBlockPoolRadosNames"}
 	cephSubVolGrpNamespacedName := types.NamespacedName{Namespace: ns, Name: "cephSubVolumeGroupNames"}
-	csiOpClientProfile := &csiopv1a1.ClientProfile{}
+	csiOpClientProfile := &csiopv1.ClientProfile{}
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme

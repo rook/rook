@@ -21,7 +21,7 @@ import (
 	"os"
 	"testing"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -267,9 +267,9 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 
 	t.Run("success - external mode csi config is updated", func(t *testing.T) {
 		cephCluster.Spec.External.Enable = true
-		csiOpClientProfile := &csiopv1a1.ClientProfile{}
+		csiOpClientProfile := &csiopv1.ClientProfile{}
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1a1.ClientProfile{}, &csiopv1a1.ClientProfile{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{}, &csiopv1.ClientProfile{})
 		objects := []runtime.Object{
 			cephBlockPoolRadosNamespace,
 			cephCluster,

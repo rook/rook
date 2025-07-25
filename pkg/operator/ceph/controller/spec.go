@@ -37,11 +37,13 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
 	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -858,25 +860,35 @@ func RgwOpsLogSidecarContainer(opsLogFile, ns string, c cephv1.ClusterSpec, env 
 }
 
 // CreateExternalMetricsEndpoints creates external metric endpoint
-func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.MonitoringSpec, ownerInfo *k8sutil.OwnerInfo) (*v1.Endpoints, error) {
+func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.MonitoringSpec, ownerInfo *k8sutil.OwnerInfo) (*discoveryv1.EndpointSlice, error) {
 	labels := AppLabels("rook-ceph-mgr", namespace)
 
-	endpoints := &v1.Endpoints{
+	// Convert v1.EndpointAddress to string addresses
+	addresses := make([]string, len(monitoringSpec.ExternalMgrEndpoints))
+	for i, endpoint := range monitoringSpec.ExternalMgrEndpoints {
+		addresses[i] = endpoint.IP
+	}
+
+	endpoints := &discoveryv1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ExternalMgrAppName,
 			Namespace: namespace,
 			Labels:    labels,
 		},
-		Subsets: []v1.EndpointSubset{
+		AddressType: discoveryv1.AddressTypeIPv4,
+		Endpoints: []discoveryv1.Endpoint{
 			{
-				Addresses: monitoringSpec.ExternalMgrEndpoints,
-				Ports: []v1.EndpointPort{
-					{
-						Name:     ServiceExternalMetricName,
-						Port:     int32(monitoringSpec.ExternalMgrPrometheusPort),
-						Protocol: v1.ProtocolTCP,
-					},
+				Addresses: addresses,
+				Conditions: discoveryv1.EndpointConditions{
+					Ready: ptr.To(true),
 				},
+			},
+		},
+		Ports: []discoveryv1.EndpointPort{
+			{
+				Name:     ptr.To(ServiceExternalMetricName),
+				Port:     ptr.To(int32(monitoringSpec.ExternalMgrPrometheusPort)),
+				Protocol: ptr.To(v1.ProtocolTCP),
 			},
 		},
 	}
@@ -919,7 +931,7 @@ func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec ceph
 	}
 
 	// Get the endpoint to see if anything needs to be updated
-	currentEndpoints, err := ctx.Clientset.CoreV1().Endpoints(clusterInfo.Namespace).Get(clusterInfo.Context, endpoint.Name, metav1.GetOptions{})
+	currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(clusterInfo.Namespace).Get(clusterInfo.Context, endpoint.Name, metav1.GetOptions{})
 	if err != nil && !kerrors.IsNotFound(err) {
 		return errors.Wrap(err, "failed to fetch endpoints")
 	}
@@ -933,7 +945,7 @@ func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec ceph
 	}
 	logger.Debugf("diff between current endpoint and newly generated one: %v \n", cmp.Diff(currentEndpoints, endpoint, cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })))
 
-	_, err = k8sutil.CreateOrUpdateEndpoint(clusterInfo.Context, ctx.Clientset, clusterInfo.Namespace, endpoint)
+	_, err = k8sutil.CreateOrUpdateEndpointSlice(clusterInfo.Context, ctx.Clientset, clusterInfo.Namespace, endpoint)
 	if err != nil {
 		return errors.Wrap(err, "failed to create or update mgr endpoint")
 	}

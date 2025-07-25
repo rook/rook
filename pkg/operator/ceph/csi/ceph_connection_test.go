@@ -20,7 +20,7 @@ import (
 	"context"
 	"testing"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
@@ -54,7 +54,7 @@ func TestCreateUpdateCephConnection(t *testing.T) {
 			},
 		},
 	}
-	csiCephConnection := &csiopv1a1.CephConnection{}
+	csiCephConnection := &csiopv1.CephConnection{}
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme

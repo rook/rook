@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"testing"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -73,7 +73,7 @@ func TestReconcileCSI_createOrUpdateDriverResources(t *testing.T) {
 			},
 		},
 	}
-	driver := &csiopv1a1.Driver{}
+	driver := &csiopv1.Driver{}
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
