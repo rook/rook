@@ -312,6 +312,111 @@ jobs:
           # default value should be used
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --config-file /etc/ceph/external-config.ini
 
+      - name: test key rotation with --cephx-key-rotate
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          output1=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephfs-filesystem-name myfs)
+
+          # check if it create a csi rbd, cephfs Healthchecker keys
+          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node client.csi-rbd-provisioner client.csi-cephfs-node client.csi-cephfs-provisioner client.healthchecker
+
+          # rotate the key
+          output2=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephfs-filesystem-name myfs --cephx-key-rotate rotate)
+
+          # check if it create a csi rbd, cephfs and Healthchecker rotated keys
+          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node.1 client.csi-rbd-provisioner.1 client.csi-cephfs-node.1 client.csi-cephfs-provisioner.1 client.healthchecker.1
+
+          # check the content of the secret, it should be changed
+          if [ "$output1" != "$output2" ]; then
+            echo "csi rbd and cephfs key rotated successfully"
+          else
+            echo "csi rbd and cephfs key not rotated"
+            exit 1
+          fi
+
+          # revert the key
+          output3=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephfs-filesystem-name myfs --cephx-key-rotate revert)
+          # check if it revert the key, it should be same as output1
+          if [ "$output1" == "$output3" ]; then
+            echo "csi rbd and cephfs key reverted successfully"
+          else
+            echo "csi rbd and cephfs key not reverted"
+            exit 1
+          fi
+
+          # if --cephx-key-rotate is not set provide the latest key
+          output4=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephfs-filesystem-name myfs)
+          if [ "$output2" == "$output4" ]; then
+            echo "csi rbd and cephfs key uses latest generation"
+          else
+            echo "csi rbd and cephfs key doesn't uses latest generation"
+            exit 1
+          fi
+
+      - name: test key rotation with --cephx-key-rotate in multi tentat case, where --restricted-auth-permission is set
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          # create tenant1 and verify
+          # create `radosNamespace1` rados-namespace for `replicapool` rbd data-pool
+          kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/rn1
+          output1=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace rn1 --cephfs-filesystem-name myfs --k8s-cluster-name rookstorage --restricted-auth-permission true)
+
+          # check if it create a csi rbd, cephfs and  Healthchecker keys
+          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node-rookstorage-replicapool-rn1 client.csi-rbd-provisioner-rookstorage-replicapool-rn1 client.csi-cephfs-provisioner-rookstorage-myfs client.csi-cephfs-node-rookstorage-myfs client.healthchecker
+
+          # rotate tenant1 and verify
+          output2=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace rn1 --cephfs-filesystem-name myfs --k8s-cluster-name rookstorage --restricted-auth-permission true --cephx-key-rotate rotate)
+          # check if it create rotated csi rbd, cephfs and Healthchecker keys
+          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node-rookstorage-replicapool-rn1.1 client.csi-rbd-provisioner-rookstorage-replicapool-rn1.1 client.csi-cephfs-provisioner-rookstorage-myfs.1 client.csi-cephfs-node-rookstorage-myfs.1 client.healthchecker.1
+
+          # revert tenant1 and verify
+          output3=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace rn1 --cephfs-filesystem-name myfs --k8s-cluster-name rookstorage --restricted-auth-permission true --cephx-key-rotate revert)
+          # check if it create a revert csi rbd, cephfs and Healthchecker keys
+          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node-rookstorage-replicapool-rn1 client.csi-rbd-provisioner-rookstorage-replicapool-rn1 client.csi-cephfs-provisioner-rookstorage-myfs client.csi-cephfs-node-rookstorage-myfs client.healthchecker
+
+          # check if it revert the key, it should be same as output1
+          if [ "$output1" == "$output3" ]; then
+            echo "csi rbd and cephfs key reverted successfully"
+          else
+            echo "csi rbd and cephfs key not reverted"
+            exit 1
+          fi
+
+          # create tenant2 and verify
+          # create `radosNamespace2` rados-namespace for `replicapool` rbd data-pool
+          kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/rn2
+          output4=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace rn2 --cephfs-filesystem-name myfs --k8s-cluster-name rookstorage --restricted-auth-permission true)
+
+          # check if it create a csi rbd, cephfs and Healthchecker keys
+          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node-rookstorage-replicapool-rn2 client.csi-rbd-provisioner-rookstorage-replicapool-rn2 client.csi-cephfs-provisioner-rookstorage-myfs client.csi-cephfs-node-rookstorage-myfs client.healthchecker
+
+          # rotate tenant2 and verify
+          output5=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace rn2 --cephfs-filesystem-name myfs --k8s-cluster-name rookstorage --restricted-auth-permission true --cephx-key-rotate rotate)
+          # check if it create rotated csi rbd, cephfs and Healthchecker keys
+          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node-rookstorage-replicapool-rn2.1 client.csi-rbd-provisioner-rookstorage-replicapool-rn2.1 client.csi-cephfs-provisioner-rookstorage-myfs.1 client.csi-cephfs-node-rookstorage-myfs.1 client.healthchecker.1
+
+          # rotate tenant1 (again) and verify
+          output6=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace rn1 --cephfs-filesystem-name myfs --k8s-cluster-name rookstorage --restricted-auth-permission true --cephx-key-rotate rotate)
+          # check if it create rotated csi rbd, cephfs and Healthchecker keys
+          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node-rookstorage-replicapool-rn1.2 client.csi-rbd-provisioner-rookstorage-replicapool-rn1.2 client.csi-cephfs-provisioner-rookstorage-myfs.2 client.csi-cephfs-node-rookstorage-myfs.2 client.healthchecker.2
+
+          # verify if tenant1 is rotated, tenant2 keys should not be rotated
+          # only rbd keys have separation of tenant1 and tenant2, and cephfs keys are shared
+          tests/scripts/github-action-helper.sh check_keys_not_exists client.csi-rbd-node-rookstorage-replicapool-rn2.2 client.csi-rbd-provisioner-rookstorage-replicapool-rn2.2
+
+          # revert tenant2 and verify
+          output7=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace rn2 --cephfs-filesystem-name myfs --k8s-cluster-name rookstorage --restricted-auth-permission true --cephx-key-rotate revert)
+          # check if it create a reverted csi rbd, cephfs and Healthchecker keys
+          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node-rookstorage-replicapool-rn2 client.csi-rbd-provisioner-rookstorage-replicapool-rn2 client.csi-cephfs-provisioner-rookstorage-myfs client.csi-cephfs-node-rookstorage-myfs client.healthchecker
+
+          # check if it revert the key, it should be same as output1
+          if [ "$output4" == "$output7" ]; then
+            echo "csi rbd and cephfs key reverted successfully"
+          else
+            echo "csi rbd and cephfs key not reverted"
+            exit 1
+          fi
+
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
 
