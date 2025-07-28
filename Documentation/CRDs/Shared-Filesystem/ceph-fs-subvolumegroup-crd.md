@@ -67,18 +67,19 @@ If any setting is unspecified, a suitable default will be used automatically.
 
 ## Create a storage class for the subvolume group
 
-* Create a CephFilesystem CR 
-* Create a CephFilesystemSubvolumegroup CR 
+* Create a CephFilesystem CR
+* Create a CephFilesystemSubvolumegroup CR
+
+**Note** The clusterID can be explicitly set in the spec of the CephFilesystemSubVolumeGroup CR.
+If it is not set, Rook will auto-generate the clusterID.
+
 * Extract the `clusterID` from the status of the CephFilesystemSubvolumegroup CR:
 
     ```bash
-    kubectl -n rook-ceph get cephfilesystemsubvolumegroup <name> -o jsonpath="{.status.info.clusterID}"
+    $ kubectl -n rook-ceph get cephfilesystemsubvolumegroup <name> -o jsonpath="{.status.info.clusterID}"
+    80fc4f4bacc064be641633e6ed25ba7e
     ```
-    
-    ```yaml
-    status:
-        info:
-            clusterID: 80fc4f4bacc064be641633e6ed25ba7e
-    ```
+
+This returns `spec.clusterID` if present, otherwise falls back to the auto generated one.
 
 * Set the `clusterID` in the `StorageClass`, `VolumeSnapshotClass`, and `VolumeGroupSnapshotClass` to this value instead of the name of the cluster namespace

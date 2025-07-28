@@ -3586,6 +3586,15 @@ type CephFilesystemSubVolumeGroupSpec struct {
 	// The data pool name for the Ceph Filesystem subvolume group layout, if the default CephFS pool is not desired.
 	// +optional
 	DataPoolName string `json:"dataPoolName"`
+	// ClusterID to be used for this subvolume group in the CSI configuration.
+	// It must be unique among all Ceph clusters managed by Rook.
+	// If not specified, the clusterID will be generated and can be found in the CR status.
+	// +optional
+	// +kubebuilder:validation:XValidation:message="ClusterID is immutable",rule="self == oldSelf"
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=36
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_-]+$`
+	ClusterID string `json:"clusterID,omitempty"`
 }
 
 // CephFilesystemSubVolumeGroupSpecPinning represents the pinning configuration of SubVolumeGroup
@@ -3685,6 +3694,16 @@ type CephBlockPoolRadosNamespaceSpec struct {
 	// Mirroring configuration of CephBlockPoolRadosNamespace
 	// +optional
 	Mirroring *RadosNamespaceMirroring `json:"mirroring,omitempty"`
+
+	// ClusterID to be used for this RadosNamespace in the CSI configuration.
+	// It must be unique among all Ceph clusters managed by Rook.
+	// If not specified, the clusterID will be generated and can be found in the CR status.
+	// +optional
+	// +kubebuilder:validation:XValidation:message="ClusterID is immutable",rule="self == oldSelf"
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=36
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_-]+$`
+	ClusterID string `json:"clusterID,omitempty"`
 }
 
 // CephBlockPoolRadosNamespaceStatus represents the Status of Ceph BlockPool

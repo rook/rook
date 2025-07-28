@@ -63,6 +63,18 @@ spec:
                   x-kubernetes-validations:
                     - message: blockPoolName is immutable
                       rule: self == oldSelf
+                clusterID:
+                  description: |-
+                    ClusterID to be used for this RadosNamespace in the CSI configuration.
+                    It must be unique among all Ceph clusters managed by Rook.
+                    If not specified, the clusterID will be generated and can be found in the CR status.
+                  maxLength: 36
+                  minLength: 1
+                  pattern: ^[a-zA-Z0-9_-]+$
+                  type: string
+                  x-kubernetes-validations:
+                    - message: ClusterID is immutable
+                      rule: self == oldSelf
                 mirroring:
                   description: Mirroring configuration of CephBlockPoolRadosNamespace
                   properties:
@@ -8992,6 +9004,18 @@ spec:
             spec:
               description: Spec represents the specification of a Ceph Filesystem SubVolumeGroup
               properties:
+                clusterID:
+                  description: |-
+                    ClusterID to be used for this subvolume group in the CSI configuration.
+                    It must be unique among all Ceph clusters managed by Rook.
+                    If not specified, the clusterID will be generated and can be found in the CR status.
+                  maxLength: 36
+                  minLength: 1
+                  pattern: ^[a-zA-Z0-9_-]+$
+                  type: string
+                  x-kubernetes-validations:
+                    - message: ClusterID is immutable
+                      rule: self == oldSelf
                 dataPoolName:
                   description: The data pool name for the Ceph Filesystem subvolume group layout, if the default CephFS pool is not desired.
                   type: string

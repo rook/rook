@@ -452,6 +452,9 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(observedGeneration 
 }
 
 func buildClusterID(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) string {
+	if cephFilesystemSubVolumeGroup.Spec.ClusterID != "" {
+		return cephFilesystemSubVolumeGroup.Spec.ClusterID
+	}
 	clusterID := fmt.Sprintf("%s-%s-file-%s", cephFilesystemSubVolumeGroup.Namespace, cephFilesystemSubVolumeGroup.Spec.FilesystemName, getSubvolumeGroupName(cephFilesystemSubVolumeGroup))
 	return k8sutil.Hash(clusterID)
 }
