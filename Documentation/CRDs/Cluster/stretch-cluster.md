@@ -34,7 +34,7 @@ spec:
       - name: b
       - name: c
   cephVersion:
-    image: quay.io/ceph/ceph:v19.2.2
+    image: quay.io/ceph/ceph:v19.2.3
     allowUnsupported: true
   # Either storageClassDeviceSets or the storage section can be specified for creating OSDs.
   # This example uses all devices for simplicity.
