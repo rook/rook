@@ -74,7 +74,7 @@ func generateMDSLivenessProbeExecDaemon(daemonID, filesystemName, keyring string
 		ProbeHandler: v1.ProbeHandler{
 			Exec: &v1.ExecAction{
 				Command: []string{
-					"sh",
+					"bash",
 					"-c",
 					mdsLivenessProbeCmd,
 				},
