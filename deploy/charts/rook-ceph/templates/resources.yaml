@@ -3706,6 +3706,48 @@ spec:
                     cephx:
                       description: 'CephX configures CephX key settings. More: https://docs.ceph.com/en/latest/dev/cephx/'
                       properties:
+                        csi:
+                          description: |-
+                            CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
+                            CSI key rotation can affect existing PV connections, so take care when exercising this option.
+                          properties:
+                            keepPriorKeyCountMax:
+                              description: |-
+                                KeepPriorKeyCountMax tells Rook how many prior keys to keep active.
+                                Generally, this would be set to 1 to allow for a migration period for applications.
+                                If desired, set this to 0 to delete prior keys after migration.
+                                This config only applies to prior keys that already exist.
+                                If PriorKeyCount is set to 2 while only a single key currently exists, only a single prior key will be kept,
+                                and the reported status will only indicate the actual number of prior keys,
+                                not necessarily a reflection of PriorKeyCount config here.
+                              maximum: 10
+                              minimum: 0
+                              type: integer
+                            keyGeneration:
+                              description: |-
+                                KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
+                                is KeyGeneration and ignored for other policies. If this is set to greater than the current
+                                key generation, relevant keys will be rotated, and the generation value will be updated to
+                                this new value (generation values are not necessarily incremental, though that is the
+                                intended use case). If this is set to less than or equal to the current key generation, keys
+                                are not rotated.
+                              format: int32
+                              maximum: 4294967295
+                              minimum: 0
+                              type: integer
+                              x-kubernetes-validations:
+                                - message: keyGeneration cannot be decreased
+                                  rule: self >= oldSelf
+                            keyRotationPolicy:
+                              description: |-
+                                KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
+                                One of Disabled, or KeyGeneration. Default Disabled.
+                              enum:
+                                - ""
+                                - Disabled
+                                - KeyGeneration
+                              type: string
+                          type: object
                         daemon:
                           description: |-
                             Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
@@ -5885,6 +5927,31 @@ spec:
                 cephx:
                   description: ClusterCephxStatus defines the cephx key rotation status of various daemons on the cephCluster resource
                   properties:
+                    csi:
+                      description: CSI shows the CephX key status for Ceph-CSI components.
+                      properties:
+                        keyCephVersion:
+                          description: |-
+                            KeyCephVersion reports the Ceph version that created the current generation's keys. This is
+                            same string format as reported by `CephCluster.status.version.version` to allow them to be
+                            compared. E.g., `20.2.0-0`.
+                            For all newly-created resources, this field set to the version of Ceph that created the key.
+                            The special value "Uninitialized" indicates that keys are being created for the first time.
+                            An empty string indicates that the version is unknown, as expected in brownfield deployments.
+                          type: string
+                        keyGeneration:
+                          description: |-
+                            KeyGeneration represents the CephX key generation for the last successful reconcile.
+                            For all newly-created resources, this field is set to `1`.
+                            When keys are rotated due to any rotation policy, the generation is incremented or updated to
+                            the configured policy generation.
+                            Generation `0` indicates that keys existed prior to the implementation of key tracking.
+                          format: int32
+                          type: integer
+                        priorKeyCount:
+                          description: PriorKeyCount reports the number of prior-generation CephX keys that remain active for the related component
+                          type: integer
+                      type: object
                     mgr:
                       description: Mgr represents the cephx key rotation status of the ceph manager daemon
                       properties:
