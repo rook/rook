@@ -182,6 +182,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileCephFilesystem) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
+	defer opcontroller.RecoverAndLogException()
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, cephFilesystem, err := r.reconcile(request)
 	if err != nil {
