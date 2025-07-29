@@ -39,7 +39,7 @@ Official Ceph container images can be found on [Quay](https://quay.io/repository
 
 These images are tagged in a few ways:
 
-* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v19.2.2-20250409`).
+* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v19.2.3-20250717`).
     These tags are recommended for production clusters, as there is no possibility for the cluster to
     be heterogeneous with respect to the version of Ceph running in containers.
 * Ceph major version tags (e.g., `v19`) are useful for development and test clusters so that the
@@ -56,7 +56,7 @@ CephCluster CRD (`spec.cephVersion.image`).
 
 ```console
 ROOK_CLUSTER_NAMESPACE=rook-ceph
-NEW_CEPH_IMAGE='quay.io/ceph/ceph:v19.2.2-20250409'
+NEW_CEPH_IMAGE='quay.io/ceph/ceph:v19.2.3-20250717'
 kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $ROOK_CLUSTER_NAMESPACE --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
 
@@ -68,7 +68,7 @@ employed by the new Rook operator release. Employing an outdated Ceph version wi
 in unexpected behaviour.
 
 ```console
-kubectl -n rook-ceph set image deploy/rook-ceph-tools rook-ceph-tools=quay.io/ceph/ceph:v19.2.2-20250409
+kubectl -n rook-ceph set image deploy/rook-ceph-tools rook-ceph-tools=quay.io/ceph/ceph:v19.2.3-20250717
 ```
 
 #### **3. Wait for the pod updates**
@@ -86,9 +86,9 @@ Confirm the upgrade is completed when the versions are all on the desired Ceph v
 kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"ceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
     ceph-version=v18.2.4-0
-    ceph-version=v19.2.2-0
+    ceph-version=v19.2.3-0
 This cluster is finished:
-    ceph-version=v19.2.2-0
+    ceph-version=v19.2.3-0
 ```
 
 #### **4. Verify cluster health**

@@ -105,7 +105,7 @@ func (s *ObjectSuite) TestWithTLS() {
 	tls := true
 	swiftAndKeystone := false
 	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings.Namespace, tls, swiftAndKeystone)
+	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings, tls, swiftAndKeystone)
 	cleanUpTLS(s)
 }
 
@@ -127,14 +127,15 @@ func (s *ObjectSuite) TestWithoutTLS() {
 	tls := false
 	swiftAndKeystone := false
 	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings.Namespace, tls, swiftAndKeystone)
+	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings, tls, swiftAndKeystone)
 }
 
 // Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
 // Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,
 // Check issues in MGRs, Delete Bucket and Delete user
 // Test for ObjectStore with and without TLS enabled
-func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, s *suite.Suite, namespace string, tlsEnable bool, swiftAndKeystone bool) {
+func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, s *suite.Suite, settings *installer.TestCephSettings, tlsEnable bool, swiftAndKeystone bool) {
+	namespace := settings.Namespace
 	storeName := "test-store"
 	if tlsEnable {
 		storeName = objectStoreTLSName
@@ -153,7 +154,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	})
 
 	// now test operation of the first object store
-	testObjectStoreOperations(s, helper, k8sh, namespace, storeName, swiftAndKeystone)
+	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
 
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable)
 	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable)
@@ -171,8 +172,9 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	}
 }
 
-func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string, swiftAndKeystone bool) {
+func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, settings *installer.TestCephSettings, storeName string, swiftAndKeystone bool) {
 	ctx := context.TODO()
+	namespace := settings.Namespace
 	clusterInfo := client.AdminTestClusterInfo(namespace)
 	t := s.T()
 
@@ -886,7 +888,14 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		})
 
 		t.Run("lifecycle was removed from bucket", func(t *testing.T) {
-			var err error
+			cephcluster, err := k8sh.RookClientset.CephV1().CephClusters(namespace).Get(ctx, settings.ClusterName, metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("failed to get CephCluster: %v", err)
+			}
+			logger.Infof("CephCluster version: %s", cephcluster.Status.CephVersion.Version)
+			if strings.HasPrefix(cephcluster.Status.CephVersion.Version, "19.2.3") {
+				t.Skip("Waiting for rgw fix from regression in v19.2.3")
+			}
 			utils.Retry(20, time.Second, "lifecycle is gone", func() bool {
 				_, err = s3client.Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
 					Bucket: &bucketName,
