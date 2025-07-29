@@ -746,9 +746,10 @@ type ClusterCephxStatus struct {
 	Mgr *CephxStatus `json:"mgr,omitempty"`
 	// RBDMirrorPeer represents the cephx key rotation status of the `rbd-mirror-peer` user
 	RBDMirrorPeer *CephxStatus `json:"rbdMirrorPeer,omitempty"`
-
 	// CSI shows the CephX key status for Ceph-CSI components.
 	CSI *CephxStatusWithKeyCount `json:"csi,omitempty"`
+	// Crash Collector represents the cephx key rotation status of the crash collector daemon
+	CrashCollector *CephxStatus `json:"crashCollector,omitempty"`
 }
 
 // MonSpec represents the specification of the monitor
