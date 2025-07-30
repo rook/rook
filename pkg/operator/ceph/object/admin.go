@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
@@ -226,6 +227,10 @@ func extractJSON(output string) (string, error) {
 // This function times out after a fixed interval if no response is received.
 // The function will return a Kubernetes error "NotFound" when exec fails when the pod does not exist
 func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (string, error) {
+	return RunAdminCommandNoMultisiteWithTimeout(c, expectJSON, exec.CephCommandsTimeout, args...)
+}
+
+func RunAdminCommandNoMultisiteWithTimeout(c *Context, expectJSON bool, timeout time.Duration, args ...string) (string, error) {
 	var output, stderr string
 	var err error
 
@@ -256,10 +261,10 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 				}
 			}()
 		}
-		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
+		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxyInitContainerName, c.clusterInfo.Namespace, timeout, append([]string{"radosgw-admin"}, args...)...)
 	} else {
 		command, args := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
-		output, err = c.Context.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, command, args...)
+		output, err = c.Context.Executor.ExecuteCommandWithTimeout(timeout, command, args...)
 	}
 
 	if err != nil {
@@ -278,6 +283,10 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 
 // This function is for running radosgw-admin commands in scenarios where an object-store has been created and the Context has been updated with the appropriate realm, zone group, and zone.
 func runAdminCommand(c *Context, expectJSON bool, args ...string) (string, error) {
+	return runAdminCommandWithTimeout(c, expectJSON, exec.CephCommandsTimeout, args...)
+}
+
+func runAdminCommandWithTimeout(c *Context, expectJSON bool, timeout time.Duration, args ...string) (string, error) {
 	// If the objectStoreName is not passed in the storage class
 	// This means we are pointing to an external cluster so these commands are not needed
 	// simply because the external cluster mode does not support that yet
@@ -296,7 +305,7 @@ func runAdminCommand(c *Context, expectJSON bool, args ...string) (string, error
 
 	// work around FIFO file I/O issue when radosgw-admin is not compatible between version
 	// installed in Rook operator and RGW version in Ceph cluster (#7573)
-	result, err := RunAdminCommandNoMultisite(c, expectJSON, args...)
+	result, err := RunAdminCommandNoMultisiteWithTimeout(c, expectJSON, timeout, args...)
 	if err != nil && isFifoFileIOError(err) {
 		logger.Debugf("retrying 'radosgw-admin' command with OMAP backend to work around FIFO file I/O issue. %v", result)
 
@@ -304,10 +313,10 @@ func runAdminCommand(c *Context, expectJSON bool, args ...string) (string, error
 		// and then pick a flag to use, or we can just try to use both flags and return the one that
 		// works. Same number of commands being run.
 		retryArgs := append(args, "--rgw-data-log-backing=omap") // v16.2.0- in the operator
-		retryResult, retryErr := RunAdminCommandNoMultisite(c, expectJSON, retryArgs...)
+		retryResult, retryErr := RunAdminCommandNoMultisiteWithTimeout(c, expectJSON, timeout, retryArgs...)
 		if retryErr != nil && isInvalidFlagError(retryErr) {
 			retryArgs = append(args, "--rgw-default-data-log-backing=omap") // v16.2.1+ in the operator
-			retryResult, retryErr = RunAdminCommandNoMultisite(c, expectJSON, retryArgs...)
+			retryResult, retryErr = RunAdminCommandNoMultisiteWithTimeout(c, expectJSON, timeout, retryArgs...)
 		}
 
 		return retryResult, retryErr
