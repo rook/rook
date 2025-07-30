@@ -28,6 +28,9 @@ linters:
       - linters:
           - staticcheck
         text: "QF1006:" # could lift into loop condition (staticcheck)
+      - linters:
+          - staticcheck
+        text: "Requeue is deprecated"
 formatters:
   enable:
     - gofmt
