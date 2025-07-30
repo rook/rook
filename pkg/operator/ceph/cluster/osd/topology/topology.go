@@ -102,7 +102,7 @@ func extractTopologyFromLabels(labels map[string]string) (map[string]string, str
 	// for the topology affinity
 	for _, label := range allKubernetesTopologyLabels {
 		topologyID := kubernetesTopologyLabelToCRUSHLabel(label)
-		if value, ok := labels[label]; ok {
+		if value, ok := labels[label]; ok && value != "" {
 			topology[topologyID] = value
 			if topologyID != "host" {
 				topologyAffinity = formatTopologyAffinity(label, value)
