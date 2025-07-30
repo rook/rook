@@ -28,6 +28,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
@@ -131,8 +132,8 @@ func execute(ctx context.Context, method string, url *url.URL, config *rest.Conf
 	})
 }
 
-func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutputWithTimeout(ctx context.Context, appLabel, containerName, namespace string, cmd ...string) (string, string, error) {
-	return e.ExecCommandInContainerWithFullOutput(ctx, appLabel, containerName, namespace, append([]string{"timeout", strconv.Itoa(int(CephCommandsTimeout.Seconds()))}, cmd...)...)
+func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutputWithTimeout(ctx context.Context, appLabel, containerName, namespace string, timeout time.Duration, cmd ...string) (string, string, error) {
+	return e.ExecCommandInContainerWithFullOutput(ctx, appLabel, containerName, namespace, append([]string{"timeout", strconv.Itoa(int(timeout.Seconds()))}, cmd...)...)
 }
 
 func (e *RemotePodCommandExecutor) CopyLocalFileToContainer(ctx context.Context, appLabel, containerName, namespace string, srcPath, dstPath string) error {

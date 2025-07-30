@@ -209,7 +209,8 @@ func (c *CephToolCommand) run() ([]byte, error) {
 	// Still forcing the check for the command if the behavior changes in the future
 	if command == RBDTool || command == RadosTool || command == GaneshaRadosGraceTool {
 		if c.RemoteExecution {
-			output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{command}, args...)...)
+			defaultTimeout := exec.CephCommandsTimeout
+			output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, defaultTimeout, append([]string{command}, args...)...)
 			if err != nil {
 				err = errors.Errorf("%s", err.Error())
 			}
