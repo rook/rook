@@ -121,15 +121,15 @@ jobs:
       - name: test external script create-external-cluster-resources.py if users already exist with different caps
         run: |
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # update client.csi-rbd-provisioner csi user caps
-          # print client.csi-rbd-provisioner user before update
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
-          kubectl -n rook-ceph exec $toolbox -- ceph auth caps client.csi-rbd-provisioner mon 'profile rbd, allow command "osd ls"' osd 'profile rbd' mgr 'allow rw'
-          # print client.csi-rbd-provisioner user after update
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
+          # update client.csi-rbd-provisioner.1 csi user caps
+          # print client.csi-rbd-provisioner.1 user before update
+          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner.1
+          kubectl -n rook-ceph exec $toolbox -- ceph auth caps client.csi-rbd-provisioner.1 mon 'profile rbd, allow command "osd ls"' osd 'profile rbd' mgr 'allow rw'
+          # print client.csi-rbd-provisioner.1 user after update
+          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner.1
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool
-          # print client.csi-rbd-provisioner user after running script
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
+          # print client.csi-rbd-provisioner.1 user after running script
+          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner.1
 
       - name: run external script create-external-cluster-resources.py unit tests
         run: |
@@ -318,13 +318,13 @@ jobs:
           output1=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephfs-filesystem-name myfs)
 
           # check if it create a csi rbd, cephfs Healthchecker keys
-          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node client.csi-rbd-provisioner client.csi-cephfs-node client.csi-cephfs-provisioner client.healthchecker
+          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node.1 client.csi-rbd-provisioner.1 client.csi-cephfs-node.1 client.csi-cephfs-provisioner.1 client.healthchecker.1
 
           # rotate the key
           output2=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephfs-filesystem-name myfs --cephx-key-rotate rotate)
 
           # check if it create a csi rbd, cephfs and Healthchecker rotated keys
-          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node.1 client.csi-rbd-provisioner.1 client.csi-cephfs-node.1 client.csi-cephfs-provisioner.1 client.healthchecker.1
+          tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node.2 client.csi-rbd-provisioner.2 client.csi-cephfs-node.2 client.csi-cephfs-provisioner.2 client.healthchecker.2
 
           # check the content of the secret, it should be changed
           if [ "$output1" != "$output2" ]; then
