@@ -35,6 +35,24 @@ func StartHostPathCleanup(namespaceDir, dataDirHostPath, monSecret string) {
 	}
 
 	cleanMonDirs(dataDirHostPath, monSecret)
+	cleanExporterDir(dataDirHostPath)
+}
+
+func cleanExporterDir(dataDirHostPath string) {
+	exporterDir := path.Join(dataDirHostPath, "exporter")
+
+	// Check if the exporter directory exists
+	if _, err := os.Stat(exporterDir); os.IsNotExist(err) {
+		logger.Infof("exporter directory %q does not exist, skipping cleanup", exporterDir)
+		return
+	}
+
+	// Attempt to delete it
+	if err := os.RemoveAll(exporterDir); err != nil {
+		logger.Errorf("failed to clean up exporter directory %q. %v", exporterDir, err)
+	} else {
+		logger.Infof("successfully cleaned up exporter directory %q", exporterDir)
+	}
 }
 
 func cleanMonDirs(dataDirHostPath, monSecret string) {
