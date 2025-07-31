@@ -20,12 +20,15 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -52,7 +55,7 @@ func CreateCrashCollectorSecret(context *clusterd.Context, clusterInfo *client.C
 	k := keyring.GetSecretStore(context, clusterInfo, clusterInfo.OwnerInfo)
 
 	// Create CrashCollector Ceph key
-	crashCollectorSecretKey, err := createCrashCollectorKeyring(k)
+	crashCollectorSecretKey, err := createCrashCollectorKeyring(k, context, clusterInfo)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create %q ceph keyring", crashCollectorKeyringUsername)
 	}
@@ -72,13 +75,64 @@ func cephCrashCollectorKeyringCaps() []string {
 	}
 }
 
-func createCrashCollectorKeyring(s *keyring.SecretStore) (string, error) {
+func createCrashCollectorKeyring(s *keyring.SecretStore, context *clusterd.Context, clusterInfo *client.ClusterInfo) (string, error) {
 	key, err := s.GenerateKey(crashCollectorKeyringUsername, cephCrashCollectorKeyringCaps())
 	if err != nil {
 		return "", err
 	}
 
+	clusterObj := &cephv1.CephCluster{}
+	if err := context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), clusterObj); err != nil {
+		return "", errors.Wrapf(err, "failed to get cluster %v", clusterInfo.NamespacedName())
+	}
+	// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
+	shouldRotateCephxKeys, err := keyring.ShouldRotateCephxKeys(
+		clusterObj.Spec.Security.CephX.Daemon,
+		clusterInfo.CephVersion, clusterInfo.CephVersion,
+		*clusterObj.Status.Cephx.CrashCollector,
+	)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to check if cephx keys should be rotated for crash collector %q", crashCollectorKeyringUsername)
+	}
+
+	if shouldRotateCephxKeys {
+		logger.Infof("rotating cephx key for crash collector %q", crashCollectorKeyringUsername)
+		newKey, err := s.RotateKey(crashCollectorKeyringUsername)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to rotate cephx key for crash collector %q", crashCollectorKeyringUsername)
+		} else {
+			key = newKey
+		}
+	}
+
+	err = updateCrashCollectorCephxStatus(context, clusterInfo, shouldRotateCephxKeys)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to update crash collector cephx status for cluster %q", clusterInfo.NamespacedName())
+	}
+
 	return key, nil
+}
+
+func updateCrashCollectorCephxStatus(context *clusterd.Context, clusterInfo *client.ClusterInfo, didRotate bool) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cluster := &cephv1.CephCluster{}
+		if err := context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cluster); err != nil {
+			return errors.Wrapf(err, "failed to get cluster %v to update the conditions.", clusterInfo.NamespacedName())
+		}
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, *cluster.Status.Cephx.CrashCollector)
+		cluster.Status.Cephx.CrashCollector = &updatedStatus
+		if err := reporting.UpdateStatus(context.Client, cluster); err != nil {
+			return errors.Wrap(err, "failed to update cluster cephx status for crash collector daemon")
+		}
+		logger.Debugf("successfully updated the crash collector cephx status for cluster in namespace %q to %+v", cluster.Namespace, cluster.Status.Cephx.CrashCollector)
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to update cluster cephx status for crash collector daemon")
+	}
+
+	return nil
 }
 
 func createOrUpdateCrashCollectorSecret(clusterInfo *client.ClusterInfo, crashCollectorSecretKey string, k *keyring.SecretStore) error {
@@ -115,7 +169,7 @@ func CreateExporterSecret(context *clusterd.Context, clusterInfo *client.Cluster
 	k := keyring.GetSecretStore(context, clusterInfo, clusterInfo.OwnerInfo)
 
 	// Create exporter Ceph key
-	exporterSecretKey, err := createExporterKeyring(k)
+	exporterSecretKey, err := createExporterKeyring(k, context, clusterInfo)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create %q ceph keyring", exporterKeyringUsername)
 	}
@@ -137,13 +191,63 @@ func createExporterKeyringCaps() []string {
 	}
 }
 
-func createExporterKeyring(s *keyring.SecretStore) (string, error) {
+func createExporterKeyring(s *keyring.SecretStore, context *clusterd.Context, clusterInfo *client.ClusterInfo) (string, error) {
 	key, err := s.GenerateKey(exporterKeyringUsername, createExporterKeyringCaps())
 	if err != nil {
 		return "", err
 	}
 
+	clusterObj := &cephv1.CephCluster{}
+	if err := context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), clusterObj); err != nil {
+		return "", errors.Wrapf(err, "failed to get cluster %v", clusterInfo.NamespacedName())
+	}
+	// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
+	shouldRotateCephxKeys, err := keyring.ShouldRotateCephxKeys(
+		clusterObj.Spec.Security.CephX.Daemon,
+		clusterInfo.CephVersion, clusterInfo.CephVersion,
+		*clusterObj.Status.Cephx.CephExporter,
+	)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to check if cephx keys should be rotated for ceph exporter %q", exporterKeyringUsername)
+	}
+
+	if shouldRotateCephxKeys {
+		logger.Infof("rotating cephx key for ceph exporter %q", exporterKeyringUsername)
+		newKey, err := s.RotateKey(exporterKeyringUsername)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to rotate cephx key for ceph exporter %q", exporterKeyringUsername)
+		}
+		key = newKey
+	}
+
+	err = updateCephExporterCephxStatus(context, clusterInfo, shouldRotateCephxKeys)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to update ceph exporter cephx status for cluster %q", clusterInfo.NamespacedName())
+	}
+
 	return key, nil
+}
+
+func updateCephExporterCephxStatus(context *clusterd.Context, clusterInfo *client.ClusterInfo, didRotate bool) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cluster := &cephv1.CephCluster{}
+		if err := context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cluster); err != nil {
+			return errors.Wrapf(err, "failed to get cluster %v to update the conditions.", clusterInfo.NamespacedName())
+		}
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, *cluster.Status.Cephx.CephExporter)
+		cluster.Status.Cephx.CephExporter = &updatedStatus
+		if err := reporting.UpdateStatus(context.Client, cluster); err != nil {
+			return errors.Wrap(err, "failed to update cluster cephx status for ceph exporter daemon")
+		}
+		logger.Debugf("successfully updated the ceph exporter cephx status for cluster in namespace %q to %+v", cluster.Namespace, cluster.Status.Cephx.CephExporter)
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to update cluster cephx status for ceph exporter daemon")
+	}
+
+	return nil
 }
 
 func createOrUpdateExporterSecret(clusterInfo *client.ClusterInfo, exporterSecretKey string, k *keyring.SecretStore) error {

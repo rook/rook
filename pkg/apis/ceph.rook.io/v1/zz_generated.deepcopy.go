@@ -2085,6 +2085,16 @@ func (in *ClusterCephxStatus) DeepCopyInto(out *ClusterCephxStatus) {
 		*out = new(CephxStatusWithKeyCount)
 		**out = **in
 	}
+	if in.CrashCollector != nil {
+		in, out := &in.CrashCollector, &out.CrashCollector
+		*out = new(CephxStatus)
+		**out = **in
+	}
+	if in.CephExporter != nil {
+		in, out := &in.CephExporter, &out.CephExporter
+		*out = new(CephxStatus)
+		**out = **in
+	}
 	return
 }
 
