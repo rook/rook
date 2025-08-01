@@ -805,6 +805,7 @@ func initClusterCephxStatus(c *clusterd.Context, cluster *cephv1.CephCluster) er
 			CephxStatus: uninitializedStatus,
 		},
 		CrashCollector: &uninitializedStatus,
+		CephExporter:   &uninitializedStatus,
 	}
 
 	if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
