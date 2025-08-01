@@ -18,10 +18,6 @@ package sns
 
 import (
 	"context"
-	"crypto/tls"
-	"encoding/json"
-	"fmt"
-	"net/http"
 	"net/url"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -30,11 +26,11 @@ import (
 	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	utils3 "github.com/rook/rook/tests/integration/object/util/s3"
 )
 
 // based on the s3 endpoint example in the official docs:
@@ -53,62 +49,10 @@ func (r *snsResolverV2) ResolveEndpoint(ctx context.Context, params sns.Endpoint
 	}, nil
 }
 
-func GetS3Credentials(objectStore *cephv1.CephObjectStore, installer *installer.CephInstaller) (string, string, error) {
-	output, err := installer.Execute("radosgw-admin", []string{"user", "info", "--uid=dashboard-admin", fmt.Sprintf("--rgw-realm=%s", objectStore.Name)}, objectStore.Namespace)
-	if err != nil {
-		return "", "", errors.Wrap(err, "failed to get user info")
-	}
-
-	// extract api creds from json output
-	var userInfo map[string]interface{}
-	err = json.Unmarshal([]byte(output), &userInfo)
-	if err != nil {
-		return "", "", errors.Wrap(err, "failed to unmarshal user info")
-	}
-
-	accessKey, ok := userInfo["keys"].([]interface{})[0].(map[string]interface{})["access_key"].(string)
-	if !ok {
-		return "", "", errors.New("failed to get access key")
-	}
-
-	secretKey, ok := userInfo["keys"].([]interface{})[0].(map[string]interface{})["secret_key"].(string)
-	if !ok {
-		return "", "", errors.New("failed to get secret key")
-	}
-
-	return accessKey, secretKey, nil
-}
-
-func GetS3Endpoint(objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, tlsEnable bool) (string, error) {
-	ctx := context.TODO()
-
-	// extract rgw endpoint from k8s svc
-	svc, err := k8sh.Clientset.CoreV1().Services(objectStore.Namespace).Get(ctx, objectStore.Name, metav1.GetOptions{})
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get objectstore svc")
-	}
-
-	schema := "http://"
-	httpClient := &http.Client{}
-
-	if tlsEnable {
-		schema = "https://"
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{
-				// nolint:gosec // skip TLS verification as this is a test
-				InsecureSkipVerify: true,
-			},
-		}
-	}
-	endpoint := schema + svc.Spec.ClusterIP + ":80"
-
-	return endpoint, nil
-}
-
 func NewClient(objectStore *cephv1.CephObjectStore, svc *corev1.Service, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool) (*sns.Client, error) {
 	ctx := context.TODO()
 
-	accessKey, secretKey, err := GetS3Credentials(objectStore, installer)
+	accessKey, secretKey, err := utils3.GetS3Credentials(objectStore, installer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get s3 credentials")
 	}
@@ -128,7 +72,7 @@ func NewClient(objectStore *cephv1.CephObjectStore, svc *corev1.Service, k8sh *u
 		return nil, errors.Wrap(err, "failed to load default aws config")
 	}
 
-	endpoint, err := GetS3Endpoint(objectStore, k8sh, tlsEnable)
+	endpoint, err := utils3.GetS3Endpoint(objectStore, k8sh, tlsEnable)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get sns endpoint")
 	}
