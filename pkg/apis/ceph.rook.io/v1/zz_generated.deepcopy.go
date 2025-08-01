@@ -2100,6 +2100,11 @@ func (in *ClusterCephxStatus) DeepCopyInto(out *ClusterCephxStatus) {
 		*out = new(CephxStatus)
 		**out = **in
 	}
+	if in.CephExporter != nil {
+		in, out := &in.CephExporter, &out.CephExporter
+		*out = new(CephxStatus)
+		**out = **in
+	}
 	return
 }
 
