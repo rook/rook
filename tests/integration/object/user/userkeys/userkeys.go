@@ -649,21 +649,17 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 			require.True(t, osuReady)
 		})
 
-		// recreate secret to allow CephObjectStoreUser to reconcile so it can be deleted
-		t.Run(fmt.Sprintf("create secret %q", secret1.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Create(ctx, secret1, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
+		t.Run("missing referenced secret should not block CephObjectStoreUser deletion", func(t *testing.T) {
+			t.Run(fmt.Sprintf("delete CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
+				err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Delete(ctx, osu1.Name, metav1.DeleteOptions{})
+				require.NoError(t, err)
 
-		t.Run(fmt.Sprintf("delete CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Delete(ctx, osu1.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-
-			absent := utils.Retry(40, time.Second, "CephObjectStoreUser is absent", func() bool {
-				_, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
-				return err != nil
+				absent := utils.Retry(40, time.Second, "CephObjectStoreUser is absent", func() bool {
+					_, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
+					return err != nil
+				})
+				assert.True(t, absent)
 			})
-			assert.True(t, absent)
 		})
 
 		t.Run(fmt.Sprintf("no CephObjectStoreUsers in ns %q", ns.Name), func(t *testing.T) {
@@ -678,51 +674,30 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 			require.ErrorIs(t, err, admin.ErrNoSuchUser)
 		})
 
-		// CephObjectStoreUser removal did not delete any secret resources
-		t.Run(fmt.Sprintf("secret %q still exists", secret2.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Get(ctx, secret2.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-		})
+		// check that CephObjectStoreUser removal did not delete any secret resources
 
-		t.Run(fmt.Sprintf("secret %q still exists", secret3.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Get(ctx, secret3.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-		})
+		{
+			secrets := []*corev1.Secret{
+				// secret1 was deleted in a previous step
+				secret2,
+				secret3,
+				secret4,
+				secret5,
+			}
 
-		t.Run(fmt.Sprintf("secret %q still exists", secret4.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Get(ctx, secret4.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-		})
+			for _, secret := range secrets {
+				t.Run(fmt.Sprintf("secret %q still exists", secret.Name), func(t *testing.T) {
+					_, err := k8sh.Clientset.CoreV1().Secrets(secret.Namespace).Get(ctx, secret.Name, metav1.GetOptions{})
+					require.NoError(t, err)
+				})
 
-		t.Run(fmt.Sprintf("secret %q still exists", secret5.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Get(ctx, secret5.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("delete secret %q", secret5.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Delete(ctx, secret5.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("delete secret %q", secret4.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Delete(ctx, secret4.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("delete secret %q", secret3.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Delete(ctx, secret3.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("delete secret %q", secret2.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Delete(ctx, secret2.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("delete secret %q", secret1.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Delete(ctx, secret1.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
+				// cleanup the secrets created for the test
+				t.Run(fmt.Sprintf("delete secret %q", secret.Name), func(t *testing.T) {
+					err := k8sh.Clientset.CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{})
+					require.NoError(t, err)
+				})
+			}
+		}
 
 		t.Run(fmt.Sprintf("no secrets in ns %q", ns.Name), func(t *testing.T) {
 			secrets, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).List(ctx, metav1.ListOptions{})
