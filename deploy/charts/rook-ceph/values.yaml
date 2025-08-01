@@ -80,6 +80,7 @@ allowLoopDevices: false
 # Settings for whether to disable the drivers or other daemons if they are not
 # needed
 csi:
+  rookUseCSIOperator: "false"
   # -- Enable Ceph CSI RBD driver
   enableRbdDriver: true
   # -- Enable Ceph CSI CephFS driver
@@ -669,3 +670,55 @@ monitoring:
   # -- Enable monitoring. Requires Prometheus to be pre-installed.
   # Enabling will also create RBAC rules to allow Operator to create ServiceMonitors
   enabled: false
+
+ceph-csi-operator:
+  enabled: false
+  nameOverride: ceph-csi-operator
+  fullnameOverride: ceph-csi-operator
+cephfsCtrlpluginSa:
+  serviceAccount:
+    annotations: {}
+cephfsNodepluginSa:
+  serviceAccount:
+    annotations: {}
+controllerManager:
+  manager:
+    args:
+      - --leader-elect
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
+    env:
+      csiServiceAccountPrefix: ceph-csi-operator
+      watchNamespace: ""
+    image:
+      repository: quay.io/cephcsi/ceph-csi-operator
+      tag: v0.3.1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 64Mi
+  podSecurityContext:
+    runAsNonRoot: true
+  replicas: 1
+  serviceAccount:
+    annotations: {}
+kubernetesClusterDomain: cluster.local
+nfsCtrlpluginSa:
+  serviceAccount:
+    annotations: {}
+nfsNodepluginSa:
+  serviceAccount:
+    annotations: {}
+rbdCtrlpluginSa:
+  serviceAccount:
+    annotations: {}
+rbdNodepluginSa:
+  serviceAccount:
+    annotations: {}

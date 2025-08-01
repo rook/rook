@@ -1,6 +1,13 @@
 The Rook Operator has been installed. Check its status by running:
   kubectl --namespace {{ .Release.Namespace }} get pods -l "app=rook-ceph-operator"
 
+{{- if eq .Values.csi.rookUseCSIOperator "true" }}
+
+The Ceph CSI Operator has been installed as a dependency. Check its status by running:
+  kubectl --namespace {{ .Release.Namespace }} get pods -l "app.kubernetes.io/name=ceph-csi-operator"
+
+{{- end }}
+
 Visit https://rook.io/docs/rook/latest for instructions on how to create and configure Rook clusters
 
 Important Notes:
@@ -9,3 +16,6 @@ Important Notes:
 - The sample manifests assume you also installed the rook-ceph operator in the `rook-ceph` namespace.
 - The helm chart includes all the RBAC required to create a CephCluster CRD in the same namespace.
 - Any disk devices you add to the cluster in the 'CephCluster' must be empty (no filesystem and no partitions).
+{{- if eq .Values.csi.rookUseCSIOperator "true" }}
+- The CSI operator will manage the CSI driver lifecycle for RBD, CephFS, and NFS drivers.
+{{- end }}
