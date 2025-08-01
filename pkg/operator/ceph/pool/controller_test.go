@@ -317,6 +317,7 @@ func TestCephBlockPoolController(t *testing.T) {
 				CephStatus: &cephv1.CephStatus{
 					Health: "",
 				},
+				Cephx: &cephv1.ClusterCephxStatus{},
 			},
 		}
 
