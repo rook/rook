@@ -72,6 +72,10 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterInfo *ClusterInf
 		return errors.Wrap(err, "failed to look up default erasure code profile")
 	}
 
+	if pool.ErasureCoded.Algorithm != "" {
+		defaultProfile.Plugin = pool.ErasureCoded.Algorithm
+	}
+
 	// define the profile with a set of key/value pairs
 	profilePairs := []string{
 		fmt.Sprintf("k=%d", pool.ErasureCoded.DataChunks),
