@@ -754,7 +754,7 @@ func (p *Provisioner) setBucketPolicy(additionalConfig *additionalConfigSpec) er
 		livePolicy = policyResp.Policy
 	}
 
-	diff := cmp.Diff(&livePolicy, additionalConfig.bucketPolicy)
+	diff := cmp.Diff(livePolicy, additionalConfig.bucketPolicy)
 	if diff == "" {
 		// policy is in sync
 		return nil
