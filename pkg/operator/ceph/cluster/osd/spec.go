@@ -18,6 +18,7 @@ limitations under the License.
 package osd
 
 import (
+	"encoding/json"
 	"fmt"
 	"path"
 	"path/filepath"
@@ -641,11 +642,21 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 			"",
 		))
 
+	// apply status to each OSD so its key isn't rotated again after a rotation is applied via
+	// daemon restart. important b/c osd update is often interrupted by reconcile requeues
+	cephxStatusVal, err := json.Marshal(osd.CephxStatus)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to marshal OSD info CephX status %#v for OSD deployment %q", osd.CephxStatus, deploymentName)
+	}
+
 	envVars = append(envVars, controller.ApplyNetworkEnv(&c.spec)...)
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   AppName,
 			Labels: osdLabels,
+			Annotations: map[string]string{
+				cephxStatusAnnotationKey: string(cephxStatusVal),
+			},
 		},
 		Spec: v1.PodSpec{
 			RestartPolicy:      v1.RestartPolicyAlways,
@@ -768,7 +779,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	cephv1.GetOSDLabels(c.spec.Labels).ApplyToObjectMeta(&deployment.ObjectMeta)
 	cephv1.GetOSDLabels(c.spec.Labels).ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
-	err := c.clusterInfo.OwnerInfo.SetControllerReference(deployment)
+	err = c.clusterInfo.OwnerInfo.SetControllerReference(deployment)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set owner reference to osd deployment %q", deployment.Name)
 	}
