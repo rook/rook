@@ -19,11 +19,8 @@ package bucketowner
 import (
 	"bufio"
 	"context"
-	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -34,6 +31,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	utiladmin "github.com/rook/rook/tests/integration/object/util/admin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -341,47 +339,8 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 
 		// the rgw admin api is used to verify bucket ownership
 		t.Run("setup rgw admin api client", func(t *testing.T) {
-			output, err := installer.Execute("radosgw-admin", []string{"user", "info", "--uid=dashboard-admin", fmt.Sprintf("--rgw-realm=%s", objectStore.Name)}, objectStore.Namespace)
-			require.NoError(t, err)
-
-			// extract api creds from json output
-			var userInfo map[string]interface{}
-			err = json.Unmarshal([]byte(output), &userInfo)
-			require.NoError(t, err)
-
-			s3AccessKey, ok := userInfo["keys"].([]interface{})[0].(map[string]interface{})["access_key"].(string)
-			require.True(t, ok)
-			require.NotEmpty(t, s3AccessKey)
-
-			s3SecretKey, ok := userInfo["keys"].([]interface{})[0].(map[string]interface{})["secret_key"].(string)
-			require.True(t, ok)
-			require.NotEmpty(t, s3SecretKey)
-
-			// extract rgw endpoint from k8s svc
-			svc, err := k8sh.Clientset.CoreV1().Services(objectStore.Namespace).Get(ctx, objectStore.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-
-			schema := "http://"
-			httpClient := &http.Client{}
-
-			if tlsEnable {
-				schema = "https://"
-				httpClient.Transport = &http.Transport{
-					TLSClientConfig: &tls.Config{
-						// nolint:gosec // skip TLS verification as this is a test
-						InsecureSkipVerify: true,
-					},
-				}
-			}
-			s3Endpoint := schema + svc.Spec.ClusterIP + ":80"
-
-			logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3Endpoint, s3AccessKey, s3SecretKey)
-
-			adminClient, err = admin.New(s3Endpoint, s3AccessKey, s3SecretKey, httpClient)
-			require.NoError(t, err)
-
-			// verify that admin api is working
-			_, err = adminClient.GetInfo(ctx)
+			var err error
+			adminClient, err = utiladmin.NewAdminClient(objectStore, installer, k8sh, tlsEnable)
 			require.NoError(t, err)
 		})
 
