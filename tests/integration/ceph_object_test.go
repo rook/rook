@@ -82,7 +82,7 @@ func (s *ObjectSuite) SetupSuite() {
 		UseCrashPruner:          true,
 		EnableVolumeReplication: false,
 		RookVersion:             installer.LocalBuildTag,
-		CephVersion:             installer.ReturnCephVersion(),
+		CephVersion:             installer.ReefDevelVersion,
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
