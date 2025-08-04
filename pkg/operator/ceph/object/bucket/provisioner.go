@@ -32,6 +32,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	storagev1 "k8s.io/api/storage/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -375,7 +376,7 @@ func (p *Provisioner) initializeCreateOrGrant(bucket *bucket) error {
 	// set the bucket name
 	obc := bucket.options.ObjectBucketClaim
 	scName := bucket.options.ObjectBucketClaim.Spec.StorageClassName
-	sc, err := p.getStorageClassWithBackoff(scName)
+	sc, err := p.context.Clientset.StorageV1().StorageClasses().Get(p.clusterInfo.Context, scName, metav1.GetOptions{})
 	if err != nil {
 		logger.Errorf("failed to get storage class for OBC %q in namespace %q. %v", obc.Name, obc.Namespace, err)
 		return err
@@ -435,7 +436,7 @@ func (p *Provisioner) initializeCreateOrGrant(bucket *bucket) error {
 }
 
 func (p *Provisioner) initializeDeleteOrRevoke(ob *bktv1alpha1.ObjectBucket) error {
-	sc, err := p.getStorageClassWithBackoff(ob.Spec.StorageClassName)
+	sc, err := p.context.Clientset.StorageV1().StorageClasses().Get(p.clusterInfo.Context, ob.Spec.StorageClassName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to get storage class for OB %q", ob.Name)
 	}
