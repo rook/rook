@@ -14,7 +14,7 @@ We welcome feedback and opening issues!
 
 ## Supported Versions
 
-This guide is for upgrading from **Rook v1.16.x to Rook v1.17.x**.
+This guide is for upgrading from **Rook v1.17.x to Rook v1.18.x**.
 
 Please refer to the upgrade guides from previous releases for supported upgrade paths.
 Rook upgrades are only supported between official releases.
@@ -22,6 +22,7 @@ Rook upgrades are only supported between official releases.
 For a guide to upgrade previous versions of Rook, please refer to the version of documentation for
 those releases.
 
+* [Upgrade 1.16 to 1.17](https://rook.io/docs/rook/v1.17/Upgrade/rook-upgrade/)
 * [Upgrade 1.15 to 1.16](https://rook.io/docs/rook/v1.16/Upgrade/rook-upgrade/)
 * [Upgrade 1.14 to 1.15](https://rook.io/docs/rook/v1.15/Upgrade/rook-upgrade/)
 * [Upgrade 1.13 to 1.14](https://rook.io/docs/rook/v1.14/Upgrade/rook-upgrade/)
@@ -51,37 +52,11 @@ those releases.
     official releases. Builds from the master branch can have functionality changed or removed at any
     time without compatibility support and without prior notice.
 
-## Breaking changes in v1.17
+## Breaking changes in v1.18
 
-* The minimum supported Kubernetes version is v1.28.
+* The minimum supported Kubernetes version is v1.29.
 
-* S3 users provisioned via CephObjectStoreUser resources no longer allow multiple credentials to
-    exist on underlying S3 users, unless explicitly managed by Rook. Rook will purge all but one of
-    the undeclared credentials. This could be a user observable regression for administrators who
-    manually edited/rotated S3 user credentials for CephObjectStoreUsers. For affected users, Rook
-    now provides first-class
-    [user credential management support](../Storage-Configuration/Object-Storage-RGW/object-storage.md#managing-user-s3-credentials).
-    For more details, see [#15359](https://github.com/rook/rook/issues/15359).
-
-* Some ObjectBucketClaim options were added in Rook v1.16 that allowed more control over buckets.
-    These controls allow users to self-serve their own S3 policies, which many administrators might
-    consider a risk, depending on their environment. Rook has taken steps to ensure potentially risky
-    configurations are disabled by default to ensure the safest off-the-shelf configurations.
-    Administrators who wish to allow users to use the full range of OBC configurations must use the
-    new `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS` to enable users to set potentially risky options.
-    See [#15376](https://github.com/rook/rook/pull/15376) for more information.
-
-* Kafka notifications configured via CephBucketTopic resources will now default
-    to setting the Kafka authentication mechanism to `PLAIN`. Previously, no auth
-    mechanism was specified by default.  It was possible to set the auth mechanism
-    via `CephBucketTopic.spec.endpoint.kafka.opaqueData`.  However, setting
-    `&mechanism=<auth type>` via `opaqueData` is no longer possible. If any auth
-    mechanism other than `PLAIN` is in use, modification to `CephBucketTopic`
-    resources is required.
-
-    See:
-    - [#15711](https://github.com/rook/rook/issues/15711)
-    - [#15554](https://github.com/rook/rook/pull/15554)
+* Rook now validates node topology during CephCluster creation to prevent misconfigured CRUSH hierarchies. For example, if [topology labels](../CRDs/Cluster/ceph-cluster-crd.md#osd-topology) like `topology.rook.io/rack` are duplicated across zones, cluster creation will fail. The check applies only to new clusters. Existing clusters will only log a warning in the operator log and continue.
 
 ## Considerations
 
@@ -97,11 +72,11 @@ With this upgrade guide, there are a few notes to consider:
 
 Unless otherwise noted due to extenuating requirements, upgrades from one patch release of Rook to
 another are as simple as updating the common resources and the image of the Rook operator. For
-example, when Rook v1.17.1 is released, the process of updating from v1.17.0 is as simple as running
+example, when Rook v1.18.1 is released, the process of updating from v1.18.0 is as simple as running
 the following:
 
 ```console
-git clone --single-branch --depth=1 --branch v1.17.1 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.18.1 https://github.com/rook/rook.git
 cd rook/deploy/examples
 ```
 
@@ -109,11 +84,11 @@ If the Rook Operator or CephCluster are deployed into a different namespace than
 `rook-ceph`, see the [Update common resources and CRDs](#1-update-common-resources-and-crds)
 section for instructions on how to change the default namespaces in `common.yaml`.
 
-Then, apply the latest changes from v1.17, and update the Rook Operator image.
+Then, apply the latest changes from v1.18, and update the Rook Operator image.
 
 ```console
 kubectl apply -f common.yaml -f crds.yaml
-kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.17.1
+kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.18.1
 ```
 
 As exemplified above, it is a good practice to update Rook common resources from the example
@@ -147,9 +122,9 @@ In order to successfully upgrade a Rook cluster, the following prerequisites mus
 
 ## Rook Operator Upgrade
 
-The examples given in this guide upgrade a live Rook cluster running `v1.16.6` to
-the version `v1.17.0`. This upgrade should work from any official patch release of Rook v1.16 to any
-official patch release of v1.17.
+The examples given in this guide upgrade a live Rook cluster running `v1.17.7` to
+the version `v1.18.0`. This upgrade should work from any official patch release of Rook v1.17 to any
+official patch release of v1.18.
 
 Let's get started!
 
@@ -210,7 +185,7 @@ kubectl apply -f deploy/examples/monitoring/rbac.yaml
 !!! hint
     The operator is automatically updated when using Helm charts.
 
-The largest portion of the upgrade is triggered when the operator's image is updated to `v1.17.x`.
+The largest portion of the upgrade is triggered when the operator's image is updated to `v1.18.x`.
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```console
@@ -246,13 +221,13 @@ availability and `rook-version=v1.17.0`, the Ceph cluster's core components are 
 ```console
 Every 2.0s: kubectl -n rook-ceph get deployment -o j...
 
-rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.17.0
-rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.17.0
-rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.17.0
-rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.17.0
-rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.17.0
-rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.16.6
-rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.16.6
+rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.18.0
+rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.18.0
+rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.18.0
+rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.18.0
+rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.18.0
+rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.17.7
+rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.17.7
 ```
 
 An easy check to see if the upgrade is totally finished is to check that there is only one
@@ -261,14 +236,14 @@ An easy check to see if the upgrade is totally finished is to check that there i
 ```console
 # kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
-  rook-version=v1.16.6
-  rook-version=v1.17.0
+  rook-version=v1.17.7
+  rook-version=v1.18.0
 This cluster is finished:
-  rook-version=v1.17.0
+  rook-version=v1.18.0
 ```
 
 ### **5. Verify the updated cluster**
 
-At this point, the Rook operator should be running version `rook/ceph:v1.17.0`.
+At this point, the Rook operator should be running version `rook/ceph:v1.18.0`.
 
 Verify the CephCluster health using the [health verification doc](health-verification.md).

@@ -47,7 +47,7 @@ These images are tagged in a few ways:
 
 **Ceph containers other than the official images from the registry above will not be supported.**
 
-### Example Upgrade to Ceph Reef
+### Example Upgrade to Ceph Squid
 
 #### **1. Update the Ceph daemons**
 
