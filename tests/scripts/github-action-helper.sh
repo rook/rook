@@ -713,7 +713,7 @@ function test_csi_nfs_workload {
 
 function install_minikube_with_none_driver() {
   CRICTL_VERSION="v1.33.0"
-  MINIKUBE_VERSION="v1.35.0"
+  MINIKUBE_VERSION="v1.36.0"
 
   sudo apt update
   sudo apt install -y conntrack socat
