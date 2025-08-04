@@ -6678,7 +6678,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>The algorithm for erasure coding</p>
+<p>The algorithm for erasure coding.
+If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.</p>
 </td>
 </tr>
 </tbody>

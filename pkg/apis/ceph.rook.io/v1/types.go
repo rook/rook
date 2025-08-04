@@ -1315,7 +1315,9 @@ type ErasureCodedSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	DataChunks uint `json:"dataChunks"`
 
-	// The algorithm for erasure coding
+	// The algorithm for erasure coding.
+	// If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+	// +kubebuilder:validation:Enum=isa;jerasure
 	// +optional
 	Algorithm string `json:"algorithm,omitempty"`
 }
