@@ -59,6 +59,15 @@ func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo
 		return "", err
 	}
 
+	if r.shouldRotateCephxKeys {
+		logger.Infof("rotating cephx key for CephRBDMirror %q in the namespace %q", daemonConfig.ResourceName, clusterInfo.Namespace)
+		newKey, err := s.RotateKey(user)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to rotate cephx key for CephRDBMirror %q in the namespace %q", daemonConfig.ResourceName, clusterInfo.Namespace)
+		}
+		key = newKey
+	}
+
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
 	err = r.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Delete(r.opManagerContext, daemonConfig.ResourceName, metav1.DeleteOptions{})
 	if err != nil {

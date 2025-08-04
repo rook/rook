@@ -25,6 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -62,11 +63,6 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 		ownerInfo:    ownerInfo,
 	}
 
-	_, err = r.generateKeyring(r.clusterInfo, daemonConf)
-	if err != nil {
-		return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
-	}
-
 	rbdMirrorToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(r.clusterInfo.Context, r.context, r.clusterInfo.Namespace, config.RbdMirrorType, AppName)
 	if err != nil {
 		return errors.Wrap(err, "failed to check for RBD Mirror to skip reconcile")
@@ -76,11 +72,19 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 		return nil
 	}
 
+	secretResourceVersion, err := r.generateKeyring(r.clusterInfo, daemonConf)
+	if err != nil {
+		return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
+	}
+
 	// Start the deployment
 	d, err := r.makeDeployment(daemonConf, cephRBDMirror)
 	if err != nil {
 		return errors.Wrap(err, "failed to create rbd-mirror deployment")
 	}
+
+	// apply cephx secret resource version to the deployment to ensure it restarts when keyring updates
+	d.Spec.Template.Annotations[keyring.CephxKeyIdentifierAnnotation] = secretResourceVersion
 
 	// Set owner ref to cephRBDMirror object
 	err = controllerutil.SetControllerReference(cephRBDMirror, d, r.scheme)
