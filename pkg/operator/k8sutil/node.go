@@ -20,9 +20,10 @@ package k8sutil
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"sigs.k8s.io/yaml"
 
@@ -95,6 +96,16 @@ func GetValidNodes(ctx context.Context, rookStorage cephv1.StorageScopeSpec, cli
 	}
 
 	return RookNodesMatchingKubernetesNodes(rookStorage, validK8sNodes)
+}
+
+func NodeWithHostnameExists(ctx context.Context, clientset kubernetes.Interface, hostName string) (bool, error) {
+	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", LabelHostname(), hostName)}
+	nodes, err := clientset.CoreV1().Nodes().List(ctx, options)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to query node %q", hostName)
+	}
+	logger.Debugf("found %d nodes with hostname %q", len(nodes.Items), hostName)
+	return len(nodes.Items) > 0, nil
 }
 
 // GetNodeNameFromHostname returns the name of the node resource looked up by the hostname label

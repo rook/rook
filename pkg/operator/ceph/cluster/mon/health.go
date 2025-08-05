@@ -273,33 +273,39 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 		}
 
 		// If not yet set, add the current time, for the timeout
-		// calculation, to the list
+		// calculation, to the list.
+		rescheduleImmediately := false
 		if _, ok := c.monTimeoutList[mon.Name]; !ok {
 			c.monTimeoutList[mon.Name] = time.Now()
+
+			// If the assigned node is not found, skip the timeout wait
+			rescheduleImmediately = c.shouldFailoverMonImmediately(ctx, mon.Name)
 		}
 
 		// when the timeout for the mon has been reached, continue to the
 		// normal failover mon pod part of the code
-		if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
-			timeToFailover := int(MonOutTimeout.Seconds() - time.Since(c.monTimeoutList[mon.Name]).Seconds())
-			logger.Warningf("mon %q not found in quorum, waiting for timeout (%d seconds left) before failover", mon.Name, timeToFailover)
-			continue
+		if !rescheduleImmediately {
+			if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
+				timeToFailover := int(MonOutTimeout.Seconds() - time.Since(c.monTimeoutList[mon.Name]).Seconds())
+				logger.Warningf("mon %q not found in quorum, waiting for timeout (%d seconds left) before failover", mon.Name, timeToFailover)
+				continue
+			}
+
+			// retry only once before the mon failover if the mon pod is not scheduled
+			monLabelSelector := fmt.Sprintf("%s=%s,%s=%s", k8sutil.AppAttr, AppName, controller.DaemonIDLabel, mon.Name)
+			isScheduled, err := k8sutil.IsPodScheduled(ctx, c.context.Clientset, c.Namespace, monLabelSelector)
+			if err != nil {
+				logger.Warningf("failed to check if mon %q is assigned to a node, continuing with mon failover. %v", mon.Name, err)
+			} else if !isScheduled && retriesBeforeNodeDrainFailover > 0 {
+				logger.Warningf("mon %q NOT found in quorum after timeout. Mon pod is not scheduled. Retrying with a timeout of %.2f seconds before failover", mon.Name, MonOutTimeout.Seconds())
+				delete(c.monTimeoutList, mon.Name)
+				retriesBeforeNodeDrainFailover = retriesBeforeNodeDrainFailover - 1
+				return nil
+			}
+			retriesBeforeNodeDrainFailover = 1
+			logger.Warningf("mon %q NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
 		}
 
-		// retry only once before the mon failover if the mon pod is not scheduled
-		monLabelSelector := fmt.Sprintf("%s=%s,%s=%s", k8sutil.AppAttr, AppName, controller.DaemonIDLabel, mon.Name)
-		isScheduled, err := k8sutil.IsPodScheduled(ctx, c.context.Clientset, c.Namespace, monLabelSelector)
-		if err != nil {
-			logger.Warningf("failed to check if mon %q is assigned to a node, continuing with mon failover. %v", mon.Name, err)
-		} else if !isScheduled && retriesBeforeNodeDrainFailover > 0 {
-			logger.Warningf("mon %q NOT found in quorum after timeout. Mon pod is not scheduled. Retrying with a timeout of %.2f seconds before failover", mon.Name, MonOutTimeout.Seconds())
-			delete(c.monTimeoutList, mon.Name)
-			retriesBeforeNodeDrainFailover = retriesBeforeNodeDrainFailover - 1
-			return nil
-		}
-		retriesBeforeNodeDrainFailover = 1
-
-		logger.Warningf("mon %q NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
 		if !c.failMon(len(quorumStatus.MonMap.Mons), desiredMonCount, mon.Name) {
 			// The failover was skipped, so we continue to see if another mon needs to failover
 			continue
@@ -381,6 +387,28 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (c *Cluster) shouldFailoverMonImmediately(ctx context.Context, monName string) bool {
+	// If the assigned node does not exist, reschedule immediately
+	logger.Debugf("checking if mon %q is scheduled on a node", monName)
+	assignedNode := ""
+	if mapping, ok := c.mapping.Schedule[monName]; ok {
+		assignedNode = mapping.Hostname
+	}
+	if assignedNode == "" {
+		logger.Debugf("mon %q is not assigned to a node", monName)
+		return false
+	}
+
+	logger.Debugf("mon %q is scheduled on node %q", monName, assignedNode)
+	nodeExists, err := k8sutil.NodeWithHostnameExists(ctx, c.context.Clientset, assignedNode)
+	if err == nil && !nodeExists {
+		logger.Warningf("mon %q NOT found in quorum and its assigned node %q is not found, failing over immediately", monName, assignedNode)
+		return true
+	}
+
+	return false
 }
 
 // reconcileExternalMons handling external monitors defined in CephCluster.spec.mon.externalMonIDs when Rook managing local cluster.
