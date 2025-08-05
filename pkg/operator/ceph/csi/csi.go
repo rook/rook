@@ -162,6 +162,11 @@ func (r *ReconcileCSI) setParams() error {
 		CSIParam.EnableCSIAddonsSideCar = true
 	}
 
+	CSIParam.EnableCrossNamespaceVolumeDataSource = false
+	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_ENABLE_CROSS_NAMESPACE_VOLUME_DATA_SOURCE", "false"), "true") {
+		CSIParam.EnableCrossNamespaceVolumeDataSource = true
+	}
+
 	CSIParam.EnableCSITopology = false
 	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_ENABLE_TOPOLOGY", "false"), "true") {
 		CSIParam.EnableCSITopology = true

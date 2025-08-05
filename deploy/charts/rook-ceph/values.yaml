@@ -557,6 +557,10 @@ csi:
     # - topology.kubernetes.io/zone
     # - topology.rook.io/rack
 
+  crossNamespaceVolumeDataSource:
+    # -- Enable cross namespace volume data source provisioning
+    enabled: false
+
   # -- Whether to skip any attach operation altogether for CephFS PVCs. See more details
   # [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object).
   # If cephFSAttachRequired is set to false it skips the volume attachments and makes the creation

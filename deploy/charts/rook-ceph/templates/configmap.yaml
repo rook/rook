@@ -130,6 +130,9 @@ data:
   ROOK_CSIADDONS_IMAGE: "{{ .Values.csi.csiAddons.repository }}:{{ .Values.csi.csiAddons.tag }}"
 {{- end }}
 {{- end }}
+{{- if .Values.csi.crossNamespaceVolumeDataSource }}
+  CSI_ENABLE_CROSS_NAMESPACE_VOLUME_DATA_SOURCE: {{ .Values.csi.crossNamespaceVolumeDataSource.enabled | quote }}
+{{- end }}
 {{- if .Values.csi.topology }}
   CSI_ENABLE_TOPOLOGY: {{ .Values.csi.topology.enabled | quote }}
 {{- if .Values.csi.topology.domainLabels }}
