@@ -206,6 +206,32 @@ func TestRemoveExtraMon(t *testing.T) {
 	}
 }
 
+func TestScheduleFailoverImmediately(t *testing.T) {
+	clientset := test.New(t, 1)
+	c := &Cluster{mapping: &opcontroller.Mapping{}, context: &clusterd.Context{Clientset: clientset}}
+	c.mapping.Schedule = map[string]*opcontroller.MonScheduleInfo{
+		"a": {Name: "a", Hostname: "nodea"},
+		"b": {Name: "b"},
+		"c": {Name: "c", Hostname: "nodec"},
+	}
+
+	node := &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "a",
+			Labels: map[string]string{"kubernetes.io/hostname": "nodea"},
+		},
+	}
+	_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// mon a is assigned to a node, so it should not failover immediately
+	assert.False(t, c.shouldFailoverMonImmediately((context.TODO()), "a"))
+	// mon b is not assigned to a node, so it should not failover immediately
+	assert.False(t, c.shouldFailoverMonImmediately((context.TODO()), "b"))
+	// mon c is assigned to a non-existent node, so it should failover immediately
+	assert.True(t, c.shouldFailoverMonImmediately((context.TODO()), "c"))
+}
+
 func TestTrackMonsOutOfQuorum(t *testing.T) {
 	endpoint := "1.2.3.4:6789"
 	clientset := test.New(t, 1)
