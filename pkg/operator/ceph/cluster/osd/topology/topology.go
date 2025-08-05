@@ -21,6 +21,7 @@ package topology
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
@@ -147,4 +148,98 @@ func GetDefaultTopologyLabels() string {
 	}
 
 	return strings.Join(Labels, ",")
+}
+
+// CheckTopologyConflicts verifies that:
+// 1. No child domain (e.g. rack) has fewer distinct values than its immediate parent.
+// 2. No topology value is used under more than one label key.
+// 3. No label value lives under more than one parent label value.
+func CheckTopologyConflicts(nodes *[]corev1.Node) error {
+	// 1. Build our ordered list of topology labels (region -> zone -> datacenter -> …), dropping hostname.
+	allLabels := allKubernetesTopologyLabelsOrdered()
+	var hierarchy []string
+	for _, label := range allLabels {
+		if label != k8sutil.LabelHostname() {
+			hierarchy = append(hierarchy, label)
+		}
+	}
+
+	// 2. Gather distinct values for each topology key.
+	values := make(map[string]map[string]struct{}, len(hierarchy))
+	for _, key := range hierarchy {
+		values[key] = make(map[string]struct{})
+	}
+	for _, node := range *nodes {
+		labels := node.GetLabels()
+		for _, key := range hierarchy {
+			// If the label exists but has an empty value, consider it invalid
+			if val, ok := labels[key]; ok && val == "" {
+				return fmt.Errorf(
+					"invalid topology: label %q has an empty value on node %q",
+					key, node.Name,
+				)
+			}
+			// Collect non-empty normalized values
+			if crushName := client.NormalizeCrushName(labels[key]); crushName != "" {
+				values[key][crushName] = struct{}{}
+			}
+		}
+	}
+
+	// 3. Parent‑consistency: each child‑value only ever under one parent‑value.
+	for levelIndex, key := range hierarchy {
+		if levelIndex == 0 {
+			continue // no parent
+		}
+		for topologyValue := range values[key] {
+			seenParents := map[string]struct{}{}
+			for _, node := range *nodes {
+				labels := node.GetLabels()
+				if client.NormalizeCrushName(labels[key]) != topologyValue {
+					continue
+				}
+				// find nearest non-empty parent label
+				for parentIndex := levelIndex - 1; parentIndex >= 0; parentIndex-- {
+					parKey := hierarchy[parentIndex]
+					pv := client.NormalizeCrushName(labels[parKey])
+					if pv != "" {
+						seenParents[pv] = struct{}{}
+						break
+					}
+				}
+			}
+			if len(seenParents) > 1 {
+				ps := make([]string, 0, len(seenParents))
+				for p := range seenParents {
+					ps = append(ps, p)
+				}
+				sort.Strings(ps)
+				return fmt.Errorf(
+					"invalid topology: %q value %q appears under both %q and %q",
+					key, topologyValue, ps[0], ps[1],
+				)
+			}
+		}
+	}
+
+	// 4. Cross‑key uniqueness (deterministic).
+	seenKey := map[string]string{}
+	for _, key := range hierarchy {
+		vs := make([]string, 0, len(values[key]))
+		for v := range values[key] {
+			vs = append(vs, v)
+		}
+		sort.Strings(vs)
+		for _, v := range vs {
+			if fk, ok := seenKey[v]; ok {
+				return fmt.Errorf(
+					"invalid topology: value %q appears under both %q and %q",
+					v, fk, key,
+				)
+			}
+			seenKey[v] = key
+		}
+	}
+
+	return nil
 }
