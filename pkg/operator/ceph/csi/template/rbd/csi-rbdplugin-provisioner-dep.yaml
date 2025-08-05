@@ -39,6 +39,7 @@ spec:
             - "--extra-create-metadata=true"
             - "--prevent-volume-mode-conversion=true"
             - "--feature-gates=HonorPVReclaimPolicy=true"
+            - "--feature-gates=CrossNamespaceVolumeDataSource={{ .EnableCrossNamespaceVolumeDataSource }}"
             - "--feature-gates=Topology={{ .EnableCSITopology }}"
             {{ if .KubeApiBurst }}
             - "--kube-api-burst={{ .KubeApiBurst }}"
