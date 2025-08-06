@@ -397,6 +397,25 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 	return nil
 }
 
+// UpdateClusterAccessSecret updates the rook-ceph-mon secret
+func UpdateClusterAccessSecret(clientset kubernetes.Interface, clusterInfo *cephclient.ClusterInfo, ownerInfo *k8sutil.OwnerInfo) error {
+	secret, err := clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(clusterInfo.Context, AppName, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to get secret %q in the namespace %q", AppName, clusterInfo.Namespace)
+	}
+
+	// update admin key secret
+	secret.Data[CephUserSecretKey] = []byte(clusterInfo.CephCred.Secret)
+
+	logger.Infof("updating secret %q in the namespace %q", secret.Name, clusterInfo.Namespace)
+	_, err = clientset.CoreV1().Secrets(clusterInfo.Namespace).Update(clusterInfo.Context, secret, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to update secret %q in the namespace %q", secret.Name, clusterInfo.Namespace)
+	}
+
+	return nil
+}
+
 // ParseMonEndpoints parses a flattened representation of mons and endpoints in the form
 // <mon-name>=<mon-endpoint> and returns a list of Ceph mon configs.
 func ParseMonEndpoints(input string) map[string]*cephclient.MonInfo {
