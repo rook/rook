@@ -111,6 +111,21 @@ func TestKeyringStore(t *testing.T) {
 	assertKeyringData("test-resource-keyring", "qwertyuiop")
 	assertKeyringData("second-resource-keyring", "lkjhgfdsa")
 
+	// kludgey but valid: for next validation, move StringData to Data for verification since the
+	// unit test framework doesn't behave in the same way the k8s API server does in real life
+	s, err := clientset.CoreV1().Secrets(ns).Get(ctxt, "test-resource-keyring", metav1.GetOptions{})
+	assert.NoError(t, err)
+	s.Data = map[string][]byte{
+		keyringFileName: []byte(s.StringData[keyringFileName]),
+	}
+	_, err = clientset.CoreV1().Secrets(ns).Update(ctxt, s, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+
+	// get key from secret
+	keyring, err := k.GetKeyringFromSecret("test-resource")
+	assert.NoError(t, err)
+	assert.Equal(t, "qwertyuiop", keyring)
+
 	// delete a key
 	err = k.Delete("test-resource")
 	assert.NoError(t, err)

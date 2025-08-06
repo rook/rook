@@ -128,13 +128,13 @@ func (hc *HealthChecker) Check(monitoringRoutines map[string]*controller.Cluster
 
 		select {
 		case <-monitoringRoutines[daemon].InternalCtx.Done():
-			logger.Infof("stopping monitoring of mons in namespace %q", hc.monCluster.Namespace)
+			logger.Infof("stopping monitoring of mons in namespace %q (internal context canceled)", hc.monCluster.Namespace)
 			delete(monitoringRoutines, daemon)
 			return
 
 		// Since c.ClusterInfo.IsInitialized() below uses a different context, we need to check if the context is done
 		case <-hc.monCluster.ClusterInfo.Context.Done():
-			logger.Infof("stopping monitoring of mons in namespace %q", hc.monCluster.Namespace)
+			logger.Infof("stopping monitoring of mons in namespace %q (mon cluster info context canceled)", hc.monCluster.Namespace)
 			delete(monitoringRoutines, daemon)
 			return
 
