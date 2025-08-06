@@ -60,6 +60,10 @@ type ClusterInfo struct {
 	// Whereas if passed through clusterInfo, we don't have that problem since clusterInfo is
 	// re-hydrated when a context is cancelled.
 	Context context.Context
+
+	// KeyringFileOverride, if set, configures a ceph client executor to use a specific keyring file
+	// instead of the default.
+	KeyringFileOverride string
 }
 
 func (c *ClusterInfo) AllMonitors() map[string]*MonInfo {

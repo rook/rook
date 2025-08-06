@@ -95,11 +95,15 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 	default:
 		// Append the standard flags for config and keyring
 		keyringFile := fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username)
+		keyringPath := path.Join(configDir, clusterInfo.Namespace, keyringFile)
+		if clusterInfo.KeyringFileOverride != "" {
+			keyringPath = clusterInfo.KeyringFileOverride
+		}
 		configArgs = []string{
 			fmt.Sprintf("--cluster=%s", clusterInfo.Namespace),
 			fmt.Sprintf("--conf=%s", cephConfPath),
 			fmt.Sprintf("--name=%s", clusterInfo.CephCred.Username),
-			fmt.Sprintf("--keyring=%s", path.Join(configDir, clusterInfo.Namespace, keyringFile)),
+			fmt.Sprintf("--keyring=%s", keyringPath),
 		}
 	}
 
