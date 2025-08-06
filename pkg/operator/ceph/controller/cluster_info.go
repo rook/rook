@@ -406,6 +406,9 @@ func UpdateClusterAccessSecret(clientset kubernetes.Interface, clusterInfo *ceph
 		return errors.Wrapf(err, "failed to get secret %q in the namespace %q", AppName, clusterInfo.Namespace)
 	}
 
+	// update admin key secret
+	secret.Data[CephUserSecretKey] = []byte(clusterInfo.CephCred.Secret)
+
 	secret.Data[MonSecretNameKey] = []byte(clusterInfo.MonitorSecret)
 
 	logger.Infof("updating secret %q in the namespace %q", secret.Name, clusterInfo.Namespace)
