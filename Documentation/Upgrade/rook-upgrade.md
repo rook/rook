@@ -56,6 +56,19 @@ those releases.
 
 * The minimum supported Kubernetes version is v1.29.
 
+* The **CSI operator** is required for RBD, CephFS, and NFS volumes. Previously, the CSI driver was automatically configured
+    by Rook. Now the CSI operator has been factored out of Rook to run independently to manage the Ceph-CSI
+    driver. During the upgrade and throughout the v1.18.x releases, Rook will automatically convert any Rook CSI settings
+    to the new CSI operator CRs. This transition is expected to be completely transparent.
+    Starting in v1.19, the Rook settings related to CSI will be deprecated and there will be a guide on how to configure the new CSI operator CRs directly.
+    * The CSI operator is created directly via `csi-operator.yaml`, or by the helm setting `csi.rookUseCsiOperator`
+        in the `rook-ceph` chart.
+    * The new CSI operator CRs are `cephconnections.csi.ceph.io`, `drivers.csi.ceph.io`,
+        `operatorconfigs.csi.ceph.io`, `clientprofiles.csi.ceph.io`, and `clientprofilemappings.csi.ceph.io`.
+    * The CSI operator has been in experimental mode since Rook v1.15 and we have confidence in its stability. That said, if
+        there is any blocking issue with the csi operator, the previous CSI driver can be re-enabled by setting
+        `ROOK_USE_CSI_OPERATOR: false` in operator.yaml or applying the helm setting `csi.rookUseCsiOperator: false`.
+
 * Rook now validates node topology during CephCluster creation to prevent misconfigured CRUSH hierarchies. For example, if [topology labels](../CRDs/Cluster/ceph-cluster-crd.md#osd-topology) like `topology.rook.io/rack` are duplicated across zones, cluster creation will fail. The check applies only to new clusters. Existing clusters will only log a warning in the operator log and continue.
 
 ## Considerations
@@ -87,7 +100,7 @@ section for instructions on how to change the default namespaces in `common.yaml
 Then, apply the latest changes from v1.18, and update the Rook Operator image.
 
 ```console
-kubectl apply -f common.yaml -f crds.yaml
+kubectl apply -f common.yaml -f crds.yaml -f csi-operator.yaml
 kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.18.1
 ```
 
@@ -103,7 +116,7 @@ Also update optional resources like Prometheus monitoring noted more fully in th
 If Rook is installed via the Helm chart, Helm will handle some details of the upgrade itself.
 The upgrade steps in this guide will clarify what Helm handles automatically.
 
-The `rook-ceph` helm chart upgrade performs the Rook upgrade.
+The `rook-ceph` helm chart upgrade performs the Rook operator and CSI operator upgrades.
 The `rook-ceph-cluster` helm chart upgrade performs a [Ceph upgrade](./ceph-upgrade.md) if the Ceph image is updated.
 The `rook-ceph` chart should be upgraded before `rook-ceph-cluster`, so the latest operator has the opportunity to update
 custom resources as necessary.
@@ -168,7 +181,7 @@ sed -i.bak \
 **Apply the resources.**
 
 ```console
-kubectl apply -f common.yaml -f crds.yaml
+kubectl apply -f common.yaml -f crds.yaml -f csi-operator.yaml
 ```
 
 #### **Prometheus Updates**
@@ -192,16 +205,13 @@ When the operator is updated, it will proceed to update all of the Ceph daemons.
 kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:master
 ```
 
-### **3. Update Ceph CSI**
+### **3. Update Ceph CSI Custom Images **
 
 !!! hint
     This is automatically updated if custom CSI image versions are not set.
 
 Update to the latest Ceph-CSI drivers if custom CSI images are specified.
 See the [CSI Custom Images](../Storage-Configuration/Ceph-CSI/custom-images.md) documentation.
-
-!!! note
-    If using snapshots, refer to the [Upgrade Snapshot API guide](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#upgrade-snapshot-api).
 
 ### **4. Wait for the upgrade to complete**
 
@@ -216,7 +226,7 @@ watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=
 ```
 
 As an example, this cluster is midway through updating the OSDs. When all deployments report `1/1/1`
-availability and `rook-version=v1.17.0`, the Ceph cluster's core components are fully updated.
+availability and `rook-version=v1.18.0`, the Ceph cluster's core components are fully updated.
 
 ```console
 Every 2.0s: kubectl -n rook-ceph get deployment -o j...
