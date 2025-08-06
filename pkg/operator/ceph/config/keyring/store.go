@@ -20,6 +20,8 @@ limitations under the License.
 package keyring
 
 import (
+	"fmt"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -148,4 +150,21 @@ func (k *SecretStore) CreateSecret(secret *v1.Secret) (string, error) {
 		return "", errors.Wrapf(err, "failed to update secret for %s", secretName)
 	}
 	return s.ResourceVersion, nil
+}
+
+// GetKeyringFromSecret returns the keyring present in a keyring secret
+func (k *SecretStore) GetKeyringFromSecret(resourceName string) (string, error) {
+	secretName := keyringSecretName(resourceName)
+	s, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Get(k.clusterInfo.Context, secretName, metav1.GetOptions{})
+	if err != nil {
+		return "", err // do not wrap so that err can be compared to does not exist if needed
+	}
+	if keyring, ok := s.StringData[keyringFileName]; ok { // only available in unit tests
+		return keyring, nil
+	}
+	keyring, ok := s.Data[keyringFileName]
+	if !ok {
+		return "", fmt.Errorf("keyring secret %q does not contain keyring", secretName)
+	}
+	return string(keyring), nil
 }

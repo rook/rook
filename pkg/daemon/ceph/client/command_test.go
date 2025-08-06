@@ -47,9 +47,19 @@ func TestFinalizeCephCommandArgs(t *testing.T) {
 	}
 
 	clusterInfo := AdminTestClusterInfo("rook")
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
+	cmd, gotArgs := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
 	assert.Exactly(t, expectedCommand, cmd)
-	assert.Exactly(t, expectedArgs, args)
+	assert.Exactly(t, expectedArgs, gotArgs)
+
+	t.Run("keyring override", func(t *testing.T) {
+		// run the same test as above, but set the keyring override
+		clusterInfo.KeyringFileOverride = "/some/random/file/path.extension"
+		// keyring arg should change but nothing else
+		expectedArgs[len(expectedArgs)-1] = "--keyring=/some/random/file/path.extension"
+		cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
+		assert.Exactly(t, expectedCommand, cmd)
+		assert.Exactly(t, expectedArgs, args)
+	})
 }
 
 func TestFinalizeRadosGWAdminCommandArgs(t *testing.T) {
