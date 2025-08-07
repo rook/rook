@@ -523,6 +523,9 @@ data:
   # updated with node labels that define domains of interest
   # CSI_TOPOLOGY_DOMAIN_LABELS: "kubernetes.io/hostname,topology.kubernetes.io/zone,topology.rook.io/rack"
 
+  # Enable cross namespace volume data source provisioning.
+  CSI_ENABLE_CROSS_NAMESPACE_VOLUME_DATA_SOURCE: "false"
+
   # Whether to skip any attach operation altogether for CephCSI PVCs.
   # See more details [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object).
   # If set to false it skips the volume attachments and makes the creation of pods using the CephCSI PVC fast.
