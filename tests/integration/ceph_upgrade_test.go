@@ -105,7 +105,7 @@ func (s *UpgradeSuite) TestUpgradeHelm() {
 }
 
 func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersionSpec) {
-	baseRookImage := installer.Version1_16
+	baseRookImage := installer.Version1_17
 	s.baseSetup(useHelm, baseRookImage, initialCephVersion)
 
 	objectUserID := "upgraded-user"
