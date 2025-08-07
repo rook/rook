@@ -72,6 +72,7 @@ type Param struct {
 	MountCustomCephConf                      bool
 	EnableCSIEncryption                      bool
 	EnableCSITopology                        bool
+	EnableCrossNamespaceVolumeDataSource     bool
 	EnableLiveness                           bool
 	CephFSAttachRequired                     bool
 	RBDAttachRequired                        bool
