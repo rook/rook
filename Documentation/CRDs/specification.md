@@ -1780,6 +1780,18 @@ PullSpec
 <td>
 </td>
 </tr>
+<tr>
+<td>
+<code>defaultRealm</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Set this realm as the default in Ceph. Only one realm should be default.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -2024,6 +2036,21 @@ ObjectStoreHostingSpec
 <p>Hosting settings for the object store.
 A common use case for hosting configuration is to inform Rook of endpoints that support DNS
 wildcards, which in turn allows virtual host-style bucket addressing.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultRealm</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Set this realm as the default in Ceph. Only one realm should be default.
+Do not set this true on more than one CephObjectStore.
+This may not be set when zone is also specified; in this case, the realm
+referenced by the zone&rsquo;s zonegroup should configure defaulting behavior.</p>
 </td>
 </tr>
 </table>
@@ -10719,6 +10746,18 @@ PullSpec
 <td>
 </td>
 </tr>
+<tr>
+<td>
+<code>defaultRealm</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Set this realm as the default in Ceph. Only one realm should be default.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectSharedPoolsSpec">ObjectSharedPoolsSpec
@@ -11090,6 +11129,21 @@ ObjectStoreHostingSpec
 <p>Hosting settings for the object store.
 A common use case for hosting configuration is to inform Rook of endpoints that support DNS
 wildcards, which in turn allows virtual host-style bucket addressing.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultRealm</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Set this realm as the default in Ceph. Only one realm should be default.
+Do not set this true on more than one CephObjectStore.
+This may not be set when zone is also specified; in this case, the realm
+referenced by the zone&rsquo;s zonegroup should configure defaulting behavior.</p>
 </td>
 </tr>
 </tbody>

@@ -11263,6 +11263,9 @@ spec:
               description: ObjectRealmSpec represent the spec of an ObjectRealm
               nullable: true
               properties:
+                defaultRealm:
+                  description: Set this realm as the default in Ceph. Only one realm should be default.
+                  type: boolean
                 pull:
                   description: PullSpec represents the pulling specification of a Ceph Object Storage Gateway Realm
                   properties:
@@ -11602,6 +11605,13 @@ spec:
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
                   type: object
+                defaultRealm:
+                  description: |-
+                    Set this realm as the default in Ceph. Only one realm should be default.
+                    Do not set this true on more than one CephObjectStore.
+                    This may not be set when zone is also specified; in this case, the realm
+                    referenced by the zone's zonegroup should configure defaulting behavior.
+                  type: boolean
                 gateway:
                   description: The rgw pod info
                   nullable: true
@@ -13412,6 +13422,9 @@ spec:
                     - name
                   type: object
               type: object
+              x-kubernetes-validations:
+                - message: defaultRealm must not be true when zone.name is set (multisite configuration)
+                  rule: '!(has(self.defaultRealm) && self.defaultRealm == true && has(self.zone) && size(self.zone.name) > 0)'
             status:
               description: ObjectStoreStatus represents the status of a Ceph Object Store resource
               properties:
