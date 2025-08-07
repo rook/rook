@@ -31,6 +31,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
@@ -385,7 +386,7 @@ func getZoneEndpoints(objContext *Context, serviceEndpoint string) ([]string, bo
 	return zoneEndpointsList, isEndpointAlreadyExists, nil
 }
 
-func createMultisiteConfigurations(objContext *Context, configType, configTypeArg string, args ...string) error {
+func createMultisiteConfigurations(objContext *Context, store *cephv1.CephObjectStore, configType, configTypeArg string, args ...string) error {
 	args = append([]string{configType}, args...)
 	args = append(args, configTypeArg)
 	// get the multisite config before creating
@@ -415,6 +416,10 @@ func createMultisiteConfigurations(objContext *Context, configType, configTypeAr
 	}
 
 	// create the object if it doesn't exist yet
+	if store.Spec.DefaultRealm && objContext.clusterInfo.CephVersion.IsAtLeast(cephver.Squid) {
+		logger.Infof("marking object store %q as default realm", store.Namespace+"/"+store.Name)
+		args = append(args, "--default")
+	}
 	output, err = RunAdminCommandNoMultisite(objContext, false, args...)
 	if err != nil {
 		return errorOrIsNotFound(err, "failed to create ceph %q %q, for reason %q", configType, configTypeArg, output)
@@ -431,17 +436,17 @@ func createNonMultisiteStore(objContext *Context, endpointArg string, store *cep
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", objContext.Zone)
 
-	err := createMultisiteConfigurations(objContext, "realm", realmArg, "create")
+	err := createMultisiteConfigurations(objContext, store, "realm", realmArg, "create")
 	if err != nil {
 		return err
 	}
 
-	err = createMultisiteConfigurations(objContext, "zonegroup", zoneGroupArg, "create", "--master", realmArg, endpointArg)
+	err = createMultisiteConfigurations(objContext, store, "zonegroup", zoneGroupArg, "create", "--master", realmArg, endpointArg)
 	if err != nil {
 		return err
 	}
 
-	err = createMultisiteConfigurations(objContext, "zone", zoneArg, "create", "--master", endpointArg, realmArg, zoneGroupArg)
+	err = createMultisiteConfigurations(objContext, store, "zone", zoneArg, "create", "--master", endpointArg, realmArg, zoneGroupArg)
 	if err != nil {
 		return err
 	}
@@ -1404,5 +1409,16 @@ func ValidateObjectStorePoolsConfig(metadataPool, dataPool cephv1.PoolSpec, shar
 	if !EmptyPool(metadataPool) && sharedPools.MetadataPoolName != "" {
 		return fmt.Errorf("invalidObjStorePoolConfig: object store metadataPool and sharedPools.metadataPool=%s are mutually exclusive. Only one of them can be set", sharedPools.MetadataPoolName)
 	}
+	return nil
+}
+
+func SetDefaultRealm(objContext *Context, realmName string) error {
+	args := []string{"realm", "default", fmt.Sprintf("--rgw-realm=%s", realmName)}
+	output, err := RunAdminCommandNoMultisite(objContext, false, args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set realm %q as default, reason: %q", realmName, output)
+	}
+
+	logger.Infof("successfully set realm %q as default", realmName+"/"+objContext.clusterInfo.Namespace)
 	return nil
 }
