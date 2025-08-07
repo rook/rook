@@ -32,11 +32,11 @@ import (
 )
 
 func CreateUpdateCephConnection(c client.Client, clusterInfo *cephclient.ClusterInfo, clusterSpec cephv1.ClusterSpec) error {
-	logger.Infof("Configuring ceph connection CR %q in namespace %q", clusterInfo.NamespacedName().Name, clusterInfo.NamespacedName().Namespace)
+	// Create a cephconnection CR in the namespace of the operator, with the namespace of the cephcluster CR
 	csiCephConnection := &csiopv1.CephConnection{}
-
-	csiCephConnection.Name = clusterInfo.NamespacedName().Name
+	csiCephConnection.Name = clusterInfo.NamespacedName().Namespace
 	csiCephConnection.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
+	logger.Infof("Configuring ceph connection CR %q in namespace %q", csiCephConnection.Name, csiCephConnection.Namespace)
 
 	spec, err := generateCephConnSpec(c, clusterInfo, csiCephConnection.Spec, clusterSpec)
 	if err != nil {
