@@ -26,7 +26,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -66,16 +65,6 @@ func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo
 			return "", errors.Wrapf(err, "failed to rotate cephx key for CephRDBMirror %q in the namespace %q", daemonConfig.ResourceName, clusterInfo.Namespace)
 		}
 		key = newKey
-	}
-
-	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
-	err = r.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Delete(r.opManagerContext, daemonConfig.ResourceName, metav1.DeleteOptions{})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debugf("legacy rbd-mirror key %q is already removed", daemonConfig.ResourceName)
-		} else {
-			logger.Warningf("legacy rbd-mirror key %q could not be removed. %v", daemonConfig.ResourceName, err)
-		}
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, daemonConfig.DaemonID, key)
