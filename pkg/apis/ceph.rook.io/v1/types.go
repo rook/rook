@@ -3245,7 +3245,13 @@ type CephRBDMirror struct {
 	Spec              RBDMirroringSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	Status *Status `json:"status,omitempty"`
+	Status *RBDMirrorStatus `json:"status,omitempty"`
+}
+
+// RBDMirrorStatus represents the status of the RBD mirror resource
+type RBDMirrorStatus struct {
+	Status `json:",inline"`
+	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
 }
 
 // CephRBDMirrorList represents a list Ceph RBD Mirrors
