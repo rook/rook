@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -473,6 +474,13 @@ func probeDevices(context *clusterd.Context) ([]sys.LocalDisk, error) {
 // getCephVolumeInventory: Return a map of strings indexed by device with the
 // information about the device returned by the command <ceph-volume inventory>
 func getCephVolumeInventory(context *clusterd.Context) (*map[string]string, error) {
+	// delete ceph-volume logs to avoid unbounded log growth
+	// https://github.com/rook/rook/issues/16253
+	err := os.Remove("/var/log/ceph/ceph-volume.log")
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		logger.Errorf("error deleting ceph-volume.log: %v", err)
+	}
+
 	inventory, err := context.Executor.ExecuteCommandWithOutput("ceph-volume", "inventory", "--format", "json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute ceph-volume inventory. %+v", err)
