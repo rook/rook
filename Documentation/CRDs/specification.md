@@ -3555,6 +3555,19 @@ ConditionType
 </tr>
 <tr>
 <td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.PeerTokenCephxStatus">
+PeerTokenCephxStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
 <code>mirroringStatus</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.MirroringStatusSpec">
@@ -4719,7 +4732,7 @@ are not rotated.</p>
 <h3 id="ceph.rook.io/v1.CephxStatus">CephxStatus
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephClientStatus">CephClientStatus</a>, <a href="#ceph.rook.io/v1.CephxStatusWithKeyCount">CephxStatusWithKeyCount</a>, <a href="#ceph.rook.io/v1.ClusterCephxStatus">ClusterCephxStatus</a>, <a href="#ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephClientStatus">CephClientStatus</a>, <a href="#ceph.rook.io/v1.CephxStatusWithKeyCount">CephxStatusWithKeyCount</a>, <a href="#ceph.rook.io/v1.ClusterCephxStatus">ClusterCephxStatus</a>, <a href="#ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus</a>, <a href="#ceph.rook.io/v1.PeerTokenCephxStatus">PeerTokenCephxStatus</a>)
 </p>
 <div>
 </div>
@@ -5036,6 +5049,22 @@ CephxConfig
 <td>
 <p>Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
 Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>rbdMirrorPeer</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxConfig">
+CephxConfig
+</a>
+</em>
+</td>
+<td>
+<p>RBDMirrorPeer configures CephX key settings of the <code>rbd-mirror-peer</code> user that is used for creating
+bootstrap peer token used connect peer clusters. Rotating the <code>rbd-mirror-peer</code> user key will update
+the mirror peer token.
+Rotation will affect any existing peers connected to this cluster, so take care when exercising this option.</p>
 </td>
 </tr>
 <tr>
@@ -11975,6 +12004,37 @@ int
 <td>
 <em>(Optional)</em>
 <p>RecoveryCount is the number of recovery attempted after failures</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.PeerTokenCephxStatus">PeerTokenCephxStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>)
+</p>
+<div>
+<p>PeerTokenCephxStatus represents the cephx key rotation status for peer tokens</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>peerToken</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxStatus">
+CephxStatus
+</a>
+</em>
+</td>
+<td>
+<p>PeerToken shows the rotation status of the peer token associated with the <code>rbd-mirror-peer</code> user.</p>
 </td>
 </tr>
 </tbody>

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
@@ -38,7 +39,10 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestCheckHealth(t *testing.T) {
@@ -55,13 +59,19 @@ func TestCheckHealth(t *testing.T) {
 			return clienttest.MonInQuorumResponse(), nil
 		},
 	}
+	objects := []runtime.Object{
+		getCephCluster("default", "default"),
+	}
+	client := getClient(objects...)
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	context := &clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
 		Executor:  executor,
+		Client:    client,
 	}
+
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	// clusterInfo is nil so we return err
@@ -90,6 +100,7 @@ func TestCheckHealth(t *testing.T) {
 	}
 
 	c.ClusterInfo.Context = ctx
+
 	err = c.checkHealth(ctx)
 	assert.Nil(t, err)
 	logger.Infof("mons after checkHealth: %v", c.ClusterInfo.InternalMonitors)
@@ -288,7 +299,28 @@ func TestEvictMonOnSameNode(t *testing.T) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
-	context := &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Executor: executor}
+
+	fakeCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: "default",
+		},
+		Spec: cephv1.ClusterSpec{
+			Security: cephv1.ClusterSecuritySpec{
+				CephX: cephv1.ClusterCephxConfig{
+					RBDMirrorPeer: cephv1.CephxConfig{},
+				},
+			},
+		},
+		Status: cephv1.ClusterStatus{
+			Cephx: &cephv1.ClusterCephxStatus{
+				RBDMirrorPeer: &cephv1.CephxStatus{},
+			},
+		},
+	}
+
+	client := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(fakeCluster).Build()
+	context := &clusterd.Context{Clientset: clientset, Client: client, ConfigDir: configDir, Executor: executor}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 0}, "myversion")
@@ -415,13 +447,25 @@ func TestCheckHealthNotFound(t *testing.T) {
 			return clienttest.MonInQuorumResponse(), nil
 		},
 	}
+
+	objects := []runtime.Object{
+		getCephCluster("default", "default"),
+	}
+	client := getClient(objects...)
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	context := &clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
 		Executor:  executor,
+		Client:    client,
 	}
+	// mock out the scheduler to return node0
+	waitForMonitorScheduling = func(c *Cluster, d *apps.Deployment) (SchedulingResult, error) {
+		node, _ := clientset.CoreV1().Nodes().Get(ctx, "node0", metav1.GetOptions{})
+		return SchedulingResult{Node: node}, nil
+	}
+
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
@@ -476,12 +520,24 @@ func TestAddRemoveMons(t *testing.T) {
 			return monQuorumResponse, nil
 		},
 	}
+
+	objects := []runtime.Object{
+		getCephCluster("default", "default"),
+	}
+	client := getClient(objects...)
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	context := &clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
 		Executor:  executor,
+		Client:    client,
+	}
+
+	// mock out the scheduler to return node0
+	waitForMonitorScheduling = func(c *Cluster, d *apps.Deployment) (SchedulingResult, error) {
+		node, _ := clientset.CoreV1().Nodes().Get(ctx, "node0", metav1.GetOptions{})
+		return SchedulingResult{Node: node}, nil
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
@@ -795,13 +851,42 @@ func TestExternalMons_notInSpec_InQuorum(t *testing.T) {
 			return monQuorumResponse, nil
 		},
 	}
+
+	fakeCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: "default",
+		},
+		Spec: cephv1.ClusterSpec{
+			Security: cephv1.ClusterSecuritySpec{
+				CephX: cephv1.ClusterCephxConfig{
+					RBDMirrorPeer: cephv1.CephxConfig{},
+				},
+			},
+		},
+		Status: cephv1.ClusterStatus{
+			Cephx: &cephv1.ClusterCephxStatus{
+				RBDMirrorPeer: &cephv1.CephxStatus{},
+			},
+		},
+	}
+
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
+	client := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(fakeCluster).Build()
 	context := &clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
 		Executor:  executor,
+		Client:    client,
 	}
+
+	// mock out the scheduler to return node0
+	waitForMonitorScheduling = func(c *Cluster, d *apps.Deployment) (SchedulingResult, error) {
+		node, _ := clientset.CoreV1().Nodes().Get(ctx, "node0", metav1.GetOptions{})
+		return SchedulingResult{Node: node}, nil
+	}
+
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
@@ -926,13 +1011,26 @@ func TestExternalMons_inSpec_notInQuorum(t *testing.T) {
 			return monQuorumResponse, nil
 		},
 	}
+
+	objects := []runtime.Object{
+		getCephCluster("default", "default"),
+	}
+	client := getClient(objects...)
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	context := &clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
 		Executor:  executor,
+		Client:    client,
 	}
+
+	// mock out the scheduler to return node0
+	waitForMonitorScheduling = func(c *Cluster, d *apps.Deployment) (SchedulingResult, error) {
+		node, _ := clientset.CoreV1().Nodes().Get(ctx, "node0", metav1.GetOptions{})
+		return SchedulingResult{Node: node}, nil
+	}
+
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
@@ -1049,13 +1147,25 @@ func TestExternalMons_inSpec_inQuorum(t *testing.T) {
 			return monQuorumResponse, nil
 		},
 	}
+	objects := []runtime.Object{
+		getCephCluster("default", "default"),
+	}
+	client := getClient(objects...)
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	context := &clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
 		Executor:  executor,
+		Client:    client,
 	}
+
+	// mock out the scheduler to return node0
+	waitForMonitorScheduling = func(c *Cluster, d *apps.Deployment) (SchedulingResult, error) {
+		node, _ := clientset.CoreV1().Nodes().Get(ctx, "node0", metav1.GetOptions{})
+		return SchedulingResult{Node: node}, nil
+	}
+
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
@@ -1184,5 +1294,34 @@ func TestExternalMons_inSpec_inQuorum(t *testing.T) {
 			assert.Equal(t, c.ClusterInfo.InternalMonitors[id].Endpoint, mon.Endpoint)
 			assert.Equal(t, c.ClusterInfo.InternalMonitors[id].OutOfQuorum, mon.OutOfQuorum)
 		}
+	}
+}
+
+func getClient(obj ...runtime.Object) client.Client {
+	// Register operator types with the runtime scheme.
+	scheme := scheme.Scheme
+	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
+	return client
+}
+
+func getCephCluster(name, namespace string) *cephv1.CephCluster {
+	return &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: cephv1.ClusterSpec{
+			Security: cephv1.ClusterSecuritySpec{
+				CephX: cephv1.ClusterCephxConfig{
+					RBDMirrorPeer: cephv1.CephxConfig{},
+				},
+			},
+		},
+		Status: cephv1.ClusterStatus{
+			Cephx: &cephv1.ClusterCephxStatus{
+				RBDMirrorPeer: &cephv1.CephxStatus{},
+			},
+		},
 	}
 }
