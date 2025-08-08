@@ -28,7 +28,7 @@ import (
 
 // StartHostPathCleanup is the main entrypoint function to clean up dataDirHostPath and monitor store
 func StartHostPathCleanup(namespaceDir, dataDirHostPath, monSecret string) {
-	cleanupDirPath := path.Join(dataDirHostPath, namespaceDir)
+	cleanupDirPath := filepath.Join(dataDirHostPath, namespaceDir)
 	if err := os.RemoveAll(cleanupDirPath); err != nil {
 		logger.Errorf("failed to clean up %q directory. %v", cleanupDirPath, err)
 	} else {
@@ -63,7 +63,7 @@ func cleanCSIDirs(dataDirHostPath string) {
 }
 
 func cleanExporterDir(dataDirHostPath string) {
-	exporterDir := path.Join(dataDirHostPath, "exporter")
+	exporterDir := filepath.Join(dataDirHostPath, "exporter")
 
 	// Check if the exporter directory exists
 	if _, err := os.Stat(exporterDir); os.IsNotExist(err) {
@@ -111,7 +111,7 @@ func cleanMonDirs(dataDirHostPath, monSecret string) {
 }
 
 func secretKeyMatch(monDir, monSecret string) (bool, error) {
-	keyringDirPath := path.Join(monDir, "/data/keyring")
+	keyringDirPath := filepath.Join(monDir, "/data/keyring")
 	if _, err := os.Stat(keyringDirPath); os.IsNotExist(err) {
 		return false, errors.Wrapf(err, "failed to read keyring %q for the mon directory %q", keyringDirPath, monDir)
 	}
