@@ -46,8 +46,28 @@ The following table lists the configurable parameters of the rook-operator chart
 |-----------|-------------|---------|
 | `allowLoopDevices` | If true, loop devices are allowed to be used for osds in test clusters | `false` |
 | `annotations` | Pod annotations | `{}` |
+| `ceph-csi-operator.enabled` |  | `false` |
+| `ceph-csi-operator.fullnameOverride` |  | `"ceph-csi-operator"` |
+| `ceph-csi-operator.nameOverride` |  | `"ceph-csi-operator"` |
 | `cephCommandsTimeoutSeconds` | The timeout for ceph commands in seconds | `"15"` |
+| `cephfsCtrlpluginSa.serviceAccount.annotations` |  | `{}` |
+| `cephfsNodepluginSa.serviceAccount.annotations` |  | `{}` |
 | `containerSecurityContext` | Set the container security context for the operator | `{"capabilities":{"drop":["ALL"]},"runAsGroup":2016,"runAsNonRoot":true,"runAsUser":2016}` |
+| `controllerManager.manager.args[0]` |  | `"--leader-elect"` |
+| `controllerManager.manager.containerSecurityContext.allowPrivilegeEscalation` |  | `false` |
+| `controllerManager.manager.containerSecurityContext.capabilities.drop[0]` |  | `"ALL"` |
+| `controllerManager.manager.containerSecurityContext.readOnlyRootFilesystem` |  | `true` |
+| `controllerManager.manager.env.csiServiceAccountPrefix` |  | `"ceph-csi-operator"` |
+| `controllerManager.manager.env.watchNamespace` |  | `""` |
+| `controllerManager.manager.image.repository` |  | `"quay.io/cephcsi/ceph-csi-operator"` |
+| `controllerManager.manager.image.tag` |  | `"v0.3.1"` |
+| `controllerManager.manager.resources.limits.cpu` |  | `"500m"` |
+| `controllerManager.manager.resources.limits.memory` |  | `"128Mi"` |
+| `controllerManager.manager.resources.requests.cpu` |  | `"10m"` |
+| `controllerManager.manager.resources.requests.memory` |  | `"64Mi"` |
+| `controllerManager.podSecurityContext.runAsNonRoot` |  | `true` |
+| `controllerManager.replicas` |  | `1` |
+| `controllerManager.serviceAccount.annotations` |  | `{}` |
 | `crds.enabled` | Whether the helm chart should create and update the CRDs. If false, the CRDs must be managed independently with deploy/examples/crds.yaml. **WARNING** Only set during first deployment. If later disabled the cluster may be DESTROYED. If the CRDs are deleted in this case, see [the disaster recovery guide](https://rook.io/docs/rook/latest/Troubleshooting/disaster-recovery/#restoring-crds-after-deletion) to restore them. | `true` |
 | `csi.attacher.repository` | Kubernetes CSI Attacher image repository | `"registry.k8s.io/sig-storage/csi-attacher"` |
 | `csi.attacher.tag` | Attacher image tag | `"v4.8.1"` |
@@ -126,6 +146,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.registrar.tag` | Registrar image tag | `"v2.13.0"` |
 | `csi.resizer.repository` | Kubernetes CSI resizer image repository | `"registry.k8s.io/sig-storage/csi-resizer"` |
 | `csi.resizer.tag` | Resizer image tag | `"v1.13.2"` |
+| `csi.rookUseCSIOperator` |  | `"false"` |
 | `csi.serviceMonitor.enabled` | Enable ServiceMonitor for Ceph CSI drivers | `false` |
 | `csi.serviceMonitor.interval` | Service monitor scrape interval | `"10s"` |
 | `csi.serviceMonitor.labels` | ServiceMonitor additional labels | `{}` |
@@ -154,8 +175,11 @@ The following table lists the configurable parameters of the rook-operator chart
 | `image.repository` | Image | `"docker.io/rook/ceph"` |
 | `image.tag` | Image tag | `master` |
 | `imagePullSecrets` | imagePullSecrets option allow to pull docker images from private docker registry. Option will be passed to all service accounts. | `nil` |
+| `kubernetesClusterDomain` |  | `"cluster.local"` |
 | `logLevel` | Global log level for the operator. Options: `ERROR`, `WARNING`, `INFO`, `DEBUG` | `"INFO"` |
 | `monitoring.enabled` | Enable monitoring. Requires Prometheus to be pre-installed. Enabling will also create RBAC rules to allow Operator to create ServiceMonitors | `false` |
+| `nfsCtrlpluginSa.serviceAccount.annotations` |  | `{}` |
+| `nfsNodepluginSa.serviceAccount.annotations` |  | `{}` |
 | `nodeSelector` | Kubernetes [`nodeSelector`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector) to add to the Deployment. | `{}` |
 | `obcAllowAdditionalConfigFields` | Many OBC additional config fields may be risky for administrators to allow users control over. The safe and default-allowed fields are 'maxObjects' and 'maxSize'. Other fields should be considered risky. To allow all additional configs, use this value:   "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner" | "maxObjects,maxSize" |
 | `obcProvisionerNamePrefix` | Specify the prefix for the OBC provisioner in place of the cluster namespace | `ceph cluster namespace` |
@@ -164,6 +188,8 @@ The following table lists the configurable parameters of the rook-operator chart
 | `pspEnable` | If true, create & use PSP resources | `false` |
 | `rbacAggregate.enableOBCs` | If true, create a ClusterRole aggregated to [user facing roles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles) for objectbucketclaims | `false` |
 | `rbacEnable` | If true, create & use RBAC resources | `true` |
+| `rbdCtrlpluginSa.serviceAccount.annotations` |  | `{}` |
+| `rbdNodepluginSa.serviceAccount.annotations` |  | `{}` |
 | `resources` | Pod resource requests & limits | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"200m","memory":"128Mi"}}` |
 | `revisionHistoryLimit` | The revision history limit for all pods created by Rook. If blank, the K8s default is 10. | `nil` |
 | `scaleDownOperator` | If true, scale down the rook operator. This is useful for administrative actions where the rook operator must be scaled down, while using gitops style tooling to deploy your helm charts. | `false` |
