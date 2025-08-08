@@ -69,7 +69,7 @@ func TestCreateUpdateCephConnection(t *testing.T) {
 	assert.NoError(t, err)
 
 	// When no RBDMirror is created
-	err = cl.Get(context.TODO(), types.NamespacedName{Name: c.NamespacedName().Name, Namespace: c.NamespacedName().Namespace}, csiCephConnection)
+	err = cl.Get(context.TODO(), types.NamespacedName{Name: ns, Namespace: ns}, csiCephConnection)
 	assert.NoError(t, err)
 	assert.Equal(t, csiCephConnection.Spec.RbdMirrorDaemonCount, 0)
 
@@ -96,7 +96,7 @@ func TestCreateUpdateCephConnection(t *testing.T) {
 	assert.NoError(t, err)
 
 	// When RBDMirror is created
-	err = cl.Get(context.TODO(), types.NamespacedName{Name: c.NamespacedName().Name, Namespace: c.NamespacedName().Namespace}, csiCephConnection)
+	err = cl.Get(context.TODO(), types.NamespacedName{Name: ns, Namespace: ns}, csiCephConnection)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, csiCephConnection.Spec.RbdMirrorDaemonCount)
 }
