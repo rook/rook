@@ -43,7 +43,7 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
 	csiOpClientProfile.Spec = csiopv1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
-			Name: clusterName,
+			Name: clusterInfo.Namespace,
 		},
 		Rbd: &csiopv1.RbdConfigSpec{
 			RadosNamespace: cephBlockPoolRadosNamespaceName,
@@ -105,7 +105,7 @@ func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, ceph
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
 	csiOpClientProfile.Spec = csiopv1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
-			Name: clusterName,
+			Name: clusterInfo.Namespace,
 		},
 		CephFs: &csiopv1.CephFsConfigSpec{
 			SubVolumeGroup: cephFilesystemSubVolumeGroupName,
@@ -141,7 +141,7 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
 	csiOpClientProfile.Spec = csiopv1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
-			Name: namespaced.Name,
+			Name: clusterInfo.Namespace,
 		},
 	}
 
