@@ -26,10 +26,13 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -71,10 +74,23 @@ func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.Cl
 	case *cephv1.CephCluster:
 		ns = objectType.Namespace
 		daemonType = "cluster-rbd"
+
+		// check if rbd-mirror-peer user needs to be rotated
+		shouldRotateKeys, err := shouldRotateMirrorPeerKeys(ctx, clusterInfo)
+		if err != nil {
+			return ImmediateRetryResult, errors.Wrap(err, "failed to check if rbd-mirror-peer keys should be rotated or not")
+		}
+
 		// Create rbd mirror bootstrap peer token
-		bootstrapToken, err = cephclient.CreateRBDMirrorBootstrapPeerWithoutPool(ctx, clusterInfo)
+		bootstrapToken, err = cephclient.CreateRBDMirrorBootstrapPeerWithoutPool(ctx, clusterInfo, shouldRotateKeys)
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrapf(err, "failed to create %s-mirror bootstrap peer", daemonType)
+		}
+
+		// update rbd mirror peer cephx status in cephCluster resource
+		err = updateCephClusterCephxRbdMirrorStatus(ctx, clusterInfo, shouldRotateKeys)
+		if err != nil {
+			return ImmediateRetryResult, errors.Wrapf(err, "failed to update rbd-mirror-peer cephx status in the ceph cluster")
 		}
 
 		// Add additional information to the peer token
@@ -221,4 +237,44 @@ func expandBootstrapPeerToken(ctx *clusterd.Context, clusterInfo *cephclient.Clu
 
 	// Return the base64 encoded token
 	return []byte(base64.StdEncoding.EncodeToString(decodedTokenBackToJSON)), nil
+}
+
+func shouldRotateMirrorPeerKeys(c *clusterd.Context, clusterInfo *cephclient.ClusterInfo) (bool, error) {
+	cephObj := &cephv1.CephCluster{}
+	if err := c.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephObj); err != nil {
+		return false, errors.Wrapf(err, "failed to get cluster %v to get the cephx keys to rotate.", clusterInfo.NamespacedName())
+	}
+
+	// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
+	desiredCephVersion := clusterInfo.CephVersion
+	runningCephVersion := clusterInfo.CephVersion
+
+	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(cephObj.Spec.Security.CephX.RBDMirrorPeer, runningCephVersion, desiredCephVersion, *cephObj.Status.Cephx.RBDMirrorPeer)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to check if mirror peer keys should be rotated or not")
+	}
+
+	return shouldRotateKeys, nil
+}
+
+// updateCephClusterCephxRbdMirrorStatus fetches the latest cephCluster instance and updates mirror peer cephx status
+func updateCephClusterCephxRbdMirrorStatus(c *clusterd.Context, clusterInfo *cephclient.ClusterInfo, didRotate bool) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cluster := &cephv1.CephCluster{}
+		if err := c.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cluster); err != nil {
+			return errors.Wrapf(err, "failed to get cluster %v to update the conditions.", clusterInfo.NamespacedName())
+		}
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.RBDMirrorPeer, clusterInfo.CephVersion, *cluster.Status.Cephx.RBDMirrorPeer)
+		cluster.Status.Cephx.RBDMirrorPeer = &updatedStatus
+		logger.Debugf("updating rbd-mirror cephx status to %+v", cluster.Status.Cephx.RBDMirrorPeer)
+		if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
+			return errors.Wrap(err, "failed to update cluster cephx status for rbd-mirror")
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	logger.Debugf("successfully updated rbd-mirror cephx status on the cluster %q", clusterInfo.NamespacedName())
+	return nil
 }
