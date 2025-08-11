@@ -52,7 +52,6 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 	c.SetName(c.Namespace)
 	t.Setenv(k8sutil.PodNamespaceEnvVar, ns)
 
-	clusterName := "testClusterName"
 	cephBlockPoolRadosNamespacedName := types.NamespacedName{Namespace: ns, Name: "cephBlockPoolRadosNames"}
 	cephSubVolGrpNamespacedName := types.NamespacedName{Namespace: ns, Name: "cephSubVolumeGroupNames"}
 	csiOpClientProfile := &csiopv1.ClientProfile{}
@@ -66,10 +65,10 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-	err := CreateUpdateClientProfileRadosNamespace(context.TODO(), cl, c, cephBlockPoolRadosNamespacedName.Name, cephBlockPoolRadosNamespacedName.Name, clusterName)
+	err := CreateUpdateClientProfileRadosNamespace(context.TODO(), cl, c, cephBlockPoolRadosNamespacedName.Name, cephBlockPoolRadosNamespacedName.Name)
 	assert.NoError(t, err)
 
-	err = CreateUpdateClientProfileSubVolumeGroup(context.TODO(), cl, c, cephSubVolGrpNamespacedName.Name, cephSubVolGrpNamespacedName.Name, clusterName)
+	err = CreateUpdateClientProfileSubVolumeGroup(context.TODO(), cl, c, cephSubVolGrpNamespacedName.Name, cephSubVolGrpNamespacedName.Name)
 	assert.NoError(t, err)
 
 	err = cl.Get(context.TODO(), cephBlockPoolRadosNamespacedName, csiOpClientProfile)
