@@ -615,6 +615,32 @@ spec:
             status:
               description: CephBlockPoolStatus represents the mirroring status of Ceph Storage Pool
               properties:
+                cephx:
+                  description: PeerTokenCephxStatus represents the cephx key rotation status for peer tokens
+                  properties:
+                    peerToken:
+                      description: PeerToken shows the rotation status of the peer token associated with the `rbd-mirror-peer` user.
+                      properties:
+                        keyCephVersion:
+                          description: |-
+                            KeyCephVersion reports the Ceph version that created the current generation's keys. This is
+                            same string format as reported by `CephCluster.status.version.version` to allow them to be
+                            compared. E.g., `20.2.0-0`.
+                            For all newly-created resources, this field set to the version of Ceph that created the key.
+                            The special value "Uninitialized" indicates that keys are being created for the first time.
+                            An empty string indicates that the version is unknown, as expected in brownfield deployments.
+                          type: string
+                        keyGeneration:
+                          description: |-
+                            KeyGeneration represents the CephX key generation for the last successful reconcile.
+                            For all newly-created resources, this field is set to `1`.
+                            When keys are rotated due to any rotation policy, the generation is incremented or updated to
+                            the configured policy generation.
+                            Generation `0` indicates that keys existed prior to the implementation of key tracking.
+                          format: int32
+                          type: integer
+                      type: object
+                  type: object
                 conditions:
                   items:
                     description: Condition represents a status condition on any Rook-Ceph Custom Resource.
@@ -3757,6 +3783,38 @@ spec:
                           description: |-
                             Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
                             Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
+                          properties:
+                            keyGeneration:
+                              description: |-
+                                KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
+                                is KeyGeneration and ignored for other policies. If this is set to greater than the current
+                                key generation, relevant keys will be rotated, and the generation value will be updated to
+                                this new value (generation values are not necessarily incremental, though that is the
+                                intended use case). If this is set to less than or equal to the current key generation, keys
+                                are not rotated.
+                              format: int32
+                              maximum: 4294967295
+                              minimum: 0
+                              type: integer
+                              x-kubernetes-validations:
+                                - message: keyGeneration cannot be decreased
+                                  rule: self >= oldSelf
+                            keyRotationPolicy:
+                              description: |-
+                                KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
+                                One of Disabled, or KeyGeneration. Default Disabled.
+                              enum:
+                                - ""
+                                - Disabled
+                                - KeyGeneration
+                              type: string
+                          type: object
+                        rbdMirrorPeer:
+                          description: |-
+                            RBDMirrorPeer configures CephX key settings of the `rbd-mirror-peer` user that is used for creating
+                            bootstrap peer token used connect peer clusters. Rotating the `rbd-mirror-peer` user key will update
+                            the mirror peer token.
+                            Rotation will affect any existing peers connected to this cluster, so take care when exercising this option.
                           properties:
                             keyGeneration:
                               description: |-
