@@ -182,7 +182,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		if err != nil {
 			return errors.Wrap(err, "failed to create/update cephConnection")
 		}
-		err = csi.CreateDefaultClientProfile(c.context.Client, cluster.ClusterInfo, cluster.ClusterInfo.NamespacedName())
+		err = csi.CreateDefaultClientProfile(c.context.Client, cluster.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to create/update default client profile")
 		}
