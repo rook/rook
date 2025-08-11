@@ -38,7 +38,7 @@ func CreateUpdateCephConnection(c client.Client, clusterInfo *cephclient.Cluster
 	csiCephConnection.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
 	logger.Infof("Configuring ceph connection CR %q in namespace %q", csiCephConnection.Name, csiCephConnection.Namespace)
 
-	spec, err := generateCephConnSpec(c, clusterInfo, csiCephConnection.Spec, clusterSpec)
+	spec, err := generateCephConnSpec(c, clusterInfo, clusterSpec)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set ceph connection CR %q in namespace %q", csiCephConnection.Name, clusterInfo.Namespace)
 	}
@@ -68,12 +68,12 @@ func CreateUpdateCephConnection(c client.Client, clusterInfo *cephclient.Cluster
 	return nil
 }
 
-func generateCephConnSpec(c client.Client, clusterInfo *cephclient.ClusterInfo, csiClusterConnSpec csiopv1.CephConnectionSpec, clusterSpec cephv1.ClusterSpec) (csiopv1.CephConnectionSpec, error) {
+func generateCephConnSpec(c client.Client, clusterInfo *cephclient.ClusterInfo, clusterSpec cephv1.ClusterSpec) (csiopv1.CephConnectionSpec, error) {
+	csiClusterConnSpec := csiopv1.CephConnectionSpec{}
+
 	if clusterSpec.CSI.ReadAffinity.Enabled {
-		csiClusterConnSpec = csiopv1.CephConnectionSpec{
-			ReadAffinity: &csiopv1.ReadAffinitySpec{
-				CrushLocationLabels: clusterSpec.CSI.ReadAffinity.CrushLocationLabels,
-			},
+		csiClusterConnSpec.ReadAffinity = &csiopv1.ReadAffinitySpec{
+			CrushLocationLabels: clusterSpec.CSI.ReadAffinity.CrushLocationLabels,
 		}
 	}
 
