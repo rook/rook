@@ -1,0 +1,7 @@
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: ceph-bucket-a
+spec:
+  generateBucketName: ceph-bkt
+  storageClassName: rook-ceph-bucket-a
