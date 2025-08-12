@@ -325,12 +325,9 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 		},
 		StringData: map[string]string{
 			cephClient.Name: key,
-			// CSI requires userID and userKey for RBD
+			// CSI requires userID and userKey in secret
 			"userID":  cephClient.Name,
 			"userKey": key,
-			// CSI requires adminID and adminKey for CephFS
-			"adminID":  cephClient.Name,
-			"adminKey": key,
 		},
 		Type: k8sutil.RookType,
 	}

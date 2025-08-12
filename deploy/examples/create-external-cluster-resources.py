@@ -14,26 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import errno
-import sys
-import json
 import argparse
+import configparser
+import errno
+import hmac
+import json
 import re
 import subprocess
-import hmac
-import configparser
+import sys
+from base64 import encodebytes as encodestring
+from email.utils import formatdate
 from hashlib import sha1 as sha
+from io import StringIO
+from ipaddress import IPv4Address, ip_address
 from os import linesep as LINESEP
 from os import path
-from email.utils import formatdate
+from urllib.parse import urlencode as urlencode
+from urllib.parse import urlparse
+
 import requests
 from requests.auth import AuthBase
-from io import StringIO
-from urllib.parse import urlparse
-from urllib.parse import urlencode as urlencode
-from ipaddress import ip_address
-from ipaddress import IPv4Address
-from base64 import encodebytes as encodestring
 
 ModuleNotFoundError = ImportError
 
@@ -1908,11 +1908,11 @@ class RadosJSON:
                     "name": f"rook-{self.out_map['CSI_CEPHFS_PROVISIONER_SECRET_NAME']}",
                     "kind": "Secret",
                     "data": {
-                        "adminID": self.get_user_id(
+                        "userID": self.get_user_id(
                             self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"],
                             generation,
                         ),
-                        "adminKey": self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"],
+                        "userKey": self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"],
                     },
                 }
             )
@@ -1926,10 +1926,10 @@ class RadosJSON:
                     "name": f"rook-{self.out_map['CSI_CEPHFS_NODE_SECRET_NAME']}",
                     "kind": "Secret",
                     "data": {
-                        "adminID": self.get_user_id(
+                        "userID": self.get_user_id(
                             self.out_map["CSI_CEPHFS_NODE_SECRET_NAME"], generation
                         ),
-                        "adminKey": self.out_map["CSI_CEPHFS_NODE_SECRET"],
+                        "userKey": self.out_map["CSI_CEPHFS_NODE_SECRET"],
                     },
                 }
             )
