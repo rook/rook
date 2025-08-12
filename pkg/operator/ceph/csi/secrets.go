@@ -160,28 +160,30 @@ func cephCSIKeyringCephFSProvisionerCaps() []string {
 }
 
 func createOrUpdateCSISecret(clusterInfo *client.ClusterInfo, csiSecretContent csiSecretStore, k *keyring.SecretStore) error {
+	const userID = "userID"
+	const userKey = "userKey"
 	csiRBDProvisionerSecrets := map[string][]byte{
 		// userID is expected for the rbd provisioner driver
-		"userID":  []byte(csiSecretContent[CsiRBDProvisionerSecret].Name),
-		"userKey": []byte(csiSecretContent[CsiRBDProvisionerSecret].Key),
+		userID:  []byte(csiSecretContent[CsiRBDProvisionerSecret].Name),
+		userKey: []byte(csiSecretContent[CsiRBDProvisionerSecret].Key),
 	}
 
 	csiRBDNodeSecrets := map[string][]byte{
 		// userID is expected for the rbd node driver
-		"userID":  []byte(csiSecretContent[CsiRBDNodeSecret].Name),
-		"userKey": []byte(csiSecretContent[CsiRBDNodeSecret].Key),
+		userID:  []byte(csiSecretContent[CsiRBDNodeSecret].Name),
+		userKey: []byte(csiSecretContent[CsiRBDNodeSecret].Key),
 	}
 
 	csiCephFSProvisionerSecrets := map[string][]byte{
-		// adminID is expected for the cephfs provisioner driver
-		"adminID":  []byte(csiSecretContent[CsiCephFSProvisionerSecret].Name),
-		"adminKey": []byte(csiSecretContent[CsiCephFSProvisionerSecret].Key),
+		// userID is expected for the cephfs provisioner driver
+		userID:  []byte(csiSecretContent[CsiCephFSProvisionerSecret].Name),
+		userKey: []byte(csiSecretContent[CsiCephFSProvisionerSecret].Key),
 	}
 
 	csiCephFSNodeSecrets := map[string][]byte{
-		// adminID is expected for the cephfs node driver
-		"adminID":  []byte(csiSecretContent[CsiCephFSNodeSecret].Name),
-		"adminKey": []byte(csiSecretContent[CsiCephFSNodeSecret].Key),
+		// userID is expected for the cephfs node driver
+		userID:  []byte(csiSecretContent[CsiCephFSNodeSecret].Name),
+		userKey: []byte(csiSecretContent[CsiCephFSNodeSecret].Key),
 	}
 
 	keyringSecretMap := make(map[string]map[string][]byte)
