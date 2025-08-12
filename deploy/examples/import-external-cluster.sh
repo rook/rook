@@ -198,7 +198,16 @@ function importCsiRBDNodeSecret() {
       --from-literal=userID="$CSI_RBD_NODE_SECRET_NAME" \
       --from-literal=userKey="$CSI_RBD_NODE_SECRET"
   else
+<<<<<<< HEAD
     echo "secret rook-$CSI_RBD_NODE_SECRET_NAME already exists"
+=======
+    echo "secret 'rook-$CSI_RBD_NODE_SECRET_NAME' already exists"
+    $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "rook-$CSI_RBD_NODE_SECRET_NAME" \
+      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_CEPHFS_NODE_SECRET\"}}"
+>>>>>>> db44ef364 (external: user userID and userKey for rbd)
   fi
 }
 
@@ -213,7 +222,16 @@ function importCsiRBDProvisionerSecret() {
       --from-literal=userID="$CSI_RBD_PROVISIONER_SECRET_NAME" \
       --from-literal=userKey="$CSI_RBD_PROVISIONER_SECRET"
   else
+<<<<<<< HEAD
     echo "secret $CSI_RBD_PROVISIONER_SECRET_NAME already exists"
+=======
+    echo "secret 'rook-$CSI_RBD_PROVISIONER_SECRET_NAME' already exists"
+    $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "rook-$CSI_RBD_PROVISIONER_SECRET_NAME" \
+      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_CEPHFS_NODE_SECRET\"}}"
+>>>>>>> db44ef364 (external: user userID and userKey for rbd)
   fi
 }
 
