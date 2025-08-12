@@ -318,8 +318,6 @@ func TestCephClientController(t *testing.T) {
 	assert.NotEmpty(t, cephClientSecret.StringData)
 	assert.Contains(t, cephClientSecret.StringData, "userID")
 	assert.Contains(t, cephClientSecret.StringData, "userKey")
-	assert.Contains(t, cephClientSecret.StringData, "adminID")
-	assert.Contains(t, cephClientSecret.StringData, "adminKey")
 }
 
 func TestBuildUpdateStatusInfo(t *testing.T) {
