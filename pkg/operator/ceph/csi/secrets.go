@@ -115,15 +115,26 @@ func cephCSIKeyringCephFSProvisionerCaps() []string {
 	}
 }
 
+<<<<<<< HEAD
 func createOrUpdateCSISecret(clusterInfo *client.ClusterInfo, csiRBDProvisionerSecretKey, csiRBDNodeSecretKey, csiCephFSProvisionerSecretKey, csiCephFSNodeSecretKey string, k *keyring.SecretStore) error {
 	csiRBDProvisionerSecrets := map[string][]byte{
 		// userID is expected for the rbd provisioner driver
 		"userID":  []byte("csi-rbd-provisioner"),
 		"userKey": []byte(csiRBDProvisionerSecretKey),
+=======
+func createOrUpdateCSISecret(clusterInfo *client.ClusterInfo, csiSecretContent csiSecretStore, k *keyring.SecretStore) error {
+	const userID = "userID"
+	const userKey = "userKey"
+	csiRBDProvisionerSecrets := map[string][]byte{
+		// userID is expected for the rbd provisioner driver
+		userID:  []byte(csiSecretContent[CsiRBDProvisionerSecret].Name),
+		userKey: []byte(csiSecretContent[CsiRBDProvisionerSecret].Key),
+>>>>>>> cb89f351e (csi: update cephfs user and key in secret)
 	}
 
 	csiRBDNodeSecrets := map[string][]byte{
 		// userID is expected for the rbd node driver
+<<<<<<< HEAD
 		"userID":  []byte("csi-rbd-node"),
 		"userKey": []byte(csiRBDNodeSecretKey),
 	}
@@ -138,6 +149,22 @@ func createOrUpdateCSISecret(clusterInfo *client.ClusterInfo, csiRBDProvisionerS
 		// adminID is expected for the cephfs node driver
 		"adminID":  []byte("csi-cephfs-node"),
 		"adminKey": []byte(csiCephFSNodeSecretKey),
+=======
+		userID:  []byte(csiSecretContent[CsiRBDNodeSecret].Name),
+		userKey: []byte(csiSecretContent[CsiRBDNodeSecret].Key),
+	}
+
+	csiCephFSProvisionerSecrets := map[string][]byte{
+		// userID is expected for the cephfs provisioner driver
+		userID:  []byte(csiSecretContent[CsiCephFSProvisionerSecret].Name),
+		userKey: []byte(csiSecretContent[CsiCephFSProvisionerSecret].Key),
+	}
+
+	csiCephFSNodeSecrets := map[string][]byte{
+		// userID is expected for the cephfs node driver
+		userID:  []byte(csiSecretContent[CsiCephFSNodeSecret].Name),
+		userKey: []byte(csiSecretContent[CsiCephFSNodeSecret].Key),
+>>>>>>> cb89f351e (csi: update cephfs user and key in secret)
 	}
 
 	keyringSecretMap := make(map[string]map[string][]byte)

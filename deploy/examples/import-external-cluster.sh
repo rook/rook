@@ -225,11 +225,24 @@ function importCsiCephFSNodeSecret() {
       generic \
       --type="kubernetes.io/rook" \
       "rook-""$CSI_CEPHFS_NODE_SECRET_NAME" \
+<<<<<<< HEAD
       --from-literal=adminID="$CSI_CEPHFS_NODE_SECRET_NAME" \
       --from-literal=adminKey="$CSI_CEPHFS_NODE_SECRET"
   else
     echo "secret $CSI_CEPHFS_NODE_SECRET_NAME already exists"
   fi
+=======
+      --from-literal=userID="$userID" \
+      --from-literal=userKey="$CSI_CEPHFS_NODE_SECRET"
+  else
+    echo "secret 'rook-$CSI_CEPHFS_NODE_SECRET_NAME' already exists"
+      $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "rook-$CSI_CEPHFS_NODE_SECRET_NAME" \
+      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_CEPHFS_NODE_SECRET\"}}"
+    fi
+>>>>>>> cb89f351e (csi: update cephfs user and key in secret)
 }
 
 function importCsiCephFSProvisionerSecret() {
@@ -240,10 +253,22 @@ function importCsiCephFSProvisionerSecret() {
       generic \
       --type="kubernetes.io/rook" \
       "rook-""$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
+<<<<<<< HEAD
       --from-literal=adminID="$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
       --from-literal=adminKey="$CSI_CEPHFS_PROVISIONER_SECRET"
   else
     echo "secret $CSI_CEPHFS_PROVISIONER_SECRET_NAME already exists"
+=======
+      --from-literal=userID="$userID" \
+      --from-literal=userKey="$CSI_CEPHFS_PROVISIONER_SECRET"
+  else
+    echo "secret 'rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME' already exists"
+    $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
+      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_CEPHFS_NODE_SECRET\"}}"
+>>>>>>> cb89f351e (csi: update cephfs user and key in secret)
   fi
 }
 
