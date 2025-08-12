@@ -213,6 +213,30 @@ spec:
                 cephFs:
                   description: CephFsConfigSpec defines the desired CephFs configuration
                   properties:
+                    cephCsiSecrets:
+                      description: |-
+                        CephCsiSecretsSpec defines the secrets used by the client profile
+                        to access the Ceph cluster and perform operations
+                        on volumes.
+                      properties:
+                        controllerPublishSecret:
+                          description: |-
+                            SecretReference represents a Secret Reference. It has enough information to retrieve secret
+                            in any namespace
+                          properties:
+                            name:
+                              description:
+                                name is unique within a namespace to reference
+                                a secret resource.
+                              type: string
+                            namespace:
+                              description:
+                                namespace defines the space within which
+                                the secret name must be unique.
+                              type: string
+                          type: object
+                          x-kubernetes-map-type: atomic
+                      type: object
                     fuseMountOptions:
                       additionalProperties:
                         type: string
@@ -235,6 +259,30 @@ spec:
                 rbd:
                   description: RbdConfigSpec defines the desired RBD configuration
                   properties:
+                    cephCsiSecrets:
+                      description: |-
+                        CephCsiSecretsSpec defines the secrets used by the client profile
+                        to access the Ceph cluster and perform operations
+                        on volumes.
+                      properties:
+                        controllerPublishSecret:
+                          description: |-
+                            SecretReference represents a Secret Reference. It has enough information to retrieve secret
+                            in any namespace
+                          properties:
+                            name:
+                              description:
+                                name is unique within a namespace to reference
+                                a secret resource.
+                              type: string
+                            namespace:
+                              description:
+                                namespace defines the space within which
+                                the secret name must be unique.
+                              type: string
+                          type: object
+                          x-kubernetes-map-type: atomic
+                      type: object
                     radosNamespace:
                       type: string
                       x-kubernetes-validations:
@@ -3903,6 +3951,11 @@ spec:
                   type: object
                 deployCsiAddons:
                   description: a list of additional sidecars?
+                  type: boolean
+                enableFencing:
+                  description: |-
+                    Set to true to enable fencing for the driver.
+                    Fencing is a feature that allows the driver to fence a node when it is tainted with node.kubernetes.io/out-of-service.
                   type: boolean
                 enableMetadata:
                   description: |-
@@ -11143,6 +11196,11 @@ spec:
                     deployCsiAddons:
                       description: a list of additional sidecars?
                       type: boolean
+                    enableFencing:
+                      description: |-
+                        Set to true to enable fencing for the driver.
+                        Fencing is a feature that allows the driver to fence a node when it is tainted with node.kubernetes.io/out-of-service.
+                      type: boolean
                     enableMetadata:
                       description: |-
                         Set to true to enable adding volume metadata on the CephFS subvolumes and RBD images.
@@ -15153,6 +15211,31 @@ rules:
       - update
       - patch
   - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotcontents
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotcontents/status
+    verbs:
+      - update
+      - patch
+  - apiGroups:
       - ""
     resources:
       - serviceaccounts
@@ -15206,6 +15289,23 @@ rules:
       - serviceaccounts/token
     verbs:
       - create
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+      - persistentvolumeclaims
+    verbs:
+      - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -15387,6 +15487,14 @@ rules:
       - list
       - patch
       - update
+      - watch
+  - apiGroups:
+      - cbt.storage.k8s.io
+    resources:
+      - snapshotmetadataservices
+    verbs:
+      - get
+      - list
       - watch
   - apiGroups:
       - csi.ceph.io
@@ -15846,6 +15954,31 @@ rules:
       - update
       - patch
   - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotcontents
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - groupsnapshot.storage.openshift.io
+    resources:
+      - volumegroupsnapshotcontents/status
+    verbs:
+      - update
+      - patch
+  - apiGroups:
       - replication.storage.openshift.io
     resources:
       - volumegroupreplicationcontents
@@ -15867,6 +16000,19 @@ rules:
       - tokenreviews
     verbs:
       - create
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
+  - apiGroups:
+      - cbt.storage.k8s.io
+    resources:
+      - snapshotmetadataservices
+    verbs:
+      - get
+      - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -15924,6 +16070,22 @@ rules:
       - tokenreviews
     verbs:
       - create
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -16128,7 +16290,7 @@ spec:
               value: ceph-csi-
             - name: WATCH_NAMESPACE
               value: ""
-          image: quay.io/cephcsi/ceph-csi-operator:latest
+          image: quay.io/cephcsi/ceph-csi-operator:v0.4.0
           livenessProbe:
             httpGet:
               path: /healthz
