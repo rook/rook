@@ -31,6 +31,9 @@ linters:
       - linters:
           - staticcheck
         text: "Requeue is deprecated"
+      - linters:
+          - staticcheck
+        text: "Use aws-sdk-go-v2" # aws-sdk-go v1 deprecated warning
 formatters:
   enable:
     - gofmt
