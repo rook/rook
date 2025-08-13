@@ -592,7 +592,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolR
 		}
 	}
 
-	if cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
+	if cephBlockPool.Spec.StatusCheck.Mirror.Disabled || (!cephBlockPool.Spec.Mirroring.Enabled && cephBlockPoolRadosNamespace.Spec.Mirroring == nil) {
 		// Stop monitoring the mirroring status of this radosNamespace
 		if radosNamespaceContextsExists && r.radosNamespaceContexts[radosNamespaceChannelKey].started {
 			r.cancelMirrorMonitoring(radosNamespaceChannelKey)
