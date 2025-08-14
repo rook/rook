@@ -43,8 +43,10 @@ import (
 
 const (
 	// test with the latest releases
-	reefTestImage  = "quay.io/ceph/ceph:v18"
-	squidTestImage = "quay.io/ceph/ceph:v19"
+	reefTestImage = "quay.io/ceph/ceph:v18"
+	// There is an object store regression in v19.2.3, so test against v19.2.2 in the 1.16 branch
+	// See https://github.com/rook/rook/issues/16188
+	squidTestImage = "quay.io/ceph/ceph:v19.2.2"
 	// test with the current development versions
 	reefDevelTestImage  = "quay.ceph.io/ceph-ci/ceph:reef"
 	squidDevelTestImage = "quay.ceph.io/ceph-ci/ceph:squid"
@@ -209,7 +211,6 @@ func (h *CephInstaller) Execute(command string, parameters []string, namespace s
 
 // CreateCephCluster creates rook cluster via kubectl
 func (h *CephInstaller) CreateCephCluster() error {
-
 	ctx := context.TODO()
 	var err error
 	h.settings.DataDirHostPath, err = h.initTestDir(h.settings.Namespace)
@@ -436,7 +437,7 @@ func (h *CephInstaller) initTestDir(namespace string) (string, error) {
 	// skip the test dir creation if we are not running under "/data"
 	if val != "/data" {
 		// Create the test dir on the local host
-		if err := os.MkdirAll(testDir, 0777); err != nil {
+		if err := os.MkdirAll(testDir, 0o777); err != nil {
 			return "", err
 		}
 
@@ -867,7 +868,7 @@ func (h *CephInstaller) checkCephHealthStatus() {
 
 	// The health status is not stable enough for the integration tests to rely on.
 	// We should enable this check if we can get the ceph status to be stable despite all the changing configurations performed by rook.
-	//assert.Equal(h.T(), "HEALTH_OK", clusterResource.Status.CephStatus.Health)
+	// assert.Equal(h.T(), "HEALTH_OK", clusterResource.Status.CephStatus.Health)
 	assert.NotEqual(h.T(), "", clusterResource.Status.CephStatus.LastChecked)
 
 	// Print the details if the health is not ok
@@ -907,7 +908,6 @@ func (h *CephInstaller) GatherAllRookLogs(testName string, namespaces ...string)
 
 // NewCephInstaller creates new instance of CephInstaller
 func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, settings *TestCephSettings) *CephInstaller {
-
 	// By default set a cluster name that is different from the namespace so we don't rely on the namespace
 	// in expected places
 	if settings.ClusterName == "" {
