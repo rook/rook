@@ -50,6 +50,8 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: {{ $root.Release.Namespace }} # namespace:cluster
   csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
   csi.storage.k8s.io/controller-expand-secret-namespace: {{ $root.Release.Namespace }} # namespace:cluster
+  csi.storage.k8s.io/controller-publish-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-publish-secret-namespace: {{ $root.Release.Namespace }} # namespace:cluster
   csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
   csi.storage.k8s.io/node-stage-secret-namespace: {{ $root.Release.Namespace }} # namespace:cluster
   # Specify the filesystem type of the volume. If not specified, csi-provisioner

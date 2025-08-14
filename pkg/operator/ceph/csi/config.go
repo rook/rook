@@ -46,6 +46,12 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 		},
 		Rbd: &csiopv1.RbdConfigSpec{
 			RadosNamespace: cephBlockPoolRadosNamespaceName,
+			CephCsiSecrets: &csiopv1.CephCsiSecretsSpec{
+				ControllerPublishSecret: v1.SecretReference{
+					Name:      CsiRBDProvisionerSecret,
+					Namespace: clusterInfo.Namespace,
+				},
+			},
 		},
 	}
 
@@ -108,6 +114,12 @@ func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, ceph
 		},
 		CephFs: &csiopv1.CephFsConfigSpec{
 			SubVolumeGroup: cephFilesystemSubVolumeGroupName,
+			CephCsiSecrets: &csiopv1.CephCsiSecretsSpec{
+				ControllerPublishSecret: v1.SecretReference{
+					Name:      CsiCephFSProvisionerSecret,
+					Namespace: clusterInfo.Namespace,
+				},
+			},
 		},
 	}
 
@@ -152,6 +164,29 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 				}
 			}
 		}
+	}
+
+	// set cephFS ControllerPublish Secret
+	if csiOpClientProfile.Spec.CephFs == nil {
+		csiOpClientProfile.Spec.CephFs = &csiopv1.CephFsConfigSpec{}
+	}
+
+	csiOpClientProfile.Spec.CephFs.CephCsiSecrets = &csiopv1.CephCsiSecretsSpec{
+		ControllerPublishSecret: v1.SecretReference{
+			Name:      CsiCephFSProvisionerSecret,
+			Namespace: clusterInfo.Namespace,
+		},
+	}
+	if csiOpClientProfile.Spec.Rbd == nil {
+		csiOpClientProfile.Spec.Rbd = &csiopv1.RbdConfigSpec{}
+	}
+
+	// set RBD ControllerPublish Secret
+	csiOpClientProfile.Spec.Rbd.CephCsiSecrets = &csiopv1.CephCsiSecretsSpec{
+		ControllerPublishSecret: v1.SecretReference{
+			Name:      CsiRBDProvisionerSecret,
+			Namespace: clusterInfo.Namespace,
+		},
 	}
 
 	err := c.Get(clusterInfo.Context, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
