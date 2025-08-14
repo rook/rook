@@ -97,6 +97,7 @@ func (m *CephManifestsMaster) GetOperator() string {
 	} else {
 		manifest = m.settings.readManifest("operator.yaml")
 	}
+
 	return m.settings.replaceOperatorSettings(manifest)
 }
 
