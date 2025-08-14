@@ -12,3 +12,6 @@ spec:
         VAULT_CACERT: "vault-ca-cert"
         VAULT_AUTH_METHOD: token
       tokenSecretName: rook-vault-token
+    keyRotation:
+      enabled: true
+      schedule: "*/1 * * * *"
