@@ -3339,7 +3339,13 @@ type CephFilesystemMirror struct {
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              FilesystemMirroringSpec `json:"spec"`
 	// +optional
-	Status *Status `json:"status,omitempty"`
+	Status *FileMirrorStatus `json:"status,omitempty"`
+}
+
+// FileMirrorStatus represents the status of the FileSystem mirror resource
+type FileMirrorStatus struct {
+	Status `json:",inline"`
+	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
