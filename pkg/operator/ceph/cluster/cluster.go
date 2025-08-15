@@ -203,6 +203,9 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 		if err != nil {
 			if errors.Is(err, controller.ClusterInfoNoClusterNoSecret) {
 				logger.Info("clusterInfo not yet found, must be a new cluster.")
+				// ClusterInfoNoClusterNoSecret should return nil clusterInfo, but this is a
+				// mandatory condition for recoverPriorAdminCephxKeyRotation() below, so ensure it
+				clusterInfo = nil
 			} else {
 				return errors.Wrap(err, "failed to load cluster info")
 			}
@@ -211,6 +214,14 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 			clusterInfo.SetName(c.namespacedName.Name)
 			cluster.ClusterInfo = clusterInfo
 		}
+
+		// if necessary, recover from failed/interrupted admin key rotation
+		// this must be done before any ceph cli commands are run
+		err = recoverPriorAdminCephxKeyRotation(c.context, clusterInfo, cluster.ownerInfo, cluster.Namespace)
+		if err != nil {
+			return errors.Wrap(err, "failed to recover from prior admin cephx key rotation")
+		}
+
 		// If the local cluster has already been configured, immediately start monitoring the cluster.
 		// Test if the cluster has already been configured if the mgr deployment has been created.
 		// If the mgr does not exist, the mons have never been verified to be in quorum.
@@ -460,6 +471,18 @@ func (c *cluster) preMonStartupActions(cephVersion cephver.CephVersion) error {
 // It gets executed right after the main mon Start() method
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
+	// full cluster spec/status will be used to inform various cephx rotations
+	clusterObj := &cephv1.CephCluster{}
+	if err := c.context.Client.Get(c.ClusterInfo.Context, c.ClusterInfo.NamespacedName(), clusterObj); err != nil {
+		return errors.Wrapf(err, "failed to get cluster %v.", c.ClusterInfo.NamespacedName())
+	}
+
+	// rotate admin key first thing after mons are updated
+	err := rotateAdminCephxKey(c.context, c.ClusterInfo, c.ownerInfo, clusterObj) // TODO: rename?
+	if err != nil {
+		return errors.Wrapf(err, "failed to rotate admin cephx key")
+	}
+
 	// Create CSI Kubernetes Secrets
 	if err := csi.CreateCSISecrets(c.context, c.ClusterInfo, c.namespacedName); err != nil {
 		return errors.Wrap(err, "failed to create csi kubernetes secrets")
@@ -798,6 +821,7 @@ func (c *cluster) fetchSecretValue(selector v1.SecretKeySelector) (string, error
 func initClusterCephxStatus(c *clusterd.Context, cluster *cephv1.CephCluster) error {
 	uninitializedStatus := keyring.UninitializedCephxStatus()
 	cluster.Status.Cephx = &cephv1.ClusterCephxStatus{
+		Admin:         &uninitializedStatus,
 		OSD:           &uninitializedStatus,
 		RBDMirrorPeer: &uninitializedStatus,
 		Mgr:           &uninitializedStatus,
