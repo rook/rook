@@ -461,12 +461,22 @@ func (r *ReconcileCephBlockPool) handleDeletionBlocked(cephBlockPool *cephv1.Cep
 	logger.Info(depCondition.Message)
 
 	radosNamespaces := deps.OfKind(radosNamespacesKeyName)
-	isEmpty, emptyMessage, err := cephclient.IsPoolEmpty(r.context, r.clusterInfo, poolSpec.Name, radosNamespaces)
+	poolPresent, err := cephclient.IsPoolPresent(r.context, r.clusterInfo, poolSpec.Name)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to check pool presence")
+	}
+	var isEmpty bool
+	var emptyMessage string
+	if poolPresent {
+		isEmpty, emptyMessage, err = cephclient.IsPoolEmpty(r.context, r.clusterInfo, poolSpec.Name, radosNamespaces)
+		if err != nil {
+			return err
+		}
+	} else {
+		emptyMessage = fmt.Sprintf("pool %q is not found in cluster", poolSpec.Name)
 	}
 	var emptyCondition cephv1.Condition
-	if isEmpty {
+	if isEmpty || !poolPresent {
 		emptyCondition = dependents.DeletionBlockedDueToNonEmptyPoolCondition(false, emptyMessage)
 	} else {
 		deletionBlocked = true
@@ -550,21 +560,16 @@ func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 
 // Delete the pool
 func deletePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, p *cephv1.NamedPoolSpec) error {
-	pools, err := cephclient.ListPoolSummaries(context, clusterInfo)
+	poolPresent, err := cephclient.IsPoolPresent(context, clusterInfo, p.Name)
 	if err != nil {
-		return errors.Wrap(err, "failed to list pools")
+		return errors.Wrap(err, "failed to check pool presence")
 	}
-
-	// Only delete the pool if it exists...
-	for _, pool := range pools {
-		if pool.Name == p.Name {
-			err := cephclient.DeletePool(context, clusterInfo, p.Name)
-			if err != nil {
-				return errors.Wrapf(err, "failed to delete pool %q", p.Name)
-			}
+	if poolPresent {
+		err := cephclient.DeletePool(context, clusterInfo, p.Name)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete pool %q", p.Name)
 		}
 	}
-
 	return nil
 }
 
