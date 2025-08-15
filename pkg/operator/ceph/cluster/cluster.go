@@ -460,6 +460,27 @@ func (c *cluster) preMonStartupActions(cephVersion cephver.CephVersion) error {
 // It gets executed right after the main mon Start() method
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
+	clusterObj := &cephv1.CephCluster{}
+	if err := c.context.Client.Get(c.ClusterInfo.Context, c.ClusterInfo.NamespacedName(), clusterObj); err != nil {
+		return errors.Wrapf(err, "failed to get cluster %v.", c.ClusterInfo.NamespacedName())
+	}
+
+	// rotate mon cephx keys if required
+	didRotateMonCephxKeys, err := c.mons.RotateMonCephxKeys(clusterObj)
+	if err != nil {
+		return errors.Wrapf(err, "failed to rotate mon cephx keys in the namespace %q", c.ClusterInfo.Namespace)
+	}
+	err = c.mons.UpdateMonCephxStatus(didRotateMonCephxKeys)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update cephx status for mon daemons in the namespace %q", c.ClusterInfo.Namespace)
+	}
+
+	// reconcile to restart the mons after cephx key rotation
+	if didRotateMonCephxKeys {
+		// reconcile the rook operator so that it will restart the mons after mon cephx key rotation
+		return errors.New("triggering a new reconcile to restart the mon daemons after mon cephx key rotation")
+	}
+
 	// Create CSI Kubernetes Secrets
 	if err := csi.CreateCSISecrets(c.context, c.ClusterInfo, c.namespacedName); err != nil {
 		return errors.Wrap(err, "failed to create csi kubernetes secrets")
@@ -801,6 +822,7 @@ func initClusterCephxStatus(c *clusterd.Context, cluster *cephv1.CephCluster) er
 		OSD:           &uninitializedStatus,
 		RBDMirrorPeer: &uninitializedStatus,
 		Mgr:           &uninitializedStatus,
+		Mon:           &uninitializedStatus,
 		CSI: &cephv1.CephxStatusWithKeyCount{
 			CephxStatus: uninitializedStatus,
 		},

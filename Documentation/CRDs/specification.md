@@ -5101,6 +5101,19 @@ CSI key rotation can affect existing PV connections, so take care when exercisin
 <tbody>
 <tr>
 <td>
+<code>mon</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephxStatus">
+CephxStatus
+</a>
+</em>
+</td>
+<td>
+<p>Mon represents the CephX key status of the Monitor daemons</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>mgr</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.CephxStatus">
