@@ -214,7 +214,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 
 	// DELETE: the CR was deleted
 	if !cephClient.GetDeletionTimestamp().IsZero() {
-		logger.Debugf("deleting pool %q", cephClient.Name)
+		logger.Debugf("deleting client %q", cephClient.Name)
 		err := r.deleteClient(cephClient)
 		if err != nil {
 			return reconcile.Result{}, *cephClient, errors.Wrapf(err, "failed to delete ceph client %q", cephClient.Name)
@@ -284,7 +284,8 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 
 // Create the client
 func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient, shouldRotateCephxKeys bool) error {
-	logger.Infof("creating client %s in namespace %s", cephClient.Name, cephClient.Namespace)
+	clientName := getClientName(cephClient)
+	logger.Infof("creating client %s in namespace %s", clientName, cephClient.Namespace)
 
 	// Generate the CephX details
 	clientEntity, caps := genClientEntity(cephClient)
@@ -294,12 +295,12 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 	if err != nil {
 		key, err = cephclient.AuthGetOrCreateKey(r.context, r.clusterInfo, clientEntity, caps)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create client %q", cephClient.Name)
+			return errors.Wrapf(err, "failed to create client %q", clientName)
 		}
 	} else {
 		err = cephclient.AuthUpdateCaps(r.context, r.clusterInfo, clientEntity, caps)
 		if err != nil {
-			return errors.Wrapf(err, "client %q exists, failed to update client caps", cephClient.Name)
+			return errors.Wrapf(err, "client %q exists, failed to update client caps", clientName)
 		}
 	}
 
@@ -324,7 +325,7 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 			},
 		},
 		StringData: map[string]string{
-			cephClient.Name: key,
+			clientName: key,
 			// CSI requires userID and userKey in secret
 			"userID":  cephClient.Name,
 			"userKey": key,
@@ -374,24 +375,24 @@ func (r *ReconcileCephClient) reconcileCephClientSecret(
 
 // Delete the client
 func (r *ReconcileCephClient) deleteClient(cephClient *cephv1.CephClient) error {
-	logger.Infof("deleting client object %q", cephClient.Name)
-	if err := cephclient.AuthDelete(r.context, r.clusterInfo, generateClientName(cephClient.Name)); err != nil {
-		return errors.Wrapf(err, "failed to delete client %q", cephClient.Name)
+	clientName := getClientName(cephClient)
+	logger.Infof("deleting client object %q", clientName)
+
+	if err := cephclient.AuthDelete(r.context, r.clusterInfo, generateClientName(clientName)); err != nil {
+		return errors.Wrapf(err, "failed to delete client %q", clientName)
 	}
 
-	logger.Infof("deleted client %q", cephClient.Name)
+	logger.Infof("deleted client %q", clientName)
 	return nil
 }
 
 // ValidateClient the client arguments
 func ValidateClient(context *clusterd.Context, cephClient *cephv1.CephClient) error {
-	// Validate name
-	if cephClient.Name == "" {
-		return errors.New("missing name")
-	}
-	reservedNames := regexp.MustCompile("^admin$|^rgw.*$|^rbd-mirror$|^osd.[0-9]*$|^bootstrap-(mds|mgr|mon|osd|rgw|^rbd-mirror)$")
-	if reservedNames.Match([]byte(cephClient.Name)) {
-		return errors.Errorf("ignoring reserved name %q", cephClient.Name)
+	reservedNames := regexp.MustCompile("^admin$|^rgw.*$|^rbd-mirror$|^osd.[0-9]*$|^bootstrap-(mds|mgr|mon|osd|rgw|rbd-mirror)$|^rbd-mirror-peer$")
+	clientName := getClientName(cephClient)
+	// validate the Client name
+	if reservedNames.Match([]byte(clientName)) {
+		return errors.Errorf("ignoring reserved name %q", clientName)
 	}
 
 	// Validate Spec
@@ -413,7 +414,15 @@ func genClientEntity(cephClient *cephv1.CephClient) (string, []string) {
 		caps = append(caps, name, cap)
 	}
 
-	return generateClientName(cephClient.Name), caps
+	return generateClientName(getClientName(cephClient)), caps
+}
+
+func getClientName(cephClient *cephv1.CephClient) string {
+	name := cephClient.Name
+	if cephClient.Spec.Name != "" {
+		name = cephClient.Spec.Name
+	}
+	return name
 }
 
 func generateClientName(name string) string {
