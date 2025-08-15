@@ -589,6 +589,7 @@ func TestDeletionBlocked(t *testing.T) {
 	)
 	blockImageCount := 0
 	rnsImageCount := 0
+	poolPresent := false
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -600,6 +601,14 @@ func TestDeletionBlocked(t *testing.T) {
 						return fmt.Sprintf(response, rnsImageCount), nil
 					} else {
 						return fmt.Sprintf(response, blockImageCount), nil
+					}
+				}
+			} else if command == "ceph" && args[0] == "osd" {
+				if args[1] == "lspools" {
+					if poolPresent {
+						return fmt.Sprintf(`[{"poolnum":1,"poolname":"%s"}]`, pool.Name), nil
+					} else {
+						return "[]", nil
 					}
 				}
 			}
@@ -622,6 +631,24 @@ func TestDeletionBlocked(t *testing.T) {
 		clusterInfo:       cephclient.AdminTestClusterInfo("mycluster"),
 	}
 	cephCluster := &cephv1.CephCluster{}
+	t.Run("deletion is allowed with no pool actually present", func(t *testing.T) {
+		err := r.handleDeletionBlocked(pool, cephCluster)
+		assert.NoError(t, err)
+
+		result := &cephv1.CephBlockPool{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, pool.Name, result.Name)
+		assert.Equal(t, pool.Namespace, result.Namespace)
+		assert.Equal(t, 2, len(pool.Status.Conditions))
+		assert.Equal(t, "PoolDeletionIsBlocked", string(pool.Status.Conditions[0].Type))
+		assert.Equal(t, v1.ConditionFalse, pool.Status.Conditions[0].Status)
+		assert.Equal(t, "PoolEmpty", string(pool.Status.Conditions[0].Reason))
+		assert.Equal(t, "DeletionIsBlocked", string(pool.Status.Conditions[1].Type))
+		assert.Equal(t, v1.ConditionFalse, pool.Status.Conditions[1].Status)
+		assert.Equal(t, "ObjectHasNoDependents", string(pool.Status.Conditions[1].Reason))
+	})
+	poolPresent = true
 	t.Run("deletion is allowed with no images or rns", func(t *testing.T) {
 		err := r.handleDeletionBlocked(pool, cephCluster)
 		assert.NoError(t, err)
