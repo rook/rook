@@ -19,6 +19,7 @@ package mirror
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -56,6 +57,15 @@ func (r *ReconcileFilesystemMirror) generateKeyring(daemonConfig *daemonConfig) 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
 		return "", err
+	}
+
+	if r.shouldRotateCephxKeys {
+		logger.Infof("rotating CephX key for CephFileSystemMirror %q in the namespace %q", daemonConfig.ResourceName, r.clusterInfo.Namespace)
+		newKey, err := s.RotateKey(user)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to rotate CephX key for CephFileSystemMirror %q in the namespace %q", daemonConfig.ResourceName, r.clusterInfo.Namespace)
+		}
+		key = newKey
 	}
 
 	keyring := fmt.Sprintf(keyringTemplate, key)
