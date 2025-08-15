@@ -242,6 +242,20 @@ func IsPoolEmpty(context *clusterd.Context, clusterInfo *ClusterInfo, name strin
 	return true, fmt.Sprintf("pool %q is empty and can be deleted", name), nil
 }
 
+func IsPoolPresent(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (bool, error) {
+	pools, err := ListPoolSummaries(context, clusterInfo)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to list pools")
+	}
+
+	for _, pool := range pools {
+		if pool.Name == poolName {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func checkForImagesInPool(context *clusterd.Context, clusterInfo *ClusterInfo, name string) error {
 	isEmpty, err := checkIsPoolEmpty(context, clusterInfo, name)
 	if err != nil {
