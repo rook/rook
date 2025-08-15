@@ -52,6 +52,7 @@ type TestCephSettings struct {
 	RookVersion                 string
 	CephVersion                 cephv1.CephVersionSpec
 	KubernetesVersion           string
+	EnableCsiOperator           bool
 }
 
 func (s *TestCephSettings) ApplyEnvVars() {

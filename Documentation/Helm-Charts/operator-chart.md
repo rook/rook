@@ -129,7 +129,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.registrar.tag` | Registrar image tag | `"v2.13.0"` |
 | `csi.resizer.repository` | Kubernetes CSI resizer image repository | `"registry.k8s.io/sig-storage/csi-resizer"` |
 | `csi.resizer.tag` | Resizer image tag | `"v1.13.2"` |
-| `csi.rookUseCsiOperator` |  | `false` |
+| `csi.rookUseCsiOperator` |  | `true` |
 | `csi.serviceMonitor.enabled` | Enable ServiceMonitor for Ceph CSI drivers | `false` |
 | `csi.serviceMonitor.interval` | Service monitor scrape interval | `"10s"` |
 | `csi.serviceMonitor.labels` | ServiceMonitor additional labels | `{}` |

@@ -97,6 +97,10 @@ func (m *CephManifestsMaster) GetOperator() string {
 	} else {
 		manifest = m.settings.readManifest("operator.yaml")
 	}
+	if !m.settings.EnableCsiOperator {
+		return strings.ReplaceAll(manifest, "ROOK_USE_CSI_OPERATOR: \"true\"", "ROOK_USE_CSI_OPERATOR: \"false\"")
+	}
+
 	return m.settings.replaceOperatorSettings(manifest)
 }
 
