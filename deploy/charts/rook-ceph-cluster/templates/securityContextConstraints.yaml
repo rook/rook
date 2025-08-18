@@ -8,10 +8,13 @@ metadata:
 allowPrivilegedContainer: true
 allowHostDirVolumePlugin: true
 allowHostPID: false
-# set to true if running rook with host networking enabled
+{{- if eq .Values.cephClusterSpec.network.provider "host" }}
+allowHostNetwork: true
+allowHostPorts: true
+{{- else }}
 allowHostNetwork: false
-# set to true if running rook with the provider as host
 allowHostPorts: false
+{{- end }}
 priority:
 allowedCapabilities: ["MKNOD"]
 allowHostIPC: true
