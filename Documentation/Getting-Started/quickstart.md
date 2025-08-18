@@ -38,7 +38,7 @@ A simple Rook cluster is created for Kubernetes with the following `kubectl` com
 ```console
 $ git clone --single-branch --branch master https://github.com/rook/rook.git
 cd rook/deploy/examples
-kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+kubectl create -f crds.yaml -f common.yaml -f csi-operator.yaml -f operator.yaml
 kubectl create -f cluster.yaml
 ```
 
@@ -59,7 +59,7 @@ The first step is to deploy the Rook operator.
 
 ```console
 cd deploy/examples
-kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+kubectl create -f crds.yaml -f common.yaml -f csi-operator.yaml -f operator.yaml
 
 # verify the rook-ceph-operator is in the `Running` state before proceeding
 kubectl -n rook-ceph get pod
@@ -68,8 +68,6 @@ kubectl -n rook-ceph get pod
 Before starting the operator in production, consider these settings:
 
 1. Some Rook features are disabled by default. See the [operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml) for these and other advanced settings.
-    1. Device discovery: Rook will watch for new devices to configure if the `ROOK_ENABLE_DISCOVERY_DAEMON` setting is enabled, commonly used in bare metal clusters.
-    2. Node affinity and tolerations: The CSI driver by default will run on any node in the cluster. To restrict the CSI driver affinity, several settings are available.
 2. If deploying Rook into a namespace other than the default `rook-ceph`, see the topic on
 [using an alternative namespace](../Storage-Configuration/Advanced/ceph-configuration.md#using-alternate-namespaces).
 
@@ -111,25 +109,25 @@ For the default `cluster.yaml` above, one OSD will be created for each available
 ```console
 $ kubectl -n rook-ceph get pod
 NAME                                                 READY   STATUS      RESTARTS   AGE
-csi-cephfsplugin-provisioner-d77bb49c6-n5tgs         5/5     Running     0          140s
-csi-cephfsplugin-provisioner-d77bb49c6-v9rvn         5/5     Running     0          140s
-csi-cephfsplugin-rthrp                               3/3     Running     0          140s
-csi-rbdplugin-hbsm7                                  3/3     Running     0          140s
-csi-rbdplugin-provisioner-5b5cd64fd-nvk6c            6/6     Running     0          140s
-csi-rbdplugin-provisioner-5b5cd64fd-q7bxl            6/6     Running     0          140s
-rook-ceph-crashcollector-minikube-5b57b7c5d4-hfldl   1/1     Running     0          105s
-rook-ceph-mgr-a-64cd7cdf54-j8b5p                     2/2     Running     0          77s
-rook-ceph-mgr-b-657d54fc89-2xxw7                     2/2     Running     0          56s
-rook-ceph-mon-a-694bb7987d-fp9w7                     1/1     Running     0          105s
-rook-ceph-mon-b-856fdd5cb9-5h2qk                     1/1     Running     0          94s
-rook-ceph-mon-c-57545897fc-j576h                     1/1     Running     0          85s
-rook-ceph-operator-85f5b946bd-s8grz                  1/1     Running     0          92m
-rook-ceph-osd-0-6bb747b6c5-lnvb6                     1/1     Running     0          23s
-rook-ceph-osd-1-7f67f9646d-44p7v                     1/1     Running     0          24s
-rook-ceph-osd-2-6cd4b776ff-v4d68                     1/1     Running     0          25s
-rook-ceph-osd-prepare-node1-vx2rz                    0/2     Completed   0          60s
-rook-ceph-osd-prepare-node2-ab3fd                    0/2     Completed   0          60s
-rook-ceph-osd-prepare-node3-w4xyz                    0/2     Completed   0          60s
+ceph-csi-controller-manager-7794476bc9-h9xk4               1/1     Running     0    110s
+rook-ceph-crashcollector-minikube-5b57b7c5d4-hfldl         1/1     Running     0    105s
+rook-ceph-exporter-minikube-7b5fd5bbdd-h9c4b               1/1     Running     0    105s
+rook-ceph-mgr-a-64cd7cdf54-j8b5p                           2/2     Running     0    77s
+rook-ceph-mgr-b-657d54fc89-2xxw7                           2/2     Running     0    56s
+rook-ceph-mon-a-694bb7987d-fp9w7                           1/1     Running     0    105s
+rook-ceph-mon-b-856fdd5cb9-5h2qk                           1/1     Running     0    94s
+rook-ceph-mon-c-57545897fc-j576h                           1/1     Running     0    85s
+rook-ceph-operator-85f5b946bd-s8grz                        1/1     Running     0    92m
+rook-ceph-osd-0-6bb747b6c5-lnvb6                           1/1     Running     0    23s
+rook-ceph-osd-1-7f67f9646d-44p7v                           1/1     Running     0    24s
+rook-ceph-osd-2-6cd4b776ff-v4d68                           1/1     Running     0    25s
+rook-ceph-osd-prepare-node1-vx2rz                          0/2     Completed   0    60s
+rook-ceph-osd-prepare-node2-ab3fd                          0/2     Completed   0    60s
+rook-ceph-osd-prepare-node3-w4xyz                          0/2     Completed   0    60s
+rook-ceph.cephfs.csi.ceph.com-ctrlplugin-7b75d5b98c-wj444  5/5     Running     0    100s
+rook-ceph.cephfs.csi.ceph.com-nodeplugin-prx2j             3/3     Running     0    100s
+rook-ceph.rbd.csi.ceph.com-ctrlplugin-75b99498fb-7mq7f     6/6     Running     0    100s
+rook-ceph.rbd.csi.ceph.com-nodeplugin-cfcxr                3/3     Running     0    100s
 ```
 
 To verify that the cluster is in a healthy state, connect to the [Rook toolbox](../Troubleshooting/ceph-toolbox.md) and run the
