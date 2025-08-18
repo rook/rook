@@ -90,12 +90,20 @@ users:
   # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" namespace.
   # If other namespaces or service accounts are configured, they need to be updated here.
+  # Service accounts for the cephcsi driver (pre-cephcsi operator)
   - system:serviceaccount:rook-ceph:rook-csi-rbd-plugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-nfs-plugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-nfs-provisioner-sa # serviceaccount:namespace:operator
+  # Service accounts for the csi operator
+  - system:serviceaccount:rook-ceph:ceph-csi-cephfs-ctrlplugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:ceph-csi-cephfs-nodeplugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:ceph-csi-nfs-ctrlplugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:ceph-csi-nfs-nodeplugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:ceph-csi-rbd-ctrlplugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:ceph-csi-rbd-nodeplugin-sa # serviceaccount:namespace:operator
 ---
 # Rook Ceph Operator Config
 # Use this ConfigMap to override operator configurations
