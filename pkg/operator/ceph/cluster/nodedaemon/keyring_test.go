@@ -85,8 +85,8 @@ func TestCreateCrashCollectorKeyring(t *testing.T) {
 			CephStatus: &cephv1.CephStatus{
 				Health: "",
 			},
-			Cephx: &cephv1.ClusterCephxStatus{
-				CrashCollector: &status,
+			Cephx: cephv1.ClusterCephxStatus{
+				CrashCollector: status,
 			},
 		},
 	}
@@ -177,8 +177,8 @@ func TestCreateCephExporterKeyring(t *testing.T) {
 			CephStatus: &cephv1.CephStatus{
 				Health: "",
 			},
-			Cephx: &cephv1.ClusterCephxStatus{
-				CephExporter: &status,
+			Cephx: cephv1.ClusterCephxStatus{
+				CephExporter: status,
 			},
 		},
 	}

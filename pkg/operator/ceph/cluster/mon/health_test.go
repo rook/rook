@@ -288,8 +288,8 @@ func TestEvictMonOnSameNode(t *testing.T) {
 			},
 		},
 		Status: cephv1.ClusterStatus{
-			Cephx: &cephv1.ClusterCephxStatus{
-				RBDMirrorPeer: &cephv1.CephxStatus{},
+			Cephx: cephv1.ClusterCephxStatus{
+				RBDMirrorPeer: cephv1.CephxStatus{},
 			},
 		},
 	}
@@ -812,8 +812,8 @@ func TestExternalMons_notInSpec_InQuorum(t *testing.T) {
 			},
 		},
 		Status: cephv1.ClusterStatus{
-			Cephx: &cephv1.ClusterCephxStatus{
-				RBDMirrorPeer: &cephv1.CephxStatus{},
+			Cephx: cephv1.ClusterCephxStatus{
+				RBDMirrorPeer: cephv1.CephxStatus{},
 			},
 		},
 	}
@@ -1266,8 +1266,8 @@ func getCephCluster(name, namespace string) *cephv1.CephCluster {
 			},
 		},
 		Status: cephv1.ClusterStatus{
-			Cephx: &cephv1.ClusterCephxStatus{
-				RBDMirrorPeer: &cephv1.CephxStatus{},
+			Cephx: cephv1.ClusterCephxStatus{
+				RBDMirrorPeer: cephv1.CephxStatus{},
 			},
 		},
 	}

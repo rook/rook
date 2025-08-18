@@ -18,6 +18,7 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"strings"
@@ -26,11 +27,13 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -38,6 +41,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/ini.v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestPreClusterStartValidation(t *testing.T) {
@@ -358,7 +364,8 @@ func TestClusterFullSettings(t *testing.T) {
 					return fmt.Sprintf(
 						`{	"full_ratio": %.2f,
 					"backfillfull_ratio": %.2f,
-					"nearfull_ratio": %.2f}`, actualFullRatio, actualBackfillFullRatio, actualNearFullRatio), nil
+					"nearfull_ratio": %.2f}`, actualFullRatio, actualBackfillFullRatio, actualNearFullRatio,
+					), nil
 				}
 				if args[1] == "set-full-ratio" {
 					assert.Equal(t, fmt.Sprintf("%.2f", *c.Spec.Storage.FullRatio), args[2])
@@ -429,5 +436,175 @@ func TestClusterFullSettings(t *testing.T) {
 		assert.True(t, setFullRatio)
 		assert.False(t, setNearFullRatio)
 		assert.False(t, setBackfillFullRatio)
+	})
+}
+
+func Test_initClusterCephxStatus(t *testing.T) {
+	ns := "ns"
+	clusterName := "testcluster"
+
+	newCluster := func(cephxStatus cephv1.CephxStatus, clusterInfo *cephclient.ClusterInfo) *cluster {
+		cephCluster := &cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      clusterName,
+				Namespace: ns,
+			},
+			Status: cephv1.ClusterStatus{
+				Cephx: cephv1.ClusterCephxStatus{
+					Mon: cephxStatus,
+					// don't set other statuses for new clusters so we can tell if obj was updated
+				},
+			},
+		}
+		s := scheme.Scheme
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephClusterList{})
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(cephCluster).Build()
+
+		return &cluster{
+			ClusterInfo:    clusterInfo,
+			Namespace:      ns,
+			namespacedName: types.NamespacedName{Namespace: ns, Name: clusterName},
+			context: &clusterd.Context{
+				Client: cl,
+			},
+		}
+	}
+
+	readyClusterInfo := func() *cephclient.ClusterInfo {
+		return &cephclient.ClusterInfo{
+			FSID:          "1234567890",
+			MonitorSecret: "AAAAAAAAAAAAA==",
+			CephCred: cephclient.CephCred{
+				Username: "client.admin",
+				Secret:   "BBBBBBBBBBBBB==",
+			},
+			Context: context.TODO(),
+		}
+	}
+
+	notreadyClusterInfo := func() *cephclient.ClusterInfo {
+		return &cephclient.ClusterInfo{
+			Context: context.TODO(),
+		}
+	}
+
+	t.Run("cluster ready, empty status", func(t *testing.T) {
+		c := newCluster(cephv1.CephxStatus{}, readyClusterInfo())
+
+		err := initClusterCephxStatus(c)
+		assert.NoError(t, err)
+
+		cluster := cephv1.CephCluster{}
+		err = c.context.Client.Get(context.TODO(), c.namespacedName, &cluster)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.ClusterCephxStatus{}, cluster.Status.Cephx)
+	})
+
+	t.Run("cluster ready, status already uninit", func(t *testing.T) {
+		c := newCluster(keyring.UninitializedCephxStatus(), readyClusterInfo())
+
+		err := initClusterCephxStatus(c)
+		assert.NoError(t, err)
+
+		cluster := cephv1.CephCluster{}
+		err = c.context.Client.Get(context.TODO(), c.namespacedName, &cluster)
+		assert.NoError(t, err)
+		assert.Equal(t, keyring.UninitializedCephxStatus(), cluster.Status.Cephx.Mon)
+		assert.Equal(t, cephv1.CephxStatus{}, cluster.Status.Cephx.Mgr) // no status means no update
+	})
+
+	t.Run("cluster ready, status nonzero", func(t *testing.T) {
+		monStatus := cephv1.CephxStatus{KeyGeneration: 3, KeyCephVersion: "19.2.3-0"}
+		c := newCluster(monStatus, readyClusterInfo())
+
+		err := initClusterCephxStatus(c)
+		assert.NoError(t, err)
+
+		cluster := cephv1.CephCluster{}
+		err = c.context.Client.Get(context.TODO(), c.namespacedName, &cluster)
+		assert.NoError(t, err)
+		assert.Equal(t, monStatus, cluster.Status.Cephx.Mon)
+		assert.Equal(t, cephv1.CephxStatus{}, cluster.Status.Cephx.Mgr) // no status means no update
+	})
+
+	t.Run("cluster not ready, empty status", func(t *testing.T) {
+		c := newCluster(cephv1.CephxStatus{}, notreadyClusterInfo())
+
+		err := initClusterCephxStatus(c)
+		assert.NoError(t, err)
+
+		cluster := cephv1.CephCluster{}
+		err = c.context.Client.Get(context.TODO(), c.namespacedName, &cluster)
+		assert.NoError(t, err)
+		assert.Equal(t, keyring.UninitializedCephxStatus(), cluster.Status.Cephx.Mon)
+		assert.Equal(t, keyring.UninitializedCephxStatus(), cluster.Status.Cephx.Mgr)
+		assert.Equal(t, keyring.UninitializedCephxStatus(), cluster.Status.Cephx.CSI.CephxStatus)
+		assert.Equal(t, keyring.UninitializedCephxStatus(), cluster.Status.Cephx.RBDMirrorPeer)
+		assert.Equal(t, keyring.UninitializedCephxStatus(), cluster.Status.Cephx.CrashCollector)
+		assert.Equal(t, keyring.UninitializedCephxStatus(), cluster.Status.Cephx.CephExporter)
+	})
+
+	t.Run("cluster not ready, status already uninit", func(t *testing.T) {
+		c := newCluster(keyring.UninitializedCephxStatus(), notreadyClusterInfo())
+
+		err := initClusterCephxStatus(c)
+		assert.NoError(t, err)
+
+		cluster := cephv1.CephCluster{}
+		err = c.context.Client.Get(context.TODO(), c.namespacedName, &cluster)
+		assert.NoError(t, err)
+		assert.Equal(t, keyring.UninitializedCephxStatus(), cluster.Status.Cephx.Mon)
+		assert.Equal(t, cephv1.CephxStatus{}, cluster.Status.Cephx.Mgr) // no status means no update
+	})
+
+	t.Run("cluster not ready, status nonzero", func(t *testing.T) {
+		monStatus := cephv1.CephxStatus{KeyGeneration: 3, KeyCephVersion: "19.2.3-0"}
+		c := newCluster(monStatus, notreadyClusterInfo())
+
+		err := initClusterCephxStatus(c)
+		assert.NoError(t, err)
+
+		cluster := cephv1.CephCluster{}
+		err = c.context.Client.Get(context.TODO(), c.namespacedName, &cluster)
+		assert.NoError(t, err)
+		assert.Equal(t, monStatus, cluster.Status.Cephx.Mon)
+		assert.Equal(t, cephv1.CephxStatus{}, cluster.Status.Cephx.Mgr) // no status means no update
+	})
+
+	t.Run("cluster ctx canceled, status empty", func(t *testing.T) {
+		notReady := notreadyClusterInfo()
+		newCtx, cancelFunc := context.WithCancel(notReady.Context)
+		notReady.Context = newCtx
+		cancelFunc()
+
+		c := newCluster(cephv1.CephxStatus{}, notReady) // would normally need initialized
+
+		err := initClusterCephxStatus(c)
+		assert.Error(t, err)
+
+		cluster := cephv1.CephCluster{}
+		err = c.context.Client.Get(context.TODO(), c.namespacedName, &cluster)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.CephxStatus{}, cluster.Status.Cephx.Mon)
+		assert.Equal(t, cephv1.CephxStatus{}, cluster.Status.Cephx.Mgr) // no status means no update
+	})
+
+	t.Run("cluster ctx canceled, status nonzero", func(t *testing.T) {
+		notReady := notreadyClusterInfo()
+		newCtx, cancelFunc := context.WithCancel(notReady.Context)
+		notReady.Context = newCtx
+		cancelFunc()
+
+		monStatus := cephv1.CephxStatus{KeyGeneration: 3, KeyCephVersion: "19.2.3-0"}
+		c := newCluster(monStatus, notReady)
+
+		err := initClusterCephxStatus(c)
+		assert.Error(t, err)
+
+		cluster := cephv1.CephCluster{}
+		err = c.context.Client.Get(context.TODO(), c.namespacedName, &cluster)
+		assert.NoError(t, err)
+		assert.Equal(t, monStatus, cluster.Status.Cephx.Mon)
+		assert.Equal(t, cephv1.CephxStatus{}, cluster.Status.Cephx.Mgr) // no status means no update
 	})
 }
