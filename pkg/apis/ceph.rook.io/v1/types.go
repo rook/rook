@@ -516,14 +516,14 @@ type CephExporterSpec struct {
 
 // ClusterStatus represents the status of a Ceph cluster
 type ClusterStatus struct {
-	State       ClusterState        `json:"state,omitempty"`
-	Phase       ConditionType       `json:"phase,omitempty"`
-	Message     string              `json:"message,omitempty"`
-	Conditions  []Condition         `json:"conditions,omitempty"`
-	CephStatus  *CephStatus         `json:"ceph,omitempty"`
-	Cephx       *ClusterCephxStatus `json:"cephx,omitempty"`
-	CephStorage *CephStorage        `json:"storage,omitempty"`
-	CephVersion *ClusterVersion     `json:"version,omitempty"`
+	State       ClusterState       `json:"state,omitempty"`
+	Phase       ConditionType      `json:"phase,omitempty"`
+	Message     string             `json:"message,omitempty"`
+	Conditions  []Condition        `json:"conditions,omitempty"`
+	CephStatus  *CephStatus        `json:"ceph,omitempty"`
+	Cephx       ClusterCephxStatus `json:"cephx,omitempty"`
+	CephStorage *CephStorage       `json:"storage,omitempty"`
+	CephVersion *ClusterVersion    `json:"version,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -749,19 +749,19 @@ type LocalCephxStatus struct {
 // ClusterCephxStatus defines the cephx key rotation status of various daemons on the cephCluster resource
 type ClusterCephxStatus struct {
 	// Mon represents the CephX key status of the Monitor daemons
-	Mon *CephxStatus `json:"mon,omitempty"`
+	Mon CephxStatus `json:"mon,omitempty"`
 	// Mgr represents the cephx key rotation status of the ceph manager daemon
-	Mgr *CephxStatus `json:"mgr,omitempty"`
+	Mgr CephxStatus `json:"mgr,omitempty"`
 	// OSD shows the CephX key status of of OSDs
-	OSD *CephxStatus `json:"osd,omitempty"`
-	// RBDMirrorPeer represents the cephx key rotation status of the `rbd-mirror-peer` user
-	RBDMirrorPeer *CephxStatus `json:"rbdMirrorPeer,omitempty"`
+	OSD CephxStatus `json:"osd,omitempty"`
 	// CSI shows the CephX key status for Ceph-CSI components.
-	CSI *CephxStatusWithKeyCount `json:"csi,omitempty"`
+	CSI CephxStatusWithKeyCount `json:"csi,omitempty"`
+	// RBDMirrorPeer represents the cephx key rotation status of the `rbd-mirror-peer` user
+	RBDMirrorPeer CephxStatus `json:"rbdMirrorPeer,omitempty"`
 	// Crash Collector represents the cephx key rotation status of the crash collector daemon
-	CrashCollector *CephxStatus `json:"crashCollector,omitempty"`
+	CrashCollector CephxStatus `json:"crashCollector,omitempty"`
 	// Ceph Exporter represents the cephx key rotation status of the ceph exporter daemon
-	CephExporter *CephxStatus `json:"cephExporter,omitempty"`
+	CephExporter CephxStatus `json:"cephExporter,omitempty"`
 }
 
 // MonSpec represents the specification of the monitor

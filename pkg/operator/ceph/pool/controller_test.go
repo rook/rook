@@ -317,7 +317,7 @@ func TestCephBlockPoolController(t *testing.T) {
 				CephStatus: &cephv1.CephStatus{
 					Health: "",
 				},
-				Cephx: &cephv1.ClusterCephxStatus{},
+				Cephx: cephv1.ClusterCephxStatus{},
 			},
 		}
 
@@ -1026,7 +1026,7 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 			CephStatus: &cephv1.CephStatus{
 				Health: "HEALTH_OK",
 			},
-			Cephx: &cephv1.ClusterCephxStatus{},
+			Cephx: cephv1.ClusterCephxStatus{},
 		},
 	}
 
@@ -1188,7 +1188,7 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 	})
 
 	t.Run("PeerToken cephx status should be updated based on the cephCluster cephx status", func(t *testing.T) {
-		RDBMirrorPeerStatus := &cephv1.CephxStatus{
+		RDBMirrorPeerStatus := cephv1.CephxStatus{
 			KeyGeneration:  2,
 			KeyCephVersion: "20.2.0-0",
 		}
@@ -1201,6 +1201,6 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 		pool := &cephv1.CephBlockPool{}
 		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
 		assert.NoError(t, err)
-		assert.Equal(t, *RDBMirrorPeerStatus, pool.Status.Cephx.PeerToken)
+		assert.Equal(t, RDBMirrorPeerStatus, pool.Status.Cephx.PeerToken)
 	})
 }
