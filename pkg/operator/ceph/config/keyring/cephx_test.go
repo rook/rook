@@ -83,7 +83,7 @@ func TestShouldRotateCephxKeys(t *testing.T) {
 		for _, tt := range tests {
 			// and run all tests for case where ceph version does not support rotation
 			t.Run(tt.name, func(t *testing.T) {
-				got, err := ShouldRotateCephxKeys(tt.cfg, version.CephVersion{Major: 19, Minor: 2, Extra: 4}, tt.imageCephVersion, tt.status)
+				got, err := ShouldRotateCephxKeys(tt.cfg, version.CephVersion{Major: 19, Minor: 2, Extra: 2}, tt.imageCephVersion, tt.status)
 				assert.NoError(t, err)
 				assert.False(t, got)
 			})

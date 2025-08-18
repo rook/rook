@@ -1817,6 +1817,11 @@ func (c *Cluster) RotateMonCephxKeys(clusterObj *cephv1.CephCluster) (bool, erro
 		return shouldRotateMonKeys, nil
 	}
 
+	if !c.ClusterInfo.CephVersion.IsAtLeast(keyring.CephAuthMonRotateSupportedVersion) {
+		logger.Debugf("cephx key rotation for mons in namespace %q is indicated, but ceph version %#v does not support mon key rotation", c.Namespace, c.ClusterInfo.CephVersion)
+		return false, nil
+	}
+
 	logger.Infof("cephx keys for mon daemons in the namespace %q will be rotated", c.ClusterInfo.Namespace)
 
 	k := keyring.GetSecretStore(c.context, c.ClusterInfo, c.ClusterInfo.OwnerInfo)
