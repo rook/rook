@@ -622,7 +622,7 @@ func shouldRotateMgrKeys(c *clusterd.Context, clusterInfo *cephclient.ClusterInf
 	// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
 	runningCephVersion := clusterInfo.CephVersion
 
-	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, *clusterObj.Status.Cephx.Mgr)
+	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, clusterObj.Status.Cephx.Mgr)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to check if mgr daemon keys should be rotated or not")
 	}
@@ -636,8 +636,8 @@ func updateMgrCephxStatus(c *clusterd.Context, clusterInfo *cephclient.ClusterIn
 		if err := c.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cluster); err != nil {
 			return errors.Wrapf(err, "failed to get cluster %v to update the conditions.", clusterInfo.NamespacedName())
 		}
-		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, *cluster.Status.Cephx.Mgr)
-		cluster.Status.Cephx.Mgr = &updatedStatus
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, cluster.Status.Cephx.Mgr)
+		cluster.Status.Cephx.Mgr = updatedStatus
 		logger.Debugf("updating mgr daemon cephx status to %+v", cluster.Status.Cephx.Mgr)
 		if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
 			return errors.Wrap(err, "failed to update cluster cephx status for mgr daemon")

@@ -364,7 +364,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		}
 
 		// update rbdMirror cephXStatus immediately after bootstrapping the peer token
-		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionProgressing, observedGeneration, cephCluster.Status.Cephx.RBDMirrorPeer)
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionProgressing, observedGeneration, &cephCluster.Status.Cephx.RBDMirrorPeer)
 		if statusErr != nil {
 			return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrapf(statusErr, "failed to update %q status to %q", request.NamespacedName, cephv1.ConditionProgressing)
 		}
