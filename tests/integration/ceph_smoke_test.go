@@ -95,6 +95,7 @@ func (s *SmokeSuite) SetupSuite() {
 		ChangeHostName:          true,
 		RookVersion:             installer.LocalBuildTag,
 		CephVersion:             installer.ReturnCephVersion(),
+		EnableCsiOperator:       true,
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)

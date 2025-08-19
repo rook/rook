@@ -12,3 +12,6 @@ spec:
         VAULT_CACERT: "vault-ca-cert"
         VAULT_AUTH_METHOD: kubernetes
         VAULT_AUTH_KUBERNETES_ROLE: "rook-ceph"
+    keyRotation:
+      enabled: true
+      schedule: "*/1 * * * *"

@@ -33,7 +33,7 @@ for NAMESPACE in "${NAMESPACES[@]}"; do
   mkdir "${NS_DIR}"
 
   # describe every one of the k8s resources in the namespace which rook commonly uses
-  for KIND in 'pod' 'deployment' 'job' 'daemonset' 'cm'; do
+  for KIND in 'pod' 'deployment' 'job' 'daemonset' 'cm' 'pvc' 'sc'; do
     kubectl -n "$NAMESPACE" get "$KIND" -o wide >"${NS_DIR}"/"$KIND"-list.txt
     for resource in $(kubectl -n "$NAMESPACE" get "$KIND" -o jsonpath='{.items[*].metadata.name}'); do
       kubectl -n "$NAMESPACE" describe "$KIND" "$resource" >"${NS_DIR}"/"$KIND"-describe--"$resource".txt
@@ -56,7 +56,7 @@ for NAMESPACE in "${NAMESPACES[@]}"; do
   for CRD in $(kubectl get crds -o jsonpath='{.items[*].metadata.name}'); do
     for resource in $(kubectl -n "$NAMESPACE" get "$CRD" -o jsonpath='{.items[*].metadata.name}'); do
       crd_main_type="${CRD%%.*}" # e.g., for cephclusters.ceph.rook.io, only use 'cephclusters'
-      kubectl -n "$NAMESPACE" describe "$CRD" "$resource" >"${NS_DIR}"/"$crd_main_type"-describe--"$resource".txt
+      kubectl -n "$NAMESPACE" describe "$CRD" "$resource" >>"${NS_DIR}"/"$crd_main_type"-describe--"$resource".txt
     done
   done
 
