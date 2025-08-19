@@ -1191,8 +1191,8 @@ func TestRotateMonCephxKeys(t *testing.T) {
 			},
 		},
 		Status: cephv1.ClusterStatus{
-			Cephx: &cephv1.ClusterCephxStatus{
-				Mon: &uninitializedStatus,
+			Cephx: cephv1.ClusterCephxStatus{
+				Mon: uninitializedStatus,
 			},
 		},
 	}
@@ -1217,7 +1217,7 @@ func TestRotateMonCephxKeys(t *testing.T) {
 	}
 	c.context = &clusterd.Context{Clientset: test.New(t, 5), Executor: executor, Client: cl}
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
-	c.ClusterInfo.CephVersion = keyring.CephAuthRotateSupportedVersion
+	c.ClusterInfo.CephVersion = keyring.CephAuthMonRotateSupportedVersion
 
 	// create rook-ceph-mon secret
 	secret := &v1.Secret{
@@ -1240,7 +1240,7 @@ func TestRotateMonCephxKeys(t *testing.T) {
 	cluster.Spec.Security.CephX.Daemon.KeyRotationPolicy = cephv1.KeyGenerationCephxKeyRotationPolicy
 	cluster.Spec.Security.CephX.Daemon.KeyGeneration = 2
 	cluster.Status.Cephx.Mon.KeyGeneration = 1
-	cluster.Status.Cephx.Mon.KeyCephVersion = keyring.CephAuthRotateSupportedVersion.String()
+	cluster.Status.Cephx.Mon.KeyCephVersion = "19.2.3-0"
 	err = c.context.Client.Update(ctx, cluster)
 	assert.NoError(t, err)
 	shouldRotate, err = c.RotateMonCephxKeys(cluster)
@@ -1249,4 +1249,16 @@ func TestRotateMonCephxKeys(t *testing.T) {
 	secret, err = c.context.Clientset.CoreV1().Secrets(namespace).Get(c.ClusterInfo.Context, AppName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "myrotatedkey", string(secret.Data[opcontroller.MonSecretNameKey]))
+
+	// verify mon key does not rotate when other daemons rotate
+	cluster.Spec.Security.CephX.Daemon.KeyRotationPolicy = cephv1.KeyGenerationCephxKeyRotationPolicy
+	cluster.Spec.Security.CephX.Daemon.KeyGeneration = 2
+	cluster.Status.Cephx.Mon.KeyGeneration = 1
+	cluster.Status.Cephx.Mon.KeyCephVersion = "19.2.3-0"
+	err = c.context.Client.Update(ctx, cluster)
+	assert.NoError(t, err)
+	c.ClusterInfo.CephVersion = keyring.CephAuthRotateSupportedVersion // but not CephAuthMonRotateSupportedVersion
+	shouldRotate, err = c.RotateMonCephxKeys(cluster)
+	assert.NoError(t, err)
+	assert.False(t, shouldRotate)
 }

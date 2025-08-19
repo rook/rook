@@ -89,7 +89,7 @@ func createCrashCollectorKeyring(s *keyring.SecretStore, context *clusterd.Conte
 	shouldRotateCephxKeys, err := keyring.ShouldRotateCephxKeys(
 		clusterObj.Spec.Security.CephX.Daemon,
 		clusterInfo.CephVersion, clusterInfo.CephVersion,
-		*clusterObj.Status.Cephx.CrashCollector,
+		clusterObj.Status.Cephx.CrashCollector,
 	)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to check if cephx keys should be rotated for crash collector %q", crashCollectorKeyringUsername)
@@ -119,8 +119,8 @@ func updateCrashCollectorCephxStatus(context *clusterd.Context, clusterInfo *cli
 		if err := context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cluster); err != nil {
 			return errors.Wrapf(err, "failed to get cluster %v to update the conditions.", clusterInfo.NamespacedName())
 		}
-		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, *cluster.Status.Cephx.CrashCollector)
-		cluster.Status.Cephx.CrashCollector = &updatedStatus
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, cluster.Status.Cephx.CrashCollector)
+		cluster.Status.Cephx.CrashCollector = updatedStatus
 		if err := reporting.UpdateStatus(context.Client, cluster); err != nil {
 			return errors.Wrap(err, "failed to update cluster cephx status for crash collector daemon")
 		}
@@ -205,7 +205,7 @@ func createExporterKeyring(s *keyring.SecretStore, context *clusterd.Context, cl
 	shouldRotateCephxKeys, err := keyring.ShouldRotateCephxKeys(
 		clusterObj.Spec.Security.CephX.Daemon,
 		clusterInfo.CephVersion, clusterInfo.CephVersion,
-		*clusterObj.Status.Cephx.CephExporter,
+		clusterObj.Status.Cephx.CephExporter,
 	)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to check if cephx keys should be rotated for ceph exporter %q", exporterKeyringUsername)
@@ -234,8 +234,8 @@ func updateCephExporterCephxStatus(context *clusterd.Context, clusterInfo *clien
 		if err := context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cluster); err != nil {
 			return errors.Wrapf(err, "failed to get cluster %v to update the conditions.", clusterInfo.NamespacedName())
 		}
-		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, *cluster.Status.Cephx.CephExporter)
-		cluster.Status.Cephx.CephExporter = &updatedStatus
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, cluster.Status.Cephx.CephExporter)
+		cluster.Status.Cephx.CephExporter = updatedStatus
 		if err := reporting.UpdateStatus(context.Client, cluster); err != nil {
 			return errors.Wrap(err, "failed to update cluster cephx status for ceph exporter daemon")
 		}
