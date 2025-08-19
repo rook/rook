@@ -498,7 +498,7 @@ csi:
     # -- Ceph CSI image repository
     repository: quay.io/cephcsi/cephcsi
     # -- Ceph CSI image tag
-    tag: v3.14.2
+    tag: v3.15.0
 
   registrar:
     # -- Kubernetes CSI registrar image repository
