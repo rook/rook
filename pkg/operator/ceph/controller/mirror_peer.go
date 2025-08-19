@@ -249,7 +249,7 @@ func shouldRotateMirrorPeerKeys(c *clusterd.Context, clusterInfo *cephclient.Clu
 	desiredCephVersion := clusterInfo.CephVersion
 	runningCephVersion := clusterInfo.CephVersion
 
-	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(cephObj.Spec.Security.CephX.RBDMirrorPeer, runningCephVersion, desiredCephVersion, *cephObj.Status.Cephx.RBDMirrorPeer)
+	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(cephObj.Spec.Security.CephX.RBDMirrorPeer, runningCephVersion, desiredCephVersion, cephObj.Status.Cephx.RBDMirrorPeer)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to check if mirror peer keys should be rotated or not")
 	}
@@ -264,8 +264,8 @@ func updateCephClusterCephxRbdMirrorStatus(c *clusterd.Context, clusterInfo *cep
 		if err := c.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cluster); err != nil {
 			return errors.Wrapf(err, "failed to get cluster %v to update the conditions.", clusterInfo.NamespacedName())
 		}
-		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.RBDMirrorPeer, clusterInfo.CephVersion, *cluster.Status.Cephx.RBDMirrorPeer)
-		cluster.Status.Cephx.RBDMirrorPeer = &updatedStatus
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.RBDMirrorPeer, clusterInfo.CephVersion, cluster.Status.Cephx.RBDMirrorPeer)
+		cluster.Status.Cephx.RBDMirrorPeer = updatedStatus
 		logger.Debugf("updating rbd-mirror cephx status to %+v", cluster.Status.Cephx.RBDMirrorPeer)
 		if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
 			return errors.Wrap(err, "failed to update cluster cephx status for rbd-mirror")

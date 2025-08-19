@@ -1807,7 +1807,7 @@ func (c *Cluster) RotateMonCephxKeys(clusterObj *cephv1.CephCluster) (bool, erro
 	// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
 	runningCephVersion := c.ClusterInfo.CephVersion
 
-	shouldRotateMonKeys, err := keyring.ShouldRotateCephxKeys(clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, *clusterObj.Status.Cephx.Mon)
+	shouldRotateMonKeys, err := keyring.ShouldRotateCephxKeys(clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, clusterObj.Status.Cephx.Mon)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to check if mon daemon keys should be rotated in the namespace %q", c.ClusterInfo.Namespace)
 	}
@@ -1815,6 +1815,11 @@ func (c *Cluster) RotateMonCephxKeys(clusterObj *cephv1.CephCluster) (bool, erro
 	if !shouldRotateMonKeys {
 		logger.Debugf("cephx key rotation for mon daemon in the namespace %q is not required", c.ClusterInfo.Namespace)
 		return shouldRotateMonKeys, nil
+	}
+
+	if !c.ClusterInfo.CephVersion.IsAtLeast(keyring.CephAuthMonRotateSupportedVersion) {
+		logger.Debugf("cephx key rotation for mons in namespace %q is indicated, but ceph version %#v does not support mon key rotation", c.Namespace, c.ClusterInfo.CephVersion)
+		return false, nil
 	}
 
 	logger.Infof("cephx keys for mon daemons in the namespace %q will be rotated", c.ClusterInfo.Namespace)
@@ -1849,8 +1854,8 @@ func (c *Cluster) UpdateMonCephxStatus(didRotate bool) error {
 		if err := c.context.Client.Get(c.ClusterInfo.Context, c.ClusterInfo.NamespacedName(), cluster); err != nil {
 			return errors.Wrapf(err, "failed to get cluster %v to update the mon cephx status.", c.ClusterInfo.NamespacedName())
 		}
-		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, c.ClusterInfo.CephVersion, *cluster.Status.Cephx.Mon)
-		cluster.Status.Cephx.Mon = &updatedStatus
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, c.ClusterInfo.CephVersion, cluster.Status.Cephx.Mon)
+		cluster.Status.Cephx.Mon = updatedStatus
 		logger.Debugf("updating mon daemon cephx status to %+v", cluster.Status.Cephx.Mgr)
 		if err := reporting.UpdateStatus(c.context.Client, cluster); err != nil {
 			return errors.Wrapf(err, "failed to update cluster cephx status for mon daemon in the namespace %q", c.ClusterInfo.Namespace)

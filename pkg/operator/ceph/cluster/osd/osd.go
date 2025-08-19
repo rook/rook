@@ -1073,10 +1073,7 @@ func (c *Cluster) updateCephOsdStorageStatus() error {
 		cephCluster.Status.CephStorage = &cephClusterStorage
 
 		if cephx != nil {
-			if cephCluster.Status.Cephx == nil {
-				cephCluster.Status.Cephx = &cephv1.ClusterCephxStatus{}
-			}
-			cephCluster.Status.Cephx.OSD = cephx
+			cephCluster.Status.Cephx.OSD = *cephx
 		}
 
 		if err := reporting.UpdateStatus(c.context.Client, &cephCluster); err != nil {
