@@ -14,7 +14,7 @@ defaults:
     shell: bash --noprofile --norc -eo pipefail -x {0}
 
 permissions:
-  contents: read
+   contents: read
 
 jobs:
   canary:
@@ -29,10 +29,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider debugging (tmate)
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+ 
+      - name: consider debugging (upterm)
+        uses: ./.github/workflows/upterm_debug
+        with:
           debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
