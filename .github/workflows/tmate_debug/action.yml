@@ -25,3 +25,12 @@ runs:
       with:
         limit-access-to-actor: false
         detached: true
+
+    - name: set up upterm session for debugging
+      if: ${{ env.USE_TMATE }}
+      uses: owenthereal/action-upterm@v1
+      with:
+        ## whether to limit ssh access and adds the ssh public key for the user which triggered the workflow:
+        limit-access-to-actor: false
+        ## If no one connects after 5 minutes, shut down server.
+        wait-timeout-minutes: 5
