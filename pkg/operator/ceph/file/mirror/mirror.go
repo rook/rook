@@ -23,6 +23,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -54,7 +55,7 @@ func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesyste
 		ownerInfo:    ownerInfo,
 	}
 
-	_, err = r.generateKeyring(daemonConf)
+	secretResourceVersion, err := r.generateKeyring(daemonConf)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate keyring for %q", AppName)
 	}
@@ -64,6 +65,9 @@ func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesyste
 	if err != nil {
 		return errors.Wrap(err, "failed to create filesystem-mirror deployment")
 	}
+
+	// apply cephx secret resource version to the deployment to ensure it restarts when keyring updates
+	d.Spec.Template.Annotations[keyring.CephxKeyIdentifierAnnotation] = secretResourceVersion
 
 	// Set owner ref to filesystemMirror object
 	err = controllerutil.SetControllerReference(filesystemMirror, d, r.scheme)
