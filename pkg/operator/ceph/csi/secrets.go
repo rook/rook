@@ -120,6 +120,9 @@ func createCSIKeyring(
 	allKeyWithBaseName = deduplicate(allKeyWithBaseName)
 
 	currentKeyCount := len(allKeyWithBaseName) - len(keysDeleted)
+	if currentKeyCount <= 0 {
+		logger.Warningf("currentKeyCount is %d is less than or equal to 0; this could be due to an error in key generation", currentKeyCount)
+	}
 
 	return latestClientId, key, currentKeyCount, shouldRotate, nil
 }
@@ -314,7 +317,7 @@ func updateCephStatusWithCephxStatus(context *clusterd.Context, clusterInfo *cli
 			return errors.Wrapf(err, "failed to retrieve cephCluster %q to update CSICephxStatus", namespacedName.Namespace)
 		}
 		cephCluster.Status.Cephx.CSI.CephxStatus = cephxStatus
-		cephCluster.Status.Cephx.CSI.PriorKeyCount = uint8(currentKeyCount) //nolint:gosec // disable G115
+		cephCluster.Status.Cephx.CSI.PriorKeyCount = uint8(getPriorKeyCount(currentKeyCount)) //nolint:gosec // disable G115
 
 		if err := reporting.UpdateStatus(context.Client, cephCluster); err != nil {
 			return errors.Wrapf(err, "failed to update cephCluster %q to update csi cephx status to %q in namespace %q", namespacedName.Name, cephxStatus, namespacedName.Namespace)
@@ -327,6 +330,10 @@ func updateCephStatusWithCephxStatus(context *clusterd.Context, clusterInfo *cli
 
 	logger.Debugf("successfully updated Ceph cluster %q status with CSI Cephx status in namespace %q", namespacedName.Name, namespacedName.Namespace)
 	return nil
+}
+
+func getPriorKeyCount(currentKeyCount int) int {
+	return max(0, currentKeyCount-1)
 }
 
 // getCsiKeyRotationInfo runs the `ceph auth ls` command to fetch all the keys and filter out the keys with same base name. Example
