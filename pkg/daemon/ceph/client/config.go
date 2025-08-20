@@ -93,7 +93,7 @@ func GenerateConnectionConfig(context *clusterd.Context, cluster *ClusterInfo) (
 func GenerateConnectionConfigWithSettings(context *clusterd.Context, clusterInfo *ClusterInfo, settings *CephConfig) (string, error) {
 	root := path.Join(context.ConfigDir, clusterInfo.Namespace)
 	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username))
-	err := writeKeyring(CephKeyring(clusterInfo.CephCred), keyringPath)
+	err := WriteKeyring(keyringPath, CephKeyring(clusterInfo.CephCred))
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to write keyring %q to %s", clusterInfo.CephCred.Username, root)
 	}

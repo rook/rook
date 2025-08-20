@@ -60,6 +60,30 @@ type ClusterInfo struct {
 	// Whereas if passed through clusterInfo, we don't have that problem since clusterInfo is
 	// re-hydrated when a context is cancelled.
 	Context context.Context
+
+	// KeyringFileOverride, if set, configures a ceph client executor to use a specific keyring file
+	// instead of the default.
+	KeyringFileOverride string
+}
+
+// ShallowCopy makes a shallow copy of the ClusterInfo struct.
+// IMPORTANT: This does not deep copy all fields; take care when using the copied struct.
+func (c *ClusterInfo) ShallowCopy() *ClusterInfo {
+	return &ClusterInfo{
+		FSID:                c.FSID,
+		MonitorSecret:       c.MonitorSecret,
+		CephCred:            c.CephCred,
+		InternalMonitors:    c.InternalMonitors, // not a deep copy
+		ExternalMons:        c.ExternalMons,     // not a deep copy
+		CephVersion:         c.CephVersion,
+		Namespace:           c.Namespace,
+		name:                c.name,
+		OsdUpgradeTimeout:   c.OsdUpgradeTimeout,
+		NetworkSpec:         c.NetworkSpec,   // possibly not a deep copy
+		CSIDriverSpec:       c.CSIDriverSpec, // possibly not a deep copy
+		Context:             c.Context,       // not a deep copy
+		KeyringFileOverride: c.KeyringFileOverride,
+	}
 }
 
 func (c *ClusterInfo) AllMonitors() map[string]*MonInfo {
