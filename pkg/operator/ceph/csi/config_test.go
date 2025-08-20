@@ -47,8 +47,7 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 
 	ns := "test"
 	c.Namespace = ns
-	c.SetName(c.Namespace)
-	t.Setenv(k8sutil.PodNamespaceEnvVar, ns)
+	c.SetName("testcluster")
 	c.NamespacedName()
 	c.SetName(c.Namespace)
 	t.Setenv(k8sutil.PodNamespaceEnvVar, ns)
