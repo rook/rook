@@ -19,6 +19,18 @@ HELM_S3_BUCKET ?= rook.chart
 HELM_CHARTS_DIR ?= $(ROOT_DIR)/deploy/charts
 HELM_OUTPUT_DIR ?= $(OUTPUT_DIR)/charts
 
+# Check if helm chart needs dependency download by simply
+# checking are there any .tgz files in the charts/ directory?
+define helm_needs_dependencies
+$(shell \
+	if [ "$$(find $(HELM_CHARTS_DIR)/$(1)/charts -name "*.tgz" -type f 2>/dev/null | wc -l)" -eq 0 ]; then \
+		echo "yes"; \
+	else \
+		echo "no"; \
+	fi \
+)
+endef
+
 HELM_HOME := $(abspath $(CACHE_DIR)/helm)
 HELM_VERSION := v3.18.2
 HELM := $(TOOLS_HOST_DIR)/helm-$(HELM_VERSION)
@@ -38,10 +50,11 @@ $(HELM):
 define helm.chart
 $(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz: $(HELM) $(HELM_OUTPUT_DIR) $(shell find $(HELM_CHARTS_DIR)/$(1) -type f)
 	@echo === helm package $(1)
-	@if [ ! -f $(HELM_CHARTS_DIR)/$(1)/charts/ceph-csi-operator-*.tgz ]; then \
-		echo "=== helm repo add (dependencies missing)"; \
+	@if [ "$(call helm_needs_dependencies,$(1))" = "yes" ]; then \
 		$(HELM) repo add ceph-csi-operator https://ceph.github.io/ceph-csi-operator --force-update; \
 		$(MAKE) helm.dependency.update.$(1); \
+	else \
+		echo "Dependencies already present, skipping"; \
 	fi
 	@rm -rf $(OUTPUT_DIR)/$(1)
 	@cp -aL $(HELM_CHARTS_DIR)/$(1) $(OUTPUT_DIR)
@@ -62,7 +75,11 @@ helm.build: $(HELM_INDEX)
 define helm.dependency.update
 helm.dependency.update.$(1): $(HELM)
 	@echo === updating helm dependencies for $(1)
-	@cd $(HELM_CHARTS_DIR)/$(1) && $(HELM) dependency update
+	@if [ "$(call helm_needs_dependencies,$(1))" = "yes" ]; then \
+		cd $(HELM_CHARTS_DIR)/$(1) && $(HELM) dependency update; \
+	else \
+		echo "Dependencies already present, skipping"; \
+	fi
 helm.dependency.update: helm.dependency.update.$(1)
 endef
 $(foreach p,$(HELM_CHARTS),$(eval $(call helm.dependency.update,$(p))))
@@ -71,7 +88,11 @@ $(foreach p,$(HELM_CHARTS),$(eval $(call helm.dependency.update,$(p))))
 define helm.dependency.build
 helm.dependency.build.$(1): $(HELM)
 	@echo === building helm dependencies for $(1)
-	@cd $(HELM_CHARTS_DIR)/$(1) && $(HELM) dependency build
+	@if [ "$(call helm_needs_dependencies,$(1))" = "yes" ]; then \
+		cd $(HELM_CHARTS_DIR)/$(1) && $(HELM) dependency build; \
+	else \
+		echo "Dependencies already present, skipping"; \
+	fi
 helm.dependency.build: helm.dependency.build.$(1)
 endef
 $(foreach p,$(HELM_CHARTS),$(eval $(call helm.dependency.build,$(p))))
@@ -86,9 +107,9 @@ endef
 $(foreach p,$(HELM_CHARTS),$(eval $(call helm.dependency.clean,$(p))))
 
 .PHONY: helm.dependency.update helm.dependency.build helm.dependency.clean
-helm.dependency.update: ## Update helm chart dependencies for all charts
-helm.dependency.build: ## Build helm chart dependencies for all charts
-helm.dependency.clean: ## Clean up helm dependency artifacts (.tgz files) from source directories
+helm.dependency.update: ## Only downloads helm dependencies when they're actually missing
+helm.dependency.build: ## Only builds helm dependencies when they're not already present
+helm.dependency.clean: ## Clean up: Remove all downloaded dependency files (.tgz) and lock files
 
 # ====================================================================================
 # Makefile helper functions for helm-docs: https://github.com/norwoodj/helm-docs
