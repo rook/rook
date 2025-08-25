@@ -27,6 +27,9 @@ metadata:
 {{ toYaml $ecblockpool.storageClass.labels | indent 4 }}
 {{- end }}
   annotations:
+    "helm.sh/hook": post-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/resource-policy": keep
     storageclass.kubernetes.io/is-default-class: "{{ if default false $ecblockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
 {{- if $ecblockpool.storageClass.annotations }}
 {{ toYaml $ecblockpool.storageClass.annotations | indent 4 }}
