@@ -1,0 +1,17 @@
+name: "Upterm for debugging tests"
+description: "Setup upterm session if the test fails"
+inputs:
+  debug-ci:
+    description: "boolean for debug-ci label in PR"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: set up upterm session for debugging
+      if: runner.debug || inputs.debug-ci == 'true'
+      uses: owenthereal/action-upterm@v1
+      with:
+        ## whether to limit ssh access and adds the ssh public key for the user which triggered the workflow:
+        limit-access-to-actor: false
+        ## If no one connects after 5 minutes, shut down server.
+        wait-timeout-minutes: 5
