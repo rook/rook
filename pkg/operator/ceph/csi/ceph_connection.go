@@ -18,11 +18,13 @@ package csi
 
 import (
 	"os"
+	"strings"
 
 	"github.com/pkg/errors"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
@@ -72,8 +74,13 @@ func generateCephConnSpec(c client.Client, clusterInfo *cephclient.ClusterInfo, 
 	csiClusterConnSpec := csiopv1.CephConnectionSpec{}
 
 	if clusterSpec.CSI.ReadAffinity.Enabled {
+		crushLabels := clusterSpec.CSI.ReadAffinity.CrushLocationLabels
+		if len(crushLabels) == 0 {
+			logger.Debug("using default crush topology labels")
+			crushLabels = strings.Split(topology.GetDefaultTopologyLabels(), ",")
+		}
 		csiClusterConnSpec.ReadAffinity = &csiopv1.ReadAffinitySpec{
-			CrushLocationLabels: clusterSpec.CSI.ReadAffinity.CrushLocationLabels,
+			CrushLocationLabels: crushLabels,
 		}
 	}
 
