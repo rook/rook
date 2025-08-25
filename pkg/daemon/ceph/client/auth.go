@@ -24,6 +24,9 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 )
 
+// KeyTypeFlag is the flag used by some `ceph auth` commands to specify the CephX key (cipher) type
+const KeyTypeFlag = "--key-type"
+
 // AuthListOutput contains list of ceph user details contains entries, keys.
 type AuthListOutput struct {
 	AuthDump []AuthListEntry `json:"auth_dump"`
@@ -36,9 +39,12 @@ type AuthListEntry struct {
 
 // AuthGetOrCreate will either get or create a user with the given capabilities.  The keyring for the
 // user will be written to the given keyring path.
-func AuthGetOrCreate(context *clusterd.Context, clusterInfo *ClusterInfo, name, keyringPath string, caps []string) error {
+func AuthGetOrCreate(context *clusterd.Context, clusterInfo *ClusterInfo, name, keyringPath, keyType string, caps []string) error {
 	logger.Infof("getting or creating ceph auth %q", name)
 	args := append([]string{"auth", "get-or-create", name, "-o", keyringPath}, caps...)
+	if keyType != "" {
+		args = append(args, KeyTypeFlag, keyType)
+	}
 	cmd := NewCephCommand(context, clusterInfo, args)
 	cmd.JsonOutput = false
 	_, err := cmd.Run()
@@ -62,9 +68,12 @@ func AuthGetKey(context *clusterd.Context, clusterInfo *ClusterInfo, name string
 }
 
 // AuthGetOrCreateKey gets or creates the key for the given user.
-func AuthGetOrCreateKey(context *clusterd.Context, clusterInfo *ClusterInfo, name string, caps []string) (string, error) {
+func AuthGetOrCreateKey(context *clusterd.Context, clusterInfo *ClusterInfo, name, keyType string, caps []string) (string, error) {
 	logger.Infof("getting or creating ceph auth key %q", name)
 	args := append([]string{"auth", "get-or-create-key", name}, caps...)
+	if keyType != "" {
+		args = append(args, KeyTypeFlag, keyType)
+	}
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return "", errors.Wrapf(err, "failed get-or-create-key %s", name)
@@ -117,9 +126,12 @@ func AuthGetCaps(context *clusterd.Context, clusterInfo *ClusterInfo, name strin
 }
 
 // AuthRotate rotates a daemon's cephx auth key, retaining existing caps.
-func AuthRotate(context *clusterd.Context, clusterInfo *ClusterInfo, name string) (string, error) {
+func AuthRotate(context *clusterd.Context, clusterInfo *ClusterInfo, name, keyType string) (string, error) {
 	logger.Infof("rotating ceph auth key %q", name)
 	args := []string{"auth", "rotate", name}
+	if keyType != "" {
+		args = append(args, KeyTypeFlag, keyType)
+	}
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.EINVAL) {

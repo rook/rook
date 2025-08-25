@@ -326,6 +326,10 @@ type ClusterSecuritySpec struct {
 }
 
 type ClusterCephxConfig struct {
+	// AllowedCiphers sets the Ceph config `auth_allowed_ciphers` to the list given.
+	// If the list is empty, Rook will enable support for all ciphers.
+	AllowedCiphers []CephxKeyType `json:"AllowedCiphers,omitempty"`
+
 	// Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
 	// Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
 	Daemon CephxConfig `json:"daemon,omitempty"`
@@ -375,13 +379,29 @@ type CephxConfig struct {
 	// +kubebuilder:validation:Maximum=4294967295
 	// +kubebuilder:validation:XValidation:message="keyGeneration cannot be decreased",rule="self >= oldSelf"
 	KeyGeneration uint32 `json:"keyGeneration,omitempty"`
+
+	// KeyType specifies the desired CephX key cipher type.
+	// If unspecified, Ceph's default will be used.
+	// If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+	// initiate key rotation.
+	// If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+	// initiate key rotation.
+	// +optional
+	// +kubebuilder:validation:Enum="";aes;aes256k
+	KeyType CephxKeyType `json:"keyType,omitempty"`
 }
 
 type CephxKeyRotationPolicy string
 
+type CephxKeyType string
+
 const (
 	DisabledCephxKeyRotationPolicy      CephxKeyRotationPolicy = "Disabled"
 	KeyGenerationCephxKeyRotationPolicy CephxKeyRotationPolicy = "KeyGeneration"
+
+	CephxKeyTypeUndefined CephxKeyType = ""
+	CephxKeyTypeAes       CephxKeyType = "aes"
+	CephxKeyTypeAes256k   CephxKeyType = "aes256k"
 )
 
 // ObjectStoreSecuritySpec is spec to define security features like encryption
@@ -727,6 +747,10 @@ type CephxStatus struct {
 	// The special value "Uninitialized" indicates that keys are being created for the first time.
 	// An empty string indicates that the version is unknown, as expected in brownfield deployments.
 	KeyCephVersion string `json:"keyCephVersion,omitempty"`
+
+	// KeyType identifies the CephX key type for the current generation's keys, if known.
+	// If unknown, the value will be empty.
+	KeyType CephxKeyType `json:"keyType,omitempty"`
 }
 
 type CephxStatusWithKeyCount struct {

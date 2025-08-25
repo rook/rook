@@ -264,8 +264,10 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 		return opcontroller.ImmediateRetryResult, *cephRBDMirror, errors.Wrap(err, "failed to add ceph rbd mirror peer")
 	}
 
-	// check if cephRBDMirror daemon keys should be rotated or not
-	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion, *runningCephVersion, cephRBDMirror.Status.Cephx.Daemon)
+	// check if cephRBDMirror daemon keys should be rotated or not (
+	// daemon key type always takes the default from setDefaultCephxKeyType()
+	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(
+		cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion, *runningCephVersion, cephRBDMirror.Status.Cephx.Daemon, true)
 	if err != nil {
 		return reconcile.Result{}, *cephRBDMirror, errors.Wrapf(err, "failed to determine if cephx keys should be rotated for the cephRBDMirror %q", request.NamespacedName)
 	}
@@ -280,7 +282,8 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 		return opcontroller.ImmediateRetryResult, *cephRBDMirror, errors.Wrap(err, "failed to create ceph rbd mirror deployments")
 	}
 
-	cephxStatus := keyring.UpdatedCephxStatus(r.shouldRotateCephxKeys, r.cephClusterSpec.Security.CephX.Daemon, r.clusterInfo.CephVersion, cephRBDMirror.Status.Cephx.Daemon)
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+	cephxStatus := keyring.UpdatedCephxStatus(r.shouldRotateCephxKeys, r.cephClusterSpec.Security.CephX.Daemon, r.clusterInfo.CephVersion, cephRBDMirror.Status.Cephx.Daemon, keyType)
 
 	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling

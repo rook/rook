@@ -76,13 +76,13 @@ func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.Cl
 		daemonType = "cluster-rbd"
 
 		// check if rbd-mirror-peer user needs to be rotated
-		shouldRotateKeys, err := shouldRotateMirrorPeerKeys(ctx, clusterInfo)
+		shouldRotateKeys, keyType, err := shouldRotateMirrorPeerKeys(ctx, clusterInfo)
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrap(err, "failed to check if rbd-mirror-peer keys should be rotated or not")
 		}
 
 		// Create rbd mirror bootstrap peer token
-		bootstrapToken, err = cephclient.CreateRBDMirrorBootstrapPeerWithoutPool(ctx, clusterInfo, shouldRotateKeys)
+		bootstrapToken, err = cephclient.CreateRBDMirrorBootstrapPeerWithoutPool(ctx, clusterInfo, keyType, shouldRotateKeys)
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrapf(err, "failed to create %s-mirror bootstrap peer", daemonType)
 		}
@@ -239,22 +239,27 @@ func expandBootstrapPeerToken(ctx *clusterd.Context, clusterInfo *cephclient.Clu
 	return []byte(base64.StdEncoding.EncodeToString(decodedTokenBackToJSON)), nil
 }
 
-func shouldRotateMirrorPeerKeys(c *clusterd.Context, clusterInfo *cephclient.ClusterInfo) (bool, error) {
+func shouldRotateMirrorPeerKeys(c *clusterd.Context, clusterInfo *cephclient.ClusterInfo) (bool, string, error) {
 	cephObj := &cephv1.CephCluster{}
 	if err := c.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephObj); err != nil {
-		return false, errors.Wrapf(err, "failed to get cluster %v to get the cephx keys to rotate.", clusterInfo.NamespacedName())
+		return false, "", errors.Wrapf(err, "failed to get cluster %v to get the cephx keys to rotate.", clusterInfo.NamespacedName())
 	}
 
 	// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
 	desiredCephVersion := clusterInfo.CephVersion
 	runningCephVersion := clusterInfo.CephVersion
 
-	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(cephObj.Spec.Security.CephX.RBDMirrorPeer, runningCephVersion, desiredCephVersion, cephObj.Status.Cephx.RBDMirrorPeer)
+	// do not ignore key type for non-daemon rbd mirror peer key
+	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(
+		cephObj.Spec.Security.CephX.RBDMirrorPeer, runningCephVersion, desiredCephVersion, cephObj.Status.Cephx.RBDMirrorPeer, false)
 	if err != nil {
-		return false, errors.Wrap(err, "failed to check if mirror peer keys should be rotated or not")
+		return false, "", errors.Wrap(err, "failed to check if mirror peer keys should be rotated or not")
 	}
 
-	return shouldRotateKeys, nil
+	// mirror peer keys are non-daemon and so need to be able to be specified by users
+	keyType := cephObj.Spec.Security.CephX.RBDMirrorPeer.KeyType
+
+	return shouldRotateKeys, string(keyType), nil
 }
 
 // updateCephClusterCephxRbdMirrorStatus fetches the latest cephCluster instance and updates mirror peer cephx status
@@ -264,7 +269,8 @@ func updateCephClusterCephxRbdMirrorStatus(c *clusterd.Context, clusterInfo *cep
 		if err := c.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cluster); err != nil {
 			return errors.Wrapf(err, "failed to get cluster %v to update the conditions.", clusterInfo.NamespacedName())
 		}
-		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.RBDMirrorPeer, clusterInfo.CephVersion, cluster.Status.Cephx.RBDMirrorPeer)
+		keyType := cluster.Spec.Security.CephX.RBDMirrorPeer.KeyType // assume key type is what was specified
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.RBDMirrorPeer, clusterInfo.CephVersion, cluster.Status.Cephx.RBDMirrorPeer, keyType)
 		cluster.Status.Cephx.RBDMirrorPeer = updatedStatus
 		logger.Debugf("updating rbd-mirror cephx status to %+v", cluster.Status.Cephx.RBDMirrorPeer)
 		if err := reporting.UpdateStatus(c.Client, cluster); err != nil {

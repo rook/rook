@@ -489,8 +489,15 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrapf(err, "failed to get cluster %v.", c.ClusterInfo.NamespacedName())
 	}
 
+	// users can specify daemon key type to override Rook's default key type if needed
+	// also allows Rook to ignore daemon.keyType for all daemon key generation/rotation
+	err := setDefaultCephxKeyType(c.context, c.ClusterInfo, &c.ClusterInfo.CephVersion, clusterObj.Spec.Security.CephX)
+	if err != nil {
+		return err
+	}
+
 	// rotate admin key first thing after mons are updated
-	err := rotateAdminCephxKey(c.context, c.ClusterInfo, c.ownerInfo, clusterObj) // TODO: rename?
+	err = rotateAdminCephxKey(c.context, c.ClusterInfo, c.ownerInfo, clusterObj) // TODO: rename?
 	if err != nil {
 		return errors.Wrapf(err, "failed to rotate admin cephx key")
 	}
@@ -545,6 +552,7 @@ func (c *cluster) postMonStartupActions() error {
 	}
 
 	// Create cluster-wide RBD bootstrap peer token
+	// TODO(key): unit test --key-type during creation and rotation
 	if _, err := controller.CreateBootstrapPeerSecret(c.context, c.ClusterInfo, &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: c.namespacedName.Name, Namespace: c.Namespace}}, c.ownerInfo); err != nil {
 		return errors.Wrap(err, "failed to create cluster rbd bootstrap peer token")
 	}

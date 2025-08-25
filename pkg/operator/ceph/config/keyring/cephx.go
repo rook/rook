@@ -30,10 +30,6 @@ import (
 // command is present, thus allowing CephX key rotation.
 var CephAuthRotateSupportedVersion = version.CephVersion{Major: 19, Minor: 2, Extra: 3}
 
-// CephAuthMonRotateSupportedVersion identifies the first ceph release in which `ceph auth rotate`
-// can be used to rotate the monitor CephX key.
-var CephAuthMonRotateSupportedVersion = version.CephVersion{Major: 20, Minor: 3, Extra: 0} // v20.3.0 is unreleased tentacle vers
-
 // CephxKeyIdentifierAnnotation is the annotation that should be applied to pod specs to
 // ensure that pods restart after keys are rotated (and not restarted when keys are not rotated).
 // The keyring secret resourceVersion is suggested but not always available.
@@ -41,13 +37,31 @@ var CephAuthMonRotateSupportedVersion = version.CephVersion{Major: 20, Minor: 3,
 //nolint:gosec // G101: this is not hardcoded credentials
 const CephxKeyIdentifierAnnotation = "cephx-key-identifier"
 
+// Aes256kKeysSupported returns true if the given Ceph version supports aes256k keys
+func Aes256kKeysSupported(ver version.CephVersion) bool {
+	switch ver.Major {
+	case 18:
+		return ver.IsAtLeast(version.CephVersion{Major: 18, Minor: 2, Extra: 999}) // TODO(key): update when known
+	case 19:
+		return ver.IsAtLeast(version.CephVersion{Major: 19, Minor: 2, Extra: 999}) // TODO(key): update when known
+	case 20:
+		return ver.IsAtLeast(version.CephVersion{Major: 20, Minor: 3, Extra: 0}) // TODO(key): update when known
+	}
+	return false
+}
+
 // ShouldRotateCephxKeys determines whether CephX keys should be rotated based on the CephX key
 // rotation config, the version of Ceph present in the image being deployed (desiredCephVersion),
 // and the last-reconciled CephX key status.
 // runningCephVersion is used to determine if the cluster is capable of rotating CephX keys.
 // Intended to use running/desired ceph version from CurrentAndDesiredCephVersion().
-func ShouldRotateCephxKeys(cfg v1.CephxConfig, runningCephVersion, desiredCephVersion version.CephVersion, status v1.CephxStatus) (bool, error) {
-	if !runningCephVersion.IsAtLeast(CephAuthRotateSupportedVersion) {
+// ignoreKeyType can be used by callers to ignore the key type in rotation calculation - intended
+// for daemon keys that (except for admin and mon) don't allow type overrides.
+func ShouldRotateCephxKeys(cfg v1.CephxConfig, runningCephVersion, desiredCephVersion version.CephVersion, status v1.CephxStatus, ignoreKeyType bool) (bool, error) {
+	// note: the default return at the end of the function is false. only return false during
+	// ShouldRotate checking if further true returns should be invalidated
+
+	if !runningCephVersion.IsAtLeast(CephAuthRotateSupportedVersion) && !Aes256kKeysSupported(runningCephVersion) {
 		logger.Debugf("should not rotate cephx keys using unsupported ceph version %#v", runningCephVersion)
 		return false, nil
 	}
@@ -56,40 +70,60 @@ func ShouldRotateCephxKeys(cfg v1.CephxConfig, runningCephVersion, desiredCephVe
 		return false, nil // no need to rotate key when key isn't yet initialized
 	}
 
+	// does rotation policy indicate rotation?
 	switch cfg.KeyRotationPolicy {
 	case v1.CephxKeyRotationPolicy(""), v1.DisabledCephxKeyRotationPolicy:
-		return false, nil
+		return false, nil // if policy is disabled (default), do not rotate no matter what
 	case v1.KeyGenerationCephxKeyRotationPolicy:
-		return cfg.KeyGeneration > status.KeyGeneration, nil
+		if cfg.KeyGeneration > status.KeyGeneration {
+			return true, nil
+		}
 	case "WithCephVersionUpdate": // TODO: use types.go value when allowed by user input
 		// basic functionality for this policy is implemented here, but this is disabled as a user
 		// selectable option. code and tests are retained for when we can validate this more deeply
-
-		if version.IsIdentical(desiredCephVersion, version.CephVersion{}) {
-			// likely cause of this is developer error. if that makes it to release, it's probably
-			// best to not cause unrecoverable error for users
-			logger.Info("ShouldRotateCephxKeys(): desiredCephVersion is unspecified")
-			return false, nil
-		}
-
-		if status.KeyCephVersion == "" {
-			return true, nil // when previous version is unknown, assume rotation
-		}
-
-		statusVer, err := parseCephVersionFromStatusVersion(status.KeyCephVersion)
+		shouldRotate, err := shouldRotateWithCephVersionUpdate(cfg, runningCephVersion, desiredCephVersion, status)
 		if err != nil {
-			return false, errors.Wrapf(err, "failed to determine if cephx keys need to be rotated under %q rotation policy; failed to parse key ceph version from status %q", cfg.KeyRotationPolicy, status.KeyCephVersion)
+			return false, err
 		}
-		// by API spec, commit ID is not part of CephCluster.status.version.version or
-		// keyCephVersion, so strip it from version found in ceph image
-		desiredCephVersion.CommitID = ""
-		if version.IsSuperior(desiredCephVersion, statusVer) {
+		if shouldRotate {
 			return true, nil
 		}
-		return false, nil
 	default:
 		return false, errors.Errorf("unknown cephx key rotation policy %q", cfg.KeyRotationPolicy)
 	}
+
+	// does key type (if set) indicate rotation?
+	if !ignoreKeyType && cfg.KeyType != "" && cfg.KeyType != status.KeyType {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func shouldRotateWithCephVersionUpdate(cfg v1.CephxConfig, runningCephVersion, desiredCephVersion version.CephVersion, status v1.CephxStatus) (bool, error) {
+	if version.IsIdentical(desiredCephVersion, version.CephVersion{}) {
+		// likely cause of this is developer error. if that makes it to release, it's probably
+		// best to not cause unrecoverable error for users
+		logger.Info("ShouldRotateCephxKeys(): desiredCephVersion is unspecified")
+		return false, nil
+	}
+
+	if status.KeyCephVersion == "" {
+		return true, nil // when previous version is unknown, assume rotation
+	}
+
+	statusVer, err := parseCephVersionFromStatusVersion(status.KeyCephVersion)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to determine if cephx keys need to be rotated under %q rotation policy; failed to parse key ceph version from status %q", cfg.KeyRotationPolicy, status.KeyCephVersion)
+	}
+	// by API spec, commit ID is not part of CephCluster.status.version.version or
+	// keyCephVersion, so strip it from version found in ceph image
+	desiredCephVersion.CommitID = ""
+	if version.IsSuperior(desiredCephVersion, statusVer) {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // CephVersionToCephxStatusVersion renders a CephVersion struct into status.KeyCephVersion format.
@@ -153,8 +187,12 @@ func UninitializedCephxStatus() v1.CephxStatus {
 
 // UpdatedCephxStatus returns the updated CephxStatus based on rotation config and status from
 // before rotation occurred.
-func UpdatedCephxStatus(didRotate bool, cfg v1.CephxConfig, runningCephVersion version.CephVersion, status v1.CephxStatus) v1.CephxStatus {
+func UpdatedCephxStatus(didRotate bool, cfg v1.CephxConfig, runningCephVersion version.CephVersion, status v1.CephxStatus, keyType v1.CephxKeyType) v1.CephxStatus {
 	newStatus := status.DeepCopy()
+
+	// TODO(key): when `ceph auth dump-keys` is available for getting the definitive key type for
+	// the status, send that from calling functions.
+	newStatus.KeyType = keyType
 
 	// uninitialized key ceph version indicates that the key was newly been created
 	// this is true regardless of whether the key was rotated or not

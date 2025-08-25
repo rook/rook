@@ -83,7 +83,9 @@ func (r *ReconcileCephNFS) generateKeyring(n *cephv1.CephNFS, name string) error
 	ownerInfo := k8sutil.NewOwnerInfo(n, r.scheme)
 	s := keyring.GetSecretStore(r.context, r.clusterInfo, ownerInfo)
 
-	key, err := s.GenerateKey(user, caps)
+	// TODO(key): don't forget to set cephx key type status to "" in the status also
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+	key, err := s.GenerateKey(user, keyType, caps)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create user %s", user)
 	}

@@ -57,7 +57,7 @@ To begin experimenting with key rotation, check out
 [CephX config](https://rook.io/docs/rook/latest/CRDs/specification/?h=cephx#ceph.rook.io/v1.CephxConfig)
 options on Rook CRs.
 
-### Example
+### Rotation example
 
 Most key rotations are initiated from the CephCluster. An example spec that will rotate all CephX
 keys for most new or upgraded Rook clusters is shown below.
@@ -80,9 +80,11 @@ spec:
         keyRotationPolicy: KeyGeneration
         keyGeneration: 2
         keepPriorKeyCountMax: 1  # keep one prior key also
+        keyType: aes # keep the old aes key type when the host kernel does not yet support aes256k
       rbdMirrorPeer:
         keyRotationPolicy: KeyGeneration
         keyGeneration: 2
+        keyType: aes # keep the old aes key type when the peer does not yet support aes256k
   # ...
 ```
 
@@ -140,4 +142,56 @@ status:
     peerToken:
       keyCephVersion: 19.2.3-0
       keyGeneration: 2
+```
+
+## Key types
+
+Ceph versions TODO, TODO, TODO have added support for a new CephX key (cipher) type. Rook allows
+users to specify their own desired key type for some keys.
+
+Rook automatically detects the best CephX key type for daemon keys. Do not set this unless required
+to work around some issue.
+
+CSI keys require an updated Linux kernel that has the desired Ceph key type. Set the CephCluster
+`security.cephx.daemon.keyType: "aes"` until the Kubernetes cluster's Linux kernel supports the
+latest key type.
+
+The RBD Mirror peer key may also need to be specified as type `aes` if any mirror peer clusters
+don't yet support the latest key type.
+
+When keys are rotated from one type to another, Ceph daemons and clients will continue to use the
+old type internally for two to three hours. This is normal.
+
+### Key type example
+
+This example shows how all keys can be rotated while keeping the `aes` key type for CSI and RBD
+mirror peers.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: my-cluster
+  namespace: rook-ceph # namespace:cluster
+spec:
+  cephVersion:
+    image: quay.io/ceph/ceph:<TODO>
+  security:
+    cephx:
+      allowedCiphers:
+        - aes
+        - aes256k
+      daemon:
+        keyRotationPolicy: KeyGeneration
+        keyGeneration: 2
+      csi:
+        keyRotationPolicy: KeyGeneration
+        keyGeneration: 2
+        keepPriorKeyCountMax: 1  # keep one prior key also
+        keyType: aes # keep the old aes key type when the host kernel does not yet support aes256k
+      rbdMirrorPeer:
+        keyRotationPolicy: KeyGeneration
+        keyGeneration: 2
+        keyType: aes # keep the old aes key type when the peer does not yet support aes256k
+  # ...
 ```

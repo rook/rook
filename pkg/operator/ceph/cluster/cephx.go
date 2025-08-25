@@ -32,7 +32,9 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/retry"
 )
@@ -87,6 +89,57 @@ func releaseAdminRotationLock(namespace string) {
 	delete(adminRotationInProgress, namespace)
 }
 
+// setDefaultCephxKeyType updates ceph mons to use the given key type by default when creating new
+// keys (whether via auth get-or-create or via auth rotate). Ceph config: auth_service_cipher
+// Brownfield Ceph clusters do not update this value on their own after mons are upgraded. Rook must
+// specify this for Ceph.
+// If keyType is given as an empty string, Rook's preferred key type will be set.
+// TODO: unit test
+func setDefaultCephxKeyType(clusterdCtx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, cephVersion *version.CephVersion, cephxConfig cephv1.ClusterCephxConfig) error {
+	if !keyring.Aes256kKeysSupported(*cephVersion) {
+		logger.Debugf("not setting default key type (auth_preferred_cipher) for cluster in namespace %q with unsupported ceph version %v", clusterInfo.Namespace, cephVersion)
+		return nil
+	}
+
+	allowedCiphers := cephv1.KnownCephxKeyTypes // by default, support all key types so that CSI keys can continue to use any kernel
+	if len(cephxConfig.AllowedCiphers) > 0 {
+		allowedCiphers = cephxConfig.AllowedCiphers
+		logger.Infof("cluster in namespace %q will use the user-specified cephx key cipheer list (auth_allowed_ciphers) %v", clusterInfo.Namespace, allowedCiphers)
+	}
+
+	cipherStr := cephv1.KeyTypesListToArgString(allowedCiphers)
+	args := []string{"mon", "set", "auth_allowed_ciphers", cipherStr}
+	cmd := cephclient.NewCephCommand(clusterdCtx, clusterInfo, args)
+	_, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set allowed cephx cipher list (auth_allowed_ciphers) to %q", cipherStr)
+	}
+
+	keyType := cephv1.PreferredCephxKeyType()
+	if cephxConfig.Daemon.KeyType != "" {
+		logger.Infof("cluster in namespace %q will use the user-specified %q cephx key type (auth_preferred_cipher, auth_service_cipher) by default instead of the Rook default %q key type", clusterInfo.Namespace, cephxConfig.Daemon.KeyType, keyType)
+		keyType = cephxConfig.Daemon.KeyType
+	}
+
+	// note: this is `ceph mon set`, not `ceph config set`
+	args = []string{"mon", "set", "auth_preferred_cipher", string(keyType)}
+	cmd = cephclient.NewCephCommand(clusterdCtx, clusterInfo, args)
+	_, err = cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set preferred cephx key type (auth_preferred_cipher) to %q", keyType)
+	}
+
+	// also have to update the service cipher type used by ceph internally to the same preference
+	args = []string{"mon", "set", "auth_service_cipher", string(keyType)}
+	cmd = cephclient.NewCephCommand(clusterdCtx, clusterInfo, args)
+	_, err = cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set service cephx key type (auth_service_cipher) to %q", keyType)
+	}
+
+	return nil
+}
+
 // turn a client name and its caps into keyring file contents
 // example: client.my-user, []string{"mon", "allow *"} becomes:
 //
@@ -123,8 +176,9 @@ func rotateAdminCephxKey(
 	}
 
 	desiredCephVersion := clusterInfo.CephVersion // TODO: update this when/if WithCephVersionUpdate is implemented
+	// ignore key type daemon keys
 	shouldRotate, err := keyring.ShouldRotateCephxKeys(
-		cephCluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, desiredCephVersion, cephCluster.Status.Cephx.Admin)
+		cephCluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, desiredCephVersion, cephCluster.Status.Cephx.Admin, true)
 	if err != nil {
 		return errors.Wrap(err, "failed to determine if admin cephx key should be rotated")
 	}
@@ -159,7 +213,8 @@ func rotateAdminCephxKey(
 	// generate client.admin-rotator admin user
 	// if client.admin rotation fails or is blocked, the client.admin-rotator user can be used to
 	// recover from bugs/blockages in rotation of primary client.admin key
-	rotatorKey, err := s.GenerateKey(adminRotatorUsername, adminKeyAccessCaps)
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+	rotatorKey, err := s.GenerateKey(adminRotatorUsername, keyType, adminKeyAccessCaps)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate cephx key for admin rotator %q", adminRotatorUsername)
 	}
@@ -288,7 +343,8 @@ func rotateAdminCephxKeyUsingRotator(
 
 	// as `client.admin-rotator`: run `ceph auth rotate client.admin`
 	logger.Infof("admin cephx key will be rotated for cluster in namespace %q. rook will restart afterwards. some reconciles and health checks may fail in between - this is normal", clusterInfo.Namespace)
-	newAdminKey, err := cephclient.AuthRotate(clusterdCtx, rotatorInfo, cephclient.AdminUsername)
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+	newAdminKey, err := cephclient.AuthRotate(clusterdCtx, rotatorInfo, cephclient.AdminUsername, string(keyType))
 	if err != nil {
 		return errors.Wrapf(err, "failed to rotate admin key using admin rotator client")
 	}
@@ -388,7 +444,8 @@ func updateCephClusterAdminCephxStatus(clusterdCtx *clusterd.Context, clusterInf
 		if err := clusterdCtx.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cluster); err != nil {
 			return errors.Wrap(err, "failed to get CephCluster to update the admin key cephx status")
 		}
-		cephx := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, cluster.Status.Cephx.Admin)
+		keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+		cephx := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, cluster.Status.Cephx.Admin, keyType)
 		cluster.Status.Cephx.Admin = cephx
 		logger.Debugf("updating admin key cephx status to %+v", cephx)
 		if err := reporting.UpdateStatus(clusterdCtx.Client, cluster); err != nil {

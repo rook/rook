@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	v1 "k8s.io/api/core/v1"
@@ -100,14 +101,15 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	access := []string{"osd", "allow rwx", "mon", "allow rw"}
 	s := keyring.GetSecretStore(c.context, c.clusterInfo, c.ownerInfo)
 
-	key, err := s.GenerateKey(user, access)
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+	key, err := s.GenerateKey(user, keyType, access)
 	if err != nil {
 		return "", err
 	}
 
 	if c.shouldRotateCephxKeys {
 		logger.Infof("rotating cephx key for CephObjectStore %q", c.store.Name)
-		newKey, err := s.RotateKey(user)
+		newKey, err := s.RotateKey(user, keyType)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to rotate cephx key for CephObjectStore %q", c.store.Name)
 		} else {

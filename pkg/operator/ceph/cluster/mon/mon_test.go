@@ -37,6 +37,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
@@ -1217,7 +1218,7 @@ func TestRotateMonCephxKeys(t *testing.T) {
 	}
 	c.context = &clusterd.Context{Clientset: test.New(t, 5), Executor: executor, Client: cl}
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
-	c.ClusterInfo.CephVersion = keyring.CephAuthMonRotateSupportedVersion
+	c.ClusterInfo.CephVersion = version.CephVersion{Major: 20, Minor: 3, Extra: 999}
 
 	// create rook-ceph-mon secret
 	secret := &v1.Secret{

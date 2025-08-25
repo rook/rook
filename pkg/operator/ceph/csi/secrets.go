@@ -90,6 +90,7 @@ func createCSIKeyring(
 		cephCluster.Spec.Security.CephX.CSI.CephxConfig,
 		clusterInfo.CephVersion, clusterInfo.CephVersion,
 		interpretedCephxStatus.CephxStatus,
+		false, // do not ignore key type for non-daemon csi keys
 	)
 	if err != nil {
 		return "", "", 0, shouldRotate, errors.Wrap(err, "failed to call `shouldRotateCephxKeys` during CSI key rotation")
@@ -99,17 +100,34 @@ func createCSIKeyring(
 	desiredCephxStatus := keyring.UpdatedCephxStatus(shouldRotate,
 		cephCluster.Spec.Security.CephX.CSI.CephxConfig,
 		clusterInfo.CephVersion,
-		interpretedCephxStatus.CephxStatus)
+		interpretedCephxStatus.CephxStatus,
+		cephCluster.Spec.Security.CephX.CSI.CephxConfig.KeyType, // assume key type is what was given
+	)
 
 	// determine the client ID that should exist as the latest entry
 	latestClientId := generateCsiUserIdWithGenerationSuffix(csiKeyrigName, desiredCephxStatus.KeyGeneration)
 
 	// ensure the client key exists
-	key, err := s.GenerateKey(latestClientId, keyCaps)
+	// TODO(key): unit test --key-type during new key creation and rotation, --key-type not used when no rotation
+	key, err := client.AuthGetKey(context, clusterInfo, latestClientId)
 	if err != nil {
-		return "", "", 0, shouldRotate, errors.Wrapf(err, "failed to check if keys should to be rotated for CSI key %s", csiKeyrigName)
+		// CSI keys are non-daemon and so need to be able to be specified by users. howerver,
+		// `auth get-or-create` fails if the key type passed doesn't match the existing key, so only
+		// call it when key doesn't already exist
+		keyType := string(cephCluster.Spec.Security.CephX.CSI.KeyType)
+		key, err = client.AuthGetOrCreateKey(context, clusterInfo, latestClientId, keyType, keyCaps)
+		if err != nil {
+			return "", "", 0, shouldRotate, errors.Wrapf(err, "failed to create CSI client %q key", latestClientId)
+		} else {
+			err = client.AuthUpdateCaps(context, clusterInfo, latestClientId, keyCaps)
+			if err != nil {
+				return "", "", 0, shouldRotate, errors.Wrapf(err, "failed to update caps for CSI client %q key", latestClientId)
+			}
+		}
 	}
 
+	// TODO(key): BUG! this is deleting all prior keys even when keepPriorKeyCountMax==1 !!! needs investigation !!!
+	//            observed when switching keyType from "aes" to "aes256k" withOUT modifying the spec keyGeneration
 	keysDeleted, err := deleteOldKeyGen(context, clusterInfo, allKeyWithBaseName, cephCluster.Spec.Security.CephX.CSI.KeepPriorKeyCountMax)
 	if err != nil {
 		logger.Errorf("failed to delete keys during CSI key rotation. %v. Continuing with key rotation", err)
@@ -305,7 +323,8 @@ func updateCephStatusWithCephxStatus(context *clusterd.Context, clusterInfo *cli
 	namespacedName types.NamespacedName, didRotate bool, currentKeyCount int,
 ) error {
 	logger.Infof("updating cephCluster %s cephStatus with CSI cephxStatus in namespace %s", namespacedName.Name, namespacedName.Namespace)
-	cephxStatus := keyring.UpdatedCephxStatus(didRotate, cephCluster.Spec.Security.CephX.CSI.CephxConfig, clusterInfo.CephVersion, cephCluster.Status.Cephx.CSI.CephxStatus)
+	keyType := cephCluster.Spec.Security.CephX.CSI.CephxConfig.KeyType // assume key type is what was given
+	cephxStatus := keyring.UpdatedCephxStatus(didRotate, cephCluster.Spec.Security.CephX.CSI.CephxConfig, clusterInfo.CephVersion, cephCluster.Status.Cephx.CSI.CephxStatus, keyType)
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		cephCluster := &cephv1.CephCluster{}

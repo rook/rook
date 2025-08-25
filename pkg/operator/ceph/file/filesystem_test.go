@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,7 +28,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
@@ -248,9 +246,6 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 							},
 						})
 					return string(versionStr), nil
-				} else if strings.Contains(command, "ceph-authtool") {
-					err := clienttest.CreateConfigDir(path.Join(configDir, "ns"))
-					assert.Nil(t, err)
 				}
 
 				assert.Fail(t, fmt.Sprintf("Unexpected command %q %q", command, args))
@@ -349,9 +344,6 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 						},
 					})
 				return string(versionStr), nil
-			} else if strings.Contains(command, "ceph-authtool") {
-				err := clienttest.CreateConfigDir(path.Join(configDir, "ns"))
-				assert.Nil(t, err)
 			}
 			assert.Fail(t, fmt.Sprintf("Unexpected command %q %q", command, args))
 			return "", nil
@@ -607,10 +599,7 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 	configDir := t.TempDir()
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if strings.Contains(command, "ceph-authtool") {
-				err := clienttest.CreateConfigDir(path.Join(configDir, "ns"))
-				assert.Nil(t, err)
-			} else {
+			if !strings.Contains(command, "ceph-authtool") {
 				return "{\"key\":\"mysecurekey\"}", nil
 			}
 			return "", errors.New("unknown command error")

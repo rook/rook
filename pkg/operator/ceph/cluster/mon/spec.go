@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -383,6 +384,15 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
 		// port, which makes sense because this is the pod IP, which changes with every new pod.
 		container.Args = append(container.Args, config.NewFlag("public-bind-addr", bindaddr))
+	}
+
+	if c.spec.Security.CephX.Daemon.KeyType != "" && keyring.Aes256kKeysSupported(c.ClusterInfo.CephVersion) {
+		// if daemon keyType is set, it may be for a bootstrapping workaround which would require
+		// Rook to tell mons at runtime to accept an old cipher type. Otherwise, Rook prefers to set
+		// auth_allowed_ciphers via CLI commands after mons are running.
+		allowedList := cephv1.KeyTypesListToArgString(cephv1.KnownCephxKeyTypes)
+		logger.Infof("setting auth-allowed-ciphers=%q on mons for cluster in namespace %q", allowedList, c.Namespace)
+		container.Args = append(container.Args, config.NewFlag("auth-allowed-ciphers", allowedList))
 	}
 
 	return container

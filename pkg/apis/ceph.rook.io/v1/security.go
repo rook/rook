@@ -78,3 +78,29 @@ func getParam(kmsConfig map[string]string, param string) string {
 	}
 	return ""
 }
+
+// KnownCephxKeyTypes is the list of CephX key types known to Rook. This isn't used for input
+// validation (that is covered by CRD enums), but instead for allowing Rook to tell Ceph to allow
+// the full list of key types, when needed.
+// Developers should ensure the last item in the list should be the preferred key type.
+var KnownCephxKeyTypes = []CephxKeyType{
+	CephxKeyTypeAes,
+	CephxKeyTypeAes256k,
+}
+
+// PreferredCephxKeytype returns Rook's preferred key type.
+func PreferredCephxKeyType() CephxKeyType {
+	return KnownCephxKeyTypes[len(KnownCephxKeyTypes)-1]
+}
+
+// KeyTypesToString turns a list of key types into a value compatible with auth_allowed_ciphers.
+func KeyTypesListToArgString(types []CephxKeyType) string {
+	if len(types) == 0 {
+		return ""
+	}
+	o := string(types[0])
+	for i := 1; i < len(types); i++ {
+		o += ", " + string(types[i]) // ceph docs show comma-space separation
+	}
+	return o
+}

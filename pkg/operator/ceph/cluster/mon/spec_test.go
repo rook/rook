@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/test"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -102,6 +103,30 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		assert.NotNil(t, container.StartupProbe)
 		assert.Equal(t, int32(900), container.LivenessProbe.InitialDelaySeconds)
 		assert.Equal(t, int32(1000), container.StartupProbe.InitialDelaySeconds)
+	})
+
+	t.Run("cephx key type override set", func(t *testing.T) {
+		container := c.makeMonDaemonContainer(monConfig)
+		assert.False(t, authAllowedCiphersArgExists(container.Args))
+
+		oldCephVer := c.ClusterInfo.CephVersion
+		oldKeyType := c.spec.Security.CephX.Daemon.KeyType
+		defer func() {
+			c.ClusterInfo.CephVersion = oldCephVer
+			c.spec.Security.CephX.Daemon.KeyType = oldKeyType
+		}() // reset for other tests
+
+		// do not override if version doesn't support aes256k
+		c.ClusterInfo.CephVersion = version.CephVersion{Major: 19, Minor: 2, Extra: 3}
+		c.spec.Security.CephX.Daemon.KeyType = cephv1.CephxKeyType("aes")
+		container = c.makeMonDaemonContainer(monConfig)
+		assert.False(t, authAllowedCiphersArgExists(container.Args))
+
+		// do override if version does support aes256k
+		c.ClusterInfo.CephVersion = version.CephVersion{Major: 19, Minor: 2, Extra: 999}
+		c.spec.Security.CephX.Daemon.KeyType = cephv1.CephxKeyType("aes")
+		container = c.makeMonDaemonContainer(monConfig)
+		assert.True(t, authAllowedCiphersArgExists(container.Args))
 	})
 
 	t.Run(("msgr2 not required"), func(t *testing.T) {
@@ -338,4 +363,13 @@ func TestMakeMonSecurityContext(t *testing.T) {
 		assert.NotNil(t, sc)
 		assert.Nil(t, sc.RunAsUser)
 	})
+}
+
+func authAllowedCiphersArgExists(args []string) bool {
+	for _, arg := range args {
+		if strings.Contains(arg, "auth-allowed-ciphers") {
+			return true
+		}
+	}
+	return false
 }

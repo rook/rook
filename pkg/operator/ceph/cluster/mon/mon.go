@@ -532,7 +532,7 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion, clusterName s
 
 	context := c.ClusterInfo.Context
 	// get the cluster info from secret
-	c.ClusterInfo, c.maxMonID, c.mapping, err = controller.CreateOrLoadClusterInfo(c.context, context, c.Namespace, c.ownerInfo, &c.spec)
+	c.ClusterInfo, c.maxMonID, c.mapping, err = controller.CreateOrLoadClusterInfo(c.context, context, c.Namespace, c.ownerInfo, &cephVersion, &c.spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to get cluster info")
 	}
@@ -1807,7 +1807,9 @@ func (c *Cluster) RotateMonCephxKeys(clusterObj *cephv1.CephCluster) (bool, erro
 	// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
 	runningCephVersion := c.ClusterInfo.CephVersion
 
-	shouldRotateMonKeys, err := keyring.ShouldRotateCephxKeys(clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, clusterObj.Status.Cephx.Mon)
+	// daemon key type always takes the default from setDefaultCephxKeyType()
+	shouldRotateMonKeys, err := keyring.ShouldRotateCephxKeys(
+		clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, clusterObj.Status.Cephx.Mon, true)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to check if mon daemon keys should be rotated in the namespace %q", c.ClusterInfo.Namespace)
 	}
@@ -1817,7 +1819,7 @@ func (c *Cluster) RotateMonCephxKeys(clusterObj *cephv1.CephCluster) (bool, erro
 		return shouldRotateMonKeys, nil
 	}
 
-	if !c.ClusterInfo.CephVersion.IsAtLeast(keyring.CephAuthMonRotateSupportedVersion) {
+	if !keyring.Aes256kKeysSupported(c.ClusterInfo.CephVersion) { // mon key rotation requires aes256k support
 		logger.Debugf("cephx key rotation for mons in namespace %q is indicated, but ceph version %#v does not support mon key rotation", c.Namespace, c.ClusterInfo.CephVersion)
 		return false, nil
 	}
@@ -1825,7 +1827,8 @@ func (c *Cluster) RotateMonCephxKeys(clusterObj *cephv1.CephCluster) (bool, erro
 	logger.Infof("cephx keys for mon daemons in the namespace %q will be rotated", c.ClusterInfo.Namespace)
 
 	k := keyring.GetSecretStore(c.context, c.ClusterInfo, c.ClusterInfo.OwnerInfo)
-	newKey, err := k.RotateKey(controller.MonCephxUser)
+	keyType := cephv1.CephxKeyTypeUndefined                      // daemon key type always takes the default from setDefaultCephxKeyType()
+	newKey, err := k.RotateKey(controller.MonCephxUser, keyType) // TODO(key): unit test --key-type during rotation
 	if err != nil {
 		return shouldRotateMonKeys, errors.Wrapf(err, "failed to rotate cephx key for mon daemon in the namespace %q", c.ClusterInfo.Namespace)
 	}
@@ -1854,7 +1857,8 @@ func (c *Cluster) UpdateMonCephxStatus(didRotate bool) error {
 		if err := c.context.Client.Get(c.ClusterInfo.Context, c.ClusterInfo.NamespacedName(), cluster); err != nil {
 			return errors.Wrapf(err, "failed to get cluster %v to update the mon cephx status.", c.ClusterInfo.NamespacedName())
 		}
-		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, c.ClusterInfo.CephVersion, cluster.Status.Cephx.Mon)
+		keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, c.ClusterInfo.CephVersion, cluster.Status.Cephx.Mon, keyType)
 		cluster.Status.Cephx.Mon = updatedStatus
 		logger.Debugf("updating mon daemon cephx status to %+v", cluster.Status.Cephx.Mgr)
 		if err := reporting.UpdateStatus(c.context.Client, cluster); err != nil {

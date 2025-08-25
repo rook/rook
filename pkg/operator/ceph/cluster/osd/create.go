@@ -98,8 +98,9 @@ func (c *createConfig) createNewOSDsFromStatus(
 
 		// osd prepare jobs don't generate cephx status info for OSDs. since this is a new OSD
 		// deployment, generate a first-deploy cephx status
+		keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
 		status.OSDs[i].CephxStatus = keyring.UpdatedCephxStatus(false, c.cluster.spec.Security.CephX.Daemon,
-			c.cluster.clusterInfo.CephVersion, keyring.UninitializedCephxStatus())
+			c.cluster.clusterInfo.CephVersion, keyring.UninitializedCephxStatus(), keyType)
 
 		if status.PvcBackedOSD {
 			logger.Infof("creating OSD %d on PVC %q", osd.ID, nodeOrPVCName)

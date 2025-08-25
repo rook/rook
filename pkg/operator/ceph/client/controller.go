@@ -248,8 +248,9 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, *cephClient, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
 	}
 
+	// do not ignore key type for non-daemon cephclient key
 	shouldRotateCephxKeys, err := keyring.ShouldRotateCephxKeys(
-		cephClient.Spec.Security.CephX, runningCephVersion, runningCephVersion, cephClient.Status.Cephx)
+		cephClient.Spec.Security.CephX, runningCephVersion, runningCephVersion, cephClient.Status.Cephx, false)
 	if err != nil {
 		return reconcile.Result{}, *cephClient, errors.Wrap(err, "failed to determine if cephx keys should be rotated")
 	}
@@ -271,7 +272,8 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 
 	// update status with latest ObservedGeneration value at the end of reconcile
 	// Success! Let's update the status
-	cephxStatus := keyring.UpdatedCephxStatus(shouldRotateCephxKeys, cephClient.Spec.Security.CephX, runningCephVersion, cephClient.Status.Cephx)
+	keyType := cephClient.Spec.Security.CephX.KeyType // assume keyType is what was specified
+	cephxStatus := keyring.UpdatedCephxStatus(shouldRotateCephxKeys, cephClient.Spec.Security.CephX, runningCephVersion, cephClient.Status.Cephx, keyType)
 	err = r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, &cephxStatus)
 	if err != nil {
 		return reconcile.Result{}, *cephClient, errors.Wrapf(err, "failed to set final status for client %q", request.NamespacedName)
@@ -293,7 +295,11 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 	// Check if client was created manually, create if necessary or update caps and create secret
 	key, err := cephclient.AuthGetKey(r.context, r.clusterInfo, clientEntity)
 	if err != nil {
-		key, err = cephclient.AuthGetOrCreateKey(r.context, r.clusterInfo, clientEntity, caps)
+		// client keys are non-daemon and so need to be able to be specified by users. however,
+		// `auth get-or-create` fails if the key type passed doesn't match the existing key, so only
+		// call it with key type when key doesn't already exist
+		keyType := cephClient.Spec.Security.CephX.KeyType // TODO(key): unit test --key-type creation
+		key, err = cephclient.AuthGetOrCreateKey(r.context, r.clusterInfo, clientEntity, string(keyType), caps)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create client %q", clientName)
 		}
@@ -308,7 +314,8 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 		// rotate the CephX key if the user requested it
 		logger.Infof("rotating cephx key for CephClient %v", types.NamespacedName{Name: cephClient.Name, Namespace: cephClient.Namespace})
 
-		rotatedKey, err := cephclient.AuthRotate(r.context, r.clusterInfo, clientEntity)
+		keyType := cephClient.Spec.Security.CephX.KeyType // TODO(key): unit test --key-type rotation
+		rotatedKey, err := cephclient.AuthRotate(r.context, r.clusterInfo, string(keyType), clientEntity)
 		if err != nil {
 			return errors.Wrapf(err, "failed to rotate cephx key for client %q", cephClient.Name)
 		} else {

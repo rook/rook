@@ -248,7 +248,9 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	r.clusterInfo.CephVersion = *runningCephVersion
 
 	// check if cephRBDMirror daemon keys should be rotated or not
-	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion, *runningCephVersion, filesystemMirror.Status.Cephx.Daemon)
+	// daemon key type always takes the default from setDefaultCephxKeyType()
+	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(
+		cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion, *runningCephVersion, filesystemMirror.Status.Cephx.Daemon, true)
 	if err != nil {
 		return reconcile.Result{}, *filesystemMirror, errors.Wrapf(err, "failed to determine if cephx keys should be rotated for the cephFileSystemMirror %q", request.NamespacedName)
 	}
@@ -263,7 +265,8 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 		return opcontroller.ImmediateRetryResult, *filesystemMirror, errors.Wrap(err, "failed to create ceph filesystem mirror deployments")
 	}
 
-	cephxStatus := keyring.UpdatedCephxStatus(r.shouldRotateCephxKeys, r.cephClusterSpec.Security.CephX.Daemon, r.clusterInfo.CephVersion, filesystemMirror.Status.Cephx.Daemon)
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+	cephxStatus := keyring.UpdatedCephxStatus(r.shouldRotateCephxKeys, r.cephClusterSpec.Security.CephX.Daemon, r.clusterInfo.CephVersion, filesystemMirror.Status.Cephx.Daemon, keyType)
 
 	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling

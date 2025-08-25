@@ -16,7 +16,9 @@ limitations under the License.
 
 package v1
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestKeyManagementServiceSpec_IsK8sAuthEnabled(t *testing.T) {
 	type fields struct {
@@ -42,6 +44,25 @@ func TestKeyManagementServiceSpec_IsK8sAuthEnabled(t *testing.T) {
 			}
 			if got := kms.IsK8sAuthEnabled(); got != tt.want {
 				t.Errorf("KeyManagementServiceSpec.IsK8sAuthEnabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestKeyTypesListToArgString(t *testing.T) {
+	tests := []struct {
+		name  string
+		types []CephxKeyType
+		want  string
+	}{
+		{"empty", []CephxKeyType{}, ""},
+		{"preferred", []CephxKeyType{PreferredCephxKeyType()}, "aes256k"}, // implicitly tests PreferredCephKeyType
+		{"all", KnownCephxKeyTypes, "aes, aes256k"},                       // implicitly tests KnownCephxKeyTypes
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := KeyTypesListToArgString(tt.types); got != tt.want {
+				t.Errorf("KeyTypesListToArgString() = %v, want %v", got, tt.want)
 			}
 		})
 	}

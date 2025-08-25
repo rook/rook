@@ -406,15 +406,17 @@ func (c *Cluster) rotateCephxKey(osdInfo OSDInfo) (cephv1.CephxStatus, error) {
 	runningCephVersion := c.clusterInfo.CephVersion
 	desiredCephVersion := c.clusterInfo.CephVersion
 	shouldRotate, err := keyring.ShouldRotateCephxKeys(c.spec.Security.CephX.Daemon,
-		runningCephVersion, desiredCephVersion, osdInfo.CephxStatus)
+		runningCephVersion, desiredCephVersion, osdInfo.CephxStatus, true) // daemon key type always takes the default from setDefaultCephxKeyType()
 	if err != nil {
 		return osdInfo.CephxStatus, errors.Wrapf(err, "failed to determine if cephx key for OSD %d needs rotated", osdInfo.ID)
 	}
 
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+
 	didRotateCephxStatus := keyring.UpdatedCephxStatus(true, c.spec.Security.CephX.Daemon,
-		c.clusterInfo.CephVersion, osdInfo.CephxStatus)
+		c.clusterInfo.CephVersion, osdInfo.CephxStatus, keyType)
 	didNotRotateCephxStatus := keyring.UpdatedCephxStatus(false, c.spec.Security.CephX.Daemon,
-		c.clusterInfo.CephVersion, osdInfo.CephxStatus)
+		c.clusterInfo.CephVersion, osdInfo.CephxStatus, keyType)
 
 	if !shouldRotate {
 		return didNotRotateCephxStatus, nil
@@ -423,7 +425,8 @@ func (c *Cluster) rotateCephxKey(osdInfo OSDInfo) (cephv1.CephxStatus, error) {
 	logger.Infof("rotating cephx key of OSD %d for CephCluster in namespace %q", osdInfo.ID, c.clusterInfo.Namespace)
 	user := fmt.Sprintf("osd.%d", osdInfo.ID)
 	// Note: OSD key is not stored in k8s secret; rotated key is picked up by OSD init container
-	_, err = cephclient.AuthRotate(c.context, c.clusterInfo, user)
+
+	_, err = cephclient.AuthRotate(c.context, c.clusterInfo, user, string(keyType))
 	if err != nil {
 		return didNotRotateCephxStatus, errors.Wrapf(err, "failed to rotate cephx key for OSD %d", osdInfo.ID)
 	}

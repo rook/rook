@@ -24,6 +24,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -64,9 +65,11 @@ func keyringSecretName(resourceName string) string {
 // GenerateKey generates a key for a Ceph user with the given access permissions. It returns the key
 // generated on success. Ceph will always return the most up-to-date key for a daemon, and the key
 // usually does not change.
-func (k *SecretStore) GenerateKey(user string, access []string) (string, error) {
+// Note: if the given key type does not match the underlying key, an error is returned, so be
+// careful not to call this if the key type given as input can change arbitrarily.
+func (k *SecretStore) GenerateKey(user string, keyType cephv1.CephxKeyType, access []string) (string, error) {
 	// get-or-create-key for the user account
-	key, err := client.AuthGetOrCreateKey(k.context, k.clusterInfo, user, access)
+	key, err := client.AuthGetOrCreateKey(k.context, k.clusterInfo, user, string(keyType), access)
 	if err != nil {
 		logger.Infof("Error getting or creating key for %q. "+
 			"Attempting to update capabilities in case the user already exists. %v", user, err)
@@ -83,8 +86,8 @@ func (k *SecretStore) GenerateKey(user string, access []string) (string, error) 
 }
 
 // RotateKey rotates a key for a Ceph user without modifying permissions. It returns the new key on success.
-func (k *SecretStore) RotateKey(user string) (string, error) {
-	key, err := client.AuthRotate(k.context, k.clusterInfo, user)
+func (k *SecretStore) RotateKey(user string, keyType cephv1.CephxKeyType) (string, error) {
+	key, err := client.AuthRotate(k.context, k.clusterInfo, user, string(keyType))
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to rotate key for %q", user)
 	}

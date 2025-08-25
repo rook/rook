@@ -53,14 +53,15 @@ func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo
 	access := []string{"mon", "profile rbd-mirror", "osd", "profile rbd"}
 	s := keyring.GetSecretStore(r.context, clusterInfo, daemonConfig.ownerInfo)
 
-	key, err := s.GenerateKey(user, access)
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+	key, err := s.GenerateKey(user, keyType, access)
 	if err != nil {
 		return "", err
 	}
 
 	if r.shouldRotateCephxKeys {
 		logger.Infof("rotating cephx key for CephRBDMirror %q in the namespace %q", daemonConfig.ResourceName, clusterInfo.Namespace)
-		newKey, err := s.RotateKey(user)
+		newKey, err := s.RotateKey(user, keyType)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to rotate cephx key for CephRDBMirror %q in the namespace %q", daemonConfig.ResourceName, clusterInfo.Namespace)
 		}
