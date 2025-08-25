@@ -18,12 +18,14 @@ package csi
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -99,4 +101,51 @@ func TestCreateUpdateCephConnection(t *testing.T) {
 	err = cl.Get(context.TODO(), types.NamespacedName{Name: ns, Namespace: ns}, csiCephConnection)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, csiCephConnection.Spec.RbdMirrorDaemonCount)
+}
+
+func TestCephConnectionDefaultTopology(t *testing.T) {
+	c := clienttest.CreateTestClusterInfo(3)
+	ns := "test"
+	c.Namespace = ns
+	c.SetName("testcluster")
+	c.NamespacedName()
+	t.Setenv(k8sutil.PodNamespaceEnvVar, ns)
+
+	cluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testCluster",
+			Namespace: ns,
+		},
+		Spec: cephv1.ClusterSpec{
+			CSI: cephv1.CSIDriverSpec{
+				ReadAffinity: cephv1.ReadAffinitySpec{
+					Enabled: true,
+				},
+			},
+		},
+	}
+	csiCephConnection := &csiopv1.CephConnection{}
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, csiCephConnection, &cephv1.CephCluster{}, &cephv1.CephRBDMirrorList{})
+	object := []runtime.Object{
+		cluster,
+	}
+
+	// Create a fake client to mock API calls.
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	err := CreateUpdateCephConnection(cl, c, cluster.Spec)
+	assert.NoError(t, err)
+
+	err = cl.Get(context.TODO(), types.NamespacedName{Name: ns, Namespace: ns}, csiCephConnection)
+	assert.NoError(t, err)
+	assert.Equal(t, 10, len(csiCephConnection.Spec.ReadAffinity.CrushLocationLabels))
+	labels := map[string]bool{}
+	for _, label := range csiCephConnection.Spec.ReadAffinity.CrushLocationLabels {
+		labels[label] = true
+	}
+	for _, defaultLabel := range strings.Split(topology.GetDefaultTopologyLabels(), ",") {
+		assert.True(t, labels[defaultLabel], "expected label %q not found", defaultLabel)
+	}
 }
