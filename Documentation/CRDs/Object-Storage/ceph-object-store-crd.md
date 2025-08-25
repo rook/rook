@@ -166,7 +166,7 @@ spec:
 
 In the `s3` section of the `protocols` section the following options can be configured:
 
-* `authKeystone`: Whether S3 should also authenticated using Keystone (`true`) or not (`false`). If set to `false` the default S3 auth will be used.
+* `authUseKeystone`: Whether S3 should also authenticated using Keystone (`true`) or not (`false`). If set to `false` the default S3 auth will be used.
 * `enabled`: Whether to enable S3 (`true`) or not (`false`). The default is `true` even if the section is not listed at all! Please note that S3 should not be disabled in a [Ceph Multi Site configuration](https://docs.ceph.com/en/latest/radosgw/multisite).
 
 #### protocols/swift settings
