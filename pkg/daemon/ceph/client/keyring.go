@@ -55,9 +55,9 @@ func CephKeyring(cred CephCred) string {
 
 // CreateKeyring creates a keyring for access to the cluster with the desired set of privileges
 // and writes it to disk at the keyring path
-func CreateKeyring(context *clusterd.Context, clusterInfo *ClusterInfo, username, keyringPath string, access []string, generateContents func(string) string) error {
+func CreateKeyring(context *clusterd.Context, clusterInfo *ClusterInfo, username, keyringPath, keyType string, access []string, generateContents func(string) string) error {
 	// get-or-create-key for the user account
-	key, err := AuthGetOrCreateKey(context, clusterInfo, username, access)
+	key, err := AuthGetOrCreateKey(context, clusterInfo, username, keyType, access)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get or create auth key for %s", username)
 	}

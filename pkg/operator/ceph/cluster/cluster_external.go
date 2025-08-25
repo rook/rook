@@ -48,6 +48,11 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 
 	opcontroller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionConnecting, v1.ConditionTrue, cephv1.ClusterConnectingReason, "Attempting to connect to an external Ceph cluster")
 
+	// TODO: needs to be re-enabled later b/c this was mistakenly added to an earlier commit
+	// // Rook needs a workaround for internal clusters when Ceph is updated while OSD keys are also
+	// // rotated. This doesn't apply to external clusters, so always allow rotation for those.
+	// keyring.SetAllowCephxKeyRotationForCluster(cluster.Namespace, true)
+
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
 	cluster.ClusterInfo, err = opcontroller.PopulateExternalClusterInfo(cluster.Spec, c.context, c.OpManagerCtx, c.namespacedName.Namespace, cluster.ownerInfo)

@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/test"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -77,10 +78,12 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 
 	if pvc {
 		d.Spec.Template.Spec.Volumes = append(
-			d.Spec.Template.Spec.Volumes, controller.DaemonVolumesDataPVC("i-am-pvc"))
+			d.Spec.Template.Spec.Volumes, controller.DaemonVolumesDataPVC("i-am-pvc"),
+		)
 	} else {
 		d.Spec.Template.Spec.Volumes = append(
-			d.Spec.Template.Spec.Volumes, controller.DaemonVolumesDataHostPath(monConfig.DataPathMap)...)
+			d.Spec.Template.Spec.Volumes, controller.DaemonVolumesDataHostPath(monConfig.DataPathMap)...,
+		)
 	}
 
 	// Deployment should have Ceph labels
@@ -92,7 +95,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class", "default", "cephclusters.ceph.rook.io", "ceph-mon")
 
-	t.Run(("check mon ConfigureProbe"), func(t *testing.T) {
+	t.Run("check mon ConfigureProbe", func(t *testing.T) {
 		c.spec.HealthCheck.StartupProbe = make(map[cephv1.KeyType]*cephv1.ProbeSpec)
 		c.spec.HealthCheck.StartupProbe[cephv1.KeyMon] = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 1000}}
 		c.spec.HealthCheck.LivenessProbe = make(map[cephv1.KeyType]*cephv1.ProbeSpec)
@@ -104,18 +107,42 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		assert.Equal(t, int32(1000), container.StartupProbe.InitialDelaySeconds)
 	})
 
-	t.Run(("msgr2 not required"), func(t *testing.T) {
+	t.Run("cephx key type override set", func(t *testing.T) {
+		container := c.makeMonDaemonContainer(monConfig)
+		assert.False(t, authAllowedCiphersArgExists(container.Args))
+
+		oldCephVer := c.ClusterInfo.CephVersion
+		oldKeyType := c.spec.Security.CephX.Daemon.KeyType
+		defer func() {
+			c.ClusterInfo.CephVersion = oldCephVer
+			c.spec.Security.CephX.Daemon.KeyType = oldKeyType
+		}() // reset for other tests
+
+		// do not override if version doesn't support aes256k
+		c.ClusterInfo.CephVersion = version.CephVersion{Major: 19, Minor: 2, Extra: 3}
+		c.spec.Security.CephX.Daemon.KeyType = cephv1.CephxKeyType("aes")
+		container = c.makeMonDaemonContainer(monConfig)
+		assert.False(t, authAllowedCiphersArgExists(container.Args))
+
+		// do override if version does support aes256k
+		c.ClusterInfo.CephVersion = version.CephVersion{Major: 19, Minor: 2, Extra: 999}
+		c.spec.Security.CephX.Daemon.KeyType = cephv1.CephxKeyType("aes")
+		container = c.makeMonDaemonContainer(monConfig)
+		assert.True(t, authAllowedCiphersArgExists(container.Args))
+	})
+
+	t.Run("msgr2 not required", func(t *testing.T) {
 		container := c.makeMonDaemonContainer(monConfig)
 		checkMsgr2Required(t, container, false, false, false)
 	})
 
-	t.Run(("require msgr2"), func(t *testing.T) {
+	t.Run("require msgr2", func(t *testing.T) {
 		monConfig.Port = DefaultMsgr2Port
 		container := c.makeMonDaemonContainer(monConfig)
 		checkMsgr2Required(t, container, true, true, false)
 	})
 
-	t.Run(("require msgr2 -- dual stack"), func(t *testing.T) {
+	t.Run("require msgr2 -- dual stack", func(t *testing.T) {
 		monConfig.Port = DefaultMsgr2Port
 		c.spec.Network = cephv1.NetworkSpec{
 			DualStack: true,
@@ -125,7 +152,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		checkMsgr2Required(t, container, true, false, false)
 	})
 
-	t.Run(("require msgr2 -- IPv4"), func(t *testing.T) {
+	t.Run("require msgr2 -- IPv4", func(t *testing.T) {
 		monConfig.Port = DefaultMsgr2Port
 		c.spec.Network = cephv1.NetworkSpec{
 			DualStack: false,
@@ -136,7 +163,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		checkMsgr2Required(t, container, true, true, false)
 	})
 
-	t.Run(("require msgr2 -- IPv6"), func(t *testing.T) {
+	t.Run("require msgr2 -- IPv6", func(t *testing.T) {
 		monConfig.Port = DefaultMsgr2Port
 		c.spec.Network = cephv1.NetworkSpec{
 			DualStack: false,
@@ -321,4 +348,13 @@ func TestGetFailureDomainLabel(t *testing.T) {
 			}
 		})
 	}
+}
+
+func authAllowedCiphersArgExists(args []string) bool {
+	for _, arg := range args {
+		if strings.Contains(arg, "--mon-auth-emergency-allowed-ciphers") {
+			return true
+		}
+	}
+	return false
 }

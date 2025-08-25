@@ -19,6 +19,7 @@ package mirror
 import (
 	"fmt"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -53,7 +54,8 @@ func (r *ReconcileFilesystemMirror) generateKeyring(daemonConfig *daemonConfig) 
 	}
 	s := keyring.GetSecretStore(r.context, r.clusterInfo, daemonConfig.ownerInfo)
 
-	key, err := s.GenerateKey(user, access)
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+	key, err := s.GenerateKey(user, keyType, access)
 	if err != nil {
 		return "", err
 	}

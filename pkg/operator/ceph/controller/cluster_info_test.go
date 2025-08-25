@@ -25,6 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -40,6 +41,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	err := os.MkdirAll(configDir, 0o755)
 	assert.NoError(t, err)
 	defer os.RemoveAll(configDir)
+	cephVer := &version.CephVersion{Major: 19, Minor: 2, Extra: 3}
 	adminSecret := "AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q==" //nolint:gosec // This is just a var name, not a real secret
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -48,6 +50,9 @@ func TestCreateClusterSecrets(t *testing.T) {
 				filename := args[1]
 				assert.NoError(t, os.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0o600))
 			}
+			// with unsupported ceph version, --key-type should default to 'aes'
+			assert.Equal(t, "--key-type", args[5])
+			assert.Equal(t, "aes", args[6])
 			return "", nil
 		},
 	}
@@ -62,7 +67,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	}
 	namespace := "ns"
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	info, maxID, mapping, err := CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
+	info, maxID, mapping, err := CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephVer, cephClusterSpec)
 	assert.NoError(t, err)
 	assert.Equal(t, -1, maxID)
 	require.NotNil(t, info)
@@ -90,7 +95,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	}
 	_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
 	assert.NoError(t, err)
-	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
+	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephVer, cephClusterSpec)
 	assert.NoError(t, err)
 	// use the SetOwnerReference() method to ensure that the loaded OwnerInfo is usable and correct
 	cm := corev1.ConfigMap{}
@@ -115,7 +120,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check that the cluster info can now be loaded
-	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
+	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephVer, cephClusterSpec)
 	assert.NoError(t, err)
 	assert.Equal(t, "client.admin", info.CephCred.Username)
 	assert.Equal(t, adminSecret, info.CephCred.Secret)
@@ -124,7 +129,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	secret.Data[AdminSecretNameKey] = []byte(AdminSecretNameKey)
 	_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
 	assert.NoError(t, err)
-	_, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
+	_, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephVer, cephClusterSpec)
 	assert.Error(t, err)
 
 	// Load the external cluster with the legacy external creds
@@ -135,8 +140,50 @@ func TestCreateClusterSecrets(t *testing.T) {
 	}
 	_, err = clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
+	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephVer, cephClusterSpec)
 	assert.NoError(t, err)
 	assert.Equal(t, "testid", info.CephCred.Username)
 	assert.Equal(t, "testkey", info.CephCred.Secret)
+}
+
+func TestCreateClusterSecretsAes256k(t *testing.T) {
+	ctx := context.TODO()
+	clientset := test.New(t, 1)
+	configDir := "ns"
+	err := os.MkdirAll(configDir, 0o755)
+	assert.NoError(t, err)
+	defer os.RemoveAll(configDir)
+	cephVer := &version.CephVersion{Major: 20, Minor: 3, Extra: 0}
+	adminSecret := "AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q==" //nolint:gosec // This is just a var name, not a real secret
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("COMMAND: %s %v", command, args)
+			if command == "ceph-authtool" && args[0] == "--create-keyring" {
+				filename := args[1]
+				assert.NoError(t, os.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0o600))
+			}
+			// with supported ceph version, --key-type should not be set so ceph can use its own default
+			assert.NotContains(t, args, "--key-type")
+			return "", nil
+		},
+	}
+	context := &clusterd.Context{
+		Clientset: clientset,
+		Executor:  executor,
+	}
+	cephClusterSpec := &cephv1.ClusterSpec{
+		Network: cephv1.NetworkSpec{
+			Provider: cephv1.NetworkProviderMultus,
+		},
+	}
+	namespace := "ns"
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	info, maxID, mapping, err := CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephVer, cephClusterSpec)
+	assert.NoError(t, err)
+	assert.Equal(t, -1, maxID)
+	require.NotNil(t, info)
+	assert.Equal(t, "client.admin", info.CephCred.Username)
+	assert.Equal(t, adminSecret, info.CephCred.Secret)
+	assert.NotEqual(t, "", info.FSID)
+	assert.NotNil(t, mapping)
 }

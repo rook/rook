@@ -601,7 +601,8 @@ func applyMonitoringLabels(c *Cluster, serviceMonitor *monitoringv1.ServiceMonit
 					Replacement: &managedBy,
 				}
 				serviceMonitor.Spec.Endpoints[0].RelabelConfigs = append(
-					serviceMonitor.Spec.Endpoints[0].RelabelConfigs, relabelConfig)
+					serviceMonitor.Spec.Endpoints[0].RelabelConfigs, relabelConfig,
+				)
 			} else {
 				logger.Info("rook.io/managedBy not specified in monitoring labels")
 			}
@@ -620,7 +621,10 @@ func shouldRotateMgrKeys(c *clusterd.Context, clusterInfo *cephclient.ClusterInf
 	// TODO: for rotation WithCephVersionUpdate fix this to have the right runningCephVersion and desiredCephVersion
 	runningCephVersion := clusterInfo.CephVersion
 
-	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, clusterObj.Status.Cephx.Mgr)
+	// daemon key type always takes the default from setDefaultCephxKeyType()
+	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(
+		clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, clusterObj.Status.Cephx.Mgr, true,
+	)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to check if mgr daemon keys should be rotated or not")
 	}
@@ -634,8 +638,20 @@ func updateMgrCephxStatus(c *clusterd.Context, clusterInfo *cephclient.ClusterIn
 		if err := c.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cluster); err != nil {
 			return errors.Wrapf(err, "failed to get cluster %v to update the conditions.", clusterInfo.NamespacedName())
 		}
-		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, cluster.Status.Cephx.Mgr)
+		keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, cluster.Status.Cephx.Mgr, keyType)
 		cluster.Status.Cephx.Mgr = updatedStatus
+
+		// Attempt to determine the authoritative key type of the mgr reported by ceph
+		// If this fails, leave the key type as it would have been.
+		mgrKeyType, err := keyring.DetermineCephxKeyTypesForEntityType(c, clusterInfo, cephclient.AuthDumpKeysEntityTypeMgr, "")
+		if err == nil && len(mgrKeyType) == 1 {
+			logger.Debugf("determined authoritative cephx key type for mgrs in cluster namespace %q is %q", clusterInfo.Namespace, mgrKeyType[0])
+			cluster.Status.Cephx.Mgr.KeyType = cephv1.CephxKeyType(mgrKeyType[0])
+		} else {
+			logger.Infof("failed to determine authoritative cephx key type for mgrs in cluster namespace %q having key types [%v]: %v", clusterInfo.Namespace, mgrKeyType, err)
+		}
+
 		logger.Debugf("updating mgr daemon cephx status to %+v", cluster.Status.Cephx.Mgr)
 		if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
 			return errors.Wrap(err, "failed to update cluster cephx status for mgr daemon")

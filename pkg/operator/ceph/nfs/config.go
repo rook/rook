@@ -83,14 +83,15 @@ func (r *ReconcileCephNFS) generateKeyring(n *cephv1.CephNFS, name string) error
 	ownerInfo := k8sutil.NewOwnerInfo(n, r.scheme)
 	s := keyring.GetSecretStore(r.context, r.clusterInfo, ownerInfo)
 
-	key, err := s.GenerateKey(user, caps)
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+	key, err := s.GenerateKey(user, keyType, caps)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create user %s", user)
 	}
 
 	if r.shouldRotateCephxKeys {
 		logger.Infof("rotating cephx key for nfs daemon %q in the namespace %q", instanceName(n, name), n.Namespace)
-		newKey, err := s.RotateKey(user)
+		newKey, err := s.RotateKey(user, keyType)
 		if err != nil {
 			return errors.Wrapf(err, "failed to rotate cephx key for nfs daemon %q", instanceName(n, name))
 		}

@@ -20,9 +20,14 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/exec"
 )
+
+// KeyTypeFlag is the flag used by some `ceph auth` commands to specify the CephX key (cipher) type
+const KeyTypeFlag = "--key-type"
 
 // AuthListOutput contains list of ceph user details contains entries, keys.
 type AuthListOutput struct {
@@ -62,11 +67,21 @@ func AuthGetKey(context *clusterd.Context, clusterInfo *ClusterInfo, name string
 }
 
 // AuthGetOrCreateKey gets or creates the key for the given user.
-func AuthGetOrCreateKey(context *clusterd.Context, clusterInfo *ClusterInfo, name string, caps []string) (string, error) {
+func AuthGetOrCreateKey(context *clusterd.Context, clusterInfo *ClusterInfo, name, keyType string, caps []string) (string, error) {
 	logger.Infof("getting or creating ceph auth key %q", name)
 	args := append([]string{"auth", "get-or-create-key", name}, caps...)
+	// allow specifying keyType='aes' even when Ceph doesn't know about key types
+	if !Aes256kKeysSupported(clusterInfo.CephVersion) && IsLegacyKeyType(keyType) {
+		logger.Infof("for cluster in namespace %q, not specifying key type for get-or-create-key %q because Ceph version %q does not support key types",
+			clusterInfo.Namespace, name, clusterInfo.CephVersion.String())
+		keyType = "" // don't set --key-type flag
+	}
+	if keyType != "" {
+		args = append(args, KeyTypeFlag, keyType)
+	}
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
+		logger.Tracef("failed get-or-create-key reason: %s", string(buf)) // only trace(insecure) log this because it could contain sensitive key info
 		return "", errors.Wrapf(err, "failed get-or-create-key %s", name)
 	}
 
@@ -116,10 +131,37 @@ func AuthGetCaps(context *clusterd.Context, clusterInfo *ClusterInfo, name strin
 	return caps, err
 }
 
+// IsLegacyKeyType returns true if the key type is "legacy", meaning it predates Ceph's support for
+// `--key-type` arguments.
+func IsLegacyKeyType(keyType string) bool {
+	return keyType == string(cephv1.CephxKeyTypeAes)
+}
+
+// Aes256kKeysSupported returns true if the given Ceph version supports aes256k keys
+func Aes256kKeysSupported(ver version.CephVersion) bool {
+	switch ver.Major {
+	case 19:
+		return ver.IsAtLeast(version.CephVersion{Major: 19, Minor: 2, Extra: 6})
+	case 20:
+		return ver.IsAtLeast(version.CephVersion{Major: 20, Minor: 2, Extra: 3})
+	default:
+		return ver.Major >= 21
+	}
+}
+
 // AuthRotate rotates a daemon's cephx auth key, retaining existing caps.
-func AuthRotate(context *clusterd.Context, clusterInfo *ClusterInfo, name string) (string, error) {
+func AuthRotate(context *clusterd.Context, clusterInfo *ClusterInfo, name, keyType string) (string, error) {
 	logger.Infof("rotating ceph auth key %q", name)
 	args := []string{"auth", "rotate", name}
+	// allow specifying keyType='aes' even when Ceph doesn't know about key types
+	if !Aes256kKeysSupported(clusterInfo.CephVersion) && IsLegacyKeyType(keyType) {
+		logger.Infof("for cluster in namespace %q, not specifying key type for auth rotate %q because Ceph version %q does not support key types",
+			clusterInfo.Namespace, name, clusterInfo.CephVersion.String())
+		keyType = "" // don't set --key-type flag
+	}
+	if keyType != "" {
+		args = append(args, KeyTypeFlag, keyType)
+	}
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.EINVAL) {
@@ -183,4 +225,52 @@ func AuthList(context *clusterd.Context, clusterInfo *ClusterInfo) (AuthListOutp
 	}
 
 	return auth, err
+}
+
+// KeyDumpSecret represents detailed info about a CephX key.
+type KeyDumpSecret struct {
+	Entity struct {
+		TypeStr string `json:"type_str"`
+		Id      string `json:"id"`
+	} `json:"entity"`
+
+	Auth struct {
+		Key struct {
+			TypeStr string `json:"type_str"`
+		} `json:"key"`
+	} `json:"auth"`
+}
+
+// AuthDumpKeysOutput represents the output of `ceph auth dump-keys --format=json`.
+type AuthDumpKeysOutput struct {
+	Data struct {
+		Secrets []KeyDumpSecret `json:"secrets"`
+	} `json:"data"`
+}
+
+type AuthDumpKeysEntityType string
+
+const (
+	AuthDumpKeysEntityTypeMgr    AuthDumpKeysEntityType = "mgr"    // one of the 4 core entity types
+	AuthDumpKeysEntityTypeOsd    AuthDumpKeysEntityType = "osd"    // one of the 4 core entity types
+	AuthDumpKeysEntityTypeMds    AuthDumpKeysEntityType = "mds"    // one of the 4 core entity types
+	AuthDumpKeysEntityTypeClient AuthDumpKeysEntityType = "client" // all other entities are 'client'
+)
+
+// AuthDumpKeys dumps all CephX keys and returns detailed info about them.
+// This is used to determine the key type associated with each CephX key.
+// Note: the mon key is not included in this output.
+func AuthDumpKeys(context *clusterd.Context, clusterInfo *ClusterInfo) (AuthDumpKeysOutput, error) {
+	authArgs := []string{"auth", "dump-keys"}
+	output, err := NewCephCommand(context, clusterInfo, authArgs).Run()
+	if err != nil {
+		return AuthDumpKeysOutput{}, errors.Wrap(err, "failed to dump ceph auth keys")
+	}
+
+	var authKeys AuthDumpKeysOutput
+	err = json.Unmarshal(output, &authKeys)
+	if err != nil {
+		return AuthDumpKeysOutput{}, errors.Wrap(err, "failed to unmarshal ceph auth keys")
+	}
+	return authKeys, nil
 }
