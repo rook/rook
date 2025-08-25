@@ -525,6 +525,17 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrap(err, "failed to create cluster rbd bootstrap peer token")
 	}
 
+	// Delete bootstrap keys
+	// TODO: add additional note on why these keys are deleted.
+	bootstrapKeys := []string{"client.bootstrap-mds", "client.bootstrap-mgr", "client.bootstrap-osd", "client.bootstrap-rbd", "client.bootstrap-rbd-mirror", "client.bootstrap-rgw"}
+	for _, bootstrapkey := range bootstrapKeys {
+		err = client.AuthDelete(c.context, c.ClusterInfo, bootstrapkey)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete bootstrap key %q in the namespace %q", bootstrapkey, c.Namespace)
+		}
+		logger.Debugf("successfully deleted bootstrap key %q in the namespace %q", bootstrapkey, c.Namespace)
+	}
+
 	return nil
 }
 
