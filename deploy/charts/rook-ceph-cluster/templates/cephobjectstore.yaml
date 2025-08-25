@@ -20,6 +20,8 @@ metadata:
 {{- end }}
 {{- if $objectstore.storageClass.annotations }}
   annotations:
+    "helm.sh/hook": post-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
 {{ toYaml $objectstore.storageClass.annotations | indent 4 }}
 {{- end }}
 provisioner: {{ $root.Release.Namespace }}.ceph.rook.io/bucket
