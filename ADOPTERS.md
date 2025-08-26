@@ -71,6 +71,11 @@ If submitting a description, the addition will be at the end of first part of th
 * [Thalassa Cloud](https://thalassa.cloud) is a private cloud platform that brings the functionality
   of public cloud services into on-premises data centers. With Rook Ceph, we provide highly reliable
   and scalable storage solutions tailored for our IaaS layer.
+* [Sophotech](https://sopho.tech) uses Rook to provide an in-cluster storage platform installed 
+  via Helm or operators, adding Rook Ceph and a lightweight management layer 
+  to the customer’s Kubernetes. Data stays in their VPC while we deliver S3-compatible, 
+  analytics-optimized storage with dashboards, quotas, encryption, lifecycle policies, 
+  metering, billing, and a SaaS control plane for policy, monitoring, and updates.
 * [CyCore Systems](https://www.cycoresys.com/)
 * [Datacom](http://datacom.co.nz/Home.aspx)
 * [Turtle Network (BLACK TURTLE BVBA)](https://www.turtlenetwork.eu/#home)
