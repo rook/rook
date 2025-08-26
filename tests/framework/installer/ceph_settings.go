@@ -52,7 +52,6 @@ type TestCephSettings struct {
 	RookVersion                 string
 	CephVersion                 cephv1.CephVersionSpec
 	KubernetesVersion           string
-	EnableCsiOperator           bool
 }
 
 func (s *TestCephSettings) ApplyEnvVars() {
@@ -95,9 +94,6 @@ func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 	manifest = strings.ReplaceAll(manifest,
 		`# ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: "maxObjects,maxSize" # default allowed configs`,
 		`ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner"`)
-	if !s.EnableCsiOperator {
-		manifest = strings.ReplaceAll(manifest, `ROOK_USE_CSI_OPERATOR: "true"`, `ROOK_USE_CSI_OPERATOR: "false"`)
-	}
 	return manifest
 }
 
