@@ -10,6 +10,8 @@ spec:
 {{ toYaml $objectstore.spec | indent 2 }}
 ---
 {{- if default false $objectstore.storageClass.enabled }}
+{{- $sc := lookup "storage.k8s.io/v1" "StorageClass" "" $objectstore.storageClass.name }}
+{{- if not $sc }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -18,8 +20,8 @@ metadata:
   labels:
 {{ toYaml $objectstore.storageClass.labels | indent 4 }}
 {{- end }}
-{{- if $objectstore.storageClass.annotations }}
   annotations:
+{{- if $objectstore.storageClass.annotations }}
 {{ toYaml $objectstore.storageClass.annotations | indent 4 }}
 {{- end }}
 provisioner: {{ $root.Release.Namespace }}.ceph.rook.io/bucket
@@ -31,5 +33,6 @@ parameters:
 {{ with $objectstore.storageClass.parameters }}
 {{ toYaml . | indent 2 }}
 {{ end }}
+{{- end }}
 {{ end }}
 {{ end }}
