@@ -23,14 +23,17 @@ import (
 	"strings"
 	"time"
 
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8scsi "k8s.io/api/storage/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -718,6 +721,150 @@ func (r *ReconcileCSI) deleteRookCSICMIfExists() error {
 	}
 
 	logger.Infof("successfully deleted configmap %q in namespace %q", ConfigName, r.opConfig.OperatorNamespace)
+	return nil
+}
+
+// deleteCSIOperatorResources deletes CSI operator resources when CSI operator is disabled but CSI driver is enabled
+func (r *ReconcileCSI) deleteCSIOperatorResources() error {
+	logger.Debug("cleaning up CSI operator resources since CSI operator is disabled but CSI driver is enabled")
+
+	// Delete OperatorConfigs
+	err := r.deleteCSIOperatorConfigs()
+	if err != nil {
+		logger.Errorf("failed to delete CSI operator configs: %v", err)
+	}
+
+	// Delete Drivers
+	err = r.deleteCSIDrivers()
+	if err != nil {
+		logger.Errorf("failed to delete CSI drivers: %v", err)
+	}
+
+	// Delete ClientProfiles
+	err = r.deleteClientProfiles()
+	if err != nil {
+		logger.Errorf("failed to delete CSI client profiles: %v", err)
+	}
+
+	// Delete CephConnections
+	err = r.deleteCephConnections()
+	if err != nil {
+		logger.Errorf("failed to delete CSI ceph connections: %v", err)
+	}
+
+	logger.Info("successfully cleaned up CSI operator resources")
+	return nil
+}
+
+// deleteCSIOperatorConfigsIfExist deletes OperatorConfig resources
+func (r *ReconcileCSI) deleteCSIOperatorConfigs() error {
+	operatorConfigs := &csiopv1.OperatorConfigList{}
+	err := r.client.List(r.opManagerContext, operatorConfigs, &client.ListOptions{
+		Namespace: r.opConfig.OperatorNamespace,
+	})
+	if err != nil {
+		if _, ok := err.(*meta.NoKindMatchError); ok || kerrors.IsNotFound(err) {
+			logger.Debug("no CSI operator configs found")
+			return nil
+		}
+		return errors.Wrap(err, "failed to list CSI operator configs")
+	}
+
+	for _, config := range operatorConfigs.Items {
+		logger.Debugf("deleting CSI operator config %q in namespace %q", config.Name, config.Namespace)
+		err := r.client.Delete(r.opManagerContext, &config)
+		if kerrors.IsNotFound(err) {
+			return nil
+		}
+		if err != nil && !kerrors.IsNotFound(err) {
+			return errors.Wrapf(err, "failed to delete CSI operator config %q", config.Name)
+		}
+		logger.Infof("successfully deleted CSI operator config %q", config.Name)
+	}
+	return nil
+}
+
+// deleteCSIDriversIfExist deletes Driver resources
+func (r *ReconcileCSI) deleteCSIDrivers() error {
+	drivers := &csiopv1.DriverList{}
+	err := r.client.List(r.opManagerContext, drivers, &client.ListOptions{
+		Namespace: r.opConfig.OperatorNamespace,
+	})
+	if err != nil {
+		if _, ok := err.(*meta.NoKindMatchError); ok || kerrors.IsNotFound(err) {
+			logger.Debug("no CSI drivers found")
+			return nil
+		}
+		return errors.Wrap(err, "failed to list CSI drivers")
+	}
+
+	for _, driver := range drivers.Items {
+		logger.Debugf("deleting CSI driver %q in namespace %q", driver.Name, driver.Namespace)
+		err := r.client.Delete(r.opManagerContext, &driver)
+		if _, ok := err.(*meta.NoKindMatchError); ok || kerrors.IsNotFound(err) {
+			return nil
+		}
+		if err != nil && !kerrors.IsNotFound(err) {
+			return errors.Wrapf(err, "failed to delete CSI driver %q", driver.Name)
+		}
+		logger.Infof("successfully deleted CSI driver %q", driver.Name)
+	}
+	return nil
+}
+
+// deleteClientProfilesIfExist deletes ClientProfile resources
+func (r *ReconcileCSI) deleteClientProfiles() error {
+	clientProfiles := &csiopv1.ClientProfileList{}
+	err := r.client.List(r.opManagerContext, clientProfiles, &client.ListOptions{
+		Namespace: r.opConfig.OperatorNamespace,
+	})
+	if err != nil {
+		if _, ok := err.(*meta.NoKindMatchError); ok || kerrors.IsNotFound(err) {
+			logger.Debug("no CSI client profiles found")
+			return nil
+		}
+		return errors.Wrap(err, "failed to list CSI client profiles")
+	}
+
+	for _, profile := range clientProfiles.Items {
+		logger.Debugf("deleting CSI client profile %q in namespace %q", profile.Name, profile.Namespace)
+		err := r.client.Delete(r.opManagerContext, &profile)
+		if kerrors.IsNotFound(err) {
+			return nil
+		}
+		if err != nil && !kerrors.IsNotFound(err) {
+			return errors.Wrapf(err, "failed to delete CSI client profile %q", profile.Name)
+		}
+		logger.Infof("successfully deleted CSI client profile %q", profile.Name)
+	}
+	return nil
+}
+
+// deleteCephConnections deletes CephConnection resources
+func (r *ReconcileCSI) deleteCephConnections() error {
+	cephConnections := &csiopv1.CephConnectionList{}
+	err := r.client.List(r.opManagerContext, cephConnections, &client.ListOptions{
+		Namespace: r.opConfig.OperatorNamespace,
+	})
+	if err != nil {
+		if _, ok := err.(*meta.NoKindMatchError); ok || kerrors.IsNotFound(err) {
+			logger.Debug("no CSI ceph connections found")
+			return nil
+		}
+		return errors.Wrap(err, "failed to list CSI ceph connections")
+	}
+
+	for _, connection := range cephConnections.Items {
+		logger.Debugf("deleting CSI ceph connection %q in namespace %q", connection.Name, connection.Namespace)
+		err := r.client.Delete(r.opManagerContext, &connection)
+		if kerrors.IsNotFound(err) {
+			return nil
+		}
+		if err != nil && !kerrors.IsNotFound(err) {
+			return errors.Wrapf(err, "failed to delete CSI ceph connection %q", connection.Name)
+		}
+		logger.Infof("successfully deleted CSI ceph connection %q", connection.Name)
+	}
 	return nil
 }
 
