@@ -280,6 +280,12 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	}
 
 	if !disableCSI && !EnableCSIOperator() {
+		// delete CSI operator resources if CSI operator is disabled but CSI driver is enabled
+		err := r.deleteCSIOperatorResources()
+		if err != nil {
+			logger.Errorf("failed to delete CSI operator resources: %v", err)
+		}
+
 		err = r.validateAndConfigureDrivers(ownerInfo)
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure ceph csi")
