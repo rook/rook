@@ -236,6 +236,18 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 		logger.Info("hotplug orchestration disabled")
 	}
 
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}},
+			handler.TypedEnqueueRequestsFromMapFunc(cmHandler),
+			predicateForOperatorConfigCMWatcher(),
+		),
+	)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
