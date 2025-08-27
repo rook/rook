@@ -18,6 +18,7 @@ package csi
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -369,5 +370,25 @@ func (r *ReconcileCSI) setParams() error {
 		}
 	}
 
+	if strings.HasSuffix(CSIParam.DriverNamePrefix, ".") {
+		// As operator is adding a dot at the end of the prefix, we should not
+		// allow the user to add a dot at the end of the prefix. as it will
+		// result in two dots at the end of the prefix. which cases the csi
+		// driver name creation failure
+		return errors.Errorf("driver name prefix %q should not end with a dot", CSIParam.DriverNamePrefix)
+	}
+
+	err = validateCSIDriverNamePrefix(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, CSIParam.DriverNamePrefix)
+	if err != nil {
+		return err
+	}
+	// Add a dot at the end of the prefix for having the driver name prefix
+	// with format <prefix>.<driver-name>
+	CSIParam.DriverNamePrefix = fmt.Sprintf("%s.", CSIParam.DriverNamePrefix)
+
+	// Set the driver names
+	CephFSDriverName = CSIParam.DriverNamePrefix + cephFSDriverSuffix
+	RBDDriverName = CSIParam.DriverNamePrefix + rbdDriverSuffix
+	NFSDriverName = CSIParam.DriverNamePrefix + nfsDriverSuffix
 	return nil
 }
