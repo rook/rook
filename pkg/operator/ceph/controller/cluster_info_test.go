@@ -139,4 +139,25 @@ func TestCreateClusterSecrets(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "testid", info.CephCred.Username)
 	assert.Equal(t, "testkey", info.CephCred.Secret)
+	assert.Equal(t, "", info.CSIDriverSpec.CephFS.KernelMountOptions)
+
+	// Verify the csi settings are loaded from an env var
+	t.Setenv("CSI_CEPHFS_KERNEL_MOUNT_OPTIONS", "ms_mode=crc")
+	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
+	assert.NoError(t, err)
+	assert.Equal(t, "ms_mode=crc", info.CSIDriverSpec.CephFS.KernelMountOptions)
+
+	// Verify the csi settings are loaded from the cephClusterSpec if specified and override the env var
+	cephClusterSpec.CSI = cephv1.CSIDriverSpec{
+		ReadAffinity: cephv1.ReadAffinitySpec{
+			Enabled:             true,
+			CrushLocationLabels: []string{"kubernetes.io/hostname"},
+		},
+		CephFS: cephv1.CSICephFSSpec{
+			KernelMountOptions: "ms_mode=secure",
+		},
+	}
+	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
+	assert.NoError(t, err)
+	assert.Equal(t, "ms_mode=secure", info.CSIDriverSpec.CephFS.KernelMountOptions)
 }
