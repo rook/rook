@@ -19,7 +19,6 @@ package csi
 import (
 	"context"
 	_ "embed"
-	"fmt"
 	"path"
 	"strings"
 	"time"
@@ -312,26 +311,6 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		Param:     CSIParam,
 		Namespace: r.opConfig.OperatorNamespace,
 	}
-
-	if strings.HasSuffix(tp.DriverNamePrefix, ".") {
-		// As operator is adding a dot at the end of the prefix, we should not
-		// allow the user to add a dot at the end of the prefix. as it will
-		// result in two dots at the end of the prefix. which cases the csi
-		// driver name creation failure
-		return errors.Errorf("driver name prefix %q should not end with a dot", tp.DriverNamePrefix)
-	}
-
-	err = validateCSIDriverNamePrefix(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, tp.DriverNamePrefix)
-	if err != nil {
-		return err
-	}
-	// Add a dot at the end of the prefix for having the driver name prefix
-	// with format <prefix>.<driver-name>
-	tp.DriverNamePrefix = fmt.Sprintf("%s.", tp.DriverNamePrefix)
-
-	CephFSDriverName = tp.DriverNamePrefix + cephFSDriverSuffix
-	RBDDriverName = tp.DriverNamePrefix + rbdDriverSuffix
-	NFSDriverName = tp.DriverNamePrefix + nfsDriverSuffix
 
 	tp.Param.MountCustomCephConf = CustomCSICephConfigExists
 
@@ -662,10 +641,6 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 }
 
 func (r *ReconcileCSI) stopDrivers() error {
-	RBDDriverName = fmt.Sprintf("%s.rbd.csi.ceph.com", r.opConfig.OperatorNamespace)
-	CephFSDriverName = fmt.Sprintf("%s.cephfs.csi.ceph.com", r.opConfig.OperatorNamespace)
-	NFSDriverName = fmt.Sprintf("%s.nfs.csi.ceph.com", r.opConfig.OperatorNamespace)
-
 	if !EnableRBD || EnableCSIOperator() {
 		logger.Debugf("either EnableRBD if `false` or EnableCSIOperator is `true`, `EnableRBD is %t` and `EnableCSIOperator is %t", EnableRBD, EnableCSIOperator())
 		err := r.deleteCSIDriverResources(CsiRBDPlugin, csiRBDProvisioner, "csi-rbdplugin-metrics", RBDDriverName)
