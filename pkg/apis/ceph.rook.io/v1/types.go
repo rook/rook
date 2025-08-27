@@ -748,6 +748,8 @@ type LocalCephxStatus struct {
 
 // ClusterCephxStatus defines the cephx key rotation status of various daemons on the cephCluster resource
 type ClusterCephxStatus struct {
+	// Admin shows the CephX key status for the client.admin key
+	Admin CephxStatus `json:"admin,omitempty"`
 	// Mon represents the CephX key status of the Monitor daemons
 	Mon CephxStatus `json:"mon,omitempty"`
 	// Mgr represents the cephx key rotation status of the ceph manager daemon
