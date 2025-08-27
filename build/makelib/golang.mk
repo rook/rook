@@ -108,7 +108,7 @@ ifeq ($(filter help clean distclean prune go.clean, $(MAKECMDGOALS)),)
 .PHONY: go.check
 go.check:
 ifneq ($(shell $(GO) version | grep -q -E '\bgo($(GO_SUPPORTED_VERSIONS))\b' && echo 0 || echo 1), 0)
-	$(error unsupported: $(GO_FULL_VERSION). Please make install one of the following supported version: '$(GO_SUPPORTED_VERSIONS)')
+	$(error unsupported: $(GO_FULL_VERSION). Please install one of the following supported versions: '$(GO_SUPPORTED_VERSIONS)')
 endif
 
 -include go.check
