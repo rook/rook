@@ -33,6 +33,17 @@ func (c *ClusterSpec) RequireMsgr2() bool {
 	return false
 }
 
+// RequireMsgr2 checks if the network settings require the msgr2 protocol
+func (c *ClusterSpec) NetworkEncryptionEnabled() bool {
+	if c.Network.Connections == nil {
+		return false
+	}
+	if c.Network.Connections.Encryption == nil {
+		return false
+	}
+	return c.Network.Connections.Encryption.Enabled
+}
+
 func (c *ClusterSpec) IsStretchCluster() bool {
 	return c.Mon.StretchCluster != nil && len(c.Mon.StretchCluster.Zones) > 0
 }

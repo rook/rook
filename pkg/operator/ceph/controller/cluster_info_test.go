@@ -141,7 +141,20 @@ func TestCreateClusterSecrets(t *testing.T) {
 	assert.Equal(t, "testkey", info.CephCred.Secret)
 	assert.Equal(t, "", info.CSIDriverSpec.CephFS.KernelMountOptions)
 
+	// Verify the csi settings default to secure if the network is encrypted
+	cephClusterSpec.Network = cephv1.NetworkSpec{
+		Connections: &cephv1.ConnectionsSpec{
+			Encryption: &cephv1.EncryptionSpec{
+				Enabled: true,
+			},
+		},
+	}
+	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
+	assert.NoError(t, err)
+	assert.Equal(t, "ms_mode=secure", info.CSIDriverSpec.CephFS.KernelMountOptions)
+
 	// Verify the csi settings are loaded from an env var
+	cephClusterSpec.Network = cephv1.NetworkSpec{}
 	t.Setenv("CSI_CEPHFS_KERNEL_MOUNT_OPTIONS", "ms_mode=crc")
 	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
 	assert.NoError(t, err)
