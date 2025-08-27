@@ -168,6 +168,10 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	if len(clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels) == 0 {
 		clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels = strings.Split(topology.GetDefaultTopologyLabels(), ",")
 	}
+	// if the csi spec does not specify mount options, apply them from the operator env vars
+	if cephClusterSpec.CSI.CephFS.KernelMountOptions == "" {
+		clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions = k8sutil.GetOperatorSetting("CSI_CEPHFS_KERNEL_MOUNT_OPTIONS", "")
+	}
 
 	// If an admin key was provided we don't need to load the other resources
 	// Some people might want to give the admin key
