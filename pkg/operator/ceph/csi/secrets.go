@@ -305,7 +305,7 @@ func updateCephStatusWithCephxStatus(context *clusterd.Context, clusterInfo *cli
 	namespacedName types.NamespacedName, didRotate bool, currentKeyCount int,
 ) error {
 	logger.Infof("updating cephCluster %s cephStatus with CSI cephxStatus in namespace %s", namespacedName.Name, namespacedName.Namespace)
-	cephxStatus := keyring.UpdatedCephxStatus(didRotate, cephCluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, cephCluster.Status.Cephx.CSI.CephxStatus)
+	cephxStatus := keyring.UpdatedCephxStatus(didRotate, cephCluster.Spec.Security.CephX.CSI.CephxConfig, clusterInfo.CephVersion, cephCluster.Status.Cephx.CSI.CephxStatus)
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		cephCluster := &cephv1.CephCluster{}
