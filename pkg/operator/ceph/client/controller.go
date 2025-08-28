@@ -57,11 +57,9 @@ const (
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
-var cephClientKind = reflect.TypeOf(cephv1.CephClient{}).Name()
-
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{
-	Kind:       cephClientKind,
+	Kind:       reflect.TypeFor[cephv1.CephClient]().Name(),
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 

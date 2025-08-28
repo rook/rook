@@ -63,11 +63,9 @@ var newMultisiteAdminOpsCtxFunc = object.NewMultisiteAdminOpsContext
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
-var cephObjectStoreUserKind = reflect.TypeOf(cephv1.CephObjectStoreUser{}).Name()
-
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{
-	Kind:       cephObjectStoreUserKind,
+	Kind:       reflect.TypeFor[cephv1.CephObjectStoreUser]().Name(),
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 

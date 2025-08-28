@@ -69,11 +69,9 @@ var commitConfigChangesFunc = object.CommitConfigChanges
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
-var cephObjectZoneKind = reflect.TypeOf(cephv1.CephObjectZone{}).Name()
-
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{
-	Kind:       cephObjectZoneKind,
+	Kind:       reflect.TypeFor[cephv1.CephObjectZone]().Name(),
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
