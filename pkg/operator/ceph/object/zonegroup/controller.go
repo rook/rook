@@ -55,11 +55,9 @@ var waitForRequeueIfObjectRealmNotReady = reconcile.Result{Requeue: true, Requeu
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
-var cephObjectZoneGroupKind = reflect.TypeOf(cephv1.CephObjectZoneGroup{}).Name()
-
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{
-	Kind:       cephObjectZoneGroupKind,
+	Kind:       reflect.TypeFor[cephv1.CephObjectZoneGroup]().Name(),
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 

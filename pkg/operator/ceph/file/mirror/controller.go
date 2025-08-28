@@ -60,11 +60,9 @@ var objectsToWatch = []client.Object{
 	&appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
 }
 
-var cephFilesystemMirrorKind = reflect.TypeOf(cephv1.CephFilesystemMirror{}).Name()
-
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{
-	Kind:       cephFilesystemMirrorKind,
+	Kind:       reflect.TypeFor[cephv1.CephFilesystemMirror]().Name(),
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 

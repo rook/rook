@@ -59,11 +59,9 @@ const (
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
-var cephFilesystemSubVolumeGroup = reflect.TypeOf(cephv1.CephFilesystemSubVolumeGroup{}).Name()
-
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{
-	Kind:       cephFilesystemSubVolumeGroup,
+	Kind:       reflect.TypeFor[cephv1.CephFilesystemSubVolumeGroup]().Name(),
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
