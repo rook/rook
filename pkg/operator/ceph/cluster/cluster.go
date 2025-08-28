@@ -758,9 +758,7 @@ func (c *cluster) configureMsgr2() error {
 	}
 	monStore := config.GetMonStore(c.context, c.ClusterInfo)
 
-	encryptionEnabled := c.Spec.Network.Connections != nil &&
-		c.Spec.Network.Connections.Encryption != nil &&
-		c.Spec.Network.Connections.Encryption.Enabled
+	encryptionEnabled := c.Spec.NetworkEncryptionEnabled()
 
 	if encryptionEnabled {
 		logger.Infof("setting msgr2 encryption mode to %q", encryptionSetting)

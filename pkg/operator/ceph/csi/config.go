@@ -55,26 +55,7 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 		},
 	}
 
-	err := c.Get(ctx, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			err = c.Create(ctx, csiOpClientProfile)
-			if err != nil {
-				return errors.Wrapf(err, "failed to create ceph-csi clientProfile cr for RBD %q", csiOpClientProfile.Name)
-			}
-			logger.Infof("successfully created ceph-csi clientProfile CR for RBD %q", csiOpClientProfile.Name)
-			return nil
-		}
-		return err
-	}
-
-	err = c.Update(ctx, csiOpClientProfile)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create ceph-csi clientProfile cr for RBD %q", csiOpClientProfile.Name)
-	}
-	logger.Infof("successfully updated ceph-csi clientProfile CR for RBD %q", csiOpClientProfile.Name)
-
-	return nil
+	return createUpdateClientProfile(c, clusterInfo, csiOpClientProfile)
 }
 
 func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephFilesystemSubVolumeGroupName, clusterID string) error {
@@ -82,26 +63,7 @@ func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Clien
 
 	csiOpClientProfile := generateProfileSubVolumeGroupSpec(clusterInfo, cephFilesystemSubVolumeGroupName, clusterID)
 
-	err := c.Get(ctx, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			err = c.Create(ctx, csiOpClientProfile)
-			if err != nil {
-				return errors.Wrapf(err, "failed to create ceph-csi clientProfile cr for subVolGrp %q", csiOpClientProfile.Name)
-			}
-			logger.Infof("successfully created ceph-csi clientProfile CR for subVolGrp %q", csiOpClientProfile.Name)
-			return nil
-		}
-		return err
-	}
-
-	err = c.Update(ctx, csiOpClientProfile)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create ceph-csi clientProfile cr for subVolGrp %q", csiOpClientProfile.Name)
-	}
-	logger.Infof("successfully updated ceph-csi clientProfile CR for subVolGrp %q", csiOpClientProfile.Name)
-
-	return nil
+	return createUpdateClientProfile(c, clusterInfo, csiOpClientProfile)
 }
 
 func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, cephFilesystemSubVolumeGroupName, clusterID string) *csiopv1.ClientProfile {
@@ -189,24 +151,30 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 		},
 	}
 
-	err := c.Get(clusterInfo.Context, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
+	return createUpdateClientProfile(c, clusterInfo, csiOpClientProfile)
+}
+
+func createUpdateClientProfile(c client.Client, clusterInfo *cephclient.ClusterInfo, clientProfile *csiopv1.ClientProfile) error {
+	existingCsiOpClientProfile := &csiopv1.ClientProfile{}
+	err := c.Get(clusterInfo.Context, types.NamespacedName{Name: clientProfile.Name, Namespace: clientProfile.Namespace}, existingCsiOpClientProfile)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			err = c.Create(clusterInfo.Context, csiOpClientProfile)
+			err = c.Create(clusterInfo.Context, clientProfile)
 			if err != nil {
-				return errors.Wrapf(err, "failed to create ceph-csi for default clientProfile CR %q", csiOpClientProfile.Name)
+				return errors.Wrapf(err, "failed to create ceph-csi for clientProfile CR %q", clientProfile.Name)
 			}
-			logger.Infof("successfully created ceph-csi for default clientProfile CR %q", csiOpClientProfile.Name)
+			logger.Infof("successfully created ceph-csi for clientProfile CR %q", clientProfile.Name)
 			return nil
 		}
 		return err
 	}
 
-	err = c.Update(clusterInfo.Context, csiOpClientProfile)
+	existingCsiOpClientProfile.Spec = clientProfile.Spec
+	err = c.Update(clusterInfo.Context, existingCsiOpClientProfile)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create ceph-csi for default clientProfile CR %q", csiOpClientProfile.Name)
+		return errors.Wrapf(err, "failed to create ceph-csi for clientProfile CR %q", clientProfile.Name)
 	}
-	logger.Infof("successfully updated ceph-csi for default clientProfile CR %q", csiOpClientProfile.Name)
+	logger.Infof("successfully updated ceph-csi for clientProfile CR %q", clientProfile.Name)
 
 	return nil
 }

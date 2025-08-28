@@ -163,11 +163,8 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	// can run on remote executor
 	clusterInfo.NetworkSpec = cephClusterSpec.Network
 
-	// update clusterInfo with cephClusterSpec.CSI.
-	clusterInfo.CSIDriverSpec = cephClusterSpec.CSI
-	if len(clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels) == 0 {
-		clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels = strings.Split(topology.GetDefaultTopologyLabels(), ",")
-	}
+	// update clusterInfo with cephClusterSpec.CSI settings
+	clusterInfo.CSIDriverSpec = loadCsiSettings(cephClusterSpec)
 
 	// If an admin key was provided we don't need to load the other resources
 	// Some people might want to give the admin key
@@ -189,6 +186,25 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	}
 
 	return clusterInfo, maxMonID, monMapping, nil
+}
+
+func loadCsiSettings(cephClusterSpec *cephv1.ClusterSpec) cephv1.CSIDriverSpec {
+	settings := cephClusterSpec.CSI
+	if len(settings.ReadAffinity.CrushLocationLabels) == 0 {
+		settings.ReadAffinity.CrushLocationLabels = strings.Split(topology.GetDefaultTopologyLabels(), ",")
+	}
+	// if the csi spec does not specify mount options, apply them from the operator env vars
+	if cephClusterSpec.CSI.CephFS.KernelMountOptions == "" {
+		settings.CephFS.KernelMountOptions = k8sutil.GetOperatorSetting("CSI_CEPHFS_KERNEL_MOUNT_OPTIONS", "")
+		// if the kernel mount options are not set and encryption is enabled, set the default to secure
+		if settings.CephFS.KernelMountOptions == "" {
+			if cephClusterSpec.NetworkEncryptionEnabled() {
+				logger.Info("setting default cephfs kernel mount options to 'ms_mode=secure' since encryption is enabled")
+				settings.CephFS.KernelMountOptions = "ms_mode=secure"
+			}
+		}
+	}
+	return settings
 }
 
 // create new cluster info (FSID, shared keys)
