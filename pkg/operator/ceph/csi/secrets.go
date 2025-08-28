@@ -241,7 +241,7 @@ func CreateCSISecrets(context *clusterd.Context, clusterInfo *client.ClusterInfo
 	}
 	k := keyring.GetSecretStore(context, clusterInfo, clusterInfo.OwnerInfo)
 
-	logger.Info("getting CephCluster %s during CSI key creation in namespace %s", clusterNamespaced.Name, clusterNamespaced.Namespace)
+	logger.Infof("getting CephCluster %s during CSI key creation in namespace %s", clusterNamespaced.Name, clusterNamespaced.Namespace)
 	cephCluster := &cephv1.CephCluster{}
 
 	if err := context.Client.Get(clusterInfo.Context, clusterNamespaced, cephCluster); err != nil {
