@@ -21,6 +21,7 @@ import (
 	"os"
 	"testing"
 
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -89,7 +90,8 @@ func TestCephCSIController(t *testing.T) {
 		assert.NoError(t, err)
 		// Register operator types with the runtime scheme.
 		s := scheme.Scheme
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &v1.ConfigMap{}, &v1.ConfigMapList{}, &cephv1.CephClusterList{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &v1.ConfigMap{}, &v1.ConfigMapList{}, &cephv1.CephClusterList{},
+			&csiopv1.CephConnection{}, &csiopv1.ClientProfile{}, &csiopv1.OperatorConfig{}, &csiopv1.Driver{})
 
 		// Create a fake client to mock API calls.
 		cl := fake.NewClientBuilder().WithScheme(s).Build()
@@ -179,10 +181,6 @@ func TestCephCSIController(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 
-		ds, err := c.Clientset.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{})
-		assert.NoError(t, err)
-		assert.Equal(t, 2, len(ds.Items), ds)
-
 		assert.Equal(t, []string{namespace}, saveCSIDriverOptionsCalledForClusterNS)
 	})
 
@@ -260,13 +258,6 @@ func TestCephCSIController(t *testing.T) {
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
-
-		ds, err := c.Clientset.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{})
-		assert.NoError(t, err)
-		assert.Equal(t, 2, len(ds.Items), ds)
-		assert.Equal(t, "csi-cephfsplugin", ds.Items[0].Name)
-		assert.Equal(t, "csi-rbdplugin", ds.Items[1].Name)
-		assert.Equal(t, ``, ds.Items[1].Spec.Template.Annotations["k8s.v1.cni.cncf.io/networks"], ds.Items[1].Spec.Template.Annotations)
 
 		assert.Equal(t, []string{namespace}, saveCSIDriverOptionsCalledForClusterNS)
 	})
