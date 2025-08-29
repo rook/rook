@@ -93,6 +93,9 @@ type managed for the cluster is listed.
 status:
   # ...
   cephx:
+    admin:
+      keyCephVersion: 19.2.3-0
+      keyGeneration: 2
     cephExporter:
       keyCephVersion: 19.2.3-0
       keyGeneration: 2

@@ -53,15 +53,6 @@ func CephKeyring(cred CephCred) string {
 	return fmt.Sprintf(UserKeyringTemplate, cred.Username, cred.Secret)
 }
 
-// WriteKeyring calls the generate contents function with auth key as an argument then saves the
-// output of the generateContents function to disk at the keyring path
-// TODO: Kludgey; can keyring files be generated w/ go-ini package or using the '-o' option to
-// 'ceph auth get-or-create ...'?
-func WriteKeyring(keyringPath, authKey string, generateContents func(string) string) error {
-	contents := generateContents(authKey)
-	return writeKeyring(contents, keyringPath)
-}
-
 // CreateKeyring creates a keyring for access to the cluster with the desired set of privileges
 // and writes it to disk at the keyring path
 func CreateKeyring(context *clusterd.Context, clusterInfo *ClusterInfo, username, keyringPath string, access []string, generateContents func(string) string) error {
@@ -81,12 +72,12 @@ func CreateKeyring(context *clusterd.Context, clusterInfo *ClusterInfo, username
 		return errors.Wrapf(err, "failed to get or create auth key for %s", username)
 	}
 
-	return WriteKeyring(keyringPath, key, generateContents)
+	contents := generateContents(key)
+	return WriteKeyring(keyringPath, contents)
 }
 
-// writes the keyring to disk
-// TODO: Write keyring only to the default ceph config location since we are in a container
-func writeKeyring(keyring, keyringPath string) error {
+// Writes the keyring to disk, creating parent dirs as necessary
+func WriteKeyring(keyringPath, keyring string) error {
 	// save the keyring to the given path
 	if err := os.MkdirAll(filepath.Dir(keyringPath), 0o700); err != nil {
 		return errors.Wrapf(err, "failed to create keyring directory for %s", keyringPath)
