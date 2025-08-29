@@ -111,6 +111,17 @@ OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
 KEYRING_FILE="$OSD_DATA_DIR"/keyring
 CV_MODE=%s
 DEVICE="$%s"
+ENCRYPTED="%t"
+
+# copy the latest lockbox keys to the keyring file as they might have been rotated
+if [ "$ENCRYPTED" == "true" ] ; then
+	LOCKBOX_KEYRING_FILE="$OSD_DATA_DIR"/lockbox.keyring
+	LOCKBOX_USER=client.osd-lockbox."$OSD_UUID"
+
+	ceph --name client.admin auth get-or-create "$LOCKBOX_USER" \
+	mon 'allow command "config-key get" with key="dm-crypt/osd/'$OSD_UUID'/luks"' \
+	--keyring /etc/ceph/admin-keyring-store/keyring > "$LOCKBOX_KEYRING_FILE"
+fi
 
 # active the osd with ceph-volume
 if [[ "$CV_MODE" == "lvm" ]]; then
@@ -522,6 +533,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	hostIPC := osdProps.storeConfig.EncryptedDevice || osdProps.encrypted
 
 	osdLabels := c.getOSDLabels(*osd, failureDomainValue, osdProps.portable)
+
+	// update encryption label on the OSD deployment
+	if osdProps.storeConfig.EncryptedDevice || osdProps.encrypted {
+		osdLabels[encrypted] = "true"
+	} else {
+		osdLabels[encrypted] = "false"
+	}
 
 	if osd.ExportService {
 		osdService, err := c.createOSDService(*osd, osdLabels)
@@ -938,7 +956,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(activateOSDOnNodeCode, osdInfo.UUID, osdStoreFlag, osdInfo.CVMode, blockPathVarName),
+			fmt.Sprintf(activateOSDOnNodeCode, osdInfo.UUID, osdStoreFlag, osdInfo.CVMode, blockPathVarName, osdProps.storeConfig.EncryptedDevice),
 		},
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,
