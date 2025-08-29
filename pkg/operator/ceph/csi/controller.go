@@ -166,7 +166,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to apply operator settings configmap")
 	}
 
-	enableCSIOperator, err = strconv.ParseBool(k8sutil.GetOperatorSetting("ROOK_USE_CSI_OPERATOR", "false"))
+	enableCSIOperator, err = strconv.ParseBool(k8sutil.GetOperatorSetting("ROOK_USE_CSI_OPERATOR", "true"))
 	if err != nil {
 		return reconcileResult, errors.Wrap(err, "unable to parse value for 'ROOK_USE_CSI_OPERATOR'")
 	}
