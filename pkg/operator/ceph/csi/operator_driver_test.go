@@ -93,15 +93,48 @@ func TestReconcileCSI_createOrUpdateDriverResources(t *testing.T) {
 	c.SetName("testcluster")
 	c.NamespacedName()
 
+	// set a valid rbd volume
+	t.Setenv(rbdPluginVolume, `
+    - name: myvol
+      hostPath:
+        path: /myvol`)
+	t.Setenv(rbdPluginVolumeMount, `
+    - name: myvol
+      mountPath: /myvol
+      readOnly: true`)
+
+	// set an invalid cephfs volume
+	t.Setenv(cephFSPluginVolume, `
+    - name: myvol
+      host`)
+	t.Setenv(cephFSPluginVolumeMount, `
+    - name: myvol
+      mountPath: /myvol
+      readOnly: true`)
+
 	err := r.createOrUpdateDriverResources(*cluster, c)
 	assert.NoError(t, err)
 
 	err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.rbd.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
 	assert.NoError(t, err)
+	assert.Equal(t, 1, len(driver.Spec.NodePlugin.Volumes))
 
 	err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.cephfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
 	assert.NoError(t, err)
+	assert.Equal(t, 0, len(driver.Spec.NodePlugin.Volumes))
 
 	err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.nfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
 	assert.NoError(t, err)
+
+	// set a valid cephfs volume
+	t.Setenv(cephFSPluginVolume, `
+    - name: myvol
+      hostPath:
+        path: /myvol`)
+	err = r.createOrUpdateDriverResources(*cluster, c)
+	assert.NoError(t, err)
+
+	err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.cephfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(driver.Spec.NodePlugin.Volumes))
 }
