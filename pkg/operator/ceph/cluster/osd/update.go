@@ -428,5 +428,15 @@ func (c *Cluster) rotateCephxKey(osdInfo OSDInfo) (cephv1.CephxStatus, error) {
 		return didNotRotateCephxStatus, errors.Wrapf(err, "failed to rotate cephx key for OSD %d", osdInfo.ID)
 	}
 
+	// rotating the `client.osd-lockbox.$OSD_UUID` keys created for luks-encrypted OSDs by ceph-volume
+	if osdInfo.Encrypted {
+		osdLockBoxUser := fmt.Sprintf("client.osd-lockbox.%s", osdInfo.UUID)
+		logger.Infof("rotating osd-lockbox cephx key of encrypted OSD %d for CephCluster in namespace %q", osdInfo.ID, c.clusterInfo.Namespace)
+		_, err = cephclient.AuthRotate(c.context, c.clusterInfo, osdLockBoxUser)
+		if err != nil {
+			return didNotRotateCephxStatus, errors.Wrapf(err, "failed to rotate osd-lockbox cephx key for the encrypted OSD %d", osdInfo.ID)
+		}
+	}
+
 	return didRotateCephxStatus, nil
 }
