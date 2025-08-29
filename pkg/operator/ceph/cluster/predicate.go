@@ -25,7 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
-	"github.com/rook/rook/pkg/operator/ceph/controller"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -127,10 +127,52 @@ func isHotPlugCM(cm *corev1.ConfigMap) bool {
 	return false
 }
 
+// predicateForOperatorConfigCMWatcher is the predicate function to trigger reconcile on operator config ConfigMap events
+func predicateForOperatorConfigCMWatcher[T *corev1.ConfigMap]() predicate.TypedFuncs[T] {
+	return predicate.TypedFuncs[T]{
+		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
+			objNew := (*corev1.ConfigMap)(e.ObjectNew)
+			objOld := (*corev1.ConfigMap)(e.ObjectOld)
+
+			if objNew.Name != opcontroller.OperatorSettingConfigMapName {
+				return false
+			}
+
+			if objOld.Data["ROOK_USE_CSI_OPERATOR"] != objNew.Data["ROOK_USE_CSI_OPERATOR"] {
+				logger.Infof("ROOK_USE_CSI_OPERATOR changed from %q to %q", objOld.Data["ROOK_USE_CSI_OPERATOR"], objNew.Data["ROOK_USE_CSI_OPERATOR"])
+				return true
+			}
+
+			return false
+		},
+
+		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
+			objNew := (*corev1.ConfigMap)(e.Object)
+			if objNew.Name != opcontroller.OperatorSettingConfigMapName {
+				return false
+			}
+
+			if objNew.Data["ROOK_USE_CSI_OPERATOR"] == "true" {
+				return true
+			}
+
+			return false
+		},
+
+		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
+			return false
+		},
+
+		GenericFunc: func(e event.TypedGenericEvent[T]) bool {
+			return false
+		},
+	}
+}
+
 func watchControllerPredicate[T *cephv1.CephCluster](ctx context.Context, c client.Client) predicate.TypedFuncs[T] {
 	return predicate.TypedFuncs[T]{
 		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
-			if controller.DuplicateCephClusters(ctx, c, e.Object, true) {
+			if opcontroller.DuplicateCephClusters(ctx, c, e.Object, true) {
 				return false
 			}
 			logger.Debug("create event from a CR")
@@ -144,7 +186,7 @@ func watchControllerPredicate[T *cephv1.CephCluster](ctx context.Context, c clie
 			// We still need to check on update event since the user must delete the additional CR
 			// Until this is done, the user can still update the CR and the operator will reconcile
 			// This should not happen
-			if controller.DuplicateCephClusters(ctx, c, e.ObjectOld, true) {
+			if opcontroller.DuplicateCephClusters(ctx, c, e.ObjectOld, true) {
 				return false
 			}
 
@@ -156,8 +198,8 @@ func watchControllerPredicate[T *cephv1.CephCluster](ctx context.Context, c clie
 
 			logger.Debug("update event on CephCluster CR")
 			// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-			if controller.IsDoNotReconcile(objNew.GetLabels()) {
-				logger.Debugf("object %q matched on update but %q label is set, doing nothing", controller.DoNotReconcileLabelName, objNew.Name)
+			if opcontroller.IsDoNotReconcile(objNew.GetLabels()) {
+				logger.Debugf("object %q matched on update but %q label is set, doing nothing", opcontroller.DoNotReconcileLabelName, objNew.Name)
 				return false
 			}
 			diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -170,7 +212,7 @@ func watchControllerPredicate[T *cephv1.CephCluster](ctx context.Context, c clie
 				}
 
 				// Stop any ongoing orchestration
-				controller.ReloadManager()
+				opcontroller.ReloadManager()
 
 				return false
 
@@ -178,7 +220,7 @@ func watchControllerPredicate[T *cephv1.CephCluster](ctx context.Context, c clie
 				logger.Infof("CR %q is going be deleted, cancelling any ongoing orchestration", objNew.Name)
 
 				// Stop any ongoing orchestration
-				controller.ReloadManager()
+				opcontroller.ReloadManager()
 
 				return false
 
