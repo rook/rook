@@ -549,6 +549,11 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrap(err, "failed to create cluster rbd bootstrap peer token")
 	}
 
+	// Delete the client.bootstrap-* keys. These keys are created automatically by Ceph and are unused.
+	// Ceph might remove these keys in the future. It is safe for Rook to remove them if they exist.
+	// client.bootstrap-osd is used by Rook and is not removed here.
+	c.deleteBootstrapKeys()
+
 	return nil
 }
 
@@ -891,4 +896,16 @@ func initClusterCephxStatus(c *cluster) error {
 		return nil
 	})
 	return err
+}
+
+func (c *cluster) deleteBootstrapKeys() {
+	bootstrapKeys := []string{"client.bootstrap-mds", "client.bootstrap-mgr", "client.bootstrap-rbd", "client.bootstrap-rbd-mirror", "client.bootstrap-rgw"}
+	for _, bootstrapkey := range bootstrapKeys {
+		err := client.AuthDelete(c.context, c.ClusterInfo, bootstrapkey)
+		if err != nil {
+			logger.Debugf("failed to delete bootstrap key %q in the namespace %q. Error: %v", bootstrapkey, c.Namespace, err)
+		} else {
+			logger.Infof("successfully deleted bootstrap key %q in the namespace %q", bootstrapkey, c.Namespace)
+		}
+	}
 }
