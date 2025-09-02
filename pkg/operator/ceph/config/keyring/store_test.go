@@ -111,6 +111,11 @@ func TestKeyringStore(t *testing.T) {
 	assertKeyringData("test-resource-keyring", "qwertyuiop")
 	assertKeyringData("second-resource-keyring", "lkjhgfdsa")
 
+	// get key from secret
+	keyring, err := k.GetKeyringFromSecret("test-resource")
+	assert.NoError(t, err)
+	assert.Equal(t, "qwertyuiop", keyring)
+
 	// delete a key
 	err = k.Delete("test-resource")
 	assert.NoError(t, err)
