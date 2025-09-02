@@ -18,6 +18,7 @@ package osd
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -343,7 +344,11 @@ func TestAddRemoveNode(t *testing.T) {
 				return `{}`, nil
 			}
 			if args[0] == "auth" && args[1] == "del" {
-				assert.Equal(t, "osd.1", args[2])
+				if strings.HasPrefix(args[2], "osd.") {
+					assert.Equal(t, "osd.1", args[2])
+				} else if strings.HasPrefix(args[2], "client.") {
+					assert.Equal(t, "client.bootstrap-osd", args[2])
+				}
 				return "", nil
 			}
 			return "", errors.Errorf("unexpected ceph command %q", args)
