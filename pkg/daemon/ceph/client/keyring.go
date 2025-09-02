@@ -56,16 +56,6 @@ func CephKeyring(cred CephCred) string {
 // CreateKeyring creates a keyring for access to the cluster with the desired set of privileges
 // and writes it to disk at the keyring path
 func CreateKeyring(context *clusterd.Context, clusterInfo *ClusterInfo, username, keyringPath string, access []string, generateContents func(string) string) error {
-	_, err := os.Stat(keyringPath)
-	if err == nil {
-		// no error, the file exists, bail out with no error
-		logger.Debugf("keyring already exists at %s", keyringPath)
-		return nil
-	} else if !os.IsNotExist(err) {
-		// some other error besides "does not exist", bail out with error
-		return errors.Wrapf(err, "failed to stat %s", keyringPath)
-	}
-
 	// get-or-create-key for the user account
 	key, err := AuthGetOrCreateKey(context, clusterInfo, username, access)
 	if err != nil {
