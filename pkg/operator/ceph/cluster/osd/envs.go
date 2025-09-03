@@ -34,8 +34,10 @@ const (
 	osdDeviceClassEnvVarName  = "ROOK_OSD_DEVICE_CLASS"
 	osdConfigMapOverrideName  = "rook-ceph-osd-env-override"
 	// EncryptedDeviceEnvVarName is used in the pod spec to indicate whether the OSD is encrypted or not
-	EncryptedDeviceEnvVarName = "ROOK_ENCRYPTED_DEVICE"
-	PVCNameEnvVarName         = "ROOK_PVC_NAME"
+	EncryptedDeviceEnvVarName   = "ROOK_ENCRYPTED_DEVICE"
+	DmcryptFormatOptionsVarName = "ROOK_DMCRYPT_FORMAT_OPTS"
+	DmcryptOpenOptionsVarName   = "ROOK_DMCRYPT_OPEN_OPTS"
+	PVCNameEnvVarName           = "ROOK_PVC_NAME"
 	// CephVolumeEncryptedKeyEnvVarName is the env variable used by ceph-volume to encrypt the OSD (raw mode)
 	// Hardcoded in ceph-volume do NOT touch
 	CephVolumeEncryptedKeyEnvVarName = "CEPH_VOLUME_DMCRYPT_SECRET"
@@ -111,6 +113,14 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string, prepa
 		envVars = append(envVars, v1.EnvVar{Name: EncryptedDeviceEnvVarName, Value: "true"})
 	}
 
+	if osdProps.storeConfig.DmcryptFormatOptions != "" {
+		envVars = append(envVars, v1.EnvVar{Name: DmcryptFormatOptionsVarName, Value: osdProps.storeConfig.DmcryptFormatOptions})
+	}
+
+	if osdProps.storeConfig.DmcryptOpenOptions != "" {
+		envVars = append(envVars, v1.EnvVar{Name: DmcryptOpenOptionsVarName, Value: osdProps.storeConfig.DmcryptOpenOptions})
+	}
+
 	return envVars
 }
 
@@ -184,6 +194,14 @@ func crushInitialWeightEnvVar(crushInitialWeight string) v1.EnvVar {
 
 func encryptedDeviceEnvVar(encryptedDevice bool) v1.EnvVar {
 	return v1.EnvVar{Name: EncryptedDeviceEnvVarName, Value: strconv.FormatBool(encryptedDevice)}
+}
+
+func dmcryptFormatOptionsEnvVar(dmcryptFormatOptions string) v1.EnvVar {
+	return v1.EnvVar{Name: DmcryptFormatOptionsVarName, Value: dmcryptFormatOptions}
+}
+
+func dmcryptOpenOptionsEnvVar(dmcryptOpenOptions string) v1.EnvVar {
+	return v1.EnvVar{Name: DmcryptOpenOptionsVarName, Value: dmcryptOpenOptions}
 }
 
 func pvcNameEnvVar(pvcName string) v1.EnvVar {

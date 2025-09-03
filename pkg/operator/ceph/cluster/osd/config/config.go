@@ -25,27 +25,31 @@ import (
 )
 
 const (
-	WalSizeMBKey       = "walSizeMB"
-	DatabaseSizeMBKey  = "databaseSizeMB"
-	OSDsPerDeviceKey   = "osdsPerDevice"
-	EncryptedDeviceKey = "encryptedDevice"
-	MetadataDeviceKey  = "metadataDevice"
-	DeviceClassKey     = "deviceClass"
-	InitialWeightKey   = "initialWeight"
-	PrimaryAffinityKey = "primaryAffinity"
+	WalSizeMBKey            = "walSizeMB"
+	DatabaseSizeMBKey       = "databaseSizeMB"
+	OSDsPerDeviceKey        = "osdsPerDevice"
+	EncryptedDeviceKey      = "encryptedDevice"
+	DmcryptFormatOptionsKey = "dmcryptFormatOptions"
+	DmcryptOpenOptionsKey   = "dmcryptOpenOptions"
+	MetadataDeviceKey       = "metadataDevice"
+	DeviceClassKey          = "deviceClass"
+	InitialWeightKey        = "initialWeight"
+	PrimaryAffinityKey      = "primaryAffinity"
 )
 
 // StoreConfig represents the configuration of an OSD on a device.
 type StoreConfig struct {
-	WalSizeMB       int    `json:"walSizeMB,omitempty"`
-	DatabaseSizeMB  int    `json:"databaseSizeMB,omitempty"`
-	OSDsPerDevice   int    `json:"osdsPerDevice,omitempty"`
-	EncryptedDevice bool   `json:"encryptedDevice,omitempty"`
-	MetadataDevice  string `json:"metadataDevice,omitempty"`
-	DeviceClass     string `json:"deviceClass,omitempty"`
-	InitialWeight   string `json:"initialWeight,omitempty"`
-	PrimaryAffinity string `json:"primaryAffinity,omitempty"`
-	StoreType       string `json:"storeType,omitempty"`
+	WalSizeMB            int    `json:"walSizeMB,omitempty"`
+	DatabaseSizeMB       int    `json:"databaseSizeMB,omitempty"`
+	OSDsPerDevice        int    `json:"osdsPerDevice,omitempty"`
+	EncryptedDevice      bool   `json:"encryptedDevice,omitempty"`
+	DmcryptFormatOptions string `json:"dmcryptFormatOptions,omitempty"` // options for dm-crypt LUKS format command
+	DmcryptOpenOptions   string `json:"dmcryptOpenOptions,omitempty"`   // options for dm-crypt LUKS open command
+	MetadataDevice       string `json:"metadataDevice,omitempty"`
+	DeviceClass          string `json:"deviceClass,omitempty"`
+	InitialWeight        string `json:"initialWeight,omitempty"`
+	PrimaryAffinity      string `json:"primaryAffinity,omitempty"`
+	StoreType            string `json:"storeType,omitempty"`
 }
 
 func (s StoreConfig) IsValidStoreType() bool {
@@ -83,6 +87,10 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 			}
 		case EncryptedDeviceKey:
 			storeConfig.EncryptedDevice = (v == "true")
+		case DmcryptFormatOptionsKey:
+			storeConfig.DmcryptFormatOptions = v
+		case DmcryptOpenOptionsKey:
+			storeConfig.DmcryptOpenOptions = v
 		case MetadataDeviceKey:
 			storeConfig.MetadataDevice = v
 		case DeviceClassKey:

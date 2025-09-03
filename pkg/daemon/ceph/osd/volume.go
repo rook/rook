@@ -39,13 +39,15 @@ import (
 )
 
 const (
-	osdsPerDeviceFlag    = "--osds-per-device"
-	crushDeviceClassFlag = "--crush-device-class"
-	encryptedFlag        = "--dmcrypt"
-	databaseSizeFlag     = "--block-db-size"
-	dbDeviceFlag         = "--db-devices"
-	cephVolumeCmd        = "ceph-volume"
-	cephVolumeMinDBSize  = 1024 // 1GB
+	osdsPerDeviceFlag        = "--osds-per-device"
+	crushDeviceClassFlag     = "--crush-device-class"
+	encryptedFlag            = "--dmcrypt"
+	dmcryptFormatOptionsFlag = "--dmcrypt-format-opts"
+	dmcryptOpenOptionsFlag   = "--dmcrypt-open-opts"
+	databaseSizeFlag         = "--block-db-size"
+	dbDeviceFlag             = "--db-devices"
+	cephVolumeCmd            = "ceph-volume"
+	cephVolumeMinDBSize      = 1024 // 1GB
 
 	blockDBFlag     = "--block.db"
 	blockDBSizeFlag = "--block.db-size"
@@ -304,6 +306,14 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 
 			if isEncrypted {
 				immediateExecuteArgs = append(immediateExecuteArgs, encryptedFlag)
+				dmcryptFormatOptions := os.Getenv(oposd.DmcryptFormatOptionsVarName)
+				if dmcryptFormatOptions != "" {
+					immediateExecuteArgs = append(immediateExecuteArgs, []string{dmcryptFormatOptionsFlag, dmcryptFormatOptions}...)
+				}
+				dmcryptOpenOptions := os.Getenv(oposd.DmcryptOpenOptionsVarName)
+				if dmcryptOpenOptions != "" {
+					immediateExecuteArgs = append(immediateExecuteArgs, []string{dmcryptOpenOptionsFlag, dmcryptOpenOptions}...)
+				}
 			}
 
 			// Add the cli argument for the metadata device
@@ -598,6 +608,17 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 		baseArgs = append(baseArgs, encryptedFlag)
 	}
 
+	logger.Infof("Checking DmcryptFormatOptions %s", a.storeConfig.DmcryptFormatOptions)
+	if a.storeConfig.DmcryptFormatOptions != "" {
+		logger.Infof("DmcryptFormatOptions found %s", a.storeConfig.DmcryptFormatOptions)
+		baseArgs = append(baseArgs, dmcryptFormatOptionsFlag, a.storeConfig.DmcryptFormatOptions)
+		logger.Infof("baseArgs: %+v", baseArgs)
+	}
+
+	if a.storeConfig.DmcryptOpenOptions != "" {
+		baseArgs = append(baseArgs, dmcryptOpenOptionsFlag, a.storeConfig.DmcryptOpenOptions)
+	}
+
 	osdsPerDeviceCount := sanitizeOSDsPerDevice(a.storeConfig.OSDsPerDevice)
 	batchArgs := baseArgs
 
@@ -739,6 +760,16 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 			baseArgs := []string{"-oL", cephVolumeCmd, "--log-path", logPath, "lvm", "prepare", storeFlag}
 			if a.storeConfig.EncryptedDevice {
 				baseArgs = append(baseArgs, encryptedFlag)
+			}
+
+			logger.Infof("Checking DmcryptFormatOptions %s", a.storeConfig.DmcryptFormatOptions)
+			if a.storeConfig.DmcryptFormatOptions != "" {
+				logger.Infof("DmcryptFormatOptions found %s", a.storeConfig.DmcryptFormatOptions)
+				baseArgs = append(baseArgs, dmcryptFormatOptionsFlag, a.storeConfig.DmcryptFormatOptions)
+				logger.Infof("baseArgs: %+v", baseArgs)
+			}
+			if a.storeConfig.DmcryptOpenOptions != "" {
+				baseArgs = append(baseArgs, dmcryptOpenOptionsFlag, a.storeConfig.DmcryptOpenOptions)
 			}
 			mdArgs = baseArgs
 			devices := strings.Split(conf["devices"], " ")
