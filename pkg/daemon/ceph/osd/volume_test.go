@@ -576,11 +576,21 @@ func TestConfigureCVDevices(t *testing.T) {
 			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
-
-		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
-		clusterInfo := &cephclient.ClusterInfo{
-			FSID: clusterFSID,
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
+			}
+			if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == "/tmp/ceph-log" {
+				return `{}`, nil
+			}
+			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
+		clusterInfo := &cephclient.ClusterInfo{
+			FSID:    clusterFSID,
+			Context: context.TODO(),
+		}
+		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
 		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, storeConfig: config.StoreConfig{DeviceClass: "myclass", StoreType: "bluestore"}}
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
@@ -611,6 +621,12 @@ func TestConfigureCVDevices(t *testing.T) {
 			if command == "sgdisk" {
 				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
 			}
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
+			}
+			if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == "/tmp/ceph-log" {
+				return `{}`, nil
+			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 		deviceClassSet := false
@@ -624,10 +640,11 @@ func TestConfigureCVDevices(t *testing.T) {
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 
-		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
 		clusterInfo := &cephclient.ClusterInfo{
-			FSID: clusterFSID,
+			FSID:    clusterFSID,
+			Context: context.TODO(),
 		}
+		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
 		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, storeConfig: config.StoreConfig{DeviceClass: "myclass", StoreType: "bluestore"}}
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
