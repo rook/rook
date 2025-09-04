@@ -156,9 +156,18 @@ define chart.targets
 promote.chart.$(1).$(2):
 	@echo === helm push $(2) to $(1)
 	$(HELM) push $(HELM_OUTPUT_DIR)/$(2)-$(HELM_CHART_VERSION).tgz oci://$(1)
-promote.all.charts: promote.chart.$(1).$(2)
+promote.all.charts: promote.chart.$(1).$(2) sign.chart.$(1).$(2)
 endef
 $(foreach r,$(REGISTRIES), $(foreach c,$(HELM_CHARTS),$(eval $(call chart.targets,$(r),$(c)))))
+
+# cosign for helm charts
+define chart.sign.targets
+sign.chart.$(1).$(2):
+	@echo === cosign sign $(1)/$(2):$(HELM_CHART_VERSION)
+	@cosign sign --yes $(1)/$(2):$(HELM_CHART_VERSION)
+sign.all.charts: sign.chart.$(1).$(2)
+endef
+$(foreach r,$(REGISTRIES), $(foreach c,$(HELM_CHARTS),$(eval $(call chart.sign.targets,$(r),$(c)))))
 
 # ====================================================================================
 # output
@@ -194,9 +203,29 @@ publish.manifest.image.$(1): publish.all.images.$(1) $(MANIFEST_TOOL)
 	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(1)/ceph-ARCH:$(VERSION) --target $(1)/ceph:$(VERSION)
 	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(1)/ceph-ARCH:$(BRANCH_NAME) --target $(1)/ceph:$(BRANCH_NAME)
 
-publish.images: publish.manifest.image.$(1)
+publish.images: publish.manifest.image.$(1) sign.manifest.image.$(1)
 endef
 $(foreach r,$(REGISTRIES),$(eval $(call repo.manifest.targets,$(r))))
+
+# cosign for image
+define repo.sign.targets
+sign.image.$(1).$(2):
+	@echo === cosign sign $(1)/ceph-$(2):$(VERSION)
+	@cosign sign --yes $(1)/ceph-$(2):$(VERSION)
+	@cosign sign --yes $(1)/ceph-$(2):$(BRANCH_NAME)
+sign.all.images.$(1): sign.image.$(1).$(2)
+endef
+$(foreach r,$(REGISTRIES), $(foreach a,$(IMAGE_ARCHS),$(eval $(call repo.sign.targets,$(r),$(a)))))
+
+# cosign for manifests images
+define repo.sign.manifest.targets
+sign.manifest.image.$(1): sign.all.images.$(1)
+	@echo === cosign sign $(1)/ceph:$(VERSION) manifest
+	@cosign sign --yes $(1)/ceph:$(VERSION)
+	@cosign sign --yes $(1)/ceph:$(BRANCH_NAME)
+sign.images: sign.manifest.image.$(1)
+endef
+$(foreach r,$(REGISTRIES),$(eval $(call repo.sign.manifest.targets,$(r))))
 
 
 build.images: build.all.images
