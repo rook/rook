@@ -11,7 +11,7 @@ spec:
 ---
 {{- if default false $blockpool.storageClass.enabled }}
 {{- $sc := lookup "storage.k8s.io/v1" "StorageClass" "" $blockpool.storageClass.name }}
-{{- if not $sc }}
+{{- if or (not $sc) ( not (eq (get $sc.metadata.annotations "helm.sh/resource-policy") "keep")) }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
