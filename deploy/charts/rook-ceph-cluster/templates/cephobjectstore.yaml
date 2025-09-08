@@ -20,8 +20,9 @@ metadata:
   labels:
 {{ toYaml $objectstore.storageClass.labels | indent 4 }}
 {{- end }}
-{{- if $objectstore.storageClass.annotations }}
   annotations:
+    "helm.sh/resource-policy": keep
+{{- if $objectstore.storageClass.annotations }}
 {{ toYaml $objectstore.storageClass.annotations | indent 4 }}
 {{- end }}
 provisioner: {{ $root.Release.Namespace }}.ceph.rook.io/bucket

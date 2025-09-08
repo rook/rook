@@ -21,6 +21,7 @@ metadata:
 {{ toYaml $blockpool.storageClass.labels | indent 4 }}
 {{- end }}
   annotations:
+    "helm.sh/resource-policy": keep
     storageclass.kubernetes.io/is-default-class: "{{ if default false $blockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
 {{- if $blockpool.storageClass.annotations }}
 {{ toYaml $blockpool.storageClass.annotations | indent 4 }}
