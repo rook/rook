@@ -198,7 +198,16 @@ function importCsiRBDNodeSecret() {
       --from-literal=userID="$CSI_RBD_NODE_SECRET_NAME" \
       --from-literal=userKey="$CSI_RBD_NODE_SECRET"
   else
+<<<<<<< HEAD
     echo "secret rook-$CSI_RBD_NODE_SECRET_NAME already exists"
+=======
+    echo "secret 'rook-$CSI_RBD_NODE_SECRET_NAME' already exists"
+    $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "rook-$CSI_RBD_NODE_SECRET_NAME" \
+      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_RBD_NODE_SECRET\"}}"
+>>>>>>> 2169a3e78 (external: fixing secret values in import-external-cluster script)
   fi
 }
 
@@ -213,7 +222,16 @@ function importCsiRBDProvisionerSecret() {
       --from-literal=userID="$CSI_RBD_PROVISIONER_SECRET_NAME" \
       --from-literal=userKey="$CSI_RBD_PROVISIONER_SECRET"
   else
+<<<<<<< HEAD
     echo "secret $CSI_RBD_PROVISIONER_SECRET_NAME already exists"
+=======
+    echo "secret 'rook-$CSI_RBD_PROVISIONER_SECRET_NAME' already exists"
+    $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "rook-$CSI_RBD_PROVISIONER_SECRET_NAME" \
+      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_RBD_PROVISIONER_SECRET_NAME\"}}"
+>>>>>>> 2169a3e78 (external: fixing secret values in import-external-cluster script)
   fi
 }
 
@@ -243,7 +261,16 @@ function importCsiCephFSProvisionerSecret() {
       --from-literal=adminID="$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
       --from-literal=adminKey="$CSI_CEPHFS_PROVISIONER_SECRET"
   else
+<<<<<<< HEAD
     echo "secret $CSI_CEPHFS_PROVISIONER_SECRET_NAME already exists"
+=======
+    echo "secret 'rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME' already exists"
+    $KUBECTL -n "$NAMESPACE" \
+      patch \
+      secret \
+      "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
+      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_CEPHFS_PROVISIONER_SECRET\"}}"
+>>>>>>> 2169a3e78 (external: fixing secret values in import-external-cluster script)
   fi
 }
 
