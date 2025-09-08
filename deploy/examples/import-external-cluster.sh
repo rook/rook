@@ -220,7 +220,7 @@ function importCsiRBDNodeSecret() {
       patch \
       secret \
       "rook-$CSI_RBD_NODE_SECRET_NAME" \
-      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_CEPHFS_NODE_SECRET\"}}"
+      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_RBD_NODE_SECRET\"}}"
   fi
 }
 
@@ -241,7 +241,7 @@ function importCsiRBDProvisionerSecret() {
       patch \
       secret \
       "rook-$CSI_RBD_PROVISIONER_SECRET_NAME" \
-      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_CEPHFS_NODE_SECRET\"}}"
+      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_RBD_PROVISIONER_SECRET_NAME\"}}"
   fi
 }
 
@@ -283,7 +283,7 @@ function importCsiCephFSProvisionerSecret() {
       patch \
       secret \
       "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
-      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_CEPHFS_NODE_SECRET\"}}"
+      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_CEPHFS_PROVISIONER_SECRET\"}}"
   fi
 }
 
