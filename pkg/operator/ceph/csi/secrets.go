@@ -110,14 +110,16 @@ func createCSIKeyring(
 		return "", "", 0, shouldRotate, errors.Wrapf(err, "failed to check if keys should to be rotated for CSI key %s", csiKeyrigName)
 	}
 
+	// add the new key to the list of all keys
+	// do this before deleting old keys so that delete logic is the same when keys are first rotated
+	// and afterwards when they are not rotated
+	allKeyWithBaseName = append(allKeyWithBaseName, latestClientId)
+	allKeyWithBaseName = deduplicate(allKeyWithBaseName)
+
 	keysDeleted, err := deleteOldKeyGen(context, clusterInfo, allKeyWithBaseName, cephCluster.Spec.Security.CephX.CSI.KeepPriorKeyCountMax)
 	if err != nil {
 		logger.Errorf("failed to delete keys during CSI key rotation. %v. Continuing with key rotation", err)
 	}
-
-	// add the new key to the list of all keys
-	allKeyWithBaseName = append(allKeyWithBaseName, latestClientId)
-	allKeyWithBaseName = deduplicate(allKeyWithBaseName)
 
 	currentKeyCount := len(allKeyWithBaseName) - len(keysDeleted)
 	if currentKeyCount <= 0 {
@@ -435,16 +437,8 @@ func deleteOldKeyGen(context *clusterd.Context, clusterInfo *client.ClusterInfo,
 		return []string{}, nil
 	}
 
-	keyDeleteCount := max(0, len(sortedClientList)-int(count)) // can't delete negative count
-	if len(sortedClientList) == keyDeleteCount && keyDeleteCount > 0 {
-		// Above condition will delete all the keys related to specific CSI driver keys, this will break CSI and Ceph connection.
-		// To avoid above we'll delete `count-1`
-		logger.Warningf("current `keepPriorCountMax` value %d will delete all the related CSI driver key count %d. Deleting `keepPriorCountMax +1` keys", count, keyDeleteCount)
-		keyDeleteCount -= 1
-	}
-
 	listOfKeysDeleted := []string{}
-	for i := range keyDeleteCount {
+	for i := range deleteCount(len(sortedClientList), int(count)) {
 		err := client.AuthDelete(context, clusterInfo, sortedClientList[i])
 		if err != nil {
 			// in case of partial success, return successfully deleted list on error
@@ -453,6 +447,17 @@ func deleteOldKeyGen(context *clusterd.Context, clusterInfo *client.ClusterInfo,
 		listOfKeysDeleted = append(listOfKeysDeleted, sortedClientList[i]) // Delete the lowest-numbered keys first
 	}
 	return listOfKeysDeleted, nil
+}
+
+// calculate the number of keys to delete, given current num keys and desired (max) prior count
+func deleteCount(numKeys, keepPriorCount int) int {
+	// assumption: not called with numKeys < 2
+	// current key is counted in numKeys, so ignore it in delete count
+	c := numKeys - keepPriorCount - 1
+	if c < 0 {
+		return 0 // can't delete negative number of keys
+	}
+	return c
 }
 
 func deleteOwnedCSISecretsByCephCluster(context *clusterd.Context, clusterInfo *client.ClusterInfo) error {
