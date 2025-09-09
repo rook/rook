@@ -18,6 +18,8 @@ spec:
 {{ toYaml $ecblockpool.spec.metadataPool | indent 2 }}
 ---
 {{- if default false $ecblockpool.storageClass.enabled }}
+{{- $sc := lookup "storage.k8s.io/v1" "StorageClass" "" $ecblockpool.storageClass.name }}
+{{- if not $sc }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -70,3 +72,4 @@ allowVolumeExpansion: {{ $ecblockpool.storageClass.allowVolumeExpansion }}
 reclaimPolicy: {{ $ecblockpool.storageClass.reclaimPolicy }}
 {{ end }}
 {{ end }}
+{{- end }}
