@@ -276,6 +276,7 @@ func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1.DriverSpe
 			EnableSeLinuxHostMount: &CSIParam.EnablePluginSelinuxHostMount,
 		},
 		ControllerPlugin: &csiopv1.ControllerPluginSpec{
+			HostNetwork: &CSIParam.EnableCSIHostNetwork,
 			PodCommonSpec: csiopv1.PodCommonSpec{
 				PrioritylClassName: &CSIParam.PluginPriorityClassName,
 				Affinity: &corev1.Affinity{

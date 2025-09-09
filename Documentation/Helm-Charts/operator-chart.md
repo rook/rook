@@ -87,7 +87,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.csiRBDProvisionerResource` | CEPH CSI RBD provisioner resource requirement list csi-omap-generator resources will be applied only if `enableOMAPGenerator` is set to `true` | see values.yaml |
 | `csi.disableCsiDriver` | Disable the CSI driver. | `"false"` |
 | `csi.enableCSIEncryption` | Enable Ceph CSI PVC encryption support | `false` |
-| `csi.enableCSIHostNetwork` | Enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary in some network configurations where the SDN does not provide access to an external cluster or there is significant drop in read/write performance | `true` |
+| `csi.enableCSIHostNetwork` | Enable host networking for CSI CephFS and RBD controller plugins. This may be necessary in some network configurations where the SDN does not provide access to an external cluster or there is significant drop in read/write performance | `true` |
 | `csi.enableCephfsDriver` | Enable Ceph CSI CephFS driver | `true` |
 | `csi.enableCephfsSnapshotter` | Enable Snapshotter in CephFS provisioner pod | `true` |
 | `csi.enableLiveness` | Enable Ceph CSI Liveness sidecar deployment | `false` |

@@ -46,7 +46,7 @@ data:
   # Set to true to enable Ceph CSI pvc encryption support.
   CSI_ENABLE_ENCRYPTION: "false"
 
-  # Set to true to enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary
+  # Set to true to enable host networking for CSI CephFS and RBD controller plugins. This may be necessary
   # in some network configurations where the SDN does not provide access to an external cluster or
   # there is significant drop in read/write performance.
   # CSI_ENABLE_HOST_NETWORK: "true"

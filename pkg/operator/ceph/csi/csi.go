@@ -67,7 +67,7 @@ func (r *ReconcileCSI) setParams() error {
 		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_NFS'")
 	}
 
-	if CSIParam.EnableCSIHostNetwork, err = strconv.ParseBool(k8sutil.GetOperatorSetting("CSI_ENABLE_HOST_NETWORK", "true")); err != nil {
+	if CSIParam.EnableCSIHostNetwork, err = strconv.ParseBool(k8sutil.GetOperatorSetting("CSI_ENABLE_HOST_NETWORK", "false")); err != nil {
 		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_HOST_NETWORK'")
 	}
 
