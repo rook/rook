@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 DEFAULT_NS="rook-ceph"
-CLUSTER_FILES="common.yaml operator.yaml cluster-test.yaml cluster-on-pvc-minikube.yaml dashboard-external-http.yaml toolbox.yaml"
+CLUSTER_FILES="common.yaml operator.yaml cluster-test.yaml cluster-on-pvc-minikube.yaml dashboard-external-http.yaml toolbox.yaml csi-operator.yaml"
 MONITORING_FILES="monitoring/prometheus.yaml monitoring/service-monitor.yaml monitoring/exporter-service-monitor.yaml monitoring/prometheus-service.yaml monitoring/rbac.yaml"
 SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 
@@ -122,7 +122,7 @@ create_rook_cluster() {
     if ! kubectl get namespace "$ROOK_OPERATOR_NS" &> /dev/null; then
 	kubectl create namespace "$ROOK_OPERATOR_NS"
     fi
-    $KUBECTL apply -f crds.yaml -f common.yaml -f operator.yaml
+    $KUBECTL apply -f crds.yaml -f common.yaml -f operator.yaml -f csi-operator.yaml
     $KUBECTL apply -f "$ROOK_CLUSTER_SPEC_FILE" -f toolbox.yaml
     $KUBECTL apply -f dashboard-external-http.yaml
 }
