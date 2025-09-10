@@ -10,8 +10,6 @@ spec:
 {{ toYaml $objectstore.spec | indent 2 }}
 ---
 {{- if default false $objectstore.storageClass.enabled }}
-{{- $sc := lookup "storage.k8s.io/v1" "StorageClass" "" $objectstore.storageClass.name }}
-{{- if not $sc }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -33,6 +31,5 @@ parameters:
 {{ with $objectstore.storageClass.parameters }}
 {{ toYaml . | indent 2 }}
 {{ end }}
-{{- end }}
 {{ end }}
 {{ end }}

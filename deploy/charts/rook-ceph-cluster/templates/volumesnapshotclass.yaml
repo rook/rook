@@ -4,8 +4,6 @@
 
 ---
 {{- if default false $filesystemvsc.enabled }}
-{{- $sc := lookup "storage.k8s.io/v1" "VolumeSnapshotClass" "" $filesystemvsc.name }}
-{{- if not $sc }}
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
@@ -33,12 +31,9 @@ parameters:
 {{- end }}
 deletionPolicy: {{ default "Delete" $filesystemvsc.deletionPolicy }}
 {{- end }}
-{{- end }}
 
 ---
 {{- if default false $blockpoolvsc.enabled }}
-{{- $sc := lookup "storage.k8s.io/v1" "VolumeSnapshotClass" "" $blockpoolvsc.name }}
-{{- if not $sc }}
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
@@ -65,5 +60,4 @@ parameters:
 {{ toYaml $blockpoolvsc.parameters | indent 2 }}
 {{- end }}
 deletionPolicy: {{ default "Delete" $blockpoolvsc.deletionPolicy }}
-{{- end }}
 {{- end }}
