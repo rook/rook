@@ -88,6 +88,15 @@ func (r *ReconcileCephNFS) generateKeyring(n *cephv1.CephNFS, name string) error
 		return errors.Wrapf(err, "failed to create user %s", user)
 	}
 
+	if r.shouldRotateCephxKeys {
+		logger.Infof("rotating cephx key for nfs daemon %q in the namespace %q", instanceName(n, name), n.Namespace)
+		newKey, err := s.RotateKey(user)
+		if err != nil {
+			return errors.Wrapf(err, "failed to rotate cephx key for nfs daemon %q", instanceName(n, name))
+		}
+		key = newKey
+	}
+
 	keyring := fmt.Sprintf(keyringTemplate, user, key, osdCaps)
 	_, err = s.CreateOrUpdate(instanceName(n, name), keyring)
 	return err
