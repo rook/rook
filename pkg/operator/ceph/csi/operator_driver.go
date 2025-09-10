@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8scsiv1 "k8s.io/api/storage/v1"
@@ -112,6 +113,9 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 		}
 	}
 
+	podVolumes := getPodVolumes(rbdPluginVolume, rbdPluginVolumeMount)
+	rbdDriver.Spec.NodePlugin.PodCommonSpec.Volumes = podVolumes
+
 	err = r.createOrUpdateDriverResource(clusterInfo, rbdDriver)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create or update RBD driver resource %q", rbdDriver.Name)
@@ -162,6 +166,9 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 			Type: v1.OnDeleteDaemonSetStrategyType,
 		}
 	}
+
+	podVolumes := getPodVolumes(cephFSPluginVolume, cephFSPluginVolumeMount)
+	cephFsDriver.Spec.NodePlugin.PodCommonSpec.Volumes = podVolumes
 
 	err = r.createOrUpdateDriverResource(clusterInfo, cephFsDriver)
 	if err != nil {
@@ -289,6 +296,52 @@ func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1.DriverSpe
 		DeployCsiAddons:  &CSIParam.EnableCSIAddonsSideCar,
 		CephFsClientType: cephfsClientType,
 	}, nil
+}
+
+func getPodVolumes(volumeEnvVar, volumeMountEnvVar string) []csiopv1.VolumeSpec {
+	podVolumes := []csiopv1.VolumeSpec{}
+
+	volumes := extractVolumes(volumeEnvVar)
+	volumeMounts := extractVolumeMounts(volumeMountEnvVar)
+	logger.Debugf("found %d volumes and %d volume mounts", len(volumes), len(volumeMounts))
+	if len(volumes) != len(volumeMounts) {
+		logger.Errorf("volumes (%d) and volume mounts (%d) from %q and %q must be the same", len(volumes), len(volumeMounts), volumeEnvVar, volumeMountEnvVar)
+		return podVolumes
+	}
+
+	for i, volume := range volumes {
+		podVolumes = append(podVolumes, csiopv1.VolumeSpec{
+			Volume: volume,
+			Mount:  volumeMounts[i],
+		})
+	}
+	return podVolumes
+}
+
+func extractVolumes(volumeEnvVar string) []corev1.Volume {
+	volumesRaw := k8sutil.GetOperatorSetting(volumeEnvVar, "")
+	if volumesRaw == "" {
+		return nil
+	}
+	volumes, err := k8sutil.YamlToVolumes(volumesRaw)
+	if err != nil {
+		logger.Errorf("failed to parse %q for %q. %v", volumesRaw, volumeEnvVar, err)
+		return nil
+	}
+	return volumes
+}
+
+func extractVolumeMounts(volumeMountsEnvVar string) []corev1.VolumeMount {
+	volumeMountsRaw := k8sutil.GetOperatorSetting(volumeMountsEnvVar, "")
+	if volumeMountsRaw == "" {
+		return nil
+	}
+	volumeMounts, err := k8sutil.YamlToVolumeMounts(volumeMountsRaw)
+	if err != nil {
+		logger.Errorf("failed to parse %q for %q. %v", volumeMountsRaw, configName, err)
+		return nil
+	}
+	return volumeMounts
 }
 
 func createDriverControllerPluginResources(key string) csiopv1.ControllerPluginResourcesSpec {
