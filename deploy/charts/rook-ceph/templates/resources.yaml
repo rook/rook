@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephblockpoolradosnamespaces.ceph.rook.io
 spec:
@@ -353,7 +353,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephblockpools.ceph.rook.io
 spec:
@@ -882,7 +882,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephbucketnotifications.ceph.rook.io
 spec:
@@ -1047,7 +1047,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephbuckettopics.ceph.rook.io
 spec:
@@ -1283,7 +1283,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephclients.ceph.rook.io
 spec:
@@ -1435,7 +1435,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephclusters.ceph.rook.io
 spec:
@@ -6260,7 +6260,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephcosidrivers.ceph.rook.io
 spec:
@@ -6892,7 +6892,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephfilesystemmirrors.ceph.rook.io
 spec:
@@ -7594,7 +7594,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephfilesystems.ceph.rook.io
 spec:
@@ -9221,7 +9221,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephfilesystemsubvolumegroups.ceph.rook.io
 spec:
@@ -9375,7 +9375,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephnfses.ceph.rook.io
 spec:
@@ -11358,7 +11358,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephobjectrealms.ceph.rook.io
 spec:
@@ -11454,7 +11454,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephobjectstores.ceph.rook.io
 spec:
@@ -13653,7 +13653,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephobjectstoreusers.ceph.rook.io
 spec:
@@ -13973,7 +13973,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephobjectzonegroups.ceph.rook.io
 spec:
@@ -14071,7 +14071,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephobjectzones.ceph.rook.io
 spec:
@@ -14655,7 +14655,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
   name: cephrbdmirrors.ceph.rook.io
 spec:
