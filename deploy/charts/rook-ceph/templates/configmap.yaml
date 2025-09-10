@@ -137,7 +137,7 @@ data:
   {{- with .topology }}
   CSI_ENABLE_TOPOLOGY: {{ .enabled | quote }}
   {{- with .domainLabels }}
-  CSI_TOPOLOGY_DOMAIN_LABELS: {{ . | join "," }}
+  CSI_TOPOLOGY_DOMAIN_LABELS: {{ . | join "," | quote }}
   {{- end }}
   {{- end }}
   {{- with .nfs }}
@@ -156,49 +156,49 @@ data:
   CSI_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
   {{- end }}
   {{- with .provisionerNodeAffinity }}
-  CSI_PROVISIONER_NODE_AFFINITY: {{ . }}
+  CSI_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .rbdProvisionerTolerations }}
   CSI_RBD_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
   {{- end }}
   {{- with .rbdProvisionerNodeAffinity }}
-  CSI_RBD_PROVISIONER_NODE_AFFINITY: {{ . }}
+  CSI_RBD_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .cephFSProvisionerTolerations }}
   CSI_CEPHFS_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
   {{- end }}
   {{- with .cephFSProvisionerNodeAffinity }}
-  CSI_CEPHFS_PROVISIONER_NODE_AFFINITY: {{ . }}
+  CSI_CEPHFS_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .nfsProvisionerTolerations }}
   CSI_NFS_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
   {{- end }}
   {{- with .nfsProvisionerNodeAffinity }}
-  CSI_NFS_PROVISIONER_NODE_AFFINITY: {{ . }}
+  CSI_NFS_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .pluginTolerations }}
   CSI_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
   {{- end }}
   {{- with .pluginNodeAffinity }}
-  CSI_PLUGIN_NODE_AFFINITY: {{ . }}
+  CSI_PLUGIN_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .rbdPluginTolerations }}
   CSI_RBD_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
   {{- end }}
   {{- with .rbdPluginNodeAffinity }}
-  CSI_RBD_PLUGIN_NODE_AFFINITY: {{ . }}
+  CSI_RBD_PLUGIN_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .cephFSPluginTolerations }}
   CSI_CEPHFS_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
   {{- end }}
   {{- with .cephFSPluginNodeAffinity }}
-  CSI_CEPHFS_PLUGIN_NODE_AFFINITY: {{ . }}
+  CSI_CEPHFS_PLUGIN_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .nfsPluginTolerations }}
   CSI_NFS_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
   {{- end }}
   {{- with .nfsPluginNodeAffinity }}
-  CSI_NFS_PLUGIN_NODE_AFFINITY: {{ . }}
+  CSI_NFS_PLUGIN_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .cephfsLivenessMetricsPort }}
   CSI_CEPHFS_LIVENESS_METRICS_PORT: {{ . | quote }}
