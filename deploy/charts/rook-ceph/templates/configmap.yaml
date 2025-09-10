@@ -9,270 +9,270 @@ data:
   ROOK_LOG_LEVEL: {{ .Values.logLevel | quote }}
   ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS: {{ .Values.cephCommandsTimeoutSeconds | quote }}
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: {{ .Values.enableOBCWatchOperatorNamespace | quote }}
-{{- if .Values.operatorMetricsBindAddress }}
-  ROOK_OPERATOR_METRICS_BIND_ADDRESS: {{ .Values.operatorMetricsBindAddress | quote }}
-{{- end }}
-{{- if .Values.obcProvisionerNamePrefix }}
-  ROOK_OBC_PROVISIONER_NAME_PREFIX: {{ .Values.obcProvisionerNamePrefix | quote }}
-{{- end }}
-{{- if .Values.obcAllowAdditionalConfigFields }}
-  ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: {{ .Values.obcAllowAdditionalConfigFields | quote }}
-{{- end }}
+  {{- with .Values.operatorMetricsBindAddress }}
+  ROOK_OPERATOR_METRICS_BIND_ADDRESS: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.obcProvisionerNamePrefix }}
+  ROOK_OBC_PROVISIONER_NAME_PREFIX: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.obcAllowAdditionalConfigFields }}
+  ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: {{ . | quote }}
+  {{- end }}
   ROOK_CEPH_ALLOW_LOOP_DEVICES: {{ .Values.allowLoopDevices | quote }}
   ROOK_ENABLE_DISCOVERY_DAEMON: {{ .Values.enableDiscoveryDaemon | quote }}
-{{- if .Values.discoverDaemonUdev }}
-  DISCOVER_DAEMON_UDEV_BLACKLIST: {{ .Values.discoverDaemonUdev | quote }}
-{{- end }}
-{{- if .Values.revisionHistoryLimit }}
-  ROOK_REVISION_HISTORY_LIMIT: {{ .Values.revisionHistoryLimit | quote }}
-{{- end }}
-{{- if .Values.enforceHostNetwork }}
-  ROOK_ENFORCE_HOST_NETWORK: {{ .Values.enforceHostNetwork | quote }}
-{{- end }}
+  {{- with .Values.discoverDaemonUdev }}
+  DISCOVER_DAEMON_UDEV_BLACKLIST: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.revisionHistoryLimit }}
+  ROOK_REVISION_HISTORY_LIMIT: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.enforceHostNetwork }}
+  ROOK_ENFORCE_HOST_NETWORK: {{ . | quote }}
+  {{- end }}
 
-{{- if .Values.csi }}
-  ROOK_USE_CSI_OPERATOR: {{ .Values.csi.rookUseCsiOperator | quote }}
-  ROOK_CSI_ENABLE_RBD: {{ .Values.csi.enableRbdDriver | quote }}
-  ROOK_CSI_ENABLE_CEPHFS: {{ .Values.csi.enableCephfsDriver | quote }}
-  ROOK_CSI_DISABLE_DRIVER: {{ .Values.csi.disableCsiDriver | quote }}
-  CSI_ENABLE_CEPHFS_SNAPSHOTTER: {{ .Values.csi.enableCephfsSnapshotter | quote }}
-  CSI_ENABLE_NFS_SNAPSHOTTER: {{ .Values.csi.enableNFSSnapshotter | quote }}
-  CSI_ENABLE_RBD_SNAPSHOTTER: {{ .Values.csi.enableRBDSnapshotter | quote }}
-  CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT: {{ .Values.csi.enablePluginSelinuxHostMount | quote }}
-  CSI_ENABLE_ENCRYPTION: {{ .Values.csi.enableCSIEncryption | quote }}
-  CSI_ENABLE_OMAP_GENERATOR: {{ .Values.csi.enableOMAPGenerator | quote }}
-  CSI_ENABLE_HOST_NETWORK: {{ .Values.csi.enableCSIHostNetwork | quote }}
-  CSI_ENABLE_METADATA: {{ .Values.csi.enableMetadata | quote }}
-  CSI_ENABLE_VOLUME_GROUP_SNAPSHOT: {{ .Values.csi.enableVolumeGroupSnapshot | quote }}
-{{- if .Values.csi.csiDriverNamePrefix }}
-  CSI_DRIVER_NAME_PREFIX: {{ .Values.csi.csiDriverNamePrefix | quote }}
-{{- end }}
-{{- if .Values.csi.pluginPriorityClassName }}
-  CSI_PLUGIN_PRIORITY_CLASSNAME: {{ .Values.csi.pluginPriorityClassName | quote }}
-{{- end }}
-{{- if .Values.csi.provisionerPriorityClassName }}
-  CSI_PROVISIONER_PRIORITY_CLASSNAME: {{ .Values.csi.provisionerPriorityClassName | quote }}
-{{- end }}
-{{- if .Values.csi.cephFSPluginUpdateStrategy }}
-  CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY: {{ .Values.csi.cephFSPluginUpdateStrategy | quote }}
-{{- end }}
-{{- if .Values.csi.cephFSPluginUpdateStrategyMaxUnavailable }}
-  CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: {{ .Values.csi.cephFSPluginUpdateStrategyMaxUnavailable | quote }}
-{{- end }}
-{{- if .Values.csi.nfsPluginUpdateStrategy }}
-  CSI_NFS_PLUGIN_UPDATE_STRATEGY: {{ .Values.csi.nfsPluginUpdateStrategy | quote }}
-{{- end }}
-{{- if .Values.csi.rbdFSGroupPolicy }}
-  CSI_RBD_FSGROUPPOLICY: {{ .Values.csi.rbdFSGroupPolicy | quote }}
-{{- end }}
-{{- if .Values.csi.cephFSFSGroupPolicy }}
-  CSI_CEPHFS_FSGROUPPOLICY: {{ .Values.csi.cephFSFSGroupPolicy | quote }}
-{{- end }}
-{{- if .Values.csi.nfsFSGroupPolicy }}
-  CSI_NFS_FSGROUPPOLICY: {{ .Values.csi.nfsFSGroupPolicy | quote }}
-{{- end }}
-{{- if .Values.csi.rbdPluginUpdateStrategy }}
-  CSI_RBD_PLUGIN_UPDATE_STRATEGY: {{ .Values.csi.rbdPluginUpdateStrategy | quote }}
-{{- end }}
-{{- if .Values.csi.cephFSKernelMountOptions }}
-  CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: {{ .Values.csi.cephFSKernelMountOptions | quote }}
-{{- end }}
-{{- if .Values.csi.rbdPluginUpdateStrategyMaxUnavailable }}
-  CSI_RBD_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: {{ .Values.csi.rbdPluginUpdateStrategyMaxUnavailable | quote }}
-{{- end }}
-{{- if .Values.csi.kubeletDirPath }}
-  ROOK_CSI_KUBELET_DIR_PATH: {{ .Values.csi.kubeletDirPath | quote }}
-{{- end }}
-{{- if .Values.csi.csiLeaderElectionLeaseDuration }}
-  CSI_LEADER_ELECTION_LEASE_DURATION: {{ .Values.csi.csiLeaderElectionLeaseDuration | quote }}
-{{- end }}
-{{- if .Values.csi.csiLeaderElectionRenewDeadline }}
-  CSI_LEADER_ELECTION_RENEW_DEADLINE: {{ .Values.csi.csiLeaderElectionRenewDeadline | quote }}
-{{- end }}
-{{- if .Values.csi.csiLeaderElectionRetryPeriod }}
-  CSI_LEADER_ELECTION_RETRY_PERIOD: {{ .Values.csi.csiLeaderElectionRetryPeriod | quote }}
-{{- end }}
-{{- if .Values.csi.cephcsi }}
-{{- if and .Values.csi.cephcsi.repository .Values.csi.cephcsi.tag }}
-  ROOK_CSI_CEPH_IMAGE: "{{ .Values.csi.cephcsi.repository }}:{{ .Values.csi.cephcsi.tag }}"
-{{- end }}
-{{- end }}
-{{- if .Values.csi.registrar }}
-{{- if and .Values.csi.registrar.repository .Values.csi.registrar.tag }}
-  ROOK_CSI_REGISTRAR_IMAGE: "{{ .Values.csi.registrar.repository }}:{{ .Values.csi.registrar.tag }}"
-{{- end }}
-{{- end }}
-{{- if .Values.csi.provisioner }}
-{{- if and .Values.csi.provisioner.repository .Values.csi.provisioner.tag }}
-  ROOK_CSI_PROVISIONER_IMAGE: "{{ .Values.csi.provisioner.repository }}:{{ .Values.csi.provisioner.tag }}"
-{{- end }}
-{{- end }}
-{{- if .Values.csi.snapshotter }}
-{{- if and .Values.csi.snapshotter.repository .Values.csi.snapshotter.tag }}
-  ROOK_CSI_SNAPSHOTTER_IMAGE: "{{ .Values.csi.snapshotter.repository }}:{{ .Values.csi.snapshotter.tag }}"
-{{- end }}
-{{- end }}
-{{- if .Values.csi.attacher }}
-{{- if and .Values.csi.attacher.repository .Values.csi.attacher.tag }}
-  ROOK_CSI_ATTACHER_IMAGE: "{{ .Values.csi.attacher.repository }}:{{ .Values.csi.attacher.tag }}"
-{{- end }}
-{{- end }}
-{{- if .Values.csi.resizer }}
-{{- if and .Values.csi.resizer.repository .Values.csi.resizer.tag }}
-  ROOK_CSI_RESIZER_IMAGE: "{{ .Values.csi.resizer.repository }}:{{ .Values.csi.resizer.tag }}"
-{{- end }}
-{{- end }}
-{{- if .Values.csi.imagePullPolicy }}
-  ROOK_CSI_IMAGE_PULL_POLICY: {{ .Values.csi.imagePullPolicy | quote }}
-{{- end }}
-{{- if .Values.csi.csiAddons }}
-  CSI_ENABLE_CSIADDONS: {{ .Values.csi.csiAddons.enabled | quote }}
-{{- if and .Values.csi.csiAddons.repository .Values.csi.csiAddons.tag }}
-  ROOK_CSIADDONS_IMAGE: "{{ .Values.csi.csiAddons.repository }}:{{ .Values.csi.csiAddons.tag }}"
-{{- end }}
-{{- end }}
-{{- if .Values.csi.crossNamespaceVolumeDataSource }}
-  CSI_ENABLE_CROSS_NAMESPACE_VOLUME_DATA_SOURCE: {{ .Values.csi.crossNamespaceVolumeDataSource.enabled | quote }}
-{{- end }}
-{{- if .Values.csi.topology }}
-  CSI_ENABLE_TOPOLOGY: {{ .Values.csi.topology.enabled | quote }}
-{{- if .Values.csi.topology.domainLabels }}
-  CSI_TOPOLOGY_DOMAIN_LABELS: {{ .Values.csi.topology.domainLabels | join "," }}
-{{- end }}
-{{- end }}
-{{- if .Values.csi.nfs }}
-  ROOK_CSI_ENABLE_NFS: {{ .Values.csi.nfs.enabled | quote }}
-{{- end }}
-{{- if .Values.csi.cephfsPodLabels }}
-  ROOK_CSI_CEPHFS_POD_LABELS: {{ .Values.csi.cephfsPodLabels | quote }}
-{{- end }}
-{{- if .Values.csi.nfsPodLabels }}
-  ROOK_CSI_NFS_POD_LABELS: {{ .Values.csi.nfsPodLabels | quote }}
-{{- end }}
-{{- if .Values.csi.rbdPodLabels }}
-  ROOK_CSI_RBD_POD_LABELS: {{ .Values.csi.rbdPodLabels | quote }}
-{{- end }}
-{{- if .Values.csi.provisionerTolerations }}
-  CSI_PROVISIONER_TOLERATIONS: {{ toYaml .Values.csi.provisionerTolerations | quote }}
-{{- end }}
-{{- if .Values.csi.provisionerNodeAffinity }}
-  CSI_PROVISIONER_NODE_AFFINITY: {{ .Values.csi.provisionerNodeAffinity }}
-{{- end }}
-{{- if .Values.csi.rbdProvisionerTolerations }}
-  CSI_RBD_PROVISIONER_TOLERATIONS: {{ toYaml .Values.csi.rbdProvisionerTolerations | quote }}
-{{- end }}
-{{- if .Values.csi.rbdProvisionerNodeAffinity }}
-  CSI_RBD_PROVISIONER_NODE_AFFINITY: {{ .Values.csi.rbdProvisionerNodeAffinity }}
-{{- end }}
-{{- if .Values.csi.cephFSProvisionerTolerations }}
-  CSI_CEPHFS_PROVISIONER_TOLERATIONS: {{ toYaml .Values.csi.cephFSProvisionerTolerations | quote }}
-{{- end }}
-{{- if .Values.csi.cephFSProvisionerNodeAffinity }}
-  CSI_CEPHFS_PROVISIONER_NODE_AFFINITY: {{ .Values.csi.cephFSProvisionerNodeAffinity }}
-{{- end }}
-{{- if .Values.csi.nfsProvisionerTolerations }}
-  CSI_NFS_PROVISIONER_TOLERATIONS: {{ toYaml .Values.csi.nfsProvisionerTolerations | quote }}
-{{- end }}
-{{- if .Values.csi.nfsProvisionerNodeAffinity }}
-  CSI_NFS_PROVISIONER_NODE_AFFINITY: {{ .Values.csi.nfsProvisionerNodeAffinity }}
-{{- end }}
-{{- if .Values.csi.pluginTolerations }}
-  CSI_PLUGIN_TOLERATIONS: {{ toYaml .Values.csi.pluginTolerations | quote }}
-{{- end }}
-{{- if .Values.csi.pluginNodeAffinity }}
-  CSI_PLUGIN_NODE_AFFINITY: {{ .Values.csi.pluginNodeAffinity }}
-{{- end }}
-{{- if .Values.csi.rbdPluginTolerations }}
-  CSI_RBD_PLUGIN_TOLERATIONS: {{ toYaml .Values.csi.rbdPluginTolerations | quote }}
-{{- end }}
-{{- if .Values.csi.rbdPluginNodeAffinity }}
-  CSI_RBD_PLUGIN_NODE_AFFINITY: {{ .Values.csi.rbdPluginNodeAffinity }}
-{{- end }}
-{{- if .Values.csi.cephFSPluginTolerations }}
-  CSI_CEPHFS_PLUGIN_TOLERATIONS: {{ toYaml .Values.csi.cephFSPluginTolerations | quote }}
-{{- end }}
-{{- if .Values.csi.cephFSPluginNodeAffinity }}
-  CSI_CEPHFS_PLUGIN_NODE_AFFINITY: {{ .Values.csi.cephFSPluginNodeAffinity }}
-{{- end }}
-{{- if .Values.csi.nfsPluginTolerations }}
-  CSI_NFS_PLUGIN_TOLERATIONS: {{ toYaml .Values.csi.nfsPluginTolerations | quote }}
-{{- end }}
-{{- if .Values.csi.nfsPluginNodeAffinity }}
-  CSI_NFS_PLUGIN_NODE_AFFINITY: {{ .Values.csi.nfsPluginNodeAffinity }}
-{{- end }}
-{{- if .Values.csi.cephfsLivenessMetricsPort }}
-  CSI_CEPHFS_LIVENESS_METRICS_PORT: {{ .Values.csi.cephfsLivenessMetricsPort | quote }}
-{{- end }}
-{{- if .Values.csi.enableLiveness }}
-  CSI_ENABLE_LIVENESS: {{ .Values.csi.enableLiveness | quote }}
-{{- end }}
-{{- if .Values.csi.rbdLivenessMetricsPort }}
-  CSI_RBD_LIVENESS_METRICS_PORT: {{ .Values.csi.rbdLivenessMetricsPort | quote }}
-{{- end }}
-{{- if .Values.csi.csiAddonsPort }}
-  CSIADDONS_PORT: {{ .Values.csi.csiAddonsPort | quote }}
-{{- end }}
-{{- if .Values.csi.csiAddonsRBDProvisionerPort }}
-  CSIADDONS_RBD_PROVISIONER_PORT: {{ .Values.csi.csiAddonsRBDProvisionerPort | quote }}
-{{- end }}
-{{- if .Values.csi.csiAddonsCephFSProvisionerPort }}
-  CSIADDONS_CEPHFS_PROVISIONER_PORT: {{ .Values.csi.csiAddonsCephFSProvisionerPort | quote }}
-{{- end }}
-{{- if .Values.csi.forceCephFSKernelClient }}
-  CSI_FORCE_CEPHFS_KERNEL_CLIENT: {{ .Values.csi.forceCephFSKernelClient | quote }}
-{{- end }}
-{{- if .Values.csi.logLevel }}
-  CSI_LOG_LEVEL: {{ .Values.csi.logLevel | quote }}
-{{- end }}
-{{- if .Values.csi.sidecarLogLevel }}
-  CSI_SIDECAR_LOG_LEVEL: {{ .Values.csi.sidecarLogLevel | quote }}
-{{- end }}
-{{- if .Values.csi.clusterName }}
-  CSI_CLUSTER_NAME: {{ .Values.csi.clusterName | quote }}
-{{- end }}
-{{- if .Values.csi.grpcTimeoutInSeconds }}
-  CSI_GRPC_TIMEOUT_SECONDS: {{ .Values.csi.grpcTimeoutInSeconds | quote }}
-{{- end }}
-{{- if .Values.csi.provisionerReplicas }}
-  CSI_PROVISIONER_REPLICAS: {{ .Values.csi.provisionerReplicas | quote }}
-{{- end }}
-{{- if .Values.csi.csiRBDProvisionerResource }}
-  CSI_RBD_PROVISIONER_RESOURCE: {{ .Values.csi.csiRBDProvisionerResource | quote }}
-{{- end }}
-{{- if .Values.csi.csiRBDPluginResource }}
-  CSI_RBD_PLUGIN_RESOURCE: {{ .Values.csi.csiRBDPluginResource | quote }}
-{{- end }}
-{{- if .Values.csi.csiCephFSProvisionerResource }}
-  CSI_CEPHFS_PROVISIONER_RESOURCE: {{ .Values.csi.csiCephFSProvisionerResource | quote }}
-{{- end }}
-{{- if .Values.csi.csiCephFSPluginResource }}
-  CSI_CEPHFS_PLUGIN_RESOURCE: {{ .Values.csi.csiCephFSPluginResource | quote }}
-{{- end }}
-{{- if .Values.csi.csiNFSProvisionerResource }}
-  CSI_NFS_PROVISIONER_RESOURCE: {{ .Values.csi.csiNFSProvisionerResource | quote }}
-{{- end }}
-{{- if .Values.csi.csiNFSPluginResource }}
-  CSI_NFS_PLUGIN_RESOURCE: {{ .Values.csi.csiNFSPluginResource | quote }}
-{{- end }}
-{{- if .Values.csi.csiRBDPluginVolume }}
-  CSI_RBD_PLUGIN_VOLUME: {{ toYaml .Values.csi.csiRBDPluginVolume | quote }}
-{{- end }}
-{{- if .Values.csi.csiRBDPluginVolumeMount }}
-  CSI_RBD_PLUGIN_VOLUME_MOUNT: {{ toYaml .Values.csi.csiRBDPluginVolumeMount | quote }}
-{{- end }}
-{{- if .Values.csi.csiCephFSPluginVolume }}
-  CSI_CEPHFS_PLUGIN_VOLUME: {{ toYaml .Values.csi.csiCephFSPluginVolume | quote }}
-{{- end }}
-{{- if .Values.csi.csiCephFSPluginVolumeMount }}
-  CSI_CEPHFS_PLUGIN_VOLUME_MOUNT: {{ toYaml .Values.csi.csiCephFSPluginVolumeMount | quote }}
-{{- end }}
-  CSI_CEPHFS_ATTACH_REQUIRED: {{ .Values.csi.cephFSAttachRequired | quote }}
-  CSI_RBD_ATTACH_REQUIRED: {{ .Values.csi.rbdAttachRequired | quote }}
-  CSI_NFS_ATTACH_REQUIRED: {{ .Values.csi.nfsAttachRequired | quote }}
-{{- end }}
-{{- if .Values.csi.kubeApiBurst }}
-  CSI_KUBE_API_BURST: {{ .Values.csi.kubeApiBurst | quote }}
-{{- end }}
-{{- if .Values.csi.kubeApiQPS }}
-  CSI_KUBE_API_QPS: {{ .Values.csi.kubeApiQPS | quote }}
-{{- end }}
+  {{- with .Values.csi }}
+  ROOK_USE_CSI_OPERATOR: {{ .rookUseCsiOperator | quote }}
+  ROOK_CSI_ENABLE_RBD: {{ .enableRbdDriver | quote }}
+  ROOK_CSI_ENABLE_CEPHFS: {{ .enableCephfsDriver | quote }}
+  ROOK_CSI_DISABLE_DRIVER: {{ .disableCsiDriver | quote }}
+  CSI_ENABLE_CEPHFS_SNAPSHOTTER: {{ .enableCephfsSnapshotter | quote }}
+  CSI_ENABLE_NFS_SNAPSHOTTER: {{ .enableNFSSnapshotter | quote }}
+  CSI_ENABLE_RBD_SNAPSHOTTER: {{ .enableRBDSnapshotter | quote }}
+  CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT: {{ .enablePluginSelinuxHostMount | quote }}
+  CSI_ENABLE_ENCRYPTION: {{ .enableCSIEncryption | quote }}
+  CSI_ENABLE_OMAP_GENERATOR: {{ .enableOMAPGenerator | quote }}
+  CSI_ENABLE_HOST_NETWORK: {{ .enableCSIHostNetwork | quote }}
+  CSI_ENABLE_METADATA: {{ .enableMetadata | quote }}
+  CSI_ENABLE_VOLUME_GROUP_SNAPSHOT: {{ .enableVolumeGroupSnapshot | quote }}
+  {{- with .csiDriverNamePrefix }}
+  CSI_DRIVER_NAME_PREFIX: {{ . | quote }}
+  {{- end }}
+  {{- with .pluginPriorityClassName }}
+  CSI_PLUGIN_PRIORITY_CLASSNAME: {{ . | quote }}
+  {{- end }}
+  {{- with .provisionerPriorityClassName }}
+  CSI_PROVISIONER_PRIORITY_CLASSNAME: {{ . | quote }}
+  {{- end }}
+  {{- with .cephFSPluginUpdateStrategy }}
+  CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY: {{ . | quote }}
+  {{- end }}
+  {{- with .cephFSPluginUpdateStrategyMaxUnavailable }}
+  CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: {{ . | quote }}
+  {{- end }}
+  {{- with .nfsPluginUpdateStrategy }}
+  CSI_NFS_PLUGIN_UPDATE_STRATEGY: {{ . | quote }}
+  {{- end }}
+  {{- with .rbdFSGroupPolicy }}
+  CSI_RBD_FSGROUPPOLICY: {{ . | quote }}
+  {{- end }}
+  {{- with .cephFSFSGroupPolicy }}
+  CSI_CEPHFS_FSGROUPPOLICY: {{ . | quote }}
+  {{- end }}
+  {{- with .nfsFSGroupPolicy }}
+  CSI_NFS_FSGROUPPOLICY: {{ . | quote }}
+  {{- end }}
+  {{- with .rbdPluginUpdateStrategy }}
+  CSI_RBD_PLUGIN_UPDATE_STRATEGY: {{ . | quote }}
+  {{- end }}
+  {{- with .cephFSKernelMountOptions }}
+  CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: {{ . | quote }}
+  {{- end }}
+  {{- with .rbdPluginUpdateStrategyMaxUnavailable }}
+  CSI_RBD_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: {{ . | quote }}
+  {{- end }}
+  {{- with .kubeletDirPath }}
+  ROOK_CSI_KUBELET_DIR_PATH: {{ . | quote }}
+  {{- end }}
+  {{- with .csiLeaderElectionLeaseDuration }}
+  CSI_LEADER_ELECTION_LEASE_DURATION: {{ . | quote }}
+  {{- end }}
+  {{- with .csiLeaderElectionRenewDeadline }}
+  CSI_LEADER_ELECTION_RENEW_DEADLINE: {{ . | quote }}
+  {{- end }}
+  {{- with .csiLeaderElectionRetryPeriod }}
+  CSI_LEADER_ELECTION_RETRY_PERIOD: {{ . | quote }}
+  {{- end }}
+  {{- with .cephcsi }}
+  {{- if and .repository .tag }}
+  ROOK_CSI_CEPH_IMAGE: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .registrar }}
+  {{- if and .repository .tag }}
+  ROOK_CSI_REGISTRAR_IMAGE: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .provisioner }}
+  {{- if and .repository .tag }}
+  ROOK_CSI_PROVISIONER_IMAGE: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .snapshotter }}
+  {{- if and .repository .tag }}
+  ROOK_CSI_SNAPSHOTTER_IMAGE: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .attacher }}
+  {{- if and .repository .tag }}
+  ROOK_CSI_ATTACHER_IMAGE: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .resizer }}
+  {{- if and .repository .tag }}
+  ROOK_CSI_RESIZER_IMAGE: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .imagePullPolicy }}
+  ROOK_CSI_IMAGE_PULL_POLICY: {{ . | quote }}
+  {{- end }}
+  {{- with .csiAddons }}
+  CSI_ENABLE_CSIADDONS: {{ .enabled | quote }}
+  {{- if and .repository .tag }}
+  ROOK_CSIADDONS_IMAGE: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .crossNamespaceVolumeDataSource }}
+  CSI_ENABLE_CROSS_NAMESPACE_VOLUME_DATA_SOURCE: {{ .enabled | quote }}
+  {{- end }}
+  {{- with .topology }}
+  CSI_ENABLE_TOPOLOGY: {{ .enabled | quote }}
+  {{- with .domainLabels }}
+  CSI_TOPOLOGY_DOMAIN_LABELS: {{ . | join "," | quote }}
+  {{- end }}
+  {{- end }}
+  {{- with .nfs }}
+  ROOK_CSI_ENABLE_NFS: {{ .enabled | quote }}
+  {{- end }}
+  {{- with .cephfsPodLabels }}
+  ROOK_CSI_CEPHFS_POD_LABELS: {{ . | quote }}
+  {{- end }}
+  {{- with .nfsPodLabels }}
+  ROOK_CSI_NFS_POD_LABELS: {{ . | quote }}
+  {{- end }}
+  {{- with .rbdPodLabels }}
+  ROOK_CSI_RBD_POD_LABELS: {{ . | quote }}
+  {{- end }}
+  {{- with .provisionerTolerations }}
+  CSI_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
+  {{- end }}
+  {{- with .provisionerNodeAffinity }}
+  CSI_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
+  {{- end }}
+  {{- with .rbdProvisionerTolerations }}
+  CSI_RBD_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
+  {{- end }}
+  {{- with .rbdProvisionerNodeAffinity }}
+  CSI_RBD_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
+  {{- end }}
+  {{- with .cephFSProvisionerTolerations }}
+  CSI_CEPHFS_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
+  {{- end }}
+  {{- with .cephFSProvisionerNodeAffinity }}
+  CSI_CEPHFS_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
+  {{- end }}
+  {{- with .nfsProvisionerTolerations }}
+  CSI_NFS_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
+  {{- end }}
+  {{- with .nfsProvisionerNodeAffinity }}
+  CSI_NFS_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
+  {{- end }}
+  {{- with .pluginTolerations }}
+  CSI_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
+  {{- end }}
+  {{- with .pluginNodeAffinity }}
+  CSI_PLUGIN_NODE_AFFINITY: {{ . | quote }}
+  {{- end }}
+  {{- with .rbdPluginTolerations }}
+  CSI_RBD_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
+  {{- end }}
+  {{- with .rbdPluginNodeAffinity }}
+  CSI_RBD_PLUGIN_NODE_AFFINITY: {{ . | quote }}
+  {{- end }}
+  {{- with .cephFSPluginTolerations }}
+  CSI_CEPHFS_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
+  {{- end }}
+  {{- with .cephFSPluginNodeAffinity }}
+  CSI_CEPHFS_PLUGIN_NODE_AFFINITY: {{ . | quote }}
+  {{- end }}
+  {{- with .nfsPluginTolerations }}
+  CSI_NFS_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
+  {{- end }}
+  {{- with .nfsPluginNodeAffinity }}
+  CSI_NFS_PLUGIN_NODE_AFFINITY: {{ . | quote }}
+  {{- end }}
+  {{- with .cephfsLivenessMetricsPort }}
+  CSI_CEPHFS_LIVENESS_METRICS_PORT: {{ . | quote }}
+  {{- end }}
+  {{- with .enableLiveness }}
+  CSI_ENABLE_LIVENESS: {{ . | quote }}
+  {{- end }}
+  {{- with .rbdLivenessMetricsPort }}
+  CSI_RBD_LIVENESS_METRICS_PORT: {{ . | quote }}
+  {{- end }}
+  {{- with .csiAddonsPort }}
+  CSIADDONS_PORT: {{ . | quote }}
+  {{- end }}
+  {{- with .csiAddonsRBDProvisionerPort }}
+  CSIADDONS_RBD_PROVISIONER_PORT: {{ . | quote }}
+  {{- end }}
+  {{- with .csiAddonsCephFSProvisionerPort }}
+  CSIADDONS_CEPHFS_PROVISIONER_PORT: {{ . | quote }}
+  {{- end }}
+  {{- with .forceCephFSKernelClient }}
+  CSI_FORCE_CEPHFS_KERNEL_CLIENT: {{ . | quote }}
+  {{- end }}
+  {{- with .logLevel }}
+  CSI_LOG_LEVEL: {{ . | quote }}
+  {{- end }}
+  {{- with .sidecarLogLevel }}
+  CSI_SIDECAR_LOG_LEVEL: {{ . | quote }}
+  {{- end }}
+  {{- with .clusterName }}
+  CSI_CLUSTER_NAME: {{ . | quote }}
+  {{- end }}
+  {{- with .grpcTimeoutInSeconds }}
+  CSI_GRPC_TIMEOUT_SECONDS: {{ . | quote }}
+  {{- end }}
+  {{- with .provisionerReplicas }}
+  CSI_PROVISIONER_REPLICAS: {{ . | quote }}
+  {{- end }}
+  {{- with .csiRBDProvisionerResource }}
+  CSI_RBD_PROVISIONER_RESOURCE: {{ . | quote }}
+  {{- end }}
+  {{- with .csiRBDPluginResource }}
+  CSI_RBD_PLUGIN_RESOURCE: {{ . | quote }}
+  {{- end }}
+  {{- with .csiCephFSProvisionerResource }}
+  CSI_CEPHFS_PROVISIONER_RESOURCE: {{ . | quote }}
+  {{- end }}
+  {{- with .csiCephFSPluginResource }}
+  CSI_CEPHFS_PLUGIN_RESOURCE: {{ . | quote }}
+  {{- end }}
+  {{- with .csiNFSProvisionerResource }}
+  CSI_NFS_PROVISIONER_RESOURCE: {{ . | quote }}
+  {{- end }}
+  {{- with .csiNFSPluginResource }}
+  CSI_NFS_PLUGIN_RESOURCE: {{ . | quote }}
+  {{- end }}
+  {{- with .csiRBDPluginVolume }}
+  CSI_RBD_PLUGIN_VOLUME: {{ toYaml . | quote }}
+  {{- end }}
+  {{- with .csiRBDPluginVolumeMount }}
+  CSI_RBD_PLUGIN_VOLUME_MOUNT: {{ toYaml . | quote }}
+  {{- end }}
+  {{- with .csiCephFSPluginVolume }}
+  CSI_CEPHFS_PLUGIN_VOLUME: {{ toYaml . | quote }}
+  {{- end }}
+  {{- with .csiCephFSPluginVolumeMount }}
+  CSI_CEPHFS_PLUGIN_VOLUME_MOUNT: {{ toYaml . | quote }}
+  {{- end }}
+  CSI_CEPHFS_ATTACH_REQUIRED: {{ .cephFSAttachRequired | quote }}
+  CSI_RBD_ATTACH_REQUIRED: {{ .rbdAttachRequired | quote }}
+  CSI_NFS_ATTACH_REQUIRED: {{ .nfsAttachRequired | quote }}
+  {{- with .kubeApiBurst }}
+  CSI_KUBE_API_BURST: {{ . | quote }}
+  {{- end }}
+  {{- with .kubeApiQPS }}
+  CSI_KUBE_API_QPS: {{ . | quote }}
+  {{- end }}
+  {{- end }}
