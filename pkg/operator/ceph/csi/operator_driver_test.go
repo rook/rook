@@ -38,70 +38,126 @@ import (
 )
 
 func TestReconcileCSI_createOrUpdateDriverResources(t *testing.T) {
-	ns := "test"
-	r := &ReconcileCSI{
-		context: &clusterd.Context{
-			Clientset:     testop.New(t, 1),
-			RookClientset: rookclient.NewSimpleClientset(),
-		},
-		opManagerContext: context.TODO(),
-		opConfig: opcontroller.OperatorConfig{
-			OperatorNamespace: "test",
-		},
-	}
-	cluster := &cephv1.CephCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "testCluster",
-			Namespace: ns,
-		},
-		Spec: cephv1.ClusterSpec{
-			CSI: cephv1.CSIDriverSpec{
-				ReadAffinity: cephv1.ReadAffinitySpec{
-					Enabled:             true,
-					CrushLocationLabels: []string{"kubernetes.io/hostname"},
-				},
-				CephFS: cephv1.CSICephFSSpec{
-					KernelMountOptions: "ms_mode=crc",
-				},
-			},
-			Network: cephv1.NetworkSpec{
+	tests := []struct {
+		name               string
+		networkSpec        cephv1.NetworkSpec
+		expectMultusAnnots bool
+	}{
+		{
+			name: "without multus",
+			networkSpec: cephv1.NetworkSpec{
 				Connections: &cephv1.ConnectionsSpec{
 					Encryption: &cephv1.EncryptionSpec{
 						Enabled: true,
 					},
 				},
 			},
+			expectMultusAnnots: false,
+		},
+		{
+			name: "with multus",
+			networkSpec: cephv1.NetworkSpec{
+				Provider: "multus",
+				Selectors: map[cephv1.CephNetworkType]string{
+					"public":  "rook-ceph/rook-ceph-public-network",
+					"cluster": "rook-ceph/rook-ceph-cluster-network",
+				},
+			},
+			expectMultusAnnots: true,
 		},
 	}
-	driver := &csiopv1.Driver{}
 
-	// Register operator types with the runtime scheme.
-	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, driver, &cephv1.CephCluster{}, &v1.ConfigMap{})
-	object := []runtime.Object{
-		cluster,
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ns := "test"
+			r := &ReconcileCSI{
+				context: &clusterd.Context{
+					Clientset:     testop.New(t, 1),
+					RookClientset: rookclient.NewSimpleClientset(),
+				},
+				opManagerContext: context.TODO(),
+				opConfig: opcontroller.OperatorConfig{
+					OperatorNamespace: "test",
+				},
+			}
+			cluster := &cephv1.CephCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "testCluster",
+					Namespace: ns,
+				},
+				Spec: cephv1.ClusterSpec{
+					CSI: cephv1.CSIDriverSpec{
+						ReadAffinity: cephv1.ReadAffinitySpec{
+							Enabled:             true,
+							CrushLocationLabels: []string{"kubernetes.io/hostname"},
+						},
+						CephFS: cephv1.CSICephFSSpec{
+							KernelMountOptions: "ms_mode=crc",
+						},
+					},
+					Network: tt.networkSpec,
+				},
+			}
+			driver := &csiopv1.Driver{}
+
+			// Register operator types with the runtime scheme.
+			s := scheme.Scheme
+			s.AddKnownTypes(cephv1.SchemeGroupVersion, driver, &cephv1.CephCluster{}, &v1.ConfigMap{})
+			object := []runtime.Object{
+				cluster,
+			}
+			cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+			r.client = cl
+
+			EnableRBD = true
+			EnableCephFS = true
+			EnableNFS = true
+
+			c := clienttest.CreateTestClusterInfo(3)
+			c.Namespace = ns
+			c.SetName("testcluster")
+			c.NamespacedName()
+
+			err := r.createOrUpdateDriverResources(*cluster, c)
+			assert.NoError(t, err)
+
+			// Test RBD driver
+			err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.rbd.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
+			assert.NoError(t, err)
+
+			if tt.expectMultusAnnots {
+				// Verify that both NodePlugin and ControllerPlugin have Multus annotations
+				assert.Nil(t, driver.Spec.NodePlugin.PodCommonSpec.Annotations)
+				assert.NotContains(t, driver.Spec.NodePlugin.PodCommonSpec.Annotations, "k8s.v1.cni.cncf.io/networks")
+
+				assert.NotNil(t, driver.Spec.ControllerPlugin.PodCommonSpec.Annotations)
+				assert.Contains(t, driver.Spec.ControllerPlugin.PodCommonSpec.Annotations, "k8s.v1.cni.cncf.io/networks")
+
+				// Verify the annotation value contains the public network only not the cluster network
+				nodeMultusAnnotation := driver.Spec.NodePlugin.PodCommonSpec.Annotations["k8s.v1.cni.cncf.io/networks"]
+				assert.NotContains(t, nodeMultusAnnotation, "rook-ceph-public-network")
+				assert.NotContains(t, nodeMultusAnnotation, "rook-ceph-cluster-network")
+
+				controllerMultusAnnotation := driver.Spec.ControllerPlugin.PodCommonSpec.Annotations["k8s.v1.cni.cncf.io/networks"]
+				assert.Contains(t, controllerMultusAnnotation, "rook-ceph-public-network")
+				assert.NotContains(t, controllerMultusAnnotation, "rook-ceph-cluster-network")
+			} else {
+				// Verify no Multus annotations when not using Multus
+				if driver.Spec.NodePlugin.PodCommonSpec.Annotations != nil {
+					assert.NotContains(t, driver.Spec.NodePlugin.PodCommonSpec.Annotations, "k8s.v1.cni.cncf.io/networks")
+				}
+				if driver.Spec.ControllerPlugin.PodCommonSpec.Annotations != nil {
+					assert.NotContains(t, driver.Spec.ControllerPlugin.PodCommonSpec.Annotations, "k8s.v1.cni.cncf.io/networks")
+				}
+			}
+
+			// Test CephFS driver
+			err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.cephfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
+			assert.NoError(t, err)
+
+			// Test NFS driver
+			err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.nfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
+			assert.NoError(t, err)
+		})
 	}
-	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-	r.client = cl
-
-	EnableRBD = true
-	EnableCephFS = true
-	EnableNFS = true
-
-	c := clienttest.CreateTestClusterInfo(3)
-	c.Namespace = ns
-	c.SetName("testcluster")
-	c.NamespacedName()
-
-	err := r.createOrUpdateDriverResources(*cluster, c)
-	assert.NoError(t, err)
-
-	err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.rbd.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
-	assert.NoError(t, err)
-
-	err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.cephfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
-	assert.NoError(t, err)
-
-	err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.nfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
-	assert.NoError(t, err)
 }

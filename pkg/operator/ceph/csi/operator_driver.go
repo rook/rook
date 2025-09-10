@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8scsiv1 "k8s.io/api/storage/v1"
@@ -76,7 +77,7 @@ func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster,
 
 func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
 	resourceName := fmt.Sprintf("%s.rbd.csi.ceph.com", r.opConfig.OperatorNamespace)
-	spec, err := r.generateDriverSpec(cluster.Name)
+	spec, err := r.generateDriverSpec(cluster)
 	if err != nil {
 		return err
 	}
@@ -122,7 +123,7 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 
 func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
 	resourceName := fmt.Sprintf("%s.cephfs.csi.ceph.com", r.opConfig.OperatorNamespace)
-	spec, err := r.generateDriverSpec(cluster.Name)
+	spec, err := r.generateDriverSpec(cluster)
 	if err != nil {
 		return err
 	}
@@ -173,7 +174,7 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 
 func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
 	resourceName := fmt.Sprintf("%s.nfs.csi.ceph.com", r.opConfig.OperatorNamespace)
-	spec, err := r.generateDriverSpec(cluster.Name)
+	spec, err := r.generateDriverSpec(cluster)
 	if err != nil {
 		return err
 	}
@@ -242,7 +243,7 @@ func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.Clust
 	return nil
 }
 
-func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1.DriverSpec, error) {
+func (r *ReconcileCSI) generateDriverSpec(cluster cephv1.CephCluster) (csiopv1.DriverSpec, error) {
 	cephfsClientType := csiopv1.KernelCephFsClient
 	if CSIParam.ForceCephFSKernelClient == "false" {
 		cephfsClientType = csiopv1.AutoDetectCephFsClient
@@ -252,14 +253,14 @@ func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1.DriverSpe
 		return csiopv1.DriverSpec{}, errors.Wrapf(err, "failed to create ceph-CSI operator config ImageSetConfigmap for CR %s", opConfigCRName)
 	}
 
-	return csiopv1.DriverSpec{
+	driverSpec := csiopv1.DriverSpec{
 		Log: &csiopv1.LogSpec{
 			Verbosity: int(CSIParam.LogLevel),
 		},
 		ImageSet: &corev1.LocalObjectReference{
 			Name: imageSetCmName,
 		},
-		ClusterName:      &clusterName,
+		ClusterName:      &cluster.Name,
 		EnableMetadata:   &CSIParam.CSIEnableMetadata,
 		GenerateOMapInfo: &CSIParam.EnableOMAPGenerator,
 		FsGroupPolicy:    k8scsiv1.FileFSGroupPolicy,
@@ -288,7 +289,30 @@ func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1.DriverSpe
 		},
 		DeployCsiAddons:  &CSIParam.EnableCSIAddonsSideCar,
 		CephFsClientType: cephfsClientType,
-	}, nil
+	}
+
+	// Apply Multus annotations if the cluster uses Multus networking
+	if cluster.Spec.Network.IsMultus() {
+		// Apply Multus to ControllerPlugin only
+		if driverSpec.ControllerPlugin.PodCommonSpec.Annotations == nil {
+			driverSpec.ControllerPlugin.PodCommonSpec.Annotations = make(map[string]string)
+		}
+		controllerObjectMeta := metav1.ObjectMeta{
+			Annotations: driverSpec.ControllerPlugin.PodCommonSpec.Annotations,
+		}
+		err = r.applyMultusToObjectMeta(cluster.Namespace, &cluster.Spec.Network, &controllerObjectMeta)
+		if err != nil {
+			return csiopv1.DriverSpec{}, errors.Wrap(err, "failed to apply multus configuration to ControllerPlugin")
+		}
+		driverSpec.ControllerPlugin.PodCommonSpec.Annotations = controllerObjectMeta.Annotations
+	}
+
+	return driverSpec, nil
+}
+
+// applyMultusToObjectMeta applies Multus network annotations to the given ObjectMeta
+func (r *ReconcileCSI) applyMultusToObjectMeta(clusterNamespace string, netSpec *cephv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
+	return k8sutil.ApplyMultus(clusterNamespace, netSpec, objectMeta)
 }
 
 func createDriverControllerPluginResources(key string) csiopv1.ControllerPluginResourcesSpec {
