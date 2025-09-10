@@ -37,11 +37,22 @@ import (
 
 const (
 	mockAuthLs = `{"auth_dump":[
-	{"entity":"osd.0"},{"entity":"client.admin"},{"entity":"client.bootstrap-mds"},{"entity":"client.bootstrap-rbd-mirror"},{"entity":"client.csi-rbd-node.10"},
-	{"entity":"client.csi-rbd-node.4"},{"entity":"client.csi-rbd-node.2"},{"entity":"client.csi-rbd-node.1"},{"entity":"client.csi-cepfs-node"},
-	{"entity":"client.csi-rbd-node"},{"entity":"client.csi-rbd-provisioner"},{"entity":"client.rbd-mirror-peer"},{"entity":"mgr.a"},
-	{"entity":"client.csi-cepfs-node"},{"entity":"client.csi-cephfs-node.2"}
-	]}`
+{"entity":"osd.0"},
+{"entity":"client.admin"},
+{"entity":"client.bootstrap-mds"},
+{"entity":"client.bootstrap-rbd-mirror"},
+{"entity":"client.csi-rbd-node.10"},
+{"entity":"client.csi-rbd-node.4"},
+{"entity":"client.csi-rbd-node.2"},
+{"entity":"client.csi-rbd-node.1"},
+{"entity":"client.csi-cepfs-node"},
+{"entity":"client.csi-rbd-node"},
+{"entity":"client.csi-rbd-provisioner"},
+{"entity":"client.rbd-mirror-peer"},
+{"entity":"mgr.a"},
+{"entity":"client.csi-cepfs-node"},
+{"entity":"client.csi-cephfs-node.2"}
+]}`
 )
 
 func TestCephCSIKeyringRBDNodeCaps(t *testing.T) {
@@ -183,16 +194,31 @@ func TestDeleteOldKeyGen(t *testing.T) {
 		"client.csi-rbd-node.10", "client.csi-rbd-node.1", "client.csi-rbd-node.4", "client.csi-rbd-node.2", "client.csi-rbd-node",
 	}
 
-	// Only the oldest keys ("client.csi-rbd-node" and "client.csi-rbd-node.1") are deleted to retain the latest 3 generations.
-	keyDeleted, err := deleteOldKeyGen(ctx, clusterInfo, keys, 3)
+	var keyDeleted []string
+	var err error
+
+	// deleting nothing when keep prior count more than current number of existing prior keys
+	keyDeleted, err = deleteOldKeyGen(ctx, clusterInfo, keys, 5)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{}, keyDeleted)
+
+	// deleting nothing when keep prior count is same as current number of existing prior keys
+	keyDeleted, err = deleteOldKeyGen(ctx, clusterInfo, keys, 4)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{}, keyDeleted)
+
+	// Delete 1 oldest key ("client.csi-rbd-node") is deleted to retain the prior 3 generations.
+	keyDeleted, err = deleteOldKeyGen(ctx, clusterInfo, keys, 3)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"client.csi-rbd-node"}, keyDeleted)
+
+	keyDeleted, err = deleteOldKeyGen(ctx, clusterInfo, keys, 2)
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"client.csi-rbd-node", "client.csi-rbd-node.1"}, keyDeleted)
 
-	// When keepCount is 1, only the most recent key ("client.csi-rbd-node.10") is kept; older keys ("client.csi-rbd-node.1", "client.csi-rbd-node.4") are deleted.
-	keys = []string{"client.csi-rbd-node.10", "client.csi-rbd-node.1", "client.csi-rbd-node.4"}
 	keyDeleted, err = deleteOldKeyGen(ctx, clusterInfo, keys, 1)
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"client.csi-rbd-node.1", "client.csi-rbd-node.4"}, keyDeleted)
+	assert.Equal(t, []string{"client.csi-rbd-node", "client.csi-rbd-node.1", "client.csi-rbd-node.2"}, keyDeleted)
 
 	// No keys should be deleted when the input key list is empty.
 	keys = []string{}
@@ -370,11 +396,16 @@ func TestGetCSIKeyInfoAndDeleteOldKey(t *testing.T) {
 		keepCount   uint8
 		wantDeleted []string
 	}{
-		{"test deletion", keyWithBaseName, 3, []string{"client.csi-rbd-node", "client.csi-rbd-node.1"}},
-		{"keep count = to total key count", keyWithBaseName, 10, []string{}},
-		{"keep count > to total key count", keyWithBaseName, 11, []string{}},
+		{"test deletion", keyWithBaseName, 2, []string{"client.csi-rbd-node", "client.csi-rbd-node.1"}},
+		{"keep count = current gen", keyWithBaseName, 10, []string{}},
+		{"keep count > current gen", keyWithBaseName, 11, []string{}},
 		{"keep count 0", keyWithBaseName, 0, []string{"client.csi-rbd-node", "client.csi-rbd-node.1", "client.csi-rbd-node.2", "client.csi-rbd-node.4"}},
-		{"keep count 1", keyWithBaseName, 1, []string{"client.csi-rbd-node", "client.csi-rbd-node.1", "client.csi-rbd-node.2", "client.csi-rbd-node.4"}},
+		{"keep count 1", keyWithBaseName, 1, []string{"client.csi-rbd-node", "client.csi-rbd-node.1", "client.csi-rbd-node.2"}},
+		{"keep count 2", keyWithBaseName, 2, []string{"client.csi-rbd-node", "client.csi-rbd-node.1"}},
+		{"keep count 3", keyWithBaseName, 3, []string{"client.csi-rbd-node"}},
+		{"keep count = current count - 1 = 4", keyWithBaseName, 4, []string{}},
+		{"keep count = current count = 5", keyWithBaseName, 5, []string{}},
+		{"keep count > current count", keyWithBaseName, 6, []string{}},
 		{"key list empty, keep count 0", []string{}, 0, []string{}},
 		{"key list empty, keep count 1", []string{}, 1, []string{}},
 		{"key list empty, keep count 3", []string{}, 3, []string{}},
@@ -538,6 +569,31 @@ func TestGetPriorKeyCount(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := getPriorKeyCount(tt.keyCount)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_deleteCount(t *testing.T) {
+	tests := []struct {
+		numKeys        int
+		keepPriorCount int
+		want           int
+	}{
+		{2, 0, 1},
+		{3, 0, 2},
+		{4, 0, 3},
+		{2, 1, 0},
+		{3, 1, 1},
+		{4, 1, 2},
+		{2, 2, 0},
+		{3, 2, 0},
+		{4, 2, 1},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%d,%d", tt.numKeys, tt.keepPriorCount), func(t *testing.T) {
+			if got := deleteCount(tt.numKeys, tt.keepPriorCount); got != tt.want {
+				t.Errorf("deleteCount() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
