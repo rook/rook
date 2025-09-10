@@ -18,8 +18,6 @@ spec:
 {{ toYaml $ecblockpool.spec.metadataPool | indent 2 }}
 ---
 {{- if default false $ecblockpool.storageClass.enabled }}
-{{- $sc := lookup "storage.k8s.io/v1" "StorageClass" "" $ecblockpool.storageClass.name }}
-{{- if not $sc }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -29,9 +27,6 @@ metadata:
 {{ toYaml $ecblockpool.storageClass.labels | indent 4 }}
 {{- end }}
   annotations:
-    "helm.sh/hook": post-install,pre-upgrade
-    "helm.sh/hook-delete-policy": before-hook-creation
-    "helm.sh/resource-policy": keep
     storageclass.kubernetes.io/is-default-class: "{{ if default false $ecblockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
 {{- if $ecblockpool.storageClass.annotations }}
 {{ toYaml $ecblockpool.storageClass.annotations | indent 4 }}
@@ -72,4 +67,3 @@ allowVolumeExpansion: {{ $ecblockpool.storageClass.allowVolumeExpansion }}
 reclaimPolicy: {{ $ecblockpool.storageClass.reclaimPolicy }}
 {{ end }}
 {{ end }}
-{{- end }}

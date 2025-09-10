@@ -54,6 +54,16 @@ those releases.
 
 ## Breaking changes in v1.18
 
+* Helm: Two new properties have been added to the storage classes in the `rook-ceph-cluster` chart.
+    Adding these properties will cause the helm upgrade to fail since storage classes are immutable.
+    Before upgrading the `rook-ceph-cluster` chart, one of these actions is necessary:
+    - Delete the existing StorageClasses. The upgrade will create the storage classes with the new properties.
+        Existing PVs will not be affected by the storage class temporarily being deleted.
+    - Remove the newly added parameters (`controller-publish-secret-name` and `controller-publish-secret-namespace`)
+        from your StorageClasses prior to upgrading. The new parameters are only needed if fencing is enabled.
+
+    For more background, see [PR #16442](https://github.com/rook/rook/pull/16442).
+
 * The minimum supported Kubernetes version is v1.29.
 
 * The **CSI operator** is required for RBD, CephFS, and NFS volumes. Previously, the CSI driver was automatically configured
