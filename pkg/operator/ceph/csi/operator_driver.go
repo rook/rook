@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -253,6 +254,7 @@ func (r *ReconcileCSI) generateDriverSpec(cluster cephv1.CephCluster) (csiopv1.D
 		return csiopv1.DriverSpec{}, errors.Wrapf(err, "failed to create ceph-CSI operator config ImageSetConfigmap for CR %s", opConfigCRName)
 	}
 
+	controllerPluginHostNetwork := opcontroller.EnforceHostNetwork()
 	driverSpec := csiopv1.DriverSpec{
 		Log: &csiopv1.LogSpec{
 			Verbosity: int(CSIParam.LogLevel),
@@ -277,6 +279,7 @@ func (r *ReconcileCSI) generateDriverSpec(cluster cephv1.CephCluster) (csiopv1.D
 			EnableSeLinuxHostMount: &CSIParam.EnablePluginSelinuxHostMount,
 		},
 		ControllerPlugin: &csiopv1.ControllerPluginSpec{
+			HostNetwork: &controllerPluginHostNetwork,
 			PodCommonSpec: csiopv1.PodCommonSpec{
 				PrioritylClassName: &CSIParam.PluginPriorityClassName,
 				Affinity: &corev1.Affinity{
