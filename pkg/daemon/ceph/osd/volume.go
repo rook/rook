@@ -870,7 +870,13 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 	}
 
 	if len(existingOSDs) == 0 {
-		logger.Info("no existing OSDs were found. No disks to be wiped")
+		// ceph-volume raw list didn't return any existing OSDs. Its possible that /dev/mapper entry of the encrypted disks were removed.
+		// Check for cephFSID in the luks header of the disk and clean the disk if does not match the cephFSID of the current cluster.
+		logger.Infof("ceph-volume didn't return any existing OSDs. Checking for cephFSID of a different cluster in the luks header of the disk")
+		err := wipeEncryptedDevicesFromOtherClusters(context, a.clusterInfo.FSID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to clean up encrypted disks from other clusters")
+		}
 		return nil
 	}
 
@@ -905,6 +911,39 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 				osdDisk.Filesystem = ""
 			} else {
 				logger.Infof("skip wiping OSD %d device %q belonging to a different ceph cluster %q since not a desired device", osdID, deviceToWipe, existingOSD.CephFsid)
+			}
+		}
+	}
+
+	return nil
+}
+
+func wipeEncryptedDevicesFromOtherClusters(context *clusterd.Context, currentClusterFSID string) error {
+	for _, disk := range context.Devices {
+		if disk.Filesystem == "crypto_LUKS" {
+			metadata, err := dumpLUKS(context, disk.Name)
+			if err != nil {
+				logger.Debugf("failed to determine if the encrypted block %q is from our cluster. %v", disk.Name, err)
+				return nil
+			}
+
+			ceph_fsid := luksLabelCephFSID.FindString(metadata)
+			if ceph_fsid == "" {
+				logger.Error("ceph_fsid not found in the LUKS header, the encrypted disk is not from a ceph cluster")
+				return nil
+			}
+
+			// is it an OSD from our cluster?
+			currentDiskCephFSID := strings.SplitAfter(ceph_fsid, "=")[1]
+			if currentDiskCephFSID != currentClusterFSID {
+				logger.Infof("cleaning encrypted disk %q (%q) that is part of a different ceph cluster %q", disk.Name, disk.RealPath, currentDiskCephFSID)
+				output, err := context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", cephVolumeCmd, "lvm", "zap", disk.RealPath)
+				if err != nil {
+					return errors.Wrapf(err, "failed to zap encrypted disk with different ceph cluster %q. %s.", disk.RealPath, output)
+				}
+				logger.Infof("completed wiping device %q belonging to a different ceph cluster", disk.RealPath)
+				// Since the device is wiped clean, clear the stale filesystem reference on the disk so that the wiped disk is not filtered out for filesystem check.
+				disk.Filesystem = ""
 			}
 		}
 	}
