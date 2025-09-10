@@ -4,8 +4,6 @@
 
 ---
 {{- if default false $filesystemvsc.enabled }}
-{{- $sc := lookup "storage.k8s.io/v1" "VolumeSnapshotClass" "" $filesystemvsc.name }}
-{{- if not $sc }}
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
@@ -15,9 +13,6 @@ metadata:
 {{ toYaml $filesystemvsc.labels | indent 4 }}
 {{- end }}
   annotations:
-    "helm.sh/hook": post-install,pre-upgrade
-    "helm.sh/hook-delete-policy": before-hook-creation
-    "helm.sh/resource-policy": keep
     snapshot.storage.kubernetes.io/is-default-class: "{{ if default false $filesystemvsc.isDefault }}true{{ else }}false{{ end }}"
 {{- if $filesystemvsc.annotations }}
 {{ toYaml $filesystemvsc.annotations | indent 4 }}
@@ -36,12 +31,9 @@ parameters:
 {{- end }}
 deletionPolicy: {{ default "Delete" $filesystemvsc.deletionPolicy }}
 {{- end }}
-{{- end }}
 
 ---
 {{- if default false $blockpoolvsc.enabled }}
-{{- $sc := lookup "storage.k8s.io/v1" "VolumeSnapshotClass" "" $blockpoolvsc.name }}
-{{- if not $sc }}
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
@@ -51,9 +43,6 @@ metadata:
 {{ toYaml $blockpoolvsc.labels | indent 4 }}
 {{- end }}
   annotations:
-    "helm.sh/hook": post-install,pre-upgrade
-    "helm.sh/hook-delete-policy": before-hook-creation
-    "helm.sh/resource-policy": keep
     snapshot.storage.kubernetes.io/is-default-class: "{{ if default false $blockpoolvsc.isDefault }}true{{ else }}false{{ end }}"
 {{- if $blockpoolvsc.annotations }}
 {{ toYaml $blockpoolvsc.annotations | indent 4 }}
@@ -71,5 +60,4 @@ parameters:
 {{ toYaml $blockpoolvsc.parameters | indent 2 }}
 {{- end }}
 deletionPolicy: {{ default "Delete" $blockpoolvsc.deletionPolicy }}
-{{- end }}
 {{- end }}
