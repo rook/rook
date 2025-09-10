@@ -498,6 +498,242 @@ func TestCephNFSController(t *testing.T) {
 	})
 }
 
+func TestNFSKeyRotation(t *testing.T) {
+	ctx := context.TODO()
+	var (
+		name      = "my-nfs"
+		namespace = "rook-ceph"
+	)
+	// Set DEBUG logging
+	t.Setenv("ROOK_LOG_LEVEL", "DEBUG")
+
+	// Mock version to avoid deployment updates (filesystem mirror pattern)
+	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *cephclient.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
+		return &version.CephVersion{Major: 20, Minor: 2, Extra: 0}, &version.CephVersion{Major: 20, Minor: 2, Extra: 0}, nil
+	}
+
+	nfs := &cephv1.CephNFS{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: cephv1.NFSGaneshaSpec{
+			RADOS: cephv1.GaneshaRADOSSpec{
+				Pool:      ".nfs",
+				Namespace: namespace,
+			},
+			Server: cephv1.GaneshaServerSpec{
+				Active: 1,
+			},
+		},
+		TypeMeta: controllerTypeMeta,
+	}
+
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namespace,
+			Namespace: namespace,
+		},
+		Spec: cephv1.ClusterSpec{
+			Security: cephv1.ClusterSecuritySpec{
+				CephX: cephv1.ClusterCephxConfig{
+					Daemon: cephv1.CephxConfig{},
+				},
+			},
+		},
+		Status: cephv1.ClusterStatus{
+			Phase: k8sutil.ReadyStatus,
+			CephStatus: &cephv1.CephStatus{
+				Health: "HEALTH_OK",
+			},
+		},
+	}
+
+	object := []runtime.Object{
+		nfs,
+		cephCluster,
+	}
+
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephNFS{})
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+
+	nfsDaemonRotatedKey := `{"key":"AQCvzWBeIV9lFRAAninzm+8XFxbSfTiPwoX50g=="}`
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if command == "ceph" {
+				if args[0] == "status" {
+					return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+				}
+				if args[0] == "versions" {
+					return `{"nfs": {"ceph version 20.2.0": 3}}`, nil
+				}
+				if args[0] == "auth" && args[1] == "get-or-create-key" {
+					return nfsCephAuthGetOrCreateKey, nil
+				}
+				if args[0] == "auth" && args[1] == "rotate" {
+					return nfsDaemonRotatedKey, nil
+				}
+				if args[0] == "osd" && args[1] == "pool" && args[2] == "create" {
+					return "", nil
+				}
+				if args[0] == "osd" && args[1] == "crush" && args[2] == "rule" {
+					return "", nil
+				}
+				if args[0] == "osd" && args[1] == "pool" && args[2] == "application" {
+					return "", nil
+				}
+			}
+			return "", nil
+		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			if command == "ganesha-rados-grace" {
+				return "", nil
+			}
+			if command == "rados" {
+				return "", nil
+			}
+			return "", nil
+		},
+	}
+	clientset := test.New(t, 3)
+	c := &clusterd.Context{
+		Executor:      executor,
+		RookClientset: rookclient.NewSimpleClientset(),
+		Clientset:     clientset,
+	}
+
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	r := &ReconcileCephNFS{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	t.Run("first reconcile", func(t *testing.T) {
+		// Mock clusterInfo
+		secrets := map[string][]byte{
+			"fsid":         []byte(name),
+			"mon-secret":   []byte("monsecret"),
+			"admin-secret": []byte("adminsecret"),
+		}
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-mon",
+				Namespace: namespace,
+			},
+			Data: secrets,
+			Type: k8sutil.RookType,
+		}
+		_, err := c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		// Stub deployment wait for this reconcile
+		updateDeploymentAndWait, _ = testopk8s.UpdateDeploymentAndWaitStub()
+		_, err = r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+
+		nfsResult := cephv1.CephNFS{}
+		err = cl.Get(ctx, req.NamespacedName, &nfsResult)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(1), nfsResult.Status.Cephx.Daemon.KeyGeneration)
+		assert.Equal(t, "20.2.0-0", nfsResult.Status.Cephx.Daemon.KeyCephVersion)
+	})
+
+	t.Run("subsequent reconcile - retain cephx status", func(t *testing.T) {
+		r := &ReconcileCephNFS{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
+		updateDeploymentAndWait, _ = testopk8s.UpdateDeploymentAndWaitStub()
+		_, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		nfsResult := cephv1.CephNFS{}
+		err = cl.Get(ctx, req.NamespacedName, &nfsResult)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(1), nfsResult.Status.Cephx.Daemon.KeyGeneration)
+		assert.Equal(t, "20.2.0-0", nfsResult.Status.Cephx.Daemon.KeyCephVersion)
+	})
+
+	t.Run("brownfield reconcile - retain unknown cephx status", func(t *testing.T) {
+		nfsResult := cephv1.CephNFS{}
+		err := cl.Get(ctx, req.NamespacedName, &nfsResult)
+		assert.NoError(t, err)
+		nfsResult.Status.Cephx.Daemon = cephv1.CephxStatus{}
+		err = cl.Update(ctx, &nfsResult)
+		assert.NoError(t, err)
+
+		updateDeploymentAndWait, _ = testopk8s.UpdateDeploymentAndWaitStub()
+		_, err = r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+
+		err = cl.Get(ctx, req.NamespacedName, &nfsResult)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.CephxStatus{}, nfsResult.Status.Cephx.Daemon)
+	})
+
+	t.Run("rotate key - brownfield unknown status becomes known", func(t *testing.T) {
+		cluster := cephv1.CephCluster{}
+		err := cl.Get(ctx, types.NamespacedName{Namespace: namespace, Name: namespace}, &cluster)
+		assert.NoError(t, err)
+		cluster.Spec.Security.CephX.Daemon = cephv1.CephxConfig{
+			KeyRotationPolicy: "KeyGeneration",
+			KeyGeneration:     2,
+		}
+		err = cl.Update(ctx, &cluster)
+		assert.NoError(t, err)
+
+		nfsDaemonRotatedKey = `[{"key":"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=="}]`
+
+		updateDeploymentAndWait, _ = testopk8s.UpdateDeploymentAndWaitStub()
+		_, err = r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+
+		nfsResult := cephv1.CephNFS{}
+		err = cl.Get(ctx, req.NamespacedName, &nfsResult)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(2), nfsResult.Status.Cephx.Daemon.KeyGeneration)
+		assert.Equal(t, "20.2.0-0", nfsResult.Status.Cephx.Daemon.KeyCephVersion)
+	})
+
+	t.Run("brownfield reconcile - no further rotation happens", func(t *testing.T) {
+		nfsDaemonRotatedKey = `[{"key":"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=="}]`
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		nfsResult := cephv1.CephNFS{}
+		err = cl.Get(ctx, req.NamespacedName, &nfsResult)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(2), nfsResult.Status.Cephx.Daemon.KeyGeneration)
+		assert.Equal(t, "20.2.0-0", nfsResult.Status.Cephx.Daemon.KeyCephVersion)
+	})
+
+	t.Run("rotate key - cephx status updated", func(t *testing.T) {
+		cluster := cephv1.CephCluster{}
+		err := cl.Get(ctx, types.NamespacedName{Namespace: namespace, Name: namespace}, &cluster)
+		assert.NoError(t, err)
+		cluster.Spec.Security.CephX.Daemon = cephv1.CephxConfig{
+			KeyRotationPolicy: "KeyGeneration",
+			KeyGeneration:     3,
+		}
+		err = cl.Update(ctx, &cluster)
+		assert.NoError(t, err)
+
+		nfsDaemonRotatedKey = `[{"key":"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=="}]`
+
+		_, err = r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+
+		nfsResult := cephv1.CephNFS{}
+		err = cl.Get(ctx, req.NamespacedName, &nfsResult)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(3), nfsResult.Status.Cephx.Daemon.KeyGeneration)
+		assert.Equal(t, "20.2.0-0", nfsResult.Status.Cephx.Daemon.KeyCephVersion)
+	})
+}
+
 func TestGetGaneshaConfigObject(t *testing.T) {
 	cephNFS := &cephv1.CephNFS{
 		ObjectMeta: metav1.ObjectMeta{

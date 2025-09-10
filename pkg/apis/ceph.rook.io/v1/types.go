@@ -2703,7 +2703,13 @@ type CephNFS struct {
 	Spec              NFSGaneshaSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	Status *Status `json:"status,omitempty"`
+	Status *NFSStatus `json:"status,omitempty"`
+}
+
+// NFSStatus represents the status of Ceph NFS
+type NFSStatus struct {
+	Status `json:",inline"`
+	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
 }
 
 // CephNFSList represents a list Ceph NFSes
