@@ -10,8 +10,6 @@ spec:
 {{ toYaml $blockpool.spec | indent 2 }}
 ---
 {{- if default false $blockpool.storageClass.enabled }}
-{{- $sc := lookup "storage.k8s.io/v1" "StorageClass" "" $blockpool.storageClass.name }}
-{{- if not $sc }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -51,6 +49,5 @@ allowedTopologies:
 {{ toYaml . | indent 2 }}
 {{ end }}
 {{ end }}
-{{- end }}
 {{ end }}
 {{ end }}
