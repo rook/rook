@@ -269,10 +269,10 @@ data:
   CSI_CEPHFS_ATTACH_REQUIRED: {{ .cephFSAttachRequired | quote }}
   CSI_RBD_ATTACH_REQUIRED: {{ .rbdAttachRequired | quote }}
   CSI_NFS_ATTACH_REQUIRED: {{ .nfsAttachRequired | quote }}
+  {{- if .kubeApiBurst }}
+  CSI_KUBE_API_BURST: {{ .kubeApiBurst | quote }}
   {{- end }}
-  {{- if .Values.csi.kubeApiBurst }}
-  CSI_KUBE_API_BURST: {{ .Values.csi.kubeApiBurst | quote }}
+  {{- if .kubeApiQPS }}
+  CSI_KUBE_API_QPS: {{ .kubeApiQPS | quote }}
   {{- end }}
-  {{- if .Values.csi.kubeApiQPS }}
-  CSI_KUBE_API_QPS: {{ .Values.csi.kubeApiQPS | quote }}
   {{- end }}
