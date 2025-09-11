@@ -1,25 +1,27 @@
-{{- range .Values.cephObjectStores }}
-{{- if dig "route" "enabled" false . }}
+{{- range .Values.cephObjectStores -}}
+{{- if (. | dig "route" "enabled" false) }}
 ---
-apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
+apiVersion: gateway.networking.k8s.io/v1
 metadata:
   name: {{ .name }}
   namespace: {{ $.Release.Namespace }} # namespace:cluster
   {{- with .route.annotations }}
-  annotations: {{- toYaml . | nindent 4 }}
+  annotations:
+    {{- . | toYaml | nindent 4 }}
   {{- end }}
 spec:
   hostnames:
-  - {{ .route.host.name | quote }}
-  parentRefs: {{- toYaml .route.parentRefs | nindent 2 }}
+    - {{ .route.host.name | quote }}
+  parentRefs:
+    {{- .route.parentRefs | toYaml | nindent 4 }}
   rules:
-  - backendRefs:
-    - name: rook-ceph-rgw-{{ .name }}
-      port: {{ .route.port | default .spec.gateway.securePort | default .spec.gateway.port }}
-    matches:
-    - path:
-        type: {{ .route.host.pathType | default "Prefix" }}
-        value: {{ .route.host.path | default "/" }}
+    - backendRefs:
+        - name: rook-ceph-rgw-{{ .name }}
+          port: {{ .route.port | default .spec.gateway.securePort | default .spec.gateway.port }}
+      matches:
+        - path:
+            type: {{ .route.host.pathType | default "Prefix" }}
+            value: {{ .route.host.path | default "/" }}
 {{- end }}
 {{- end }}
