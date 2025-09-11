@@ -241,7 +241,7 @@ function importCsiRBDProvisionerSecret() {
       patch \
       secret \
       "rook-$CSI_RBD_PROVISIONER_SECRET_NAME" \
-      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_RBD_PROVISIONER_SECRET_NAME\"}}"
+      -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_RBD_PROVISIONER_SECRET\"}}"
   fi
 }
 
