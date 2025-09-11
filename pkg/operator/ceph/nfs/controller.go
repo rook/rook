@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -39,6 +40,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -70,14 +72,15 @@ var currentAndDesiredCephVersion = opcontroller.CurrentAndDesiredCephVersion
 
 // ReconcileCephNFS reconciles a cephNFS object
 type ReconcileCephNFS struct {
-	client           client.Client
-	scheme           *runtime.Scheme
-	context          *clusterd.Context
-	cephClusterSpec  *cephv1.ClusterSpec
-	clusterInfo      *cephclient.ClusterInfo
-	opManagerContext context.Context
-	opConfig         opcontroller.OperatorConfig
-	recorder         record.EventRecorder
+	client                client.Client
+	scheme                *runtime.Scheme
+	context               *clusterd.Context
+	cephClusterSpec       *cephv1.ClusterSpec
+	clusterInfo           *cephclient.ClusterInfo
+	opManagerContext      context.Context
+	opConfig              opcontroller.OperatorConfig
+	recorder              record.EventRecorder
+	shouldRotateCephxKeys bool
 }
 
 // Add creates a new cephNFS Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -186,7 +189,18 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 
 	// The CR was just created, initializing status fields
 	if cephNFS.Status == nil {
-		updateStatus(k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, k8sutil.EmptyStatus)
+		cephxUninitialized := keyring.UninitializedCephxStatus()
+		err := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, &cephxUninitialized, k8sutil.EmptyStatus)
+		if err != nil {
+			return opcontroller.ImmediateRetryResult, *cephNFS, errors.Wrapf(err, "failed set empty status to the cephNFS %q", request.NamespacedName)
+		}
+		// Initialize cephx status for new resources
+		cephNFS.Status = &cephv1.NFSStatus{
+			Status: cephv1.Status{},
+			Cephx: cephv1.LocalCephxStatus{
+				Daemon: cephxUninitialized,
+			},
+		}
 	}
 
 	if err := cephNFS.Spec.Security.Validate(); err != nil {
@@ -292,6 +306,16 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, *cephNFS, errors.Wrapf(err, "invalid ceph nfs %q arguments", cephNFS.Name)
 	}
 
+	// Determine if we should rotate CephX keys for NFS daemons
+	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion,
+		*desiredCephVersion, cephNFS.Status.Cephx.Daemon)
+	if err != nil {
+		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to determine if cephx keys should be rotated")
+	}
+	if r.shouldRotateCephxKeys {
+		logger.Infof("cephx keys for CephNFS %q will be rotated", request.NamespacedName)
+	}
+
 	// Check for the existence of the .nfs pool
 	err = r.configureNFSPool(cephNFS)
 	if err != nil {
@@ -302,13 +326,18 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	logger.Debug("reconciling ceph nfs deployments")
 	_, err = r.reconcileCreateCephNFS(cephNFS)
 	if err != nil {
-		updateStatus(k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, k8sutil.FailedStatus)
 		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to create ceph nfs deployments")
 	}
 
+	// update NFS cephx status
+	cephxStatus := keyring.UpdatedCephxStatus(r.shouldRotateCephxKeys, cephCluster.Spec.Security.CephX.Daemon, r.clusterInfo.CephVersion, cephNFS.Status.Cephx.Daemon)
+
 	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
-	updateStatus(observedGeneration, r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	err = r.updateStatus(observedGeneration, request.NamespacedName, &cephxStatus, k8sutil.ReadyStatus)
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, *cephNFS, errors.Wrapf(err, "failed to update cephx status to the cephNFS %q", request.NamespacedName)
+	}
 
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph nfs")
@@ -358,27 +387,38 @@ func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reco
 }
 
 // updateStatus updates an object with a given status
-func updateStatus(observedGeneration int64, client client.Client, name types.NamespacedName, status string) {
+func (r *ReconcileCephNFS) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, cephxStatus *cephv1.CephxStatus, status string) error {
 	nfs := &cephv1.CephNFS{}
-	err := client.Get(context.TODO(), name, nfs)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephNFS resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.client.Get(r.opManagerContext, namespacedName, nfs)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debugf("CephNFS resource %q not found for updating status. Ignoring since object must be deleted.", namespacedName)
+				return nil
+			}
+			return errors.Wrapf(err, "failed to get CephNFS %q for updating status to %+v", namespacedName, status)
 		}
-		logger.Warningf("failed to retrieve nfs %q to update status to %q. %v", name, status, err)
-		return
-	}
-	if nfs.Status == nil {
-		nfs.Status = &cephv1.Status{}
-	}
+		if nfs.Status == nil {
+			nfs.Status = &cephv1.NFSStatus{}
+		}
 
-	nfs.Status.Phase = status
-	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
-		nfs.Status.ObservedGeneration = observedGeneration
+		nfs.Status.Phase = status
+		if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+			nfs.Status.ObservedGeneration = observedGeneration
+		}
+
+		if cephxStatus != nil {
+			nfs.Status.Cephx.Daemon = *cephxStatus
+		}
+
+		if err := reporting.UpdateStatus(r.client, nfs); err != nil {
+			return errors.Wrapf(err, "failed to set CephNFS %q status to %+v", namespacedName, status)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
-	if err := reporting.UpdateStatus(client, nfs); err != nil {
-		logger.Errorf("failed to set nfs %q status to %q. %v", nfs.Name, status, err)
-	}
-	logger.Debugf("nfs %q status updated to %q", name, status)
+	logger.Debugf("CephNFS %q status updated to %q", namespacedName, status)
+	return nil
 }
