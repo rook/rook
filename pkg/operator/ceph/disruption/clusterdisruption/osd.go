@@ -19,6 +19,8 @@ package clusterdisruption
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,7 +44,9 @@ import (
 
 const (
 	// osdPDBAppName is that app label value for pdbs targeting osds
-	osdPDBAppName                    = "rook-ceph-osd"
+	osdPDBAppName = "rook-ceph-osd"
+	// osdPDBOsdIdLabel is the label on osd pods for pdbs targeting specific osd ids
+	osdPDBOsdIdLabel                 = "osd"
 	drainingFailureDomainKey         = "draining-failure-domain"
 	drainingFailureDomainDurationKey = "draining-failure-domain-duration"
 	setNoOut                         = "set-no-out"
@@ -69,7 +73,7 @@ func (r *ReconcileClusterDisruption) deletePDB(pdb client.Object) error {
 
 // createDefaultPDBforOSD creates a single PDB for all OSDs with maxUnavailable=1
 // This allows all OSDs in a single failure domain to go down.
-func (r *ReconcileClusterDisruption) createDefaultPDBforOSD(namespace string, maxUnavailable int) error {
+func (r *ReconcileClusterDisruption) createDefaultPDBforOSD(namespace string, excludeOSDs []int) error {
 	cephCluster, ok := r.clusterMap.GetCluster(namespace)
 	if !ok {
 		return errors.Errorf("failed to find the namespace %q in the clustermap", namespace)
@@ -79,15 +83,34 @@ func (r *ReconcileClusterDisruption) createDefaultPDBforOSD(namespace string, ma
 		Name:      osdPDBAppName,
 		Namespace: namespace,
 	}
-	selector := &metav1.LabelSelector{
-		MatchLabels: map[string]string{k8sutil.AppAttr: osdPDBAppName},
+	matchExpressions := []metav1.LabelSelectorRequirement{
+		// require the pod to be an OSD pod
+		{
+			Key:      k8sutil.AppAttr,
+			Operator: metav1.LabelSelectorOpIn,
+			Values:   []string{osdPDBAppName},
+		},
+	}
+	if len(excludeOSDs) > 0 {
+		excludeOSDsValues := make([]string, len(excludeOSDs))
+		for i, excludeOSD := range excludeOSDs {
+			excludeOSDsValues[i] = strconv.Itoa(excludeOSD)
+		}
+		matchExpressions = append(matchExpressions, metav1.LabelSelectorRequirement{
+			// don't consider pods for excluded OSD IDs
+			Key:      osdPDBOsdIdLabel,
+			Operator: metav1.LabelSelectorOpNotIn,
+			Values:   excludeOSDsValues,
+		})
 	}
 
 	pdb := &policyv1.PodDisruptionBudget{
 		ObjectMeta: objectMeta,
 		Spec: policyv1.PodDisruptionBudgetSpec{
-			MaxUnavailable: &intstr.IntOrString{IntVal: int32(maxUnavailable)}, // nolint:gosec // G115 - no overflow is expected for maxUnavailable count
-			Selector:       selector,
+			MaxUnavailable: &intstr.IntOrString{IntVal: 1},
+			Selector: &metav1.LabelSelector{
+				MatchExpressions: matchExpressions,
+			},
 		},
 	}
 	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
@@ -101,7 +124,7 @@ func (r *ReconcileClusterDisruption) createDefaultPDBforOSD(namespace string, ma
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("all PGs are active+clean. Restoring default OSD pdb settings")
-			logger.Infof("creating the default pdb %q with maxUnavailable=%d for all osd", osdPDBAppName, maxUnavailable)
+			logger.Infof("creating the default pdb %q with maxUnavailable=1 for all osd", osdPDBAppName)
 			return r.createPDB(pdb)
 		}
 		return errors.Wrapf(err, "failed to get pdb %q", pdb.Name)
@@ -245,15 +268,16 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 	}
 
 	osdDown := len(downOSDs) > 0
-	maxUnavailableOSDCount := 1
+	// OSDs which should be excluded from the default PDB. This is done when there are no active drains and all PGs are
+	// active+clean, but there are some down OSDs. In that case we exclude the down OSDs from the PDB otherwise all drains
+	// in the cluster would be blocked until the down OSDs came back.
+	excludeOSDs := make([]int, 0)
 
 	// switch block to update the PDB state config map based on the PG status and running OSDs
 	switch {
 	case !osdDown && pgClean:
 		logger.Infof("OSDs are up and PGs are clean. PG status: %q", pgHealthMsg)
-		maxUnavailableOSDCount = 1
 		resetPDBConfig(pdbStateMap)
-
 	case osdDown && pgClean:
 		logger.Infof("OSD(s) %v are down but PGs are clean. PG Status: %q", downOSDs, pgHealthMsg)
 		// In case of a node drain event, the OSD pods can get drained rapidly and it would take some time for rook to fetch
@@ -265,15 +289,13 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 			}
 			if time.Since(lastNodeDrainTimeStamp) < 60*time.Second {
 				logger.Infof("node drain is detected. Requeue to ensure that correct PG status is read.")
-				maxUnavailableOSDCount = 1
 			} else {
-				maxUnavailableOSDCount = len(downOSDs) + 1
+				excludeOSDs = slices.Clone(downOSDs)
 			}
 		} else {
-			maxUnavailableOSDCount = len(downOSDs) + 1
+			excludeOSDs = slices.Clone(downOSDs)
 			resetPDBConfig(pdbStateMap)
 		}
-
 	case osdDown && !pgClean:
 		setPDBConfig(pdbStateMap, osdDownFailureDomains, nodeDrainFailureDomains)
 		logger.Infof("OSD(s) %v are down and PGs are not clean. PGs Status: %q", downOSDs, pgHealthMsg)
@@ -294,9 +316,9 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 			return reconcile.Result{}, errors.Wrap(err, "failed to handle active drains")
 		}
 	} else if pdbStateMap.Data[drainingFailureDomainKey] == "" {
-		logger.Infof("`maxUnavailable` for the main OSD PDB is set to %d", maxUnavailableOSDCount)
+		logger.Infof("`maxUnavailable` for the main OSD PDB is set to 1")
 		// delete all blocking OSD pdb and restore the default OSD pdb
-		err = r.handleInactiveDrains(allFailureDomains, failureDomainType, clusterInfo.Namespace, maxUnavailableOSDCount)
+		err = r.handleInactiveDrains(allFailureDomains, failureDomainType, clusterInfo.Namespace, excludeOSDs)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to handle inactive drains")
 		}
@@ -347,8 +369,8 @@ func (r *ReconcileClusterDisruption) handleActiveDrains(allFailureDomains []stri
 	return nil
 }
 
-func (r *ReconcileClusterDisruption) handleInactiveDrains(allFailureDomains []string, failureDomainType, namespace string, maxUnavailable int) error {
-	err := r.createDefaultPDBforOSD(namespace, maxUnavailable)
+func (r *ReconcileClusterDisruption) handleInactiveDrains(allFailureDomains []string, failureDomainType, namespace string, excludeOSDs []int) error {
+	err := r.createDefaultPDBforOSD(namespace, excludeOSDs)
 	if err != nil {
 		return errors.Wrap(err, "failed to create default pdb")
 	}
@@ -552,7 +574,7 @@ func (r *ReconcileClusterDisruption) requeuePDBController(request reconcile.Requ
 		}
 	}
 
-	if defaultPDB.Status.DisruptionsAllowed == 0 || defaultPDB.Spec.MaxUnavailable.IntVal > 1 {
+	if defaultPDB.Status.DisruptionsAllowed == 0 || pdbExcludesOSDs(defaultPDB) {
 		logger.Info("reconciling osd pdb controller")
 		return reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}, nil
 	}
@@ -576,4 +598,22 @@ func getLastNodeDrainTimeStamp(pdbStateMap *corev1.ConfigMap, key string) (time.
 		}
 	}
 	return lastDrainTimeStamp, nil
+}
+
+func pdbExcludesOSDs(pdb *policyv1.PodDisruptionBudget) bool {
+	if pdb == nil {
+		return false
+	}
+	if pdb.Spec.Selector == nil {
+		return false
+	}
+	if pdb.Spec.Selector.MatchExpressions == nil {
+		return false
+	}
+	for _, matchExpression := range pdb.Spec.Selector.MatchExpressions {
+		if matchExpression.Key == osdPDBOsdIdLabel {
+			return true
+		}
+	}
+	return false
 }
