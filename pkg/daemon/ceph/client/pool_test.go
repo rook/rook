@@ -286,12 +286,13 @@ func TestUpdateFailureDomain(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
+	enableCrushUpdates := true
 	t.Run("no desired failure domain", func(t *testing.T) {
 		p := cephv1.NamedPoolSpec{
 			Name: "mypool",
 			PoolSpec: cephv1.PoolSpec{
 				Replicated:         cephv1.ReplicatedSpec{Size: 3},
-				EnableCrushUpdates: true,
+				EnableCrushUpdates: &enableCrushUpdates,
 			},
 		}
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
@@ -306,7 +307,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 			PoolSpec: cephv1.PoolSpec{
 				FailureDomain:      currentFailureDomain,
 				Replicated:         cephv1.ReplicatedSpec{Size: 3},
-				EnableCrushUpdates: true,
+				EnableCrushUpdates: &enableCrushUpdates,
 			},
 		}
 		testCrushRuleName = "mypool_rack"
@@ -336,7 +337,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 			PoolSpec: cephv1.PoolSpec{
 				FailureDomain:      "zone",
 				Replicated:         cephv1.ReplicatedSpec{Size: 3},
-				EnableCrushUpdates: true,
+				EnableCrushUpdates: &enableCrushUpdates,
 			},
 		}
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
@@ -351,7 +352,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 			PoolSpec: cephv1.PoolSpec{
 				FailureDomain:      "zone",
 				Replicated:         cephv1.ReplicatedSpec{Size: 3},
-				EnableCrushUpdates: true,
+				EnableCrushUpdates: &enableCrushUpdates,
 			},
 		}
 		clusterSpec := &cephv1.ClusterSpec{
