@@ -434,6 +434,7 @@ spec:
                   type: string
                 enableCrushUpdates:
                   description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                  nullable: true
                   type: boolean
                 enableRBDStats:
                   description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -7266,6 +7267,7 @@ spec:
                         type: string
                       enableCrushUpdates:
                         description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                        nullable: true
                         type: boolean
                       enableRBDStats:
                         description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -7460,6 +7462,7 @@ spec:
                       type: string
                     enableCrushUpdates:
                       description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                      nullable: true
                       type: boolean
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -11136,6 +11139,7 @@ spec:
                       type: string
                     enableCrushUpdates:
                       description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                      nullable: true
                       type: boolean
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -12749,6 +12753,7 @@ spec:
                       type: string
                     enableCrushUpdates:
                       description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                      nullable: true
                       type: boolean
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -13692,6 +13697,7 @@ spec:
                       type: string
                     enableCrushUpdates:
                       description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                      nullable: true
                       type: boolean
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -13881,6 +13887,7 @@ spec:
                       type: string
                     enableCrushUpdates:
                       description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                      nullable: true
                       type: boolean
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
