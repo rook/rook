@@ -510,7 +510,7 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 }
 
 func updatePoolCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec) error {
-	if !pool.EnableCrushUpdates {
+	if pool.EnableCrushUpdates == nil || !*pool.EnableCrushUpdates {
 		logger.Debugf("Skipping crush rule update for pool %q: EnableCrushUpdates is disabled", pool.Name)
 		return nil
 	}
