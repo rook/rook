@@ -23,7 +23,7 @@ enforces ``host`` failure domain.  In this case, the PDB failure domain will be 
 - `Default` PDB:
     - Named `rook-ceph-osd`
     - Allows one healthy OSD to go down by setting `maxUnavailable=1` on any failure domain.
-    - Sometimes one or more OSDs might down (non-overlapping drive failures, for example) without any node drained, but PGs are still `active+clean`. In that case, `maxUnavailable` is set to `1+number of down OSDs`
+    - Sometimes one or more OSDs might down (non-overlapping drive failures, for example) without any node drained, but PGs are still `active+clean`. In that case, the downed OSDs are excluded from the PDB through label match expressions.
 - `Blocking` PDBs
     - Named `rook-ceph-osd-<failureDomainType>-<FailureDomainName>`. For example: `rook-ceph-osd-zone-zone-a`
     - These PDBs are created on an entire failure domain.
@@ -75,7 +75,18 @@ a common. This will also work to mitigate manual drains from accidentally disrup
 
 #### OSDs down due to reasons other than node drain:
 - OSDs may be down for other reasons, e.g. drive failure.
-- If all PGs are `active+clean` despite `down` OSD, the Rook operator will update the `maxUnavailable` count to `1+number of down OSDs` in the main PDB.
+- If all PGs are `active+clean` despite `down` OSD, the Rook operator will exclude the down OSDs in the main PDB like so (assume OSDs 1,3,5 are down):
+```yaml
+  maxUnavailable: 1
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["rook-ceph-osd"]
+      - key: osd
+        operator: NotIn
+        values: ["1", "3", "5"]
+```
 - This will allow other healthy OSDs to be drained.
 
 ### Monitor, Manager, MDS, RGW, rbd-mirror
