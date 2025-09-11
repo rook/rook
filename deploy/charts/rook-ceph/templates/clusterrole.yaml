@@ -1,4 +1,5 @@
-{{- if .Values.rbacEnable }}
+{{- if .Values.rbacEnable -}}
+---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -38,8 +39,8 @@ rules:
     verbs: ["create", "delete", "get", "list" ,"update", "watch"]
 ---
 # The cluster role for managing all the cluster-specific resources in a namespace
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cluster-mgmt
   labels:
@@ -47,32 +48,32 @@ metadata:
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
-- apiGroups:
-  - ""
-  - apps
-  - extensions
-  resources:
-  - secrets
-  - pods
-  - pods/log
-  - services
-  - configmaps
-  - deployments
-  - daemonsets
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-  - create
-  - update
-  - delete
+  - apiGroups:
+      - ""
+      - apps
+      - extensions
+    resources:
+      - secrets
+      - pods
+      - pods/log
+      - services
+      - configmaps
+      - deployments
+      - daemonsets
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - create
+      - update
+      - delete
 ---
 # The cluster role for managing the Rook CRDs
-apiVersion: rbac.authorization.k8s.io/v1
 # Rook watches for its CRDs in all namespaces, so this should be a cluster-scoped role unless the
 # operator config `ROOK_CURRENT_NAMESPACE_ONLY=true`.
 kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-global
   labels:
@@ -80,198 +81,198 @@ metadata:
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
-- apiGroups:
-  - ""
-  resources:
-  # Pod access is needed for fencing
-  - pods
-  # Node access is needed for determining nodes where mons should run
-  - nodes
-  - nodes/proxy
-  # Rook watches secrets which it uses to configure access to external resources.
-  # e.g., external Ceph cluster or object store
-  - secrets
-  # Rook watches for changes to the rook-operator-config configmap
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  - "discovery.k8s.io"
-  resources:
-  # Rook creates events for its custom resources
-  - events
-  # Rook creates PVs and PVCs for OSDs managed by the Rook provisioner
-  - persistentvolumes
-  - persistentvolumeclaims
-  # Rook creates endpoints for mgr and object store access
-  - endpoints
-  - services
-  - endpointslices
-  - endpointslices/restricted
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - storageclasses
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  - cronjobs
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-  - deletecollection
-# The Rook operator must be able to watch all ceph.rook.io resources to reconcile them.
-- apiGroups: ["ceph.rook.io"]
-  resources:
-  - cephclients
-  - cephclusters
-  - cephblockpools
-  - cephfilesystems
-  - cephnfses
-  - cephobjectstores
-  - cephobjectstoreusers
-  - cephobjectrealms
-  - cephobjectzonegroups
-  - cephobjectzones
-  - cephbuckettopics
-  - cephbucketnotifications
-  - cephrbdmirrors
-  - cephfilesystemmirrors
-  - cephfilesystemsubvolumegroups
-  - cephblockpoolradosnamespaces
-  - cephcosidrivers
-  verbs:
-  - get
-  - list
-  - watch
-  # Ideally the update permission is not required, but Rook needs it to add finalizers to resources.
-  - update
-# Rook must have update access to status subresources for its custom resources.
-- apiGroups: ["ceph.rook.io"]
-  resources:
-  - cephclients/status
-  - cephclusters/status
-  - cephblockpools/status
-  - cephfilesystems/status
-  - cephnfses/status
-  - cephobjectstores/status
-  - cephobjectstoreusers/status
-  - cephobjectrealms/status
-  - cephobjectzonegroups/status
-  - cephobjectzones/status
-  - cephbuckettopics/status
-  - cephbucketnotifications/status
-  - cephrbdmirrors/status
-  - cephfilesystemmirrors/status
-  - cephfilesystemsubvolumegroups/status
-  - cephblockpoolradosnamespaces/status
-  verbs: ["update"]
-# The "*/finalizers" permission may need to be strictly given for K8s clusters where
-# OwnerReferencesPermissionEnforcement is enabled so that Rook can set blockOwnerDeletion on
-# resources owned by Rook CRs (e.g., a Secret owned by an OSD Deployment). See more:
-# https://kubernetes.io/docs/reference/access-authn-authz/_print/#ownerreferencespermissionenforcement
-- apiGroups: ["ceph.rook.io"]
-  resources:
-  - cephclients/finalizers
-  - cephclusters/finalizers
-  - cephblockpools/finalizers
-  - cephfilesystems/finalizers
-  - cephnfses/finalizers
-  - cephobjectstores/finalizers
-  - cephobjectstoreusers/finalizers
-  - cephobjectrealms/finalizers
-  - cephobjectzonegroups/finalizers
-  - cephobjectzones/finalizers
-  - cephbuckettopics/finalizers
-  - cephbucketnotifications/finalizers
-  - cephrbdmirrors/finalizers
-  - cephfilesystemmirrors/finalizers
-  - cephfilesystemsubvolumegroups/finalizers
-  - cephblockpoolradosnamespaces/finalizers
-  verbs: ["update"]
-- apiGroups:
-  - policy
-  - apps
-  - extensions
-  resources:
-  # This is for the clusterdisruption controller
-  - poddisruptionbudgets
-  # This is for both clusterdisruption and nodedrain controllers
-  - deployments
-  - replicasets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-  - deletecollection
-- apiGroups:
-  - apps
-  resources:
-  # This is to add osd deployment owner ref on key rotation
-  # cron jobs.
-  - deployments/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - healthchecking.openshift.io
-  resources:
-  - machinedisruptionbudgets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - machine.openshift.io
-  resources:
-  - machines
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - csidrivers
-  verbs:
-  - create
-  - delete
-  - get
-  - update
-- apiGroups:
-  - k8s.cni.cncf.io
-  resources:
-  - network-attachment-definitions
-  verbs:
-  - get
+  - apiGroups:
+      - ""
+    resources:
+      # Pod access is needed for fencing
+      - pods
+      # Node access is needed for determining nodes where mons should run
+      - nodes
+      - nodes/proxy
+      # Rook watches secrets which it uses to configure access to external resources.
+      # e.g., external Ceph cluster or object store
+      - secrets
+      # Rook watches for changes to the rook-operator-config configmap
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+      - "discovery.k8s.io"
+    resources:
+      # Rook creates events for its custom resources
+      - events
+      # Rook creates PVs and PVCs for OSDs managed by the Rook provisioner
+      - persistentvolumes
+      - persistentvolumeclaims
+      # Rook creates endpoints for mgr and object store access
+      - endpoints
+      - services
+      - endpointslices
+      - endpointslices/restricted
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+      - deletecollection
+  # The Rook operator must be able to watch all ceph.rook.io resources to reconcile them.
+  - apiGroups: ["ceph.rook.io"]
+    resources:
+      - cephclients
+      - cephclusters
+      - cephblockpools
+      - cephfilesystems
+      - cephnfses
+      - cephobjectstores
+      - cephobjectstoreusers
+      - cephobjectrealms
+      - cephobjectzonegroups
+      - cephobjectzones
+      - cephbuckettopics
+      - cephbucketnotifications
+      - cephrbdmirrors
+      - cephfilesystemmirrors
+      - cephfilesystemsubvolumegroups
+      - cephblockpoolradosnamespaces
+      - cephcosidrivers
+    verbs:
+      - get
+      - list
+      - watch
+      # Ideally the update permission is not required, but Rook needs it to add finalizers to resources.
+      - update
+  # Rook must have update access to status subresources for its custom resources.
+  - apiGroups: ["ceph.rook.io"]
+    resources:
+      - cephclients/status
+      - cephclusters/status
+      - cephblockpools/status
+      - cephfilesystems/status
+      - cephnfses/status
+      - cephobjectstores/status
+      - cephobjectstoreusers/status
+      - cephobjectrealms/status
+      - cephobjectzonegroups/status
+      - cephobjectzones/status
+      - cephbuckettopics/status
+      - cephbucketnotifications/status
+      - cephrbdmirrors/status
+      - cephfilesystemmirrors/status
+      - cephfilesystemsubvolumegroups/status
+      - cephblockpoolradosnamespaces/status
+    verbs: ["update"]
+  # The "*/finalizers" permission may need to be strictly given for K8s clusters where
+  # OwnerReferencesPermissionEnforcement is enabled so that Rook can set blockOwnerDeletion on
+  # resources owned by Rook CRs (e.g., a Secret owned by an OSD Deployment). See more:
+  # https://kubernetes.io/docs/reference/access-authn-authz/_print/#ownerreferencespermissionenforcement
+  - apiGroups: ["ceph.rook.io"]
+    resources:
+      - cephclients/finalizers
+      - cephclusters/finalizers
+      - cephblockpools/finalizers
+      - cephfilesystems/finalizers
+      - cephnfses/finalizers
+      - cephobjectstores/finalizers
+      - cephobjectstoreusers/finalizers
+      - cephobjectrealms/finalizers
+      - cephobjectzonegroups/finalizers
+      - cephobjectzones/finalizers
+      - cephbuckettopics/finalizers
+      - cephbucketnotifications/finalizers
+      - cephrbdmirrors/finalizers
+      - cephfilesystemmirrors/finalizers
+      - cephfilesystemsubvolumegroups/finalizers
+      - cephblockpoolradosnamespaces/finalizers
+    verbs: ["update"]
+  - apiGroups:
+      - policy
+      - apps
+      - extensions
+    resources:
+      # This is for the clusterdisruption controller
+      - poddisruptionbudgets
+      # This is for both clusterdisruption and nodedrain controllers
+      - deployments
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+      - deletecollection
+  - apiGroups:
+      - apps
+    resources:
+      # This is to add osd deployment owner ref on key rotation
+      # cron jobs.
+      - deployments/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - healthchecking.openshift.io
+    resources:
+      - machinedisruptionbudgets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - machine.openshift.io
+    resources:
+      - machines
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - csidrivers
+    verbs:
+      - create
+      - delete
+      - get
+      - update
+  - apiGroups:
+      - k8s.cni.cncf.io
+    resources:
+      - network-attachment-definitions
+    verbs:
+      - get
 ---
 # Aspects of ceph-mgr that require cluster-wide access
 kind: ClusterRole
@@ -283,35 +284,35 @@ metadata:
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - nodes
-  - nodes/proxy
-  - persistentvolumes
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
-  - list
-  - get
-  - watch
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - storageclasses
-  verbs:
-  - get
-  - list
-  - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - nodes
+      - nodes/proxy
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+      - list
+      - get
+      - watch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
 ---
 # Aspects of ceph-mgr that require access to the system namespace
 kind: ClusterRole
@@ -319,14 +320,14 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-system
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
 ---
 # Used for provisioning ObjectBuckets (OBs) in response to ObjectBucketClaims (OBCs).
 # Note: Rook runs a copy of the lib-bucket-provisioner's OBC controller.
@@ -424,8 +425,8 @@ rules:
   - apiGroups: [""]
     resources: ["serviceaccounts/token"]
     verbs: ["create"]
----
 {{- if .Values.csi.nfs.enabled }}
+---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -491,8 +492,8 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get"]
+{{- end }}
 ---
-{{ end }}
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:

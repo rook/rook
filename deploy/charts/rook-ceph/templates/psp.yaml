@@ -1,5 +1,6 @@
-{{- if .Values.pspEnable }}
-{{- if semverCompare "<1.25.0-0" .Capabilities.KubeVersion.GitVersion }}
+{{- if .Values.pspEnable -}}
+{{- if semverCompare "<1.25.0-0" .Capabilities.KubeVersion.GitVersion -}}
+---
 # We expect most Kubernetes teams to follow the Kubernetes docs and have these PSPs.
 # * privileged (for kube-system namespace)
 # * restricted (for all logged in users)
@@ -10,8 +11,8 @@
 # environments with other `00`-prefixed PSPs.
 #
 # More on PSP ordering: https://kubernetes.io/docs/concepts/policy/pod-security-policy/#policy-order
-apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
+apiVersion: policy/v1beta1
 metadata:
   name: 00-rook-privileged
   annotations:
@@ -82,8 +83,8 @@ spec:
       max: 9070
 {{- if .Values.rbacEnable }}
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: 'psp:rook'
   labels:
@@ -91,17 +92,17 @@ metadata:
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
-- apiGroups:
-  - policy
-  resources:
-  - podsecuritypolicies
-  resourceNames:
-  - 00-rook-privileged
-  verbs:
-  - use
+  - apiGroups:
+      - policy
+    resources:
+      - podsecuritypolicies
+    resourceNames:
+      - 00-rook-privileged
+    verbs:
+      - use
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-system-psp
   labels:
@@ -117,8 +118,8 @@ subjects:
     name: rook-ceph-system
     namespace: {{ .Release.Namespace }} # namespace:operator
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-csi-cephfs-provisioner-sa-psp
 roleRef:
@@ -130,8 +131,8 @@ subjects:
     name: rook-csi-cephfs-provisioner-sa
     namespace: {{ .Release.Namespace }} # namespace:operator
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-csi-cephfs-plugin-sa-psp
 roleRef:
@@ -143,8 +144,8 @@ subjects:
     name: rook-csi-cephfs-plugin-sa
     namespace: {{ .Release.Namespace }} # namespace:operator
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-csi-rbd-plugin-sa-psp
 roleRef:
@@ -156,8 +157,8 @@ subjects:
     name: rook-csi-rbd-plugin-sa
     namespace: {{ .Release.Namespace }} # namespace:operator
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-csi-rbd-provisioner-sa-psp
 roleRef:

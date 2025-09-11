@@ -1,10 +1,11 @@
-{{/*
-ServiceAccounts needed for running a Rook CephCluster
+{{- /*
+  ServiceAccounts needed for running a Rook CephCluster
 */}}
-{{- define "library.cluster.serviceaccounts" }}
+{{- define "library.cluster.serviceaccounts" -}}
+---
 # Service account for Ceph OSDs
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
@@ -12,11 +13,11 @@ metadata:
     operator: rook
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
-{{ include "library.imagePullSecrets" . }}
+{{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
 # Service account for Ceph mgrs
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-mgr
   namespace: {{ .Release.Namespace }} # namespace:cluster
@@ -24,11 +25,11 @@ metadata:
     operator: rook
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
-{{ include "library.imagePullSecrets" . }}
+{{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
 # Service account for the job that reports the Ceph version in an image
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-cmd-reporter
   namespace: {{ .Release.Namespace }} # namespace:cluster
@@ -36,19 +37,19 @@ metadata:
     operator: rook
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
-{{ include "library.imagePullSecrets" . }}
+{{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
 # Service account for job that purges OSDs from a Rook-Ceph cluster
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-purge-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
-{{ include "library.imagePullSecrets" . }}
+{{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
 # Service account for RGW server
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-rgw
   namespace: {{ .Release.Namespace }} # namespace:cluster
@@ -56,16 +57,16 @@ metadata:
     operator: rook
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
-{{ include "library.imagePullSecrets" . }}
+{{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
 # Service account for other components
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-default
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
     operator: rook
     storage-backend: ceph
-{{ include "library.imagePullSecrets" . }}
-{{ end }}
+{{- include "library.imagePullSecrets" . | nindent 0 }}
+{{- end }}

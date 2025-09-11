@@ -1,6 +1,7 @@
+{{- if .Capabilities.APIVersions.Has "security.openshift.io/v1" -}}
+---
 # scc for the Rook and Ceph daemons
 # for creating cluster in openshift
-{{- if .Capabilities.APIVersions.Has "security.openshift.io/v1" }}
 kind: SecurityContextConstraints
 apiVersion: security.openshift.io/v1
 metadata:
@@ -84,20 +85,19 @@ volumes:
   - projected
 users:
   # A user needs to be added for each csi service account.
-{{- if .Values.csi.rookUseCsiOperator }}
+  {{- if .Values.csi.rookUseCsiOperator }}
   - system:serviceaccount:{{ .Release.Namespace }}:ceph-csi-cephfs-ctrlplugin-sa
   - system:serviceaccount:{{ .Release.Namespace }}:ceph-csi-cephfs-nodeplugin-sa
   - system:serviceaccount:{{ .Release.Namespace }}:ceph-csi-nfs-ctrlplugin-sa
   - system:serviceaccount:{{ .Release.Namespace }}:ceph-csi-nfs-nodeplugin-sa
   - system:serviceaccount:{{ .Release.Namespace }}:ceph-csi-rbd-ctrlplugin-sa
   - system:serviceaccount:{{ .Release.Namespace }}:ceph-csi-rbd-nodeplugin-sa
-{{- else }}
+  {{- else }}
   - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-rbd-plugin-sa
   - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-rbd-provisioner-sa
   - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-cephfs-plugin-sa
   - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-cephfs-provisioner-sa
   - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-nfs-plugin-sa
   - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-nfs-provisioner-sa
-{{- end }}
----
+  {{- end }}
 {{- end }}

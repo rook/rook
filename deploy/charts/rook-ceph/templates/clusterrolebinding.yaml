@@ -1,4 +1,5 @@
-{{- if .Values.rbacEnable }}
+{{- if .Values.rbacEnable -}}
+---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -30,9 +31,9 @@ roleRef:
   kind: ClusterRole
   name: rook-ceph-global
 subjects:
-- kind: ServiceAccount
-  name: rook-ceph-system
-  namespace: {{ .Release.Namespace }} # namespace:operator
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: {{ .Release.Namespace }} # namespace:operator
 ---
 kind: ClusterRoleBinding
 # Give Rook-Ceph Operator permissions to provision ObjectBuckets in response to ObjectBucketClaims.
@@ -88,8 +89,8 @@ roleRef:
   kind: ClusterRole
   name: cephfs-csi-nodeplugin
   apiGroup: rbac.authorization.k8s.io
----
 {{- if .Values.csi.nfs.enabled }}
+---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -117,8 +118,8 @@ roleRef:
   kind: ClusterRole
   name: ceph-nfs-csi-nodeplugin
   apiGroup: rbac.authorization.k8s.io
+{{- end }}
 ---
-{{ end }}
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:

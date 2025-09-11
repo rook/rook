@@ -1,11 +1,11 @@
-{{/*
-RoleBindings needed to enable Pod Security Policies for a CephCluster.
+{{- /*
+  RoleBindings needed to enable Pod Security Policies for a CephCluster.
 */}}
-{{- define "library.cluster.psp.rolebindings" }}
-{{- if semverCompare "<1.25.0-0" .Capabilities.KubeVersion.GitVersion }}
+{{- define "library.cluster.psp.rolebindings" -}}
+{{- if semverCompare "<1.25.0-0" .Capabilities.KubeVersion.GitVersion -}}
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-default-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster
@@ -22,8 +22,8 @@ subjects:
     name: default
     namespace: {{ .Release.Namespace }} # namespace:cluster
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster
@@ -36,8 +36,8 @@ subjects:
     name: rook-ceph-osd
     namespace: {{ .Release.Namespace }} # namespace:cluster
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-rgw-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster
@@ -50,8 +50,8 @@ subjects:
     name: rook-ceph-rgw
     namespace: {{ .Release.Namespace }} # namespace:cluster
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster
@@ -64,8 +64,8 @@ subjects:
     name: rook-ceph-mgr
     namespace: {{ .Release.Namespace }} # namespace:cluster
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cmd-reporter-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster
@@ -78,8 +78,8 @@ subjects:
     name: rook-ceph-cmd-reporter
     namespace: {{ .Release.Namespace }} # namespace:cluster
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-purge-osd-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster

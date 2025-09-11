@@ -1,7 +1,8 @@
-{{- if .Values.rbacEnable }}
+{{- if .Values.rbacEnable -}}
+---
 # Allow the operator to manage resources in its own namespace
-apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-system
   namespace: {{ .Release.Namespace }} # namespace:operator
@@ -10,57 +11,57 @@ metadata:
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - configmaps
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - apps
-  - extensions
-  resources:
-  - daemonsets
-  - statefulsets
-  - deployments
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-  - deletecollection
-- apiGroups:
-  - batch
-  resources:
-  - cronjobs
-  verbs:
-  - delete
-- apiGroups:
-  - cert-manager.io
-  resources:
-  - certificates
-  - issuers
-  verbs:
-  - get
-  - create
-  - delete
-- apiGroups:
-  - multicluster.x-k8s.io
-  resources:
-  - serviceexports
-  verbs:
-  - get
-  - create
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - configmaps
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - apps
+      - extensions
+    resources:
+      - daemonsets
+      - statefulsets
+      - deployments
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+      - deletecollection
+  - apiGroups:
+      - batch
+    resources:
+      - cronjobs
+    verbs:
+      - delete
+  - apiGroups:
+      - cert-manager.io
+    resources:
+      - certificates
+      - issuers
+    verbs:
+      - get
+      - create
+      - delete
+  - apiGroups:
+      - multicluster.x-k8s.io
+    resources:
+      - serviceexports
+    verbs:
+      - get
+      - create
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -71,7 +72,7 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
-{{- if and .Values.csi.csiAddons .Values.csi.csiAddons.enabled }}
+  {{- if and .Values.csi.csiAddons .Values.csi.csiAddons.enabled }}
   - apiGroups: ["csiaddons.openshift.io"]
     resources: ["csiaddonsnodes"]
     verbs: ["get", "watch", "list", "create", "update", "delete"]
@@ -84,9 +85,9 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments/finalizers", "daemonsets/finalizers"]
     verbs: ["update"]
-{{- end }}
----
+  {{- end }}
 {{- if and .Values.csi.csiAddons .Values.csi.csiAddons.enabled }}
+---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -105,8 +106,8 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments/finalizers", "daemonsets/finalizers"]
     verbs: ["update"]
----
 {{- end }}
+---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
