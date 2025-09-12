@@ -259,6 +259,22 @@ func TestExtractMgrIP(t *testing.T) {
 	activeMgrRaw := "172.17.0.12:6801/2535462469"
 	ip := extractMgrIP(activeMgrRaw)
 	assert.Equal(t, "172.17.0.12", ip)
+
+	activeMgrRaw = "[2001:db8::1]:6801/2535462469"
+	ip = extractMgrIP(activeMgrRaw)
+	assert.Equal(t, "2001:db8::1", ip)
+
+	activeMgrRaw = "invalid-address"
+	ip = extractMgrIP(activeMgrRaw)
+	assert.Equal(t, activeMgrRaw, ip)
+
+	activeMgrRaw = ""
+	ip = extractMgrIP(activeMgrRaw)
+	assert.Equal(t, "", ip)
+
+	activeMgrRaw = "172.17.0.12"
+	ip = extractMgrIP(activeMgrRaw)
+	assert.Equal(t, activeMgrRaw, ip)
 }
 
 func TestConfigureExternalMetricsEndpoint(t *testing.T) {

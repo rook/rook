@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"net"
 	"os"
 	"path"
 	"reflect"
@@ -954,7 +955,12 @@ func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec ceph
 }
 
 func extractMgrIP(rawActiveAddr string) string {
-	return strings.Split(rawActiveAddr, ":")[0]
+	host, _, err := net.SplitHostPort(rawActiveAddr)
+	if err != nil {
+		// If there's no port, return as is
+		return rawActiveAddr
+	}
+	return host
 }
 
 func GetContainerImagePullPolicy(containerImagePullPolicy v1.PullPolicy) v1.PullPolicy {
