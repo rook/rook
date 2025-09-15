@@ -394,6 +394,11 @@ func (c *Cluster) shouldFailoverMonImmediately(ctx context.Context, monName stri
 	logger.Debugf("checking if mon %q is scheduled on a node", monName)
 	assignedNode := ""
 	if mapping, ok := c.mapping.Schedule[monName]; ok {
+		if mapping == nil {
+			// mon schedule information is not available in the rook-ceph-mon-endpoints configmap in case of mons on PVC
+			logger.Debugf("mon schedule information is not available for mon %q", monName)
+			return false
+		}
 		assignedNode = mapping.Hostname
 	}
 	if assignedNode == "" {
