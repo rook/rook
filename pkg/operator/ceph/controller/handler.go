@@ -19,6 +19,8 @@ package controller
 import (
 	"context"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,6 +55,32 @@ func ObjectToCRMapper[List client.ObjectList, T runtime.Object](ctx context.Cont
 					Name:      obj.GetName(),
 				},
 			})
+		}
+		return results
+	}, nil
+}
+
+func ConfigFromSecretToClusterMapper(ctx context.Context, c client.Client, list cephv1.CephClusterList, scheme *runtime.Scheme) (handler.TypedMapFunc[*corev1.Secret, reconcile.Request], error) {
+	return func(ctx context.Context, secret *corev1.Secret) []reconcile.Request {
+		logger.Info("Inside mapper func")
+		err := c.List(ctx, &list)
+		if err != nil {
+			return nil
+		}
+		results := []reconcile.Request{}
+		for _, obj := range list.Items {
+			for _, secretKeyMap := range obj.Spec.CephConfigFromSecret {
+				for _, keyselector := range secretKeyMap {
+					if secret.Name == keyselector.Name {
+						results = append(results, reconcile.Request{
+							NamespacedName: client.ObjectKey{
+								Namespace: obj.Namespace,
+								Name:      obj.Name,
+							},
+						})
+					}
+				}
+			}
 		}
 		return results
 	}, nil

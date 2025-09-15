@@ -19,6 +19,7 @@ package cluster
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -189,6 +190,48 @@ func watchControllerPredicate[T *cephv1.CephCluster](ctx context.Context, c clie
 
 			return false
 		},
+		GenericFunc: func(e event.TypedGenericEvent[T]) bool {
+			return false
+		},
+	}
+}
+
+// predicateForCephConfigFromSecretWatcher is the predicate function to trigger reconcile on Secret events (CephConfig)
+func predicateForCephConfigFromSecretWatcher[T *corev1.Secret](c client.Client) predicate.TypedFuncs[T] {
+	return predicate.TypedFuncs[T]{
+		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
+			objOld := (*corev1.Secret)(e.ObjectOld)
+			objNew := (*corev1.Secret)(e.ObjectNew)
+
+			// trigger reconcile if there are any changes in the secret values
+			if !reflect.DeepEqual(objOld.Data, objNew.Data) {
+				cephClusterList := cephv1.CephClusterList{}
+				err := c.List(context.Background(), &cephClusterList, client.InNamespace(objOld.Namespace))
+				if err != nil {
+					logger.Error("Failed to list ceph clusters, not reconciling. %v", err)
+				}
+				for _, cluster := range cephClusterList.Items {
+					for _, secretKeyMap := range cluster.Spec.CephConfigFromSecret {
+						for _, keyselector := range secretKeyMap {
+							if keyselector.Name == objOld.Name {
+								controller.ReloadManager()
+								return true
+							}
+						}
+					}
+				}
+			}
+			return false
+		},
+
+		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
+			return false
+		},
+
+		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
+			return false
+		},
+
 		GenericFunc: func(e event.TypedGenericEvent[T]) bool {
 			return false
 		},

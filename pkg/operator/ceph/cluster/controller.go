@@ -72,7 +72,6 @@ var (
 var objectsToWatch = []client.Object{
 	&appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
 	&corev1.Service{TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: corev1.SchemeGroupVersion.String()}},
-	&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
 	&corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}},
 }
 
@@ -200,6 +199,31 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 			&corev1.Node{TypeMeta: metav1.TypeMeta{Kind: "Node", APIVersion: corev1.SchemeGroupVersion.String()}},
 			handler.TypedEnqueueRequestsFromMapFunc(nodeHandler),
 			predicateForNodeWatcher(opManagerContext, mgr.GetClient(), context, opConfig.OperatorNamespace),
+		),
+	)
+	if err != nil {
+		return err
+	}
+
+	secretHandler, err := opcontroller.ConfigFromSecretToClusterMapper(
+		opManagerContext,
+		mgr.GetClient(),
+		cephv1.CephClusterList{},
+		mgr.GetScheme(),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes in CephConfigFromSecret
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.Secret{
+				TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()},
+			},
+			handler.TypedEnqueueRequestsFromMapFunc(secretHandler),
+			predicateForCephConfigFromSecretWatcher(mgr.GetClient()),
 		),
 	)
 	if err != nil {
