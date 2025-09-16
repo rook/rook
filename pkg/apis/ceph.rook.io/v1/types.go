@@ -2300,7 +2300,7 @@ type CephObjectZoneList struct {
 
 // ObjectZoneSpec represent the spec of an ObjectZone
 type ObjectZoneSpec struct {
-	// The display name for the ceph users
+	// The name of the zone group the zone is a member of.
 	ZoneGroup string `json:"zoneGroup"`
 
 	// The metadata pool settings
