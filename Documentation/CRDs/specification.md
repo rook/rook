@@ -2287,7 +2287,7 @@ string
 </em>
 </td>
 <td>
-<p>The display name for the ceph users</p>
+<p>The name of the zone group the zone is a member of.</p>
 </td>
 </tr>
 <tr>
@@ -11918,7 +11918,7 @@ string
 </em>
 </td>
 <td>
-<p>The display name for the ceph users</p>
+<p>The name of the zone group the zone is a member of.</p>
 </td>
 </tr>
 <tr>
