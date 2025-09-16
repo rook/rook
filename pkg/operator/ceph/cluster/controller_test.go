@@ -18,6 +18,7 @@ package cluster
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,7 +30,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apifake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -138,8 +138,15 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 
 		unblockedCluster := &cephv1.CephCluster{}
 		err = client.Get(ctx, nsName, unblockedCluster)
-		assert.Error(t, err)
-		assert.True(t, kerrors.IsNotFound(err))
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(unblockedCluster.Status.Conditions))
+		condition := unblockedCluster.Status.Conditions[0]
+		if condition.Type != cephv1.ConditionDeletionIsBlocked {
+			condition = unblockedCluster.Status.Conditions[1]
+		}
+		assert.Equal(t, cephv1.ConditionDeletionIsBlocked, condition.Type)
+		assert.True(t, strings.Contains(condition.Message, "has no dependent custom resources blocking deletion"))
+		logger.Infof("condition: %+v", condition)
 	})
 }
 
