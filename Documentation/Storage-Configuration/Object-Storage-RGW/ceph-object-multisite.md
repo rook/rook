@@ -354,6 +354,8 @@ kind: CephObjectRealm
 metadata:
   name: my-store
   namespace: rook-ceph # namespace:cluster
+spec:
+  defaultRealm: false
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectZoneGroup
