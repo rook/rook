@@ -264,6 +264,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 }
 
 func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
+	cluster.ClusterInfo.Context = c.OpManagerCtx
 	// Cluster Spec validation
 	err := preClusterStartValidation(cluster)
 	if err != nil {
@@ -287,8 +288,6 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	}
 
 	controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring the Ceph cluster")
-
-	cluster.ClusterInfo.Context = c.OpManagerCtx
 	// Run the orchestration
 	err = cluster.reconcileCephDaemons(c.rookImage, *cephVersion)
 	if err != nil {
