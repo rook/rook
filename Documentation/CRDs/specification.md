@@ -2120,7 +2120,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>The display name for the ceph users</p>
+<p>The display name for the ceph user.</p>
 </td>
 </tr>
 <tr>
@@ -2259,7 +2259,7 @@ string
 </em>
 </td>
 <td>
-<p>The display name for the ceph users</p>
+<p>The name of the zone group the zone is a member of.</p>
 </td>
 </tr>
 <tr>
@@ -2419,7 +2419,7 @@ string
 </em>
 </td>
 <td>
-<p>The display name for the ceph users</p>
+<p>The name of the realm the zone group is a member of.</p>
 </td>
 </tr>
 </table>
@@ -10681,7 +10681,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>The display name for the ceph users</p>
+<p>The display name for the ceph user.</p>
 </td>
 </tr>
 <tr>
@@ -11138,7 +11138,7 @@ string
 </em>
 </td>
 <td>
-<p>The display name for the ceph users</p>
+<p>The name of the realm the zone group is a member of.</p>
 </td>
 </tr>
 </tbody>
@@ -11167,7 +11167,7 @@ string
 </em>
 </td>
 <td>
-<p>The display name for the ceph users</p>
+<p>The name of the zone group the zone is a member of.</p>
 </td>
 </tr>
 <tr>
