@@ -714,14 +714,17 @@ function test_csi_nfs_workload {
 }
 
 function install_minikube_with_none_driver() {
-  CRICTL_VERSION="v1.33.0"
-  MINIKUBE_VERSION="v1.36.0"
+  CRICTL_VERSION="v1.34.0"
+  MINIKUBE_VERSION="v1.37.0"
 
   sudo apt update
   sudo apt install -y conntrack socat
   curl -LO https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube_latest_amd64.deb
   sudo dpkg -i minikube_latest_amd64.deb
   rm -f minikube_latest_amd64.deb
+  # The dpkg install does not install the minikube binary to the needed location, so
+  # move the minikube binary to the expected location
+  sudo mv /usr/bin/minikube /usr/local/bin/minikube
 
   curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.4.0/cri-dockerd_0.4.0.3-0.ubuntu-focal_amd64.deb
   sudo dpkg -i cri-dockerd_0.4.0.3-0.ubuntu-focal_amd64.deb
