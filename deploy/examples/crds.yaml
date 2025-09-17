@@ -13941,7 +13941,7 @@ spec:
                   description: The namespace where the parent CephCluster and CephObjectStore are found
                   type: string
                 displayName:
-                  description: The display name for the ceph users
+                  description: The display name for the ceph user.
                   type: string
                 keys:
                   description: |-
@@ -14122,7 +14122,7 @@ spec:
               description: ObjectZoneGroupSpec represent the spec of an ObjectZoneGroup
               properties:
                 realm:
-                  description: The display name for the ceph users
+                  description: The name of the realm the zone group is a member of.
                   type: string
               required:
                 - realm
@@ -14707,7 +14707,7 @@ spec:
                       type: boolean
                   type: object
                 zoneGroup:
-                  description: The display name for the ceph users
+                  description: The name of the zone group the zone is a member of.
                   type: string
               required:
                 - zoneGroup

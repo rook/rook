@@ -2228,7 +2228,7 @@ type ObjectStoreUserSpec struct {
 	// The store the user will be created in
 	// +optional
 	Store string `json:"store,omitempty"`
-	// The display name for the ceph users
+	// The display name for the ceph user.
 	// +optional
 	DisplayName string `json:"displayName,omitempty"`
 	// +optional
@@ -2409,7 +2409,7 @@ type CephObjectZoneGroupList struct {
 
 // ObjectZoneGroupSpec represent the spec of an ObjectZoneGroup
 type ObjectZoneGroupSpec struct {
-	// The display name for the ceph users
+	// The name of the realm the zone group is a member of.
 	Realm string `json:"realm"`
 }
 
@@ -2441,7 +2441,7 @@ type CephObjectZoneList struct {
 
 // ObjectZoneSpec represent the spec of an ObjectZone
 type ObjectZoneSpec struct {
-	// The display name for the ceph users
+	// The name of the zone group the zone is a member of.
 	ZoneGroup string `json:"zoneGroup"`
 
 	// The metadata pool settings
