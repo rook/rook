@@ -17,6 +17,7 @@ metadata:
 spec:
   pull:
     endpoint: http://10.2.105.133:80
+  defaultRealm: true
 ```
 
 ## Settings
