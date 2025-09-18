@@ -9,6 +9,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-monitoring
   namespace: {{ .Release.Namespace }} # namespace:cluster
+  labels:
+    operator: rook
+    storage-backend: ceph
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - "monitoring.coreos.com"
@@ -28,6 +32,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-monitoring-mgr
   namespace: {{ .Release.Namespace }} # namespace:cluster
+  labels:
+    operator: rook
+    storage-backend: ceph
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
 - apiGroups:
   - monitoring.coreos.com
@@ -47,6 +55,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-monitoring
   namespace: {{ .Release.Namespace }} # namespace:cluster
+  labels:
+    operator: rook
+    storage-backend: ceph
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -62,6 +74,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-monitoring-mgr
   namespace: {{ .Release.Namespace }} # namespace:cluster
+  labels:
+    operator: rook
+    storage-backend: ceph
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
