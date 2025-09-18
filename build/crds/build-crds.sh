@@ -74,7 +74,7 @@ build_helm_resources() {
   echo "Generating helm resources.yaml to temp file: $TMP_FILE"
   {
     # add header
-    echo "{{- if .Values.crds.enabled }}"
+    echo "{{- if .Values.crds.enabled -}}"
 
     # Add helm annotations to all CRDS, remove empty lines in the output
     # skip the comment lines of crds.yaml as well as the yaml doc header

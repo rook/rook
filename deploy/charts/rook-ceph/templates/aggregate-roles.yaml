@@ -1,35 +1,36 @@
-{{- if .Values.rbacAggregate.enableOBCs }}
-apiVersion: rbac.authorization.k8s.io/v1
+{{- if .Values.rbacAggregate.enableOBCs -}}
+---
 kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-obc-view
   labels:
     rbac.authorization.k8s.io/aggregate-to-view: "true"
 rules:
-- apiGroups:
-  - objectbucket.io
-  resources:
-  - objectbucketclaims
-  verbs:
-  - get
-  - list
-  - watch
+  - apiGroups:
+      - objectbucket.io
+    resources:
+      - objectbucketclaims
+    verbs:
+      - get
+      - list
+      - watch
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-obc-edit
   labels:
     rbac.authorization.k8s.io/aggregate-to-edit: "true"
 rules:
-- apiGroups:
-  - objectbucket.io
-  resources:
-  - objectbucketclaims
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - patch
-  - update
+  - apiGroups:
+      - objectbucket.io
+    resources:
+      - objectbucketclaims
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
 {{- end }}

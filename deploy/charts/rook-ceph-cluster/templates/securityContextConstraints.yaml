@@ -1,6 +1,7 @@
+{{- if .Capabilities.APIVersions.Has "security.openshift.io/v1" -}}
+---
 # scc for the Rook and Ceph daemons
 # for creating cluster in openshift
-{{- if .Capabilities.APIVersions.Has "security.openshift.io/v1" }}
 kind: SecurityContextConstraints
 apiVersion: security.openshift.io/v1
 metadata:

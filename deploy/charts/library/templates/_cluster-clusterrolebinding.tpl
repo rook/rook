@@ -1,12 +1,13 @@
-{{/*
-ClusterRoleBindings needed for running a Rook CephCluster
+{{- /*
+  ClusterRoleBindings needed for running a Rook CephCluster
 */}}
-{{- define "library.cluster.clusterrolebindings" }}
+{{- define "library.cluster.clusterrolebindings" -}}
+---
 # Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-mgr-cluster{{ template "library.suffix-cluster-namespace" . }}
+  name: rook-ceph-mgr-cluster{{ include "library.suffix-cluster-namespace" . }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -20,7 +21,7 @@ subjects:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-osd{{ template "library.suffix-cluster-namespace" . }}
+  name: rook-ceph-osd{{ include "library.suffix-cluster-namespace" . }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
