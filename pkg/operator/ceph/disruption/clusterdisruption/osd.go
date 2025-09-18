@@ -316,7 +316,6 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 			return reconcile.Result{}, errors.Wrap(err, "failed to handle active drains")
 		}
 	} else if pdbStateMap.Data[drainingFailureDomainKey] == "" {
-		logger.Infof("`maxUnavailable` for the main OSD PDB is set to 1")
 		// delete all blocking OSD pdb and restore the default OSD pdb
 		err = r.handleInactiveDrains(allFailureDomains, failureDomainType, clusterInfo.Namespace, excludeOSDs)
 		if err != nil {
@@ -550,6 +549,16 @@ func setPDBConfig(pdbStateMap *corev1.ConfigMap, osdDownFailureDomains, nodeDrai
 			pdbStateMap.Data[drainingFailureDomainKey] = nodeDrainFailureDomains[0]
 			pdbStateMap.Data[setNoOut] = "true"
 		} else if len(osdDownFailureDomains) > 0 {
+			pdbStateMap.Data[drainingFailureDomainKey] = osdDownFailureDomains[0]
+			pdbStateMap.Data[setNoOut] = ""
+		}
+		pdbStateMap.Data[drainingFailureDomainDurationKey] = time.Now().Format(time.RFC3339)
+	} else {
+		// Update the PDB configmap if the previously drained node is back but some other nodes are down.
+		if len(nodeDrainFailureDomains) > 0 && !slices.Contains(nodeDrainFailureDomains, pdbStateMap.Data[drainingFailureDomainKey]) {
+			pdbStateMap.Data[drainingFailureDomainKey] = nodeDrainFailureDomains[0]
+			pdbStateMap.Data[setNoOut] = "true"
+		} else if len(osdDownFailureDomains) > 0 && !slices.Contains(osdDownFailureDomains, pdbStateMap.Data[drainingFailureDomainKey]) {
 			pdbStateMap.Data[drainingFailureDomainKey] = osdDownFailureDomains[0]
 			pdbStateMap.Data[setNoOut] = ""
 		}
