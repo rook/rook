@@ -25,3 +25,18 @@ runs:
       with:
         limit-access-to-actor: false
         detached: true
+
+#    - name: prepare upterm for detached mode
+#      shell: bash --noprofile --norc -eo pipefail -x {0}
+#      if: env.USE_TMATE
+#      run: |
+#        touch continue
+    - name: set up upterm session for debugging
+      if: ${{ env.USE_TMATE }}
+      uses: owenthereal/action-upterm@v1
+      with:
+        detached: true
+        ## whether to limit ssh access and adds the ssh public key for the user which triggered the workflow:
+        limit-access-to-actor: false
+        ## If no one connects after one minute, shut down server.
+        wait-timeout-minutes: 1
