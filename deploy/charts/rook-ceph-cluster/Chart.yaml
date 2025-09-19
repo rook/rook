@@ -1,3 +1,4 @@
+---
 apiVersion: v2
 description: Manages a single Ceph cluster namespace for Rook
 name: rook-ceph-cluster

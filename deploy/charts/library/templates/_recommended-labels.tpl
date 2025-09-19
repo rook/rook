@@ -1,5 +1,5 @@
-{{/*
-Common labels
+{{- /*
+  Common labels
 */}}
 {{- define "library.rook-ceph.labels" -}}
 app.kubernetes.io/part-of: rook-ceph-operator

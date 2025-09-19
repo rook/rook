@@ -1,6 +1,7 @@
-{{- if .Values.rbacAggregate.enableOBCs }}
-apiVersion: rbac.authorization.k8s.io/v1
+{{- if .Values.rbacAggregate.enableOBCs -}}
+---
 kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-obc-view
   labels:
@@ -9,17 +10,17 @@ metadata:
     rbac.authorization.k8s.io/aggregate-to-view: "true"
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
-- apiGroups:
-  - objectbucket.io
-  resources:
-  - objectbucketclaims
-  verbs:
-  - get
-  - list
-  - watch
+  - apiGroups:
+      - objectbucket.io
+    resources:
+      - objectbucketclaims
+    verbs:
+      - get
+      - list
+      - watch
 ---
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-obc-edit
   labels:
@@ -28,14 +29,14 @@ metadata:
     rbac.authorization.k8s.io/aggregate-to-edit: "true"
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
-- apiGroups:
-  - objectbucket.io
-  resources:
-  - objectbucketclaims
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - patch
-  - update
+  - apiGroups:
+      - objectbucket.io
+    resources:
+      - objectbucketclaims
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
 {{- end }}

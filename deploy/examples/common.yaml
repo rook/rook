@@ -248,8 +248,8 @@ rules:
     verbs: ["create"]
 ---
 # The cluster role for managing all the cluster-specific resources in a namespace
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cluster-mgmt
   labels:
@@ -279,10 +279,10 @@ rules:
       - delete
 ---
 # The cluster role for managing the Rook CRDs
-apiVersion: rbac.authorization.k8s.io/v1
 # Rook watches for its CRDs in all namespaces, so this should be a cluster-scoped role unless the
 # operator config `ROOK_CURRENT_NAMESPACE_ONLY=true`.
 kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-global
   labels:
@@ -1060,8 +1060,8 @@ rules:
     verbs: ["get", "update", "delete", "list"]
 ---
 # Allow the operator to manage resources in its own namespace
-apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-system
   namespace: rook-ceph # namespace:operator
@@ -1309,8 +1309,8 @@ subjects:
     namespace: rook-ceph # namespace:operator
 ---
 # Service account for Ceph COSI driver
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: objectstorage-provisioner
   namespace: rook-ceph # namespace:operator
@@ -1322,8 +1322,8 @@ metadata:
 #   - name: my-registry-secret
 ---
 # Service account for the job that reports the Ceph version in an image
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-cmd-reporter
   namespace: rook-ceph # namespace:cluster
@@ -1335,8 +1335,8 @@ metadata:
 #   - name: my-registry-secret
 ---
 # Service account for other components
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-default
   namespace: rook-ceph # namespace:cluster
@@ -1348,8 +1348,8 @@ metadata:
 #   - name: my-registry-secret
 ---
 # Service account for Ceph mgrs
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-mgr
   namespace: rook-ceph # namespace:cluster
@@ -1361,8 +1361,8 @@ metadata:
 #   - name: my-registry-secret
 ---
 # Service account for Ceph OSDs
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-osd
   namespace: rook-ceph # namespace:cluster
@@ -1374,8 +1374,8 @@ metadata:
 #   - name: my-registry-secret
 ---
 # Service account for job that purges OSDs from a Rook-Ceph cluster
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-purge-osd
   namespace: rook-ceph # namespace:cluster
@@ -1387,8 +1387,8 @@ metadata:
 #   - name: my-registry-secret
 ---
 # Service account for RGW server
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-rgw
   namespace: rook-ceph # namespace:cluster
@@ -1400,8 +1400,8 @@ metadata:
 #   - name: my-registry-secret
 ---
 # Service account for the Rook-Ceph operator
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-ceph-system
   namespace: rook-ceph # namespace:operator
@@ -1413,8 +1413,8 @@ metadata:
 #   - name: my-registry-secret
 ---
 # Service account for the CephFS CSI driver
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-csi-cephfs-plugin-sa
   namespace: rook-ceph # namespace:operator
@@ -1422,8 +1422,8 @@ metadata:
 #   - name: my-registry-secret
 ---
 # Service account for the CephFS CSI provisioner
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-csi-cephfs-provisioner-sa
   namespace: rook-ceph # namespace:operator
@@ -1431,8 +1431,8 @@ metadata:
 #   - name: my-registry-secret
 ---
 # Service account for the RBD CSI driver
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-csi-rbd-plugin-sa
   namespace: rook-ceph # namespace:operator
@@ -1440,8 +1440,8 @@ metadata:
 #   - name: my-registry-secret
 ---
 # Service account for the RBD CSI provisioner
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
   name: rook-csi-rbd-provisioner-sa
   namespace: rook-ceph # namespace:operator

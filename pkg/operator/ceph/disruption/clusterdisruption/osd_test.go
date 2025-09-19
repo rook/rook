@@ -547,12 +547,29 @@ func TestSetPDBConfig(t *testing.T) {
 			expecteNoOutSetting:           "true",
 		},
 		{
-			name:                          "case 3: failure domain with drained nodes should get higher precedence",
+			name:                          "case 4: failure domain with drained nodes should get higher precedence",
 			pdbConfig:                     fakePDBConfigMap(""),
 			osdDownFailureDomains:         []string{"zone-1", "zone-2", "zone-3"},
 			drainingFailureDomains:        []string{"zone-3"},
 			expectedFailureDomainKeyValue: "zone-3",
 			expecteNoOutSetting:           "true",
+		},
+		{
+			name:                          "case 5: pdb configmap should be updated with new drainingFailureDomain, if previously drained failure domain is up",
+			pdbConfig:                     fakePDBConfigMap("zone-1"),
+			osdDownFailureDomains:         []string{"zone-2"},
+			drainingFailureDomains:        []string{"zone-3"},
+			expectedFailureDomainKeyValue: "zone-3",
+			expecteNoOutSetting:           "true",
+		},
+
+		{
+			name:                          "case 6: pdb configmap should be updated with new osdDownFailureDomains, if previously drained failure domain is up",
+			pdbConfig:                     fakePDBConfigMap("zone-1"),
+			osdDownFailureDomains:         []string{"zone-2"},
+			drainingFailureDomains:        []string{},
+			expectedFailureDomainKeyValue: "zone-2",
+			expecteNoOutSetting:           "",
 		},
 	}
 

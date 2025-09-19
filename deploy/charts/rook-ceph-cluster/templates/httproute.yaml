@@ -1,32 +1,35 @@
-{{- if .Values.route.dashboard.host }}
+{{- if .Values.route.dashboard.host -}}
 ---
-apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
+apiVersion: gateway.networking.k8s.io/v1
 metadata:
-  name: {{ template "clusterName" . }}-dashboard
+  name: {{ include "clusterName" . }}-dashboard
   namespace: {{ .Release.Namespace }} # namespace:cluster
-  {{- if .Values.route.dashboard.labels }}
-  labels: {{- toYaml .Values.route.dashboard.labels | nindent 4 }}
-  {{- end}}
-  {{- if .Values.route.dashboard.annotations }}
-  annotations: {{- toYaml .Values.route.dashboard.annotations | nindent 4 }}
+  {{- with .Values.route.dashboard.labels }}
+  labels:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
+  {{- with .Values.route.dashboard.annotations }}
+  annotations:
+    {{- . | toYaml | nindent 4 }}
   {{- end }}
 spec:
   hostnames:
-  - {{ .Values.route.dashboard.host.name | quote }}
-  parentRefs: {{- toYaml .Values.route.dashboard.parentRefs | nindent 2 }}
+    - {{ .Values.route.dashboard.host.name | quote }}
+  parentRefs:
+    {{- .Values.route.dashboard.parentRefs | toYaml | nindent 4 }}
   rules:
-  - backendRefs:
-    - name: rook-ceph-mgr-dashboard
-      {{- if .Values.cephClusterSpec.dashboard.port}}
-      port: {{ .Values.cephClusterSpec.dashboard.port }}
-      {{- else if .Values.cephClusterSpec.dashboard.ssl }}
-      port: 8443
-      {{- else }}
-      port: 7000
-      {{- end }}
-    matches:
-    - path:
-        type: {{ .Values.route.dashboard.host.pathType | default "Prefix" }}
-        value: {{ .Values.route.dashboard.host.path | default "/" }}
+    - backendRefs:
+        - name: rook-ceph-mgr-dashboard
+          {{- if .Values.cephClusterSpec.dashboard.port }}
+          port: {{ .Values.cephClusterSpec.dashboard.port }}
+          {{- else if .Values.cephClusterSpec.dashboard.ssl }}
+          port: 8443
+          {{- else }}
+          port: 7000
+          {{- end }}
+      matches:
+        - path:
+            type: {{ .Values.route.dashboard.host.pathType | default "Prefix" }}
+            value: {{ .Values.route.dashboard.host.path | default "/" }}
 {{- end }}

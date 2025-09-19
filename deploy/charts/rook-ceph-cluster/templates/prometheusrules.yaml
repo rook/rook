@@ -1,21 +1,21 @@
-{{- if .Values.monitoring }}
-{{- if .Values.monitoring.createPrometheusRules }}
+{{- if .Values.monitoring -}}
+{{- if .Values.monitoring.createPrometheusRules -}}
 ---
-apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
+apiVersion: monitoring.coreos.com/v1
 metadata:
   labels:
     prometheus: rook-prometheus
     role: alert-rules
-{{- if  .Values.monitoring.prometheusRule.labels }}
-{{ toYaml .Values.monitoring.prometheusRule.labels | indent 4 }}
-{{- end }}
-{{- if .Values.monitoring.prometheusRule.annotations }}
+    {{- with  .Values.monitoring.prometheusRule.labels }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
+  {{- with .Values.monitoring.prometheusRule.annotations }}
   annotations:
-{{ toYaml .Values.monitoring.prometheusRule.annotations | indent 4 }}
-{{- end }}
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
   name: prometheus-ceph-rules
-  namespace: {{ default .Release.Namespace .Values.monitoring.rulesNamespaceOverride }}
+  namespace: {{ .Values.monitoring.rulesNamespaceOverride | default .Release.Namespace }}
 spec:
   {{- $rulesFile := "prometheus/localrules.yaml" }}
   {{- if .Values.cephClusterSpec.external }}
@@ -42,7 +42,7 @@ spec:
     {{- if gt (len $rules) 0 }}
     - name: {{ $group.name }}
       rules:
-        {{- toYaml $rules | nindent 8 }}
+        {{- $rules | toYaml | nindent 8 }}
     {{- end }}
   {{- end }}
 {{- end }}

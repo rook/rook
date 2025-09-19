@@ -1,13 +1,14 @@
-{{- range .Values.cephObjectStores }}
-{{- if dig "ingress" "enabled" false . }}
+{{- range .Values.cephObjectStores -}}
+{{- if (. | dig "ingress" "enabled" false) }}
 ---
-apiVersion: networking.k8s.io/v1
 kind: Ingress
+apiVersion: networking.k8s.io/v1
 metadata:
   name: {{ .name }}
   namespace: {{ $.Release.Namespace }} # namespace:cluster
   {{- with .ingress.annotations }}
-  annotations: {{- toYaml . | nindent 4 }}
+  annotations:
+    {{- . | toYaml | nindent 4 }}
   {{- end }}
 spec:
   rules:
@@ -25,7 +26,8 @@ spec:
   ingressClassName: {{ . }}
   {{- end }}
   {{- with .ingress.tls }}
-  tls: {{- toYaml . | nindent 4 }}
+  tls:
+    {{- . | toYaml | nindent 4 }}
   {{- end }}
 {{- end }}
 {{- end }}

@@ -1,36 +1,36 @@
 {{- $root := . -}}
-{{- range $ecblockpool := .Values.cephECBlockPools -}}
+{{- range $ecblockpool := .Values.cephECBlockPools }}
 ---
-apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
+apiVersion: ceph.rook.io/v1
 metadata:
   name: {{ $ecblockpool.name }}
   namespace: {{ $root.Release.Namespace }} # namespace:cluster
 spec:
-{{ toYaml $ecblockpool.spec.dataPool | indent 2 }}
+  {{- $ecblockpool.spec.dataPool | toYaml | nindent 2 }}
 ---
-apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
+apiVersion: ceph.rook.io/v1
 metadata:
   name: {{ $ecblockpool.name }}-metadata
   namespace: {{ $root.Release.Namespace }} # namespace:cluster
 spec:
-{{ toYaml $ecblockpool.spec.metadataPool | indent 2 }}
+  {{- $ecblockpool.spec.metadataPool | toYaml | nindent 2 }}
+{{- if $ecblockpool.storageClass.enabled }}
 ---
-{{- if default false $ecblockpool.storageClass.enabled }}
-apiVersion: storage.k8s.io/v1
 kind: StorageClass
+apiVersion: storage.k8s.io/v1
 metadata:
   name: {{ $ecblockpool.storageClass.name }}
-{{- if $ecblockpool.storageClass.labels }}
+  {{- with $ecblockpool.storageClass.labels }}
   labels:
-{{ toYaml $ecblockpool.storageClass.labels | indent 4 }}
-{{- end }}
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
   annotations:
-    storageclass.kubernetes.io/is-default-class: "{{ if default false $ecblockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
-{{- if $ecblockpool.storageClass.annotations }}
-{{ toYaml $ecblockpool.storageClass.annotations | indent 4 }}
-{{- end }}
+    storageclass.kubernetes.io/is-default-class: "{{ if $ecblockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
+    {{- with $ecblockpool.storageClass.annotations }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
 
 {{- if $root.Values.csiDriverNamePrefix }}
 provisioner: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
@@ -65,5 +65,5 @@ parameters:
 #mounter: rbd-nbd
 allowVolumeExpansion: {{ $ecblockpool.storageClass.allowVolumeExpansion }}
 reclaimPolicy: {{ $ecblockpool.storageClass.reclaimPolicy }}
-{{ end }}
-{{ end }}
+{{- end }}
+{{- end }}

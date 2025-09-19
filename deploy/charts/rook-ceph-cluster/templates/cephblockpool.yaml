@@ -1,53 +1,49 @@
 {{- $root := . -}}
-{{- range $blockpool := .Values.cephBlockPools -}}
+{{- range $blockpool := .Values.cephBlockPools }}
 ---
-apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
+apiVersion: ceph.rook.io/v1
 metadata:
   name: {{ $blockpool.name }}
   namespace: {{ $root.Release.Namespace }} # namespace:cluster
 spec:
-{{ toYaml $blockpool.spec | indent 2 }}
+  {{- $blockpool.spec | toYaml | nindent 2 }}
+{{- if $blockpool.storageClass.enabled }}
 ---
-{{- if default false $blockpool.storageClass.enabled }}
-apiVersion: storage.k8s.io/v1
 kind: StorageClass
+apiVersion: storage.k8s.io/v1
 metadata:
-  name: {{ $blockpool.storageClass.name }}
-{{- if $blockpool.storageClass.labels }}
+  name: {{ $blockpool.storageClass.name | quote }}
+  {{- with $blockpool.storageClass.labels }}
   labels:
-{{ toYaml $blockpool.storageClass.labels | indent 4 }}
-{{- end }}
+    {{- . | nindent 4 }}
+  {{- end }}
   annotations:
-    storageclass.kubernetes.io/is-default-class: "{{ if default false $blockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
-{{- if $blockpool.storageClass.annotations }}
-{{ toYaml $blockpool.storageClass.annotations | indent 4 }}
-{{- end }}
+    storageclass.kubernetes.io/is-default-class: "{{ if $blockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
+    {{- with $blockpool.storageClass.annotations }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
 {{- if $root.Values.csiDriverNamePrefix }}
 provisioner: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
 {{- else }}
 provisioner: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
 {{- end }}
 parameters:
-  pool: {{ $blockpool.name }}
-  clusterID: {{ $root.Release.Namespace }}
-{{ with $blockpool.storageClass.parameters }}
-{{ tpl (toYaml .) $ | indent 2 }}
-{{ end }}
-reclaimPolicy: {{ default "Delete" $blockpool.storageClass.reclaimPolicy }}
-allowVolumeExpansion: {{ default "true" $blockpool.storageClass.allowVolumeExpansion }}
-volumeBindingMode: {{ default "Immediate" $blockpool.storageClass.volumeBindingMode }}
-{{- if $blockpool.storageClass.mountOptions }}
-mountOptions:
-  {{- range $blockpool.storageClass.mountOptions }}
-  - {{ . }}
+  pool: {{ $blockpool.name | quote }}
+  clusterID: {{ $root.Release.Namespace | quote }}
+  {{- with $blockpool.storageClass.parameters }}
+  {{- tpl (. | toYaml) $ | nindent 2 }}
   {{- end }}
+reclaimPolicy: {{ $blockpool.storageClass.reclaimPolicy | default "Delete" }}
+allowVolumeExpansion: {{ $blockpool.storageClass.allowVolumeExpansion | default "true" }}
+volumeBindingMode: {{ $blockpool.storageClass.volumeBindingMode | default "Immediate" }}
+{{- with $blockpool.storageClass.mountOptions }}
+mountOptions:
+  {{- . | toYaml | nindent 2 }}
 {{- end }}
-{{ if $blockpool.storageClass.allowedTopologies }}
+{{- with $blockpool.storageClass.allowedTopologies }}
 allowedTopologies:
-{{ with $blockpool.storageClass.allowedTopologies }}
-{{ toYaml . | indent 2 }}
-{{ end }}
-{{ end }}
-{{ end }}
-{{ end }}
+  {{- . | toYaml | nindent 2 }}
+{{- end }}
+{{- end }}
+{{- end }}

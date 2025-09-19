@@ -1,22 +1,21 @@
 {{- $root := . -}}
 {{- $filesystemvsc := .Values.cephFileSystemVolumeSnapshotClass -}}
 {{- $blockpoolvsc := .Values.cephBlockPoolsVolumeSnapshotClass -}}
-
+{{- if $filesystemvsc.enabled }}
 ---
-{{- if default false $filesystemvsc.enabled }}
-apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
+apiVersion: snapshot.storage.k8s.io/v1
 metadata:
   name: {{ $filesystemvsc.name }}
-{{- if $filesystemvsc.labels }}
+  {{- with $filesystemvsc.labels }}
   labels:
-{{ toYaml $filesystemvsc.labels | indent 4 }}
-{{- end }}
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
   annotations:
-    snapshot.storage.kubernetes.io/is-default-class: "{{ if default false $filesystemvsc.isDefault }}true{{ else }}false{{ end }}"
-{{- if $filesystemvsc.annotations }}
-{{ toYaml $filesystemvsc.annotations | indent 4 }}
-{{- end }}
+    snapshot.storage.kubernetes.io/is-default-class: "{{ if $filesystemvsc.isDefault }}true{{ else }}false{{ end }}"
+    {{- with $filesystemvsc.annotations }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
 {{- if $root.Values.csiDriverNamePrefix }}
 driver: {{ $root.Values.csiDriverNamePrefix }}.cephfs.csi.ceph.com
 {{- else }}
@@ -26,27 +25,26 @@ parameters:
   clusterID: {{ .Release.Namespace }}
   csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
   csi.storage.k8s.io/snapshotter-secret-namespace: {{ .Release.Namespace }}
-{{- if $filesystemvsc.parameters }}
-{{ toYaml $filesystemvsc.parameters | indent 2 }}
+  {{- with $filesystemvsc.parameters }}
+  {{- . | toYaml | nindent 2 }}
+  {{- end }}
+deletionPolicy: {{ $filesystemvsc.deletionPolicy | default "Delete" }}
 {{- end }}
-deletionPolicy: {{ default "Delete" $filesystemvsc.deletionPolicy }}
-{{- end }}
-
+{{- if $blockpoolvsc.enabled }}
 ---
-{{- if default false $blockpoolvsc.enabled }}
-apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
+apiVersion: snapshot.storage.k8s.io/v1
 metadata:
   name: {{ $blockpoolvsc.name }}
-{{- if $blockpoolvsc.labels }}
+  {{- with $blockpoolvsc.labels }}
   labels:
-{{ toYaml $blockpoolvsc.labels | indent 4 }}
-{{- end }}
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
   annotations:
-    snapshot.storage.kubernetes.io/is-default-class: "{{ if default false $blockpoolvsc.isDefault }}true{{ else }}false{{ end }}"
-{{- if $blockpoolvsc.annotations }}
-{{ toYaml $blockpoolvsc.annotations | indent 4 }}
-{{- end }}
+    snapshot.storage.kubernetes.io/is-default-class: "{{ if $blockpoolvsc.isDefault }}true{{ else }}false{{ end }}"
+    {{- with $blockpoolvsc.annotations }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
 {{- if $root.Values.csiDriverNamePrefix }}
 driver: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
 {{- else }}
@@ -56,8 +54,8 @@ parameters:
   clusterID: {{ .Release.Namespace }}
   csi.storage.k8s.io/snapshotter-secret-name: rook-csi-rbd-provisioner
   csi.storage.k8s.io/snapshotter-secret-namespace: {{ .Release.Namespace }}
-{{- if $blockpoolvsc.parameters }}
-{{ toYaml $blockpoolvsc.parameters | indent 2 }}
-{{- end }}
-deletionPolicy: {{ default "Delete" $blockpoolvsc.deletionPolicy }}
+  {{- with $blockpoolvsc.parameters }}
+  {{- . | toYaml | nindent 2 }}
+  {{- end }}
+deletionPolicy: {{ $blockpoolvsc.deletionPolicy | default "Delete" }}
 {{- end }}

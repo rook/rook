@@ -2,22 +2,21 @@
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
-  name: {{ default .Release.Namespace .Values.clusterName }}
-  namespace: {{ .Release.Namespace }} # namespace:cluster
+  name: {{ .Values.clusterName | default .Release.Namespace | quote }}
+  namespace: {{ .Release.Namespace | quote }} # namespace:cluster
 spec:
-{{- if .Values.monitoring }}
+  {{- with .Values.monitoring }}
   monitoring:
-    enabled: {{ .Values.monitoring.enabled | default false }}
-{{- if .Values.monitoring.externalMgrEndpoints }}
+    enabled: {{ .enabled | default false }}
+    {{- with .externalMgrEndpoints }}
     externalMgrEndpoints:
-{{ toYaml .Values.monitoring.externalMgrEndpoints | indent 6 }}
-{{- end }}
-{{- if .Values.monitoring.externalMgrPrometheusPort }}
-    externalMgrPrometheusPort: {{ toYaml .Values.monitoring.externalMgrPrometheusPort }}
-{{- end }}
-{{- if .Values.monitoring.interval }}
-    interval: {{ .Values.monitoring.interval }}
-{{- end }}
-{{- end }}
-
-{{ toYaml .Values.cephClusterSpec | indent 2 }}
+    {{- . | toYaml | nindent 6 }}
+    {{- end }}
+    {{- with .externalMgrPrometheusPort }}
+    externalMgrPrometheusPort: {{ . | toYaml }}
+    {{- end }}
+    {{- with .interval }}
+    interval: {{ . }}
+    {{- end }}
+  {{- end }}
+  {{- .Values.cephClusterSpec | toYaml | nindent 2 }}

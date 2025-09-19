@@ -1,4 +1,4 @@
-{{- if .Values.configOverride }}
+{{- if .Values.configOverride -}}
 ---
 kind: ConfigMap
 apiVersion: v1
@@ -7,5 +7,5 @@ metadata:
   namespace: {{ .Release.Namespace }} # namespace:cluster
 data:
   config: |
-{{ .Values.configOverride | nindent 4 }}
+    {{- .Values.configOverride | nindent 4 }}
 {{- end }}
