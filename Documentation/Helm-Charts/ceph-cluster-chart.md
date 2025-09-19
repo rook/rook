@@ -63,6 +63,9 @@ The following table lists the configurable parameters of the rook-operator chart
 | `cephClusterSpec` | Cluster configuration. | See [below](#ceph-cluster-spec) |
 | `cephFileSystemVolumeSnapshotClass` | Settings for the filesystem snapshot class | See [CephFS Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#cephfs-snapshots) |
 | `cephFileSystems` | A list of CephFileSystem configurations to deploy | See [below](#ceph-file-systems) |
+| `cephImage.allowUnsupported` |  | `false` |
+| `cephImage.repository` |  | `"quay.io/ceph/ceph"` |
+| `cephImage.tag` |  | `"v19.2.3"` |
 | `cephObjectStores` | A list of CephObjectStore configurations to deploy | See [below](#ceph-object-stores) |
 | `clusterName` | The metadata.name of the CephCluster CR | The same as the namespace |
 | `configOverride` | Cluster ceph.conf override | `nil` |
