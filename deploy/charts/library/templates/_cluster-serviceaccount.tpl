@@ -10,9 +10,7 @@ metadata:
   name: rook-ceph-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
-    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+    {{- include "library.rook-ceph.labels" (dict "component" "rbac" "Release" .Release "Chart" .Chart) | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
 # Service account for Ceph mgrs
@@ -22,9 +20,7 @@ metadata:
   name: rook-ceph-mgr
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
-    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+    {{- include "library.rook-ceph.labels" (dict "component" "rbac" "Release" .Release "Chart" .Chart) | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
 # Service account for the job that reports the Ceph version in an image
@@ -34,9 +30,7 @@ metadata:
   name: rook-ceph-cmd-reporter
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
-    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+    {{- include "library.rook-ceph.labels" (dict "component" "rbac" "Release" .Release "Chart" .Chart) | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
 # Service account for job that purges OSDs from a Rook-Ceph cluster
@@ -46,9 +40,7 @@ metadata:
   name: rook-ceph-purge-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
-    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+    {{- include "library.rook-ceph.labels" (dict "component" "rbac" "Release" .Release "Chart" .Chart) | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
 # Service account for RGW server
@@ -58,9 +50,7 @@ metadata:
   name: rook-ceph-rgw
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
-    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+    {{- include "library.rook-ceph.labels" (dict "component" "rbac" "Release" .Release "Chart" .Chart) | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
 # Service account for other components
@@ -70,8 +60,6 @@ metadata:
   name: rook-ceph-default
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
-    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+    {{- include "library.rook-ceph.labels" (dict "component" "rbac" "Release" .Release "Chart" .Chart) | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 {{- end }}

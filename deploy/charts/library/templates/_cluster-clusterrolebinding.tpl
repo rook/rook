@@ -9,9 +9,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-cluster{{ include "library.suffix-cluster-namespace" . }}
   labels:
-    operator: rook
-    storage-backend: ceph
-    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+    {{- include "library.rook-ceph.labels" (dict "component" "rbac" "Release" .Release "Chart" .Chart) | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -27,9 +25,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd{{ include "library.suffix-cluster-namespace" . }}
   labels:
-    operator: rook
-    storage-backend: ceph
-    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+    {{- include "library.rook-ceph.labels" (dict "component" "rbac" "Release" .Release "Chart" .Chart) | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
