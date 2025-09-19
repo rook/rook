@@ -156,6 +156,7 @@ define chart.targets
 promote.chart.$(1).$(2):
 	@echo === helm push $(2) to $(1)
 	$(HELM) push $(HELM_OUTPUT_DIR)/$(2)-$(HELM_CHART_VERSION).tgz oci://$(1)
+	cosign sign --yes $(1)/$(2):$(HELM_CHART_VERSION)
 promote.all.charts: promote.chart.$(1).$(2)
 endef
 $(foreach r,$(REGISTRIES), $(foreach c,$(HELM_CHARTS),$(eval $(call chart.targets,$(r),$(c)))))
@@ -184,6 +185,8 @@ build.all.images: build.image.$(1).$(2)
 publish.image.$(1).$(2):
 	@$(DOCKERCMD) push $(1)/ceph-$(2):$(VERSION)
 	@$(DOCKERCMD) push $(1)/ceph-$(2):$(BRANCH_NAME)
+	cosign sign --yes $(1)/ceph-$(2):$(VERSION)
+	cosign sign --yes $(1)/ceph-$(2):$(BRANCH_NAME)
 
 publish.all.images.$(1): publish.image.$(1).$(2)
 endef
@@ -193,11 +196,12 @@ define repo.manifest.targets
 publish.manifest.image.$(1): publish.all.images.$(1) $(MANIFEST_TOOL)
 	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(1)/ceph-ARCH:$(VERSION) --target $(1)/ceph:$(VERSION)
 	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(1)/ceph-ARCH:$(BRANCH_NAME) --target $(1)/ceph:$(BRANCH_NAME)
+	cosign sign --yes $(1)/ceph:$(VERSION)
+	cosign sign --yes $(1)/ceph:$(BRANCH_NAME)
 
 publish.images: publish.manifest.image.$(1)
 endef
 $(foreach r,$(REGISTRIES),$(eval $(call repo.manifest.targets,$(r))))
-
 
 build.images: build.all.images
 build.charts: build.all.charts
