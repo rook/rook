@@ -56,12 +56,9 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k8sutil.TruncateNodeNameForJob(prepareAppNameFmt, osdProps.crushHostname),
+			Name:      provisionJobName(osdProps.crushHostname),
 			Namespace: c.clusterInfo.Namespace,
-			Labels: map[string]string{
-				k8sutil.AppAttr:     prepareAppName,
-				k8sutil.ClusterAttr: c.clusterInfo.Namespace,
-			},
+			Labels:    provisionJobLabels(c.clusterInfo.Namespace),
 		},
 		Spec: batch.JobSpec{
 			Template: *podSpec,
@@ -354,4 +351,40 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	}
 
 	return osdProvisionContainer, nil
+}
+
+func (c *Cluster) deleteAllOrphanedPrepareJobs() {
+	listOpts := metav1.ListOptions{
+		LabelSelector: prepareJobSelector(),
+	}
+	jobClientset := c.context.Clientset.BatchV1().Jobs(c.clusterInfo.Namespace)
+	jobs, err := jobClientset.List(c.clusterInfo.Context, listOpts)
+	if err != nil {
+		logger.Warningf("failed to clean up any dangling OSD prepare jobs. failed to list OSD prepare jobs. %v", err)
+		return
+	}
+	for _, job := range jobs.Items {
+		logger.Debugf("cleaning up dangling OSD prepare job %q", job.Name)
+		err := jobClientset.Delete(c.clusterInfo.Context, job.Name, metav1.DeleteOptions{})
+		if err != nil {
+			logger.Warningf("failed to clean up dangling OSD prepare job %q. %v", job.Name, err)
+		}
+	}
+}
+
+func prepareJobSelector() string {
+	return fmt.Sprintf("%s=%s",
+		k8sutil.AppAttr, prepareAppName,
+	)
+}
+
+func provisionJobName(nodeOrPVCName string) string {
+	return k8sutil.TruncateNodeName(prepareAppNameFmt, nodeOrPVCName)
+}
+
+func provisionJobLabels(namespace string) map[string]string {
+	return map[string]string{
+		k8sutil.AppAttr:     prepareAppName,
+		k8sutil.ClusterAttr: namespace,
+	}
 }
