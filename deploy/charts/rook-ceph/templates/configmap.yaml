@@ -1,3 +1,4 @@
+---
 # Operator settings that can be updated without an operator restart
 # Operator settings that require an operator restart are found in the operator env vars
 kind: ConfigMap
@@ -23,8 +24,8 @@ data:
   {{- with .Values.discoverDaemonUdev }}
   DISCOVER_DAEMON_UDEV_BLACKLIST: {{ . | quote }}
   {{- end }}
-  {{- with .Values.revisionHistoryLimit }}
-  ROOK_REVISION_HISTORY_LIMIT: {{ . | quote }}
+  {{- if not (typeIs "<nil>" .Values.revisionHistoryLimit) }}
+  ROOK_REVISION_HISTORY_LIMIT: {{ .Values.revisionHistoryLimit | quote }}
   {{- end }}
   {{- with .Values.enforceHostNetwork }}
   ROOK_ENFORCE_HOST_NETWORK: {{ . | quote }}
@@ -153,49 +154,49 @@ data:
   ROOK_CSI_RBD_POD_LABELS: {{ . | quote }}
   {{- end }}
   {{- with .provisionerTolerations }}
-  CSI_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
+  CSI_PROVISIONER_TOLERATIONS: {{ . | toYaml | quote }}
   {{- end }}
   {{- with .provisionerNodeAffinity }}
   CSI_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .rbdProvisionerTolerations }}
-  CSI_RBD_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
+  CSI_RBD_PROVISIONER_TOLERATIONS: {{ . | toYaml | quote }}
   {{- end }}
   {{- with .rbdProvisionerNodeAffinity }}
   CSI_RBD_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .cephFSProvisionerTolerations }}
-  CSI_CEPHFS_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
+  CSI_CEPHFS_PROVISIONER_TOLERATIONS: {{ . | toYaml | quote }}
   {{- end }}
   {{- with .cephFSProvisionerNodeAffinity }}
   CSI_CEPHFS_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .nfsProvisionerTolerations }}
-  CSI_NFS_PROVISIONER_TOLERATIONS: {{ toYaml . | quote }}
+  CSI_NFS_PROVISIONER_TOLERATIONS: {{ . | toYaml | quote }}
   {{- end }}
   {{- with .nfsProvisionerNodeAffinity }}
   CSI_NFS_PROVISIONER_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .pluginTolerations }}
-  CSI_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
+  CSI_PLUGIN_TOLERATIONS: {{ . | toYaml | quote }}
   {{- end }}
   {{- with .pluginNodeAffinity }}
   CSI_PLUGIN_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .rbdPluginTolerations }}
-  CSI_RBD_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
+  CSI_RBD_PLUGIN_TOLERATIONS: {{ . | toYaml | quote }}
   {{- end }}
   {{- with .rbdPluginNodeAffinity }}
   CSI_RBD_PLUGIN_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .cephFSPluginTolerations }}
-  CSI_CEPHFS_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
+  CSI_CEPHFS_PLUGIN_TOLERATIONS: {{ . | toYaml | quote }}
   {{- end }}
   {{- with .cephFSPluginNodeAffinity }}
   CSI_CEPHFS_PLUGIN_NODE_AFFINITY: {{ . | quote }}
   {{- end }}
   {{- with .nfsPluginTolerations }}
-  CSI_NFS_PLUGIN_TOLERATIONS: {{ toYaml . | quote }}
+  CSI_NFS_PLUGIN_TOLERATIONS: {{ . | toYaml | quote }}
   {{- end }}
   {{- with .nfsPluginNodeAffinity }}
   CSI_NFS_PLUGIN_NODE_AFFINITY: {{ . | quote }}
@@ -255,16 +256,16 @@ data:
   CSI_NFS_PLUGIN_RESOURCE: {{ . | quote }}
   {{- end }}
   {{- with .csiRBDPluginVolume }}
-  CSI_RBD_PLUGIN_VOLUME: {{ toYaml . | quote }}
+  CSI_RBD_PLUGIN_VOLUME: {{ . | toYaml | quote }}
   {{- end }}
   {{- with .csiRBDPluginVolumeMount }}
-  CSI_RBD_PLUGIN_VOLUME_MOUNT: {{ toYaml . | quote }}
+  CSI_RBD_PLUGIN_VOLUME_MOUNT: {{ . | toYaml | quote }}
   {{- end }}
   {{- with .csiCephFSPluginVolume }}
-  CSI_CEPHFS_PLUGIN_VOLUME: {{ toYaml . | quote }}
+  CSI_CEPHFS_PLUGIN_VOLUME: {{ . | toYaml | quote }}
   {{- end }}
   {{- with .csiCephFSPluginVolumeMount }}
-  CSI_CEPHFS_PLUGIN_VOLUME_MOUNT: {{ toYaml . | quote }}
+  CSI_CEPHFS_PLUGIN_VOLUME_MOUNT: {{ . | toYaml | quote }}
   {{- end }}
   CSI_CEPHFS_ATTACH_REQUIRED: {{ .cephFSAttachRequired | quote }}
   CSI_RBD_ATTACH_REQUIRED: {{ .rbdAttachRequired | quote }}

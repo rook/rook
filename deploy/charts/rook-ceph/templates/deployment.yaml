@@ -1,5 +1,6 @@
-apiVersion: apps/v1
+---
 kind: Deployment
+apiVersion: apps/v1
 metadata:
   name: rook-ceph-operator
   namespace: {{ .Release.Namespace }} # namespace:operator
@@ -9,9 +10,9 @@ metadata:
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.scaleDownOperator | ternary 0 1 }}
-{{- if .Values.revisionHistoryLimit }}
+  {{- if not (typeIs "<nil>" .Values.revisionHistoryLimit) }}
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
-{{- end }}
+  {{- end }}
   selector:
     matchLabels:
       app: rook-ceph-operator
@@ -22,113 +23,116 @@ spec:
       labels:
         app: rook-ceph-operator
         helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
-{{- if .Values.operatorPodLabels }}
-{{ toYaml .Values.operatorPodLabels | indent 8 }}
-{{- end }}
-{{- if .Values.annotations }}
+        {{- with .Values.operatorPodLabels }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
+      {{- with .Values.annotations }}
       annotations:
-{{ toYaml .Values.annotations | indent 8 }}
-{{- end }}
+        {{- . | toYaml | nindent 8 }}
+      {{- end }}
     spec:
-{{- if .Values.priorityClassName }}
-      priorityClassName: {{ .Values.priorityClassName }}
-{{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
       tolerations:
         - effect: NoExecute
           key: node.kubernetes.io/unreachable
           operator: Exists
           tolerationSeconds: 5
-{{- if .Values.tolerations }}
-{{ toYaml .Values.tolerations | indent 8 }}
-{{- end }}
+        {{- with .Values.tolerations }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
       containers:
-      - name: rook-ceph-operator
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        args: ["ceph", "operator"]
-        securityContext: {{- .Values.containerSecurityContext | toYaml | nindent 10 }}
-        volumeMounts:
-        - mountPath: /var/lib/rook
-          name: rook-config
-        - mountPath: /etc/ceph
-          name: default-config-dir
-        env:
-        - name: ROOK_CURRENT_NAMESPACE_ONLY
-          value: {{ .Values.currentNamespaceOnly | quote }}
-{{- if .Values.discover }}
-{{- if .Values.discover.toleration }}
-        - name: DISCOVER_TOLERATION
-          value: {{ .Values.discover.toleration }}
-{{- end }}
-{{- if .Values.discover.tolerationKey }}
-        - name: DISCOVER_TOLERATION_KEY
-          value: {{ .Values.discover.tolerationKey }}
-{{- end }}
-{{- if .Values.discover.tolerations }}
-        - name: DISCOVER_TOLERATIONS
-          value: {{ toYaml .Values.discover.tolerations | quote }}
-{{- end }}
-{{- if .Values.discover.priorityClassName }}
-        - name: DISCOVER_PRIORITY_CLASS_NAME
-          value: {{ .Values.discover.priorityClassName }}
-{{- end }}
-{{- if .Values.discover.nodeAffinity }}
-        - name: DISCOVER_AGENT_NODE_AFFINITY
-          value: {{ toYaml .Values.discover.nodeAffinity | quote }}
-{{- end }}
-{{- if .Values.discover.podLabels }}
-        - name: DISCOVER_AGENT_POD_LABELS
-          value: {{ .Values.discover.podLabels }}
-{{- end }}
-{{- if .Values.discover.resources }}
-        - name: DISCOVER_DAEMON_RESOURCES
-          value: {{ .Values.discover.resources }}
-{{- end }}
-{{- end }}
-{{- if .Capabilities.APIVersions.Has "security.openshift.io/v1" }}
-        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
-          value: "true"
-{{- else }}
-        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
-          value: "{{ .Values.hostpathRequiresPrivileged }}"
-{{- end }}
-{{- if .Values.customHostnameLabel }}
-        - name: ROOK_CUSTOM_HOSTNAME_LABEL
-          value: {{ .Values.customHostnameLabel }}
-{{- end }}
-        - name: ROOK_DISABLE_DEVICE_HOTPLUG
-          value: "{{ .Values.disableDeviceHotplug }}"
-        - name: ROOK_DISCOVER_DEVICES_INTERVAL
-          value: "{{ .Values.discoveryDaemonInterval }}"
-        - name: NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-{{- if .Values.resources }}
-        resources:
-{{ toYaml .Values.resources | indent 10 }}
-{{- end }}
-{{- if .Values.useOperatorHostNetwork }}
+        - name: rook-ceph-operator
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["ceph", "operator"]
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+            {{- . | toYaml | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - mountPath: /var/lib/rook
+              name: rook-config
+            - mountPath: /etc/ceph
+              name: default-config-dir
+          env:
+            - name: ROOK_CURRENT_NAMESPACE_ONLY
+              value: {{ .Values.currentNamespaceOnly | quote }}
+            {{- with .Values.discover }}
+            {{- with .toleration }}
+            - name: DISCOVER_TOLERATION
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .tolerationKey }}
+            - name: DISCOVER_TOLERATION_KEY
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .tolerations }}
+            - name: DISCOVER_TOLERATIONS
+              value: {{ . | toYaml | quote }}
+            {{- end }}
+            {{- with .priorityClassName }}
+            - name: DISCOVER_PRIORITY_CLASS_NAME
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .nodeAffinity }}
+            - name: DISCOVER_AGENT_NODE_AFFINITY
+              value: {{ . | toYaml | quote }}
+            {{- end }}
+            {{- with .podLabels }}
+            - name: DISCOVER_AGENT_POD_LABELS
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .resources }}
+            - name: DISCOVER_DAEMON_RESOURCES
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Capabilities.APIVersions.Has "security.openshift.io/v1" }}
+            - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+              value: "true"
+            {{- else }}
+            - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+              value: {{ .Values.hostpathRequiresPrivileged | quote }}
+            {{- end }}
+            {{- with .Values.customHostnameLabel }}
+            - name: ROOK_CUSTOM_HOSTNAME_LABEL
+              value: {{ . | quote }}
+            {{- end }}
+            - name: ROOK_DISABLE_DEVICE_HOTPLUG
+              value: {{ .Values.disableDeviceHotplug | quote }}
+            - name: ROOK_DISCOVER_DEVICES_INTERVAL
+              value: {{ .Values.discoveryDaemonInterval | quote }}
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          {{- with .Values.resources }}
+          resources:
+            {{- . | toYaml | nindent 12 }}
+          {{- end }}
+      {{- if .Values.useOperatorHostNetwork }}
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
-{{- end }}
-{{- if .Values.nodeSelector }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
       nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
-{{- end }}
-{{- if .Values.rbacEnable }}
+        {{- . | toYaml | nindent 8 }}
+      {{- end }}
+      {{- if .Values.rbacEnable }}
       serviceAccountName: rook-ceph-system
-{{- end }}
+      {{- end }}
       volumes:
-      - name: rook-config
-        emptyDir: {}
-      - name: default-config-dir
-        emptyDir: {}
+        - name: rook-config
+          emptyDir: {}
+        - name: default-config-dir
+          emptyDir: {}

@@ -1,7 +1,8 @@
-{{/*
-Roles needed for running a Rook CephCluster
+{{- /*
+  Roles needed for running a Rook CephCluster
 */}}
-{{- define "library.cluster.roles" }}
+{{- define "library.cluster.roles" -}}
+---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:

@@ -1,40 +1,40 @@
 {{- if ne .Release.Namespace .Values.operatorNamespace -}}
 
-{{/*
-serviceaccounts
+
+{{- /*
+  serviceaccounts
 */}}
 {{ include "library.cluster.serviceaccounts" . }}
 
-{{/*
-clusterrolebindings
+
+{{- /*
+  clusterrolebindings
 */}}
----
 {{ include "library.cluster.clusterrolebindings" . }}
 
 {{- if .Values.pspEnable }}
 {{ include "library.cluster.psp.rolebindings" . }}
 {{- end }}
 
-{{/*
-roles
+
+{{- /*
+  roles
 */}}
----
 {{ include "library.cluster.roles" . }}
 
 {{- if .Values.monitoring.enabled }}
----
 {{ include "library.cluster.monitoring.roles" . }}
 {{- end }}
 
-{{/*
-rolebindings
+
+{{- /*
+  rolebindings
 */}}
----
 {{ include "library.cluster.rolebindings" . }}
 
 {{- if .Values.monitoring.enabled }}
----
 {{ include "library.cluster.monitoring.rolebindings" . }}
 {{- end }}
+
 
 {{- end }}

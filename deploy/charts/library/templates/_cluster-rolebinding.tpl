@@ -1,7 +1,8 @@
-{{/*
-RoleBindings needed for running a Rook CephCluster
+{{- /*
+  RoleBindings needed for running a Rook CephCluster
 */}}
-{{- define "library.cluster.rolebindings" }}
+{{- define "library.cluster.rolebindings" -}}
+---
 # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -51,7 +52,7 @@ subjects:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-mgr-system{{ template "library.suffix-cluster-namespace" . }}
+  name: rook-ceph-mgr-system{{ include "library.suffix-cluster-namespace" . }}
   namespace: {{ .Values.operatorNamespace | default .Release.Namespace }} # namespace:operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io

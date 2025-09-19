@@ -1,12 +1,14 @@
-{{- if and .Values.monitoring.enabled .Values.csi.serviceMonitor.enabled (or .Values.csi.enableLiveness .Values.csi.enableGrpcMetrics) }}
-apiVersion: monitoring.coreos.com/v1
+{{- if and .Values.monitoring.enabled .Values.csi.serviceMonitor.enabled (or .Values.csi.enableLiveness .Values.csi.enableGrpcMetrics) -}}
+---
 kind: ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
 metadata:
   name: csi-metrics
   namespace: {{ .Values.csi.serviceMonitor.namespace | default .Release.Namespace }}
-  labels: {{- include "library.rook-ceph.labels" . | nindent 4 }}
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
     {{- with .Values.csi.serviceMonitor.labels }}
-    {{- toYaml . | nindent 4 }}
+    {{- . | toYaml | nindent 4 }}
     {{- end }}
 spec:
   namespaceSelector:

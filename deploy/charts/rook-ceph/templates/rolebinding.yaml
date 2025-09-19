@@ -1,4 +1,5 @@
-{{- if .Values.rbacEnable }}
+{{- if .Values.rbacEnable -}}
+---
 # Grant the operator, agent, and discovery agents access to resources in the rook-ceph-system namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -14,9 +15,9 @@ roleRef:
   kind: Role
   name: rook-ceph-system
 subjects:
-- kind: ServiceAccount
-  name: rook-ceph-system
-  namespace: {{ .Release.Namespace }} # namespace:operator
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: {{ .Release.Namespace }} # namespace:operator
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -31,8 +32,8 @@ roleRef:
   kind: Role
   name: cephfs-external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
----
 {{- if and .Values.csi.csiAddons .Values.csi.csiAddons.enabled }}
+---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -46,8 +47,8 @@ roleRef:
   kind: Role
   name: rbd-csi-nodeplugin
   apiGroup: rbac.authorization.k8s.io
----
 {{- end }}
+---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
