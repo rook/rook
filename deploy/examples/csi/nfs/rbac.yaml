@@ -11,6 +11,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: [""]
@@ -24,6 +28,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: [""]
@@ -81,6 +89,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 subjects:
   - kind: ServiceAccount
@@ -98,6 +110,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 subjects:
   - kind: ServiceAccount

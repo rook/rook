@@ -18,6 +18,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: [""]
@@ -43,6 +47,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: [""]
@@ -135,6 +143,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: [""]
@@ -169,6 +181,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: [""]
@@ -255,6 +271,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
@@ -288,6 +308,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
@@ -491,6 +515,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
@@ -531,6 +559,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
@@ -552,6 +584,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: [""]
@@ -612,6 +648,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
@@ -629,6 +669,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   # Most resources are represented by a string representation of their name, such as "pods", just as it appears in the URL for the relevant API endpoint.
@@ -669,6 +713,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 subjects:
   - kind: ServiceAccount
@@ -686,6 +734,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 subjects:
   - kind: ServiceAccount
@@ -721,6 +773,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 subjects:
   - kind: ServiceAccount
@@ -738,6 +794,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 subjects:
   - kind: ServiceAccount
@@ -756,6 +816,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -772,8 +836,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-cluster
   labels:
-    operator: rook
-    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: rbac
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -792,6 +858,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -808,8 +878,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
   labels:
-    operator: rook
-    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: rbac
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -827,6 +899,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -845,6 +921,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: ["coordination.k8s.io"]
@@ -871,6 +951,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: ["csiaddons.openshift.io"]
@@ -894,6 +978,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: ["coordination.k8s.io"]
@@ -920,6 +1008,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
@@ -944,6 +1036,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
@@ -1021,6 +1117,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   # this is needed for rook's "key-management" CLI to fetch the vault token from the secret when
@@ -1044,6 +1144,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: [""]
@@ -1068,6 +1172,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
@@ -1130,6 +1238,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 subjects:
   - kind: ServiceAccount
@@ -1148,6 +1260,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 subjects:
   - kind: ServiceAccount
@@ -1166,6 +1282,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 subjects:
   - kind: ServiceAccount
@@ -1185,6 +1305,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -1203,6 +1327,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -1222,6 +1350,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -1241,6 +1373,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -1260,6 +1396,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -1279,6 +1419,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -1298,6 +1442,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -1328,8 +1476,10 @@ metadata:
   name: rook-ceph-cmd-reporter
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: rbac
     app.kubernetes.io/part-of: rook-ceph-operator
 # imagePullSecrets:
 #   - name: my-registry-secret
@@ -1341,8 +1491,10 @@ metadata:
   name: rook-ceph-default
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: rbac
     app.kubernetes.io/part-of: rook-ceph-operator
 # imagePullSecrets:
 #   - name: my-registry-secret
@@ -1354,8 +1506,10 @@ metadata:
   name: rook-ceph-mgr
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: rbac
     app.kubernetes.io/part-of: rook-ceph-operator
 # imagePullSecrets:
 #   - name: my-registry-secret
@@ -1367,8 +1521,10 @@ metadata:
   name: rook-ceph-osd
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: rbac
     app.kubernetes.io/part-of: rook-ceph-operator
 # imagePullSecrets:
 #   - name: my-registry-secret
@@ -1380,8 +1536,10 @@ metadata:
   name: rook-ceph-purge-osd
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: rbac
     app.kubernetes.io/part-of: rook-ceph-operator
 # imagePullSecrets:
 #   - name: my-registry-secret
@@ -1393,8 +1551,10 @@ metadata:
   name: rook-ceph-rgw
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: rbac
     app.kubernetes.io/part-of: rook-ceph-operator
 # imagePullSecrets:
 #   - name: my-registry-secret
@@ -1408,6 +1568,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: operator
     app.kubernetes.io/part-of: rook-ceph-operator
 # imagePullSecrets:
 #   - name: my-registry-secret
