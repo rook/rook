@@ -19,4 +19,11 @@ spec:
     interval: {{ . }}
     {{- end }}
   {{- end }}
+  {{- with .Values.cephImage }}
+  cephVersion:
+    image: "{{ .repository }}:{{ .tag }}"
+    allowUnsupported: {{ .allowUnsupported }}
+    imagePullPolicy: {{ .imagePullPolicy }}
+  {{- end }}
+
   {{- .Values.cephClusterSpec | toYaml | nindent 2 }}
