@@ -83,6 +83,8 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 		return err
 	}
 
+	spec.NodePlugin.Labels = CSIParam.CSIRBDPodLabels
+	spec.ControllerPlugin.Labels = CSIParam.CSIRBDPodLabels
 	rbdDriver := &csiopv1.Driver{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
@@ -128,6 +130,9 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 	if err != nil {
 		return err
 	}
+
+	spec.NodePlugin.Labels = CSIParam.CSICephFSPodLabels
+	spec.ControllerPlugin.Labels = CSIParam.CSICephFSPodLabels
 
 	cephFsDriver := &csiopv1.Driver{
 		TypeMeta: metav1.TypeMeta{},
@@ -179,6 +184,8 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 	if err != nil {
 		return err
 	}
+	spec.NodePlugin.Labels = CSIParam.CSINFSPodLabels
+	spec.ControllerPlugin.Labels = CSIParam.CSINFSPodLabels
 
 	NFSDriver := &csiopv1.Driver{
 		TypeMeta: metav1.TypeMeta{},
