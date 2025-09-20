@@ -5,8 +5,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-system
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   # Most resources are represented by a string representation of their name, such as "pods", just as it appears in the URL for the relevant API endpoint.
@@ -44,8 +42,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cluster-mgmt
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups:
@@ -77,8 +73,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-global
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups:
@@ -280,8 +274,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups:
@@ -320,8 +312,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-system
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups:
@@ -341,8 +331,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-object-bucket
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
@@ -401,8 +389,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
 - apiGroups:
@@ -418,8 +404,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-csi-nodeplugin
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
@@ -444,8 +428,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ceph-nfs-external-provisioner-runner
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
@@ -501,8 +483,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ceph-nfs-csi-nodeplugin
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
@@ -515,8 +495,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-external-provisioner-runner
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
@@ -588,8 +566,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-nodeplugin
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
@@ -622,8 +598,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-external-provisioner-runner
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]

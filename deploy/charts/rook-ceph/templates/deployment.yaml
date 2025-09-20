@@ -5,8 +5,6 @@ metadata:
   name: rook-ceph-operator
   namespace: {{ .Release.Namespace }} # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.scaleDownOperator | ternary 0 1 }}

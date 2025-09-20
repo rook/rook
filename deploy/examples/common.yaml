@@ -16,8 +16,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-csi-nodeplugin
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -45,8 +43,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-external-provisioner-runner
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -141,8 +137,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-nodeplugin
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -179,8 +173,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-external-provisioner-runner
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -269,8 +261,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cluster-mgmt
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -306,8 +296,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-global
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -513,8 +501,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -557,8 +543,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-system
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -582,8 +566,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-object-bucket
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -646,8 +628,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -667,8 +647,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-system
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -711,8 +689,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-csi-nodeplugin-role
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -732,8 +708,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-csi-provisioner-role
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -771,8 +745,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-nodeplugin
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -792,8 +764,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-provisioner-role
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -814,8 +784,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-global
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -856,8 +824,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-object-bucket
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -897,8 +863,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-system
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -919,8 +883,6 @@ metadata:
   name: cephfs-external-provisioner-cfg
   namespace: rook-ceph # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -949,8 +911,6 @@ metadata:
   name: rbd-csi-nodeplugin
   namespace: rook-ceph # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -976,8 +936,6 @@ metadata:
   name: rbd-external-provisioner-cfg
   namespace: rook-ceph # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1006,8 +964,6 @@ metadata:
   name: rook-ceph-cmd-reporter
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1034,8 +990,6 @@ metadata:
   name: rook-ceph-mgr
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1115,8 +1069,6 @@ metadata:
   name: rook-ceph-osd
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1142,8 +1094,6 @@ metadata:
   name: rook-ceph-purge-osd
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1170,8 +1120,6 @@ metadata:
   name: rook-ceph-system
   namespace: rook-ceph # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1236,8 +1184,6 @@ metadata:
   name: cephfs-csi-provisioner-role-cfg
   namespace: rook-ceph # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1258,8 +1204,6 @@ metadata:
   name: rbd-csi-nodeplugin-role-cfg
   namespace: rook-ceph # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1280,8 +1224,6 @@ metadata:
   name: rbd-csi-provisioner-role-cfg
   namespace: rook-ceph # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1303,8 +1245,6 @@ metadata:
   name: rook-ceph-cluster-mgmt
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1325,8 +1265,6 @@ metadata:
   name: rook-ceph-cmd-reporter
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1348,8 +1286,6 @@ metadata:
   name: rook-ceph-mgr
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1371,8 +1307,6 @@ metadata:
   name: rook-ceph-mgr-system
   namespace: rook-ceph # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1394,8 +1328,6 @@ metadata:
   name: rook-ceph-osd
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1417,8 +1349,6 @@ metadata:
   name: rook-ceph-purge-osd
   namespace: rook-ceph # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1440,8 +1370,6 @@ metadata:
   name: rook-ceph-system
   namespace: rook-ceph # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -1566,8 +1494,6 @@ metadata:
   name: rook-ceph-system
   namespace: rook-ceph # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1

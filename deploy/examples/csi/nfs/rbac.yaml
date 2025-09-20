@@ -9,8 +9,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ceph-nfs-csi-nodeplugin
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -26,8 +24,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ceph-nfs-external-provisioner-runner
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -87,8 +83,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ceph-nfs-csi-nodeplugin-role
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1
@@ -108,8 +102,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ceph-nfs-csi-provisioner-role
   labels:
-    operator: rook
-    storage-backend: ceph
     app.kubernetes.io/name: rook-ceph
     app.kubernetes.io/instance: release-name
     app.kubernetes.io/version: 0.0.1

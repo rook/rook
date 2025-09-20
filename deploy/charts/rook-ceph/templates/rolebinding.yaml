@@ -7,8 +7,6 @@ metadata:
   name: rook-ceph-system
   namespace: {{ .Release.Namespace }} # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -25,8 +23,6 @@ metadata:
   name: cephfs-csi-provisioner-role-cfg
   namespace: {{ .Release.Namespace }} # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 subjects:
   - kind: ServiceAccount
@@ -44,8 +40,6 @@ metadata:
   name: rbd-csi-nodeplugin-role-cfg
   namespace: {{ .Release.Namespace }} # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 subjects:
   - kind: ServiceAccount
@@ -63,8 +57,6 @@ metadata:
   name: rbd-csi-provisioner-role-cfg
   namespace: {{ .Release.Namespace }} # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 subjects:
   - kind: ServiceAccount

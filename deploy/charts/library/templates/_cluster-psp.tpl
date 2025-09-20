@@ -10,8 +10,6 @@ metadata:
   name: rook-ceph-default-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -28,8 +26,6 @@ metadata:
   name: rook-ceph-osd-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -46,8 +42,6 @@ metadata:
   name: rook-ceph-rgw-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -64,8 +58,6 @@ metadata:
   name: rook-ceph-mgr-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -82,8 +74,6 @@ metadata:
   name: rook-ceph-cmd-reporter-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -100,8 +90,6 @@ metadata:
   name: rook-ceph-purge-osd-psp
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io

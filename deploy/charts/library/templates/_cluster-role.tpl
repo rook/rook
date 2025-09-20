@@ -9,8 +9,6 @@ metadata:
   name: rook-ceph-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   # this is needed for rook's "key-management" CLI to fetch the vault token from the secret when
@@ -32,8 +30,6 @@ metadata:
   name: rook-ceph-mgr
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups:
@@ -109,8 +105,6 @@ metadata:
   name: rook-ceph-cmd-reporter
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups:
@@ -133,8 +127,6 @@ metadata:
   name: rook-ceph-purge-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]

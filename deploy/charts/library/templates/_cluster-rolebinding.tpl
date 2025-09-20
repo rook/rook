@@ -10,8 +10,6 @@ metadata:
   name: rook-ceph-cluster-mgmt
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -29,8 +27,6 @@ metadata:
   name: rook-ceph-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -48,8 +44,6 @@ metadata:
   name: rook-ceph-mgr
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -67,8 +61,6 @@ metadata:
   name: rook-ceph-mgr-system{{ include "library.suffix-cluster-namespace" . }}
   namespace: {{ .Values.operatorNamespace | default .Release.Namespace }} # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -85,8 +77,6 @@ metadata:
   name: rook-ceph-cmd-reporter
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -104,8 +94,6 @@ metadata:
   name: rook-ceph-purge-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io

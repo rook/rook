@@ -5,10 +5,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-obc-view
   labels:
-    operator: rook
-    storage-backend: ceph
-    rbac.authorization.k8s.io/aggregate-to-view: "true"
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
 rules:
   - apiGroups:
       - objectbucket.io
@@ -24,10 +22,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-obc-edit
   labels:
-    operator: rook
-    storage-backend: ceph
-    rbac.authorization.k8s.io/aggregate-to-edit: "true"
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
 rules:
   - apiGroups:
       - objectbucket.io
