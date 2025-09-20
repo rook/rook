@@ -67,6 +67,10 @@ func TestReconcileCSI_createOrUpdateDriverResources(t *testing.T) {
 		},
 	}
 
+	CSIParam.CSIRBDPodLabels = map[string]string{"rbd-label": "rbd-value"}
+	CSIParam.CSICephFSPodLabels = map[string]string{"cephfs-label": "cephfs-value"}
+	CSIParam.CSINFSPodLabels = map[string]string{"nfs-label": "nfs-value"}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ns := "test"
@@ -153,13 +157,25 @@ func TestReconcileCSI_createOrUpdateDriverResources(t *testing.T) {
 				}
 			}
 
+			assert.Equal(t, "rbd-value", driver.Spec.ControllerPlugin.PodCommonSpec.Labels["rbd-label"])
+			assert.Equal(t, "rbd-value", driver.Spec.NodePlugin.PodCommonSpec.Labels["rbd-label"])
+			assert.NotEqualValues(t, "rbd-value", driver.Spec.NodePlugin.PodCommonSpec.Labels["cephfs-label"])
+
 			// Test CephFS driver
 			err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.cephfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
 			assert.NoError(t, err)
 
+			assert.Equal(t, "cephfs-value", driver.Spec.ControllerPlugin.PodCommonSpec.Labels["cephfs-label"])
+			assert.Equal(t, "cephfs-value", driver.Spec.NodePlugin.PodCommonSpec.Labels["cephfs-label"])
+			assert.NotEqualValues(t, "cephfs-value", driver.Spec.NodePlugin.PodCommonSpec.Labels["rbd-label"])
+
 			// Test NFS driver
 			err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.nfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
 			assert.NoError(t, err)
+
+			assert.Equal(t, "nfs-value", driver.Spec.ControllerPlugin.PodCommonSpec.Labels["nfs-label"])
+			assert.Equal(t, "nfs-value", driver.Spec.NodePlugin.PodCommonSpec.Labels["nfs-label"])
+			assert.NotEqualValues(t, "nfs-value", driver.Spec.NodePlugin.PodCommonSpec.Labels["rbd-label"])
 		})
 	}
 }
