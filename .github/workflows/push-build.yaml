@@ -38,7 +38,7 @@ jobs:
           platforms: all
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@4ea7c83ed23e5b1b86ff0db87c63b87e4d72c410 # v3.8.0
+        uses: sigstore/cosign-installer@v3.10.0 # v3.10.0
 
       - name: log in to container registry
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
