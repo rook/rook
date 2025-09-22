@@ -21,6 +21,7 @@ import (
 
 	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	k8scsiv1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -103,6 +104,9 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 				EnableSeLinuxHostMount: &CSIParam.EnablePluginSelinuxHostMount,
 			},
 			ControllerPlugin: &csiopv1.ControllerPluginSpec{
+				DeploymentStrategy: &appsv1.DeploymentStrategy{
+					Type: appsv1.RecreateDeploymentStrategyType,
+				},
 				PodCommonSpec: csiopv1.PodCommonSpec{
 					PrioritylClassName: &CSIParam.PluginPriorityClassName,
 					Affinity: &v1.Affinity{
