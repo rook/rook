@@ -26,6 +26,7 @@ Maintainers will be added according to the [process for adding a maintainer](GOV
 * Satoru Takeuchi <satoru.takeuchi@gmail.com> ([satoru-takeuchi](https://github.com/satoru-takeuchi))
 * Subham Rai <srai@redhat.com> ([subhamkrai](https://github.com/subhamkrai))
 * Santosh Pillai <sapillai@redhat.com> ([sp98](https://github.com/sp98))
+* Parth Arora <partharora1010@gmail.com> ([parth-gr](https://github.com/parth-gr))
 
 ## Emeritus maintainers
 

@@ -46,7 +46,7 @@ jobs:
           # parm: modinfo parameter
           # assigment: inherited from K8s TopologySpreadConstraints dependency
           # ro, RO: means read-only
-          ignore_words_list: aks,keyserver,atleast,ser,ist,ba,iam,te,parm,assigment,ro,RO,addin,NotIn
+          ignore_words_list: aks,keyserver,atleast,ser,ist,ba,iam,te,parm,assigment,ro,RO,addin,NotIn,Parth
           check_filenames: true
           check_hidden: true
   misspell:
