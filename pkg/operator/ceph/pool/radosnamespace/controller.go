@@ -594,9 +594,9 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolR
 		// Stop monitoring the mirroring status of this radosNamespace
 		if radosNamespaceContextsExists && r.radosNamespaceContexts[radosNamespaceChannelKey].started {
 			r.cancelMirrorMonitoring(radosNamespaceChannelKey)
-			// Reset the MirrorHealthCheckSpec
-			checker.UpdateStatusMirroring(nil, nil, nil, "")
 		}
+		// Reset the MirrorHealthCheckSpec
+		checker.UpdateStatusMirroring(nil, nil, nil, "")
 	}
 
 	return nil

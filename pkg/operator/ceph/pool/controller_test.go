@@ -562,7 +562,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
-		assert.Nil(t, pool.Status.MirroringStatus)
+		assert.Equal(t, pool.Status.MirroringStatus, &cephv1.MirroringStatusSpec{})
 	})
 }
 
