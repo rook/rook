@@ -322,9 +322,9 @@ spec:
     # cephfs driver specific settings.
     cephfs:
       # Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options.
-      # kernelMountOptions: ""
+      kernelMountOptions: ""
       # Set CephFS Fuse mount options to use https://docs.ceph.com/en/latest/man/8/ceph-fuse/#options.
-      # fuseMountOptions: ""
+      fuseMountOptions: ""
 
   # healthChecks
   # Valid values for daemons are 'mon', 'osd', 'status'
