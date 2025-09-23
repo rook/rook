@@ -353,7 +353,7 @@ jobs:
             exit 1
           fi
 
-      - name: test key rotation with --cephx-key-rotate in multi tentat case, where --restricted-auth-permission is set
+      - name: test key rotation with --cephx-key-rotate in multi tenant case, where --restricted-auth-permission is set
         run: |
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # create tenant1 and verify
