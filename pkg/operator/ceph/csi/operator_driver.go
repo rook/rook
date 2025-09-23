@@ -95,9 +95,6 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 	}
 
 	rbdDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(rbdPluginResource)
-	rbdDriver.Spec.Liveness = &csiopv1.LivenessSpec{
-		MetricsPort: int(CSIParam.RBDLivenessMetricsPort),
-	}
 	rbdDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(rbdProvisionerResource)
 	rbdDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
 		Type: v1.RollingUpdateDaemonSetStrategyType,
@@ -148,9 +145,6 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 	}
 
 	cephFsDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(cephFSPluginResource)
-	cephFsDriver.Spec.Liveness = &csiopv1.LivenessSpec{
-		MetricsPort: int(CSIParam.CephFSLivenessMetricsPort),
-	}
 
 	cephFsDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(cephFSProvisionerResource)
 	cephFsDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
@@ -362,11 +356,6 @@ func createDriverControllerPluginResources(key string) csiopv1.ControllerPluginR
 					Limits:   r.Resource.Limits,
 					Requests: r.Resource.Requests,
 				}
-			case strings.Contains(r.Name, "liveness"):
-				controllerPluginResources.Liveness = &corev1.ResourceRequirements{
-					Limits:   r.Resource.Limits,
-					Requests: r.Resource.Requests,
-				}
 			case strings.Contains(r.Name, "addons"):
 				controllerPluginResources.Addons = &corev1.ResourceRequirements{
 					Limits:   r.Resource.Limits,
@@ -391,11 +380,6 @@ func createDriverNodePluginResouces(key string) csiopv1.NodePluginResourcesSpec 
 				}
 			} else if strings.Contains(r.Name, "plugin") {
 				nodePluginResources.Plugin = &corev1.ResourceRequirements{
-					Limits:   r.Resource.Limits,
-					Requests: r.Resource.Requests,
-				}
-			} else if strings.Contains(r.Name, "liveness") {
-				nodePluginResources.Liveness = &corev1.ResourceRequirements{
 					Limits:   r.Resource.Limits,
 					Requests: r.Resource.Requests,
 				}
