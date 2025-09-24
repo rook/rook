@@ -54,9 +54,9 @@ func cleanupImages(context *clusterd.Context, clusterInfo *cephclient.ClusterInf
 		return errors.Wrapf(err, "failed to list images in %s", msg)
 	}
 
-	err = blocklistClientIPs(context, clusterInfo, images, poolName, radosNamespace)
+	err = blocklistClients(context, clusterInfo, images, poolName, radosNamespace)
 	if err != nil {
-		return errors.Wrap(err, "failed to add client IPs to the blocklist")
+		return errors.Wrap(err, "failed to add clients to the blocklist")
 	}
 
 	var retErr error
@@ -104,47 +104,47 @@ func BlockPoolCleanup(context *clusterd.Context, clusterInfo *cephclient.Cluster
 	return nil
 }
 
-func blocklistClientIPs(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, images []cephclient.CephBlockImage, poolName, radosNamespace string) error {
-	ips, err := getClientIPs(context, clusterInfo, images, poolName, radosNamespace)
+func blocklistClients(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, images []cephclient.CephBlockImage, poolName, radosNamespace string) error {
+	clients, err := getClients(context, clusterInfo, images, poolName, radosNamespace)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get client IPs for all the images in pool %q in namespace %q", poolName, radosNamespace)
+		return errors.Wrapf(err, "failed to get clients for all the images in pool %q in namespace %q", poolName, radosNamespace)
 	}
 
-	if len(ips) == 0 {
-		logger.Info("no client IPs found for images in pool %q in rados namespace %q", poolName, radosNamespace)
+	if len(clients) == 0 {
+		logger.Infof("no clients found for images in pool %q in rados namespace %q", poolName, radosNamespace)
 	}
 
-	for ip := range ips {
-		logger.Infof("blocklist client IP %q for images in pool %q in namespace %q", ip, poolName, radosNamespace)
-		err = cephclient.BlocklistIP(context, clusterInfo, ip, ClientBlocklistDuration)
+	for client := range clients {
+		logger.Infof("blocklist client %q for images in pool %q in namespace %q", client, poolName, radosNamespace)
+		err = cephclient.Blocklist(context, clusterInfo, client, ClientBlocklistDuration)
 		if err != nil {
-			return errors.Wrapf(err, "failed to blocklist IP  %q in pool %q in namespace %q", ip, poolName, radosNamespace)
+			return errors.Wrapf(err, "failed to blocklist client %q in pool %q in namespace %q", client, poolName, radosNamespace)
 		}
-		logger.Infof("successfully blocklisted client IP %q in pool %q in namespace %q", ip, poolName, radosNamespace)
+		logger.Infof("successfully blocklisted client %q in pool %q in namespace %q", client, poolName, radosNamespace)
 	}
 
 	return nil
 }
 
-func getClientIPs(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, images []cephclient.CephBlockImage, poolName, radosNamespace string) (sets.Set[string], error) {
-	clientIPs := sets.New[string]()
+func getClients(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, images []cephclient.CephBlockImage, poolName, radosNamespace string) (sets.Set[string], error) {
+	clientSet := sets.New[string]()
 	for _, image := range images {
 		rbdStatus, err := cephclient.GetRBDImageStatus(context, clusterInfo, poolName, image.Name, radosNamespace)
 		if err != nil {
-			return clientIPs, errors.Wrapf(err, "failed to list watchers for the image %q in %s", image.Name, radosNamespace)
+			return clientSet, errors.Wrapf(err, "failed to list watchers for the image %q in %s", image.Name, radosNamespace)
 		}
-		ips := rbdStatus.GetWatcherIPs()
-		if len(ips) == 0 {
-			logger.Infof("no watcher IPs found for image %q in pool %q in namespace %q", image.Name, poolName, radosNamespace)
+		clients := rbdStatus.GetWatchers()
+		if len(clients) == 0 {
+			logger.Infof("no watchers found for image %q in pool %q in namespace %q", image.Name, poolName, radosNamespace)
 			continue
 		}
 
-		logger.Infof("watcher IPs for image %q in pool %q in namespace %q: %v", image.Name, poolName, radosNamespace, ips)
-		for _, ip := range ips {
-			clientIPs.Insert(ip)
+		logger.Infof("watchers for image %q in pool %q in namespace %q: %v", image.Name, poolName, radosNamespace, clients)
+		for _, client := range clients {
+			clientSet.Insert(client)
 		}
 	}
 
-	logger.Infof("client IPs : %v", clientIPs)
-	return clientIPs, nil
+	logger.Infof("clients: %v", clientSet)
+	return clientSet, nil
 }
