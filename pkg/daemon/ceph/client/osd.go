@@ -467,12 +467,12 @@ func GetOSDMetadata(context *clusterd.Context, clusterInfo *ClusterInfo) (*[]OSD
 	return &osdMetadata, nil
 }
 
-// BlocklistIP blocklists the IP for predefined duration
-func BlocklistIP(context *clusterd.Context, clusterInfo *ClusterInfo, ip, duration string) error {
-	args := []string{"osd", "blocklist", "add", ip, duration}
+// Blocklist blocklists the client address for predefined duration
+func Blocklist(context *clusterd.Context, clusterInfo *ClusterInfo, address, duration string) error {
+	args := []string{"osd", "blocklist", "add", address, duration}
 	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to blockist IP %q", ip)
+		return errors.Wrapf(err, "failed to blockist client %q", address)
 	}
 	return nil
 }
