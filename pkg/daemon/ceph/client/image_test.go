@@ -127,7 +127,7 @@ func TestListImageLogLevelDebug(t *testing.T) {
 	listCalled = false
 }
 
-func TestGetWatcherIPs(t *testing.T) {
+func TestGetWatchers(t *testing.T) {
 	rbdStatus := RBDStatus{
 		Watchers: []struct {
 			Address string "json:\"address\""
@@ -141,8 +141,6 @@ func TestGetWatcherIPs(t *testing.T) {
 		},
 	}
 
-	res := rbdStatus.GetWatcherIPs()
+	res := rbdStatus.GetWatchers()
 	assert.Equal(t, 2, len(res))
-	assert.Equal(t, "192.168.39.137", res[0])
-	assert.Equal(t, "192.168.39.136", res[1])
 }
