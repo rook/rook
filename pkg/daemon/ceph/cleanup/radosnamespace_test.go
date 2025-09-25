@@ -167,18 +167,16 @@ func TestGetClientIPs(t *testing.T) {
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "status" && args[1] == "test-pool/image1" {
-			return `{"watchers":[{"address":"192.168.39.137:0/3762982934"}, {"address":"192.168.39.137:0/3762982934"}]}`, nil
+			return `{"watchers":[{"address":"192.168.39.137:0/3762982931"}, {"address":"192.168.39.137:0/3762982933"}]}`, nil
 		}
 		if args[0] == "status" && args[1] == "test-pool/image2" {
-			return `{"watchers":[{"address":"192.168.39.137:0/3762982934"}, {"address":"192.168.39.137:0/3762982934"}]}`, nil
+			return `{"watchers":[{"address":"192.168.39.137:0/3762982932"}, {"address":"192.168.39.137:0/3762982934"}]}`, nil
 		}
 		return "", errors.New("unknown command")
 	}
 	context := &clusterd.Context{Executor: executor}
 	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
-	ips, err := getClientIPs(context, clusterInfo, images, "test-pool", "testrns")
+	clients, err := getClients(context, clusterInfo, images, "test-pool", "testrns")
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(ips))
-	actualIP, _ := ips.PopAny()
-	assert.Equal(t, "192.168.39.137", actualIP)
+	assert.Equal(t, 4, len(clients))
 }
