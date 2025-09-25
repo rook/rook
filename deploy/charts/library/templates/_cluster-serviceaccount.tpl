@@ -10,8 +10,6 @@ metadata:
   name: rook-ceph-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
@@ -22,8 +20,6 @@ metadata:
   name: rook-ceph-mgr
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
@@ -34,8 +30,6 @@ metadata:
   name: rook-ceph-cmd-reporter
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
@@ -45,6 +39,8 @@ apiVersion: v1
 metadata:
   name: rook-ceph-purge-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
 # Service account for RGW server
@@ -54,8 +50,6 @@ metadata:
   name: rook-ceph-rgw
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 ---
@@ -66,7 +60,6 @@ metadata:
   name: rook-ceph-default
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
-    operator: rook
-    storage-backend: ceph
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
 {{- end }}
