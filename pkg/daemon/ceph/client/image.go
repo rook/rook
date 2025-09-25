@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -172,16 +171,15 @@ type RBDStatus struct {
 	} `json:"watchers"`
 }
 
-// GetWatcherIPs returns a list of watcher IPs of the RBD image.
-// The RBD status output is parsed to get the desired IPs.
-// For example: `192.168.39.137:0/3762982934“ IP format returned in the RBD status output is parsed as 192.168.39.137
-func (r RBDStatus) GetWatcherIPs() []string {
-	watcherIPList := []string{}
+// GetWatchers returns a list of watchers of the RBD image.
+// The RBD status output is parsed to get the desired IP+nonce.
+// For example: `192.168.39.137:0/3762982934“ is returned.
+func (r RBDStatus) GetWatchers() []string {
+	watcherList := []string{}
 	for _, watcher := range r.Watchers {
-		watcherIP := strings.Split(watcher.Address, ":0")[0]
-		watcherIPList = append(watcherIPList, watcherIP)
+		watcherList = append(watcherList, watcher.Address)
 	}
-	return watcherIPList
+	return watcherList
 }
 
 // GetRBDImageStatus returns the status of the RDB image.
