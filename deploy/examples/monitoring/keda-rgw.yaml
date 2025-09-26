@@ -5,8 +5,9 @@ metadata:
   namespace: rook-ceph
 spec:
   scaleTargetRef:
-    kind: Deployment
-    name: rook-ceph-rgw-my-store-a
+    apiVersion: ceph.rook.io/v1
+    kind: CephObjectStore
+    name: my-store # name of the cephObjectStore resource
   minReplicaCount: 1
   maxReplicaCount: 5
   triggers:
