@@ -113,6 +113,9 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 		}
 	}
 
+	podVolumes := getPodVolumes(rbdPluginVolume, rbdPluginVolumeMount)
+	rbdDriver.Spec.NodePlugin.PodCommonSpec.Volumes = podVolumes
+
 	err = r.createOrUpdateDriverResource(clusterInfo, rbdDriver)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create or update RBD driver resource %q", rbdDriver.Name)
@@ -163,6 +166,9 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 			Type: v1.OnDeleteDaemonSetStrategyType,
 		}
 	}
+
+	podVolumes := getPodVolumes(cephFSPluginVolume, cephFSPluginVolumeMount)
+	cephFsDriver.Spec.NodePlugin.PodCommonSpec.Volumes = podVolumes
 
 	err = r.createOrUpdateDriverResource(clusterInfo, cephFsDriver)
 	if err != nil {
@@ -317,6 +323,56 @@ func (r *ReconcileCSI) generateDriverSpec(cluster cephv1.CephCluster) (csiopv1.D
 // applyMultusToObjectMeta applies Multus network annotations to the given ObjectMeta
 func (r *ReconcileCSI) applyMultusToObjectMeta(clusterNamespace string, netSpec *cephv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 	return k8sutil.ApplyMultus(clusterNamespace, netSpec, objectMeta)
+}
+
+func getPodVolumes(volumeEnvVar, volumeMountEnvVar string) []csiopv1.VolumeSpec {
+	volumes := extractVolumes(volumeEnvVar)
+	volumeMounts := extractVolumeMounts(volumeMountEnvVar)
+	return append(volumes, volumeMounts...)
+}
+
+func extractVolumes(volumeEnvVar string) []csiopv1.VolumeSpec {
+	volumesRaw := k8sutil.GetOperatorSetting(volumeEnvVar, "")
+	if volumesRaw == "" {
+		return nil
+	}
+	volumes, err := k8sutil.YamlToVolumes(volumesRaw)
+	if err != nil {
+		logger.Errorf("failed to parse %q for %q. %v", volumesRaw, volumeEnvVar, err)
+		return nil
+	}
+	// Convert the volumes to csiopv1.VolumeSpec, where the mounts are empty.
+	// The CSI volume does not enforce the volume and mount to be defined together,
+	// so we can just have volumes defined here without mounts.
+	csiVolumes := []csiopv1.VolumeSpec{}
+	for i := range volumes {
+		csiVolumes = append(csiVolumes, csiopv1.VolumeSpec{
+			Volume: volumes[i],
+		})
+	}
+	return csiVolumes
+}
+
+func extractVolumeMounts(volumeMountsEnvVar string) []csiopv1.VolumeSpec {
+	volumeMountsRaw := k8sutil.GetOperatorSetting(volumeMountsEnvVar, "")
+	if volumeMountsRaw == "" {
+		return nil
+	}
+	volumeMounts, err := k8sutil.YamlToVolumeMounts(volumeMountsRaw)
+	if err != nil {
+		logger.Errorf("failed to parse %q for %q. %v", volumeMountsRaw, configName, err)
+		return nil
+	}
+	// Convert the volume mounts to csiopv1.VolumeSpec, where the volumes are empty.
+	// The CSI volume does not enforce the volume and mount to be defined together,
+	// so we can just have mounts defined here without volumes.
+	csiVolumes := []csiopv1.VolumeSpec{}
+	for i := range volumeMounts {
+		csiVolumes = append(csiVolumes, csiopv1.VolumeSpec{
+			Mount: volumeMounts[i],
+		})
+	}
+	return csiVolumes
 }
 
 func createDriverControllerPluginResources(key string) csiopv1.ControllerPluginResourcesSpec {

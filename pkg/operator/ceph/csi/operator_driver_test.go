@@ -176,6 +176,61 @@ func TestReconcileCSI_createOrUpdateDriverResources(t *testing.T) {
 			assert.Equal(t, "nfs-value", driver.Spec.ControllerPlugin.PodCommonSpec.Labels["nfs-label"])
 			assert.Equal(t, "nfs-value", driver.Spec.NodePlugin.PodCommonSpec.Labels["nfs-label"])
 			assert.NotEqualValues(t, "nfs-value", driver.Spec.NodePlugin.PodCommonSpec.Labels["rbd-label"])
+
+			cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+			r.client = cl
+
+			EnableRBD = true
+			EnableCephFS = true
+			EnableNFS = true
+
+			// set a valid rbd volume
+			t.Setenv(rbdPluginVolume, `
+    - name: myvola
+      hostPath:
+        path: /myvola
+    - name: myvolb
+      hostPath:
+        path: /myvolb`)
+			t.Setenv(rbdPluginVolumeMount, `
+    - name: myvola
+      mountPath: /myvol
+      readOnly: true`)
+
+			// set an invalid cephfs volume, but a valid mount
+			t.Setenv(cephFSPluginVolume, `
+    - name: myvol
+      host`)
+			t.Setenv(cephFSPluginVolumeMount, `
+    - name: myvol
+      mountPath: /myvol
+      readOnly: true`)
+
+			err = r.createOrUpdateDriverResources(*cluster, c)
+			assert.NoError(t, err)
+
+			err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.rbd.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
+			assert.NoError(t, err)
+			assert.Equal(t, 3, len(driver.Spec.NodePlugin.Volumes))
+
+			err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.cephfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(driver.Spec.NodePlugin.Volumes))
+
+			err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.nfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
+			assert.NoError(t, err)
+
+			// set a valid cephfs volume
+			t.Setenv(cephFSPluginVolume, `
+    - name: myvol
+      hostPath:
+        path: /myvol`)
+			err = r.createOrUpdateDriverResources(*cluster, c)
+			assert.NoError(t, err)
+
+			err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.cephfs.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
+			assert.NoError(t, err)
+			assert.Equal(t, 2, len(driver.Spec.NodePlugin.Volumes))
 		})
 	}
 }
