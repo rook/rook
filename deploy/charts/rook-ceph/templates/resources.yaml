@@ -9380,7 +9380,14 @@ spec:
     singular: cephnfs
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephNFS represents a Ceph NFS
