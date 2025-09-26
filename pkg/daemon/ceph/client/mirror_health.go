@@ -180,7 +180,10 @@ func updateRadosNamespaceStatusMirroring(c *mirrorChecker, mirrorStatus *cephv1.
 
 	if blockPool.Spec.StatusCheck.Mirror.Disabled {
 		logger.Debugf("mirroring status check is disabled for %q", c.namespacedName.Name)
-		return
+		mirrorStatus = nil
+		mirrorInfo = nil
+		snapSchedStatus = nil
+		details = ""
 	}
 
 	// Update the CephBlockPoolRadosNamespace CR status field
@@ -222,7 +225,7 @@ func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroring
 	mirroringInfoSpec.Details = details
 
 	if currentInfo != nil {
-		mirroringInfoSpec.LastChanged = currentInfo.LastChecked
+		mirroringInfoSpec.LastChanged = currentInfo.LastChanged
 	}
 
 	// snapSchedStatus will be nil in case of an error to fetch it
@@ -234,7 +237,7 @@ func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroring
 	snapshotScheduleStatusSpec.Details = details
 
 	if currentSnapSchedStatus != nil {
-		snapshotScheduleStatusSpec.LastChanged = currentSnapSchedStatus.LastChecked
+		snapshotScheduleStatusSpec.LastChanged = currentSnapSchedStatus.LastChanged
 	}
 
 	return mirroringStatusSpec, mirroringInfoSpec, snapshotScheduleStatusSpec
