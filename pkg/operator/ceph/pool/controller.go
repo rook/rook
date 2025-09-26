@@ -392,9 +392,9 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			if blockPoolContextsExists && r.blockPoolContexts[blockPoolChannelKey].started {
 				logger.Info("stop monitoring the mirroring status of the pool %q", cephBlockPool.Name)
 				r.cancelMirrorMonitoring(cephBlockPool)
-				// Reset the MirrorHealthCheckSpec
-				checker.UpdateStatusMirroring(nil, nil, nil, "")
 			}
+			// Reset the MirrorHealthCheckSpec
+			checker.UpdateStatusMirroring(nil, nil, nil, "")
 		} else {
 			// Start monitoring of the pool
 			if r.blockPoolContexts[blockPoolChannelKey].started {
@@ -423,9 +423,9 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// Stop monitoring the mirroring status of this pool
 		if blockPoolContextsExists && r.blockPoolContexts[blockPoolChannelKey].started {
 			r.cancelMirrorMonitoring(cephBlockPool)
-			// Reset the MirrorHealthCheckSpec
-			checker.UpdateStatusMirroring(nil, nil, nil, "")
 		}
+		// Reset the MirrorHealthCheckSpec
+		checker.UpdateStatusMirroring(nil, nil, nil, "")
 	}
 
 	if statusErr != nil {
