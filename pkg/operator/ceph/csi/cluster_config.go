@@ -97,6 +97,7 @@ func MonEndpoints(mons map[string]*cephclient.MonInfo, requireMsgr2 bool) []stri
 				endpoint = fmt.Sprintf("%s:%d", address, cephclient.Msgr2port)
 				logger.Debugf("mon %q will use the msgrv2 port: %q", m.Name, endpoint)
 			}
+			m.Endpoint = endpoint
 		}
 		endpoints = append(endpoints, endpoint)
 	}
