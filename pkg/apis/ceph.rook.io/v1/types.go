@@ -2345,6 +2345,8 @@ type ObjectUserKey struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephObjectRealm represents a Ceph Object Store Gateway Realm
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=cephor
 type CephObjectRealm struct {
