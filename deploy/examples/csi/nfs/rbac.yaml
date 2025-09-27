@@ -118,6 +118,11 @@ apiVersion: v1
 metadata:
   name: rook-csi-nfs-plugin-sa
   namespace: rook-ceph # namespace:operator
+  labels:
+    operator: rook
+    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/part-of: rook-ceph-operator
 # imagePullSecrets:
 #   - name: my-registry-secret
 ---
@@ -127,5 +132,10 @@ apiVersion: v1
 metadata:
   name: rook-csi-nfs-provisioner-sa
   namespace: rook-ceph # namespace:operator
+  labels:
+    operator: rook
+    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/part-of: rook-ceph-operator
 # imagePullSecrets:
 #   - name: my-registry-secret
