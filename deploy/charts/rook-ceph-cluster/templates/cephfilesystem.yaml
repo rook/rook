@@ -28,18 +28,24 @@ metadata:
 spec:
   {{- $filesystem.spec | toYaml | nindent 2 }}
 ---
-{{- if $filesystem.storageClass.enabled }}
+{{- /* Merge user storageClass config with defaults */ -}}
+{{- $defaultStorageClass := dict "enabled" true "name" "ceph-filesystem" "isDefault" false "reclaimPolicy" "Delete" "allowVolumeExpansion" true "volumeBindingMode" "Immediate" "annotations" dict "labels" dict "mountOptions" list "pool" "data0" -}}
+{{- $storageClass := mergeOverwrite $defaultStorageClass ($filesystem.storageClass | default dict) -}}
+{{- if $storageClass.enabled }}
+{{- $scName := $storageClass.name | default "ceph-filesystem" }}
+{{- $existing := lookup "storage.k8s.io/v1" "StorageClass" "" $scName }}
+{{- if not $existing }}
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: {{ $filesystem.storageClass.name }}
-  {{- with $filesystem.storageClass.labels }}
+  name: {{ $scName }}
+  {{- with $storageClass.labels }}
   labels:
     {{- . | toYaml | nindent 4 }}
   {{- end }}
   annotations:
-    storageclass.kubernetes.io/is-default-class: "{{ if $filesystem.storageClass.isDefault }}true{{ else }}false{{ end }}"
-    {{- with $filesystem.storageClass.annotations }}
+    storageclass.kubernetes.io/is-default-class: "{{ if $storageClass.isDefault }}true{{ else }}false{{ end }}"
+    {{- with $storageClass.annotations }}
     {{- . | toYaml | nindent 4 }}
     {{- end }}
 {{- if $root.Values.csiDriverNamePrefix }}
@@ -49,17 +55,18 @@ provisioner: {{ $root.Values.operatorNamespace }}.cephfs.csi.ceph.com
 {{- end }}
 parameters:
   fsName: {{ $filesystem.name }}
-  pool: {{ $filesystem.name }}-{{ $filesystem.storageClass.pool | default "data0" }}
+  pool: {{ $filesystem.name }}-{{ $storageClass.pool | default "data0" }}
   clusterID: {{ $root.Release.Namespace }}
-  {{- with $filesystem.storageClass.parameters }}
+  {{- with $storageClass.parameters }}
   {{- tpl (. | toYaml) $ | nindent 2 }}
   {{- end }}
-reclaimPolicy: {{ $filesystem.storageClass.reclaimPolicy | default "Delete" }}
-allowVolumeExpansion: {{ $filesystem.storageClass.allowVolumeExpansion | default "true" }}
-volumeBindingMode: {{ $filesystem.storageClass.volumeBindingMode | default "Immediate" }}
-{{- with $filesystem.storageClass.mountOptions }}
+reclaimPolicy: {{ $storageClass.reclaimPolicy | default "Delete" }}
+allowVolumeExpansion: {{ $storageClass.allowVolumeExpansion | default "true" }}
+volumeBindingMode: {{ $storageClass.volumeBindingMode | default "Immediate" }}
+{{- with $storageClass.mountOptions }}
 mountOptions:
   {{- . | toYaml | nindent 2 }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

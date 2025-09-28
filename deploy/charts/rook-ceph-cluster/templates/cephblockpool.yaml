@@ -1,5 +1,8 @@
 {{- $root := . -}}
 {{- range $blockpool := .Values.cephBlockPools }}
+{{- /* Merge user storageClass config with defaults */ -}}
+{{- $defaultStorageClass := dict "enabled" true "name" "ceph-block" "isDefault" true "reclaimPolicy" "Delete" "allowVolumeExpansion" true "volumeBindingMode" "Immediate" "annotations" dict "labels" dict "mountOptions" list "allowedTopologies" list -}}
+{{- $storageClass := mergeOverwrite $defaultStorageClass ($blockpool.storageClass | default dict) -}}
 ---
 kind: CephBlockPool
 apiVersion: ceph.rook.io/v1
@@ -8,19 +11,22 @@ metadata:
   namespace: {{ $root.Release.Namespace }} # namespace:cluster
 spec:
   {{- $blockpool.spec | toYaml | nindent 2 }}
-{{- if $blockpool.storageClass.enabled }}
+{{- if $storageClass.enabled }}
+{{- $scName := $storageClass.name | default "ceph-block" }}
+{{- $existing := lookup "storage.k8s.io/v1" "StorageClass" "" $scName }}
+{{- if not $existing }}
 ---
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: {{ $blockpool.storageClass.name | quote }}
-  {{- with $blockpool.storageClass.labels }}
+  name: {{ $scName | quote }}
+  {{- with $storageClass.labels }}
   labels:
     {{- . | nindent 4 }}
   {{- end }}
   annotations:
-    storageclass.kubernetes.io/is-default-class: "{{ if $blockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
-    {{- with $blockpool.storageClass.annotations }}
+    storageclass.kubernetes.io/is-default-class: "{{ if $storageClass.isDefault }}true{{ else }}false{{ end }}"
+    {{- with $storageClass.annotations }}
     {{- . | toYaml | nindent 4 }}
     {{- end }}
 {{- if $root.Values.csiDriverNamePrefix }}
@@ -29,21 +35,18 @@ provisioner: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
 provisioner: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
 {{- end }}
 parameters:
-  pool: {{ $blockpool.name | quote }}
-  clusterID: {{ $root.Release.Namespace | quote }}
-  {{- with $blockpool.storageClass.parameters }}
-  {{- tpl (. | toYaml) $ | nindent 2 }}
-  {{- end }}
-reclaimPolicy: {{ $blockpool.storageClass.reclaimPolicy | default "Delete" }}
-allowVolumeExpansion: {{ $blockpool.storageClass.allowVolumeExpansion | default "true" }}
-volumeBindingMode: {{ $blockpool.storageClass.volumeBindingMode | default "Immediate" }}
-{{- with $blockpool.storageClass.mountOptions }}
+  {{- include "rook-ceph-cluster.blockStorageClassParameters" (dict "blockPool" $blockpool "storageClass" $storageClass "root" $root) | nindent 2 }}
+reclaimPolicy: {{ $storageClass.reclaimPolicy | default "Delete" }}
+allowVolumeExpansion: {{ $storageClass.allowVolumeExpansion | default "true" }}
+volumeBindingMode: {{ $storageClass.volumeBindingMode | default "Immediate" }}
+{{- with $storageClass.mountOptions }}
 mountOptions:
   {{- . | toYaml | nindent 2 }}
 {{- end }}
-{{- with $blockpool.storageClass.allowedTopologies }}
+{{- with $storageClass.allowedTopologies }}
 allowedTopologies:
   {{- . | toYaml | nindent 2 }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
