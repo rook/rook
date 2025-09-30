@@ -20,7 +20,6 @@ pushd "${temp_dir}" &>/dev/stderr
 # just read in the files, sorted by the fs for final output.
 
 $YQ eval '
-    select(.kind == "PodSecurityPolicy"),
     select(.kind == "ServiceAccount"),
     select(.kind == "ClusterRole"),
     select(.kind == "ClusterRoleBinding"),
