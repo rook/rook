@@ -206,6 +206,7 @@ func (c *Cluster) validateOSDSettings() error {
 }
 
 func (c *Cluster) validateTopologyAcrossNodes() error {
+	logger.Info("Starting validateTopologyAcrossNodes()")
 	if os.Getenv("ROOK_SKIP_OSD_TOPOLOGY_CHECK") == "true" {
 		logger.Debugf("Skipping topology validation due to ROOK_SKIP_OSD_TOPOLOGY_CHECK=true")
 		return nil
@@ -219,18 +220,22 @@ func (c *Cluster) validateTopologyAcrossNodes() error {
 
 	nodelist, err := c.context.Clientset.CoreV1().Nodes().List(c.clusterInfo.Context, metav1.ListOptions{})
 	if err != nil {
+		logger.Errorf("Failed to list nodes for topology validation: %v", err)
 		return errors.Wrap(err, "failed to list nodes for topology validation")
 	}
+	logger.Infof("Fetched nodelist with %d nodes", len(nodelist.Items))
 
 	if err := topology.CheckTopologyConflicts(&nodelist.Items); err != nil {
+		logger.Infof("Topology conflict detected: %v", err)
 		// Check if there are any existing OSDs
-		osdRunning, err := k8sutil.PodsRunningWithLabel(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, "app=rook-ceph-osd")
-		if err != nil {
-			logger.Errorf("Failed to list OSD pods: %v", err)
-			return err // fail safe
+		osdRunning, errPods := k8sutil.PodsRunningWithLabel(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, "app=rook-ceph-osd")
+		if errPods != nil {
+			logger.Errorf("Failed to list OSD pods: %v", errPods)
+			return errPods // fail safe
 		}
-
+		logger.Infof("Found %d existing OSDs", osdRunning)
 		if osdRunning == 0 {
+			logger.Errorf("Topology conflict detected in new cluster: %v", err)
 			return errors.Wrap(err, "topology conflict detected in new cluster")
 		}
 
@@ -241,6 +246,7 @@ func (c *Cluster) validateTopologyAcrossNodes() error {
 
 	logger.Info("Node topology validation passed without conflicts")
 	topologyValidated = true
+	logger.Info("validateTopologyAcrossNodes() completed successfully")
 	return nil
 }
 
