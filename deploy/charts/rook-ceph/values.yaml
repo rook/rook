@@ -61,9 +61,6 @@ rbacAggregate:
   # -- If true, create a ClusterRole aggregated to [user facing roles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles) for objectbucketclaims
   enableOBCs: false
 
-# -- If true, create & use PSP resources
-pspEnable: false
-
 # -- Set the priority class for the rook operator deployment if desired
 priorityClassName:
 

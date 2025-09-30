@@ -58,8 +58,7 @@ monitoring:
   # -- Whether to create the Prometheus rules for Ceph alerts
   createPrometheusRules: false
   # -- Edit Prometheus rules for Ceph alerts
-  prometheusRuleOverrides:
-    {}
+  prometheusRuleOverrides: {}
     # CephHealthWarning:
     #   disabled: true
     # NVMeoFHighWriteLatency:
@@ -81,9 +80,6 @@ monitoring:
     labels: {}
     # -- Annotations applied to PrometheusRule
     annotations: {}
-
-# -- Create & use PSP resources. Set this to the same value as the rook-ceph chart.
-pspEnable: false
 
 # imagePullSecrets option allow to pull docker images from private docker registry. Option will be passed to all service accounts.
 # imagePullSecrets:
@@ -429,8 +425,7 @@ cephClusterSpec:
 
 ingress:
   # -- Enable an ingress for the ceph-dashboard
-  dashboard:
-    {}
+  dashboard: {}
     # labels:
     #   external-dns/private: "true"
     # annotations:
@@ -454,8 +449,7 @@ ingress:
 
 route:
   # -- Enable an HTTPRoute for the ceph-dashboard
-  dashboard:
-    {}
+  dashboard: {}
     # labels:
     #   external-dns/private: "true"
     # annotations:

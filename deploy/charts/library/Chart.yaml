@@ -12,7 +12,7 @@ type: library
 # - templates named with '_cluster-*' are for CephCluster-scoped resources
 # - cluster-scoped definitions are named 'library.cluster.*'
 # - prefer templates that are named to their purpose (prefer avoiding '_helper.tpl')
-# - prefer combining features that can be enabled/disabled together (e.g., monitoring or PSP) into
+# - prefer combining features that can be enabled/disabled together (e.g., monitoring) into
 #   feature templates rather than spreading the content among lower-level templates like
 #   '_*rolebinding.tpl'
 

@@ -242,7 +242,7 @@ function validate_yaml() {
   kubectl create -k "${cosi_crd_url}"
 
   # skipping folders and some yamls that are only for openshift.
-  manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc*' -and -not -name 'psp*' -and -not -name 'kustomization*')"
+  manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc*' -and -not -name 'kustomization*')"
   with_f_arg="$(echo "$manifests" | awk '{printf " -f %s",$1}')" # don't add newline
   # shellcheck disable=SC2086 # '-f manifest1.yaml -f manifest2.yaml etc.' should not be quoted
   kubectl create ${with_f_arg} --dry-run=client
