@@ -165,7 +165,6 @@ The following table lists the configurable parameters of the rook-operator chart
 | `obcProvisionerNamePrefix` | Specify the prefix for the OBC provisioner in place of the cluster namespace | `ceph cluster namespace` |
 | `operatorPodLabels` | Custom pod labels for the operator | `{}` |
 | `priorityClassName` | Set the priority class for the rook operator deployment if desired | `nil` |
-| `pspEnable` | If true, create & use PSP resources | `false` |
 | `rbacAggregate.enableOBCs` | If true, create a ClusterRole aggregated to [user facing roles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles) for objectbucketclaims | `false` |
 | `rbacEnable` | If true, create & use RBAC resources | `true` |
 | `resources` | Pod resource requests & limits | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"200m","memory":"128Mi"}}` |

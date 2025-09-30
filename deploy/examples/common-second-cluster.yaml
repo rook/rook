@@ -40,20 +40,6 @@ subjects:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-cmd-reporter-psp
-  namespace: rook-ceph-secondary # namespace:cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: psp:rook
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-cmd-reporter
-    namespace: rook-ceph-secondary # namespace:cluster
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
   name: rook-ceph-mgr-system-secondary
   namespace: rook-ceph # namespace:operator
 roleRef:
@@ -63,76 +49,6 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-mgr
-    namespace: rook-ceph-secondary # namespace:cluster
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-mgr-psp
-  namespace: rook-ceph-secondary # namespace:cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: psp:rook
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-mgr
-    namespace: rook-ceph-secondary # namespace:cluster
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-osd-psp
-  namespace: rook-ceph-secondary # namespace:cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: psp:rook
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-osd
-    namespace: rook-ceph-secondary # namespace:cluster
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-purge-osd-psp
-  namespace: rook-ceph-secondary # namespace:cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: psp:rook
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-purge-osd
-    namespace: rook-ceph-secondary # namespace:cluster
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-rgw-psp
-  namespace: rook-ceph-secondary # namespace:cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: psp:rook
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-rgw
-    namespace: rook-ceph-secondary # namespace:cluster
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-default-psp
-  namespace: rook-ceph-secondary # namespace:cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: psp:rook
-subjects:
-  - kind: ServiceAccount
-    name: default
     namespace: rook-ceph-secondary # namespace:cluster
 ---
 apiVersion: v1

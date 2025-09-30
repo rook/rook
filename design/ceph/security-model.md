@@ -250,7 +250,7 @@ subjects:
   namespace: rook-system
 ```
 
-Notably absent here are privileges to set other RBAC rules and create read cluster-wide secrets and other resources. Because the admin created the `rook-system` namespace and service account they are free to set policies on them using PSP or namespace quotas.
+Notably absent here are privileges to set other RBAC rules and create read cluster-wide secrets and other resources. Because the admin created the `rook-system` namespace and service account they are free to set policies on them using namespace quotas.
 
 Also note that while we use a `ClusterRole` for rook-system we only use a `RoleBinding` to grant it access to the `rook-system` namespace. It does not have cluster-wide privileges.
 

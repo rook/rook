@@ -12,10 +12,6 @@
 */}}
 {{ include "library.cluster.clusterrolebindings" . }}
 
-{{- if .Values.pspEnable }}
-{{ include "library.cluster.psp.rolebindings" . }}
-{{- end }}
-
 
 {{- /*
   roles
