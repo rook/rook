@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephCOSIDriverLister helps list CephCOSIDrivers.
@@ -30,7 +30,7 @@ import (
 type CephCOSIDriverLister interface {
 	// List lists all CephCOSIDrivers in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephCOSIDriver, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephCOSIDriver, err error)
 	// CephCOSIDrivers returns an object that can list and get CephCOSIDrivers.
 	CephCOSIDrivers(namespace string) CephCOSIDriverNamespaceLister
 	CephCOSIDriverListerExpansion
@@ -38,17 +38,17 @@ type CephCOSIDriverLister interface {
 
 // cephCOSIDriverLister implements the CephCOSIDriverLister interface.
 type cephCOSIDriverLister struct {
-	listers.ResourceIndexer[*v1.CephCOSIDriver]
+	listers.ResourceIndexer[*cephrookiov1.CephCOSIDriver]
 }
 
 // NewCephCOSIDriverLister returns a new CephCOSIDriverLister.
 func NewCephCOSIDriverLister(indexer cache.Indexer) CephCOSIDriverLister {
-	return &cephCOSIDriverLister{listers.New[*v1.CephCOSIDriver](indexer, v1.Resource("cephcosidriver"))}
+	return &cephCOSIDriverLister{listers.New[*cephrookiov1.CephCOSIDriver](indexer, cephrookiov1.Resource("cephcosidriver"))}
 }
 
 // CephCOSIDrivers returns an object that can list and get CephCOSIDrivers.
 func (s *cephCOSIDriverLister) CephCOSIDrivers(namespace string) CephCOSIDriverNamespaceLister {
-	return cephCOSIDriverNamespaceLister{listers.NewNamespaced[*v1.CephCOSIDriver](s.ResourceIndexer, namespace)}
+	return cephCOSIDriverNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephCOSIDriver](s.ResourceIndexer, namespace)}
 }
 
 // CephCOSIDriverNamespaceLister helps list and get CephCOSIDrivers.
@@ -56,15 +56,15 @@ func (s *cephCOSIDriverLister) CephCOSIDrivers(namespace string) CephCOSIDriverN
 type CephCOSIDriverNamespaceLister interface {
 	// List lists all CephCOSIDrivers in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephCOSIDriver, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephCOSIDriver, err error)
 	// Get retrieves the CephCOSIDriver from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephCOSIDriver, error)
+	Get(name string) (*cephrookiov1.CephCOSIDriver, error)
 	CephCOSIDriverNamespaceListerExpansion
 }
 
 // cephCOSIDriverNamespaceLister implements the CephCOSIDriverNamespaceLister
 // interface.
 type cephCOSIDriverNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephCOSIDriver]
+	listers.ResourceIndexer[*cephrookiov1.CephCOSIDriver]
 }

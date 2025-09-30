@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephClusterLister helps list CephClusters.
@@ -30,7 +30,7 @@ import (
 type CephClusterLister interface {
 	// List lists all CephClusters in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephCluster, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephCluster, err error)
 	// CephClusters returns an object that can list and get CephClusters.
 	CephClusters(namespace string) CephClusterNamespaceLister
 	CephClusterListerExpansion
@@ -38,17 +38,17 @@ type CephClusterLister interface {
 
 // cephClusterLister implements the CephClusterLister interface.
 type cephClusterLister struct {
-	listers.ResourceIndexer[*v1.CephCluster]
+	listers.ResourceIndexer[*cephrookiov1.CephCluster]
 }
 
 // NewCephClusterLister returns a new CephClusterLister.
 func NewCephClusterLister(indexer cache.Indexer) CephClusterLister {
-	return &cephClusterLister{listers.New[*v1.CephCluster](indexer, v1.Resource("cephcluster"))}
+	return &cephClusterLister{listers.New[*cephrookiov1.CephCluster](indexer, cephrookiov1.Resource("cephcluster"))}
 }
 
 // CephClusters returns an object that can list and get CephClusters.
 func (s *cephClusterLister) CephClusters(namespace string) CephClusterNamespaceLister {
-	return cephClusterNamespaceLister{listers.NewNamespaced[*v1.CephCluster](s.ResourceIndexer, namespace)}
+	return cephClusterNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephCluster](s.ResourceIndexer, namespace)}
 }
 
 // CephClusterNamespaceLister helps list and get CephClusters.
@@ -56,15 +56,15 @@ func (s *cephClusterLister) CephClusters(namespace string) CephClusterNamespaceL
 type CephClusterNamespaceLister interface {
 	// List lists all CephClusters in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephCluster, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephCluster, err error)
 	// Get retrieves the CephCluster from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephCluster, error)
+	Get(name string) (*cephrookiov1.CephCluster, error)
 	CephClusterNamespaceListerExpansion
 }
 
 // cephClusterNamespaceLister implements the CephClusterNamespaceLister
 // interface.
 type cephClusterNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephCluster]
+	listers.ResourceIndexer[*cephrookiov1.CephCluster]
 }

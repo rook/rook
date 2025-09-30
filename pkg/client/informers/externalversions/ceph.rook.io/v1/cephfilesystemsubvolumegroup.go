@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephFilesystemSubVolumeGroups.
 type CephFilesystemSubVolumeGroupInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephFilesystemSubVolumeGroupLister
+	Lister() cephrookiov1.CephFilesystemSubVolumeGroupLister
 }
 
 type cephFilesystemSubVolumeGroupInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredCephFilesystemSubVolumeGroupInformer(client versioned.Interface,
 				return client.CephV1().CephFilesystemSubVolumeGroups(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&cephrookiov1.CephFilesystemSubVolumeGroup{},
+		&apiscephrookiov1.CephFilesystemSubVolumeGroup{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *cephFilesystemSubVolumeGroupInformer) defaultInformer(client versioned.
 }
 
 func (f *cephFilesystemSubVolumeGroupInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephFilesystemSubVolumeGroup{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephFilesystemSubVolumeGroup{}, f.defaultInformer)
 }
 
-func (f *cephFilesystemSubVolumeGroupInformer) Lister() v1.CephFilesystemSubVolumeGroupLister {
-	return v1.NewCephFilesystemSubVolumeGroupLister(f.Informer().GetIndexer())
+func (f *cephFilesystemSubVolumeGroupInformer) Lister() cephrookiov1.CephFilesystemSubVolumeGroupLister {
+	return cephrookiov1.NewCephFilesystemSubVolumeGroupLister(f.Informer().GetIndexer())
 }

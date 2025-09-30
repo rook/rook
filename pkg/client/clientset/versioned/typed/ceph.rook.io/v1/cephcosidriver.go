@@ -19,9 +19,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,32 @@ type CephCOSIDriversGetter interface {
 
 // CephCOSIDriverInterface has methods to work with CephCOSIDriver resources.
 type CephCOSIDriverInterface interface {
-	Create(ctx context.Context, cephCOSIDriver *v1.CephCOSIDriver, opts metav1.CreateOptions) (*v1.CephCOSIDriver, error)
-	Update(ctx context.Context, cephCOSIDriver *v1.CephCOSIDriver, opts metav1.UpdateOptions) (*v1.CephCOSIDriver, error)
+	Create(ctx context.Context, cephCOSIDriver *cephrookiov1.CephCOSIDriver, opts metav1.CreateOptions) (*cephrookiov1.CephCOSIDriver, error)
+	Update(ctx context.Context, cephCOSIDriver *cephrookiov1.CephCOSIDriver, opts metav1.UpdateOptions) (*cephrookiov1.CephCOSIDriver, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephCOSIDriver, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephCOSIDriverList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephCOSIDriver, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*cephrookiov1.CephCOSIDriverList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephCOSIDriver, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *cephrookiov1.CephCOSIDriver, err error)
 	CephCOSIDriverExpansion
 }
 
 // cephCOSIDrivers implements CephCOSIDriverInterface
 type cephCOSIDrivers struct {
-	*gentype.ClientWithList[*v1.CephCOSIDriver, *v1.CephCOSIDriverList]
+	*gentype.ClientWithList[*cephrookiov1.CephCOSIDriver, *cephrookiov1.CephCOSIDriverList]
 }
 
 // newCephCOSIDrivers returns a CephCOSIDrivers
 func newCephCOSIDrivers(c *CephV1Client, namespace string) *cephCOSIDrivers {
 	return &cephCOSIDrivers{
-		gentype.NewClientWithList[*v1.CephCOSIDriver, *v1.CephCOSIDriverList](
+		gentype.NewClientWithList[*cephrookiov1.CephCOSIDriver, *cephrookiov1.CephCOSIDriverList](
 			"cephcosidrivers",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.CephCOSIDriver { return &v1.CephCOSIDriver{} },
-			func() *v1.CephCOSIDriverList { return &v1.CephCOSIDriverList{} }),
+			func() *cephrookiov1.CephCOSIDriver { return &cephrookiov1.CephCOSIDriver{} },
+			func() *cephrookiov1.CephCOSIDriverList { return &cephrookiov1.CephCOSIDriverList{} },
+		),
 	}
 }

@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephBucketTopicLister helps list CephBucketTopics.
@@ -30,7 +30,7 @@ import (
 type CephBucketTopicLister interface {
 	// List lists all CephBucketTopics in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephBucketTopic, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephBucketTopic, err error)
 	// CephBucketTopics returns an object that can list and get CephBucketTopics.
 	CephBucketTopics(namespace string) CephBucketTopicNamespaceLister
 	CephBucketTopicListerExpansion
@@ -38,17 +38,17 @@ type CephBucketTopicLister interface {
 
 // cephBucketTopicLister implements the CephBucketTopicLister interface.
 type cephBucketTopicLister struct {
-	listers.ResourceIndexer[*v1.CephBucketTopic]
+	listers.ResourceIndexer[*cephrookiov1.CephBucketTopic]
 }
 
 // NewCephBucketTopicLister returns a new CephBucketTopicLister.
 func NewCephBucketTopicLister(indexer cache.Indexer) CephBucketTopicLister {
-	return &cephBucketTopicLister{listers.New[*v1.CephBucketTopic](indexer, v1.Resource("cephbuckettopic"))}
+	return &cephBucketTopicLister{listers.New[*cephrookiov1.CephBucketTopic](indexer, cephrookiov1.Resource("cephbuckettopic"))}
 }
 
 // CephBucketTopics returns an object that can list and get CephBucketTopics.
 func (s *cephBucketTopicLister) CephBucketTopics(namespace string) CephBucketTopicNamespaceLister {
-	return cephBucketTopicNamespaceLister{listers.NewNamespaced[*v1.CephBucketTopic](s.ResourceIndexer, namespace)}
+	return cephBucketTopicNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephBucketTopic](s.ResourceIndexer, namespace)}
 }
 
 // CephBucketTopicNamespaceLister helps list and get CephBucketTopics.
@@ -56,15 +56,15 @@ func (s *cephBucketTopicLister) CephBucketTopics(namespace string) CephBucketTop
 type CephBucketTopicNamespaceLister interface {
 	// List lists all CephBucketTopics in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephBucketTopic, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephBucketTopic, err error)
 	// Get retrieves the CephBucketTopic from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephBucketTopic, error)
+	Get(name string) (*cephrookiov1.CephBucketTopic, error)
 	CephBucketTopicNamespaceListerExpansion
 }
 
 // cephBucketTopicNamespaceLister implements the CephBucketTopicNamespaceLister
 // interface.
 type cephBucketTopicNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephBucketTopic]
+	listers.ResourceIndexer[*cephrookiov1.CephBucketTopic]
 }

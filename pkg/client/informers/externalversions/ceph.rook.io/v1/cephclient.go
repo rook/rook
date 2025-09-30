@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephClients.
 type CephClientInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephClientLister
+	Lister() cephrookiov1.CephClientLister
 }
 
 type cephClientInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredCephClientInformer(client versioned.Interface, namespace string,
 				return client.CephV1().CephClients(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&cephrookiov1.CephClient{},
+		&apiscephrookiov1.CephClient{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *cephClientInformer) defaultInformer(client versioned.Interface, resyncP
 }
 
 func (f *cephClientInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephClient{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephClient{}, f.defaultInformer)
 }
 
-func (f *cephClientInformer) Lister() v1.CephClientLister {
-	return v1.NewCephClientLister(f.Informer().GetIndexer())
+func (f *cephClientInformer) Lister() cephrookiov1.CephClientLister {
+	return cephrookiov1.NewCephClientLister(f.Informer().GetIndexer())
 }
