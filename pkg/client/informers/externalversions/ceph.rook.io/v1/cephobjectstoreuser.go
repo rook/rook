@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephObjectStoreUsers.
 type CephObjectStoreUserInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephObjectStoreUserLister
+	Lister() cephrookiov1.CephObjectStoreUserLister
 }
 
 type cephObjectStoreUserInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredCephObjectStoreUserInformer(client versioned.Interface, namespac
 				return client.CephV1().CephObjectStoreUsers(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&cephrookiov1.CephObjectStoreUser{},
+		&apiscephrookiov1.CephObjectStoreUser{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *cephObjectStoreUserInformer) defaultInformer(client versioned.Interface
 }
 
 func (f *cephObjectStoreUserInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephObjectStoreUser{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephObjectStoreUser{}, f.defaultInformer)
 }
 
-func (f *cephObjectStoreUserInformer) Lister() v1.CephObjectStoreUserLister {
-	return v1.NewCephObjectStoreUserLister(f.Informer().GetIndexer())
+func (f *cephObjectStoreUserInformer) Lister() cephrookiov1.CephObjectStoreUserLister {
+	return cephrookiov1.NewCephObjectStoreUserLister(f.Informer().GetIndexer())
 }

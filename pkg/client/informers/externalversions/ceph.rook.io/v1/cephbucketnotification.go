@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephBucketNotifications.
 type CephBucketNotificationInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephBucketNotificationLister
+	Lister() cephrookiov1.CephBucketNotificationLister
 }
 
 type cephBucketNotificationInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredCephBucketNotificationInformer(client versioned.Interface, names
 				return client.CephV1().CephBucketNotifications(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&cephrookiov1.CephBucketNotification{},
+		&apiscephrookiov1.CephBucketNotification{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *cephBucketNotificationInformer) defaultInformer(client versioned.Interf
 }
 
 func (f *cephBucketNotificationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephBucketNotification{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephBucketNotification{}, f.defaultInformer)
 }
 
-func (f *cephBucketNotificationInformer) Lister() v1.CephBucketNotificationLister {
-	return v1.NewCephBucketNotificationLister(f.Informer().GetIndexer())
+func (f *cephBucketNotificationInformer) Lister() cephrookiov1.CephBucketNotificationLister {
+	return cephrookiov1.NewCephBucketNotificationLister(f.Informer().GetIndexer())
 }

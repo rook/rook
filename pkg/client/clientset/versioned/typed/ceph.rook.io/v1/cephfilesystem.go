@@ -19,9 +19,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,32 @@ type CephFilesystemsGetter interface {
 
 // CephFilesystemInterface has methods to work with CephFilesystem resources.
 type CephFilesystemInterface interface {
-	Create(ctx context.Context, cephFilesystem *v1.CephFilesystem, opts metav1.CreateOptions) (*v1.CephFilesystem, error)
-	Update(ctx context.Context, cephFilesystem *v1.CephFilesystem, opts metav1.UpdateOptions) (*v1.CephFilesystem, error)
+	Create(ctx context.Context, cephFilesystem *cephrookiov1.CephFilesystem, opts metav1.CreateOptions) (*cephrookiov1.CephFilesystem, error)
+	Update(ctx context.Context, cephFilesystem *cephrookiov1.CephFilesystem, opts metav1.UpdateOptions) (*cephrookiov1.CephFilesystem, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephFilesystem, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephFilesystemList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephFilesystem, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*cephrookiov1.CephFilesystemList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephFilesystem, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *cephrookiov1.CephFilesystem, err error)
 	CephFilesystemExpansion
 }
 
 // cephFilesystems implements CephFilesystemInterface
 type cephFilesystems struct {
-	*gentype.ClientWithList[*v1.CephFilesystem, *v1.CephFilesystemList]
+	*gentype.ClientWithList[*cephrookiov1.CephFilesystem, *cephrookiov1.CephFilesystemList]
 }
 
 // newCephFilesystems returns a CephFilesystems
 func newCephFilesystems(c *CephV1Client, namespace string) *cephFilesystems {
 	return &cephFilesystems{
-		gentype.NewClientWithList[*v1.CephFilesystem, *v1.CephFilesystemList](
+		gentype.NewClientWithList[*cephrookiov1.CephFilesystem, *cephrookiov1.CephFilesystemList](
 			"cephfilesystems",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.CephFilesystem { return &v1.CephFilesystem{} },
-			func() *v1.CephFilesystemList { return &v1.CephFilesystemList{} }),
+			func() *cephrookiov1.CephFilesystem { return &cephrookiov1.CephFilesystem{} },
+			func() *cephrookiov1.CephFilesystemList { return &cephrookiov1.CephFilesystemList{} },
+		),
 	}
 }

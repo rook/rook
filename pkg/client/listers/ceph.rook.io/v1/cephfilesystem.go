@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephFilesystemLister helps list CephFilesystems.
@@ -30,7 +30,7 @@ import (
 type CephFilesystemLister interface {
 	// List lists all CephFilesystems in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephFilesystem, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephFilesystem, err error)
 	// CephFilesystems returns an object that can list and get CephFilesystems.
 	CephFilesystems(namespace string) CephFilesystemNamespaceLister
 	CephFilesystemListerExpansion
@@ -38,17 +38,17 @@ type CephFilesystemLister interface {
 
 // cephFilesystemLister implements the CephFilesystemLister interface.
 type cephFilesystemLister struct {
-	listers.ResourceIndexer[*v1.CephFilesystem]
+	listers.ResourceIndexer[*cephrookiov1.CephFilesystem]
 }
 
 // NewCephFilesystemLister returns a new CephFilesystemLister.
 func NewCephFilesystemLister(indexer cache.Indexer) CephFilesystemLister {
-	return &cephFilesystemLister{listers.New[*v1.CephFilesystem](indexer, v1.Resource("cephfilesystem"))}
+	return &cephFilesystemLister{listers.New[*cephrookiov1.CephFilesystem](indexer, cephrookiov1.Resource("cephfilesystem"))}
 }
 
 // CephFilesystems returns an object that can list and get CephFilesystems.
 func (s *cephFilesystemLister) CephFilesystems(namespace string) CephFilesystemNamespaceLister {
-	return cephFilesystemNamespaceLister{listers.NewNamespaced[*v1.CephFilesystem](s.ResourceIndexer, namespace)}
+	return cephFilesystemNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephFilesystem](s.ResourceIndexer, namespace)}
 }
 
 // CephFilesystemNamespaceLister helps list and get CephFilesystems.
@@ -56,15 +56,15 @@ func (s *cephFilesystemLister) CephFilesystems(namespace string) CephFilesystemN
 type CephFilesystemNamespaceLister interface {
 	// List lists all CephFilesystems in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephFilesystem, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephFilesystem, err error)
 	// Get retrieves the CephFilesystem from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephFilesystem, error)
+	Get(name string) (*cephrookiov1.CephFilesystem, error)
 	CephFilesystemNamespaceListerExpansion
 }
 
 // cephFilesystemNamespaceLister implements the CephFilesystemNamespaceLister
 // interface.
 type cephFilesystemNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephFilesystem]
+	listers.ResourceIndexer[*cephrookiov1.CephFilesystem]
 }

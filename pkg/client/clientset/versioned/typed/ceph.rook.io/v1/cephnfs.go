@@ -19,9 +19,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,32 @@ type CephNFSesGetter interface {
 
 // CephNFSInterface has methods to work with CephNFS resources.
 type CephNFSInterface interface {
-	Create(ctx context.Context, cephNFS *v1.CephNFS, opts metav1.CreateOptions) (*v1.CephNFS, error)
-	Update(ctx context.Context, cephNFS *v1.CephNFS, opts metav1.UpdateOptions) (*v1.CephNFS, error)
+	Create(ctx context.Context, cephNFS *cephrookiov1.CephNFS, opts metav1.CreateOptions) (*cephrookiov1.CephNFS, error)
+	Update(ctx context.Context, cephNFS *cephrookiov1.CephNFS, opts metav1.UpdateOptions) (*cephrookiov1.CephNFS, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephNFS, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephNFSList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephNFS, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*cephrookiov1.CephNFSList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephNFS, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *cephrookiov1.CephNFS, err error)
 	CephNFSExpansion
 }
 
 // cephNFSes implements CephNFSInterface
 type cephNFSes struct {
-	*gentype.ClientWithList[*v1.CephNFS, *v1.CephNFSList]
+	*gentype.ClientWithList[*cephrookiov1.CephNFS, *cephrookiov1.CephNFSList]
 }
 
 // newCephNFSes returns a CephNFSes
 func newCephNFSes(c *CephV1Client, namespace string) *cephNFSes {
 	return &cephNFSes{
-		gentype.NewClientWithList[*v1.CephNFS, *v1.CephNFSList](
+		gentype.NewClientWithList[*cephrookiov1.CephNFS, *cephrookiov1.CephNFSList](
 			"cephnfses",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.CephNFS { return &v1.CephNFS{} },
-			func() *v1.CephNFSList { return &v1.CephNFSList{} }),
+			func() *cephrookiov1.CephNFS { return &cephrookiov1.CephNFS{} },
+			func() *cephrookiov1.CephNFSList { return &cephrookiov1.CephNFSList{} },
+		),
 	}
 }

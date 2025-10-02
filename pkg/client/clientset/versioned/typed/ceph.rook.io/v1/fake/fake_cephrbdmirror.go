@@ -19,116 +19,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	cephrookiov1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeCephRBDMirrors implements CephRBDMirrorInterface
-type FakeCephRBDMirrors struct {
+// fakeCephRBDMirrors implements CephRBDMirrorInterface
+type fakeCephRBDMirrors struct {
+	*gentype.FakeClientWithList[*v1.CephRBDMirror, *v1.CephRBDMirrorList]
 	Fake *FakeCephV1
-	ns   string
 }
 
-var cephrbdmirrorsResource = v1.SchemeGroupVersion.WithResource("cephrbdmirrors")
-
-var cephrbdmirrorsKind = v1.SchemeGroupVersion.WithKind("CephRBDMirror")
-
-// Get takes name of the cephRBDMirror, and returns the corresponding cephRBDMirror object, and an error if there is any.
-func (c *FakeCephRBDMirrors) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephRBDMirror, err error) {
-	emptyResult := &v1.CephRBDMirror{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(cephrbdmirrorsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeCephRBDMirrors(fake *FakeCephV1, namespace string) cephrookiov1.CephRBDMirrorInterface {
+	return &fakeCephRBDMirrors{
+		gentype.NewFakeClientWithList[*v1.CephRBDMirror, *v1.CephRBDMirrorList](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("cephrbdmirrors"),
+			v1.SchemeGroupVersion.WithKind("CephRBDMirror"),
+			func() *v1.CephRBDMirror { return &v1.CephRBDMirror{} },
+			func() *v1.CephRBDMirrorList { return &v1.CephRBDMirrorList{} },
+			func(dst, src *v1.CephRBDMirrorList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.CephRBDMirrorList) []*v1.CephRBDMirror { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.CephRBDMirrorList, items []*v1.CephRBDMirror) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.CephRBDMirror), err
-}
-
-// List takes label and field selectors, and returns the list of CephRBDMirrors that match those selectors.
-func (c *FakeCephRBDMirrors) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephRBDMirrorList, err error) {
-	emptyResult := &v1.CephRBDMirrorList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(cephrbdmirrorsResource, cephrbdmirrorsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.CephRBDMirrorList{ListMeta: obj.(*v1.CephRBDMirrorList).ListMeta}
-	for _, item := range obj.(*v1.CephRBDMirrorList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested cephRBDMirrors.
-func (c *FakeCephRBDMirrors) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(cephrbdmirrorsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a cephRBDMirror and creates it.  Returns the server's representation of the cephRBDMirror, and an error, if there is any.
-func (c *FakeCephRBDMirrors) Create(ctx context.Context, cephRBDMirror *v1.CephRBDMirror, opts metav1.CreateOptions) (result *v1.CephRBDMirror, err error) {
-	emptyResult := &v1.CephRBDMirror{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(cephrbdmirrorsResource, c.ns, cephRBDMirror, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephRBDMirror), err
-}
-
-// Update takes the representation of a cephRBDMirror and updates it. Returns the server's representation of the cephRBDMirror, and an error, if there is any.
-func (c *FakeCephRBDMirrors) Update(ctx context.Context, cephRBDMirror *v1.CephRBDMirror, opts metav1.UpdateOptions) (result *v1.CephRBDMirror, err error) {
-	emptyResult := &v1.CephRBDMirror{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(cephrbdmirrorsResource, c.ns, cephRBDMirror, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephRBDMirror), err
-}
-
-// Delete takes name of the cephRBDMirror and deletes it. Returns an error if one occurs.
-func (c *FakeCephRBDMirrors) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(cephrbdmirrorsResource, c.ns, name, opts), &v1.CephRBDMirror{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeCephRBDMirrors) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(cephrbdmirrorsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.CephRBDMirrorList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched cephRBDMirror.
-func (c *FakeCephRBDMirrors) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephRBDMirror, err error) {
-	emptyResult := &v1.CephRBDMirror{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(cephrbdmirrorsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephRBDMirror), err
 }
