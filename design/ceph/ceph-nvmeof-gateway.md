@@ -1,0 +1,210 @@
+# Ceph NVMe-oF Gateway Support
+
+## Overview
+
+This design document proposes adding NVMe over Fabrics (NVMe-oF) gateway support to Rook Ceph, enabling RBD volumes to be exposed and accessed from outside the Kubernetes cluster via the NVMe/TCP protocol.
+
+Currently, Rook Ceph provides excellent support for RBD disks through CSI drivers, but lacks a mechanism to expose RBD volumes to clients outside the Kubernetes cluster. With Ceph's deprecation of iSCSI gateway support and the introduction of NVMe-oF gateway functionality, there is an opportunity to provide external block storage access through the use of NVMeOF protocol.
+
+### Goals
+
+- Enable RBD volumes to be accessible from outside the Kubernetes cluster via NVMe/TCP protocol using rook ceph operator
+
+## Proposal:
+
+Rook will have CephNVMeOFGateway CRD for handling the communication b/w Block PVC in the k8s cluster and the client.
+
+## Prerequisite
+
+- **Ceph Version**: Tentacle (v20) or later with NVMe-oF gateway support
+- **RBD Pools and PVCs configured**: Pre-configured RBD pools with appropriate replication/erasure coding and Existing RBD storage classes for volume provisioning.
+- **Ceph CSI**: For dynamic provisioning of NVMe namespace (version yet to be added)
+- **Kernel Modules (Initiator) for client nodes**: Client nodes must have the nvme-tcp kernel module loaded and nvme-cli installed for initiator functionality.
+
+## Architecture Diagram
+
+
+                                         +----------------------+
+                                         |  Kubernetes Cluster  |
+                                         +----------------------+
+                                                    |
+                     +------------------------------|------------------------------+
+                     |                              |                              |
+            +--------v--------+             +-------v-------+             +-------v-------+
+            |  Rook Operator   | --------.  |   Ceph Cluster |  .---------| NVMe-oF Gateway |
+            +------------------+          \ +----------------+ /          +-----------------+
+                                           \        |         /
+                                            \       |        /
+                                         +-----------v-----------+
+                                         |     Storage Layer      |
+                                         | +--------------------+ |
+                                         | | OSD 1 (Physical)   | |
+                                         | +--------------------+ |
+                                         +-----------|------------+
+                                                     |
+                                          +----------v----------+
+                                          |   RBD Volume         |
+                                          |   (Block Device)      |
+                                          +----------|------------+
+                                                     |
+                                          +----------v----------+
+                                          | NVMe-oF Target       |
+                                          | (Presents RBD as     |
+                                          | NVMe Namespace)      |
+                                          +----------|------------+
+                                                     |
+                                           +---------v---------+
+                                           |      Network       |
+                                           | TCP/IP or RDMA     |
+                                           | (NVMe-oF Protocol) |
+                                           +---------|-----------+
+                                                     |
+                                      +--------------v--------------+
+                                      |        Client Node          |
+                                      +-----------------------------+
+                                      | NVMe-oF Initiator (nvme-cli)|
+                                      |                             |
+                                      |  Application sees           |
+                                      |  /dev/nvmeXnY               |
+                                      +-----------------------------+
+
+
+
+
+
+* Note:  In this document, when we refer to 'NVMe namespace,' we mean the NVMe protocol's concept of a logical block device, not Kubernetes resource namespaces."
+
+### Components Responsibilities
+
+* **Volume Provisioning**: CSI driver creates RBD image and configures it in NVMe-oF gateway.
+* **Gateway Management**: Rook operator manages gateway lifecycle, scaling, and health.
+* **Load Balancing/k8s Service**: Service provides single endpoint for multiple gateway instances, NVMe namespace exposed over TCP/IP fabric with port 5500.
+* **Client Access**: External clients connect via NVMe-oF initiator to access volumes.
+
+## CephNVMeOFGateway CRD
+
+### Gateway Configuration
+
+- **Group**: `gateway-group-1` - Logical grouping of gateways
+- **Replicas**: `2` - Two gateway instances for HA
+- **Port**: `5500` - NVMe-oF service port
+
+
+### Example CephNVMeOFGateway Resource
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephNVMeOFGateway
+metadata:
+  name: nvmeof-gateway
+  namespace: rook-ceph
+spec:
+  gatewayGroup: "gateway-group-1"
+  replicas: 2
+  port: 5500
+  grpcPort: 5501
+  placement:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: role
+            operator: In
+            values: ["osd-node"]
+  resources:
+    #  limits:
+    #    cpu: "500m"
+    #    memory: "1024Mi"
+    #  requests:
+    #    cpu: "500m"
+    #    memory: "1024Mi"
+apiVersion: ceph.rook.io/v1
+kind: CephNVMeOFGateway
+metadata:
+  name: nvmeof-gateway
+  namespace: rook-ceph
+spec:
+  gatewayGroup: "gateway-group-1"
+  replicas: 2
+  port: 5500
+  
+  placement:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: role
+            operator: In
+            values: ["osd-node"]
+  
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1024Mi"
+  # Keep subsystems in CRD - Rook creates them via gRPC API
+  subsystems:
+  - nqn: "nqn.2016-06.io.spdk:production"
+    # hosts: # Initially empty, CSI will add hosts dynamically on PVC creation
+```
+
+Note: As per Ceph documentation, NVMe-oF gateways, which can either be colocated with OSD nodes or on dedicated nodes.
+When colocating the Ceph NVMe-oF gateway with other daemons, ensure that sufficient CPU and memory are available.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ceph-nvmeof-prod
+provisioner: rook-ceph.nvmeof.csi.ceph.com
+parameters:
+  clusterID: rook-ceph
+  pool: replicapool
+  nvmeof-gateway-group: "gateway-group-1"
+  nvmeof-subsystem: "nqn.2016-06.io.spdk:prod"
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+allowVolumeExpansion: true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nvmeof-pvc
+spec:
+  storageClassName: ceph-nvmeof-prod
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Example PVC using NVMe-oF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nvmeof-pvc
+  namespace: default
+spec:
+  storageClassName: ceph-nvmeof
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+The target aka the client can than be configued from the procedure provided [Ceph documentation](https://docs.ceph.com/en/latest/rbd/nvmeof-initiator-linux/) for connecting to the NVMe backed Block device.
+### Terminology
+
+**NVMe Namespace:** logical block device (NVMe namespace) that is presented by the NVMe-oF gateway.
+
+**subsystems:** A list of NVMe-oF subsystems to be configured on this gateway group. Each subsystem acts as a container for NVMe namespaces and defines access control.
+
+**nqn:** The NVMe Qualified Name (NQN) for the subsystem (e.g., nqn.2016-06.io.spdk:production). This NQN will be advertised to initiators.
+
+**hosts:** A list of initiator NQNs allowed to connect to this specific subsystem. If empty, any initiator can connect (less secure). This can be dynamically updated by the CSI driver or manually.
+
+### References
+https://docs.ceph.com/en/latest/rbd/nvmeof-overview/
+https://github.com/ceph/ceph-nvmeof
+https://github.com/ceph/ceph-csi/pull/5397/
