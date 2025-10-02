@@ -8,28 +8,35 @@ metadata:
   namespace: {{ $root.Release.Namespace }} # namespace:cluster
 spec:
   {{- $objectstore.spec | toYaml | nindent 2 }}
-{{- if $objectstore.storageClass.enabled }}
+{{- /* Merge user storageClass config with defaults */ -}}
+{{- $defaultStorageClass := dict "enabled" true "name" "ceph-bucket" "reclaimPolicy" "Delete" "volumeBindingMode" "Immediate" "annotations" dict "labels" dict -}}
+{{- $storageClass := mergeOverwrite $defaultStorageClass ($objectstore.storageClass | default dict) -}}
+{{- if $storageClass.enabled }}
+{{- $scName := $storageClass.name | default "ceph-bucket" }}
+{{- $existing := lookup "storage.k8s.io/v1" "StorageClass" "" $scName }}
+{{- if not $existing }}
 ---
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: {{ $objectstore.storageClass.name }}
-  {{- with $objectstore.storageClass.labels }}
+  name: {{ $scName }}
+  {{- with $storageClass.labels }}
   labels:
     {{- . | toYaml | nindent 4 }}
   {{- end }}
-  {{- with $objectstore.storageClass.annotations }}
+  {{- with $storageClass.annotations }}
   annotations:
     {{- . | toYaml | nindent 4 }}
   {{- end }}
 provisioner: {{ $root.Release.Namespace }}.ceph.rook.io/bucket
-reclaimPolicy: {{ $objectstore.storageClass.reclaimPolicy | default "Delete" }}
-volumeBindingMode: {{ $objectstore.storageClass.volumeBindingMode | default "Immediate" }}
+reclaimPolicy: {{ $storageClass.reclaimPolicy | default "Delete" }}
+volumeBindingMode: {{ $storageClass.volumeBindingMode | default "Immediate" }}
 parameters:
   objectStoreName: {{ $objectstore.name }}
   objectStoreNamespace: {{ $root.Release.Namespace }}
-  {{- with $objectstore.storageClass.parameters }}
+  {{- with $storageClass.parameters }}
   {{- . | toYaml | nindent 2 }}
   {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
