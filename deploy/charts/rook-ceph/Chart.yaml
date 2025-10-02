@@ -12,7 +12,7 @@ dependencies:
     version: "0.0.1"
     repository: "file://../library"
   - name: ceph-csi-operator
-    version: 0.4.0
+    version: 0.4.1
     repository: https://ceph.github.io/ceph-csi-operator
     alias: ceph-csi-operator
     condition: csi.rookUseCsiOperator
