@@ -96,12 +96,12 @@ IMAGE_TMP="/tmp/rook-ceph-image-list"
 list-image: ## Create a list of images for offline installation
 	@echo "producing list of images for offline installation"
 	rm -f $(IMAGE_TMP)
-	awk '/image:/ {print $2}' $(MANIFESTS_DIR)/operator.yaml $(MANIFESTS_DIR)/cluster.yaml | \
+	awk '/image:/ {print $2}' $(MANIFESTS_DIR)/operator.yaml $(MANIFESTS_DIR)/cluster.yaml $(MANIFESTS_DIR)/csi-operator.yaml | \
 		cut -d: -f2- | tee $(IMAGE_TMP)
 	awk '/quay.io/ || /registry.k8s.io/ {print $3}' ../../pkg/operator/ceph/csi/spec.go | \
 		cut -d= -f2- | tr -d '"' | tee -a $(IMAGE_TMP)
 	awk '/quay.io/ || /gcr.io/ {print $4}' ../../pkg/operator/ceph/object/cosi/spec.go | \
 		cut -d= -f2- | tr -d '"' | tee -a $(IMAGE_TMP)
 	rm -f $(MANIFESTS_DIR)/images.txt
-	cat $(IMAGE_TMP) | sort -h | uniq | tee $(MANIFESTS_DIR)/images.txt
+	cat $(IMAGE_TMP) | sort -h | uniq | grep -v '^[[:space:]]*$$' | tee $(MANIFESTS_DIR)/images.txt
 	rm -f $(IMAGE_TMP)
