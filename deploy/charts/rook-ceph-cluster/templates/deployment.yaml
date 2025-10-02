@@ -36,7 +36,7 @@ spec:
       {{- end }}
       containers:
         - name: rook-ceph-tools
-          image: {{ .Values.toolbox.image | default .Values.cephClusterSpec.cephVersion.image }}
+          image: {{ .Values.toolbox.image | default (printf "%s:%s" .Values.cephImage.repository .Values.cephImage.tag) }}
           command:
             - /bin/bash
             - -c
