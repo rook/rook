@@ -6,6 +6,8 @@ kind: SecurityContextConstraints
 apiVersion: security.openshift.io/v1
 metadata:
   name: rook-ceph
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 allowPrivilegedContainer: true
 allowHostDirVolumePlugin: true
 allowHostPID: false
@@ -52,6 +54,8 @@ kind: SecurityContextConstraints
 apiVersion: security.openshift.io/v1
 metadata:
   name: rook-ceph-csi
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 # To allow running privilegedContainers
 allowPrivilegedContainer: true
 # CSI daemonset pod needs hostnetworking

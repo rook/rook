@@ -5,6 +5,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-obc-view
   labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
     rbac.authorization.k8s.io/aggregate-to-view: "true"
 rules:
   - apiGroups:
@@ -21,6 +22,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-obc-edit
   labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
     rbac.authorization.k8s.io/aggregate-to-edit: "true"
 rules:
   - apiGroups:

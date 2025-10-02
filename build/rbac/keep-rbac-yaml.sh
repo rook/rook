@@ -29,6 +29,8 @@ $YQ eval '
 $YQ eval 'del(.metadata.labels."helm.sh/chart")' - | # remove the 'helm.sh/chart' label that only applies to Helm-managed resources
 $YQ eval 'del(.metadata.labels."app.kubernetes.io/managed-by")' - | # remove the 'labels.app.kubernetes.io/managed-by' label that only applies to Helm-managed resources
 $YQ eval 'del(.metadata.labels."app.kubernetes.io/created-by")' - | # remove the 'app.kubernetes.io/created-by' label that only applies to Helm-managed resources
+$YQ eval 'del(.metadata.labels."app.kubernetes.io/version")' - | # remove the version label that contains library chart version instead of actual rook version
+$YQ eval 'del(.metadata.labels."app.kubernetes.io/instance")' - | # remove the instance label that doesn't make sense in static files
 sed '/^$/d' | # remove empty lines caused by yq's display of header/footer comments
 sed '/^# Source: /d' | # helm adds '# Source: <file>' comments atop of each yaml doc. Strip these
 $YQ eval --split-exp '.kind + " " + .metadata.name + " "' - # split into files by <kind> <name> .yaml
