@@ -286,6 +286,8 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		envVars = append(envVars, dataDevicesEnvVar(string(marshalledDevices)))
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
 		envVars = append(envVars, encryptedDeviceEnvVar(osdProps.encrypted))
+		envVars = append(envVars, dmcryptFormatOptionsEnvVar(osdProps.storeConfig.DmcryptFormatOptions))
+		envVars = append(envVars, dmcryptOpenOptionsEnvVar(osdProps.storeConfig.DmcryptOpenOptions))
 		envVars = append(envVars, pvcNameEnvVar(osdProps.pvc.ClaimName))
 
 		if osdProps.encrypted {
