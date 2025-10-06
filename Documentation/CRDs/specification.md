@@ -9029,6 +9029,34 @@ ProbeSpec
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>cacheMemoryLimitFactor</code><br/>
+<em>
+float64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CacheMemoryLimitFactor is the factor applied to the memory limit to determine the MDS cache memory limit.
+MDS cache memory limit should be set to 50-60% of RAM reserved for the MDS container.
+MDS uses approximately 125% of the value of mds_cache_memory_limit in RAM.
+This factor is applied when resources.limits.memory is set.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cacheMemoryRequestFactor</code><br/>
+<em>
+float64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CacheMemoryRequestFactor is the factor applied to the memory request to determine the MDS cache memory limit.
+This factor is applied when resources.requests.memory is set and resources.limits.memory is not set.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.MgrSpec">MgrSpec
