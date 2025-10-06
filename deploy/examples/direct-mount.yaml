@@ -19,7 +19,7 @@ spec:
       serviceAccountName: rook-ceph-default
       containers:
         - name: rook-direct-mount
-          image: docker.io/rook/ceph:v1.18.3
+          image: docker.io/rook/ceph:v1.18.4
           command: ["/bin/bash"]
           args: ["-m", "-c", "/usr/local/bin/toolbox.sh"]
           imagePullPolicy: IfNotPresent
