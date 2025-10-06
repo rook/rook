@@ -8045,6 +8045,22 @@ spec:
                       nullable: true
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    cacheMemoryLimitFactor:
+                      description: |-
+                        CacheMemoryLimitFactor is the factor applied to the memory limit to determine the MDS cache memory limit.
+                        MDS cache memory limit should be set to 50-60% of RAM reserved for the MDS container.
+                        MDS uses approximately 125% of the value of mds_cache_memory_limit in RAM.
+                        This factor is applied when resources.limits.memory is set.
+                      maximum: 1
+                      minimum: 0
+                      type: number
+                    cacheMemoryRequestFactor:
+                      description: |-
+                        CacheMemoryRequestFactor is the factor applied to the memory request to determine the MDS cache memory limit.
+                        This factor is applied when resources.requests.memory is set and resources.limits.memory is not set.
+                      maximum: 1
+                      minimum: 0
+                      type: number
                     labels:
                       additionalProperties:
                         type: string
