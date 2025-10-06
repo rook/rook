@@ -32,11 +32,7 @@ provisioner: {{ $root.Release.Namespace }}.ceph.rook.io/bucket
 reclaimPolicy: {{ $storageClass.reclaimPolicy | default "Delete" }}
 volumeBindingMode: {{ $storageClass.volumeBindingMode | default "Immediate" }}
 parameters:
-  objectStoreName: {{ $objectstore.name }}
-  objectStoreNamespace: {{ $root.Release.Namespace }}
-  {{- with $storageClass.parameters }}
-  {{- . | toYaml | nindent 2 }}
-  {{- end }}
+  {{- include "rook-ceph-cluster.objectStorageClassParameters" (dict "objectstore" $objectstore "storageClass" $storageClass "root" $root) | nindent 2 }}
 {{- end }}
 {{- end }}
 {{- end }}

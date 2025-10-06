@@ -54,12 +54,7 @@ provisioner: {{ $root.Values.csiDriverNamePrefix }}.cephfs.csi.ceph.com
 provisioner: {{ $root.Values.operatorNamespace }}.cephfs.csi.ceph.com
 {{- end }}
 parameters:
-  fsName: {{ $filesystem.name }}
-  pool: {{ $filesystem.name }}-{{ $storageClass.pool | default "data0" }}
-  clusterID: {{ $root.Release.Namespace }}
-  {{- with $storageClass.parameters }}
-  {{- tpl (. | toYaml) $ | nindent 2 }}
-  {{- end }}
+  {{- include "rook-ceph-cluster.filesystemStorageClassParameters" (dict "filesystem" $filesystem "storageClass" $storageClass "root" $root) | nindent 2 }}
 reclaimPolicy: {{ $storageClass.reclaimPolicy | default "Delete" }}
 allowVolumeExpansion: {{ $storageClass.allowVolumeExpansion | default "true" }}
 volumeBindingMode: {{ $storageClass.volumeBindingMode | default "Immediate" }}
