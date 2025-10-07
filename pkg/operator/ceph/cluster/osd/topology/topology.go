@@ -155,6 +155,8 @@ func GetDefaultTopologyLabels() string {
 // 2. No topology value is used under more than one label key.
 // 3. No label value lives under more than one parent label value.
 func CheckTopologyConflicts(nodes *[]corev1.Node) error {
+	logger.Debugf("Starting CheckTopologyConflicts with %d nodes", len(*nodes))
+
 	// 1. Build our ordered list of topology labels (region -> zone -> datacenter -> …), dropping hostname.
 	allLabels := allKubernetesTopologyLabelsOrdered()
 	var hierarchy []string
@@ -163,6 +165,7 @@ func CheckTopologyConflicts(nodes *[]corev1.Node) error {
 			hierarchy = append(hierarchy, label)
 		}
 	}
+	logger.Debugf("Topology hierarchy: %v", hierarchy)
 
 	// 2. Gather distinct values for each topology key.
 	values := make(map[string]map[string]struct{}, len(hierarchy))
@@ -171,9 +174,11 @@ func CheckTopologyConflicts(nodes *[]corev1.Node) error {
 	}
 	for _, node := range *nodes {
 		labels := node.GetLabels()
+		logger.Debugf("Node %q labels: %v", node.Name, labels)
 		for _, key := range hierarchy {
 			// If the label exists but has an empty value, consider it invalid
 			if val, ok := labels[key]; ok && val == "" {
+				logger.Errorf("Node %q has empty value for label %q", node.Name, key)
 				return fmt.Errorf(
 					"invalid topology: label %q has an empty value on node %q",
 					key, node.Name,
@@ -182,8 +187,12 @@ func CheckTopologyConflicts(nodes *[]corev1.Node) error {
 			// Collect non-empty normalized values
 			if crushName := client.NormalizeCrushName(labels[key]); crushName != "" {
 				values[key][crushName] = struct{}{}
+				logger.Debugf("Node %q: label %q normalized to %q", node.Name, key, crushName)
 			}
 		}
+	}
+	for key, vals := range values {
+		logger.Debugf("Distinct values for key %q: %v", key, vals)
 	}
 
 	// 3. Parent‑consistency: each child‑value only ever under one parent‑value.
@@ -204,6 +213,7 @@ func CheckTopologyConflicts(nodes *[]corev1.Node) error {
 					pv := client.NormalizeCrushName(labels[parKey])
 					if pv != "" {
 						seenParents[pv] = struct{}{}
+						logger.Debugf("Node %q: child %q=%q has parent %q=%q", node.Name, key, topologyValue, parKey, pv)
 						break
 					}
 				}
@@ -214,6 +224,7 @@ func CheckTopologyConflicts(nodes *[]corev1.Node) error {
 					ps = append(ps, p)
 				}
 				sort.Strings(ps)
+				logger.Errorf("Conflict: %q value %q appears under both %q and %q", key, topologyValue, ps[0], ps[1])
 				return fmt.Errorf(
 					"invalid topology: %q value %q appears under both %q and %q",
 					key, topologyValue, ps[0], ps[1],
@@ -232,14 +243,17 @@ func CheckTopologyConflicts(nodes *[]corev1.Node) error {
 		sort.Strings(vs)
 		for _, v := range vs {
 			if fk, ok := seenKey[v]; ok {
+				logger.Errorf("Conflict: value %q appears under both %q and %q", v, fk, key)
 				return fmt.Errorf(
 					"invalid topology: value %q appears under both %q and %q",
 					v, fk, key,
 				)
 			}
 			seenKey[v] = key
+			logger.Debugf("Value %q assigned to key %q", v, key)
 		}
 	}
 
+	logger.Debug("CheckTopologyConflicts completed successfully")
 	return nil
 }
