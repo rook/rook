@@ -52,34 +52,20 @@ those releases.
     official releases. Builds from the master branch can have functionality changed or removed at any
     time without compatibility support and without prior notice.
 
-## Breaking changes in v1.18
-
-* Helm: Two new properties have been added to the storage classes in the `rook-ceph-cluster` chart.
-    Adding these properties will cause the helm upgrade to fail since storage classes are immutable.
-    Before upgrading the `rook-ceph-cluster` chart, one of these actions is necessary:
-    - Delete the existing StorageClasses. The upgrade will create the storage classes with the new properties.
-        Existing PVs will not be affected by the storage class temporarily being deleted.
-    - Remove the newly added parameters (`controller-publish-secret-name` and `controller-publish-secret-namespace`)
-        from your StorageClasses prior to upgrading. The new parameters are only needed if fencing is enabled.
-
-    For more background, see [PR #16442](https://github.com/rook/rook/pull/16442).
+## Breaking changes in v1.19
 
 * The minimum supported Kubernetes version is v1.29.
 
-* The **CSI operator** is required for RBD, CephFS, and NFS volumes. Previously, the CSI driver was automatically configured
-    by Rook. Now the CSI operator has been factored out of Rook to run independently to manage the Ceph-CSI
-    driver. During the upgrade and throughout the v1.18.x releases, Rook will automatically convert any Rook CSI settings
-    to the new CSI operator CRs. This transition is expected to be completely transparent.
-    Starting in v1.19, the Rook settings related to CSI will be deprecated and there will be a guide on how to configure the new CSI operator CRs directly.
-    * The CSI operator is created directly via `csi-operator.yaml`, or by the helm setting `csi.rookUseCsiOperator`
-        in the `rook-ceph` chart.
-    * The new CSI operator CRs are `cephconnections.csi.ceph.io`, `drivers.csi.ceph.io`,
-        `operatorconfigs.csi.ceph.io`, `clientprofiles.csi.ceph.io`, and `clientprofilemappings.csi.ceph.io`.
-    * The CSI operator has been in experimental mode since Rook v1.15 and we have confidence in its stability. That said, if
-        there is any blocking issue with the csi operator, the previous CSI driver can be re-enabled by setting
-        `ROOK_USE_CSI_OPERATOR: false` in operator.yaml or applying the helm setting `csi.rookUseCsiOperator: false`.
+* Helm: The rook-ceph-cluster chart has changed where the Ceph image is defined, to allow separate settings
+    for the repository and tag. If you deploy with a custom values.yaml:
+    1. Remove the [cephVersion](https://github.com/rook/rook/blob/release-1.18/deploy/charts/rook-ceph-cluster/values.yaml#L102-L114) section from the `cephClusterSpec`, to avoid a conflict with the new settings.
+    2. If desired to override the Ceph image repository or tag, apply the new [cephImage](https://github.com/rook/rook/blob/master/deploy/charts/rook-ceph-cluster/values.yaml#L88-L102) settings such as:
 
-* Rook now validates node topology during CephCluster creation to prevent misconfigured CRUSH hierarchies. For example, if [topology labels](../CRDs/Cluster/ceph-cluster-crd.md#osd-topology) like `topology.rook.io/rack` are duplicated across zones, cluster creation will fail. The check applies only to new clusters. Existing clusters will only log a warning in the operator log and continue.
+```yaml
+cephImage:
+  repository: quay.io/ceph/ceph
+  tag: v19.2.3
+```
 
 ## Considerations
 
