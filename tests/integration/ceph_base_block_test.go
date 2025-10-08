@@ -479,9 +479,8 @@ func checkPoolDeleted(helper *clients.TestClient, s *suite.Suite, namespace, nam
 func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterInfo *client.ClusterInfo, poolname, storageclassname, blockname, podName string, requireBlockImagesRemoved bool) {
 	logger.Infof("Cleaning up block storage")
 	err := k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
-	if err != nil {
-		logger.Errorf("failed to delete pod. %v", err)
-	}
+	logger.Errorf("failed to delete pod. %v", err)
+
 	deleteBlockLite(helper, k8sh, s, clusterInfo, poolname, storageclassname, blockname, requireBlockImagesRemoved)
 }
 
