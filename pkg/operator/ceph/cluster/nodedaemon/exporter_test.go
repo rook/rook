@@ -146,6 +146,64 @@ func TestCreateOrUpdateCephExporter(t *testing.T) {
 	})
 }
 
+func TestCephExporterLogrotateContainer(t *testing.T) {
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cluster",
+			Namespace: "test-namespace",
+		},
+		Spec: cephv1.ClusterSpec{
+			LogCollector: cephv1.LogCollectorSpec{
+				Enabled: true,
+			},
+		},
+	}
+
+	node := corev1.Node{}
+	nodeSelector := map[string]string{corev1.LabelHostname: "testnode"}
+	node.SetLabels(nodeSelector)
+
+	cephVersion := &cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+	s := scheme.Scheme
+	err := appsv1.AddToScheme(s)
+	assert.NoError(t, err)
+
+	cl := fake.NewClientBuilder().WithScheme(s).Build()
+
+	reconciler := &ReconcileNode{
+		client:           cl,
+		scheme:           s,
+		context:          &clusterd.Context{},
+		opManagerContext: context.TODO(),
+	}
+
+	result, err := reconciler.createOrUpdateCephExporter(node, []corev1.Toleration{}, *cephCluster, cephVersion)
+	assert.NoError(t, err)
+	assert.Equal(t, controllerutil.OperationResultCreated, result)
+
+	deployment := &appsv1.Deployment{}
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      "rook-ceph-exporter-testnode",
+		Namespace: "test-namespace",
+	}, deployment)
+	assert.NoError(t, err)
+
+	// Check logrotate container is added
+	assert.Len(t, deployment.Spec.Template.Spec.Containers, 2)
+
+	var logrotateContainer *corev1.Container
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		if container.Name == "log-collector" {
+			logrotateContainer = &container
+			break
+		}
+	}
+	// Verify logrotate container configuration
+	assert.NotNil(t, logrotateContainer)
+	assert.Contains(t, logrotateContainer.Command[5], "ceph-client.ceph-exporter")
+}
+
 func TestCephExporterBindAddress(t *testing.T) {
 	prioLimit, statsPeriod := defaultPrioLimit, defaultStatsPeriod
 	prioLimitString, err := strconv.ParseInt(prioLimit, 10, 64)
