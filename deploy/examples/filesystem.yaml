@@ -105,6 +105,15 @@ spec:
     #  requests:
     #    cpu: "500m"
     #    memory: "1024Mi"
+    # Factor applied to resources.limits.memory to determine the MDS cache memory limit.
+    # Default is 0.5 (50% of memory limit). MDS uses approximately 125% of this value in RAM.
+    # For high-volume file ingest/delete scenarios, consider lower values like 0.25.
+    # Valid range: 0.0 - 1.0
+    # cacheMemoryLimitFactor: 0.5
+    # Factor applied to resources.requests.memory when limits.memory is not set.
+    # Default is 0.8 (80% of memory request).
+    # Valid range: 0.0 - 1.0
+    # cacheMemoryRequestFactor: 0.8
     priorityClassName: system-cluster-critical
     livenessProbe:
       disabled: false
