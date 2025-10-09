@@ -40,6 +40,9 @@ The `release` channel is the most recent release of Rook that is considered stab
 The example install assumes you have first installed the [Rook Operator Helm Chart](operator-chart.md)
 and created your customized values.yaml.
 
+!!! tip
+   Instead of copying the entire default `values.yaml`, create a new `values.yaml` file that only includes the settings you want to override.
+
 ```console
 helm repo add rook-release https://charts.rook.io/release
 helm install --create-namespace --namespace rook-ceph rook-ceph-cluster \
