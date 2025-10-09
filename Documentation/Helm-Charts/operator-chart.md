@@ -38,6 +38,24 @@ helm install --create-namespace --namespace rook-ceph rook-ceph rook-release/roo
 
 For example settings, see the next section or [values.yaml](https://github.com/rook/rook/tree/master/deploy/charts/rook-ceph/values.yaml)
 
+## Customizing Chart Values
+
+Instead of copying the entire default `values.yaml`, create a new `values.yaml` file that only includes the settings you want to override. For example:
+
+```yaml
+# values.yaml
+operatorNamespace: rook-ceph
+enableDiscoveryDaemon: true
+```
+
+Install or upgrade the chart using your custom file:
+
+```sh
+helm install rook-ceph rook/rook-ceph --namespace rook-ceph -f values.yaml
+```
+
+Refer to the [default values](values.yaml) for all available options.
+
 ## Configuration
 
 The following table lists the configurable parameters of the rook-operator chart and their default values.

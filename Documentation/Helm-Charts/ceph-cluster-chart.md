@@ -28,6 +28,24 @@ into the same namespace as the operator or a separate namespace.
 
 **Before installing, review the values.yaml to confirm if the default settings need to be updated.**
 
+## Customizing Chart Values
+
+Instead of copying the entire default `values.yaml`, create a new `values.yaml` file that only includes the settings you want to override. For example:
+
+```yaml
+# values.yaml
+operatorNamespace: rook-ceph
+enableDiscoveryDaemon: true
+```
+
+Install or upgrade the chart using your custom file:
+
+```sh
+helm install rook-ceph rook/rook-ceph --namespace rook-ceph -f values.yaml
+```
+
+Refer to the [default values](values.yaml) for all available options.
+
 * If the operator was installed in a namespace other than `rook-ceph`, the namespace
   must be set in the `operatorNamespace` variable.
 * Set the desired settings in the `cephClusterSpec`. The [defaults](https://github.com/rook/rook/tree/master/deploy/charts/rook-ceph-cluster/values.yaml)
