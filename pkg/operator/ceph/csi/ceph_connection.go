@@ -97,9 +97,6 @@ func generateCephConnSpec(c client.Client, clusterInfo *cephclient.ClusterInfo, 
 		csiClusterConnSpec.RbdMirrorDaemonCount = cephRBDMirrorList.Items[0].Spec.Count
 	}
 
-	for _, mon := range clusterInfo.AllMonitors() {
-		csiClusterConnSpec.Monitors = append(csiClusterConnSpec.Monitors, mon.Endpoint)
-	}
-
+	csiClusterConnSpec.Monitors = MonEndpoints(clusterInfo.AllMonitors(), clusterSpec.RequireMsgr2())
 	return csiClusterConnSpec, nil
 }
