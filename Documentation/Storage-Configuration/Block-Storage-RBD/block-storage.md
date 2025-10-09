@@ -199,17 +199,8 @@ The erasure coded pool must be set as the `dataPool` parameter in
 If a node goes down where a pod is running where a RBD RWO volume is mounted, the volume cannot automatically be mounted on another node. The node must be guaranteed to be offline before the volume can be mounted on another node.
 
 
-### Configure CSI-Addons
-
-Deploy csi-addons controller and enable `csi-addons` sidecar as mentioned in the [CSI Addons](../Ceph-CSI/ceph-csi-drivers#CSI-Addons-Controller) guide.
-
-
 ### Handling Node Loss
 
-!!! warning
-    Automated node loss handling is currently disabled, please refer to the [manual steps](../../Troubleshooting/ceph-csi-common-issues.md#node-loss) to recover from the node loss.
-    We are actively working on a new design for this feature.
-    For more details see the [tracking issue](https://github.com/rook/rook/issues/14832).
 
 When a node is confirmed to be down, add the following taints to the node:
 
@@ -218,19 +209,11 @@ kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:N
 kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoSchedule
 ```
 
-After the taint is added to the node, Rook will automatically blocklist the node to prevent connections to Ceph from the RBD volume on that node. To verify a node is blocklisted:
-
-```console
-kubectl get networkfences.csiaddons.openshift.io
-NAME           DRIVER                       CIDRS                     FENCESTATE   AGE   RESULT
-minikube-m02   rook-ceph.rbd.csi.ceph.com   ["192.168.39.187:0/32"]   Fenced       20s   Succeeded
-```
-
-The node is blocklisted if the state is `Fenced` and the result is `Succeeded` as seen above.
+After the taint is added to the node, the CephCSI driver will automatically handle the network fencing to prevent connections to Ceph from the RBD volume on that node.
 
 ### Node Recovery
 
-If the node comes back online, the network fence can be removed from the node by removing the node taints:
+If the node comes back online, the CephCSI driver will automatically handle the network unfencing when the node taints are removed:
 
 ```console
 kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoExecute-
