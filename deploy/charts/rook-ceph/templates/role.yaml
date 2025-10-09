@@ -7,8 +7,6 @@ metadata:
   name: rook-ceph-system
   namespace: {{ .Release.Namespace }} # namespace:operator
   labels:
-    operator: rook
-    storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups:
@@ -68,6 +66,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-external-provisioner-cfg
   namespace: {{ .Release.Namespace }} # namespace:operator
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
@@ -93,6 +93,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-nodeplugin
   namespace: {{ .Release.Namespace }} # namespace:operator
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["csiaddons.openshift.io"]
     resources: ["csiaddonsnodes"]
@@ -113,6 +115,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-external-provisioner-cfg
   namespace: {{ .Release.Namespace }} # namespace:operator
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
