@@ -38,8 +38,8 @@ const (
 	// MDS cache memory limit should be set to 50-60% of RAM reserved for the MDS container
 	// MDS uses approximately 125% of the value of mds_cache_memory_limit in RAM.
 	// Eventually we will tune this automatically: http://tracker.ceph.com/issues/36663
-	mdsCacheMemoryLimitFactor    = 0.5
-	mdsCacheMemoryResourceFactor = 0.8
+	mdsCacheMemoryLimitFactor   = 0.5
+	mdsCacheMemoryRequestFactor = 0.8
 )
 
 func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, fsNamespacedname types.NamespacedName) (*apps.Deployment, error) {

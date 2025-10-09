@@ -80,10 +80,20 @@ func (c *Cluster) setDefaultFlagsMonConfigStore(mdsID string) error {
 
 	// Set mds cache memory limit to the best appropriate value
 	if !c.fs.Spec.MetadataServer.Resources.Limits.Memory().IsZero() {
-		mdsCacheMemoryLimit := float64(c.fs.Spec.MetadataServer.Resources.Limits.Memory().Value()) * mdsCacheMemoryLimitFactor
+		// Use configured factor or fall back to default
+		limitFactor := mdsCacheMemoryLimitFactor
+		if c.fs.Spec.MetadataServer.CacheMemoryLimitFactor != nil {
+			limitFactor = *c.fs.Spec.MetadataServer.CacheMemoryLimitFactor
+		}
+		mdsCacheMemoryLimit := float64(c.fs.Spec.MetadataServer.Resources.Limits.Memory().Value()) * limitFactor
 		configOptions["mds_cache_memory_limit"] = strconv.Itoa(int(mdsCacheMemoryLimit))
 	} else if !c.fs.Spec.MetadataServer.Resources.Requests.Memory().IsZero() {
-		mdsCacheMemoryRequest := float64(c.fs.Spec.MetadataServer.Resources.Requests.Memory().Value()) * mdsCacheMemoryResourceFactor
+		// Use configured factor or fall back to default
+		requestFactor := mdsCacheMemoryRequestFactor
+		if c.fs.Spec.MetadataServer.CacheMemoryRequestFactor != nil {
+			requestFactor = *c.fs.Spec.MetadataServer.CacheMemoryRequestFactor
+		}
+		mdsCacheMemoryRequest := float64(c.fs.Spec.MetadataServer.Resources.Requests.Memory().Value()) * requestFactor
 		configOptions["mds_cache_memory_limit"] = strconv.Itoa(int(mdsCacheMemoryRequest))
 	}
 
