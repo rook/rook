@@ -38,6 +38,13 @@ spec:
     port: 80
     # securePort: 443
     instances: 1
+    # Beast configuration
+    # beast:
+    #   tcpNoDelay:
+    #   maxConnectionBacklog:
+    #   requestTimeoutMs:
+    #   maxHeaderSize:
+    #   soReusePort:
     # A key/value list of annotations
     annotations:
     #  key: value
@@ -210,6 +217,7 @@ The gateway settings correspond to the RGW daemon settings.
     [enabling TLS](../../Storage-Configuration/Object-Storage-RGW/object-storage.md#enabling-tls)
     documentation for more details.
 * `instances`: The number of pods that will be started to load balance this object store.
+* `beast`: [Configure the beast frontend](https://docs.ceph.com/en/latest/radosgw/frontends/#options) of the RGW.
 * `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways
     (works with external mode). This setting will be ignored if the `CephCluster` does not have
     `external` spec enabled. Refer to the [external cluster section](../Cluster/ceph-cluster-crd.md#external-cluster)

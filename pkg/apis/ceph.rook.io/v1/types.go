@@ -1891,6 +1891,11 @@ type GatewaySpec struct {
 	// +optional
 	DisableMultisiteSyncTraffic bool `json:"disableMultisiteSyncTraffic,omitempty"`
 
+	// BeastOpts allows a user to specify any of https://docs.ceph.com/en/latest/radosgw/frontends/#options
+	// +nullable
+	// +optional
+	BeastOpts BeastOptions `json:"beast,omitempty"`
+
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
@@ -3560,6 +3565,16 @@ type Placement struct {
 	// TopologySpreadConstraints specifies how to spread matching pods among the given topology
 	// +optional
 	TopologySpreadConstraints []v1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+}
+
+// BeastOptions list all the configurable beast options listed in https://docs.ceph.com/en/latest/radosgw/frontends/#beast
+// with the exception of ports/ssl options which are common and already configurable
+type BeastOptions struct {
+	TcpNoDelay           bool `json:"tcpNoDelay,omitempty"`
+	MaxConnectionBacklog int  `json:"maxConnectionBacklog,omitempty"`
+	RequestTimeoutMs     int  `json:"requestTimeoutMs,omitempty"`
+	MaxHeaderSize        int  `json:"maxHeaderSize,omitempty"`
+	SoReusePort          bool `json:"soReusePort,omitempty"`
 }
 
 // ResourceSpec is a collection of ResourceRequirements that describes the compute resource requirements

@@ -12158,6 +12158,21 @@ spec:
                       nullable: true
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    beast:
+                      description: BeastOpts allows a user to specify any of https://docs.ceph.com/en/latest/radosgw/frontends/#options
+                      nullable: true
+                      properties:
+                        maxConnectionBacklog:
+                          type: integer
+                        maxHeaderSize:
+                          type: integer
+                        requestTimeoutMs:
+                          type: integer
+                        soReusePort:
+                          type: boolean
+                        tcpNoDelay:
+                          type: boolean
+                      type: object
                     caBundleRef:
                       description: The name of the secret that stores custom ca-bundle with root and intermediate certificates.
                       nullable: true
