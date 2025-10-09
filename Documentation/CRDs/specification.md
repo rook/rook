@@ -2848,6 +2848,75 @@ KeystoneSpec
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.BeastOptions">BeastOptions
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>)
+</p>
+<div>
+<p>BeastOptions list all the configurable beast options listed in <a href="https://docs.ceph.com/en/latest/radosgw/frontends/#beast">https://docs.ceph.com/en/latest/radosgw/frontends/#beast</a>
+with the exception of ports/ssl options which are common and already configurable</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>tcpNoDelay</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxConnectionBacklog</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>requestTimeoutMs</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxHeaderSize</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>soReusePort</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.BucketNotificationEvent">BucketNotificationEvent
 (<code>string</code> alias)</h3>
 <p>
@@ -7914,6 +7983,20 @@ transmitting multisite replication data. Note that this value does not affect wh
 gateways receive multisite replication traffic: see ObjectZone.spec.customEndpoints for that.
 If false or unset, this object store&rsquo;s gateways will be able to transmit multisite
 replication data.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>beast</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.BeastOptions">
+BeastOptions
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>BeastOpts allows a user to specify any of <a href="https://docs.ceph.com/en/latest/radosgw/frontends/#options">https://docs.ceph.com/en/latest/radosgw/frontends/#options</a></p>
 </td>
 </tr>
 <tr>

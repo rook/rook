@@ -53,6 +53,57 @@ func newConfig(t *testing.T) *clusterConfig {
 	}
 }
 
+func TestBeastConfig(t *testing.T) {
+	tests := []struct {
+		name      string
+		beastOpts cephv1.BeastOptions
+		output    string
+	}{
+		{
+			name: "Sets max backlog and so_reuseport",
+			beastOpts: cephv1.BeastOptions{
+				MaxConnectionBacklog: 100,
+				SoReusePort:          true,
+			},
+			output: "port=80 max_connection_backlog=100 so_reuseport=1",
+		},
+		{
+			name: "Sets max backlog and so_reuse port to false",
+			beastOpts: cephv1.BeastOptions{
+				MaxConnectionBacklog: 100,
+				SoReusePort:          false,
+			},
+			output: "port=80 max_connection_backlog=100",
+		},
+		{
+			name:      "Do not set any beast options",
+			beastOpts: cephv1.BeastOptions{},
+			output:    "port=80",
+		},
+		{
+			name: "Set all available options",
+			beastOpts: cephv1.BeastOptions{
+				TcpNoDelay:           true,
+				MaxConnectionBacklog: 10,
+				RequestTimeoutMs:     2000,
+				MaxHeaderSize:        10100,
+				SoReusePort:          true,
+			},
+			output: "port=80 tcp_nodelay=1 max_connection_backlog=10 request_timeout_ms=2000 max_header_size=10100 so_reuseport=1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := newConfig(t)
+			cfg.clusterSpec.Network.HostNetwork = true
+			cfg.store.Spec.Gateway.Port = 80
+			cfg.store.Spec.Gateway.BeastOpts = tt.beastOpts
+			result := cfg.beastConfig()
+			assert.Equal(t, tt.output, result)
+		})
+	}
+}
+
 func TestPortString(t *testing.T) {
 	// No port or secure port on beast
 	cfg := newConfig(t)

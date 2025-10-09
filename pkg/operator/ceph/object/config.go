@@ -59,6 +59,29 @@ caps osd = "allow rwx"
 
 var rgwFrontendName = "beast"
 
+func (c *clusterConfig) beastConfig() string {
+	opts := []string{c.portString()}
+	BeastOpts := c.store.Spec.Gateway.BeastOpts
+
+	if BeastOpts.TcpNoDelay {
+		opts = append(opts, "tcp_nodelay=1")
+	}
+	if BeastOpts.MaxConnectionBacklog != 0 {
+		opts = append(opts, fmt.Sprintf("max_connection_backlog=%d", BeastOpts.MaxConnectionBacklog))
+	}
+	if BeastOpts.RequestTimeoutMs != 0 {
+		opts = append(opts, fmt.Sprintf("request_timeout_ms=%d", BeastOpts.RequestTimeoutMs))
+	}
+	if BeastOpts.MaxHeaderSize != 0 {
+		opts = append(opts, fmt.Sprintf("max_header_size=%d", BeastOpts.MaxHeaderSize))
+	}
+	if BeastOpts.SoReusePort {
+		opts = append(opts, "so_reuseport=1")
+	}
+
+	return strings.Join(opts, " ")
+}
+
 func (c *clusterConfig) portString() string {
 	var portString string
 
