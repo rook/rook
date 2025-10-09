@@ -438,3 +438,9 @@ jobs:
     with:
       ceph_images: '["quay.io/ceph/ceph:v18", "quay.io/ceph/ceph:v19", "quay.io/ceph/ceph:v20", "quay.ceph.io/ceph-ci/ceph:main", "quay.ceph.io/ceph-ci/ceph:reef", "quay.ceph.io/ceph-ci/ceph:squid", "quay.ceph.io/ceph-ci/ceph:tentacle"]'
     secrets: inherit
+
+     - name: consider upterm debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
