@@ -47,6 +47,7 @@ const (
 	orchestrationStatusKey     = "status"
 	provisioningLabelKey       = "provisioning"
 	nodeLabelKey               = "node"
+	maxTimeForProcessingOSDs   = 10
 )
 
 var (
@@ -229,6 +230,7 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 	defer updateTicker.Stop()
 
 	watchErrMsg := "failed during watch of OSD provisioning status ConfigMaps"
+	currentTimeBeforeStartingProcesingOSDs := time.Now().UTC()
 	for {
 		if updateConfig.doneUpdating() && createConfig.doneCreating() {
 			break // loop
@@ -272,6 +274,11 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 			c, cExp := createConfig.progress()
 			u, uExp := updateConfig.progress()
 			logger.Infof("waiting... %d of %d OSD prepare jobs have finished processing and %d of %d OSDs have been updated", c, cExp, u, uExp)
+			// If we've been waiting too long, abort and reconcile again from the beginning
+			if time.Since(currentTimeBeforeStartingProcesingOSDs).Minutes() > maxTimeForProcessingOSDs {
+				errMsg := fmt.Sprintf("aborting OSD provisioning after waiting more than %d minutes for OSDs to finish processing", maxTimeForProcessingOSDs)
+				return false, errors.New(errMsg)
+			}
 
 		case <-c.clusterInfo.Context.Done():
 			logger.Infof("context cancelled, exiting OSD update and create loop")
