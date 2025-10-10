@@ -71,7 +71,9 @@ func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, na
 				currentCondition.LastTransitionTime = metav1.NewTime(time.Now())
 			}
 			currentCondition.Status = status
-			currentCondition.Reason = reason
+			if reason != "" {
+				currentCondition.Reason = reason
+			}
 			currentCondition.Message = message
 			currentCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
 		}
@@ -79,12 +81,16 @@ func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, na
 	if currentCondition == nil {
 		// Create a new condition since not found in the existing conditions
 		currentCondition = &cephv1.Condition{
-			Type:               conditionType,
 			Status:             status,
-			Reason:             reason,
 			Message:            message,
 			LastTransitionTime: metav1.NewTime(time.Now()),
 			LastHeartbeatTime:  metav1.NewTime(time.Now()),
+		}
+		if conditionType != "" {
+			currentCondition.Type = conditionType
+		}
+		if reason != "" {
+			currentCondition.Reason = reason
 		}
 	}
 	conditions = append(conditions, *currentCondition)
@@ -96,7 +102,10 @@ func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, na
 
 	// Once the cluster begins deleting, the phase should not revert back to any other phase
 	if cluster.Status.Phase != cephv1.ConditionDeleting {
-		cluster.Status.Phase = conditionType
+		// empty condition is set when we are doing ceph status checks and we dont know the condition type
+		if conditionType != "" {
+			cluster.Status.Phase = conditionType
+		}
 		if state := translatePhasetoState(conditionType, status); state != "" {
 			cluster.Status.State = state
 		}
