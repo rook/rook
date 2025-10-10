@@ -123,3 +123,7 @@ Set two values in the [rook-ceph-operator-config configmap](https://github.com/r
 #### Create a Topology-Based PVC
 
 The topology-based storage class is ready to be consumed! Create a PVC from the `ceph-rbd-topology` storage class above, and watch the OSD usage to see how the data is spread only among the topology-based CRUSH buckets.
+
+## Recovery
+
+If any one of the OSDs goes down, we need to delete the replica-1 pool, which will clear all it's data from all OSDs, and then create a new replica-1 pool.
