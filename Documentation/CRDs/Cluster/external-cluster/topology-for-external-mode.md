@@ -3,6 +3,10 @@
 ## Scenario
 Applications like Kafka will have a deployment with multiple running instances. Each service instance will create a new claim and is expected to be located in a different zone. Since the application has its own redundant instances, there is no requirement for redundancy at the data layer. A storage class is created that will provision storage from replica 1 Ceph pools that are located in each of the separate zones.
 
+!!! warning
+    Configuring Ceph replica 1 pools means that the loss of any OSD in a zone will result in the loss of all data in the replica 1 pool and requires manual intervention to re-create the Ceph pool.
+    See the section on [Recovery](#recovery) below.
+
 ## Configuration Flags
 
 Add the required flags to the script: `create-external-cluster-resources.py`:
@@ -123,3 +127,10 @@ Set two values in the [rook-ceph-operator-config configmap](https://github.com/r
 #### Create a Topology-Based PVC
 
 The topology-based storage class is ready to be consumed! Create a PVC from the `ceph-rbd-topology` storage class above, and watch the OSD usage to see how the data is spread only among the topology-based CRUSH buckets.
+
+## Recovery
+
+In a Ceph replica-1 pool, if any single OSDs in the pool is lost, the pool is unusable and all data in the pool is lost.
+
+To recover, the replica-1 pool must be deleted and re-created.
+Any applications that have provisioned volumes from a storage class referencing this replica-1 pool will need to request a new PVC.
