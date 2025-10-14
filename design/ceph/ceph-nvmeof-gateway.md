@@ -8,11 +8,20 @@ Currently, Rook Ceph provides excellent support for RBD disks through CSI driver
 
 ### Goals
 
-- Enable RBD volumes to be accessible from outside the Kubernetes cluster via NVMe/TCP protocol using rook ceph operator
+- Enable RBD volumes to be accessible from outside the Kubernetes cluster via NVMe/TCP protocol using rook ceph operator.
+- Integrate with Ceph CSI for dynamic provisioning of NVMe namespaces.
 
 ## Proposal:
 
 Rook will have CephNVMeOFGateway CRD for handling the communication b/w Block PVC in the k8s cluster and the client.
+
+### Architecture Overview
+
+The NVMe-oF implementation separates concerns between infrastructure management and storage provisioning:
+
+Rook Operator: Manages NVMe-oF gateway pod lifecycle, scaling, and health monitoring
+Ceph CSI Driver: Handles dynamic provisioning, subsystem creation, and NVMe namespace management
+NVMe-oF Gateways: Serve NVMe-oF protocol and manage RBD backend connections
 
 ## Prerequisite
 
@@ -72,7 +81,7 @@ Rook will have CephNVMeOFGateway CRD for handling the communication b/w Block PV
 
 
 
-* Note:  In this document, when we refer to 'NVMe namespace,' we mean the NVMe protocol's concept of a logical block device, not Kubernetes resource namespaces."
+* Note:  In this document, when we refer to 'NVMe namespace,' we mean the NVMe protocol's concept of a logical block device, not Kubernetes resource namespaces.
 
 ### Components Responsibilities
 
@@ -83,11 +92,13 @@ Rook will have CephNVMeOFGateway CRD for handling the communication b/w Block PV
 
 ## CephNVMeOFGateway CRD
 
+The CephNVMeOFGateway CRD focuses solely on gateway infrastructure deployment, leaving storage provisioning to the CSI driver.
+
 ### Gateway Configuration
 
 - **Group**: `gateway-group-1` - Logical grouping of gateways
 - **Replicas**: `2` - Two gateway instances for HA
-- **Port**: `5500` - NVMe-oF service port
+
 
 
 ### Example CephNVMeOFGateway Resource
@@ -101,16 +112,14 @@ metadata:
 spec:
   gatewayGroup: "gateway-group-1"
   replicas: 2
-  port: 5500
-  grpcPort: 5501
   placement:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
         - matchExpressions:
-          - key: role
+          - key: node-role.kubernetes.io/storage
             operator: In
-            values: ["osd-node"]
+            values: ["true"]
   resources:
     #  limits:
     #    cpu: "500m"
@@ -118,71 +127,41 @@ spec:
     #  requests:
     #    cpu: "500m"
     #    memory: "1024Mi"
-apiVersion: ceph.rook.io/v1
-kind: CephNVMeOFGateway
-metadata:
-  name: nvmeof-gateway
-  namespace: rook-ceph
-spec:
-  gatewayGroup: "gateway-group-1"
-  replicas: 2
-  port: 5500
-  
-  placement:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: role
-            operator: In
-            values: ["osd-node"]
-  
-  resources:
-    requests:
-      cpu: "500m"
-      memory: "1024Mi"
-  # Keep subsystems in CRD - Rook creates them via gRPC API
-  subsystems:
-  - nqn: "nqn.2016-06.io.spdk:production"
-    # hosts: # Initially empty, CSI will add hosts dynamically on PVC creation
 ```
+## CSI Integration for Dynamic Provisioning
 
-Note: As per Ceph documentation, NVMe-oF gateways, which can either be colocated with OSD nodes or on dedicated nodes.
-When colocating the Ceph NVMe-oF gateway with other daemons, ensure that sufficient CPU and memory are available.
+StorageClass Configuration
+The NVMe-oF StorageClass integrates with the CSI driver for dynamic provisioning :
 
 ```yaml
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: ceph-nvmeof-prod
-provisioner: rook-ceph.nvmeof.csi.ceph.com
+  name: ceph-nvmeof
 parameters:
   clusterID: rook-ceph
   pool: replicapool
-  nvmeof-gateway-group: "gateway-group-1"
-  nvmeof-subsystem: "nqn.2016-06.io.spdk:prod"
+  subsystemNQN: nqn.2016-06.io.ceph:rook-ceph
+  nvmeofGatewayAddress: ceph-nvmeof-gateway.rook-ceph.svc.cluster.local
+  nvmeofGatewayPort: "5500"
+  listenerPort: "4420"
   csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
   csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
   csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
   csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
-allowVolumeExpansion: true
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: nvmeof-pvc
-spec:
-  storageClassName: ceph-nvmeof-prod
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: 10Gi
----
+  imageFormat: "2"
+  imageFeatures: layering,deep-flatten,exclusive-lock,object-map,fast-diff
+provisioner: nvmeof.csi.ceph.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: false
+``
+---yaml
 # Example PVC using NVMe-oF
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nvmeof-pvc
+  name: nvmeof-external-volume
   namespace: default
 spec:
   storageClassName: ceph-nvmeof
@@ -192,8 +171,62 @@ spec:
     requests:
       storage: 10Gi
 ```
+Note: This PVC is created solely for CSI driver provisioning. No Kubernetes pod will mount it as the volume is accessed by external NVMe-oF clients.
 
-The target aka the client can than be configued from the procedure provided [Ceph documentation](https://docs.ceph.com/en/latest/rbd/nvmeof-initiator-linux/) for connecting to the NVMe backed Block device.
+The target aka the client can than be configured from the procedure provided [Ceph documentation](https://docs.ceph.com/en/latest/rbd/nvmeof-initiator-linux/) for connecting to the NVMe backed Block device.
+
+## High Availability and Load Balancing
+### Gateway Groups
+Multiple gateways within the same group share configuration and provide high availability :​
+- All gateways in a group present the same NVMe subsystems and namespaces
+- Minimum of 2 gateways required for HA
+- Gateways are load-balanced through Kubernetes service endpoints
+
+### Service Configuration
+Rook automatically creates a Kubernetes service for gateway discovery:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: ceph-nvmeof-gateway-group-1
+  namespace: rook-ceph
+  labels:
+    gateway-group: gateway-group-1
+spec:
+  selector:
+    app: rook-ceph-nvmeof-gateway
+    gateway-group: gateway-group-1
+  ports:
+  - name: nvmeof-data
+    port: 4420
+    targetPort: 4420
+    protocol: TCP
+  - name: management
+    port: 5500
+    targetPort: 5500
+    protocol: TCP
+  type: ClusterIP
+```
+
+### Client Connection
+External clients connect using standard NVMe-oF procedures.
+Detailed client setup instructions are available in the Ceph documentation.​
+Basic Client Connection Steps:
+
+- Discover available subsystems:
+
+```bash
+nvme discover -t tcp -a <gateway-service-ip> -s 5500
+```
+
+- Connect to discovered subsystem:
+```bash
+nvme connect -t tcp -n <nqn> -a <gateway-ip> -s 5500
+```
+
+- Access the NVMe namespace as a block device (/dev/nvmeXnY)
+
 ### Terminology
 
 **NVMe Namespace:** logical block device (NVMe namespace) that is presented by the NVMe-oF gateway.
