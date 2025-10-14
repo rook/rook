@@ -118,9 +118,12 @@ if [ "$ENCRYPTED" == "true" ] ; then
 	LOCKBOX_KEYRING_FILE="$OSD_DATA_DIR"/lockbox.keyring
 	LOCKBOX_USER=client.osd-lockbox."$OSD_UUID"
 
-	ceph --name client.admin auth get-or-create "$LOCKBOX_USER" \
-	mon 'allow command "config-key get" with key="dm-crypt/osd/'$OSD_UUID'/luks"' \
-	--keyring /etc/ceph/admin-keyring-store/keyring > "$LOCKBOX_KEYRING_FILE"
+	if ! ceph --name client.admin auth get-or-create "$LOCKBOX_USER" \
+			mon 'allow command "config-key get" with key="dm-crypt/osd/'$OSD_UUID'/luks"' \
+			--keyring /etc/ceph/admin-keyring-store/keyring > "$LOCKBOX_KEYRING_FILE"; then
+		echo "failed to get latest cephx lockbox key for OSD. continuing OSD startup using on-disk key" >/dev/stderr
+		# allowing OSD to attempt to start could avoid full OSD outage due to mon/system issues
+	fi
 fi
 
 # active the osd with ceph-volume
@@ -1471,10 +1474,15 @@ set -o xtrace
 OSD_ID="` + osdID + `"
 KEYRING_FILE=/var/lib/ceph/osd/ceph-"${OSD_ID}"/keyring
 
-ceph --name client.admin auth get-or-create osd."${OSD_ID}" \
-  mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' \
-  --keyring /etc/ceph/admin-keyring-store/keyring > "$KEYRING_FILE"
+if ! ceph --name client.admin auth get-or-create osd."${OSD_ID}" \
+		mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' \
+		--keyring /etc/ceph/admin-keyring-store/keyring > "$KEYRING_FILE"; then
+	echo "failed to get latest cephx key for OSD. continuing OSD startup using on-disk key" >/dev/stderr
+fi
 `
+	// ^ (above) Continue on failure here. Getting latest key can fail due to system issues that
+	// blocking here could make worse. Key rotation is rare, so on-disk key is likely good. If not,
+	// allow main OSD process to fail with auth issue.
 
 	envVars := []v1.EnvVar{
 		{
