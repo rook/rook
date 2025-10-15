@@ -111,14 +111,6 @@ func (c *cephStatusChecker) checkStatus(ctx context.Context) {
 	var err error
 
 	logger.Debugf("checking health of cluster")
-
-	condition := cephv1.ConditionReady
-	reason := cephv1.ClusterCreatedReason
-	if c.isExternal {
-		condition = cephv1.ConditionConnected
-		reason = cephv1.ClusterConnectedReason
-	}
-
 	// Check ceph's status
 	status, err = cephclient.StatusWithUser(c.context, c.clusterInfo)
 	if err != nil {
@@ -127,22 +119,13 @@ func (c *cephStatusChecker) checkStatus(ctx context.Context) {
 			return
 		}
 		logger.Errorf("failed to get ceph status. %v", err)
-
-		message := "Failed to configure ceph cluster"
-		if c.isExternal {
-			message = "Failed to configure external ceph cluster"
-		}
 		status := cephStatusOnError(err.Error())
-		c.updateCephStatus(status, condition, reason, message, v1.ConditionFalse)
+		c.updateCephStatus(status)
 		return
 	}
 
 	logger.Debugf("cluster status: %+v", status)
-	message := "Cluster created successfully"
-	if c.isExternal {
-		message = "Cluster connected successfully"
-	}
-	c.updateCephStatus(&status, condition, reason, message, v1.ConditionTrue)
+	c.updateCephStatus(&status)
 
 	if status.Health.Status != "HEALTH_OK" {
 		logger.Debug("checking for stuck pods on not ready nodes")
@@ -172,7 +155,7 @@ func (c *cephStatusChecker) configureHealthSettings(status cephclient.CephStatus
 }
 
 // updateCephStatus updates an object with a given status
-func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus, condition cephv1.ConditionType, reason cephv1.ConditionReason, message string, conditionStatus v1.ConditionStatus) {
+func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus) {
 	clusterName := c.clusterInfo.NamespacedName()
 	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(clusterName.Namespace).Get(c.clusterInfo.Context, clusterName.Name, metav1.GetOptions{})
 	if err != nil {
@@ -197,8 +180,10 @@ func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus, cond
 	}
 
 	// Update condition
-	logger.Debugf("updating ceph cluster %q status and condition to %+v, %v, %s, %s", clusterName.Namespace, status, conditionStatus, reason, message)
-	opcontroller.UpdateClusterCondition(c.context, cephCluster, c.clusterInfo.NamespacedName(), k8sutil.ObservedGenerationNotAvailable, condition, conditionStatus, reason, message, true)
+	logger.Debugf("updating ceph cluster %q status to %+v", clusterName.Namespace, status)
+	if err := reporting.UpdateStatus(c.context.Client, cephCluster); err != nil {
+		logger.Errorf("failed to update cluster status to %+v. %v", status, err)
+	}
 }
 
 // toCustomResourceStatus converts the ceph status to the struct expected for the CephCluster CR status
