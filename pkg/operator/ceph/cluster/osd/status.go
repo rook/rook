@@ -47,6 +47,7 @@ const (
 	orchestrationStatusKey     = "status"
 	provisioningLabelKey       = "provisioning"
 	nodeLabelKey               = "node"
+	maxTimeForProcessingOSDs   = 20
 )
 
 var (
@@ -195,7 +196,8 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 	minuteTicker *time.Ticker, // pass in the minute ticker so that we always know when a minute passes
 	errs *provisionErrors, // add errors here
 ) (shouldRestart bool, err error) {
-	cmClient := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace)
+	namespace := c.clusterInfo.Namespace
+	cmClient := c.context.Clientset.CoreV1().ConfigMaps(namespace)
 	selector := statusConfigMapSelector()
 
 	listOptions := metav1.ListOptions{
@@ -229,6 +231,8 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 	defer updateTicker.Stop()
 
 	watchErrMsg := "failed during watch of OSD provisioning status ConfigMaps"
+	prevCreatedCount, prevUpdatedCount := 0, 0
+	prevChangeTime := time.Now().UTC()
 	for {
 		if updateConfig.doneUpdating() && createConfig.doneCreating() {
 			break // loop
@@ -272,6 +276,20 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 			c, cExp := createConfig.progress()
 			u, uExp := updateConfig.progress()
 			logger.Infof("waiting... %d of %d OSD prepare jobs have finished processing and %d of %d OSDs have been updated", c, cExp, u, uExp)
+
+			// keep track of each time progress is made
+			if c != prevCreatedCount || u != prevUpdatedCount {
+				logger.Debugf("cluster in namespace %q, progress was made processing OSDs: %d nodes/OSDs were processed for creation and %d updated", namespace, c-prevCreatedCount, u-prevUpdatedCount)
+				prevCreatedCount = c
+				prevUpdatedCount = u
+				prevChangeTime = time.Now().UTC()
+			}
+
+			// If we've been waiting too long, abort and reconcile again from the beginning
+			if time.Since(prevChangeTime).Minutes() > maxTimeForProcessingOSDs {
+				errMsg := fmt.Sprintf("aborting OSD provisioning after waiting more than %d minutes for OSDs to finish processing", maxTimeForProcessingOSDs)
+				return false, errors.New(errMsg)
+			}
 
 		case <-c.clusterInfo.Context.Done():
 			logger.Infof("context cancelled, exiting OSD update and create loop")
