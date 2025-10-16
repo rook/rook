@@ -1888,6 +1888,14 @@ type GatewaySpec struct {
 	// +optional
 	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
 
+	// The interval at which the SSL certificate is reloaded from disk.
+	// Setting this to `0s` disables certificate hot-reloading.
+	// Durations are truncated to whole seconds, e.g. `1m1s999ms` to `61s`.
+	// If not specified, the ceph default is used (currently disabled).
+	// +nullable
+	// +optional
+	SSLReloadInterval *metav1.Duration `json:"sslReloadInterval,omitempty"`
+
 	// The name of the secret that stores custom ca-bundle with root and intermediate certificates.
 	// +nullable
 	// +optional
