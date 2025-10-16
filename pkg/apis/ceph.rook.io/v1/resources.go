@@ -77,6 +77,16 @@ func GetOSDResources(p ResourceSpec, deviceClass string) v1.ResourceRequirements
 	return p[ResourcesKeyOSD]
 }
 
+// GetOSDResourcesForDeviceClass returns the resources for a device class, if specified
+func GetOSDResourcesForDeviceClass(resourceSpec ResourceSpec, deviceClass string) (v1.ResourceRequirements, bool) {
+	// if the device class requests specific resources, return them here
+	if resources, ok := resourceSpec[getOSDResourceKeyForDeviceClass(deviceClass)]; ok {
+		return resources, true
+	}
+	// no resources requested specific to the device class
+	return v1.ResourceRequirements{}, false
+}
+
 // getOSDResourceKeyForDeviceClass returns key name for device class in resources spec
 func getOSDResourceKeyForDeviceClass(deviceClass string) string {
 	return ResourcesKeyOSD + "-" + deviceClass
