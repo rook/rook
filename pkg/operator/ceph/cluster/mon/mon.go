@@ -886,13 +886,10 @@ func (c *Cluster) removeCanaryDeployments(labelSelector string) {
 		return
 	}
 
-	// Delete the canary mons, but don't wait for them to exit
+	// Delete the canary mons
 	for _, canary := range canaryDeployments.Items {
 		logger.Infof("cleaning up canary monitor deployment %q", canary.Name)
-		var gracePeriod int64
-		propagation := metav1.DeletePropagationForeground
-		options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-		if err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Delete(c.ClusterInfo.Context, canary.Name, *options); err != nil {
+		if err := k8sutil.DeleteDeployment(c.ClusterInfo.Context, c.context.Clientset, c.Namespace, canary.Name); err != nil {
 			logger.Warningf("failed to delete canary monitor deployment %q. %v", canary.Name, err)
 		}
 	}
