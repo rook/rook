@@ -334,8 +334,9 @@ func (c *Cluster) Start() error {
 			errs.len(), namespace, errs.asMessages())
 	}
 
-	// clean up status configmaps that might be dangling from previous reconciles
+	// clean up status configmaps and prepare jobs that might be dangling from previous reconciles
 	// for example, if the storage spec changed from or a node failed in a previous failed reconcile
+	c.deleteAllOrphanedPrepareJobs()
 	c.deleteAllStatusConfigMaps()
 
 	// The following block is used to apply any command(s) required by an upgrade
