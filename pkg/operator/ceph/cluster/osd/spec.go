@@ -354,6 +354,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 		logger.Infof("The device class for osd %d is changing from %q to %q", osd.ID, osd.DeviceClass, osdProps.storeConfig.DeviceClass)
 		osd.DeviceClass = osdProps.storeConfig.DeviceClass
 	}
+	// Assign the resources specific to this device class
+	if resources, ok := cephv1.GetOSDResourcesForDeviceClass(c.spec.Resources, osd.DeviceClass); ok {
+		logger.Debugf("assigning resources for device class %q to osd %d: %+v", osd.DeviceClass, osd.ID, resources)
+		osdProps.resources = resources
+	}
 
 	dataDir := k8sutil.DataDir
 	// Create volume config for /dev so the pod can access devices on the host
