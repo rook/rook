@@ -9113,6 +9113,18 @@ bool
 <p>Modules is the list of ceph manager modules to enable/disable</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>hostNetwork</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether host networking is enabled for the Ceph Mgr. If not set, the network settings from CephCluster.spec.networking will be applied.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.Migration">Migration

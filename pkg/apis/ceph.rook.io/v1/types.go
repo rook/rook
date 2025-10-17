@@ -854,6 +854,9 @@ type MgrSpec struct {
 	// +optional
 	// +nullable
 	Modules []Module `json:"modules,omitempty"`
+	// Whether host networking is enabled for the Ceph Mgr. If not set, the network settings from CephCluster.spec.networking will be applied.
+	// +optional
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // Module represents mgr modules that the user wants to enable or disable

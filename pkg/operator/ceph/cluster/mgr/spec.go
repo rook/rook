@@ -48,7 +48,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 		adminKeyringVol, _ := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
 		volumes = append(volumes, adminKeyringVol)
 	}
-
+	hostNetwork := isHostNetworkEnabled(c)
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mgrConfig.ResourceName,
@@ -65,7 +65,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 			ServiceAccountName: serviceAccountName,
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            volumes,
-			HostNetwork:        c.spec.Network.IsHost(),
+			HostNetwork:        hostNetwork,
 			PriorityClassName:  cephv1.GetMgrPriorityClassName(c.spec.PriorityClassNames),
 		},
 	}
@@ -395,4 +395,14 @@ func (c *Cluster) buildSelectorLabels(labels map[string]string) map[string]strin
 	}
 	selectorLabels["mgr_role"] = "active"
 	return selectorLabels
+}
+
+// isHostNetworkEnabled checks if hostNetwork field is set in mgr spec, if not
+// gets it from Cluster Spec
+func isHostNetworkEnabled(c *Cluster) bool {
+	hostNetwork := c.spec.Network.IsHost()
+	if c.spec.Mgr.HostNetwork != nil {
+		hostNetwork = *c.spec.Mgr.HostNetwork
+	}
+	return hostNetwork
 }

@@ -3338,6 +3338,11 @@ func (in *MgrSpec) DeepCopyInto(out *MgrSpec) {
 		*out = make([]Module, len(*in))
 		copy(*out, *in)
 	}
+	if in.HostNetwork != nil {
+		in, out := &in.HostNetwork, &out.HostNetwork
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
