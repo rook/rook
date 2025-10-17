@@ -1,8 +1,8 @@
-name: "Tmate debugging tests"
-description: "Setup tmate session if the test fails"
+name: "Tmate debugging for tests"
+description: "Set up an ssh session for interactive debugging of failing tests"
 inputs:
   use-tmate:
-    description: "boolean for enabling TMATE"
+    description: "boolean for enabling tmate"
     required: true
   debug-ci:
     description: "boolean for debug-ci label in PR"
@@ -10,18 +10,19 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: consider debugging
+    - name: consider tmate debugging
       shell: bash --noprofile --norc -eo pipefail -x {0}
       if: runner.debug || inputs.debug-ci == 'true'
       run: |
         # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
         if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ inputs.use-tmate }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
-          echo USE_TMATE=1 >> $GITHUB_ENV
+          echo ENABLE_TMATE=1 >> $GITHUB_ENV
         fi
 
-    - name: set up tmate session for debugging
-      if: env.USE_TMATE
+    - name: set up tmate session
+      if: env.ENABLE_TMATE
       uses: mxschmitt/action-tmate@v3
       with:
+        ## whether to limit ssh access and adds the ssh public key for the user who triggered the workflow:
         limit-access-to-actor: false
         detached: true
