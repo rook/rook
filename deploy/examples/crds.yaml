@@ -13779,6 +13779,11 @@ spec:
                 phase:
                   description: ConditionType represent a resource's status
                   type: string
+                replicas:
+                  format: int32
+                  type: integer
+                selector:
+                  type: string
               type: object
               x-kubernetes-preserve-unknown-fields: true
           required:
@@ -13788,6 +13793,10 @@ spec:
       served: true
       storage: true
       subresources:
+        scale:
+          labelSelectorPath: .status.selector
+          specReplicasPath: .spec.gateway.instances
+          statusReplicasPath: .status.replicas
         status: {}
 ---
 apiVersion: apiextensions.k8s.io/v1
