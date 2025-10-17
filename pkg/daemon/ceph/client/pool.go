@@ -340,7 +340,7 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 		pool.Parameters = make(map[string]string)
 	}
 
-	if _, ok := pool.Parameters[targetSizeRatioProperty]; !ok {
+	if _, ok := pool.Parameters[targetSizeRatioProperty]; !ok && pool.Replicated.TargetSizeRatio != 0 {
 		pool.Parameters[targetSizeRatioProperty] = strconv.FormatFloat(pool.Replicated.TargetSizeRatio, 'f', -1, 32)
 	}
 
