@@ -109,6 +109,25 @@ func (m *MonStore) Set(who, option, value string) error {
 	return nil
 }
 
+// Set sets a config in the centralized mon configuration database.
+// https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
+func (m *MonStore) SetTest(who, option1, value, option2 string) error {
+	logger.Infof("setting option %q (user %q) to the mon configuration database", option1, who)
+	logger.Tracef("setting option %q = %q (user %q) to the mon configuration database", option1, value, who)
+
+	args := []string{"config", "set", who, option1, value, option2}
+	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
+	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set ceph config in the centralized mon configuration database; "+
+			"you may need to use the rook-config-override ConfigMap. output: %s", string(out))
+	}
+
+	logger.Tracef("successfully set option %q = %q (user %q) to the mon configuration database", option1, value, who)
+	logger.Infof("successfully set option %q (user %q) to the mon configuration database", option1, who)
+	return nil
+}
+
 // Delete a config in the centralized mon configuration database.
 func (m *MonStore) Delete(who, option string) error {
 	logger.Infof("deleting %q %q option from the mon configuration database", who, option)
@@ -124,6 +143,21 @@ func (m *MonStore) Delete(who, option string) error {
 	return nil
 }
 
+// Delete a config in the centralized mon configuration database.
+func (m *MonStore) DeleteTest(who, option1, option2 string) error {
+	logger.Infof("deleting %q %q option from the mon configuration database", who, option1)
+	args := []string{"config", "rm", who, option1, option2}
+	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
+	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete ceph config in the centralized mon configuration database. output: %s",
+			string(out))
+	}
+
+	logger.Infof("successfully deleted %q option from the mon configuration database", option1)
+	return nil
+}
+
 // Get retrieves a config in the centralized mon configuration database.
 // https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
 func (m *MonStore) Get(who, option string) (string, error) {
@@ -132,6 +166,18 @@ func (m *MonStore) Get(who, option string) (string, error) {
 	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get config setting %q for user %q", option, who)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// Get retrieves a config in the centralized mon configuration database.
+// https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
+func (m *MonStore) GetTest(who, option1 string, option2 string) (string, error) {
+	args := []string{"config", "get", who, option1, option2}
+	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
+	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get config setting %q for user %q", option1, who)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
