@@ -106,7 +106,7 @@ const (
 
 	DisasterProtectionFinalizerName = cephv1.CustomResourceGroup + "/disaster-protection"
 
-	monCanaryLabelSelector = "app=rook-ceph-mon,mon_canary=true"
+	monCanaryLabelSelector = "app=rook-ceph-mon-canary,mon_canary=true"
 )
 
 var (
@@ -712,8 +712,10 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	// setup affinity settings for pod scheduling
 	p := c.getMonPlacement(mon.Zone)
 	p.ApplyToPodSpec(&d.Spec.Template.Spec)
+	// Use a different app label for canary pods to avoid anti-affinity conflicts with actual mon pods
+	canaryAppName := AppName + "-canary"
 	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), k8sutil.LabelHostname(),
-		map[string]string{k8sutil.AppAttr: AppName}, nil)
+		map[string]string{k8sutil.AppAttr: canaryAppName}, nil)
 
 	// setup storage on the canary since scheduling will be affected when
 	// monitors are configured to use persistent volumes. the pvcName is set to
