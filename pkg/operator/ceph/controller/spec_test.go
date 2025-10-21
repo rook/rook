@@ -36,6 +36,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -367,6 +368,9 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, "172.17.0.12", currentEndpoints.Endpoints[0].Addresses[0], currentEndpoints)
+		assert.Equal(t, currentEndpoints.Labels[discoveryv1.LabelServiceName], ExternalMgrAppName)
+		assert.Equal(t, currentEndpoints.Labels[k8sutil.AppAttr], "rook-ceph-mgr")
+		assert.Equal(t, currentEndpoints.Labels[k8sutil.ClusterAttr], namespace)
 	})
 
 	t.Run("spec and current active mgr endpoint identical with existing endpoint object", func(t *testing.T) {
