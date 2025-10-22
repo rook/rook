@@ -1055,7 +1055,7 @@ func (c *Cluster) evictMonIfMultipleOnSameNode() error {
 	nodesToMons := map[string]string{}
 	for _, pod := range pods.Items {
 		logger.Debugf("analyzing mon pod %q on node %q", pod.Name, pod.Spec.NodeName)
-		if _, ok := pod.Labels["mon_canary"]; ok {
+		if _, ok := pod.Labels["rook-ceph-mon-canary"]; ok {
 			logger.Debugf("skipping mon canary pod %q", pod.Name)
 			continue
 		}

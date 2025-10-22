@@ -106,7 +106,7 @@ const (
 
 	DisasterProtectionFinalizerName = cephv1.CustomResourceGroup + "/disaster-protection"
 
-	monCanaryLabelSelector = "app=rook-ceph-mon-canary,mon_canary=true"
+	monCanaryLabelSelector = "app=rook-ceph-mon,rook-ceph-mon-canary=true"
 )
 
 var (
@@ -712,10 +712,9 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	// setup affinity settings for pod scheduling
 	p := c.getMonPlacement(mon.Zone)
 	p.ApplyToPodSpec(&d.Spec.Template.Spec)
-	// Use a different app label for canary pods to avoid anti-affinity conflicts with actual mon pods
-	canaryAppName := AppName + "-canary"
-	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), k8sutil.LabelHostname(),
-		map[string]string{k8sutil.AppAttr: canaryAppName}, nil)
+	// Canary pods use same app label but with sophisticated anti-affinity rules
+	// They avoid real mon pods (not canaries) allowing proper node exploration
+	c.setCanaryAntiAffinityRules(&d.Spec.Template.Spec)
 
 	// setup storage on the canary since scheduling will be affected when
 	// monitors are configured to use persistent volumes. the pvcName is set to
@@ -778,6 +777,103 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 
 	// caller should arrange for the deployment to be removed
 	return d, nil
+}
+
+// setCanaryAntiAffinityRules sets up sophisticated anti-affinity rules for canary pods.
+// Canary pods use the same app label as real mons but avoid only real mons (not other canaries).
+// This allows canaries to explore fresh nodes while permitting real mons to land on canary nodes.
+func (c *Cluster) setCanaryAntiAffinityRules(podSpec *corev1.PodSpec) {
+	// Ensure pod.Affinity exists
+	if podSpec.Affinity == nil {
+		podSpec.Affinity = &corev1.Affinity{}
+	}
+	if podSpec.Affinity.PodAntiAffinity == nil {
+		podSpec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{}
+	}
+
+	// Create anti-affinity rule: avoid pods with app=rook-ceph-mon AND rook-ceph-mon-canary!=true
+	// This means: avoid real mon pods, but allow scheduling near other canaries
+	avoidRealMons := corev1.PodAffinityTerm{
+		LabelSelector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				k8sutil.AppAttr: AppName, // app=rook-ceph-mon
+			},
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{
+					Key:      "rook-ceph-mon-canary",
+					Operator: metav1.LabelSelectorOpNotIn,
+					Values:   []string{"true"},
+				},
+			},
+		},
+		TopologyKey: k8sutil.LabelHostname(),
+	}
+
+	// Add the anti-affinity rule
+	if requiredDuringScheduling(&c.spec) {
+		podSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(
+			podSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
+			avoidRealMons)
+	} else {
+		podSpec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = append(
+			podSpec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
+			corev1.WeightedPodAffinityTerm{
+				Weight:          100, // High priority for canary purpose
+				PodAffinityTerm: avoidRealMons,
+			})
+	}
+}
+
+// setRealMonAntiAffinityRules sets up anti-affinity rules for real mon pods.
+// Real mons avoid other real mons but can coexist with canaries on the same node.
+func (c *Cluster) setRealMonAntiAffinityRules(podSpec *corev1.PodSpec, nodeSelector map[string]string) {
+	// Set the node selector first
+	podSpec.NodeSelector = nodeSelector
+
+	// when a node selector is being used, skip the affinity business below
+	if nodeSelector != nil {
+		return
+	}
+
+	// Ensure pod.Affinity exists
+	if podSpec.Affinity == nil {
+		podSpec.Affinity = &corev1.Affinity{}
+	}
+	if podSpec.Affinity.PodAntiAffinity == nil {
+		podSpec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{}
+	}
+
+	// Create anti-affinity rule: avoid pods with app=rook-ceph-mon AND rook-ceph-mon-canary!=true
+	// This means: avoid other real mon pods, but allow coexistence with canaries
+	avoidOtherRealMons := corev1.PodAffinityTerm{
+		LabelSelector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				k8sutil.AppAttr: AppName, // app=rook-ceph-mon
+			},
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{
+					Key:      "rook-ceph-mon-canary",
+					Operator: metav1.LabelSelectorOpNotIn,
+					Values:   []string{"true"},
+				},
+			},
+		},
+		TopologyKey: k8sutil.LabelHostname(),
+	}
+
+	// Add the anti-affinity rule
+	if requiredDuringScheduling(&c.spec) {
+		podSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(
+			podSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
+			avoidOtherRealMons)
+	} else {
+		podSpec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = append(
+			podSpec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
+			corev1.WeightedPodAffinityTerm{
+				Weight:          50, // Standard weight for real mon spreading
+				PodAffinityTerm: avoidOtherRealMons,
+			})
+	}
 }
 
 // GetMonPlacement returns the placement for the MON service
@@ -1591,11 +1687,9 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 				// update nodeSelector in case if ROOK_CUSTOM_HOSTNAME_LABEL was changed:
 				nodeSelector = map[string]string{k8sutil.LabelHostname(): schedule.Hostname}
 			}
-			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), k8sutil.LabelHostname(),
-				map[string]string{k8sutil.AppAttr: AppName}, nodeSelector)
+			c.setRealMonAntiAffinityRules(&d.Spec.Template.Spec, nodeSelector)
 		} else {
-			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), k8sutil.LabelHostname(),
-				map[string]string{k8sutil.AppAttr: AppName}, nil)
+			c.setRealMonAntiAffinityRules(&d.Spec.Template.Spec, nil)
 		}
 		return c.updateMon(m, d)
 	}
@@ -1626,8 +1720,7 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 		p.PodAntiAffinity = nil
 		nodeSelector = map[string]string{k8sutil.LabelHostname(): schedule.Hostname}
 	}
-	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), k8sutil.LabelHostname(),
-		map[string]string{k8sutil.AppAttr: AppName}, nodeSelector)
+	c.setRealMonAntiAffinityRules(&d.Spec.Template.Spec, nodeSelector)
 
 	logger.Debugf("Starting mon: %+v", d.Name)
 	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(c.ClusterInfo.Context, d, metav1.CreateOptions{})

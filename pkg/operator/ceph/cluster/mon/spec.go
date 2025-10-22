@@ -43,16 +43,13 @@ const (
 func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool) map[string]string {
 	// Mons have a service for each mon, so the additional pod data is relevant for its services
 	// Use pod labels to keep "mon: id" for legacy
+	// Canary pods now use the same app name as real mons for sophisticated scheduling
 	appName := AppName
-	if canary {
-		// Use a different app name for canary pods to avoid anti-affinity conflicts with actual mon pods
-		appName = AppName + "-canary"
-	}
 	labels := controller.CephDaemonAppLabels(appName, c.Namespace, config.MonType, monConfig.DaemonName, c.ClusterInfo.NamespacedName().Name, "cephclusters.ceph.rook.io", includeNewLabels)
 	// Add "mon_cluster: <namespace>" for legacy
 	labels[monClusterAttr] = c.Namespace
 	if canary {
-		labels["mon_canary"] = "true"
+		labels["rook-ceph-mon-canary"] = "true"
 	}
 	if includeNewLabels {
 		monVolumeClaimTemplate := c.monVolumeClaimTemplate(monConfig)
