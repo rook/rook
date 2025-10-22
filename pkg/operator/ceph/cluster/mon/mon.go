@@ -703,8 +703,15 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	// to modify the storage by instead running an innocuous command.
 	d.Spec.Template.Spec.InitContainers = []corev1.Container{}
 	d.Spec.Template.Spec.Containers[0].Image = c.rookImage
-	d.Spec.Template.Spec.Containers[0].Command = []string{"sleep"} // sleep responds to signals so we don't need to wrap it
-	d.Spec.Template.Spec.Containers[0].Args = []string{"3600"}
+	// As PID 1, sleep will not capture the SIGTERM signal, so use a bash
+	// trap to exit cleanly and quickly when the pod is deleted.
+	d.Spec.Template.Spec.Containers[0].Command = []string{
+		"/bin/bash",
+		"-c",
+		`trap 'exit' SIGTERM
+         while true; do sleep 1; done`,
+	}
+
 	// remove the startup and liveness probes on the canary pod
 	d.Spec.Template.Spec.Containers[0].StartupProbe = nil
 	d.Spec.Template.Spec.Containers[0].LivenessProbe = nil
