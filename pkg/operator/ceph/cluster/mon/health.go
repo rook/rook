@@ -672,37 +672,33 @@ func (c *Cluster) removeOrphanMonResources() {
 
 	logger.Info("checking for orphaned mon resources")
 
-	// Check for both regular monitor PVCs and canary monitor PVCs
-	appNames := []string{AppName, AppName + "-canary"}
-	for _, appName := range appNames {
-		opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, appName)}
-		pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(c.ClusterInfo.Context, opts)
-		if err != nil {
-			logger.Infof("failed to check for orphaned mon pvcs for app %q. %v", appName, err)
+	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)}
+	pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(c.ClusterInfo.Context, opts)
+	if err != nil {
+		logger.Infof("failed to check for orphaned mon pvcs. %v", err)
+		return
+	}
+
+	for _, pvc := range pvcs.Items {
+		logger.Debugf("checking if pvc %q is orphaned", pvc.Name)
+
+		_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(c.ClusterInfo.Context, pvc.Name, metav1.GetOptions{})
+		if err == nil {
+			logger.Debugf("skipping pvc removal since the mon daemon %q still requires it", pvc.Name)
+			continue
+		}
+		if !kerrors.IsNotFound(err) {
+			logger.Infof("skipping pvc removal since the mon daemon %q might still require it. %v", pvc.Name, err)
 			continue
 		}
 
-		for _, pvc := range pvcs.Items {
-			logger.Debugf("checking if pvc %q is orphaned", pvc.Name)
-
-			_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(c.ClusterInfo.Context, pvc.Name, metav1.GetOptions{})
-			if err == nil {
-				logger.Debugf("skipping pvc removal since the mon daemon %q still requires it", pvc.Name)
-				continue
-			}
-			if !kerrors.IsNotFound(err) {
-				logger.Infof("skipping pvc removal since the mon daemon %q might still require it. %v", pvc.Name, err)
-				continue
-			}
-
-			logger.Infof("removing pvc %q since it is no longer needed for the mon daemon", pvc.Name)
-			var gracePeriod int64 // delete immediately
-			propagation := metav1.DeletePropagationForeground
-			options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-			err = c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(c.ClusterInfo.Context, pvc.Name, *options)
-			if err != nil {
-				logger.Warningf("failed to delete orphaned monitor pvc %q. %v", pvc.Name, err)
-			}
+		logger.Infof("removing pvc %q since it is no longer needed for the mon daemon", pvc.Name)
+		var gracePeriod int64 // delete immediately
+		propagation := metav1.DeletePropagationForeground
+		options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
+		err = c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(c.ClusterInfo.Context, pvc.Name, *options)
+		if err != nil {
+			logger.Warningf("failed to delete orphaned monitor pvc %q. %v", pvc.Name, err)
 		}
 	}
 }
@@ -1055,7 +1051,7 @@ func (c *Cluster) evictMonIfMultipleOnSameNode() error {
 	nodesToMons := map[string]string{}
 	for _, pod := range pods.Items {
 		logger.Debugf("analyzing mon pod %q on node %q", pod.Name, pod.Spec.NodeName)
-		if _, ok := pod.Labels["rook-ceph-mon-canary"]; ok {
+		if _, ok := pod.Labels["mon_canary"]; ok {
 			logger.Debugf("skipping mon canary pod %q", pod.Name)
 			continue
 		}
