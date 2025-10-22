@@ -458,7 +458,7 @@ func (c *Cluster) reconcileExternalMons(ctx context.Context, quorumStatus cephcl
 		_, inInfo := c.ClusterInfo.ExternalMons[extID]
 		if inQuorum && !inInfo {
 			// add newly discovered external mon to cluster info:
-			monInfo := monStatusToInfo(monStatus)
+			monInfo := c.monStatusToInfo(monStatus)
 			c.ClusterInfo.ExternalMons[extID] = monInfo
 			extMonsChanged = true
 			logger.Infof("new external mon %q found: %s, adding it", extID, monInfo.Endpoint)
@@ -980,7 +980,7 @@ func (c *Cluster) addOrRemoveExternalMonitor(status cephclient.MonStatusResponse
 		if _, ok := oldClusterInfoMonitors[mon.Name]; !ok {
 			// If the mon is part of the quorum
 			if inQuorum {
-				info := monStatusToInfo(mon)
+				info := c.monStatusToInfo(mon)
 				logger.Infof("new external mon %q found: %s, adding it", mon.Name, info.Endpoint)
 				c.ClusterInfo.InternalMonitors[mon.Name] = info
 			} else {
@@ -1020,7 +1020,7 @@ func (c *Cluster) addOrRemoveExternalMonitor(status cephclient.MonStatusResponse
 	return changed, nil
 }
 
-func monStatusToInfo(mon cephclient.MonMapEntry) *cephclient.MonInfo {
+func (c *Cluster) monStatusToInfo(mon cephclient.MonMapEntry) *cephclient.MonInfo {
 	// let's add it to ClusterInfo
 	// FYI mon.PublicAddr is "10.97.171.131:6789/0"
 	// so we need to remove '/0'
@@ -1030,6 +1030,9 @@ func monStatusToInfo(mon cephclient.MonMapEntry) *cephclient.MonInfo {
 	// find IP and Port of that Mon
 	monIP := cephutil.GetIPFromEndpoint(endpoint)
 	monPort := cephutil.GetPortFromEndpoint(endpoint)
+	if c.spec.RequireMsgr2() {
+		monPort = cephclient.Msgr2port
+	}
 	return cephclient.NewMonInfo(mon.Name, monIP, monPort)
 }
 
