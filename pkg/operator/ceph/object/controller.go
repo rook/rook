@@ -306,7 +306,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	if cephObjectStore.Status == nil {
 		// The store is not available so let's not build the status Info yet
 		cephxUninitialized := keyring.UninitializedCephxStatus()
-		err := updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, map[string]string{}, &cephxUninitialized)
+		err := updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, replicaCountNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, map[string]string{}, &cephxUninitialized)
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to initialize status and cephx status for cephObjectStore %q", request.NamespacedName)
 		}
@@ -317,7 +317,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		}
 	} else {
 		var nilCephxStatus *cephv1.CephxStatus = nil // leave cephx status as-is
-		err := updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, buildStatusInfo(cephObjectStore), nilCephxStatus)
+		err := updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, replicaCountNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, buildStatusInfo(cephObjectStore), nilCephxStatus)
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to initialize cephx status for cephObjectStore %q", request.NamespacedName)
 		}
@@ -355,7 +355,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// DELETE: the CR was deleted
 	if !cephObjectStore.GetDeletionTimestamp().IsZero() {
-		err := updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionDeleting, buildStatusInfo(cephObjectStore), nil)
+		err := updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, replicaCountNotAvailable, r.client, request.NamespacedName, cephv1.ConditionDeleting, buildStatusInfo(cephObjectStore), nil)
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to set deleting status for cephObjectStore %q", request.NamespacedName)
 		}
@@ -492,7 +492,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	// update ObservedGeneration in status at the end of reconcile
 	// Set Progressing status, we are done reconciling, the health check go routine will update the status
 	cephxStatus := keyring.UpdatedCephxStatus(shouldRotateCephxKeys, cephCluster.Spec.Security.CephX.Daemon, r.clusterInfo.CephVersion, cephObjectStore.Status.Cephx.Daemon)
-	err = updateStatus(r.opManagerContext, observedGeneration, r.client, request.NamespacedName, cephv1.ConditionReady, buildStatusInfo(cephObjectStore), &cephxStatus)
+	err = updateStatus(r.opManagerContext, observedGeneration, cephObjectStore.Spec.Gateway.Instances, r.client, request.NamespacedName, cephv1.ConditionReady, buildStatusInfo(cephObjectStore), &cephxStatus)
 	if err != nil {
 		return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to set final status for cephObjectStore %q", request.NamespacedName)
 	}
