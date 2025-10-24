@@ -182,6 +182,11 @@ yamllint:
 
 helm.lint: ## Check the helm charts
 	ct lint --charts=./deploy/charts/rook-ceph,./deploy/charts/rook-ceph-cluster --validate-yaml=false --validate-maintainers=false
+	helm -n rook-ceph template deploy/charts/rook-ceph > templated.yaml
+	helm -n rook-ceph template deploy/charts/rook-ceph-cluster >> templated.yaml
+	echo 'resources: [templated.yaml]' > kustomization.yaml
+	kustomize build >/dev/null
+	rm templated.yaml kustomization.yaml
 
 .PHONY: lint
 lint: yamllint pylint shellcheck checkmake vet markdownlint golangci-lint helm.lint  ## Run various linters
