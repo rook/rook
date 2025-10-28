@@ -36,11 +36,11 @@ import (
 
 var (
 	// allow unit tests to override these values
-	maxUpdatesInParallel                 = 20
-	updateMultipleDeploymentsAndWaitFunc = k8sutil.UpdateMultipleDeploymentsAndWait
-	deploymentOnNodeFunc                 = deploymentOnNode
-	deploymentOnPVCFunc                  = deploymentOnPVC
-	shouldCheckOkToStopFunc              = cephclient.OSDUpdateShouldCheckOkToStop
+	defaultOSDMaxUpdatesInParallel       uint32 = 20
+	updateMultipleDeploymentsAndWaitFunc        = k8sutil.UpdateMultipleDeploymentsAndWait
+	deploymentOnNodeFunc                        = deploymentOnNode
+	deploymentOnPVCFunc                         = deploymentOnPVC
+	shouldCheckOkToStopFunc                     = cephclient.OSDUpdateShouldCheckOkToStop
 )
 
 type updateConfig struct {
@@ -105,7 +105,11 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		logger.Infof("skipping osd checks for ok-to-stop")
 		osdIDs = []int{osdIDQuery}
 	} else {
-		osdIDs, err = cephclient.OSDOkToStop(c.cluster.context, c.cluster.clusterInfo, osdIDQuery, maxUpdatesInParallel)
+		osdMaxUpdatesInParallel := c.cluster.spec.Storage.OSDMaxUpdatesInParallel
+		if osdMaxUpdatesInParallel == 0 {
+			osdMaxUpdatesInParallel = defaultOSDMaxUpdatesInParallel
+		}
+		osdIDs, err = cephclient.OSDOkToStop(c.cluster.context, c.cluster.clusterInfo, osdIDQuery, osdMaxUpdatesInParallel)
 		if err != nil {
 			if c.cluster.spec.ContinueUpgradeAfterChecksEvenIfNotHealthy {
 				logger.Infof("OSD %d is not ok-to-stop but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so continuing to update it", osdIDQuery)
