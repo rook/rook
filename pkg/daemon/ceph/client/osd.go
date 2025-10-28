@@ -410,7 +410,7 @@ type OSDOkToStopStats struct {
 // This is relevant, for example, when checking which OSDs can be updated.
 // The number of OSDs returned is limited by the value set in maxReturned.
 // maxReturned=0 is the same as maxReturned=1.
-func OSDOkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, osdID, maxReturned int) ([]int, error) {
+func OSDOkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int, maxReturned uint32) ([]int, error) {
 	args := []string{"osd", "ok-to-stop", strconv.Itoa(osdID)}
 	// NOTE: if the number of OSD IDs given in the CLI arg query is Q and --max=N is given, if
 	// N < Q, Ceph treats the query as though max=Q instead, always returning at least Q OSDs.
