@@ -71,7 +71,6 @@ func (h *HelmSuite) SetupSuite() {
 		ConnectionsEncrypted: true,
 		RookVersion:          installer.LocalBuildTag,
 		CephVersion:          installer.ReefVersion,
-		EnableCsiOperator:    true,
 	}
 	h.settings.ApplyEnvVars()
 	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings)
