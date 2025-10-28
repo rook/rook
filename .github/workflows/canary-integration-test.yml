@@ -29,7 +29,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -446,6 +446,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   raw-disk-with-object:
     runs-on: ubuntu-22.04
@@ -459,7 +463,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -525,6 +529,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   two-osds-in-device:
     runs-on: ubuntu-22.04
@@ -537,7 +545,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -577,6 +585,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   osd-with-metadata-partition-device:
     runs-on: ubuntu-22.04
@@ -590,7 +602,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -627,6 +639,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   osd-with-metadata-device:
     runs-on: ubuntu-22.04
@@ -640,7 +656,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -686,6 +702,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   encryption:
     runs-on: ubuntu-22.04
@@ -699,7 +719,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -739,6 +759,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   lvm:
     runs-on: ubuntu-22.04
@@ -752,7 +776,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -797,6 +821,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   pvc:
     runs-on: ubuntu-22.04
@@ -810,7 +838,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -904,6 +932,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   pvc-db:
     runs-on: ubuntu-22.04
@@ -917,7 +949,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -958,6 +990,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   pvc-db-wal:
     runs-on: ubuntu-22.04
@@ -971,7 +1007,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1023,6 +1059,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   encryption-pvc:
     runs-on: ubuntu-22.04
@@ -1036,7 +1076,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1122,6 +1162,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   encryption-pvc-db:
     runs-on: ubuntu-22.04
@@ -1135,7 +1179,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1178,6 +1222,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-22.04
@@ -1191,7 +1239,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1244,6 +1292,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-22.04
@@ -1257,7 +1309,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1335,6 +1387,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   encryption-pvc-kms-vault-k8s-auth:
     runs-on: ubuntu-22.04
@@ -1348,7 +1404,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1406,6 +1462,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   lvm-pvc:
     runs-on: ubuntu-22.04
@@ -1419,7 +1479,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1465,6 +1525,10 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   multi-cluster-mirroring:
     runs-on: ubuntu-22.04
@@ -1478,7 +1542,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1725,6 +1789,10 @@ jobs:
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
           additional-namespace: rook-ceph-secondary
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   rgw-multisite-testing:
     runs-on: ubuntu-22.04
@@ -1738,7 +1806,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1823,6 +1891,10 @@ jobs:
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
           additional-namespace: rook-ceph-secondary
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   encryption-pvc-kms-ibm-kp:
     runs-on: ubuntu-22.04
@@ -1835,7 +1907,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1853,6 +1925,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}
           ceph-image: ${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   multus-public-and-cluster:
     runs-on: ubuntu-22.04
@@ -1866,7 +1942,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1937,6 +2013,10 @@ jobs:
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
           additional-namespace: kube-system
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   two-object-one-zone:
     runs-on: ubuntu-22.04
@@ -1950,7 +2030,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1996,3 +2076,8 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}

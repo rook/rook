@@ -23,7 +23,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider tmate debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -120,7 +120,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider tmate debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -160,7 +160,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider tmate debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -200,7 +200,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider tmate debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -240,7 +240,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider tmate debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -280,7 +280,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider tmate debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -320,7 +320,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider tmate debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -361,7 +361,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider tmate debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -401,7 +401,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
+      - name: consider tmate debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
