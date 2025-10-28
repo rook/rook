@@ -51,7 +51,7 @@ jobs:
           config: tests/scripts/multus/kind-config.yaml
           cluster_name: kind
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -111,3 +111,8 @@ jobs:
         # independent from other tests as long as nodes are tainted and labeled
         if: steps.taint.outcome == 'success' && !cancelled()
         run: ./tests/scripts/multus/test-240-stretch-cluster-only.sh
+
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
