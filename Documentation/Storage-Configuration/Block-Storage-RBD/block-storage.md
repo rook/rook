@@ -192,7 +192,7 @@ The OSDs must be located on different nodes, because the [`failureDomain`](../..
 ### Erasure Coded CSI Driver
 
 The erasure coded pool must be set as the `dataPool` parameter in
-[`storageclass-ec.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storage-class-ec.yaml) It is used for the data of the RBD images.
+[`storageclass-ec.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storageclass-ec.yaml) It is used for the data of the RBD images.
 
 ## Node Loss
 
