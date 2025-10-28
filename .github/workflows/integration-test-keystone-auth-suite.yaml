@@ -40,7 +40,7 @@ jobs:
         with:
           version: v3.18.2
 
-      - name: consider debugging
+      - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -72,3 +72,8 @@ jobs:
         with:
           name: ceph-keystone-auth-suite-artifact-${{ matrix.kubernetes-versions }}
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
