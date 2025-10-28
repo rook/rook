@@ -36,11 +36,11 @@ import (
 
 var (
 	// allow unit tests to override these values
-	maxUpdatesInParallel                 = 20
-	updateMultipleDeploymentsAndWaitFunc = k8sutil.UpdateMultipleDeploymentsAndWait
-	deploymentOnNodeFunc                 = deploymentOnNode
-	deploymentOnPVCFunc                  = deploymentOnPVC
-	shouldCheckOkToStopFunc              = cephclient.OSDUpdateShouldCheckOkToStop
+	defaultMaxUpdatesInParallel          uint32 = 20
+	updateMultipleDeploymentsAndWaitFunc        = k8sutil.UpdateMultipleDeploymentsAndWait
+	deploymentOnNodeFunc                        = deploymentOnNode
+	deploymentOnPVCFunc                         = deploymentOnPVC
+	shouldCheckOkToStopFunc                     = cephclient.OSDUpdateShouldCheckOkToStop
 )
 
 type updateConfig struct {
@@ -105,6 +105,11 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		logger.Infof("skipping osd checks for ok-to-stop")
 		osdIDs = []int{osdIDQuery}
 	} else {
+		maxUpdatesInParallel := c.cluster.spec.Storage.OSDMaxUpdatesInParallel
+		if maxUpdatesInParallel == 0 {
+			// the default value is needed for CephCluster CRs created before OSDMaxUpdatesInParallel was added with a kubebuilder default value
+			maxUpdatesInParallel = defaultMaxUpdatesInParallel
+		}
 		osdIDs, err = cephclient.OSDOkToStop(c.cluster.context, c.cluster.clusterInfo, osdIDQuery, maxUpdatesInParallel)
 		if err != nil {
 			if c.cluster.spec.ContinueUpgradeAfterChecksEvenIfNotHealthy {
