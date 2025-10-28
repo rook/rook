@@ -1,0 +1,29 @@
+name: "Upterm debugging tests"
+description: "Setup an upterm session for interactive debugging of failing tests"
+inputs:
+  debug-ci:
+    description: "boolean for debug-ci label in PR"
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: consider upterm debugging
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      if: runner.debug || inputs.debug-ci == 'true'
+      run: |
+        # Enable upterm only in the main Rook repo, where the USE_TMATE secret is set in the repo, or if the action is re-run
+        if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
+          echo ENABLE_UPTERM=1 >> $GITHUB_ENV
+        fi
+
+    - name: set up upterm session
+      if: ${{ env.ENABLE_UPTERM }}
+      uses: owenthereal/action-upterm@v1
+      with:
+        # detached: true
+        ## whether to limit ssh access and adds the ssh public key for the user which triggered the workflow:
+        ## detached is not implemented (yet?)
+        ## see: https://github.com/owenthereal/action-upterm/issues/12
+        limit-access-to-actor: false
+        ## If no one connects within five minutes, shut down the server.
+        wait-timeout-minutes: 5
