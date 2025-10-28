@@ -633,7 +633,8 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 	}
 	monStore := config.GetMonStore(clusterContext, clusterInfo)
 	// Check for existing rbd stats pools
-	existingStatsPools, e := monStore.Get("mgr", "mgr/prometheus/rbd_stats_pools")
+	existingStatsPools, e := monStore.GetTest("mgr", "mgr/prometheus/rbd_stats_pools", "--debug_ms=0")
+	logger.Debugf("existing rbd_stats_pools: %q", existingStatsPools)
 	if e != nil {
 		return errors.Wrapf(e, "failed to get rbd_stats_pools")
 	}
@@ -641,10 +642,10 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 	enableStatsForPools := generateStatsPoolList(existingStatsPoolsList, rookStatsPools, removePools)
 	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)
 	if len(enableStatsForPools) == 0 {
-		err = monStore.Delete("mgr", "mgr/prometheus/rbd_stats_pools")
+		err = monStore.DeleteTest("mgr", "mgr/prometheus/rbd_stats_pools", "--debug_ms=0")
 	} else {
 		// appending existing rbd stats pools if any
-		err = monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", enableStatsForPools)
+		err = monStore.SetTest("mgr", "mgr/prometheus/rbd_stats_pools", enableStatsForPools, "--debug_ms=0")
 	}
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable rbd_stats_pools")
