@@ -88,6 +88,7 @@ For more details on the mons and when to choose a number other than `3`, see the
     * `allowOsdCrushWeightUpdate`: Whether Rook will resize the OSD CRUSH weight when the OSD PVC size is increased.
         This allows cluster data to be rebalanced to make most effective use of new OSD space.
         The default is false since data rebalancing can cause temporary cluster slowdown.
+    * `osdMaxUpdatesInParallel`: The maximum number of OSDs that are allowed to be simultaneously down during an OSD update. Note that an "update" always takes place upon operator restart and only OSDs which are `ok-to-stop` are taken down. The default value is `20`. Decreasing this value will potentially reduce the impact of updates on the cluster by keeping more OSDs online during an update. Increasing the value may reduce the total time for an update to complete. This is an advanced tuning parameter and the default value should be suitable for most clusters.
     * [storage selection settings](#storage-selection-settings)
     * [Storage Class Device Sets](#storage-class-device-sets)
     * `onlyApplyOSDPlacement`: Whether the placement specific for OSDs is merged with the `all` placement. If `false`, the OSD placement will be merged with the `all` placement. If true, the `OSD placement will be applied` and the `all` placement will be ignored. The placement for OSDs is computed from several different places depending on the type of OSD:
