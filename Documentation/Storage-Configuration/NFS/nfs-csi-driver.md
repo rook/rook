@@ -218,4 +218,4 @@ ceph nfs export create cephfs <nfs-client-name> /test <filesystem-name>
 ceph nfs export get <service> <export-name>
 ```
 
-Create the [PV and PVC](https://github.com/kubernetes/examples/tree/master/staging/volumes/nfs) using `nfs-client-server-ip`. It will mount NFS volumes with PersistentVolumes and then mount the PVCs in the [user Pod Application](https://kubernetes.io/docs/concepts/storage/volumes/#nfs) to utilize the NFS type storage.
+Create the [PV and PVC](https://github.com/kubernetes-csi/csi-driver-nfs/tree/master/deploy/example) using `nfs-client-server-ip`. It will mount NFS volumes with PersistentVolumes and then mount the PVCs in the [user Pod Application](https://kubernetes.io/docs/concepts/storage/volumes/#nfs) to utilize the NFS type storage.
