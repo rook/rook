@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -154,42 +155,46 @@ func updatePoolStatusMirroring(c *mirrorChecker, mirrorStatus *cephv1.MirroringS
 }
 
 func updateRadosNamespaceStatusMirroring(c *mirrorChecker, mirrorStatus *cephv1.MirroringStatusSummarySpec, mirrorInfo *cephv1.MirroringInfo, snapSchedStatus []cephv1.SnapshotSchedulesSpec, details string) {
-	radosNamespace := &cephv1.CephBlockPoolRadosNamespace{}
-	if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, radosNamespace); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephBlockPoolRadosNamespace %q resource not found for updating the mirroring status, ignoring.", c.namespacedName)
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		radosNamespace := &cephv1.CephBlockPoolRadosNamespace{}
+		if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, radosNamespace); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephBlockPoolRadosNamespace %q resource not found for updating the mirroring status, ignoring.", c.namespacedName)
+				return nil
+			}
+			return err
 		}
-		logger.Warningf("failed to retrieve ceph block pool rados namespace %q to update mirroring status. %v", c.namespacedName.Name, err)
-		return
-	}
-	if radosNamespace.Status == nil {
-		radosNamespace.Status = &cephv1.CephBlockPoolRadosNamespaceStatus{}
-	}
-
-	blockPool := &cephv1.CephBlockPool{}
-	namespaceName := types.NamespacedName{Name: radosNamespace.Spec.BlockPoolName, Namespace: radosNamespace.Namespace}
-	if err := c.client.Get(c.clusterInfo.Context, namespaceName, blockPool); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephBlockPool %q resource not found for updating the mirroring status, ignoring.", namespaceName)
-			return
+		if radosNamespace.Status == nil {
+			radosNamespace.Status = &cephv1.CephBlockPoolRadosNamespaceStatus{}
 		}
-		logger.Warningf("failed to retrieve ceph block pool %q to update mirroring status. %v", namespaceName, err)
-		return
-	}
 
-	if blockPool.Spec.StatusCheck.Mirror.Disabled {
-		logger.Debugf("mirroring status check is disabled for %q", c.namespacedName.Name)
-		mirrorStatus = nil
-		mirrorInfo = nil
-		snapSchedStatus = nil
-		details = ""
-	}
+		blockPool := &cephv1.CephBlockPool{}
+		namespaceName := types.NamespacedName{Name: radosNamespace.Spec.BlockPoolName, Namespace: radosNamespace.Namespace}
+		if err := c.client.Get(c.clusterInfo.Context, namespaceName, blockPool); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephBlockPool %q resource not found for updating the mirroring status, ignoring.", namespaceName)
+				return nil
+			}
+			return err
+		}
 
-	// Update the CephBlockPoolRadosNamespace CR status field
-	radosNamespace.Status.MirroringStatus, radosNamespace.Status.MirroringInfo, radosNamespace.Status.SnapshotScheduleStatus = toCustomResourceStatus(radosNamespace.Status.MirroringStatus, mirrorStatus, radosNamespace.Status.MirroringInfo, mirrorInfo, radosNamespace.Status.SnapshotScheduleStatus, snapSchedStatus, details)
-	if err := reporting.UpdateStatus(c.client, radosNamespace); err != nil {
-		logger.Errorf("failed to set ceph block pool rados namespace %q mirroring status. %v", c.namespacedName.Name, err)
+		if blockPool.Spec.StatusCheck.Mirror.Disabled {
+			logger.Debugf("mirroring status check is disabled for %q", c.namespacedName.Name)
+			mirrorStatus = nil
+			mirrorInfo = nil
+			snapSchedStatus = nil
+			details = ""
+		}
+
+		// Update the CephBlockPoolRadosNamespace CR status field
+		radosNamespace.Status.MirroringStatus, radosNamespace.Status.MirroringInfo, radosNamespace.Status.SnapshotScheduleStatus = toCustomResourceStatus(radosNamespace.Status.MirroringStatus, mirrorStatus, radosNamespace.Status.MirroringInfo, mirrorInfo, radosNamespace.Status.SnapshotScheduleStatus, snapSchedStatus, details)
+		if err := reporting.UpdateStatus(c.client, radosNamespace); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Errorf("failed to set ceph block pool rados namespace %q mirroring status after retries. %v", c.namespacedName.Name, err)
 		return
 	}
 }
