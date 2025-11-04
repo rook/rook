@@ -11,8 +11,8 @@ overloaded or if there is an outage in a cluster.
 
 Consider the following diagram to illustrate two applications available for migration:
 
-- App A has an RBD RWO volume in Cluster 1 that can be migrated to Cluster 2
-- App B has a CephFS RXW volume in Cluster 1 that can be migrated to Cluster 2
+- App A has an RBD RWO PVC in Cluster 1 that can be migrated to Cluster 2
+- App B has a CephFS RWX PVC in Cluster 1 that can be migrated to Cluster 2
 
 The external Ceph cluster stores the data, thus no data movement is necessary when the applications
 are migrated.
@@ -28,63 +28,53 @@ Configuring an application to migrate between clusters requires the following:
     or configured with other tools such as cephadm.
 - The application clusters must configure Rook to connect to the same
     [external cluster](../../CRDs/Cluster/external-cluster/external-cluster.md),
-    with access to the same Ceph pool.
+    with access to the same Ceph pool, radosnamespace (RBD), and/or subvolumegroup (CephFS).
 - For each application
-    - Create an RBD image in the external Ceph pool
-    - Create a static PV
-    - Create a PVC that binds to the static PV
+    - Create the application and its PVC in the first cluster
+    - Backup the PV and modify the PV for creation in another cluster
 
-First, on the external Ceph cluster, create an RBD image with the command:
+After creating the application, there will be a PV that is bound to the application's PVC.
+Find which PV is bound to the application's PVC. For example:
 
-```console
-rbd create <name> --size <size> --pool <poolName>
+```command
+# replace "rbd-pvc" with the actual pvc name
+$ kubectl get pvc rbd-pvc -o yaml | grep volumeName
+
+  volumeName: pvc-2dc3e161-bda2-4b42-956a-42a69a717979
 ```
 
-Parameters:
+Retrieve the PV and save to a file:
 
-- `name`: The name of the rbd image, which must be set as the `volumeHandle` in the PV created in the next step
-- `size`: The size of the rbd image (with suffix M/G/T)
-- `poolName`: The name of the Ceph pool where the rbd image is stored
-
-For example:
-
-```console
-rbd create static-image-abc --size 100G --pool replicapool
+```command
+# This command removes the cluster-specific `uid` and `resourceVersion` fields
+kubectl get pv pvc-2dc3e161-bda2-4b42-956a-42a69a717979 -o yaml | egrep -v " uid: | resourceVersion: " > application-pv.yaml
 ```
 
-Next, on the application cluster where the application is to be started,
-create the application's PVC and the static PV.
-See the example [pvc-static.yaml](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/pvc-static.yaml).
+Now the PV can be created in another cluster when the application needs to be migrated.
 
-Take note of the settings:
+!!! tip
+    The PV could be backed up with tools such as Velero. This doc is only attempting to show
+    how the application can be migrated without external tools.
 
-- The PVC defines an empty `storageClassName`
-- The name of the rbd image created in the previous step must match the PV `volumeHandle`
-- The pool name in the PV must match the pool where the rbd image was created
-- The `clusterID` of the PV is the namespace where Rook is running
-- The `csi.driver` prefix is the namespace where Rook is running
-- `persistentVolumeReclaimPolicy` must be `Retain`
+!!! tip
+    Consider provisioning volmes from a storage class with `reclaimPolicy: Retain` to prevent
+    accidental deletion of a volume in one cluster while the other cluster is still consuming
+    the volume.
 
 ### Migrating an Application
 
 When the application needs to be migrated to another cluster:
 
 1. Scale down the application in the first cluster.
-2. Ensure the application is stopped and is not capable of accidentally connecting
+2. If an RWO PVC, ensure the application is stopped and is not capable of accidentally connecting
     to Ceph. RBD volumes have no protection against corruption from multiple instances
     of an application accessing the same volume across clusters. Either confirm the
     volume attachment has been removed in the original cluster, or block-list the
-    original cluster from connecting to the Ceph cluster.
-3. Create the PVC and static PV in the new cluster.
-4. Create or scale up the application in the new cluster.
-
-### RWX Applications
-
-Application migration can also be configured for CephFS RXW volumes.
-This would allow multiple instances of the application to run
-simultaneously across clusters.
-
-The configuration for CephFS RWX volumes is similar to the RBD RWO
-static PV definition. See the
-[Ceph-CSI Static PVC](https://github.com/ceph/ceph-csi/blob/04981f8b75b53e0dcf89a31625368eba3bbe9439/docs/static-pvc.md#cephfs-static-pvc)
-topic for an example of using CephFS.
+    original cluster from connecting to the Ceph cluster. This requirement
+    does not apply to CephFS RWX volumes, as CephFS allows multiple clients.
+3. Create the PV that was prepared in the previous section.
+    - If the application will be created in a different namespace or with a different PVC
+        name from the original cluster, update the corresponding properties in the `claimRef`.
+    - `kubectl create -f application-pv.yaml`
+4. Create or scale up the application and its PVC in the new cluster.
+5. Confirm that the application PVC is bound to the PV created in step 3.
