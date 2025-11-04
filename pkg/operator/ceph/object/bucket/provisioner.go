@@ -151,7 +151,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		logger.Infof("set user %q bucket max to %d", p.cephUserName, singleBucketQuota)
 	}
 
-	err = p.setAdditionalSettings(additionalConfig)
+	err = p.setAdditionalSettings(bucket)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set additional settings for OBC %q in NS %q associated with CephObjectStore %q in NS %q", options.ObjectBucketClaim.Name, options.ObjectBucketClaim.Namespace, p.objectStoreName, p.clusterInfo.Namespace)
 	}
@@ -205,7 +205,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	}
 
 	// setting quota limit if it is enabled
-	err = p.setAdditionalSettings(additionalConfig)
+	err = p.setAdditionalSettings(bucket)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set additional settings for OBC %q in NS %q associated with CephObjectStore %q in NS %q", options.ObjectBucketClaim.Name, options.ObjectBucketClaim.Namespace, p.objectStoreName, p.clusterInfo.Namespace)
 	}
@@ -609,23 +609,23 @@ func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
 }
 
 // Check for additional options mentioned in OBC and set them accordingly
-func (p *Provisioner) setAdditionalSettings(additionalConfig *additionalConfigSpec) error {
-	err := p.setUserQuota(additionalConfig)
+func (p *Provisioner) setAdditionalSettings(bucket *bucket) error {
+	err := p.setUserQuota(bucket)
 	if err != nil {
 		return errors.Wrap(err, "failed to set user quota")
 	}
 
-	err = p.setBucketQuota(additionalConfig)
+	err = p.setBucketQuota(bucket)
 	if err != nil {
 		return errors.Wrap(err, "failed to set bucket quota")
 	}
 
-	err = p.setBucketPolicy(additionalConfig)
+	err = p.setBucketPolicy(bucket)
 	if err != nil {
 		return errors.Wrap(err, "failed to set bucket policy")
 	}
 
-	err = p.setBucketLifecycle(additionalConfig)
+	err = p.setBucketLifecycle(bucket)
 	if err != nil {
 		return errors.Wrap(err, "failed to set bucket lifecycle")
 	}
@@ -633,7 +633,15 @@ func (p *Provisioner) setAdditionalSettings(additionalConfig *additionalConfigSp
 	return nil
 }
 
-func (p *Provisioner) setUserQuota(additionalConfig *additionalConfigSpec) error {
+func (p *Provisioner) setUserQuota(bucket *bucket) error {
+	additionalConfig := bucket.additionalConfig
+
+	if additionalConfig.bucketOwner != nil {
+		// when an explicit bucket owner is set, we do not manage user quotas
+		logger.Debugf("Skipping user level quotas for OBC %q as bucketOwner is set", bucket.options.ObjectBucketClaim.Name)
+		return nil
+	}
+
 	liveQuota, err := p.adminOpsClient.GetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName})
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch user %q", p.cephUserName)
@@ -684,12 +692,14 @@ func (p *Provisioner) setUserQuota(additionalConfig *additionalConfigSpec) error
 	return nil
 }
 
-func (p *Provisioner) setBucketQuota(additionalConfig *additionalConfigSpec) error {
-	bucket, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: p.bucketName})
+func (p *Provisioner) setBucketQuota(bucket *bucket) error {
+	additionalConfig := bucket.additionalConfig
+
+	bkt, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: p.bucketName})
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch bucket %q", p.bucketName)
 	}
-	liveQuota := bucket.BucketQuota
+	liveQuota := bkt.BucketQuota
 
 	// Copy only the fields that are actively managed by the provisioner to
 	// prevent passing back undesirable combinations of fields.  It is
@@ -737,7 +747,9 @@ func (p *Provisioner) setBucketQuota(additionalConfig *additionalConfigSpec) err
 	return nil
 }
 
-func (p *Provisioner) setBucketPolicy(additionalConfig *additionalConfigSpec) error {
+func (p *Provisioner) setBucketPolicy(bucket *bucket) error {
+	additionalConfig := bucket.additionalConfig
+
 	svc := p.s3Agent.Client
 	var livePolicy *string
 
@@ -784,7 +796,9 @@ func (p *Provisioner) setBucketPolicy(additionalConfig *additionalConfigSpec) er
 	return nil
 }
 
-func (p *Provisioner) setBucketLifecycle(additionalConfig *additionalConfigSpec) error {
+func (p *Provisioner) setBucketLifecycle(bucket *bucket) error {
+	additionalConfig := bucket.additionalConfig
+
 	svc := p.s3Agent.Client
 	var liveLc *s3.GetBucketLifecycleConfigurationOutput
 
