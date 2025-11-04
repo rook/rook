@@ -4284,6 +4284,11 @@ spec:
                       type: array
                     onlyApplyOSDPlacement:
                       type: boolean
+                    osdMaxUpdatesInParallel:
+                      description: The maximum number of OSDs to update in parallel.
+                      format: int32
+                      minimum: 1
+                      type: integer
                     scheduleAlways:
                       description: Whether to always schedule OSDs on a node even if the node is not currently scheduleable or ready
                       type: boolean

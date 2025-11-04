@@ -3488,6 +3488,10 @@ type StorageScopeSpec struct {
 	// The default is false since data rebalancing can cause temporary cluster slowdown.
 	// +optional
 	AllowOsdCrushWeightUpdate bool `json:"allowOsdCrushWeightUpdate,omitempty"`
+	// The maximum number of OSDs to update in parallel.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	OSDMaxUpdatesInParallel uint32 `json:"osdMaxUpdatesInParallel,omitempty"`
 }
 
 // Migration handles the OSD migration
