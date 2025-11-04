@@ -25,7 +25,7 @@ Create the desired types of storage in the provider Ceph cluster:
 
 2) [Import config to the Rook consumer cluster](consumer-import.md). The configuration exported from the Ceph cluster is imported to Rook to provide the needed connection details.
 
-## Advance Options
+## Advanced Options
 
 * [NFS storage](advance-external.md#nfs-storage)
 
