@@ -208,7 +208,8 @@ func TestProvisioner_setUserQuota(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setUserQuota(&additionalConfigSpec{})
+		bucket := &bucket{additionalConfig: &additionalConfigSpec{}}
+		err := p.setUserQuota(bucket)
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[userPath], 1)
@@ -227,7 +228,8 @@ func TestProvisioner_setUserQuota(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setUserQuota(&additionalConfigSpec{})
+		bucket := &bucket{additionalConfig: &additionalConfigSpec{}}
+		err := p.setUserQuota(bucket)
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[userPath], 1)
@@ -247,9 +249,10 @@ func TestProvisioner_setUserQuota(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setUserQuota(&additionalConfigSpec{
+		bucket := &bucket{additionalConfig: &additionalConfigSpec{
 			maxSize: aws.Int64(2),
-		})
+		}}
+		err := p.setUserQuota(bucket)
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[userPath], 1)
@@ -270,9 +273,10 @@ func TestProvisioner_setUserQuota(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setUserQuota(&additionalConfigSpec{
+		bucket := &bucket{additionalConfig: &additionalConfigSpec{
 			maxObjects: aws.Int64(2),
-		})
+		}}
+		err := p.setUserQuota(bucket)
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[userPath], 1)
@@ -293,10 +297,11 @@ func TestProvisioner_setUserQuota(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setUserQuota(&additionalConfigSpec{
+		bucket := &bucket{additionalConfig: &additionalConfigSpec{
 			maxObjects: aws.Int64(2),
 			maxSize:    aws.Int64(3),
-		})
+		}}
+		err := p.setUserQuota(bucket)
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[userPath], 1)
@@ -318,10 +323,11 @@ func TestProvisioner_setUserQuota(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setUserQuota(&additionalConfigSpec{
+		bucket := &bucket{additionalConfig: &additionalConfigSpec{
 			maxObjects: aws.Int64(12),
 			maxSize:    aws.Int64(13),
-		})
+		}}
+		err := p.setUserQuota(bucket)
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[userPath], 1)
@@ -394,7 +400,8 @@ func TestProvisioner_setBucketQuota(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setBucketQuota(&additionalConfigSpec{})
+		bucket := &bucket{additionalConfig: &additionalConfigSpec{}}
+		err := p.setBucketQuota(bucket)
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[bucketPath], 1)
@@ -413,7 +420,8 @@ func TestProvisioner_setBucketQuota(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setBucketQuota(&additionalConfigSpec{})
+		bucket := &bucket{additionalConfig: &additionalConfigSpec{}}
+		err := p.setBucketQuota(bucket)
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[bucketPath], 1)
@@ -433,9 +441,10 @@ func TestProvisioner_setBucketQuota(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setBucketQuota(&additionalConfigSpec{
+		bucket := &bucket{additionalConfig: &additionalConfigSpec{
 			bucketMaxObjects: aws.Int64(4),
-		})
+		}}
+		err := p.setBucketQuota(bucket)
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[bucketPath], 1)
@@ -456,9 +465,10 @@ func TestProvisioner_setBucketQuota(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setBucketQuota(&additionalConfigSpec{
+		bucket := &bucket{additionalConfig: &additionalConfigSpec{
 			bucketMaxSize: aws.Int64(5),
-		})
+		}}
+		err := p.setBucketQuota(bucket)
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[bucketPath], 1)
@@ -479,10 +489,11 @@ func TestProvisioner_setBucketQuota(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setBucketQuota(&additionalConfigSpec{
+		bucket := &bucket{additionalConfig: &additionalConfigSpec{
 			bucketMaxObjects: aws.Int64(14),
 			bucketMaxSize:    aws.Int64(15),
-		})
+		}}
+		err := p.setBucketQuota(bucket)
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[bucketPath], 1)
