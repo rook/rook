@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -82,25 +83,32 @@ func newCephStatusChecker(context *clusterd.Context, clusterInfo *cephclient.Clu
 }
 
 // checkCephStatus periodically checks the health of the cluster
-func (c *cephStatusChecker) checkCephStatus(monitoringRoutines map[string]*opcontroller.ClusterHealth, daemon string) {
+func (c *cephStatusChecker) checkCephStatus(monitoringRoutines *sync.Map, daemon string) {
 	// check the status immediately before starting the loop
-	c.checkStatus(monitoringRoutines[daemon].InternalCtx)
+	v, ok := monitoringRoutines.Load(daemon)
+	if !ok {
+		logger.Infof("ceph cluster %q has been deleted. stopping ceph status check", c.clusterInfo.Namespace)
+		return
+	}
+	c.checkStatus(v.(*opcontroller.ClusterHealth).InternalCtx)
 
 	for {
 		// We must perform this check otherwise the case will check an index that does not exist anymore and
 		// we will get an invalid pointer error and the go routine will panic
-		if _, ok := monitoringRoutines[daemon]; !ok {
+		v, ok := monitoringRoutines.Load(daemon)
+		if !ok {
 			logger.Infof("ceph cluster %q has been deleted. stopping ceph status check", c.clusterInfo.Namespace)
 			return
 		}
+		health := v.(*opcontroller.ClusterHealth)
 		select {
-		case <-monitoringRoutines[daemon].InternalCtx.Done():
+		case <-health.InternalCtx.Done():
 			logger.Infof("stopping monitoring of ceph status")
-			delete(monitoringRoutines, daemon)
+			monitoringRoutines.Delete(daemon)
 			return
 
 		case <-time.After(*c.interval):
-			c.checkStatus(monitoringRoutines[daemon].InternalCtx)
+			c.checkStatus(health.InternalCtx)
 		}
 	}
 }

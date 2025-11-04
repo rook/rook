@@ -69,7 +69,7 @@ type cluster struct {
 	mons               *mon.Cluster
 	ownerInfo          *k8sutil.OwnerInfo
 	isUpgrade          bool
-	monitoringRoutines map[string]*controller.ClusterHealth
+	monitoringRoutines sync.Map
 	observedGeneration int64
 }
 
@@ -78,15 +78,14 @@ func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Co
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
 		// identity can be established.
-		ClusterInfo:        client.AdminClusterInfo(ctx, c.Namespace, c.Name),
-		Namespace:          c.Namespace,
-		Spec:               &c.Spec,
-		clusterMetadata:    c.ObjectMeta,
-		context:            context,
-		namespacedName:     types.NamespacedName{Namespace: c.Namespace, Name: c.Name},
-		monitoringRoutines: make(map[string]*controller.ClusterHealth),
-		ownerInfo:          ownerInfo,
-		mons:               mon.New(ctx, context, c.Namespace, c.Spec, ownerInfo),
+		ClusterInfo:     client.AdminClusterInfo(ctx, c.Namespace, c.Name),
+		Namespace:       c.Namespace,
+		Spec:            &c.Spec,
+		clusterMetadata: c.ObjectMeta,
+		context:         context,
+		namespacedName:  types.NamespacedName{Namespace: c.Namespace, Name: c.Name},
+		ownerInfo:       ownerInfo,
+		mons:            mon.New(ctx, context, c.Namespace, c.Spec, ownerInfo),
 		// update observedGeneration with current generation value,
 		// because generation can be changed before reconcile got completed
 		// CR status will be updated at end of reconcile, so to reflect the reconcile has finished

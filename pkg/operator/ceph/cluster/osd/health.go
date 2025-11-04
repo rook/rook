@@ -18,6 +18,7 @@ package osd
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -65,22 +66,24 @@ func NewOSDHealthMonitor(context *clusterd.Context, clusterInfo *client.ClusterI
 }
 
 // Start runs monitoring logic for osds status at set intervals
-func (m *OSDHealthMonitor) Start(monitoringRoutines map[string]*opcontroller.ClusterHealth, daemon string) {
+func (m *OSDHealthMonitor) Start(monitoringRoutines *sync.Map, daemon string) {
 	for {
 		// We must perform this check otherwise the case will check an index that does not exist anymore and
 		// we will get an invalid pointer error and the go routine will panic
-		if _, ok := monitoringRoutines[daemon]; !ok {
+		v, ok := monitoringRoutines.Load(daemon)
+		if !ok {
 			logger.Infof("ceph cluster %q has been deleted. stopping monitoring of OSDs", m.clusterInfo.Namespace)
 			return
 		}
+		health := v.(*opcontroller.ClusterHealth)
 		select {
 		case <-time.After(*m.interval):
 			logger.Debug("checking osd processes status.")
 			m.checkOSDHealth()
 
-		case <-monitoringRoutines[daemon].InternalCtx.Done():
+		case <-health.InternalCtx.Done():
 			logger.Infof("stopping monitoring of OSDs in namespace %q", m.clusterInfo.Namespace)
-			delete(monitoringRoutines, daemon)
+			monitoringRoutines.Delete(daemon)
 			return
 		}
 	}
