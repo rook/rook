@@ -181,6 +181,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 			k8sutil.AppAttr:     prepareAppName,
 			k8sutil.ClusterAttr: c.clusterInfo.Namespace,
 			OSDOverPVCLabelKey:  osdProps.pvc.ClaimName,
+			deviceClass:         osdProps.storeConfig.DeviceClass,
 		},
 		Annotations: map[string]string{},
 	}
