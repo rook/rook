@@ -23,7 +23,7 @@ helm install --create-namespace --namespace $clusterNamespace rook-ceph-cluster 
 
 If not installing with Helm, here are the steps to install with manifests.
 
-1. Deploy Rook, create [common.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common.yaml), [crds.yaml](https://github.com/rook/rook/blob/master/deploy/examples/crds.yaml) and [operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml) manifests.
+1. Deploy Rook, create [common.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common.yaml), [crds.yaml](https://github.com/rook/rook/blob/master/deploy/examples/crds.yaml), [csi-operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/csi-operator.yaml) and [operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml) manifests.
 
 2. Create [common-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/external/common-external.yaml) and [cluster-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/external/cluster-external.yaml)
 
