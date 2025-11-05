@@ -12495,6 +12495,30 @@ string
 </tr>
 <tr>
 <td>
+<code>specificFailureDomain</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The specific failure domain name of the chosen failure domain</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>subFailureDomain</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The failure domain for the chosen specific failure domain</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>crushRoot</code><br/>
 <em>
 string

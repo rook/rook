@@ -937,6 +937,14 @@ type PoolSpec struct {
 	// +optional
 	FailureDomain string `json:"failureDomain,omitempty"`
 
+	// The specific failure domain name of the chosen failure domain
+	// +optional
+	SpecificFailureDomain string `json:"specificFailureDomain,omitempty"`
+
+	// The failure domain for the chosen specific failure domain
+	// +optional
+	SubFailureDomain string `json:"subFailureDomain,omitempty"`
+
 	// The root of the crush hierarchy utilized by the pool
 	// +optional
 	// +nullable

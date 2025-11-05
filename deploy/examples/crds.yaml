@@ -597,6 +597,9 @@ spec:
                   required:
                     - size
                   type: object
+                specificFailureDomain:
+                  description: The specific failure domain name of the chosen failure domain
+                  type: string
                 statusCheck:
                   description: The mirroring statusCheck
                   properties:
@@ -614,6 +617,9 @@ spec:
                       type: object
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
+                subFailureDomain:
+                  description: The failure domain for the chosen specific failure domain
+                  type: string
               type: object
             status:
               description: CephBlockPoolStatus represents the mirroring status of Ceph Storage Pool
@@ -7811,6 +7817,9 @@ spec:
                         required:
                           - size
                         type: object
+                      specificFailureDomain:
+                        description: The specific failure domain name of the chosen failure domain
+                        type: string
                       statusCheck:
                         description: The mirroring statusCheck
                         properties:
@@ -7828,6 +7837,9 @@ spec:
                             type: object
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
+                      subFailureDomain:
+                        description: The failure domain for the chosen specific failure domain
+                        type: string
                     type: object
                   nullable: true
                   type: array
@@ -8006,6 +8018,9 @@ spec:
                       required:
                         - size
                       type: object
+                    specificFailureDomain:
+                      description: The specific failure domain name of the chosen failure domain
+                      type: string
                     statusCheck:
                       description: The mirroring statusCheck
                       properties:
@@ -8023,6 +8038,9 @@ spec:
                           type: object
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    subFailureDomain:
+                      description: The failure domain for the chosen specific failure domain
+                      type: string
                   type: object
                 metadataServer:
                   description: The mds pod info
@@ -11828,6 +11846,9 @@ spec:
                       required:
                         - size
                       type: object
+                    specificFailureDomain:
+                      description: The specific failure domain name of the chosen failure domain
+                      type: string
                     statusCheck:
                       description: The mirroring statusCheck
                       properties:
@@ -11845,6 +11866,9 @@ spec:
                           type: object
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    subFailureDomain:
+                      description: The failure domain for the chosen specific failure domain
+                      type: string
                   type: object
                 defaultRealm:
                   description: |-
@@ -13461,6 +13485,9 @@ spec:
                       required:
                         - size
                       type: object
+                    specificFailureDomain:
+                      description: The specific failure domain name of the chosen failure domain
+                      type: string
                     statusCheck:
                       description: The mirroring statusCheck
                       properties:
@@ -13478,6 +13505,9 @@ spec:
                           type: object
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    subFailureDomain:
+                      description: The failure domain for the chosen specific failure domain
+                      type: string
                   type: object
                 preservePoolsOnDelete:
                   description: Preserve pools on object store deletion
@@ -14427,6 +14457,9 @@ spec:
                       required:
                         - size
                       type: object
+                    specificFailureDomain:
+                      description: The specific failure domain name of the chosen failure domain
+                      type: string
                     statusCheck:
                       description: The mirroring statusCheck
                       properties:
@@ -14444,6 +14477,9 @@ spec:
                           type: object
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    subFailureDomain:
+                      description: The failure domain for the chosen specific failure domain
+                      type: string
                   type: object
                 metadataPool:
                   description: The metadata pool settings
@@ -14617,6 +14653,9 @@ spec:
                       required:
                         - size
                       type: object
+                    specificFailureDomain:
+                      description: The specific failure domain name of the chosen failure domain
+                      type: string
                     statusCheck:
                       description: The mirroring statusCheck
                       properties:
@@ -14634,6 +14673,9 @@ spec:
                           type: object
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    subFailureDomain:
+                      description: The failure domain for the chosen specific failure domain
+                      type: string
                   type: object
                 preservePoolsOnDelete:
                   default: true
