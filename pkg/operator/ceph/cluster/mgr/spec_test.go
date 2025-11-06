@@ -191,3 +191,72 @@ func TestApplyPrometheusAnnotations(t *testing.T) {
 	assert.Equal(t, 1, len(c.spec.Annotations))
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 }
+
+func TestMgrNetwork(t *testing.T) {
+	clientset := optest.New(t, 1)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid", OwnerInfo: ownerInfo}
+	clusterInfo.SetName("test")
+	ptrToFalse := false
+	ptrToTrue := true
+
+	mgrTestConfig := mgrConfig{
+		DaemonID:     "a",
+		ResourceName: "mgr-a",
+		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
+	}
+
+	t.Run("cluster HostNetwork true, manager Hostnetwork false", func(t *testing.T) {
+		clusterSpec := cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{HostNetwork: true},
+			Mgr:     cephv1.MgrSpec{HostNetwork: &ptrToFalse},
+		}
+		c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
+
+		d, err := c.makeDeployment(&mgrTestConfig)
+		assert.NoError(t, err)
+		assert.NotNil(t, d)
+
+		assert.Equal(t, false, d.Spec.Template.Spec.HostNetwork)
+	})
+
+	t.Run("cluster hostNetwork true, manager hostnetwork true", func(t *testing.T) {
+		clusterSpec := cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{HostNetwork: true},
+			Mgr:     cephv1.MgrSpec{HostNetwork: &ptrToTrue},
+		}
+		c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
+
+		d, err := c.makeDeployment(&mgrTestConfig)
+		assert.NoError(t, err)
+		assert.NotNil(t, d)
+
+		assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
+	})
+	t.Run("cluster hostNetwork false, manager hostnetwork empty", func(t *testing.T) {
+		clusterSpec := cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{HostNetwork: false},
+			// Mgr:     cephv1.MgrSpec{HostNetwork: &ptrToTrue},
+		}
+		c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
+
+		d, err := c.makeDeployment(&mgrTestConfig)
+		assert.NoError(t, err)
+		assert.NotNil(t, d)
+
+		assert.Equal(t, false, d.Spec.Template.Spec.HostNetwork)
+	})
+	t.Run("cluster hostNetwork true manager hostnetwork empty", func(t *testing.T) {
+		clusterSpec := cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{HostNetwork: true},
+			// Mgr:     cephv1.MgrSpec{HostNetwork: &ptrToTrue},
+		}
+		c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
+
+		d, err := c.makeDeployment(&mgrTestConfig)
+		assert.NoError(t, err)
+		assert.NotNil(t, d)
+
+		assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
+	})
+}
