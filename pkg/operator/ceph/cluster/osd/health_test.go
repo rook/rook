@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -100,15 +101,15 @@ func TestOSDHealthCheck(t *testing.T) {
 
 func TestMonitorStart(t *testing.T) {
 	context, cancel := context.WithCancel(context.TODO())
-	monitoringRoutines := make(map[string]*opcontroller.ClusterHealth)
-	monitoringRoutines["osd"] = &opcontroller.ClusterHealth{
+	var monitoringRoutines sync.Map
+	monitoringRoutines.Store("osd", &opcontroller.ClusterHealth{
 		InternalCtx:    context,
 		InternalCancel: cancel,
-	}
+	})
 
 	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, client.AdminTestClusterInfo("ns"), true, cephv1.CephClusterHealthCheckSpec{})
 	logger.Infof("starting osd monitor")
-	go osdMon.Start(monitoringRoutines, "osd")
+	go osdMon.Start(&monitoringRoutines, "osd")
 	cancel()
 }
 
