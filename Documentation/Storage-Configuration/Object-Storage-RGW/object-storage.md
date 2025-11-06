@@ -637,7 +637,7 @@ metadata:
   namespace: rook-ceph
 data:
   AWS_ACCESS_KEY_ID: baz
-  AWS_SECRET_ACCESS_KEY:baz
+  AWS_SECRET_ACCESS_KEY: baz
 ```
 
 ```yaml
@@ -739,11 +739,11 @@ For more information on multisite please read the [ceph multisite overview](ceph
 ## Object Multi-instance
 
 This section describes how to configure multiple `CephObjectStore` backed by the same storage pools.
-The setup allows using different configuration parameters for each `CephObjecStore`, like:
+The setup allows using different configuration parameters for each `CephObjectStore`, like:
 
 - `hosting` and `gateway` configs to host object store APIs on different ports and domains. For example, having a independently-scalable deployments for internal and external traffic.
 - `protocols` to host `S3`, `Swift`, and `Admin-ops` APIs on a separate `CephObjectStores`.
-- having different resource limits, affinity or other configurations per `CephObjecStore` instance for other possible use-cases.
+- having different resource limits, affinity or other configurations per `CephObjectStore` instance for other possible use-cases.
 
 Multi-instance setup can be described in two steps. The first step is to create `CephObjectRealm`, `CephObjectZoneGroup`, and `CephObjectZone`, where
 `CephObjectZone` contains storage pools configuration. This configuration will be shared across all `CephObjectStore` instances:
