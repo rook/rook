@@ -2124,6 +2124,9 @@ spec:
                       maximum: 5
                       minimum: 0
                       type: integer
+                    hostNetwork:
+                      description: Whether host networking is enabled for the Ceph Mgr. If not set, the network settings from CephCluster.spec.networking will be applied.
+                      type: boolean
                     modules:
                       description: Modules is the list of ceph manager modules to enable/disable
                       items:
