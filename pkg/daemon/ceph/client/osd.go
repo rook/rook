@@ -76,8 +76,8 @@ type OSDDump struct {
 
 // IsFlagSet checks if an OSD flag is set
 func (dump *OSDDump) IsFlagSet(checkFlag string) bool {
-	flags := strings.Split(dump.Flags, ",")
-	for _, flag := range flags {
+	flags := strings.SplitSeq(dump.Flags, ",")
+	for flag := range flags {
 		if flag == checkFlag {
 			return true
 		}

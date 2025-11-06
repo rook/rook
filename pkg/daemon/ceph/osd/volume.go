@@ -364,8 +364,8 @@ func getEncryptedBlockPath(op, blockType string) string {
 	matches := re.FindAllString(op, -1)
 
 	for _, line := range matches {
-		lineSlice := strings.Fields(line)
-		for _, word := range lineSlice {
+		lineSlice := strings.FieldsSeq(line)
+		for word := range lineSlice {
 			if strings.Contains(word, blockType) {
 				return fmt.Sprintf("/dev/mapper/%s", word)
 			}
@@ -1410,8 +1410,8 @@ func GetBackingDeviceForEncryptedBlock(context *clusterd.Context, disk string) (
 	}
 
 	// Example output line: "device:  /dev/sdb1"
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "device:") {
 			parts := strings.Fields(line)

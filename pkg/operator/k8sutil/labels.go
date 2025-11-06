@@ -31,7 +31,7 @@ func ParseStringToLabels(in string) map[string]string {
 		return labels
 	}
 
-	for _, v := range strings.Split(in, ",") {
+	for v := range strings.SplitSeq(in, ",") {
 		labelSplit := strings.Split(v, "=")
 
 		// When a value is set for a label k/v pair

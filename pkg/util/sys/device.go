@@ -339,16 +339,16 @@ func GetLVName(executor exec.Executor, devicePath string) (string, error) {
 // finds the disk uuid in the output of sgdisk
 func parseUUID(device, output string) (string, error) {
 	// find the line with the uuid
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		// If GPT is not found in a disk, sgdisk creates a new GPT in memory and reports its UUID.
 		// This ID changes each call and is not appropriate to identify the device.
 		if strings.Contains(line, "Creating new GPT entries in memory.") {
 			break
 		}
 		if strings.Contains(line, "Disk identifier (GUID)") {
-			words := strings.Split(line, " ")
-			for _, word := range words {
+			words := strings.SplitSeq(line, " ")
+			for word := range words {
 				// we expect most words in the line not to be a uuid, but will return the first one that is
 				result, err := uuid.Parse(word)
 				if err == nil {

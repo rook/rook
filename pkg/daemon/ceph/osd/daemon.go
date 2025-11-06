@@ -283,7 +283,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 }
 
 func matchDevLinks(devLinks, deviceName string) bool {
-	for _, link := range strings.Split(devLinks, " ") {
+	for link := range strings.SplitSeq(devLinks, " ") {
 		if link == deviceName {
 			logger.Infof("%q found in the desired devices (matched by link: %q)", deviceName, link)
 			return true
