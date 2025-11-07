@@ -1,5 +1,5 @@
-name: Cluster Setup
-description: Cluster setup for integration test
+name: setup cluster resources
+description: Setup cluster resources for canary/integration tests
 inputs:
   kubernetes-version:
     description: kubernetes version to use for the workflow
@@ -18,7 +18,7 @@ runs:
         haskell: false # takes a long time to run b/c package mgr
 
     - name: setup golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
       with:
         go-version: "1.24"
 
@@ -26,6 +26,10 @@ runs:
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         tests/scripts/github-action-helper.sh install_minikube_with_none_driver ${{ inputs.kubernetes-version }}
+
+    - name: install deps
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: print k8s cluster status
       shell: bash --noprofile --norc -eo pipefail -x {0}
