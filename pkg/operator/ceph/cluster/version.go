@@ -46,7 +46,7 @@ func (c *ClusterController) detectAndValidateCephVersion(cluster *cluster) (*cep
 	}
 
 	// Update ceph version field in cluster object status
-	c.updateClusterCephVersion(cluster.Spec.CephVersion.Image, *version)
+	c.updateClusterCephVersion(cluster, *version)
 
 	return version, cluster.isUpgrade, nil
 }

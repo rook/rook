@@ -46,15 +46,15 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		return errors.Wrap(err, "failed to validate external cluster specs")
 	}
 
-	opcontroller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionConnecting, v1.ConditionTrue, cephv1.ClusterConnectingReason, "Attempting to connect to an external Ceph cluster")
+	opcontroller.UpdateCondition(c.OpManagerCtx, c.context, cluster.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionConnecting, v1.ConditionTrue, cephv1.ClusterConnectingReason, "Attempting to connect to an external Ceph cluster")
 
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
-	cluster.ClusterInfo, err = opcontroller.PopulateExternalClusterInfo(cluster.Spec, c.context, c.OpManagerCtx, c.namespacedName.Namespace, cluster.ownerInfo)
+	cluster.ClusterInfo, err = opcontroller.PopulateExternalClusterInfo(cluster.Spec, c.context, c.OpManagerCtx, cluster.namespacedName.Namespace, cluster.ownerInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to populate external cluster info")
 	}
-	cluster.ClusterInfo.SetName(c.namespacedName.Name)
+	cluster.ClusterInfo.SetName(cluster.namespacedName.Name)
 	cluster.ClusterInfo.Context = c.OpManagerCtx
 
 	if !client.IsKeyringBase64Encoded(cluster.ClusterInfo.CephCred.Secret) {
@@ -82,13 +82,13 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		//
 		// Only do this when doing a bit of management...
 		logger.Infof("creating %q configmap", k8sutil.ConfigOverrideName)
-		err = populateConfigOverrideConfigMap(c.context, c.namespacedName.Namespace, cluster.ClusterInfo.OwnerInfo, cluster.clusterMetadata)
+		err = populateConfigOverrideConfigMap(c.context, cluster.namespacedName.Namespace, cluster.ClusterInfo.OwnerInfo, cluster.clusterMetadata)
 		if err != nil {
 			return errors.Wrap(err, "failed to populate config override config map")
 		}
 
 		logger.Infof("creating %q secret", config.StoreName)
-		err = config.GetStore(c.context, c.namespacedName.Namespace, cluster.ClusterInfo.OwnerInfo).CreateOrUpdate(cluster.ClusterInfo)
+		err = config.GetStore(c.context, cluster.namespacedName.Namespace, cluster.ClusterInfo.OwnerInfo).CreateOrUpdate(cluster.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to update the global config")
 		}
@@ -102,7 +102,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 
 	// Create CSI Secrets only if the user has provided the admin key
 	if cluster.ClusterInfo.CephCred.Username == client.AdminUsername {
-		err = csi.CreateCSISecrets(c.context, cluster.ClusterInfo, c.namespacedName)
+		err = csi.CreateCSISecrets(c.context, cluster.ClusterInfo, cluster.namespacedName)
 		if err != nil {
 			return errors.Wrap(err, "failed to create csi kubernetes secrets")
 		}
@@ -131,8 +131,8 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		},
 	}
 
-	clusterId := c.namespacedName.Namespace // cluster id is same as cluster namespace for CephClusters
-	err = csi.SaveClusterConfig(c.context.Clientset, clusterId, c.namespacedName.Namespace, cluster.ClusterInfo, csiConfigEntry)
+	clusterId := cluster.namespacedName.Namespace // cluster id is same as cluster namespace for CephClusters
+	err = csi.SaveClusterConfig(c.context.Clientset, clusterId, cluster.namespacedName.Namespace, cluster.ClusterInfo, csiConfigEntry)
 	if err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
@@ -168,7 +168,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		cluster.ClusterInfo.CephVersion = *externalVersion
 
 		// Populate ceph version
-		c.updateClusterCephVersion("", *externalVersion)
+		c.updateClusterCephVersion(cluster, *externalVersion)
 
 		err = c.configureExternalClusterMonitoring(c.context, cluster)
 		if err != nil {
@@ -188,7 +188,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		}
 	}
 
-	opcontroller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionConnected, v1.ConditionTrue, cephv1.ClusterConnectedReason, "Cluster connected successfully")
+	opcontroller.UpdateCondition(c.OpManagerCtx, c.context, cluster.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionConnected, v1.ConditionTrue, cephv1.ClusterConnectedReason, "Cluster connected successfully")
 	return nil
 }
 
