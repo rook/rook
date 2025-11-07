@@ -77,7 +77,7 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.35.0"
@@ -117,7 +117,7 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.35.0"
@@ -157,7 +157,7 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.35.0"
@@ -197,7 +197,7 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.35.0"
@@ -237,7 +237,7 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.35.0"
@@ -277,7 +277,7 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.35.0"
