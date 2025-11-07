@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions: ["v1.30.14", "v1.35.0"]
+        kubernetes-version: ["v1.30.14", "v1.35.0"]
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -41,10 +41,10 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
           debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
-      - name: setup latest cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          kubernetes-version: ${{ matrix.kubernetes-versions }}
+          kubernetes-version: ${{ matrix.kubernetes-version }}
 
       - name: TestCephObjectSuite
         run: |
@@ -64,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
-          name: ceph-object-suite-artifact-${{ matrix.kubernetes-versions }}
+          name: ceph-object-suite-artifact-${{ matrix.kubernetes-version }}
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
       - name: consider (post-job) debugging
