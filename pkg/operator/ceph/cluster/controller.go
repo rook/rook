@@ -20,6 +20,8 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 
 	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	"github.com/coreos/pkg/capnslog"
@@ -143,8 +145,15 @@ func watchOwnedCoreObject[T client.Object](c controller.Controller, mgr manager.
 }
 
 func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context, opConfig opcontroller.OperatorConfig) error {
+	concurrentClusters := os.Getenv("ROOK_RECONCILE_CONCURRENT_CLUSTERS")
+	concurrentReconciles := 1
+	if i, err := strconv.Atoi(concurrentClusters); err == nil && i > 1 {
+		logger.Infof("Setting concurrent cluster reconciles to %d", i)
+		concurrentReconciles = i
+	}
+
 	// Create a new controller
-	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: concurrentReconciles})
 	if err != nil {
 		return err
 	}
