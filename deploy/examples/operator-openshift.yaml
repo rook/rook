@@ -18,7 +18,7 @@ allowHostNetwork: false
 # set to true if running rook with the provider as host
 allowHostPorts: false
 priority:
-allowedCapabilities: ["MKNOD"]
+allowedCapabilities: ["MKNOD", "SYS_ADMIN", "NET_RAW"]
 allowHostIPC: true
 readOnlyRootFilesystem: false
 # drop all default privileges
@@ -49,6 +49,7 @@ users:
   - system:serviceaccount:rook-ceph:rook-ceph-mgr # serviceaccount:namespace:cluster
   - system:serviceaccount:rook-ceph:rook-ceph-osd # serviceaccount:namespace:cluster
   - system:serviceaccount:rook-ceph:rook-ceph-rgw # serviceaccount:namespace:cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-nvmeof # serviceaccount:namespace:cluster
 ---
 # scc for the CSI driver
 kind: SecurityContextConstraints
@@ -97,6 +98,7 @@ users:
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-nfs-plugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-nfs-provisioner-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:nvmeof-csi-provisioner # serviceaccount:namespace:operator
   # Service accounts for the csi operator
   - system:serviceaccount:rook-ceph:ceph-csi-cephfs-ctrlplugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:ceph-csi-cephfs-nodeplugin-sa # serviceaccount:namespace:operator
