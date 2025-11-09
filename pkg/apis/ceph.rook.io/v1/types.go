@@ -2752,6 +2752,88 @@ type CephNFSList struct {
 	Items           []CephNFS `json:"items"`
 }
 
+// +genclient
+// +genclient:noStatus
+// +kubebuilder:resource:shortName=nvmeof,path=cephnvmeofgateways
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:subresource:status
+//
+// CephNVMeOFGateway represents a Ceph NVMe-oF Gateway
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type CephNVMeOFGateway struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              NVMeOFGatewaySpec `json:"spec"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Status *NVMeOFGatewayStatus `json:"status,omitempty"`
+}
+
+// NVMeOFGatewayStatus represents the status of Ceph NVMe-oF Gateway
+type NVMeOFGatewayStatus struct {
+	Status `json:",inline"`
+	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
+}
+
+// CephNVMeOFGatewayList represents a list of Ceph NVMe-oF Gateways
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type CephNVMeOFGatewayList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephNVMeOFGateway `json:"items"`
+}
+
+// NVMeOFGatewaySpec represents the spec of an NVMe-oF gateway
+type NVMeOFGatewaySpec struct {
+	// The number of active gateway instances
+	Instances int `json:"instances"`
+
+	// Pool is the RADOS pool where NVMe-oF configuration is stored
+	Pool string `json:"pool"`
+
+	// Group is the gateway group name for high availability (ANA group)
+	Group string `json:"group"`
+
+	// ConfigMapRef is the name of the ConfigMap containing nvmeof.conf configuration
+	// If not specified, a default configuration will be generated
+	// +optional
+	ConfigMapRef string `json:"configMapRef,omitempty"`
+
+	// The affinity to place the gateway pods
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Placement Placement `json:"placement,omitempty"`
+
+	// The annotations-related configuration to add/set on each Pod related object.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Annotations Annotations `json:"annotations,omitempty"`
+
+	// The labels-related configuration to add/set on each Pod related object.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Labels Labels `json:"labels,omitempty"`
+
+	// Resources set resource requests and limits
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+
+	// PriorityClassName sets the priority class on the pods
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// Whether host networking is enabled for the gateway. If not set, the network settings from the cluster CR will be applied.
+	// +optional
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
+
+	// A liveness-probe to verify that gateway has valid run-time state.
+	// If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.
+	// +optional
+	LivenessProbe *ProbeSpec `json:"livenessProbe,omitempty"`
+}
+
 // NFSGaneshaSpec represents the spec of an nfs ganesha server
 type NFSGaneshaSpec struct {
 	// RADOS is the Ganesha RADOS specification
