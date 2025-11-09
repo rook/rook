@@ -40,6 +40,8 @@ type CephFilesystemSubVolumeGroupExpansion interface{}
 
 type CephNFSExpansion interface{}
 
+type CephNVMeOFGatewayExpansion interface{}
+
 type CephObjectRealmExpansion interface{}
 
 type CephObjectStoreExpansion interface{}
