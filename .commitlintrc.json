@@ -29,6 +29,7 @@
         "monitoring",
         "multus",
         "network",
+        "nvmeof",
         "nfs",
         "object",
         "operator",
