@@ -18,7 +18,7 @@ allowHostNetwork: false
 # set to true if running rook with the provider as host
 allowHostPorts: false
 priority:
-allowedCapabilities: ["MKNOD"]
+allowedCapabilities: ["MKNOD", "SYS_ADMIN", "NET_RAW"]
 allowHostIPC: true
 readOnlyRootFilesystem: false
 # drop all default privileges
@@ -49,6 +49,7 @@ users:
   - system:serviceaccount:rook-ceph:rook-ceph-mgr # serviceaccount:namespace:cluster
   - system:serviceaccount:rook-ceph:rook-ceph-osd # serviceaccount:namespace:cluster
   - system:serviceaccount:rook-ceph:rook-ceph-rgw # serviceaccount:namespace:cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-nvmeof # serviceaccount:namespace:cluster
 ---
 # scc for the CSI driver
 kind: SecurityContextConstraints
@@ -97,6 +98,7 @@ users:
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-nfs-plugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-nfs-provisioner-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:nvmeof-csi-provisioner # serviceaccount:namespace:operator
   # Service accounts for the csi operator
   - system:serviceaccount:rook-ceph:ceph-csi-cephfs-ctrlplugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:ceph-csi-cephfs-nodeplugin-sa # serviceaccount:namespace:operator
@@ -123,7 +125,7 @@ data:
   ROOK_CEPH_ALLOW_LOOP_DEVICES: "false"
 
   # Enable CSI Operator
-  ROOK_USE_CSI_OPERATOR: "true"
+  ROOK_USE_CSI_OPERATOR: "false"
 
   # Enable the CSI driver.
   # To run the non-default version of the CSI driver, see the override-able image properties in operator.yaml
@@ -200,12 +202,12 @@ data:
   # The default version of CSI supported by Rook will be started. To change the version
   # of the CSI driver to something other than what is officially supported, change
   # these images to the desired release of the CSI driver.
-  # ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.0"
-  # ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.15.0"
-  # ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v2.0.0"
-  # ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v6.0.0"
-  # ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v8.4.0"
-  # ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v4.10.0"
+  ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.0"
+  # ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.13.0"
+  # ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v1.13.2"
+  # ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v5.2.0"
+  # ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v8.2.1"
+  # ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v4.8.1"
 
   # (Optional) set user created priorityclassName for csi plugin pods.
   CSI_PLUGIN_PRIORITY_CLASSNAME: "system-node-critical"
@@ -691,7 +693,8 @@ spec:
       serviceAccountName: rook-ceph-system
       containers:
         - name: rook-ceph-operator
-          image: docker.io/rook/ceph:master
+          image: quay.io/oviner/rook:jan18_1
+          imagePullPolicy: Always
           args: ["ceph", "operator"]
           securityContext:
             runAsNonRoot: true

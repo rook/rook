@@ -1,0 +1,202 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvmeof.csi.ceph.com-nodeplugin
+  namespace: rook-ceph
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: nvmeof.csi.ceph.com-nodeplugin
+  template:
+    metadata:
+      labels:
+        app: nvmeof.csi.ceph.com-nodeplugin
+    spec:
+      containers:
+        - args:
+            - --v=5
+            - --type=nvmeof
+            - --nodeserver=true
+            - --nodeid=$(NODE_ID)
+            - --drivername=nvmeof.csi.ceph.com
+            - --endpoint=unix:///csi/csi.sock
+            - --pidlimit=-1
+            - --csi-addons-endpoint=unix:///csi/csi-addons.sock
+            - --stagingpath=/var/lib/kubelet/plugins/kubernetes.io/csi/
+            - --logtostderr=false
+            - --alsologtostderr=true
+            - --log_file=csi-logs/csi-nvmeofplugin.log
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+          image: quay.io/cephcsi/cephcsi:v3.16.0
+          imagePullPolicy: Always
+          name: csi-nvmeofplugin
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: true
+            capabilities:
+              add:
+                - SYS_ADMIN
+              drop:
+                - All
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /dev
+              name: host-dev
+            - mountPath: /sys
+              name: host-sys
+            - mountPath: /run/mount
+              name: host-run-mount
+            - mountPath: /lib/modules
+              name: lib-modules
+              readOnly: true
+            - mountPath: /tmp/csi/keys
+              name: keys-tmp-dir
+            - mountPath: /csi
+              name: plugin-dir
+            # FIXED: Mount path should end with / to mount as directory
+            - mountPath: /etc/ceph-csi-config/
+              name: ceph-csi-config
+            - mountPath: /var/lib/kubelet/plugins
+              mountPropagation: Bidirectional
+              name: plugin-mount-dir
+            - mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+              name: pods-mount-dir
+            - mountPath: /etc/selinux
+              name: etc-selinux
+              readOnly: true
+            - mountPath: /run/secrets/tokens
+              name: oidc-token
+              readOnly: true
+            - mountPath: /csi-logs
+              name: logs-dir
+          # Log rotation mount - commented out since ConfigMap is optional
+          # - mountPath: /etc/logrotate.d
+          #   name: log-rotate-dir
+          #   readOnly: true
+        - args:
+            - "--v=1"
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/nvmeof.csi.ceph.com/csi.sock"
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.13.0
+          imagePullPolicy: IfNotPresent
+          name: driver-registrar
+          resources: {}
+          securityContext:
+            capabilities:
+              drop:
+                - All
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /csi
+              name: plugin-dir
+            - mountPath: /registration
+              name: registration-dir
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      hostPID: true
+      priorityClassName: system-node-critical
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      # FIXED: Use rook-csi-rbd-plugin-sa since nvmeof uses RBD backend
+      # This service account already exists and has the necessary permissions
+      serviceAccount: rook-csi-rbd-plugin-sa
+      serviceAccountName: rook-csi-rbd-plugin-sa
+      terminationGracePeriodSeconds: 30
+      # tolerations:
+      # - effect: NoSchedule
+      # key: node.ocs.openshift.io/storage
+      # operator: Equal
+      # value: "true"
+      volumes:
+        - hostPath:
+            path: /dev
+            type: ""
+          name: host-dev
+        - hostPath:
+            path: /sys
+            type: ""
+          name: host-sys
+        - hostPath:
+            path: /run/mount
+            type: ""
+          name: host-run-mount
+        - hostPath:
+            path: /lib/modules
+            type: ""
+          name: lib-modules
+        - emptyDir:
+            medium: Memory
+          name: keys-tmp-dir
+        # FIXED: Use rook-ceph-csi-config instead of ceph-csi-config
+        # This ConfigMap contains the cluster configuration with monitor endpoints
+        - configMap:
+            name: rook-ceph-csi-config
+            items:
+              - key: csi-cluster-config-json
+                path: config.json
+          name: ceph-csi-config
+        - hostPath:
+            path: /var/lib/kubelet/plugins/nvmeof.csi.ceph.com
+            type: DirectoryOrCreate
+          name: plugin-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins
+            type: Directory
+          name: plugin-mount-dir
+        - hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+          name: pods-mount-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: Directory
+          name: registration-dir
+        - hostPath:
+            path: /etc/selinux
+            type: ""
+          name: etc-selinux
+        - name: oidc-token
+          projected:
+            defaultMode: 420
+            sources:
+              - serviceAccountToken:
+                  audience: ceph-csi-kms
+                  expirationSeconds: 3600
+                  path: oidc-token
+        - hostPath:
+            path: /var/lib/cephcsi/nvmeof.csi.ceph.com-nodeplugin
+            type: DirectoryOrCreate
+          name: logs-dir
+      # Log rotation ConfigMap - optional, can be created if log rotation is needed
+      # - configMap:
+      #     defaultMode: 420
+      #     name: nvmeof.csi.ceph.com-logrotate-config
+      #   name: log-rotate-dir
+  updateStrategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
