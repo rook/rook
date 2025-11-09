@@ -75,6 +75,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephFilesystemSubVolumeGroups().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("cephnfses"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephNFSes().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("cephnvmeofgateways"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephNVMeOFGateways().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("cephobjectrealms"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephObjectRealms().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("cephobjectstores"):
