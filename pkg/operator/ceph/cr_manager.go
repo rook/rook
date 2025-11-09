@@ -18,6 +18,7 @@ package operator
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -33,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
 	"github.com/rook/rook/pkg/operator/ceph/file/subvolumegroup"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
+	"github.com/rook/rook/pkg/operator/ceph/nvmeof"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	"github.com/rook/rook/pkg/operator/ceph/object/cosi"
@@ -82,6 +84,7 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Conte
 	nfs.Add,
 	rbd.Add,
 	client.Add,
+	nvmeof.Add,
 	mirror.Add,
 	Add,
 	csi.Add,
@@ -141,6 +144,7 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 
 	metricsBindAddress := k8sutil.GetOperatorSetting("ROOK_OPERATOR_METRICS_BIND_ADDRESS", "0")
 	skipNameValidation := true
+	cacheSyncTimeout := 10 * time.Minute
 	// Set up a manager
 	mgrOpts := manager.Options{
 		LeaderElection: false,
@@ -151,6 +155,7 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 		Scheme: scheme,
 		Controller: config.Controller{
 			SkipNameValidation: &skipNameValidation,
+			CacheSyncTimeout:   cacheSyncTimeout,
 		},
 	}
 
