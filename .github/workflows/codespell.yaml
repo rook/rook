@@ -28,7 +28,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: codespell
-        uses: codespell-project/actions-codespell@406322ec52dd7b488e48c1c4b82e2a8b3a1bf630 # master
+        uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579 # master
         with:
           # LICENSE: skip file because codespell wants to flag complies, which we may want to flag
           # in other places, so ignore the file itself assuming it is correct
