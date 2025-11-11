@@ -125,13 +125,13 @@ eof
 function importClusterID() {
   if [ -n "$RADOS_NAMESPACE" ]; then
     createRadosNamespaceCR
-    timeout 20 sh -c "until [ $($KUBECTL -n "$NAMESPACE" get CephBlockPoolRadosNamespace/"$RADOS_NAMESPACE" -o jsonpath='{.status.phase}' | grep -c "Ready") -eq 1 ]; do echo "waiting for radosNamespace to get created" && sleep 1; done"
+    timeout 20 sh -c "until [ \$($KUBECTL -n \"$NAMESPACE\" get CephBlockPoolRadosNamespace/$RADOS_NAMESPACE -o jsonpath='{.status.phase}' | grep -c 'Ready') -eq 1 ]; do echo 'waiting for radosNamespace to get created' && sleep 1; done"
     CLUSTER_ID_RBD=$($KUBECTL -n "$NAMESPACE" get cephblockpoolradosnamespace.ceph.rook.io/"$RADOS_NAMESPACE" -o jsonpath='{.status.info.clusterID}')
     RBD_STORAGE_CLASS_NAME=ceph-rbd-$RADOS_NAMESPACE
   fi
   if [ -n "$SUBVOLUME_GROUP" ]; then
     createSubvolumeGroupCR
-    timeout 20 sh -c "until [ $($KUBECTL -n "$NAMESPACE" get CephFilesystemSubVolumeGroup/"$SUBVOLUME_GROUP" -o jsonpath='{.status.phase}' | grep -c "Ready") -eq 1 ]; do echo "waiting for radosNamespace to get created" && sleep 1; done"
+    timeout 20 sh -c "until [ \$($KUBECTL -n \"$NAMESPACE\" get CephFilesystemSubVolumeGroup/$SUBVOLUME_GROUP -o jsonpath='{.status.phase}' | grep -c 'Ready') -eq 1 ]; do echo 'waiting for subVolumeGroup to get created' && sleep 1; done"
     CLUSTER_ID_CEPHFS=$($KUBECTL -n "$NAMESPACE" get cephfilesystemsubvolumegroup.ceph.rook.io/"$SUBVOLUME_GROUP" -o jsonpath='{.status.info.clusterID}')
     CEPHFS_STORAGE_CLASS_NAME=cephfs-$SUBVOLUME_GROUP
   fi
