@@ -48,6 +48,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
@@ -421,30 +422,35 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesys
 
 // updateStatus updates an object with a given status
 func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(observedGeneration int64, name types.NamespacedName, status cephv1.ConditionType) {
-	cephFilesystemSubVolumeGroup := &cephv1.CephFilesystemSubVolumeGroup{}
-	if err := r.client.Get(r.opManagerContext, name, cephFilesystemSubVolumeGroup); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debugf("CephFilesystemSubVolumeGroup %q not found. Ignoring since object must be deleted.", name)
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cephFilesystemSubVolumeGroup := &cephv1.CephFilesystemSubVolumeGroup{}
+		if err := r.client.Get(r.opManagerContext, name, cephFilesystemSubVolumeGroup); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debugf("CephFilesystemSubVolumeGroup %q not found. Ignoring since object must be deleted.", name)
+				return nil
+			}
+			return errors.Wrapf(err, "failed to retrieve ceph filesystem subvolume group %q to update status to %q", name, status)
 		}
-		logger.Warningf("failed to retrieve ceph filesystem subvolume group %q to update status to %q. %v", name, status, err)
-		return
-	}
-	if cephFilesystemSubVolumeGroup.Status == nil {
-		cephFilesystemSubVolumeGroup.Status = &cephv1.CephFilesystemSubVolumeGroupStatus{}
-	}
+		if cephFilesystemSubVolumeGroup.Status == nil {
+			cephFilesystemSubVolumeGroup.Status = &cephv1.CephFilesystemSubVolumeGroupStatus{}
+		}
 
-	cephFilesystemSubVolumeGroup.Status.Phase = status
-	cephFilesystemSubVolumeGroup.Status.Info = map[string]string{
-		"clusterID": buildClusterID(cephFilesystemSubVolumeGroup),
-		"pinning":   formatPinning(cephFilesystemSubVolumeGroup.Spec.Pinning),
-	}
+		cephFilesystemSubVolumeGroup.Status.Phase = status
+		cephFilesystemSubVolumeGroup.Status.Info = map[string]string{
+			"clusterID": buildClusterID(cephFilesystemSubVolumeGroup),
+			"pinning":   formatPinning(cephFilesystemSubVolumeGroup.Spec.Pinning),
+		}
 
-	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
-		cephFilesystemSubVolumeGroup.Status.ObservedGeneration = observedGeneration
-	}
-	if err := reporting.UpdateStatus(r.client, cephFilesystemSubVolumeGroup); err != nil {
-		logger.Errorf("failed to set ceph filesystem subvolume group %q status to %q. %v", name, status, err)
+		if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+			cephFilesystemSubVolumeGroup.Status.ObservedGeneration = observedGeneration
+		}
+		if err := reporting.UpdateStatus(r.client, cephFilesystemSubVolumeGroup); err != nil {
+			return errors.Wrapf(err, "failed to set ceph filesystem subvolume group %q status to %q", name, status)
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Errorf("failed to update ceph filesystem subvolume group %q status to %q after retries. %v", name, status, err)
 		return
 	}
 	logger.Debugf("ceph filesystem subvolume group %q status updated to %q", name, status)
