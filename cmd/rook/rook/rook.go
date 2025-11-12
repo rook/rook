@@ -224,7 +224,7 @@ func GetInternalOrExternalClient() kubernetes.Interface {
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig != "" {
 		logger.Debugf("attempting to create kube client interface from KUBCONFIG environment variable: %s", kubeconfig)
-		for _, kConf := range strings.Split(kubeconfig, ":") {
+		for kConf := range strings.SplitSeq(kubeconfig, ":") {
 			restConfig, err = clientcmd.BuildConfigFromFlags("", kConf)
 			if err == nil {
 				logger.Debugf("attempting to create kube clientset from kube config file %q", kConf)

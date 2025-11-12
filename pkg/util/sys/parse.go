@@ -25,7 +25,7 @@ func Grep(input, searchFor string) string {
 	if input == "" || searchFor == "" {
 		return ""
 	}
-	for _, line := range strings.Split(input, "\n") {
+	for line := range strings.SplitSeq(input, "\n") {
 		if matched, _ := regexp.MatchString(searchFor, line); matched {
 			return line
 		}

@@ -363,11 +363,11 @@ func GenerateNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
 			},
 		},
 	}
-	nodeLabels := strings.Split(nodeAffinity, ";")
+	nodeLabels := strings.SplitSeq(nodeAffinity, ";")
 	// For each label in 'nodeLabels', retrieve (key,value) pair and create nodeAffinity
 	// '=' separates key from values
 	// ',' separates values
-	for _, nodeLabel := range nodeLabels {
+	for nodeLabel := range nodeLabels {
 		// If tmpNodeLabel is an array of length > 1
 		// [0] is Key and [1] is comma separated values
 		tmpNodeLabel := strings.Split(nodeLabel, "=")

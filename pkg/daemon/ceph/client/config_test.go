@@ -117,7 +117,7 @@ func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, lo
 	for _, expectedMon := range cluster.InternalMonitors {
 		contained := false
 		monMembers[i] = expectedMon.Name
-		for _, actualMon := range strings.Split(cephConfig.MonMembers, " ") {
+		for actualMon := range strings.SplitSeq(cephConfig.MonMembers, " ") {
 			if expectedMon.Name == actualMon {
 				contained = true
 				break
@@ -131,9 +131,9 @@ func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, lo
 
 	expectedMons := "[v2:10.0.0.1:3300,v1:10.0.0.1:6789],[v2:10.0.0.2:3300,v1:10.0.0.2:6789]"
 
-	for _, expectedMon := range strings.Split(expectedMons, ",") {
+	for expectedMon := range strings.SplitSeq(expectedMons, ",") {
 		contained := false
-		for _, actualMon := range strings.Split(cephConfig.MonHost, ",") {
+		for actualMon := range strings.SplitSeq(cephConfig.MonHost, ",") {
 			if expectedMon == actualMon {
 				contained = true
 				break

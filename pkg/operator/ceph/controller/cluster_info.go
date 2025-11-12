@@ -324,8 +324,8 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (extMons ma
 
 	// Parse the mons that were detected out of quorum
 	if outOfQuorum, ok := cm.Data[OutOfQuorumKey]; ok && len(outOfQuorum) > 0 {
-		monNames := strings.Split(outOfQuorum, ",")
-		for _, monName := range monNames {
+		monNames := strings.SplitSeq(outOfQuorum, ",")
+		for monName := range monNames {
 			if monInfo, ok := internalMons[monName]; ok {
 				monInfo.OutOfQuorum = true
 			} else {
@@ -441,8 +441,8 @@ func UpdateClusterAccessSecret(clientset kubernetes.Interface, clusterInfo *ceph
 func ParseMonEndpoints(input string) map[string]*cephclient.MonInfo {
 	logger.Infof("parsing mon endpoints: %s", input)
 	mons := map[string]*cephclient.MonInfo{}
-	rawMons := strings.Split(input, ",")
-	for _, rawMon := range rawMons {
+	rawMons := strings.SplitSeq(input, ",")
+	for rawMon := range rawMons {
 		parts := strings.Split(rawMon, "=")
 		if len(parts) != 2 {
 			logger.Warningf("ignoring invalid monitor %s", rawMon)

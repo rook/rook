@@ -72,8 +72,8 @@ func (c *Cluster) getOSDLabels(osd OSDInfo, failureDomainValue string, portable 
 
 func getOSDTopologyLocationLabels(topologyLocation string) map[string]string {
 	labels := map[string]string{}
-	locations := strings.Split(topologyLocation, " ")
-	for _, location := range locations {
+	locations := strings.SplitSeq(topologyLocation, " ")
+	for location := range locations {
 		loc := strings.Split(location, "=")
 		if len(loc) == 2 {
 			labels[fmt.Sprintf(TopologyLocationLabel, loc[0])] = loc[1]

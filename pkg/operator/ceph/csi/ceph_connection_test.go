@@ -145,7 +145,7 @@ func TestCephConnectionDefaultTopology(t *testing.T) {
 	for _, label := range csiCephConnection.Spec.ReadAffinity.CrushLocationLabels {
 		labels[label] = true
 	}
-	for _, defaultLabel := range strings.Split(topology.GetDefaultTopologyLabels(), ",") {
+	for defaultLabel := range strings.SplitSeq(topology.GetDefaultTopologyLabels(), ",") {
 		assert.True(t, labels[defaultLabel], "expected label %q not found", defaultLabel)
 	}
 }
