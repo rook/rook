@@ -323,9 +323,11 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	}
 
 	// If the cephBlockPool is not ready to accept commands, we should wait for it to be ready
-	if cephBlockPool.Status.Phase != cephv1.ConditionReady {
-		// We know the CR is present so it should a matter of second for it to become ready
-		return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, radosNamespace, errors.Wrapf(err, "failed to fetch ceph blockpool %q, cannot create rados namespace %q", pool, radosNamespace.Name)
+	if cephBlockPool.Status != nil {
+		if cephBlockPool.Status.Phase != cephv1.ConditionReady {
+			// We know the CR is present so it should a matter of second for it to become ready
+			return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, radosNamespace, errors.Wrapf(err, "failed to fetch ceph blockpool %q, cannot create rados namespace %q", pool, radosNamespace.Name)
+		}
 	}
 	// Create or Update rados namespace
 	err = r.createOrUpdateRadosNamespace(radosNamespace)
