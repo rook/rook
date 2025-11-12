@@ -90,7 +90,6 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialRookVersion string, initia
 		SkipClusterCleanup:          true,
 		RookVersion:                 initialRookVersion,
 		CephVersion:                 initialCephVersion,
-		EnableCsiOperator:           true,
 	}
 
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
@@ -500,7 +499,7 @@ func (s *UpgradeSuite) upgradeToMaster() {
 	}
 
 	require.NoError(s.T(), s.installer.InstallCSIOperator())
-	require.NoError(s.T(), s.installer.SetOperatorSetting("ROOK_USE_CSI_OPERATOR", "true"))
+	require.NoError(s.T(), s.installer.SetOperatorSetting("ROOK_USE_CSI_OPERATOR", "false"))
 
 	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", s.installer.Manifests.GetCRDs(s.k8sh)))
 

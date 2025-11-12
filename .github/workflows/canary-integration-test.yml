@@ -870,7 +870,6 @@ jobs:
         run: |
           yq write -i deploy/examples/operator.yaml "data.ROOK_CEPH_ALLOW_LOOP_DEVICES" --style=double "true"
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 3
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
@@ -905,7 +904,6 @@ jobs:
       - name: redeploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
@@ -973,7 +971,6 @@ jobs:
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
           cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
@@ -1031,7 +1028,6 @@ jobs:
       - name: deploy rook
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
           cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
@@ -1102,7 +1098,6 @@ jobs:
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
@@ -1134,7 +1129,6 @@ jobs:
       - name: redeploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
@@ -1203,7 +1197,6 @@ jobs:
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
           cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
@@ -1263,7 +1256,6 @@ jobs:
       - name: deploy rook
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
           cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
@@ -1338,12 +1330,12 @@ jobs:
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
           cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          kubectl patch -n rook-ceph cephcluster rook-ceph --type merge -p '{"spec":{"security":{"keyRotation":{"enabled": true, "schedule":"*/1 * * * *"}}}}'
           yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
           yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_BACKEND_PATH" rook/ver2
           kubectl create -f tests/manifests/test-object.yaml
@@ -1433,11 +1425,11 @@ jobs:
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
           yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-k8s-auth.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          kubectl patch -n rook-ceph cephcluster rook-ceph --type merge -p '{"spec":{"security":{"keyRotation":{"enabled": true, "schedule":"*/1 * * * *"}}}}'
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
@@ -1506,7 +1498,6 @@ jobs:
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
@@ -1974,8 +1965,6 @@ jobs:
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
-
 
           export BLOCK="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           yq write -i deploy/examples/cluster-multus-test.yaml "spec.storage.deviceFilter" "${BLOCK}"
