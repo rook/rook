@@ -294,7 +294,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	}
 
 	// If the CephFilesystem is not ready to accept commands, we should wait for it to be ready
-	if cephFilesystem.Status.Phase != cephv1.ConditionReady {
+	if cephFilesystem.Status == nil || cephFilesystem.Status.Phase != cephv1.ConditionReady {
 		// We know the CR is present so it should a matter of second for it to become ready
 		return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, errors.Wrapf(err, "failed to fetch ceph filesystem %q, cannot create subvolume group %q", cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name)
 	}
