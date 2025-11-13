@@ -37,10 +37,7 @@ const (
 )
 
 const (
-	activeClean              = "active+clean"
-	activeCleanScrubbing     = "active+clean+scrubbing"
-	activeCleanScrubbingDeep = "active+clean+scrubbing+deep"
-	defaultPgHealthyRegex    = `^(active\+clean|active\+clean\+scrubbing|active\+clean\+scrubbing\+deep)$`
+	defaultPgHealthyRegex = `^active(\+(clean|deep|scrubbing|snaptrim|snaptrim_wait))+$`
 )
 
 var defaultPgHealthyRegexCompiled = regexp.MustCompile(defaultPgHealthyRegex)
