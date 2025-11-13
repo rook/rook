@@ -22,6 +22,8 @@ import (
 	"path"
 	"strings"
 
+	"k8s.io/utils/set"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
@@ -56,12 +58,9 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k8sutil.TruncateNodeNameForJob(prepareAppNameFmt, osdProps.crushHostname),
+			Name:      provisionJobName(osdProps.crushHostname),
 			Namespace: c.clusterInfo.Namespace,
-			Labels: map[string]string{
-				k8sutil.AppAttr:     prepareAppName,
-				k8sutil.ClusterAttr: c.clusterInfo.Namespace,
-			},
+			Labels:    provisionJobLabels(c.clusterInfo.Namespace),
 		},
 		Spec: batch.JobSpec{
 			Template: *podSpec,
@@ -355,4 +354,55 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	}
 
 	return osdProvisionContainer, nil
+}
+
+// deleteAllOrphanedPrepareJobs deletes all osd prepare jobs which are bound to kubernetes nodes which no longer exist.
+func (c *Cluster) deleteAllOrphanedPrepareJobs() {
+	listOpts := metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s",
+			k8sutil.AppAttr, prepareAppName,
+		),
+	}
+	jobs, err := c.context.Clientset.BatchV1().Jobs(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
+	if err != nil {
+		logger.Warningf("failed to clean up any orphaned OSD prepare jobs. failed to list OSD prepare jobs. %v", err)
+		return
+	}
+
+	nodes, err := c.context.Clientset.CoreV1().Nodes().List(c.clusterInfo.Context, metav1.ListOptions{})
+	if err != nil {
+		logger.Warningf("failed to clean up any orphaned OSD prepare jobs. failed to list nodes. %v", err)
+		return
+	}
+
+	hostNames := set.New[string]()
+	for _, node := range nodes.Items {
+		hostName, hasHostName := node.Labels[k8sutil.LabelHostname()]
+		if hasHostName {
+			hostNames.Insert(hostName)
+		}
+	}
+
+	for _, job := range jobs.Items {
+		nodeSelector := job.Spec.Template.Spec.NodeSelector
+		if jobHostName, ok := nodeSelector[k8sutil.LabelHostname()]; ok {
+			if !hostNames.Has(jobHostName) {
+				logger.Infof("cleaning up orphaned OSD prepare job %q.", job.Name)
+				if err := c.context.Clientset.BatchV1().Jobs(c.clusterInfo.Namespace).Delete(c.clusterInfo.Context, job.Name, metav1.DeleteOptions{}); err != nil {
+					logger.Warningf("failed to clean up OSD prepare job %q. %v", job.Name, err)
+				}
+			}
+		}
+	}
+}
+
+func provisionJobName(nodeOrPVCName string) string {
+	return k8sutil.TruncateNodeName(prepareAppNameFmt, nodeOrPVCName)
+}
+
+func provisionJobLabels(namespace string) map[string]string {
+	return map[string]string{
+		k8sutil.AppAttr:     prepareAppName,
+		k8sutil.ClusterAttr: namespace,
+	}
 }
