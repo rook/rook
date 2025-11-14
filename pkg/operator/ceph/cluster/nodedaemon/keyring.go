@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -96,7 +97,7 @@ func createCrashCollectorKeyring(s *keyring.SecretStore, context *clusterd.Conte
 	}
 
 	if shouldRotateCephxKeys {
-		logger.Infof("rotating cephx key for crash collector %q", crashCollectorKeyringUsername)
+		log.NamespacedInfo(clusterInfo.Namespace, logger, "rotating cephx key for crash collector %q", crashCollectorKeyringUsername)
 		newKey, err := s.RotateKey(crashCollectorKeyringUsername)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to rotate cephx key for crash collector %q", crashCollectorKeyringUsername)
@@ -124,7 +125,7 @@ func updateCrashCollectorCephxStatus(context *clusterd.Context, clusterInfo *cli
 		if err := reporting.UpdateStatus(context.Client, cluster); err != nil {
 			return errors.Wrap(err, "failed to update cluster cephx status for crash collector daemon")
 		}
-		logger.Debugf("successfully updated the crash collector cephx status for cluster in namespace %q to %+v", cluster.Namespace, cluster.Status.Cephx.CrashCollector)
+		log.NamespacedDebug(clusterInfo.Namespace, logger, "successfully updated the crash collector cephx status for cluster in namespace %q to %+v", cluster.Namespace, cluster.Status.Cephx.CrashCollector)
 
 		return nil
 	})
@@ -161,7 +162,7 @@ func createOrUpdateCrashCollectorSecret(clusterInfo *client.ClusterInfo, crashCo
 		return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", s.Name, clusterInfo.Namespace)
 	}
 
-	logger.Infof("created kubernetes crash collector secret for cluster %q", clusterInfo.Namespace)
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "created kubernetes crash collector secret")
 	return nil
 }
 
@@ -212,7 +213,7 @@ func createExporterKeyring(s *keyring.SecretStore, context *clusterd.Context, cl
 	}
 
 	if shouldRotateCephxKeys {
-		logger.Infof("rotating cephx key for ceph exporter %q", exporterKeyringUsername)
+		log.NamespacedInfo(clusterInfo.Namespace, logger, "rotating cephx key for ceph exporter %q", exporterKeyringUsername)
 		newKey, err := s.RotateKey(exporterKeyringUsername)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to rotate cephx key for ceph exporter %q", exporterKeyringUsername)
@@ -239,7 +240,7 @@ func updateCephExporterCephxStatus(context *clusterd.Context, clusterInfo *clien
 		if err := reporting.UpdateStatus(context.Client, cluster); err != nil {
 			return errors.Wrap(err, "failed to update cluster cephx status for ceph exporter daemon")
 		}
-		logger.Debugf("successfully updated the ceph exporter cephx status for cluster in namespace %q to %+v", cluster.Namespace, cluster.Status.Cephx.CephExporter)
+		log.NamespacedDebug(clusterInfo.Namespace, logger, "successfully updated the ceph exporter cephx status for cluster in namespace %q to %+v", cluster.Namespace, cluster.Status.Cephx.CephExporter)
 
 		return nil
 	})
@@ -276,6 +277,6 @@ func createOrUpdateExporterSecret(clusterInfo *client.ClusterInfo, exporterSecre
 		return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", s.Name, clusterInfo.Namespace)
 	}
 
-	logger.Infof("created kubernetes exporter secret for cluster %q", clusterInfo.Namespace)
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "created kubernetes exporter secret for cluster %q", clusterInfo.Namespace)
 	return nil
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -79,20 +80,20 @@ func (c *createConfig) createNewOSDsFromStatus(
 ) {
 	if !c.awaitingStatusConfigMaps.Has(statusConfigMapName(nodeOrPVCName)) {
 		// If there is a dangling OSD prepare configmap from another reconcile, don't process it
-		logger.Infof("not creating deployments for OSD prepare results found in ConfigMap %q which was not created for the latest storage spec", statusConfigMapName(nodeOrPVCName))
+		log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "not creating deployments for OSD prepare results found in ConfigMap %q which was not created for the latest storage spec", statusConfigMapName(nodeOrPVCName))
 		return
 	}
 
 	if c.finishedStatusConfigMaps.Has(statusConfigMapName(nodeOrPVCName)) {
 		// If we have already processed this configmap, don't process it again
-		logger.Infof("not creating deployments for OSD prepare results found in ConfigMap %q which was already processed", statusConfigMapName(nodeOrPVCName))
+		log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "not creating deployments for OSD prepare results found in ConfigMap %q which was already processed", statusConfigMapName(nodeOrPVCName))
 		return
 	}
 
 	for i, osd := range status.OSDs {
 		if c.deployments.Exists(osd.ID) {
 			// This OSD will be handled by the updater
-			logger.Debugf("not creating deployment for OSD %d which already exists", osd.ID)
+			log.NamespacedDebug(c.cluster.clusterInfo.Namespace, logger, "not creating deployment for OSD %d which already exists", osd.ID)
 			continue
 		}
 
@@ -102,13 +103,13 @@ func (c *createConfig) createNewOSDsFromStatus(
 			c.cluster.clusterInfo.CephVersion, keyring.UninitializedCephxStatus())
 
 		if status.PvcBackedOSD {
-			logger.Infof("creating OSD %d on PVC %q", osd.ID, nodeOrPVCName)
+			log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "creating OSD %d on PVC %q", osd.ID, nodeOrPVCName)
 			err := createDaemonOnPVCFunc(c.cluster, &status.OSDs[i], nodeOrPVCName, c.provisionConfig)
 			if err != nil {
 				errs.addError("%v", errors.Wrapf(err, "failed to create OSD %d on PVC %q", osd.ID, nodeOrPVCName))
 			}
 		} else {
-			logger.Infof("creating OSD %d on node %q", osd.ID, nodeOrPVCName)
+			log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "creating OSD %d on node %q", osd.ID, nodeOrPVCName)
 			err := createDaemonOnNodeFunc(c.cluster, &status.OSDs[i], nodeOrPVCName, c.provisionConfig)
 			if err != nil {
 				errs.addError("%v", errors.Wrapf(err, "failed to create OSD %d on node %q", osd.ID, nodeOrPVCName))
@@ -136,7 +137,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 
 	// no valid VolumeSource is ready to run an osd
 	if len(c.deviceSets) == 0 {
-		logger.Info("no storageClassDeviceSets defined to configure OSDs on PVCs")
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "no storageClassDeviceSets defined to configure OSDs on PVCs")
 		return sets.New[string](), nil
 	}
 
@@ -161,14 +162,14 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 
 		metadataSource, metadataOK := volume.PVCSources[bluestorePVCMetadata]
 		if metadataOK {
-			logger.Infof("OSD will have its main bluestore block on %q and its metadata device on %q", dataSource.ClaimName, metadataSource.ClaimName)
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "OSD will have its main bluestore block on %q and its metadata device on %q", dataSource.ClaimName, metadataSource.ClaimName)
 		} else {
-			logger.Infof("OSD will have its main bluestore block on %q", dataSource.ClaimName)
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "OSD will have its main bluestore block on %q", dataSource.ClaimName)
 		}
 
 		walSource, walOK := volume.PVCSources[bluestorePVCWal]
 		if walOK {
-			logger.Infof("OSD will have its wal device on %q", walSource.ClaimName)
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "OSD will have its wal device on %q", walSource.ClaimName)
 		}
 
 		osdProps := osdProperties{
@@ -196,13 +197,13 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 		// Allow updating OSD prepare pod if the OSD needs migration
 		if c.migrateOSD != nil {
 			if strings.Contains(c.migrateOSD.BlockPath, dataSource.ClaimName) {
-				logger.Infof("updating OSD prepare pod to replace OSD.%d", c.migrateOSD.ID)
+				log.NamespacedInfo(c.clusterInfo.Namespace, logger, "updating OSD prepare pod to replace OSD.%d", c.migrateOSD.ID)
 				skipPreparePod = false
 			}
 		}
 
 		if skipPreparePod {
-			logger.Infof("skipping OSD prepare job creation for PVC %q because OSD daemon using the PVC already exists", osdProps.crushHostname)
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "skipping OSD prepare job creation for PVC %q because OSD daemon using the PVC already exists", osdProps.crushHostname)
 			continue
 		}
 
@@ -264,13 +265,13 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 // usage of awaitingStatusConfigMaps in this file.
 func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *provisionErrors) (sets.Set[string], error) {
 	if !c.spec.Storage.UseAllNodes && len(c.spec.Storage.Nodes) == 0 {
-		logger.Info("no nodes are defined for configuring OSDs on raw devices")
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "no nodes are defined for configuring OSDs on raw devices")
 		return sets.New[string](), nil
 	}
 
 	if c.spec.Storage.UseAllNodes {
 		if len(c.spec.Storage.Nodes) > 0 {
-			logger.Warningf("useAllNodes is TRUE, but nodes are specified. NODES in the cluster CR will be IGNORED unless useAllNodes is FALSE.")
+			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "useAllNodes is TRUE, but nodes are specified. NODES in the cluster CR will be IGNORED unless useAllNodes is FALSE.")
 		}
 
 		// Get the list of all nodes in the cluster. The placement settings will be applied below.
@@ -286,19 +287,19 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 			}
 			c.spec.Storage.Nodes = append(c.spec.Storage.Nodes, storageNode)
 		}
-		logger.Debugf("storage nodes: %+v", c.spec.Storage.Nodes)
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "storage nodes: %+v", c.spec.Storage.Nodes)
 	}
 	// generally speaking, this finds nodes which are capable of running new osds
 	validNodes := k8sutil.GetValidNodes(c.clusterInfo.Context, c.spec.Storage, c.context.Clientset, cephv1.GetOSDPlacement(c.spec.Placement))
 
-	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.spec.Storage.Nodes))
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "%d of the %d storage nodes are valid", len(validNodes), len(c.spec.Storage.Nodes))
 
 	c.ValidStorage = *c.spec.Storage.DeepCopy()
 	c.ValidStorage.Nodes = validNodes
 
 	// no valid node is ready to run an osd
 	if len(validNodes) == 0 {
-		logger.Warningf("no valid nodes available to run osds on nodes in namespace %q", c.clusterInfo.Namespace)
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "no valid nodes available to run osds on nodes in namespace %q", c.clusterInfo.Namespace)
 		return sets.New[string](), nil
 	}
 
@@ -316,12 +317,12 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 		// don't care about osd device class resources since it will be overwritten later for prepareosd resources
 		n := c.resolveNode(node.Name, "")
 		if n == nil {
-			logger.Warningf("node %q did not resolve", node.Name)
+			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "node %q did not resolve", node.Name)
 			continue
 		}
 
 		if n.Name == "" {
-			logger.Warningf("skipping node with a blank name! %+v", n)
+			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "skipping node with a blank name! %+v", n)
 			continue
 		}
 
@@ -372,7 +373,7 @@ func (c *Cluster) runPrepareJob(osdProps *osdProperties, config *provisionConfig
 		return errors.Wrapf(err, "failed to run osd provisioning job for %s %q", nodeOrPVC, nodeOrPVCName)
 	}
 
-	logger.Infof("started OSD provisioning job for %s %q", nodeOrPVC, nodeOrPVCName)
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "started OSD provisioning job for %s %q", nodeOrPVC, nodeOrPVCName)
 	return nil
 }
 

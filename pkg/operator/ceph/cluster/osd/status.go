@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -176,7 +177,7 @@ func (c *Cluster) updateAndCreateOSDs(
 			if !doLoop {
 				return err
 			}
-			logger.Errorf("%v", err)
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "%v", err)
 		}
 	}
 
@@ -248,20 +249,20 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 		select {
 		case event, ok := <-watcher.ResultChan():
 			if !ok {
-				logger.Infof("restarting watcher for OSD provisioning status ConfigMaps. the watcher closed the channel")
+				log.NamespacedInfo(c.clusterInfo.Namespace, logger, "restarting watcher for OSD provisioning status ConfigMaps. the watcher closed the channel")
 				return true, nil
 			}
 
 			if !isAddOrModifyEvent(event.Type) {
 				// We don't want to process delete events when we delete configmaps after having
 				// processed them. We also don't want to process BOOKMARK or ERROR events.
-				logger.Debugf("not processing %s event for object %q", event.Type, eventObjectName(event))
+				log.NamespacedDebug(c.clusterInfo.Namespace, logger, "not processing %s event for object %q", event.Type, eventObjectName(event))
 				break // case
 			}
 
 			configMap, ok := event.Object.(*corev1.ConfigMap)
 			if !ok {
-				logger.Errorf("recovering. %s. expected type ConfigMap but found %T", watchErrMsg, configMap)
+				log.NamespacedError(c.clusterInfo.Namespace, logger, "recovering. %s. expected type ConfigMap but found %T", watchErrMsg, configMap)
 				break // case
 			}
 
@@ -275,11 +276,11 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 			// Log progress
 			c, cExp := createConfig.progress()
 			u, uExp := updateConfig.progress()
-			logger.Infof("waiting... %d of %d OSD prepare jobs have finished processing and %d of %d OSDs have been updated", c, cExp, u, uExp)
+			log.NamespacedInfo(namespace, logger, "waiting... %d of %d OSD prepare jobs have finished processing and %d of %d OSDs have been updated", c, cExp, u, uExp)
 
 			// keep track of each time progress is made
 			if c != prevCreatedCount || u != prevUpdatedCount {
-				logger.Debugf("cluster in namespace %q, progress was made processing OSDs: %d nodes/OSDs were processed for creation and %d updated", namespace, c-prevCreatedCount, u-prevUpdatedCount)
+				log.NamespacedDebug(namespace, logger, "cluster in namespace %q, progress was made processing OSDs: %d nodes/OSDs were processed for creation and %d updated", namespace, c-prevCreatedCount, u-prevUpdatedCount)
 				prevCreatedCount = c
 				prevUpdatedCount = u
 				prevChangeTime = time.Now().UTC()
@@ -292,7 +293,7 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 			}
 
 		case <-c.clusterInfo.Context.Done():
-			logger.Infof("context cancelled, exiting OSD update and create loop")
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "context cancelled, exiting OSD update and create loop")
 			return false, c.clusterInfo.Context.Err()
 		}
 	}
@@ -327,7 +328,7 @@ func (c *Cluster) createOSDsForStatusMap(
 ) {
 	nodeOrPVCName, ok := configMap.Labels[nodeLabelKey]
 	if !ok {
-		logger.Warningf("missing node label on configmap %s", configMap.Name)
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "missing node label on configmap %s", configMap.Name)
 		return
 	}
 
@@ -340,7 +341,7 @@ func (c *Cluster) createOSDsForStatusMap(
 		nodeOrPVC = "PVC"
 	}
 
-	logger.Infof("OSD orchestration status for %s %s is %q", nodeOrPVC, nodeOrPVCName, status.Status)
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "OSD orchestration status for %s %s is %q", nodeOrPVC, nodeOrPVCName, status.Status)
 
 	if status.Status == OrchestrationStatusCompleted {
 		createConfig.createNewOSDsFromStatus(status, nodeOrPVCName, errs)
@@ -362,7 +363,7 @@ func statusConfigMapName(nodeOrPVCName string) string {
 
 func (c *Cluster) deleteStatusConfigMap(nodeOrPVCName string) {
 	if err := c.kv.ClearStore(c.clusterInfo.Context, statusConfigMapName(nodeOrPVCName)); err != nil {
-		logger.Errorf("failed to remove the status configmap %q. %v", statusConfigMapName(nodeOrPVCName), err)
+		log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to remove the status configmap %q. %v", statusConfigMapName(nodeOrPVCName), err)
 	}
 }
 
@@ -373,14 +374,14 @@ func (c *Cluster) deleteAllStatusConfigMaps() {
 	cmClientset := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace)
 	cms, err := cmClientset.List(c.clusterInfo.Context, listOpts)
 	if err != nil {
-		logger.Warningf("failed to clean up any dangling OSD prepare status configmaps. failed to list OSD prepare status configmaps. %v", err)
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to clean up any dangling OSD prepare status configmaps. failed to list OSD prepare status configmaps. %v", err)
 		return
 	}
 	for _, cm := range cms.Items {
-		logger.Debugf("cleaning up dangling OSD prepare status configmap %q", cm.Name)
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "cleaning up dangling OSD prepare status configmap %q", cm.Name)
 		err := cmClientset.Delete(c.clusterInfo.Context, cm.Name, metav1.DeleteOptions{})
 		if err != nil {
-			logger.Warningf("failed to clean up dangling OSD prepare status configmap %q. %v", cm.Name, err)
+			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to clean up dangling OSD prepare status configmap %q. %v", cm.Name, err)
 		}
 	}
 }

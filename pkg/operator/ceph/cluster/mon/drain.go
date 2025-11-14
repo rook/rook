@@ -19,6 +19,7 @@ package mon
 import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,7 +39,7 @@ func (c *Cluster) reconcileMonPDB() error {
 
 	monCount := c.spec.Mon.Count
 	if monCount <= 2 {
-		logger.Debug("managePodBudgets is set, but mon-count <= 2. Not creating a disruptionbudget for Mons")
+		log.NamespacedDebug(c.Namespace, logger, "managePodBudgets is set, but mon-count <= 2. Not creating a disruptionbudget for Mons")
 		return nil
 	}
 
@@ -76,7 +77,7 @@ func (c *Cluster) blockMonDrain(request types.NamespacedName) error {
 	if !c.spec.DisruptionManagement.ManagePodBudgets {
 		return nil
 	}
-	logger.Info("prevent voluntary mon drain while failing over")
+	log.NamespacedInfo(c.Namespace, logger, "prevent voluntary mon drain while failing over")
 	// change MaxUnavailable mon PDB to 0
 	_, err := c.createOrUpdateMonPDB(0)
 	if err != nil {
@@ -90,7 +91,7 @@ func (c *Cluster) allowMonDrain(request types.NamespacedName) error {
 	if !c.spec.DisruptionManagement.ManagePodBudgets {
 		return nil
 	}
-	logger.Info("allow voluntary mon drain after failover")
+	log.NamespacedInfo(c.Namespace, logger, "allow voluntary mon drain after failover")
 	_, err := c.createOrUpdateMonPDB(c.getMaxUnavailableMonPodCount())
 	if err != nil {
 		return errors.Wrapf(err, "failed to update MaxUnavailable for mon PDB %q", request.Name)
@@ -100,7 +101,7 @@ func (c *Cluster) allowMonDrain(request types.NamespacedName) error {
 
 func (c *Cluster) getMaxUnavailableMonPodCount() int32 {
 	if c.spec.Mon.Count >= 5 {
-		logger.Debug("setting the mon pdb max unavailable count to 2 in case there are 5 or more mons")
+		log.NamespacedDebug(c.Namespace, logger, "setting the mon pdb max unavailable count to 2 in case there are 5 or more mons")
 		return 2
 	}
 

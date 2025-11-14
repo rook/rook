@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/retry"
 )
@@ -73,9 +74,9 @@ func claimAdminRotationLock(namespace string) error {
 	adminRotationMutex.Lock()
 	defer adminRotationMutex.Unlock()
 	if _, ok := adminRotationInProgress[namespace]; ok {
-		return fmt.Errorf("failed to claim admin rotation lock for cluster in namespace %q", namespace)
+		return fmt.Errorf("failed to claim admin rotation lock")
 	}
-	logger.Debugf("claimed admin rotation lock for cluster in namespace %q", namespace)
+	log.NamespacedDebug(namespace, logger, "claimed admin rotation lock")
 	adminRotationInProgress[namespace] = struct{}{}
 	return nil
 }
@@ -118,7 +119,7 @@ func rotateAdminCephxKey(
 ) error {
 	if clusterInfo.CephCred.Username != cephclient.AdminUsername {
 		// this shouldn't happen during normal runtime - this could indicate external mode cluster
-		logger.Infof("cannot rotate admin cephx key with non-rotatable username %q for cluster in namespace %q", clusterInfo.CephCred.Username, clusterInfo.Namespace)
+		log.NamespacedInfo(clusterInfo.Namespace, logger, "cannot rotate admin cephx key with non-rotatable username %q", clusterInfo.CephCred.Username)
 		return nil
 	}
 
@@ -129,7 +130,7 @@ func rotateAdminCephxKey(
 		return errors.Wrap(err, "failed to determine if admin cephx key should be rotated")
 	}
 	if !shouldRotate {
-		logger.Debugf("not rotating admin cephx key for cluster in namespace %q", clusterInfo.Namespace)
+		log.NamespacedDebug(clusterInfo.Namespace, logger, "not rotating admin cephx key")
 		// no rotation, but still update cephx status - critical for greenfield Uninitialized clusters
 		err := updateCephClusterAdminCephxStatus(clusterdCtx, clusterInfo, false)
 		if err != nil {
@@ -143,7 +144,7 @@ func rotateAdminCephxKey(
 	}
 	defer releaseAdminRotationLock(clusterInfo.Namespace)
 
-	logger.Infof("beginning admin cephx key rotation for cluster in namespace %q", clusterInfo.Namespace)
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "beginning admin cephx key rotation")
 
 	// As an optimization, use a (shallow) copy of clusterInfo with a context that won't be canceled
 	// during normal runtime. This disallows the rotation process from being interrupted partway
@@ -194,7 +195,7 @@ func recoverPriorAdminCephxKeyRotation(
 ) error {
 	if clusterInfo == nil {
 		// new cluster hasn't been deployed yet. there should be no way for recovery to be needed
-		logger.Debugf("no admin cephx key recovery possible for cluster with empty clusterInfo in namespace %q", clusterNamespace)
+		log.NamespacedDebug(clusterNamespace, logger, "no admin cephx key recovery possible for cluster with empty clusterInfo")
 		return nil
 	}
 
@@ -203,7 +204,7 @@ func recoverPriorAdminCephxKeyRotation(
 	rotatorKeyring, err := s.GetKeyringFromSecret(adminRotatorSecretPrefix)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debugf("no admin cephx key recovery needed for cluster in namespace %q", clusterInfo.Namespace)
+			log.NamespacedDebug(clusterNamespace, logger, "no admin cephx key recovery needed")
 			return nil
 		}
 		return errors.Wrap(err, "failed to get admin rotator cephx key secret to check if admin cephx key rotation recovery is needed")
@@ -214,7 +215,7 @@ func recoverPriorAdminCephxKeyRotation(
 	}
 	defer releaseAdminRotationLock(clusterNamespace)
 
-	logger.Infof("recovering from interrupted admin cephx key rotation for cluster in namespace %q", clusterInfo.Namespace)
+	log.NamespacedInfo(clusterNamespace, logger, "recovering from interrupted admin cephx key rotation")
 
 	// As an optimization, use a (shallow) copy of clusterInfo with a context that won't be canceled
 	// during normal runtime. This disallows the recovery process from being interrupted partway
@@ -239,7 +240,7 @@ func recoverPriorAdminCephxKeyRotation(
 
 	authList, err := cephclient.AuthList(clusterdCtx, clusterInfoCopy)
 	if err != nil {
-		logger.Debugf("primary admin user failed to list ceph auth - this is an expected condition when recovering from admin cephx key rotation")
+		log.NamespacedDebug(clusterNamespace, logger, "primary admin user failed to list ceph auth - this is an expected condition when recovering from admin cephx key rotation")
 	} else if !entityExistsInAuthList(adminRotatorUsername, authList) { // err == nil
 		// corner case: if the primary client.admin works AND client.admin-rotator is not present in
 		// the `auth ls` output, it means rotation succeeded and was interrupted during cleanup.
@@ -271,7 +272,7 @@ func rotateAdminCephxKeyUsingRotator(
 ) error {
 	// write admin rotator keyring file to tempdir so it can be used for rotation
 	rotatorKeyringTmpfile := filepath.Join(tmpDir, adminRotatorUsername+".keyring")
-	logger.Infof("temporarily storing admin rotator keyring at %q for cluster in namespace %q", rotatorKeyringTmpfile, clusterInfo.Namespace)
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "temporarily storing admin rotator keyring at %q", rotatorKeyringTmpfile)
 	err := cephclient.WriteKeyring(rotatorKeyringTmpfile, rotatorKeyring)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write admin rotator keyring to %q", rotatorKeyringTmpfile)
@@ -287,7 +288,7 @@ func rotateAdminCephxKeyUsingRotator(
 	}
 
 	// as `client.admin-rotator`: run `ceph auth rotate client.admin`
-	logger.Infof("admin cephx key will be rotated for cluster in namespace %q. rook will restart afterwards. some reconciles and health checks may fail in between - this is normal", clusterInfo.Namespace)
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "admin cephx key will be rotated. rook will restart afterwards. some reconciles and health checks may fail in between - this is normal")
 	newAdminKey, err := cephclient.AuthRotate(clusterdCtx, rotatorInfo, cephclient.AdminUsername)
 	if err != nil {
 		return errors.Wrapf(err, "failed to rotate admin key using admin rotator client")
@@ -296,7 +297,7 @@ func rotateAdminCephxKeyUsingRotator(
 
 	// write new admin keyring to tempdir so it can be verified before it's stored permanently
 	newAdminKeyringTmpfile := filepath.Join(tmpDir, cephclient.AdminUsername+".keyring")
-	logger.Infof("temporarily storing rotated admin cephx keyring at %q for cluster in namespace %q", newAdminKeyringTmpfile, clusterInfo.Namespace)
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "temporarily storing rotated admin cephx keyring at %q", newAdminKeyringTmpfile)
 	err = cephclient.WriteKeyring(newAdminKeyringTmpfile, newAdminKeyring)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write admin rotator keyring to %q", newAdminKeyringTmpfile)
@@ -345,7 +346,7 @@ func finalizeAdminKeyRotation(
 	// clean up tmpDir now that it's no longer useful for recovery
 	if err := os.RemoveAll(tmpDir); err != nil {
 		// most likely, operator pod got rescheduled to a different node where dir isn't present
-		logger.Infof("non-critical failure removing admin cephx key rotation temp dir %q. %v", tmpDir, err)
+		log.NamespacedInfo(clusterInfo.Namespace, logger, "non-critical failure removing admin cephx key rotation temp dir %q. %v", tmpDir, err)
 	}
 
 	// delete the `rook-ceph-admin-rotator-keyring` secret (store.Delete)
@@ -361,7 +362,7 @@ func finalizeAdminKeyRotation(
 		if err != nil {
 			// this should be rare, and failure here doesn't need to block finalization of admin key
 			// rotation. status will be missing ceph version, but cluster can continue to reconcile
-			logger.Errorf("non-critical failure to determine missing ceph version of cluster in namespace %q for admin cephx key status", clusterInfo.Namespace)
+			log.NamespacedError(clusterInfo.Namespace, logger, "non-critical failure to determine missing ceph version of cluster for admin cephx key status")
 		} else {
 			clusterInfo.CephVersion = ver
 		}
@@ -375,7 +376,7 @@ func finalizeAdminKeyRotation(
 
 	// restart Rook to force health checkers to restart with latest clusterInfo
 	// do this even during rotation recovery since the health checkers could still be running
-	logger.Infof("restarting rook operator after successful admin cephx key rotation for cluster in namespace %q", clusterInfo.Namespace)
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "restarting rook operator after successful admin cephx key rotation")
 	reloadManagerFunc()
 
 	return errSuccessfulAdminKeyRotation
@@ -390,7 +391,7 @@ func updateCephClusterAdminCephxStatus(clusterdCtx *clusterd.Context, clusterInf
 		}
 		cephx := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, cluster.Status.Cephx.Admin)
 		cluster.Status.Cephx.Admin = cephx
-		logger.Debugf("updating admin key cephx status to %+v", cephx)
+		log.NamespacedDebug(clusterInfo.Namespace, logger, "updating admin key cephx status to %+v", cephx)
 		if err := reporting.UpdateStatus(clusterdCtx.Client, cluster); err != nil {
 			return errors.Wrap(err, "failed to update admin key cephx status")
 		}

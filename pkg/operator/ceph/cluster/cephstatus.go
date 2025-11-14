@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -75,7 +76,7 @@ func newCephStatusChecker(context *clusterd.Context, clusterInfo *cephclient.Clu
 		checkInterval = &checkIntervalCRSetting.Duration
 	}
 	if checkInterval != nil {
-		logger.Infof("ceph status check interval is %s", checkInterval.String())
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "ceph status check interval is %s", checkInterval.String())
 		c.interval = checkInterval
 	}
 
@@ -87,7 +88,7 @@ func (c *cephStatusChecker) checkCephStatus(monitoringRoutines *sync.Map, daemon
 	// check the status immediately before starting the loop
 	v, ok := monitoringRoutines.Load(daemon)
 	if !ok {
-		logger.Infof("ceph cluster %q has been deleted. stopping ceph status check", c.clusterInfo.Namespace)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "ceph cluster %q has been deleted. stopping ceph status check", c.clusterInfo.Namespace)
 		return
 	}
 	c.checkStatus(v.(*opcontroller.ClusterHealth).InternalCtx)
@@ -97,13 +98,13 @@ func (c *cephStatusChecker) checkCephStatus(monitoringRoutines *sync.Map, daemon
 		// we will get an invalid pointer error and the go routine will panic
 		v, ok := monitoringRoutines.Load(daemon)
 		if !ok {
-			logger.Infof("ceph cluster %q has been deleted. stopping ceph status check", c.clusterInfo.Namespace)
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "ceph cluster %q has been deleted. stopping ceph status check", c.clusterInfo.Namespace)
 			return
 		}
 		health := v.(*opcontroller.ClusterHealth)
 		select {
 		case <-health.InternalCtx.Done():
-			logger.Infof("stopping monitoring of ceph status")
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "stopping monitoring of ceph status")
 			monitoringRoutines.Delete(daemon)
 			return
 
@@ -118,27 +119,27 @@ func (c *cephStatusChecker) checkStatus(ctx context.Context) {
 	var status cephclient.CephStatus
 	var err error
 
-	logger.Debugf("checking health of cluster")
+	log.NamespacedDebug(c.clusterInfo.Namespace, logger, "checking health of cluster")
 	// Check ceph's status
 	status, err = cephclient.StatusWithUser(c.context, c.clusterInfo)
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-			logger.Info("skipping ceph status since operator is still initializing")
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "skipping ceph status since operator is still initializing")
 			return
 		}
-		logger.Errorf("failed to get ceph status. %v", err)
+		log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to get ceph status. %v", err)
 		status := cephStatusOnError(err.Error())
 		c.updateCephStatus(status)
 		return
 	}
 
-	logger.Debugf("cluster status: %+v", status)
+	log.NamespacedDebug(c.clusterInfo.Namespace, logger, "cluster status: %+v", status)
 	c.updateCephStatus(&status)
 
 	if status.Health.Status != "HEALTH_OK" {
-		logger.Debug("checking for stuck pods on not ready nodes")
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "checking for stuck pods on not ready nodes")
 		if err := c.forceDeleteStuckRookPodsOnNotReadyNodes(ctx); err != nil {
-			logger.Errorf("failed to delete pod on not ready nodes. %v", err)
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to delete pod on not ready nodes. %v", err)
 		}
 	}
 
@@ -148,16 +149,16 @@ func (c *cephStatusChecker) checkStatus(ctx context.Context) {
 func (c *cephStatusChecker) configureHealthSettings(status cephclient.CephStatus) {
 	// loop through the health codes and log what we find
 	for healthCode, check := range status.Health.Checks {
-		logger.Debugf("Health: %q, code: %q, message: %q", check.Severity, healthCode, check.Summary.Message)
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "Health: %q, code: %q, message: %q", check.Severity, healthCode, check.Summary.Message)
 	}
 
 	// disable the insecure global id if there are no old clients
 	if _, ok := status.Health.Checks["AUTH_INSECURE_GLOBAL_ID_RECLAIM_ALLOWED"]; ok {
 		if _, ok := status.Health.Checks["AUTH_INSECURE_GLOBAL_ID_RECLAIM"]; !ok {
-			logger.Info("Disabling the insecure global ID as no legacy clients are currently connected. If you still require the insecure connections, see the CVE to suppress the health warning and re-enable the insecure connections. https://docs.ceph.com/en/latest/security/CVE-2021-20288/")
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "Disabling the insecure global ID as no legacy clients are currently connected. If you still require the insecure connections, see the CVE to suppress the health warning and re-enable the insecure connections. https://docs.ceph.com/en/latest/security/CVE-2021-20288/")
 			config.DisableInsecureGlobalID(c.context, c.clusterInfo)
 		} else {
-			logger.Warning("insecure clients are connected to the cluster, to resolve the AUTH_INSECURE_GLOBAL_ID_RECLAIM health warning please refer to the upgrade guide to ensure all Ceph daemons are updated.")
+			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "insecure clients are connected to the cluster, to resolve the AUTH_INSECURE_GLOBAL_ID_RECLAIM health warning please refer to the upgrade guide to ensure all Ceph daemons are updated.")
 		}
 	}
 }
@@ -168,10 +169,10 @@ func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus) {
 	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(clusterName.Namespace).Get(c.clusterInfo.Context, clusterName.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
+			log.NamespacedDebug(c.clusterInfo.Namespace, logger, "CephCluster resource not found. Ignoring since object must be deleted.")
 			return
 		}
-		logger.Errorf("failed to retrieve ceph cluster %q in namespace %q to update status to %+v", clusterName.Name, clusterName.Namespace, status)
+		log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to retrieve ceph cluster %q in namespace %q to update status to %+v", clusterName.Name, clusterName.Namespace, status)
 		return
 	}
 
@@ -181,16 +182,16 @@ func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus) {
 	// versions store the ceph version of all the ceph daemons and overall cluster version
 	versions, err := cephclient.GetAllCephDaemonVersions(c.context, c.clusterInfo)
 	if err != nil {
-		logger.Errorf("failed to get ceph daemons versions. %v", err)
+		log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to get ceph daemons versions. %v", err)
 	} else {
 		// Update status with Ceph versions
 		cephCluster.Status.CephStatus.Versions = versions
 	}
 
 	// Update condition
-	logger.Debugf("updating ceph cluster %q status to %+v", clusterName.Namespace, status)
+	log.NamespacedDebug(c.clusterInfo.Namespace, logger, "updating ceph cluster %q status to %+v", clusterName.Namespace, status)
 	if err := reporting.UpdateStatus(c.context.Client, cephCluster); err != nil {
-		logger.Errorf("failed to update cluster status to %+v. %v", status, err)
+		log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to update cluster status to %+v. %v", status, err)
 	}
 }
 
@@ -237,15 +238,15 @@ func formatTime(t time.Time) string {
 }
 
 func (c *ClusterController) updateClusterCephVersion(cluster *cluster, cephVersion cephver.CephVersion) {
-	logger.Infof("cluster %q: version %q detected for image %q", cluster.namespacedName.Namespace, cephVersion.String(), cluster.Spec.CephVersion.Image)
+	log.NamespacedInfo(cluster.Namespace, logger, "cluster %q: version %q detected for image %q", cluster.namespacedName.Namespace, cephVersion.String(), cluster.Spec.CephVersion.Image)
 
 	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(cluster.namespacedName.Namespace).Get(c.OpManagerCtx, cluster.namespacedName.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
+			log.NamespacedDebug(cluster.Namespace, logger, "CephCluster resource not found. Ignoring since object must be deleted.")
 			return
 		}
-		logger.Errorf("failed to retrieve ceph cluster %q to update ceph version to %+v. %v", cluster.namespacedName.Name, cephVersion, err)
+		log.NamespacedError(cluster.Namespace, logger, "failed to retrieve ceph cluster %q to update ceph version to %+v. %v", cluster.namespacedName.Name, cephVersion, err)
 		return
 	}
 
@@ -257,7 +258,7 @@ func (c *ClusterController) updateClusterCephVersion(cluster *cluster, cephVersi
 	// do not overwrite the ceph status that is updated in a separate goroutine
 	cephCluster.Status.CephVersion = cephClusterVersion
 	if err := reporting.UpdateStatus(c.client, cephCluster); err != nil {
-		logger.Errorf("failed to update cluster %q version. %v", cluster.namespacedName.Name, err)
+		log.NamespacedError(cluster.Namespace, logger, "failed to update cluster %q version. %v", cluster.namespacedName.Name, err)
 		return
 	}
 }
@@ -289,11 +290,11 @@ func (c *cephStatusChecker) forceDeleteStuckRookPodsOnNotReadyNodes(ctx context.
 	for _, node := range nodes {
 		pods, err := c.getRookPodsOnNode(node.Name)
 		if err != nil {
-			logger.Errorf("failed to get pods on NotReady node %q. %v", node.Name, err)
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to get pods on NotReady node %q. %v", node.Name, err)
 		}
 		for _, pod := range pods {
 			if err := k8sutil.ForceDeletePodIfStuck(ctx, c.context, pod); err != nil {
-				logger.Warningf("skipping forced delete of stuck pod %q. %v", pod.Name, err)
+				log.NamespacedWarning(c.clusterInfo.Namespace, logger, "skipping forced delete of stuck pod %q. %v", pod.Name, err)
 			}
 		}
 	}

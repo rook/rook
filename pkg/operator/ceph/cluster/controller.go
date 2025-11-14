@@ -39,6 +39,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -284,7 +285,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephCluster)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("cephCluster resource not found. Ignoring since object must be deleted.")
+			log.NamespacedDebug(request.Namespace, logger, "cephCluster resource not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, *cephCluster, nil
 		}
 		// Error reading the object - requeue the request.
@@ -297,7 +298,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, *cephCluster, errors.Wrap(err, "failed to add finalizer")
 	}
 	if generationUpdated {
-		logger.Infof("reconciling the ceph cluster %q after adding finalizer", cephCluster.Name)
+		log.NamespacedInfo(request.Namespace, logger, "reconciling the ceph cluster %q after adding finalizer", cephCluster.Name)
 		return reconcile.Result{}, *cephCluster, nil
 	}
 
@@ -317,7 +318,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 		// started). So we would get messages from the other go routine printing a message
 		// repeatedly that the context is cancelled.
 		if errors.Is(r.opManagerContext.Err(), context.Canceled) {
-			logger.Info("context cancelled, exiting reconcile")
+			log.NamespacedInfo(request.Namespace, logger, "context cancelled, exiting reconcile")
 			return reconcile.Result{}, *cephCluster, nil
 		}
 
@@ -357,7 +358,7 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 	if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() && !cephCluster.Spec.External.Enable {
 		monSecret, clusterFSID, err := r.clusterController.getCleanUpDetails(&cephCluster.Spec, cephCluster.Namespace)
 		if err != nil {
-			logger.Warningf("failed to get mon secret. skip cluster cleanup. remove finalizer. %v", err)
+			log.NamespacedWarning(cephCluster.Namespace, logger, "failed to get mon secret. skip cluster cleanup. remove finalizer. %v", err)
 			doCleanup = false
 		}
 
@@ -400,7 +401,7 @@ func NewClusterController(context *clusterd.Context, rookImage string) *ClusterC
 
 func (c *ClusterController) reconcileCephCluster(clusterObj *cephv1.CephCluster, ownerInfo *k8sutil.OwnerInfo) error {
 	if clusterObj.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
-		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", clusterObj.Name, clusterObj.Namespace)
+		log.NamespacedInfo(clusterObj.Namespace, logger, "skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", clusterObj.Name, clusterObj.Namespace)
 		return nil
 	}
 	var clustr *cluster
@@ -425,7 +426,7 @@ func (c *ClusterController) reconcileCephCluster(clusterObj *cephv1.CephCluster,
 	clustr.Spec = &clusterObj.Spec
 
 	c.clusterMap.Store(clustr.Namespace, clustr)
-	logger.Infof("reconciling ceph cluster in namespace %q", clustr.namespacedName.Namespace)
+	log.NamedInfo(clustr.namespacedName, logger, "reconciling ceph cluster")
 
 	// Start the main ceph cluster orchestration
 	return c.initializeCluster(clustr)
@@ -438,14 +439,14 @@ func (c *ClusterController) requestClusterDelete(clusterObj *cephv1.CephCluster)
 	if rawCluster, ok := c.clusterMap.Load(clusterObj.Namespace); ok {
 		existingCluster = rawCluster.(*cluster)
 		if existingCluster.namespacedName.Name != clusterObj.Name {
-			logger.Errorf("skipping deletion of CephCluster %q. CephCluster CR %q already exists in this namespace. only one cluster cr per namespace is supported.",
+			log.NamespacedError(nsName, logger, "skipping deletion of CephCluster %q. CephCluster CR %q already exists in this namespace. only one cluster cr per namespace is supported.",
 				nsName, existingCluster.namespacedName.Name)
 			return reconcile.Result{}, nil // do not requeue the delete
 		}
 	}
 	_, err := c.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(c.OpManagerCtx, "networkfences.csiaddons.openshift.io", metav1.GetOptions{})
 	if err == nil {
-		logger.Info("removing networkFence if matching cephCluster UID found")
+		log.NamespacedInfo(clusterObj.Namespace, logger, "removing networkFence if matching cephCluster UID found")
 		networkFenceList := &addonsv1alpha1.NetworkFenceList{}
 		labelSelector := labels.SelectorFromSet(map[string]string{
 			networkFenceLabel: string(clusterObj.GetUID()),
@@ -476,7 +477,7 @@ func (c *ClusterController) requestClusterDelete(clusterObj *cephv1.CephCluster)
 		}
 	}
 
-	logger.Infof("cleaning up CephCluster %q", nsName)
+	log.NamespacedInfo(clusterObj.Namespace, logger, "cleaning up CephCluster %q", nsName)
 	if existingCluster != nil {
 		// We used to stop the bucket controller here but when we get a DELETE event for the CephCluster
 		// we will reload the CRD manager anyway so the bucket controller go routine will be stopped
@@ -495,7 +496,7 @@ func (c *ClusterController) requestClusterDelete(clusterObj *cephv1.CephCluster)
 	}
 
 	if clusterObj.Spec.CleanupPolicy.AllowUninstallWithVolumes {
-		logger.Info("skipping check for existing PVs as allowUninstallWithVolumes is set to true")
+		log.NamespacedInfo(clusterObj.Namespace, logger, "skipping check for existing PVs as allowUninstallWithVolumes is set to true")
 	} else {
 		err := c.checkIfVolumesExist(clusterObj)
 		if err != nil {
@@ -510,7 +511,7 @@ func (c *ClusterController) requestClusterDelete(clusterObj *cephv1.CephCluster)
 		// Delete keys from KMS
 		err := c.deleteOSDEncryptionKeyFromKMS(clusterObj)
 		if err != nil {
-			logger.Errorf("failed to delete osd encryption keys for CephCluster %q from kms; deletion will continue. %v", nsName, err)
+			log.NamespacedError(clusterObj.Namespace, logger, "failed to delete osd encryption keys for CephCluster %q from kms; deletion will continue. %v", nsName, err)
 		}
 	}
 
@@ -534,7 +535,7 @@ func (c *ClusterController) checkIfVolumesExist(cluster *cephv1.CephCluster) err
 func (c *ClusterController) csiVolumesAllowForDeletion(cluster *cephv1.CephCluster) error {
 	drivers := []string{csi.CephFSDriverName, csi.RBDDriverName}
 
-	logger.Infof("checking any PVC created by drivers %q and %q with clusterID %q", csi.CephFSDriverName, csi.RBDDriverName, cluster.Namespace)
+	log.NamespacedInfo(cluster.Namespace, logger, "checking any PVC created by drivers %q and %q with clusterID %q", csi.CephFSDriverName, csi.RBDDriverName, cluster.Namespace)
 	// check any PV is created in this cluster
 	attachmentsExist, err := c.checkPVPresentInCluster(drivers, cluster.Namespace)
 	if err != nil {
@@ -542,7 +543,7 @@ func (c *ClusterController) csiVolumesAllowForDeletion(cluster *cephv1.CephClust
 	}
 	// no PVC created in this cluster
 	if !attachmentsExist {
-		logger.Infof("no volume attachments for cluster %q", cluster.Namespace)
+		log.NamespacedInfo(cluster.Namespace, logger, "no volume attachments for cluster %q", cluster.Namespace)
 		return nil
 	}
 
@@ -557,7 +558,7 @@ func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID 
 
 	for _, p := range pv.Items {
 		if p.Spec.CSI == nil {
-			logger.Errorf("Spec.CSI is nil for PV %q", p.Name)
+			log.NamespacedError(clusterID, logger, "Spec.CSI is nil for PV %q", p.Name)
 			continue
 		}
 		if p.Spec.CSI.VolumeAttributes["clusterID"] == clusterID {
@@ -600,7 +601,7 @@ func (r *ReconcileCephCluster) removeFinalizer(client client.Client, name types.
 	err := client.Get(r.opManagerContext, name, obj)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debugf("%s resource not found. Ignoring since object must be deleted.", name.Name)
+			log.NamedDebug(name, logger, "%s resource not found. Ignoring since object must be deleted.", name.Name)
 			return nil
 		}
 		return errors.Wrapf(err, "failed to retrieve %q to remove finalizer", name.Name)
@@ -666,7 +667,7 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 		// Generate and store the encrypted key in whatever KMS is configured
 		err = kmsConfig.DeleteSecret(osdPVC.Name)
 		if err != nil {
-			logger.Errorf("failed to delete secret. %v", err)
+			log.NamespacedError(currentCluster.Namespace, logger, "failed to delete secret. %v", err)
 			continue
 		}
 	}

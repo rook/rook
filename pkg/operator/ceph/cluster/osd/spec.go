@@ -31,6 +31,7 @@ import (
 	cephkey "github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -312,14 +313,14 @@ func deploymentName(osdID int) string {
 
 func (c *Cluster) updateCephConfigVolume(volumes []v1.Volume, nodeName string) []v1.Volume {
 	if _, ok := c.nodeConfigmaps[nodeName]; !ok {
-		logger.Debugf("no configmap to override for node %q", nodeName)
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "no configmap to override for node %q", nodeName)
 		return volumes
 	}
 
 	updatedVolumes := []v1.Volume{}
 	for _, volume := range volumes {
 		if volume.Name == k8sutil.ConfigOverrideName {
-			logger.Debugf("found configmap volume to override for node %q", nodeName)
+			log.NamespacedDebug(c.clusterInfo.Namespace, logger, "found configmap volume to override for node %q", nodeName)
 			name := fmt.Sprintf("%s-%s", k8sutil.ConfigOverrideName, nodeName)
 			volume.VolumeSource.Projected.Sources[0].ConfigMap.LocalObjectReference.Name = name
 		}
@@ -351,12 +352,12 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	}
 
 	if c.spec.Storage.AllowDeviceClassUpdate && osdProps.storeConfig.DeviceClass != "" && osdProps.storeConfig.DeviceClass != osd.DeviceClass {
-		logger.Infof("The device class for osd %d is changing from %q to %q", osd.ID, osd.DeviceClass, osdProps.storeConfig.DeviceClass)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "The device class for osd %d is changing from %q to %q", osd.ID, osd.DeviceClass, osdProps.storeConfig.DeviceClass)
 		osd.DeviceClass = osdProps.storeConfig.DeviceClass
 	}
 	// Assign the resources specific to this device class
 	if resources, ok := cephv1.GetOSDResourcesForDeviceClass(c.spec.Resources, osd.DeviceClass); ok {
-		logger.Debugf("assigning resources for device class %q to osd %d: %+v", osd.DeviceClass, osd.ID, resources)
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "assigning resources for device class %q to osd %d: %+v", osd.DeviceClass, osd.ID, resources)
 		osdProps.resources = resources
 	}
 
@@ -560,7 +561,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 			return nil, errors.Wrapf(err, "failed to export service %q", osdService.Name)
 		}
 
-		logger.Infof("osd.%d exported IP is %q", osd.ID, exportedIP)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "osd.%d exported IP is %q", osd.ID, exportedIP)
 
 		args = append(args, []string{
 			fmt.Sprintf("--public-addr=%s", exportedIP),
@@ -793,7 +794,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	}
 	if osdProps.portable {
 		// portable OSDs must have affinity to the topology where the osd prepare job was executed
-		if err := applyTopologyAffinity(&deployment.Spec.Template.Spec, *osd); err != nil {
+		if err := c.applyTopologyAffinity(&deployment.Spec.Template.Spec, *osd); err != nil {
 			return nil, err
 		}
 	} else {
@@ -848,7 +849,7 @@ func (c *Cluster) createOSDService(osd OSDInfo, labels map[string]string) (*v1.S
 		return nil, err
 	}
 
-	logger.Infof("osd.%d cluster IP is %q", osd.ID, svc.Spec.ClusterIP)
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "osd.%d cluster IP is %q", osd.ID, svc.Spec.ClusterIP)
 
 	return svc, nil
 }
@@ -869,12 +870,12 @@ func (c *Cluster) applyAllPlacementIfNeeded(d *v1.PodSpec) {
 	}
 }
 
-func applyTopologyAffinity(spec *v1.PodSpec, osd OSDInfo) error {
+func (c *Cluster) applyTopologyAffinity(spec *v1.PodSpec, osd OSDInfo) error {
 	if osd.TopologyAffinity == "" {
-		logger.Debugf("no topology affinity to set for osd %d", osd.ID)
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "no topology affinity to set for osd %d", osd.ID)
 		return nil
 	}
-	logger.Infof("assigning osd %d topology affinity to %q", osd.ID, osd.TopologyAffinity)
+	log.NamespacedInfo(osd.Cluster, logger, "assigning osd %d topology affinity to %q", osd.ID, osd.TopologyAffinity)
 	nodeAffinity, err := k8sutil.GenerateNodeAffinity(osd.TopologyAffinity)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate osd %d topology affinity", osd.ID)

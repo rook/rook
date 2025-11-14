@@ -23,6 +23,7 @@ import (
 
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -169,7 +170,7 @@ func getPVCOSDVolumes(osdProps *osdProperties, configDir string, namespace strin
 		volumes = append(volumes, walPVCVolume...)
 	}
 
-	logger.Debugf("volumes are %+v", volumes)
+	log.NamespacedDebug(namespace, logger, "volumes are %+v", volumes)
 
 	return volumes
 }

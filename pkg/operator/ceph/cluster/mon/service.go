@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +55,7 @@ func (c *Cluster) createService(mon *monConfig) (*v1.Service, error) {
 	if mon.PublicIP != "" {
 		_, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get(c.ClusterInfo.Context, svcDef.Name, metav1.GetOptions{})
 		if err != nil && kerrors.IsNotFound(err) {
-			logger.Infof("ensuring the clusterIP for mon %q is %q", mon.DaemonName, mon.PublicIP)
+			log.NamespacedInfo(c.Namespace, logger, "ensuring the clusterIP for mon %q is %q", mon.DaemonName, mon.PublicIP)
 			svcDef.Spec.ClusterIP = mon.PublicIP
 		}
 	}
@@ -69,7 +70,7 @@ func (c *Cluster) createService(mon *monConfig) (*v1.Service, error) {
 		return nil, nil
 	}
 
-	logger.Infof("mon %q cluster IP is %s", mon.DaemonName, s.Spec.ClusterIP)
+	log.NamespacedInfo(c.Namespace, logger, "mon %q cluster IP is %s", mon.DaemonName, s.Spec.ClusterIP)
 	return s, nil
 }
 
@@ -78,12 +79,12 @@ func (c *Cluster) exportService(service *v1.Service, monDaemon string) (string, 
 	// query on <service>.<ns>.svc.clusterset.local requires the mon canary pod to be running
 	defer c.removeCanaryDeployments(monCanaryLabelSelector + fmt.Sprintf(",mon=%s", monDaemon))
 
-	logger.Infof("exporting service %q", service.Name)
+	log.NamespacedInfo(c.Namespace, logger, "exporting service %q", service.Name)
 	exportedIP, err := k8sutil.ExportService(c.ClusterInfo.Context, c.context, service, c.spec.Network.MultiClusterService.ClusterID)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to export service %q", service.Name)
 	}
-	logger.Infof("mon %q exported IP is %s", service.Name, exportedIP)
+	log.NamespacedInfo(c.Namespace, logger, "mon %q exported IP is %s", service.Name, exportedIP)
 
 	return exportedIP, nil
 }

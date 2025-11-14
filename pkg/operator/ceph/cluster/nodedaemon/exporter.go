@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/util/log"
 
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -57,11 +58,11 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 	// CephVersion change is done temporarily, as some regression was detected in Ceph version 17.2.6 which is summarised here https://github.com/ceph/ceph/pull/50718#issuecomment-1505608312.
 	// Thus, disabling ceph-exporter for now until all the regression are fixed.
 	if !cephVersion.IsAtLeast(MinVersionForCephExporter) {
-		logger.Infof("Skipping exporter reconcile on ceph version %q", cephVersion.String())
+		log.NamespacedInfo(cephCluster.Namespace, logger, "Skipping exporter reconcile on ceph version %q", cephVersion.String())
 		return controllerutil.OperationResultNone, nil
 	}
 	if cephCluster.Spec.Monitoring.MetricsDisabled {
-		logger.Info("Skipping exporter reconcile since monitoring.metricsDisabled is true")
+		log.NamespacedInfo(cephCluster.Namespace, logger, "Skipping exporter reconcile since monitoring.metricsDisabled is true")
 		return controllerutil.OperationResultNone, nil
 	}
 
@@ -283,10 +284,10 @@ func applyCephExporterLabels(cephCluster cephv1.CephCluster, serviceMonitor *mon
 				serviceMonitor.Spec.Endpoints[0].RelabelConfigs = append(
 					serviceMonitor.Spec.Endpoints[0].RelabelConfigs, relabelConfig)
 			} else {
-				logger.Info("rook.io/managedBy not specified in ceph-exporter labels")
+				log.NamespacedInfo(cephCluster.Namespace, logger, "rook.io/managedBy not specified in ceph-exporter labels")
 			}
 		} else {
-			logger.Debug("ceph-exporter labels not specified")
+			log.NamespacedDebug(cephCluster.Namespace, logger, "ceph-exporter labels not specified")
 		}
 	}
 }

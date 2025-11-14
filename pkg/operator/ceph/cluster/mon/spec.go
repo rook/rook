@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -187,7 +188,7 @@ func makeMonSecurityContext() *corev1.PodSecurityContext {
 }
 
 func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, error) {
-	logger.Debugf("monConfig: %+v", monConfig)
+	log.NamespacedDebug(c.Namespace, logger, "monConfig: %+v", monConfig)
 	podSpec := corev1.PodSpec{
 		InitContainers: []corev1.Container{
 			c.makeChownInitContainer(monConfig),
@@ -393,17 +394,16 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, clusterInfo *client.
 	callback := func(action string) error {
 		// At this point, we are in an upgrade
 		if skipUpgradeChecks {
-			logger.Warningf("this is a Ceph upgrade, not performing upgrade checks because skipUpgradeChecks is %t", skipUpgradeChecks)
+			log.NamespacedWarning(clusterInfo.Namespace, logger, "this is a Ceph upgrade, not performing upgrade checks because skipUpgradeChecks is %t", skipUpgradeChecks)
 			return nil
 		}
 
-		logger.Infof("checking if we can %s the deployment %s", action, deployment.Name)
-
+		log.NamespacedInfo(clusterInfo.Namespace, logger, "checking if we can %s the deployment %s", action, deployment.Name)
 		if action == "stop" {
 			err := client.OkToStop(context, clusterInfo, deployment.Name, daemonType, daemonName)
 			if err != nil {
 				if continueUpgradeAfterChecksEvenIfNotHealthy {
-					logger.Infof("The %s daemon %s is not ok-to-stop but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so proceeding to stop...", daemonType, daemonName)
+					log.NamespacedInfo(clusterInfo.Namespace, logger, "The %s daemon %s is not ok-to-stop but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so proceeding to stop...", daemonType, daemonName)
 					return nil
 				}
 				return errors.Wrapf(err, "failed to check if we can %s the deployment %s", action, deployment.Name)
@@ -414,7 +414,7 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, clusterInfo *client.
 			err := client.OkToContinue(context, clusterInfo, deployment.Name, daemonType, daemonName)
 			if err != nil {
 				if continueUpgradeAfterChecksEvenIfNotHealthy {
-					logger.Infof("The %s daemon %s is not ok-to-continue but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so continuing...", daemonType, daemonName)
+					log.NamespacedInfo(clusterInfo.Namespace, logger, "The %s daemon %s is not ok-to-continue but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so continuing...", daemonType, daemonName)
 					return nil
 				}
 				return errors.Wrapf(err, "failed to check if we can %s the deployment %s", action, deployment.Name)

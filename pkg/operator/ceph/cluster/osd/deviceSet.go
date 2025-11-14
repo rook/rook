@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -109,7 +110,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(errs *provisionErrors) {
 		highestExistingID := -1
 		countInDeviceSet := 0
 		if existingIDs, ok := uniqueOSDsPerDeviceSet[deviceSet.Name]; ok {
-			logger.Infof("verifying PVCs exist for %d OSDs in device set %q", existingIDs.Len(), deviceSet.Name)
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "verifying PVCs exist for %d OSDs in device set %q", existingIDs.Len(), deviceSet.Name)
 			for existingID := range existingIDs {
 				pvcID, err := strconv.Atoi(existingID)
 				if err != nil {
@@ -129,7 +130,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(errs *provisionErrors) {
 		// No new PVCs will be created if we have too many
 		pvcsToCreate := deviceSet.Count - countInDeviceSet
 		if pvcsToCreate > 0 {
-			logger.Infof("creating %d new PVCs for device set %q", pvcsToCreate, deviceSet.Name)
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "creating %d new PVCs for device set %q", pvcsToCreate, deviceSet.Name)
 		}
 		for i := 0; i < pvcsToCreate; i++ {
 			pvcID := highestExistingID + i + 1
@@ -234,12 +235,12 @@ func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolum
 	}
 
 	if existingPVC != nil {
-		logger.Infof("OSD PVC %q already exists", existingPVC.Name)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "OSD PVC %q already exists", existingPVC.Name)
 
 		desiredPvcSize, desiredOK := pvc.Spec.Resources.Requests[v1.ResourceStorage]
 		actualPvcSize, currentOK := existingPVC.Spec.Resources.Requests[v1.ResourceStorage]
 		if !desiredOK || !currentOK {
-			logger.Debugf("desired or current size are not specified for PVC %q", existingPVC.Name)
+			log.NamespacedDebug(c.clusterInfo.Namespace, logger, "desired or current size are not specified for PVC %q", existingPVC.Name)
 			return existingPVC, nil
 		}
 
@@ -260,7 +261,7 @@ func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolum
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create PVC %q for device set %q", pvc.Name, deviceSetName)
 	}
-	logger.Infof("successfully provisioned PVC %q", deployedPVC.Name)
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "successfully provisioned PVC %q", deployedPVC.Name)
 
 	return deployedPVC, nil
 }
@@ -345,13 +346,13 @@ func waitForPvcToExpandWithTimeout(ctx context.Context, client client.Client, pv
 	timeout := currentTime.Add(pvcResizeWaitTimeOut)
 	for {
 		if time.Now().UTC().After(timeout) {
-			logger.Warning("timed out waiting for PVC size to be updated, osds may need to be restarted manually after resize")
+			log.NamespacedWarning(namespace, logger, "timed out waiting for PVC size to be updated, osds may need to be restarted manually after resize")
 			return
 		}
 
 		allPvcResized := checkAllPvcResize(ctx, client, namespace, pvcResizeMap)
 		if allPvcResized {
-			logger.Info("all osd pvcs resized")
+			log.NamespacedInfo(namespace, logger, "all osd pvcs resized")
 			return
 		}
 
@@ -373,7 +374,7 @@ func checkAllPvcResize(ctx context.Context, client client.Client, namespace stri
 		currentPVC := &v1.PersistentVolumeClaim{}
 		err := client.Get(ctx, types.NamespacedName{Name: pvcName, Namespace: namespace}, currentPVC)
 		if err != nil {
-			logger.Errorf("failed to get PVC %q. %v", currentPVC.Name, err)
+			log.NamespacedError(namespace, logger, "failed to get PVC %q. %v", currentPVC.Name, err)
 			continue
 		}
 
@@ -385,7 +386,7 @@ func checkAllPvcResize(ctx context.Context, client client.Client, namespace stri
 
 		if currentPVC.Status.Capacity != nil {
 			if currentPVC.Status.Capacity[v1.ResourceStorage] == pvcSize {
-				logger.Infof("PVC %q size is updated to %s", currentPVC.Name, pvcSize.String())
+				log.NamespacedInfo(namespace, logger, "PVC %q size is updated to %s", currentPVC.Name, pvcSize.String())
 				numberOfPvcResized++
 				pvcResizeMap[pvcName] = pvcResize{
 					desiredSize:     pvc.desiredSize,
@@ -393,11 +394,11 @@ func checkAllPvcResize(ctx context.Context, client client.Client, namespace stri
 					resizeConfirmed: true,
 				}
 			} else {
-				logger.Debugf("PVC %q size is not updated to %v", currentPVC.Name, pvcSize.String())
+				log.NamespacedDebug(namespace, logger, "PVC %q size is not updated to %v", currentPVC.Name, pvcSize.String())
 			}
 		}
 	}
 
-	logger.Infof("%d of osd pvcs resized and %d remain to be resized", numberOfPvcResized, len(pvcResizeMap)-numberOfPvcResized)
+	log.NamespacedInfo(namespace, logger, "%d of osd pvcs resized and %d remain to be resized", numberOfPvcResized, len(pvcResizeMap)-numberOfPvcResized)
 	return numberOfPvcResized == len(pvcResizeMap)
 }

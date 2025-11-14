@@ -44,7 +44,8 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	err := json.Unmarshal(fakeRunningVersions, &dummyRunningVersions)
 	assert.NoError(t, err)
 
-	m, err := diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions)
+	c := testSpec(t)
+	m, err := c.diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions)
 	assert.Error(t, err) // Overall is absent
 	assert.False(t, m)
 
@@ -60,7 +61,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	err = json.Unmarshal(fakeRunningVersions, &dummyRunningVersions2)
 	assert.NoError(t, err)
 
-	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions2)
+	m, err = c.diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions2)
 	assert.NoError(t, err)
 	assert.True(t, m)
 
@@ -76,7 +77,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Allow the downgrade
-	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions3)
+	m, err = c.diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions3)
 	assert.NoError(t, err)
 	assert.True(t, m)
 
@@ -92,7 +93,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	err = json.Unmarshal(fakeRunningVersions, &dummyRunningVersions4)
 	assert.NoError(t, err)
 
-	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions4)
+	m, err = c.diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions4)
 	assert.NoError(t, err)
 	assert.True(t, m)
 
@@ -111,7 +112,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	err = json.Unmarshal(fakeRunningVersions, &dummyRunningVersions5)
 	assert.NoError(t, err)
 
-	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions5)
+	m, err = c.diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions5)
 	assert.NoError(t, err)
 	assert.False(t, m)
 
@@ -130,7 +131,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	err = json.Unmarshal(fakeRunningVersions, &dummyRunningVersions6)
 	assert.NoError(t, err)
 
-	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions6)
+	m, err = c.diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions6)
 	assert.NoError(t, err)
 	assert.True(t, m)
 
@@ -149,7 +150,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	err = json.Unmarshal(fakeRunningVersions, &dummyRunningVersions7)
 	assert.NoError(t, err)
 
-	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions7)
+	m, err = c.diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions7)
 	assert.NoError(t, err)
 	assert.False(t, m)
 }

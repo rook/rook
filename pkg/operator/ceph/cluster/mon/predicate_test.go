@@ -37,7 +37,7 @@ func TestWereMonEndpointsUpdated(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := wereMonEndpointsUpdated(tt.args.oldCMData, tt.args.newCMData); got != tt.want {
+			if got := wereMonEndpointsUpdated("ns", tt.args.oldCMData, tt.args.newCMData); got != tt.want {
 				t.Errorf("whereMonEndpointsUpdated() = %v, want %v", got, tt.want)
 			}
 		})

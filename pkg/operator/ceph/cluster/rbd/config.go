@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -59,7 +60,7 @@ func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo
 	}
 
 	if r.shouldRotateCephxKeys {
-		logger.Infof("rotating cephx key for CephRBDMirror %q in the namespace %q", daemonConfig.ResourceName, clusterInfo.Namespace)
+		log.NamespacedInfo(clusterInfo.Namespace, logger, "rotating cephx key for CephRBDMirror %q in the namespace %q", daemonConfig.ResourceName, clusterInfo.Namespace)
 		newKey, err := s.RotateKey(user)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to rotate cephx key for CephRDBMirror %q in the namespace %q", daemonConfig.ResourceName, clusterInfo.Namespace)
@@ -79,9 +80,9 @@ func (r *ReconcileCephRBDMirror) reconcileAddBootstrapPeer(cephRBDMirror *cephv1
 	// List all the peers secret, we can have more than one peer we might want to configure
 	// For each, get the Kubernetes Secret and import the "peer token" so that we can configure the mirroring
 
-	logger.Warning("(DEPRECATED) use of peer secret names in CephRBDMirror is deprecated. Please use CephBlockPool CR to configure peer secret names and import peers.")
+	log.NamespacedWarning(cephRBDMirror.Namespace, logger, "(DEPRECATED) use of peer secret names in CephRBDMirror is deprecated. Please use CephBlockPool CR to configure peer secret names and import peers.")
 	for _, peerSecret := range cephRBDMirror.Spec.Peers.SecretNames {
-		logger.Debugf("fetching bootstrap peer kubernetes secret %q", peerSecret)
+		log.NamespacedDebug(cephRBDMirror.Namespace, logger, "fetching bootstrap peer kubernetes secret %q", peerSecret)
 		s, err := r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Get(r.opManagerContext, peerSecret, metav1.GetOptions{})
 		// We don't care about IsNotFound here, we still need to fail
 		if err != nil {

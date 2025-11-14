@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -51,7 +52,7 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 		return errors.Wrap(err, "error checking pod memory")
 	}
 
-	logger.Infof("configure rbd-mirroring with %d workers", cephRBDMirror.Spec.Count)
+	log.NamespacedInfo(cephRBDMirror.Namespace, logger, "configure rbd-mirroring with %d workers", cephRBDMirror.Spec.Count)
 
 	ownerInfo := k8sutil.NewOwnerInfo(cephRBDMirror, r.scheme)
 	daemonID := k8sutil.IndexToName(0)
@@ -68,7 +69,7 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 		return errors.Wrap(err, "failed to check for RBD Mirror to skip reconcile")
 	}
 	if rbdMirrorToSkipReconcile.Len() > 0 {
-		logger.Warningf("skipping RBD mirror reconcile since RBD mirror daemons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(rbdMirrorToSkipReconcile))
+		log.NamespacedWarning(cephRBDMirror.Namespace, logger, "skipping RBD mirror reconcile since RBD mirror daemons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(rbdMirrorToSkipReconcile))
 		return nil
 	}
 
@@ -102,11 +103,11 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 		if !kerrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create %q deployment", resourceName)
 		}
-		logger.Infof("deployment for rbd-mirror %q already exists. updating if needed", resourceName)
+		log.NamespacedInfo(cephRBDMirror.Namespace, logger, "deployment for rbd-mirror %q already exists. updating if needed", resourceName)
 
 		if err := updateDeploymentAndWait(r.context, r.clusterInfo, d, config.RbdMirrorType, daemonConf.DaemonID, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 			// fail could be an issue updating label selector (immutable), so try del and recreate
-			logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %q. Attempting del-and-recreate. %v", resourceName, err)
+			log.NamespacedDebug(cephRBDMirror.Namespace, logger, "updateDeploymentAndWait failed for rbd-mirror %q. Attempting del-and-recreate. %v", resourceName, err)
 			err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(r.opManagerContext, d.Name, metav1.DeleteOptions{})
 			if err != nil && !kerrors.IsNotFound(err) {
 				return errors.Wrapf(err, "failed to delete rbd-mirror %q during del-and-recreate update attempt", resourceName)
@@ -117,6 +118,6 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 		}
 	}
 
-	logger.Infof("%q deployment started", resourceName)
+	log.NamespacedInfo(cephRBDMirror.Namespace, logger, "%q deployment started", resourceName)
 	return nil
 }

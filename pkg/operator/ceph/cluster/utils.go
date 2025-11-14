@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +37,7 @@ func populateConfigOverrideConfigMap(clusterdContext *clusterd.Context, namespac
 	existingCM, err := clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, k8sutil.ConfigOverrideName, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
-			logger.Warningf("failed to get cm %q to check labels and annotations", k8sutil.ConfigOverrideName)
+			log.NamespacedWarning(namespace, logger, "failed to get cm %q to check labels and annotations", k8sutil.ConfigOverrideName)
 			return nil
 		}
 
@@ -66,7 +67,7 @@ func populateConfigOverrideConfigMap(clusterdContext *clusterd.Context, namespac
 		if err != nil {
 			return errors.Wrapf(err, "failed to create override configmap %s", namespace)
 		}
-		logger.Infof("created placeholder configmap for ceph overrides %q", cm.Name)
+		log.NamespacedInfo(namespace, logger, "created placeholder configmap for ceph overrides %q", cm.Name)
 		return nil
 	}
 
@@ -83,9 +84,9 @@ func populateConfigOverrideConfigMap(clusterdContext *clusterd.Context, namespac
 	if updateRequired {
 		_, err = clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Update(ctx, existingCM, metav1.UpdateOptions{})
 		if err != nil {
-			logger.Warningf("failed to add recommended labels and annotations to configmap %q. %v", existingCM.Name, err)
+			log.NamespacedWarning(namespace, logger, "failed to add recommended labels and annotations to configmap %q. %v", existingCM.Name, err)
 		} else {
-			logger.Infof("added expected labels and annotations to configmap %q", existingCM.Name)
+			log.NamespacedInfo(namespace, logger, "added expected labels and annotations to configmap %q", existingCM.Name)
 		}
 	}
 	return nil
@@ -96,15 +97,15 @@ func initRequiredMetadata(metadata metav1.ObjectMeta, labels, annotations map[st
 	releaseNameAttr := "meta.helm.sh/release-name"
 	chartName, ok := metadata.Annotations[releaseNameAttr]
 	if !ok {
-		logger.Debug("cluster helm chart is not configured, not adding helm annotations to configmap")
+		log.NamespacedDebug(metadata.Namespace, logger, "cluster helm chart is not configured, not adding helm annotations to configmap")
 		return false
 	}
 	if _, ok := annotations[releaseNameAttr]; ok {
-		logger.Debug("cluster helm chart helm annotations already added to configmap")
+		log.NamespacedDebug(metadata.Namespace, logger, "cluster helm chart helm annotations already added to configmap")
 		return false
 	}
 
-	logger.Infof("adding helm chart name %q annotation to configmap", chartName)
+	log.NamespacedInfo(metadata.Namespace, logger, "adding helm chart name %q annotation to configmap", chartName)
 	labels["app.kubernetes.io/managed-by"] = "Helm"
 	annotations[releaseNameAttr] = chartName
 	annotations["meta.helm.sh/release-namespace"] = metadata.Namespace
