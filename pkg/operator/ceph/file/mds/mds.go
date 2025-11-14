@@ -128,8 +128,11 @@ func (c *Cluster) Start() error {
 		}
 	}()
 
-	// Always create double the number of metadata servers to have standby mdses available
-	replicas := c.fs.Spec.MetadataServer.ActiveCount * 2
+	replicas := c.fs.Spec.MetadataServer.ActiveCount
+	// Create double the number of metadata servers if active standby is enabled
+	if c.fs.Spec.MetadataServer.ActiveStandby {
+		replicas = replicas * 2
+	}
 
 	mdsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.clusterInfo.Context, c.context, c.clusterInfo.Namespace, config.MdsType, AppName)
 	if err != nil {
