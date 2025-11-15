@@ -21,7 +21,7 @@ spec:
           port: {{ .route.port | default .spec.gateway.securePort | default .spec.gateway.port }}
       matches:
         - path:
-            type: {{ .route.host.pathType | default "Prefix" }}
+            type: {{ .route.host.pathType | default "PathPrefix" }}
             value: {{ .route.host.path | default "/" }}
 {{- end }}
 {{- end }}
