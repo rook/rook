@@ -17,6 +17,7 @@
 CEPH_CONFIG="/etc/ceph/ceph.conf"
 MON_CONFIG="/etc/rook/mon-endpoints"
 KEYRING_FILE="/etc/ceph/keyring"
+CONFIG_OVERRIDE="/etc/rook-config-override/config"
 
 # create a ceph config file in its default location so ceph/rados tools can be used
 # without specifying any arguments
@@ -37,6 +38,13 @@ mon_host = ${mon_endpoints}
 [client.admin]
 keyring = ${KEYRING_FILE}
 EOF
+
+  # Merge the config override if it exists and is not empty
+  if [ -f "${CONFIG_OVERRIDE}" ] && [ -s "${CONFIG_OVERRIDE}" ]; then
+    echo "$DATE merging config override from ${CONFIG_OVERRIDE}"
+    echo "" >> ${CEPH_CONFIG}
+    cat ${CONFIG_OVERRIDE} >> ${CEPH_CONFIG}
+  fi
 }
 
 # watch the endpoints config file and update if the mon endpoints ever change
