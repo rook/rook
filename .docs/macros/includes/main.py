@@ -30,4 +30,4 @@ def on_post_page_macros(env):
     if target == "master":
         return
 
-    env.raw_markdown = re.sub(regex, subst % target, env.raw_markdown, 0)
+    env.markdown = re.sub(regex, subst % target, env.markdown, 0)
