@@ -36,7 +36,7 @@ parameters:
   {{- end }}
 reclaimPolicy: {{ $blockpool.storageClass.reclaimPolicy | default "Delete" }}
 allowVolumeExpansion: {{ $blockpool.storageClass.allowVolumeExpansion | default "true" }}
-volumeBindingMode: {{ $blockpool.storageClass.volumeBindingMode | default "Immediate" }}
+volumeBindingMode: {{ $blockpool.storageClass.volumeBindingMode | default "WaitForFirstConsumer" }}
 {{- with $blockpool.storageClass.mountOptions }}
 mountOptions:
   {{- . | toYaml | nindent 2 }}
