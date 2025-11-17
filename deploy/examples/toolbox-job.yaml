@@ -27,6 +27,9 @@ spec:
               mountPath: /etc/rook
             - name: ceph-admin-secret
               mountPath: /var/lib/rook-ceph-mon
+            - name: rook-config-override
+              mountPath: /etc/rook-config-override
+              readOnly: true
       containers:
         - name: script
           image: docker.io/rook/ceph:master
@@ -57,6 +60,10 @@ spec:
             items:
               - key: data
                 path: mon-endpoints
+        - name: rook-config-override
+          configMap:
+            name: rook-config-override
+            optional: true
         - name: ceph-config
           emptyDir: {}
       restartPolicy: Never
