@@ -94,8 +94,8 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 		Spec: spec,
 	}
 
-	rbdDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(rbdPluginResource)
-	rbdDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(rbdProvisionerResource)
+	rbdDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(rbdProvisionerResource)
+	rbdDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(rbdPluginResource)
 	rbdDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
 		Type: v1.RollingUpdateDaemonSetStrategyType,
 	}
@@ -147,9 +147,9 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 		cephFsDriver.Spec.SnapshotPolicy = csiopv1.VolumeGroupSnapshotPolicy
 	}
 
-	cephFsDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(cephFSPluginResource)
+	cephFsDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(cephFSProvisionerResource)
 
-	cephFsDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(cephFSProvisionerResource)
+	cephFsDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(cephFSPluginResource)
 	cephFsDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
 		Type: v1.RollingUpdateDaemonSetStrategyType,
 	}
@@ -196,9 +196,9 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 		Spec: spec,
 	}
 
-	NFSDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(nfsPluginResource)
+	NFSDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(nfsProvisionerResource)
 
-	NFSDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(nfsProvisionerResource)
+	NFSDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(nfsPluginResource)
 	NFSDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
 		Type: v1.RollingUpdateDaemonSetStrategyType,
 	}
