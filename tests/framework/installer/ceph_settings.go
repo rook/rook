@@ -53,6 +53,7 @@ type TestCephSettings struct {
 	CephVersion                 cephv1.CephVersionSpec
 	KubernetesVersion           string
 	EnableCsiOperator           bool
+	ClusterConcurrency          int
 }
 
 func (s *TestCephSettings) ApplyEnvVars() {
@@ -97,6 +98,9 @@ func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 		`ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner"`)
 	if !s.EnableCsiOperator {
 		manifest = strings.ReplaceAll(manifest, `ROOK_USE_CSI_OPERATOR: "true"`, `ROOK_USE_CSI_OPERATOR: "false"`)
+	}
+	if s.ClusterConcurrency > 1 {
+		manifest = strings.ReplaceAll(manifest, `ROOK_RECONCILE_CONCURRENT_CLUSTERS: "1"`, fmt.Sprintf(`ROOK_RECONCILE_CONCURRENT_CLUSTERS: "%d"`, s.ClusterConcurrency))
 	}
 	return manifest
 }

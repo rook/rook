@@ -195,7 +195,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 	if cluster.Spec.External.Enable {
 		err := c.configureExternalCephCluster(cluster)
 		if err != nil {
-			controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
+			controller.UpdateCondition(c.OpManagerCtx, c.context, cluster.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
 			return errors.Wrap(err, "failed to configure external ceph cluster")
 		}
 	} else {
@@ -211,7 +211,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 			}
 		} else {
 			clusterInfo.OwnerInfo = cluster.ownerInfo
-			clusterInfo.SetName(c.namespacedName.Name)
+			clusterInfo.SetName(cluster.namespacedName.Name)
 			cluster.ClusterInfo = clusterInfo
 			if cluster.mons.ClusterInfo == nil {
 				// ClusterInfo stored in cluster.mons can be lost from the object stored in the
@@ -239,7 +239,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 
 		err = c.configureLocalCephCluster(cluster)
 		if err != nil {
-			controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
+			controller.UpdateCondition(c.OpManagerCtx, c.context, cluster.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
 			return errors.Wrap(err, "failed to configure local ceph cluster")
 		}
 
@@ -254,7 +254,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 
 	// Populate ClusterInfo with the last value
 	cluster.mons.ClusterInfo = cluster.ClusterInfo
-	cluster.mons.ClusterInfo.SetName(c.namespacedName.Name)
+	cluster.mons.ClusterInfo.SetName(cluster.namespacedName.Name)
 
 	// Start the monitoring if not already started
 	c.configureCephMonitoring(cluster, cluster.ClusterInfo)
@@ -271,7 +271,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	}
 
 	// Run image validation job
-	controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Detecting Ceph version")
+	controller.UpdateCondition(c.OpManagerCtx, c.context, cluster.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Detecting Ceph version")
 	cephVersion, isUpgrade, err := c.detectAndValidateCephVersion(cluster)
 	if err != nil {
 		return errors.Wrap(err, "failed the ceph version check")
@@ -286,7 +286,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 		}
 	}
 
-	controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring the Ceph cluster")
+	controller.UpdateCondition(c.OpManagerCtx, c.context, cluster.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring the Ceph cluster")
 	// Run the orchestration
 	err = cluster.reconcileCephDaemons(c.rookImage, *cephVersion)
 	if err != nil {
@@ -294,7 +294,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	}
 
 	// Set the condition to the cluster object
-	controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, cluster.observedGeneration, cephv1.ConditionReady, v1.ConditionTrue, cephv1.ClusterCreatedReason, "Cluster created successfully")
+	controller.UpdateCondition(c.OpManagerCtx, c.context, cluster.namespacedName, cluster.observedGeneration, cephv1.ConditionReady, v1.ConditionTrue, cephv1.ClusterCreatedReason, "Cluster created successfully")
 	return nil
 }
 

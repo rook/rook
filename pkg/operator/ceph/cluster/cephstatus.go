@@ -236,28 +236,28 @@ func formatTime(t time.Time) string {
 	return t.Format(time.RFC3339)
 }
 
-func (c *ClusterController) updateClusterCephVersion(image string, cephVersion cephver.CephVersion) {
-	logger.Infof("cluster %q: version %q detected for image %q", c.namespacedName.Namespace, cephVersion.String(), image)
+func (c *ClusterController) updateClusterCephVersion(cluster *cluster, cephVersion cephver.CephVersion) {
+	logger.Infof("cluster %q: version %q detected for image %q", cluster.namespacedName.Namespace, cephVersion.String(), cluster.Spec.CephVersion.Image)
 
-	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(c.namespacedName.Namespace).Get(c.OpManagerCtx, c.namespacedName.Name, metav1.GetOptions{})
+	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(cluster.namespacedName.Namespace).Get(c.OpManagerCtx, cluster.namespacedName.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
 			return
 		}
-		logger.Errorf("failed to retrieve ceph cluster %q to update ceph version to %+v. %v", c.namespacedName.Name, cephVersion, err)
+		logger.Errorf("failed to retrieve ceph cluster %q to update ceph version to %+v. %v", cluster.namespacedName.Name, cephVersion, err)
 		return
 	}
 
 	cephClusterVersion := &cephv1.ClusterVersion{
-		Image:   image,
+		Image:   cluster.Spec.CephVersion.Image,
 		Version: opcontroller.GetCephVersionLabel(cephVersion), // DO NOT CHANGE FORMAT FROM "Maj.Min.Ext-Bld"
 	}
 	// update the Ceph version on the retrieved cluster object
 	// do not overwrite the ceph status that is updated in a separate goroutine
 	cephCluster.Status.CephVersion = cephClusterVersion
 	if err := reporting.UpdateStatus(c.client, cephCluster); err != nil {
-		logger.Errorf("failed to update cluster %q version. %v", c.namespacedName.Name, err)
+		logger.Errorf("failed to update cluster %q version. %v", cluster.namespacedName.Name, err)
 		return
 	}
 }
