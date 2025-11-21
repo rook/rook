@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephFilesystemMirrors.
 type CephFilesystemMirrorInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephFilesystemMirrorLister
+	Lister() cephrookiov1.CephFilesystemMirrorLister
 }
 
 type cephFilesystemMirrorInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredCephFilesystemMirrorInformer(client versioned.Interface, namespa
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephFilesystemMirrors(namespace).List(context.TODO(), options)
+				return client.CephV1().CephFilesystemMirrors(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephFilesystemMirrors(namespace).Watch(context.TODO(), options)
+				return client.CephV1().CephFilesystemMirrors(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephFilesystemMirrors(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephFilesystemMirrors(namespace).Watch(ctx, options)
 			},
 		},
-		&cephrookiov1.CephFilesystemMirror{},
+		&apiscephrookiov1.CephFilesystemMirror{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *cephFilesystemMirrorInformer) defaultInformer(client versioned.Interfac
 }
 
 func (f *cephFilesystemMirrorInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephFilesystemMirror{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephFilesystemMirror{}, f.defaultInformer)
 }
 
-func (f *cephFilesystemMirrorInformer) Lister() v1.CephFilesystemMirrorLister {
-	return v1.NewCephFilesystemMirrorLister(f.Informer().GetIndexer())
+func (f *cephFilesystemMirrorInformer) Lister() cephrookiov1.CephFilesystemMirrorLister {
+	return cephrookiov1.NewCephFilesystemMirrorLister(f.Informer().GetIndexer())
 }

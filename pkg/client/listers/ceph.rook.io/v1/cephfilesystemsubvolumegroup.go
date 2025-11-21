@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephFilesystemSubVolumeGroupLister helps list CephFilesystemSubVolumeGroups.
@@ -30,7 +30,7 @@ import (
 type CephFilesystemSubVolumeGroupLister interface {
 	// List lists all CephFilesystemSubVolumeGroups in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephFilesystemSubVolumeGroup, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephFilesystemSubVolumeGroup, err error)
 	// CephFilesystemSubVolumeGroups returns an object that can list and get CephFilesystemSubVolumeGroups.
 	CephFilesystemSubVolumeGroups(namespace string) CephFilesystemSubVolumeGroupNamespaceLister
 	CephFilesystemSubVolumeGroupListerExpansion
@@ -38,17 +38,17 @@ type CephFilesystemSubVolumeGroupLister interface {
 
 // cephFilesystemSubVolumeGroupLister implements the CephFilesystemSubVolumeGroupLister interface.
 type cephFilesystemSubVolumeGroupLister struct {
-	listers.ResourceIndexer[*v1.CephFilesystemSubVolumeGroup]
+	listers.ResourceIndexer[*cephrookiov1.CephFilesystemSubVolumeGroup]
 }
 
 // NewCephFilesystemSubVolumeGroupLister returns a new CephFilesystemSubVolumeGroupLister.
 func NewCephFilesystemSubVolumeGroupLister(indexer cache.Indexer) CephFilesystemSubVolumeGroupLister {
-	return &cephFilesystemSubVolumeGroupLister{listers.New[*v1.CephFilesystemSubVolumeGroup](indexer, v1.Resource("cephfilesystemsubvolumegroup"))}
+	return &cephFilesystemSubVolumeGroupLister{listers.New[*cephrookiov1.CephFilesystemSubVolumeGroup](indexer, cephrookiov1.Resource("cephfilesystemsubvolumegroup"))}
 }
 
 // CephFilesystemSubVolumeGroups returns an object that can list and get CephFilesystemSubVolumeGroups.
 func (s *cephFilesystemSubVolumeGroupLister) CephFilesystemSubVolumeGroups(namespace string) CephFilesystemSubVolumeGroupNamespaceLister {
-	return cephFilesystemSubVolumeGroupNamespaceLister{listers.NewNamespaced[*v1.CephFilesystemSubVolumeGroup](s.ResourceIndexer, namespace)}
+	return cephFilesystemSubVolumeGroupNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephFilesystemSubVolumeGroup](s.ResourceIndexer, namespace)}
 }
 
 // CephFilesystemSubVolumeGroupNamespaceLister helps list and get CephFilesystemSubVolumeGroups.
@@ -56,15 +56,15 @@ func (s *cephFilesystemSubVolumeGroupLister) CephFilesystemSubVolumeGroups(names
 type CephFilesystemSubVolumeGroupNamespaceLister interface {
 	// List lists all CephFilesystemSubVolumeGroups in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephFilesystemSubVolumeGroup, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephFilesystemSubVolumeGroup, err error)
 	// Get retrieves the CephFilesystemSubVolumeGroup from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephFilesystemSubVolumeGroup, error)
+	Get(name string) (*cephrookiov1.CephFilesystemSubVolumeGroup, error)
 	CephFilesystemSubVolumeGroupNamespaceListerExpansion
 }
 
 // cephFilesystemSubVolumeGroupNamespaceLister implements the CephFilesystemSubVolumeGroupNamespaceLister
 // interface.
 type cephFilesystemSubVolumeGroupNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephFilesystemSubVolumeGroup]
+	listers.ResourceIndexer[*cephrookiov1.CephFilesystemSubVolumeGroup]
 }

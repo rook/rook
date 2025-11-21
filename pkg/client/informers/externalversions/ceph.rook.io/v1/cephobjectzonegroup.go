@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephObjectZoneGroups.
 type CephObjectZoneGroupInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephObjectZoneGroupLister
+	Lister() cephrookiov1.CephObjectZoneGroupLister
 }
 
 type cephObjectZoneGroupInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredCephObjectZoneGroupInformer(client versioned.Interface, namespac
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephObjectZoneGroups(namespace).List(context.TODO(), options)
+				return client.CephV1().CephObjectZoneGroups(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephObjectZoneGroups(namespace).Watch(context.TODO(), options)
+				return client.CephV1().CephObjectZoneGroups(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephObjectZoneGroups(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephObjectZoneGroups(namespace).Watch(ctx, options)
 			},
 		},
-		&cephrookiov1.CephObjectZoneGroup{},
+		&apiscephrookiov1.CephObjectZoneGroup{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *cephObjectZoneGroupInformer) defaultInformer(client versioned.Interface
 }
 
 func (f *cephObjectZoneGroupInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephObjectZoneGroup{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephObjectZoneGroup{}, f.defaultInformer)
 }
 
-func (f *cephObjectZoneGroupInformer) Lister() v1.CephObjectZoneGroupLister {
-	return v1.NewCephObjectZoneGroupLister(f.Informer().GetIndexer())
+func (f *cephObjectZoneGroupInformer) Lister() cephrookiov1.CephObjectZoneGroupLister {
+	return cephrookiov1.NewCephObjectZoneGroupLister(f.Informer().GetIndexer())
 }

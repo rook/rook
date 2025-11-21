@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephBlockPools.
 type CephBlockPoolInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephBlockPoolLister
+	Lister() cephrookiov1.CephBlockPoolLister
 }
 
 type cephBlockPoolInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredCephBlockPoolInformer(client versioned.Interface, namespace stri
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephBlockPools(namespace).List(context.TODO(), options)
+				return client.CephV1().CephBlockPools(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephBlockPools(namespace).Watch(context.TODO(), options)
+				return client.CephV1().CephBlockPools(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephBlockPools(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephBlockPools(namespace).Watch(ctx, options)
 			},
 		},
-		&cephrookiov1.CephBlockPool{},
+		&apiscephrookiov1.CephBlockPool{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *cephBlockPoolInformer) defaultInformer(client versioned.Interface, resy
 }
 
 func (f *cephBlockPoolInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephBlockPool{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephBlockPool{}, f.defaultInformer)
 }
 
-func (f *cephBlockPoolInformer) Lister() v1.CephBlockPoolLister {
-	return v1.NewCephBlockPoolLister(f.Informer().GetIndexer())
+func (f *cephBlockPoolInformer) Lister() cephrookiov1.CephBlockPoolLister {
+	return cephrookiov1.NewCephBlockPoolLister(f.Informer().GetIndexer())
 }
