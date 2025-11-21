@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -71,7 +72,7 @@ func updateMonTimeout(monCluster *Cluster) {
 		if monCRDTimeoutSetting != "" {
 			if monTimeout, err := time.ParseDuration(monCRDTimeoutSetting); err == nil {
 				if monTimeout == timeZero {
-					logger.Warning("monitor failover is disabled")
+					log.NamespacedWarning(monCluster.Namespace, logger, "monitor failover is disabled")
 				}
 				MonOutTimeout = monTimeout
 			}
@@ -95,7 +96,7 @@ func updateMonInterval(monCluster *Cluster, h *HealthChecker) {
 		checkInterval := monCluster.spec.HealthCheck.DaemonHealth.Monitor.Interval
 		// allow overriding the check interval
 		if checkInterval != nil {
-			logger.Debugf("ceph mon status in namespace %q check interval %q", monCluster.Namespace, checkInterval.Duration.String())
+			log.NamespacedDebug(monCluster.Namespace, logger, "ceph mon status check interval %q", checkInterval.Duration.String())
 			h.interval = checkInterval.Duration
 		}
 	}
@@ -113,6 +114,7 @@ func NewHealthChecker(monCluster *Cluster) *HealthChecker {
 
 // Check periodically checks the health of the monitors
 func (hc *HealthChecker) Check(monitoringRoutines *sync.Map, daemon string) {
+	namespace := hc.monCluster.Namespace
 	for {
 		// Update Mon Timeout with CR details
 		updateMonTimeout(hc.monCluster)
@@ -124,28 +126,28 @@ func (hc *HealthChecker) Check(monitoringRoutines *sync.Map, daemon string) {
 		// we will get an invalid pointer error and the go routine will panic
 		v, ok := monitoringRoutines.Load(daemon)
 		if !ok {
-			logger.Infof("ceph cluster %q has been deleted. stopping monitoring of mons", hc.monCluster.Namespace)
+			log.NamespacedInfo(namespace, logger, "ceph cluster has been deleted. stopping monitoring of mons")
 			return
 		}
 
 		health := v.(*controller.ClusterHealth)
 		select {
 		case <-health.InternalCtx.Done():
-			logger.Infof("stopping monitoring of mons in namespace %q (internal context canceled)", hc.monCluster.Namespace)
+			log.NamespacedInfo(namespace, logger, "stopping monitoring of mons (internal context canceled)")
 			monitoringRoutines.Delete(daemon)
 			return
 
 		// Since c.ClusterInfo.IsInitialized() below uses a different context, we need to check if the context is done
 		case <-hc.monCluster.ClusterInfo.Context.Done():
-			logger.Infof("stopping monitoring of mons in namespace %q (mon cluster info context canceled)", hc.monCluster.Namespace)
+			log.NamespacedInfo(namespace, logger, "stopping monitoring of mons (mon cluster info context canceled)")
 			monitoringRoutines.Delete(daemon)
 			return
 
 		case <-time.After(hc.interval):
-			logger.Debugf("checking health of mons")
+			log.NamespacedDebug(namespace, logger, "checking health of mons")
 			err := hc.monCluster.checkHealth(health.InternalCtx)
 			if err != nil {
-				logger.Warningf("failed to check mon health. %v", err)
+				log.NamespacedWarning(namespace, logger, "failed to check mon health. %v", err)
 			}
 		}
 	}
@@ -170,11 +172,11 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 		return errors.Wrap(err, "failed to check for mons to skip reconcile")
 	}
 	if monsToSkipReconcile.Len() > 0 {
-		logger.Warningf("skipping mon health check since mons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(monsToSkipReconcile))
+		log.NamespacedWarning(c.Namespace, logger, "skipping mon health check since mons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(monsToSkipReconcile))
 		return nil
 	}
 
-	logger.Debugf("Checking health for mons in cluster %q", c.ClusterInfo.Namespace)
+	log.NamespacedDebug(c.Namespace, logger, "Checking health for mons in cluster %q", c.ClusterInfo.Namespace)
 
 	// For an external connection we use a special function to get the status
 	if c.spec.External.Enable {
@@ -203,7 +205,7 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get mon quorum status")
 	}
-	logger.Debugf("Mon quorum status: %+v", quorumStatus)
+	log.NamespacedDebug(c.Namespace, logger, "Mon quorum status: %+v", quorumStatus)
 
 	// handle external Mons
 	quorumStatus, err = c.reconcileExternalMons(ctx, quorumStatus)
@@ -214,7 +216,7 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	// Use a local mon count in case the user updates the crd in another goroutine.
 	// We need to complete a health check with a consistent value.
 	desiredMonCount := c.spec.Mon.Count
-	logger.Debugf("targeting the mon count %d", desiredMonCount)
+	log.NamespacedDebug(c.Namespace, logger, "targeting the mon count %d", desiredMonCount)
 
 	// Source of truth of which mons should exist is our *clusterInfo*
 	monsNotFound := map[string]interface{}{}
@@ -235,14 +237,14 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 			// when the mon isn't in the clusterInfo, but is in quorum and there are
 			// enough mons, remove it else remove it on the next run
 			if inQuorum && len(quorumStatus.Quorum) > desiredMonCount {
-				logger.Warningf("mon %q not in source of truth but in quorum, removing", mon.Name)
+				log.NamespacedWarning(c.Namespace, logger, "mon %q not in source of truth but in quorum, removing", mon.Name)
 				if err := c.removeMon(mon.Name); err != nil {
-					logger.Warningf("failed to remove mon %q. %v", mon.Name, err)
+					log.NamespacedWarning(c.Namespace, logger, "failed to remove mon %q. %v", mon.Name, err)
 				}
 				// only remove one extra mon per health check
 				return nil
 			}
-			logger.Warningf(
+			log.NamespacedWarning(c.Namespace, logger,
 				"mon %q not in source of truth and not in quorum, not enough mons to remove now (wanted: %d, current: %d)",
 				mon.Name,
 				desiredMonCount,
@@ -254,16 +256,16 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 			if _, err := c.trackMonInOrOutOfQuorum(mon.Name, true); err != nil {
 				return errors.Wrapf(err, "failed to track out of quorum mon %q", mon.Name)
 			}
-			logger.Debugf("mon %q found in quorum", mon.Name)
+			log.NamespacedDebug(c.Namespace, logger, "mon %q found in quorum", mon.Name)
 			// delete the "timeout" for a mon if the pod is in quorum again
 			if _, ok := c.monTimeoutList[mon.Name]; ok {
 				delete(c.monTimeoutList, mon.Name)
-				logger.Infof("mon %q is back in quorum, removed from mon out timeout list", mon.Name)
+				log.NamespacedInfo(c.Namespace, logger, "mon %q is back in quorum, removed from mon out timeout list", mon.Name)
 			}
 			continue
 		}
 
-		logger.Debugf("mon %q NOT found in quorum. Mon quorum status: %+v", mon.Name, quorumStatus)
+		log.NamespacedDebug(c.Namespace, logger, "mon %q NOT found in quorum. Mon quorum status: %+v", mon.Name, quorumStatus)
 		allMonsInQuorum = false
 		if _, err := c.trackMonInOrOutOfQuorum(mon.Name, false); err != nil {
 			return errors.Wrapf(err, "failed to track out of quorum mon %q", mon.Name)
@@ -271,7 +273,7 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 
 		// if the time out is set to 0 this indicate that we don't want to trigger mon failover
 		if MonOutTimeout == timeZero {
-			logger.Warningf("mon %q NOT found in quorum and health timeout is 0, mon will never fail over", mon.Name)
+			log.NamespacedWarning(c.Namespace, logger, "mon %q NOT found in quorum and health timeout is 0, mon will never fail over", mon.Name)
 			continue
 		}
 
@@ -290,7 +292,7 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 		if !rescheduleImmediately {
 			if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
 				timeToFailover := int(MonOutTimeout.Seconds() - time.Since(c.monTimeoutList[mon.Name]).Seconds())
-				logger.Warningf("mon %q not found in quorum, waiting for timeout (%d seconds left) before failover", mon.Name, timeToFailover)
+				log.NamespacedWarning(c.Namespace, logger, "mon %q not found in quorum, waiting for timeout (%d seconds left) before failover", mon.Name, timeToFailover)
 				continue
 			}
 
@@ -298,15 +300,15 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 			monLabelSelector := fmt.Sprintf("%s=%s,%s=%s", k8sutil.AppAttr, AppName, controller.DaemonIDLabel, mon.Name)
 			isScheduled, err := k8sutil.IsPodScheduled(ctx, c.context.Clientset, c.Namespace, monLabelSelector)
 			if err != nil {
-				logger.Warningf("failed to check if mon %q is assigned to a node, continuing with mon failover. %v", mon.Name, err)
+				log.NamespacedWarning(c.Namespace, logger, "failed to check if mon %q is assigned to a node, continuing with mon failover. %v", mon.Name, err)
 			} else if !isScheduled && retriesBeforeNodeDrainFailover > 0 {
-				logger.Warningf("mon %q NOT found in quorum after timeout. Mon pod is not scheduled. Retrying with a timeout of %.2f seconds before failover", mon.Name, MonOutTimeout.Seconds())
+				log.NamespacedWarning(c.Namespace, logger, "mon %q NOT found in quorum after timeout. Mon pod is not scheduled. Retrying with a timeout of %.2f seconds before failover", mon.Name, MonOutTimeout.Seconds())
 				delete(c.monTimeoutList, mon.Name)
 				retriesBeforeNodeDrainFailover = retriesBeforeNodeDrainFailover - 1
 				return nil
 			}
 			retriesBeforeNodeDrainFailover = 1
-			logger.Warningf("mon %q NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
+			log.NamespacedWarning(c.Namespace, logger, "mon %q NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
 		}
 
 		if !c.failMon(len(quorumStatus.MonMap.Mons), desiredMonCount, mon.Name) {
@@ -328,7 +330,7 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	// after all unhealthy mons have been removed or failed over
 	// handle all mons that haven't been in the Ceph mon map
 	for mon := range monsNotFound {
-		logger.Warningf("mon %s NOT found in ceph mon map, failover", mon)
+		log.NamespacedWarning(c.Namespace, logger, "mon %s NOT found in ceph mon map, failover", mon)
 		c.failMon(len(c.ClusterInfo.InternalMonitors), desiredMonCount, mon)
 		// only deal with one "not found in ceph mon map" mon per health check
 		return nil
@@ -336,23 +338,23 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 
 	// create/start new mons when there are fewer mons than the desired count in the CRD
 	if len(quorumStatus.MonMap.Mons) < desiredMonCount {
-		logger.Infof("adding mons. currently %d mons are in quorum and the desired count is %d.", len(quorumStatus.MonMap.Mons), desiredMonCount)
+		log.NamespacedInfo(c.Namespace, logger, "adding mons. currently %d mons are in quorum and the desired count is %d.", len(quorumStatus.MonMap.Mons), desiredMonCount)
 		return c.startMons(desiredMonCount)
 	}
 
 	// remove extra mons if the desired count has decreased in the CRD and all the mons are currently healthy
 	if allMonsInQuorum && len(quorumStatus.MonMap.Mons) > desiredMonCount {
 		if desiredMonCount < 2 && len(quorumStatus.MonMap.Mons) == 2 {
-			logger.Warningf("cannot reduce mon quorum size from 2 to 1")
+			log.NamespacedWarning(c.Namespace, logger, "cannot reduce mon quorum size from 2 to 1")
 		} else {
-			logger.Infof("removing an extra mon. currently %d are in quorum and only %d are desired", len(quorumStatus.MonMap.Mons), desiredMonCount)
+			log.NamespacedInfo(c.Namespace, logger, "removing an extra mon. currently %d are in quorum and only %d are desired", len(quorumStatus.MonMap.Mons), desiredMonCount)
 			return c.removeMon(c.determineExtraMonToRemove())
 		}
 	}
 
 	if allMonsInQuorum && len(quorumStatus.MonMap.Mons) == desiredMonCount {
 		// remove any pending/not needed mon canary deployment if everything is ok
-		logger.Debug("mon cluster is healthy, removing any existing canary deployment")
+		log.NamespacedDebug(c.Namespace, logger, "mon cluster is healthy, removing any existing canary deployment")
 		c.removeCanaryDeployments(monCanaryLabelSelector)
 
 		// Check whether two healthy mons are on the same node when they should not be.
@@ -382,7 +384,7 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	// failover any mons present in the mon fail over list
 	for _, mon := range c.ClusterInfo.InternalMonitors {
 		if _, ok := c.monsToFailover[mon.Name]; ok {
-			logger.Infof("fail over mon %q from the mon fail over list", mon.Name)
+			log.NamespacedInfo(c.Namespace, logger, "fail over mon %q from the mon fail over list", mon.Name)
 			c.failMon(len(c.ClusterInfo.InternalMonitors), desiredMonCount, mon.Name)
 			delete(c.monsToFailover, mon.Name)
 			return nil
@@ -394,25 +396,25 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 
 func (c *Cluster) shouldFailoverMonImmediately(ctx context.Context, monName string) bool {
 	// If the assigned node does not exist, reschedule immediately
-	logger.Debugf("checking if mon %q is scheduled on a node", monName)
+	log.NamespacedDebug(c.Namespace, logger, "checking if mon %q is scheduled on a node", monName)
 	assignedNode := ""
 	if mapping, ok := c.mapping.Schedule[monName]; ok {
 		if mapping == nil {
 			// mon schedule information is not available in the rook-ceph-mon-endpoints configmap in case of mons on PVC
-			logger.Debugf("mon schedule information is not available for mon %q", monName)
+			log.NamespacedDebug(c.Namespace, logger, "mon schedule information is not available for mon %q", monName)
 			return false
 		}
 		assignedNode = mapping.Hostname
 	}
 	if assignedNode == "" {
-		logger.Debugf("mon %q is not assigned to a node", monName)
+		log.NamespacedDebug(c.Namespace, logger, "mon %q is not assigned to a node", monName)
 		return false
 	}
 
-	logger.Debugf("mon %q is scheduled on node %q", monName, assignedNode)
+	log.NamespacedDebug(c.Namespace, logger, "mon %q is scheduled on node %q", monName, assignedNode)
 	nodeExists, err := k8sutil.NodeWithHostnameExists(ctx, c.context.Clientset, assignedNode)
 	if err == nil && !nodeExists {
-		logger.Warningf("mon %q NOT found in quorum and its assigned node %q is not found, failing over immediately", monName, assignedNode)
+		log.NamespacedWarning(c.Namespace, logger, "mon %q NOT found in quorum and its assigned node %q is not found, failing over immediately", monName, assignedNode)
 		return true
 	}
 
@@ -423,11 +425,11 @@ func (c *Cluster) shouldFailoverMonImmediately(ctx context.Context, monName stri
 func (c *Cluster) reconcileExternalMons(ctx context.Context, quorumStatus cephclient.MonStatusResponse) (cephclient.MonStatusResponse, error) {
 	if len(c.spec.Mon.ExternalMonIDs) != 0 {
 		if c.spec.External.Enable {
-			logger.Warning("ignore external mon IDs in cluster spec: cluster is running in external mode")
+			log.NamespacedWarning(c.Namespace, logger, "ignore external mon IDs in cluster spec: cluster is running in external mode")
 			return quorumStatus, nil
 		}
 		if c.spec.IsStretchCluster() {
-			logger.Warning("ignore external mon IDs in cluster spec: cluster is running in stretch mode")
+			log.NamespacedWarning(c.Namespace, logger, "ignore external mon IDs in cluster spec: cluster is running in stretch mode")
 			return quorumStatus, nil
 		}
 	}
@@ -444,19 +446,19 @@ func (c *Cluster) reconcileExternalMons(ctx context.Context, quorumStatus cephcl
 		}
 		// existing external mon was removed from Cluster CRD spec:
 		// remove it from CLusterInfo
-		logger.Debugf("existing external mon %q was removed from spec: removing it", extID)
+		log.NamespacedDebug(c.Namespace, logger, "existing external mon %q was removed from spec: removing it", extID)
 		delete(c.ClusterInfo.ExternalMons, extID)
 		extMonsChanged = true
 	}
 
 	// handle external monitors if configured in cluster CRD:
-	logger.Debugf("external mon IDs: %v", extMonIDs)
+	log.NamespacedDebug(c.Namespace, logger, "external mon IDs: %v", extMonIDs)
 	for _, extID := range extMonIDs {
 		monStatus, inQuorum := getMonByID(extID, quorumStatus)
 		if inQuorum {
-			logger.Debugf("external mon %q in quorum", extID)
+			log.NamespacedDebug(c.Namespace, logger, "external mon %q in quorum", extID)
 		} else {
-			logger.Debugf("external mon %q not in quorum %+v, %+v", extID, quorumStatus.Quorum, quorumStatus.MonMap.Mons)
+			log.NamespacedDebug(c.Namespace, logger, "external mon %q not in quorum %+v, %+v", extID, quorumStatus.Quorum, quorumStatus.MonMap.Mons)
 		}
 		_, inInfo := c.ClusterInfo.ExternalMons[extID]
 		if inQuorum && !inInfo {
@@ -464,12 +466,12 @@ func (c *Cluster) reconcileExternalMons(ctx context.Context, quorumStatus cephcl
 			monInfo := c.monStatusToInfo(monStatus)
 			c.ClusterInfo.ExternalMons[extID] = monInfo
 			extMonsChanged = true
-			logger.Infof("new external mon %q found: %s, adding it", extID, monInfo.Endpoint)
+			log.NamespacedInfo(c.Namespace, logger, "new external mon %q found: %s, adding it", extID, monInfo.Endpoint)
 		} else if !inQuorum && inInfo {
 			// remove external mon from cluster info if it is out of quorum:
 			delete(c.ClusterInfo.ExternalMons, extID)
 			extMonsChanged = true
-			logger.Infof("new external mon %q not in quorum: removing it", extID)
+			log.NamespacedInfo(c.Namespace, logger, "new external mon %q not in quorum: removing it", extID)
 		}
 	}
 	if extMonsChanged {
@@ -516,7 +518,7 @@ func (c *Cluster) trackMonInOrOutOfQuorum(monName string, inQuorum bool) (bool, 
 		// All mons are in quorum, so make sure no mons are marked out of quorum
 		for monName, mon := range c.ClusterInfo.InternalMonitors {
 			if mon.OutOfQuorum {
-				logger.Infof("resetting mon %q to be back in quorum", monName)
+				log.NamespacedInfo(c.Namespace, logger, "resetting mon %q to be back in quorum", monName)
 				mon.OutOfQuorum = false
 				updateNeeded = true
 			}
@@ -524,18 +526,18 @@ func (c *Cluster) trackMonInOrOutOfQuorum(monName string, inQuorum bool) (bool, 
 	} else {
 		mon, ok := c.ClusterInfo.InternalMonitors[monName]
 		if !ok {
-			logger.Infof("mon %q not found to keep track of being out of quorum", monName)
+			log.NamespacedInfo(c.Namespace, logger, "mon %q not found to keep track of being out of quorum", monName)
 			return false, nil
 		}
 		// Mark the mon in quorum
 		if inQuorum && mon.OutOfQuorum {
-			logger.Infof("marking mon %q back in quorum", monName)
+			log.NamespacedInfo(c.Namespace, logger, "marking mon %q back in quorum", monName)
 			mon.OutOfQuorum = false
 			updateNeeded = true
 		}
 		// Mark the mon out of quorum
 		if !inQuorum && !mon.OutOfQuorum {
-			logger.Infof("marking mon %q out of quorum", monName)
+			log.NamespacedInfo(c.Namespace, logger, "marking mon %q out of quorum", monName)
 			mon.OutOfQuorum = true
 			updateNeeded = true
 		}
@@ -570,7 +572,7 @@ func (c *Cluster) determineExtraMonToRemove() string {
 		if stretchMonToRemove != "" {
 			return stretchMonToRemove
 		}
-		logger.Infof("did not find an extra mon to remove from the stretch cluster")
+		log.NamespacedInfo(c.Namespace, logger, "did not find an extra mon to remove from the stretch cluster")
 		return ""
 	}
 
@@ -578,13 +580,13 @@ func (c *Cluster) determineExtraMonToRemove() string {
 	arbitraryMon := ""
 	for _, mon := range mons {
 		if mon.NodeName == "" {
-			logger.Debugf("mon %q is not scheduled to a specific host", mon.DaemonName)
+			log.NamespacedDebug(c.Namespace, logger, "mon %q is not scheduled to a specific host", mon.DaemonName)
 			arbitraryMon = mon.DaemonName
 			continue
 		}
 		// Check if there are multiple mons on the node
 		if existingMon, ok := nodesWithMons[mon.NodeName]; ok {
-			logger.Infof("found mons %q and %q on node %s, removing mon %q", existingMon, mon.DaemonName, mon.NodeName, mon.DaemonName)
+			log.NamespacedInfo(c.Namespace, logger, "found mons %q and %q on node %s, removing mon %q", existingMon, mon.DaemonName, mon.NodeName, mon.DaemonName)
 			return mon.DaemonName
 		}
 		nodesWithMons[mon.NodeName] = mon.DaemonName
@@ -593,7 +595,7 @@ func (c *Cluster) determineExtraMonToRemove() string {
 		arbitraryMon = mon.DaemonName
 	}
 
-	logger.Infof("removing arbitrary extra mon %q", arbitraryMon)
+	log.NamespacedInfo(c.Namespace, logger, "removing arbitrary extra mon %q", arbitraryMon)
 	return arbitraryMon
 }
 
@@ -603,7 +605,7 @@ func (c *Cluster) findExtraMonToRemoveFromStretchCluster(mons []*monConfig) stri
 	monInZones := map[string]string{}
 	for _, m := range mons {
 		if m.Zone == "" {
-			logger.Warningf("zone not found on mon %q", m.DaemonName)
+			log.NamespacedWarning(c.Namespace, logger, "zone not found on mon %q", m.DaemonName)
 			continue
 		}
 		zoneCount[m.Zone]++
@@ -620,12 +622,12 @@ func (c *Cluster) findExtraMonToRemoveFromStretchCluster(mons []*monConfig) stri
 		}
 		if zone.Arbiter {
 			if count > 1 {
-				logger.Infof("removing extra mon %q in arbiter zone %q", monInZones[zone.Name], zone.Name)
+				log.NamespacedInfo(c.Namespace, logger, "removing extra mon %q in arbiter zone %q", monInZones[zone.Name], zone.Name)
 				return monInZones[zone.Name]
 			}
 		} else {
 			if count > 2 {
-				logger.Infof("removing extra mon %q in zone %q", monInZones[zone.Name], zone.Name)
+				log.NamespacedInfo(c.Namespace, logger, "removing extra mon %q in zone %q", monInZones[zone.Name], zone.Name)
 				return monInZones[zone.Name]
 			}
 		}
@@ -639,69 +641,69 @@ func (c *Cluster) findExtraMonToRemoveFromStretchCluster(mons []*monConfig) stri
 func (c *Cluster) failMon(monCount, desiredMonCount int, name string) bool {
 	// make sure the failed mon is marked out of quorum
 	if _, err := c.trackMonInOrOutOfQuorum(name, false); err != nil {
-		logger.Errorf("failed to track failed mon %q. %v", name, err)
+		log.NamespacedError(c.Namespace, logger, "failed to track failed mon %q. %v", name, err)
 	}
 
 	if monCount > desiredMonCount {
 		// no need to create a new mon since we have an extra
 		if err := c.removeMon(name); err != nil {
-			logger.Errorf("failed to remove mon %q. %v", name, err)
+			log.NamespacedError(c.Namespace, logger, "failed to remove mon %q. %v", name, err)
 		}
 		return true
 	}
 
 	// prevent any voluntary mon drain while failing over
 	if err := c.blockMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
-		logger.Errorf("failed to block mon drain. %v", err)
+		log.NamespacedError(c.Namespace, logger, "failed to block mon drain. %v", err)
 	}
 
 	// bring up a new mon to replace the unhealthy mon
 	if err := c.failoverMon(name); err != nil {
-		logger.Errorf("failed to failover mon %q. %v", name, err)
+		log.NamespacedError(c.Namespace, logger, "failed to failover mon %q. %v", name, err)
 	}
 
 	// allow any voluntary mon drain after failover
 	if err := c.allowMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
-		logger.Errorf("failed to allow mon drain. %v", err)
+		log.NamespacedError(c.Namespace, logger, "failed to allow mon drain. %v", err)
 	}
 	return true
 }
 
 func (c *Cluster) removeOrphanMonResources() {
 	if c.spec.Mon.VolumeClaimTemplate == nil {
-		logger.Debug("skipping check for orphaned mon pvcs since using the host path")
+		log.NamespacedDebug(c.Namespace, logger, "skipping check for orphaned mon pvcs since using the host path")
 		return
 	}
 
-	logger.Info("checking for orphaned mon resources")
+	log.NamespacedInfo(c.Namespace, logger, "checking for orphaned mon resources")
 
 	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)}
 	pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(c.ClusterInfo.Context, opts)
 	if err != nil {
-		logger.Infof("failed to check for orphaned mon pvcs. %v", err)
+		log.NamespacedInfo(c.Namespace, logger, "failed to check for orphaned mon pvcs. %v", err)
 		return
 	}
 
 	for _, pvc := range pvcs.Items {
-		logger.Debugf("checking if pvc %q is orphaned", pvc.Name)
+		log.NamespacedDebug(c.Namespace, logger, "checking if pvc %q is orphaned", pvc.Name)
 
 		_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(c.ClusterInfo.Context, pvc.Name, metav1.GetOptions{})
 		if err == nil {
-			logger.Debugf("skipping pvc removal since the mon daemon %q still requires it", pvc.Name)
+			log.NamespacedDebug(c.Namespace, logger, "skipping pvc removal since the mon daemon %q still requires it", pvc.Name)
 			continue
 		}
 		if !kerrors.IsNotFound(err) {
-			logger.Infof("skipping pvc removal since the mon daemon %q might still require it. %v", pvc.Name, err)
+			log.NamespacedInfo(c.Namespace, logger, "skipping pvc removal since the mon daemon %q might still require it. %v", pvc.Name, err)
 			continue
 		}
 
-		logger.Infof("removing pvc %q since it is no longer needed for the mon daemon", pvc.Name)
+		log.NamespacedInfo(c.Namespace, logger, "removing pvc %q since it is no longer needed for the mon daemon", pvc.Name)
 		var gracePeriod int64 // delete immediately
 		propagation := metav1.DeletePropagationForeground
 		options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 		err = c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(c.ClusterInfo.Context, pvc.Name, *options)
 		if err != nil {
-			logger.Warningf("failed to delete orphaned monitor pvc %q. %v", pvc.Name, err)
+			log.NamespacedWarning(c.Namespace, logger, "failed to delete orphaned monitor pvc %q. %v", pvc.Name, err)
 		}
 	}
 }
@@ -722,7 +724,7 @@ func (c *Cluster) updateMonDeploymentReplica(name string, enabled bool) error {
 	d.Spec.Replicas = &desiredReplicas
 
 	// update the deployment
-	logger.Infof("scaling the mon %q deployment to replica %d", name, desiredReplicas)
+	log.NamespacedInfo(c.Namespace, logger, "scaling the mon %q deployment to replica %d", name, desiredReplicas)
 	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Update(c.ClusterInfo.Context, d, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to update mon %q replicas from %d to %d", name, originalReplicas, desiredReplicas)
@@ -731,7 +733,7 @@ func (c *Cluster) updateMonDeploymentReplica(name string, enabled bool) error {
 }
 
 func (c *Cluster) failoverMon(name string) error {
-	logger.Infof("Failing over monitor %q", name)
+	log.NamespacedInfo(c.Namespace, logger, "Failing over monitor %q", name)
 
 	// remove the failed mon from a local list of the existing mons for finding a stretch zone
 	existingMons := c.clusterInfoToMonConfigWithExclude(name)
@@ -743,13 +745,13 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// Start a new monitor
 	m := c.newMonConfig(c.maxMonID+1, zone)
-	logger.Infof("starting new mon: %+v", m)
+	log.NamespacedInfo(c.Namespace, logger, "starting new mon: %+v", m)
 
 	// Scale down the failed mon to allow a new one to start
 	if c.stopMonDuringFailover(name) {
 		if err := c.updateMonDeploymentReplica(name, false); err != nil {
 			// attempt to continue with the failover even if the bad mon could not be stopped
-			logger.Warningf("failed to stop mon %q for failover. %v", name, err)
+			log.NamespacedWarning(c.Namespace, logger, "failed to stop mon %q for failover. %v", name, err)
 		}
 	}
 
@@ -761,21 +763,21 @@ func (c *Cluster) failoverMon(name string) error {
 			// do nothing if the new mon was started successfully, the deployment will anyway be deleted
 			return
 		}
-		logger.Warningf("failover of mon %q unsuccessful, cleaning up replacement mon %q", name, m.DaemonName)
+		log.NamespacedWarning(c.Namespace, logger, "failover of mon %q unsuccessful, cleaning up replacement mon %q", name, m.DaemonName)
 		if err := c.updateMonDeploymentReplica(name, true); err != nil {
 			// attempt to continue even if the bad mon could not be restarted
-			logger.Warningf("failed to restart failed mon %q after new mon wouldn't start. %v", name, err)
+			log.NamespacedWarning(c.Namespace, logger, "failed to restart failed mon %q after new mon wouldn't start. %v", name, err)
 		}
 		if err := c.removeMonWithOptionalQuorum(m.DaemonName, newMonMightBeInQuorum); err != nil {
-			logger.Infof("failed to remove mon %q from quorum. %v", m.DaemonName, err)
+			log.NamespacedInfo(c.Namespace, logger, "failed to remove mon %q from quorum. %v", m.DaemonName, err)
 		}
 
 		// Make sure the maxMonID is reverted to its previous value
 		// The maxMonId is committed to a configmap immediately after the mon deployment
 		// is started, even though c.maxMonID is not incremented until the mon failover is successful
-		logger.Infof("reverting maxMonId to %d", c.maxMonID)
+		log.NamespacedInfo(c.Namespace, logger, "reverting maxMonId to %d", c.maxMonID)
 		if err := c.commitMaxMonIDRequireIncrementing(c.maxMonID, false); err != nil {
-			logger.Errorf("failed to revert maxMonId after starting mon %q", m.DaemonName)
+			log.NamespacedError(c.Namespace, logger, "failed to revert maxMonId after starting mon %q", m.DaemonName)
 		}
 	}()
 
@@ -803,7 +805,7 @@ func (c *Cluster) failoverMon(name string) error {
 			if err != nil {
 				return errors.Wrapf(err, "failed to export service %q", monService.Name)
 			}
-			logger.Infof("mon %q exported IP is %s", m.DaemonName, exportedIP)
+			log.NamespacedInfo(c.Namespace, logger, "mon %q exported IP is %s", m.DaemonName, exportedIP)
 			m.PublicIP = exportedIP
 		} else {
 			m.PublicIP = monService.Spec.ClusterIP
@@ -846,7 +848,7 @@ func (c *Cluster) stopMonDuringFailover(name string) bool {
 	if mon, ok := c.monsToFailover[name]; ok && !mon.UseHostNetwork {
 		return true
 	}
-	logger.Infof("skipping stopping mon %q during failover, since with host networking a new mon cannot be started on the same node", name)
+	log.NamespacedInfo(c.Namespace, logger, "skipping stopping mon %q during failover, since with host networking a new mon cannot be started on the same node", name)
 	return false
 }
 
@@ -858,15 +860,15 @@ func (c *Cluster) removeMon(daemonName string) error {
 // make a best effort to remove the mon and all its resources
 func (c *Cluster) removeMonWithOptionalQuorum(daemonName string, shouldRemoveFromQuorum bool) error {
 	if daemonName == "" {
-		logger.Info("did not identify a mon to remove")
+		log.NamespacedInfo(c.Namespace, logger, "did not identify a mon to remove")
 		return nil
 	}
-	logger.Infof("ensuring removal of unhealthy monitor %s", daemonName)
+	log.NamespacedInfo(c.Namespace, logger, "ensuring removal of unhealthy monitor %s", daemonName)
 
 	// Remove the bad monitor from quorum
 	if shouldRemoveFromQuorum {
 		if err := c.removeMonitorFromQuorum(daemonName); err != nil {
-			logger.Errorf("failed to remove mon %q from quorum. %v", daemonName, err)
+			log.NamespacedError(c.Namespace, logger, "failed to remove mon %q from quorum. %v", daemonName, err)
 		}
 	}
 	delete(c.ClusterInfo.InternalMonitors, daemonName)
@@ -899,39 +901,39 @@ func (c *Cluster) removeMonResources(daemonName string) {
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(c.ClusterInfo.Context, resourceName, *options); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Infof("dead mon service %s was already gone", resourceName)
+			log.NamespacedInfo(c.Namespace, logger, "dead mon service %s was already gone", resourceName)
 		} else {
-			logger.Errorf("failed to remove dead mon service %q. %v", resourceName, err)
+			log.NamespacedError(c.Namespace, logger, "failed to remove dead mon service %q. %v", resourceName, err)
 		}
 	}
 
 	// Remove the PVC backing the mon if it existed
 	if err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(c.ClusterInfo.Context, resourceName, metav1.DeleteOptions{}); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Infof("mon pvc did not exist %q", resourceName)
+			log.NamespacedInfo(c.Namespace, logger, "mon pvc did not exist %q", resourceName)
 		} else {
-			logger.Errorf("failed to remove dead mon pvc %q. %v", resourceName, err)
+			log.NamespacedError(c.Namespace, logger, "failed to remove dead mon pvc %q. %v", resourceName, err)
 		}
 	}
 
 	// Remove the mon pod if it is still there
 	if err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Delete(c.ClusterInfo.Context, resourceName, *options); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Infof("dead mon %s was already gone", resourceName)
+			log.NamespacedInfo(c.Namespace, logger, "dead mon %s was already gone", resourceName)
 		} else {
-			logger.Errorf("failed to remove dead mon deployment %q. %v", resourceName, err)
+			log.NamespacedError(c.Namespace, logger, "failed to remove dead mon deployment %q. %v", resourceName, err)
 		}
 	}
 }
 
 func (c *Cluster) removeMonitorFromQuorum(name string) error {
-	logger.Debugf("removing monitor %s", name)
+	log.NamespacedDebug(c.Namespace, logger, "removing monitor %s", name)
 	args := []string{"mon", "remove", name}
 	if _, err := cephclient.NewCephCommand(c.context, c.ClusterInfo, args).Run(); err != nil {
 		return errors.Wrapf(err, "mon %s remove failed", name)
 	}
 
-	logger.Infof("removed monitor %s", name)
+	log.NamespacedInfo(c.Namespace, logger, "removed monitor %s", name)
 	return nil
 }
 
@@ -969,11 +971,11 @@ func (c *Cluster) addOrRemoveExternalMonitor(status cephclient.MonStatusResponse
 		oldClusterInfoMonitors[mon.Name] = mon
 		delete(c.ClusterInfo.InternalMonitors, monName)
 	}
-	logger.Debugf("ClusterInfo is now Empty, refilling it from status.MonMap.Mons")
+	log.NamespacedDebug(c.Namespace, logger, "ClusterInfo is now Empty, refilling it from status.MonMap.Mons")
 
 	monCount := len(status.MonMap.Mons)
 	if monCount == 1 {
-		logger.Warning("external cluster mon count is 1, consider adding new monitors.")
+		log.NamespacedWarning(c.Namespace, logger, "external cluster mon count is 1, consider adding new monitors.")
 	}
 
 	// Iterate over the mons first and compare it with ClusterInfo
@@ -984,25 +986,25 @@ func (c *Cluster) addOrRemoveExternalMonitor(status cephclient.MonStatusResponse
 			// If the mon is part of the quorum
 			if inQuorum {
 				info := c.monStatusToInfo(mon)
-				logger.Infof("new external mon %q found: %s, adding it", mon.Name, info.Endpoint)
+				log.NamespacedInfo(c.Namespace, logger, "new external mon %q found: %s, adding it", mon.Name, info.Endpoint)
 				c.ClusterInfo.InternalMonitors[mon.Name] = info
 			} else {
-				logger.Debugf("mon %q is not in quorum and not in ClusterInfo", mon.Name)
+				log.NamespacedDebug(c.Namespace, logger, "mon %q is not in quorum and not in ClusterInfo", mon.Name)
 			}
 			changed = true
 		} else {
 			// mon is in ClusterInfo
-			logger.Debugf("mon %q is in ClusterInfo, let's test if it's in quorum", mon.Name)
+			log.NamespacedDebug(c.Namespace, logger, "mon %q is in ClusterInfo, let's test if it's in quorum", mon.Name)
 			if !inQuorum {
 				// this mon was in clusterInfo but is not part of the quorum anymore
 				// thus don't add it again to ClusterInfo
-				logger.Infof("monitor %q is not part of the external cluster monitor quorum, removing it", mon.Name)
+				log.NamespacedInfo(c.Namespace, logger, "monitor %q is not part of the external cluster monitor quorum, removing it", mon.Name)
 				changed = true
 			} else {
 				// this mon was in clusterInfo and is still in the quorum
 				// add it again
 				c.ClusterInfo.InternalMonitors[mon.Name] = oldClusterInfoMonitors[mon.Name]
-				logger.Debugf("everything is fine mon %q in the clusterInfo and its quorum status is %v", mon.Name, inQuorum)
+				log.NamespacedDebug(c.Namespace, logger, "everything is fine mon %q in the clusterInfo and its quorum status is %v", mon.Name, inQuorum)
 			}
 		}
 	}
@@ -1019,7 +1021,7 @@ func (c *Cluster) addOrRemoveExternalMonitor(status cephclient.MonStatusResponse
 		}
 	}
 
-	logger.Debugf("ClusterInfo.Monitors is %+v", c.ClusterInfo.InternalMonitors)
+	log.NamespacedDebug(c.Namespace, logger, "ClusterInfo.Monitors is %+v", c.ClusterInfo.InternalMonitors)
 	return changed, nil
 }
 
@@ -1041,11 +1043,11 @@ func (c *Cluster) monStatusToInfo(mon cephclient.MonMapEntry) *cephclient.MonInf
 
 func (c *Cluster) evictMonIfMultipleOnSameNode() error {
 	if c.spec.Mon.AllowMultiplePerNode {
-		logger.Debug("skipping check for multiple mons on same node since multiple mons are allowed")
+		log.NamespacedDebug(c.Namespace, logger, "skipping check for multiple mons on same node since multiple mons are allowed")
 		return nil
 	}
 
-	logger.Info("checking if multiple mons are on the same node")
+	log.NamespacedInfo(c.Namespace, logger, "checking if multiple mons are on the same node")
 
 	// Get all the mon pods
 	label := fmt.Sprintf("app=%s", AppName)
@@ -1056,13 +1058,13 @@ func (c *Cluster) evictMonIfMultipleOnSameNode() error {
 
 	nodesToMons := map[string]string{}
 	for _, pod := range pods.Items {
-		logger.Debugf("analyzing mon pod %q on node %q", pod.Name, pod.Spec.NodeName)
+		log.NamespacedDebug(c.Namespace, logger, "analyzing mon pod %q on node %q", pod.Name, pod.Spec.NodeName)
 		if _, ok := pod.Labels["mon_canary"]; ok {
-			logger.Debugf("skipping mon canary pod %q", pod.Name)
+			log.NamespacedDebug(c.Namespace, logger, "skipping mon canary pod %q", pod.Name)
 			continue
 		}
 		if pod.Spec.NodeName == "" {
-			logger.Warningf("mon %q is not assigned to a node", pod.Name)
+			log.NamespacedWarning(c.Namespace, logger, "mon %q is not assigned to a node", pod.Name)
 			continue
 		}
 		monName := pod.Labels["mon"]
@@ -1073,7 +1075,7 @@ func (c *Cluster) evictMonIfMultipleOnSameNode() error {
 			continue
 		}
 
-		logger.Warningf("Both mons %q and %q are on node %q. Evicting mon %q", monName, previousMonName, pod.Spec.NodeName, monName)
+		log.NamespacedWarning(c.Namespace, logger, "Both mons %q and %q are on node %q. Evicting mon %q", monName, previousMonName, pod.Spec.NodeName, monName)
 		return c.failoverMon(monName)
 	}
 

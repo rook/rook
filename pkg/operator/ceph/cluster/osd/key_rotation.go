@@ -25,6 +25,7 @@ import (
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -247,7 +248,7 @@ func (c *Cluster) reconcileKeyRotationCronJob() error {
 			}
 			return nil
 		}
-		logger.Debugf("successfully deleted key rotation cron jobs")
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "successfully deleted key rotation cron jobs")
 
 		return nil
 	}
@@ -259,7 +260,7 @@ func (c *Cluster) reconcileKeyRotationCronJob() error {
 		return errors.Wrap(err, "failed to query existing OSD deployments")
 	}
 
-	logger.Debugf("found %d osd deployments", len(deployments.Items))
+	log.NamespacedDebug(c.clusterInfo.Namespace, logger, "found %d osd deployments", len(deployments.Items))
 	for i := range deployments.Items {
 		osdDep := deployments.Items[i]
 		osd, err := c.getOSDInfo(&osdDep)
@@ -279,7 +280,7 @@ func (c *Cluster) reconcileKeyRotationCronJob() error {
 			continue
 		}
 
-		logger.Infof("starting OSD key rotation cron job for osd %d", osd.ID)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "starting OSD key rotation cron job for osd %d", osd.ID)
 		cj, err := c.makeKeyRotationCronJob(pvcName, osd, osdProps)
 		if err != nil {
 			return errors.Wrap(err, "failed to make key rotation cron job")
@@ -294,9 +295,9 @@ func (c *Cluster) reconcileKeyRotationCronJob() error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to create or update key rotation cron job %q", cj.Name)
 		}
-		logger.Infof("started OSD key rotation cron job %q", cj.Name)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "started OSD key rotation cron job %q", cj.Name)
 	}
-	logger.Infof("successfully started OSD key rotation cron jobs")
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "successfully started OSD key rotation cron jobs")
 
 	return nil
 }

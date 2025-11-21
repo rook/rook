@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/util/log"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "telemetry")
@@ -53,8 +54,8 @@ var CSIVersion string
 func ReportKeyValue(context *clusterd.Context, clusterInfo *client.ClusterInfo, key, value string) {
 	ms := config.GetMonStore(context, clusterInfo)
 	if err := ms.SetKeyValue(key, value); err != nil {
-		logger.Warningf("failed to set telemetry key %q. %v", key, err)
+		log.NamespacedWarning(clusterInfo.Namespace, logger, "failed to set telemetry key %q. %v", key, err)
 		return
 	}
-	logger.Debugf("set telemetry key: %s=%s", key, value)
+	log.NamespacedDebug(clusterInfo.Namespace, logger, "set telemetry key: %s=%s", key, value)
 }

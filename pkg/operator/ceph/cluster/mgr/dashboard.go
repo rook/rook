@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -91,7 +92,7 @@ func (c *Cluster) configureDashboardModules() error {
 		}
 	} else {
 		if err := client.MgrDisableModule(c.context, c.clusterInfo, dashboardModuleName); err != nil {
-			logger.Errorf("failed to disable mgr dashboard module. %v", err)
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to disable mgr dashboard module. %v", err)
 		}
 		return nil
 	}
@@ -106,7 +107,7 @@ func (c *Cluster) configureDashboardModules() error {
 		return err
 	}
 	if secureRequiresRestart || configChanged {
-		logger.Info("dashboard config has changed. restarting the dashboard module")
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard config has changed. restarting the dashboard module")
 		return c.restartMgrModule(dashboardModuleName)
 	}
 	return nil
@@ -131,16 +132,16 @@ func (c *Cluster) deleteManagerDaemonConfiguration() bool {
 		for _, key := range mgrKeysToDelete {
 			err := monStore.Delete(mgrDaemonID, key)
 			if err != nil {
-				logger.Errorf("failed to delete configuration entry %q %q, err: %v", mgrDaemonID, key, err)
+				log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to delete configuration entry %q %q, err: %v", mgrDaemonID, key, err)
 				success = false
 			}
 		}
 	}
 
 	if success {
-		logger.Info("All per-daemon mgr configuration has been deleted successfully.")
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "All per-daemon mgr configuration has been deleted successfully.")
 	} else {
-		logger.Error("At least one delete operation failed while trying to delete per-daemon mgr configuration.")
+		log.NamespacedError(c.clusterInfo.Namespace, logger, "At least one delete operation failed while trying to delete per-daemon mgr configuration.")
 	}
 
 	return success
@@ -236,10 +237,10 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 	args := []string{"config-key", "get", "mgr/dashboard/crt"}
 	output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
 	if err == nil && len(output) > 0 {
-		logger.Info("dashboard is already initialized with a cert")
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard is already initialized with a cert")
 		return true, nil
 	}
-	logger.Debugf("dashboard cert does not appear to exist. err=%v", err)
+	log.NamespacedDebug(c.clusterInfo.Namespace, logger, "dashboard cert does not appear to exist. err=%v", err)
 
 	// create a self-signed cert for the https connections
 	args = []string{"dashboard", "create-self-signed-cert"}
@@ -248,14 +249,14 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 	for i := 0; i < 5; i++ {
 		_, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
 		if err == context.DeadlineExceeded {
-			logger.Warning("cert creation timed out. trying again")
+			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "cert creation timed out. trying again")
 			continue
 		}
 		if err != nil {
 			exitCode, parsed := c.exitCode(err)
 			if parsed {
 				if exitCode == invalidArgErrorCode {
-					logger.Info("dashboard module is not ready yet. trying again")
+					log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard module is not ready yet. trying again")
 					time.Sleep(dashboardInitWaitTime)
 					continue
 				}
@@ -263,16 +264,16 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 				return false, errors.Wrap(err, "failed to create self signed cert on mgr")
 			}
 		}
-		logger.Info("dashboard cert created")
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard cert created")
 		return false, nil
 	}
-	logger.Info("dashboard cert creation exceeded retries")
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard cert creation exceeded retries")
 	return false, nil
 }
 
 func (c *Cluster) setLoginCredentials(password string) error {
 	// Set the login credentials. Write the command/args to the debug log so we don't write the password by default to the log.
-	logger.Infof("setting ceph dashboard %q login creds", dashboardUsername)
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "setting ceph dashboard %q login creds", dashboardUsername)
 
 	var args []string
 	// for latest Ceph versions
@@ -284,7 +285,7 @@ func (c *Cluster) setLoginCredentials(password string) error {
 
 	defer func() {
 		if err := os.Remove(file.Name()); err != nil {
-			logger.Errorf("failed to clean up dashboard password file %q. %v", file.Name(), err)
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to clean up dashboard password file %q. %v", file.Name(), err)
 		}
 	}()
 
@@ -314,14 +315,14 @@ func (c *Cluster) setLoginCredentials(password string) error {
 		return errors.Wrapf(err, "failed to set password for user %q", dashboardUsername)
 	}
 
-	logger.Info("successfully set ceph dashboard creds")
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "successfully set ceph dashboard creds")
 	return nil
 }
 
 func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 	secret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, dashboardPasswordName, metav1.GetOptions{})
 	if err == nil {
-		logger.Info("the dashboard secret was already generated")
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "the dashboard secret was already generated")
 		return decodeSecret(secret)
 	}
 	if !kerrors.IsNotFound(err) {

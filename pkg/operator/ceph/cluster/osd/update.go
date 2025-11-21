@@ -26,6 +26,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -85,14 +86,14 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 	if !c.cluster.spec.SkipUpgradeChecks && c.cluster.spec.UpgradeOSDRequiresHealthyPGs {
 		pgHealthMsg, pgClean, err := cephclient.IsClusterClean(c.cluster.context, c.cluster.clusterInfo, c.cluster.spec.DisruptionManagement.PGHealthyRegex)
 		if err != nil {
-			logger.Warningf("failed to check PGs status to update OSDs, will try updating it again later. %v", err)
+			log.NamespacedWarning(c.cluster.clusterInfo.Namespace, logger, "failed to check PGs status to update OSDs, will try updating it again later. %v", err)
 			return
 		}
 		if !pgClean {
-			logger.Infof("PGs are not healthy to update OSDs, will try updating it again later. PGs status: %q", pgHealthMsg)
+			log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "PGs are not healthy to update OSDs, will try updating it again later. PGs status: %q", pgHealthMsg)
 			return
 		}
-		logger.Infof("PGs are healthy to proceed updating OSDs. %v", pgHealthMsg)
+		log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "PGs are healthy to proceed updating OSDs. %v", pgHealthMsg)
 	}
 
 	osdIDQuery, _ := c.queue.Pop()
@@ -102,7 +103,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 	if c.cluster.spec.SkipUpgradeChecks || !shouldCheckOkToStopFunc(c.cluster.context, c.cluster.clusterInfo) {
 		// If we should not check ok-to-stop, then only process one OSD at a time. There are likely
 		// less than 3 OSDs in the cluster or the cluster is on a single node. E.g., in CI :wink:.
-		logger.Infof("skipping osd checks for ok-to-stop")
+		log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "skipping osd checks for ok-to-stop")
 		osdIDs = []int{osdIDQuery}
 	} else {
 		osdMaxUpdatesInParallel := c.cluster.spec.Storage.OSDMaxUpdatesInParallel
@@ -112,29 +113,29 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		osdIDs, err = cephclient.OSDOkToStop(c.cluster.context, c.cluster.clusterInfo, osdIDQuery, osdMaxUpdatesInParallel)
 		if err != nil {
 			if c.cluster.spec.ContinueUpgradeAfterChecksEvenIfNotHealthy {
-				logger.Infof("OSD %d is not ok-to-stop but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so continuing to update it", osdIDQuery)
+				log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "OSD %d is not ok-to-stop but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so continuing to update it", osdIDQuery)
 				osdIDs = []int{osdIDQuery} // make sure to update the queried OSD
 			} else {
-				logger.Infof("OSD %d is not ok-to-stop. will try updating it again later", osdIDQuery)
+				log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "OSD %d is not ok-to-stop. will try updating it again later", osdIDQuery)
 				c.queue.Push(osdIDQuery) // push back onto queue to make sure we retry it later
 				return
 			}
 		}
 	}
 
-	logger.Debugf("updating OSDs: %v", osdIDs)
+	log.NamespacedDebug(c.cluster.clusterInfo.Namespace, logger, "updating OSDs: %v", osdIDs)
 
 	updatedDeployments := make([]*appsv1.Deployment, 0, len(osdIDs))
 	listIDs := []string{} // use this to build the k8s api selector query
 	for _, osdID := range osdIDs {
 		if !c.deployments.Exists(osdID) {
-			logger.Debugf("not updating deployment for OSD %d that is newly created", osdID)
+			log.NamespacedDebug(c.cluster.clusterInfo.Namespace, logger, "not updating deployment for OSD %d that is newly created", osdID)
 			continue
 		}
 
 		// osdIDQuery which has been popped off the queue but it does need to be updated
 		if osdID != osdIDQuery && !c.queue.Exists(osdID) {
-			logger.Debugf("not updating deployment for OSD %d that is not in the update queue. the OSD has already been updated", osdID)
+			log.NamespacedDebug(c.cluster.clusterInfo.Namespace, logger, "not updating deployment for OSD %d that is not in the update queue. the OSD has already been updated", osdID)
 			continue
 		}
 
@@ -152,7 +153,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		c.osdDesiredState[osdID] = &osdInfo
 
 		if c.osdsToSkipReconcile.Has(strconv.Itoa(osdID)) {
-			logger.Warningf("Skipping update for OSD %d since labeled with %s", osdID, cephv1.SkipReconcileLabelKey)
+			log.NamespacedWarning(c.cluster.clusterInfo.Namespace, logger, "Skipping update for OSD %d since labeled with %s", osdID, cephv1.SkipReconcileLabelKey)
 			continue
 		}
 
@@ -162,7 +163,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		if osdInfo.DeviceClass == "" || osdInfo.DeviceClass == "None" {
 			deviceClassInfo, err := cephclient.OSDDeviceClasses(c.cluster.context, c.cluster.clusterInfo, []string{strconv.Itoa(osdID)})
 			if err != nil {
-				logger.Errorf("failed to get device class for existing deployment %q. %v", depName, err)
+				log.NamespacedError(c.cluster.clusterInfo.Namespace, logger, "failed to get device class for existing deployment %q. %v", depName, err)
 			} else {
 				osdInfo.DeviceClass = deviceClassInfo[0].DeviceClass
 			}
@@ -188,14 +189,14 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		}
 
 		if osdIsOnPVC(dep) {
-			logger.Infof("updating OSD %d on PVC %q", osdID, nodeOrPVCName)
+			log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "updating OSD %d on PVC %q", osdID, nodeOrPVCName)
 			updatedDep, err = deploymentOnPVCFunc(c.cluster, &osdInfo, nodeOrPVCName, c.provisionConfig)
 			message := fmt.Sprintf("Processing OSD %d on PVC %q", osdID, nodeOrPVCName)
 			updateConditionFunc(c.cluster.clusterInfo.Context, c.cluster.context, c.cluster.clusterInfo.NamespacedName(), k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 		} else {
 			if !c.cluster.ValidStorage.NodeExists(nodeOrPVCName) {
 				// node will not reconcile, so don't update the deployment
-				logger.Warningf(
+				log.NamespacedWarning(c.cluster.clusterInfo.Namespace, logger,
 					"not updating OSD %d on node %q. node no longer exists in the storage spec. "+
 						"if the user wishes to remove OSDs from the node, they must do so manually. "+
 						"Rook will not remove OSDs from nodes that are removed from the storage spec in order to prevent accidental data loss",
@@ -203,7 +204,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 				continue
 			}
 
-			logger.Infof("updating OSD %d on node %q", osdID, nodeOrPVCName)
+			log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "updating OSD %d on node %q", osdID, nodeOrPVCName)
 			updatedDep, err = deploymentOnNodeFunc(c.cluster, &osdInfo, nodeOrPVCName, c.provisionConfig)
 			message := fmt.Sprintf("Processing OSD %d on node %q", osdID, nodeOrPVCName)
 			updateConditionFunc(c.cluster.clusterInfo.Context, c.cluster.context, c.cluster.clusterInfo.NamespacedName(), k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
@@ -424,7 +425,7 @@ func (c *Cluster) rotateCephxKey(osdInfo OSDInfo) (cephv1.CephxStatus, error) {
 		return didNotRotateCephxStatus, nil
 	}
 
-	logger.Infof("rotating cephx key of OSD %d for CephCluster in namespace %q", osdInfo.ID, c.clusterInfo.Namespace)
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "rotating cephx key of OSD %d for CephCluster in namespace %q", osdInfo.ID, c.clusterInfo.Namespace)
 	user := fmt.Sprintf("osd.%d", osdInfo.ID)
 	// Note: OSD key is not stored in k8s secret; rotated key is picked up by OSD init container
 	_, err = cephclient.AuthRotate(c.context, c.clusterInfo, user)
@@ -435,7 +436,7 @@ func (c *Cluster) rotateCephxKey(osdInfo OSDInfo) (cephv1.CephxStatus, error) {
 	// rotating the `client.osd-lockbox.$OSD_UUID` keys created for luks-encrypted OSDs by ceph-volume
 	if osdInfo.Encrypted {
 		osdLockBoxUser := fmt.Sprintf("client.osd-lockbox.%s", osdInfo.UUID)
-		logger.Infof("rotating osd-lockbox cephx key of encrypted OSD %d for CephCluster in namespace %q", osdInfo.ID, c.clusterInfo.Namespace)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "rotating osd-lockbox cephx key of encrypted OSD %d for CephCluster in namespace %q", osdInfo.ID, c.clusterInfo.Namespace)
 		_, err = cephclient.AuthRotate(c.context, c.clusterInfo, osdLockBoxUser)
 		if err != nil {
 			return didNotRotateCephxStatus, errors.Wrapf(err, "failed to rotate osd-lockbox cephx key for the encrypted OSD %d", osdInfo.ID)

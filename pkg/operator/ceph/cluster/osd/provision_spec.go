@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -365,13 +366,13 @@ func (c *Cluster) deleteAllOrphanedPrepareJobs() {
 	}
 	jobs, err := c.context.Clientset.BatchV1().Jobs(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
 	if err != nil {
-		logger.Warningf("failed to clean up any orphaned OSD prepare jobs. failed to list OSD prepare jobs. %v", err)
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to clean up any orphaned OSD prepare jobs. failed to list OSD prepare jobs. %v", err)
 		return
 	}
 
 	nodes, err := c.context.Clientset.CoreV1().Nodes().List(c.clusterInfo.Context, metav1.ListOptions{})
 	if err != nil {
-		logger.Warningf("failed to clean up any orphaned OSD prepare jobs. failed to list nodes. %v", err)
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to clean up any orphaned OSD prepare jobs. failed to list nodes. %v", err)
 		return
 	}
 
@@ -387,9 +388,9 @@ func (c *Cluster) deleteAllOrphanedPrepareJobs() {
 		nodeSelector := job.Spec.Template.Spec.NodeSelector
 		if jobHostName, ok := nodeSelector[k8sutil.LabelHostname()]; ok {
 			if !hostNames.Has(jobHostName) {
-				logger.Infof("cleaning up orphaned OSD prepare job %q.", job.Name)
+				log.NamespacedInfo(c.clusterInfo.Namespace, logger, "cleaning up orphaned OSD prepare job %q.", job.Name)
 				if err := c.context.Clientset.BatchV1().Jobs(c.clusterInfo.Namespace).Delete(c.clusterInfo.Context, job.Name, metav1.DeleteOptions{}); err != nil {
-					logger.Warningf("failed to clean up OSD prepare job %q. %v", job.Name, err)
+					log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to clean up OSD prepare job %q. %v", job.Name, err)
 				}
 			}
 		}

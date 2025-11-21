@@ -31,6 +31,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -168,7 +169,7 @@ func (r *ReconcileCephRBDMirror) Reconcile(context context.Context, request reco
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed set ready failure status to the cephRBDMirror %q", request.NamespacedName)
 		}
-		logger.Errorf("failed to reconcile %v", err)
+		log.NamespacedError(request.Namespace, logger, "failed to reconcile %v", err)
 	}
 
 	return reporting.ReportReconcileResult(logger, r.recorder, request, &cephRBDMirror, reconcileResponse, err)
@@ -180,7 +181,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephRBDMirror)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("cephRBDMirror resource not found. Ignoring since object must be deleted.")
+			log.NamespacedDebug(request.Namespace, logger, "cephRBDMirror resource not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, *cephRBDMirror, nil
 		}
 		// Error reading the object - requeue the request.
@@ -213,7 +214,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	// Make sure a CephCluster is present otherwise do nothing
 	cephCluster, isReadyToReconcile, _, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
-		logger.Debugf("CephCluster resource not ready in namespace %q, retrying in %q.", request.NamespacedName.Namespace, reconcileResponse.RequeueAfter.String())
+		log.NamedDebug(request.NamespacedName, logger, "CephCluster resource not ready, retrying in %q.", reconcileResponse.RequeueAfter.String())
 		return reconcileResponse, *cephRBDMirror, nil
 	}
 	r.cephClusterSpec = &cephCluster.Spec
@@ -238,7 +239,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-			logger.Info(opcontroller.OperatorNotInitializedMessage)
+			log.NamespacedInfo(request.Namespace, logger, opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephRBDMirror, nil
 		}
 		return reconcile.Result{}, *cephRBDMirror, errors.Wrap(err, "failed to detect running and desired ceph version")
@@ -256,7 +257,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	r.clusterInfo.CephVersion = *runningCephVersion
 
 	// Add bootstrap peer if any
-	logger.Debug("reconciling ceph rbd mirror peers addition")
+	log.NamespacedDebug(request.Namespace, logger, "reconciling ceph rbd mirror peers addition")
 	reconcileResponse, err = r.reconcileAddBootstrapPeer(cephRBDMirror, request.NamespacedName)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, *cephRBDMirror, errors.Wrap(err, "failed to add ceph rbd mirror peer")
@@ -268,11 +269,11 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, *cephRBDMirror, errors.Wrapf(err, "failed to determine if cephx keys should be rotated for the cephRBDMirror %q", request.NamespacedName)
 	}
 	if r.shouldRotateCephxKeys {
-		logger.Infof("cephx keys for CephRBDMirror %q will be rotated", request.NamespacedName)
+		log.NamedInfo(request.NamespacedName, logger, "cephx keys for CephRBDMirror will be rotated")
 	}
 
 	// CREATE/UPDATE
-	logger.Debug("reconciling ceph rbd mirror deployments")
+	log.NamespacedDebug(request.Namespace, logger, "reconciling ceph rbd mirror deployments")
 	reconcileResponse, err = r.reconcileCreateCephRBDMirror(cephRBDMirror)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, *cephRBDMirror, errors.Wrap(err, "failed to create ceph rbd mirror deployments")
@@ -288,7 +289,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Return and do not requeue
-	logger.Debug("done reconciling ceph rbd mirror")
+	log.NamespacedDebug(request.Namespace, logger, "done reconciling ceph rbd mirror")
 	return reconcile.Result{}, *cephRBDMirror, nil
 }
 
@@ -318,7 +319,7 @@ func (r *ReconcileCephRBDMirror) updateStatus(observedGeneration int64, namespac
 		err := r.client.Get(r.opManagerContext, namespacedName, rbdMirror)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debug("CephRBDMirror resource not found. Ignoring since object must be deleted.")
+				log.NamespacedDebug(namespacedName.Namespace, logger, "CephRBDMirror resource not found. Ignoring since object must be deleted.")
 				return nil
 			}
 			return errors.Wrapf(err, "failed to retrieve CephRBDMirror %q to update status to %q", namespacedName, status)
@@ -347,6 +348,6 @@ func (r *ReconcileCephRBDMirror) updateStatus(observedGeneration int64, namespac
 		return err
 	}
 
-	logger.Debugf("successfully updated cephRBDMirror %q status updated to %+v", namespacedName, rbdMirror.Status)
+	log.NamedDebug(namespacedName, logger, "successfully updated cephRBDMirror status updated to %+v", rbdMirror.Status)
 	return nil
 }

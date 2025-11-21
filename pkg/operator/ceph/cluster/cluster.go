@@ -46,6 +46,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	rookversion "github.com/rook/rook/pkg/version"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -104,7 +105,7 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 
 	// Execute actions before the monitors are up and running, if needed during upgrades.
 	// These actions would be skipped in a new cluster.
-	logger.Debug("monitors are about to reconcile, executing pre actions")
+	log.NamespacedDebug(c.Namespace, logger, "monitors are about to reconcile, executing pre actions")
 	err = c.preMonStartupActions(cephVersion)
 	if err != nil {
 		return errors.Wrap(err, "failed to execute actions before reconciling the ceph monitors")
@@ -132,7 +133,7 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 	}
 
 	// Execute actions after the monitors are up and running
-	logger.Debug("monitors are up and running, executing post actions")
+	log.NamespacedDebug(c.Namespace, logger, "monitors are up and running, executing post actions")
 	err = c.postMonStartupActions()
 	if err != nil {
 		return errors.Wrap(err, "failed to execute post actions after all the ceph monitors started")
@@ -147,7 +148,7 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 	}
 
 	// Execute actions after the managers are up and running
-	logger.Debug("managers are up and running, executing post actions")
+	log.NamespacedDebug(c.Namespace, logger, "managers are up and running, executing post actions")
 	err = c.postMgrStartupActions()
 	if err != nil {
 		return errors.Wrap(err, "failed to execute post actions after all the ceph managers started")
@@ -168,7 +169,7 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 		}
 	}
 
-	logger.Infof("done reconciling ceph cluster in namespace %q", c.Namespace)
+	log.NamespacedInfo(c.Namespace, logger, "done reconciling ceph cluster")
 
 	// We should be done updating by now
 	if c.isUpgrade {
@@ -186,7 +187,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 	cleanDataDirHostPath := path.Clean(cluster.Spec.DataDirHostPath)
 	for _, b := range disallowedHostDirectories {
 		if cleanDataDirHostPath == b {
-			logger.Errorf("dataDirHostPath (given: %q) must not be used, conflicts with %q internal path", cluster.Spec.DataDirHostPath, b)
+			log.NamespacedError(cluster.Namespace, logger, "dataDirHostPath (given: %q) must not be used, conflicts with %q internal path", cluster.Spec.DataDirHostPath, b)
 			return nil
 		}
 	}
@@ -202,7 +203,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 		clusterInfo, _, _, err := controller.LoadClusterInfo(c.context, c.OpManagerCtx, cluster.Namespace, cluster.Spec)
 		if err != nil {
 			if errors.Is(err, controller.ClusterInfoNoClusterNoSecret) {
-				logger.Info("clusterInfo not yet found, must be a new cluster.")
+				log.NamespacedInfo(cluster.Namespace, logger, "clusterInfo not yet found, must be a new cluster.")
 				// ClusterInfoNoClusterNoSecret should return nil clusterInfo, but this is a
 				// mandatory condition for recoverPriorAdminCephxKeyRotation() below, so ensure it
 				clusterInfo = nil
@@ -216,7 +217,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 			if cluster.mons.ClusterInfo == nil {
 				// ClusterInfo stored in cluster.mons can be lost from the object stored in the
 				// clusterMap during admin key rotation corner cases. rehydrate it if needed
-				logger.Debugf("applying missing ClusterInfo to tracked mons info for cluster in namespace %q", cluster.Namespace)
+				log.NamespacedDebug(cluster.Namespace, logger, "applying missing ClusterInfo to tracked mons info")
 				cluster.mons.ClusterInfo = clusterInfo
 			}
 		}
@@ -301,7 +302,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 // Validate the cluster Specs
 func preClusterStartValidation(cluster *cluster) error {
 	if cluster.Spec.Mon.Count == 0 {
-		logger.Warningf("mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
+		log.NamespacedWarning(cluster.Namespace, logger, "mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
 		cluster.Spec.Mon.Count = mon.DefaultMonCount
 	}
 	if !cluster.Spec.Mon.AllowMultiplePerNode {
@@ -328,7 +329,7 @@ func preClusterStartValidation(cluster *cluster) error {
 		}
 	}
 
-	logger.Debug("cluster spec successfully validated")
+	log.NamespacedDebug(cluster.Namespace, logger, "cluster spec successfully validated")
 	return nil
 }
 
@@ -391,7 +392,7 @@ func (c *cluster) replaceDefaultReplicationRule(newRoot string) error {
 			//   CRUSH root
 			// in both cases, we cannot do anything about it either way and
 			// we’ll assume that the user knows what they’re doing.
-			logger.Warning("replicated_rule is in use, not replaced")
+			log.NamespacedWarning(c.Namespace, logger, "replicated_rule is in use, not replaced")
 			return nil
 		}
 		// the error does not refer to EBUSY -> return as error
@@ -432,7 +433,7 @@ func (c *cluster) removeDefaultCrushRoot() error {
 				//
 				// in all cases, we cannot do anything about it either way and
 				// we’ll assume that the user knows what they’re doing.
-				logger.Debug("default is not empty or is still in use, not removed")
+				log.NamespacedDebug(c.Namespace, logger, "default is not empty or is still in use, not removed")
 				return nil
 			}
 		}
@@ -446,19 +447,19 @@ func (c *cluster) removeDefaultCrushRoot() error {
 // Those objects may interfere with the normal operation of the cluster.
 // Note that errors which indicate that the objects are in use are ignored and the objects will continue to exist in that case.
 func (c *cluster) replaceDefaultCrushMap(newRoot string) (err error) {
-	logger.Info("creating new CRUSH root if it does not exist")
+	log.NamespacedInfo(c.Namespace, logger, "creating new CRUSH root if it does not exist")
 	err = c.createCrushRoot(newRoot)
 	if err != nil {
 		return errors.Wrap(err, "failed to create CRUSH root")
 	}
 
-	logger.Info("replacing default replicated_rule CRUSH rule for use of non-default CRUSH root")
+	log.NamespacedInfo(c.Namespace, logger, "replacing default replicated_rule CRUSH rule for use of non-default CRUSH root")
 	err = c.replaceDefaultReplicationRule(newRoot)
 	if err != nil {
 		return errors.Wrap(err, "failed to replace default rule")
 	}
 
-	logger.Info("replacing default CRUSH node if applicable")
+	log.NamespacedInfo(c.Namespace, logger, "replacing default CRUSH node if applicable")
 	err = c.removeDefaultCrushRoot()
 	if err != nil {
 		return errors.Wrap(err, "failed to remove default CRUSH root")
@@ -589,12 +590,12 @@ func (c *cluster) configureStorageSettings() error {
 func (c *cluster) setClusterFullRatio(ratioCommand string, desiredRatio *float64, actualRatio float64) error {
 	if !shouldUpdateFloatSetting(desiredRatio, actualRatio) {
 		if desiredRatio != nil {
-			logger.Infof("desired value %s=%.2f is already set", ratioCommand, *desiredRatio)
+			log.NamespacedInfo(c.Namespace, logger, "desired value %s=%.2f is already set", ratioCommand, *desiredRatio)
 		}
 		return nil
 	}
 	desiredStringVal := fmt.Sprintf("%.2f", *desiredRatio)
-	logger.Infof("updating %s from %.2f to %s", ratioCommand, actualRatio, desiredStringVal)
+	log.NamespacedInfo(c.Namespace, logger, "updating %s from %.2f to %s", ratioCommand, actualRatio, desiredStringVal)
 	args := []string{"osd", ratioCommand, desiredStringVal}
 	cephCmd := client.NewCephCommand(c.context, c.ClusterInfo, args)
 	output, err := cephCmd.Run()
@@ -648,7 +649,7 @@ func (c *cluster) reportTelemetry() {
 }
 
 func reportClusterTelemetry(c *cluster) {
-	logger.Info("reporting cluster telemetry")
+	log.NamespacedInfo(c.Namespace, logger, "reporting cluster telemetry")
 
 	// Identify this as a rook cluster for Ceph telemetry by setting the Rook version.
 	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.RookVersionKey, rookversion.Version)
@@ -656,7 +657,7 @@ func reportClusterTelemetry(c *cluster) {
 	// Report the K8s version
 	serverVersion, err := c.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
-		logger.Warningf("failed to report the K8s server version. %v", err)
+		log.NamespacedWarning(c.Namespace, logger, "failed to report the K8s server version. %v", err)
 	} else {
 		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.K8sVersionKey, serverVersion.String())
 	}
@@ -699,13 +700,13 @@ func reportClusterTelemetry(c *cluster) {
 }
 
 func reportNodeTelemetry(c *cluster) {
-	logger.Info("reporting node telemetry")
+	log.NamespacedInfo(c.Namespace, logger, "reporting node telemetry")
 	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 
 	// Report the K8sNodeCount
 	nodelist, err := c.context.Clientset.CoreV1().Nodes().List(c.ClusterInfo.Context, metav1.ListOptions{})
 	if err != nil {
-		logger.Warningf("failed to report the K8s node count. %v", err)
+		log.NamespacedWarning(c.Namespace, logger, "failed to report the K8s node count. %v", err)
 	} else {
 		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.K8sNodeCount, strconv.Itoa(len(nodelist.Items)))
 	}
@@ -717,7 +718,7 @@ func reportNodeTelemetry(c *cluster) {
 		listoption := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, nodedaemon.CrashCollectorAppName)}
 		cephNodeList, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(c.ClusterInfo.Context, listoption)
 		if err != nil {
-			logger.Warningf("failed to report the ceph node count. %v", err)
+			log.NamespacedWarning(c.Namespace, logger, "failed to report the ceph node count. %v", err)
 		} else {
 			telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.CephNodeCount, strconv.Itoa(len(cephNodeList.Items)))
 		}
@@ -726,7 +727,7 @@ func reportNodeTelemetry(c *cluster) {
 	listoption := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, csi.CsiRBDPlugin)}
 	cephRbdNodelist, err := c.context.Clientset.CoreV1().Pods(operatorNamespace).List(c.ClusterInfo.Context, listoption)
 	if err != nil {
-		logger.Warningf("failed to report the ceph rbd node count. %v", err)
+		log.NamespacedWarning(c.Namespace, logger, "failed to report the ceph rbd node count. %v", err)
 	} else {
 		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.RBDNodeCount, strconv.Itoa(len(cephRbdNodelist.Items)))
 	}
@@ -735,7 +736,7 @@ func reportNodeTelemetry(c *cluster) {
 	listoption = metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, csi.CsiCephFSPlugin)}
 	cephFSNodelist, err := c.context.Clientset.CoreV1().Pods(operatorNamespace).List(c.ClusterInfo.Context, listoption)
 	if err != nil {
-		logger.Warningf("failed to report the ceph cephfs node count. %v", err)
+		log.NamespacedWarning(c.Namespace, logger, "failed to report the ceph cephfs node count. %v", err)
 	} else {
 		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.CephFSNodeCount, strconv.Itoa(len(cephFSNodelist.Items)))
 	}
@@ -744,7 +745,7 @@ func reportNodeTelemetry(c *cluster) {
 	listoption = metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, csi.CsiNFSPlugin)}
 	cephNFSNodelist, err := c.context.Clientset.CoreV1().Pods(operatorNamespace).List(c.ClusterInfo.Context, listoption)
 	if err != nil {
-		logger.Warningf("failed to report the ceph nfs node count. %v", err)
+		log.NamespacedWarning(c.Namespace, logger, "failed to report the ceph nfs node count. %v", err)
 	} else {
 		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.NFSNodeCount, strconv.Itoa(len(cephNFSNodelist.Items)))
 	}
@@ -764,7 +765,7 @@ func (c *cluster) configureMsgr2() error {
 	encryptionEnabled := c.Spec.NetworkEncryptionEnabled()
 
 	if encryptionEnabled {
-		logger.Infof("setting msgr2 encryption mode to %q", encryptionSetting)
+		log.NamespacedInfo(c.Namespace, logger, "setting msgr2 encryption mode to %q", encryptionSetting)
 		if err := monStore.SetAll("global", encryptionGlobalConfigSettings); err != nil {
 			return err
 		}
@@ -797,7 +798,7 @@ func (c *cluster) configureMsgr2() error {
 		globalConfigSettings := map[string]string{
 			"ms_osd_compress_mode": "force",
 		}
-		logger.Infof("setting msgr2 compression mode to %q", "force")
+		log.NamespacedInfo(c.Namespace, logger, "setting msgr2 compression mode to %q", "force")
 		if err := monStore.SetAll("global", globalConfigSettings); err != nil {
 			return err
 		}
@@ -819,9 +820,9 @@ func (c *cluster) fetchCephConfigFromSecrets() (map[string]map[string]string, er
 					key, module, selector.LocalObjectReference.Name, err)
 			}
 
-			logger.Debugf("setting Ceph config key %q in module %q from secret %q",
+			log.NamespacedDebug(c.Namespace, logger, "setting Ceph config key %q in module %q from secret %q",
 				key, module, selector.LocalObjectReference.Name)
-			logger.Tracef("setting Ceph config key %q in module %q to value %q from secret %q",
+			log.NamespacedTrace(c.Namespace, logger, "setting Ceph config key %q in module %q to value %q from secret %q",
 				key, module, val, selector.LocalObjectReference.Name)
 			result[module][key] = val
 		}
@@ -851,7 +852,7 @@ func (c *cluster) fetchSecretValue(selector v1.SecretKeySelector) (string, error
 func initClusterCephxStatus(c *cluster) error {
 	initErr := c.ClusterInfo.IsInitialized()
 	if initErr == nil {
-		logger.Debugf("not setting uninitialized cephx status on already initialized CephCluster in namespace %q", c.Namespace)
+		log.NamespacedDebug(c.Namespace, logger, "not setting uninitialized cephx status on already initialized CephCluster")
 		return nil
 	}
 	if c.ClusterInfo.Context.Err() != nil {
@@ -874,7 +875,7 @@ func initClusterCephxStatus(c *cluster) error {
 		}
 
 		uninitializedStatus := keyring.UninitializedCephxStatus()
-		logger.Infof("initializing cephx status for CephCluster in namespace %q", c.Namespace)
+		log.NamespacedInfo(c.Namespace, logger, "initializing cephx status")
 		clusterObj.Status.Cephx = cephv1.ClusterCephxStatus{
 			Mon: uninitializedStatus,
 			Mgr: uninitializedStatus,
@@ -901,9 +902,9 @@ func (c *cluster) deleteBootstrapKeys() {
 	for _, bootstrapkey := range bootstrapKeys {
 		err := client.AuthDelete(c.context, c.ClusterInfo, bootstrapkey)
 		if err != nil {
-			logger.Debugf("failed to delete bootstrap key %q in the namespace %q. Error: %v", bootstrapkey, c.Namespace, err)
+			log.NamespacedDebug(c.Namespace, logger, "failed to delete bootstrap key %q. Error: %v", bootstrapkey, err)
 		} else {
-			logger.Infof("successfully deleted bootstrap key %q in the namespace %q", bootstrapkey, c.Namespace)
+			log.NamespacedInfo(c.Namespace, logger, "successfully deleted bootstrap key %q", bootstrapkey)
 		}
 	}
 }

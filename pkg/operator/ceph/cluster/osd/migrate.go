@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -94,7 +95,7 @@ func (m *migrationConfig) migrateForEncryption(c *Cluster, osdDeployments *appsv
 			if err != nil {
 				return errors.Wrapf(err, "failed to details about the OSD %q", osdDeployments.Items[i].Name)
 			}
-			logger.Infof("migration is required for OSD.%d due to change in encryption settings from %t to %t in storageClassDeviceSet %q", osdInfo.ID, actualEncryptedSetting, requestedEncryptionSetting, osdDeviceSetName)
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "migration is required for OSD.%d due to change in encryption settings from %t to %t in storageClassDeviceSet %q", osdInfo.ID, actualEncryptedSetting, requestedEncryptionSetting, osdDeviceSetName)
 			if _, exists := m.osds[osdInfo.ID]; !exists {
 				m.osds[osdInfo.ID] = &osdInfo
 			}
@@ -113,7 +114,7 @@ func (m *migrationConfig) migrateForOSDStore(c *Cluster, osdDeployments *appsv1.
 				if err != nil {
 					return errors.Wrapf(err, "failed to details about the OSD %q", osdDeployments.Items[i].Name)
 				}
-				logger.Infof("migration is required for OSD.%d to update storeType from %q to %q", osdInfo.ID, osdStore, desiredOSDStore)
+				log.NamespacedInfo(c.clusterInfo.Namespace, logger, "migration is required for OSD.%d to update storeType from %q to %q", osdInfo.ID, osdStore, desiredOSDStore)
 				if _, exists := m.osds[osdInfo.ID]; !exists {
 					m.osds[osdInfo.ID] = &osdInfo
 				}
@@ -185,12 +186,12 @@ func isLastOSDMigrationComplete(c *Cluster) (bool, error) {
 	_, err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, deploymentName, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Infof("deployment for the last migrated OSD with ID - %d is not found.", migratedOSDId)
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "deployment for the last migrated OSD with ID - %d is not found.", migratedOSDId)
 			return false, nil
 		}
 	}
 
-	logger.Infof("migration of OSD.%d was successful", migratedOSDId)
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "migration of OSD.%d was successful", migratedOSDId)
 	return true, nil
 }
 
@@ -205,7 +206,7 @@ func getLastMigratedOSDId(context *clusterd.Context, clusterInfo *cephclient.Clu
 
 	osdID, ok := cm.Data[OSDIdKey]
 	if !ok || osdID == "" {
-		logger.Debugf("empty config map %q", OSDMigrationConfigName)
+		log.NamespacedDebug(clusterInfo.Namespace, logger, "empty config map %q", OSDMigrationConfigName)
 		return -1, nil
 	}
 

@@ -38,6 +38,7 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/log"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -206,47 +207,47 @@ func (c *Cluster) validateOSDSettings() error {
 }
 
 func (c *Cluster) validateTopologyAcrossNodes() error {
-	logger.Info("Starting validateTopologyAcrossNodes()")
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "Starting validateTopologyAcrossNodes()")
 	if os.Getenv("ROOK_SKIP_OSD_TOPOLOGY_CHECK") == "true" {
-		logger.Debugf("Skipping topology validation due to ROOK_SKIP_OSD_TOPOLOGY_CHECK=true")
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "Skipping topology validation due to ROOK_SKIP_OSD_TOPOLOGY_CHECK=true")
 		return nil
 	}
 	if topologyValidated {
-		logger.Debug("Skipping topology validation because it was already validated")
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "Skipping topology validation because it was already validated")
 		return nil
 	}
 
-	logger.Info("Validating node topology across all cluster nodes")
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "Validating node topology across all cluster nodes")
 
 	nodelist, err := c.context.Clientset.CoreV1().Nodes().List(c.clusterInfo.Context, metav1.ListOptions{})
 	if err != nil {
-		logger.Errorf("Failed to list nodes for topology validation: %v", err)
+		log.NamespacedError(c.clusterInfo.Namespace, logger, "Failed to list nodes for topology validation: %v", err)
 		return errors.Wrap(err, "failed to list nodes for topology validation")
 	}
-	logger.Infof("Fetched nodelist with %d nodes", len(nodelist.Items))
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "Fetched nodelist with %d nodes", len(nodelist.Items))
 
 	if err := topology.CheckTopologyConflicts(&nodelist.Items); err != nil {
-		logger.Infof("Topology conflict detected: %v", err)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "Topology conflict detected: %v", err)
 		// Check if there are any existing OSDs
 		osdRunning, errPods := k8sutil.PodsRunningWithLabel(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, "app=rook-ceph-osd")
 		if errPods != nil {
-			logger.Errorf("Failed to list OSD pods: %v", errPods)
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "Failed to list OSD pods: %v", errPods)
 			return errPods // fail safe
 		}
-		logger.Infof("Found %d existing OSDs", osdRunning)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "Found %d existing OSDs", osdRunning)
 		if osdRunning == 0 {
-			logger.Errorf("Topology conflict detected in new cluster: %v", err)
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "Topology conflict detected in new cluster: %v", err)
 			return errors.Wrap(err, "topology conflict detected in new cluster")
 		}
 
 		// Existing OSDs found — log and continue
-		logger.Warningf("Topology conflict detected, but skipping failure since OSDs already exist. %v", err)
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "Topology conflict detected, but skipping failure since OSDs already exist. %v", err)
 		return nil
 	}
 
-	logger.Info("Node topology validation passed without conflicts")
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "Node topology validation passed without conflicts")
 	topologyValidated = true
-	logger.Info("validateTopologyAcrossNodes() completed successfully")
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "validateTopologyAcrossNodes() completed successfully")
 	return nil
 }
 
@@ -265,10 +266,10 @@ func (c *Cluster) Start() error {
 	if err := c.initializeNodeConfigmaps(); err != nil {
 		return err
 	}
-	logger.Infof("start running osds in namespace %q", namespace)
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "start running osds in namespace %q", namespace)
 
 	if !c.spec.Storage.UseAllNodes && len(c.spec.Storage.Nodes) == 0 && len(c.spec.Storage.StorageClassDeviceSets) == 0 {
-		logger.Warningf("useAllNodes is set to false and no nodes, storageClassDevicesets or volumeSources are specified, no OSD pods are going to be created")
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "useAllNodes is set to false and no nodes, storageClassDevicesets or volumeSources are specified, no OSD pods are going to be created")
 	}
 
 	if c.spec.WaitTimeoutForHealthyOSDInMinutes != 0 {
@@ -276,11 +277,11 @@ func (c *Cluster) Start() error {
 	} else {
 		c.clusterInfo.OsdUpgradeTimeout = defaultWaitTimeoutForHealthyOSD
 	}
-	logger.Infof("wait timeout for healthy OSDs during upgrade or restart is %q", c.clusterInfo.OsdUpgradeTimeout)
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "wait timeout for healthy OSDs during upgrade or restart is %q", c.clusterInfo.OsdUpgradeTimeout)
 
 	osdsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.clusterInfo.Context, c.context, c.clusterInfo.Namespace, OsdIdLabelKey, AppName)
 	if err != nil {
-		logger.Warningf("failed to get osds to skip reconcile. %v", err)
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to get osds to skip reconcile. %v", err)
 	}
 
 	migrationConfig, err := c.startOSDMigration()
@@ -301,20 +302,20 @@ func (c *Cluster) Start() error {
 		}
 	}
 
-	logger.Debugf("%d of %d OSD Deployments need update", updateQueue.Len(), deployments.Len())
+	log.NamespacedDebug(c.clusterInfo.Namespace, logger, "%d of %d OSD Deployments need update", updateQueue.Len(), deployments.Len())
 	updateConfig := c.newUpdateConfig(config, updateQueue, deployments, osdsToSkipReconcile)
 
 	// prepare for creating new OSDs
 	statusConfigMaps := sets.New[string]()
 
-	logger.Info("start provisioning the OSDs on PVCs, if needed")
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "start provisioning the OSDs on PVCs, if needed")
 	pvcConfigMaps, err := c.startProvisioningOverPVCs(config, errs)
 	if err != nil {
 		return err
 	}
 	statusConfigMaps = statusConfigMaps.Union(pvcConfigMaps)
 
-	logger.Info("start provisioning the OSDs on nodes, if needed")
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "start provisioning the OSDs on nodes, if needed")
 	nodeConfigMaps, err := c.startProvisioningOverNodes(config, errs)
 	if err != nil {
 		return err
@@ -360,26 +361,26 @@ func (c *Cluster) Start() error {
 	// remove the osdBootstrapKey as the osds are running
 	c.deleteOsdBootstrapKeyring()
 
-	logger.Infof("finished running OSDs in namespace %q", namespace)
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "finished running OSDs in namespace %q", namespace)
 	return nil
 }
 
 func (c *Cluster) deleteOsdBootstrapKeyring() {
 	err := cephclient.AuthDelete(c.context, c.clusterInfo, "client.bootstrap-osd")
 	if err != nil {
-		logger.Debugf("failed to delete client.bootstrap-osd bootstrap key in the namespace %q. Error: %v", c.clusterInfo.Namespace, err)
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "failed to delete client.bootstrap-osd bootstrap key in the namespace %q. Error: %v", c.clusterInfo.Namespace, err)
 	} else {
-		logger.Debugf("successfully deleted client.bootstrap-osd bootstrap key in the namespace %q", c.clusterInfo.Namespace)
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "successfully deleted client.bootstrap-osd bootstrap key in the namespace %q", c.clusterInfo.Namespace)
 	}
 }
 
 func (c *Cluster) startOSDMigration() (*migrationConfig, error) {
 	if !c.isMigrationRequested() {
-		logger.Debug("no OSD migration is requested")
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "no OSD migration is requested")
 		return nil, nil
 	}
 
-	logger.Info("osd migration is requested")
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "osd migration is requested")
 
 	// start migration only if PGs are active+clean
 	pgsHealhty, err := c.waitForHealthyPGs()
@@ -409,7 +410,7 @@ func (c *Cluster) startOSDMigration() (*migrationConfig, error) {
 	// delete deployment of the osd that needs migration
 	if migrationConfig != nil && len(migrationConfig.osds) > 0 {
 		osdToMigrate := migrationConfig.getOSDToMigrate()
-		logger.Infof("deleting OSD.%d deployment for migration ", osdToMigrate.ID)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "deleting OSD.%d deployment for migration ", osdToMigrate.ID)
 		err = c.deleteOSDDeployment(osdToMigrate.ID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to delete deployment for osd.%d that needs migration %q", osdToMigrate.ID, c.clusterInfo.Namespace)
@@ -437,13 +438,13 @@ func (c *Cluster) postReconcileUpdateOSDProperties(desiredOSDs map[int]*OSDInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get osd usage")
 	}
-	logger.Debugf("post processing osd properties with %d actual osds from ceph osd df and %d existing osds found during reconcile", len(osdUsage.OSDNodes), len(desiredOSDs))
+	log.NamespacedDebug(c.clusterInfo.Namespace, logger, "post processing osd properties with %d actual osds from ceph osd df and %d existing osds found during reconcile", len(osdUsage.OSDNodes), len(desiredOSDs))
 	for _, actualOSD := range osdUsage.OSDNodes {
 		if c.spec.Storage.AllowOsdCrushWeightUpdate {
 			_, err := cephclient.ResizeOsdCrushWeight(actualOSD, c.context, c.clusterInfo)
 			if err != nil {
 				// Log the error and allow other updates to continue
-				logger.Errorf("failed to resize osd crush weight on cluster in namespace %s: %v", c.clusterInfo.Namespace, err)
+				log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to resize osd crush weight on cluster in namespace %s: %v", c.clusterInfo.Namespace, err)
 			}
 		}
 
@@ -453,7 +454,7 @@ func (c *Cluster) postReconcileUpdateOSDProperties(desiredOSDs map[int]*OSDInfo)
 		}
 		if err := c.updateDeviceClassIfChanged(actualOSD.ID, desiredOSD.DeviceClass, actualOSD.DeviceClass); err != nil {
 			// Log the error and allow other updates to continue
-			logger.Errorf("failed to update device class on cluster in namespace %s: %v", c.clusterInfo.Namespace, err)
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to update device class on cluster in namespace %s: %v", c.clusterInfo.Namespace, err)
 		}
 	}
 
@@ -466,14 +467,14 @@ func (c *Cluster) updateDeviceClassIfChanged(osdID int, desiredDeviceClass, actu
 		return nil
 	}
 	if desiredDeviceClass != "" && desiredDeviceClass != actualDeviceClass {
-		logger.Infof("updating osd.%d device class from %q to %q", osdID, actualDeviceClass, desiredDeviceClass)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "updating osd.%d device class from %q to %q", osdID, actualDeviceClass, desiredDeviceClass)
 		err := cephclient.SetDeviceClass(c.context, c.clusterInfo, osdID, desiredDeviceClass)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set device class on osd %d", osdID)
 		}
 		return nil
 	}
-	logger.Debugf("no device class change needed for osd.%d. desired=%q, actual=%q", osdID, desiredDeviceClass, actualDeviceClass)
+	log.NamespacedDebug(c.clusterInfo.Namespace, logger, "no device class change needed for osd.%d. desired=%q, actual=%q", osdID, desiredDeviceClass, actualDeviceClass)
 	return nil
 }
 
@@ -584,21 +585,21 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 		// The data PVC template is required.
 		dataSource, dataOK := deviceSet.PVCSources[bluestorePVCData]
 		if !dataOK {
-			logger.Warningf("failed to find data source daemon for device set %q, missing the data template", deviceSet.Name)
+			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to find data source daemon for device set %q, missing the data template", deviceSet.Name)
 			continue
 		}
 
 		if pvcName == dataSource.ClaimName {
 			metadataSource, metadataOK := deviceSet.PVCSources[bluestorePVCMetadata]
 			if metadataOK {
-				logger.Infof("OSD will have its main bluestore block on %q and its metadata device on %q", dataSource.ClaimName, metadataSource.ClaimName)
+				log.NamespacedInfo(c.clusterInfo.Namespace, logger, "OSD will have its main bluestore block on %q and its metadata device on %q", dataSource.ClaimName, metadataSource.ClaimName)
 			} else {
-				logger.Infof("OSD will have its main bluestore block on %q", dataSource.ClaimName)
+				log.NamespacedInfo(c.clusterInfo.Namespace, logger, "OSD will have its main bluestore block on %q", dataSource.ClaimName)
 			}
 
 			walSource, walOK := deviceSet.PVCSources[bluestorePVCWal]
 			if walOK {
-				logger.Infof("OSD will have its wal device on %q", walSource.ClaimName)
+				log.NamespacedInfo(c.clusterInfo.Namespace, logger, "OSD will have its wal device on %q", walSource.ClaimName)
 			}
 
 			if deviceSet.Resources.Limits == nil && deviceSet.Resources.Requests == nil {
@@ -670,7 +671,7 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 	for _, pod := range pods.Items {
 		name, err := k8sutil.GetNodeHostName(c.clusterInfo.Context, c.context.Clientset, pod.Spec.NodeName)
 		if err != nil {
-			logger.Warningf("falling back to node name %s since hostname not found for node", pod.Spec.NodeName)
+			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "falling back to node name %s since hostname not found for node", pod.Spec.NodeName)
 			name = pod.Spec.NodeName
 		}
 		if name == "" {
@@ -754,7 +755,7 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	// If CVMode is empty, this likely means we upgraded Rook
 	// This property did not exist before so we need to initialize it
 	if osd.CVMode == "" {
-		logger.Infof("required CVMode for OSD %d was not found. assuming this is an LVM OSD", osd.ID)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "required CVMode for OSD %d was not found. assuming this is an LVM OSD", osd.ID)
 		osd.CVMode = "lvm"
 	}
 
@@ -762,7 +763,7 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	if isPVC && osd.TopologyAffinity == "" {
 		osd.TopologyAffinity, err = getTopologyFromNode(c.clusterInfo.Context, c.context.Clientset, d, osd)
 		if err != nil {
-			logger.Errorf("failed to get topology affinity for osd %d. %v", osd.ID, err)
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to get topology affinity for osd %d. %v", osd.ID, err)
 		}
 	}
 
@@ -772,7 +773,7 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	if !locationFound {
 		location, _, err := getLocationFromPod(c.clusterInfo.Context, c.context.Clientset, d, cephclient.GetCrushRootFromSpec(&c.spec))
 		if err != nil {
-			logger.Errorf("failed to get location. %v", err)
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to get location. %v", err)
 		} else {
 			osd.Location = location
 		}
@@ -884,7 +885,7 @@ func getTopologyFromNode(ctx context.Context, clientset kubernetes.Interface, d 
 		// osd is not portable, no need to load the topology affinity
 		return "", nil
 	}
-	logger.Infof("detecting topology affinity for osd %d after upgrade", osd.ID)
+	log.NamespacedInfo(d.Namespace, logger, "detecting topology affinity for osd %d after upgrade", osd.ID)
 
 	// Get the osd pod and its assigned node, then look up the node labels
 	pods, err := clientset.CoreV1().Pods(d.Namespace).List(ctx, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OsdIdLabelKey, d.Labels[OsdIdLabelKey])})
@@ -903,7 +904,7 @@ func getTopologyFromNode(ctx context.Context, clientset kubernetes.Interface, d 
 		return "", errors.Wrap(err, "failed to get the node for topology affinity")
 	}
 	_, topologyAffinity := topology.ExtractOSDTopologyFromLabels(node.Labels)
-	logger.Infof("found osd %d topology affinity at %q", osd.ID, topologyAffinity)
+	log.NamespacedInfo(d.Namespace, logger, "found osd %d topology affinity at %q", osd.ID, topologyAffinity)
 	return topologyAffinity, nil
 }
 
@@ -984,7 +985,7 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 	// Get all the daemons versions
 	versions, err := cephclient.GetAllCephDaemonVersions(c.context, c.clusterInfo)
 	if err != nil {
-		logger.Warningf("failed to get ceph daemons versions; this likely means there are no osds yet. %v", err)
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to get ceph daemons versions; this likely means there are no osds yet. %v", err)
 		return
 	}
 
@@ -997,7 +998,7 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 		for v := range versions.Osd {
 			osdVersion, err = cephver.ExtractCephVersion(v)
 			if err != nil {
-				logger.Warningf("failed to extract ceph version. %v", err)
+				log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to extract ceph version. %v", err)
 				return
 			}
 			// Ensure the required version of OSDs is set to the current consistent version,
@@ -1005,7 +1006,7 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 			// previous major ceph version.
 			err = cephclient.EnableReleaseOSDFunctionality(c.context, c.clusterInfo, osdVersion.ReleaseName())
 			if err != nil {
-				logger.Warningf("failed to enable new osd functionality. %v", err)
+				log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to enable new osd functionality. %v", err)
 				return
 			}
 		}
@@ -1016,12 +1017,12 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 func (c *Cluster) deleteOSDDeployment(osdID int) error {
 	// Delete the OSD deployment
 	deploymentName := fmt.Sprintf("rook-ceph-osd-%d", osdID)
-	logger.Infof("removing the OSD deployment %q", deploymentName)
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "removing the OSD deployment %q", deploymentName)
 	if err := k8sutil.DeleteDeployment(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, deploymentName); err != nil {
 		if !kerrors.IsNotFound(err) {
 			return errors.Wrapf(err, "failed to delete OSD deployment %q.", deploymentName)
 		}
-		logger.Debugf("osd deployment %q not found. Ignoring since object must be deleted.", deploymentName)
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "osd deployment %q not found. Ignoring since object must be deleted.", deploymentName)
 	}
 	return nil
 }
@@ -1035,7 +1036,7 @@ func (c *Cluster) waitForHealthyPGs() (bool, error) {
 		if pgClean {
 			return true, nil
 		}
-		logger.Infof("waiting for PGs to be healthy. PG status: %q", pgHealthMsg)
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "waiting for PGs to be healthy. PG status: %q", pgHealthMsg)
 		return false, nil
 	}
 
@@ -1083,7 +1084,7 @@ func (c *Cluster) updateCephOsdStorageStatus() error {
 		err := c.context.Client.Get(c.clusterInfo.Context, c.clusterInfo.NamespacedName(), &cephCluster)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
+				log.NamespacedDebug(c.clusterInfo.Namespace, logger, "CephCluster resource not found. Ignoring since object must be deleted.")
 				return nil
 			}
 			return errors.Wrapf(err, "failed to retrieve ceph cluster %q to update ceph Storage", c.clusterInfo.NamespacedName().Name)
@@ -1177,7 +1178,7 @@ func (c *Cluster) initializeNodeConfigmaps() error {
 	for _, configmap := range configmaps.Items {
 		if strings.HasPrefix(configmap.Name, prefix) {
 			nodeName := strings.TrimPrefix(configmap.Name, prefix)
-			logger.Infof("found node %q configmap, will mount it for alternate ceph conf overrides for osds on this node", nodeName)
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "found node %q configmap, will mount it for alternate ceph conf overrides for osds on this node", nodeName)
 			c.nodeConfigmaps[nodeName] = struct{}{}
 		}
 	}

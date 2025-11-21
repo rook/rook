@@ -19,6 +19,7 @@ package mgr
 import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	policyv1 "k8s.io/api/policy/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,13 +64,13 @@ func (c *Cluster) deleteMgrPDB() {
 	err := c.context.Client.Get(c.clusterInfo.Context, pdbRequest, mgrPDB)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
-			logger.Errorf("failed to get mgr pdb %q. %v", mgrPDBName, err)
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to get mgr pdb %q. %v", mgrPDBName, err)
 		}
 		return
 	}
-	logger.Debugf("ensuring the mgr pdb %q is deleted", mgrPDBName)
+	log.NamespacedDebug(c.clusterInfo.Namespace, logger, "ensuring the mgr pdb %q is deleted", mgrPDBName)
 	err = c.context.Client.Delete(c.clusterInfo.Context, mgrPDB)
 	if err != nil {
-		logger.Errorf("failed to delete mgr pdb %q. %v", mgrPDBName, err)
+		log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to delete mgr pdb %q. %v", mgrPDBName, err)
 	}
 }

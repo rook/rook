@@ -33,6 +33,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,7 +66,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	if cluster.Spec.CephVersion.Image == "" {
 		err = mon.WriteConnectionConfig(c.context, cluster.ClusterInfo)
 		if err != nil {
-			logger.Errorf("failed to write config. attempting to continue. %v", err)
+			log.NamespacedError(cluster.Namespace, logger, "failed to write config. attempting to continue. %v", err)
 		}
 	}
 
@@ -81,13 +82,13 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		// If we don't do this, daemons will never start, waiting forever for this configmap to be present
 		//
 		// Only do this when doing a bit of management...
-		logger.Infof("creating %q configmap", k8sutil.ConfigOverrideName)
+		log.NamespacedInfo(cluster.Namespace, logger, "creating %q configmap", k8sutil.ConfigOverrideName)
 		err = populateConfigOverrideConfigMap(c.context, cluster.namespacedName.Namespace, cluster.ClusterInfo.OwnerInfo, cluster.clusterMetadata)
 		if err != nil {
 			return errors.Wrap(err, "failed to populate config override config map")
 		}
 
-		logger.Infof("creating %q secret", config.StoreName)
+		log.NamespacedInfo(cluster.Namespace, logger, "creating %q secret", config.StoreName)
 		err = config.GetStore(c.context, cluster.namespacedName.Namespace, cluster.ClusterInfo.OwnerInfo).CreateOrUpdate(cluster.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to update the global config")
@@ -98,7 +99,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	if err := cluster.ClusterInfo.IsInitialized(); err != nil {
 		return errors.Wrap(err, "the cluster identity was not established")
 	}
-	logger.Info("external cluster identity established")
+	log.NamespacedInfo(cluster.Namespace, logger, "external cluster identity established")
 
 	// Create CSI Secrets only if the user has provided the admin key
 	if cluster.ClusterInfo.CephCred.Username == client.AdminUsername {
@@ -117,7 +118,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 				cluster.Spec.Network.Connections = &cephv1.ConnectionsSpec{}
 			}
 			cluster.Spec.Network.Connections.RequireMsgr2 = true
-			logger.Debugf("a v2 port was found for a mon endpoint, so msgr2 is required")
+			log.NamespacedDebug(cluster.Namespace, logger, "a v2 port was found for a mon endpoint, so msgr2 is required")
 			break
 		}
 	}
@@ -136,7 +137,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	if err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
-	logger.Info("successfully updated csi config map")
+	log.NamespacedInfo(cluster.Namespace, logger, "successfully updated csi config map")
 
 	// Create Crash Collector Secret
 	if !cluster.Spec.CrashCollector.Disable {
@@ -177,7 +178,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	}
 
 	if csi.EnableCSIOperator() {
-		logger.Info("create cephConnection and defaultClientProfile for external mode")
+		log.NamespacedInfo(cluster.Namespace, logger, "create cephConnection and defaultClientProfile for external mode")
 		err = csi.CreateUpdateCephConnection(c.context.Client, cluster.ClusterInfo, *cluster.Spec)
 		if err != nil {
 			return errors.Wrap(err, "failed to create/update cephConnection")
@@ -202,7 +203,7 @@ func purgeExternalCluster(clientset kubernetes.Interface, namespace string) {
 	for _, cm := range cmsToDelete {
 		err := clientset.CoreV1().ConfigMaps(namespace).Delete(ctx, cm, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
-			logger.Errorf("failed to delete config map %q. %v", cm, err)
+			log.NamespacedError(namespace, logger, "failed to delete config map %q. %v", cm, err)
 		}
 	}
 
@@ -219,7 +220,7 @@ func purgeExternalCluster(clientset kubernetes.Interface, namespace string) {
 	for _, secret := range secretsToDelete {
 		err := clientset.CoreV1().Secrets(namespace).Delete(ctx, secret, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
-			logger.Errorf("failed to delete secret %q. %v", secret, err)
+			log.NamespacedError(namespace, logger, "failed to delete secret %q. %v", secret, err)
 		}
 	}
 }
@@ -255,12 +256,12 @@ func (c *ClusterController) configureExternalClusterMonitoring(context *clusterd
 	if err != nil {
 		return err
 	}
-	logger.Info("creating mgr external monitoring service")
+	log.NamespacedInfo(cluster.Namespace, logger, "creating mgr external monitoring service")
 	_, err = k8sutil.CreateOrUpdateService(cluster.ClusterInfo.Context, context.Clientset, cluster.Namespace, service)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create or update mgr service")
 	}
-	logger.Info("mgr external metrics service created")
+	log.NamespacedInfo(cluster.Namespace, logger, "mgr external metrics service created")
 
 	// Configure external metrics endpoint
 	err = opcontroller.ConfigureExternalMetricsEndpoint(context, cluster.Spec.Monitoring, cluster.ClusterInfo, cluster.ownerInfo)
@@ -269,13 +270,13 @@ func (c *ClusterController) configureExternalClusterMonitoring(context *clusterd
 	}
 
 	// Deploy external ServiceMonitor
-	logger.Info("creating external service monitor")
+	log.NamespacedInfo(cluster.Namespace, logger, "creating external service monitor")
 	// servicemonitor takes some metadata from the service for easy mapping
 	err = manager.EnableServiceMonitor()
 	if err != nil {
-		logger.Errorf("failed to enable external service monitor. %v", err)
+		log.NamespacedError(cluster.Namespace, logger, "failed to enable external service monitor. %v", err)
 	} else {
-		logger.Info("external service monitor created")
+		log.NamespacedInfo(cluster.Namespace, logger, "external service monitor created")
 	}
 	return nil
 }

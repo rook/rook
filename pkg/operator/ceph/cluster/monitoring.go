@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/util/log"
 )
 
 var monitorDaemonList = []string{"mon", "osd", "status"}
@@ -37,7 +38,7 @@ func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInf
 		if health, ok := cluster.monitoringRoutines.Load(daemon); ok {
 			// If the context Err() is nil this means it hasn't been cancelled yet
 			if health.(*opcontroller.ClusterHealth).InternalCtx.Err() == nil {
-				logger.Debugf("monitoring routine for %q is already running", daemon)
+				log.NamespacedDebug(cluster.Namespace, logger, "monitoring routine for %q is already running", daemon)
 				if !isEnabled {
 					health.(*opcontroller.ClusterHealth).InternalCancel()
 				}
@@ -79,19 +80,19 @@ func (c *ClusterController) startMonitoringCheck(cluster *cluster, clusterInfo *
 	switch daemon {
 	case "mon":
 		healthChecker := mon.NewHealthChecker(cluster.mons)
-		logger.Infof("enabling ceph %s monitoring goroutine for cluster %q", daemon, cluster.Namespace)
+		log.NamespacedInfo(cluster.Namespace, logger, "enabling ceph %s monitoring goroutine", daemon)
 		go healthChecker.Check(&cluster.monitoringRoutines, daemon)
 
 	case "osd":
 		if !cluster.Spec.External.Enable {
 			osdChecker := osd.NewOSDHealthMonitor(c.context, clusterInfo, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove, cluster.Spec.HealthCheck)
-			logger.Infof("enabling ceph %s monitoring goroutine for cluster %q", daemon, cluster.Namespace)
+			log.NamespacedInfo(cluster.Namespace, logger, "enabling ceph %s monitoring goroutine", daemon)
 			go osdChecker.Start(&cluster.monitoringRoutines, daemon)
 		}
 
 	case "status":
 		cephChecker := newCephStatusChecker(c.context, clusterInfo, cluster.Spec)
-		logger.Infof("enabling ceph %s monitoring goroutine for cluster %q", daemon, cluster.Namespace)
+		log.NamespacedInfo(cluster.Namespace, logger, "enabling ceph %s monitoring goroutine", daemon)
 		go cephChecker.checkCephStatus(&cluster.monitoringRoutines, daemon)
 	}
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,7 +35,7 @@ import (
 
 func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv1.CephCluster, tolerations []corev1.Toleration) error {
 	if cephCluster.Spec.CrashCollector.Disable {
-		logger.Debugf("crash collector is disabled in namespace %q so skipping crash retention reconcile", namespace)
+		log.NamespacedDebug(cephCluster.Namespace, logger, "crash collector is disabled in namespace %q so skipping crash retention reconcile", namespace)
 		return nil
 	}
 
@@ -44,27 +45,27 @@ func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv
 	}
 
 	if cephCluster.Spec.CrashCollector.DaysToRetain == 0 {
-		logger.Debug("deleting cronjob if it exists...")
+		log.NamespacedDebug(cephCluster.Namespace, logger, "deleting cronjob if it exists...")
 
 		cronJob := &v1.CronJob{ObjectMeta: objectMeta}
 
 		err := r.client.Delete(r.opManagerContext, cronJob)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debug("cronJob resource not found. Ignoring since object must be deleted.")
+				log.NamespacedDebug(cephCluster.Namespace, logger, "cronJob resource not found. Ignoring since object must be deleted.")
 			} else {
 				return err
 			}
 		} else {
-			logger.Debug("successfully deleted crash pruner cronjob.")
+			log.NamespacedDebug(cephCluster.Namespace, logger, "successfully deleted crash pruner cronjob.")
 		}
 	} else {
-		logger.Debugf("daysToRetain set to: %d", cephCluster.Spec.CrashCollector.DaysToRetain)
+		log.NamespacedDebug(cephCluster.Namespace, logger, "daysToRetain set to: %d", cephCluster.Spec.CrashCollector.DaysToRetain)
 		op, err := r.createOrUpdateCephCron(cephCluster, tolerations)
 		if err != nil {
 			return errors.Wrapf(err, "node reconcile failed on op %q", op)
 		}
-		logger.Debugf("cronjob successfully reconciled. operation: %q", op)
+		log.NamespacedDebug(cephCluster.Namespace, logger, "cronjob successfully reconciled. operation: %q", op)
 	}
 	return nil
 }
