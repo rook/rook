@@ -48,9 +48,11 @@ var (
 	Squid = CephVersion{19, 0, 0, 0, ""}
 	// Tentacle ceph version
 	Tentacle = CephVersion{20, 0, 0, 0, ""}
+	// Urchin ceph version
+	Urchin = CephVersion{21, 0, 0, 0, ""}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions = []CephVersion{Reef, Squid}
+	supportedVersions = []CephVersion{Reef, Squid, Tentacle}
 
 	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
 	unsupportedVersions []CephVersion
@@ -90,6 +92,8 @@ func (v *CephVersion) ReleaseName() string {
 		return "squid"
 	case Tentacle.Major:
 		return "tentacle"
+	case Urchin.Major:
+		return "urchin"
 	default:
 		return unknownVersionString
 	}
@@ -165,21 +169,6 @@ func (v *CephVersion) isExactly(other CephVersion) bool {
 	return v.Major == other.Major && v.Minor == other.Minor && v.Extra == other.Extra
 }
 
-// IsReef checks if the Ceph version is Reef
-func (v *CephVersion) IsReef() bool {
-	return v.isRelease(Reef)
-}
-
-// IsSquid checks if the Ceph version is Squid
-func (v *CephVersion) IsSquid() bool {
-	return v.isRelease(Squid)
-}
-
-// IsTentacle checks if the Ceph version is Tentacle
-func (v *CephVersion) IsTentacle() bool {
-	return v.isRelease(Tentacle)
-}
-
 // IsAtLeast checks a given Ceph version is at least a given one
 func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 	if v.Major > other.Major {
@@ -206,6 +195,11 @@ func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 // IsAtLeastTentacle checks that the Ceph version is at least Tentacle
 func (v *CephVersion) IsAtLeastTentacle() bool {
 	return v.IsAtLeast(Tentacle)
+}
+
+// IsAtLeastUrchin checks that the Ceph version is at least Urchin
+func (v *CephVersion) IsAtLeastUrchin() bool {
+	return v.IsAtLeast(Urchin)
 }
 
 // IsAtLeastSquid checks that the Ceph version is at least Squid

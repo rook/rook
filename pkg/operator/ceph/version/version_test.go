@@ -101,7 +101,7 @@ func TestSupported(t *testing.T) {
 	for _, v := range supportedVersions {
 		assert.True(t, v.Supported())
 	}
-	assert.False(t, Tentacle.Supported())
+	assert.False(t, Urchin.Supported())
 }
 
 func TestIsRelease(t *testing.T) {
@@ -116,13 +116,11 @@ func TestIsRelease(t *testing.T) {
 	assert.True(t, ReefUpdate.isRelease(Reef))
 }
 
-func TestIsReleaseX(t *testing.T) {
-	assert.False(t, Squid.IsReef())
-}
-
 func TestVersionAtLeast(t *testing.T) {
 	assert.True(t, Squid.IsAtLeast(Squid))
 	assert.True(t, Squid.IsAtLeast(Reef))
+	assert.True(t, Tentacle.IsAtLeast(Tentacle))
+	assert.True(t, Tentacle.IsAtLeast(Squid))
 
 	assert.True(t, (&CephVersion{1, 0, 0, 0, ""}).IsAtLeast(CephVersion{0, 0, 0, 0, ""}))
 	assert.False(t, (&CephVersion{0, 0, 0, 0, ""}).IsAtLeast(CephVersion{1, 0, 0, 0, ""}))
