@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephRBDMirrorLister helps list CephRBDMirrors.
@@ -30,7 +30,7 @@ import (
 type CephRBDMirrorLister interface {
 	// List lists all CephRBDMirrors in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephRBDMirror, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephRBDMirror, err error)
 	// CephRBDMirrors returns an object that can list and get CephRBDMirrors.
 	CephRBDMirrors(namespace string) CephRBDMirrorNamespaceLister
 	CephRBDMirrorListerExpansion
@@ -38,17 +38,17 @@ type CephRBDMirrorLister interface {
 
 // cephRBDMirrorLister implements the CephRBDMirrorLister interface.
 type cephRBDMirrorLister struct {
-	listers.ResourceIndexer[*v1.CephRBDMirror]
+	listers.ResourceIndexer[*cephrookiov1.CephRBDMirror]
 }
 
 // NewCephRBDMirrorLister returns a new CephRBDMirrorLister.
 func NewCephRBDMirrorLister(indexer cache.Indexer) CephRBDMirrorLister {
-	return &cephRBDMirrorLister{listers.New[*v1.CephRBDMirror](indexer, v1.Resource("cephrbdmirror"))}
+	return &cephRBDMirrorLister{listers.New[*cephrookiov1.CephRBDMirror](indexer, cephrookiov1.Resource("cephrbdmirror"))}
 }
 
 // CephRBDMirrors returns an object that can list and get CephRBDMirrors.
 func (s *cephRBDMirrorLister) CephRBDMirrors(namespace string) CephRBDMirrorNamespaceLister {
-	return cephRBDMirrorNamespaceLister{listers.NewNamespaced[*v1.CephRBDMirror](s.ResourceIndexer, namespace)}
+	return cephRBDMirrorNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephRBDMirror](s.ResourceIndexer, namespace)}
 }
 
 // CephRBDMirrorNamespaceLister helps list and get CephRBDMirrors.
@@ -56,15 +56,15 @@ func (s *cephRBDMirrorLister) CephRBDMirrors(namespace string) CephRBDMirrorName
 type CephRBDMirrorNamespaceLister interface {
 	// List lists all CephRBDMirrors in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephRBDMirror, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephRBDMirror, err error)
 	// Get retrieves the CephRBDMirror from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephRBDMirror, error)
+	Get(name string) (*cephrookiov1.CephRBDMirror, error)
 	CephRBDMirrorNamespaceListerExpansion
 }
 
 // cephRBDMirrorNamespaceLister implements the CephRBDMirrorNamespaceLister
 // interface.
 type cephRBDMirrorNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephRBDMirror]
+	listers.ResourceIndexer[*cephrookiov1.CephRBDMirror]
 }

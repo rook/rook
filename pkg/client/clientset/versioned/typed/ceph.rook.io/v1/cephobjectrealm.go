@@ -19,9 +19,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,32 @@ type CephObjectRealmsGetter interface {
 
 // CephObjectRealmInterface has methods to work with CephObjectRealm resources.
 type CephObjectRealmInterface interface {
-	Create(ctx context.Context, cephObjectRealm *v1.CephObjectRealm, opts metav1.CreateOptions) (*v1.CephObjectRealm, error)
-	Update(ctx context.Context, cephObjectRealm *v1.CephObjectRealm, opts metav1.UpdateOptions) (*v1.CephObjectRealm, error)
+	Create(ctx context.Context, cephObjectRealm *cephrookiov1.CephObjectRealm, opts metav1.CreateOptions) (*cephrookiov1.CephObjectRealm, error)
+	Update(ctx context.Context, cephObjectRealm *cephrookiov1.CephObjectRealm, opts metav1.UpdateOptions) (*cephrookiov1.CephObjectRealm, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephObjectRealm, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephObjectRealmList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephObjectRealm, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*cephrookiov1.CephObjectRealmList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephObjectRealm, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *cephrookiov1.CephObjectRealm, err error)
 	CephObjectRealmExpansion
 }
 
 // cephObjectRealms implements CephObjectRealmInterface
 type cephObjectRealms struct {
-	*gentype.ClientWithList[*v1.CephObjectRealm, *v1.CephObjectRealmList]
+	*gentype.ClientWithList[*cephrookiov1.CephObjectRealm, *cephrookiov1.CephObjectRealmList]
 }
 
 // newCephObjectRealms returns a CephObjectRealms
 func newCephObjectRealms(c *CephV1Client, namespace string) *cephObjectRealms {
 	return &cephObjectRealms{
-		gentype.NewClientWithList[*v1.CephObjectRealm, *v1.CephObjectRealmList](
+		gentype.NewClientWithList[*cephrookiov1.CephObjectRealm, *cephrookiov1.CephObjectRealmList](
 			"cephobjectrealms",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.CephObjectRealm { return &v1.CephObjectRealm{} },
-			func() *v1.CephObjectRealmList { return &v1.CephObjectRealmList{} }),
+			func() *cephrookiov1.CephObjectRealm { return &cephrookiov1.CephObjectRealm{} },
+			func() *cephrookiov1.CephObjectRealmList { return &cephrookiov1.CephObjectRealmList{} },
+		),
 	}
 }

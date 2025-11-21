@@ -34,7 +34,7 @@ source "${CODE_GENERATOR}/kube_codegen.sh"
   kube::codegen::gen_helpers \
       --boilerplate "${boilerplate}" \
       "${base_dir}/pkg/apis" \
-  
+
   # run code client,lister,informer generation
   kube::codegen::gen_client \
       --output-dir "${base_dir}/pkg/client" \

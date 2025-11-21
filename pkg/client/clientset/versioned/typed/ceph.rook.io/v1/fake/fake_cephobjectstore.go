@@ -19,116 +19,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	cephrookiov1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeCephObjectStores implements CephObjectStoreInterface
-type FakeCephObjectStores struct {
+// fakeCephObjectStores implements CephObjectStoreInterface
+type fakeCephObjectStores struct {
+	*gentype.FakeClientWithList[*v1.CephObjectStore, *v1.CephObjectStoreList]
 	Fake *FakeCephV1
-	ns   string
 }
 
-var cephobjectstoresResource = v1.SchemeGroupVersion.WithResource("cephobjectstores")
-
-var cephobjectstoresKind = v1.SchemeGroupVersion.WithKind("CephObjectStore")
-
-// Get takes name of the cephObjectStore, and returns the corresponding cephObjectStore object, and an error if there is any.
-func (c *FakeCephObjectStores) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephObjectStore, err error) {
-	emptyResult := &v1.CephObjectStore{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(cephobjectstoresResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeCephObjectStores(fake *FakeCephV1, namespace string) cephrookiov1.CephObjectStoreInterface {
+	return &fakeCephObjectStores{
+		gentype.NewFakeClientWithList[*v1.CephObjectStore, *v1.CephObjectStoreList](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("cephobjectstores"),
+			v1.SchemeGroupVersion.WithKind("CephObjectStore"),
+			func() *v1.CephObjectStore { return &v1.CephObjectStore{} },
+			func() *v1.CephObjectStoreList { return &v1.CephObjectStoreList{} },
+			func(dst, src *v1.CephObjectStoreList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.CephObjectStoreList) []*v1.CephObjectStore { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.CephObjectStoreList, items []*v1.CephObjectStore) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.CephObjectStore), err
-}
-
-// List takes label and field selectors, and returns the list of CephObjectStores that match those selectors.
-func (c *FakeCephObjectStores) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephObjectStoreList, err error) {
-	emptyResult := &v1.CephObjectStoreList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(cephobjectstoresResource, cephobjectstoresKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.CephObjectStoreList{ListMeta: obj.(*v1.CephObjectStoreList).ListMeta}
-	for _, item := range obj.(*v1.CephObjectStoreList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested cephObjectStores.
-func (c *FakeCephObjectStores) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(cephobjectstoresResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a cephObjectStore and creates it.  Returns the server's representation of the cephObjectStore, and an error, if there is any.
-func (c *FakeCephObjectStores) Create(ctx context.Context, cephObjectStore *v1.CephObjectStore, opts metav1.CreateOptions) (result *v1.CephObjectStore, err error) {
-	emptyResult := &v1.CephObjectStore{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(cephobjectstoresResource, c.ns, cephObjectStore, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectStore), err
-}
-
-// Update takes the representation of a cephObjectStore and updates it. Returns the server's representation of the cephObjectStore, and an error, if there is any.
-func (c *FakeCephObjectStores) Update(ctx context.Context, cephObjectStore *v1.CephObjectStore, opts metav1.UpdateOptions) (result *v1.CephObjectStore, err error) {
-	emptyResult := &v1.CephObjectStore{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(cephobjectstoresResource, c.ns, cephObjectStore, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectStore), err
-}
-
-// Delete takes name of the cephObjectStore and deletes it. Returns an error if one occurs.
-func (c *FakeCephObjectStores) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(cephobjectstoresResource, c.ns, name, opts), &v1.CephObjectStore{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeCephObjectStores) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(cephobjectstoresResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.CephObjectStoreList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched cephObjectStore.
-func (c *FakeCephObjectStores) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephObjectStore, err error) {
-	emptyResult := &v1.CephObjectStore{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(cephobjectstoresResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectStore), err
 }

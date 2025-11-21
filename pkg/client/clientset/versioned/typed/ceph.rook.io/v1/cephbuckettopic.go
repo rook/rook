@@ -19,9 +19,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,32 @@ type CephBucketTopicsGetter interface {
 
 // CephBucketTopicInterface has methods to work with CephBucketTopic resources.
 type CephBucketTopicInterface interface {
-	Create(ctx context.Context, cephBucketTopic *v1.CephBucketTopic, opts metav1.CreateOptions) (*v1.CephBucketTopic, error)
-	Update(ctx context.Context, cephBucketTopic *v1.CephBucketTopic, opts metav1.UpdateOptions) (*v1.CephBucketTopic, error)
+	Create(ctx context.Context, cephBucketTopic *cephrookiov1.CephBucketTopic, opts metav1.CreateOptions) (*cephrookiov1.CephBucketTopic, error)
+	Update(ctx context.Context, cephBucketTopic *cephrookiov1.CephBucketTopic, opts metav1.UpdateOptions) (*cephrookiov1.CephBucketTopic, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephBucketTopic, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephBucketTopicList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephBucketTopic, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*cephrookiov1.CephBucketTopicList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephBucketTopic, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *cephrookiov1.CephBucketTopic, err error)
 	CephBucketTopicExpansion
 }
 
 // cephBucketTopics implements CephBucketTopicInterface
 type cephBucketTopics struct {
-	*gentype.ClientWithList[*v1.CephBucketTopic, *v1.CephBucketTopicList]
+	*gentype.ClientWithList[*cephrookiov1.CephBucketTopic, *cephrookiov1.CephBucketTopicList]
 }
 
 // newCephBucketTopics returns a CephBucketTopics
 func newCephBucketTopics(c *CephV1Client, namespace string) *cephBucketTopics {
 	return &cephBucketTopics{
-		gentype.NewClientWithList[*v1.CephBucketTopic, *v1.CephBucketTopicList](
+		gentype.NewClientWithList[*cephrookiov1.CephBucketTopic, *cephrookiov1.CephBucketTopicList](
 			"cephbuckettopics",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.CephBucketTopic { return &v1.CephBucketTopic{} },
-			func() *v1.CephBucketTopicList { return &v1.CephBucketTopicList{} }),
+			func() *cephrookiov1.CephBucketTopic { return &cephrookiov1.CephBucketTopic{} },
+			func() *cephrookiov1.CephBucketTopicList { return &cephrookiov1.CephBucketTopicList{} },
+		),
 	}
 }

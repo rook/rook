@@ -19,9 +19,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,32 @@ type CephClientsGetter interface {
 
 // CephClientInterface has methods to work with CephClient resources.
 type CephClientInterface interface {
-	Create(ctx context.Context, cephClient *v1.CephClient, opts metav1.CreateOptions) (*v1.CephClient, error)
-	Update(ctx context.Context, cephClient *v1.CephClient, opts metav1.UpdateOptions) (*v1.CephClient, error)
+	Create(ctx context.Context, cephClient *cephrookiov1.CephClient, opts metav1.CreateOptions) (*cephrookiov1.CephClient, error)
+	Update(ctx context.Context, cephClient *cephrookiov1.CephClient, opts metav1.UpdateOptions) (*cephrookiov1.CephClient, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephClient, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephClientList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephClient, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*cephrookiov1.CephClientList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephClient, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *cephrookiov1.CephClient, err error)
 	CephClientExpansion
 }
 
 // cephClients implements CephClientInterface
 type cephClients struct {
-	*gentype.ClientWithList[*v1.CephClient, *v1.CephClientList]
+	*gentype.ClientWithList[*cephrookiov1.CephClient, *cephrookiov1.CephClientList]
 }
 
 // newCephClients returns a CephClients
 func newCephClients(c *CephV1Client, namespace string) *cephClients {
 	return &cephClients{
-		gentype.NewClientWithList[*v1.CephClient, *v1.CephClientList](
+		gentype.NewClientWithList[*cephrookiov1.CephClient, *cephrookiov1.CephClientList](
 			"cephclients",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.CephClient { return &v1.CephClient{} },
-			func() *v1.CephClientList { return &v1.CephClientList{} }),
+			func() *cephrookiov1.CephClient { return &cephrookiov1.CephClient{} },
+			func() *cephrookiov1.CephClientList { return &cephrookiov1.CephClientList{} },
+		),
 	}
 }

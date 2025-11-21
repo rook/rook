@@ -19,116 +19,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	cephrookiov1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeCephObjectRealms implements CephObjectRealmInterface
-type FakeCephObjectRealms struct {
+// fakeCephObjectRealms implements CephObjectRealmInterface
+type fakeCephObjectRealms struct {
+	*gentype.FakeClientWithList[*v1.CephObjectRealm, *v1.CephObjectRealmList]
 	Fake *FakeCephV1
-	ns   string
 }
 
-var cephobjectrealmsResource = v1.SchemeGroupVersion.WithResource("cephobjectrealms")
-
-var cephobjectrealmsKind = v1.SchemeGroupVersion.WithKind("CephObjectRealm")
-
-// Get takes name of the cephObjectRealm, and returns the corresponding cephObjectRealm object, and an error if there is any.
-func (c *FakeCephObjectRealms) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephObjectRealm, err error) {
-	emptyResult := &v1.CephObjectRealm{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(cephobjectrealmsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeCephObjectRealms(fake *FakeCephV1, namespace string) cephrookiov1.CephObjectRealmInterface {
+	return &fakeCephObjectRealms{
+		gentype.NewFakeClientWithList[*v1.CephObjectRealm, *v1.CephObjectRealmList](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("cephobjectrealms"),
+			v1.SchemeGroupVersion.WithKind("CephObjectRealm"),
+			func() *v1.CephObjectRealm { return &v1.CephObjectRealm{} },
+			func() *v1.CephObjectRealmList { return &v1.CephObjectRealmList{} },
+			func(dst, src *v1.CephObjectRealmList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.CephObjectRealmList) []*v1.CephObjectRealm { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.CephObjectRealmList, items []*v1.CephObjectRealm) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.CephObjectRealm), err
-}
-
-// List takes label and field selectors, and returns the list of CephObjectRealms that match those selectors.
-func (c *FakeCephObjectRealms) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephObjectRealmList, err error) {
-	emptyResult := &v1.CephObjectRealmList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(cephobjectrealmsResource, cephobjectrealmsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.CephObjectRealmList{ListMeta: obj.(*v1.CephObjectRealmList).ListMeta}
-	for _, item := range obj.(*v1.CephObjectRealmList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested cephObjectRealms.
-func (c *FakeCephObjectRealms) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(cephobjectrealmsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a cephObjectRealm and creates it.  Returns the server's representation of the cephObjectRealm, and an error, if there is any.
-func (c *FakeCephObjectRealms) Create(ctx context.Context, cephObjectRealm *v1.CephObjectRealm, opts metav1.CreateOptions) (result *v1.CephObjectRealm, err error) {
-	emptyResult := &v1.CephObjectRealm{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(cephobjectrealmsResource, c.ns, cephObjectRealm, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectRealm), err
-}
-
-// Update takes the representation of a cephObjectRealm and updates it. Returns the server's representation of the cephObjectRealm, and an error, if there is any.
-func (c *FakeCephObjectRealms) Update(ctx context.Context, cephObjectRealm *v1.CephObjectRealm, opts metav1.UpdateOptions) (result *v1.CephObjectRealm, err error) {
-	emptyResult := &v1.CephObjectRealm{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(cephobjectrealmsResource, c.ns, cephObjectRealm, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectRealm), err
-}
-
-// Delete takes name of the cephObjectRealm and deletes it. Returns an error if one occurs.
-func (c *FakeCephObjectRealms) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(cephobjectrealmsResource, c.ns, name, opts), &v1.CephObjectRealm{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeCephObjectRealms) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(cephobjectrealmsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.CephObjectRealmList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched cephObjectRealm.
-func (c *FakeCephObjectRealms) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephObjectRealm, err error) {
-	emptyResult := &v1.CephObjectRealm{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(cephobjectrealmsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectRealm), err
 }

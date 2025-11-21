@@ -19,116 +19,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	cephrookiov1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeCephFilesystems implements CephFilesystemInterface
-type FakeCephFilesystems struct {
+// fakeCephFilesystems implements CephFilesystemInterface
+type fakeCephFilesystems struct {
+	*gentype.FakeClientWithList[*v1.CephFilesystem, *v1.CephFilesystemList]
 	Fake *FakeCephV1
-	ns   string
 }
 
-var cephfilesystemsResource = v1.SchemeGroupVersion.WithResource("cephfilesystems")
-
-var cephfilesystemsKind = v1.SchemeGroupVersion.WithKind("CephFilesystem")
-
-// Get takes name of the cephFilesystem, and returns the corresponding cephFilesystem object, and an error if there is any.
-func (c *FakeCephFilesystems) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephFilesystem, err error) {
-	emptyResult := &v1.CephFilesystem{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(cephfilesystemsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeCephFilesystems(fake *FakeCephV1, namespace string) cephrookiov1.CephFilesystemInterface {
+	return &fakeCephFilesystems{
+		gentype.NewFakeClientWithList[*v1.CephFilesystem, *v1.CephFilesystemList](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("cephfilesystems"),
+			v1.SchemeGroupVersion.WithKind("CephFilesystem"),
+			func() *v1.CephFilesystem { return &v1.CephFilesystem{} },
+			func() *v1.CephFilesystemList { return &v1.CephFilesystemList{} },
+			func(dst, src *v1.CephFilesystemList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.CephFilesystemList) []*v1.CephFilesystem { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.CephFilesystemList, items []*v1.CephFilesystem) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.CephFilesystem), err
-}
-
-// List takes label and field selectors, and returns the list of CephFilesystems that match those selectors.
-func (c *FakeCephFilesystems) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephFilesystemList, err error) {
-	emptyResult := &v1.CephFilesystemList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(cephfilesystemsResource, cephfilesystemsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.CephFilesystemList{ListMeta: obj.(*v1.CephFilesystemList).ListMeta}
-	for _, item := range obj.(*v1.CephFilesystemList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested cephFilesystems.
-func (c *FakeCephFilesystems) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(cephfilesystemsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a cephFilesystem and creates it.  Returns the server's representation of the cephFilesystem, and an error, if there is any.
-func (c *FakeCephFilesystems) Create(ctx context.Context, cephFilesystem *v1.CephFilesystem, opts metav1.CreateOptions) (result *v1.CephFilesystem, err error) {
-	emptyResult := &v1.CephFilesystem{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(cephfilesystemsResource, c.ns, cephFilesystem, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephFilesystem), err
-}
-
-// Update takes the representation of a cephFilesystem and updates it. Returns the server's representation of the cephFilesystem, and an error, if there is any.
-func (c *FakeCephFilesystems) Update(ctx context.Context, cephFilesystem *v1.CephFilesystem, opts metav1.UpdateOptions) (result *v1.CephFilesystem, err error) {
-	emptyResult := &v1.CephFilesystem{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(cephfilesystemsResource, c.ns, cephFilesystem, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephFilesystem), err
-}
-
-// Delete takes name of the cephFilesystem and deletes it. Returns an error if one occurs.
-func (c *FakeCephFilesystems) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(cephfilesystemsResource, c.ns, name, opts), &v1.CephFilesystem{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeCephFilesystems) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(cephfilesystemsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.CephFilesystemList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched cephFilesystem.
-func (c *FakeCephFilesystems) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephFilesystem, err error) {
-	emptyResult := &v1.CephFilesystem{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(cephfilesystemsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephFilesystem), err
 }

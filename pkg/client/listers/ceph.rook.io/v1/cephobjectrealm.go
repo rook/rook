@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephObjectRealmLister helps list CephObjectRealms.
@@ -30,7 +30,7 @@ import (
 type CephObjectRealmLister interface {
 	// List lists all CephObjectRealms in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephObjectRealm, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephObjectRealm, err error)
 	// CephObjectRealms returns an object that can list and get CephObjectRealms.
 	CephObjectRealms(namespace string) CephObjectRealmNamespaceLister
 	CephObjectRealmListerExpansion
@@ -38,17 +38,17 @@ type CephObjectRealmLister interface {
 
 // cephObjectRealmLister implements the CephObjectRealmLister interface.
 type cephObjectRealmLister struct {
-	listers.ResourceIndexer[*v1.CephObjectRealm]
+	listers.ResourceIndexer[*cephrookiov1.CephObjectRealm]
 }
 
 // NewCephObjectRealmLister returns a new CephObjectRealmLister.
 func NewCephObjectRealmLister(indexer cache.Indexer) CephObjectRealmLister {
-	return &cephObjectRealmLister{listers.New[*v1.CephObjectRealm](indexer, v1.Resource("cephobjectrealm"))}
+	return &cephObjectRealmLister{listers.New[*cephrookiov1.CephObjectRealm](indexer, cephrookiov1.Resource("cephobjectrealm"))}
 }
 
 // CephObjectRealms returns an object that can list and get CephObjectRealms.
 func (s *cephObjectRealmLister) CephObjectRealms(namespace string) CephObjectRealmNamespaceLister {
-	return cephObjectRealmNamespaceLister{listers.NewNamespaced[*v1.CephObjectRealm](s.ResourceIndexer, namespace)}
+	return cephObjectRealmNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephObjectRealm](s.ResourceIndexer, namespace)}
 }
 
 // CephObjectRealmNamespaceLister helps list and get CephObjectRealms.
@@ -56,15 +56,15 @@ func (s *cephObjectRealmLister) CephObjectRealms(namespace string) CephObjectRea
 type CephObjectRealmNamespaceLister interface {
 	// List lists all CephObjectRealms in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephObjectRealm, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephObjectRealm, err error)
 	// Get retrieves the CephObjectRealm from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephObjectRealm, error)
+	Get(name string) (*cephrookiov1.CephObjectRealm, error)
 	CephObjectRealmNamespaceListerExpansion
 }
 
 // cephObjectRealmNamespaceLister implements the CephObjectRealmNamespaceLister
 // interface.
 type cephObjectRealmNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephObjectRealm]
+	listers.ResourceIndexer[*cephrookiov1.CephObjectRealm]
 }
