@@ -101,7 +101,7 @@ func TestSupported(t *testing.T) {
 	for _, v := range supportedVersions {
 		assert.True(t, v.Supported())
 	}
-	assert.False(t, Urchin.Supported())
+	assert.False(t, Umbrella.Supported())
 }
 
 func TestIsRelease(t *testing.T) {
