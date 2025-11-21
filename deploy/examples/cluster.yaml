@@ -271,6 +271,8 @@ spec:
       # databaseSizeMB: "1024" # uncomment if the disks are smaller than 100 GB
       # osdsPerDevice: "1" # this value can be overridden at the node or device level
       # encryptedDevice: "true" # the default value for this option is "false"
+      # dmcryptFormatOptions: "--type luks2" # additional options to pass to cryptsetup for luksFormat command
+      # dmcryptOpenOptions: "--type luks2" # additional options to pass to crypt
       # deviceClass: "myclass" # specify a device class for OSDs in the cluster
     allowDeviceClassUpdate: false # whether to allow changing the device class of an OSD after it is created
     allowOsdCrushWeightUpdate: false # whether to allow resizing the OSD crush weight after osd pvc is increased
