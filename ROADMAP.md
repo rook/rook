@@ -8,16 +8,19 @@ We hope that the items listed below will inspire further engagement from the com
 Any dates listed below and the specific issues that will ship in a given milestone are subject to change but give a general idea of what we are planning.
 See the [GitHub project boards](https://github.com/rook/rook/projects) for the most up-to-date issues and their status.
 
-## Rook Ceph 1.18
+## Rook Ceph 1.19
 
-The following high level features are targeted for Rook v1.18 (August 2025). For more detailed project tracking see the [v1.18 board](https://github.com/orgs/rook/projects/8).
+The following high level features are targeted for Rook v1.19 (December 2025). For more detailed project tracking see the [v1.19 board](https://github.com/orgs/rook/projects/11).
 
-* Rotate cephx keyrings automatically [#15904](https://github.com/rook/rook/issues/15904)
-* Allow Rook operator to run in multiple namespaces for improved multi-cluster reconcile [#15014](https://github.com/rook/rook/issues/15014)
+* Allow Rook to reconcile multiple ceph clusters in parallel [#15014](https://github.com/rook/rook/pull/16719)
 * Replace a single OSD when a metadataDevice is configured with multiple OSDs [#13240](https://github.com/rook/rook/issues/13240)
+* Support creation of Ceph OSDs with Ceph seastore when available in raw mode [#16678](https://github.com/rook/rook/issues/16678)
+* Add (experimental) support for NVME-oF available with the Ceph Tentacle release [#15551](https://github.com/rook/rook/issues/15551)
+* Ceph version support
+    * Set Ceph Tentacle v20 as the default version [#16747](https://github.com/rook/rook/issues/16747)
+    * Remove support for Ceph Reef v18 [#16753](https://github.com/rook/rook/issues/16753)
 * CSI Driver
-  * Enable the stable Ceph-CSI operator by default, after it is declared stable [#14766](https://github.com/rook/rook/issues/15271)
-  * Integrate Ceph-CSI [v3.15](https://github.com/ceph/ceph-csi/milestones)
+  * Integrate Ceph-CSI [v3.16](https://github.com/ceph/ceph-csi/milestones)
 
 ## Kubectl Plugin
 
