@@ -51,7 +51,7 @@ const (
 	controllerName = "ceph-filesystem-mirror-controller"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephfs-mirror-controller")
 
 // List of object resources to watch by the controller
 var objectsToWatch = []client.Object{

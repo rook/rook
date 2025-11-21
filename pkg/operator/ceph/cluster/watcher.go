@@ -687,11 +687,11 @@ func (c *clientCluster) getCephCluster() *cephv1.CephCluster {
 
 	err := c.client.List(context.TODO(), clusterList, client.InNamespace(c.namespace))
 	if err != nil {
-		logger.Debugf("%q: failed to fetch CephCluster %v", controllerName, err)
+		logger.Debugf("failed to fetch CephCluster %v", err)
 		return &cephv1.CephCluster{}
 	}
 	if len(clusterList.Items) == 0 {
-		logger.Debugf("%q: no CephCluster resource found in namespace %q", controllerName, c.namespace)
+		logger.Debugf("no CephCluster resource found in namespace %q", c.namespace)
 		return &cephv1.CephCluster{}
 	}
 

@@ -67,7 +67,7 @@ const (
 )
 
 var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cluster-controller")
 	// disallowedHostDirectories directories which are not allowed to be used
 	disallowedHostDirectories = []string{"/etc/ceph", "/rook", "/var/log/ceph"}
 )

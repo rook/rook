@@ -52,7 +52,7 @@ const (
 	controllerName = "ceph-rbd-mirror-controller"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rbd-mirror-controller")
 
 // List of object resources to watch by the controller
 var objectsToWatch = []client.Object{

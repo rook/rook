@@ -55,7 +55,7 @@ const (
 	controllerName = "ceph-client-controller"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "client-controller")
 
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{
