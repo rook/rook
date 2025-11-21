@@ -61,7 +61,7 @@ const (
 // newMultisiteAdminOpsCtxFunc help us mocking the admin ops API client in unit test
 var newMultisiteAdminOpsCtxFunc = object.NewMultisiteAdminOpsContext
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "object-user-controller")
 
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{

@@ -52,7 +52,7 @@ import (
 )
 
 var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "nodedaemon")
 	// Implement reconcile.Reconciler so the controller can reconcile objects
 	_ reconcile.Reconciler = &ReconcileNode{}
 

@@ -45,7 +45,7 @@ const (
 )
 
 var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "disruption")
 
 	// Implement reconcile.Reconciler so the controller can reconcile objects
 	_ reconcile.Reconciler = &ReconcileClusterDisruption{}

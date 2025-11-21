@@ -67,7 +67,7 @@ var createObjectStorePoolsFunc = object.CreateObjectStorePools
 // allow this to be overridden for unit tests
 var commitConfigChangesFunc = object.CommitConfigChanges
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "zone-controller")
 
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{

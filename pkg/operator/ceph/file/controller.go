@@ -53,7 +53,7 @@ const (
 	controllerName = "ceph-file-controller"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "file-controller")
 
 // List of object resources to watch by the controller
 var objectsToWatch = []client.Object{

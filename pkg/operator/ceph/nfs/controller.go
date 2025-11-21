@@ -53,7 +53,7 @@ const (
 	controllerName = "ceph-nfs-controller"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "nfs-controller")
 
 // List of object resources to watch by the controller
 var objectsToWatch = []client.Object{
