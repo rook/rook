@@ -19,9 +19,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,32 @@ type CephFilesystemMirrorsGetter interface {
 
 // CephFilesystemMirrorInterface has methods to work with CephFilesystemMirror resources.
 type CephFilesystemMirrorInterface interface {
-	Create(ctx context.Context, cephFilesystemMirror *v1.CephFilesystemMirror, opts metav1.CreateOptions) (*v1.CephFilesystemMirror, error)
-	Update(ctx context.Context, cephFilesystemMirror *v1.CephFilesystemMirror, opts metav1.UpdateOptions) (*v1.CephFilesystemMirror, error)
+	Create(ctx context.Context, cephFilesystemMirror *cephrookiov1.CephFilesystemMirror, opts metav1.CreateOptions) (*cephrookiov1.CephFilesystemMirror, error)
+	Update(ctx context.Context, cephFilesystemMirror *cephrookiov1.CephFilesystemMirror, opts metav1.UpdateOptions) (*cephrookiov1.CephFilesystemMirror, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephFilesystemMirror, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephFilesystemMirrorList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephFilesystemMirror, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*cephrookiov1.CephFilesystemMirrorList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephFilesystemMirror, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *cephrookiov1.CephFilesystemMirror, err error)
 	CephFilesystemMirrorExpansion
 }
 
 // cephFilesystemMirrors implements CephFilesystemMirrorInterface
 type cephFilesystemMirrors struct {
-	*gentype.ClientWithList[*v1.CephFilesystemMirror, *v1.CephFilesystemMirrorList]
+	*gentype.ClientWithList[*cephrookiov1.CephFilesystemMirror, *cephrookiov1.CephFilesystemMirrorList]
 }
 
 // newCephFilesystemMirrors returns a CephFilesystemMirrors
 func newCephFilesystemMirrors(c *CephV1Client, namespace string) *cephFilesystemMirrors {
 	return &cephFilesystemMirrors{
-		gentype.NewClientWithList[*v1.CephFilesystemMirror, *v1.CephFilesystemMirrorList](
+		gentype.NewClientWithList[*cephrookiov1.CephFilesystemMirror, *cephrookiov1.CephFilesystemMirrorList](
 			"cephfilesystemmirrors",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.CephFilesystemMirror { return &v1.CephFilesystemMirror{} },
-			func() *v1.CephFilesystemMirrorList { return &v1.CephFilesystemMirrorList{} }),
+			func() *cephrookiov1.CephFilesystemMirror { return &cephrookiov1.CephFilesystemMirror{} },
+			func() *cephrookiov1.CephFilesystemMirrorList { return &cephrookiov1.CephFilesystemMirrorList{} },
+		),
 	}
 }

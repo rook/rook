@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephNFSes.
 type CephNFSInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephNFSLister
+	Lister() cephrookiov1.CephNFSLister
 }
 
 type cephNFSInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredCephNFSInformer(client versioned.Interface, namespace string, re
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephNFSes(namespace).List(context.TODO(), options)
+				return client.CephV1().CephNFSes(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephNFSes(namespace).Watch(context.TODO(), options)
+				return client.CephV1().CephNFSes(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephNFSes(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephNFSes(namespace).Watch(ctx, options)
 			},
 		},
-		&cephrookiov1.CephNFS{},
+		&apiscephrookiov1.CephNFS{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *cephNFSInformer) defaultInformer(client versioned.Interface, resyncPeri
 }
 
 func (f *cephNFSInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephNFS{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephNFS{}, f.defaultInformer)
 }
 
-func (f *cephNFSInformer) Lister() v1.CephNFSLister {
-	return v1.NewCephNFSLister(f.Informer().GetIndexer())
+func (f *cephNFSInformer) Lister() cephrookiov1.CephNFSLister {
+	return cephrookiov1.NewCephNFSLister(f.Informer().GetIndexer())
 }

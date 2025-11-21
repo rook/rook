@@ -19,116 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	cephrookiov1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeCephObjectZoneGroups implements CephObjectZoneGroupInterface
-type FakeCephObjectZoneGroups struct {
+// fakeCephObjectZoneGroups implements CephObjectZoneGroupInterface
+type fakeCephObjectZoneGroups struct {
+	*gentype.FakeClientWithList[*v1.CephObjectZoneGroup, *v1.CephObjectZoneGroupList]
 	Fake *FakeCephV1
-	ns   string
 }
 
-var cephobjectzonegroupsResource = v1.SchemeGroupVersion.WithResource("cephobjectzonegroups")
-
-var cephobjectzonegroupsKind = v1.SchemeGroupVersion.WithKind("CephObjectZoneGroup")
-
-// Get takes name of the cephObjectZoneGroup, and returns the corresponding cephObjectZoneGroup object, and an error if there is any.
-func (c *FakeCephObjectZoneGroups) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephObjectZoneGroup, err error) {
-	emptyResult := &v1.CephObjectZoneGroup{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(cephobjectzonegroupsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeCephObjectZoneGroups(fake *FakeCephV1, namespace string) cephrookiov1.CephObjectZoneGroupInterface {
+	return &fakeCephObjectZoneGroups{
+		gentype.NewFakeClientWithList[*v1.CephObjectZoneGroup, *v1.CephObjectZoneGroupList](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("cephobjectzonegroups"),
+			v1.SchemeGroupVersion.WithKind("CephObjectZoneGroup"),
+			func() *v1.CephObjectZoneGroup { return &v1.CephObjectZoneGroup{} },
+			func() *v1.CephObjectZoneGroupList { return &v1.CephObjectZoneGroupList{} },
+			func(dst, src *v1.CephObjectZoneGroupList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.CephObjectZoneGroupList) []*v1.CephObjectZoneGroup {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1.CephObjectZoneGroupList, items []*v1.CephObjectZoneGroup) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.CephObjectZoneGroup), err
-}
-
-// List takes label and field selectors, and returns the list of CephObjectZoneGroups that match those selectors.
-func (c *FakeCephObjectZoneGroups) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephObjectZoneGroupList, err error) {
-	emptyResult := &v1.CephObjectZoneGroupList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(cephobjectzonegroupsResource, cephobjectzonegroupsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.CephObjectZoneGroupList{ListMeta: obj.(*v1.CephObjectZoneGroupList).ListMeta}
-	for _, item := range obj.(*v1.CephObjectZoneGroupList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested cephObjectZoneGroups.
-func (c *FakeCephObjectZoneGroups) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(cephobjectzonegroupsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a cephObjectZoneGroup and creates it.  Returns the server's representation of the cephObjectZoneGroup, and an error, if there is any.
-func (c *FakeCephObjectZoneGroups) Create(ctx context.Context, cephObjectZoneGroup *v1.CephObjectZoneGroup, opts metav1.CreateOptions) (result *v1.CephObjectZoneGroup, err error) {
-	emptyResult := &v1.CephObjectZoneGroup{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(cephobjectzonegroupsResource, c.ns, cephObjectZoneGroup, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectZoneGroup), err
-}
-
-// Update takes the representation of a cephObjectZoneGroup and updates it. Returns the server's representation of the cephObjectZoneGroup, and an error, if there is any.
-func (c *FakeCephObjectZoneGroups) Update(ctx context.Context, cephObjectZoneGroup *v1.CephObjectZoneGroup, opts metav1.UpdateOptions) (result *v1.CephObjectZoneGroup, err error) {
-	emptyResult := &v1.CephObjectZoneGroup{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(cephobjectzonegroupsResource, c.ns, cephObjectZoneGroup, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectZoneGroup), err
-}
-
-// Delete takes name of the cephObjectZoneGroup and deletes it. Returns an error if one occurs.
-func (c *FakeCephObjectZoneGroups) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(cephobjectzonegroupsResource, c.ns, name, opts), &v1.CephObjectZoneGroup{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeCephObjectZoneGroups) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(cephobjectzonegroupsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.CephObjectZoneGroupList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched cephObjectZoneGroup.
-func (c *FakeCephObjectZoneGroups) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephObjectZoneGroup, err error) {
-	emptyResult := &v1.CephObjectZoneGroup{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(cephobjectzonegroupsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectZoneGroup), err
 }

@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephNFSLister helps list CephNFSes.
@@ -30,7 +30,7 @@ import (
 type CephNFSLister interface {
 	// List lists all CephNFSes in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephNFS, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephNFS, err error)
 	// CephNFSes returns an object that can list and get CephNFSes.
 	CephNFSes(namespace string) CephNFSNamespaceLister
 	CephNFSListerExpansion
@@ -38,17 +38,17 @@ type CephNFSLister interface {
 
 // cephNFSLister implements the CephNFSLister interface.
 type cephNFSLister struct {
-	listers.ResourceIndexer[*v1.CephNFS]
+	listers.ResourceIndexer[*cephrookiov1.CephNFS]
 }
 
 // NewCephNFSLister returns a new CephNFSLister.
 func NewCephNFSLister(indexer cache.Indexer) CephNFSLister {
-	return &cephNFSLister{listers.New[*v1.CephNFS](indexer, v1.Resource("cephnfs"))}
+	return &cephNFSLister{listers.New[*cephrookiov1.CephNFS](indexer, cephrookiov1.Resource("cephnfs"))}
 }
 
 // CephNFSes returns an object that can list and get CephNFSes.
 func (s *cephNFSLister) CephNFSes(namespace string) CephNFSNamespaceLister {
-	return cephNFSNamespaceLister{listers.NewNamespaced[*v1.CephNFS](s.ResourceIndexer, namespace)}
+	return cephNFSNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephNFS](s.ResourceIndexer, namespace)}
 }
 
 // CephNFSNamespaceLister helps list and get CephNFSes.
@@ -56,15 +56,15 @@ func (s *cephNFSLister) CephNFSes(namespace string) CephNFSNamespaceLister {
 type CephNFSNamespaceLister interface {
 	// List lists all CephNFSes in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephNFS, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephNFS, err error)
 	// Get retrieves the CephNFS from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephNFS, error)
+	Get(name string) (*cephrookiov1.CephNFS, error)
 	CephNFSNamespaceListerExpansion
 }
 
 // cephNFSNamespaceLister implements the CephNFSNamespaceLister
 // interface.
 type cephNFSNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephNFS]
+	listers.ResourceIndexer[*cephrookiov1.CephNFS]
 }

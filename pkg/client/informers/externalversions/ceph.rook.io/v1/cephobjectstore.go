@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephObjectStores.
 type CephObjectStoreInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephObjectStoreLister
+	Lister() cephrookiov1.CephObjectStoreLister
 }
 
 type cephObjectStoreInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredCephObjectStoreInformer(client versioned.Interface, namespace st
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephObjectStores(namespace).List(context.TODO(), options)
+				return client.CephV1().CephObjectStores(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephObjectStores(namespace).Watch(context.TODO(), options)
+				return client.CephV1().CephObjectStores(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephObjectStores(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephObjectStores(namespace).Watch(ctx, options)
 			},
 		},
-		&cephrookiov1.CephObjectStore{},
+		&apiscephrookiov1.CephObjectStore{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *cephObjectStoreInformer) defaultInformer(client versioned.Interface, re
 }
 
 func (f *cephObjectStoreInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephObjectStore{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephObjectStore{}, f.defaultInformer)
 }
 
-func (f *cephObjectStoreInformer) Lister() v1.CephObjectStoreLister {
-	return v1.NewCephObjectStoreLister(f.Informer().GetIndexer())
+func (f *cephObjectStoreInformer) Lister() cephrookiov1.CephObjectStoreLister {
+	return cephrookiov1.NewCephObjectStoreLister(f.Informer().GetIndexer())
 }
