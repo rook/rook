@@ -193,7 +193,7 @@ func TestSupportedVersion(t *testing.T) {
 	v = &cephver.CephVersion{Major: 20, Minor: 1, Extra: 0}
 	assert.NoError(t, c.validateCephVersion(v))
 
-	// Urchin release is not supported
+	// Umbrella release is not supported
 	v = &cephver.CephVersion{Major: 21, Minor: 1, Extra: 0}
 	assert.Error(t, c.validateCephVersion(v))
 

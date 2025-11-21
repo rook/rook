@@ -8,7 +8,9 @@
 
 ## Features
 
+- Added support for Ceph Tentacle (v20).
+
 - Experimental: Allow concurrent reconciles of the CephCluster CR when there multiple clusters
-  being managed by the same Rook operator. Concurrency is enabled by increasing
-  the operator setting `ROOK_RECONCILE_CONCURRENT_CLUSTERS` to a value greater
-  than `1`.
+    being managed by the same Rook operator. Concurrency is enabled by increasing
+    the operator setting `ROOK_RECONCILE_CONCURRENT_CLUSTERS` to a value greater
+    than `1`.
