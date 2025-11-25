@@ -19,9 +19,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,32 @@ type CephObjectStoreUsersGetter interface {
 
 // CephObjectStoreUserInterface has methods to work with CephObjectStoreUser resources.
 type CephObjectStoreUserInterface interface {
-	Create(ctx context.Context, cephObjectStoreUser *v1.CephObjectStoreUser, opts metav1.CreateOptions) (*v1.CephObjectStoreUser, error)
-	Update(ctx context.Context, cephObjectStoreUser *v1.CephObjectStoreUser, opts metav1.UpdateOptions) (*v1.CephObjectStoreUser, error)
+	Create(ctx context.Context, cephObjectStoreUser *cephrookiov1.CephObjectStoreUser, opts metav1.CreateOptions) (*cephrookiov1.CephObjectStoreUser, error)
+	Update(ctx context.Context, cephObjectStoreUser *cephrookiov1.CephObjectStoreUser, opts metav1.UpdateOptions) (*cephrookiov1.CephObjectStoreUser, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephObjectStoreUser, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephObjectStoreUserList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephObjectStoreUser, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*cephrookiov1.CephObjectStoreUserList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephObjectStoreUser, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *cephrookiov1.CephObjectStoreUser, err error)
 	CephObjectStoreUserExpansion
 }
 
 // cephObjectStoreUsers implements CephObjectStoreUserInterface
 type cephObjectStoreUsers struct {
-	*gentype.ClientWithList[*v1.CephObjectStoreUser, *v1.CephObjectStoreUserList]
+	*gentype.ClientWithList[*cephrookiov1.CephObjectStoreUser, *cephrookiov1.CephObjectStoreUserList]
 }
 
 // newCephObjectStoreUsers returns a CephObjectStoreUsers
 func newCephObjectStoreUsers(c *CephV1Client, namespace string) *cephObjectStoreUsers {
 	return &cephObjectStoreUsers{
-		gentype.NewClientWithList[*v1.CephObjectStoreUser, *v1.CephObjectStoreUserList](
+		gentype.NewClientWithList[*cephrookiov1.CephObjectStoreUser, *cephrookiov1.CephObjectStoreUserList](
 			"cephobjectstoreusers",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.CephObjectStoreUser { return &v1.CephObjectStoreUser{} },
-			func() *v1.CephObjectStoreUserList { return &v1.CephObjectStoreUserList{} }),
+			func() *cephrookiov1.CephObjectStoreUser { return &cephrookiov1.CephObjectStoreUser{} },
+			func() *cephrookiov1.CephObjectStoreUserList { return &cephrookiov1.CephObjectStoreUserList{} },
+		),
 	}
 }

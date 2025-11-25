@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephBlockPoolRadosNamespaces.
 type CephBlockPoolRadosNamespaceInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephBlockPoolRadosNamespaceLister
+	Lister() cephrookiov1.CephBlockPoolRadosNamespaceLister
 }
 
 type cephBlockPoolRadosNamespaceInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredCephBlockPoolRadosNamespaceInformer(client versioned.Interface, 
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephBlockPoolRadosNamespaces(namespace).List(context.TODO(), options)
+				return client.CephV1().CephBlockPoolRadosNamespaces(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephBlockPoolRadosNamespaces(namespace).Watch(context.TODO(), options)
+				return client.CephV1().CephBlockPoolRadosNamespaces(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephBlockPoolRadosNamespaces(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephBlockPoolRadosNamespaces(namespace).Watch(ctx, options)
 			},
 		},
-		&cephrookiov1.CephBlockPoolRadosNamespace{},
+		&apiscephrookiov1.CephBlockPoolRadosNamespace{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *cephBlockPoolRadosNamespaceInformer) defaultInformer(client versioned.I
 }
 
 func (f *cephBlockPoolRadosNamespaceInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephBlockPoolRadosNamespace{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephBlockPoolRadosNamespace{}, f.defaultInformer)
 }
 
-func (f *cephBlockPoolRadosNamespaceInformer) Lister() v1.CephBlockPoolRadosNamespaceLister {
-	return v1.NewCephBlockPoolRadosNamespaceLister(f.Informer().GetIndexer())
+func (f *cephBlockPoolRadosNamespaceInformer) Lister() cephrookiov1.CephBlockPoolRadosNamespaceLister {
+	return cephrookiov1.NewCephBlockPoolRadosNamespaceLister(f.Informer().GetIndexer())
 }
