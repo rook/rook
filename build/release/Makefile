@@ -105,9 +105,9 @@ build.docs: deps.docs
 
 publish.docs:
 	if ! git remote show docs > /dev/null 2>&1; then git remote add docs $(DOCS_GIT_REPO); fi
+	# If we are running in GitHub actions, remove the extraheader so our custom GitHub API token is used
+	if test "$$GITHUB_ACTIONS" = "true"; then git config --unset 'http.https://github.com/.extraheader'; fi
 	git fetch -u docs gh-pages
-	# The default github token only has permissions to the rook repo, so use the token for the docs repo
-	export GITHUB_TOKEN="$(GIT_API_TOKEN)"
 	# Switch to root of repo and then run the build and deploy of the documentation
 	cd $(ROOT_DIR) && mike deploy --remote docs --push --branch gh-pages --update-aliases --deploy-prefix $(DOCS_PREFIX) $(DOCS_VERSION) $(DOCS_VERSION_ALIAS)
 
