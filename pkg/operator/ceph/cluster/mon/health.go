@@ -57,7 +57,18 @@ type HealthChecker struct {
 }
 
 func updateMonTimeout(monCluster *Cluster) {
-	// If the env was passed by the operator config, use that value
+	// Check the CR spec first, which takes precedence
+	monCRDTimeoutSetting := monCluster.spec.HealthCheck.DaemonHealth.Monitor.Timeout
+	if monCRDTimeoutSetting != "" {
+		if monTimeout, err := time.ParseDuration(monCRDTimeoutSetting); err == nil {
+			if monTimeout == timeZero {
+				log.NamespacedWarning(monCluster.Namespace, logger, "monitor failover is disabled")
+			}
+			MonOutTimeout = monTimeout
+			return
+		}
+	}
+	// Fall back to the env var if CR spec is not set
 	// This is an old behavior where we maintain backward compatibility
 	monTimeoutEnv := os.Getenv("ROOK_MON_OUT_TIMEOUT")
 	if monTimeoutEnv != "" {
@@ -66,19 +77,8 @@ func updateMonTimeout(monCluster *Cluster) {
 		if err == nil {
 			MonOutTimeout = parsedInterval
 		}
-		// No env var, let's use the CR value if any
-	} else {
-		monCRDTimeoutSetting := monCluster.spec.HealthCheck.DaemonHealth.Monitor.Timeout
-		if monCRDTimeoutSetting != "" {
-			if monTimeout, err := time.ParseDuration(monCRDTimeoutSetting); err == nil {
-				if monTimeout == timeZero {
-					log.NamespacedWarning(monCluster.Namespace, logger, "monitor failover is disabled")
-				}
-				MonOutTimeout = monTimeout
-			}
-		}
 	}
-	// A third case is when the CRD is not set, in which case we use the default from MonOutTimeout
+	// A third case is when neither the CRD nor env var is set, in which case we use the default from MonOutTimeout
 }
 
 func updateMonInterval(monCluster *Cluster, h *HealthChecker) {
