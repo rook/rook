@@ -22,7 +22,19 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 base_dir="$(cd "${script_dir}/../.."  && pwd)"
 
-boilerplate="${base_dir}"/build/codegen/header.txt
+# Generate boilerplate with year range (2018 to current year)
+current_year=$(date +%Y)
+boilerplate_template="${base_dir}"/build/codegen/header.txt
+boilerplate="${base_dir}"/build/codegen/header.tmp.txt
+
+# Create temporary boilerplate with year range (replace "Copyright 2018" with "Copyright 2018-YYYY")
+sed "s/Copyright 2018 The Rook Authors/Copyright 2018-${current_year} The Rook Authors/" "${boilerplate_template}" > "${boilerplate}"
+
+# Clean up temporary file on exit
+cleanup() {
+	rm -f "${boilerplate}"
+}
+trap cleanup EXIT
 
 source "${CODE_GENERATOR}/kube_codegen.sh"
 (
@@ -34,7 +46,7 @@ source "${CODE_GENERATOR}/kube_codegen.sh"
   kube::codegen::gen_helpers \
       --boilerplate "${boilerplate}" \
       "${base_dir}/pkg/apis" \
-  
+
   # run code client,lister,informer generation
   kube::codegen::gen_client \
       --output-dir "${base_dir}/pkg/client" \
