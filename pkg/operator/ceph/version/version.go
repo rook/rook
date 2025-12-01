@@ -48,8 +48,8 @@ var (
 	Squid = CephVersion{19, 0, 0, 0, ""}
 	// Tentacle ceph version
 	Tentacle = CephVersion{20, 0, 0, 0, ""}
-	// Urchin ceph version
-	Urchin = CephVersion{21, 0, 0, 0, ""}
+	// Umbrella ceph version
+	Umbrella = CephVersion{21, 0, 0, 0, ""}
 
 	// supportedVersions are production-ready versions that rook supports
 	supportedVersions = []CephVersion{Reef, Squid, Tentacle}
@@ -92,8 +92,8 @@ func (v *CephVersion) ReleaseName() string {
 		return "squid"
 	case Tentacle.Major:
 		return "tentacle"
-	case Urchin.Major:
-		return "urchin"
+	case Umbrella.Major:
+		return "umbrella"
 	default:
 		return unknownVersionString
 	}
@@ -197,9 +197,9 @@ func (v *CephVersion) IsAtLeastTentacle() bool {
 	return v.IsAtLeast(Tentacle)
 }
 
-// IsAtLeastUrchin checks that the Ceph version is at least Urchin
-func (v *CephVersion) IsAtLeastUrchin() bool {
-	return v.IsAtLeast(Urchin)
+// IsAtLeastUmbrella checks that the Ceph version is at least Umbrella
+func (v *CephVersion) IsAtLeastUmbrella() bool {
+	return v.IsAtLeast(Umbrella)
 }
 
 // IsAtLeastSquid checks that the Ceph version is at least Squid
