@@ -19,116 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	cephrookiov1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeCephBucketNotifications implements CephBucketNotificationInterface
-type FakeCephBucketNotifications struct {
+// fakeCephBucketNotifications implements CephBucketNotificationInterface
+type fakeCephBucketNotifications struct {
+	*gentype.FakeClientWithList[*v1.CephBucketNotification, *v1.CephBucketNotificationList]
 	Fake *FakeCephV1
-	ns   string
 }
 
-var cephbucketnotificationsResource = v1.SchemeGroupVersion.WithResource("cephbucketnotifications")
-
-var cephbucketnotificationsKind = v1.SchemeGroupVersion.WithKind("CephBucketNotification")
-
-// Get takes name of the cephBucketNotification, and returns the corresponding cephBucketNotification object, and an error if there is any.
-func (c *FakeCephBucketNotifications) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephBucketNotification, err error) {
-	emptyResult := &v1.CephBucketNotification{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(cephbucketnotificationsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeCephBucketNotifications(fake *FakeCephV1, namespace string) cephrookiov1.CephBucketNotificationInterface {
+	return &fakeCephBucketNotifications{
+		gentype.NewFakeClientWithList[*v1.CephBucketNotification, *v1.CephBucketNotificationList](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("cephbucketnotifications"),
+			v1.SchemeGroupVersion.WithKind("CephBucketNotification"),
+			func() *v1.CephBucketNotification { return &v1.CephBucketNotification{} },
+			func() *v1.CephBucketNotificationList { return &v1.CephBucketNotificationList{} },
+			func(dst, src *v1.CephBucketNotificationList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.CephBucketNotificationList) []*v1.CephBucketNotification {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1.CephBucketNotificationList, items []*v1.CephBucketNotification) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.CephBucketNotification), err
-}
-
-// List takes label and field selectors, and returns the list of CephBucketNotifications that match those selectors.
-func (c *FakeCephBucketNotifications) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephBucketNotificationList, err error) {
-	emptyResult := &v1.CephBucketNotificationList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(cephbucketnotificationsResource, cephbucketnotificationsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.CephBucketNotificationList{ListMeta: obj.(*v1.CephBucketNotificationList).ListMeta}
-	for _, item := range obj.(*v1.CephBucketNotificationList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested cephBucketNotifications.
-func (c *FakeCephBucketNotifications) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(cephbucketnotificationsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a cephBucketNotification and creates it.  Returns the server's representation of the cephBucketNotification, and an error, if there is any.
-func (c *FakeCephBucketNotifications) Create(ctx context.Context, cephBucketNotification *v1.CephBucketNotification, opts metav1.CreateOptions) (result *v1.CephBucketNotification, err error) {
-	emptyResult := &v1.CephBucketNotification{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(cephbucketnotificationsResource, c.ns, cephBucketNotification, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephBucketNotification), err
-}
-
-// Update takes the representation of a cephBucketNotification and updates it. Returns the server's representation of the cephBucketNotification, and an error, if there is any.
-func (c *FakeCephBucketNotifications) Update(ctx context.Context, cephBucketNotification *v1.CephBucketNotification, opts metav1.UpdateOptions) (result *v1.CephBucketNotification, err error) {
-	emptyResult := &v1.CephBucketNotification{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(cephbucketnotificationsResource, c.ns, cephBucketNotification, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephBucketNotification), err
-}
-
-// Delete takes name of the cephBucketNotification and deletes it. Returns an error if one occurs.
-func (c *FakeCephBucketNotifications) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(cephbucketnotificationsResource, c.ns, name, opts), &v1.CephBucketNotification{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeCephBucketNotifications) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(cephbucketnotificationsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.CephBucketNotificationList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched cephBucketNotification.
-func (c *FakeCephBucketNotifications) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephBucketNotification, err error) {
-	emptyResult := &v1.CephBucketNotification{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(cephbucketnotificationsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephBucketNotification), err
 }

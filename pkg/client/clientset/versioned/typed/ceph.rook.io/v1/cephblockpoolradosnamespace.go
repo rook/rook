@@ -19,9 +19,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,34 @@ type CephBlockPoolRadosNamespacesGetter interface {
 
 // CephBlockPoolRadosNamespaceInterface has methods to work with CephBlockPoolRadosNamespace resources.
 type CephBlockPoolRadosNamespaceInterface interface {
-	Create(ctx context.Context, cephBlockPoolRadosNamespace *v1.CephBlockPoolRadosNamespace, opts metav1.CreateOptions) (*v1.CephBlockPoolRadosNamespace, error)
-	Update(ctx context.Context, cephBlockPoolRadosNamespace *v1.CephBlockPoolRadosNamespace, opts metav1.UpdateOptions) (*v1.CephBlockPoolRadosNamespace, error)
+	Create(ctx context.Context, cephBlockPoolRadosNamespace *cephrookiov1.CephBlockPoolRadosNamespace, opts metav1.CreateOptions) (*cephrookiov1.CephBlockPoolRadosNamespace, error)
+	Update(ctx context.Context, cephBlockPoolRadosNamespace *cephrookiov1.CephBlockPoolRadosNamespace, opts metav1.UpdateOptions) (*cephrookiov1.CephBlockPoolRadosNamespace, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephBlockPoolRadosNamespace, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephBlockPoolRadosNamespaceList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephBlockPoolRadosNamespace, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*cephrookiov1.CephBlockPoolRadosNamespaceList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephBlockPoolRadosNamespace, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *cephrookiov1.CephBlockPoolRadosNamespace, err error)
 	CephBlockPoolRadosNamespaceExpansion
 }
 
 // cephBlockPoolRadosNamespaces implements CephBlockPoolRadosNamespaceInterface
 type cephBlockPoolRadosNamespaces struct {
-	*gentype.ClientWithList[*v1.CephBlockPoolRadosNamespace, *v1.CephBlockPoolRadosNamespaceList]
+	*gentype.ClientWithList[*cephrookiov1.CephBlockPoolRadosNamespace, *cephrookiov1.CephBlockPoolRadosNamespaceList]
 }
 
 // newCephBlockPoolRadosNamespaces returns a CephBlockPoolRadosNamespaces
 func newCephBlockPoolRadosNamespaces(c *CephV1Client, namespace string) *cephBlockPoolRadosNamespaces {
 	return &cephBlockPoolRadosNamespaces{
-		gentype.NewClientWithList[*v1.CephBlockPoolRadosNamespace, *v1.CephBlockPoolRadosNamespaceList](
+		gentype.NewClientWithList[*cephrookiov1.CephBlockPoolRadosNamespace, *cephrookiov1.CephBlockPoolRadosNamespaceList](
 			"cephblockpoolradosnamespaces",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.CephBlockPoolRadosNamespace { return &v1.CephBlockPoolRadosNamespace{} },
-			func() *v1.CephBlockPoolRadosNamespaceList { return &v1.CephBlockPoolRadosNamespaceList{} }),
+			func() *cephrookiov1.CephBlockPoolRadosNamespace { return &cephrookiov1.CephBlockPoolRadosNamespace{} },
+			func() *cephrookiov1.CephBlockPoolRadosNamespaceList {
+				return &cephrookiov1.CephBlockPoolRadosNamespaceList{}
+			},
+		),
 	}
 }

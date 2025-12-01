@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephObjectStoreLister helps list CephObjectStores.
@@ -30,7 +30,7 @@ import (
 type CephObjectStoreLister interface {
 	// List lists all CephObjectStores in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephObjectStore, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephObjectStore, err error)
 	// CephObjectStores returns an object that can list and get CephObjectStores.
 	CephObjectStores(namespace string) CephObjectStoreNamespaceLister
 	CephObjectStoreListerExpansion
@@ -38,17 +38,17 @@ type CephObjectStoreLister interface {
 
 // cephObjectStoreLister implements the CephObjectStoreLister interface.
 type cephObjectStoreLister struct {
-	listers.ResourceIndexer[*v1.CephObjectStore]
+	listers.ResourceIndexer[*cephrookiov1.CephObjectStore]
 }
 
 // NewCephObjectStoreLister returns a new CephObjectStoreLister.
 func NewCephObjectStoreLister(indexer cache.Indexer) CephObjectStoreLister {
-	return &cephObjectStoreLister{listers.New[*v1.CephObjectStore](indexer, v1.Resource("cephobjectstore"))}
+	return &cephObjectStoreLister{listers.New[*cephrookiov1.CephObjectStore](indexer, cephrookiov1.Resource("cephobjectstore"))}
 }
 
 // CephObjectStores returns an object that can list and get CephObjectStores.
 func (s *cephObjectStoreLister) CephObjectStores(namespace string) CephObjectStoreNamespaceLister {
-	return cephObjectStoreNamespaceLister{listers.NewNamespaced[*v1.CephObjectStore](s.ResourceIndexer, namespace)}
+	return cephObjectStoreNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephObjectStore](s.ResourceIndexer, namespace)}
 }
 
 // CephObjectStoreNamespaceLister helps list and get CephObjectStores.
@@ -56,15 +56,15 @@ func (s *cephObjectStoreLister) CephObjectStores(namespace string) CephObjectSto
 type CephObjectStoreNamespaceLister interface {
 	// List lists all CephObjectStores in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephObjectStore, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephObjectStore, err error)
 	// Get retrieves the CephObjectStore from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephObjectStore, error)
+	Get(name string) (*cephrookiov1.CephObjectStore, error)
 	CephObjectStoreNamespaceListerExpansion
 }
 
 // cephObjectStoreNamespaceLister implements the CephObjectStoreNamespaceLister
 // interface.
 type cephObjectStoreNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephObjectStore]
+	listers.ResourceIndexer[*cephrookiov1.CephObjectStore]
 }

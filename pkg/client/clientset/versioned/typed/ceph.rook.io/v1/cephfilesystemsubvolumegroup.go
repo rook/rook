@@ -19,9 +19,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,34 @@ type CephFilesystemSubVolumeGroupsGetter interface {
 
 // CephFilesystemSubVolumeGroupInterface has methods to work with CephFilesystemSubVolumeGroup resources.
 type CephFilesystemSubVolumeGroupInterface interface {
-	Create(ctx context.Context, cephFilesystemSubVolumeGroup *v1.CephFilesystemSubVolumeGroup, opts metav1.CreateOptions) (*v1.CephFilesystemSubVolumeGroup, error)
-	Update(ctx context.Context, cephFilesystemSubVolumeGroup *v1.CephFilesystemSubVolumeGroup, opts metav1.UpdateOptions) (*v1.CephFilesystemSubVolumeGroup, error)
+	Create(ctx context.Context, cephFilesystemSubVolumeGroup *cephrookiov1.CephFilesystemSubVolumeGroup, opts metav1.CreateOptions) (*cephrookiov1.CephFilesystemSubVolumeGroup, error)
+	Update(ctx context.Context, cephFilesystemSubVolumeGroup *cephrookiov1.CephFilesystemSubVolumeGroup, opts metav1.UpdateOptions) (*cephrookiov1.CephFilesystemSubVolumeGroup, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephFilesystemSubVolumeGroup, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephFilesystemSubVolumeGroupList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephFilesystemSubVolumeGroup, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*cephrookiov1.CephFilesystemSubVolumeGroupList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephFilesystemSubVolumeGroup, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *cephrookiov1.CephFilesystemSubVolumeGroup, err error)
 	CephFilesystemSubVolumeGroupExpansion
 }
 
 // cephFilesystemSubVolumeGroups implements CephFilesystemSubVolumeGroupInterface
 type cephFilesystemSubVolumeGroups struct {
-	*gentype.ClientWithList[*v1.CephFilesystemSubVolumeGroup, *v1.CephFilesystemSubVolumeGroupList]
+	*gentype.ClientWithList[*cephrookiov1.CephFilesystemSubVolumeGroup, *cephrookiov1.CephFilesystemSubVolumeGroupList]
 }
 
 // newCephFilesystemSubVolumeGroups returns a CephFilesystemSubVolumeGroups
 func newCephFilesystemSubVolumeGroups(c *CephV1Client, namespace string) *cephFilesystemSubVolumeGroups {
 	return &cephFilesystemSubVolumeGroups{
-		gentype.NewClientWithList[*v1.CephFilesystemSubVolumeGroup, *v1.CephFilesystemSubVolumeGroupList](
+		gentype.NewClientWithList[*cephrookiov1.CephFilesystemSubVolumeGroup, *cephrookiov1.CephFilesystemSubVolumeGroupList](
 			"cephfilesystemsubvolumegroups",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.CephFilesystemSubVolumeGroup { return &v1.CephFilesystemSubVolumeGroup{} },
-			func() *v1.CephFilesystemSubVolumeGroupList { return &v1.CephFilesystemSubVolumeGroupList{} }),
+			func() *cephrookiov1.CephFilesystemSubVolumeGroup { return &cephrookiov1.CephFilesystemSubVolumeGroup{} },
+			func() *cephrookiov1.CephFilesystemSubVolumeGroupList {
+				return &cephrookiov1.CephFilesystemSubVolumeGroupList{}
+			},
+		),
 	}
 }

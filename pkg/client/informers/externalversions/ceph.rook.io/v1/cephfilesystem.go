@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephFilesystems.
 type CephFilesystemInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephFilesystemLister
+	Lister() cephrookiov1.CephFilesystemLister
 }
 
 type cephFilesystemInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredCephFilesystemInformer(client versioned.Interface, namespace str
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephFilesystems(namespace).List(context.TODO(), options)
+				return client.CephV1().CephFilesystems(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephFilesystems(namespace).Watch(context.TODO(), options)
+				return client.CephV1().CephFilesystems(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephFilesystems(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephFilesystems(namespace).Watch(ctx, options)
 			},
 		},
-		&cephrookiov1.CephFilesystem{},
+		&apiscephrookiov1.CephFilesystem{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *cephFilesystemInformer) defaultInformer(client versioned.Interface, res
 }
 
 func (f *cephFilesystemInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephFilesystem{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephFilesystem{}, f.defaultInformer)
 }
 
-func (f *cephFilesystemInformer) Lister() v1.CephFilesystemLister {
-	return v1.NewCephFilesystemLister(f.Informer().GetIndexer())
+func (f *cephFilesystemInformer) Lister() cephrookiov1.CephFilesystemLister {
+	return cephrookiov1.NewCephFilesystemLister(f.Informer().GetIndexer())
 }

@@ -19,116 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	cephrookiov1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeCephObjectStoreUsers implements CephObjectStoreUserInterface
-type FakeCephObjectStoreUsers struct {
+// fakeCephObjectStoreUsers implements CephObjectStoreUserInterface
+type fakeCephObjectStoreUsers struct {
+	*gentype.FakeClientWithList[*v1.CephObjectStoreUser, *v1.CephObjectStoreUserList]
 	Fake *FakeCephV1
-	ns   string
 }
 
-var cephobjectstoreusersResource = v1.SchemeGroupVersion.WithResource("cephobjectstoreusers")
-
-var cephobjectstoreusersKind = v1.SchemeGroupVersion.WithKind("CephObjectStoreUser")
-
-// Get takes name of the cephObjectStoreUser, and returns the corresponding cephObjectStoreUser object, and an error if there is any.
-func (c *FakeCephObjectStoreUsers) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephObjectStoreUser, err error) {
-	emptyResult := &v1.CephObjectStoreUser{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(cephobjectstoreusersResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeCephObjectStoreUsers(fake *FakeCephV1, namespace string) cephrookiov1.CephObjectStoreUserInterface {
+	return &fakeCephObjectStoreUsers{
+		gentype.NewFakeClientWithList[*v1.CephObjectStoreUser, *v1.CephObjectStoreUserList](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("cephobjectstoreusers"),
+			v1.SchemeGroupVersion.WithKind("CephObjectStoreUser"),
+			func() *v1.CephObjectStoreUser { return &v1.CephObjectStoreUser{} },
+			func() *v1.CephObjectStoreUserList { return &v1.CephObjectStoreUserList{} },
+			func(dst, src *v1.CephObjectStoreUserList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.CephObjectStoreUserList) []*v1.CephObjectStoreUser {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1.CephObjectStoreUserList, items []*v1.CephObjectStoreUser) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.CephObjectStoreUser), err
-}
-
-// List takes label and field selectors, and returns the list of CephObjectStoreUsers that match those selectors.
-func (c *FakeCephObjectStoreUsers) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephObjectStoreUserList, err error) {
-	emptyResult := &v1.CephObjectStoreUserList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(cephobjectstoreusersResource, cephobjectstoreusersKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.CephObjectStoreUserList{ListMeta: obj.(*v1.CephObjectStoreUserList).ListMeta}
-	for _, item := range obj.(*v1.CephObjectStoreUserList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested cephObjectStoreUsers.
-func (c *FakeCephObjectStoreUsers) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(cephobjectstoreusersResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a cephObjectStoreUser and creates it.  Returns the server's representation of the cephObjectStoreUser, and an error, if there is any.
-func (c *FakeCephObjectStoreUsers) Create(ctx context.Context, cephObjectStoreUser *v1.CephObjectStoreUser, opts metav1.CreateOptions) (result *v1.CephObjectStoreUser, err error) {
-	emptyResult := &v1.CephObjectStoreUser{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(cephobjectstoreusersResource, c.ns, cephObjectStoreUser, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectStoreUser), err
-}
-
-// Update takes the representation of a cephObjectStoreUser and updates it. Returns the server's representation of the cephObjectStoreUser, and an error, if there is any.
-func (c *FakeCephObjectStoreUsers) Update(ctx context.Context, cephObjectStoreUser *v1.CephObjectStoreUser, opts metav1.UpdateOptions) (result *v1.CephObjectStoreUser, err error) {
-	emptyResult := &v1.CephObjectStoreUser{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(cephobjectstoreusersResource, c.ns, cephObjectStoreUser, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectStoreUser), err
-}
-
-// Delete takes name of the cephObjectStoreUser and deletes it. Returns an error if one occurs.
-func (c *FakeCephObjectStoreUsers) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(cephobjectstoreusersResource, c.ns, name, opts), &v1.CephObjectStoreUser{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeCephObjectStoreUsers) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(cephobjectstoreusersResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.CephObjectStoreUserList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched cephObjectStoreUser.
-func (c *FakeCephObjectStoreUsers) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephObjectStoreUser, err error) {
-	emptyResult := &v1.CephObjectStoreUser{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(cephobjectstoreusersResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephObjectStoreUser), err
 }

@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephObjectZoneGroupLister helps list CephObjectZoneGroups.
@@ -30,7 +30,7 @@ import (
 type CephObjectZoneGroupLister interface {
 	// List lists all CephObjectZoneGroups in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephObjectZoneGroup, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephObjectZoneGroup, err error)
 	// CephObjectZoneGroups returns an object that can list and get CephObjectZoneGroups.
 	CephObjectZoneGroups(namespace string) CephObjectZoneGroupNamespaceLister
 	CephObjectZoneGroupListerExpansion
@@ -38,17 +38,17 @@ type CephObjectZoneGroupLister interface {
 
 // cephObjectZoneGroupLister implements the CephObjectZoneGroupLister interface.
 type cephObjectZoneGroupLister struct {
-	listers.ResourceIndexer[*v1.CephObjectZoneGroup]
+	listers.ResourceIndexer[*cephrookiov1.CephObjectZoneGroup]
 }
 
 // NewCephObjectZoneGroupLister returns a new CephObjectZoneGroupLister.
 func NewCephObjectZoneGroupLister(indexer cache.Indexer) CephObjectZoneGroupLister {
-	return &cephObjectZoneGroupLister{listers.New[*v1.CephObjectZoneGroup](indexer, v1.Resource("cephobjectzonegroup"))}
+	return &cephObjectZoneGroupLister{listers.New[*cephrookiov1.CephObjectZoneGroup](indexer, cephrookiov1.Resource("cephobjectzonegroup"))}
 }
 
 // CephObjectZoneGroups returns an object that can list and get CephObjectZoneGroups.
 func (s *cephObjectZoneGroupLister) CephObjectZoneGroups(namespace string) CephObjectZoneGroupNamespaceLister {
-	return cephObjectZoneGroupNamespaceLister{listers.NewNamespaced[*v1.CephObjectZoneGroup](s.ResourceIndexer, namespace)}
+	return cephObjectZoneGroupNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephObjectZoneGroup](s.ResourceIndexer, namespace)}
 }
 
 // CephObjectZoneGroupNamespaceLister helps list and get CephObjectZoneGroups.
@@ -56,15 +56,15 @@ func (s *cephObjectZoneGroupLister) CephObjectZoneGroups(namespace string) CephO
 type CephObjectZoneGroupNamespaceLister interface {
 	// List lists all CephObjectZoneGroups in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephObjectZoneGroup, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephObjectZoneGroup, err error)
 	// Get retrieves the CephObjectZoneGroup from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephObjectZoneGroup, error)
+	Get(name string) (*cephrookiov1.CephObjectZoneGroup, error)
 	CephObjectZoneGroupNamespaceListerExpansion
 }
 
 // cephObjectZoneGroupNamespaceLister implements the CephObjectZoneGroupNamespaceLister
 // interface.
 type cephObjectZoneGroupNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephObjectZoneGroup]
+	listers.ResourceIndexer[*cephrookiov1.CephObjectZoneGroup]
 }

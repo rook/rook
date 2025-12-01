@@ -19,9 +19,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,31 +37,32 @@ type CephRBDMirrorsGetter interface {
 
 // CephRBDMirrorInterface has methods to work with CephRBDMirror resources.
 type CephRBDMirrorInterface interface {
-	Create(ctx context.Context, cephRBDMirror *v1.CephRBDMirror, opts metav1.CreateOptions) (*v1.CephRBDMirror, error)
-	Update(ctx context.Context, cephRBDMirror *v1.CephRBDMirror, opts metav1.UpdateOptions) (*v1.CephRBDMirror, error)
+	Create(ctx context.Context, cephRBDMirror *cephrookiov1.CephRBDMirror, opts metav1.CreateOptions) (*cephrookiov1.CephRBDMirror, error)
+	Update(ctx context.Context, cephRBDMirror *cephrookiov1.CephRBDMirror, opts metav1.UpdateOptions) (*cephrookiov1.CephRBDMirror, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephRBDMirror, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephRBDMirrorList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephRBDMirror, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*cephrookiov1.CephRBDMirrorList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephRBDMirror, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *cephrookiov1.CephRBDMirror, err error)
 	CephRBDMirrorExpansion
 }
 
 // cephRBDMirrors implements CephRBDMirrorInterface
 type cephRBDMirrors struct {
-	*gentype.ClientWithList[*v1.CephRBDMirror, *v1.CephRBDMirrorList]
+	*gentype.ClientWithList[*cephrookiov1.CephRBDMirror, *cephrookiov1.CephRBDMirrorList]
 }
 
 // newCephRBDMirrors returns a CephRBDMirrors
 func newCephRBDMirrors(c *CephV1Client, namespace string) *cephRBDMirrors {
 	return &cephRBDMirrors{
-		gentype.NewClientWithList[*v1.CephRBDMirror, *v1.CephRBDMirrorList](
+		gentype.NewClientWithList[*cephrookiov1.CephRBDMirror, *cephrookiov1.CephRBDMirrorList](
 			"cephrbdmirrors",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.CephRBDMirror { return &v1.CephRBDMirror{} },
-			func() *v1.CephRBDMirrorList { return &v1.CephRBDMirrorList{} }),
+			func() *cephrookiov1.CephRBDMirror { return &cephrookiov1.CephRBDMirror{} },
+			func() *cephrookiov1.CephRBDMirrorList { return &cephrookiov1.CephRBDMirrorList{} },
+		),
 	}
 }

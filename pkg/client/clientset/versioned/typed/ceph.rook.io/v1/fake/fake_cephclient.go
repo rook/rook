@@ -19,116 +19,30 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	cephrookiov1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeCephClients implements CephClientInterface
-type FakeCephClients struct {
+// fakeCephClients implements CephClientInterface
+type fakeCephClients struct {
+	*gentype.FakeClientWithList[*v1.CephClient, *v1.CephClientList]
 	Fake *FakeCephV1
-	ns   string
 }
 
-var cephclientsResource = v1.SchemeGroupVersion.WithResource("cephclients")
-
-var cephclientsKind = v1.SchemeGroupVersion.WithKind("CephClient")
-
-// Get takes name of the cephClient, and returns the corresponding cephClient object, and an error if there is any.
-func (c *FakeCephClients) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephClient, err error) {
-	emptyResult := &v1.CephClient{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(cephclientsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeCephClients(fake *FakeCephV1, namespace string) cephrookiov1.CephClientInterface {
+	return &fakeCephClients{
+		gentype.NewFakeClientWithList[*v1.CephClient, *v1.CephClientList](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("cephclients"),
+			v1.SchemeGroupVersion.WithKind("CephClient"),
+			func() *v1.CephClient { return &v1.CephClient{} },
+			func() *v1.CephClientList { return &v1.CephClientList{} },
+			func(dst, src *v1.CephClientList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.CephClientList) []*v1.CephClient { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.CephClientList, items []*v1.CephClient) { list.Items = gentype.FromPointerSlice(items) },
+		),
+		fake,
 	}
-	return obj.(*v1.CephClient), err
-}
-
-// List takes label and field selectors, and returns the list of CephClients that match those selectors.
-func (c *FakeCephClients) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephClientList, err error) {
-	emptyResult := &v1.CephClientList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(cephclientsResource, cephclientsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.CephClientList{ListMeta: obj.(*v1.CephClientList).ListMeta}
-	for _, item := range obj.(*v1.CephClientList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested cephClients.
-func (c *FakeCephClients) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(cephclientsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a cephClient and creates it.  Returns the server's representation of the cephClient, and an error, if there is any.
-func (c *FakeCephClients) Create(ctx context.Context, cephClient *v1.CephClient, opts metav1.CreateOptions) (result *v1.CephClient, err error) {
-	emptyResult := &v1.CephClient{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(cephclientsResource, c.ns, cephClient, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephClient), err
-}
-
-// Update takes the representation of a cephClient and updates it. Returns the server's representation of the cephClient, and an error, if there is any.
-func (c *FakeCephClients) Update(ctx context.Context, cephClient *v1.CephClient, opts metav1.UpdateOptions) (result *v1.CephClient, err error) {
-	emptyResult := &v1.CephClient{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(cephclientsResource, c.ns, cephClient, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephClient), err
-}
-
-// Delete takes name of the cephClient and deletes it. Returns an error if one occurs.
-func (c *FakeCephClients) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(cephclientsResource, c.ns, name, opts), &v1.CephClient{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeCephClients) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(cephclientsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.CephClientList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched cephClient.
-func (c *FakeCephClients) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephClient, err error) {
-	emptyResult := &v1.CephClient{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(cephclientsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephClient), err
 }

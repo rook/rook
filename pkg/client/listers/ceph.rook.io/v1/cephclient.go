@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephClientLister helps list CephClients.
@@ -30,7 +30,7 @@ import (
 type CephClientLister interface {
 	// List lists all CephClients in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephClient, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephClient, err error)
 	// CephClients returns an object that can list and get CephClients.
 	CephClients(namespace string) CephClientNamespaceLister
 	CephClientListerExpansion
@@ -38,17 +38,17 @@ type CephClientLister interface {
 
 // cephClientLister implements the CephClientLister interface.
 type cephClientLister struct {
-	listers.ResourceIndexer[*v1.CephClient]
+	listers.ResourceIndexer[*cephrookiov1.CephClient]
 }
 
 // NewCephClientLister returns a new CephClientLister.
 func NewCephClientLister(indexer cache.Indexer) CephClientLister {
-	return &cephClientLister{listers.New[*v1.CephClient](indexer, v1.Resource("cephclient"))}
+	return &cephClientLister{listers.New[*cephrookiov1.CephClient](indexer, cephrookiov1.Resource("cephclient"))}
 }
 
 // CephClients returns an object that can list and get CephClients.
 func (s *cephClientLister) CephClients(namespace string) CephClientNamespaceLister {
-	return cephClientNamespaceLister{listers.NewNamespaced[*v1.CephClient](s.ResourceIndexer, namespace)}
+	return cephClientNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephClient](s.ResourceIndexer, namespace)}
 }
 
 // CephClientNamespaceLister helps list and get CephClients.
@@ -56,15 +56,15 @@ func (s *cephClientLister) CephClients(namespace string) CephClientNamespaceList
 type CephClientNamespaceLister interface {
 	// List lists all CephClients in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephClient, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephClient, err error)
 	// Get retrieves the CephClient from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephClient, error)
+	Get(name string) (*cephrookiov1.CephClient, error)
 	CephClientNamespaceListerExpansion
 }
 
 // cephClientNamespaceLister implements the CephClientNamespaceLister
 // interface.
 type cephClientNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephClient]
+	listers.ResourceIndexer[*cephrookiov1.CephClient]
 }
