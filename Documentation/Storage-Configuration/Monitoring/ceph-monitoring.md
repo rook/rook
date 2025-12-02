@@ -321,17 +321,18 @@ metadata:
  namespace: rook-ceph
 spec:
  scaleTargetRef:
-   kind: Deployment
-   name: rook-ceph-rgw-my-store-a # deployment for the autoscaling
+   apiVersion: ceph.rook.io/v1
+   kind: CephObjectStore
+   name: my-store # name of the cephObjectStore resource
  minReplicaCount: 1
  maxReplicaCount: 5
  triggers:
  - type: prometheus
    metadata:
      serverAddress: http://rook-prometheus.rook-ceph.svc:9090
-     metricName: collecting_ceph_rgw_put
+     metricName: ceph_rgw_put_collector
      query: |
-       sum(rate(ceph_rgw_put[2m])) # prometheus query used for autoscaling
+       sum(rate(ceph_rgw_op_put_obj_ops[2m])) # prometheus query used for autoscaling
      threshold: "90"
 ```
 

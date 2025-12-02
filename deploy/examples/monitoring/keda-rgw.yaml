@@ -16,5 +16,5 @@ spec:
         serverAddress: http://rook-prometheus.rook-ceph.svc:9090
         metricName: ceph_rgw_put_collector
         query: |
-          sum(rate(ceph_rgw_put[2m]))
+          sum(rate(ceph_rgw_op_put_obj_ops[2m]))
         threshold: "90"
