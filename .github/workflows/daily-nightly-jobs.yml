@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   canary-arm64:
-    runs-on: [self-hosted, ubuntu-20.04-arm64, ARM64]
+    runs-on: [ubuntu-22.04-arm]
     if: github.repository == 'rook/rook'
 
     steps:
@@ -28,48 +28,16 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup golang
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          go-version: "1.25"
-
-      - name: Install Docker
-        run: |
-          sudo apt-get update
-          sudo apt-get install docker.io -y
-
-      - name: Start Docker service
-        run: sudo service docker start
-
-      - name: Check Docker version
-        run: docker version
-
-      - name: setup minikube
-        run: |
-          sudo apt-get install build-essential -y
-          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-arm64
-          sudo install minikube-linux-arm64 /usr/local/bin/minikube
-          sudo rm -f minikube-linux-arm64
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
-          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-          minikube start --memory 28g --cpus=12 --driver=docker
-
-      - name: install yq
-        run: |
-          sudo curl -JL https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_arm64  --output /usr/bin/yq
-          sudo chmod +x /usr/bin/yq
-
-      - name: print k8s cluster status
-        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-      - name: use local disk and create partitions for osds
-        run: |
-          export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 1
+      - name: setup cluster resources
+        uses: ./.github/workflows/canary-test-config
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
+
+      - name: use local disk and create partitions for osds
+        run: |
+          tests/scripts/github-action-helper.sh use_local_disk
+          tests/scripts/github-action-helper.sh create_partitions_for_osds
 
       - name: deploy cluster
         run: |
@@ -81,35 +49,18 @@ jobs:
           yq write -d0 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.osd.disabled" true
           tests/scripts/github-action-helper.sh deploy_cluster
           tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
-          # there are no package for arm64 nfs-ganesha
-          kubectl delete -f deploy/examples/nfs-test.yaml
 
       - name: wait for prepare pod
-        run: timeout 900 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done' || kubectl -n rook-ceph get all && kubectl logs -n rook-ceph deploy/rook-ceph-operator
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready "mon,mgr,osd,mds,rgw,rbd_mirror,fs_mirror" 1
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2
 
       - name: collect common logs
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
           name: canary-arm64
-
-      - name: teardown minikube, docker and kubectl
-        if: always()
-        run: |
-          uptime
-          minikube delete
-          docker system prune --all --force
-          sudo service docker stop
-          sudo rm -rf  /usr/local/bin/minikube
-          sudo rm -rf /usr/local/bin/kubectl
-          sudo modprobe -r nbd
-
-      - name: remove /usr/bin/yq
-        if: always()
-        run: sudo rm -rf /usr/bin/yq
 
   smoke-suite-reef-devel:
     if: github.repository == 'rook/rook'
