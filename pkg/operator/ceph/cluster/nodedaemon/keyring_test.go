@@ -54,7 +54,7 @@ func TestCreateCrashCollectorKeyring(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Context:     ctx,
 		Namespace:   "rook-ceph",
-		CephVersion: cephver.Reef,
+		CephVersion: cephver.Squid,
 	}
 
 	clusterInfo.SetName("mycluster")
@@ -146,7 +146,7 @@ func TestCreateCephExporterKeyring(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Context:     ctx,
 		Namespace:   "rook-ceph",
-		CephVersion: cephver.Reef,
+		CephVersion: cephver.Squid,
 	}
 
 	clusterInfo.SetName("mycluster")

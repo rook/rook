@@ -70,7 +70,7 @@ func (h *HelmSuite) SetupSuite() {
 		ChangeHostName:       true,
 		ConnectionsEncrypted: true,
 		RookVersion:          installer.LocalBuildTag,
-		CephVersion:          installer.ReefVersion,
+		CephVersion:          installer.SquidVersion,
 		EnableCsiOperator:    true,
 	}
 	h.settings.ApplyEnvVars()

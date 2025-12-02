@@ -86,7 +86,7 @@ func TestOrchestratorModules(t *testing.T) {
 	assert.True(t, rookModuleEnabled)
 	assert.True(t, rookBackendSet)
 
-	c.clusterInfo.CephVersion = cephver.Reef
+	c.clusterInfo.CephVersion = cephver.Squid
 	err = c.setRookOrchestratorBackend()
 	assert.NoError(t, err)
 	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {

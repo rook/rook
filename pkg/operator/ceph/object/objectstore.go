@@ -813,12 +813,9 @@ func ConfigureSharedPoolsForZone(objContext *Context, sharedPools cephv1.ObjectS
 	// persist configuration updates:
 	if hasZoneChanged {
 		logger.Infof("zone config changed: performing zone config updates for %s", objContext.Zone)
-		updatedZoneResult, err := updateZoneJSON(objContext, zoneUpdated)
+		_, err := updateZoneJSON(objContext, zoneUpdated)
 		if err != nil {
 			return fmt.Errorf("unable to persist zone config update for %s: %w", objContext.Zone, err)
-		}
-		if err = zoneUpdateWorkaround(objContext, zoneUpdated, updatedZoneResult); err != nil {
-			return fmt.Errorf("failed to apply zone set workaround: %w", err)
 		}
 	}
 	if hasZoneGroupChanged {
@@ -939,144 +936,6 @@ func adjustZoneDefaultPools(zone map[string]interface{}, spec cephv1.ObjectShare
 	}
 
 	return zone, nil
-}
-
-// There was a radosgw-admin bug that was preventing the RADOS namespace from being applied
-// for the data pool. The fix is included in Reef v18.2.3 or newer, and v19.2.0.
-// The workaround is to run a "radosgw-admin zone placement modify" command to apply
-// the desired data pool config.
-// After Reef (v18) support is removed, this method will be dead code.
-func zoneUpdateWorkaround(objContext *Context, expectedZone, gotZone map[string]interface{}) error {
-	// Update the necessary fields for RAODS namespaces
-	// If the radosgw-admin fix is in the release, the data pool is already applied and we skip the workaround.
-	expected, err := getObjProperty[[]interface{}](expectedZone, "placement_pools")
-	if err != nil {
-		return err
-	}
-	got, err := getObjProperty[[]interface{}](gotZone, "placement_pools")
-	if err != nil {
-		return err
-	}
-	if len(expected) != len(got) {
-		// should not happen
-		return fmt.Errorf("placements were not applied to zone config: expected %+v, got %+v", expected, got)
-	}
-
-	// update pool placements one-by-one if needed
-	for i, expPl := range expected {
-		expPoolObj, ok := expPl.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("unable to cast pool placement to object: %+v", expPl)
-		}
-		expPoolName, err := getObjProperty[string](expPoolObj, "key")
-		if err != nil {
-			return fmt.Errorf("unable to get pool placement name: %w", err)
-		}
-
-		gotPoolObj, ok := got[i].(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("unable to cast pool placement to object: %+v", got[i])
-		}
-		gotPoolName, err := getObjProperty[string](gotPoolObj, "key")
-		if err != nil {
-			return fmt.Errorf("unable to get pool placement name: %w", err)
-		}
-
-		if expPoolName != gotPoolName {
-			// should not happen
-			return fmt.Errorf("placements were not applied to zone config: expected %+v, got %+v", expected, got)
-		}
-		err = zoneUpdatePlacementWorkaround(objContext, gotPoolName, expPoolObj, gotPoolObj)
-		if err != nil {
-			return fmt.Errorf("unable to do zone update workaround for placement %q: %w", gotPoolName, err)
-		}
-	}
-	return nil
-}
-
-func zoneUpdatePlacementWorkaround(objContext *Context, placementID string, expect, got map[string]interface{}) error {
-	args := []string{
-		"zone", "placement", "modify",
-		"--rgw-realm=" + objContext.Realm,
-		"--rgw-zonegroup=" + objContext.ZoneGroup,
-		"--rgw-zone=" + objContext.Zone,
-		"--placement-id", placementID,
-	}
-	// check index and data pools
-	needsWorkaround := false
-	expPool, err := getObjProperty[string](expect, "val", "index_pool")
-	if err != nil {
-		return err
-	}
-	gotPool, err := getObjProperty[string](got, "val", "index_pool")
-	if err != nil {
-		return err
-	}
-	if expPool != gotPool {
-		logger.Infof("do zone update workaround for zone %s, placement %s index pool: %s -> %s", objContext.Zone, placementID, gotPool, expPool)
-		args = append(args, "--index-pool="+expPool)
-		needsWorkaround = true
-	}
-	expPool, err = getObjProperty[string](expect, "val", "data_extra_pool")
-	if err != nil {
-		return err
-	}
-	gotPool, err = getObjProperty[string](got, "val", "data_extra_pool")
-	if err != nil {
-		return err
-	}
-	if expPool != gotPool {
-		logger.Infof("do zone update workaround for zone %s, placement %s data extra pool: %s -> %s", objContext.Zone, placementID, gotPool, expPool)
-		args = append(args, "--data-extra-pool="+expPool)
-		needsWorkaround = true
-	}
-
-	if needsWorkaround {
-		_, err = RunAdminCommandNoMultisite(objContext, false, args...)
-		if err != nil {
-			return errors.Wrap(err, "failed to set zone config")
-		}
-	}
-	expSC, err := getObjProperty[map[string]interface{}](expect, "val", "storage_classes")
-	if err != nil {
-		return err
-	}
-	gotSC, err := getObjProperty[map[string]interface{}](got, "val", "storage_classes")
-	if err != nil {
-		return err
-	}
-
-	// check storage classes data pools
-	for sc := range expSC {
-		expDP, err := getObjProperty[string](expSC, sc, "data_pool")
-		if err != nil {
-			return err
-		}
-		gotDP, err := getObjProperty[string](gotSC, sc, "data_pool")
-		if err != nil {
-			return err
-		}
-		if expDP == gotDP {
-			continue
-		}
-		logger.Infof("do zone update workaround for zone %s, placement %s storage-class %s pool: %s -> %s", objContext.Zone, placementID, sc, gotDP, expDP)
-		args = []string{
-			"zone", "placement", "modify",
-			"--rgw-realm=" + objContext.Realm,
-			"--rgw-zonegroup=" + objContext.ZoneGroup,
-			"--rgw-zone=" + objContext.Zone,
-			"--placement-id", placementID,
-			"--storage-class", sc,
-			"--data-pool=" + expDP,
-		}
-		output, err := RunAdminCommandNoMultisite(objContext, false, args...)
-		if err != nil {
-			return errors.Wrap(err, "failed to set zone config")
-		}
-		logger.Debugf("zone placement modify output=%s", output)
-	}
-
-	return nil
 }
 
 // configurePoolsConcurrently checks if operator pod resources are set or not

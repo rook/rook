@@ -404,7 +404,7 @@ func TestCephObjectStoreController(t *testing.T) {
 	}
 
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*cephver.CephVersion, *cephver.CephVersion, error) {
-		return &cephver.Reef, &cephver.Reef, nil
+		return &cephver.Squid, &cephver.Squid, nil
 	}
 
 	t.Run("error - no ceph cluster", func(t *testing.T) {
@@ -547,7 +547,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		assert.NotEmpty(t, objectStore.Status.Info["endpoint"], objectStore)
 		assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", objectStore.Status.Info["endpoint"], objectStore)
 		assert.True(t, calledCommitConfigChanges)
-		assert.Equal(t, 18, r.clusterInfo.CephVersion.Major)
+		assert.Equal(t, 19, r.clusterInfo.CephVersion.Major)
 	})
 }
 
@@ -745,7 +745,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 	}
 
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*cephver.CephVersion, *cephver.CephVersion, error) {
-		return &cephver.Reef, &cephver.Reef, nil
+		return &cephver.Squid, &cephver.Squid, nil
 	}
 
 	t.Run("create an object store", func(t *testing.T) {
@@ -917,7 +917,7 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 	}
 
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*cephver.CephVersion, *cephver.CephVersion, error) {
-		return &cephver.Reef, &cephver.Reef, nil
+		return &cephver.Squid, &cephver.Squid, nil
 	}
 
 	{

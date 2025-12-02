@@ -241,9 +241,9 @@ func TestNetworkBindingFlags(t *testing.T) {
 		args args
 		want []string
 	}{
-		{"ipv4", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Reef}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4}}}, []string{ipv4FlagTrue, ipv6FlagFalse}},
-		{"ipv6", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Reef}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6}}}, []string{ipv4FlagFalse, ipv6FlagTrue}},
-		{"dualstack-supported", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Reef}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}}}, []string{ipv4FlagTrue, ipv6FlagTrue}},
+		{"ipv4", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Squid}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4}}}, []string{ipv4FlagTrue, ipv6FlagFalse}},
+		{"ipv6", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Squid}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6}}}, []string{ipv4FlagFalse, ipv6FlagTrue}},
+		{"dualstack-supported", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Squid}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}}}, []string{ipv4FlagTrue, ipv6FlagTrue}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
