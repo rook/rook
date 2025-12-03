@@ -36,6 +36,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
+// Always trigger a reconcile when a secret is deleted. This will cause a
+// reconciliation failure to happen immediately in hopes of alerting the end
+// user to the configuration problem.
+var changedOrDeleted = predicate.Or(
+	predicate.TypedResourceVersionChangedPredicate[*corev1.Secret]{},
+	predicate.TypedFuncs[*corev1.Secret]{
+		DeleteFunc: func(e event.TypedDeleteEvent[*corev1.Secret]) bool {
+			return true
+		},
+	},
+)
+
 func shouldReconcileChangedNode(objOld, objNew *corev1.Node) bool {
 	// do not watch node if only resourceversion got changed
 	resourceQtyComparer := cmpopts.IgnoreFields(v1.ObjectMeta{}, "ResourceVersion")
