@@ -47,3 +47,6 @@ spec:
     dataChunks: 2
     codingChunks: 1
   application: rgw
+  parameters:
+    # Ceph Tentacle v20 has optimizations that need to be explicitly enabled
+    # allow_ec_optimizations: "true"
