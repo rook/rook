@@ -25,6 +25,7 @@ import (
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/log"
 )
 
 const (
@@ -86,7 +87,7 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 // The function is used **ONCE** only to provision so the RGW Admin Ops User
 // Subsequent interaction with the API will be done with the created user
 func GetUser(c *Context, id string) (*ObjectUser, int, error) {
-	logger.Debugf("getting s3 user %q", id)
+	log.NamedDebug(c.NsName(), logger, "getting s3 user %q", id)
 	// note: err is set for non-existent user but result output is also empty
 	result, err := runAdminCommand(c, false, "user", "info", "--uid", id)
 	if strings.Contains(result, "no user info saved") {
@@ -106,7 +107,7 @@ func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 // The function is used **ONCE** only to provision so the RGW Admin Ops User
 // Subsequent interaction with the API will be done with the created user
 func CreateUser(c *Context, user ObjectUser, force bool) (*ObjectUser, int, error) {
-	logger.Debugf("creating s3 user %q", user.UserID)
+	log.NamedDebug(c.NsName(), logger, "creating s3 user %q", user.UserID)
 	timeout := exec.CephCommandsTimeout
 	if user.UserID == RGWAdminOpsUserSecretName {
 		// Setting a really long timeout for the command that creates the admin user

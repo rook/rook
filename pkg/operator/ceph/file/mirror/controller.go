@@ -31,6 +31,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -159,7 +160,7 @@ func (r *ReconcileFilesystemMirror) Reconcile(context context.Context, request r
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed set ready failure status to the cephFileSystemMirror %q", request.NamespacedName)
 		}
-		logger.Errorf("failed to reconcile %v", err)
+		log.NamedError(request.NamespacedName, logger, "failed to reconcile %v", err)
 	}
 
 	return reporting.ReportReconcileResult(logger, r.recorder, request, &cephFilesystemMirror, reconcileResponse, err)
@@ -171,7 +172,7 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, filesystemMirror)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephFilesystemMirror resource not found. Ignoring since object must be deleted.")
+			log.NamedDebug(request.NamespacedName, logger, "CephFilesystemMirror resource not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, *filesystemMirror, nil
 		}
 		// Error reading the object - requeue the request.
@@ -200,7 +201,7 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	// Make sure a CephCluster is present otherwise do nothing
 	cephCluster, isReadyToReconcile, _, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
-		logger.Debugf("CephCluster resource not ready in namespace %q, retrying in %q.", request.NamespacedName.Namespace, reconcileResponse.RequeueAfter.String())
+		log.NamedDebug(request.NamespacedName, logger, "CephCluster resource not ready in namespace %q, retrying in %q.", request.NamespacedName.Namespace, reconcileResponse.RequeueAfter.String())
 		r.recorder.Event(filesystemMirror, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 		return reconcileResponse, *filesystemMirror, nil
@@ -251,11 +252,11 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 		return reconcile.Result{}, *filesystemMirror, errors.Wrapf(err, "failed to determine if cephx keys should be rotated for the cephFileSystemMirror %q", request.NamespacedName)
 	}
 	if r.shouldRotateCephxKeys {
-		logger.Infof("cephx keys for CephFilesystemMirror %q will be rotated", request.NamespacedName)
+		log.NamedInfo(request.NamespacedName, logger, "cephx keys for CephFilesystemMirror will be rotated")
 	}
 
 	// CREATE/UPDATE
-	logger.Debug("reconciling ceph filesystem mirror deployments")
+	log.NamedDebug(request.NamespacedName, logger, "reconciling ceph filesystem mirror deployments")
 	reconcileResponse, err = r.reconcileFilesystemMirror(filesystemMirror)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, *filesystemMirror, errors.Wrap(err, "failed to create ceph filesystem mirror deployments")
@@ -271,7 +272,7 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	}
 
 	// Return and do not requeue
-	logger.Debug("done reconciling ceph filesystem mirror")
+	log.NamedDebug(request.NamespacedName, logger, "done reconciling ceph filesystem mirror")
 	return reconcile.Result{}, *filesystemMirror, nil
 }
 
@@ -301,7 +302,7 @@ func (r *ReconcileFilesystemMirror) updateStatus(observedGeneration int64, names
 		err := r.client.Get(r.opManagerContext, namespacedName, fsMirror)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debugf("CephFilesystemMirror resource %q not found. Ignoring since object must be deleted.", namespacedName)
+				log.NamedDebug(namespacedName, logger, "CephFilesystemMirror resource not found. Ignoring since object must be deleted.")
 				return nil
 			}
 			return errors.Wrapf(err, "failed to retrieve filesystem mirror %q to update status to %v", namespacedName, status)
@@ -329,6 +330,6 @@ func (r *ReconcileFilesystemMirror) updateStatus(observedGeneration int64, names
 		return err
 	}
 
-	logger.Debugf("filesystem mirror %q status updated to %q", namespacedName, status)
+	log.NamedDebug(namespacedName, logger, "filesystem mirror status updated to %q", status)
 	return nil
 }

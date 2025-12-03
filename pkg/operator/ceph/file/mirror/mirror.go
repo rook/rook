@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -42,6 +43,7 @@ var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // Start begins the process of running filesystem mirroring daemons.
 func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesystemMirror) error {
+	nsName := controller.NsName(filesystemMirror.Namespace, filesystemMirror.Name)
 	// Validate pod's memory if specified
 	err := controller.CheckPodMemory(cephv1.ResourcesKeyFilesystemMirror, filesystemMirror.Spec.Resources, cephFilesystemMirrorPodMinimumMemory)
 	if err != nil {
@@ -85,11 +87,11 @@ func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesyste
 		if !kerrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create %q deployment", d.Name)
 		}
-		logger.Infof("deployment for filesystem-mirror %q already exists. updating if needed", d.Name)
+		log.NamedInfo(nsName, logger, "deployment for filesystem-mirror already exists. updating if needed")
 
 		if err := updateDeploymentAndWait(r.context, r.clusterInfo, d, config.FilesystemMirrorType, AppName, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 			// fail could be an issue updating label selector (immutable), so try del and recreate
-			logger.Debugf("updateDeploymentAndWait failed for filesystem-mirror %q. Attempting del-and-recreate. %v", d.Name, err)
+			log.NamedDebug(nsName, logger, "updateDeploymentAndWait failed for filesystem-mirror %q. Attempting del-and-recreate. %v", d.Name, err)
 			err = r.context.Clientset.AppsV1().Deployments(filesystemMirror.Namespace).Delete(r.opManagerContext, d.Name, metav1.DeleteOptions{})
 			if err != nil && !kerrors.IsNotFound(err) {
 				return errors.Wrapf(err, "failed to delete filesystem-mirror deployment %q during del-and-recreate update attempt", d.Name)
@@ -100,7 +102,7 @@ func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesyste
 		}
 	}
 
-	logger.Infof("%q deployment started", AppName)
+	log.NamedInfo(nsName, logger, "%q deployment started", AppName)
 
 	return nil
 }

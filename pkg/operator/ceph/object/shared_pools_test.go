@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1144,7 +1145,8 @@ func Test_adjustZoneDefaultPools(t *testing.T) {
 			srcZone := map[string]interface{}{}
 			err := json.Unmarshal([]byte(tt.args.beforeJSON), &srcZone)
 			assert.NoError(t, err)
-			changedZone, err := adjustZoneDefaultPools(srcZone, tt.args.spec)
+			objContext := &Context{clusterInfo: &cephclient.ClusterInfo{Namespace: "test"}}
+			changedZone, err := adjustZoneDefaultPools(objContext, srcZone, tt.args.spec)
 
 			// check that source was not modified
 			orig := map[string]interface{}{}

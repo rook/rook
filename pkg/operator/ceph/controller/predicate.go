@@ -55,10 +55,7 @@ func objectInfo(scheme *runtime.Scheme, obj client.Object) (string, types.Namesp
 		logger.Debugf("Unable to get GVK for object %+v", obj)
 	}
 
-	nsName := types.NamespacedName{
-		Namespace: obj.GetNamespace(),
-		Name:      obj.GetName(),
-	}
+	nsName := NsName(obj.GetNamespace(), obj.GetName())
 
 	return gvk.Kind, nsName
 }

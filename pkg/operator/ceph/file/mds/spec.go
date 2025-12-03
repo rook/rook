@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -179,7 +180,7 @@ func getMdsDeployments(ctx context.Context, context *clusterd.Context, namespace
 
 func deleteMdsDeployment(ctx context.Context, clusterdContext *clusterd.Context, namespace string, deployment *apps.Deployment) error {
 	// Delete the mds deployment
-	logger.Infof("deleting mds deployment %s", deployment.Name)
+	log.NamedInfo(controller.NsName(namespace, deployment.Name), logger, "deleting mds deployment")
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
@@ -191,7 +192,7 @@ func deleteMdsDeployment(ctx context.Context, clusterdContext *clusterd.Context,
 
 func scaleMdsDeployment(ctx context.Context, clusterdContext *clusterd.Context, namespace string, deployment *apps.Deployment, replicas int32) error {
 	// scale mds deployment
-	logger.Infof("scaling mds deployment %q to %d replicas", deployment.Name, replicas)
+	log.NamedInfo(controller.NsName(namespace, deployment.Name), logger, "scaling mds deployment to %d replicas", replicas)
 	d, err := clusterdContext.Clientset.AppsV1().Deployments(namespace).Get(ctx, deployment.GetName(), metav1.GetOptions{})
 	if err != nil {
 		if replicas != 0 && kerrors.IsNotFound(err) {

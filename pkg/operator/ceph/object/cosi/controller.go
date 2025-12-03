@@ -30,6 +30,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	appsv1 "k8s.io/api/apps/v1"
 	kapiv1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -144,7 +145,7 @@ func (r *ReconcileCephCOSIDriver) reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, *cephCOSIDriver, errors.New("more than one instance of CephCOSIDriver found")
 	} else if len(cephCOSIDriverList.Items) == 1 {
 		cephCOSIDriver = &cephCOSIDriverList.Items[0]
-		logger.Debugf("CephCOSIDriver: %+v", cephCOSIDriver)
+		log.NamedDebug(request.NamespacedName, logger, "CephCOSIDriver: %+v", cephCOSIDriver)
 	}
 
 	// While in experimental mode, the COSI driver is not enabled by default
@@ -156,7 +157,7 @@ func (r *ReconcileCephCOSIDriver) reconcile(request reconcile.Request) (reconcil
 	}
 
 	if cosiDeploymentStrategy == cephv1.COSIDeploymentStrategyNever {
-		logger.Debug("Ceph COSI Driver is disabled, delete if exists")
+		log.NamedDebug(request.NamespacedName, logger, "Ceph COSI Driver is disabled, delete if exists")
 		cephCOSIDriverDeployment := &appsv1.Deployment{}
 		err = r.client.Get(r.opManagerContext, request.NamespacedName, cephCOSIDriverDeployment)
 		if kerrors.IsNotFound(err) {
@@ -192,7 +193,7 @@ func (r *ReconcileCephCOSIDriver) reconcile(request reconcile.Request) (reconcil
 	}
 
 	if len(list.Items) == 0 && cosiDeploymentStrategy == cephv1.COSIDeploymentStrategyAuto {
-		logger.Info("no object stores found, skipping cosi driver config")
+		log.NamedInfo(request.NamespacedName, logger, "no object stores found, skipping cosi driver config")
 		return waitForRequeueObjectStoreNotPresent, *cephCOSIDriver, nil
 	}
 
@@ -207,26 +208,28 @@ func (r *ReconcileCephCOSIDriver) reconcile(request reconcile.Request) (reconcil
 
 // Start the Ceph COSI Driver
 func (r *ReconcileCephCOSIDriver) startCephCOSIDriver(cephCOSIDriver *cephv1.CephCOSIDriver) error {
+	nsName := opcontroller.NsName(cephCOSIDriver.Namespace, cephCOSIDriver.Name)
+
 	// Create the Ceph COSI Driver Deployment
 	cephcosidriverDeployment, err := createCephCOSIDriverDeployment(cephCOSIDriver)
 	if err != nil {
 		return errors.Wrap(err, "failed to create Ceph COSI Driver Deployment CRD")
 	}
 
-	logger.Infof("starting Ceph COSI Driver deployment %q in namespace %q", cephcosidriverDeployment.Name, cephcosidriverDeployment.Namespace)
+	log.NamedInfo(nsName, logger, "starting Ceph COSI Driver deployment %q in namespace %q", cephcosidriverDeployment.Name, cephcosidriverDeployment.Namespace)
 
 	err = r.client.Create(r.opManagerContext, cephcosidriverDeployment)
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			return errors.Wrap(err, "failed to create Ceph COSI Driver deployment")
 		}
-		logger.Info("Ceph COSI Driver deployment already exists, updating")
+		log.NamedInfo(nsName, logger, "Ceph COSI Driver deployment already exists, updating")
 		err = r.client.Update(r.opManagerContext, cephcosidriverDeployment)
 		if err != nil {
 			return errors.Wrap(err, "failed to update Ceph COSI Driver deployment")
 		}
 	} else {
-		logger.Info("Ceph COSI Driver deployment started")
+		log.NamedInfo(nsName, logger, "Ceph COSI Driver deployment started")
 	}
 
 	return nil

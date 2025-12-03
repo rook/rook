@@ -20,6 +20,7 @@ package topic
 import (
 	"context"
 	"crypto/hmac"
+
 	//nolint:gosec // sha1 is needed for v2 signatures
 	"crypto/sha1"
 	"encoding/base64"
@@ -42,7 +43,9 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/util/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -109,7 +112,7 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 		return nil, errors.Wrapf(err, "failed to create a new session for CephBucketTopic provisioning with %q", objectStoreName)
 	}
 
-	logger.Debugf("session created. endpoint %q secure %v",
+	log.NamedDebug(objectStoreName, logger, "session created. endpoint %q secure %v",
 		*sess.Config.Endpoint,
 		tlsEnabled,
 	)
@@ -124,7 +127,7 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 		Fn: func(req *awsrequest.Request) {
 			credentials, err := req.Config.Credentials.Get()
 			if err != nil {
-				logger.Debugf("%s failed to get credentials: %v", customSignername, err)
+				log.NamedDebug(objectStoreName, logger, "%s failed to get credentials: %v", customSignername, err)
 				return
 			}
 			date := req.Time.UTC().Format(time.RFC1123Z)
@@ -146,7 +149,7 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 
 func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[string]*string, *map[types.UID]*corev1.Secret, error) {
 	attr := make(map[string]*string)
-	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
+	nsName := controller.NsName(topic.Namespace, topic.Name)
 	// Currently, referencedSecrets is only used by the kafka endpoint but it
 	// could be used by other endpoints in the future.
 	referencedSecrets := make(map[types.UID]*corev1.Secret)
@@ -157,7 +160,7 @@ func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[st
 	var verifySSL string
 	var useSSL string
 	if topic.Spec.Endpoint.AMQP != nil {
-		logger.Infof("creating CephBucketTopic %q with endpoint %q", nsName, topic.Spec.Endpoint.AMQP.URI)
+		log.NamedInfo(nsName, logger, "creating CephBucketTopic %q with endpoint %q", nsName, topic.Spec.Endpoint.AMQP.URI)
 		attr["push-endpoint"] = &topic.Spec.Endpoint.AMQP.URI
 		attr["amqp-exchange"] = &topic.Spec.Endpoint.AMQP.Exchange
 		attr["amqp-ack-level"] = &topic.Spec.Endpoint.AMQP.AckLevel
@@ -165,7 +168,7 @@ func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[st
 		attr["verify-ssl"] = &verifySSL
 	}
 	if topic.Spec.Endpoint.HTTP != nil {
-		logger.Infof("creating CephBucketTopic %q with endpoint %q", nsName, topic.Spec.Endpoint.HTTP.URI)
+		log.NamedInfo(nsName, logger, "creating CephBucketTopic %q with endpoint %q", nsName, topic.Spec.Endpoint.HTTP.URI)
 		attr["push-endpoint"] = &topic.Spec.Endpoint.HTTP.URI
 		verifySSL = strconv.FormatBool(!topic.Spec.Endpoint.HTTP.DisableVerifySSL)
 		attr["verify-ssl"] = &verifySSL
@@ -194,7 +197,7 @@ func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[st
 					return nil, nil, errors.Wrapf(err, "failed to get secret value from CephBucketTopic %q .spec.endpoint.kafka.userSecretRef %q", nsName, kafka.UserSecretRef)
 				}
 
-				logger.Debugf("CephBucketTopic %q references secret %q", nsName, client.ObjectKeyFromObject(secret))
+				log.NamedDebug(nsName, logger, "CephBucketTopic %q references secret %q", nsName, client.ObjectKeyFromObject(secret))
 				referencedSecrets[secret.UID] = secret
 			}
 			if kafka.PasswordSecretRef != nil {
@@ -203,7 +206,7 @@ func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[st
 				if err != nil {
 					return nil, nil, errors.Wrapf(err, "failed to get secret value from CephBucketTopic %q .spec.endpoint.kafka.passwordSecretRef %q", nsName, kafka.PasswordSecretRef)
 				}
-				logger.Debugf("CephBucketTopic %q references secret %q", nsName, client.ObjectKeyFromObject(secret))
+				log.NamedDebug(nsName, logger, "CephBucketTopic %q references secret %q", nsName, client.ObjectKeyFromObject(secret))
 				referencedSecrets[secret.UID] = secret
 			}
 
@@ -211,7 +214,7 @@ func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[st
 		}
 
 		// do not log passphrases, if set
-		logger.Infof("creating CephBucketTopic %q with endpoint %q", nsName, uri.Redacted())
+		log.NamedInfo(nsName, logger, "creating CephBucketTopic %q with endpoint %q", nsName, uri.Redacted())
 
 		kafkaUri := uri.String()
 		attr["push-endpoint"] = &kafkaUri
@@ -230,7 +233,7 @@ func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[st
 var createTopicFunc = createTopic
 
 func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, *map[types.UID]*corev1.Secret, error) {
-	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
+	nsName := controller.NsName(topic.Namespace, topic.Name)
 
 	snsClient, err := createSNSClient(p, types.NamespacedName{Name: topic.Spec.ObjectStoreName, Namespace: topic.Spec.ObjectStoreNamespace})
 	if err != nil {
@@ -248,7 +251,7 @@ func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, *map[ty
 		return nil, nil, errors.Wrapf(err, "failed to provision CephBucketTopic %q", nsName)
 	}
 
-	logger.Infof("CephBucketTopic %q created with ARN %q", nsName, *topicOutput.TopicArn)
+	log.NamedInfo(nsName, logger, "CephBucketTopic %q created with ARN %q", nsName, *topicOutput.TopicArn)
 
 	return topicOutput.TopicArn, referencedSecrets, nil
 }
@@ -257,11 +260,11 @@ func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, *map[ty
 var deleteTopicFunc = deleteTopic
 
 func deleteTopic(p provisioner, topic *cephv1.CephBucketTopic) error {
-	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
-	logger.Infof("deleting CephBucketTopic %q", nsName)
+	nsName := controller.NsName(topic.Namespace, topic.Name)
+	log.NamedInfo(nsName, logger, "deleting CephBucketTopic %q", nsName)
 
 	if topic.Status.ARN == nil {
-		logger.Warningf("ignore CephBucketTopic deletion. topic %q was never successfully provisioned", nsName)
+		log.NamedWarning(nsName, logger, "ignore CephBucketTopic deletion. topic %q was never successfully provisioned", nsName)
 		return nil
 	}
 
@@ -275,10 +278,10 @@ func deleteTopic(p provisioner, topic *cephv1.CephBucketTopic) error {
 		if err.(awserr.Error).Code() != sns.ErrCodeNotFoundException {
 			return errors.Wrapf(err, "failed to delete CephBucketTopic %q", nsName)
 		}
-		logger.Warningf("ignore CephBucketTopic deletion. %q was already deleted", nsName)
+		log.NamedWarning(nsName, logger, "ignore CephBucketTopic deletion. %q was already deleted", nsName)
 	}
 
-	logger.Infof("CephBucketTopic %q deleted", nsName)
+	log.NamedInfo(nsName, logger, "CephBucketTopic %q deleted", nsName)
 
 	return nil
 }
@@ -302,7 +305,7 @@ func GetProvisioned(cl client.Client, ctx context.Context, topicName types.Names
 	if parsedTopicARN.Resource == "" {
 		return nil, errors.Errorf("CephBucketTopic %q is missing a topic inside ARN %q", topicName, topicARN)
 	}
-	logger.Debugf("CephBucketTopic %q found with valid ARN %q", topicName, topicARN)
+	log.NamedDebug(topicName, logger, "CephBucketTopic found with valid ARN %q", topicARN)
 
 	return bucketTopic, nil
 }

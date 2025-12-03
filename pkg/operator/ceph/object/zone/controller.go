@@ -45,6 +45,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -145,7 +146,7 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephObjectZone)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectZone resource not found. Ignoring since object must be deleted.")
+			log.NamedDebug(request.NamespacedName, logger, "CephObjectZone resource not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, *cephObjectZone, nil
 		}
 		// Error reading the object - requeue the request.
@@ -162,7 +163,7 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, *cephObjectZone, errors.Wrap(err, "failed to add finalizer")
 	}
 	if generationUpdated {
-		logger.Infof("reconciling the object zone %q after adding finalizer", cephObjectZone.Name)
+		log.NamedInfo(request.NamespacedName, logger, "reconciling the object zone after adding finalizer")
 		return reconcile.Result{}, *cephObjectZone, nil
 	}
 
@@ -234,12 +235,13 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
-	logger.Debug("zone done reconciling")
+	log.NamedDebug(request.NamespacedName, logger, "zone done reconciling")
 	return reconcile.Result{}, *cephObjectZone, nil
 }
 
 func (r *ReconcileObjectZone) createorUpdateCephZone(zone *cephv1.CephObjectZone, realmName string) (reconcile.Result, error) {
-	logger.Infof("creating object zone %q in zonegroup %q in realm %q", zone.Name, zone.Spec.ZoneGroup, realmName)
+	nsName := opcontroller.NsName(zone.Namespace, zone.Name)
+	log.NamedInfo(nsName, logger, "creating object zone in zonegroup %q in realm %q", zone.Spec.ZoneGroup, realmName)
 
 	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
 	objContext.Realm = realmName
@@ -256,7 +258,7 @@ func (r *ReconcileObjectZone) createorUpdateCephZone(zone *cephv1.CephObjectZone
 
 func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zone *cephv1.CephObjectZone) error {
 	// create pools for zone
-	logger.Debugf("creating pools ceph zone %q", zone.Name)
+	log.NamedDebug(objContext.NsName(), logger, "creating pools for ceph zone %q", zone.Name)
 	err := object.ValidateObjectStorePoolsConfig(zone.Spec.MetadataPool, zone.Spec.DataPool, zone.Spec.SharedPools)
 	if err != nil {
 		return fmt.Errorf("invalid zone pools config: %w", err)
@@ -266,7 +268,7 @@ func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zon
 		if err != nil {
 			return fmt.Errorf("unable to create pools for zone: %w", err)
 		}
-		logger.Debugf("created pools ceph zone %q", zone.Name)
+		log.NamedDebug(objContext.NsName(), logger, "created pools ceph zone %q", zone.Name)
 	}
 
 	err = r.createZoneIfNotExists(objContext, zone)
@@ -316,28 +318,28 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 	// create/update zone
 	_, err = object.RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneGroupArg, zoneArg)
 	if err == nil {
-		logger.Debugf("ceph zone %q already exists, new zone and pools will not be created but checking for update", zone.Name)
+		log.NamedDebug(objContext.NsName(), logger, "ceph zone %q already exists, new zone and pools will not be created but checking for update", zone.Name)
 		zoneEndpointsModified, err := object.ShouldUpdateZoneEndpointList(zoneGroupJson.Zones, zone.Spec.CustomEndpoints, objContext.Zone)
 		if err != nil {
 			return err
 		}
 		if zoneEndpointsModified {
 			zoneEndpoints := strings.Join(zone.Spec.CustomEndpoints, ",")
-			logger.Debugf("Updating endpoints for zone %q are: %q", objContext.Zone, zoneEndpoints)
+			log.NamedDebug(objContext.NsName(), logger, "Updating endpoints for zone %q are: %q", objContext.Zone, zoneEndpoints)
 			endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
 			err = object.JoinMultisite(objContext, endpointArg, zoneEndpoints, zone.Namespace)
 			if err != nil {
 				return err
 			}
 		}
-		logger.Debugf("skip creating zone %q: already exists", zone.Name)
+		log.NamedDebug(objContext.NsName(), logger, "skip creating zone %q: already exists", zone.Name)
 		return nil
 	}
 
 	if code, ok := exec.ExitStatus(err); ok && code != int(syscall.ENOENT) {
 		return errors.Wrapf(err, "radosgw-admin zone get failed with code %d for reason %q", code, output)
 	}
-	logger.Debugf("ceph zone %q not found, running `radosgw-admin zone create`", zone.Name)
+	log.NamedDebug(objContext.NsName(), logger, "ceph zone %q not found, running `radosgw-admin zone create`", zone.Name)
 
 	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.opManagerContext, r.context, objContext.Realm, zone.Namespace)
 	if err != nil {
@@ -358,12 +360,13 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 	if err != nil {
 		return errors.Wrapf(err, "failed to create ceph zone %q for reason %q", zone.Name, output)
 	}
-	logger.Debugf("created ceph zone %q", zone.Name)
+	log.NamedDebug(objContext.NsName(), logger, "created ceph zone %q", zone.Name)
 	return nil
 }
 
 func (r *ReconcileObjectZone) getCephObjectZoneGroup(zone *cephv1.CephObjectZone) (string, reconcile.Result, error) {
 	// empty zoneGroup gets filled by r.client.Get()
+	nsName := opcontroller.NsName(zone.Namespace, zone.Name)
 	zoneGroup := &cephv1.CephObjectZoneGroup{}
 	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: zone.Spec.ZoneGroup, Namespace: zone.Namespace}, zoneGroup)
 	if err != nil {
@@ -373,11 +376,12 @@ func (r *ReconcileObjectZone) getCephObjectZoneGroup(zone *cephv1.CephObjectZone
 		return "", waitForRequeueIfObjectZoneGroupNotReady, errors.Wrapf(err, "error getting cephObjectZoneGroup %v", zone.Spec.ZoneGroup)
 	}
 
-	logger.Debugf("CephObjectZoneGroup %v found", zoneGroup.Name)
+	log.NamedDebug(nsName, logger, "CephObjectZoneGroup %v found", zoneGroup.Name)
 	return zoneGroup.Spec.Realm, reconcile.Result{}, nil
 }
 
 func (r *ReconcileObjectZone) reconcileCephZoneGroup(zone *cephv1.CephObjectZone, realmName string) (reconcile.Result, error) {
+	nsName := opcontroller.NsName(zone.Namespace, zone.Name)
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
 	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
@@ -391,7 +395,7 @@ func (r *ReconcileObjectZone) reconcileCephZoneGroup(zone *cephv1.CephObjectZone
 		}
 	}
 
-	logger.Infof("Zone group %q found in Ceph cluster to create ceph zone %q", zone.Spec.ZoneGroup, zone.Name)
+	log.NamedInfo(nsName, logger, "Zone group %q found in Ceph cluster to create ceph zone %q", zone.Spec.ZoneGroup, zone.Name)
 	return reconcile.Result{}, nil
 }
 
@@ -425,10 +429,10 @@ func (r *ReconcileObjectZone) updateStatus(observedGeneration int64, name types.
 	objectZone := &cephv1.CephObjectZone{}
 	if err := r.client.Get(r.opManagerContext, name, objectZone); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectZone resource not found. Ignoring since object must be deleted.")
+			log.NamedDebug(name, logger, "CephObjectZone resource not found. Ignoring since object must be deleted.")
 			return
 		}
-		logger.Warningf("failed to retrieve object zone %q to update status to %q. %v", name, status, err)
+		log.NamedWarning(name, logger, "failed to retrieve object zone %q to update status to %q. %v", name, status, err)
 		return
 	}
 	if objectZone.Status == nil {
@@ -440,10 +444,10 @@ func (r *ReconcileObjectZone) updateStatus(observedGeneration int64, name types.
 		objectZone.Status.ObservedGeneration = observedGeneration
 	}
 	if err := reporting.UpdateStatus(r.client, objectZone); err != nil {
-		logger.Errorf("failed to set object zone %q status to %q. %v", name, status, err)
+		log.NamedError(name, logger, "failed to set object zone %q status to %q. %v", name, status, err)
 		return
 	}
-	logger.Debugf("object zone %q status updated to %q", name, status)
+	log.NamedDebug(name, logger, "object zone %q status updated to %q", name, status)
 }
 
 func (r *ReconcileObjectZone) deleteZone(objContext *object.Context) error {
@@ -492,10 +496,10 @@ func (r *ReconcileObjectZone) deleteZonePools(objContext *object.Context, zone *
 		return errors.Wrapf(err, "failed to parse pool prefix for zone json %v", zoneOutput)
 	}
 
-	logger.Debugf("deleting pools for ceph zone %q with prefix %q", zone.Name, poolPrefix)
+	log.NamedDebug(objContext.NsName(), logger, "deleting pools for ceph zone %q with prefix %q", zone.Name, poolPrefix)
 
 	if object.EmptyPool(zone.Spec.DataPool) && object.EmptyPool(zone.Spec.MetadataPool) {
-		logger.Info("skipping removal of pools since not specified in the object zone")
+		log.NamedInfo(objContext.NsName(), logger, "skipping removal of pools since not specified in the object zone")
 		return nil
 	}
 	err = object.DeletePools(objContext, false, poolPrefix)
@@ -517,7 +521,8 @@ func decodePoolPrefixfromZone(data string) (string, error) {
 }
 
 func (r *ReconcileObjectZone) deleteCephObjectZone(zone *cephv1.CephObjectZone, realmName string) (reconcile.Result, error) {
-	logger.Debugf("deleting zone CR %q", zone.Name)
+	nsName := opcontroller.NsName(zone.Namespace, zone.Name)
+	log.NamedDebug(nsName, logger, "deleting zone CR %q", zone.Name)
 	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
 	objContext.Realm = realmName
 	objContext.ZoneGroup = zone.Spec.ZoneGroup
@@ -560,7 +565,7 @@ func (r *ReconcileObjectZone) deleteCephObjectZone(zone *cephv1.CephObjectZone, 
 				return res, err
 			}
 		} else {
-			logger.Infof("PreservePoolsOnDelete is set in object zone %s. Pools is not deleted, but Zone is not removed", objContext.Name)
+			log.NamedInfo(nsName, logger, "PreservePoolsOnDelete is set in object zone %s. Pools is not deleted, but Zone is not removed", objContext.Name)
 		}
 		err = r.deleteZone(objContext)
 		if err != nil {

@@ -33,7 +33,9 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -50,12 +52,16 @@ type Context struct {
 	Zone        string
 }
 
-func (c *Context) nsName() string {
-	if c.clusterInfo == nil {
-		logger.Infof("unable to get namespaced name for rgw %s", c.Name)
-		return c.Name
+func (c *Context) NsName() types.NamespacedName {
+	if c == nil || c.clusterInfo == nil {
+		name := ""
+		if c != nil {
+			name = c.Name
+		}
+		logger.Infof("unable to get namespaced name for rgw %s", name)
+		return types.NamespacedName{Name: name}
 	}
-	return fmt.Sprintf("%s/%s", c.clusterInfo.Namespace, c.Name)
+	return types.NamespacedName{Namespace: c.clusterInfo.Namespace, Name: c.Name}
 }
 
 // AdminOpsContext holds the object store context as well as information for connecting to the admin
@@ -119,7 +125,7 @@ func NewContext(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 }
 
 func NewMultisiteContext(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, store *cephv1.CephObjectStore) (*Context, error) {
-	nsName := fmt.Sprintf("%s/%s", store.Namespace, store.Name)
+	nsName := controller.NsName(store.Namespace, store.Name)
 
 	objContext := NewContext(context, clusterInfo, store.Name)
 	objContext.UID = string(store.UID)
@@ -141,7 +147,7 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *cephclient.Clus
 
 // GetAdminOpsEndpoint returns an endpoint that can be used to perform RGW admin ops
 func GetAdminOpsEndpoint(s *cephv1.CephObjectStore) (string, error) {
-	nsName := fmt.Sprintf("%s/%s", s.Namespace, s.Name)
+	nsName := controller.NsName(s.Namespace, s.Name)
 
 	// advertise endpoint should be most likely to have a valid cert, so use it for admin ops
 	endpoint, err := s.GetAdvertiseEndpointUrl()
@@ -233,6 +239,7 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 func RunAdminCommandNoMultisiteWithTimeout(c *Context, expectJSON bool, timeout time.Duration, args ...string) (string, error) {
 	var output, stderr string
 	var err error
+	nsName := controller.NsName(c.clusterInfo.Namespace, c.Name)
 
 	// If Multus is enabled we proxy all the command to the mgr sidecar
 	if c.clusterInfo.NetworkSpec.IsMultus() {
@@ -257,7 +264,7 @@ func RunAdminCommandNoMultisiteWithTimeout(c *Context, expectJSON bool, timeout 
 				// cleanup copied file in remote container
 				_, stdErr, cleanupErr := c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutput(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxyInitContainerName, c.clusterInfo.Namespace, []string{"rm", dstFile}...)
 				if cleanupErr != nil {
-					logger.Errorf("failed to cleanup remote file %q: %s - %s", dstFile, cleanupErr, stdErr)
+					log.NamedError(nsName, logger, "failed to cleanup remote file %q: %s - %s", dstFile, cleanupErr, stdErr)
 				}
 			}()
 		}
@@ -307,7 +314,7 @@ func runAdminCommandWithTimeout(c *Context, expectJSON bool, timeout time.Durati
 	// installed in Rook operator and RGW version in Ceph cluster (#7573)
 	result, err := RunAdminCommandNoMultisiteWithTimeout(c, expectJSON, timeout, args...)
 	if err != nil && isFifoFileIOError(err) {
-		logger.Debugf("retrying 'radosgw-admin' command with OMAP backend to work around FIFO file I/O issue. %v", result)
+		log.NamedDebug(c.NsName(), logger, "retrying 'radosgw-admin' command with OMAP backend to work around FIFO file I/O issue. %v", result)
 
 		// We can either run 'ceph --version' to determine the Ceph version running in the operator
 		// and then pick a flag to use, or we can just try to use both flags and return the one that
@@ -366,14 +373,14 @@ func CommitConfigChanges(c *Context) error {
 	}
 
 	// DO NOT MODIFY nsName here. It is part of the integration test checks noted below.
-	nsName := fmt.Sprintf("%s/%s", c.clusterInfo.Namespace, c.Name)
+	nsName := controller.NsName(c.clusterInfo.Namespace, c.Name)
 	if !shouldCommit {
 		// DO NOT MODIFY THE MESSAGE BELOW. It is checked in integration tests.
-		logger.Infof("there are no changes to commit for RGW configuration period for CephObjectStore %q", nsName)
+		log.NamedInfo(nsName, logger, "there are no changes to commit for RGW configuration period for CephObjectStore %q", nsName)
 		return nil
 	}
 	// DO NOT MODIFY THE MESSAGE BELOW. It is checked in integration tests.
-	logger.Infof("committing changes to RGW configuration period for CephObjectStore %q", nsName)
+	log.NamedInfo(nsName, logger, "committing changes to RGW configuration period for CephObjectStore %q", nsName)
 	// don't expect json output since we don't intend to use the output from the command
 	_, err = runAdminCommand(c, false, "period", "update", "--commit")
 	if err != nil {
@@ -504,7 +511,7 @@ func GetAdminOPSUserCredentials(objContext *Context, spec *cephv1.ObjectStoreSpe
 		DisplayName:  &rgwAdminOpsUserDisplayName,
 		AdminOpsUser: true,
 	}
-	logger.Debugf("creating s3 user object %q for object store %q", userConfig.UserID, objContext.Name)
+	log.NamedDebug(objContext.NsName(), logger, "creating s3 user object %q for object store %q", userConfig.UserID, objContext.Name)
 
 	forceUserCreation := false
 	// If the cluster where we are running the rgw user create for the admin ops user is configured

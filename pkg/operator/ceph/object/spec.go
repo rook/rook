@@ -35,6 +35,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -386,6 +387,8 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 }
 
 func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container, error) {
+	nsName := controller.NsName(c.store.Namespace, c.store.Name)
+
 	// start the rgw daemon in the foreground
 	startupProbe, err := c.defaultStartupProbe()
 	if err != nil {
@@ -441,11 +444,11 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
-		logger.Errorf("failed to enable SSE-KMS. %v", err)
+		log.NamedError(nsName, logger, "failed to enable SSE-KMS. %v", err)
 		return v1.Container{}, err
 	}
 	if kmsEnabled {
-		logger.Debugf("enabliing SSE-KMS. %v", c.store.Spec.Security.KeyManagementService)
+		log.NamedDebug(nsName, logger, "enabliing SSE-KMS. %v", c.store.Spec.Security.KeyManagementService)
 		container.Args = append(container.Args, c.sseKMSDefaultOptions(kmsEnabled)...)
 		if c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
 			container.Args = append(container.Args, c.sseKMSVaultTokenOptions(kmsEnabled)...)
@@ -488,7 +491,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		return v1.Container{}, err
 	}
 	if s3EncryptionEnabled {
-		logger.Debugf("enabliing SSE-S3. %v", c.store.Spec.Security.ServerSideEncryptionS3)
+		log.NamedDebug(nsName, logger, "enabliing SSE-S3. %v", c.store.Spec.Security.ServerSideEncryptionS3)
 
 		container.Args = append(container.Args, c.sseS3DefaultOptions(s3EncryptionEnabled)...)
 		if c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled() {
@@ -523,7 +526,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 				isCrushLocationSet = true
 			}
 		} else {
-			logger.Warning("can't set RGW read affinity for ceph version below v20 (tentacle)")
+			log.NamedWarning(nsName, logger, "can't set RGW read affinity for ceph version below v20 (tentacle)")
 		}
 	}
 
@@ -566,9 +569,10 @@ func noLivenessProbe() *v1.Probe {
 }
 
 func (c *clusterConfig) defaultReadinessProbe() (*v1.Probe, error) {
+	nsName := controller.NsName(c.store.Namespace, c.store.Name)
 	probePath, disableProbe := getRGWProbePath(c.store.Spec.Protocols)
 	if disableProbe {
-		logger.Infof("disabling startup probe for %q store", c.store.Name)
+		log.NamedInfo(nsName, logger, "disabling startup probe for %q store", c.store.Name)
 		return nil, nil
 	}
 	proto, port := c.endpointInfo()
@@ -635,9 +639,11 @@ func getRGWProbePath(protocolSpec cephv1.ProtocolSpec) (path string, disable boo
 }
 
 func (c *clusterConfig) defaultStartupProbe() (*v1.Probe, error) {
+	nsName := controller.NsName(c.store.Namespace, c.store.Name)
+
 	probePath, disableProbe := getRGWProbePath(c.store.Spec.Protocols)
 	if disableProbe {
-		logger.Infof("disabling startup probe for %q store", c.store.Name)
+		log.NamedInfo(nsName, logger, "disabling startup probe for %q store", c.store.Name)
 		return nil, nil
 	}
 	proto, port := c.endpointInfo()
@@ -673,6 +679,8 @@ func (c *clusterConfig) defaultStartupProbe() (*v1.Probe, error) {
 }
 
 func (c *clusterConfig) endpointInfo() (ProtocolType, *intstr.IntOrString) {
+	nsName := controller.NsName(c.store.Namespace, c.store.Name)
+
 	// The port the liveness probe needs to probe
 	// Assume we run on SDN by default
 	proto := HTTPProtocol
@@ -689,7 +697,7 @@ func (c *clusterConfig) endpointInfo() (ProtocolType, *intstr.IntOrString) {
 		port = intstr.FromInt(int(c.store.Spec.Gateway.SecurePort))
 	}
 
-	logger.Debugf("rgw %q probe port is %v", c.store.Namespace+"/"+c.store.Name, port)
+	log.NamedDebug(nsName, logger, "rgw %q probe port is %v", c.store.Namespace+"/"+c.store.Name, port)
 	return proto, &port
 }
 
@@ -761,7 +769,8 @@ func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore
 }
 
 func (c *clusterConfig) reconcileExternalEndpoint(cephObjectStore *cephv1.CephObjectStore) error {
-	logger.Info("reconciling external object store service")
+	nsName := controller.NsName(c.store.Namespace, c.store.Name)
+	log.NamedInfo(nsName, logger, "reconciling external object store service")
 
 	endpoint := c.generateEndpoint(cephObjectStore)
 	// Set owner ref to the parent object
@@ -779,6 +788,7 @@ func (c *clusterConfig) reconcileExternalEndpoint(cephObjectStore *cephv1.CephOb
 }
 
 func (c *clusterConfig) reconcileService(store *cephv1.CephObjectStore) error {
+	nsName := controller.NsName(c.store.Namespace, c.store.Name)
 	service := c.generateService(store)
 	// Set owner ref to the parent object
 	err := c.ownerInfo.SetControllerReference(service)
@@ -791,7 +801,7 @@ func (c *clusterConfig) reconcileService(store *cephv1.CephObjectStore) error {
 		return errors.Wrapf(err, "failed to create or update object store %q service", store.Name)
 	}
 
-	logger.Infof("ceph object store gateway service running at %s", svc.Spec.ClusterIP)
+	log.NamedInfo(nsName, logger, "ceph object store gateway service running at %s", svc.Spec.ClusterIP)
 
 	return nil
 }
@@ -811,6 +821,8 @@ func (c *clusterConfig) vaultPrefixRGW() string {
 }
 
 func (c *clusterConfig) CheckRGWKMS() (bool, error) {
+	nsName := controller.NsName(c.store.Namespace, c.store.Name)
+
 	if c.store.Spec.Security != nil && c.store.Spec.Security.KeyManagementService.IsEnabled() {
 		err := kms.ValidateConnectionDetails(c.clusterInfo.Context, c.context, &c.store.Spec.Security.KeyManagementService, c.store.Namespace)
 		if err != nil {
@@ -828,7 +840,7 @@ func (c *clusterConfig) CheckRGWKMS() (bool, error) {
 				}
 			} else {
 				// If VAUL_BACKEND is not specified let's assume it's v2
-				logger.Warningf("%s is not set, assuming the only supported version 2", vault.VaultBackendKey)
+				log.NamedWarning(nsName, logger, "%s is not set, assuming the only supported version 2", vault.VaultBackendKey)
 				c.store.Spec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendKey] = "v2"
 			}
 			return true, nil
@@ -1066,11 +1078,13 @@ func (c *clusterConfig) sseS3VaultTLSOptions(setOptions bool) []string {
 // Otherwise set rgw config parameter to mon database in ./config.go -> setFlagsMonConfigStore()
 // CLI flags override values from mon db: see ceph config docs: https://docs.ceph.com/en/latest/rados/configuration/ceph-conf/#config-sources
 func buildRGWConfigFlags(objectStore *cephv1.CephObjectStore) []string {
+	nsName := controller.NsName(objectStore.Namespace, objectStore.Name)
+
 	var res []string
 	// todo: move all flags here
 	if enableAPIs := buildRGWEnableAPIsConfigVal(objectStore.Spec.Protocols); len(enableAPIs) != 0 {
 		res = append(res, cephconfig.NewFlag("rgw_enable_apis", strings.Join(enableAPIs, ",")))
-		logger.Debugf("Enabling APIs for RGW instance %q: %s", objectStore.Name, enableAPIs)
+		log.NamedDebug(nsName, logger, "Enabling APIs for RGW instance %q: %s", objectStore.Name, enableAPIs)
 	}
 	return res
 }

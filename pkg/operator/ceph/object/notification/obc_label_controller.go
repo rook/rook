@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	"github.com/rook/rook/pkg/operator/ceph/object/topic"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
+	"github.com/rook/rook/pkg/util/log"
 	kapiv1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,35 +65,36 @@ func obcPredicate[T *bktv1alpha1.ObjectBucketClaim]() predicate.TypedFuncs[T] {
 	return predicate.TypedFuncs[T]{
 		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
 			obj := (*bktv1alpha1.ObjectBucketClaim)(e.Object)
-
-			logger.Debugf("create event from a CR: %q", obj.GetName())
+			nsName := opcontroller.NsName(obj.GetNamespace(), obj.GetName())
+			log.NamedDebug(nsName, logger, "create event from a CR")
 			return true
 		},
 		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
 			obj := (*bktv1alpha1.ObjectBucketClaim)(e.Object)
-
-			logger.Debugf("delete event from a CR: %q", obj.GetName())
+			nsName := opcontroller.NsName(obj.GetNamespace(), obj.GetName())
+			log.NamedDebug(nsName, logger, "delete event from a CR")
 			return true
 		},
 		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
 			// break generic-ness in order to access .Spec.ObjectBucketName
 			objOld := (*bktv1alpha1.ObjectBucketClaim)(e.ObjectOld)
 			objNew := (*bktv1alpha1.ObjectBucketClaim)(e.ObjectNew)
+			nsName := opcontroller.NsName(objNew.GetNamespace(), objNew.GetName())
 
-			logger.Debug("update event on ObjectBucketClaim CR")
+			log.NamedDebug(nsName, logger, "update event on ObjectBucketClaim CR")
 			// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
 			if opcontroller.IsDoNotReconcile(objNew.GetLabels()) {
-				logger.Debugf("object %q matched on update but %q label is set, doing nothing", objNew.GetName(), opcontroller.DoNotReconcileLabelName)
+				log.NamedDebug(nsName, logger, "object %q matched on update but %q label is set, doing nothing", objNew.GetName(), opcontroller.DoNotReconcileLabelName)
 				return false
 			}
 			if !reflect.DeepEqual(objOld.GetLabels(), objNew.GetLabels()) {
-				logger.Infof("CR labels has changed for %q", objNew.GetName())
+				log.NamedInfo(nsName, logger, "CR labels has changed")
 				return true
 			} else if objOld.Spec.ObjectBucketName != objNew.Spec.ObjectBucketName {
-				logger.Infof("CR %q bucket name changed from %q to %q", objNew.GetName(), objOld.Spec.ObjectBucketName, objNew.Spec.ObjectBucketName)
+				log.NamedInfo(nsName, logger, "CR bucket name changed from %q to %q", objOld.Spec.ObjectBucketName, objNew.Spec.ObjectBucketName)
 				return true
 			}
-			logger.Debugf("no change in CR %q", objNew.GetName())
+			log.NamedDebug(nsName, logger, "no change in CR %q", objNew.GetName())
 			return false
 		},
 		GenericFunc: func(e event.TypedGenericEvent[T]) bool {
@@ -134,20 +136,20 @@ func (r *ReconcileOBCLabels) Reconcile(context context.Context, request reconcil
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {
-		logger.Errorf("failed to reconcile %v", err)
+		log.NamedError(request.NamespacedName, logger, "failed to reconcile %v", err)
 	}
 
 	return reconcileResponse, err
 }
 
 func (r *ReconcileOBCLabels) reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.Debugf("reconciling ObjectBucketClaim %v labels for bucket notifications", request.NamespacedName.String())
+	log.NamedDebug(request.NamespacedName, logger, "reconciling ObjectBucketClaim labels for bucket notifications")
 	// Fetch the ObjectBucketClaim instance
 	obc := bktv1alpha1.ObjectBucketClaim{}
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, &obc)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debugf("ObjectBucketClaim %q resource not found. Ignoring since resource must be deleted.", request.NamespacedName)
+			log.NamedDebug(request.NamespacedName, logger, "ObjectBucketClaim resource not found. Ignoring since resource must be deleted.")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -156,14 +158,14 @@ func (r *ReconcileOBCLabels) reconcile(request reconcile.Request) (reconcile.Res
 
 	// DELETE: the CR was deleted
 	if !obc.GetDeletionTimestamp().IsZero() {
-		logger.Debugf("ObjectBucketClaim %q was deleted", request.NamespacedName)
+		log.NamedDebug(request.NamespacedName, logger, "ObjectBucketClaim was deleted")
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, nil
 	}
 
 	// reschedule if ObjectBucket was not created yet
 	if obc.Spec.ObjectBucketName == "" {
-		logger.Debugf("ObjectBucketClaim %q resource did not create the bucket yet. will retry", request.NamespacedName)
+		log.NamedDebug(request.NamespacedName, logger, "ObjectBucketClaim resource did not create the bucket yet. will retry")
 		return waitForRequeueIfObjectBucketNotReady, nil
 	}
 
@@ -176,7 +178,7 @@ func (r *ReconcileOBCLabels) reconcile(request reconcile.Request) (reconcile.Res
 
 	// validate if the bucket is provisioned by the ceph provisioner
 	if !strings.Contains(ob.Labels[bucketProvisionerLabelKey], bucketProvisionerLabelVal) {
-		logger.Debugf("ObjectBucket %q was not provisioned by the ceph object store provisioner and tagged with provisioner %q. ignoring",
+		log.NamedDebug(request.NamespacedName, logger, "ObjectBucket %q was not provisioned by the ceph object store provisioner and tagged with provisioner %q. ignoring",
 			bucketName, ob.Labels[bucketProvisionerLabelKey])
 		return reconcile.Result{}, nil
 	}
@@ -215,11 +217,11 @@ func (r *ReconcileOBCLabels) reconcile(request reconcile.Request) (reconcile.Res
 		notifyLabels := strings.SplitAfterN(labelKey, notificationLabelPrefix, 2)
 		if len(notifyLabels) > 1 && notifyLabels[1] != "" {
 			if labelValue != notifyLabels[1] {
-				logger.Warningf("bucket notification label mismatch. ignoring key %q value %q", labelKey, labelValue)
+				log.NamedWarning(request.NamespacedName, logger, "bucket notification label mismatch. ignoring key %q value %q", labelKey, labelValue)
 				continue
 			}
 			labelList = append(labelList, labelValue)
-			logger.Debugf("bucket notification label %q found on ObjectbucketClaim %q", labelValue, bucketName)
+			log.NamedDebug(request.NamespacedName, logger, "bucket notification label %q found on ObjectbucketClaim %q", labelValue, bucketName)
 		}
 	}
 
@@ -233,7 +235,7 @@ func (r *ReconcileOBCLabels) reconcile(request reconcile.Request) (reconcile.Res
 	for _, notificationId := range deleteList {
 		err = deleteNotificationFunc(p, &ob, notificationId)
 		if err != nil {
-			logger.Errorf("notification %q failed remove from %q, returned error %v", notificationId, ob.Spec.Endpoint.BucketName, err)
+			log.NamedError(request.NamespacedName, logger, "notification %q failed remove from %q, returned error %v", notificationId, ob.Spec.Endpoint.BucketName, err)
 			retry = true
 		}
 	}

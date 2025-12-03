@@ -8,6 +8,7 @@ import (
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/util/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -66,8 +67,8 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 	if len(username) == 0 {
 		return "", "", errors.Wrap(err, "no user name provided")
 	}
-
-	logger.Infof("creating Ceph object user %q", username)
+	nsName := p.objectContext.NsName()
+	log.NamedInfo(nsName, logger, "creating Ceph object user %q", username)
 
 	userConfig := admin.User{
 		ID:          username,
@@ -86,10 +87,10 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 			return "", "", errors.Wrapf(err, "failed to get Ceph object user %q", username)
 		}
 	} else {
-		logger.Infof("Ceph object user %q already exists", username)
+		log.NamedInfo(nsName, logger, "Ceph object user %q already exists", username)
 	}
 
-	logger.Infof("successfully created Ceph object user %q with access keys", username)
+	log.NamedInfo(nsName, logger, "successfully created Ceph object user %q with access keys", username)
 	return u.Keys[0].AccessKey, u.Keys[0].SecretKey, nil
 }
 
@@ -108,22 +109,23 @@ func (p *Provisioner) genUserName(obc *bktv1alpha1.ObjectBucketClaim) string {
 // already revoked and hence user is no longer able to access the bucket
 // Empty string is passed for bucketName only if user needs to be removed, ex Revoke()
 func (p *Provisioner) deleteBucket(bucketName string) error {
-	logger.Infof("deleting Ceph bucket %q", bucketName)
+	nsName := p.objectContext.NsName()
+	log.NamedInfo(nsName, logger, "deleting Ceph bucket %q", bucketName)
 	// delete bucket with purge option to remove all objects
 	thePurge := true
 	err := p.adminOpsClient.RemoveBucket(p.clusterInfo.Context, admin.Bucket{Bucket: bucketName, PurgeObject: &thePurge})
 	if err == nil {
-		logger.Infof("bucket %q successfully deleted", bucketName)
+		log.NamedInfo(nsName, logger, "bucket %q successfully deleted", bucketName)
 	} else if errors.Is(err, admin.ErrNoSuchBucket) {
 		// opinion: "not found" is not an error
-		logger.Infof("bucket %q does not exist", bucketName)
+		log.NamedInfo(nsName, logger, "bucket %q does not exist", bucketName)
 	} else if errors.Is(err, admin.ErrNoSuchKey) {
 		// ceph might return NoSuchKey than NoSuchBucket when the target bucket does not exist.
 		// then we can use GetBucketInfo() to judge the existence of the bucket.
 		// see: https://github.com/ceph/ceph/pull/44413
 		_, err2 := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: bucketName, PurgeObject: &thePurge})
 		if errors.Is(err2, admin.ErrNoSuchBucket) {
-			logger.Infof("bucket info %q does not exist", bucketName)
+			log.NamedInfo(nsName, logger, "bucket info %q does not exist", bucketName)
 		} else {
 			return errors.Wrapf(err, "failed to delete bucket %q (could not get bucket info)", bucketName)
 		}
@@ -137,6 +139,8 @@ func (p *Provisioner) deleteBucket(bucketName string) error {
 // Delete the user *if it was created by OBC*. Will not delete externally
 // managed users / users not created by obc.
 func (p *Provisioner) deleteOBUser(ob *bktv1alpha1.ObjectBucket) error {
+	nsName := p.objectContext.NsName()
+
 	// construct a partial obc object with only the fields set needed by
 	// isObcGeneratedUser() & genUserName()
 	obc := &bktv1alpha1.ObjectBucketClaim{
@@ -156,20 +160,20 @@ func (p *Provisioner) deleteOBUser(ob *bktv1alpha1.ObjectBucket) error {
 	// is the bucket owner a provisioner generated user?
 	if p.isObcGeneratedUser(p.cephUserName, obc) {
 		// delete the user
-		logger.Infof("deleting Ceph user %q", p.cephUserName)
+		log.NamedInfo(nsName, logger, "deleting Ceph user %q", p.cephUserName)
 
 		err := p.adminOpsClient.RemoveUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName})
 		if err != nil {
 			if errors.Is(err, admin.ErrNoSuchUser) {
-				logger.Warningf("user %q does not exist, nothing to delete. %v", p.cephUserName, err)
+				log.NamedWarning(nsName, logger, "user %q does not exist, nothing to delete. %v", p.cephUserName, err)
 			}
-			logger.Warningf("failed to delete user %q. %v", p.cephUserName, err)
+			log.NamedWarning(nsName, logger, "failed to delete user %q. %v", p.cephUserName, err)
 		} else {
-			logger.Infof("user %q successfully deleted", p.cephUserName)
+			log.NamedInfo(nsName, logger, "user %q successfully deleted", p.cephUserName)
 		}
 	} else {
 		// do not remove externally managed users
-		logger.Infof("Ceph user %q does not look like an obc generated user and will not be removed", p.cephUserName)
+		log.NamedInfo(nsName, logger, "Ceph user %q does not look like an obc generated user and will not be removed", p.cephUserName)
 	}
 
 	return nil
@@ -177,6 +181,8 @@ func (p *Provisioner) deleteOBUser(ob *bktv1alpha1.ObjectBucket) error {
 
 // test a string to determine if is likely to be a user name generated by the provisioner
 func (p *Provisioner) isObcGeneratedUser(userName string, obc *bktv1alpha1.ObjectBucketClaim) bool {
+	nsName := p.objectContext.NsName()
+
 	// If the user name string is the same as the explicitly set bucketOwner we will
 	// assume it is not a machine generated user name.
 	if obc.Spec.AdditionalConfig != nil &&
@@ -196,7 +202,7 @@ func (p *Provisioner) isObcGeneratedUser(userName string, obc *bktv1alpha1.Objec
 
 	matched, err := regexp.MatchString("^ceph-user-[0-9A-Za-z]{8}", userName)
 	if err != nil {
-		logger.Errorf("regex match failed. %v", err)
+		log.NamedError(nsName, logger, "regex match failed. %v", err)
 	}
 	return matched
 }

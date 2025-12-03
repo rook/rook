@@ -23,8 +23,10 @@ import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/util/dependents"
+	"github.com/rook/rook/pkg/util/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -34,7 +36,7 @@ func CephObjectZoneDependentStores(
 	zone *v1.CephObjectZone,
 	objContext *object.Context,
 ) (*dependents.DependentList, error) {
-	nsName := fmt.Sprintf("%s/%s", zone.Namespace, zone.Name)
+	nsName := controller.NsName(zone.Namespace, zone.Name)
 	baseErrMsg := fmt.Sprintf("failed to get dependents of CephObjectZone %q", nsName)
 
 	deps := dependents.NewDependentList()
@@ -46,10 +48,10 @@ func CephObjectZoneDependentStores(
 	for _, store := range stores.Items {
 		if store.Spec.Zone.Name == zone.Name {
 			deps.Add("CephObjectStore", store.Name)
-			logger.Debugf("found CephObjectStore %q that depends on CephObjectZone %q", store.Name, nsName)
+			log.NamedDebug(nsName, logger, "found CephObjectStore %q that depends on CephObjectZone %q", store.Name, nsName)
 
 		} else {
-			logger.Debugf("found CephObjectStore %q that does not depend on CephObjectZone %q", store.Name, nsName)
+			log.NamedDebug(nsName, logger, "found CephObjectStore %q that does not depend on CephObjectZone %q", store.Name, nsName)
 		}
 	}
 

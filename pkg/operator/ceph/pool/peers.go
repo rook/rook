@@ -21,6 +21,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/util/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -36,7 +37,7 @@ func (r *ReconcileCephBlockPool) reconcileAddBootstrapPeer(pool *cephv1.CephBloc
 	// List all the peers secret, we can have more than one peer we might want to configure
 	// For each, get the Kubernetes Secret and import the "peer token" so that we can configure the mirroring
 	for _, peerSecret := range pool.Spec.Mirroring.Peers.SecretNames {
-		logger.Debugf("fetching bootstrap peer kubernetes secret %q", peerSecret)
+		log.NamedDebug(namespacedName, logger, "fetching bootstrap peer kubernetes secret %q", peerSecret)
 		s, err := r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Get(r.opManagerContext, peerSecret, metav1.GetOptions{})
 		// We don't care about IsNotFound here, we still need to fail
 		if err != nil {

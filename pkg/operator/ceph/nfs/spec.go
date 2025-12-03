@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -82,6 +83,7 @@ func (r *ReconcileCephNFS) generateCephNFSService(nfs *cephv1.CephNFS, cfg daemo
 
 func (r *ReconcileCephNFS) createCephNFSService(nfs *cephv1.CephNFS, cfg daemonConfig) error {
 	s := r.generateCephNFSService(nfs, cfg)
+	nsName := controller.NsName(nfs.Namespace, nfs.Name)
 
 	// Set owner ref to the parent object
 	err := controllerutil.SetControllerReference(nfs, s, r.scheme)
@@ -94,11 +96,11 @@ func (r *ReconcileCephNFS) createCephNFSService(nfs *cephv1.CephNFS, cfg daemonC
 		if !kerrors.IsAlreadyExists(err) {
 			return errors.Wrap(err, "failed to create ganesha service")
 		}
-		logger.Infof("ceph nfs service already created")
+		log.NamedInfo(nsName, logger, "ceph nfs service already created")
 		return nil
 	}
 
-	logger.Infof("ceph nfs service running at %s:%d", svc.Spec.ClusterIP, nfsPort)
+	log.NamedInfo(nsName, logger, "ceph nfs service running at %s:%d", svc.Spec.ClusterIP, nfsPort)
 	return nil
 }
 

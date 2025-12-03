@@ -26,6 +26,8 @@ import (
 	"github.com/pkg/errors"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -95,6 +97,7 @@ func generateCephXUser(name string) string {
 }
 
 func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
+	nsName := controller.NsName(c.clusterInfo.Namespace, c.store.Name)
 	user := generateCephXUser(rgwConfig.ResourceName)
 	/* TODO: this says `osd allow rwx` while template says `osd allow *`; which is correct? */
 	access := []string{"osd", "allow rwx", "mon", "allow rw"}
@@ -106,7 +109,7 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	}
 
 	if c.shouldRotateCephxKeys {
-		logger.Infof("rotating cephx key for CephObjectStore %q", c.store.Name)
+		log.NamedInfo(nsName, logger, "rotating cephx key for CephObjectStore %q", c.store.Name)
 		newKey, err := s.RotateKey(user)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to rotate cephx key for CephObjectStore %q", c.store.Name)
@@ -179,6 +182,7 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 }
 
 func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[string]string, error) {
+	nsName := controller.NsName(c.clusterInfo.Namespace, c.store.Name)
 	configOptions := make(map[string]string)
 
 	configOptions["rgw_run_sync_thread"] = "true"
@@ -192,7 +196,7 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 	configOptions["rgw_zone"] = rgwConfig.Zone
 	configOptions["rgw_zonegroup"] = rgwConfig.ZoneGroup
 
-	configOptions, err := configureKeystoneAuthentication(rgwConfig, configOptions)
+	configOptions, err := c.configureKeystoneAuthentication(rgwConfig, configOptions)
 	if err != nil {
 		return configOptions, err
 	}
@@ -218,10 +222,8 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 	for flag, val := range c.store.Spec.Gateway.RgwConfig {
 		if currVal, ok := configOptions[flag]; ok {
 			// RGW might break with some user-specified config overrides; log clearly to help triage
-			logger.Infof("overriding object store %q RGW config option %q with user-specified rgwConfig",
-				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag)
-			logger.Tracef("overriding object store %q RGW config option %q (current value %q) with user-specified rgwConfig %q",
-				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, currVal, val)
+			log.NamedInfo(nsName, logger, "overriding RGW config option %q with user-specified rgwConfig", flag)
+			log.NamedTrace(nsName, logger, "overriding RGW config option %q (current value %q) with user-specified rgwConfig %q", flag, currVal, val)
 		}
 		configOptions[flag] = val
 	}
@@ -242,10 +244,8 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 
 		if currVal, ok := configOptions[flag]; ok {
 			// RGW might break with some user-specified config overrides; log clearly to help triage
-			logger.Infof("overriding object store %q RGW config option %q with user-specified rgwConfigFromSecret",
-				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag)
-			logger.Tracef("overriding object store %q RGW config option %q (current value %q) with user-specified rgwConfigFromSecret %q",
-				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, currVal, secretVal)
+			log.NamedInfo(nsName, logger, "overriding RGW config option %q with user-specified rgwConfigFromSecret", flag)
+			log.NamedTrace(nsName, logger, "overriding RGW config option %q (current value %q) with user-specified rgwConfigFromSecret %q", flag, currVal, secretVal)
 		}
 		configOptions[flag] = string(secretVal)
 	}
@@ -253,14 +253,15 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 	return configOptions, nil
 }
 
-func configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[string]string) (map[string]string, error) {
+func (c *clusterConfig) configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[string]string) (map[string]string, error) {
+	nsName := controller.NsName(c.clusterInfo.Namespace, c.store.Name)
 	keystone := rgwConfig.Auth.Keystone
 	if keystone == nil {
-		logger.Debug("Authentication with keystone is disabled")
+		log.NamedDebug(nsName, logger, "Authentication with keystone is disabled")
 		return configOptions, nil
 	}
 
-	logger.Info("Configuring authentication with keystone")
+	log.NamedInfo(nsName, logger, "Configuring authentication with keystone")
 
 	configOptions["rgw_keystone_url"] = keystone.Url
 	configOptions["rgw_keystone_accepted_roles"] = strings.Join(keystone.AcceptedRoles, ",")
@@ -300,6 +301,7 @@ func configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[str
 }
 
 func (c *clusterConfig) deleteFlagsMonConfigStore(rgwName string) error {
+	nsName := controller.NsName(c.clusterInfo.Namespace, c.store.Name)
 	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 	who := generateCephXUser(rgwName)
 	err := monStore.DeleteDaemon(who)
@@ -307,6 +309,6 @@ func (c *clusterConfig) deleteFlagsMonConfigStore(rgwName string) error {
 		return errors.Wrapf(err, "failed to delete rgw config for %q in mon configuration database", who)
 	}
 
-	logger.Infof("successfully deleted rgw config for %q in mon configuration database", who)
+	log.NamedInfo(nsName, logger, "successfully deleted rgw config for %q in mon configuration database", who)
 	return nil
 }

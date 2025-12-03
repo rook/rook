@@ -176,7 +176,8 @@ func Test_clusterConfig_generateMonConfigOptions(t *testing.T) {
 			}
 
 			c := &clusterConfig{
-				store: cos,
+				store:       cos,
+				clusterInfo: &cephclient.ClusterInfo{Namespace: "ns"},
 			}
 
 			got, err := c.generateMonConfigOptions(rgwConfig)

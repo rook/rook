@@ -42,6 +42,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -144,11 +145,12 @@ func (r *ReconcileCephClient) Reconcile(context context.Context, request reconci
 
 func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Result, cephv1.CephClient, error) {
 	// Fetch the CephClient instance
+	nsName := opcontroller.NsName(request.Namespace, request.Name)
 	cephClient := &cephv1.CephClient{}
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephClient)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("cephClient resource not found. Ignoring since object must be deleted.")
+			log.NamedDebug(nsName, logger, "cephClient resource not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, *cephClient, nil
 		}
 		// Error reading the object - requeue the request.
@@ -165,7 +167,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, *cephClient, errors.Wrap(err, "failed to add finalizer")
 	}
 	if generationUpdated {
-		logger.Infof("reconciling the cephclient %q after adding finalizer", cephClient.Name)
+		log.NamedInfo(request.NamespacedName, logger, "reconciling the cephclient after adding finalizer")
 		return reconcile.Result{}, *cephClient, nil
 	}
 
@@ -212,7 +214,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 
 	// DELETE: the CR was deleted
 	if !cephClient.GetDeletionTimestamp().IsZero() {
-		logger.Debugf("deleting client %q", cephClient.Name)
+		log.NamedDebug(request.NamespacedName, logger, "deleting client")
 		err := r.deleteClient(cephClient)
 		if err != nil {
 			return reconcile.Result{}, *cephClient, errors.Wrapf(err, "failed to delete ceph client %q", cephClient.Name)
@@ -240,7 +242,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 	runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-			logger.Info(opcontroller.OperatorNotInitializedMessage)
+			log.NamedInfo(nsName, logger, opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephClient, nil
 		}
 		return reconcile.Result{}, *cephClient, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
@@ -256,7 +258,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 	err = r.createOrUpdateClient(cephClient, shouldRotateCephxKeys)
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-			logger.Info(opcontroller.OperatorNotInitializedMessage)
+			log.NamedInfo(nsName, logger, opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephClient, nil
 		}
 		var nilCephxStatus *cephv1.CephxStatus = nil // leave cephx status as-is
@@ -276,14 +278,15 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Return and do not requeue
-	logger.Debug("done reconciling")
+	log.NamedDebug(nsName, logger, "done reconciling")
 	return reconcile.Result{}, *cephClient, nil
 }
 
 // Create the client
 func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient, shouldRotateCephxKeys bool) error {
 	clientName := getClientName(cephClient)
-	logger.Infof("creating client %s in namespace %s", clientName, cephClient.Namespace)
+	nsName := opcontroller.NsName(cephClient.Namespace, cephClient.Name)
+	log.NamedInfo(nsName, logger, "creating client %s in namespace %s", clientName, cephClient.Namespace)
 
 	// Generate the CephX details
 	clientEntity, caps := genClientEntity(cephClient)
@@ -304,7 +307,7 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 
 	if shouldRotateCephxKeys {
 		// rotate the CephX key if the user requested it
-		logger.Infof("rotating cephx key for CephClient %v", types.NamespacedName{Name: cephClient.Name, Namespace: cephClient.Namespace})
+		log.NamedInfo(nsName, logger, "rotating cephx key for CephClient %v", types.NamespacedName{Name: cephClient.Name, Namespace: cephClient.Namespace})
 
 		rotatedKey, err := cephclient.AuthRotate(r.context, r.clusterInfo, clientEntity)
 		if err != nil {
@@ -359,12 +362,12 @@ func (r *ReconcileCephClient) reconcileCephClientSecret(
 	}
 
 	if kerrors.IsNotFound(getSecretErr) {
-		logger.Debugf("creating secret %q", secret.Namespace+"/"+secret.Name)
+		log.NamedDebug(opcontroller.NsName(secret.Namespace, secret.Name), logger, "creating secret")
 		if _, err := r.context.Clientset.CoreV1().
 			Secrets(secret.Namespace).Create(r.clusterInfo.Context, secret, metav1.CreateOptions{}); err != nil {
 			return errors.Wrapf(err, "failed to create secret %q", secret.Name)
 		}
-		logger.Infof("created secret for CephClient %q", cephClient.Namespace+"/"+cephClient.Name)
+		log.NamedInfo(opcontroller.NsName(cephClient.Namespace, cephClient.Name), logger, "created secret for CephClient %q", cephClient.Namespace+"/"+cephClient.Name)
 		return nil
 	}
 
@@ -374,13 +377,14 @@ func (r *ReconcileCephClient) reconcileCephClientSecret(
 // Delete the client
 func (r *ReconcileCephClient) deleteClient(cephClient *cephv1.CephClient) error {
 	clientName := getClientName(cephClient)
-	logger.Infof("deleting client object %q", clientName)
+	nsName := opcontroller.NsName(cephClient.Namespace, cephClient.Name)
+	log.NamedInfo(nsName, logger, "deleting client object %q", clientName)
 
 	if err := cephclient.AuthDelete(r.context, r.clusterInfo, generateClientName(clientName)); err != nil {
 		return errors.Wrapf(err, "failed to delete client %q", clientName)
 	}
 
-	logger.Infof("deleted client %q", clientName)
+	log.NamedInfo(opcontroller.NsName(cephClient.Namespace, cephClient.Name), logger, "deleted client %q", clientName)
 	return nil
 }
 
@@ -433,10 +437,10 @@ func (r *ReconcileCephClient) updateStatus(observedGeneration int64, name types.
 		cephClient := &cephv1.CephClient{}
 		if err := r.client.Get(r.opManagerContext, name, cephClient); err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debug("CephClient resource not found. Ignoring since object must be deleted.")
+				log.NamedDebug(name, logger, "CephClient resource not found. Ignoring since object must be deleted.")
 				return nil
 			}
-			logger.Warningf("failed to retrieve ceph client %q to update status to %q. %v", name, status, err)
+			log.NamedWarning(name, logger, "failed to retrieve ceph client %q to update status to %q. %v", name, status, err)
 			return errors.Wrapf(err, "failed to retrieve ceph client %q to update status to %q", name, status)
 		}
 		if cephClient.Status == nil {
@@ -454,7 +458,7 @@ func (r *ReconcileCephClient) updateStatus(observedGeneration int64, name types.
 			cephClient.Status.Cephx = *cephx
 		}
 		if err := reporting.UpdateStatus(r.client, cephClient); err != nil {
-			logger.Errorf("failed to set ceph client %q status to %q. %v", name, status, err)
+			log.NamedError(name, logger, "failed to set ceph client status to %q. %v", status, err)
 			return errors.Wrapf(err, "failed to set ceph client %q status to %q", name, status)
 		}
 		return nil
@@ -463,7 +467,7 @@ func (r *ReconcileCephClient) updateStatus(observedGeneration int64, name types.
 		return err
 	}
 
-	logger.Debugf("ceph client %q status updated to %q", name, status)
+	log.NamedDebug(name, logger, "ceph client status updated to %q", status)
 	return nil
 }
 

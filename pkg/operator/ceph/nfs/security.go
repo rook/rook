@@ -20,12 +20,13 @@ import (
 	"fmt"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 func (r *ReconcileCephNFS) addSecurityConfigsToPod(nfs *cephv1.CephNFS, pod *v1.PodSpec) error {
-	nsName := types.NamespacedName{Namespace: nfs.Namespace, Name: nfs.Name}
+	nsName := controller.NsName(nfs.Namespace, nfs.Name)
 
 	sec := nfs.Spec.Security
 	if sec == nil {
@@ -33,12 +34,12 @@ func (r *ReconcileCephNFS) addSecurityConfigsToPod(nfs *cephv1.CephNFS, pod *v1.
 	}
 
 	if sec.SSSD != nil {
-		logger.Debugf("configuring system security services daemon (SSSD) for CephNFS %q", nsName)
+		log.NamedDebug(nsName, logger, "configuring system security services daemon (SSSD) for CephNFS")
 		addSSSDConfigsToPod(r, nfs, pod)
 	}
 
 	if sec.Kerberos != nil {
-		logger.Debugf("configuring Kerberos for CephNFS %q", nsName)
+		log.NamedDebug(nsName, logger, "configuring Kerberos for CephNFS")
 		addKerberosConfigsToPod(r, nfs, pod)
 	}
 
@@ -46,7 +47,7 @@ func (r *ReconcileCephNFS) addSecurityConfigsToPod(nfs *cephv1.CephNFS, pod *v1.
 }
 
 func addSSSDConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.PodSpec) {
-	nsName := types.NamespacedName{Namespace: nfs.Namespace, Name: nfs.Name}
+	nsName := controller.NsName(nfs.Namespace, nfs.Name)
 
 	// generate /etc/nsswitch.conf file for the nfs-ganesha pod
 	nssCfgInitContainer, nssCfgVol, nssCfgMount := generateSssdNsswitchConfResources(r, nfs)
@@ -58,7 +59,7 @@ func addSSSDConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.PodSp
 
 	sidecarCfg := nfs.Spec.Security.SSSD.Sidecar
 	if sidecarCfg != nil {
-		logger.Debugf("configuring SSSD sidecar for CephNFS %q", nsName)
+		log.NamedDebug(nsName, logger, "configuring SSSD sidecar for CephNFS")
 		init, sidecar, vols, mounts := generateSssdSidecarResources(nfs, sidecarCfg)
 
 		pod.InitContainers = append(pod.InitContainers, *init)

@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,7 +36,7 @@ func UpdateCondition(ctx context.Context, c *clusterd.Context, namespaceName typ
 	// use client.Client unit test this more easily with updating statuses which must use the client
 	cluster := &cephv1.CephCluster{}
 	if err := c.Client.Get(ctx, namespaceName, cluster); err != nil {
-		logger.Errorf("failed to get cluster %v to update the conditions. %v", namespaceName, err)
+		log.NamedError(namespaceName, logger, "failed to get cluster %v to update the conditions. %v", namespaceName, err)
 		return
 	}
 
@@ -101,11 +102,11 @@ func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, na
 			cluster.Status.State = state
 		}
 		cluster.Status.Message = currentCondition.Message
-		logger.Debugf("CephCluster %q status: %q. %q", namespaceName.Namespace, cluster.Status.Phase, cluster.Status.Message)
+		log.NamedDebug(namespaceName, logger, "CephCluster status: %q. %q", cluster.Status.Phase, cluster.Status.Message)
 	}
 
 	if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
-		logger.Errorf("failed to update cluster condition to %+v. %v", *currentCondition, err)
+		log.NamedError(namespaceName, logger, "failed to update cluster condition to %+v. %v", *currentCondition, err)
 	}
 }
 
