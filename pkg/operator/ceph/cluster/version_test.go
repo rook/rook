@@ -32,7 +32,7 @@ import (
 
 func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	// 1st test
-	fakeImageVersion := cephver.Reef
+	fakeImageVersion := cephver.Squid
 	fakeRunningVersions := []byte(`
 	{
 		"mon": {
@@ -160,16 +160,16 @@ func TestMinVersion(t *testing.T) {
 	c.Spec.CephVersion.AllowUnsupported = true
 	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
-	// All versions less than 18.2.0 or invalid tag are invalid
+	// All versions less than 19.2.0 or invalid tag are invalid
 	v := &cephver.CephVersion{Major: 18, Minor: 1, Extra: 999}
 	assert.Error(t, c.validateCephVersion(v))
 	v = &cephver.CephVersion{Major: 16, Minor: 2, Extra: 11}
 	assert.Error(t, c.validateCephVersion(v))
 
-	// All versions at least 18.2.0 are valid
-	v = &cephver.CephVersion{Major: 18, Minor: 2}
+	// All versions at least 19.2.0 are valid
+	v = &cephver.CephVersion{Major: 19, Minor: 2}
 	assert.NoError(t, c.validateCephVersion(v))
-	v = &cephver.CephVersion{Major: 19}
+	v = &cephver.CephVersion{Major: 20}
 	assert.NoError(t, c.validateCephVersion(v))
 }
 
@@ -181,9 +181,9 @@ func TestSupportedVersion(t *testing.T) {
 	v := &cephver.CephVersion{Major: 17, Minor: 2, Extra: 7}
 	assert.Error(t, c.validateCephVersion(v))
 
-	// Reef is supported
+	// Reef is NOT supported
 	v = &cephver.CephVersion{Major: 18, Minor: 2, Extra: 0}
-	assert.NoError(t, c.validateCephVersion(v))
+	assert.Error(t, c.validateCephVersion(v))
 
 	// Squid is supported
 	v = &cephver.CephVersion{Major: 19, Minor: 2, Extra: 0}

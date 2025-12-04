@@ -1122,9 +1122,6 @@ func (c *clusterConfig) addDNSNamesToRGWServer() (string, error) {
 	if !c.store.AdvertiseEndpointIsSet() && len(c.store.Spec.Hosting.DNSNames) == 0 {
 		return "", nil
 	}
-	if !c.clusterInfo.CephVersion.IsAtLeastReef() {
-		return "", errors.New("rgw dns names are supported from ceph v18 onwards")
-	}
 
 	dnsNames := []string{}
 

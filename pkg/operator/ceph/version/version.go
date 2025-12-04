@@ -40,7 +40,7 @@ const (
 
 var (
 	// Minimum supported version
-	Minimum = CephVersion{18, 2, 0, 0, ""}
+	Minimum = CephVersion{19, 2, 0, 0, ""}
 
 	// Reef Ceph version
 	Reef = CephVersion{18, 0, 0, 0, ""}
@@ -52,7 +52,7 @@ var (
 	Umbrella = CephVersion{21, 0, 0, 0, ""}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions = []CephVersion{Reef, Squid, Tentacle}
+	supportedVersions = []CephVersion{Squid, Tentacle}
 
 	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
 	unsupportedVersions []CephVersion

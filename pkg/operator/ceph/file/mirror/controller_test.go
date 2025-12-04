@@ -228,7 +228,7 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 		}
 
 		currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
-			return &version.Squid, &version.Reef, nil
+			return &version.Tentacle, &version.Squid, nil
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -250,7 +250,7 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 		}
 
 		currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
-			return &version.Reef, &version.Reef, nil
+			return &version.Squid, &version.Squid, nil
 		}
 
 		res, err := r.Reconcile(ctx, req)

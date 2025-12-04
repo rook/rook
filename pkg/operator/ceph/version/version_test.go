@@ -50,24 +50,24 @@ func extractVersionHelper(t *testing.T, text string, major, minor, extra, build 
 
 func TestExtractVersion(t *testing.T) {
 	// release build
-	v0c := "ceph version 18.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) reef (stable)"
+	v0c := "ceph version 19.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) squid (stable)"
 	v0d := `
 root@7a97f5a78bc6:/# ceph --version
-ceph version 18.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) reef (stable)
+ceph version 19.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) squid (stable)
 `
-	extractVersionHelper(t, v0c, 18, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
-	extractVersionHelper(t, v0d, 18, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
+	extractVersionHelper(t, v0c, 19, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
+	extractVersionHelper(t, v0d, 19, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
 
 	// development build
-	v1c := "ceph version 18.1.33-403-g7ba6bece41 (7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) reef (rc)"
+	v1c := "ceph version 19.1.33-403-g7ba6bece41 (7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) squid (rc)"
 	v1d := `
 bin/ceph --version
 *** DEVELOPER MODE: setting PATH, PYTHONPATH and LD_LIBRARY_PATH ***
-ceph version 18.1.33-403-g7ba6bece41
-(7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) reef (rc)
+ceph version 19.1.33-403-g7ba6bece41
+(7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) squid (rc)
 `
-	extractVersionHelper(t, v1c, 18, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
-	extractVersionHelper(t, v1d, 18, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
+	extractVersionHelper(t, v1c, 19, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
+	extractVersionHelper(t, v1d, 19, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
 
 	// build without git version info. it is possible to build the ceph tree
 	// without a version number, but none of the container builds do this.
@@ -75,11 +75,11 @@ ceph version 18.1.33-403-g7ba6bece41
 	// explicitly adding fine-grained versioning to avoid issues with
 	// release granularity. adding the reverse name-to-version is easy
 	// enough if this ever becomes a need.
-	v2c := "ceph version Development (no_version) reef (rc)"
+	v2c := "ceph version Development (no_version) squid (rc)"
 	v2d := `
 bin/ceph --version
 *** DEVELOPER MODE: setting PATH, PYTHONPATH and LD_LIBRARY_PATH ***
-ceph version Development (no_version) reef (rc)
+ceph version Development (no_version) squid (rc)
 `
 	v, err := ExtractCephVersion(v2c)
 	assert.Error(t, err)
@@ -90,11 +90,11 @@ ceph version Development (no_version) reef (rc)
 	assert.Nil(t, v)
 
 	// Test the round trip for serializing and deserializing the version
-	v3c := "ceph version 18.2.5-1 reef"
+	v3c := "ceph version 19.2.5-1 squid"
 	v, err = ExtractCephVersion(v3c)
 	assert.NoError(t, err)
 	assert.NotNil(t, v)
-	assert.Equal(t, "18.2.5-1 reef", v.String())
+	assert.Equal(t, "19.2.5-1 squid", v.String())
 }
 
 func TestSupported(t *testing.T) {
@@ -105,20 +105,19 @@ func TestSupported(t *testing.T) {
 }
 
 func TestIsRelease(t *testing.T) {
-	assert.True(t, Reef.isRelease(Reef))
 	assert.True(t, Squid.isRelease(Squid))
+	assert.True(t, Tentacle.isRelease(Tentacle))
 
-	assert.False(t, Reef.isRelease(Squid))
+	assert.False(t, Squid.isRelease(Tentacle))
 
-	ReefUpdate := Reef
-	ReefUpdate.Minor = 33
-	ReefUpdate.Extra = 4
-	assert.True(t, ReefUpdate.isRelease(Reef))
+	SquidUpdate := Squid
+	SquidUpdate.Minor = 33
+	SquidUpdate.Extra = 4
+	assert.True(t, SquidUpdate.isRelease(Squid))
 }
 
 func TestVersionAtLeast(t *testing.T) {
 	assert.True(t, Squid.IsAtLeast(Squid))
-	assert.True(t, Squid.IsAtLeast(Reef))
 	assert.True(t, Tentacle.IsAtLeast(Tentacle))
 	assert.True(t, Tentacle.IsAtLeast(Squid))
 
@@ -132,8 +131,10 @@ func TestVersionAtLeast(t *testing.T) {
 }
 
 func TestVersionAtLeastX(t *testing.T) {
-	assert.True(t, Reef.IsAtLeastReef())
-	assert.False(t, Reef.IsAtLeastSquid())
+	assert.True(t, Squid.IsAtLeastSquid())
+	assert.False(t, Squid.IsAtLeastTentacle())
+	assert.True(t, Tentacle.IsAtLeastSquid())
+	assert.True(t, Tentacle.IsAtLeastTentacle())
 }
 
 func TestIsIdentical(t *testing.T) {
@@ -205,7 +206,7 @@ func TestCephVersion_Unsupported(t *testing.T) {
 		want   bool
 	}{
 		{"squid", fields{Major: 19, Minor: 2, Extra: 0, Build: 0}, false},
-		{"reef", fields{Major: 18, Minor: 2, Extra: 0, Build: 0}, false},
+		{"squid", fields{Major: 19, Minor: 2, Extra: 0, Build: 0}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

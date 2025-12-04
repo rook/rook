@@ -43,11 +43,9 @@ import (
 
 const (
 	// test with the latest releases
-	reefTestImage     = "quay.io/ceph/ceph:v18"
 	squidTestImage    = "quay.io/ceph/ceph:v19"
 	tentacleTestImage = "quay.io/ceph/ceph:v20"
 	// test with the current development versions
-	reefDevelTestImage     = "quay.ceph.io/ceph-ci/ceph:reef"
 	squidDevelTestImage    = "quay.ceph.io/ceph-ci/ceph:squid"
 	tentacleDevelTestImage = "quay.ceph.io/ceph-ci/ceph:tentacle"
 	// test with the latest Ceph main image
@@ -69,8 +67,6 @@ mon compact on start = true
 )
 
 var (
-	ReefVersion                  = cephv1.CephVersionSpec{Image: reefTestImage}
-	ReefDevelVersion             = cephv1.CephVersionSpec{Image: reefDevelTestImage}
 	SquidVersion                 = cephv1.CephVersionSpec{Image: squidTestImage}
 	SquidDevelVersion            = cephv1.CephVersionSpec{Image: squidDevelTestImage}
 	TentacleVersion              = cephv1.CephVersionSpec{Image: tentacleTestImage}
@@ -97,8 +93,6 @@ func ReturnCephVersion() cephv1.CephVersionSpec {
 	switch os.Getenv("CEPH_SUITE_VERSION") {
 	case "main":
 		return MainVersion
-	case "reef-devel":
-		return ReefDevelVersion
 	case "squid-devel":
 		return SquidDevelVersion
 	case "tentacle-devel":
