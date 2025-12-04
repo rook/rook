@@ -68,7 +68,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `cephFileSystems` | A list of CephFileSystem configurations to deploy | See [below](#ceph-file-systems) |
 | `cephImage.allowUnsupported` |  | `false` |
 | `cephImage.repository` |  | `"quay.io/ceph/ceph"` |
-| `cephImage.tag` |  | `"v19.2.3"` |
+| `cephImage.tag` |  | `"v20.2.0"` |
 | `cephObjectStores` | A list of CephObjectStore configurations to deploy | See [below](#ceph-object-stores) |
 | `clusterName` | The metadata.name of the CephCluster CR | The same as the namespace |
 | `configOverride` | Cluster ceph.conf override | `nil` |
