@@ -871,13 +871,18 @@ func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.Moni
 		addresses[i] = endpoint.IP
 	}
 
+	addressType, err := k8sutil.GetIpAddressType(addresses)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the addressType")
+	}
+
 	endpoints := &discoveryv1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ExternalMgrAppName,
 			Namespace: namespace,
 			Labels:    labels,
 		},
-		AddressType: discoveryv1.AddressTypeIPv4,
+		AddressType: addressType,
 		Endpoints: []discoveryv1.Endpoint{
 			{
 				Addresses: addresses,
@@ -895,7 +900,7 @@ func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.Moni
 		},
 	}
 
-	err := ownerInfo.SetControllerReference(endpoints)
+	err = ownerInfo.SetControllerReference(endpoints)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set owner reference to metric endpoints %q", endpoints.Name)
 	}

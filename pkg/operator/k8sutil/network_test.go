@@ -22,6 +22,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -306,4 +307,70 @@ func removeLastChar(in string) string {
 	chars := []byte(strings.TrimSpace(in))
 	len := len(chars)
 	return string(chars[0 : len-1])
+}
+
+// test for GetIpAddressType
+func TestGetIpAddressType(t *testing.T) {
+	// test cases
+	tests := []struct {
+		name      string
+		addresses []string
+		wantType  discoveryv1.AddressType
+		wantErr   bool
+	}{
+		{
+			name:      "single IPv4 address",
+			addresses: []string{"192.168.1.1"},
+			wantType:  discoveryv1.AddressTypeIPv4,
+			wantErr:   false,
+		},
+		{
+			name:      "IPv4 address",
+			addresses: []string{"192.168.1.1", "192.146.1.1"},
+			wantType:  discoveryv1.AddressTypeIPv4,
+			wantErr:   false,
+		},
+		{
+			name:      "single IPv6 address",
+			addresses: []string{"2001:0db8:85a3:0000:0000:8a2e:0370:7334"},
+			wantType:  discoveryv1.AddressTypeIPv6,
+			wantErr:   false,
+		},
+		{
+			name:      "IPv6 address",
+			addresses: []string{"2001:0db8:85a3:0000:0000:8a2e:0370:7334", "fe80::1ff:fe23:4567:890a"},
+			wantType:  discoveryv1.AddressTypeIPv6,
+			wantErr:   false,
+		},
+		{
+			name:      "Mixed addresses",
+			addresses: []string{"192.168.1.1", "192.146.1.1", "2001:0db8:85a3:0000:0000:8a2e:0370:7334", "fe80::1ff:fe23:4567:890a"},
+			wantType:  "",
+			wantErr:   true,
+		},
+		{
+			name:      "Empty address list",
+			addresses: []string{},
+			wantType:  "",
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotType, err := GetIpAddressType(tt.addresses)
+			if err != nil {
+				if !tt.wantErr {
+					t.Errorf("GetIpAddressType() unexpected error: %v", err)
+					return
+				}
+			} else {
+				if tt.wantErr {
+					t.Errorf("GetIpAddressType() expected error but got none")
+					return
+				}
+				assert.Equal(t, tt.wantType, gotType)
+			}
+		})
+	}
 }
