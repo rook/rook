@@ -26,6 +26,14 @@ SERVICE_UNAVAILABLE_ERROR="Service Unavailable"
 INTERNAL_ERROR="INTERNAL_ERROR"
 INTERNAL_SERVER_ERROR="500 Internal Server Error"
 
+# Architecture detection
+ARCH=$(uname -m)
+if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+  ARCH_SUFFIX="arm64"
+else
+  ARCH_SUFFIX="amd64"
+fi
+
 #############
 # FUNCTIONS #
 #############
@@ -60,7 +68,7 @@ function block_dev_basename() {
 }
 
 function install_deps() {
-  sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
+  sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_${ARCH_SUFFIX} -O /usr/local/bin/yq
   sudo chmod +x /usr/local/bin/yq
 }
 
@@ -719,24 +727,24 @@ function install_minikube_with_none_driver() {
 
   sudo apt update
   sudo apt install -y conntrack socat
-  curl -LO https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube_latest_amd64.deb
-  sudo dpkg -i minikube_latest_amd64.deb
-  rm -f minikube_latest_amd64.deb
+  curl -LO https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube_latest_${ARCH_SUFFIX}.deb
+  sudo dpkg -i minikube_latest_${ARCH_SUFFIX}.deb
+  rm -f minikube_latest_${ARCH_SUFFIX}.deb
   # The dpkg install does not install the minikube binary to the needed location, so
   # move the minikube binary to the expected location
   sudo mv /usr/bin/minikube /usr/local/bin/minikube
 
-  curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.4.0/cri-dockerd_0.4.0.3-0.ubuntu-focal_amd64.deb
-  sudo dpkg -i cri-dockerd_0.4.0.3-0.ubuntu-focal_amd64.deb
-  rm -f cri-dockerd_0.4.0.3-0.ubuntu-focal_amd64.deb
+  curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH_SUFFIX}.deb
+  sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH_SUFFIX}.deb
+  rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH_SUFFIX}.deb
 
-  wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-$CRICTL_VERSION-linux-amd64.tar.gz
-  sudo tar zxvf crictl-$CRICTL_VERSION-linux-amd64.tar.gz -C /usr/local/bin
-  rm -f crictl-$CRICTL_VERSION-linux-amd64.tar.gz
+  wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-$CRICTL_VERSION-linux-${ARCH_SUFFIX}.tar.gz
+  sudo tar zxvf crictl-$CRICTL_VERSION-linux-${ARCH_SUFFIX}.tar.gz -C /usr/local/bin
+  rm -f crictl-$CRICTL_VERSION-linux-${ARCH_SUFFIX}.tar.gz
   sudo sysctl fs.protected_regular=0
 
   CNI_PLUGIN_VERSION="v1.7.1"
-  CNI_PLUGIN_TAR="cni-plugins-linux-amd64-$CNI_PLUGIN_VERSION.tgz" # change arch if not on amd64
+  CNI_PLUGIN_TAR="cni-plugins-linux-${ARCH_SUFFIX}-$CNI_PLUGIN_VERSION.tgz"
   CNI_PLUGIN_INSTALL_DIR="/opt/cni/bin"
 
   curl -LO "https://github.com/containernetworking/plugins/releases/download/$CNI_PLUGIN_VERSION/$CNI_PLUGIN_TAR"
