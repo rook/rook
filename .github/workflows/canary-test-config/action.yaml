@@ -4,6 +4,15 @@ description: Cluster setup for canary test
 runs:
   using: "composite"
   steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false # removes old golang version but saves ~6GB
+        large-packages: false # takes a long time to run b/c package mgr
+        android: true # takes a long time to run b/c package mgr
+        dotnet: false # takes a long time to run b/c package mgr
+        haskell: false # takes a long time to run b/c package mgr
+
     - name: setup golang
       uses: actions/setup-go@v5
       with:
