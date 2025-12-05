@@ -253,6 +253,66 @@ pull_request_rules:
       dismiss_reviews: {}
       delete_head_branch: {}
 
+  # release-1.19 branch
+  - name: automerge backport release-1.19
+    conditions:
+      - author=mergify[bot]
+      - base=release-1.19
+      - label!=do-not-merge
+      - "status-success=DCO"
+      - "check-success=codegen"
+      - "check-success=codespell"
+      - "check-success=crds-gen"
+      - "check-success=docs-check"
+      - "check-success=gen-rbac"
+      - "check-success=golangci-lint"
+      - "check-success=govulncheck"
+      - "check-success=lint"
+      - "check-success=lint-test"
+      - "check-success=linux-build-all (1.24)"
+      - "check-success=misspell"
+      - "check-success=modcheck"
+      - "check-success=pylint"
+      - "check-success=Shellcheck"
+      - "check-success=unittests"
+      - "check-success=yaml-linter"
+      - "check-success=canary-tests / canary (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc-db (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc-db-wal (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc-kms-ibm-kp (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc-kms-vault-k8s-auth (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / encryption-pvc-kms-vault-token-auth (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / lvm (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / lvm-pvc (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / multi-cluster-mirroring (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / multus-public-and-cluster (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / osd-with-metadata-device (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / osd-with-metadata-partition-device (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / pvc (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / pvc-db (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / pvc-db-wal (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / raw-disk-with-object (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / two-object-one-zone (quay.io/ceph/ceph:v19)"
+      - "check-success=canary-tests / two-osds-in-device (quay.io/ceph/ceph:v19)"
+      - "check-success=TestCephHelmSuite (v3.13.3, v1.33.3)"
+      - "check-success=TestCephHelmSuite (v3.18.3, v1.33.3)"
+      - "check-success=TestCephMultiClusterDeploySuite (v1.33.3)"
+      - "check-success=TestCephObjectSuite (v1.29.15)"
+      - "check-success=TestCephObjectSuite (v1.33.3)"
+      - "check-success=TestCephSmokeSuite (v1.29.15)"
+      - "check-success=TestCephSmokeSuite (v1.33.3)"
+      - "check-success=TestCephUpgradeSuite (v1.29.15)"
+      - "check-success=TestCephUpgradeSuite (v1.33.3)"
+      - "check-success=TestHelmUpgradeSuite (v1.29.15)"
+      - "check-success=TestHelmUpgradeSuite (v1.33.3)"
+    actions:
+      merge:
+        method: merge
+      dismiss_reviews: {}
+      delete_head_branch: {}
+
   # release-1.15 branch
   - actions:
       backport:
@@ -288,3 +348,12 @@ pull_request_rules:
     conditions:
       - label=backport-release-1.18
     name: backport release-1.18
+
+  # release-1.19 branch
+  - actions:
+      backport:
+        branches:
+          - release-1.19
+    conditions:
+      - label=backport-release-1.19
+    name: backport release-1.19
