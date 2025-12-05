@@ -19,6 +19,7 @@ package object
 import (
 	"context"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -95,6 +96,14 @@ func TestPortString(t *testing.T) {
 	cfg.store.Spec.Gateway.Port = 80
 	result = cfg.portString()
 	assert.Equal(t, "port=8080", result)
+
+	// SSL reload interval
+	cfg = newConfig(t)
+	cfg.store.Spec.Gateway.SecurePort = 443
+	cfg.store.Spec.Gateway.SSLCertificateRef = "some-k8s-key-secret"
+	cfg.store.Spec.Gateway.SSLReloadInterval = &metav1.Duration{Duration: time.Hour + time.Minute + time.Second + 999*time.Millisecond}
+	result = cfg.portString()
+	assert.Equal(t, "ssl_port=443 ssl_certificate=/etc/ceph/private/rgw-cert.pem ssl_reload=3661", result)
 }
 
 func TestGenerateCephXUser(t *testing.T) {

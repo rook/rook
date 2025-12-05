@@ -87,6 +87,10 @@ func (c *clusterConfig) portString() string {
 			privateKey := path.Join(certDir, certKeyFileName)
 			portString = fmt.Sprintf("%s ssl_private_key=%s", portString, privateKey)
 		}
+		if c.store.Spec.Gateway.SSLReloadInterval != nil {
+			secs := int(c.store.Spec.Gateway.SSLReloadInterval.Duration.Seconds())
+			portString = fmt.Sprintf("%s ssl_reload=%d", portString, secs)
+		}
 	}
 	return portString
 }
