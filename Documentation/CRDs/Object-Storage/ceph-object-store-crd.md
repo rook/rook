@@ -31,6 +31,9 @@ spec:
     erasureCoded:
       dataChunks: 2
       codingChunks: 1
+    parameters:
+      # Ceph Tentacle v20 has optimizations that need to be explicitly enabled
+      # allow_ec_optimizations: "true"
   preservePoolsOnDelete: true
   gateway:
     # sslCertificateRef:

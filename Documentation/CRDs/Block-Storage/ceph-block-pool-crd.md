@@ -70,6 +70,10 @@ spec:
     dataChunks: 4
     codingChunks: 2
   deviceClass: hdd
+  parameters:
+    # Ceph Tentacle v20 has optimizations that need to be explicitly enabled.
+    # Remove this setting for pre-Tentacle pools.
+    allow_ec_optimizations: "true"
 ```
 
 Various combinations of `dataChunks` and `codingChunks` values are possible, with
@@ -318,3 +322,9 @@ The `failureDomain` must be also be taken into account when determining the numb
 If you do not have a sufficient number of hosts or OSDs for unique placement the pool can be created, writing to the pool will hang and Ceph will report `undersized` or `incomplete` placement groups.
 
 Rook currently only configures two levels in the CRUSH map. It is also possible to configure other levels such as `rack` with by adding [topology labels](../Cluster/ceph-cluster-crd.md#osd-topology) to the nodes.
+
+!!! tip
+    Ceph Tentacle v20 has optimizations that need to be explicitly enabled.
+    Set the following parameter in the pool spec of erasure coded pools:
+    parameters:
+        allow_ec_optimizations: "true"

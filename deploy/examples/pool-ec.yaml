@@ -21,3 +21,5 @@ spec:
   parameters:
     # Inline compression mode for the data pool
     compression_mode: none
+    # Ceph Tentacle v20 or newer has EC optimizations that need to be explicitly enabled
+    # allow_ec_optimizations: "true"

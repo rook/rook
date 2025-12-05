@@ -42,6 +42,9 @@ spec:
       # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
       # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
       #target_size_ratio: ".5"
+      # Ceph Tentacle v20 has optimizations that need to be explicitly enabled
+      # allow_ec_optimizations: "true"
+
   # Whether to preserve metadata and data pools on object store deletion
   preservePoolsOnDelete: true
   # The gateway service configuration
