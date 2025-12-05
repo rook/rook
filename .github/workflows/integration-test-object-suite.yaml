@@ -35,6 +35,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+
       - name: consider (pre-job) debugging
         uses: ./.github/workflows/tmate_debug
         with:
