@@ -307,7 +307,7 @@ spec:
       "mode": "bridge",
       "ipam": {
         "type": "whereabouts",
-        "range": "1192.168.0.0/18",
+        "range": "192.168.0.0/18",
         "routes": [
           {"dst": "192.168.252.0/22"}
         ]
