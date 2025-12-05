@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/dependents"
+	"github.com/rook/rook/pkg/util/log"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -152,7 +153,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) Reconcile(context context.Context
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, radosNamespace, err := r.reconcile(request)
 	if err != nil {
-		logger.Errorf("failed to reconcile %q. %v", request.NamespacedName, err)
+		log.NamedError(request.NamespacedName, logger, "failed to reconcile. %v", err)
 	}
 
 	return reporting.ReportReconcileResult(logger, r.recorder, request, radosNamespace, reconcileResponse, err)
@@ -165,7 +166,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, radosNamespace)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debugf("cephBlockPoolRadosNamespace resource %q not found. Ignoring since object must be deleted.", namespacedName)
+			log.NamedDebug(namespacedName, logger, "cephBlockPoolRadosNamespace resource %q not found. Ignoring since object must be deleted.", namespacedName)
 			return reconcile.Result{}, radosNamespace, nil
 		}
 		// Error reading the object - requeue the request.
@@ -178,7 +179,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		return reconcile.Result{}, radosNamespace, errors.Wrap(err, "failed to add finalizer")
 	}
 	if generationUpdated {
-		logger.Infof("reconciling the rados namespace %q after adding finalizer", radosNamespace.Name)
+		log.NamedInfo(namespacedName, logger, "reconciling the rados namespace %q after adding finalizer", radosNamespace.Name)
 		return reconcile.Result{}, radosNamespace, nil
 	}
 
@@ -234,10 +235,10 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 			return reconcile.Result{}, radosNamespace, errors.Wrap(err, "failed to list cephBlockPoolRadosNamespace")
 		}
 
-		logger.Debugf("delete cephBlockPoolRadosNamespace %q", namespacedName)
+		log.NamedDebug(namespacedName, logger, "delete cephBlockPoolRadosNamespace %q", namespacedName)
 		// On external cluster, we don't delete the rados namespace, it has to be deleted manually
 		if cephCluster.Spec.External.Enable {
-			logger.Warning("external rados namespace %q deletion is not supported, delete it manually", namespacedName)
+			log.NamedWarning(request.NamespacedName, logger, "external rados namespace deletion is not supported, delete it manually")
 		} else if len(cephRNSList.Items) <= 1 {
 			// If we have more than one cephBlockPoolRadosNamespace CR with same spec.blockPoolName and same spec.name,
 			// skip the call to deleteRadosNamespace(). This allows the finalizer to be removed without
@@ -249,7 +250,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 					return opcontroller.WaitForRequeueIfFinalizerBlocked, radosNamespace, err
 				}
 				if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-					logger.Info(opcontroller.OperatorNotInitializedMessage)
+					log.NamedInfo(namespacedName, logger, opcontroller.OperatorNotInitializedMessage)
 					return opcontroller.WaitForRequeueIfOperatorNotInitialized, radosNamespace, nil
 				}
 				return reconcile.Result{}, radosNamespace, errors.Wrapf(err, "failed to delete ceph blockpool rados namespace %q", radosNamespace.Name)
@@ -258,7 +259,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 			// We must remove it first otherwise the checker will panic since the status/info will be nil
 			r.cancelMirrorMonitoring(radosNamespaceChannelKeyName(radosNamespace.Namespace, poolAndRadosNamespaceName))
 		} else {
-			logger.Infof("Removing finalizer from RNS CR %s without checking if the radosnamespaceName contains any data since more than one RNS(count %d) contains the same blockPool and rados name", radosNamespace.Name, len(cephRNSList.Items))
+			log.NamedInfo(namespacedName, logger, "Removing finalizer from RNS without checking if the radosnamespaceName contains any data since more than one RNS(count %d) contains the same blockPool and rados name", len(cephRNSList.Items))
 		}
 
 		if len(cephRNSList.Items) <= 1 {
@@ -281,7 +282,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	radosNamespaceName := cephv1.GetRadosNamespaceName(radosNamespace)
 
 	if cephCluster.Spec.External.Enable {
-		logger.Debug("skip creating external radosnamespace in external mode, create it manually, the controller will assume it's there")
+		log.NamedDebug(namespacedName, logger, "skip creating external radosnamespace in external mode, create it manually, the controller will assume it's there")
 		err = r.updateClusterConfig(radosNamespace, cephCluster)
 		if err != nil {
 			return reconcile.Result{}, radosNamespace, errors.Wrap(err, "failed to save cluster config")
@@ -332,7 +333,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	err = r.createOrUpdateRadosNamespace(radosNamespace)
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-			logger.Info(opcontroller.OperatorNotInitializedMessage)
+			log.NamedInfo(namespacedName, logger, opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, radosNamespace, nil
 		}
 		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)
@@ -359,7 +360,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	}
 
 	// Return and do not requeue
-	logger.Debugf("done reconciling cephBlockPoolRadosNamespace %q", namespacedName)
+	log.NamedDebug(namespacedName, logger, "done reconciling cephBlockPoolRadosNamespace")
 	return reconcile.Result{}, radosNamespace, nil
 }
 
@@ -398,11 +399,11 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateClusterConfig(cephBlockPool
 
 // Create the ceph blockpool rados namespace
 func (r *ReconcileCephBlockPoolRadosNamespace) createOrUpdateRadosNamespace(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace) error {
-	namespacedName := fmt.Sprintf("%s/%s", cephBlockPoolRadosNamespace.Namespace, cephBlockPoolRadosNamespace.Name)
-	logger.Infof("creating ceph blockpool rados namespace %q", namespacedName)
+	nsName := opcontroller.NsName(cephBlockPoolRadosNamespace.Namespace, cephBlockPoolRadosNamespace.Name)
+	log.NamedInfo(nsName, logger, "creating ceph blockpool rados namespace")
 
 	if cephv1.GetRadosNamespaceName(cephBlockPoolRadosNamespace) == "" {
-		logger.Infof("can't create empty radosnamespace %q in the namespace %q as it is already present", cephBlockPoolRadosNamespace.Name, cephBlockPoolRadosNamespace.Namespace)
+		log.NamedInfo(nsName, logger, "can't create empty radosnamespace as it is already present")
 		return nil
 	}
 	err := cephclient.CreateRadosNamespace(r.context, r.clusterInfo, cephBlockPoolRadosNamespace.Spec.BlockPoolName, cephv1.GetRadosNamespaceName(cephBlockPoolRadosNamespace))
@@ -415,12 +416,12 @@ func (r *ReconcileCephBlockPoolRadosNamespace) createOrUpdateRadosNamespace(ceph
 
 // Delete the ceph blockpool rados namespace
 func (r *ReconcileCephBlockPoolRadosNamespace) deleteRadosNamespace(radosNamespace *cephv1.CephBlockPoolRadosNamespace, cephCluster *cephv1.CephCluster) (bool, error) {
-	nsName := types.NamespacedName{Namespace: radosNamespace.Namespace, Name: radosNamespace.Name}
-	logger.Infof("deleting rados namespace %q", nsName.String())
+	nsName := opcontroller.NsName(radosNamespace.Namespace, radosNamespace.Name)
+	log.NamedInfo(nsName, logger, "deleting rados namespace %q", nsName.String())
 
 	name := cephv1.GetRadosNamespaceName(radosNamespace)
 	if name == "" {
-		logger.Info("no need to delete implicit radosnamepace")
+		log.NamedInfo(nsName, logger, "no need to delete implicit radosnamepace")
 		return false, nil
 	}
 
@@ -437,12 +438,12 @@ func (r *ReconcileCephBlockPoolRadosNamespace) deleteRadosNamespace(radosNamespa
 			false,
 			fmt.Sprintf("rados namespace %q is empty and can be deleted", radosNamespace.Name))
 	}
-	logger.Info(emptyCondition.Message)
+	log.NamedInfo(nsName, logger, "%s", emptyCondition.Message)
 
 	err := reporting.UpdateStatusConditionsWithRetry(
 		r.opManagerContext, r.client, radosNamespace, nsName, radosNamespace.Kind, emptyCondition)
 	if err != nil {
-		logger.Warningf("failed to update %q status with deletion blocked conditions: %v", nsName.String(), err)
+		log.NamedWarning(nsName, logger, "failed to update %q status with deletion blocked conditions: %v", nsName.String(), err)
 	}
 
 	if containsImages {
@@ -459,7 +460,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) deleteRadosNamespace(radosNamespa
 		return containsImages, errors.Wrapf(deleteErr, "failed to delete rados namespace %q", radosNamespace.Name)
 	}
 
-	logger.Infof("deleted rados namespace %q", nsName.String())
+	log.NamedInfo(nsName, logger, "deleted rados namespace %q", nsName.String())
 	return false, nil
 }
 
@@ -469,7 +470,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateStatus(client client.Client
 		cephBlockPoolRadosNamespace := &cephv1.CephBlockPoolRadosNamespace{}
 		if err := client.Get(r.opManagerContext, name, cephBlockPoolRadosNamespace); err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debugf("CephBlockPoolRadosNamespace resource %q not found. Ignoring since object must be deleted.", name)
+				log.NamedDebug(name, logger, "CephBlockPoolRadosNamespace resource %q not found. Ignoring since object must be deleted.", name)
 				return nil
 			}
 			return errors.Wrapf(err, "failed to retrieve ceph blockpool rados namespace %q to update status to %q", name, status)
@@ -486,10 +487,10 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateStatus(client client.Client
 		return nil
 	})
 	if err != nil {
-		logger.Errorf("failed to update ceph blockpool rados namespace %q status to %q after retries. %v", name, status, err)
+		log.NamedError(name, logger, "failed to update ceph blockpool rados namespace %q status to %q after retries. %v", name, status, err)
 		return
 	}
-	logger.Debugf("ceph blockpool rados namespace %q status updated to %q", name, status)
+	log.NamedDebug(name, logger, "ceph blockpool rados namespace %q status updated to %q", name, status)
 }
 
 func buildClusterID(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace) string {
@@ -501,7 +502,8 @@ func buildClusterID(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamesp
 }
 
 func (r *ReconcileCephBlockPoolRadosNamespace) cleanup(radosNamespace *cephv1.CephBlockPoolRadosNamespace, cephCluster *cephv1.CephCluster) error {
-	logger.Infof("starting cleanup of the ceph resources for radosNamespace %q in namespace %q", radosNamespace.Name, radosNamespace.Namespace)
+	nsName := opcontroller.NsName(radosNamespace.Namespace, radosNamespace.Name)
+	log.NamedInfo(nsName, logger, "starting cleanup of the ceph resources for radosNamespace %q in namespace %q", radosNamespace.Name, radosNamespace.Namespace)
 	cleanupConfig := map[string]string{
 		opcontroller.CephBlockPoolNameEnv:           radosNamespace.Spec.BlockPoolName,
 		opcontroller.CephBlockPoolRadosNamespaceEnv: cephv1.GetRadosNamespaceName(radosNamespace),
@@ -520,6 +522,7 @@ func checkBlockPoolMirroring(cephBlockPool *cephv1.CephBlockPool) bool {
 }
 
 func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace, cephBlockPool *cephv1.CephBlockPool) error {
+	nsName := opcontroller.NsName(cephBlockPoolRadosNamespace.Namespace, cephBlockPoolRadosNamespace.Name)
 	poolAndRadosNamespaceName := fmt.Sprintf("%s/%s", cephBlockPool.Name, cephv1.GetRadosNamespaceName(cephBlockPoolRadosNamespace))
 	if cephv1.GetRadosNamespaceName(cephBlockPoolRadosNamespace) == "" {
 		poolAndRadosNamespaceName = cephBlockPool.Name
@@ -567,10 +570,10 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolR
 		// Run the goroutine to update the mirroring status
 		// use the monitoring settings from the cephBlockPool CR
 		if !cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
-			logger.Debugf("starting mirror monitoring for radosnamespace %q", poolAndRadosNamespaceName)
+			log.NamedDebug(nsName, logger, "starting mirror monitoring for radosnamespace")
 			// Start monitoring of the radosNamespace
 			if r.radosNamespaceContexts[radosNamespaceChannelKey].started {
-				logger.Debug("radosnamespace monitoring go routine already running!")
+				log.NamedDebug(nsName, logger, "radosnamespace monitoring go routine already running!")
 			} else {
 				r.radosNamespaceContexts[radosNamespaceChannelKey].started = true
 				go checker.CheckMirroring(r.radosNamespaceContexts[radosNamespaceChannelKey].internalCtx)

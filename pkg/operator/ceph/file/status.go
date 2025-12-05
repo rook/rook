@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -36,7 +37,7 @@ func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespa
 		err := r.client.Get(r.opManagerContext, namespacedName, fs)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debugf("CephFilesystem resource %q not found. Ignoring since object must be deleted.", namespacedName.String())
+				log.NamedDebug(namespacedName, logger, "CephFilesystem resource %q not found. Ignoring since object must be deleted.", namespacedName.String())
 				return nil
 			}
 			return errors.Wrapf(err, "failed to retrieve filesystem %q to update status to %q.", namespacedName.String(), status)
@@ -66,7 +67,7 @@ func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespa
 		return nil, err
 	}
 
-	logger.Debugf("filesystem %q status updated to %q", namespacedName.String(), status)
+	log.NamedDebug(namespacedName, logger, "filesystem %q status updated to %q", namespacedName.String(), status)
 	return fs, nil
 }
 
@@ -75,10 +76,10 @@ func (c *mirrorChecker) updateStatusMirroring(mirrorStatus []cephv1.FilesystemMi
 	fs := &cephv1.CephFilesystem{}
 	if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, fs); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephFilesystem resource not found. Ignoring since object must be deleted.")
+			log.NamedDebug(c.namespacedName, logger, "CephFilesystem resource not found. Ignoring since object must be deleted.")
 			return
 		}
-		logger.Warningf("failed to retrieve ceph filesystem %q to update mirroring status. %v", c.namespacedName.Name, err)
+		log.NamedWarning(c.namespacedName, logger, "failed to retrieve ceph filesystem to update mirroring status. %v", err)
 		return
 	}
 	if fs.Status == nil {
@@ -88,11 +89,11 @@ func (c *mirrorChecker) updateStatusMirroring(mirrorStatus []cephv1.FilesystemMi
 	// Update the CephFilesystem CR status field
 	fs.Status = toCustomResourceStatus(fs.Status, mirrorStatus, snapSchedStatus, details)
 	if err := reporting.UpdateStatus(c.client, fs); err != nil {
-		logger.Errorf("failed to set ceph filesystem %q mirroring status. %v", c.namespacedName.Name, err)
+		log.NamedError(c.namespacedName, logger, "failed to set ceph filesystem mirroring status. %v", err)
 		return
 	}
 
-	logger.Debugf("ceph filesystem %q mirroring status updated", c.namespacedName.Name)
+	log.NamedDebug(c.namespacedName, logger, "ceph filesystem %q mirroring status updated", c.namespacedName.Name)
 }
 
 func toCustomResourceStatus(currentStatus *cephv1.CephFilesystemStatus, mirrorStatus []cephv1.FilesystemMirroringInfo, snapSchedStatus []cephv1.FilesystemSnapshotSchedulesSpec, details string) *cephv1.CephFilesystemStatus {

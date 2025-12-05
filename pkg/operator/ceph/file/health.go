@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/util/log"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -57,7 +58,7 @@ func newMirrorChecker(context *clusterd.Context, client client.Client, clusterIn
 	// allow overriding the check interval
 	checkInterval := fsSpec.StatusCheck.Mirror.Interval
 	if checkInterval != nil {
-		logger.Infof("filesystem %q mirroring status check interval is %q", namespacedName.Name, checkInterval)
+		log.NamedInfo(namespacedName, logger, "filesystem mirroring status check interval is %q", checkInterval)
 		c.interval = checkInterval.Duration
 	}
 
@@ -70,21 +71,21 @@ func (c *mirrorChecker) checkMirroring(context context.Context) {
 	err := c.checkMirroringHealth()
 	if err != nil {
 		c.updateStatusMirroring(nil, nil, err.Error())
-		logger.Debugf("failed to check filesystem mirroring status %q. %v", c.namespacedName.Name, err)
+		log.NamedDebug(c.namespacedName, logger, "failed to check filesystem mirroring status. %v", err)
 	}
 
 	for {
 		select {
 		case <-context.Done():
-			logger.Infof("stopping monitoring filesystem mirroring status %q", c.namespacedName.Name)
+			log.NamedInfo(c.namespacedName, logger, "stopping monitoring filesystem mirroring status")
 			return
 
 		case <-time.After(c.interval):
-			logger.Debugf("checking filesystem mirroring status %q", c.namespacedName.Name)
+			log.NamedDebug(c.namespacedName, logger, "checking filesystem mirroring status")
 			err := c.checkMirroringHealth()
 			if err != nil {
 				c.updateStatusMirroring(nil, nil, err.Error())
-				logger.Debugf("failed to check filesystem %q mirroring status. %v", c.namespacedName.Name, err)
+				log.NamedDebug(c.namespacedName, logger, "failed to check filesystem mirroring status. %v", err)
 			}
 		}
 	}

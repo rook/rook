@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
+	"github.com/rook/rook/pkg/util/log"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -53,7 +54,7 @@ func ApplyCephNetworkSettings(
 	if !netSpec.IsHost() && !netSpec.IsMultus() {
 		// do not apply specs when using k8s pod network, and for safety, only apply net specs for
 		// nets where it is definitely safe to do so (e.g., multus, hostnet)
-		logger.Infof("not applying network settings for cluster %q ceph networks", clusterInfo.Namespace)
+		log.NamespacedInfo(clusterInfo.Namespace, logger, "not applying network settings for ceph networks")
 		return nil
 	}
 
@@ -66,12 +67,12 @@ func ApplyCephNetworkSettings(
 		// if user specifies CIDRs in the network config, that is the definitive source of truth
 		// do not auto-detect CIDRs if given by user
 		if len(netSpec.AddressRanges.Public) > 0 {
-			logger.Infof("using user-provided network CIDR(s) for cluster %q public network", clusterInfo.Namespace)
+			log.NamespacedInfo(clusterInfo.Namespace, logger, "using user-provided network CIDR(s) for public network")
 			discoverPublic = false
 			publicCIDRs = netSpec.AddressRanges.Public
 		}
 		if len(netSpec.AddressRanges.Cluster) > 0 {
-			logger.Infof("using user-provided network CIDR(s) for cluster %q cluster network", clusterInfo.Namespace)
+			log.NamespacedInfo(clusterInfo.Namespace, logger, "using user-provided network CIDR(s) for cluster network")
 			discoverCluster = false
 			clusterCIDRs = netSpec.AddressRanges.Cluster
 		}
@@ -115,7 +116,7 @@ func setNetworkCIDRs(clusterdCtx *clusterd.Context, clusterInfo *cephclient.Clus
 	settingKey := fmt.Sprintf("%s_network", string(cephNet))
 	settingVal := cidrs.String()
 
-	logger.Infof("ensuring cluster %q %q network is configured to use CIDR(s) %q", ns, cephNet, settingVal)
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "ensuring cluster %q network is configured to use CIDR(s) %q", cephNet, settingVal)
 	if len(cidrs) > 0 {
 		s := getMonStoreFunc(clusterdCtx, clusterInfo)
 		changed, err := s.SetIfChanged("global", settingKey, settingVal)
@@ -123,7 +124,7 @@ func setNetworkCIDRs(clusterdCtx *clusterd.Context, clusterInfo *cephclient.Clus
 			return errors.Wrapf(err, "failed to set CIDR(s) %q on cluster %q %q network", settingVal, cephNet, ns)
 		}
 		if changed {
-			logger.Infof("modified cluster %q %q network config to use CIDR(s) %q", ns, cephNet, settingVal)
+			log.NamespacedInfo(clusterInfo.Namespace, logger, "modified cluster %q network config to use CIDR(s) %q", cephNet, settingVal)
 		}
 	}
 	return nil
@@ -207,7 +208,7 @@ func discoverAddressRanges(
 	ranges = []string{}
 	clusterNamespace := clusterInfo.Namespace
 
-	logger.Infof("discovering ceph %q network CIDR(s) for cluster %q", cephNetwork, clusterNamespace)
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "discovering ceph %q network CIDR(s) for cluster %q", cephNetwork, clusterNamespace)
 
 	netSelection, err := clusterInfo.NetworkSpec.GetNetworkSelection(clusterNamespace, cephNetwork)
 	if err != nil {

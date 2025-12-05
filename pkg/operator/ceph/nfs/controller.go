@@ -33,6 +33,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -166,7 +167,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephNFS)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("cephNFS resource not found. Ignoring since object must be deleted.")
+			log.NamedDebug(request.NamespacedName, logger, "cephNFS resource not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, *cephNFS, nil
 		}
 		// Error reading the object - requeue the request.
@@ -183,7 +184,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to add finalizer")
 	}
 	if generationUpdated {
-		logger.Infof("reconciling the nfs %q after adding finalizer", cephNFS.Name)
+		log.NamedInfo(request.NamespacedName, logger, "reconciling the nfs after adding finalizer")
 		return reconcile.Result{}, *cephNFS, nil
 	}
 
@@ -242,7 +243,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 
 	// DELETE: the CR was deleted
 	if !cephNFS.GetDeletionTimestamp().IsZero() {
-		logger.Infof("deleting ceph nfs %q", cephNFS.Name)
+		log.NamedInfo(request.NamespacedName, logger, "deleting ceph nfs")
 		r.recorder.Eventf(cephNFS, v1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephNFS %q", cephNFS.Name)
 
 		// Detect running Ceph version
@@ -313,7 +314,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to determine if cephx keys should be rotated")
 	}
 	if r.shouldRotateCephxKeys {
-		logger.Infof("cephx keys for CephNFS %q will be rotated", request.NamespacedName)
+		log.NamedInfo(request.NamespacedName, logger, "cephx keys for CephNFS will be rotated")
 	}
 
 	// Check for the existence of the .nfs pool
@@ -323,7 +324,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	}
 
 	// CREATE/UPDATE
-	logger.Debug("reconciling ceph nfs deployments")
+	log.NamedDebug(request.NamespacedName, logger, "reconciling ceph nfs deployments")
 	_, err = r.reconcileCreateCephNFS(cephNFS)
 	if err != nil {
 		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to create ceph nfs deployments")
@@ -340,11 +341,12 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	}
 
 	// Return and do not requeue
-	logger.Debug("done reconciling ceph nfs")
+	log.NamedDebug(request.NamespacedName, logger, "done reconciling ceph nfs")
 	return reconcile.Result{}, *cephNFS, nil
 }
 
 func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reconcile.Result, error) {
+	nsName := opcontroller.NsName(cephNFS.Namespace, cephNFS.Name)
 	if r.cephClusterSpec.External.Enable {
 		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, r.clusterInfo)
 		if err != nil {
@@ -369,7 +371,7 @@ func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reco
 
 	// Scale down case (CR value cephNFS.Spec.Server.Active changed)
 	if currentNFSServerCount > cephNFS.Spec.Server.Active {
-		logger.Infof("scaling down ceph nfs %q from %d to %d", cephNFS.Name, currentNFSServerCount, cephNFS.Spec.Server.Active)
+		log.NamedInfo(nsName, logger, "scaling down ceph nfs from %d to %d", currentNFSServerCount, cephNFS.Spec.Server.Active)
 		err := r.downCephNFS(cephNFS, currentNFSServerCount)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to scale down ceph nfs %q", cephNFS.Name)
@@ -377,7 +379,7 @@ func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reco
 	}
 
 	// Update existing deployments and create new ones in the scale up case
-	logger.Infof("updating ceph nfs %q", cephNFS.Name)
+	log.NamedInfo(nsName, logger, "updating ceph nfs")
 	err = r.upCephNFS(cephNFS)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to update ceph nfs %q", cephNFS.Name)
@@ -393,7 +395,7 @@ func (r *ReconcileCephNFS) updateStatus(observedGeneration int64, namespacedName
 		err := r.client.Get(r.opManagerContext, namespacedName, nfs)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debugf("CephNFS resource %q not found for updating status. Ignoring since object must be deleted.", namespacedName)
+				log.NamedDebug(namespacedName, logger, "CephNFS resource not found for updating status. Ignoring since object must be deleted.")
 				return nil
 			}
 			return errors.Wrapf(err, "failed to get CephNFS %q for updating status to %+v", namespacedName, status)
@@ -419,6 +421,6 @@ func (r *ReconcileCephNFS) updateStatus(observedGeneration int64, namespacedName
 	if err != nil {
 		return err
 	}
-	logger.Debugf("CephNFS %q status updated to %q", namespacedName, status)
+	log.NamedDebug(namespacedName, logger, "CephNFS status updated to %q", status)
 	return nil
 }

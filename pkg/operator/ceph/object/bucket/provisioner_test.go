@@ -187,12 +187,14 @@ func TestProvisioner_setUserQuota(t *testing.T) {
 		adminClient, err := admin.New("rgw.test", "accesskey", "secretkey", mockClient)
 		assert.NoError(t, err)
 
+		clusterInfo := &client.ClusterInfo{
+			Context: context.Background(),
+		}
 		p := &Provisioner{
-			clusterInfo: &client.ClusterInfo{
-				Context: context.Background(),
-			},
+			clusterInfo:    clusterInfo,
 			cephUserName:   "bob",
 			adminOpsClient: adminClient,
+			objectContext:  object.NewContext(&clusterd.Context{}, clusterInfo, "store"),
 		}
 
 		return p
@@ -379,12 +381,14 @@ func TestProvisioner_setBucketQuota(t *testing.T) {
 		adminClient, err := admin.New("rgw.test", "accesskey", "secretkey", mockClient)
 		assert.NoError(t, err)
 
+		clusterInfo := &client.ClusterInfo{
+			Context: context.Background(),
+		}
 		p := &Provisioner{
-			clusterInfo: &client.ClusterInfo{
-				Context: context.Background(),
-			},
+			clusterInfo:    clusterInfo,
 			cephUserName:   "bob",
 			adminOpsClient: adminClient,
+			objectContext:  object.NewContext(&clusterd.Context{}, clusterInfo, "store"),
 		}
 
 		return p

@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -413,7 +414,7 @@ func getZoneJSON(objContext *Context) (map[string]interface{}, error) {
 	}
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", objContext.Zone)
 
-	logger.Debugf("get zone: rgw-realm=%s, rgw-zone=%s", objContext.Realm, objContext.Zone)
+	log.NamedDebug(objContext.NsName(), logger, "get zone: rgw-realm=%s, rgw-zone=%s", objContext.Realm, objContext.Zone)
 
 	jsonStr, err := RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneArg)
 	if err != nil {
@@ -424,7 +425,7 @@ func getZoneJSON(objContext *Context) (map[string]interface{}, error) {
 		}
 		return nil, errors.Wrap(err, "failed to get rgw zone group")
 	}
-	logger.Debugf("get zone success: rgw-realm=%s, rgw-zone=%s, res=%s", objContext.Realm, objContext.Zone, jsonStr)
+	log.NamedDebug(objContext.NsName(), logger, "get zone success: rgw-realm=%s, rgw-zone=%s, res=%s", objContext.Realm, objContext.Zone, jsonStr)
 	res := map[string]interface{}{}
 	return res, json.Unmarshal([]byte(jsonStr), &res)
 }
@@ -445,7 +446,7 @@ func getZoneGroupJSON(objContext *Context) (map[string]interface{}, error) {
 	}
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
 
-	logger.Debugf("get zonegroup: rgw-realm=%s, rgw-zone=%s, rgw-zonegroup=%s", objContext.Realm, objContext.Zone, objContext.ZoneGroup)
+	log.NamedDebug(objContext.NsName(), logger, "get zonegroup: rgw-realm=%s, rgw-zone=%s, rgw-zonegroup=%s", objContext.Realm, objContext.Zone, objContext.ZoneGroup)
 	jsonStr, err := RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg, zoneArg)
 	if err != nil {
 		// This handles the case where the pod we use to exec command (act as a proxy) is not found/ready yet
@@ -455,7 +456,7 @@ func getZoneGroupJSON(objContext *Context) (map[string]interface{}, error) {
 		}
 		return nil, errors.Wrap(err, "failed to get rgw zone group")
 	}
-	logger.Debugf("get zonegroup success: rgw-realm=%s, rgw-zone=%s, rgw-zonegroup=%s, res=%s", objContext.Realm, objContext.Zone, objContext.ZoneGroup, jsonStr)
+	log.NamedDebug(objContext.NsName(), logger, "get zonegroup success: rgw-realm=%s, rgw-zone=%s, rgw-zonegroup=%s, res=%s", objContext.Realm, objContext.Zone, objContext.ZoneGroup, jsonStr)
 	res := map[string]interface{}{}
 	return res, json.Unmarshal([]byte(jsonStr), &res)
 }
@@ -486,7 +487,7 @@ func updateZoneJSON(objContext *Context, zone map[string]interface{}) (map[strin
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set zone config")
 	}
-	logger.Debugf("update zone: %s json config updated value from %q to %q", objContext.Zone, string(configBytes), string(updatedBytes))
+	log.NamedDebug(objContext.NsName(), logger, "update zone: %s json config updated value from %q to %q", objContext.Zone, string(configBytes), string(updatedBytes))
 	updated := map[string]interface{}{}
 	err = json.Unmarshal([]byte(updatedBytes), &updated)
 	return updated, err

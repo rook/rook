@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,6 +56,7 @@ type daemonConfig struct {
 
 // Create the ganesha server
 func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS) error {
+	nsName := controller.NsName(n.Namespace, n.Name)
 	nfsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(r.clusterInfo.Context, r.context, n.Namespace, config.NfsType, AppName)
 	if err != nil {
 		return errors.Wrap(err, "failed to check for NFS daemons to skip reconcile")
@@ -64,7 +66,7 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS) error {
 		id := k8sutil.IndexToName(i)
 
 		if nfsToSkipReconcile.Has(fmt.Sprintf("%s-%s", n.Name, id)) {
-			logger.Warningf("skipping reconcile of nfs daemon %q with label %q", id, cephv1.SkipReconcileLabelKey)
+			log.NamedWarning(nsName, logger, "skipping reconcile of nfs daemon %q with label %q", id, cephv1.SkipReconcileLabelKey)
 			continue
 		}
 
@@ -121,12 +123,12 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS) error {
 			if !kerrors.IsAlreadyExists(err) {
 				return errors.Wrap(err, "failed to create ceph nfs deployment")
 			}
-			logger.Infof("ceph nfs deployment %q already exists. updating if needed", deployment.Name)
+			log.NamedInfo(nsName, logger, "ceph nfs deployment %q already exists. updating if needed", deployment.Name)
 			if err := updateDeploymentAndWait(r.context, r.clusterInfo, deployment, "nfs", id, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 				return errors.Wrapf(err, "failed to update ceph nfs deployment %q", deployment.Name)
 			}
 		} else {
-			logger.Infof("ceph nfs deployment %q started", deployment.Name)
+			log.NamedInfo(nsName, logger, "ceph nfs deployment %q started", deployment.Name)
 		}
 
 		// create a service
@@ -171,7 +173,8 @@ func (r *ReconcileCephNFS) addRADOSConfigFile(n *cephv1.CephNFS) error {
 }
 
 func (r *ReconcileCephNFS) addServerToDatabase(nfs *cephv1.CephNFS, name string) error {
-	logger.Infof("adding ganesha %q to grace db", name)
+	nsName := controller.NsName(nfs.Namespace, nfs.Name)
+	log.NamedInfo(nsName, logger, "adding ganesha %q to grace db", name)
 
 	if err := r.runGaneshaRadosGrace(nfs, name, "add"); err != nil {
 		return errors.Wrapf(err, "failed to add %q to grace db", name)
@@ -181,10 +184,11 @@ func (r *ReconcileCephNFS) addServerToDatabase(nfs *cephv1.CephNFS, name string)
 }
 
 func (r *ReconcileCephNFS) removeServerFromDatabase(nfs *cephv1.CephNFS, name string) {
-	logger.Infof("removing ganesha %q from grace db", name)
+	nsName := controller.NsName(nfs.Namespace, nfs.Name)
+	log.NamedInfo(nsName, logger, "removing ganesha %q from grace db", name)
 
 	if err := r.runGaneshaRadosGrace(nfs, name, "remove"); err != nil {
-		logger.Errorf("failed to remove %q from grace db. %v", name, err)
+		log.NamedError(nsName, logger, "failed to remove %q from grace db. %v", name, err)
 	}
 }
 
@@ -216,6 +220,7 @@ func (r *ReconcileCephNFS) generateConfigMap(n *cephv1.CephNFS, name string) *v1
 func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (string, string, error) {
 	// Generate configMap
 	configMap := r.generateConfigMap(n, name)
+	nsName := controller.NsName(n.Namespace, n.Name)
 
 	// Set owner reference
 	err := controllerutil.SetControllerReference(n, configMap, r.scheme)
@@ -228,7 +233,7 @@ func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (stri
 			return "", "", errors.Wrap(err, "failed to create ganesha config map")
 		}
 
-		logger.Debugf("updating config map %q that already exists", configMap.Name)
+		log.NamedDebug(nsName, logger, "updating config map %q that already exists", configMap.Name)
 		if _, err = r.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Update(r.opManagerContext, configMap, metav1.UpdateOptions{}); err != nil {
 			return "", "", errors.Wrap(err, "failed to update ganesha config map")
 		}
@@ -319,7 +324,8 @@ func validateGanesha(context *clusterd.Context, clusterInfo *cephclient.ClusterI
 // create and enable default RADOS pool
 func (r *ReconcileCephNFS) configureNFSPool(n *cephv1.CephNFS) error {
 	poolName := n.Spec.RADOS.Pool
-	logger.Infof("configuring pool %q for nfs", poolName)
+	nsName := controller.NsName(n.Namespace, n.Name)
+	log.NamedInfo(nsName, logger, "configuring pool %q for nfs", poolName)
 
 	args := []string{"osd", "pool", "create", poolName, "--yes-i-really-mean-it"}
 
@@ -334,6 +340,6 @@ func (r *ReconcileCephNFS) configureNFSPool(n *cephv1.CephNFS) error {
 		return errors.Wrapf(err, "failed to enable application 'nfs' on pool %q", poolName)
 	}
 
-	logger.Infof("set pool %q for the application nfs", poolName)
+	log.NamedInfo(nsName, logger, "set pool %q for the application nfs", poolName)
 	return nil
 }

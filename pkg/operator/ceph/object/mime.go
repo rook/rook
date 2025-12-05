@@ -21,7 +21,9 @@ import (
 	"path"
 
 	"github.com/pkg/errors"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -45,9 +47,10 @@ func mimeTypesMountPath() string {
 
 // store mime.types file in a config map
 func (c *clusterConfig) generateMimeTypes() error {
+	nsName := opcontroller.NsName(c.store.Namespace, c.store.Name)
 	k := k8sutil.NewConfigMapKVStore(c.store.Namespace, c.context.Clientset, c.ownerInfo)
 	if _, err := k.GetValue(c.clusterInfo.Context, c.mimeTypesConfigMapName(), mimeTypesFileName); err == nil || !kerrors.IsNotFound(err) {
-		logger.Infof("config map %q for object store %q already exists, not overwriting", c.mimeTypesConfigMapName(), c.store.Name)
+		log.NamedInfo(nsName, logger, "config map %q for object store %q already exists, not overwriting", c.mimeTypesConfigMapName(), c.store.Name)
 		return nil
 	}
 	// is not found

@@ -41,6 +41,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -119,7 +120,7 @@ func (r *ReconcileObjectZoneGroup) Reconcile(context context.Context, request re
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {
-		logger.Errorf("failed to reconcile: %v", err)
+		log.NamedError(request.NamespacedName, logger, "failed to reconcile: %v", err)
 	}
 
 	return reconcileResponse, err
@@ -131,7 +132,7 @@ func (r *ReconcileObjectZoneGroup) reconcile(request reconcile.Request) (reconci
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephObjectZoneGroup)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectZoneGroup resource not found. Ignoring since object must be deleted.")
+			log.NamedDebug(request.NamespacedName, logger, "CephObjectZoneGroup resource not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -160,7 +161,7 @@ func (r *ReconcileObjectZoneGroup) reconcile(request reconcile.Request) (reconci
 
 	// DELETE: the CR was deleted
 	if !cephObjectZoneGroup.GetDeletionTimestamp().IsZero() {
-		logger.Debugf("deleting zone group CR %q", cephObjectZoneGroup.Name)
+		log.NamedDebug(request.NamespacedName, logger, "deleting zone group CR %q", cephObjectZoneGroup.Name)
 
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, nil
@@ -205,12 +206,13 @@ func (r *ReconcileObjectZoneGroup) reconcile(request reconcile.Request) (reconci
 	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
-	logger.Debug("zone group done reconciling")
+	log.NamedDebug(request.NamespacedName, logger, "zone group done reconciling")
 	return reconcile.Result{}, nil
 }
 
 func (r *ReconcileObjectZoneGroup) createCephZoneGroup(zoneGroup *cephv1.CephObjectZoneGroup) (reconcile.Result, error) {
-	logger.Infof("creating object zone group %q in realm %q", zoneGroup.Name, zoneGroup.Spec.Realm)
+	nsName := opcontroller.NsName(zoneGroup.Namespace, zoneGroup.Name)
+	log.NamedInfo(nsName, logger, "creating object zone group %q in realm %q", zoneGroup.Name, zoneGroup.Spec.Realm)
 
 	realmArg := fmt.Sprintf("--rgw-realm=%s", zoneGroup.Spec.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zoneGroup.Name)
@@ -244,7 +246,7 @@ func (r *ReconcileObjectZoneGroup) createCephZoneGroup(zoneGroup *cephv1.CephObj
 	}
 
 	if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
-		logger.Debugf("ceph zone group %q not found, running `radosgw-admin zonegroup create`", zoneGroup.Name)
+		log.NamedDebug(nsName, logger, "ceph zone group %q not found, running `radosgw-admin zonegroup create`", zoneGroup.Name)
 		args := []string{
 			"zonegroup",
 			"create",
@@ -269,6 +271,8 @@ func (r *ReconcileObjectZoneGroup) createCephZoneGroup(zoneGroup *cephv1.CephObj
 }
 
 func (r *ReconcileObjectZoneGroup) reconcileObjectRealm(zoneGroup *cephv1.CephObjectZoneGroup) (reconcile.Result, error) {
+	nsName := opcontroller.NsName(zoneGroup.Namespace, zoneGroup.Name)
+
 	// Verify the object realm API object actually exists
 	cephObjectRealm := &cephv1.CephObjectRealm{}
 	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: zoneGroup.Spec.Realm, Namespace: zoneGroup.Namespace}, cephObjectRealm)
@@ -279,11 +283,12 @@ func (r *ReconcileObjectZoneGroup) reconcileObjectRealm(zoneGroup *cephv1.CephOb
 		return waitForRequeueIfObjectRealmNotReady, errors.Wrapf(err, "error finding CephObjectRealm %s", zoneGroup.Spec.Realm)
 	}
 
-	logger.Infof("CephObjectRealm %q found for CephObjectZoneGroup %q", zoneGroup.Spec.Realm, zoneGroup.Name)
+	log.NamedInfo(nsName, logger, "CephObjectRealm %q found for CephObjectZoneGroup", zoneGroup.Spec.Realm)
 	return reconcile.Result{}, nil
 }
 
 func (r *ReconcileObjectZoneGroup) reconcileCephRealm(zoneGroup *cephv1.CephObjectZoneGroup) (reconcile.Result, error) {
+	nsName := opcontroller.NsName(zoneGroup.Namespace, zoneGroup.Name)
 	realmArg := fmt.Sprintf("--rgw-realm=%s", zoneGroup.Spec.Realm)
 	objContext := object.NewContext(r.context, r.clusterInfo, zoneGroup.Name)
 
@@ -296,7 +301,7 @@ func (r *ReconcileObjectZoneGroup) reconcileCephRealm(zoneGroup *cephv1.CephObje
 		}
 	}
 
-	logger.Infof("Realm %q found in Ceph cluster to create ceph zone group %q", zoneGroup.Spec.Realm, zoneGroup.Name)
+	log.NamedInfo(nsName, logger, "Realm %q found in Ceph cluster to create ceph zone group", zoneGroup.Spec.Realm)
 	return reconcile.Result{}, nil
 }
 
@@ -310,10 +315,10 @@ func (r *ReconcileObjectZoneGroup) updateStatus(observedGeneration int64, name t
 	objectZoneGroup := &cephv1.CephObjectZoneGroup{}
 	if err := r.client.Get(r.opManagerContext, name, objectZoneGroup); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectZoneGroup resource not found. Ignoring since object must be deleted.")
+			log.NamedDebug(name, logger, "CephObjectZoneGroup resource not found. Ignoring since object must be deleted.")
 			return
 		}
-		logger.Warningf("failed to retrieve object zone group %q to update status to %q. %v", name, status, err)
+		log.NamedWarning(name, logger, "failed to retrieve object zone group %q to update status to %q. %v", name, status, err)
 		return
 	}
 	if objectZoneGroup.Status == nil {
@@ -325,8 +330,8 @@ func (r *ReconcileObjectZoneGroup) updateStatus(observedGeneration int64, name t
 		objectZoneGroup.Status.ObservedGeneration = observedGeneration
 	}
 	if err := reporting.UpdateStatus(r.client, objectZoneGroup); err != nil {
-		logger.Errorf("failed to set object zone group %q status to %q. %v", name, status, err)
+		log.NamedError(name, logger, "failed to set object zone group %q status to %q. %v", name, status, err)
 		return
 	}
-	logger.Debugf("object zone group %q status updated to %q", name, status)
+	log.NamedDebug(name, logger, "object zone group %q status updated to %q", name, status)
 }

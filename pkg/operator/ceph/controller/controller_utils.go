@@ -29,6 +29,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -220,42 +221,42 @@ func IsReadyToReconcile(ctx context.Context, c client.Client, namespacedName typ
 	clusterList := &cephv1.CephClusterList{}
 	err := c.List(ctx, clusterList, client.InNamespace(namespacedName.Namespace))
 	if err != nil {
-		logger.Errorf("%q: failed to fetch CephCluster %v", controllerName, err)
+		log.NamedError(namespacedName, logger, "%q: failed to fetch CephCluster %v", controllerName, err)
 		return cephCluster, false, cephClusterExists, ImmediateRetryResult
 	}
 	if len(clusterList.Items) == 0 {
-		logger.Debugf("%q: no CephCluster resource found in namespace %q", controllerName, namespacedName.Namespace)
+		log.NamedDebug(namespacedName, logger, "%q: no CephCluster resource found in namespace", controllerName)
 		return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 	}
 	cephCluster = clusterList.Items[0]
 	// If the cluster has a cleanup policy to destroy the cluster and it has been marked for deletion, treat it as if it does not exist
 	if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() && !cephCluster.DeletionTimestamp.IsZero() {
-		logger.Infof("%q: CephCluster has a destructive cleanup policy, allowing %q to be deleted", controllerName, namespacedName)
+		log.NamedInfo(namespacedName, logger, "%q: CephCluster has a destructive cleanup policy, allowing it to be deleted", controllerName)
 		return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 	}
 
 	cephClusterExists = true
-	logger.Debugf("%q: CephCluster resource %q found in namespace %q", controllerName, cephCluster.Name, namespacedName.Namespace)
+	log.NamedDebug(namespacedName, logger, "%q: CephCluster resource found", controllerName)
 
 	// read the CR status of the cluster
 	if cephCluster.Status.CephStatus != nil {
 		operatorDeploymentOk := cephCluster.Status.CephStatus.Health == "HEALTH_OK" || cephCluster.Status.CephStatus.Health == "HEALTH_WARN"
 
 		if operatorDeploymentOk || canIgnoreHealthErrStatusInReconcile(cephCluster, controllerName) {
-			logger.Debugf("%q: ceph status is %q, operator is ready to run ceph command, reconciling", controllerName, cephCluster.Status.CephStatus.Health)
+			log.NamedDebug(namespacedName, logger, "%q: ceph status is %q, operator is ready to run ceph command, reconciling", controllerName, cephCluster.Status.CephStatus.Health)
 			return cephCluster, true, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 		}
 
 		details := cephCluster.Status.CephStatus.Details
 		message, ok := details["error"]
 		if ok && len(details) == 1 && strings.Contains(message.Message, "Error initializing cluster client") {
-			logger.Infof("%s: skipping reconcile since operator is still initializing", controllerName)
+			log.NamedInfo(namespacedName, logger, "%q: skipping reconcile since operator is still initializing", controllerName)
 		} else {
-			logger.Infof("%s: CephCluster %q found but skipping reconcile since ceph health is %+v", controllerName, cephCluster.Name, cephCluster.Status.CephStatus)
+			log.NamedInfo(namespacedName, logger, "%q: CephCluster %q found but skipping reconcile since ceph health is %+v", controllerName, cephCluster.Name, cephCluster.Status.CephStatus)
 		}
 	}
 
-	logger.Debugf("%q: CephCluster %q initial reconcile is not complete yet...", controllerName, namespacedName)
+	log.NamedDebug(namespacedName, logger, "%q: CephCluster initial reconcile is not complete yet...", controllerName)
 	return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 }
 
@@ -289,4 +290,8 @@ func RecoverAndLogException() {
 		logger.Errorf("Panic: %v", r)
 		logger.Errorf("Stack trace:\n%s", string(debug.Stack()))
 	}
+}
+
+func NsName(namespace, name string) types.NamespacedName {
+	return types.NamespacedName{Namespace: namespace, Name: name}
 }

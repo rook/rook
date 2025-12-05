@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 
 	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -46,12 +47,12 @@ func CreateOrUpdateObject(ctx context.Context, client client.Client, obj client.
 				return errors.Wrapf(err, "failed to update ceph %q object %q", objType, objName)
 			}
 
-			logger.Infof("updated ceph %q object %q", objType, objName)
+			log.NamedInfo(NsName(obj.GetNamespace(), obj.GetName()), logger, "updated ceph %q object %q", objType, objName)
 			return nil
 		}
 		return errors.Wrapf(err, "failed to create ceph %v object %q", objType, objName)
 	}
 
-	logger.Infof("created ceph %v object %q", objType, objName)
+	log.NamedInfo(NsName(obj.GetNamespace(), obj.GetName()), logger, "created ceph %v object %q", objType, objName)
 	return nil
 }

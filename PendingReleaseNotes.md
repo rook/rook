@@ -12,3 +12,5 @@
   being managed by the same Rook operator. Concurrency is enabled by increasing
   the operator setting `ROOK_RECONCILE_CONCURRENT_CLUSTERS` to a value greater
   than `1`.
+- Improved logging with namespaced names for the controllers for more consistency in
+  troubleshooting the rook operator log.

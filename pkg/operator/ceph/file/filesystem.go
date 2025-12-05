@@ -20,11 +20,13 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	cephpool "github.com/rook/rook/pkg/operator/ceph/pool"
 )
@@ -52,7 +54,7 @@ func createFilesystem(
 	dataDirHostPath string,
 	shouldRotateCephxKeys bool,
 ) error {
-	logger.Infof("start running mdses for filesystem %q", fs.Name)
+	log.NamedInfo(opcontroller.NsName(fs.Namespace, fs.Name), logger, "start running mdses for filesystem %q", fs.Name)
 	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, ownerInfo, dataDirHostPath, shouldRotateCephxKeys)
 	if err := c.Start(); err != nil {
 		return err
@@ -71,7 +73,7 @@ func createFilesystem(
 	// set the number of active mds instances
 	if fs.Spec.MetadataServer.ActiveCount > 1 {
 		if err := cephclient.SetNumMDSRanks(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
-			logger.Warningf("failed setting active mds count to %d. %v", fs.Spec.MetadataServer.ActiveCount, err)
+			log.NamedWarning(opcontroller.NsName(fs.Namespace, fs.Name), logger, "failed setting active mds count to %d. %v", fs.Spec.MetadataServer.ActiveCount, err)
 		}
 	}
 
@@ -111,7 +113,7 @@ func deleteFilesystem(
 	if err := downFilesystem(context, clusterInfo, fs.Name); err != nil {
 		// If the fs isn't deleted from Ceph, leave the daemons so it can still be used.
 		// Log the error for best effort and continue
-		logger.Warningf("continuing to remove filesystem CR even though downing the filesystem failed. %v", err)
+		log.NamedWarning(opcontroller.NsName(fs.Namespace, fs.Name), logger, "continuing to remove filesystem CR even though downing the filesystem failed. %v", err)
 	}
 
 	// TODO: should we move the `RemoveFilesystem()` call to be before removing MDSes? If the below
@@ -125,7 +127,7 @@ func deleteFilesystem(
 	if len(fs.Spec.DataPools) != 0 && !fs.Spec.PreserveFilesystemOnDelete {
 		if err := cephclient.RemoveFilesystem(context, clusterInfo, fs.Name, fs.Spec.PreservePoolsOnDelete); err != nil {
 			// log the error for best effort and continue
-			logger.Warningf("continuing to remove filesystem CR even though removal failed. %v", err)
+			log.NamedWarning(opcontroller.NsName(fs.Namespace, fs.Name), logger, "continuing to remove filesystem CR even though removal failed. %v", err)
 		}
 	}
 	return nil
@@ -218,7 +220,7 @@ func createOrUpdatePools(f *Filesystem, context *clusterd.Context, clusterInfo *
 func (f *Filesystem) updateFilesystem(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, spec cephv1.FilesystemSpec) error {
 	// Even if the fs already exists, the num active mdses may have changed
 	if err := cephclient.SetNumMDSRanks(context, clusterInfo, f.Name, spec.MetadataServer.ActiveCount); err != nil {
-		logger.Errorf(
+		log.NamedError(opcontroller.NsName(f.Namespace, f.Name), logger,
 			"failed to set num mds ranks (max_mds) to %d for filesystem %s, still continuing. "+
 				"this error is not critical, but mdses may not be as failure tolerant as desired. "+
 				"USER should verify that the number of active mdses is %d with 'ceph fs get %s'. %v",
@@ -245,7 +247,7 @@ func (f *Filesystem) updateFilesystem(context *clusterd.Context, clusterInfo *ce
 func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, spec cephv1.FilesystemSpec) error {
 	_, err := cephclient.GetFilesystem(context, clusterInfo, f.Name)
 	if err == nil {
-		logger.Infof("filesystem %q already exists", f.Name)
+		log.NamedInfo(opcontroller.NsName(f.Namespace, f.Name), logger, "filesystem %q already exists", f.Name)
 		return f.updateFilesystem(context, clusterInfo, clusterSpec, spec)
 	}
 	if len(spec.DataPools) == 0 {
@@ -257,7 +259,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 		return errors.Wrap(err, "failed to get pool names")
 	}
 
-	logger.Infof("creating filesystem %q", f.Name)
+	log.NamedInfo(opcontroller.NsName(f.Namespace, f.Name), logger, "creating filesystem %q", f.Name)
 
 	// Make easy to locate a pool by name and avoid repeated searches
 	reversedPoolMap := make(map[string]int)
@@ -289,7 +291,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 			if dataPool.IsErasureCoded() {
 				// An erasure coded data pool used for a filesystem must allow overwrites
 				if err := cephclient.SetPoolProperty(context, clusterInfo, dataPool.Name, "allow_ec_overwrites", "true"); err != nil {
-					logger.Warningf("failed to set ec pool property. %v", err)
+					log.NamedWarning(opcontroller.NsName(f.Namespace, f.Name), logger, "failed to set ec pool property. %v", err)
 				}
 			}
 		}
@@ -301,18 +303,18 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 		return err
 	}
 
-	logger.Infof("created filesystem %q on %d data pool(s) and metadata pool %q", f.Name, len(dataPoolNames), metadataPool.Name)
+	log.NamedInfo(opcontroller.NsName(f.Namespace, f.Name), logger, "created filesystem %q on %d data pool(s) and metadata pool %q", f.Name, len(dataPoolNames), metadataPool.Name)
 	return nil
 }
 
 // downFilesystem marks the filesystem as down and the MDS' as failed
 func downFilesystem(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, filesystemName string) error {
-	logger.Infof("downing filesystem %q", filesystemName)
+	log.NamedInfo(opcontroller.NsName(clusterInfo.Namespace, filesystemName), logger, "downing filesystem %q", filesystemName)
 
 	if err := cephclient.FailFilesystem(context, clusterInfo, filesystemName); err != nil {
 		return err
 	}
-	logger.Infof("downed filesystem %q", filesystemName)
+	log.NamedInfo(opcontroller.NsName(clusterInfo.Namespace, filesystemName), logger, "downed filesystem %q", filesystemName)
 	return nil
 }
 

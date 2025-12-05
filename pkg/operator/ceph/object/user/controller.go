@@ -51,6 +51,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 )
 
 const (
@@ -220,7 +221,7 @@ func (r *ReconcileObjectStoreUser) Reconcile(context context.Context, request re
 	reconcileResponse, cephObjectStoreUser, err := r.reconcile(request)
 	if err != nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
-		logger.Errorf("failed to reconcile %v", err)
+		log.NamedError(request.NamespacedName, logger, "failed to reconcile %v", err)
 	}
 
 	return reporting.ReportReconcileResult(logger, r.recorder, request, &cephObjectStoreUser, reconcileResponse, err)
@@ -232,7 +233,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephObjectStoreUser)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
+			log.NamedDebug(request.NamespacedName, logger, "CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, *cephObjectStoreUser, nil
 		}
 		// Error reading the object - requeue the request.
@@ -249,7 +250,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to add finalizer")
 	}
 	if generationUpdated {
-		logger.Infof("reconciling the object user %q after adding finalizer", cephObjectStoreUser.Name)
+		log.NamedInfo(request.NamespacedName, logger, "reconciling the object user after adding finalizer")
 		return reconcile.Result{}, *cephObjectStoreUser, nil
 	}
 
@@ -304,14 +305,14 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 			// Return and do not requeue. Successful deletion.
 			return reconcile.Result{}, *cephObjectStoreUser, nil
 		}
-		logger.Debugf("ObjectStore resource not ready in namespace %q, retrying in %q. %v",
-			clusterNamespace.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String(), err)
+		log.NamedDebug(request.NamespacedName, logger, "ObjectStore resource not ready, retrying in %q. %v",
+			opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String(), err)
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, *cephObjectStoreUser, err
 	}
 
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
-		logger.Debugf("deleting object store user %q", request.NamespacedName)
+		log.NamedDebug(request.NamespacedName, logger, "deleting object store user")
 		r.recorder.Eventf(cephObjectStoreUser, corev1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephObjectStoreUser %q", cephObjectStoreUser.Name)
 
 		err := r.deleteUser(cephObjectStoreUser)
@@ -381,7 +382,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
-	logger.Debug("done reconciling")
+	log.NamedDebug(request.NamespacedName, logger, "done reconciling")
 	return reconcile.Result{}, *cephObjectStoreUser, nil
 }
 
@@ -395,7 +396,8 @@ func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1
 }
 
 func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectStoreUser, userConfig *admin.User) error {
-	logger.Infof("creating ceph object user %q in namespace %q", u.Name, u.Namespace)
+	nsName := opcontroller.NsName(u.Namespace, u.Name)
+	log.NamedInfo(nsName, logger, "creating ceph object user")
 
 	logCreateOrUpdate := fmt.Sprintf("retrieved existing ceph object user %q", u.Name)
 	var user admin.User
@@ -415,7 +417,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	}
 
 	// Update max bucket if necessary
-	logger.Tracef("user capabilities(id: %s, caps: %#v, user caps: %s, op mask: %s)",
+	log.NamedTrace(nsName, logger, "user capabilities(id: %s, caps: %#v, user caps: %s, op mask: %s)",
 		user.ID, user.Caps, user.UserCaps, user.OpMask)
 	if *user.MaxBuckets != *userConfig.MaxBuckets {
 		user, err = r.objContext.AdminOpsClient.ModifyUser(r.opManagerContext, *userConfig)
@@ -430,14 +432,14 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	if user.UserCaps != userConfig.UserCaps {
 		// If they are no caps to be removed, the API will return an error "missing user capabilities"
 		if user.UserCaps != "" {
-			logger.Tracef("remove capabilities %s from user %s", user.UserCaps, userConfig.ID)
+			log.NamedTrace(nsName, logger, "remove capabilities %s from user %s", user.UserCaps, userConfig.ID)
 			_, err = r.objContext.AdminOpsClient.RemoveUserCap(r.opManagerContext, userConfig.ID, user.UserCaps)
 			if err != nil {
 				return errors.Wrapf(err, "failed to remove current ceph object user %q capabilities", userConfig.ID)
 			}
 		}
 		if userConfig.UserCaps != "" {
-			logger.Tracef("set capabilities %s for user %s", userConfig.UserCaps, userConfig.ID)
+			log.NamedTrace(nsName, logger, "set capabilities %s for user %s", userConfig.UserCaps, userConfig.ID)
 			_, err = r.objContext.AdminOpsClient.AddUserCap(r.opManagerContext, userConfig.ID, userConfig.UserCaps)
 			if err != nil {
 				return errors.Wrapf(err, "failed to update ceph object user %q capabilities", userConfig.ID)
@@ -478,13 +480,13 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		}
 
 		userConfig.Keys = []admin.UserKeySpec{user.Keys[0]}
-		logger.Debugf("reducing user %q keypairs to %v", u.Name, userConfig.Keys)
+		log.NamedDebug(nsName, logger, "reducing user %q keypairs to %v", u.Name, userConfig.Keys)
 	}
 
-	if err := r.reconcileUserKeys(u.Name, userConfig.Keys); err != nil {
+	if err := r.reconcileUserKeys(nsName, userConfig.Keys); err != nil {
 		return errors.Wrapf(err, "failed to reconcile keys for user %q", u.Name)
 	}
-	logger.Info(logCreateOrUpdate)
+	log.NamedInfo(nsName, logger, "%s", logCreateOrUpdate)
 
 	return nil
 }
@@ -534,7 +536,7 @@ func userInNamespaceAllowed(requestedNamespace string, allowedNamespaces []strin
 	// Check if there is access to create the user in another namespace
 	for _, allowedNamespace := range allowedNamespaces {
 		if allowedNamespace == "*" || allowedNamespace == requestedNamespace {
-			logger.Debugf("allow creating object user in namespace %q", requestedNamespace)
+			log.NamespacedDebug(requestedNamespace, logger, "allow creating object user in namespace")
 			return true
 		}
 	}
@@ -678,11 +680,12 @@ func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *
 }
 
 func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *cephv1.CephObjectStoreUser) error {
+	nsName := opcontroller.NsName(cephObjectStoreUser.Namespace, cephObjectStoreUser.Name)
 	cephObjectStore, err := r.getObjectStore(cephObjectStoreUser)
 	if err != nil {
 		return err
 	}
-	logger.Debug("CephObjectStore exists")
+	log.NamedDebug(nsName, logger, "CephObjectStore exists")
 
 	// If the rgw is external just return
 	// since there are no pods running
@@ -699,7 +702,7 @@ func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *c
 
 	// check if at least one pod is running
 	if len(pods.Items) > 0 {
-		logger.Debugf("%d RGW pods found where object store user %q is created", len(pods.Items), cephObjectStoreUser.Name)
+		log.NamedDebug(nsName, logger, "%d RGW pods found where object store user %q is created", len(pods.Items), cephObjectStoreUser.Name)
 		return nil
 	}
 
@@ -722,7 +725,7 @@ func (r *ReconcileObjectStoreUser) getObjectStore(user *cephv1.CephObjectStoreUs
 
 	for _, store := range objectStores.Items {
 		if store.Name == storeName {
-			logger.Debugf("found CephObjectStore %q referenced by CephObjectStoreUser %q", storeName, nsName)
+			log.NamedDebug(opcontroller.NsName(user.Namespace, user.Name), logger, "found CephObjectStore %q referenced by CephObjectStoreUser", storeName)
 			return &store, nil
 		}
 	}
@@ -761,16 +764,17 @@ func clusterStoreNamespace(user *cephv1.CephObjectStoreUser) string {
 
 // Delete the user
 func (r *ReconcileObjectStoreUser) deleteUser(u *cephv1.CephObjectStoreUser) error {
+	nsName := opcontroller.NsName(u.Namespace, u.Name)
 	err := r.objContext.AdminOpsClient.RemoveUser(r.opManagerContext, admin.User{ID: u.Name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
-			logger.Warningf("user %q does not exist, nothing to remove", u.Name)
+			log.NamedWarning(nsName, logger, "user does not exist, nothing to remove")
 			return nil
 		}
 		return errors.Wrapf(err, "failed to delete ceph object user %q.", u.Name)
 	}
 
-	logger.Infof("ceph object user %q deleted successfully", u.Name)
+	log.NamedInfo(nsName, logger, "ceph object user deleted successfully")
 	return nil
 }
 
@@ -797,10 +801,10 @@ func (r *ReconcileObjectStoreUser) updateStatus(observedGeneration int64, name t
 	user := &cephv1.CephObjectStoreUser{}
 	if err := r.client.Get(r.opManagerContext, name, user); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
+			log.NamedDebug(name, logger, "CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
 			return
 		}
-		logger.Warningf("failed to retrieve object store user %q to update status to %q. %v", name, status, err)
+		log.NamedWarning(name, logger, "failed to retrieve object store user %q to update status to %q. %v", name, status, err)
 		return
 	}
 	if user.Status == nil {
@@ -815,10 +819,10 @@ func (r *ReconcileObjectStoreUser) updateStatus(observedGeneration int64, name t
 		user.Status.ObservedGeneration = observedGeneration
 	}
 	if err := reporting.UpdateStatus(r.client, user); err != nil {
-		logger.Errorf("failed to set object store user %q status to %q. %v", name, status, err)
+		log.NamedError(name, logger, "failed to set object store user %q status to %q. %v", name, status, err)
 		return
 	}
-	logger.Debugf("object store user %q status updated to %q", name, status)
+	log.NamedDebug(name, logger, "object store user %q status updated to %q", name, status)
 }
 
 // updates `.status.keys`. This functionality is not included as part of
@@ -830,17 +834,17 @@ func (r *ReconcileObjectStoreUser) updateKeyStatus(name types.NamespacedName, re
 	user := &cephv1.CephObjectStoreUser{}
 	if err := r.client.Get(r.opManagerContext, name, user); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
+			log.NamedDebug(name, logger, "CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
 			return
 		}
-		logger.Warningf("failed to retrieve CephObjectStoreUser %q to update .status.keys. %v", name, err)
+		log.NamedWarning(name, logger, "failed to retrieve CephObjectStoreUser to update .status.keys. %v", err)
 		return
 	}
 	if user.Status == nil {
 		user.Status = &cephv1.ObjectStoreUserStatus{}
 	}
 
-	logger.Debugf("updating CephObjectStoreUser %q .status.keys to %+v.", name.Name, referencedSecrets)
+	log.NamedDebug(name, logger, "updating CephObjectStoreUser .status.keys to %+v.", referencedSecrets)
 
 	keyStatus := []cephv1.SecretReference{}
 
@@ -864,10 +868,10 @@ func (r *ReconcileObjectStoreUser) updateKeyStatus(name types.NamespacedName, re
 	user.Status.Keys = keyStatus
 
 	if err := reporting.UpdateStatus(r.client, user); err != nil {
-		logger.Warningf("failed to update CephObjectStoreUser %q .status.keys. %v", name, err)
+		log.NamedWarning(name, logger, "failed to update CephObjectStoreUser.status.keys. %v", err)
 		return
 	}
-	logger.Debugf("updated CephObjectStoreUser %q .status.keys.", name)
+	log.NamedDebug(name, logger, "updated CephObjectStoreUser.status.keys")
 }
 
 // getSecretValue returns the value of key in a kubernetes secret
@@ -889,9 +893,10 @@ func (r *ReconcileObjectStoreUser) getSecretValue(selector *corev1.SecretKeySele
 }
 
 // reconcileUserKeys ensures the user's RGW keys match exactly the targetKeys slice.  Any keys set on the user but not present in targetKeys are purged.
-func (r *ReconcileObjectStoreUser) reconcileUserKeys(userID string, targetKeys []admin.UserKeySpec) error {
+func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName, targetKeys []admin.UserKeySpec) error {
 	ctx := r.opManagerContext
 	client := r.objContext.AdminOpsClient
+	userID := nsName.Name
 
 	// fetch the current user keys
 	userInfo, err := client.GetUser(ctx, admin.User{ID: userID})
@@ -918,7 +923,7 @@ func (r *ReconcileObjectStoreUser) reconcileUserKeys(userID string, targetKeys [
 			if err := client.RemoveKey(ctx, rmKey); err != nil {
 				return errors.Wrapf(err, "failed to remove key %q from user %q", existingKey.AccessKey, userID)
 			}
-			logger.Debugf("removed key %q from user %q as it is not in the target list", existingKey.AccessKey, userID)
+			log.NamedDebug(nsName, logger, "removed key %q from user %q as it is not in the target list", existingKey.AccessKey, userID)
 			continue
 		}
 		if existingKey.SecretKey != targetKey.SecretKey {
@@ -930,7 +935,7 @@ func (r *ReconcileObjectStoreUser) reconcileUserKeys(userID string, targetKeys [
 			if err := client.RemoveKey(ctx, rmKey); err != nil {
 				return errors.Wrapf(err, "failed to remove key %q from user %q", existingKey.AccessKey, userID)
 			}
-			logger.Debugf("removed key %q from user %q needs as it needs to be recreated", existingKey.AccessKey, userID)
+			log.NamedDebug(nsName, logger, "removed key %q from user %q needs as it needs to be recreated", existingKey.AccessKey, userID)
 			continue
 		}
 		// else key exists and is correct, no action needed
@@ -948,7 +953,7 @@ func (r *ReconcileObjectStoreUser) reconcileUserKeys(userID string, targetKeys [
 		if _, err := client.CreateKey(ctx, k); err != nil {
 			return errors.Wrapf(err, "failed to create key %q for user %q", k.AccessKey, userID)
 		}
-		logger.Debugf("created key %q for user %q", k.AccessKey, userID)
+		log.NamedDebug(nsName, logger, "created key %q for user %q", k.AccessKey, userID)
 	}
 
 	return nil

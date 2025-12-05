@@ -18,12 +18,13 @@ package object
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -52,7 +53,7 @@ func updateStatus(ctx context.Context, observedGeneration int64, replicaCount in
 		objectStore := &cephv1.CephObjectStore{}
 		if err := client.Get(ctx, namespacedName, objectStore); err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debug("CephObjectStore resource not found. Ignoring since object must be deleted.")
+				log.NamedDebug(namespacedName, logger, "CephObjectStore resource not found. Ignoring since object must be deleted.")
 				return nil
 			}
 			return errors.Wrapf(err, "failed to retrieve object store %q to update status to %q", namespacedName.String(), status)
@@ -67,7 +68,7 @@ func updateStatus(ctx context.Context, observedGeneration int64, replicaCount in
 		}
 
 		if objectStore.Status.Phase == cephv1.ConditionDeleting {
-			logger.Debugf("object store %q status not updated to %q because it is deleting", namespacedName.String(), status)
+			log.NamedDebug(namespacedName, logger, "object store status not updated to %q because it is deleting", status)
 			return nil // do not transition to other statuses once deletion begins
 		}
 
@@ -104,19 +105,19 @@ func updateStatus(ctx context.Context, observedGeneration int64, replicaCount in
 		return err
 	}
 
-	logger.Debugf("object store %q status updated to %q", namespacedName.String(), status)
+	log.NamedDebug(namespacedName, logger, "object store status updated to %q", status)
 	return nil
 }
 
 func buildStatusInfo(cephObjectStore *cephv1.CephObjectStore) map[string]string {
-	nsName := fmt.Sprintf("%s/%s", cephObjectStore.Namespace, cephObjectStore.Name)
+	nsName := controller.NsName(cephObjectStore.Namespace, cephObjectStore.Name)
 
 	m := make(map[string]string)
 
 	advertiseEndpoint, err := cephObjectStore.GetAdvertiseEndpointUrl()
 	if err != nil {
 		// lots of validation happens before this point, so this should be nearly impossible
-		logger.Errorf("failed to get advertise endpoint for CephObjectStore %q to record on status; continuing without this. %v", nsName, err)
+		log.NamedError(nsName, logger, "failed to get advertise endpoint for CephObjectStore %q to record on status; continuing without this. %v", nsName, err)
 	}
 
 	if cephObjectStore.AdvertiseEndpointIsSet() {

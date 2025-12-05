@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/util/log"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,7 +61,7 @@ func AddFinalizerIfNotPresent(ctx context.Context, client client.Client, obj cli
 	}
 
 	if !contains(accessor.GetFinalizers(), objectFinalizer) {
-		logger.Infof("adding finalizer %q on %q", objectFinalizer, accessor.GetName())
+		log.NamedInfo(NsName(obj.GetNamespace(), obj.GetName()), logger, "adding finalizer %q", objectFinalizer)
 		accessor.SetFinalizers(append(accessor.GetFinalizers(), objectFinalizer))
 		originalGeneration := obj.GetGeneration()
 
@@ -69,7 +70,7 @@ func AddFinalizerIfNotPresent(ctx context.Context, client client.Client, obj cli
 			return false, errors.Wrapf(err, "failed to add finalizer %q on %q", objectFinalizer, accessor.GetName())
 		}
 		newGeneration := obj.GetGeneration()
-		logger.Debugf("when adding finalizer on %q, original generation %d, new generation %d", accessor.GetName(), originalGeneration, newGeneration)
+		log.NamedDebug(NsName(obj.GetNamespace(), obj.GetName()), logger, "when adding finalizer, original generation %d, new generation %d", originalGeneration, newGeneration)
 		return originalGeneration != newGeneration, nil
 	}
 
@@ -94,7 +95,7 @@ func RemoveFinalizerWithName(ctx context.Context, client client.Client, obj clie
 	}
 
 	if contains(accessor.GetFinalizers(), finalizerName) {
-		logger.Infof("removing finalizer %q on %q", finalizerName, accessor.GetName())
+		log.NamedInfo(NsName(obj.GetNamespace(), obj.GetName()), logger, "removing finalizer %q", finalizerName)
 		accessor.SetFinalizers(remove(accessor.GetFinalizers(), finalizerName))
 		if err := client.Update(ctx, obj); err != nil {
 			return errors.Wrapf(err, "failed to remove finalizer %q on %q", finalizerName, accessor.GetName())

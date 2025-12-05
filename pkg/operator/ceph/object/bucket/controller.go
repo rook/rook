@@ -21,6 +21,7 @@ import (
 	"os"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/util/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -77,7 +78,7 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler) error
 	if err != nil {
 		return err
 	}
-	logger.Infof("%s successfully started", controllerName)
+	logger.Info("successfully started")
 
 	// Watch for ConfigMap (operator config)
 	err = c.Watch(
@@ -116,7 +117,7 @@ func (r *ReconcileBucket) Reconcile(context context.Context, request reconcile.R
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {
-		logger.Errorf("failed to reconcile %v", err)
+		log.NamedError(request.NamespacedName, logger, "failed to reconcile %v", err)
 	}
 
 	return reconcileResponse, err
@@ -128,7 +129,7 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephCluster)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Infof("no ceph cluster found in %+v. not deploying the bucket provisioner", request.NamespacedName)
+			log.NamedInfo(request.NamespacedName, logger, "no ceph cluster found. not deploying the bucket provisioner")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -136,12 +137,12 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 	}
 
 	if !cephCluster.DeletionTimestamp.IsZero() {
-		logger.Debug("ceph cluster is being deleted, no need to reconcile the bucket provisioner")
+		log.NamedDebug(request.NamespacedName, logger, "ceph cluster is being deleted, no need to reconcile the bucket provisioner")
 		return reconcile.Result{}, nil
 	}
 
 	if !cephCluster.Spec.External.Enable && cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
-		logger.Debug("ceph cluster has cleanup policy, the cluster will soon go away, no need to reconcile the bucket provisioner")
+		log.NamedDebug(request.NamespacedName, logger, "ceph cluster has cleanup policy, the cluster will soon go away, no need to reconcile the bucket provisioner")
 		return reconcile.Result{}, nil
 	}
 
@@ -171,7 +172,7 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 	go func() {
 		err = bucketController.RunWithContext(r.opManagerContext)
 		if err != nil {
-			logger.Errorf("failed to run bucket controller. %v", err)
+			log.NamedError(request.NamespacedName, logger, "failed to run bucket controller. %v", err)
 			errChan <- err
 		}
 	}()
@@ -181,7 +182,7 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 	case <-errChan:
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to run bucket controller")
 	default:
-		logger.Info("successfully reconciled bucket provisioner")
+		log.NamedInfo(request.NamespacedName, logger, "successfully reconciled bucket provisioner")
 		return reconcile.Result{}, nil
 	}
 }

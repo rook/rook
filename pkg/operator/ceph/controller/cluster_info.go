@@ -36,6 +36,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/log"
 	"github.com/rook/rook/pkg/util/sys"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -149,7 +150,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 		if len(secrets.OwnerReferences) > 0 {
 			clusterInfo.OwnerInfo = k8sutil.NewOwnerInfoWithOwnerRef(&secrets.GetOwnerReferences()[0], namespace)
 		}
-		logger.Debugf("found existing monitor secrets for cluster %s", clusterInfo.Namespace)
+		log.NamespacedDebug(namespace, logger, "found existing monitor secrets for cluster %s", clusterInfo.Namespace)
 	}
 
 	// get the existing monitor config
@@ -164,7 +165,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	clusterInfo.NetworkSpec = cephClusterSpec.Network
 
 	// update clusterInfo with cephClusterSpec.CSI settings
-	clusterInfo.CSIDriverSpec = loadCsiSettings(cephClusterSpec)
+	clusterInfo.CSIDriverSpec = loadCsiSettings(namespace, cephClusterSpec)
 
 	// If an admin key was provided we don't need to load the other resources
 	// Some people might want to give the admin key
@@ -188,7 +189,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	return clusterInfo, maxMonID, monMapping, nil
 }
 
-func loadCsiSettings(cephClusterSpec *cephv1.ClusterSpec) cephv1.CSIDriverSpec {
+func loadCsiSettings(namespace string, cephClusterSpec *cephv1.ClusterSpec) cephv1.CSIDriverSpec {
 	settings := cephClusterSpec.CSI
 	if len(settings.ReadAffinity.CrushLocationLabels) == 0 {
 		settings.ReadAffinity.CrushLocationLabels = strings.Split(topology.GetDefaultTopologyLabels(), ",")
@@ -199,7 +200,7 @@ func loadCsiSettings(cephClusterSpec *cephv1.ClusterSpec) cephv1.CSIDriverSpec {
 		// if the kernel mount options are not set and encryption is enabled, set the default to secure
 		if settings.CephFS.KernelMountOptions == "" {
 			if cephClusterSpec.NetworkEncryptionEnabled() {
-				logger.Info("setting default cephfs kernel mount options to 'ms_mode=secure' since encryption is enabled")
+				log.NamespacedInfo(namespace, logger, "setting default cephfs kernel mount options to 'ms_mode=secure' since encryption is enabled")
 				settings.CephFS.KernelMountOptions = "ms_mode=secure"
 			}
 		}
@@ -329,7 +330,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (extMons ma
 			if monInfo, ok := internalMons[monName]; ok {
 				monInfo.OutOfQuorum = true
 			} else {
-				logger.Warningf("did not find mon %q to set it out of quorum in the cluster info", monName)
+				log.NamespacedWarning(namespace, logger, "did not find mon %q to set it out of quorum in the cluster info", monName)
 			}
 		}
 	}
@@ -339,7 +340,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (extMons ma
 	if id, ok := cm.Data[MaxMonIDKey]; ok {
 		storedMaxMonID, err = strconv.Atoi(id)
 		if err != nil {
-			logger.Errorf("invalid max mon id %q. %v", id, err)
+			log.NamespacedError(namespace, logger, "invalid max mon id %q. %v", id, err)
 		} else {
 			maxMonID = storedMaxMonID
 		}
@@ -353,12 +354,12 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (extMons ma
 		}
 	}
 	if maxMonID != storedMaxMonID {
-		logger.Infof("updating obsolete maxMonID %d to actual value %d", storedMaxMonID, maxMonID)
+		log.NamespacedInfo(namespace, logger, "updating obsolete maxMonID %d to actual value %d", storedMaxMonID, maxMonID)
 	}
 
 	err = json.Unmarshal([]byte(cm.Data[MappingKey]), &monMapping)
 	if err != nil {
-		logger.Errorf("invalid JSON in mon mapping. %v", err)
+		log.NamespacedError(namespace, logger, "invalid JSON in mon mapping. %v", err)
 	}
 	// filter external mons:
 	if extMonIDsStr, ok := cm.Data[EndpointExternalMonsKey]; ok && extMonIDsStr != "" {
@@ -371,7 +372,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (extMons ma
 		}
 	}
 
-	logger.Debugf("loaded: maxMonID=%d, extMons=%+v, mons=%+v, assignment=%+v", maxMonID, extMons, internalMons, monMapping)
+	log.NamespacedDebug(namespace, logger, "loaded: maxMonID=%d, extMons=%+v, mons=%+v, assignment=%+v", maxMonID, extMons, internalMons, monMapping)
 	return extMons, internalMons, maxMonID, monMapping, nil
 }
 
@@ -385,7 +386,7 @@ func fullNameToIndex(name string) (int, error) {
 }
 
 func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephclient.ClusterInfo, ownerInfo *k8sutil.OwnerInfo) error {
-	logger.Infof("creating mon secrets for a new cluster")
+	log.NamespacedInfo(namespace, logger, "creating mon secrets for a new cluster")
 	var err error
 
 	// store the secrets for internal usage of the rook pods
@@ -427,7 +428,7 @@ func UpdateClusterAccessSecret(clientset kubernetes.Interface, clusterInfo *ceph
 
 	secret.Data[MonSecretNameKey] = []byte(clusterInfo.MonitorSecret)
 
-	logger.Infof("updating secret %q in the namespace %q", secret.Name, clusterInfo.Namespace)
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "updating secret %q in the namespace %q", secret.Name, clusterInfo.Namespace)
 	_, err = clientset.CoreV1().Secrets(clusterInfo.Namespace).Update(clusterInfo.Context, secret, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to update secret %q in the namespace %q", secret.Name, clusterInfo.Namespace)
@@ -463,12 +464,12 @@ func PopulateExternalClusterInfo(cephClusterSpec *cephv1.ClusterSpec, context *c
 		}
 		clusterInfo, _, _, err := CreateOrLoadClusterInfo(context, ctx, namespace, nil, cephClusterSpec)
 		if err != nil {
-			logger.Warningf("waiting for connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
-			logger.Debugf("%v", err)
+			log.NamespacedWarning(namespace, logger, "waiting for connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
+			log.NamespacedDebug(namespace, logger, "%v", err)
 			time.Sleep(externalConnectionRetry)
 			continue
 		}
-		logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.CephCred.Username, clusterInfo.AllMonitors())
+		log.NamespacedInfo(namespace, logger, "found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.CephCred.Username, clusterInfo.AllMonitors())
 		clusterInfo.OwnerInfo = ownerInfo
 
 		return clusterInfo, nil

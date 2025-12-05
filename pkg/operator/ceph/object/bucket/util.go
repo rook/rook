@@ -26,6 +26,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/util/log"
 	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -172,7 +173,7 @@ func GetObjectStoreNameFromBucket(ob *bktv1alpha1.ObjectBucket) (types.Namespace
 	// TODO: remove after Rook v1.12
 	// Older OBCs don't have the additional state labels, but they will always be configured to use
 	// the legacy CephObjectStore Service which has a deterministic domain structure.
-	logger.Debugf("falling back to legacy method for determining OBC \"%s/%s\"'s CephObjectStore from endpoint %q",
+	log.NamedDebug(nsName, logger, "falling back to legacy method for determining OBC \"%s/%s\"'s CephObjectStore from endpoint %q",
 		ob.Namespace, ob.Name, ob.Spec.Connection.Endpoint.BucketHost)
 	nsName, err = cephObject.ParseDomainName(ob.Spec.Connection.Endpoint.BucketHost)
 	if err != nil {

@@ -22,7 +22,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 )
 
 const (
@@ -60,7 +62,7 @@ func (r *ReconcileFilesystemMirror) generateKeyring(daemonConfig *daemonConfig) 
 	}
 
 	if r.shouldRotateCephxKeys {
-		logger.Infof("rotating CephX key for CephFileSystemMirror %q in the namespace %q", daemonConfig.ResourceName, r.clusterInfo.Namespace)
+		log.NamedInfo(opcontroller.NsName(r.clusterInfo.Namespace, daemonConfig.ResourceName), logger, "rotating CephX key for CephFileSystemMirror")
 		newKey, err := s.RotateKey(user)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to rotate CephX key for CephFileSystemMirror %q in the namespace %q", daemonConfig.ResourceName, r.clusterInfo.Namespace)

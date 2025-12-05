@@ -19,7 +19,6 @@ package cluster
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strconv"
 	"sync"
@@ -330,10 +329,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 }
 
 func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) (reconcile.Result, cephv1.CephCluster, error) {
-	nsName := types.NamespacedName{
-		Namespace: cephCluster.Namespace,
-		Name:      cephCluster.Name,
-	}
+	nsName := opcontroller.NsName(cephCluster.Namespace, cephCluster.Name)
 	var err error
 
 	// Set the deleting status
@@ -433,13 +429,13 @@ func (c *ClusterController) reconcileCephCluster(clusterObj *cephv1.CephCluster,
 }
 
 func (c *ClusterController) requestClusterDelete(clusterObj *cephv1.CephCluster) (reconcile.Result, error) {
-	nsName := fmt.Sprintf("%s/%s", clusterObj.Namespace, clusterObj.Name)
+	nsName := opcontroller.NsName(clusterObj.Namespace, clusterObj.Name)
 
 	var existingCluster *cluster
 	if rawCluster, ok := c.clusterMap.Load(clusterObj.Namespace); ok {
 		existingCluster = rawCluster.(*cluster)
 		if existingCluster.namespacedName.Name != clusterObj.Name {
-			log.NamespacedError(nsName, logger, "skipping deletion of CephCluster %q. CephCluster CR %q already exists in this namespace. only one cluster cr per namespace is supported.",
+			log.NamedError(nsName, logger, "skipping deletion of CephCluster %q. CephCluster CR %q already exists in this namespace. only one cluster cr per namespace is supported.",
 				nsName, existingCluster.namespacedName.Name)
 			return reconcile.Result{}, nil // do not requeue the delete
 		}

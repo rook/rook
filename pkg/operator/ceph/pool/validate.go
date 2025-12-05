@@ -22,6 +22,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/util/log"
 )
 
 // validatePool Validate the pool arguments
@@ -142,7 +143,7 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 
 	// validate pool compression mode if specified
 	if p.CompressionMode != "" {
-		logger.Warning("compressionMode is DEPRECATED, use Parameters instead")
+		log.NamespacedWarning(clusterInfo.Namespace, logger, "compressionMode is DEPRECATED, use Parameters instead")
 	}
 
 	// Test the same for Parameters
@@ -177,7 +178,7 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 	}
 
 	if !p.Mirroring.Enabled && p.Mirroring.SnapshotSchedulesEnabled() {
-		logger.Warning("mirroring must be enabled to configure snapshot scheduling")
+		log.NamespacedWarning(clusterInfo.Namespace, logger, "mirroring must be enabled to configure snapshot scheduling")
 	}
 
 	return nil

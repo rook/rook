@@ -30,6 +30,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -193,7 +194,7 @@ func (r *ReconcileBucketTopic) Reconcile(context context.Context, request reconc
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus, nil, nil)
-		logger.Errorf("failed to reconcile %v", err)
+		log.NamedError(request.NamespacedName, logger, "failed to reconcile %v", err)
 	}
 
 	return reconcileResponse, err
@@ -205,7 +206,7 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephBucketTopic)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debugf("CephBucketTopic %q not found. Ignoring since resource must be deleted", request.NamespacedName)
+			log.NamedDebug(request.NamespacedName, logger, "CephBucketTopic not found. Ignoring since resource must be deleted")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -222,7 +223,7 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to add finalizer to CephBucketTopic %q", request.NamespacedName)
 	}
 	if generationUpdated {
-		logger.Infof("reconciling the object bucket topic %q after adding finalizer", cephBucketTopic.Name)
+		log.NamedInfo(request.NamespacedName, logger, "reconciling the object bucket topic after adding finalizer")
 		return reconcile.Result{}, nil
 	}
 
@@ -244,7 +245,7 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 			// Return and do not requeue. Successful deletion.
 			return reconcile.Result{}, nil
 		}
-		logger.Debugf("Ceph cluster not yet present, cannot create CephBucketTopic %q", request.NamespacedName)
+		log.NamedDebug(request.NamespacedName, logger, "Ceph cluster not yet present, cannot create CephBucketTopic")
 		return reconcileResponse, nil
 	}
 	r.clusterSpec = &cephCluster.Spec
@@ -257,7 +258,7 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 
 	// DELETE: the CR was deleted
 	if !cephBucketTopic.GetDeletionTimestamp().IsZero() {
-		logger.Debugf("deleting CephBucketTopic: %q", request.NamespacedName)
+		log.NamedDebug(request.NamespacedName, logger, "deleting CephBucketTopic")
 		err = r.deleteCephBucketTopic(cephBucketTopic)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to delete CephBucketTopic %q", request.NamespacedName)
@@ -327,10 +328,10 @@ func (r *ReconcileBucketTopic) updateStatus(observedGeneration int64, nsName typ
 	topic := &cephv1.CephBucketTopic{}
 	if err := r.client.Get(r.opManagerContext, nsName, topic); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debugf("CephBucketTopic %q not found. Ignoring since resource must be deleted", nsName)
+			log.NamedDebug(nsName, logger, "CephBucketTopic %q not found. Ignoring since resource must be deleted", nsName)
 			return
 		}
-		logger.Warningf("failed to retrieve CephBucketTopic %q to update status to %q. error %v", nsName, status, err)
+		log.NamedWarning(nsName, logger, "failed to retrieve CephBucketTopic %q to update status to %q. error %v", nsName, status, err)
 		return
 	}
 	if topic.Status == nil {
@@ -343,7 +344,7 @@ func (r *ReconcileBucketTopic) updateStatus(observedGeneration int64, nsName typ
 		topic.Status.ObservedGeneration = observedGeneration
 	}
 
-	logger.Debugf("updating CephBucketTopic %q .status.secrets to %+v.", nsName, referencedSecrets)
+	log.NamedDebug(nsName, logger, "updating CephBucketTopic %q .status.secrets to %+v.", nsName, referencedSecrets)
 
 	if referencedSecrets != nil {
 		secretsStatus := []cephv1.SecretReference{}
@@ -369,8 +370,8 @@ func (r *ReconcileBucketTopic) updateStatus(observedGeneration int64, nsName typ
 	}
 
 	if err := reporting.UpdateStatus(r.client, topic); err != nil {
-		logger.Errorf("failed to set CephBucketTopic %q status to %q. error %v", nsName, status, err)
+		log.NamedError(nsName, logger, "failed to set CephBucketTopic %q status to %q. error %v", nsName, status, err)
 		return
 	}
-	logger.Debugf("CephbucketTopic %q status updated to %q", nsName, status)
+	log.NamedDebug(nsName, logger, "CephbucketTopic %q status updated to %q", nsName, status)
 }

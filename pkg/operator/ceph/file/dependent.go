@@ -24,10 +24,13 @@ import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/dependents"
 	kexec "github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const subvolumeGroupDependentType = "filesystem subvolume groups that contain subvolumes (could be from CephFilesystem PVCs or CephNFS exports)"
@@ -53,11 +56,11 @@ var ignoredDependentSubvolumeGroups = []string{"_nogroup", "_index", "_legacy", 
 var CephFilesystemDependents = cephFilesystemDependents
 
 // check filesystem whether it exists
-func filesystemExists(clusterdCtx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, name, nsName string) (bool, error) {
+func filesystemExists(clusterdCtx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, name string, nsName types.NamespacedName) (bool, error) {
 	_, err := cephclient.GetFilesystem(clusterdCtx, clusterInfo, name)
 	if err != nil {
 		if code, ok := kexec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
-			logger.Infof("filesystem %q deletion will continue without checking for dependencies since the the filesystem does not exist within Ceph", nsName)
+			log.NamedInfo(nsName, logger, "filesystem deletion will continue without checking for dependencies since the the filesystem does not exist within Ceph")
 			return false, nil
 		}
 		return false, errors.Wrapf(err, "failed to check for existence of CephFilesystem %q", nsName)
@@ -67,7 +70,7 @@ func filesystemExists(clusterdCtx *clusterd.Context, clusterInfo *cephclient.Clu
 
 // with above, allow this to be overridden for unit testing
 func cephFilesystemDependents(clusterdCtx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, filesystem *v1.CephFilesystem) (*dependents.DependentList, error) {
-	nsName := fmt.Sprintf("%s/%s", filesystem.Namespace, filesystem.Name)
+	nsName := controller.NsName(filesystem.Namespace, filesystem.Name)
 	baseErrMsg := fmt.Sprintf("failed to get dependents of CephFilesystem %q", nsName)
 
 	deps := dependents.NewDependentList()
@@ -93,7 +96,7 @@ func cephFilesystemDependents(clusterdCtx *clusterd.Context, clusterInfo *cephcl
 		if subVolumeGroup.Spec.FilesystemName == filesystem.Name {
 			deps.Add("CephFilesystemSubVolumeGroups", subVolumeGroup.Name)
 		}
-		logger.Debugf("found CephFilesystemSubVolumeGroups %q that does not depend on CephFilesystem %q", subVolumeGroup.Name, nsName)
+		log.NamedDebug(nsName, logger, "found CephFilesystemSubVolumeGroups %q that does not depend on CephFilesystem", subVolumeGroup.Name)
 	}
 
 	return deps, nil
@@ -143,7 +146,7 @@ func subvolumeGroupDependents(clusterdCtx *clusterd.Context, clusterInfo *cephcl
 func ignoreSVG(name string) bool {
 	for _, ignore := range ignoredDependentSubvolumeGroups {
 		if name == ignore {
-			logger.Debugf("skipping dependency check for subvolumes in subvolumegroup %q", ignore)
+			log.NamespacedDebug(name, logger, "skipping dependency check for subvolumes in subvolumegroup %q", ignore)
 			return true
 		}
 	}

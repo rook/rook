@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -122,7 +123,7 @@ func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.Cl
 	}
 
 	// Create Secret
-	logger.Debugf("store %s-mirror bootstrap token in a Kubernetes Secret %q in namespace %q", daemonType, s.Name, ns)
+	log.NamedDebug(NsName(ns, s.Name), logger, "store %s-mirror bootstrap token in a Kubernetes Secret", daemonType)
 	_, err = k8sutil.CreateOrUpdateSecret(clusterInfo.Context, ctx.Clientset, s)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return ImmediateRetryResult, errors.Wrapf(err, "failed to create %s-mirror bootstrap peer %q secret", daemonType, s.Name)
@@ -266,7 +267,7 @@ func updateCephClusterCephxRbdMirrorStatus(c *clusterd.Context, clusterInfo *cep
 		}
 		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.RBDMirrorPeer, clusterInfo.CephVersion, cluster.Status.Cephx.RBDMirrorPeer)
 		cluster.Status.Cephx.RBDMirrorPeer = updatedStatus
-		logger.Debugf("updating rbd-mirror cephx status to %+v", cluster.Status.Cephx.RBDMirrorPeer)
+		log.NamespacedDebug(clusterInfo.Namespace, logger, "updating rbd-mirror cephx status to %+v", cluster.Status.Cephx.RBDMirrorPeer)
 		if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
 			return errors.Wrap(err, "failed to update cluster cephx status for rbd-mirror")
 		}
@@ -275,6 +276,6 @@ func updateCephClusterCephxRbdMirrorStatus(c *clusterd.Context, clusterInfo *cep
 	if err != nil {
 		return err
 	}
-	logger.Debugf("successfully updated rbd-mirror cephx status on the cluster %q", clusterInfo.NamespacedName())
+	log.NamespacedDebug(clusterInfo.Namespace, logger, "successfully updated rbd-mirror cephx status")
 	return nil
 }

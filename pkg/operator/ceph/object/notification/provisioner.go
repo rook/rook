@@ -30,6 +30,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
+	"github.com/rook/rook/pkg/util/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -158,7 +159,7 @@ var createNotification = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, t
 		return errors.Wrapf(err, "failed to provisioning CephBucketNotification %q for bucket %q", bnName, bucketName)
 	}
 
-	logger.Infof("CephBucketNotification %q was created for bucket %q", bnName, bucketName)
+	log.NamedInfo(bnName, logger, "CephBucketNotification was created for bucket %q", bucketName)
 
 	return nil
 }

@@ -23,7 +23,9 @@ import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/util/dependents"
+	"github.com/rook/rook/pkg/util/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -42,7 +44,7 @@ func CephObjectStoreDependents(
 	objCtx *Context,
 	opsCtx *AdminOpsContext,
 ) (*dependents.DependentList, error) {
-	nsName := fmt.Sprintf("%s/%s", store.Namespace, store.Name)
+	nsName := controller.NsName(store.Namespace, store.Name)
 	baseErrMsg := fmt.Sprintf("failed to get dependents of CephObjectStore %q", nsName)
 
 	deps := dependents.NewDependentList()
@@ -67,7 +69,7 @@ func CephObjectStoreDependents(
 		}
 		if !deps.Empty() {
 			// zone is master with peers; require user intervention
-			logger.Errorf("%s. Either change the master or remove its peers before the deletion", zoneIsMasterWithPeersDependentType)
+			log.NamedError(nsName, logger, "%s. Either change the master or remove its peers before the deletion", zoneIsMasterWithPeersDependentType)
 			return deps, errors.Errorf("%s: %q\nall peer zones must be deleted, or a peer zone must be manually set as the master zone after that peer has all necessary data synched to it", zoneIsMasterWithPeersDependentType, deps.OfKind(zoneIsMasterWithPeersDependentType))
 		}
 
@@ -91,7 +93,7 @@ func CephObjectStoreDependents(
 		if user.Spec.Store == store.Name {
 			deps.Add("CephObjectStoreUsers", user.Name)
 		}
-		logger.Debugf("found CephObjectStoreUser %q that does not depend on CephObjectStore %q", user.Name, nsName)
+		log.NamedDebug(nsName, logger, "found CephObjectStoreUser %q that does not depend on CephObjectStore %q", user.Name, nsName)
 	}
 
 	return deps, nil
@@ -106,7 +108,7 @@ func getBucketDependents(
 	objCtx *Context,
 	opsCtx *AdminOpsContext,
 ) error {
-	nsName := fmt.Sprintf("%s/%s", store.Namespace, store.Name)
+	nsName := controller.NsName(store.Namespace, store.Name)
 
 	missingPools, err := missingPools(objCtx)
 	if err != nil {
@@ -118,7 +120,7 @@ func getBucketDependents(
 		// Rook operator restarted.
 		// in either case, we cannot get a successful connection to RGW(s) to check for buckets, and
 		// we can assume it is safe for deletion to proceed
-		logger.Infof("skipping check for bucket dependents of CephObjectStore %q. some pools are missing: %v", nsName, missingPools)
+		log.NamedInfo(nsName, logger, "skipping check for bucket dependents of CephObjectStore %q. some pools are missing: %v", nsName, missingPools)
 		return nil
 	}
 
