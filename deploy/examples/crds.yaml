@@ -11723,6 +11723,16 @@ spec:
                           type: integer
                       type: object
                   type: object
+                nvmeofConfig:
+                  additionalProperties:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  description: |-
+                    NVMeOFConfig is a map of section names to key-value pairs for nvmeof.conf configuration
+                    This allows users to override or add configuration options without needing to manage a ConfigMap
+                  nullable: true
+                  type: object
                 placement:
                   properties:
                     nodeAffinity:
@@ -12236,6 +12246,34 @@ spec:
                 pool:
                   description: Pool is the RADOS pool where NVMe-oF configuration is stored
                   type: string
+                ports:
+                  description: Ports configuration for the NVMe-oF gateway
+                  properties:
+                    discoveryPort:
+                      description: 'DiscoveryPort is the port for discovery service (default: 8009)'
+                      format: int32
+                      maximum: 65535
+                      minimum: 1
+                      type: integer
+                    gatewayPort:
+                      description: 'GatewayPort is the port for the gateway service (default: 5500)'
+                      format: int32
+                      maximum: 65535
+                      minimum: 1
+                      type: integer
+                    ioPort:
+                      description: 'IOPort is the port for NVMe-oF IO traffic (default: 4420)'
+                      format: int32
+                      maximum: 65535
+                      minimum: 1
+                      type: integer
+                    monitorPort:
+                      description: 'MonitorPort is the port for the monitor service (default: 5499)'
+                      format: int32
+                      maximum: 65535
+                      minimum: 1
+                      type: integer
+                  type: object
                 priorityClassName:
                   description: PriorityClassName sets the priority class on the pods
                   type: string

@@ -58,3 +58,12 @@ spec:
   # labels: {}
   # Optional: Placement configuration
   # placement: {}
+  # Optional: Host networking configuration (default: false, uses pod network)
+  # Gateways work better when on pod network and exposed via ingress/service
+  hostNetwork: false
+  # Optional: Port configuration (defaults shown below)
+  # ports:
+  #   ioPort: 4420
+  #   gatewayPort: 5500
+  #   monitorPort: 5499
+  #   discoveryPort: 8009

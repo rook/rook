@@ -4465,6 +4465,19 @@ If not specified, a default configuration will be generated</p>
 </tr>
 <tr>
 <td>
+<code>nvmeofConfig</code><br/>
+<em>
+map[string]map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>NVMeOFConfig is a map of section names to key-value pairs for nvmeof.conf configuration
+This allows users to override or add configuration options without needing to manage a ConfigMap</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>placement</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.Placement">
@@ -4541,6 +4554,20 @@ bool
 <td>
 <em>(Optional)</em>
 <p>Whether host networking is enabled for the gateway. If not set, the network settings from the cluster CR will be applied.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ports</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.NVMeOFGatewayPorts">
+NVMeOFGatewayPorts
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ports configuration for the NVMe-oF gateway</p>
 </td>
 </tr>
 <tr>
@@ -10406,6 +10433,72 @@ LocalCephxStatus
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.NVMeOFGatewayPorts">NVMeOFGatewayPorts
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.NVMeOFGatewaySpec">NVMeOFGatewaySpec</a>)
+</p>
+<div>
+<p>NVMeOFGatewayPorts represents the port configuration for NVMe-oF gateway</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>ioPort</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>IOPort is the port for NVMe-oF IO traffic (default: 4420)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>gatewayPort</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>GatewayPort is the port for the gateway service (default: 5500)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>monitorPort</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MonitorPort is the port for the monitor service (default: 5499)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>discoveryPort</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DiscoveryPort is the port for discovery service (default: 8009)</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.NVMeOFGatewaySpec">NVMeOFGatewaySpec
 </h3>
 <p>
@@ -10466,6 +10559,19 @@ string
 <em>(Optional)</em>
 <p>ConfigMapRef is the name of the ConfigMap containing nvmeof.conf configuration
 If not specified, a default configuration will be generated</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>nvmeofConfig</code><br/>
+<em>
+map[string]map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>NVMeOFConfig is a map of section names to key-value pairs for nvmeof.conf configuration
+This allows users to override or add configuration options without needing to manage a ConfigMap</p>
 </td>
 </tr>
 <tr>
@@ -10546,6 +10652,20 @@ bool
 <td>
 <em>(Optional)</em>
 <p>Whether host networking is enabled for the gateway. If not set, the network settings from the cluster CR will be applied.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ports</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.NVMeOFGatewayPorts">
+NVMeOFGatewayPorts
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ports configuration for the NVMe-oF gateway</p>
 </td>
 </tr>
 <tr>

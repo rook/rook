@@ -2800,6 +2800,12 @@ type NVMeOFGatewaySpec struct {
 	// +optional
 	ConfigMapRef string `json:"configMapRef,omitempty"`
 
+	// NVMeOFConfig is a map of section names to key-value pairs for nvmeof.conf configuration
+	// This allows users to override or add configuration options without needing to manage a ConfigMap
+	// +optional
+	// +nullable
+	NVMeOFConfig map[string]map[string]string `json:"nvmeofConfig,omitempty"`
+
 	// The affinity to place the gateway pods
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
@@ -2828,10 +2834,41 @@ type NVMeOFGatewaySpec struct {
 	// +optional
 	HostNetwork *bool `json:"hostNetwork,omitempty"`
 
+	// Ports configuration for the NVMe-oF gateway
+	// +optional
+	Ports *NVMeOFGatewayPorts `json:"ports,omitempty"`
+
 	// A liveness-probe to verify that gateway has valid run-time state.
 	// If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.
 	// +optional
 	LivenessProbe *ProbeSpec `json:"livenessProbe,omitempty"`
+}
+
+// NVMeOFGatewayPorts represents the port configuration for NVMe-oF gateway
+type NVMeOFGatewayPorts struct {
+	// IOPort is the port for NVMe-oF IO traffic (default: 4420)
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	IOPort *int32 `json:"ioPort,omitempty"`
+
+	// GatewayPort is the port for the gateway service (default: 5500)
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	GatewayPort *int32 `json:"gatewayPort,omitempty"`
+
+	// MonitorPort is the port for the monitor service (default: 5499)
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	MonitorPort *int32 `json:"monitorPort,omitempty"`
+
+	// DiscoveryPort is the port for discovery service (default: 8009)
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	DiscoveryPort *int32 `json:"discoveryPort,omitempty"`
 }
 
 // NFSGaneshaSpec represents the spec of an nfs ganesha server

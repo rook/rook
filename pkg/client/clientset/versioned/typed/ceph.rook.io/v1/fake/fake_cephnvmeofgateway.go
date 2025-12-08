@@ -19,116 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	cephrookiov1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeCephNVMeOFGateways implements CephNVMeOFGatewayInterface
-type FakeCephNVMeOFGateways struct {
+// fakeCephNVMeOFGateways implements CephNVMeOFGatewayInterface
+type fakeCephNVMeOFGateways struct {
+	*gentype.FakeClientWithList[*v1.CephNVMeOFGateway, *v1.CephNVMeOFGatewayList]
 	Fake *FakeCephV1
-	ns   string
 }
 
-var cephnvmeofgatewaysResource = v1.SchemeGroupVersion.WithResource("cephnvmeofgateways")
-
-var cephnvmeofgatewaysKind = v1.SchemeGroupVersion.WithKind("CephNVMeOFGateway")
-
-// Get takes name of the cephNVMeOFGateway, and returns the corresponding cephNVMeOFGateway object, and an error if there is any.
-func (c *FakeCephNVMeOFGateways) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephNVMeOFGateway, err error) {
-	emptyResult := &v1.CephNVMeOFGateway{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(cephnvmeofgatewaysResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeCephNVMeOFGateways(fake *FakeCephV1, namespace string) cephrookiov1.CephNVMeOFGatewayInterface {
+	return &fakeCephNVMeOFGateways{
+		gentype.NewFakeClientWithList[*v1.CephNVMeOFGateway, *v1.CephNVMeOFGatewayList](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("cephnvmeofgateways"),
+			v1.SchemeGroupVersion.WithKind("CephNVMeOFGateway"),
+			func() *v1.CephNVMeOFGateway { return &v1.CephNVMeOFGateway{} },
+			func() *v1.CephNVMeOFGatewayList { return &v1.CephNVMeOFGatewayList{} },
+			func(dst, src *v1.CephNVMeOFGatewayList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.CephNVMeOFGatewayList) []*v1.CephNVMeOFGateway {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1.CephNVMeOFGatewayList, items []*v1.CephNVMeOFGateway) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.CephNVMeOFGateway), err
-}
-
-// List takes label and field selectors, and returns the list of CephNVMeOFGateways that match those selectors.
-func (c *FakeCephNVMeOFGateways) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephNVMeOFGatewayList, err error) {
-	emptyResult := &v1.CephNVMeOFGatewayList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(cephnvmeofgatewaysResource, cephnvmeofgatewaysKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.CephNVMeOFGatewayList{ListMeta: obj.(*v1.CephNVMeOFGatewayList).ListMeta}
-	for _, item := range obj.(*v1.CephNVMeOFGatewayList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested cephNVMeOFGateways.
-func (c *FakeCephNVMeOFGateways) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(cephnvmeofgatewaysResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a cephNVMeOFGateway and creates it.  Returns the server's representation of the cephNVMeOFGateway, and an error, if there is any.
-func (c *FakeCephNVMeOFGateways) Create(ctx context.Context, cephNVMeOFGateway *v1.CephNVMeOFGateway, opts metav1.CreateOptions) (result *v1.CephNVMeOFGateway, err error) {
-	emptyResult := &v1.CephNVMeOFGateway{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(cephnvmeofgatewaysResource, c.ns, cephNVMeOFGateway, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephNVMeOFGateway), err
-}
-
-// Update takes the representation of a cephNVMeOFGateway and updates it. Returns the server's representation of the cephNVMeOFGateway, and an error, if there is any.
-func (c *FakeCephNVMeOFGateways) Update(ctx context.Context, cephNVMeOFGateway *v1.CephNVMeOFGateway, opts metav1.UpdateOptions) (result *v1.CephNVMeOFGateway, err error) {
-	emptyResult := &v1.CephNVMeOFGateway{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(cephnvmeofgatewaysResource, c.ns, cephNVMeOFGateway, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephNVMeOFGateway), err
-}
-
-// Delete takes name of the cephNVMeOFGateway and deletes it. Returns an error if one occurs.
-func (c *FakeCephNVMeOFGateways) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(cephnvmeofgatewaysResource, c.ns, name, opts), &v1.CephNVMeOFGateway{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeCephNVMeOFGateways) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(cephnvmeofgatewaysResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.CephNVMeOFGatewayList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched cephNVMeOFGateway.
-func (c *FakeCephNVMeOFGateways) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephNVMeOFGateway, err error) {
-	emptyResult := &v1.CephNVMeOFGateway{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(cephnvmeofgatewaysResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.CephNVMeOFGateway), err
 }

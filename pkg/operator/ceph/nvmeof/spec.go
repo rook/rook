@@ -17,10 +17,9 @@ limitations under the License.
 package nvmeof
 
 import (
-	"bytes"
 	_ "embed"
 	"fmt"
-	"text/template"
+	"strings"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -37,7 +36,6 @@ import (
 )
 
 const (
-	// AppName is the name of the app
 	AppName             = "rook-ceph-nvmeof"
 	nvmeofIOPort        = 4420
 	nvmeofGatewayPort   = 5500
@@ -48,12 +46,33 @@ const (
 	serviceAccountName  = "ceph-nvmeof-gateway"
 )
 
+// getPorts returns the configured ports with defaults
+func getPorts(nvmeof *cephv1.CephNVMeOFGateway) (ioPort, gatewayPort, monitorPort, discoveryPort int32) {
+	ioPort = nvmeofIOPort
+	gatewayPort = nvmeofGatewayPort
+	monitorPort = nvmeofMonitorPort
+	discoveryPort = nvmeofDiscoveryPort
+
+	if nvmeof.Spec.Ports != nil {
+		if nvmeof.Spec.Ports.IOPort != nil {
+			ioPort = *nvmeof.Spec.Ports.IOPort
+		}
+		if nvmeof.Spec.Ports.GatewayPort != nil {
+			gatewayPort = *nvmeof.Spec.Ports.GatewayPort
+		}
+		if nvmeof.Spec.Ports.MonitorPort != nil {
+			monitorPort = *nvmeof.Spec.Ports.MonitorPort
+		}
+		if nvmeof.Spec.Ports.DiscoveryPort != nil {
+			discoveryPort = *nvmeof.Spec.Ports.DiscoveryPort
+		}
+	}
+
+	return ioPort, gatewayPort, monitorPort, discoveryPort
+}
+
 //go:embed connectionconfig.sh
 var connectionConfigScript string
-
-type connectionConfigTemplate struct {
-	PoolName string
-}
 
 func (r *ReconcileCephNVMeOFGateway) generateCephNVMeOFService(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) *v1.Service {
 	logger.Debugf("generateCephNVMeOFService() started: gateway=%s/%s, daemonID=%s",
@@ -65,6 +84,11 @@ func (r *ReconcileCephNVMeOFGateway) generateCephNVMeOFService(nvmeof *cephv1.Ce
 
 	serviceName := instanceName(nvmeof, daemonID)
 	logger.Debugf("generateCephNVMeOFService() service name: %s", serviceName)
+
+	logger.Debug("generateCephNVMeOFService() getting configured ports")
+	ioPort, gatewayPort, monitorPort, discoveryPort := getPorts(nvmeof)
+	logger.Debugf("generateCephNVMeOFService() ports: io=%d, gateway=%d, monitor=%d, discovery=%d",
+		ioPort, gatewayPort, monitorPort, discoveryPort)
 
 	logger.Debug("generateCephNVMeOFService() creating service spec with ports")
 	svc := &v1.Service{
@@ -78,26 +102,26 @@ func (r *ReconcileCephNVMeOFGateway) generateCephNVMeOFService(nvmeof *cephv1.Ce
 			Ports: []v1.ServicePort{
 				{
 					Name:       "io",
-					Port:       nvmeofIOPort,
-					TargetPort: intstr.FromInt(int(nvmeofIOPort)),
+					Port:       ioPort,
+					TargetPort: intstr.FromInt(int(ioPort)),
 					Protocol:   v1.ProtocolTCP,
 				},
 				{
 					Name:       "gateway",
-					Port:       nvmeofGatewayPort,
-					TargetPort: intstr.FromInt(int(nvmeofGatewayPort)),
+					Port:       gatewayPort,
+					TargetPort: intstr.FromInt(int(gatewayPort)),
 					Protocol:   v1.ProtocolTCP,
 				},
 				{
 					Name:       "monitor",
-					Port:       nvmeofMonitorPort,
-					TargetPort: intstr.FromInt(int(nvmeofMonitorPort)),
+					Port:       monitorPort,
+					TargetPort: intstr.FromInt(int(monitorPort)),
 					Protocol:   v1.ProtocolTCP,
 				},
 				{
 					Name:       "discovery",
-					Port:       nvmeofDiscoveryPort,
-					TargetPort: intstr.FromInt(int(nvmeofDiscoveryPort)),
+					Port:       discoveryPort,
+					TargetPort: intstr.FromInt(int(discoveryPort)),
 					Protocol:   v1.ProtocolTCP,
 				},
 			},
@@ -145,7 +169,8 @@ func (r *ReconcileCephNVMeOFGateway) createCephNVMeOFService(nvmeof *cephv1.Ceph
 
 	logger.Debugf("createCephNVMeOFService() service created successfully: name=%s, clusterIP=%s",
 		svc.Name, svc.Spec.ClusterIP)
-	logger.Infof("ceph nvmeof gateway service running at %s:%d", svc.Spec.ClusterIP, nvmeofDiscoveryPort)
+	_, _, _, discoveryPort := getPorts(nvmeof)
+	logger.Infof("ceph nvmeof gateway service running at %s:%d", svc.Spec.ClusterIP, discoveryPort)
 	logger.Debugf("createCephNVMeOFService() completed successfully")
 	return nil
 }
@@ -193,12 +218,12 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 	logger.Debug("makeDeployment() creating volume mounts")
 	cephConfigVol, cephConfigMount := cephConfigVolumeAndMount()
 	logger.Debugf("makeDeployment() ceph config volume: %s, mount path: %s", cephConfigVol.Name, cephConfigMount.MountPath)
-	gatewayConfigVol, _ := gatewayConfigVolumeAndMount(configMapName)
-	logger.Debugf("makeDeployment() gateway config volume: %s", gatewayConfigVol.Name)
+	gatewayConfigVol, gatewayConfigMount := gatewayConfigVolumeAndMount(configMapName)
+	logger.Debugf("makeDeployment() gateway config volume: %s, mount path: %s", gatewayConfigVol.Name, gatewayConfigMount.MountPath)
 
 	logger.Debug("makeDeployment() creating pod spec")
-	logger.Debug("makeDeployment() creating init container spec")
-	initContainer := r.connectionConfigInitContainer(nvmeof, configMapName)
+	logger.Debug("makeDeployment() creating init container for ceph.conf and nvmeof.conf")
+	initContainer := r.createCephConfigInitContainer(nvmeof, daemonID, gatewayConfigMount)
 	logger.Debugf("makeDeployment() init container: name=%s, image=%s", initContainer.Name, initContainer.Image)
 
 	logger.Debug("makeDeployment() creating daemon container spec")
@@ -292,51 +317,73 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 	return deployment, nil
 }
 
-func renderConnectionConfig(poolName string) (string, error) {
-	var writer bytes.Buffer
-	t := template.New("connection-config")
-	t, err := t.Parse(connectionConfigScript)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to parse connection config template")
-	}
-
-	config := connectionConfigTemplate{
-		PoolName: poolName,
-	}
-
-	if err := t.Execute(&writer, config); err != nil {
-		return "", errors.Wrapf(err, "failed to render connection config template")
-	}
-
-	return writer.String(), nil
-}
-
-func (r *ReconcileCephNVMeOFGateway) connectionConfigInitContainer(nvmeof *cephv1.CephNVMeOFGateway, configMapName string) v1.Container {
-	logger.Debugf("connectionConfigInitContainer() started: gateway=%s/%s, configMapName=%s", nvmeof.Namespace, nvmeof.Name, configMapName)
+// createCephConfigInitContainer creates a minimal init container that generates
+// /etc/ceph/ceph.conf, copies the admin keyring, and copies nvmeof.conf from the ConfigMap.
+// This is needed for the gateway to connect to the Ceph cluster.
+func (r *ReconcileCephNVMeOFGateway) createCephConfigInitContainer(nvmeof *cephv1.CephNVMeOFGateway, daemonID string, gatewayConfigMount v1.VolumeMount) v1.Container {
+	logger.Debugf("createCephConfigInitContainer() started: gateway=%s/%s, daemonID=%s", nvmeof.Namespace, nvmeof.Name, daemonID)
 
 	_, cephConfigMount := cephConfigVolumeAndMount()
-	logger.Debugf("connectionConfigInitContainer() ceph config mount: %s", cephConfigMount.MountPath)
-	_, gatewayConfigMount := gatewayConfigVolumeAndMount(configMapName)
-	logger.Debugf("connectionConfigInitContainer() gateway config mount: %s", gatewayConfigMount.MountPath)
+	logger.Debugf("createCephConfigInitContainer() ceph config mount: %s", cephConfigMount.MountPath)
+	logger.Debugf("createCephConfigInitContainer() gateway config mount: %s", gatewayConfigMount.MountPath)
 
-	poolName := nvmeof.Spec.Pool
-	logger.Debugf("connectionConfigInitContainer() using pool: %s", poolName)
-
-	logger.Debug("connectionConfigInitContainer() generating init script")
-	script, err := renderConnectionConfig(poolName)
-	if err != nil {
-		logger.Errorf("connectionConfigInitContainer() failed to render script: %v", err)
-		script = fmt.Sprintf(`echo "Failed to render connection config script: %v" && exit 1`, err)
-	}
-	logger.Debugf("connectionConfigInitContainer() init script generated (length: %d bytes)", len(script))
-
-	logger.Debug("connectionConfigInitContainer() creating container spec")
 	cephImage := r.cephClusterSpec.CephVersion.Image
 	imagePullPolicy := controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy)
-	logger.Debugf("connectionConfigInitContainer() container image: %s, pullPolicy: %s", cephImage, imagePullPolicy)
+	logger.Debugf("createCephConfigInitContainer() container image: %s, pullPolicy: %s", cephImage, imagePullPolicy)
 
+	// Build Ceph CLI arguments using Rook's helper functions
+	// Use AdminFlags since the init container uses admin keyring for Ceph commands
+	// Override the keyring path to use /etc/ceph/keyring (where the script copies it)
+	cephArgs := controller.AdminFlags(r.clusterInfo)
+	// Replace the keyring path with the one used by the init container script
+	for i, arg := range cephArgs {
+		if strings.HasPrefix(arg, "--keyring=") {
+			cephArgs[i] = "--keyring=/etc/ceph/keyring"
+			break
+		}
+	}
+
+	// Use the embedded script and pass Ceph CLI args via "$@"
+	script := connectionConfigScript
+
+	gatewayName := instanceName(nvmeof, daemonID)
+	poolName := nvmeof.Spec.Pool
+	anaGroup := nvmeof.Spec.Group
+
+	// Build environment variables using Rook's helper functions
+	envVars := controller.DaemonEnvVars(r.cephClusterSpec)
+	envVars = append(envVars,
+		v1.EnvVar{
+			Name: "CEPH_MON_HOST",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-config"},
+					Key:                  "mon_host",
+				},
+			},
+		},
+		v1.EnvVar{
+			Name:  "POD_NAME",
+			Value: gatewayName,
+		},
+		v1.EnvVar{
+			Name:  "GATEWAY_NAME",
+			Value: gatewayName,
+		},
+		v1.EnvVar{
+			Name:  "POOL_NAME",
+			Value: poolName,
+		},
+		v1.EnvVar{
+			Name:  "ANA_GROUP",
+			Value: anaGroup,
+		},
+		k8sutil.PodIPEnvVar("POD_IP"),
+	)
+
+	privileged := true
 	container := v1.Container{
-		Name:            "generate-minimal-ceph-conf",
+		Name:            "generate-ceph-conf",
 		Image:           cephImage,
 		ImagePullPolicy: imagePullPolicy,
 		Command: []string{
@@ -344,52 +391,29 @@ func (r *ReconcileCephNVMeOFGateway) connectionConfigInitContainer(nvmeof *cephv
 			"-c",
 			script,
 		},
-		Env: []v1.EnvVar{
-			{
-				Name: "CEPH_MON_HOST",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-config"},
-						Key:                  "mon_host",
-					},
-				},
-			},
-			{
-				Name: "POD_NAME",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
-						FieldPath: "metadata.name",
-					},
-				},
-			},
-			{
-				Name: "ANA_GROUP",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
-						FieldPath: "metadata.namespace",
-					},
-				},
-			},
-			{
-				Name: "POD_IP",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
-						FieldPath: "status.podIP",
-					},
-				},
-			},
-		},
+		Args: cephArgs,
+		Env:  envVars,
 		VolumeMounts: []v1.VolumeMount{
 			adminKeyringVolumeMount(),
-			gatewayConfigMount,
 			cephConfigMount,
+			gatewayConfigMount,
 		},
-		Resources:       nvmeof.Spec.Resources,
-		SecurityContext: privilegedSecurityContext(),
+		Resources: nvmeof.Spec.Resources,
+		SecurityContext: &v1.SecurityContext{
+			Privileged: &privileged,
+			Capabilities: &v1.Capabilities{
+				Add: []v1.Capability{
+					"SYS_ADMIN",
+				},
+				Drop: []v1.Capability{
+					"NET_RAW",
+				},
+			},
+		},
 	}
-	logger.Debugf("connectionConfigInitContainer() container spec created: %d env vars, %d volume mounts",
+	logger.Debugf("createCephConfigInitContainer() container spec created: %d env vars, %d volume mounts",
 		len(container.Env), len(container.VolumeMounts))
-	logger.Debugf("connectionConfigInitContainer() completed: container name=%s", container.Name)
+	logger.Debugf("createCephConfigInitContainer() completed: container name=%s", container.Name)
 	return container
 }
 
@@ -398,6 +422,7 @@ func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGa
 	logger.Debugf("daemonContainer() ceph config mount path: %s", cephConfigMount.MountPath)
 
 	logger.Debug("daemonContainer() creating daemon container spec")
+	privileged := true
 	container := v1.Container{
 		Name: "nvmeof-gateway",
 		Args: []string{
@@ -426,40 +451,54 @@ func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGa
 			},
 		},
 
-		Ports: []v1.ContainerPort{
-			{
-				Name:          "io",
-				ContainerPort: nvmeofIOPort,
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "gateway",
-				ContainerPort: nvmeofGatewayPort,
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "monitor",
-				ContainerPort: nvmeofMonitorPort,
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "discovery",
-				ContainerPort: nvmeofDiscoveryPort,
-				Protocol:      v1.ProtocolTCP,
+		Ports: func() []v1.ContainerPort {
+			ioPort, gatewayPort, monitorPort, discoveryPort := getPorts(nvmeof)
+			return []v1.ContainerPort{
+				{
+					Name:          "io",
+					ContainerPort: ioPort,
+					Protocol:      v1.ProtocolTCP,
+				},
+				{
+					Name:          "gateway",
+					ContainerPort: gatewayPort,
+					Protocol:      v1.ProtocolTCP,
+				},
+				{
+					Name:          "monitor",
+					ContainerPort: monitorPort,
+					Protocol:      v1.ProtocolTCP,
+				},
+				{
+					Name:          "discovery",
+					ContainerPort: discoveryPort,
+					Protocol:      v1.ProtocolTCP,
+				},
+			}
+		}(),
+
+		Resources: nvmeof.Spec.Resources,
+		SecurityContext: &v1.SecurityContext{
+			Privileged: &privileged,
+			Capabilities: &v1.Capabilities{
+				Add: []v1.Capability{
+					"SYS_ADMIN",
+				},
+				Drop: []v1.Capability{
+					"NET_RAW",
+				},
 			},
 		},
-
-		Resources:       nvmeof.Spec.Resources,
-		SecurityContext: privilegedSecurityContext(),
 	}
 	logger.Debugf("daemonContainer() container spec created: image=%s, %d ports, %d env vars, %d volume mounts",
 		container.Image, len(container.Ports), len(container.Env), len(container.VolumeMounts))
+	ioPort, gatewayPort, monitorPort, discoveryPort := getPorts(nvmeof)
 	logger.Debugf("daemonContainer() ports: io=%d, gateway=%d, monitor=%d, discovery=%d",
-		nvmeofIOPort, nvmeofGatewayPort, nvmeofMonitorPort, nvmeofDiscoveryPort)
+		ioPort, gatewayPort, monitorPort, discoveryPort)
 
 	logger.Debug("daemonContainer() configuring liveness probe")
 	if nvmeof.Spec.LivenessProbe != nil && !nvmeof.Spec.LivenessProbe.Disabled && nvmeof.Spec.LivenessProbe.Probe == nil {
-		container.LivenessProbe = r.defaultLivenessProbe()
+		container.LivenessProbe = r.defaultLivenessProbe(nvmeof)
 	}
 	result := cephconfig.ConfigureLivenessProbe(container, nvmeof.Spec.LivenessProbe)
 	logger.Debugf("daemonContainer() liveness probe configured: enabled=%v", result.LivenessProbe != nil)
@@ -467,8 +506,9 @@ func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGa
 	return result
 }
 
-func (r *ReconcileCephNVMeOFGateway) defaultLivenessProbe() *v1.Probe {
-	return controller.GenerateLivenessProbeTcpPort(nvmeofIOPort, 10)
+func (r *ReconcileCephNVMeOFGateway) defaultLivenessProbe(nvmeof *cephv1.CephNVMeOFGateway) *v1.Probe {
+	ioPort, _, _, _ := getPorts(nvmeof)
+	return controller.GenerateLivenessProbeTcpPort(ioPort, 10)
 }
 
 func getLabels(n *cephv1.CephNVMeOFGateway, daemonID string, includeNewLabels bool) map[string]string {
@@ -496,6 +536,7 @@ func instanceName(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) string {
 func gatewayConfigVolumeAndMount(configConfigMap string) (v1.Volume, v1.VolumeMount) {
 	logger.Debugf("gatewayConfigVolumeAndMount() started: configmap=%s", configConfigMap)
 
+	// Mount to /config temporarily - init container will copy to /etc/ceph/nvmeof.conf
 	cfgDir := "/config"
 	cfgVolName := "gateway-config"
 	configMapSource := &v1.ConfigMapVolumeSource{
@@ -503,26 +544,11 @@ func gatewayConfigVolumeAndMount(configConfigMap string) (v1.Volume, v1.VolumeMo
 		Items:                []v1.KeyToPath{{Key: configKey, Path: "nvmeof.conf"}},
 	}
 	v := v1.Volume{Name: cfgVolName, VolumeSource: v1.VolumeSource{ConfigMap: configMapSource}}
-	m := v1.VolumeMount{Name: cfgVolName, MountPath: cfgDir}
+	m := v1.VolumeMount{Name: cfgVolName, MountPath: cfgDir, ReadOnly: true}
 	logger.Debugf("gatewayConfigVolumeAndMount() volume created: name=%s, configmap=%s, key=%s, path=nvmeof.conf, mountPath=%s",
 		v.Name, configConfigMap, configKey, m.MountPath)
 	logger.Debug("gatewayConfigVolumeAndMount() completed")
 	return v, m
-}
-
-func privilegedSecurityContext() *v1.SecurityContext {
-	privileged := true
-	return &v1.SecurityContext{
-		Privileged: &privileged,
-		Capabilities: &v1.Capabilities{
-			Add: []v1.Capability{
-				"SYS_ADMIN",
-			},
-			Drop: []v1.Capability{
-				"ALL",
-			},
-		},
-	}
 }
 
 func adminKeyringVolume() v1.Volume {

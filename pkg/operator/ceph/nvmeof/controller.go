@@ -34,6 +34,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"gopkg.in/ini.v1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -183,9 +184,9 @@ func (r *ReconcileCephNVMeOFGateway) Reconcile(context context.Context, request 
 	logger.Debugf("Reconcile() called: namespace=%s, name=%s", request.Namespace, request.Name)
 	defer opcontroller.RecoverAndLogException()
 	reconcileResponse, cephNVMeOFGateway, err := r.reconcile(request)
-	logger.Debugf("Reconcile() reconcile() returned: requeue=%v, requeueAfter=%v, error=%v", reconcileResponse.Requeue, reconcileResponse.RequeueAfter, err)
+	logger.Debugf("Reconcile() reconcile() returned: requeueAfter=%v, error=%v", reconcileResponse.RequeueAfter, err)
 	result, reportErr := reporting.ReportReconcileResult(logger, r.recorder, request, &cephNVMeOFGateway, reconcileResponse, err)
-	logger.Debugf("Reconcile() completed: final result requeue=%v, requeueAfter=%v", result.Requeue, result.RequeueAfter)
+	logger.Debugf("Reconcile() completed: final result requeueAfter=%v", result.RequeueAfter)
 	return result, reportErr
 }
 
@@ -243,8 +244,8 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 
 	logger.Debug("reconcile() checking if cluster is ready to reconcile")
 	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
-	logger.Debugf("reconcile() cluster readiness check: isReady=%v, clusterExists=%v, requeue=%v",
-		isReadyToReconcile, cephClusterExists, reconcileResponse.Requeue)
+	logger.Debugf("reconcile() cluster readiness check: isReady=%v, clusterExists=%v, requeueAfter=%v",
+		isReadyToReconcile, cephClusterExists, reconcileResponse.RequeueAfter)
 
 	if !isReadyToReconcile {
 		logger.Debug("reconcile() cluster is not ready to reconcile")
@@ -259,8 +260,8 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 			r.recorder.Event(cephNVMeOFGateway, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 			return reconcile.Result{}, *cephNVMeOFGateway, nil
 		}
-		logger.Debugf("reconcile() requeuing because cluster is not ready: requeue=%v, requeueAfter=%v",
-			reconcileResponse.Requeue, reconcileResponse.RequeueAfter)
+		logger.Debugf("reconcile() requeuing because cluster is not ready: requeueAfter=%v",
+			reconcileResponse.RequeueAfter)
 		return reconcileResponse, *cephNVMeOFGateway, nil
 	}
 	logger.Debug("reconcile() cluster is ready, proceeding with reconciliation")
@@ -443,28 +444,28 @@ func (r *ReconcileCephNVMeOFGateway) upCephNVMeOFGateway(cephNVMeOFGateway *ceph
 	logger.Debugf("upCephNVMeOFGateway() started: gateway=%s/%s, instances=%d",
 		cephNVMeOFGateway.Namespace, cephNVMeOFGateway.Name, cephNVMeOFGateway.Spec.Instances)
 
-	var configMapName, configHash string
-	var err error
-
-	if cephNVMeOFGateway.Spec.ConfigMapRef == "" {
-		logger.Debug("upCephNVMeOFGateway() no ConfigMapRef specified, creating default configmap")
-		configMapName, configHash, err = r.createConfigMap(cephNVMeOFGateway)
-		if err != nil {
-			logger.Errorf("upCephNVMeOFGateway() failed to create configmap: %v", err)
-			return errors.Wrap(err, "failed to create configmap")
-		}
-		logger.Infof("configmap %q created/updated for nvmeof gateway %q with hash %q", configMapName, cephNVMeOFGateway.Name, configHash)
-		logger.Debugf("upCephNVMeOFGateway() configmap created: name=%s, hash=%s", configMapName, configHash)
-	} else {
-		logger.Debugf("upCephNVMeOFGateway() using custom ConfigMapRef: %s", cephNVMeOFGateway.Spec.ConfigMapRef)
-		configMapName = cephNVMeOFGateway.Spec.ConfigMapRef
-		configHash = "" // Will be empty for custom configmap
-	}
-
 	logger.Debugf("upCephNVMeOFGateway() creating %d gateway instances", cephNVMeOFGateway.Spec.Instances)
 	for i := 0; i < cephNVMeOFGateway.Spec.Instances; i++ {
 		daemonID := fmt.Sprintf("%d", i)
 		logger.Debugf("upCephNVMeOFGateway() processing instance %d (daemonID=%s)", i+1, daemonID)
+
+		var configMapName, configHash string
+		var err error
+
+		if cephNVMeOFGateway.Spec.ConfigMapRef == "" {
+			logger.Debugf("upCephNVMeOFGateway() no ConfigMapRef specified, creating default configmap for daemonID=%s", daemonID)
+			configMapName, configHash, err = r.createConfigMap(cephNVMeOFGateway, daemonID)
+			if err != nil {
+				logger.Errorf("upCephNVMeOFGateway() failed to create configmap for daemonID=%s: %v", daemonID, err)
+				return errors.Wrapf(err, "failed to create configmap for %q", daemonID)
+			}
+			logger.Infof("configmap %q created/updated for nvmeof gateway %q instance %q with hash %q", configMapName, cephNVMeOFGateway.Name, daemonID, configHash)
+			logger.Debugf("upCephNVMeOFGateway() configmap created: name=%s, hash=%s", configMapName, configHash)
+		} else {
+			logger.Debugf("upCephNVMeOFGateway() using custom ConfigMapRef: %s", cephNVMeOFGateway.Spec.ConfigMapRef)
+			configMapName = cephNVMeOFGateway.Spec.ConfigMapRef
+			configHash = "" // Will be empty for custom configmap
+		}
 
 		logger.Debugf("upCephNVMeOFGateway() creating deployment spec for daemonID=%s", daemonID)
 		deployment, err := r.makeDeployment(cephNVMeOFGateway, daemonID, configMapName, configHash)
@@ -474,6 +475,14 @@ func (r *ReconcileCephNVMeOFGateway) upCephNVMeOFGateway(cephNVMeOFGateway *ceph
 		}
 		logger.Debugf("upCephNVMeOFGateway() deployment spec created: name=%s, namespace=%s",
 			deployment.Name, deployment.Namespace)
+
+		logger.Debugf("upCephNVMeOFGateway() setting owner reference on deployment %s", deployment.Name)
+		err = controllerutil.SetControllerReference(cephNVMeOFGateway, deployment, r.scheme)
+		if err != nil {
+			logger.Errorf("upCephNVMeOFGateway() failed to set owner reference on deployment %s: %v", deployment.Name, err)
+			return errors.Wrapf(err, "failed to set owner reference for deployment %q", deployment.Name)
+		}
+		logger.Debugf("upCephNVMeOFGateway() owner reference set successfully on deployment %s", deployment.Name)
 
 		logger.Debugf("upCephNVMeOFGateway() creating/updating deployment %s", deployment.Name)
 		_, err = k8sutil.CreateOrUpdateDeployment(r.opManagerContext, r.context.Clientset, deployment)
@@ -537,79 +546,134 @@ func (r *ReconcileCephNVMeOFGateway) downCephNVMeOFGateway(cephNVMeOFGateway *ce
 	return nil
 }
 
-func getNVMeOFGatewayConfig(poolName string) string {
-	var config strings.Builder
-	config.WriteString(`# heavily based on tests/ceph-nvmeof.no-huge.conf
+// getNVMeOFGatewayConfig generates a complete nvmeof.conf configuration file
+// with all values filled in (no placeholders). User overrides from nvmeofConfig
+// are merged on top of the default configuration.
+func getNVMeOFGatewayConfig(poolName, podName, podIP, anaGroup string, userConfig map[string]map[string]string) (string, error) {
+	cfg := ini.Empty()
+	// Set default [gateway] section
+	gatewaySection, err := cfg.NewSection("gateway")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create gateway section")
+	}
+	gatewaySection.Key("name").SetValue(podName)
+	gatewaySection.Key("group").SetValue(anaGroup)
+	gatewaySection.Key("addr").SetValue(podIP)
+	gatewaySection.Key("port").SetValue("5500")
+	gatewaySection.Key("enable_auth").SetValue("False")
+	gatewaySection.Key("state_update_notify").SetValue("True")
+	gatewaySection.Key("state_update_timeout_in_msec").SetValue("2000")
+	gatewaySection.Key("state_update_interval_sec").SetValue("5")
+	gatewaySection.Key("enable_spdk_discovery_controller").SetValue("False")
+	gatewaySection.Key("encryption_key").SetValue("/etc/ceph/encryption.key")
+	gatewaySection.Key("rebalance_period_sec").SetValue("7")
+	gatewaySection.Key("max_gws_in_grp").SetValue("16")
+	gatewaySection.Key("max_ns_to_change_lb_grp").SetValue("8")
+	gatewaySection.Key("verify_listener_ip").SetValue("False")
+	gatewaySection.Key("enable_monitor_client").SetValue("True")
 
-[gateway]
-# These will be templated by the initContainer
-name = @@POD_NAME@@
-group = @@ANA_GROUP@@
-addr = @@POD_IP@@
-port = 5500
-enable_auth = False
-state_update_notify = True
-state_update_timeout_in_msec = 2000
-state_update_interval_sec = 5
-enable_spdk_discovery_controller = False
-encryption_key = /etc/ceph/encryption.key
-rebalance_period_sec = 7
-max_gws_in_grp = 16
-max_ns_to_change_lb_grp = 8
-# Important for K8s Service:
-verify_listener_ip = False
-enable_monitor_client = True
+	// Set default [gateway-logs] section
+	gatewayLogsSection, err := cfg.NewSection("gateway-logs")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create gateway-logs section")
+	}
+	gatewayLogsSection.Key("log_level").SetValue("debug")
 
-[gateway-logs]
-log_level = debug
+	// Set default [discovery] section
+	discoverySection, err := cfg.NewSection("discovery")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create discovery section")
+	}
+	discoverySection.Key("addr").SetValue("0.0.0.0")
+	discoverySection.Key("port").SetValue("8009")
 
-[discovery]
-# listen on all addresses inside the pod
-addr = 0.0.0.0
-port = 8009
+	// Set default [ceph] section
+	cephSection, err := cfg.NewSection("ceph")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create ceph section")
+	}
+	cephSection.Key("id").SetValue("admin")
+	cephSection.Key("pool").SetValue(poolName)
+	cephSection.Key("config_file").SetValue("/etc/ceph/ceph.conf")
 
-[ceph]
-# For a PoC we just use admin; for real deploy define a dedicated user.
-id = admin
-pool = `)
-	config.WriteString(poolName)
-	config.WriteString(`
-config_file = /etc/ceph/ceph.conf
+	// Set default [mtls] section
+	mtlsSection, err := cfg.NewSection("mtls")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create mtls section")
+	}
+	mtlsSection.Key("server_key").SetValue("./server.key")
+	mtlsSection.Key("client_key").SetValue("./client.key")
+	mtlsSection.Key("server_cert").SetValue("./server.crt")
+	mtlsSection.Key("client_cert").SetValue("./client.crt")
 
-[mtls]
-# Left as dummy values for now – you can wire real certs later.
-server_key = ./server.key
-client_key = ./client.key
-server_cert = ./server.crt
-client_cert = ./client.crt
+	// Set default [spdk] section
+	spdkSection, err := cfg.NewSection("spdk")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create spdk section")
+	}
+	spdkSection.Key("bdevs_per_cluster").SetValue("32")
+	spdkSection.Key("mem_size").SetValue("4096")
+	spdkSection.Key("tgt_path").SetValue("/usr/local/bin/nvmf_tgt")
+	spdkSection.Key("timeout").SetValue("60.0")
+	spdkSection.Key("rpc_socket").SetValue("/var/tmp/spdk.sock")
 
-[spdk]
-bdevs_per_cluster = 32
-mem_size = 4096
-tgt_path = /usr/local/bin/nvmf_tgt
-timeout = 60.0
-rpc_socket = /var/tmp/spdk.sock
+	// Set default [monitor] section
+	monitorSection, err := cfg.NewSection("monitor")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create monitor section")
+	}
+	monitorSection.Key("port").SetValue("5499")
 
-[monitor]
-# leave defaults
-port = 5499`)
-	return config.String()
+	// Apply user overrides
+	for sectionName, options := range userConfig {
+		section := cfg.Section(sectionName)
+		if section == nil {
+			// Section doesn't exist, create it
+			var createErr error
+			section, createErr = cfg.NewSection(sectionName)
+			if createErr != nil {
+				return "", errors.Wrapf(createErr, "failed to create section %q", sectionName)
+			}
+		}
+		for key, value := range options {
+			section.Key(key).SetValue(value)
+		}
+	}
+
+	// Write to string with proper formatting
+	var buf strings.Builder
+	_, err = cfg.WriteTo(&buf)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to write config to string")
+	}
+
+	return buf.String(), nil
 }
 
-func (r *ReconcileCephNVMeOFGateway) generateConfigMap(nvmeof *cephv1.CephNVMeOFGateway) *v1.ConfigMap {
-	logger.Debugf("generateConfigMap() started: gateway=%s/%s", nvmeof.Namespace, nvmeof.Name)
+func (r *ReconcileCephNVMeOFGateway) generateConfigMap(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) (*v1.ConfigMap, error) {
+	logger.Debugf("generateConfigMap() started: gateway=%s/%s, daemonID=%s", nvmeof.Namespace, nvmeof.Name, daemonID)
 
 	poolName := nvmeof.Spec.Pool
-	logger.Debugf("generateConfigMap() using pool: %s", poolName)
+	anaGroup := nvmeof.Spec.Group
+	podName := instanceName(nvmeof, daemonID)
+	// Use placeholder that will be replaced at runtime with actual pod IP
+	// The init container will replace @@POD_IP@@ with the actual pod IP
+	podIP := "@@POD_IP@@"
+
+	logger.Debugf("generateConfigMap() using pool=%s, group=%s, podName=%s", poolName, anaGroup, podName)
 
 	logger.Debug("generateConfigMap() generating config content")
-	configContent := getNVMeOFGatewayConfig(poolName)
+	configContent, err := getNVMeOFGatewayConfig(poolName, podName, podIP, anaGroup, nvmeof.Spec.NVMeOFConfig)
+	if err != nil {
+		logger.Errorf("generateConfigMap() failed to generate config: %v", err)
+		return nil, errors.Wrap(err, "failed to generate nvmeof config")
+	}
 	data := map[string]string{
 		"config": configContent,
 	}
 	logger.Debugf("generateConfigMap() config content length: %d bytes", len(configContent))
 
-	configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
+	configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-%s-config", nvmeof.Name, daemonID)
 	logger.Debugf("generateConfigMap() configmap name: %s", configMapName)
 
 	configMap := &v1.ConfigMap{
@@ -619,6 +683,7 @@ func (r *ReconcileCephNVMeOFGateway) generateConfigMap(nvmeof *cephv1.CephNVMeOF
 			Labels: map[string]string{
 				"app":                         AppName,
 				CephNVMeOFGatewayNameLabelKey: nvmeof.Name,
+				"instance":                    daemonID,
 			},
 		},
 		Data: data,
@@ -626,17 +691,21 @@ func (r *ReconcileCephNVMeOFGateway) generateConfigMap(nvmeof *cephv1.CephNVMeOF
 
 	logger.Debugf("generateConfigMap() configmap generated: name=%s, namespace=%s, labels=%v",
 		configMapName, nvmeof.Namespace, configMap.Labels)
-	return configMap
+	return configMap, nil
 }
 
-func (r *ReconcileCephNVMeOFGateway) createConfigMap(cephNVMeOFGateway *cephv1.CephNVMeOFGateway) (string, string, error) {
-	logger.Debugf("createConfigMap() started: gateway=%s/%s", cephNVMeOFGateway.Namespace, cephNVMeOFGateway.Name)
+func (r *ReconcileCephNVMeOFGateway) createConfigMap(cephNVMeOFGateway *cephv1.CephNVMeOFGateway, daemonID string) (string, string, error) {
+	logger.Debugf("createConfigMap() started: gateway=%s/%s, daemonID=%s", cephNVMeOFGateway.Namespace, cephNVMeOFGateway.Name, daemonID)
 
 	logger.Debug("createConfigMap() generating configmap spec")
-	configMap := r.generateConfigMap(cephNVMeOFGateway)
+	configMap, err := r.generateConfigMap(cephNVMeOFGateway, daemonID)
+	if err != nil {
+		logger.Errorf("createConfigMap() failed to generate configmap: %v", err)
+		return "", "", err
+	}
 
 	logger.Debugf("createConfigMap() setting owner reference on configmap %s", configMap.Name)
-	err := controllerutil.SetControllerReference(cephNVMeOFGateway, configMap, r.scheme)
+	err = controllerutil.SetControllerReference(cephNVMeOFGateway, configMap, r.scheme)
 	if err != nil {
 		logger.Errorf("createConfigMap() failed to set owner reference: %v", err)
 		return "", "", errors.Wrapf(err, "failed to set owner reference for nvmeof configmap %q", configMap.Name)

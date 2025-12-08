@@ -19,10 +19,10 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CephNVMeOFGatewayLister helps list CephNVMeOFGateways.
@@ -30,7 +30,7 @@ import (
 type CephNVMeOFGatewayLister interface {
 	// List lists all CephNVMeOFGateways in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephNVMeOFGateway, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephNVMeOFGateway, err error)
 	// CephNVMeOFGateways returns an object that can list and get CephNVMeOFGateways.
 	CephNVMeOFGateways(namespace string) CephNVMeOFGatewayNamespaceLister
 	CephNVMeOFGatewayListerExpansion
@@ -38,17 +38,17 @@ type CephNVMeOFGatewayLister interface {
 
 // cephNVMeOFGatewayLister implements the CephNVMeOFGatewayLister interface.
 type cephNVMeOFGatewayLister struct {
-	listers.ResourceIndexer[*v1.CephNVMeOFGateway]
+	listers.ResourceIndexer[*cephrookiov1.CephNVMeOFGateway]
 }
 
 // NewCephNVMeOFGatewayLister returns a new CephNVMeOFGatewayLister.
 func NewCephNVMeOFGatewayLister(indexer cache.Indexer) CephNVMeOFGatewayLister {
-	return &cephNVMeOFGatewayLister{listers.New[*v1.CephNVMeOFGateway](indexer, v1.Resource("cephnvmeofgateway"))}
+	return &cephNVMeOFGatewayLister{listers.New[*cephrookiov1.CephNVMeOFGateway](indexer, cephrookiov1.Resource("cephnvmeofgateway"))}
 }
 
 // CephNVMeOFGateways returns an object that can list and get CephNVMeOFGateways.
 func (s *cephNVMeOFGatewayLister) CephNVMeOFGateways(namespace string) CephNVMeOFGatewayNamespaceLister {
-	return cephNVMeOFGatewayNamespaceLister{listers.NewNamespaced[*v1.CephNVMeOFGateway](s.ResourceIndexer, namespace)}
+	return cephNVMeOFGatewayNamespaceLister{listers.NewNamespaced[*cephrookiov1.CephNVMeOFGateway](s.ResourceIndexer, namespace)}
 }
 
 // CephNVMeOFGatewayNamespaceLister helps list and get CephNVMeOFGateways.
@@ -56,15 +56,15 @@ func (s *cephNVMeOFGatewayLister) CephNVMeOFGateways(namespace string) CephNVMeO
 type CephNVMeOFGatewayNamespaceLister interface {
 	// List lists all CephNVMeOFGateways in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.CephNVMeOFGateway, err error)
+	List(selector labels.Selector) (ret []*cephrookiov1.CephNVMeOFGateway, err error)
 	// Get retrieves the CephNVMeOFGateway from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.CephNVMeOFGateway, error)
+	Get(name string) (*cephrookiov1.CephNVMeOFGateway, error)
 	CephNVMeOFGatewayNamespaceListerExpansion
 }
 
 // cephNVMeOFGatewayNamespaceLister implements the CephNVMeOFGatewayNamespaceLister
 // interface.
 type cephNVMeOFGatewayNamespaceLister struct {
-	listers.ResourceIndexer[*v1.CephNVMeOFGateway]
+	listers.ResourceIndexer[*cephrookiov1.CephNVMeOFGateway]
 }

@@ -18,5 +18,7 @@ sed -e "s/@@POD_NAME@@/${POD_NAME}/g" \
     -e "s/@@POD_IP@@/${POD_IP}/g" \
     < /config/nvmeof.conf > /etc/ceph/nvmeof.conf
 
-ceph nvme-gw create ${POD_NAME} {{ .PoolName }} ${ANA_GROUP}
-ceph nvme-gw show {{ .PoolName }} ${ANA_GROUP}
+# ARGS: all args are assumed to be 'ceph' CLI args
+# Use "$@" to pass through Ceph CLI arguments (e.g., --mon-host, --keyring, etc.)
+ceph "$@" nvme-gw create ${POD_NAME} ${POOL_NAME} ${ANA_GROUP} || true
+ceph "$@" nvme-gw show ${POOL_NAME} ${ANA_GROUP} || true

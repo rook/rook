@@ -19,13 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	apiscephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	cephrookiov1 "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // CephNVMeOFGateways.
 type CephNVMeOFGatewayInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.CephNVMeOFGatewayLister
+	Lister() cephrookiov1.CephNVMeOFGatewayLister
 }
 
 type cephNVMeOFGatewayInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredCephNVMeOFGatewayInformer(client versioned.Interface, namespace 
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephNVMeOFGateways(namespace).List(context.TODO(), options)
+				return client.CephV1().CephNVMeOFGateways(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephNVMeOFGateways(namespace).Watch(context.TODO(), options)
+				return client.CephV1().CephNVMeOFGateways(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephNVMeOFGateways(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.CephV1().CephNVMeOFGateways(namespace).Watch(ctx, options)
 			},
 		},
-		&cephrookiov1.CephNVMeOFGateway{},
+		&apiscephrookiov1.CephNVMeOFGateway{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *cephNVMeOFGatewayInformer) defaultInformer(client versioned.Interface, 
 }
 
 func (f *cephNVMeOFGatewayInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&cephrookiov1.CephNVMeOFGateway{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscephrookiov1.CephNVMeOFGateway{}, f.defaultInformer)
 }
 
-func (f *cephNVMeOFGatewayInformer) Lister() v1.CephNVMeOFGatewayLister {
-	return v1.NewCephNVMeOFGatewayLister(f.Informer().GetIndexer())
+func (f *cephNVMeOFGatewayInformer) Lister() cephrookiov1.CephNVMeOFGatewayLister {
+	return cephrookiov1.NewCephNVMeOFGatewayLister(f.Informer().GetIndexer())
 }
