@@ -4464,6 +4464,19 @@ If not specified, a default configuration will be generated</p>
 </tr>
 <tr>
 <td>
+<code>nvmeofConfig</code><br/>
+<em>
+map[string]map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>NVMeOFConfig is a map of section names to key-value pairs for nvmeof.conf configuration
+This allows users to override or add configuration options without needing to manage a ConfigMap</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>placement</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.Placement">
@@ -10453,6 +10466,19 @@ string
 <em>(Optional)</em>
 <p>ConfigMapRef is the name of the ConfigMap containing nvmeof.conf configuration
 If not specified, a default configuration will be generated</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>nvmeofConfig</code><br/>
+<em>
+map[string]map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>NVMeOFConfig is a map of section names to key-value pairs for nvmeof.conf configuration
+This allows users to override or add configuration options without needing to manage a ConfigMap</p>
 </td>
 </tr>
 <tr>

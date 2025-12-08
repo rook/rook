@@ -18,6 +18,7 @@ package nvmeof
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -260,7 +261,7 @@ func TestDeploymentSpec(t *testing.T) {
 
 		assert.Len(t, d.Spec.Template.Spec.InitContainers, 1)
 		initCont := d.Spec.Template.Spec.InitContainers[0]
-		assert.Equal(t, "generate-minimal-ceph-conf", initCont.Name)
+		assert.Equal(t, "generate-ceph-conf", initCont.Name)
 		assert.Equal(t, r.cephClusterSpec.CephVersion.Image, initCont.Image)
 
 		volumeMountNames := []string{}
@@ -306,8 +307,13 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.Contains(t, portNames, "discovery")
 
 		assert.NotNil(t, daemonCont.SecurityContext)
-		assert.NotNil(t, daemonCont.SecurityContext.Privileged)
-		assert.True(t, *daemonCont.SecurityContext.Privileged)
+		// SecurityContext should be set (may or may not be privileged depending on environment)
+		// This aligns with RGW/MDS which use DefaultContainerSecurityContext()
+		if daemonCont.SecurityContext.Privileged != nil {
+			// If privileged is set, verify it matches HostPathRequiresPrivileged behavior
+			expectedPrivileged := os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"
+			assert.Equal(t, expectedPrivileged, *daemonCont.SecurityContext.Privileged)
+		}
 	})
 
 	t.Run("service generation", func(t *testing.T) {

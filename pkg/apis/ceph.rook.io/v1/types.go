@@ -2796,6 +2796,12 @@ type NVMeOFGatewaySpec struct {
 	// +optional
 	ConfigMapRef string `json:"configMapRef,omitempty"`
 
+	// NVMeOFConfig is a map of section names to key-value pairs for nvmeof.conf configuration
+	// This allows users to override or add configuration options without needing to manage a ConfigMap
+	// +optional
+	// +nullable
+	NVMeOFConfig map[string]map[string]string `json:"nvmeofConfig,omitempty"`
+
 	// The affinity to place the gateway pods
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional

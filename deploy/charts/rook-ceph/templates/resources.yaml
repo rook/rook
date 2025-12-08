@@ -11704,6 +11704,16 @@ spec:
                           type: integer
                       type: object
                   type: object
+                nvmeofConfig:
+                  additionalProperties:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  description: |-
+                    NVMeOFConfig is a map of section names to key-value pairs for nvmeof.conf configuration
+                    This allows users to override or add configuration options without needing to manage a ConfigMap
+                  nullable: true
+                  type: object
                 placement:
                   properties:
                     nodeAffinity:
