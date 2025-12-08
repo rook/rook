@@ -2854,7 +2854,8 @@ KeystoneSpec
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.BucketNotificationSpec">BucketNotificationSpec</a>)
 </p>
 <div>
-<p>BucketNotificationSpec represent the event type of the bucket notification</p>
+<p>BucketNotificationSpec represent the event type of the bucket notification
+See: <a href="https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types">https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types</a></p>
 </div>
 <h3 id="ceph.rook.io/v1.BucketNotificationSpec">BucketNotificationSpec
 </h3>
