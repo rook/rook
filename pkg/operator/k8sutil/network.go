@@ -18,11 +18,13 @@ package k8sutil
 
 import (
 	"encoding/json"
+	"net/netip"
 	"strings"
 
 	nadv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -109,4 +111,40 @@ func ParseLinuxIpAddrOutput(rawOutput string) ([]LinuxIpAddrResult, error) {
 		return []LinuxIpAddrResult{}, errors.Wrap(err, "failed to parse 'ip --json address' output")
 	}
 	return results, nil
+}
+
+func GetIpAddressType(addresses []string) (discoveryv1.AddressType, error) {
+	var addressType discoveryv1.AddressType
+
+	if len(addresses) == 0 {
+		return addressType, errors.New("failed to get the address type for ip address, address list is empty type")
+	}
+	ip, err := netip.ParseAddr(addresses[0])
+	if err != nil {
+		return addressType, errors.Wrapf(err, "failed to get the address type for ip address %q", addresses[0])
+	}
+	addressType = discoveryv1.AddressTypeIPv4
+	if ip.Is6() {
+		addressType = discoveryv1.AddressTypeIPv6
+	}
+
+	// validate all addresses are of the same type
+	for _, addr := range addresses[1:] {
+		ip, err := netip.ParseAddr(addr)
+		if err != nil {
+			return addressType, errors.Wrapf(err, "failed to get the address type for ip address %q", addr)
+		}
+
+		if ip.Is6() {
+			if addressType != discoveryv1.AddressTypeIPv6 {
+				return addressType, errors.Errorf("all ip address are not of same type %v", addresses)
+			}
+		} else {
+			if addressType != discoveryv1.AddressTypeIPv4 {
+				return addressType, errors.Errorf("all ip address are not of same type %v", addresses)
+			}
+		}
+	}
+
+	return addressType, nil
 }
