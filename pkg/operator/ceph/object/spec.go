@@ -735,7 +735,7 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 	return svc
 }
 
-func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore) *discoveryv1.EndpointSlice {
+func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore) (*discoveryv1.EndpointSlice, error) {
 	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace, true)
 
 	// Convert to string addresses
@@ -744,13 +744,18 @@ func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore
 		k8sEndpointAddrs = append(k8sEndpointAddrs, rookEndpoint.IP)
 	}
 
+	addressType, err := k8sutil.GetIpAddressType(k8sEndpointAddrs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the addressType")
+	}
+
 	endpoints := &discoveryv1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(cephObjectStore.Name),
 			Namespace: cephObjectStore.Namespace,
 			Labels:    labels,
 		},
-		AddressType: discoveryv1.AddressTypeIPv4,
+		AddressType: addressType,
 		Endpoints: []discoveryv1.Endpoint{
 			{
 				Addresses: k8sEndpointAddrs,
@@ -765,16 +770,19 @@ func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore
 	addPortToEndpoint(endpoints, "http", cephObjectStore.Spec.Gateway.Port)
 	addPortToEndpoint(endpoints, "https", cephObjectStore.Spec.Gateway.SecurePort)
 
-	return endpoints
+	return endpoints, nil
 }
 
 func (c *clusterConfig) reconcileExternalEndpoint(cephObjectStore *cephv1.CephObjectStore) error {
 	nsName := controller.NsName(c.store.Namespace, c.store.Name)
 	log.NamedInfo(nsName, logger, "reconciling external object store service")
 
-	endpoint := c.generateEndpoint(cephObjectStore)
+	endpoint, err := c.generateEndpoint(cephObjectStore)
+	if err != nil {
+		return errors.Wrapf(err, "failed to generate the endpoint %q", endpoint.Name)
+	}
 	// Set owner ref to the parent object
-	err := c.ownerInfo.SetControllerReference(endpoint)
+	err = c.ownerInfo.SetControllerReference(endpoint)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set owner reference to ceph object store endpoint %q", endpoint.Name)
 	}
