@@ -143,7 +143,19 @@ func watchOwnedCoreObject[T client.Object](c controller.Controller, mgr manager.
 	)
 }
 
-func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context, opConfig opcontroller.OperatorConfig) error {
+// isSecretRefFromCluster checks if the secret name is referenced in the CephCluster cephConfigFromSecret field.
+func isSecretRefFromCluster(secretName string, clusterSpec cephv1.ClusterSpec) bool {
+	for _, secretKeyMap := range clusterSpec.CephConfigFromSecret {
+		for _, keySelector := range secretKeyMap {
+			if secretName == keySelector.Name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reconciler, clusterdContext *clusterd.Context, opConfig opcontroller.OperatorConfig) error {
 	concurrentClusters := os.Getenv("ROOK_RECONCILE_CONCURRENT_CLUSTERS")
 	concurrentReconciles := 1
 	if i, err := strconv.Atoi(concurrentClusters); err == nil && i > 1 {
@@ -207,7 +219,43 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 			mgr.GetCache(),
 			&corev1.Node{TypeMeta: metav1.TypeMeta{Kind: "Node", APIVersion: corev1.SchemeGroupVersion.String()}},
 			handler.TypedEnqueueRequestsFromMapFunc(nodeHandler),
-			predicateForNodeWatcher(opManagerContext, mgr.GetClient(), context, opConfig.OperatorNamespace),
+			predicateForNodeWatcher(opManagerContext, mgr.GetClient(), clusterdContext, opConfig.OperatorNamespace),
+		),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes to secrets referenced in ClusterSpec.CephConfigFromSecret
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
+			handler.TypedEnqueueRequestsFromMapFunc(
+				func(ctx context.Context, secret *corev1.Secret) []reconcile.Request {
+					clusterList := cephv1.CephClusterList{}
+					err := mgr.GetClient().List(ctx, &clusterList)
+					if err != nil {
+						return nil
+					}
+					requests := []reconcile.Request{}
+					for _, clusterResource := range clusterList.Items {
+						// No more than 1 cluster can exist in a namespace, and all secrets referenced by a
+						// CephConfigFromSecret must be in the same namespace as the cluster. We only need to
+						// trigger a reconcile once, so we only need to find one match per cluster.
+						if secret.GetNamespace() == clusterResource.GetNamespace() && isSecretRefFromCluster(secret.GetName(), clusterResource.Spec) {
+							requests = append(requests, reconcile.Request{
+								NamespacedName: client.ObjectKey{
+									Namespace: clusterResource.GetNamespace(),
+									Name:      clusterResource.GetName(),
+								},
+							})
+						}
+					}
+					return requests
+				},
+			),
+			changedOrDeleted,
 		),
 	)
 	if err != nil {
