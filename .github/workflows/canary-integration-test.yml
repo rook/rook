@@ -611,6 +611,9 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
 
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
+
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
 
