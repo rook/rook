@@ -164,3 +164,10 @@ func SetNewTiebreaker(context *clusterd.Context, clusterInfo *ClusterInfo, monNa
 	logger.Infof("successfully set new mon tiebreaker %q in arbiter zone", monName)
 	return nil
 }
+
+// MuteMonNetSplitWarning mutes the MON_NETSPLIT warning
+func MuteMonNetSplitWarning(context *clusterd.Context, clusterInfo *ClusterInfo) error {
+	args := []string{"health", "mute", "MON_NETSPLIT"}
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	return err
+}

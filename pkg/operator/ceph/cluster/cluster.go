@@ -553,6 +553,15 @@ func (c *cluster) postMonStartupActions() error {
 	// client.bootstrap-osd is used by Rook and is not removed here.
 	c.deleteBootstrapKeys()
 
+	// Mute the NetSplit warning for the stretch bases clusters
+	// we have ceph fix https://github.com/ceph/ceph/pull/64122 in master
+	// it will be backported to Tentacles and Squid releases
+	if c.Spec.IsStretchCluster() {
+		err := client.MuteMonNetSplitWarning(c.context, c.ClusterInfo)
+		if err != nil {
+			return errors.Wrap(err, "failed to mute NetSplit warning for stretch cluster")
+		}
+	}
 	return nil
 }
 
