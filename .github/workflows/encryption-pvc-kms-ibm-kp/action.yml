@@ -52,6 +52,7 @@ runs:
         IBM_KP_SERVICE_API_KEY: ${{ inputs.ibm-service-api-key }}
       run: |
         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/csi-operator.yaml
         envsubst < "tests/manifests/test-kms-ibm-kp-secret.in" > "tests/manifests/test-kms-ibm-kp-secret.yaml"
         envsubst < "tests/manifests/test-kms-ibm-kp-spec.in" > "tests/manifests/test-kms-ibm-kp-spec.yaml"
         cat tests/manifests/test-kms-ibm-kp-secret.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
