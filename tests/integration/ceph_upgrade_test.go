@@ -106,7 +106,7 @@ func (s *UpgradeSuite) TestUpgradeHelm() {
 }
 
 func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersionSpec) {
-	baseRookImage := installer.Version1_17
+	baseRookImage := installer.Version1_18
 	s.baseSetup(useHelm, baseRookImage, initialCephVersion)
 
 	objectUserID := "upgraded-user"
@@ -454,9 +454,7 @@ func (s *UpgradeSuite) upgradeToMaster() {
 		return
 	}
 
-	require.NoError(s.T(), s.installer.InstallCSIOperator())
-	require.NoError(s.T(), s.installer.SetOperatorSetting("ROOK_USE_CSI_OPERATOR", "true"))
-
+	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", s.installer.Manifests.GetCSIOperator()))
 	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", s.installer.Manifests.GetCRDs(s.k8sh)))
 
 	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", s.installer.Manifests.GetCommon()))
