@@ -7877,6 +7877,23 @@ string
 </tr>
 <tr>
 <td>
+<code>sslReloadInterval</code><br/>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The interval at which the SSL certificate is reloaded from disk.
+Setting this to <code>0s</code> disables certificate hot-reloading.
+Durations are truncated to whole seconds, e.g. <code>1m1s999ms</code> to <code>61s</code>.
+If not specified, the ceph default is used (currently disabled).</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>caBundleRef</code><br/>
 <em>
 string

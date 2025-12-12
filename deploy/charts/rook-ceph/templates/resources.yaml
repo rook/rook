@@ -12996,6 +12996,13 @@ spec:
                       description: The name of the secret that stores the ssl certificate for secure rgw connections
                       nullable: true
                       type: string
+                    sslReloadInterval:
+                      description: |-
+                        The interval at which the SSL certificate is reloaded from disk.
+                        Setting this to `0s` disables certificate hot-reloading.
+                        Durations are truncated to whole seconds, e.g. `1m1s999ms` to `61s`.
+                        If not specified, the ceph default is used (currently disabled).
+                      type: string
                   type: object
                 healthCheck:
                   description: The RGW health probes
