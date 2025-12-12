@@ -81,3 +81,34 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 	assert.Equal(t, csiOpClientProfile.Spec.CephFs.SubVolumeGroup, cephSubVolGrpNamespacedName.Name)
 	assert.Equal(t, csiOpClientProfile.Spec.CephFs.KernelMountOptions["ms_mode"], kernelMountKeyVal[1])
 }
+
+func TestParseMountOptions(t *testing.T) {
+	t.Run("single mount option", func(t *testing.T) {
+		options := "ms_mode=crc"
+		result := parseMountOptions(options)
+		assert.Equal(t, 1, len(result))
+		assert.Equal(t, "crc", result["ms_mode"])
+	})
+
+	t.Run("multiple mount options", func(t *testing.T) {
+		options := "ms_mode=prefer-secure,recover_session=clean"
+		result := parseMountOptions(options)
+		assert.Equal(t, 2, len(result))
+		assert.Equal(t, "prefer-secure", result["ms_mode"])
+		assert.Equal(t, "clean", result["recover_session"])
+	})
+
+	t.Run("multiple mount options with spaces", func(t *testing.T) {
+		options := "ms_mode=prefer-secure, recover_session=clean"
+		result := parseMountOptions(options)
+		assert.Equal(t, 2, len(result))
+		assert.Equal(t, "prefer-secure", result["ms_mode"])
+		assert.Equal(t, "clean", result["recover_session"])
+	})
+
+	t.Run("empty string", func(t *testing.T) {
+		options := ""
+		result := parseMountOptions(options)
+		assert.Equal(t, 0, len(result))
+	})
+}
