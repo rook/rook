@@ -85,15 +85,7 @@ func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, ceph
 		},
 	}
 
-	if !reflect.DeepEqual(clusterInfo.CSIDriverSpec.CephFS, cephv1.CSICephFSSpec{}) {
-		if clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions != "" {
-			kernelMountKeyVal := strings.Split(clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions, "=")
-			csiOpClientProfile.Spec.CephFs.KernelMountOptions = map[string]string{kernelMountKeyVal[0]: kernelMountKeyVal[1]}
-		} else if clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions != "" {
-			fuseMountKeyVal := strings.Split(clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions, "=")
-			csiOpClientProfile.Spec.CephFs.FuseMountOptions = map[string]string{fuseMountKeyVal[0]: fuseMountKeyVal[1]}
-		}
-	}
+	applyCephFSMountOptions(clusterInfo, csiOpClientProfile.Spec.CephFs)
 
 	return csiOpClientProfile
 }
@@ -110,28 +102,12 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 		},
 	}
 
-	if !reflect.DeepEqual(clusterInfo.CSIDriverSpec.CephFS, cephv1.CSICephFSSpec{}) {
-		if clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions != "" {
-			kernelMountKeyVal := strings.Split(clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions, "=")
-			if len(kernelMountKeyVal) >= 2 {
-				csiOpClientProfile.Spec.CephFs = &csiopv1.CephFsConfigSpec{
-					KernelMountOptions: map[string]string{kernelMountKeyVal[0]: kernelMountKeyVal[1]},
-				}
-			}
-		} else if clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions != "" {
-			fuseMountKeyVal := strings.Split(clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions, "=")
-			if len(fuseMountKeyVal) >= 2 {
-				csiOpClientProfile.Spec.CephFs = &csiopv1.CephFsConfigSpec{
-					FuseMountOptions: map[string]string{fuseMountKeyVal[0]: fuseMountKeyVal[1]},
-				}
-			}
-		}
-	}
-
 	// set cephFS ControllerPublish Secret
 	if csiOpClientProfile.Spec.CephFs == nil {
 		csiOpClientProfile.Spec.CephFs = &csiopv1.CephFsConfigSpec{}
 	}
+
+	applyCephFSMountOptions(clusterInfo, csiOpClientProfile.Spec.CephFs)
 
 	csiOpClientProfile.Spec.CephFs.CephCsiSecrets = &csiopv1.CephCsiSecretsSpec{
 		ControllerPublishSecret: v1.SecretReference{
@@ -177,4 +153,35 @@ func createUpdateClientProfile(c client.Client, clusterInfo *cephclient.ClusterI
 	logger.Infof("successfully updated ceph-csi for clientProfile CR %q", clientProfile.Name)
 
 	return nil
+}
+
+func applyCephFSMountOptions(clusterInfo *cephclient.ClusterInfo, cephFs *csiopv1.CephFsConfigSpec) {
+	if reflect.DeepEqual(clusterInfo.CSIDriverSpec.CephFS, cephv1.CSICephFSSpec{}) {
+		return
+	}
+
+	if clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions != "" {
+		cephFs.KernelMountOptions = parseMountOptions(clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions)
+	} else if clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions != "" {
+		cephFs.FuseMountOptions = parseMountOptions(clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions)
+	}
+}
+
+func parseMountOptions(options string) map[string]string {
+	logger.Debugf("parsing CephFS mount options : %s ", options)
+	result := map[string]string{}
+	// Example: SplitSeq("ms_mode=prefer-secure,recover_session=clean", ",") iterates over ["ms_mode=prefer-secure", "recover_session=clean"]
+	for part := range strings.SplitSeq(options, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		// Example: SplitN("ms_mode=prefer-secure", "=", 2) returns ["ms_mode", "prefer-secure"]
+		keyVal := strings.SplitN(part, "=", 2)
+		if len(keyVal) == 2 {
+			result[strings.TrimSpace(keyVal[0])] = strings.TrimSpace(keyVal[1])
+		}
+	}
+	logger.Debugf("parsed CephFS mount options: %v", result)
+	return result
 }
