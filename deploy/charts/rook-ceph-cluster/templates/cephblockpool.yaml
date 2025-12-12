@@ -29,6 +29,7 @@ provisioner: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
 provisioner: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
 {{- end }}
 parameters:
+  csi.storage.k8s.io/controller-publish-secret-name: rook-csi-rbd-provisioner
   pool: {{ $blockpool.name | quote }}
   clusterID: {{ $root.Release.Namespace | quote }}
   {{- with $blockpool.storageClass.parameters }}
