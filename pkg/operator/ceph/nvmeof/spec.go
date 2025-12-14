@@ -273,17 +273,9 @@ func (r *ReconcileCephNVMeOFGateway) createCephConfigInitContainer(nvmeof *cephv
 	anaGroup := nvmeof.Spec.Group
 
 	// Build environment variables using Rook's helper functions
+	// DaemonEnvVars already includes StoredMonHostEnvVars() which provides ROOK_CEPH_MON_HOST
 	envVars := controller.DaemonEnvVars(r.cephClusterSpec)
 	envVars = append(envVars,
-		v1.EnvVar{
-			Name: "CEPH_MON_HOST",
-			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{
-					LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-config"},
-					Key:                  "mon_host",
-				},
-			},
-		},
 		v1.EnvVar{
 			Name:  "POD_NAME",
 			Value: gatewayName,
@@ -350,21 +342,18 @@ func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGa
 		VolumeMounts: []v1.VolumeMount{
 			cephConfigMount,
 		},
-		Env: []v1.EnvVar{
-			{
-				Name: "CEPH_MON_HOST",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-config"},
-						Key:                  "mon_host",
-					},
-				},
-			},
-			{
+		Env: func() []v1.EnvVar {
+			envVars := controller.DaemonEnvVars(r.cephClusterSpec)
+			// Build CEPH_ARGS using DefaultFlags which includes fsid, keyring, logging flags, and mon host flags
+			cephArgs := cephconfig.DefaultFlags(r.clusterInfo.FSID, "/etc/ceph/keyring")
+			cephArgsStr := strings.Join(cephArgs, " ")
+			logger.Infof("CEPH_ARGS for nvmeof gateway: %s", cephArgsStr)
+			envVars = append(envVars, v1.EnvVar{
 				Name:  "CEPH_ARGS",
-				Value: "--mon-host $(CEPH_MON_HOST) --keyring /etc/ceph/keyring",
-			},
-		},
+				Value: cephArgsStr,
+			})
+			return envVars
+		}(),
 
 		Ports: func() []v1.ContainerPort {
 			ioPort, gatewayPort, monitorPort, discoveryPort := getPorts(nvmeof)

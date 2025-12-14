@@ -3,7 +3,7 @@ set -xEeuo pipefail
 
 cat << EOF > /etc/ceph/ceph.conf
 [global]
-mon_host = ${CEPH_MON_HOST}
+mon_host = ${ROOK_CEPH_MON_HOST}
 log_to_stderr = true
 keyring = /etc/ceph/keyring
 EOF
