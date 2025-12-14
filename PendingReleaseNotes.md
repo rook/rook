@@ -5,6 +5,7 @@
 - The behavior of the `activeStandby` property in the `CephFilesystem` CRD has changed.
     When set to `false`, the standby MDS daemon deployment will be scaled down and removed,
     rather than only disabling the standby cache while the daemon remains running.
+- Add `ingress.dashboard.enabled` key to control creation of dashboard ingress resource
 
 ## Features
 
@@ -14,3 +15,4 @@
   than `1`.
 - Improved logging with namespaced names for the controllers for more consistency in
   troubleshooting the rook operator log.
+- Allow specifying a `hosts` array for dashboard ingress
