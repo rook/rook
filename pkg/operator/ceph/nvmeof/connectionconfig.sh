@@ -19,6 +19,7 @@ sed -e "s/@@POD_NAME@@/${POD_NAME}/g" \
     < /config/nvmeof.conf > /etc/ceph/nvmeof.conf
 
 # ARGS: all args are assumed to be 'ceph' CLI args
-# Use "$@" to pass through Ceph CLI arguments (e.g., --mon-host, --keyring, etc.)
+# Use "$@" to pass through Ceph CLI arguments (e.g., --connect-timeout, --mon-host, --keyring, etc.)
+# This allows easy passthru of arguments set by Rook's methods for Ceph CLI options
 ceph "$@" nvme-gw create ${POD_NAME} ${POOL_NAME} ${ANA_GROUP} || true
 ceph "$@" nvme-gw show ${POOL_NAME} ${ANA_GROUP} || true

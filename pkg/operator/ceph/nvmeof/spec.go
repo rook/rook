@@ -79,7 +79,7 @@ func (r *ReconcileCephNVMeOFGateway) generateCephNVMeOFService(nvmeof *cephv1.Ce
 		nvmeof.Namespace, nvmeof.Name, daemonID)
 
 	logger.Debug("generateCephNVMeOFService() generating labels")
-	labels := getLabels(nvmeof, daemonID, true)
+	labels := getLabels(nvmeof, daemonID)
 	logger.Debugf("generateCephNVMeOFService() labels generated: %v", labels)
 
 	serviceName := instanceName(nvmeof, daemonID)
@@ -200,7 +200,7 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
 			Namespace: nvmeof.Namespace,
-			Labels:    getLabels(nvmeof, daemonID, true),
+			Labels:    getLabels(nvmeof, daemonID),
 		},
 	}
 
@@ -269,7 +269,7 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   resourceName,
-			Labels: getLabels(nvmeof, daemonID, true),
+			Labels: getLabels(nvmeof, daemonID),
 			Annotations: map[string]string{
 				"config-hash": configHash,
 			},
@@ -301,7 +301,7 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 	revisionHistoryLimit := controller.RevisionHistoryLimit()
 	deployment.Spec = apps.DeploymentSpec{
 		RevisionHistoryLimit: revisionHistoryLimit,
-		Selector:             &metav1.LabelSelector{MatchLabels: getLabels(nvmeof, daemonID, false)},
+		Selector:             &metav1.LabelSelector{MatchLabels: getLabels(nvmeof, daemonID)},
 		Template:             podTemplateSpec,
 		Replicas:             &replicas,
 	}
@@ -511,10 +511,10 @@ func (r *ReconcileCephNVMeOFGateway) defaultLivenessProbe(nvmeof *cephv1.CephNVM
 	return controller.GenerateLivenessProbeTcpPort(ioPort, 10)
 }
 
-func getLabels(n *cephv1.CephNVMeOFGateway, daemonID string, includeNewLabels bool) map[string]string {
+func getLabels(n *cephv1.CephNVMeOFGateway, daemonID string) map[string]string {
 	labels := controller.CephDaemonAppLabels(
 		AppName, n.Namespace, "nvmeof", n.Name+"-"+daemonID, n.Name,
-		"cephnvmeofgateways.ceph.rook.io", includeNewLabels,
+		"cephnvmeofgateways.ceph.rook.io", true,
 	)
 	labels[CephNVMeOFGatewayNameLabelKey] = n.Name
 	labels["instance"] = daemonID
