@@ -54,6 +54,7 @@ func newDeploymentSpecTest(t *testing.T) (*ReconcileCephNVMeOFGateway, string) {
 			},
 			TypeMeta: controllerTypeMeta,
 			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
 				Pool:      "nvmeofpool",
 				Group:     "mygroup",
 				Instances: 1,
@@ -90,6 +91,7 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
 				Pool:      "nvmeofpool",
 				Group:     "mygroup",
 				Instances: 3,
@@ -142,6 +144,7 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
 				Pool:      "nvmeofpool",
 				Group:     "mygroup",
 				Instances: 3,
@@ -189,6 +192,7 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
 				Pool:      "nvmeofpool",
 				Group:     "mygroup",
 				Instances: 1,
@@ -217,6 +221,7 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:        "quay.io/ceph/nvmeof:1.5",
 				Pool:         "nvmeofpool",
 				Group:        "mygroup",
 				Instances:    1,
@@ -250,6 +255,7 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
 				Pool:      "nvmeofpool",
 				Group:     "mygroup",
 				Instances: 1,
@@ -283,6 +289,7 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
 				Pool:      "nvmeofpool",
 				Group:     "mygroup",
 				Instances: 1,
@@ -298,7 +305,7 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.Len(t, d.Spec.Template.Spec.Containers, 1)
 		daemonCont := d.Spec.Template.Spec.Containers[0]
 		assert.Equal(t, "nvmeof-gateway", daemonCont.Name)
-		assert.Equal(t, defaultNVMeOFImage, daemonCont.Image)
+		assert.Equal(t, nvmeof.Spec.Image, daemonCont.Image)
 
 		portNames := []string{}
 		for _, p := range daemonCont.Ports {
@@ -315,6 +322,32 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.True(t, *daemonCont.SecurityContext.Privileged)
 	})
 
+	t.Run("daemon container uses default image when not specified", func(t *testing.T) {
+		nvmeof := &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				// Image not specified - should use default
+				Pool:      "nvmeofpool",
+				Group:     "mygroup",
+				Instances: 1,
+			},
+		}
+
+		r, configHash := newDeploymentSpecTest(t)
+
+		configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
+		d, err := r.makeDeployment(nvmeof, "0", configMapName, configHash)
+		assert.NoError(t, err)
+
+		assert.Len(t, d.Spec.Template.Spec.Containers, 1)
+		daemonCont := d.Spec.Template.Spec.Containers[0]
+		assert.Equal(t, "nvmeof-gateway", daemonCont.Name)
+		assert.Equal(t, "quay.io/ceph/nvmeof:1.5", daemonCont.Image)
+	})
+
 	t.Run("service generation", func(t *testing.T) {
 		nvmeof := &cephv1.CephNVMeOFGateway{
 			ObjectMeta: metav1.ObjectMeta{
@@ -322,6 +355,7 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
 				Pool:      "nvmeofpool",
 				Group:     "mygroup",
 				Instances: 1,

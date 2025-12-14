@@ -2786,6 +2786,12 @@ type CephNVMeOFGatewayList struct {
 
 // NVMeOFGatewaySpec represents the spec of an NVMe-oF gateway
 type NVMeOFGatewaySpec struct {
+	// Image is the container image to use for the NVMe-oF gateway daemon.
+	// For example, quay.io/ceph/nvmeof:1.5
+	// If not specified, a default image will be used.
+	// +optional
+	Image string `json:"image,omitempty"`
+
 	// The number of active gateway instances
 	Instances int `json:"instances"`
 
