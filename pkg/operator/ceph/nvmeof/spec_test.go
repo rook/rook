@@ -27,7 +27,6 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephTest "github.com/rook/rook/pkg/operator/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	optest "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -274,7 +273,7 @@ func TestDeploymentSpec(t *testing.T) {
 		}
 		assert.Contains(t, volumeMountNames, "ceph-admin-keyring")
 		assert.Contains(t, volumeMountNames, "gateway-config")
-		assert.Contains(t, volumeMountNames, k8sutil.PathToVolumeName(cephclient.DefaultConfigDir))
+		assert.Contains(t, volumeMountNames, "ceph-conf-emptydir")
 	})
 
 	t.Run("daemon container configuration", func(t *testing.T) {

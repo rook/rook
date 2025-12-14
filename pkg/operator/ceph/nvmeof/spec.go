@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -178,7 +177,7 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 	nvmeof.Spec.Annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
 	nvmeof.Spec.Labels.ApplyToObjectMeta(&deployment.ObjectMeta)
 
-	cephConfigVol, cephConfigMount := cephConfigVolumeAndMount()
+	cephConfigVol, cephConfigMount := controller.ConfGeneratedInPodVolumeAndMount()
 	gatewayConfigVol, gatewayConfigMount := gatewayConfigVolumeAndMount(configMapName)
 
 	initContainer := r.createCephConfigInitContainer(nvmeof, daemonID, gatewayConfigMount)
@@ -249,7 +248,7 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 // /etc/ceph/ceph.conf, copies the admin keyring, and copies nvmeof.conf from the ConfigMap.
 // This is needed for the gateway to connect to the Ceph cluster.
 func (r *ReconcileCephNVMeOFGateway) createCephConfigInitContainer(nvmeof *cephv1.CephNVMeOFGateway, daemonID string, gatewayConfigMount v1.VolumeMount) v1.Container {
-	_, cephConfigMount := cephConfigVolumeAndMount()
+	_, cephConfigMount := controller.ConfGeneratedInPodVolumeAndMount()
 
 	cephImage := r.cephClusterSpec.CephVersion.Image
 	imagePullPolicy := controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy)
@@ -424,14 +423,6 @@ func getLabels(n *cephv1.CephNVMeOFGateway, daemonID string) map[string]string {
 		AppName, n.Namespace, "nvmeof", n.Name+"-"+daemonID, n.Name,
 		"cephnvmeofgateways.ceph.rook.io", true,
 	)
-}
-
-func cephConfigVolumeAndMount() (v1.Volume, v1.VolumeMount) {
-	cfgDir := cephclient.DefaultConfigDir // /etc/ceph
-	volName := k8sutil.PathToVolumeName(cfgDir)
-	v := v1.Volume{Name: volName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
-	m := v1.VolumeMount{Name: volName, MountPath: cfgDir}
-	return v, m
 }
 
 func instanceName(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) string {
