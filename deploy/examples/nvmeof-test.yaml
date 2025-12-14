@@ -1,4 +1,4 @@
-# This example is for Ceph v19 and above only
+# This example is for Ceph v20 and above only
 # The CephBlockPool must be created before the CephNVMeOFGateway
 #
 # Note: The operator will automatically create the following resources:
@@ -28,7 +28,7 @@ spec:
 apiVersion: ceph.rook.io/v1
 kind: CephNVMeOFGateway
 metadata:
-  name: my-nvmeof
+  name: nvmeof
   namespace: rook-ceph # namespace:cluster
 spec:
   # Pool name that will be used by the NVMe-oF gateway

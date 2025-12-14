@@ -11575,6 +11575,12 @@ spec:
                 hostNetwork:
                   description: Whether host networking is enabled for the gateway. If not set, the network settings from the cluster CR will be applied.
                   type: boolean
+                image:
+                  description: |-
+                    Image is the container image to use for the NVMe-oF gateway daemon.
+                    For example, quay.io/ceph/nvmeof:1.5
+                    If not specified, a default image will be used.
+                  type: string
                 instances:
                   description: The number of active gateway instances
                   type: integer

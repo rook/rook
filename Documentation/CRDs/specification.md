@@ -4419,6 +4419,20 @@ NVMeOFGatewaySpec
 <table>
 <tr>
 <td>
+<code>image</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Image is the container image to use for the NVMe-oF gateway daemon.
+For example, quay.io/ceph/nvmeof:1.5
+If not specified, a default image will be used.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>instances</code><br/>
 <em>
 int
@@ -10515,6 +10529,20 @@ int32
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<code>image</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Image is the container image to use for the NVMe-oF gateway daemon.
+For example, quay.io/ceph/nvmeof:1.5
+If not specified, a default image will be used.</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>instances</code><br/>

@@ -337,7 +337,7 @@ func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGa
 			"/etc/ceph/nvmeof.conf",
 		},
 
-		Image:           defaultNVMeOFImage,
+		Image:           getNVMeOFImage(nvmeof),
 		ImagePullPolicy: v1.PullIfNotPresent,
 		VolumeMounts: []v1.VolumeMount{
 			cephConfigMount,
@@ -416,6 +416,15 @@ func getLabels(n *cephv1.CephNVMeOFGateway, daemonID string) map[string]string {
 
 func instanceName(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) string {
 	return fmt.Sprintf("%s-%s-%s", AppName, nvmeof.Name, daemonID)
+}
+
+// getNVMeOFImage returns the image to use for the NVMe-oF gateway.
+// If the image is specified in the spec, it is used; otherwise, the default image is returned.
+func getNVMeOFImage(nvmeof *cephv1.CephNVMeOFGateway) string {
+	if nvmeof.Spec.Image != "" {
+		return nvmeof.Spec.Image
+	}
+	return defaultNVMeOFImage
 }
 
 func gatewayConfigVolumeAndMount(configConfigMap string) (v1.Volume, v1.VolumeMount) {
