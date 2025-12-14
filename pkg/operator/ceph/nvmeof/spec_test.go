@@ -18,7 +18,6 @@ package nvmeof
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -26,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	cephTest "github.com/rook/rook/pkg/operator/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	optest "github.com/rook/rook/pkg/operator/test"
@@ -116,7 +116,11 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.NotEmpty(t, d.Spec.Template.Annotations)
 		assert.Equal(t, configHash, d.Spec.Template.Annotations["config-hash"])
 
-		optest.AssertLabelsContainRookRequirements(t, d.ObjectMeta.Labels, AppName)
+		// Verify deployment labels contain Ceph requirements
+		daemonID := nvmeof.Name + "-0"
+		cephTest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
+			"nvmeof", daemonID, AppName, nvmeof.Namespace, nvmeof.Name,
+			"cephnvmeofgateways.ceph.rook.io", "ceph-nvmeof")
 
 		podTemplate := optest.NewPodTemplateSpecTester(t, &d.Spec.Template)
 		podTemplate.RunFullSuite(
@@ -307,13 +311,9 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.Contains(t, portNames, "discovery")
 
 		assert.NotNil(t, daemonCont.SecurityContext)
-		// SecurityContext should be set (may or may not be privileged depending on environment)
-		// This aligns with RGW/MDS which use DefaultContainerSecurityContext()
-		if daemonCont.SecurityContext.Privileged != nil {
-			// If privileged is set, verify it matches HostPathRequiresPrivileged behavior
-			expectedPrivileged := os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"
-			assert.Equal(t, expectedPrivileged, *daemonCont.SecurityContext.Privileged)
-		}
+		// SecurityContext should be set with privileged=true for NVMeOF gateway
+		assert.NotNil(t, daemonCont.SecurityContext.Privileged)
+		assert.True(t, *daemonCont.SecurityContext.Privileged)
 	})
 
 	t.Run("service generation", func(t *testing.T) {
@@ -334,6 +334,12 @@ func TestDeploymentSpec(t *testing.T) {
 		svc := r.generateCephNVMeOFService(nvmeof, "0")
 		assert.Equal(t, "rook-ceph-nvmeof-my-nvmeof-0", svc.Name)
 		assert.Equal(t, "rook-ceph-test-ns", svc.Namespace)
+
+		// Verify service labels contain Ceph requirements
+		daemonID := nvmeof.Name + "-0"
+		cephTest.AssertLabelsContainCephRequirements(t, svc.Labels,
+			"nvmeof", daemonID, AppName, nvmeof.Namespace, nvmeof.Name,
+			"cephnvmeofgateways.ceph.rook.io", "ceph-nvmeof")
 
 		portNames := []string{}
 		for _, p := range svc.Spec.Ports {

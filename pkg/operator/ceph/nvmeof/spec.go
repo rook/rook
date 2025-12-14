@@ -75,22 +75,10 @@ func getPorts(nvmeof *cephv1.CephNVMeOFGateway) (ioPort, gatewayPort, monitorPor
 var connectionConfigScript string
 
 func (r *ReconcileCephNVMeOFGateway) generateCephNVMeOFService(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) *v1.Service {
-	logger.Debugf("generateCephNVMeOFService() started: gateway=%s/%s, daemonID=%s",
-		nvmeof.Namespace, nvmeof.Name, daemonID)
-
-	logger.Debug("generateCephNVMeOFService() generating labels")
 	labels := getLabels(nvmeof, daemonID)
-	logger.Debugf("generateCephNVMeOFService() labels generated: %v", labels)
-
 	serviceName := instanceName(nvmeof, daemonID)
-	logger.Debugf("generateCephNVMeOFService() service name: %s", serviceName)
-
-	logger.Debug("generateCephNVMeOFService() getting configured ports")
 	ioPort, gatewayPort, monitorPort, discoveryPort := getPorts(nvmeof)
-	logger.Debugf("generateCephNVMeOFService() ports: io=%d, gateway=%d, monitor=%d, discovery=%d",
-		ioPort, gatewayPort, monitorPort, discoveryPort)
 
-	logger.Debug("generateCephNVMeOFService() creating service spec with ports")
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceName,
@@ -127,75 +115,54 @@ func (r *ReconcileCephNVMeOFGateway) generateCephNVMeOFService(nvmeof *cephv1.Ce
 			},
 		},
 	}
-	logger.Debugf("generateCephNVMeOFService() service spec created with %d ports", len(svc.Spec.Ports))
 
 	hostNetwork := nvmeof.IsHostNetwork(r.cephClusterSpec)
-	logger.Debugf("generateCephNVMeOFService() hostNetwork check: %v", hostNetwork)
 	if hostNetwork {
-		logger.Debug("generateCephNVMeOFService() hostNetwork enabled, setting ClusterIP to None")
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
-	logger.Debugf("generateCephNVMeOFService() completed: service=%s/%s", svc.Namespace, svc.Name)
 	return svc
 }
 
 func (r *ReconcileCephNVMeOFGateway) createCephNVMeOFService(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) error {
-	logger.Debugf("createCephNVMeOFService() started: gateway=%s/%s, daemonID=%s",
-		nvmeof.Namespace, nvmeof.Name, daemonID)
-
-	logger.Debug("createCephNVMeOFService() generating service spec")
 	s := r.generateCephNVMeOFService(nvmeof, daemonID)
 
-	logger.Debugf("createCephNVMeOFService() setting owner reference on service %s", s.Name)
 	err := controllerutil.SetControllerReference(nvmeof, s, r.scheme)
 	if err != nil {
-		logger.Errorf("createCephNVMeOFService() failed to set owner reference: %v", err)
+		logger.Errorf("failed to set owner reference: %v", err)
 		return errors.Wrapf(err, "failed to set owner reference to ceph nvmeof gateway %q", s)
 	}
-	logger.Debug("createCephNVMeOFService() owner reference set successfully")
 
-	logger.Debugf("createCephNVMeOFService() creating service %s in namespace %s", s.Name, nvmeof.Namespace)
 	svc, err := r.context.Clientset.CoreV1().Services(nvmeof.Namespace).Create(r.opManagerContext, s, metav1.CreateOptions{})
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) {
-			logger.Errorf("createCephNVMeOFService() failed to create service: %v", err)
+			logger.Errorf("failed to create service: %v", err)
 			return errors.Wrap(err, "failed to create nvmeof gateway service")
 		}
-		logger.Debugf("createCephNVMeOFService() service %s already exists", s.Name)
 		logger.Infof("ceph nvmeof gateway service already created")
 		return nil
 	}
 
-	logger.Debugf("createCephNVMeOFService() service created successfully: name=%s, clusterIP=%s",
-		svc.Name, svc.Spec.ClusterIP)
 	_, _, _, discoveryPort := getPorts(nvmeof)
 	logger.Infof("ceph nvmeof gateway service running at %s:%d", svc.Spec.ClusterIP, discoveryPort)
-	logger.Debugf("createCephNVMeOFService() completed successfully")
 	return nil
 }
 
 func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGateway, daemonID, configMapName, configHash string) (*apps.Deployment, error) {
-	logger.Debugf("makeDeployment() started: gateway=%s/%s, daemonID=%s, configMapName=%s, configHash=%s",
-		nvmeof.Namespace, nvmeof.Name, daemonID, configMapName, configHash)
-
 	if r == nil {
-		logger.Errorf("makeDeployment() receiver is nil")
+		logger.Errorf("receiver is nil")
 		return nil, errors.New("receiver is nil")
 	}
 	if r.clusterInfo == nil {
-		logger.Errorf("makeDeployment() clusterInfo is nil")
+		logger.Errorf("clusterInfo is nil")
 		return nil, errors.New("clusterInfo is nil")
 	}
 	if r.clusterInfo.CephVersion.String() == "" {
-		logger.Errorf("makeDeployment() CephVersion is empty")
+		logger.Errorf("CephVersion is empty")
 		return nil, errors.New("CephVersion is empty")
 	}
 
 	resourceName := instanceName(nvmeof, daemonID)
-	logger.Debugf("makeDeployment() resource name: %s", resourceName)
-
-	logger.Debug("makeDeployment() creating deployment object")
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
@@ -205,30 +172,17 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 	}
 
 	hostNetwork := nvmeof.IsHostNetwork(r.cephClusterSpec)
-	logger.Debugf("makeDeployment() hostNetwork: %v", hostNetwork)
 
-	logger.Debug("makeDeployment() adding rook version label")
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
-	logger.Debugf("makeDeployment() adding ceph version label: %s", r.clusterInfo.CephVersion.String())
 	controller.AddCephVersionLabelToDeployment(r.clusterInfo.CephVersion, deployment)
-	logger.Debug("makeDeployment() applying annotations and labels from spec")
 	nvmeof.Spec.Annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
 	nvmeof.Spec.Labels.ApplyToObjectMeta(&deployment.ObjectMeta)
 
-	logger.Debug("makeDeployment() creating volume mounts")
 	cephConfigVol, cephConfigMount := cephConfigVolumeAndMount()
-	logger.Debugf("makeDeployment() ceph config volume: %s, mount path: %s", cephConfigVol.Name, cephConfigMount.MountPath)
 	gatewayConfigVol, gatewayConfigMount := gatewayConfigVolumeAndMount(configMapName)
-	logger.Debugf("makeDeployment() gateway config volume: %s, mount path: %s", gatewayConfigVol.Name, gatewayConfigMount.MountPath)
 
-	logger.Debug("makeDeployment() creating pod spec")
-	logger.Debug("makeDeployment() creating init container for ceph.conf and nvmeof.conf")
 	initContainer := r.createCephConfigInitContainer(nvmeof, daemonID, gatewayConfigMount)
-	logger.Debugf("makeDeployment() init container: name=%s, image=%s", initContainer.Name, initContainer.Image)
-
-	logger.Debug("makeDeployment() creating daemon container spec")
 	daemonContainer := r.daemonContainer(nvmeof, cephConfigMount)
-	logger.Debugf("makeDeployment() daemon container: name=%s, image=%s", daemonContainer.Name, daemonContainer.Image)
 
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
@@ -248,24 +202,14 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 		SecurityContext:    &v1.PodSecurityContext{},
 		ServiceAccountName: serviceAccountName,
 	}
-	logger.Debugf("makeDeployment() pod spec created: %d init containers, %d containers, %d volumes",
-		len(podSpec.InitContainers), len(podSpec.Containers), len(podSpec.Volumes))
-	logger.Debugf("makeDeployment() service account: %s", serviceAccountName)
-	if nvmeof.Spec.PriorityClassName != "" {
-		logger.Debugf("makeDeployment() priority class: %s", nvmeof.Spec.PriorityClassName)
-	}
 
-	logger.Debug("makeDeployment() adding unreachable node toleration")
 	k8sutil.AddUnreachableNodeToleration(&podSpec)
 
 	if hostNetwork {
-		logger.Debug("makeDeployment() hostNetwork enabled, setting DNS policy")
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-	logger.Debug("makeDeployment() applying placement configuration")
 	nvmeof.Spec.Placement.ApplyToPodSpec(&podSpec)
 
-	logger.Debug("makeDeployment() creating pod template spec")
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   resourceName,
@@ -276,27 +220,19 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 		},
 		Spec: podSpec,
 	}
-	logger.Debugf("makeDeployment() pod template created: name=%s, config-hash=%s", resourceName, configHash)
 
 	if hostNetwork {
-		logger.Debug("makeDeployment() hostNetwork enabled, setting DNS policy again")
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if r.cephClusterSpec.Network.IsMultus() {
-		logger.Debug("makeDeployment() Multus network detected, applying Multus configuration")
 		if err := k8sutil.ApplyMultus(r.clusterInfo.Namespace, &r.cephClusterSpec.Network, &podTemplateSpec.ObjectMeta); err != nil {
-			logger.Errorf("makeDeployment() failed to apply Multus configuration: %v", err)
+			logger.Errorf("failed to apply Multus configuration: %v", err)
 			return nil, err
 		}
-		logger.Debug("makeDeployment() Multus configuration applied successfully")
-	} else {
-		logger.Debug("makeDeployment() no Multus network, using default networking")
 	}
 
-	logger.Debug("makeDeployment() applying annotations and labels to pod template")
 	nvmeof.Spec.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 	nvmeof.Spec.Labels.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 
-	logger.Debug("makeDeployment() setting deployment spec")
 	replicas := int32(1)
 	revisionHistoryLimit := controller.RevisionHistoryLimit()
 	deployment.Spec = apps.DeploymentSpec{
@@ -305,15 +241,7 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 		Template:             podTemplateSpec,
 		Replicas:             &replicas,
 	}
-	if revisionHistoryLimit != nil {
-		logger.Debugf("makeDeployment() deployment spec set: replicas=%d, revisionHistoryLimit=%d",
-			replicas, *revisionHistoryLimit)
-	} else {
-		logger.Debugf("makeDeployment() deployment spec set: replicas=%d, revisionHistoryLimit=nil",
-			replicas)
-	}
 
-	logger.Debugf("makeDeployment() completed successfully: deployment=%s/%s", deployment.Namespace, deployment.Name)
 	return deployment, nil
 }
 
@@ -321,15 +249,10 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 // /etc/ceph/ceph.conf, copies the admin keyring, and copies nvmeof.conf from the ConfigMap.
 // This is needed for the gateway to connect to the Ceph cluster.
 func (r *ReconcileCephNVMeOFGateway) createCephConfigInitContainer(nvmeof *cephv1.CephNVMeOFGateway, daemonID string, gatewayConfigMount v1.VolumeMount) v1.Container {
-	logger.Debugf("createCephConfigInitContainer() started: gateway=%s/%s, daemonID=%s", nvmeof.Namespace, nvmeof.Name, daemonID)
-
 	_, cephConfigMount := cephConfigVolumeAndMount()
-	logger.Debugf("createCephConfigInitContainer() ceph config mount: %s", cephConfigMount.MountPath)
-	logger.Debugf("createCephConfigInitContainer() gateway config mount: %s", gatewayConfigMount.MountPath)
 
 	cephImage := r.cephClusterSpec.CephVersion.Image
 	imagePullPolicy := controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy)
-	logger.Debugf("createCephConfigInitContainer() container image: %s, pullPolicy: %s", cephImage, imagePullPolicy)
 
 	// Build Ceph CLI arguments using Rook's helper functions
 	// Use AdminFlags since the init container uses admin keyring for Ceph commands
@@ -411,17 +334,10 @@ func (r *ReconcileCephNVMeOFGateway) createCephConfigInitContainer(nvmeof *cephv
 			},
 		},
 	}
-	logger.Debugf("createCephConfigInitContainer() container spec created: %d env vars, %d volume mounts",
-		len(container.Env), len(container.VolumeMounts))
-	logger.Debugf("createCephConfigInitContainer() completed: container name=%s", container.Name)
 	return container
 }
 
 func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGateway, cephConfigMount v1.VolumeMount) v1.Container {
-	logger.Debugf("daemonContainer() started: gateway=%s/%s", nvmeof.Namespace, nvmeof.Name)
-	logger.Debugf("daemonContainer() ceph config mount path: %s", cephConfigMount.MountPath)
-
-	logger.Debug("daemonContainer() creating daemon container spec")
 	privileged := true
 	container := v1.Container{
 		Name: "nvmeof-gateway",
@@ -490,19 +406,11 @@ func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGa
 			},
 		},
 	}
-	logger.Debugf("daemonContainer() container spec created: image=%s, %d ports, %d env vars, %d volume mounts",
-		container.Image, len(container.Ports), len(container.Env), len(container.VolumeMounts))
-	ioPort, gatewayPort, monitorPort, discoveryPort := getPorts(nvmeof)
-	logger.Debugf("daemonContainer() ports: io=%d, gateway=%d, monitor=%d, discovery=%d",
-		ioPort, gatewayPort, monitorPort, discoveryPort)
 
-	logger.Debug("daemonContainer() configuring liveness probe")
 	if nvmeof.Spec.LivenessProbe != nil && !nvmeof.Spec.LivenessProbe.Disabled && nvmeof.Spec.LivenessProbe.Probe == nil {
 		container.LivenessProbe = r.defaultLivenessProbe(nvmeof)
 	}
 	result := cephconfig.ConfigureLivenessProbe(container, nvmeof.Spec.LivenessProbe)
-	logger.Debugf("daemonContainer() liveness probe configured: enabled=%v", result.LivenessProbe != nil)
-	logger.Debugf("daemonContainer() completed: container name=%s", result.Name)
 	return result
 }
 
@@ -512,13 +420,10 @@ func (r *ReconcileCephNVMeOFGateway) defaultLivenessProbe(nvmeof *cephv1.CephNVM
 }
 
 func getLabels(n *cephv1.CephNVMeOFGateway, daemonID string) map[string]string {
-	labels := controller.CephDaemonAppLabels(
+	return controller.CephDaemonAppLabels(
 		AppName, n.Namespace, "nvmeof", n.Name+"-"+daemonID, n.Name,
 		"cephnvmeofgateways.ceph.rook.io", true,
 	)
-	labels[CephNVMeOFGatewayNameLabelKey] = n.Name
-	labels["instance"] = daemonID
-	return labels
 }
 
 func cephConfigVolumeAndMount() (v1.Volume, v1.VolumeMount) {
@@ -534,8 +439,6 @@ func instanceName(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) string {
 }
 
 func gatewayConfigVolumeAndMount(configConfigMap string) (v1.Volume, v1.VolumeMount) {
-	logger.Debugf("gatewayConfigVolumeAndMount() started: configmap=%s", configConfigMap)
-
 	// Mount to /config temporarily - init container will copy to /etc/ceph/nvmeof.conf
 	cfgDir := "/config"
 	cfgVolName := "gateway-config"
@@ -545,9 +448,6 @@ func gatewayConfigVolumeAndMount(configConfigMap string) (v1.Volume, v1.VolumeMo
 	}
 	v := v1.Volume{Name: cfgVolName, VolumeSource: v1.VolumeSource{ConfigMap: configMapSource}}
 	m := v1.VolumeMount{Name: cfgVolName, MountPath: cfgDir, ReadOnly: true}
-	logger.Debugf("gatewayConfigVolumeAndMount() volume created: name=%s, configmap=%s, key=%s, path=nvmeof.conf, mountPath=%s",
-		v.Name, configConfigMap, configKey, m.MountPath)
-	logger.Debug("gatewayConfigVolumeAndMount() completed")
 	return v, m
 }
 
