@@ -49,7 +49,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ceph-helm-suite-artifact-${{ matrix.kubernetes-versions }}
@@ -90,7 +90,7 @@ jobs:
           CLUSTER_NAMESPACE="multi-external" tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ceph-multi-cluster-deploy-suite-artifact-${{ matrix.kubernetes-versions }}
@@ -128,7 +128,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ceph-smoke-suite-artifact-${{ matrix.kubernetes-versions }}
@@ -166,7 +166,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
@@ -205,7 +205,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
@@ -243,7 +243,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: ceph-object-suite-artifact-${{ matrix.kubernetes-versions }}
