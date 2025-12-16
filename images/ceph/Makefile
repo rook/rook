@@ -21,7 +21,6 @@ CEPH_VERSION ?= v20.2.0-20251104
 REGISTRY_NAME = quay.io
 BASEIMAGE = $(REGISTRY_NAME)/ceph/ceph:$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
-OPERATOR_SDK_VERSION = v1.25.0
 # TODO: update to yq v4 - v3 end of life in Aug 2021 ; v4 removes the 'yq delete' cmd and changes syntax
 YQv3_VERSION = 3.4.1
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
@@ -41,12 +40,8 @@ endif
 # s5cmd's version
 S5CMD_VERSION = 2.3.0
 
-# Note: as of version 1.3 of operator-sdk, the url format changed to:
-# ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}
-# (see: https://sdk.operatorframework.io/docs/installation/)
-OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION)
 YQv3 := $(TOOLS_HOST_DIR)/yq-$(YQv3_VERSION)
-export OPERATOR_SDK YQv3
+export YQv3
 
 # ====================================================================================
 # Build Rook
@@ -75,21 +70,13 @@ do.build:
 
 # call this before building multiple arches in parallel to prevent parallel build processes from
 # conflicting
-prerequisites: $(OPERATOR_SDK) $(YQv3)
+prerequisites: $(YQv3)
 
 $(YQv3):
 	@echo === installing yq $(YQv3_VERSION) $(REAL_HOST_PLATFORM)
 	@mkdir -p $(TOOLS_HOST_DIR)
 	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQv3_VERSION)/yq_$(REAL_HOST_PLATFORM) -o $(YQv3)
 	@chmod +x $(YQv3)
-
-$(OPERATOR_SDK):
-	@echo === installing operator-sdk $(REAL_HOST_PLATFORM)
-	@mkdir -p $(TOOLS_HOST_DIR)
-	@curl -JL -o $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION) \
-		https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(REAL_HOST_PLATFORM)
-	@chmod +x $(OPERATOR_SDK)
-	@$(OPERATOR_SDK) version
 
 # reading from a file and outputting to the same file can have undefined results, so use this intermediate
 IMAGE_TMP="/tmp/rook-ceph-image-list"
