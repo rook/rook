@@ -468,11 +468,6 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 }
 
 func (h *CephInstaller) InstallCSIOperator() error {
-	if h.settings.RookVersion == Version1_17 {
-		logger.Infof("Skipping the CSI operator installation for previous version of Rook")
-		return nil
-	}
-
 	logger.Infof("Starting the CSI operator")
 	_, err := h.k8shelper.KubectlWithStdin(h.Manifests.GetCSIOperator(), createFromStdinArgs...)
 	if err != nil {

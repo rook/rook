@@ -24,7 +24,7 @@ import (
 
 const (
 	// The version from which the upgrade test will start
-	Version1_17 = "v1.17.7"
+	Version1_18 = "v1.18.8"
 )
 
 // CephManifestsPreviousVersion wraps rook yaml definitions
@@ -46,7 +46,8 @@ func (m *CephManifestsPreviousVersion) GetCSINFSRBAC() string {
 }
 
 func (m *CephManifestsPreviousVersion) GetCSIOperator() string {
-	return "not-supported"
+	manifest := m.settings.readManifestFromGitHub("csi-operator.yaml")
+	return m.settings.replaceCSIOperatorSettings(m.settings.OperatorNamespace, manifest)
 }
 
 // GetRookOperator returns rook Operator manifest
