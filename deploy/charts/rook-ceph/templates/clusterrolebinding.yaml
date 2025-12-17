@@ -77,8 +77,6 @@ roleRef:
   name: cephfs-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 ---
-# This is required by operator-sdk to map the cluster/clusterrolebindings with SA
-# otherwise operator-sdk will create a individual file for these.
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
