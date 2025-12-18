@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPodSpecs(t *testing.T) {
@@ -145,6 +146,14 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		monConfig.Port = DefaultMsgr2Port
 		container := c.makeMonDaemonContainer(monConfig)
 		checkMsgr2Required(t, container, true, true, true)
+	})
+
+	t.Run("test floating mon init container", func(t *testing.T) {
+		monConfig.DaemonName = "a"
+		c.spec.Mon.Floating = &cephv1.FloatingMonSpec{Name: "a"}
+		podSpec := &v1.PodSpec{}
+		err := c.floatingMonInitContainer(podSpec, monConfig)
+		assert.NoError(t, err)
 	})
 }
 
@@ -337,5 +346,188 @@ func TestMakeMonSecurityContext(t *testing.T) {
 		sc := makeMonSecurityContext()
 		assert.NotNil(t, sc)
 		assert.Nil(t, sc.RunAsUser)
+	})
+}
+
+func TestFloatingMonInitContainer(t *testing.T) {
+	ctx := context.TODO()
+	clientset := testop.New(t, 1)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := New(ctx, &clusterd.Context{Clientset: clientset}, "rook-ceph", cephv1.ClusterSpec{}, ownerInfo)
+	c.ClusterInfo = &cephclient.ClusterInfo{Context: ctx}
+
+	monConfig := &monConfig{DaemonName: "f"}
+
+	t.Run("configmap not found", func(t *testing.T) {
+		podSpec := &v1.PodSpec{}
+		err := c.floatingMonInitContainer(podSpec, monConfig)
+		assert.NoError(t, err)
+	})
+
+	t.Run("init container, volume, and volume mount", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-floating-mon-config",
+				Namespace: "rook-ceph",
+			},
+			Data: map[string]string{
+				"init-containers.yaml": `
+- name: floating-init
+  image: busybox`,
+				"volumes.yaml": `
+- name: floating-vol
+  emptyDir: {}`,
+				"volume-mounts.yaml": `
+- name: floating-vol
+  mountPath: /mnt/floating`,
+			},
+		}
+		_, err := clientset.CoreV1().ConfigMaps("rook-ceph").Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		podSpec := &v1.PodSpec{
+			Containers: []v1.Container{{Name: "mon"}},
+		}
+
+		err = c.floatingMonInitContainer(podSpec, monConfig)
+		assert.NoError(t, err)
+
+		assert.Len(t, podSpec.InitContainers, 1)
+		assert.Equal(t, "floating-init", podSpec.InitContainers[0].Name)
+
+		assert.Len(t, podSpec.Volumes, 1)
+		assert.Equal(t, "floating-vol", podSpec.Volumes[0].Name)
+
+		assert.Len(t, podSpec.Containers[0].VolumeMounts, 1)
+		assert.Equal(t, "floating-vol", podSpec.Containers[0].VolumeMounts[0].Name)
+
+		err = clientset.CoreV1().ConfigMaps("rook-ceph").Delete(ctx, "rook-ceph-floating-mon-config", metav1.DeleteOptions{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("multiple init containers, volumes, and volume mounts", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-floating-mon-config",
+				Namespace: "rook-ceph",
+			},
+			Data: map[string]string{
+				"init-containers.yaml": `
+- name: init-first
+  image: busybox
+- name: init-second
+  image: alpine`,
+				"volumes.yaml": `
+- name: vol-one
+  emptyDir: {}
+- name: vol-two
+  emptyDir: {}`,
+				"volume-mounts.yaml": `
+- name: volMount-one
+  mountPath: /mnt/one
+- name: volMount-two
+  mountPath: /mnt/two`,
+			},
+		}
+		_, err := clientset.CoreV1().ConfigMaps("rook-ceph").Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		podSpec := &v1.PodSpec{
+			Containers:     []v1.Container{{Name: "mon", VolumeMounts: []v1.VolumeMount{{Name: "existing-mount"}}}},
+			InitContainers: []v1.Container{{Name: "existing-init"}},
+			Volumes:        []v1.Volume{{Name: "existing-vol"}},
+		}
+
+		err = c.floatingMonInitContainer(podSpec, monConfig)
+		assert.NoError(t, err)
+
+		assert.Len(t, podSpec.InitContainers, 3)
+		assert.Equal(t, "init-first", podSpec.InitContainers[0].Name)
+		assert.Equal(t, "init-second", podSpec.InitContainers[1].Name)
+		assert.Equal(t, "existing-init", podSpec.InitContainers[2].Name)
+
+		// Volumes should be appended
+		assert.Len(t, podSpec.Volumes, 3)
+		assert.Equal(t, "existing-vol", podSpec.Volumes[0].Name)
+		assert.Equal(t, "vol-one", podSpec.Volumes[1].Name)
+		assert.Equal(t, "vol-two", podSpec.Volumes[2].Name)
+
+		// Volume mounts should be appended to the mon container
+		assert.Len(t, podSpec.Containers[0].VolumeMounts, 3)
+		assert.Equal(t, "existing-mount", podSpec.Containers[0].VolumeMounts[0].Name)
+		assert.Equal(t, "volMount-one", podSpec.Containers[0].VolumeMounts[1].Name)
+		assert.Equal(t, "volMount-two", podSpec.Containers[0].VolumeMounts[2].Name)
+
+		err = clientset.CoreV1().ConfigMaps("rook-ceph").Delete(ctx, "rook-ceph-floating-mon-config", metav1.DeleteOptions{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("invalid init-containers yaml", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-floating-mon-config",
+				Namespace: "rook-ceph",
+			},
+			Data: map[string]string{
+				"init-containers.yaml": `invalid: yaml: [`,
+				"volumes.yaml":         `[]`,
+				"volume-mounts.yaml":   `[]`,
+			},
+		}
+		_, err := clientset.CoreV1().ConfigMaps("rook-ceph").Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		podSpec := &v1.PodSpec{Containers: []v1.Container{{Name: "mon"}}}
+		err = c.floatingMonInitContainer(podSpec, monConfig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to unmarshal floating mon init containers")
+
+		err = clientset.CoreV1().ConfigMaps("rook-ceph").Delete(ctx, "rook-ceph-floating-mon-config", metav1.DeleteOptions{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("invalid volumes yaml", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-floating-mon-config",
+				Namespace: "rook-ceph",
+			},
+			Data: map[string]string{
+				"init-containers.yaml": `[]`,
+				"volumes.yaml":         `invalid: yaml: [`,
+				"volume-mounts.yaml":   `[]`,
+			},
+		}
+		_, err := clientset.CoreV1().ConfigMaps("rook-ceph").Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		podSpec := &v1.PodSpec{Containers: []v1.Container{{Name: "mon"}}}
+		err = c.floatingMonInitContainer(podSpec, monConfig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to unmarshal floating mon volumes")
+
+		err = clientset.CoreV1().ConfigMaps("rook-ceph").Delete(ctx, "rook-ceph-floating-mon-config", metav1.DeleteOptions{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("invalid volume-mounts yaml", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-floating-mon-config",
+				Namespace: "rook-ceph",
+			},
+			Data: map[string]string{
+				"init-containers.yaml": `[]`,
+				"volumes.yaml":         `[]`,
+				"volume-mounts.yaml":   `invalid: yaml: [`,
+			},
+		}
+		_, err := clientset.CoreV1().ConfigMaps("rook-ceph").Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		podSpec := &v1.PodSpec{Containers: []v1.Container{{Name: "mon"}}}
+		err = c.floatingMonInitContainer(podSpec, monConfig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to unmarshal floating mon volume mounts")
 	})
 }
