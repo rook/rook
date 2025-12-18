@@ -1534,7 +1534,11 @@ spec:
             metadata:
               type: object
             spec:
-              description: ClusterSpec represents the specification of Ceph Cluster
+              description: |-
+                ClusterSpec represents the specification of Ceph Cluster
+                Floating mon DataDirHostPath validation:
+                  - Skips if mon, floating, or dataDirHostPath is not set or empty
+                  - Otherwise, ensures floating.dataDirHostPath != spec.dataDirHostPath
               properties:
                 annotations:
                   additionalProperties:
@@ -2205,6 +2209,21 @@ spec:
                       type: array
                     failureDomainLabel:
                       type: string
+                    floating:
+                      description: Floating is the specification of the floating monitor
+                      properties:
+                        dataDirHostPath:
+                          description: DataDirHostPath is the host path of the floating mon data directory
+                          pattern: ^/(\S+)
+                          type: string
+                          x-kubernetes-validations:
+                            - message: DataDirHostPath is immutable
+                              rule: self == oldSelf
+                        name:
+                          description: Name is the name of the floating mon
+                          pattern: ^[a-z]$
+                          type: string
+                      type: object
                     stretchCluster:
                       description: StretchCluster is the stretch cluster specification
                       properties:
@@ -5925,6 +5944,9 @@ spec:
                   format: int64
                   type: integer
               type: object
+              x-kubernetes-validations:
+                - message: Floating mon DataDirHostPath must be different from spec DataDirHostPath
+                  rule: '!has(self.mon) || !has(self.mon.floating) || !has(self.mon.floating.dataDirHostPath) || self.mon.floating.dataDirHostPath == "" || self.mon.floating.dataDirHostPath != self.dataDirHostPath'
             status:
               description: ClusterStatus represents the status of a Ceph cluster
               nullable: true

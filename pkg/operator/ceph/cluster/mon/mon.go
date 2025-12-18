@@ -193,6 +193,11 @@ func (c *Cluster) MaxMonID() int {
 	return c.maxMonID
 }
 
+// IsFloatingMon returns true if the mon daemon name matches the floating mon name
+func (c *Cluster) IsFloatingMon(daemonName string) bool {
+	return c.spec.Mon.Floating != nil && daemonName == c.spec.Mon.Floating.Name
+}
+
 // Start begins the process of running a cluster of Ceph mons.
 func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookImage string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephclient.ClusterInfo, error) {
 	// Only one goroutine can orchestrate the mons at a time
@@ -717,11 +722,13 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	d.Spec.Template.Spec.Containers[0].StartupProbe = nil
 	d.Spec.Template.Spec.Containers[0].LivenessProbe = nil
 
-	// setup affinity settings for pod scheduling
 	p := c.getMonPlacement(mon.Zone)
 	p.ApplyToPodSpec(&d.Spec.Template.Spec)
-	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), k8sutil.LabelHostname(),
-		map[string]string{k8sutil.AppAttr: AppName}, nil)
+	if !c.IsFloatingMon(mon.DaemonName) {
+		// setup affinity settings for non-floating mon pod scheduling
+		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), k8sutil.LabelHostname(),
+			map[string]string{k8sutil.AppAttr: AppName}, nil)
+	}
 
 	// setup storage on the canary since scheduling will be affected when
 	// monitors are configured to use persistent volumes. the pvcName is set to
@@ -1567,9 +1574,10 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 	if schedule != nil {
 		zone = schedule.Zone
 	}
-	p := c.getMonPlacement(zone)
 
+	p := c.getMonPlacement(zone)
 	p.ApplyToPodSpec(&d.Spec.Template.Spec)
+
 	if deploymentExists {
 		// skip update if mon path has changed
 		if hasMonPathChanged(existingDeployment, c.spec.Mon.VolumeClaimTemplate.ToPVC()) {
@@ -1587,7 +1595,9 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 		// isn't using host networking and the deployment is using pvc storage,
 		// then the node selector can be removed. this may happen after
 		// upgrading the cluster with the k8s scheduling support for monitors.
-		if m.UseHostNetwork || !pvcExists {
+		if c.IsFloatingMon(m.DaemonName) {
+			// do nothing, as no antiaffinity to apply for floating mon
+		} else if m.UseHostNetwork || !pvcExists {
 			p.PodAffinity = nil
 			p.PodAntiAffinity = nil
 			nodeSelector := existingDeployment.Spec.Template.Spec.NodeSelector
@@ -1620,18 +1630,20 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 		}
 	}
 
-	var nodeSelector map[string]string
-	if schedule == nil || (monVolumeClaim != nil && zone != "") {
-		// Schedule the mon according to placement settings, and allow it to be portable among nodes if allowed by the PV
-		nodeSelector = nil
-	} else {
-		// Schedule the mon on a specific host if specified, or else allow it to be portable according to the PV
-		p.PodAffinity = nil
-		p.PodAntiAffinity = nil
-		nodeSelector = map[string]string{k8sutil.LabelHostname(): schedule.Hostname}
+	if !c.IsFloatingMon(m.DaemonName) {
+		var nodeSelector map[string]string
+		if schedule == nil || (monVolumeClaim != nil && zone != "") {
+			// Schedule the mon according to placement settings, and allow it to be portable among nodes if allowed by the PV
+			nodeSelector = nil
+		} else {
+			// Schedule the mon on a specific host if specified, or else allow it to be portable according to the PV
+			p.PodAffinity = nil
+			p.PodAntiAffinity = nil
+			nodeSelector = map[string]string{k8sutil.LabelHostname(): schedule.Hostname}
+		}
+		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), k8sutil.LabelHostname(),
+			map[string]string{k8sutil.AppAttr: AppName}, nodeSelector)
 	}
-	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), k8sutil.LabelHostname(),
-		map[string]string{k8sutil.AppAttr: AppName}, nodeSelector)
 
 	log.NamespacedDebug(c.Namespace, logger, "Starting mon: %+v", d.Name)
 	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(c.ClusterInfo.Context, d, metav1.CreateOptions{})
