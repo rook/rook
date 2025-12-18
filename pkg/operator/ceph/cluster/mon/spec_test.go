@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPodSpecs(t *testing.T) {
@@ -145,6 +146,14 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		monConfig.Port = DefaultMsgr2Port
 		container := c.makeMonDaemonContainer(monConfig)
 		checkMsgr2Required(t, container, true, true, true)
+	})
+
+	t.Run("test floating mon init container", func(t *testing.T) {
+		monConfig.DaemonName = "a"
+		c.spec.Mon.Floating = &cephv1.FloatingMonSpec{Name: "a"}
+		podSpec := &v1.PodSpec{}
+		err := c.floatingMonInitContainer(podSpec, monConfig)
+		assert.NoError(t, err)
 	})
 }
 
@@ -337,5 +346,58 @@ func TestMakeMonSecurityContext(t *testing.T) {
 		sc := makeMonSecurityContext()
 		assert.NotNil(t, sc)
 		assert.Nil(t, sc.RunAsUser)
+	})
+}
+
+func TestFloatingMonInitContainer(t *testing.T) {
+	ctx := context.TODO()
+	clientset := testop.New(t, 1)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := New(ctx, &clusterd.Context{Clientset: clientset}, "rook-ceph", cephv1.ClusterSpec{}, ownerInfo)
+	c.ClusterInfo = &cephclient.ClusterInfo{Context: ctx}
+
+	monConfig := &monConfig{DaemonName: "f"}
+
+	t.Run("configmap not found", func(t *testing.T) {
+		podSpec := &v1.PodSpec{}
+		err := c.floatingMonInitContainer(podSpec, monConfig)
+		assert.NoError(t, err)
+	})
+
+	t.Run("configmap with init container and volumes", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-floating-mon-config",
+				Namespace: "rook-ceph",
+			},
+			Data: map[string]string{
+				"init-container.yaml": `
+name: floating-mon-init
+image: busybox`,
+				"volumes.yaml": `
+- name: floating-data
+  emptyDir: {}`,
+			},
+		}
+		_, err := clientset.CoreV1().ConfigMaps("rook-ceph").Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		podSpec := &v1.PodSpec{
+			InitContainers: []v1.Container{{Name: "existing-init"}},
+			Volumes:        []v1.Volume{{Name: "existing-vol"}},
+		}
+
+		err = c.floatingMonInitContainer(podSpec, monConfig)
+		assert.NoError(t, err)
+
+		// Init container should be prepended
+		assert.Len(t, podSpec.InitContainers, 2)
+		assert.Equal(t, "floating-mon-init", podSpec.InitContainers[0].Name)
+		assert.Equal(t, "existing-init", podSpec.InitContainers[1].Name)
+
+		// Volume should be appended
+		assert.Len(t, podSpec.Volumes, 2)
+		assert.Equal(t, "existing-vol", podSpec.Volumes[0].Name)
+		assert.Equal(t, "floating-data", podSpec.Volumes[1].Name)
 	})
 }

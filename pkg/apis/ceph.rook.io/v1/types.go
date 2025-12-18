@@ -97,6 +97,11 @@ type CephClusterList struct {
 }
 
 // ClusterSpec represents the specification of Ceph Cluster
+// Floating mon DataDirHostPath validation:
+//   - Skips if mon, floating, or dataDirHostPath is not set or empty
+//   - Otherwise, ensures floating.dataDirHostPath != spec.dataDirHostPath
+//
+// +kubebuilder:validation:XValidation:message="Floating mon DataDirHostPath must be different from spec DataDirHostPath",rule="!has(self.mon) || !has(self.mon.floating) || !has(self.mon.floating.dataDirHostPath) || self.mon.floating.dataDirHostPath == \"\" || self.mon.floating.dataDirHostPath != self.dataDirHostPath"
 type ClusterSpec struct {
 	// The version information that instructs Rook to orchestrate a particular version of Ceph.
 	// +optional
@@ -797,6 +802,23 @@ type MonSpec struct {
 	// leading
 	// +optional
 	ExternalMonIDs []string `json:"externalMonIDs,omitempty"`
+
+	// Floating is the specification of the floating monitor
+	// +optional
+	Floating *FloatingMonSpec `json:"floating,omitempty"`
+}
+
+type FloatingMonSpec struct {
+	// Name is the name of the floating mon
+	// +kubebuilder:validation:Pattern=`^[a-z]$`
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// DataDirHostPath is the host path of the floating mon data directory
+	// +kubebuilder:validation:Pattern=`^/(\S+)`
+	// +kubebuilder:validation:XValidation:message="DataDirHostPath is immutable",rule="self == oldSelf"
+	// +optional
+	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 }
 
 // VolumeClaimTemplate is a simplified version of K8s corev1's PVC. It has no type meta or status.

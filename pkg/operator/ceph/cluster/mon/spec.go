@@ -33,6 +33,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/utils/ptr"
 )
 
@@ -62,6 +63,11 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 		}
 		if !canary {
 			labels["mon_daemon"] = "true"
+		}
+
+		if c.IsFloatingMon(monConfig.DaemonName) {
+			labels[k8sutil.AppAttr] = "rook-ceph-floating-mon"
+			log.NamespacedDebug(c.Namespace, logger, "labeling mon %q as floating mon", monConfig.DaemonName)
 		}
 	}
 
@@ -217,6 +223,12 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 	// Replace default unreachable node toleration
 	if c.monVolumeClaimTemplate(monConfig) != nil {
 		k8sutil.AddUnreachableNodeToleration(&podSpec)
+	}
+
+	if c.IsFloatingMon(monConfig.DaemonName) {
+		if err := c.floatingMonInitContainer(&podSpec, monConfig); err != nil {
+			return nil, err
+		}
 	}
 
 	pod := &corev1.Pod{
@@ -426,4 +438,35 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, clusterInfo *client.
 
 	err := k8sutil.UpdateDeploymentAndWait(clusterInfo.Context, context, deployment, clusterInfo.Namespace, callback)
 	return err
+}
+
+// floatingMonInitContainer configures the floating mon pod with an init container and volumes
+// from a ConfigMap named "rook-ceph-floating-mon-config"
+func (c *Cluster) floatingMonInitContainer(podSpec *corev1.PodSpec, monConfig *monConfig) error {
+	log.NamespacedDebug(c.Namespace, logger, "fetching configmap for floating mon %q init-container", monConfig.DaemonName)
+	floatingMonCm := "rook-ceph-floating-mon-config"
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(c.ClusterInfo.Context, floatingMonCm, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("failed to get floating mon configmap %q. %v", floatingMonCm, err)
+		return nil
+	}
+
+	log.NamespacedDebug(c.Namespace, logger, "configuring floating mon pod %q init-container", monConfig.DaemonName)
+
+	var initContainer corev1.Container
+	err = yaml.Unmarshal([]byte(cm.Data["init-container.yaml"]), &initContainer)
+	if err != nil {
+		return errors.Wrapf(err, "failed to unmarshal floating mon init container from configmap %q", floatingMonCm)
+	}
+
+	var volumes []corev1.Volume
+	err = yaml.Unmarshal([]byte(cm.Data["volumes.yaml"]), &volumes)
+	if err != nil {
+		return errors.Wrapf(err, "failed to unmarshal floating mon volumes from configmap %q", floatingMonCm)
+	}
+
+	podSpec.InitContainers = append([]corev1.Container{initContainer}, podSpec.InitContainers...)
+	podSpec.Volumes = append(podSpec.Volumes, volumes...)
+
+	return nil
 }
