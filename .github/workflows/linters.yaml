@@ -61,4 +61,4 @@ jobs:
         run: make pylint
 
       - name: Setup black for py
-        uses: psf/black@05f0a8ce1f71fbb36e1e032d3b518c7b945089a2 # stable
+        uses: psf/black@782e5605c86aab56be6f905da10dcd3e463fd9c2 # stable
