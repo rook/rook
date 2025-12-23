@@ -5272,7 +5272,10 @@ ClusterCephxConfig
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephCluster">CephCluster</a>)
 </p>
 <div>
-<p>ClusterSpec represents the specification of Ceph Cluster</p>
+<p>ClusterSpec represents the specification of Ceph Cluster
+Floating mon DataDirHostPath validation:
+- Skips if mon, floating, or dataDirHostPath is not set or empty
+- Otherwise, ensures floating.dataDirHostPath != spec.dataDirHostPath</p>
 </div>
 <table>
 <thead>
@@ -7631,6 +7634,47 @@ int
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.FloatingMonSpec">FloatingMonSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MonSpec">MonSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Name is the name of the floating mon</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataDirHostPath</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DataDirHostPath is the host path of the floating mon data directory</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.GaneshaRADOSSpec">GaneshaRADOSSpec
 </h3>
 <p>
@@ -9842,6 +9886,20 @@ If set, Rook will not remove mons with given IDs from quorum.
 This parameter is used only for local Rook cluster running in normal mode
 and will be ignored if external or stretched mode is used.
 leading</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>floating</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.FloatingMonSpec">
+FloatingMonSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Floating is the specification of the floating monitor</p>
 </td>
 </tr>
 </tbody>
