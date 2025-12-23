@@ -29,6 +29,22 @@ spec:
                   name: http-dashboard
                   {{- end }}
             pathType: {{ .Values.ingress.dashboard.host.pathType | default "Prefix" }}
+    {{- range .Values.ingress.dashboard.additionalHosts }}
+    - host: {{ .name | quote }}
+      http:
+        paths:
+          - path: {{ .path | default "/" }}
+            backend:
+              service:
+                name: rook-ceph-mgr-dashboard
+                port:
+                  {{- if $.Values.cephClusterSpec.dashboard.ssl }}
+                  name: https-dashboard
+                  {{- else }}
+                  name: http-dashboard
+                  {{- end }}
+            pathType: {{ .pathType | default "Prefix" }}
+    {{- end }}
   {{- with .Values.ingress.dashboard.ingressClassName }}
   ingressClassName: {{ . | quote }}
   {{- end }}

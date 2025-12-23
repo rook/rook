@@ -73,7 +73,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `clusterName` | The metadata.name of the CephCluster CR | The same as the namespace |
 | `configOverride` | Cluster ceph.conf override | `nil` |
 | `csiDriverNamePrefix` | CSI driver name prefix for cephfs, rbd and nfs. | `namespace name where rook-ceph operator is deployed` |
-| `ingress.dashboard` | Enable an ingress for the ceph-dashboard | `{}` |
+| `ingress.dashboard` | Enable an ingress for the ceph-dashboard | `{"enabled":false,"ingressClassName":"nginx"}` |
 | `kubeVersion` | Optional override of the target kubernetes version | `nil` |
 | `monitoring.createPrometheusRules` | Whether to create the Prometheus rules for Ceph alerts | `false` |
 | `monitoring.enabled` | Enable Prometheus integration, will also create necessary RBAC rules to allow Operator to create ServiceMonitors. Monitoring requires Prometheus to be pre-installed | `false` |

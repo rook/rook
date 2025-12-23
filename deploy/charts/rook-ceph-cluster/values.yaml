@@ -425,7 +425,7 @@ cephClusterSpec:
 
 ingress:
   # -- Enable an ingress for the ceph-dashboard
-  dashboard: {}
+  dashboard:
     # labels:
     #   external-dns/private: "true"
     # annotations:
@@ -435,17 +435,24 @@ ingress:
     #   nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
     #   nginx.ingress.kubernetes.io/server-snippet: |
     #     proxy_ssl_verify off;
-    # host:
+    # Default host configuration to keep backwards compatibility
+    host: {}
     #   name: dashboard.example.com
     #   path: "/ceph-dashboard(/|$)(.*)"
     #   pathType: Prefix
+    # Use hosts to define other hostnames
+    additionalHosts: {}
+      # - name: dashboard.internal.example.com
+      #   path: "/ceph-dashboard(/|$)(.*)"
+      #   pathType: Prefix
     # tls:
     # - hosts:
     #     - dashboard.example.com
+    #     - dashboard.internal.example.com
     #   secretName: testsecret-tls
-    ## Note: Only one of ingress class annotation or the `ingressClassName:` can be used at a time
-    ## to set the ingress class
-    # ingressClassName: nginx
+    # Note: Only one of ingress class annotation or the `ingressClassName:` can be used at a time
+    # to set the ingress class
+    ingressClassName: nginx
 
 route:
   # -- Enable an HTTPRoute for the ceph-dashboard
