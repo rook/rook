@@ -65,6 +65,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&CephFilesystemList{},
 		&CephNFS{},
 		&CephNFSList{},
+		&CephNVMeOFGateway{},
+		&CephNVMeOFGatewayList{},
 		&CephObjectStore{},
 		&CephObjectStoreList{},
 		&CephObjectStoreUser{},

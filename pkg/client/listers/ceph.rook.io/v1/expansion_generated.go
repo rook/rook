@@ -106,6 +106,14 @@ type CephNFSListerExpansion interface{}
 // CephNFSNamespaceLister.
 type CephNFSNamespaceListerExpansion interface{}
 
+// CephNVMeOFGatewayListerExpansion allows custom methods to be added to
+// CephNVMeOFGatewayLister.
+type CephNVMeOFGatewayListerExpansion interface{}
+
+// CephNVMeOFGatewayNamespaceListerExpansion allows custom methods to be added to
+// CephNVMeOFGatewayNamespaceLister.
+type CephNVMeOFGatewayNamespaceListerExpansion interface{}
+
 // CephObjectRealmListerExpansion allows custom methods to be added to
 // CephObjectRealmLister.
 type CephObjectRealmListerExpansion interface{}
