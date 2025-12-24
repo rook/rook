@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -182,41 +183,41 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 	if multiFS {
 		return &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-				if contains(args, "fs") && contains(args, "get") {
+				if slices.Contains(args, "fs") && slices.Contains(args, "get") {
 					if firstGet {
 						firstGet = false
 						return "", errors.New("fs doesn't exist")
 					}
 					return string(createdFsResponse), nil
-				} else if contains(args, "fs") && contains(args, "ls") {
+				} else if slices.Contains(args, "fs") && slices.Contains(args, "ls") {
 					return `[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":4,"data_pool_ids":[5],"data_pools":["myfs-data0"]},{"name":"myfs2","metadata_pool":"myfs2-metadata","metadata_pool_id":6,"data_pool_ids":[7],"data_pools":["myfs2-data0"]},{"name":"leseb","metadata_pool":"cephfs.leseb.meta","metadata_pool_id":8,"data_pool_ids":[9],"data_pools":["cephfs.leseb.data"]}]`, nil
-				} else if contains(args, "fs") && contains(args, "dump") {
+				} else if slices.Contains(args, "fs") && slices.Contains(args, "dump") {
 					return `{"standbys":[], "filesystems":[]}`, nil
 				} else if reflect.DeepEqual(args[0:5], []string{"fs", "subvolumegroup", "create", fsName, defaultCSISubvolumeGroup}) {
 					return "", nil
-				} else if contains(args, "osd") && contains(args, "lspools") {
+				} else if slices.Contains(args, "osd") && slices.Contains(args, "lspools") {
 					return "[]", nil
-				} else if contains(args, "mds") && contains(args, "fail") {
+				} else if slices.Contains(args, "mds") && slices.Contains(args, "fail") {
 					return "", nil
 				} else if isBasePoolOperation(fsName, command, args) {
 					return "", nil
 				} else if reflect.DeepEqual(args[0:5], []string{"fs", "new", fsName, fsName + "-metadata", fsName + "-data0"}) {
 					return "", nil
-				} else if contains(args, "auth") && contains(args, "get-or-create-key") {
+				} else if slices.Contains(args, "auth") && slices.Contains(args, "get-or-create-key") {
 					return "{\"key\":\"mysecurekey\"}", nil
-				} else if contains(args, "auth") && contains(args, "del") {
+				} else if slices.Contains(args, "auth") && slices.Contains(args, "del") {
 					return "", nil
-				} else if contains(args, "config") && contains(args, "get") {
+				} else if slices.Contains(args, "config") && slices.Contains(args, "get") {
 					return "{}", nil
-				} else if contains(args, "config") && contains(args, "mds_cache_memory_limit") {
+				} else if slices.Contains(args, "config") && slices.Contains(args, "mds_cache_memory_limit") {
 					return "", nil
-				} else if contains(args, "set") && contains(args, "max_mds") {
+				} else if slices.Contains(args, "set") && slices.Contains(args, "max_mds") {
 					return "", nil
-				} else if contains(args, "set") && contains(args, "allow_standby_replay") {
+				} else if slices.Contains(args, "set") && slices.Contains(args, "allow_standby_replay") {
 					return "", nil
-				} else if contains(args, "config") && contains(args, "mds_join_fs") {
+				} else if slices.Contains(args, "config") && slices.Contains(args, "mds_join_fs") {
 					return "", nil
-				} else if contains(args, "flag") && contains(args, "enable_multiple") {
+				} else if slices.Contains(args, "flag") && slices.Contains(args, "enable_multiple") {
 					return "", nil
 				} else if reflect.DeepEqual(args[0:5], []string{"osd", "crush", "rule", "create-replicated", fsName + "-data1"}) {
 					return "", nil
@@ -240,7 +241,7 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 					return "", nil
 				} else if reflect.DeepEqual(args[0:3], []string{"osd", "pool", "get"}) {
 					return "", errors.New("test pool does not exist yet")
-				} else if contains(args, "versions") {
+				} else if slices.Contains(args, "versions") {
 					versionStr, _ := json.Marshal(
 						map[string]map[string]int{
 							"mds": {
@@ -261,45 +262,45 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 
 	return &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if contains(args, "fs") && contains(args, "get") {
+			if slices.Contains(args, "fs") && slices.Contains(args, "get") {
 				if firstGet {
 					firstGet = false
 					return "", errors.New("fs doesn't exist")
 				}
 				return string(createdFsResponse), nil
-			} else if contains(args, "fs") && contains(args, "ls") {
+			} else if slices.Contains(args, "fs") && slices.Contains(args, "ls") {
 				return "[]", nil
-			} else if contains(args, "fs") && contains(args, "dump") {
+			} else if slices.Contains(args, "fs") && slices.Contains(args, "dump") {
 				return `{"standbys":[], "filesystems":[]}`, nil
 			} else if reflect.DeepEqual(args[0:5], []string{"fs", "subvolumegroup", "create", fsName, defaultCSISubvolumeGroup}) {
 				return "", nil
 			} else if reflect.DeepEqual(args[0:5], []string{"fs", "subvolumegroup", "info", fsName, defaultCSISubvolumeGroup}) {
 				return "", nil
-			} else if contains(args, "osd") && contains(args, "lspools") {
+			} else if slices.Contains(args, "osd") && slices.Contains(args, "lspools") {
 				return "[]", nil
-			} else if contains(args, "mds") && contains(args, "fail") {
+			} else if slices.Contains(args, "mds") && slices.Contains(args, "fail") {
 				return "", nil
 			} else if isBasePoolOperation(fsName, command, args) {
 				return "", nil
 			} else if reflect.DeepEqual(args[0:5], []string{"fs", "new", fsName, fsName + "-metadata", fsName + "-data0"}) {
 				return "", nil
-			} else if contains(args, "auth") && contains(args, "get-or-create-key") {
+			} else if slices.Contains(args, "auth") && slices.Contains(args, "get-or-create-key") {
 				return "{\"key\":\"mysecurekey\"}", nil
-			} else if contains(args, "auth") && contains(args, "del") {
+			} else if slices.Contains(args, "auth") && slices.Contains(args, "del") {
 				return "", nil
-			} else if contains(args, "auth") && contains(args, "rotate") {
+			} else if slices.Contains(args, "auth") && slices.Contains(args, "rotate") {
 				return `[{"key":"myrotatedkey"}]`, nil
-			} else if contains(args, "config") && contains(args, "mds_cache_memory_limit") {
+			} else if slices.Contains(args, "config") && slices.Contains(args, "mds_cache_memory_limit") {
 				return "", nil
-			} else if contains(args, "set") && contains(args, "max_mds") {
+			} else if slices.Contains(args, "set") && slices.Contains(args, "max_mds") {
 				return "", nil
-			} else if contains(args, "set") && contains(args, "allow_standby_replay") {
+			} else if slices.Contains(args, "set") && slices.Contains(args, "allow_standby_replay") {
 				return "", nil
-			} else if contains(args, "config") && contains(args, "mds_join_fs") {
+			} else if slices.Contains(args, "config") && slices.Contains(args, "mds_join_fs") {
 				return "", nil
-			} else if contains(args, "flag") && contains(args, "enable_multiple") {
+			} else if slices.Contains(args, "flag") && slices.Contains(args, "enable_multiple") {
 				return "", nil
-			} else if contains(args, "config") && contains(args, "get") {
+			} else if slices.Contains(args, "config") && slices.Contains(args, "get") {
 				return "{}", nil
 			} else if reflect.DeepEqual(args[0:5], []string{"osd", "crush", "rule", "create-replicated", fsName + "-data1"}) {
 				return "", nil
@@ -325,7 +326,7 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 			} else if reflect.DeepEqual(args[0:4], []string{"fs", "add_data_pool", fsName, fsName + "-named-pool"}) {
 				*addDataPoolCount++
 				return "", nil
-			} else if contains(args, "versions") {
+			} else if slices.Contains(args, "versions") {
 				versionStr, _ := json.Marshal(
 					map[string]map[string]int{
 						"mds": {
@@ -512,23 +513,23 @@ func TestUpgradeFilesystem(t *testing.T) {
 			},
 		})
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-		if contains(args, "fs") {
-			if contains(args, "get") {
+		if slices.Contains(args, "fs") {
+			if slices.Contains(args, "get") {
 				return string(createdFsResponse), nil
-			} else if contains(args, "ls") {
+			} else if slices.Contains(args, "ls") {
 				return "[]", nil
-			} else if contains(args, "dump") {
+			} else if slices.Contains(args, "dump") {
 				return `{"standbys":[], "filesystems":[]}`, nil
-			} else if contains(args, "subvolumegroup") {
+			} else if slices.Contains(args, "subvolumegroup") {
 				return "[]", nil
 			}
 		}
-		if contains(args, "osd") {
-			if contains(args, "lspools") {
+		if slices.Contains(args, "osd") {
+			if slices.Contains(args, "lspools") {
 				return "[]", nil
 			}
-			if contains(args, "pool") && contains(args, "application") {
-				if contains(args, "get") {
+			if slices.Contains(args, "pool") && slices.Contains(args, "application") {
+				if slices.Contains(args, "get") {
 					return `{"":{}}`, nil
 				}
 				return "[]", nil
@@ -537,7 +538,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 				return "", errors.New("test pool does not exist yet")
 			}
 		}
-		if contains(args, "mds") && contains(args, "fail") {
+		if slices.Contains(args, "mds") && slices.Contains(args, "fail") {
 			return "", errors.New("fail mds failed")
 		}
 		if isBasePoolOperation(fsName, command, args) {
@@ -546,30 +547,30 @@ func TestUpgradeFilesystem(t *testing.T) {
 		if reflect.DeepEqual(args[0:5], []string{"fs", "new", fsName, fsName + "-metadata", fsName + "-data0"}) {
 			return "", nil
 		}
-		if contains(args, "auth") {
-			if contains(args, "get-or-create-key") {
+		if slices.Contains(args, "auth") {
+			if slices.Contains(args, "get-or-create-key") {
 				return "{\"key\":\"mysecurekey\"}", nil
-			} else if contains(args, "auth") && contains(args, "del") {
+			} else if slices.Contains(args, "auth") && slices.Contains(args, "del") {
 				return "", nil
 			}
 		}
-		if contains(args, "config") {
-			if contains(args, "mds_cache_memory_limit") {
+		if slices.Contains(args, "config") {
+			if slices.Contains(args, "mds_cache_memory_limit") {
 				return "", nil
-			} else if contains(args, "mds_join_fs") {
+			} else if slices.Contains(args, "mds_join_fs") {
 				return "", nil
-			} else if contains(args, "get") {
+			} else if slices.Contains(args, "get") {
 				return "{}", nil
 			}
 		}
-		if contains(args, "set") {
-			if contains(args, "max_mds") {
+		if slices.Contains(args, "set") {
+			if slices.Contains(args, "max_mds") {
 				return "", nil
-			} else if contains(args, "allow_standby_replay") {
+			} else if slices.Contains(args, "allow_standby_replay") {
 				return "", nil
 			}
 		}
-		if contains(args, "versions") {
+		if slices.Contains(args, "versions") {
 			return string(mockedVersionStr), nil
 		}
 		assert.Fail(t, fmt.Sprintf("Unexpected command %q %q", command, args))
@@ -627,15 +628,6 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/", false)
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
-}
-
-func contains(arr []string, str string) bool {
-	for _, a := range arr {
-		if a == str {
-			return true
-		}
-	}
-	return false
 }
 
 func validateStart(ctx context.Context, t *testing.T, context *clusterd.Context, fs cephv1.CephFilesystem) {

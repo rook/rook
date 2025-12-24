@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -28,17 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// contains checks if an item exists in a given list.
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-
-	return false
-}
 
 // remove removes any element from a list
 func remove(list []string, s string) []string {
@@ -60,7 +50,7 @@ func AddFinalizerIfNotPresent(ctx context.Context, client client.Client, obj cli
 		return false, errors.Wrap(err, "failed to get meta information of object")
 	}
 
-	if !contains(accessor.GetFinalizers(), objectFinalizer) {
+	if !slices.Contains(accessor.GetFinalizers(), objectFinalizer) {
 		log.NamedInfo(NsName(obj.GetNamespace(), obj.GetName()), logger, "adding finalizer %q", objectFinalizer)
 		accessor.SetFinalizers(append(accessor.GetFinalizers(), objectFinalizer))
 		originalGeneration := obj.GetGeneration()
@@ -94,7 +84,7 @@ func RemoveFinalizerWithName(ctx context.Context, client client.Client, obj clie
 		return errors.Wrap(err, "failed to get meta information of object")
 	}
 
-	if contains(accessor.GetFinalizers(), finalizerName) {
+	if slices.Contains(accessor.GetFinalizers(), finalizerName) {
 		log.NamedInfo(NsName(obj.GetNamespace(), obj.GetName()), logger, "removing finalizer %q", finalizerName)
 		accessor.SetFinalizers(remove(accessor.GetFinalizers(), finalizerName))
 		if err := client.Update(ctx, obj); err != nil {
