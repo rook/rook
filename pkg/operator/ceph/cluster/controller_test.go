@@ -210,3 +210,59 @@ func TestRemoveFinalizers(t *testing.T) {
 		})
 	}
 }
+
+func TestReconcileSkipsWhenSkipReconcileLabelSet(t *testing.T) {
+	cephNs := "rook-ceph"
+	clusterName := "my-cluster"
+	nsName := types.NamespacedName{
+		Name:      clusterName,
+		Namespace: cephNs,
+	}
+
+	// create a Rook-Ceph scheme to use for our tests
+	s := runtime.NewScheme()
+	assert.NoError(t, cephv1.AddToScheme(s))
+	assert.NoError(t, corev1.AddToScheme(s))
+
+	fakeCluster := &cephv1.CephCluster{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "CephCluster",
+			APIVersion: "ceph.rook.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      clusterName,
+			Namespace: cephNs,
+			Finalizers: []string{
+				"cephcluster.ceph.rook.io",
+			},
+			Labels: map[string]string{
+				cephv1.SkipReconcileLabelKey: "true",
+			},
+		},
+	}
+
+	clusterdCtx := &clusterd.Context{}
+	controller := NewClusterController(clusterdCtx, "")
+	fakeRecorder := record.NewFakeRecorder(5)
+	controller.recorder = fakeRecorder
+
+	// Create a fake client to mock API calls
+	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(fakeCluster).Build()
+
+	reconcileCephCluster := &ReconcileCephCluster{
+		client:            client,
+		scheme:            s,
+		context:           clusterdCtx,
+		clusterController: controller,
+		opManagerContext:  context.TODO(),
+	}
+
+	resp, _, err := reconcileCephCluster.reconcile(reconcile.Request{NamespacedName: nsName})
+	assert.NoError(t, err)
+	assert.True(t, resp.IsZero())
+
+	// Verify we emit the ReconcileSkipped event when the skip-reconcile label is set.
+	event := <-fakeRecorder.Events
+	assert.Contains(t, event, "ReconcileSkipped")
+	assert.Contains(t, event, cephv1.SkipReconcileLabelKey)
+}
