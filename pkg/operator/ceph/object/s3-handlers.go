@@ -18,25 +18,44 @@ package object
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"net/http"
+	"net/url"
 	"strings"
 
+	v2aws "github.com/aws/aws-sdk-go-v2/aws"
+	v2creds "github.com/aws/aws-sdk-go-v2/credentials"
+	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	awssession "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	endpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/pkg/errors"
 )
 
 // Region for aws golang sdk
 const CephRegion = "us-east-1"
 
+type staticS3Resolver struct {
+	u *url.URL
+}
+
+func (r staticS3Resolver) ResolveEndpoint(ctx context.Context, params s3v2.EndpointParameters) (endpoints.Endpoint, error) {
+	// smithy endpoints.Endpoint expects a url.URL, not a string
+	return endpoints.Endpoint{
+		URI: *r.u,
+	}, nil
+}
+
 // S3Agent wraps the s3.S3 structure to allow for wrapper methods
 type S3Agent struct {
-	Client *s3.S3
+	Client   *s3.S3       // v1 client
+	ClientV2 *s3v2.Client // v2 client
 }
 
 func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte, insecure bool, httpClient *http.Client) (*S3Agent, error) {
@@ -44,6 +63,7 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 	if debug {
 		logLevel = aws.LogDebug
 	}
+
 	tlsEnabled := false
 	if len(tlsCert) > 0 || insecure {
 		tlsEnabled = true
@@ -57,7 +77,10 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 		}
 	}
 
-	session, err := awssession.NewSession(
+	// -----------------------------
+	// SDK v1 client initialization
+	// -----------------------------
+	v1Session, err := awssession.NewSession(
 		aws.NewConfig().
 			WithRegion(CephRegion).
 			WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
@@ -69,11 +92,33 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 			WithLogLevel(logLevel),
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create v1 session")
 	}
-	svc := s3.New(session)
+	v1Client := s3.New(v1Session)
+
+	// -----------------------------
+	// SDK v2 client initialization
+	// -----------------------------
+	scheme := "http"
+	if tlsEnabled {
+		scheme = "https"
+	}
+	u, perr := url.Parse(endpoint)
+	if perr != nil || u.Scheme == "" {
+		u, _ = url.Parse(scheme + "://" + endpoint)
+	}
+	v2Cfg := v2aws.Config{
+		Region:      CephRegion,
+		Credentials: v2aws.NewCredentialsCache(v2creds.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+		HTTPClient:  httpClient,
+	}
+	v2Client := s3v2.NewFromConfig(v2Cfg, func(o *s3v2.Options) {
+		o.UsePathStyle = true
+		o.EndpointResolverV2 = staticS3Resolver{u: u}
+	})
 	return &S3Agent{
-		Client: svc,
+		Client:   v1Client,
+		ClientV2: v2Client,
 	}, nil
 }
 
@@ -93,22 +138,18 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 	} else {
 		logger.Debugf("creating bucket %q", name)
 	}
-	bucketInput := &s3.CreateBucketInput{
+
+	input := &s3v2.CreateBucketInput{
 		Bucket: &name,
 	}
 
-	_, err := s.Client.CreateBucket(bucketInput)
+	_, err := s.ClientV2.CreateBucket(context.TODO(), input)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			logger.Debugf("DEBUG: after s3 call, ok=%v, aerr=%v", ok, aerr)
-			switch aerr.Code() {
-			case s3.ErrCodeBucketAlreadyExists:
-				logger.Debugf("bucket %q already exists", name)
-				return nil
-			case s3.ErrCodeBucketAlreadyOwnedByYou:
-				logger.Debugf("bucket %q already owned by you", name)
-				return nil
-			}
+		var alreadyExists *s3types.BucketAlreadyExists
+		var alreadyOwned *s3types.BucketAlreadyOwnedByYou
+		if errors.As(err, &alreadyExists) || errors.As(err, &alreadyOwned) {
+			logger.Debugf("bucket %q already exists or is owned by you", name)
+			return nil
 		}
 		return errors.Wrapf(err, "failed to create bucket %q", name)
 	}
