@@ -53,9 +53,8 @@ import (
 )
 
 const (
-	packageName                   = "ceph-nvmeof-gateway"
-	controllerName                = packageName + "-controller"
-	CephNVMeOFGatewayNameLabelKey = "ceph_nvmeof_gateway"
+	packageName    = "ceph-nvmeof-gateway"
+	controllerName = packageName + "-controller"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", packageName)
@@ -428,13 +427,6 @@ func getNVMeOFGatewayConfig(poolName, podName, podIP, anaGroup string, userConfi
 	gatewaySection.Key("max_ns_to_change_lb_grp").SetValue("8")
 	gatewaySection.Key("verify_listener_ip").SetValue("False")
 	gatewaySection.Key("enable_monitor_client").SetValue("True")
-
-	// Set default [gateway-logs] section
-	gatewayLogsSection, err := cfg.NewSection("gateway-logs")
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create gateway-logs section")
-	}
-	gatewayLogsSection.Key("log_level").SetValue("debug")
 
 	// Set default [discovery] section
 	discoverySection, err := cfg.NewSection("discovery")
