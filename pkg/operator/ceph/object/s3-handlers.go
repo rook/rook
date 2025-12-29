@@ -18,11 +18,17 @@ package object
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"net/http"
+	"net/url"
 	"strings"
 
+	v2aws "github.com/aws/aws-sdk-go-v2/aws"
+	v2creds "github.com/aws/aws-sdk-go-v2/credentials"
+	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -36,7 +42,8 @@ const CephRegion = "us-east-1"
 
 // S3Agent wraps the s3.S3 structure to allow for wrapper methods
 type S3Agent struct {
-	Client *s3.S3
+	Client   *s3.S3       // v1 client
+	ClientV2 *s3v2.Client // v2 client
 }
 
 func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte, insecure bool, httpClient *http.Client) (*S3Agent, error) {
@@ -44,6 +51,7 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 	if debug {
 		logLevel = aws.LogDebug
 	}
+
 	tlsEnabled := false
 	if len(tlsCert) > 0 || insecure {
 		tlsEnabled = true
@@ -57,7 +65,10 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 		}
 	}
 
-	session, err := awssession.NewSession(
+	// -----------------------------
+	// SDK v1 client initialization
+	// -----------------------------
+	v1Session, err := awssession.NewSession(
 		aws.NewConfig().
 			WithRegion(CephRegion).
 			WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
@@ -69,11 +80,37 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 			WithLogLevel(logLevel),
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create v1 session")
 	}
-	svc := s3.New(session)
+	v1Client := s3.New(v1Session)
+
+	// -----------------------------
+	// SDK v2 client initialization
+	// -----------------------------
+	scheme := "http"
+	if tlsEnabled {
+		scheme = "https"
+	}
+	u, perr := url.Parse(endpoint)
+	if perr != nil || u.Scheme == "" {
+		u, _ = url.Parse(scheme + "://" + endpoint)
+	}
+	// Use the officially-supported v2 endpoint customization mechanism.
+	// This keeps S3's internal endpoint customizations (including hostname handling)
+	// consistent with the SDK's expectations, which is especially important for TLS.
+	baseEndpoint := u.String()
+	v2Cfg := v2aws.Config{
+		Region:       CephRegion,
+		Credentials:  v2aws.NewCredentialsCache(v2creds.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+		HTTPClient:   httpClient,
+		BaseEndpoint: &baseEndpoint,
+	}
+	v2Client := s3v2.NewFromConfig(v2Cfg, func(o *s3v2.Options) {
+		o.UsePathStyle = true
+	})
 	return &S3Agent{
-		Client: svc,
+		Client:   v1Client,
+		ClientV2: v2Client,
 	}, nil
 }
 
@@ -93,24 +130,36 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 	} else {
 		logger.Debugf("creating bucket %q", name)
 	}
-	bucketInput := &s3.CreateBucketInput{
+
+	// Prefer AWS SDK v2, but fall back to v1 for better compatibility with
+	// S3-compatible endpoints (e.g., RGW) where v2 behaviors may differ.
+	input := &s3v2.CreateBucketInput{
 		Bucket: &name,
 	}
 
-	_, err := s.Client.CreateBucket(bucketInput)
+	_, err := s.ClientV2.CreateBucket(context.TODO(), input)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			logger.Debugf("DEBUG: after s3 call, ok=%v, aerr=%v", ok, aerr)
-			switch aerr.Code() {
-			case s3.ErrCodeBucketAlreadyExists:
-				logger.Debugf("bucket %q already exists", name)
-				return nil
-			case s3.ErrCodeBucketAlreadyOwnedByYou:
-				logger.Debugf("bucket %q already owned by you", name)
-				return nil
-			}
+		var alreadyExists *s3types.BucketAlreadyExists
+		var alreadyOwned *s3types.BucketAlreadyOwnedByYou
+		if errors.As(err, &alreadyExists) || errors.As(err, &alreadyOwned) {
+			logger.Debugf("bucket %q already exists or is owned by you", name)
+			return nil
 		}
-		return errors.Wrapf(err, "failed to create bucket %q", name)
+		logger.Warningf("failed to create bucket %q with AWS SDK v2, falling back to v1. err: %+v", name, err)
+
+		_, errV1 := s.Client.CreateBucket(&s3.CreateBucketInput{
+			Bucket: aws.String(name),
+		})
+		if errV1 != nil {
+			if aerr, ok := errV1.(awserr.Error); ok {
+				switch aerr.Code() {
+				case s3.ErrCodeBucketAlreadyExists, s3.ErrCodeBucketAlreadyOwnedByYou:
+					logger.Debugf("bucket %q already exists or is owned by you", name)
+					return nil
+				}
+			}
+			return errors.Wrapf(errV1, "failed to create bucket %q", name)
+		}
 	}
 
 	if infoLogging {
