@@ -210,7 +210,7 @@ The gateway settings correspond to the RGW daemon settings.
 * `port`: The port on which the Object service will be reachable. If host networking is enabled, the RGW daemons will also listen on that port. If running on SDN, the RGW daemon listening port will be 8080 internally.
 * `securePort`: The secure port on which RGW pods will be listening. A TLS certificate must be
     specified either via `sslCerticateRef` or `service.annotations`. Refer to
-    [enabling TLS](../../Storage-Configuration/Object-Storage-RGW/object-storage.md#enabling-tls)
+    [enabling TLS](../../Storage-Configuration/Object-Storage-RGW/object-storage.md#enable-tls)
     documentation for more details.
 * `instances`: The number of pods that will be started to load balance this object store.
 * `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways
