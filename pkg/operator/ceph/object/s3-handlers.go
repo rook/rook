@@ -34,23 +34,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	awssession "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	endpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/pkg/errors"
 )
 
 // Region for aws golang sdk
 const CephRegion = "us-east-1"
-
-type staticS3Resolver struct {
-	u *url.URL
-}
-
-func (r staticS3Resolver) ResolveEndpoint(ctx context.Context, params s3v2.EndpointParameters) (endpoints.Endpoint, error) {
-	// smithy endpoints.Endpoint expects a url.URL, not a string
-	return endpoints.Endpoint{
-		URI: *r.u,
-	}, nil
-}
 
 // S3Agent wraps the s3.S3 structure to allow for wrapper methods
 type S3Agent struct {
@@ -107,14 +95,18 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 	if perr != nil || u.Scheme == "" {
 		u, _ = url.Parse(scheme + "://" + endpoint)
 	}
+	// Use the officially-supported v2 endpoint customization mechanism.
+	// This keeps S3's internal endpoint customizations (including hostname handling)
+	// consistent with the SDK's expectations, which is especially important for TLS.
+	baseEndpoint := u.String()
 	v2Cfg := v2aws.Config{
-		Region:      CephRegion,
-		Credentials: v2aws.NewCredentialsCache(v2creds.NewStaticCredentialsProvider(accessKey, secretKey, "")),
-		HTTPClient:  httpClient,
+		Region:       CephRegion,
+		Credentials:  v2aws.NewCredentialsCache(v2creds.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+		HTTPClient:   httpClient,
+		BaseEndpoint: &baseEndpoint,
 	}
 	v2Client := s3v2.NewFromConfig(v2Cfg, func(o *s3v2.Options) {
 		o.UsePathStyle = true
-		o.EndpointResolverV2 = staticS3Resolver{u: u}
 	})
 	return &S3Agent{
 		Client:   v1Client,
