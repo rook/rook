@@ -131,6 +131,8 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 		logger.Debugf("creating bucket %q", name)
 	}
 
+	// Prefer AWS SDK v2, but fall back to v1 for better compatibility with
+	// S3-compatible endpoints (e.g., RGW) where v2 behaviors may differ.
 	input := &s3v2.CreateBucketInput{
 		Bucket: &name,
 	}
@@ -143,7 +145,21 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 			logger.Debugf("bucket %q already exists or is owned by you", name)
 			return nil
 		}
-		return errors.Wrapf(err, "failed to create bucket %q", name)
+		logger.Warningf("failed to create bucket %q with AWS SDK v2, falling back to v1. err: %+v", name, err)
+
+		_, errV1 := s.Client.CreateBucket(&s3.CreateBucketInput{
+			Bucket: aws.String(name),
+		})
+		if errV1 != nil {
+			if aerr, ok := errV1.(awserr.Error); ok {
+				switch aerr.Code() {
+				case s3.ErrCodeBucketAlreadyExists, s3.ErrCodeBucketAlreadyOwnedByYou:
+					logger.Debugf("bucket %q already exists or is owned by you", name)
+					return nil
+				}
+			}
+			return errors.Wrapf(errV1, "failed to create bucket %q", name)
+		}
 	}
 
 	if infoLogging {
