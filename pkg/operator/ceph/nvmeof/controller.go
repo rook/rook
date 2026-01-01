@@ -117,21 +117,18 @@ func watchOwnedCoreObject[T client.Object](c controller.Controller, mgr manager.
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
-		logger.Errorf("failed to create controller: %v", err)
-		return err
+		return errors.Wrap(err, "failed to create controller")
 	}
 	logger.Info("successfully started")
 
 	err = addonsv1alpha1.AddToScheme(mgr.GetScheme())
 	if err != nil {
-		logger.Errorf("failed to add addonsv1alpha1 to scheme: %v", err)
-		return err
+		return errors.Wrap(err, "failed to add addonsv1alpha1 to scheme")
 	}
 
 	err = csiopv1.AddToScheme(mgr.GetScheme())
 	if err != nil {
-		logger.Errorf("failed to add csiopv1 to scheme: %v", err)
-		return err
+		return errors.Wrap(err, "failed to add csiopv1 to scheme")
 	}
 
 	err = c.Watch(
@@ -143,15 +140,13 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		),
 	)
 	if err != nil {
-		logger.Errorf("failed to watch CephNVMeOFGateway CRD: %v", err)
-		return err
+		return errors.Wrap(err, "failed to watch CephNVMeOFGateway CRD")
 	}
 
 	for _, t := range objectsToWatch {
 		err = watchOwnedCoreObject(c, mgr, t)
 		if err != nil {
-			logger.Errorf("failed to watch resource type %s: %v", t.GetObjectKind().GroupVersionKind().String(), err)
-			return err
+			return errors.Wrapf(err, "failed to watch resource type %s", t.GetObjectKind().GroupVersionKind().String())
 		}
 	}
 
@@ -173,7 +168,6 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 		if kerrors.IsNotFound(err) {
 			return reconcile.Result{}, *cephNVMeOFGateway, nil
 		}
-		logger.Errorf("failed to get CephNVMeOFGateway %s/%s: %v", request.Namespace, request.Name, err)
 		return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to get CephNVMeOFGateway")
 	}
 
@@ -181,7 +175,6 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 
 	generationUpdated, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephNVMeOFGateway)
 	if err != nil {
-		logger.Errorf("failed to add finalizer: %v", err)
 		return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to add finalizer")
 	}
 	if generationUpdated {
@@ -192,7 +185,6 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 		cephxUninitialized := keyring.UninitializedCephxStatus()
 		err := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, &cephxUninitialized, k8sutil.EmptyStatus)
 		if err != nil {
-			logger.Errorf("failed to set empty status: %v", err)
 			return opcontroller.ImmediateRetryResult, *cephNVMeOFGateway, errors.Wrapf(err, "failed set empty status")
 		}
 		cephNVMeOFGateway.Status = &cephv1.NVMeOFGatewayStatus{
@@ -207,7 +199,6 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 		if !cephNVMeOFGateway.GetDeletionTimestamp().IsZero() && !cephClusterExists {
 			err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephNVMeOFGateway)
 			if err != nil {
-				logger.Errorf("failed to remove finalizer: %v", err)
 				return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to remove finalizer")
 			}
 			r.recorder.Event(cephNVMeOFGateway, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
@@ -219,7 +210,6 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 
 	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, r.cephClusterSpec)
 	if err != nil {
-		logger.Errorf("failed to load cluster info: %v", err)
 		return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to populate cluster info")
 	}
 
@@ -229,14 +219,12 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 
 		runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
 		if err != nil {
-			logger.Errorf("failed to retrieve ceph version: %v", err)
 			return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrapf(err, "failed to retrieve current ceph version")
 		}
 		r.clusterInfo.CephVersion = runningCephVersion
 
 		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephNVMeOFGateway)
 		if err != nil {
-			logger.Errorf("failed to remove finalizer during deletion: %v", err)
 			return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to remove finalizer")
 		}
 		r.recorder.Event(cephNVMeOFGateway, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
@@ -252,7 +240,6 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 			logger.Info(opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephNVMeOFGateway, nil
 		}
-		logger.Errorf("failed to detect ceph version: %v", err)
 		return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to detect ceph version")
 	}
 
@@ -263,14 +250,12 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 	r.clusterInfo.CephVersion = *runningCephVersion
 
 	if err := validateGateway(cephNVMeOFGateway); err != nil {
-		logger.Errorf("gateway validation failed: %v", err)
 		return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrapf(err, "invalid configuration")
 	}
 
 	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion,
 		*desiredCephVersion, cephNVMeOFGateway.Status.Cephx.Daemon)
 	if err != nil {
-		logger.Errorf("failed to determine if cephx keys should be rotated: %v", err)
 		return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to determine if cephx keys should be rotated")
 	}
 	if r.shouldRotateCephxKeys {
@@ -279,7 +264,6 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 
 	_, err = r.reconcileCreateCephNVMeOFGateway(cephNVMeOFGateway)
 	if err != nil {
-		logger.Errorf("failed to reconcile gateway deployments: %v", err)
 		return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to create deployments")
 	}
 
@@ -297,7 +281,6 @@ func (r *ReconcileCephNVMeOFGateway) reconcileCreateCephNVMeOFGateway(cephNVMeOF
 	if r.cephClusterSpec.External.Enable {
 		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, r.clusterInfo)
 		if err != nil {
-			logger.Errorf("version validation failed: %v", err)
 			return reconcile.Result{}, errors.Wrap(err, "refusing to run new crd")
 		}
 	}
@@ -307,7 +290,6 @@ func (r *ReconcileCephNVMeOFGateway) reconcileCreateCephNVMeOFGateway(cephNVMeOF
 	}
 	deployments, err := r.context.Clientset.AppsV1().Deployments(cephNVMeOFGateway.Namespace).List(r.opManagerContext, listOps)
 	if err != nil && !kerrors.IsNotFound(err) {
-		logger.Errorf("failed to list deployments: %v", err)
 		return reconcile.Result{}, errors.Wrapf(err, "failed to list deployments")
 	}
 
@@ -320,14 +302,12 @@ func (r *ReconcileCephNVMeOFGateway) reconcileCreateCephNVMeOFGateway(cephNVMeOF
 		logger.Infof("scaling down from %d to %d", currentGatewayCount, cephNVMeOFGateway.Spec.Instances)
 		err := r.downCephNVMeOFGateway(cephNVMeOFGateway, currentGatewayCount)
 		if err != nil {
-			logger.Errorf("scale down failed: %v", err)
 			return reconcile.Result{}, errors.Wrapf(err, "failed to scale down")
 		}
 	}
 
 	err = r.upCephNVMeOFGateway(cephNVMeOFGateway)
 	if err != nil {
-		logger.Errorf("failed to ensure gateway is up: %v", err)
 		return reconcile.Result{}, errors.Wrapf(err, "failed to update gateway")
 	}
 
@@ -344,7 +324,6 @@ func (r *ReconcileCephNVMeOFGateway) upCephNVMeOFGateway(cephNVMeOFGateway *ceph
 		if cephNVMeOFGateway.Spec.ConfigMapRef == "" {
 			configMapName, configHash, err = r.createConfigMap(cephNVMeOFGateway, daemonID)
 			if err != nil {
-				logger.Errorf("failed to create configmap for daemonID=%s: %v", daemonID, err)
 				return errors.Wrapf(err, "failed to create configmap for %q", daemonID)
 			}
 			logger.Infof("configmap %q created/updated for nvmeof gateway %q instance %q with hash %q", configMapName, cephNVMeOFGateway.Name, daemonID, configHash)
@@ -355,25 +334,21 @@ func (r *ReconcileCephNVMeOFGateway) upCephNVMeOFGateway(cephNVMeOFGateway *ceph
 
 		deployment, err := r.makeDeployment(cephNVMeOFGateway, daemonID, configMapName, configHash)
 		if err != nil {
-			logger.Errorf("failed to make deployment for daemonID=%s: %v", daemonID, err)
 			return errors.Wrapf(err, "failed to make deployment for %q", daemonID)
 		}
 
 		err = controllerutil.SetControllerReference(cephNVMeOFGateway, deployment, r.scheme)
 		if err != nil {
-			logger.Errorf("failed to set owner reference on deployment %s: %v", deployment.Name, err)
 			return errors.Wrapf(err, "failed to set owner reference for deployment %q", deployment.Name)
 		}
 
 		_, err = k8sutil.CreateOrUpdateDeployment(r.opManagerContext, r.context.Clientset, deployment)
 		if err != nil {
-			logger.Errorf("failed to create/update deployment %s: %v", deployment.Name, err)
 			return errors.Wrapf(err, "failed to create/update deployment for %q", daemonID)
 		}
 
 		err = r.createCephNVMeOFService(cephNVMeOFGateway, daemonID)
 		if err != nil {
-			logger.Errorf("failed to create service for daemonID=%s: %v", daemonID, err)
 			return errors.Wrapf(err, "failed to create service for %q", daemonID)
 		}
 	}
@@ -388,13 +363,11 @@ func (r *ReconcileCephNVMeOFGateway) downCephNVMeOFGateway(cephNVMeOFGateway *ce
 
 		err := r.context.Clientset.AppsV1().Deployments(cephNVMeOFGateway.Namespace).Delete(r.opManagerContext, name, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
-			logger.Errorf("failed to delete deployment %s: %v", name, err)
 			return errors.Wrapf(err, "failed to delete deployment %q", name)
 		}
 
 		err = r.context.Clientset.CoreV1().Services(cephNVMeOFGateway.Namespace).Delete(r.opManagerContext, name, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
-			logger.Errorf("failed to delete service %s: %v", name, err)
 			return errors.Wrapf(err, "failed to delete service %q", name)
 		}
 	}
@@ -509,7 +482,6 @@ func (r *ReconcileCephNVMeOFGateway) generateConfigMap(nvmeof *cephv1.CephNVMeOF
 
 	configContent, err := getNVMeOFGatewayConfig(poolName, podName, podIP, anaGroup, nvmeof.Spec.NVMeOFConfig)
 	if err != nil {
-		logger.Errorf("failed to generate config: %v", err)
 		return nil, errors.Wrap(err, "failed to generate nvmeof config")
 	}
 	data := map[string]string{
@@ -603,7 +575,6 @@ func (r *ReconcileCephNVMeOFGateway) updateStatus(observedGeneration int64, name
 		}
 
 		if err := reporting.UpdateStatus(r.client, nvmeof); err != nil {
-			logger.Errorf("failed to update status: %v", err)
 			return errors.Wrapf(err, "failed to set status")
 		}
 		return nil
