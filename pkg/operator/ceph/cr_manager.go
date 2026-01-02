@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
 	"github.com/rook/rook/pkg/operator/ceph/file/subvolumegroup"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
+	"github.com/rook/rook/pkg/operator/ceph/nvmeof"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	"github.com/rook/rook/pkg/operator/ceph/object/cosi"
@@ -82,6 +83,7 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Conte
 	nfs.Add,
 	rbd.Add,
 	client.Add,
+	nvmeof.Add,
 	mirror.Add,
 	Add,
 	csi.Add,
