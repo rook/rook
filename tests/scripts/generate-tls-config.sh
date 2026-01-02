@@ -34,7 +34,10 @@ openssl req -new -key "${DIR}"/"${SERVICE}".key -subj "/CN=system:node:${SERVICE
 export CSR_NAME=${SERVICE}-csr
 
 # Minimum 1.19.0 kubernetes version is required for certificates.k8s.io/v1 version
-SERVER_VERSION=$(kubectl version --short | awk -F  "."  '/Server Version/ {print $2}')
+# `kubectl version --short` has been removed in newer kubectl versions. Parse the
+# server minor version from the default `kubectl version` output instead.
+SERVER_VERSION="$(kubectl version 2>/dev/null | awk -F '.' '/Server Version/ {gsub(/[^0-9]/,"",$2); print $2; exit}')"
+SERVER_VERSION="${SERVER_VERSION:-0}"
 MINIMUM_VERSION=19
 if [ "${SERVER_VERSION}" -lt "${MINIMUM_VERSION}" ]
 then
