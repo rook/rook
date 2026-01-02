@@ -242,7 +242,7 @@ flags are present on RBD volumes.
 * `application`: The type of application set on the pool. By default, Ceph pools for CephBlockPools will be `rbd`,
     CephObjectStore pools will be `rgw`, and CephFilesystem pools will be `cephfs`.
 
-* `parameters`: Sets any [parameters](https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values) listed to the given pool
+* `parameters`: Sets any [parameters](https://docs.ceph.com/docs/master/rados/operations/pools/#setting-pool-values) listed to the given pool
     * `target_size_ratio:` gives a hint (%) to the Ceph PG autoscaler in terms of expected consumption of the total cluster capacity of a given pool, for more info see the [ceph documentation](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size)
     * `compression_mode`: Configures data compression at the OSD level. If left unspecified, no compression is performed. Values supported are [these](https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression):  `none`, `passive`, `aggressive`, and `force`.  In most cases `aggressive` is appropriate.  Specify `force` only if you really know what you're doing.
 
@@ -260,7 +260,7 @@ flags are present on RBD volumes.
         * `disabled`: whether to enable or disable pool mirroring status
         * `interval`: time interval to refresh the mirroring status (default 60s)
 
-* `quotas`: Set byte and object quotas. See the [ceph documentation](https://docs.ceph.com/en/latest/rados/operations/pools/#set-pool-quotas) for more info.
+* `quotas`: Set byte and object quotas. See the [ceph documentation](https://docs.ceph.com/en/latest/rados/operations/pools/#setting-pool-quotas) for more info.
     * `maxSize`: quota in bytes as a string with quantity suffixes (e.g. "10Gi")
     * `maxObjects`: quota in objects as an integer
 
