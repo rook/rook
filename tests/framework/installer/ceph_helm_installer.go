@@ -131,6 +131,7 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 	}
 	values["ingress"] = map[string]interface{}{
 		"dashboard": map[string]interface{}{
+			"enabled": "true",
 			"annotations": map[string]interface{}{
 				"kubernetes.io/ingress-class":                "nginx",
 				"nginx.ingress.kubernetes.io/rewrite-target": "/ceph-dashboard/$2",
