@@ -1863,8 +1863,7 @@ class RadosJSON:
                     },
                 }
             )
-
-        # if 'CSI_RBD_NODE_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
+        # if 'CSI_RBD_NODE_SECRET' && 'CSI_RBD_NODE_SECRET_NAME' exists, then only add 'rook-csi-rbd-node' Secret
         if (
             self.out_map["CSI_RBD_NODE_SECRET"]
             and self.out_map["CSI_RBD_NODE_SECRET_NAME"]
@@ -1881,7 +1880,7 @@ class RadosJSON:
                     },
                 }
             )
-        # if 'CSI_RBD_PROVISIONER_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
+        # if 'CSI_RBD_PROVISIONER_SECRET' && 'CSI_RBD_PROVISIONER_SECRET_NAME' exists, then only add 'rook-csi-rbd-provisioner' Secret
         if (
             self.out_map["CSI_RBD_PROVISIONER_SECRET"]
             and self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]
@@ -1892,13 +1891,14 @@ class RadosJSON:
                     "kind": "Secret",
                     "data": {
                         "userID": self.get_user_id(
-                            self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"], generation
+                            self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"],
+                            generation,
                         ),
                         "userKey": self.out_map["CSI_RBD_PROVISIONER_SECRET"],
                     },
                 }
             )
-        # if 'CSI_CEPHFS_PROVISIONER_SECRET' exists, then only add 'rook-csi-cephfs-provisioner' Secret
+        # if 'CSI_CEPHFS_PROVISIONER_SECRET' && 'CSI_CEPHFS_PROVISIONER_SECRET_NAME' exists, then only add 'rook-csi-cephfs-provisioner' Secret
         if (
             self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"]
             and self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"]
@@ -1916,7 +1916,7 @@ class RadosJSON:
                     },
                 }
             )
-        # if 'CSI_CEPHFS_NODE_SECRET' exists, then only add 'rook-csi-cephfs-node' Secret
+        # if 'CSI_CEPHFS_NODE_SECRET' && 'CSI_CEPHFS_NODE_SECRET_NAME' exists, then only add 'rook-csi-cephfs-node' Secret
         if (
             self.out_map["CSI_CEPHFS_NODE_SECRET"]
             and self.out_map["CSI_CEPHFS_NODE_SECRET_NAME"]
