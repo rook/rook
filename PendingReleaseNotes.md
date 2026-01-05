@@ -6,6 +6,10 @@
     When set to `false`, the standby MDS daemon deployment will be scaled down and removed,
     rather than only disabling the standby cache while the daemon remains running.
 
+- Now rook operator won't create the csi user and secrets for external mode when admin keyring is used.
+  There will be a single source of truth. The python script will be responsible for creating the ceph user
+  and the import script will handle creating the kubernetes secrets for ceph user.  [PR](https://github.com/rook/rook/pull/16882)
+
 ## Features
 
 - Experimental: Allow concurrent reconciles of the CephCluster CR when there multiple clusters
