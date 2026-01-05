@@ -201,7 +201,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	}
 
 	t.Run("no items in the update queue should be a noop", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs()
 		existingDeployments = newExistenceListWithIDs(0, 2, 4, 6)
 		forceUpgradeIfUnhealthy = false
@@ -219,7 +219,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("ok to stop one OSD at a time", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		// reminder that updateQueue pops things off the queue from the front, so the leftmost item
 		// will be the one queried
 		updateQueue = newUpdateQueueWithIDs(0, 2, 4, 6)
@@ -247,7 +247,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("ok to stop 3 OSDs at a time", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs(0, 2, 4, 6)
 		existingDeployments = newExistenceListWithIDs(0, 2, 4, 6)
 		forceUpgradeIfUnhealthy = false
@@ -285,7 +285,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("ok to stop more OSDs than are in the update queue", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs(2, 0)
 		existingDeployments = newExistenceListWithIDs(6, 4, 2, 0)
 		forceUpgradeIfUnhealthy = false
@@ -313,7 +313,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("ok to stop OSDS not in existence list (newly-created OSDs)", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs(2, 0)
 		existingDeployments = newExistenceListWithIDs(2, 0)
 		forceUpgradeIfUnhealthy = false
@@ -341,7 +341,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("not ok to stop OSD", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs(2)
 		existingDeployments = newExistenceListWithIDs(0, 2, 4, 6)
 		forceUpgradeIfUnhealthy = false
@@ -368,7 +368,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("PGs not clean to upgrade OSD", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs(2)
 		existingDeployments = newExistenceListWithIDs(2)
 		requiresHealthyPGs = true
@@ -384,7 +384,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("PGs clean to upgrade OSD", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs(0)
 		existingDeployments = newExistenceListWithIDs(0)
 		requiresHealthyPGs = true
@@ -403,7 +403,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("continueUpgradesAfterChecksEvenIfUnhealthy = true", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs(2)
 		existingDeployments = newExistenceListWithIDs(0, 2, 4, 6)
 		forceUpgradeIfUnhealthy = true // FORCE UPDATES
@@ -424,7 +424,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("failures updating deployments", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs(0, 2, 4, 6)
 		existingDeployments = newExistenceListWithIDs(0, 2, 4, 6)
 		forceUpgradeIfUnhealthy = false
@@ -461,7 +461,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("failure due to OSD deployment with bad info", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs(0, 6)
 		existingDeployments = newExistenceListWithIDs(0, 2, 4, 6)
 		forceUpgradeIfUnhealthy = false
@@ -495,7 +495,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("do not update OSDs on nodes removed from the storage spec", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		// reminder that updateQueue pops things off the queue from the front, so the leftmost item
 		// will be the one queried
 		updateQueue = newUpdateQueueWithIDs(0, 4)
@@ -524,7 +524,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 	})
 
 	t.Run("skip osd reconcile", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs(0, 1)
 		existingDeployments = newExistenceListWithIDs(0)
 		forceUpgradeIfUnhealthy = true
@@ -549,7 +549,7 @@ func Test_getOSDUpdateInfo(t *testing.T) {
 	cephImage := "quay.io/ceph/ceph:v15"
 
 	// NOTE: all tests share the same clientset
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}

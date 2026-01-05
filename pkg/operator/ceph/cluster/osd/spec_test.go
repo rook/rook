@@ -90,7 +90,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		{Name: deviceName},
 	}
 
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
 		CephVersion: cephver.Squid,
@@ -541,7 +541,7 @@ func verifyEnvVar(t *testing.T, envVars []corev1.EnvVar, expectedName, expectedV
 }
 
 func TestStorageSpecConfig(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
 		CephVersion: cephver.Squid,
@@ -624,7 +624,7 @@ func TestHostNetwork(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
 		CephVersion: cephver.Squid,
@@ -676,7 +676,7 @@ func TestHostNetwork(t *testing.T) {
 }
 
 func TestOsdPrepareResources(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
@@ -795,7 +795,7 @@ func getDummyDeploymentOnNode(clientset *fake.Clientset, c *Cluster, nodeName st
 }
 
 func TestOSDPlacement(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
 		CephVersion: cephver.Squid,
@@ -958,7 +958,7 @@ func TestOSDPlacement(t *testing.T) {
 }
 
 func TestCreateOSDService(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
 	clusterInfo.SetName("test")

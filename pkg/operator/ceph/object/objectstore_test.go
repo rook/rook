@@ -1093,7 +1093,7 @@ func TestGetRealmKeySecret(t *testing.T) {
 		}
 
 		c := &clusterd.Context{
-			Clientset: k8sfake.NewSimpleClientset(secret),
+			Clientset: k8sfake.NewClientset(secret),
 		}
 
 		secret, err := GetRealmKeySecret(ctx, c, types.NamespacedName{Namespace: ns, Name: realmName})
@@ -1103,7 +1103,7 @@ func TestGetRealmKeySecret(t *testing.T) {
 
 	t.Run("secret doesn't exist", func(t *testing.T) {
 		c := &clusterd.Context{
-			Clientset: k8sfake.NewSimpleClientset(),
+			Clientset: k8sfake.NewClientset(),
 		}
 
 		secret, err := GetRealmKeySecret(ctx, c, types.NamespacedName{Namespace: ns, Name: realmName})
@@ -1192,7 +1192,7 @@ func TestGetRealmKeyArgs(t *testing.T) {
 		s.Data["secret-key"] = []byte("my-secret-key")
 
 		c := &clusterd.Context{
-			Clientset: k8sfake.NewSimpleClientset(s),
+			Clientset: k8sfake.NewClientset(s),
 		}
 
 		access, secret, err := GetRealmKeyArgs(ctx, c, realmName, ns)
@@ -1203,7 +1203,7 @@ func TestGetRealmKeyArgs(t *testing.T) {
 
 	t.Run("secret doesn't exist", func(t *testing.T) {
 		c := &clusterd.Context{
-			Clientset: k8sfake.NewSimpleClientset(),
+			Clientset: k8sfake.NewClientset(),
 		}
 
 		access, secret, err := GetRealmKeyArgs(ctx, c, realmName, ns)
@@ -1218,7 +1218,7 @@ func TestGetRealmKeyArgs(t *testing.T) {
 		// missing all data
 
 		c := &clusterd.Context{
-			Clientset: k8sfake.NewSimpleClientset(s),
+			Clientset: k8sfake.NewClientset(s),
 		}
 
 		access, secret, err := GetRealmKeyArgs(ctx, c, realmName, ns)

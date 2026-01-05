@@ -283,7 +283,7 @@ func TestReconcileObjectRealm_createRealmKeys(t *testing.T) {
 	t.Run("should be idempotent", func(t *testing.T) {
 		r := ReconcileObjectRealm{
 			context: &clusterd.Context{
-				Clientset: k8sfake.NewSimpleClientset(),
+				Clientset: k8sfake.NewClientset(),
 			},
 			scheme:   scheme,
 			recorder: record.NewFakeRecorder(5),
@@ -322,7 +322,7 @@ func TestReconcileObjectRealm_createRealmKeys(t *testing.T) {
 
 		r := ReconcileObjectRealm{
 			context: &clusterd.Context{
-				Clientset: k8sfake.NewSimpleClientset(secret),
+				Clientset: k8sfake.NewClientset(secret),
 			},
 			scheme:   scheme,
 			recorder: record.NewFakeRecorder(5),
