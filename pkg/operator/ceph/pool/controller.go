@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -585,7 +586,7 @@ func generateStatsPoolList(existingStatsPools []string, rookStatsPools []string,
 			return
 		}
 		// Check if the pool should be removed or already exists in poolList
-		if contains(removePools, pool) || contains(poolList, pool) {
+		if slices.Contains(removePools, pool) || slices.Contains(poolList, pool) {
 			return
 		}
 		poolList = append(poolList, pool)
@@ -600,16 +601,6 @@ func generateStatsPoolList(existingStatsPools []string, rookStatsPools []string,
 	sort.Strings(poolList) // Sort the list to ensure deterministic output
 
 	return strings.Join(poolList, ",")
-}
-
-// Helper function to check if a slice contains a string
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }
 
 func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo, deletedPool string) error {
