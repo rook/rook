@@ -149,7 +149,7 @@ func TestDeleteSecretIfOwnedBy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := k8sfake.NewSimpleClientset()
+			client := k8sfake.NewClientset()
 
 			if tt.getSecretErr != nil || tt.secret != nil {
 				client.Fake.PrependReactor("get", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
@@ -178,7 +178,7 @@ func TestDeleteSecretIfOwnedBy(t *testing.T) {
 
 func TestUpdateSecretIfOwnedBy(t *testing.T) {
 	ctx := context.TODO()
-	client := k8sfake.NewSimpleClientset()
+	client := k8sfake.NewClientset()
 
 	expectedOwner := metav1.OwnerReference{
 		APIVersion: "v1",

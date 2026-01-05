@@ -49,7 +49,7 @@ func Test_getCSIDriverNamePrefixFromDeployment(t *testing.T) {
 			},
 		}
 	}
-	clientset := kfake.NewSimpleClientset()
+	clientset := kfake.NewClientset()
 
 	ctx := context.TODO()
 	csidrivers := []struct {

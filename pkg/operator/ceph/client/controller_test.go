@@ -496,7 +496,7 @@ func TestReconcileCephClient_reconcileCephClientSecret(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := k8sfake.NewSimpleClientset()
+			client := k8sfake.NewClientset()
 			scheme := runtime.NewScheme()
 			assert.NoError(t, cephv1.AddToScheme(scheme))
 			r := &ReconcileCephClient{

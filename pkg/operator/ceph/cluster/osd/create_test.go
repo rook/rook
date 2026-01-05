@@ -41,7 +41,7 @@ import (
 func Test_createNewOSDsFromStatus(t *testing.T) {
 	namespace := "my-namespace"
 
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	// clusterd.Context is created in doSetup()
 
 	// names of status configmaps for nodes

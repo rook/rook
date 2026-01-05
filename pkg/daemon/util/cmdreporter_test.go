@@ -80,7 +80,7 @@ func TestCommandMarshallingUnmarshalling(t *testing.T) {
 
 func TestNew(t *testing.T) {
 	ctx := context.TODO()
-	client := fake.NewSimpleClientset
+	client := fake.NewClientset
 	type fields struct {
 		clientset     kubernetes.Interface
 		cmd           []string
@@ -135,7 +135,7 @@ func TestRunner_Run(t *testing.T) {
 	execCommand = mockExecCommand
 	defer func() { execCommand = origExecCommand }()
 
-	newClient := fake.NewSimpleClientset
+	newClient := fake.NewClientset
 
 	verifyConfigMap := func(client kubernetes.Interface, stdout, stderr, retval, cmName, namespace string) {
 		cm, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, cmName, metav1.GetOptions{})

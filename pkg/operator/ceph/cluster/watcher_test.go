@@ -112,8 +112,8 @@ func TestOnK8sNode(t *testing.T) {
 	}
 	clientCluster := newClientCluster(client, ns, &clusterd.Context{
 		Executor:            executor,
-		Clientset:           k8sFake.NewSimpleClientset(),
-		ApiExtensionsClient: apifake.NewSimpleClientset(),
+		Clientset:           k8sFake.NewClientset(),
+		ApiExtensionsClient: apifake.NewClientset(),
 	})
 
 	node := &corev1.Node{
@@ -169,8 +169,11 @@ func TestHandleNodeFailure(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	client := getFakeClient(objects...)
 	c := newClientCluster(client, clusterns, &clusterd.Context{
-		Executor:            executor,
-		Clientset:           k8sFake.NewSimpleClientset(),
+		Executor:  executor,
+		Clientset: k8sFake.NewClientset(),
+		// The apifake.CreateClientSet() does not support CRDs, so we cannot switch to thek8sFake.NewClientset() yet.
+		// https://github.com/kubernetes/kubernetes/issues/126850
+		//nolint SA1019 (staticcheck)
 		ApiExtensionsClient: apifake.NewSimpleClientset(),
 	})
 
@@ -348,7 +351,8 @@ func TestHandleNodeFailure(t *testing.T) {
 	_, err = c.context.Clientset.CoreV1().PersistentVolumes().Create(ctx, cephfsPV, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
-	_, err = c.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, &v1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "networkfences.csiaddons.openshift.io"}}, metav1.CreateOptions{})
+	networkFenceCrd := &v1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "networkfences.csiaddons.openshift.io"}}
+	_, err = c.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, networkFenceCrd, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// When out-of-service taint is added
@@ -356,11 +360,15 @@ func TestHandleNodeFailure(t *testing.T) {
 	assert.NoError(t, err)
 
 	networkFenceRbd := &addonsv1alpha1.NetworkFence{}
-	err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, rbdDriver, clusterns)}, networkFenceRbd)
+	resourceName := fenceResourceName(node.Name, rbdDriver, clusterns)
+	networkFenceRbd.Name = resourceName
+	err = c.client.Get(ctx, types.NamespacedName{Name: resourceName}, networkFenceRbd)
 	assert.NoError(t, err)
 
 	networkFenceCephFs := &addonsv1alpha1.NetworkFence{}
-	err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, cephfsDriver, clusterns)}, networkFenceCephFs)
+	resourceName = fenceResourceName(node.Name, cephfsDriver, clusterns)
+	networkFenceCephFs.Name = resourceName
+	err = c.client.Get(ctx, types.NamespacedName{Name: resourceName}, networkFenceCephFs)
 	assert.NoError(t, err)
 
 	networkFences := &addonsv1alpha1.NetworkFenceList{}

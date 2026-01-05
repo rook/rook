@@ -92,7 +92,7 @@ func TestOSDProperties(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	namespace := "ns"
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
@@ -194,7 +194,7 @@ func TestAddRemoveNode(t *testing.T) {
 	}
 
 	// set up a fake k8s client set and watcher to generate events that the operator will listen to
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	t.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 
 	testexec.AddReadyNode(t, clientset, nodeName, "23.23.23.23")
@@ -391,7 +391,7 @@ func TestAddRemoveNode(t *testing.T) {
 
 func TestPostReconcileUpdateOSDProperties(t *testing.T) {
 	namespace := "ns"
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	removedDeviceClassOSD := ""
 	setDeviceClassOSD := ""
 	setDeviceClass := ""
@@ -472,7 +472,7 @@ func TestAddNodeFailure(t *testing.T) {
 	nodeName := "node1672"
 
 	// create a fake clientset that will return an error when the operator tries to create a job
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	clientset.PrependReactor("create", "jobs", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, errors.New("mock failed to create jobs")
 	})
@@ -529,7 +529,7 @@ func TestOSDProvisionCleanup(t *testing.T) {
 	existingNodeName := "existingNode"
 	namespace := "ns"
 
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 
 	// Create orphaned status configmap
 	cmName := statusConfigMapName(missingNodeName)
@@ -657,7 +657,7 @@ func TestOSDProvisionCleanup(t *testing.T) {
 
 func TestGetPVCHostName(t *testing.T) {
 	ctx := context.TODO()
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)

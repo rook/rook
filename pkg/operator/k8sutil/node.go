@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
 	"sigs.k8s.io/yaml"
@@ -258,7 +259,7 @@ func NodeIsTolerable(node v1.Node, tolerations []v1.Toleration, ignoreWellKnownT
 		isTolerated := false
 		for _, toleration := range tolerations {
 			localtaint := taint
-			if toleration.ToleratesTaint(&localtaint) {
+			if toleration.ToleratesTaint(logr.New(nil), &localtaint, true) {
 				isTolerated = true
 				break
 			}
