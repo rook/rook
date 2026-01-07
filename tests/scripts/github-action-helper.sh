@@ -721,41 +721,6 @@ function test_csi_nfs_workload {
   kubectl exec -t pod/csinfs-demo-pod -- ls -alh /var/lib/www/html/
 }
 
-function install_minikube_with_none_driver() {
-  CRICTL_VERSION="v1.34.0"
-  MINIKUBE_VERSION="v1.37.0"
-
-  sudo apt update
-  sudo apt install -y conntrack socat
-  curl -LO https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube_latest_${ARCH_SUFFIX}.deb
-  sudo dpkg -i minikube_latest_${ARCH_SUFFIX}.deb
-  rm -f minikube_latest_${ARCH_SUFFIX}.deb
-  # The dpkg install does not install the minikube binary to the needed location, so
-  # move the minikube binary to the expected location
-  sudo mv /usr/bin/minikube /usr/local/bin/minikube
-
-  curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH_SUFFIX}.deb
-  sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH_SUFFIX}.deb
-  rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH_SUFFIX}.deb
-
-  wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-$CRICTL_VERSION-linux-${ARCH_SUFFIX}.tar.gz
-  sudo tar zxvf crictl-$CRICTL_VERSION-linux-${ARCH_SUFFIX}.tar.gz -C /usr/local/bin
-  rm -f crictl-$CRICTL_VERSION-linux-${ARCH_SUFFIX}.tar.gz
-  sudo sysctl fs.protected_regular=0
-
-  CNI_PLUGIN_VERSION="v1.7.1"
-  CNI_PLUGIN_TAR="cni-plugins-linux-${ARCH_SUFFIX}-$CNI_PLUGIN_VERSION.tgz"
-  CNI_PLUGIN_INSTALL_DIR="/opt/cni/bin"
-
-  curl -LO "https://github.com/containernetworking/plugins/releases/download/$CNI_PLUGIN_VERSION/$CNI_PLUGIN_TAR"
-  sudo mkdir -p "$CNI_PLUGIN_INSTALL_DIR"
-  sudo tar -xf "$CNI_PLUGIN_TAR" -C "$CNI_PLUGIN_INSTALL_DIR"
-  rm "$CNI_PLUGIN_TAR"
-
-  export MINIKUBE_HOME=$HOME CHANGE_MINIKUBE_NONE_USER=true KUBECONFIG=$HOME/.kube/config
-  minikube start --kubernetes-version="$1" --driver=none --memory 6g --cpus=2 --addons ingress --cni=calico
-}
-
 function toolbox() {
   kubectl -n rook-ceph exec -it "$(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')" -- "$@"
 }
