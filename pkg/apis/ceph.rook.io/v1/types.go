@@ -2812,22 +2812,18 @@ type NVMeOFGatewaySpec struct {
 	NVMeOFConfig map[string]map[string]string `json:"nvmeofConfig,omitempty"`
 
 	// The affinity to place the gateway pods
-	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
 	Placement Placement `json:"placement,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
-	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
 	Annotations Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
-	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
 	Labels Labels `json:"labels,omitempty"`
 
 	// Resources set resource requests and limits
-	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 

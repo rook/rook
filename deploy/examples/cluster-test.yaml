@@ -10,7 +10,7 @@
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
-  name: my-cluster-1
+  name: my-cluster
   namespace: rook-ceph # namespace:cluster
 spec:
   dataDirHostPath: /var/lib/rook
@@ -63,7 +63,7 @@ spec:
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: builtin-mgr-1
+  name: builtin-mgr
   namespace: rook-ceph # namespace:cluster
 spec:
   name: .mgr

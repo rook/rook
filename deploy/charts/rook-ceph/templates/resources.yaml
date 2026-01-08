@@ -11563,7 +11563,6 @@ spec:
                     type: string
                   description: The annotations-related configuration to add/set on each Pod related object.
                   type: object
-                  x-kubernetes-preserve-unknown-fields: true
                 configMapRef:
                   description: |-
                     ConfigMapRef is the name of the ConfigMap containing nvmeof.conf configuration
@@ -11589,7 +11588,6 @@ spec:
                     type: string
                   description: The labels-related configuration to add/set on each Pod related object.
                   type: object
-                  x-kubernetes-preserve-unknown-fields: true
                 livenessProbe:
                   description: |-
                     A liveness-probe to verify that gateway has valid run-time state.
@@ -12255,7 +12253,6 @@ spec:
                         type: object
                       type: array
                   type: object
-                  x-kubernetes-preserve-unknown-fields: true
                 pool:
                   description: Pool is the RADOS pool where NVMe-oF configuration is stored
                   type: string
@@ -12349,7 +12346,6 @@ spec:
                         More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                       type: object
                   type: object
-                  x-kubernetes-preserve-unknown-fields: true
               required:
                 - group
                 - instances

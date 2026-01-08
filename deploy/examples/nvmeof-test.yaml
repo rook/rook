@@ -1,13 +1,5 @@
 # This example is for Ceph v20 and above only
 # The CephBlockPool must be created before the CephNVMeOFGateway
-#
-# Note: The operator will automatically create the following resources:
-#   - ConfigMap (if configMapRef is not specified)
-#   - Service (one per gateway instance)
-#   - Deployment (one per gateway instance)
-# The ServiceAccount "ceph-nvmeof-gateway" must exist in the namespace.
-# If it doesn't exist, Kubernetes will create a default one, but you may want to
-# create it explicitly with appropriate RBAC permissions.
 
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
@@ -18,12 +10,6 @@ spec:
   failureDomain: osd
   replicated:
     size: 1
-    # Disallow setting pool with replica 1, this could lead to data loss without recovery.
-    # Make sure you're *ABSOLUTELY CERTAIN* that is what you want
-    # requireSafeReplicaSize: false
-    # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
-    # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
-    # targetSizeRatio: .5
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephNVMeOFGateway
@@ -31,39 +17,7 @@ metadata:
   name: nvmeof
   namespace: rook-ceph # namespace:cluster
 spec:
-  # Pool name that will be used by the NVMe-oF gateway
   pool: nvmeofpool
-  # ANA (Asymmetric Namespace Access) group name
   group: mygroup
-  # Number of gateway instances to run
   instances: 1
-  # Optional: Custom ConfigMap reference (if not specified, operator will create one)
-  # configMapRef: ""
-  # Optional: Resource requirements for the gateway pods
-  # resources:
-  #   limits:
-  #     cpu: "500m"
-  #     memory: "512Mi"
-  #   requests:
-  #     cpu: "200m"
-  #     memory: "256Mi"
-  # Optional: Priority class name
-  # priorityClassName: ""
-  # Optional: Liveness probe configuration
-  # livenessProbe:
-  #   disabled: false
-  # Optional: Annotations to apply to the deployment
-  # annotations: {}
-  # Optional: Labels to apply to the deployment
-  # labels: {}
-  # Optional: Placement configuration
-  # placement: {}
-  # Optional: Host networking configuration (default: false, uses pod network)
-  # Gateways work better when on pod network and exposed via ingress/service
   hostNetwork: false
-  # Optional: Port configuration (defaults shown below)
-  # ports:
-  #   ioPort: 4420
-  #   gatewayPort: 5500
-  #   monitorPort: 5499
-  #   discoveryPort: 8009
