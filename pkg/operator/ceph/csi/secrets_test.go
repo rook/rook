@@ -82,7 +82,7 @@ func Test_deleteOwnedCSISecretsByCephCluster(t *testing.T) {
 	)
 
 	// Create fake client
-	clientset := k8sfake.NewSimpleClientset()
+	clientset := k8sfake.NewClientset()
 
 	// Cluster context
 	clusterContext := &clusterd.Context{
@@ -463,7 +463,7 @@ func loadTestClusterDetails() (*clusterd.Context, *client.ClusterInfo, *cephv1.C
 		},
 	}
 
-	clientset := k8sfake.NewSimpleClientset()
+	clientset := k8sfake.NewClientset()
 
 	ctx := &clusterd.Context{
 		Clientset: clientset,

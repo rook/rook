@@ -41,7 +41,7 @@ import (
 // New creates a fake K8s cluster with some nodes added.
 func New(t *testing.T, nodes int) *fake.Clientset {
 	t.Helper()
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	AddSomeReadyNodes(t, clientset, nodes)
 	return clientset
 }
@@ -128,7 +128,7 @@ var (
 //   - Generate a name for resources that have 'generateName' set and 'name' unset.
 func NewComplexClientset(t *testing.T) *fake.Clientset {
 	t.Helper()
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 
 	// Some resources are created with generateName used, and we need to capture the create
 	// calls and generate a name for them in order for them to all have unique names and to

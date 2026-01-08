@@ -33,7 +33,7 @@ import (
 func TestMigrateForEncryption(t *testing.T) {
 	namespace := "rook-ceph"
 	namespace2 := "rook-ceph2"
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -111,7 +111,7 @@ func TestMigrateForEncryption(t *testing.T) {
 func TestMigrationForOSDStore(t *testing.T) {
 	namespace := "rook-ceph"
 	namespace2 := "rook-ceph2"
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
@@ -189,7 +189,7 @@ func createMigrationConfigmap(osdID, ns string, clientset *fake.Clientset) error
 
 func TestIsLastOSDMigrationComplete(t *testing.T) {
 	namespace := "rook-ceph"
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}

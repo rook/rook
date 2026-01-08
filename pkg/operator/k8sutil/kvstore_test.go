@@ -173,7 +173,7 @@ func newKVStore(stores ...*v1.ConfigMap) (*ConfigMapKVStore, string) {
 		objects = append(objects, cm)
 	}
 
-	clientset := fake.NewSimpleClientset(objects...)
+	clientset := fake.NewClientset(objects...)
 	ownerInfo := NewOwnerInfoWithOwnerRef(&metav1.OwnerReference{}, "")
 	return NewConfigMapKVStore(namespace, clientset, ownerInfo), storeName
 }

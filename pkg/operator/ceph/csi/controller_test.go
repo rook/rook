@@ -119,7 +119,7 @@ func TestCephCSIController(t *testing.T) {
 		c := &clusterd.Context{
 			Clientset:           fakeClientSet,
 			RookClientset:       rookclient.NewSimpleClientset(),
-			ApiExtensionsClient: apifake.NewSimpleClientset(),
+			ApiExtensionsClient: apifake.NewClientset(),
 		}
 		_, err := c.Clientset.CoreV1().Pods(namespace).Create(ctx, test.FakeOperatorPod(namespace), metav1.CreateOptions{})
 		assert.NoError(t, err)
@@ -190,7 +190,7 @@ func TestCephCSIController(t *testing.T) {
 		c := &clusterd.Context{
 			Clientset:           fakeClientSet,
 			RookClientset:       rookclient.NewSimpleClientset(),
-			ApiExtensionsClient: apifake.NewSimpleClientset(),
+			ApiExtensionsClient: apifake.NewClientset(),
 		}
 		_, err := c.Clientset.CoreV1().Pods(namespace).Create(ctx, test.FakeOperatorPod(namespace), metav1.CreateOptions{})
 		assert.NoError(t, err)

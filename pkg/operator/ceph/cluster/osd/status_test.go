@@ -37,7 +37,7 @@ import (
 
 func TestOrchestrationStatus(t *testing.T) {
 	ctx := context.TODO()
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
 		CephVersion: cephver.Squid,
