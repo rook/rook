@@ -60,3 +60,5 @@ spec:
     * `user-policy`
     * `odic-provider`
     * `ratelimit`
+    * `user-info-without-keys`
+    * `accounts`
