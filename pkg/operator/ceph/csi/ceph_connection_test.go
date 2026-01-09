@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -147,5 +148,52 @@ func TestCephConnectionDefaultTopology(t *testing.T) {
 	}
 	for defaultLabel := range strings.SplitSeq(topology.GetDefaultTopologyLabels(), ",") {
 		assert.True(t, labels[defaultLabel], "expected label %q not found", defaultLabel)
+	}
+}
+
+func TestReadAffinityEnabled(t *testing.T) {
+	tests := []struct {
+		name         string
+		enabledField bool
+		cephVersion  cephver.CephVersion
+		expected     bool
+	}{
+		{
+			name:         "enabled field false, ceph version < 20.2.0",
+			enabledField: false,
+			cephVersion:  cephver.CephVersion{Major: 19, Minor: 2, Extra: 0},
+			expected:     false,
+		},
+		{
+			name:         "enabled field true, ceph version < 20.2.0",
+			enabledField: true,
+			cephVersion:  cephver.CephVersion{Major: 19, Minor: 2, Extra: 0},
+			expected:     true,
+		},
+		{
+			name:         "enabled field true, ceph version == 20.2.0",
+			enabledField: true,
+			cephVersion:  cephver.CephVersion{Major: 20, Minor: 2, Extra: 0},
+			expected:     false,
+		},
+		{
+			name:         "enabled field true, ceph version > 20.2.0",
+			enabledField: true,
+			cephVersion:  cephver.CephVersion{Major: 20, Minor: 2, Extra: 1},
+			expected:     true,
+		},
+		{
+			name:         "enabled field false, ceph version > 20.2.0",
+			enabledField: false,
+			cephVersion:  cephver.CephVersion{Major: 20, Minor: 2, Extra: 1},
+			expected:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ReadAffinityEnabled(tt.enabledField, tt.cephVersion)
+			assert.Equal(t, tt.expected, result)
+		})
 	}
 }
