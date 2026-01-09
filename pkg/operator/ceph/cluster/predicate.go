@@ -210,6 +210,24 @@ func watchControllerPredicate[T *cephv1.CephCluster](ctx context.Context, c clie
 
 			logger.Debug("update event on CephCluster CR")
 			// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+			// for this CephCluster.
+			//
+			// However, we still want to trigger a reconcile when the label is added/removed so the
+			// controller can early-exit and record a "ReconcileSkipped" event (when label is added),
+			// and also resume reconciliation immediately when the label is removed.
+			_, oldHasSkipLabel := objOld.GetLabels()[cephv1.SkipReconcileLabelKey]
+			_, newHasSkipLabel := objNew.GetLabels()[cephv1.SkipReconcileLabelKey]
+			if oldHasSkipLabel != newHasSkipLabel {
+				logger.Debugf("CephCluster %q skip-reconcile label changed (%v -> %v); triggering reconcile", objNew.Name, oldHasSkipLabel, newHasSkipLabel)
+				return true
+			}
+			if newHasSkipLabel {
+				logger.Infof("object %q matched on update but %q label is set, doing nothing", objNew.Name, cephv1.SkipReconcileLabelKey)
+				return false
+			}
+
+			// Backwards/alternative label used by some controllers to avoid reconciling an object.
+			// If this label is set on the object, let's not reconcile that request.
 			if opcontroller.IsDoNotReconcile(objNew.GetLabels()) {
 				logger.Debugf("object %q matched on update but %q label is set, doing nothing", opcontroller.DoNotReconcileLabelName, objNew.Name)
 				return false
