@@ -28,6 +28,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
@@ -224,6 +225,13 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	}
 	r.clusterInfo.Context = r.opManagerContext
 
+	// Detect running Ceph version
+	runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.OsdType)
+	if err != nil {
+		return reconcile.Result{}, radosNamespace, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.OsdType)
+	}
+	r.clusterInfo.CephVersion = runningCephVersion
+
 	// DELETE: the CR was deleted
 	if !radosNamespace.GetDeletionTimestamp().IsZero() {
 		cephRNSList := &cephv1.CephBlockPoolRadosNamespaceList{}
@@ -380,7 +388,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateClusterConfig(cephBlockPool
 				FuseMountOptions:   r.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
 			},
 			ReadAffinity: cephcsi.ReadAffinity{
-				Enabled:             r.clusterInfo.CSIDriverSpec.ReadAffinity.Enabled,
+				Enabled:             csi.ReadAffinityEnabled(r.clusterInfo.CSIDriverSpec.ReadAffinity.Enabled, r.clusterInfo.CephVersion),
 				CrushLocationLabels: r.clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels,
 			},
 		},
