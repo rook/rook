@@ -354,6 +354,19 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 		return r.reconcileDelete(cephCluster)
 	}
 
+	// If the cluster has the skip reconcile label, do not reconcile it. This allows other CephClusters
+	// to continue being reconciled even if one cluster is "stuck".
+	if _, ok := cephCluster.GetLabels()[cephv1.SkipReconcileLabelKey]; ok {
+		log.NamespacedInfo(request.Namespace, logger, "skipping reconcile of CephCluster %q since label %q is set", cephCluster.Name, cephv1.SkipReconcileLabelKey)
+		if r.clusterController.recorder != nil {
+			r.clusterController.recorder.Eventf(cephCluster, corev1.EventTypeNormal, "ReconcileSkipped",
+				"Skipping reconcile because label %q is set on the CephCluster", cephv1.SkipReconcileLabelKey)
+			// Extra log (tests/validation): makes it easy to confirm the event emission via operator logs.
+			log.NamespacedInfo(request.Namespace, logger, "recorded event %q for CephCluster %q (label %q is set)", "ReconcileSkipped", cephCluster.Name, cephv1.SkipReconcileLabelKey)
+		}
+		return reconcile.Result{}, *cephCluster, nil
+	}
+
 	// Do reconcile here!
 	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
 	if err := r.clusterController.reconcileCephCluster(cephCluster, ownerInfo); err != nil {
