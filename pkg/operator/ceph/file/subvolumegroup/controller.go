@@ -40,6 +40,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/file"
@@ -261,6 +262,13 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		return reconcile.Result{}, nil
 	}
 
+	// Detect running Ceph version
+	runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.OsdType)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.OsdType)
+	}
+	r.clusterInfo.CephVersion = runningCephVersion
+
 	cephFilesystemSubVolumeGroupName := cephFilesystemSubVolumeGroup.Name
 	if cephFilesystemSubVolumeGroup.Spec.Name != "" {
 		cephFilesystemSubVolumeGroupName = cephFilesystemSubVolumeGroup.Spec.Name
@@ -358,7 +366,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 				FuseMountOptions:   r.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
 			},
 			ReadAffinity: cephcsi.ReadAffinity{
-				Enabled:             r.clusterInfo.CSIDriverSpec.ReadAffinity.Enabled,
+				Enabled:             csi.ReadAffinityEnabled(r.clusterInfo.CSIDriverSpec.ReadAffinity.Enabled, r.clusterInfo.CephVersion),
 				CrushLocationLabels: r.clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels,
 			},
 		},

@@ -118,9 +118,10 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 
 	var want, s string
 	var err error
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "rook-ceph-1"}
 
 	t.Run("add a simple mons list", func(t *testing.T) {
-		s, err = updateCsiClusterConfig("[]", "rook-ceph-1", "rook-ceph-1", &csiClusterConfigEntry)
+		s, err = updateCsiClusterConfig("[]", "rook-ceph-1", clusterInfo, &csiClusterConfigEntry)
 		assert.NoError(t, err)
 		want = `[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"namespace":"rook-ceph-1"}]`
 		compareJSON(t, want, s)
@@ -128,7 +129,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 
 	t.Run("add a 2nd mon to the current cluster", func(t *testing.T) {
 		csiClusterConfigEntry.Monitors = append(csiClusterConfigEntry.Monitors, "10.11.12.13:5000")
-		s, err = updateCsiClusterConfig(s, "rook-ceph-1", "rook-ceph-1", &csiClusterConfigEntry)
+		s, err = updateCsiClusterConfig(s, "rook-ceph-1", clusterInfo, &csiClusterConfigEntry)
 		assert.NoError(t, err)
 		cc, err := parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -140,7 +141,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	})
 
 	t.Run("add mount options to the current cluster", func(t *testing.T) {
-		configWithMountOptions, err := updateCsiClusterConfig(s, "rook-ceph-1", "rook-ceph-1", &csiClusterConfigEntryMountOptions)
+		configWithMountOptions, err := updateCsiClusterConfig(s, "rook-ceph-1", clusterInfo, &csiClusterConfigEntryMountOptions)
 		assert.NoError(t, err)
 		cc, err := parseCsiClusterConfig(configWithMountOptions)
 		assert.NoError(t, err)
@@ -151,7 +152,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	})
 
 	t.Run("add a 2nd cluster with 3 mons", func(t *testing.T) {
-		s, err = updateCsiClusterConfig(s, "beta", "beta", &csiClusterConfigEntry2)
+		clusterInfo.Namespace = "beta"
+		s, err = updateCsiClusterConfig(s, "beta", clusterInfo, &csiClusterConfigEntry2)
 		assert.NoError(t, err)
 		cc, err := parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -174,8 +176,9 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	t.Run("remove a mon from the 2nd cluster", func(t *testing.T) {
 		i := 2
 		// Remove last element of the slice
+		clusterInfo.Namespace = "beta"
 		csiClusterConfigEntry2.Monitors = append(csiClusterConfigEntry2.Monitors[:i], csiClusterConfigEntry2.Monitors[i+1:]...)
-		s, err = updateCsiClusterConfig(s, "beta", "beta", &csiClusterConfigEntry2)
+		s, err = updateCsiClusterConfig(s, "beta", clusterInfo, &csiClusterConfigEntry2)
 		assert.NoError(t, err)
 		cc, err := parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -191,7 +194,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	})
 
 	t.Run("add a 3rd cluster with subvolumegroup", func(t *testing.T) {
-		s, err = updateCsiClusterConfig(s, "baba", "baba", &csiClusterConfigEntry3)
+		clusterInfo.Namespace = "baba"
+		s, err = updateCsiClusterConfig(s, "baba", clusterInfo, &csiClusterConfigEntry3)
 		assert.NoError(t, err)
 		cc, err := parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -206,7 +210,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	})
 
 	t.Run("update mount options in presence of subvolumegroup", func(t *testing.T) {
-		sMntOptionUpdate, err := updateCsiClusterConfig(s, "baba", "baba", &csiClusterConfigEntryMountOptions)
+		clusterInfo.Namespace = "baba"
+		sMntOptionUpdate, err := updateCsiClusterConfig(s, "baba", clusterInfo, &csiClusterConfigEntryMountOptions)
 		assert.NoError(t, err)
 		cc, err := parseCsiClusterConfig(sMntOptionUpdate)
 		assert.NoError(t, err)
@@ -218,8 +223,9 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	})
 
 	t.Run("add a 4th mon to the 3rd cluster and subvolumegroup is preserved", func(t *testing.T) {
+		clusterInfo.Namespace = "baba"
 		csiClusterConfigEntry3.Monitors = append(csiClusterConfigEntry3.Monitors, "10.11.12.13:5000")
-		s, err = updateCsiClusterConfig(s, "baba", "baba", &csiClusterConfigEntry3)
+		s, err = updateCsiClusterConfig(s, "baba", clusterInfo, &csiClusterConfigEntry3)
 		assert.NoError(t, err)
 		cc, err := parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -230,7 +236,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 
 	t.Run("remove subvolumegroup", func(t *testing.T) {
 		csiClusterConfigEntry3.CephFS.SubvolumeGroup = ""
-		s, err = updateCsiClusterConfig(s, "baba", "baba", nil)
+		clusterInfo.Namespace = "baba"
+		s, err = updateCsiClusterConfig(s, "baba", clusterInfo, nil)
 		assert.NoError(t, err)
 		cc, err := parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -245,7 +252,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 				},
 			},
 		}
-		s, err = updateCsiClusterConfig(s, "quatre", "quatre", &csiClusterConfigEntry4)
+		clusterInfo.Namespace = "quatre"
+		s, err = updateCsiClusterConfig(s, "quatre", clusterInfo, &csiClusterConfigEntry4)
 		assert.NoError(t, err)
 		cc, err := parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -254,7 +262,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.Equal(t, "my-group2", cc[2].CephFS.SubvolumeGroup, cc)
 
 		csiClusterConfigEntry4.Monitors = []string{"10.1.1.1:5000", "10.1.1.2:5000", "10.1.1.3:5000"}
-		s, err = updateCsiClusterConfig(s, "quatre", "quatre", &csiClusterConfigEntry4)
+		s, err = updateCsiClusterConfig(s, "quatre", clusterInfo, &csiClusterConfigEntry4)
 		assert.NoError(t, err)
 		cc, err = parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -263,7 +271,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	})
 
 	t.Run("does it return error on garbage input?", func(t *testing.T) {
-		_, err = updateCsiClusterConfig("qqq", "beta", "beta", &csiClusterConfigEntry2)
+		clusterInfo.Namespace = "beta"
+		_, err = updateCsiClusterConfig("qqq", "beta", clusterInfo, &csiClusterConfigEntry2)
 		assert.Error(t, err)
 	})
 
@@ -278,7 +287,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 				Monitors: []string{"1.2.3.4:5000"},
 			},
 		}
-		s, err := updateCsiClusterConfig("[]", clusterIDofCluster1, clusterIDofCluster1, &csiCluster1ConfigEntry)
+		clusterInfo.Namespace = clusterIDofCluster1
+		s, err := updateCsiClusterConfig("[]", clusterIDofCluster1, clusterInfo, &csiCluster1ConfigEntry)
 		assert.NoError(t, err)
 		want = `[{"clusterID":"rook-ceph","monitors":["1.2.3.4:5000"],"namespace":"rook-ceph"}]`
 		compareJSON(t, want, s)
@@ -292,7 +302,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 				},
 			},
 		}
-		s, err = updateCsiClusterConfig(s, subvolGrpNameofCluster1, clusterIDofCluster1, &subVolCsiCluster1Config)
+		s, err = updateCsiClusterConfig(s, subvolGrpNameofCluster1, clusterInfo, &subVolCsiCluster1Config)
 		assert.NoError(t, err)
 		cc, err := parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -310,7 +320,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 				},
 			},
 		}
-		s, err = updateCsiClusterConfig(s, radosNSofCluster1, clusterIDofCluster1, &radosNsCsiCluster1Config)
+		s, err = updateCsiClusterConfig(s, radosNSofCluster1, clusterInfo, &radosNsCsiCluster1Config)
 		assert.NoError(t, err)
 		cc, err = parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -320,7 +330,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 
 		// update mon IP's and check is it updating for all clusterID's
 		csiCluster1ConfigEntry.Monitors = append(csiCluster1ConfigEntry.Monitors, "1.2.3.10:5000")
-		s, err = updateCsiClusterConfig(s, clusterIDofCluster1, clusterIDofCluster1, &csiCluster1ConfigEntry)
+		s, err = updateCsiClusterConfig(s, clusterIDofCluster1, clusterInfo, &csiCluster1ConfigEntry)
 		assert.NoError(t, err)
 		cc, err = parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -359,11 +369,12 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 				},
 			},
 		}
-		s, err = updateCsiClusterConfig(s, clusterIDofCluster2, clusterIDofCluster2, &csiCluster2ConfigEntry)
+		clusterInfo.Namespace = clusterIDofCluster2
+		s, err = updateCsiClusterConfig(s, clusterIDofCluster2, clusterInfo, &csiCluster2ConfigEntry)
 		assert.NoError(t, err)
-		s, err = updateCsiClusterConfig(s, subvolGrpNameofCluster2, clusterIDofCluster2, &subVolCsiCluster2Config)
+		s, err = updateCsiClusterConfig(s, subvolGrpNameofCluster2, clusterInfo, &subVolCsiCluster2Config)
 		assert.NoError(t, err)
-		s, err = updateCsiClusterConfig(s, radosNSofCluster2, clusterIDofCluster2, &radosNsCsiCluster2Config)
+		s, err = updateCsiClusterConfig(s, radosNSofCluster2, clusterInfo, &radosNsCsiCluster2Config)
 		assert.NoError(t, err)
 		cc, err = parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -382,7 +393,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		// update mon on 2nd cluster and check is it updating for all clusterID's
 		// of 2nd cluster
 		csiCluster2ConfigEntry.Monitors = append(csiCluster2ConfigEntry.Monitors, "192.168.0.3:5000")
-		s, err = updateCsiClusterConfig(s, clusterIDofCluster2, clusterIDofCluster2, &csiCluster2ConfigEntry)
+		s, err = updateCsiClusterConfig(s, clusterIDofCluster2, clusterInfo, &csiCluster2ConfigEntry)
 		assert.NoError(t, err)
 		cc, err = parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -404,7 +415,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		// clusterID's of 2nd cluster
 		i := 1
 		csiCluster2ConfigEntry.Monitors = append(csiCluster2ConfigEntry.Monitors[:i], csiCluster2ConfigEntry.Monitors[i+1:]...)
-		s, err = updateCsiClusterConfig(s, clusterIDofCluster2, clusterIDofCluster2, &csiCluster2ConfigEntry)
+		s, err = updateCsiClusterConfig(s, clusterIDofCluster2, clusterInfo, &csiCluster2ConfigEntry)
 		assert.NoError(t, err)
 		cc, err = parseCsiClusterConfig(s)
 		assert.NoError(t, err)
@@ -423,13 +434,15 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	})
 
 	t.Run("test multus cluster", func(t *testing.T) {
-		s, err = updateCsiClusterConfig("[]", "rook-ceph-1", "rook-ceph-1", &csiClusterConfigEntryMultus)
+		clusterInfo.Namespace = "rook-ceph-1"
+		s, err = updateCsiClusterConfig("[]", "rook-ceph-1", clusterInfo, &csiClusterConfigEntryMultus)
 		assert.NoError(t, err)
 		compareJSON(t, `[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"rbd":{"netNamespaceFilePath":"/var/run/netns/rook-ceph-1","radosNamespace":"rook-ceph-1"},"namespace":"rook-ceph-1"}]`, s)
 	})
 
 	t.Run("test crush location labels are set", func(t *testing.T) {
-		s, err = updateCsiClusterConfig("[]", "rook-ceph-4", "rook-ceph-4", &csiClusterConfigEntry4)
+		clusterInfo.Namespace = "rook-ceph-4"
+		s, err = updateCsiClusterConfig("[]", "rook-ceph-4", clusterInfo, &csiClusterConfigEntry4)
 		assert.NoError(t, err)
 		compareJSON(t, `[{"clusterID":"rook-ceph-4","monitors":["10.1.1.1:5000"],"readAffinity": {"enabled": true, "crushLocationLabels":["kubernetes.io/hostname",
 		"topology.kubernetes.io/region","topology.kubernetes.io/zone","topology.rook.io/chassis","topology.rook.io/rack","topology.rook.io/row","topology.rook.io/pdu",
@@ -450,7 +463,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 			},
 		}
 		currentConfigWithoutNamespace := fmt.Sprintf(currentConfigFormatString, "")
-		out, err := updateCsiClusterConfig(currentConfigWithoutNamespace, idAndNs, idAndNs, csiConfigEntry)
+		clusterInfo.Namespace = idAndNs
+		out, err := updateCsiClusterConfig(currentConfigWithoutNamespace, idAndNs, clusterInfo, csiConfigEntry)
 		assert.NoError(t, err)
 		expectedOutput := fmt.Sprintf(currentConfigFormatString, idAndNs)
 		assert.Equal(t, expectedOutput, out)
@@ -473,7 +487,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 			},
 		}
 		currentConfigWithoutNamespace := fmt.Sprintf(currentConfigFormatString, cephFsNetNsFilePath, rbdNetNsFilePath, "")
-		out, err := updateCsiClusterConfig(currentConfigWithoutNamespace, idAndNs, idAndNs, csiConfigEntry)
+		clusterInfo.Namespace = idAndNs
+		out, err := updateCsiClusterConfig(currentConfigWithoutNamespace, idAndNs, clusterInfo, csiConfigEntry)
 		assert.NoError(t, err)
 		expectedOutput := fmt.Sprintf(currentConfigFormatString, "", "", idAndNs)
 		assert.Equal(t, expectedOutput, out)
@@ -700,7 +715,7 @@ func TestUpdateCSIDriverOptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dataString, err := formatCsiClusterConfig(tt.args.clusterConfig)
 			assert.NoError(t, err)
-			got, err := updateCSIDriverOptions(dataString, tt.args.clusterKey, tt.args.csiDriverOptions)
+			got, err := updateCSIDriverOptions(dataString, &cephclient.ClusterInfo{Namespace: tt.args.clusterKey}, tt.args.csiDriverOptions)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("updateCSIDriverOptions() error = %v, wantErr %v", err, tt.wantErr)
 				return

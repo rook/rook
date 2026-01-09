@@ -148,7 +148,7 @@ func updateNetNamespaceFilePath(clusterNamespace string, cc csiClusterConfig) {
 
 // updateCsiClusterConfig returns a json-formatted string containing
 // the cluster-to-mon mapping required to configure ceph csi.
-func updateCsiClusterConfig(curr, clusterID, clusterNamespace string, newCsiClusterConfigEntry *CSIClusterConfigEntry) (string, error) {
+func updateCsiClusterConfig(curr, clusterID string, clusterInfo *cephclient.ClusterInfo, newCsiClusterConfigEntry *CSIClusterConfigEntry) (string, error) {
 	var (
 		cc     csiClusterConfig
 		centry CSIClusterConfigEntry
@@ -165,12 +165,17 @@ func updateCsiClusterConfig(curr, clusterID, clusterNamespace string, newCsiClus
 	// wait for the other update to complete. Monitors and Subvolumegroup will be updated
 	// independently and won't collide.
 	if newCsiClusterConfigEntry != nil {
+		// Disable read affinity if needed for the ceph version
+		if !ReadAffinityEnabled(newCsiClusterConfigEntry.ReadAffinity.Enabled, clusterInfo.CephVersion) {
+			newCsiClusterConfigEntry.ReadAffinity = cephcsi.ReadAffinity{Enabled: false}
+		}
+
 		for i, centry := range cc {
 			// there is a bug with an unknown source where the csi config can have an empty
 			// namespace entry. detect and fix this scenario if it occurs
 			if centry.Namespace == "" && centry.ClusterID == clusterID {
-				logger.Infof("correcting CSI config map entry for cluster ID %q; empty namespace will be set to %q", clusterID, clusterNamespace)
-				centry.Namespace = clusterNamespace
+				logger.Infof("correcting CSI config map entry for cluster ID %q; empty namespace will be set to %q", clusterID, clusterInfo.Namespace)
+				centry.Namespace = clusterInfo.Namespace
 				cc[i] = centry
 			}
 
@@ -223,7 +228,7 @@ func updateCsiClusterConfig(curr, clusterID, clusterNamespace string, newCsiClus
 		// will fail with a dangling pointer
 		if newCsiClusterConfigEntry != nil {
 			centry.ClusterID = clusterID
-			centry.Namespace = clusterNamespace
+			centry.Namespace = clusterInfo.Namespace
 			centry.Monitors = newCsiClusterConfigEntry.Monitors
 			centry.RBD = newCsiClusterConfigEntry.RBD
 			centry.CephFS = newCsiClusterConfigEntry.CephFS
@@ -328,7 +333,7 @@ func SaveClusterConfig(clientset kubernetes.Interface, clusterID, clusterNamespa
 
 	if newCsiClusterConfigEntry != nil {
 		// set CSIDriverOptions
-		newCsiClusterConfigEntry.ReadAffinity.Enabled = clusterInfo.CSIDriverSpec.ReadAffinity.Enabled
+		newCsiClusterConfigEntry.ReadAffinity.Enabled = ReadAffinityEnabled(clusterInfo.CSIDriverSpec.ReadAffinity.Enabled, clusterInfo.CephVersion)
 		newCsiClusterConfigEntry.ReadAffinity.CrushLocationLabels = clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels
 
 		newCsiClusterConfigEntry.CephFS.KernelMountOptions = clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions
@@ -353,7 +358,7 @@ func SaveClusterConfig(clientset kubernetes.Interface, clusterID, clusterNamespa
 		currData = "[]"
 	}
 
-	newData, err := updateCsiClusterConfig(currData, clusterID, clusterNamespace, newCsiClusterConfigEntry)
+	newData, err := updateCsiClusterConfig(currData, clusterID, clusterInfo, newCsiClusterConfigEntry)
 	if err != nil {
 		return errors.Wrap(err, "failed to update csi config map data")
 	}
@@ -369,7 +374,7 @@ func SaveClusterConfig(clientset kubernetes.Interface, clusterID, clusterNamespa
 
 // updateCSIDriverOptions updates the CSI driver options, including read affinity, kernel mount options
 // and fuse mount options, for all entries belonging to the same cluster.
-func updateCSIDriverOptions(curr, clusterKey string,
+func updateCSIDriverOptions(curr string, clusterInfo *cephclient.ClusterInfo,
 	csiDriverOptions *cephv1.CSIDriverSpec,
 ) (string, error) {
 	cc, err := parseCsiClusterConfig(curr)
@@ -379,8 +384,8 @@ func updateCSIDriverOptions(curr, clusterKey string,
 
 	for i := range cc {
 		// If the clusterID belongs to the same cluster, update the entry.
-		if clusterKey == cc[i].Namespace {
-			cc[i].ReadAffinity.Enabled = csiDriverOptions.ReadAffinity.Enabled
+		if clusterInfo.Namespace == cc[i].Namespace {
+			cc[i].ReadAffinity.Enabled = ReadAffinityEnabled(csiDriverOptions.ReadAffinity.Enabled, clusterInfo.CephVersion)
 			cc[i].ReadAffinity.CrushLocationLabels = csiDriverOptions.ReadAffinity.CrushLocationLabels
 
 			cc[i].CephFS.KernelMountOptions = csiDriverOptions.CephFS.KernelMountOptions
@@ -388,7 +393,7 @@ func updateCSIDriverOptions(curr, clusterKey string,
 		}
 	}
 
-	updateNetNamespaceFilePath(clusterKey, cc)
+	updateNetNamespaceFilePath(clusterInfo.Namespace, cc)
 	return formatCsiClusterConfig(cc)
 }
 
@@ -423,7 +428,7 @@ func SaveCSIDriverOptions(clientset kubernetes.Interface, clusterNamespace strin
 		currData = "[]"
 	}
 
-	newData, err := updateCSIDriverOptions(currData, clusterNamespace, &clusterInfo.CSIDriverSpec)
+	newData, err := updateCSIDriverOptions(currData, clusterInfo, &clusterInfo.CSIDriverSpec)
 	if err != nil {
 		return errors.Wrap(err, "failed to update csi config map data")
 	}
