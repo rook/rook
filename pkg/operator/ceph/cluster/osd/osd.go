@@ -793,6 +793,8 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 		osd.PVCName = d.Labels[OSDOverPVCLabelKey]
 	}
 
+	osd.DeviceType = d.Labels[deviceType]
+
 	cephxStatus := cephv1.CephxStatus{}
 	cephxRaw, ok := d.Spec.Template.Annotations[cephxStatusAnnotationKey]
 	if ok {
