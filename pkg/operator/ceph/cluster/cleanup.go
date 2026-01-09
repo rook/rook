@@ -111,6 +111,7 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
 		volumeMounts = append(volumeMounts, hostPathVolumeMount)
 		volumeMounts = append(volumeMounts, devMount)
+		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: "run-udev", MountPath: "/run/udev"})
 		envVars = append(envVars, []v1.EnvVar{
 			{Name: dataDirHostPath, Value: cluster.Spec.DataDirHostPath},
 			{Name: namespaceDir, Value: cluster.Namespace},
@@ -121,12 +122,8 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 			{Name: sanitizeMethod, Value: cluster.Spec.CleanupPolicy.SanitizeDisks.Method.String()},
 			{Name: sanitizeDataSource, Value: cluster.Spec.CleanupPolicy.SanitizeDisks.DataSource.String()},
 			{Name: sanitizeIteration, Value: strconv.Itoa(int(cluster.Spec.CleanupPolicy.SanitizeDisks.Iteration))},
+			{Name: "DM_DISABLE_UDEV", Value: "1"},
 		}...)
-		// mount udev for host based clusters
-		if len(cluster.Spec.Storage.StorageClassDeviceSets) == 0 {
-			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: "run-udev", MountPath: "/run/udev"})
-			envVars = append(envVars, v1.EnvVar{Name: "DM_DISABLE_UDEV", Value: "1"})
-		}
 		if opcontroller.LoopDevicesAllowed() {
 			envVars = append(envVars, v1.EnvVar{Name: "CEPH_VOLUME_ALLOW_LOOP_DEVICES", Value: "true"})
 		}
@@ -155,10 +152,7 @@ func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, 
 	devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 	volumes = append(volumes, hostPathVolume)
 	volumes = append(volumes, devVolume)
-	// mount udev for host based clusters
-	if len(cluster.Spec.Storage.StorageClassDeviceSets) == 0 {
-		volumes = append(volumes, v1.Volume{Name: "run-udev", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}})
-	}
+	volumes = append(volumes, v1.Volume{Name: "run-udev", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}})
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
