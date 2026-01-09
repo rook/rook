@@ -1,0 +1,31 @@
+# This is a golangci-lint configuration file specifically for kube-api-linter.
+
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - kubeapilinter
+
+  settings:
+    custom:
+      kubeapilinter:
+        type: module
+        description: Kube API Linter lints Kube like APIs based on API conventions and best practices.
+        settings:
+          linters:
+            enable:
+              - statussubresource
+              - optionalfields # instead of nonpointerstructs
+              - requiredfields # instead of nonpointerstructs
+              - maxlength
+              - minlength
+            disable:
+              - nonpointerstructs # not intended for CRDs
+              - statusoptional
+              - commentstart # Rook uses GoDoc capitalization conventions instead of K8s
+
+          lintersConfig:
+            optionalfields:
+              pointers:
+                preference: WhenRequired
