@@ -25,6 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
@@ -73,7 +74,7 @@ func CreateUpdateCephConnection(c client.Client, clusterInfo *cephclient.Cluster
 func generateCephConnSpec(c client.Client, clusterInfo *cephclient.ClusterInfo, clusterSpec cephv1.ClusterSpec) (csiopv1.CephConnectionSpec, error) {
 	csiClusterConnSpec := csiopv1.CephConnectionSpec{}
 
-	if clusterSpec.CSI.ReadAffinity.Enabled {
+	if ReadAffinityEnabled(clusterSpec.CSI.ReadAffinity.Enabled, clusterInfo.CephVersion) {
 		crushLabels := clusterSpec.CSI.ReadAffinity.CrushLocationLabels
 		if len(crushLabels) == 0 {
 			logger.Debug("using default crush topology labels")
@@ -99,4 +100,17 @@ func generateCephConnSpec(c client.Client, clusterInfo *cephclient.ClusterInfo, 
 
 	csiClusterConnSpec.Monitors = MonEndpoints(clusterInfo.AllMonitors(), clusterSpec.RequireMsgr2())
 	return csiClusterConnSpec, nil
+}
+
+func ReadAffinityEnabled(desiredEnabled bool, version cephver.CephVersion) bool {
+	if !desiredEnabled {
+		return false
+	}
+	logger.Debugf("checking if read affinity is supported for Ceph version %q", version.String())
+	// Read affinity causes corruption on Ceph v20.2.0, so always disable it for that version
+	if version.Major == 20 && version.Minor == 2 && version.Extra == 0 {
+		logger.Warningf("read affinity disabled for Ceph version v20.2.0")
+		return false
+	}
+	return true
 }
