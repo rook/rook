@@ -1,0 +1,23 @@
+# This example is for Ceph v20 and above only
+# The CephBlockPool must be created before the CephNVMeOFGateway
+
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: nvmeofpool
+  namespace: rook-ceph # namespace:cluster
+spec:
+  failureDomain: osd
+  replicated:
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephNVMeOFGateway
+metadata:
+  name: nvmeof
+  namespace: rook-ceph # namespace:cluster
+spec:
+  pool: nvmeofpool
+  group: mygroup
+  instances: 1
+  hostNetwork: false

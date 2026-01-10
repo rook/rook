@@ -46,6 +46,8 @@ type Interface interface {
 	CephFilesystemSubVolumeGroups() CephFilesystemSubVolumeGroupInformer
 	// CephNFSes returns a CephNFSInformer.
 	CephNFSes() CephNFSInformer
+	// CephNVMeOFGateways returns a CephNVMeOFGatewayInformer.
+	CephNVMeOFGateways() CephNVMeOFGatewayInformer
 	// CephObjectRealms returns a CephObjectRealmInformer.
 	CephObjectRealms() CephObjectRealmInformer
 	// CephObjectStores returns a CephObjectStoreInformer.
@@ -124,6 +126,11 @@ func (v *version) CephFilesystemSubVolumeGroups() CephFilesystemSubVolumeGroupIn
 // CephNFSes returns a CephNFSInformer.
 func (v *version) CephNFSes() CephNFSInformer {
 	return &cephNFSInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// CephNVMeOFGateways returns a CephNVMeOFGatewayInformer.
+func (v *version) CephNVMeOFGateways() CephNVMeOFGatewayInformer {
+	return &cephNVMeOFGatewayInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // CephObjectRealms returns a CephObjectRealmInformer.
