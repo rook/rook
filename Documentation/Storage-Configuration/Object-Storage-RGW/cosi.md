@@ -17,8 +17,14 @@ COSI requires:
 Deploy the COSI controller with these commands:
 
 ```bash
-kubectl apply -k github.com/kubernetes-sigs/container-object-storage-interface-api
-kubectl apply -k github.com/kubernetes-sigs/container-object-storage-interface-controller
+kubectl apply -k 'github.com/kubernetes-sigs/container-object-storage-interface//?ref=v0.2.2'
+```
+
+Following pods will be started in the container-object-storage-system namespace:
+
+```console
+NAME                                                   READY   STATUS    RESTARTS   AGE
+container-object-storage-controller-64ff5586fb-jl96b   1/1     Running   0          2d6h
 ```
 
 ## Ceph COSI Driver
