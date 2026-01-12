@@ -77,10 +77,21 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 		cephFilesystemSubVolumeGroup,
 	}
 
+	cephDaemonVersions := `{
+	"mon": {
+		"ceph version 20.2.1 (0000000000000000) tentacle (stable)": 3
+	},
+	"osd": {
+		"ceph version 20.2.1 (0000000000000000) tentacle (stable)": 3
+	}
+}`
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+			}
+			if args[0] == "versions" {
+				return cephDaemonVersions, nil
 			}
 
 			return "", nil
@@ -202,6 +213,9 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 					return "", nil
 				} else if args[0] == "fs" && args[1] == "subvolumegroup" && args[2] == "pin" {
 					return "", nil
+				}
+				if args[0] == "versions" {
+					return cephDaemonVersions, nil
 				}
 
 				return "", errors.Errorf("unknown command. %v", args)
