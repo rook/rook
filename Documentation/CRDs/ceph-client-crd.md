@@ -58,7 +58,7 @@ The base64 encoded value that is returned **is** the password for your ceph clie
 To send writes to the cluster, you must retrieve the mons in use:
 
 ```console
-kubectl --namespace rook-ceph get configmap rook-ceph-mon-endpoints -o jsonpath='{.data.data}' | sed 's/.=//g'`
+kubectl --namespace rook-ceph get configmap rook-ceph-mon-endpoints -o jsonpath='{.data.data}' | sed 's/.=//g'
 ```
 
 This command should produce a line that looks somewhat like this:
