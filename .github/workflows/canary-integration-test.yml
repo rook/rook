@@ -2056,7 +2056,7 @@ jobs:
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_cluster
-          tests/scripts/github-action-helper.sh wait_for cephcluster my-cluster rook-ceph
+          tests/scripts/github-action-helper.sh wait_for cephcluster my-cluster rook-ceph 240
 
       - name: create CephBlockPool(s), CephObjectZone, and CephObjectStore(s)
         shell: bash --noprofile --norc -eo pipefail -x {0}
