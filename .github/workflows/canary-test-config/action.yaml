@@ -28,7 +28,7 @@ runs:
     - name: Setup Minikube
       uses: medyagh/setup-minikube@latest
       with:
-        kubernetes-version: v1.34.0
+        kubernetes-version: v1.35.0
         driver: none
         container-runtime: docker
         memory: 6g
