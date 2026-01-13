@@ -57,6 +57,8 @@ spec:
           env:
             - name: ROOK_CURRENT_NAMESPACE_ONLY
               value: {{ .Values.currentNamespaceOnly | quote }}
+            - name: ROOK_RECONCILE_CONCURRENT_CLUSTERS
+              value: {{ .Values.reconcileConcurrentClusters | quote }}
             {{- with .Values.discover }}
             {{- with .toleration }}
             - name: DISCOVER_TOLERATION
