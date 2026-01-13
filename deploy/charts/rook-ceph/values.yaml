@@ -44,6 +44,9 @@ unreachableNodeTolerationSeconds: 5
 # -- Whether the operator should watch cluster CRD in its own namespace or not
 currentNamespaceOnly: false
 
+# -- Number of clusters the operator reconciles concurrently
+reconcileConcurrentClusters: 1
+
 # -- Custom pod labels for the operator
 operatorPodLabels: {}
 
