@@ -2204,6 +2204,20 @@ string
 <p>The namespace where the parent CephCluster and CephObjectStore are found</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>opMask</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.[]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ObjectUserOpMask">
+[]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ObjectUserOpMask
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The op-mask of the user.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -12131,6 +12145,20 @@ string
 <p>The namespace where the parent CephCluster and CephObjectStore are found</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>opMask</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.[]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ObjectUserOpMask">
+[]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ObjectUserOpMask
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The op-mask of the user.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus
@@ -12453,6 +12481,11 @@ Kubernetes core/v1.SecretKeySelector
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.ObjectUserOpMask">ObjectUserOpMask
+(<code>string</code> alias)</h3>
+<div>
+<p>Internally, RGW labels &ldquo;operations&rdquo; on persistent state as <code>RGW_OP_TYPE_READ</code> (<code>read</code>), <code>RGW_OP_TYPE_WRITE</code> (<code>write</code>), or <code>RGW_OP_TYPE_DELETE</code> (<code>delete</code>). All RGW users have an &ldquo;operation mask&rdquo;, which does not function as mask or filter as is typically implied by the word &ldquo;mask&rdquo;, but as a set of allowed or permissible &ldquo;operation&rdquo; types the user is able to perform. The &ldquo;operation mask&rdquo; is applied regardless of the bucket or IAM policy. For example, in order for an RGW user to be able to read an object from a bucket, that user must have <strong>both</strong> the <code>read</code> &ldquo;op mask&rdquo; bit and an IAM/bucket policy that allows <code>s3:GetObject</code>. The default operations allowed are <code>read</code>, <code>write</code>, and <code>delete</code>. Setting the value to <code>[]</code> (an empty YAML sequence) causes all &ldquo;operations&rdquo; in the mask to be removed, meaning that the user will not be able to perform any operations. These operation masks are supported: <code>read</code>, <code>write</code>, <code>delete</code></p>
+</div>
 <h3 id="ceph.rook.io/v1.ObjectUserQuotaSpec">ObjectUserQuotaSpec
 </h3>
 <p>
