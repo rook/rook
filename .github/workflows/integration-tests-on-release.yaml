@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions: ["v1.30.14", "v1.32.10", "v1.33.6", "v1.34.2"]
+        kubernetes-versions: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -60,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions: ["v1.30.14", "v1.32.10", "v1.33.6", "v1.34.2"]
+        kubernetes-versions: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -101,7 +101,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions: ["v1.30.14", "v1.32.10", "v1.33.6", "v1.34.2"]
+        kubernetes-versions: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -139,7 +139,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions: ["v1.30.14", "v1.32.10", "v1.33.6", "v1.34.2"]
+        kubernetes-versions: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -177,7 +177,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions: ["v1.30.14", "v1.32.10", "v1.33.6", "v1.34.2"]
+        kubernetes-versions: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -216,7 +216,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions: ["v1.30.14", "v1.34.2"]
+        kubernetes-versions: ["v1.30.14", "1.35.0"]
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
