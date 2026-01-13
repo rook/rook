@@ -2204,6 +2204,18 @@ string
 <p>The namespace where the parent CephCluster and CephObjectStore are found</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>opMask</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The op-mask of the user.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -12129,6 +12141,18 @@ string
 <td>
 <em>(Optional)</em>
 <p>The namespace where the parent CephCluster and CephObjectStore are found</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>opMask</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The op-mask of the user.</p>
 </td>
 </tr>
 </tbody>

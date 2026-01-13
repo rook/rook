@@ -15031,6 +15031,18 @@ spec:
                         x-kubernetes-map-type: atomic
                     type: object
                   type: array
+                opMask:
+                  description: The op-mask of the user.
+                  enum:
+                    - '*'
+                    - read
+                    - write
+                    - delete
+                    - read, write
+                    - read, delete
+                    - write, delete
+                    - read, write, delete
+                  type: string
                 quotas:
                   description: ObjectUserQuotaSpec can be used to set quotas for the object store user to limit their usage. See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/?#quota-management) for more
                   nullable: true

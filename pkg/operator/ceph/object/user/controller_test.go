@@ -515,14 +515,16 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 
 	t.Run("user without any Quotas or Capabilities", func(t *testing.T) {
 		objectUser.Name = name
-		userConfig := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser)
+		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 
 	t.Run("setting MaxBuckets for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket}
-		userConfig := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser)
+		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
@@ -535,7 +537,8 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 			Roles:  "*",
 			Info:   "read, write",
 		}
-		userConfig := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser)
+		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
@@ -544,35 +547,35 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 	t.Run("setting MaxObjects for the user", func(t *testing.T) {
 		objectUser.Spec.Capabilities = nil
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxObjects: &maxobject}
-		userConfig := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("setting MaxSize for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxSize: &maxsize}
-		userConfig := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("resetting MaxSize and MaxObjects for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = nil
-		userConfig := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("setting both MaxSize and MaxObjects for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxObjects: &maxobject, MaxSize: &maxsize}
-		userConfig := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("resetting MaxSize and MaxObjects again for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = nil
-		userConfig := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
@@ -586,9 +589,77 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 			Info:   "read, write",
 		}
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket, MaxObjects: &maxobject, MaxSize: &maxsize}
-		userConfig := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
+	})
+}
+
+func TestIsUserSync(t *testing.T) {
+	t.Run("DisplayName same", func(t *testing.T) {
+		a := admin.User{
+			DisplayName: "Alice",
+		}
+		b := admin.User{
+			DisplayName: "Alice",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DisplayName different", func(t *testing.T) {
+		a := admin.User{
+			DisplayName: "Apollo",
+		}
+		b := admin.User{
+			DisplayName: "Zeus",
+		}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
+
+	t.Run("MaxBuckets same", func(t *testing.T) {
+		a := admin.User{
+			MaxBuckets: &[]int{500}[0],
+		}
+		b := admin.User{
+			MaxBuckets: &[]int{500}[0],
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("MaxBuckets different", func(t *testing.T) {
+		a := admin.User{
+			MaxBuckets: &[]int{400}[0],
+		}
+		b := admin.User{
+			MaxBuckets: &[]int{600}[0],
+		}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
+
+	t.Run("OpMask same", func(t *testing.T) {
+		a := admin.User{
+			OpMask: "read, write, delete",
+		}
+		b := admin.User{
+			OpMask: "read, write, delete",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("OpMask different", func(t *testing.T) {
+		a := admin.User{
+			OpMask: "read, write, delete",
+		}
+		b := admin.User{
+			OpMask: "read",
+		}
+
+		assert.False(t, isUserSync(&a, &b))
 	})
 }

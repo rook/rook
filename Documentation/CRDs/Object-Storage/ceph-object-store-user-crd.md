@@ -23,6 +23,7 @@ spec:
   capabilities:
     user: "*"
     bucket: "*"
+  opMask: "read, write, delete"
 ```
 
 ## Object Store User Settings
@@ -60,3 +61,7 @@ spec:
     * `user-policy`
     * `odic-provider`
     * `ratelimit`
+* `opMask`: The "operations" the user is allowed to perform. See the [Ceph adminops docs](https://docs.ceph.com/en/latest/radosgw/adminops/#modify-user) for additional details. Rook supports configuration of these operations:
+    * `read`
+    * `write`
+    * `delete`

@@ -2268,6 +2268,10 @@ type ObjectStoreUserSpec struct {
 	// The namespace where the parent CephCluster and CephObjectStore are found
 	// +optional
 	ClusterNamespace string `json:"clusterNamespace,omitempty"`
+	// The op-mask of the user.
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","delete","read, write","read, delete","write, delete","read, write, delete"}
+	OpMask string `json:"opMask,omitempty"`
 }
 
 // Additional admin-level capabilities for the Ceph object store user
