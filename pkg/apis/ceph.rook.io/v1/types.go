@@ -2268,6 +2268,9 @@ type ObjectStoreUserSpec struct {
 	// The namespace where the parent CephCluster and CephObjectStore are found
 	// +optional
 	ClusterNamespace string `json:"clusterNamespace,omitempty"`
+	// The op-mask of the user.
+	// +optional
+	OpMask *ObjectUserOpMask `json:"opMask,omitempty"`
 }
 
 // Additional admin-level capabilities for the Ceph object store user
@@ -2362,6 +2365,24 @@ type ObjectUserKey struct {
 	AccessKeyRef *v1.SecretKeySelector `json:"accessKeyRef,omitempty"`
 	// Secret key selector for the secret_key (commonly referred to as AWS_SECRET_ACCESS_KEY).
 	SecretKeyRef *v1.SecretKeySelector `json:"secretKeyRef,omitempty"`
+}
+
+// ObjectUserOpMask defines the op-mask or "operations mask" for the rgw user.
+// +kubebuilder:validation:MinProperties=0
+// +kubebuilder:validation:MaxProperties=3
+type ObjectUserOpMask struct {
+	// The user is allowed to perform read operations.
+	// +optional
+	//nolint:kubeapilinter // API compatibility: keep bool instead of *bool
+	Read bool `json:"read,omitempty"`
+	// The user is allowed to perform write operations.
+	// +optional
+	//nolint:kubeapilinter // API compatibility: keep bool instead of *bool
+	Write bool `json:"write,omitempty"`
+	// The user is allowed to perform delete operations.
+	// +optional
+	//nolint:kubeapilinter // API compatibility: keep bool instead of *bool
+	Delete bool `json:"delete,omitempty"`
 }
 
 // +genclient

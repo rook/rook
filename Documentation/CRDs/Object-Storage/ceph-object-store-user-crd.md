@@ -23,6 +23,10 @@ spec:
   capabilities:
     user: "*"
     bucket: "*"
+  opMask:
+    read: true
+    write: true
+    delete: true
 ```
 
 ## Object Store User Settings
@@ -60,3 +64,7 @@ spec:
     * `user-policy`
     * `odic-provider`
     * `ratelimit`
+* `opMask`: The "operations" the user is allowed to perform. See the [Ceph adminops docs](https://docs.ceph.com/en/latest/radosgw/adminops/#modify-user) for additional details. The default operations allowed are `read`, `write`, and `delete`. These operations are supported:
+    * `read`
+    * `write`
+    * `delete`

@@ -2204,6 +2204,20 @@ string
 <p>The namespace where the parent CephCluster and CephObjectStore are found</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>opMask</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectUserOpMask">
+ObjectUserOpMask
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The op-mask of the user.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -12131,6 +12145,20 @@ string
 <p>The namespace where the parent CephCluster and CephObjectStore are found</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>opMask</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectUserOpMask">
+ObjectUserOpMask
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The op-mask of the user.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus
@@ -12449,6 +12477,60 @@ Kubernetes core/v1.SecretKeySelector
 </td>
 <td>
 <p>Secret key selector for the secret_key (commonly referred to as AWS_SECRET_ACCESS_KEY).</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.ObjectUserOpMask">ObjectUserOpMask
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreUserSpec">ObjectStoreUserSpec</a>)
+</p>
+<div>
+<p>ObjectUserOpMask defines the op-mask or &ldquo;operations mask&rdquo; for the rgw user.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>read</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The user is allowed to perform read operations.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>write</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The user is allowed to perform write operations.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>delete</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The user is allowed to perform delete operations.</p>
 </td>
 </tr>
 </tbody>

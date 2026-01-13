@@ -15031,6 +15031,21 @@ spec:
                         x-kubernetes-map-type: atomic
                     type: object
                   type: array
+                opMask:
+                  description: The op-mask of the user.
+                  maxProperties: 3
+                  minProperties: 0
+                  properties:
+                    delete:
+                      description: The user is allowed to perform delete operations.
+                      type: boolean
+                    read:
+                      description: The user is allowed to perform read operations.
+                      type: boolean
+                    write:
+                      description: The user is allowed to perform write operations.
+                      type: boolean
+                  type: object
                 quotas:
                   description: ObjectUserQuotaSpec can be used to set quotas for the object store user to limit their usage. See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/?#quota-management) for more
                   nullable: true
