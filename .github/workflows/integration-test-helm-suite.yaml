@@ -29,7 +29,7 @@ jobs:
       fail-fast: false
       matrix:
         helm-version: ["v3.13.3", "v3.18.3"]
-        kubernetes-versions: ["v1.34.2"]
+        kubernetes-versions: ["v1.35.0"]
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
