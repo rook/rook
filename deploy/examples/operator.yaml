@@ -511,7 +511,7 @@ data:
   CSI_ENABLE_CSIADDONS: "false"
   # Enable watch for faster recovery from rbd rwo node loss
   ROOK_WATCH_FOR_NODE_FAILURE: "true"
-  # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.13.0"
+  # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.14.0"
   # The CSI GRPC timeout value (in seconds). It should be >= 120. If this variable is not set or is an invalid value, it's default to 150.
   CSI_GRPC_TIMEOUT_SECONDS: "150"
 
