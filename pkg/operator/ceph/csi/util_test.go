@@ -280,7 +280,7 @@ func Test_getImage(t *testing.T) {
 		{
 			name: "test with default image",
 			args: args{
-				defaultImage: "quay.io/cephcsi/cephcsi:v3.15.0",
+				defaultImage: "quay.io/cephcsi/cephcsi:v3.16.0",
 			},
 			want: DefaultCSIPluginImage,
 		},

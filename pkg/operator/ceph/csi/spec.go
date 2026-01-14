@@ -135,12 +135,12 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.15.0"
-	DefaultRegistrarImage   = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.13.0"
-	DefaultProvisionerImage = "registry.k8s.io/sig-storage/csi-provisioner:v5.2.0"
-	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v4.8.1"
-	DefaultSnapshotterImage = "registry.k8s.io/sig-storage/csi-snapshotter:v8.2.1"
-	DefaultResizerImage     = "registry.k8s.io/sig-storage/csi-resizer:v1.13.2"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.16.0"
+	DefaultRegistrarImage   = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.15.0"
+	DefaultProvisionerImage = "registry.k8s.io/sig-storage/csi-provisioner:v6.0.0"
+	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v4.10.0"
+	DefaultSnapshotterImage = "registry.k8s.io/sig-storage/csi-snapshotter:v8.4.0"
+	DefaultResizerImage     = "registry.k8s.io/sig-storage/csi-resizer:v2.0.0"
 	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.13.0"
 
 	// image pull policy
