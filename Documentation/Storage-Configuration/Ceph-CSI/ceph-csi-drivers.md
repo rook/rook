@@ -201,8 +201,6 @@ CSI-Addons supports the following operations:
     * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.13.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
     * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.13.0/docs/reclaimspace.md#annotating-namespace)
     * [Annotating StorageClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.13.0/docs/reclaimspace.md#annotating-storageclass)
-* Network Fencing
-    * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.13.0/docs/networkfence.md)
 * Volume Replication
     * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.13.0/docs/volumereplicationclass.md)
     * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.13.0/docs/volumereplication.md)

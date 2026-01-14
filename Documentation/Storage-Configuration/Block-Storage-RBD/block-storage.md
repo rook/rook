@@ -193,29 +193,3 @@ The OSDs must be located on different nodes, because the [`failureDomain`](../..
 
 The erasure coded pool must be set as the `dataPool` parameter in
 [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storageclass-ec.yaml) It is used for the data of the RBD images.
-
-## Node Loss
-
-If a node goes down where a pod is running where a RBD RWO volume is mounted, the volume cannot automatically be mounted on another node. The node must be guaranteed to be offline before the volume can be mounted on another node.
-
-
-### Handling Node Loss
-
-
-When a node is confirmed to be down, add the following taints to the node:
-
-```console
-kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoExecute
-kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoSchedule
-```
-
-After the taint is added to the node, the CephCSI driver will automatically handle the network fencing to prevent connections to Ceph from the RBD volume on that node.
-
-### Node Recovery
-
-If the node comes back online, the CephCSI driver will automatically handle the network unfencing when the node taints are removed:
-
-```console
-kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoExecute-
-kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoSchedule-
-```
