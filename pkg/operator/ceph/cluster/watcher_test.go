@@ -18,13 +18,10 @@ package cluster
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
-	addonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -33,12 +30,9 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apifake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	k8sFake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -47,7 +41,7 @@ import (
 func getFakeClient(obj ...runtime.Object) client.Client {
 	// Register operator types with the runtime scheme.
 	scheme := scheme.Scheme
-	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &addonsv1alpha1.NetworkFence{}, &addonsv1alpha1.NetworkFenceList{})
+	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 	return client
 }
@@ -158,6 +152,7 @@ func TestOnK8sNode(t *testing.T) {
 	assert.False(t, b)
 }
 
+<<<<<<< HEAD
 func TestHandleNodeFailure(t *testing.T) {
 	clusterns := "rook-ceph"
 	opns := "operator"
@@ -498,6 +493,8 @@ func TestFenceResourceName(t *testing.T) {
 	assert.Equal(t, FenceName, "fakenode-rbd-rook-ceph")
 }
 
+=======
+>>>>>>> 20f350a71 (csi: remove automated node fencing code)
 func TestOnDeviceCMUpdate(t *testing.T) {
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
@@ -574,78 +571,4 @@ func TestOnDeviceCMUpdate(t *testing.T) {
 	clientCluster.client = client
 	b = clientCluster.onDeviceCMUpdate(oldCM, newCM)
 	assert.True(t, b)
-}
-
-func Test_pvSupportMultiNodeAccess(t *testing.T) {
-	type args struct {
-		accessModes []corev1.PersistentVolumeAccessMode
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "single access mode, contains RWX",
-			args: args{
-				accessModes: []corev1.PersistentVolumeAccessMode{
-					corev1.ReadWriteMany,
-				},
-			},
-			want: true,
-		},
-		{
-			name: "single access mode, contains ROX",
-			args: args{
-				accessModes: []corev1.PersistentVolumeAccessMode{
-					corev1.ReadOnlyMany,
-				},
-			},
-			want: true,
-		},
-		{
-			name: "single access mode, contains only RWO",
-			args: args{
-				accessModes: []corev1.PersistentVolumeAccessMode{
-					corev1.ReadWriteOnce,
-				},
-			},
-			want: false,
-		},
-		{
-			name: "single access mode, contains only RWOP",
-			args: args{
-				accessModes: []corev1.PersistentVolumeAccessMode{
-					corev1.ReadWriteOncePod,
-				},
-			},
-			want: false,
-		},
-		{
-			name: "multiple access mode, contains RWX",
-			args: args{
-				accessModes: []corev1.PersistentVolumeAccessMode{
-					corev1.ReadWriteOnce,
-					corev1.ReadWriteMany,
-				},
-			},
-			want: true,
-		},
-		{
-			name: "multiple access mode, contains RWX and ROX",
-			args: args{
-				accessModes: []corev1.PersistentVolumeAccessMode{
-					corev1.ReadWriteMany,
-					corev1.ReadOnlyMany,
-				},
-			},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := pvSupportsMultiNodeAccess(tt.args.accessModes)
-			assert.Equal(t, tt.want, got)
-		})
-	}
 }
