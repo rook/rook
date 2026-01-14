@@ -18,12 +18,12 @@ kubectl -n $ROOK_OPERATOR_NAMESPACE edit configmap rook-ceph-operator-config
 The default upstream images are included below, which you can change to your desired images.
 
 ```yaml
-ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.15.0"
-ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.13.0"
-ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v5.2.0"
-ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v4.8.1"
-ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v1.13.2"
-ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v8.2.1"
+ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.0"
+ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.15.0"
+ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v6.0.0"
+ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v4.10.0"
+ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v2.0.0"
+ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v8.4.0"
 ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.13.0"
 ```
 
