@@ -46,7 +46,6 @@ import (
 // - Bluestore running on devices
 // Block
 // - Mount/unmount a block device through the dynamic provisioner
-// - Fencing of the block device
 // - Read/write to the device
 // File system
 // - Create the file system via the CRD
