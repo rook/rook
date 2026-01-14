@@ -88,7 +88,7 @@ spec:
 
 ## Specific Nodes and Devices
 
-If you need fine-grained control for every node and every device that is being configured, individual nodes and their config can be specified. In this example, we see that specific node names and devices can be specified.
+For a fine-grained control for every node and every device that is being configured, individual nodes and their config can be specified. 'useAllNodes' and 'useAllDevices' must be set to false. Then, only the named nodes below will be used as storage resources.
 
 !!! hint
     Each node's 'name' field should match their 'kubernetes.io/hostname' label.
