@@ -49,6 +49,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/object/user/opmask"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
@@ -334,7 +335,10 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// CR is not deleted, continue reconciling
 
 	// Generate user config
-	userConfig := generateUserConfig(cephObjectStoreUser)
+	userConfig, err := generateUserConfig(cephObjectStoreUser)
+	if err != nil {
+		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to generate user config for %q", cephObjectStoreUser.Name)
+	}
 
 	referencedSecrets := &map[types.UID]*corev1.Secret{}
 	// Set any provided key pair(s)
@@ -551,7 +555,7 @@ func generateUserCaps(user admin.User) string {
 	return caps
 }
 
-func generateUserConfig(user *cephv1.CephObjectStoreUser) *admin.User {
+func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 	// Set DisplayName to match Name if DisplayName is not set
 	displayName := user.Spec.DisplayName
 	if len(displayName) == 0 {
@@ -621,8 +625,15 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) *admin.User {
 			userConfig.UserCaps += fmt.Sprintf("ratelimit=%s;", user.Spec.Capabilities.RateLimit)
 		}
 	}
+	if user.Spec.OpMask != "" {
+		mask, err := opmask.Parse(user.Spec.OpMask)
+		if err != nil {
+			return nil, err
+		}
+		userConfig.OpMask = mask.String()
+	}
 
-	return userConfig
+	return userConfig, nil
 }
 
 func generateCephUserSecretName(u *cephv1.CephObjectStoreUser) string {
