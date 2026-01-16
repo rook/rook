@@ -88,7 +88,7 @@ ceph-csi-operator:
 # Settings for whether to disable the drivers or other daemons if they are not
 # needed
 csi:
-  rookUseCsiOperator: true
+  rookUseCsiOperator: false
   # -- Enable Ceph CSI RBD driver
   enableRbdDriver: true
   # -- Enable Ceph CSI CephFS driver

@@ -134,6 +134,13 @@ type rgwProbeConfig struct {
 	Path     string
 }
 
+// supportsCurlCaBundle returns true if the Ceph version supports CURL_CA_BUNDLE
+// environment variable for CA bundle handling (Tentacle v20.0.0+).
+// TODO: Remove this helper after Ceph Squid is no longer supported
+func supportsCurlCaBundle(c *clusterConfig) bool {
+	return c.clusterInfo.CephVersion.IsAtLeastTentacle()
+}
+
 func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment, error) {
 	pod, err := c.makeRGWPodSpec(rgwConfig)
 	if err != nil {
@@ -244,15 +251,22 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 			},
 		}
 		podSpec.Volumes = append(podSpec.Volumes, customCaBundleVol)
-		updatedCaBundleVol := v1.Volume{
-			Name: caBundleUpdatedVolumeName,
-			VolumeSource: v1.VolumeSource{
-				EmptyDir: &v1.EmptyDirVolumeSource{},
-			},
+		// Determine CA bundle handling method based on Ceph version
+		// Newer Ceph versions support CURL_CA_BUNDLE env var (see PR
+		// https://github.com/ceph/ceph/pull/44283)
+		// Older versions require system CA trust update via init container
+		// TODO: Remove this logic after Ceph Squid is no longer supported
+		if !supportsCurlCaBundle(c) {
+			updatedCaBundleVol := v1.Volume{
+				Name: caBundleUpdatedVolumeName,
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
+			}
+			podSpec.Volumes = append(podSpec.Volumes, updatedCaBundleVol)
+			podSpec.InitContainers = append(podSpec.InitContainers,
+				c.createCaBundleUpdateInitContainer(rgwConfig))
 		}
-		podSpec.Volumes = append(podSpec.Volumes, updatedCaBundleVol)
-		podSpec.InitContainers = append(podSpec.InitContainers,
-			c.createCaBundleUpdateInitContainer(rgwConfig))
 	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
@@ -439,8 +453,24 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		container.VolumeMounts = append(container.VolumeMounts, mount)
 	}
 	if c.store.Spec.Gateway.CaBundleRef != "" {
-		updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: caBundleExtractedDir, ReadOnly: true}
-		container.VolumeMounts = append(container.VolumeMounts, updatedBundleMount)
+		// Use same CA bundle handling method as determined in makeRGWPodSpec
+		if supportsCurlCaBundle(c) {
+			customCaBundleMount := v1.VolumeMount{Name: caBundleVolumeName, MountPath: caBundleMountPath, ReadOnly: true}
+			container.VolumeMounts = append(container.VolumeMounts, customCaBundleMount)
+			container.Env = append(container.Env,
+				v1.EnvVar{
+					// Following PR introduced to specify ssl certificate for RGW
+					// admin operations with this CURL_CA_BUNDLE env variable.
+					// https://github.com/ceph/ceph/pull/44283
+					Name:  "CURL_CA_BUNDLE",
+					Value: path.Join(caBundleMountPath, caBundleFileName),
+				},
+			)
+		} else {
+			// TODO: Remove this logic after Ceph Squid is no longer supported
+			updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: caBundleExtractedDir, ReadOnly: true}
+			container.VolumeMounts = append(container.VolumeMounts, updatedBundleMount)
+		}
 	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
