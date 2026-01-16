@@ -24,7 +24,7 @@ ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v6.0.0"
 ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v4.10.0"
 ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v2.0.0"
 ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v8.4.0"
-ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.13.0"
+ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.14.0"
 ```
 
 ### **Use private repository**

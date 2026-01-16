@@ -67,7 +67,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.crossNamespaceVolumeDataSource.enabled` | Enable cross namespace volume data source provisioning | `false` |
 | `csi.csiAddons.enabled` | Enable CSIAddons | `false` |
 | `csi.csiAddons.repository` | CSIAddons sidecar image repository | `"quay.io/csiaddons/k8s-sidecar"` |
-| `csi.csiAddons.tag` | CSIAddons sidecar image tag | `"v0.13.0"` |
+| `csi.csiAddons.tag` | CSIAddons sidecar image tag | `"v0.14.0"` |
 | `csi.csiAddonsCephFSProvisionerPort` | CSI Addons server port for the Ceph FS provisioner | `9070` |
 | `csi.csiAddonsPort` | CSI Addons server port | `9070` |
 | `csi.csiAddonsRBDProvisionerPort` | CSI Addons server port for the RBD provisioner | `9070` |
