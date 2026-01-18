@@ -62,4 +62,14 @@ metadata:
   labels:
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{- include "library.imagePullSecrets" . | nindent 0 }}
+---
+# Service account for NVMe-oF gateway
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: rook-ceph-nvmeof
+  namespace: {{ .Release.Namespace }} # namespace:cluster
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+{{- include "library.imagePullSecrets" . | nindent 0 }}
 {{- end }}

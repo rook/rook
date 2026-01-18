@@ -1,0 +1,336 @@
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: nvmeof-csi-provisioner
+  # replace with non-default namespace name
+  namespace: rook-ceph
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmeof-external-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "update", "delete", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch", "update", "patch", "create"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots/status"]
+    verbs: ["get", "list", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["create", "get", "list", "watch", "update", "delete", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csinodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
+  - apiGroups: ["groupsnapshot.storage.k8s.io"]
+    resources: ["volumegroupsnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["groupsnapshot.storage.k8s.io"]
+    resources: ["volumegroupsnapshotcontents"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["groupsnapshot.storage.k8s.io"]
+    resources: ["volumegroupsnapshotcontents/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumegroupreplicationcontents"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumegroupreplicationclasses"]
+    verbs: ["get"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattributesclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["patch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmeof-csi-provisioner-role
+subjects:
+  - kind: ServiceAccount
+    name: nvmeof-csi-provisioner
+    # replace with non-default namespace name
+    namespace: rook-ceph
+roleRef:
+  kind: ClusterRole
+  name: nvmeof-external-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  # replace with non-default namespace name
+  namespace: rook-ceph
+  name: nvmeof-external-provisioner-cfg
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmeof-csi-provisioner-role-cfg
+  # replace with non-default namespace name
+  namespace: rook-ceph
+subjects:
+  - kind: ServiceAccount
+    name: nvmeof-csi-provisioner
+    # replace with non-default namespace name
+    namespace: rook-ceph
+roleRef:
+  kind: Role
+  name: nvmeof-external-provisioner-cfg
+  apiGroup: rbac.authorization.k8s.io
+# ---
+# # ssc based on the Ceph-CSI ssc
+# # the "users:" contains a reference to the "rook-ceph" namespace
+# #
+# kind: SecurityContextConstraints
+# apiVersion: security.openshift.io/v1
+# metadata:
+#   name: "ceph-nvmeof-provisioner"
+# # To allow running privilegedContainers
+# allowPrivilegedContainer: true
+# # SYS_ADMIN is needed for rbd to execute rbd map command
+# allowedCapabilities:
+#   - "SYS_ADMIN"
+# # Set to false as we write to RootFilesystem inside container
+# readOnlyRootFilesystem: false
+# requiredDropCapabilities:
+#   - ALL
+# # The type of volumes which are mounted to csi pods
+# volumes:
+#   - configMap
+#   - projected
+#   - emptyDir
+# runAsUser:
+#   type: RunAsAny
+# seLinuxContext:
+#   type: RunAsAny
+# users:
+#   # A user needs to be added for each service account.
+#   - "system:serviceaccount:rook-ceph:nvmeof-csi-provisioner"
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-nvmeofplugin-provisioner
+  # replace with non-default namespace name
+  namespace: rook-ceph
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csi-nvmeofplugin-provisioner
+  template:
+    metadata:
+      annotations:
+        openshift.io/scc: rook-ceph-csi
+      labels:
+        app: csi-nvmeofplugin-provisioner
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - csi-nvmeofplugin-provisioner
+              topologyKey: "kubernetes.io/hostname"
+      serviceAccountName: nvmeof-csi-provisioner
+      priorityClassName: system-cluster-critical
+      containers:
+        - name: csi-nvmeofplugin
+          # for stable functionality replace canary with latest release version
+          # image: quay.io/gdidi/cephcsi:nvmeof
+          image: quay.io/cephcsi/cephcsi:v3.16.0
+          command: ["/usr/local/bin/cephcsi"]
+          args:
+            - "--nodeid=$(NODE_ID)"
+            - "--type=nvmeof"
+            - "--controllerserver=true"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=5"
+            - "--drivername=nvmeof.csi.ceph.com"
+            - "--pidlimit=-1"
+            - "--rbdhardmaxclonedepth=8"
+            - "--rbdsoftmaxclonedepth=4"
+            - "--enableprofiling=false"
+            - "--setmetadata=true"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            privileged: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: ceph-csi-config
+              mountPath: /etc/ceph-csi-config/
+            - name: keys-tmp-dir
+              mountPath: /tmp/csi/keys
+            - name: oidc-token
+              mountPath: /run/secrets/tokens
+              readOnly: true
+        - name: csi-provisioner
+          #          image: registry.k8s.io/sig-storage/csi-provisioner:v5.1.0
+          image: quay.io/nixpanic/csi-provisioner:pr1440
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=1"
+            - "--timeout=150s"
+            - "--retry-interval-start=500ms"
+            - "--leader-election=true"
+            - "--feature-gates=HonorPVReclaimPolicy=true"
+            - "--prevent-volume-mode-conversion=true"
+            # if fstype is not specified in storageclass, ext4 is default
+            - "--default-fstype=ext4"
+            - "--extra-create-metadata=true"
+            - "--immediate-topology=false"
+            - "--http-endpoint=$(POD_IP):8090"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - containerPort: 8090
+              name: provisioner
+              protocol: TCP
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-attacher
+          image: registry.k8s.io/sig-storage/csi-attacher:v4.8.0
+          args:
+            - "--v=1"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+            - "--retry-interval-start=500ms"
+            - "--default-fstype=ext4"
+            - "--http-endpoint=$(POD_IP):8093"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - containerPort: 8093
+              name: attacher
+              protocol: TCP
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-resizer
+          image: quay.io/nixpanic/csi-resizer:pr544
+          #          image: registry.k8s.io/sig-storage/csi-resizer:v1.12.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--leader-election=true"
+            - "--handle-volume-inuse-error=false"
+            - "--feature-gates=VolumeAttributesClass=true"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+      volumes:
+        - name: socket-dir
+          emptyDir:
+            medium: "Memory"
+        # FIXED: Mount rook-ceph-csi-config instead of rook-ceph-nvmeof-*-config
+        # This ConfigMap contains the cluster configuration with monitor endpoints
+        # that Ceph-CSI needs to connect to the Ceph cluster
+        - name: ceph-csi-config
+          configMap:
+            name: rook-ceph-csi-config
+            items:
+              - key: csi-cluster-config-json
+                path: config.json
+        - name: keys-tmp-dir
+          emptyDir:
+            medium: "Memory"
+        # Only if nvmeof support encryption
+        - name: oidc-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: oidc-token
+                  expirationSeconds: 3600
+                  audience: ceph-csi-kms

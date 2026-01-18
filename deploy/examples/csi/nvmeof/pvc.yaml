@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nvmeof-external-volume
+  namespace: default
+spec:
+  storageClassName: ceph-nvmeof
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 128Mi

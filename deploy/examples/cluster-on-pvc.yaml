@@ -29,12 +29,12 @@ spec:
     # size appropriate for monitor data will be used.
     volumeClaimTemplate:
       spec:
-        storageClassName: gp2-csi
+        storageClassName: ibmc-vpc-block-10iops-tier
         resources:
           requests:
             storage: 10Gi
   cephVersion:
-    image: quay.io/ceph/ceph:v19.2.3
+    image: quay.io/ceph/ceph:v20.2.0
     allowUnsupported: false
   skipUpgradeChecks: false
   continueUpgradeAfterChecksEvenIfNotHealthy: false
@@ -134,7 +134,7 @@ spec:
                 requests:
                   storage: 10Gi
               # IMPORTANT: Change the storage class depending on your environment
-              storageClassName: gp2-csi
+              storageClassName: ibmc-vpc-block-10iops-tier
               volumeMode: Block
               accessModes:
                 - ReadWriteOnce

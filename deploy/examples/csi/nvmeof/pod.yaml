@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvmeof-test-pod
+  namespace: default
+spec:
+  containers:
+    - name: test-container
+      image: busybox
+      command: ["/bin/sh"]
+      args:
+        [
+          "-c",
+          "while true; do echo 'Testing NVMe-oF mount'; df -h /mnt/nvmeof; sleep 45; done",
+        ]
+      volumeMounts:
+        - name: nvmeof-volume
+          mountPath: /mnt/nvmeof
+  volumes:
+    - name: nvmeof-volume
+      persistentVolumeClaim:
+        claimName: nvmeof-external-volume
+  restartPolicy: Never

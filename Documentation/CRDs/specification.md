@@ -2803,7 +2803,7 @@ CIDRList
 <h3 id="ceph.rook.io/v1.Annotations">Annotations
 (<code>map[string]string</code> alias)</h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>, <a href="#ceph.rook.io/v1.RGWServiceSpec">RGWServiceSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewaySpec">NVMeOFGatewaySpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>, <a href="#ceph.rook.io/v1.RGWServiceSpec">RGWServiceSpec</a>)
 </p>
 <div>
 <p>Annotations are annotations</p>
@@ -4373,6 +4373,244 @@ string
 </em>
 </td>
 <td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephNVMeOFGateway">CephNVMeOFGateway
+</h3>
+<div>
+<p>CephNVMeOFGateway represents a Ceph NVMe-oF Gateway</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>metadata</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.NVMeOFGatewaySpec">
+NVMeOFGatewaySpec
+</a>
+</em>
+</td>
+<td>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>image</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Image is the container image to use for the NVMe-oF gateway daemon.
+For example, quay.io/ceph/nvmeof:1.5</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>instances</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+<p>The number of active gateway instances</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>pool</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Pool is the RADOS pool where NVMe-oF configuration is stored</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>group</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Group is the gateway group name for high availability (ANA group)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>configMapRef</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ConfigMapRef is the name of the ConfigMap containing nvmeof.conf configuration
+If not specified, a default configuration will be generated</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>nvmeofConfig</code><br/>
+<em>
+map[string]map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>NVMeOFConfig is a map of section names to key-value pairs for nvmeof.conf configuration
+This allows users to override or add configuration options without needing to manage a ConfigMap</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>placement</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Placement">
+Placement
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The affinity to place the gateway pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>annotations</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Annotations">
+Annotations
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The annotations-related configuration to add/set on each Pod related object.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>labels</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Labels">
+Labels
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The labels-related configuration to add/set on each Pod related object.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>resources</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Resources set resource requests and limits</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>priorityClassName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PriorityClassName sets the priority class on the pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>hostNetwork</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether host networking is enabled for the gateway. If not set, the network settings from the cluster CR will be applied.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ports</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.NVMeOFGatewayPorts">
+NVMeOFGatewayPorts
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ports configuration for the NVMe-oF gateway</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>livenessProbe</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ProbeSpec">
+ProbeSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>A liveness-probe to verify that gateway has valid run-time state.
+If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.NVMeOFGatewayStatus">
+NVMeOFGatewayStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
@@ -8799,7 +9037,7 @@ int
 <h3 id="ceph.rook.io/v1.Labels">Labels
 (<code>map[string]string</code> alias)</h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewaySpec">NVMeOFGatewaySpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>)
 </p>
 <div>
 <p>Labels are label for a given daemons</p>
@@ -8815,7 +9053,7 @@ int
 <h3 id="ceph.rook.io/v1.LocalCephxStatus">LocalCephxStatus
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus</a>, <a href="#ceph.rook.io/v1.FileMirrorStatus">FileMirrorStatus</a>, <a href="#ceph.rook.io/v1.NFSStatus">NFSStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>, <a href="#ceph.rook.io/v1.RBDMirrorStatus">RBDMirrorStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus</a>, <a href="#ceph.rook.io/v1.FileMirrorStatus">FileMirrorStatus</a>, <a href="#ceph.rook.io/v1.NFSStatus">NFSStatus</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewayStatus">NVMeOFGatewayStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>, <a href="#ceph.rook.io/v1.RBDMirrorStatus">RBDMirrorStatus</a>)
 </p>
 <div>
 </div>
@@ -10169,6 +10407,315 @@ KerberosSpec
 </p>
 <div>
 <p>NFSStatus represents the status of Ceph NFS</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>Status</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Status">
+Status
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>Status</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cephx</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.LocalCephxStatus">
+LocalCephxStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.NVMeOFGatewayPorts">NVMeOFGatewayPorts
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.NVMeOFGatewaySpec">NVMeOFGatewaySpec</a>)
+</p>
+<div>
+<p>NVMeOFGatewayPorts represents the port configuration for NVMe-oF gateway</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>ioPort</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>IOPort is the port for NVMe-oF IO traffic (default: 4420)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>gatewayPort</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>GatewayPort is the port for the gateway service (default: 5500)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>monitorPort</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MonitorPort is the port for the monitor service (default: 5499)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>discoveryPort</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DiscoveryPort is the port for discovery service (default: 8009)</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.NVMeOFGatewaySpec">NVMeOFGatewaySpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephNVMeOFGateway">CephNVMeOFGateway</a>)
+</p>
+<div>
+<p>NVMeOFGatewaySpec represents the spec of an NVMe-oF gateway</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>image</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Image is the container image to use for the NVMe-oF gateway daemon.
+For example, quay.io/ceph/nvmeof:1.5</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>instances</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+<p>The number of active gateway instances</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>pool</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Pool is the RADOS pool where NVMe-oF configuration is stored</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>group</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Group is the gateway group name for high availability (ANA group)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>configMapRef</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ConfigMapRef is the name of the ConfigMap containing nvmeof.conf configuration
+If not specified, a default configuration will be generated</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>nvmeofConfig</code><br/>
+<em>
+map[string]map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>NVMeOFConfig is a map of section names to key-value pairs for nvmeof.conf configuration
+This allows users to override or add configuration options without needing to manage a ConfigMap</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>placement</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Placement">
+Placement
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The affinity to place the gateway pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>annotations</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Annotations">
+Annotations
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The annotations-related configuration to add/set on each Pod related object.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>labels</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Labels">
+Labels
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The labels-related configuration to add/set on each Pod related object.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>resources</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Resources set resource requests and limits</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>priorityClassName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PriorityClassName sets the priority class on the pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>hostNetwork</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether host networking is enabled for the gateway. If not set, the network settings from the cluster CR will be applied.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ports</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.NVMeOFGatewayPorts">
+NVMeOFGatewayPorts
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ports configuration for the NVMe-oF gateway</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>livenessProbe</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ProbeSpec">
+ProbeSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>A liveness-probe to verify that gateway has valid run-time state.
+If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.NVMeOFGatewayStatus">NVMeOFGatewayStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephNVMeOFGateway">CephNVMeOFGateway</a>)
+</p>
+<div>
+<p>NVMeOFGatewayStatus represents the status of Ceph NVMe-oF Gateway</p>
 </div>
 <table>
 <thead>
@@ -12299,7 +12846,7 @@ string
 <h3 id="ceph.rook.io/v1.Placement">Placement
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephCOSIDriverSpec">CephCOSIDriverSpec</a>, <a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>, <a href="#ceph.rook.io/v1.StorageClassDeviceSet">StorageClassDeviceSet</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephCOSIDriverSpec">CephCOSIDriverSpec</a>, <a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewaySpec">NVMeOFGatewaySpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>, <a href="#ceph.rook.io/v1.StorageClassDeviceSet">StorageClassDeviceSet</a>)
 </p>
 <div>
 <p>Placement is the placement for an object</p>
@@ -12722,7 +13269,7 @@ string
 <h3 id="ceph.rook.io/v1.ProbeSpec">ProbeSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.ObjectHealthCheckSpec">ObjectHealthCheckSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewaySpec">NVMeOFGatewaySpec</a>, <a href="#ceph.rook.io/v1.ObjectHealthCheckSpec">ObjectHealthCheckSpec</a>)
 </p>
 <div>
 <p>ProbeSpec is a wrapper around Probe so it can be enabled or disabled for a Ceph daemon</p>
@@ -14216,7 +14763,7 @@ int
 <h3 id="ceph.rook.io/v1.Status">Status
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>, <a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>, <a href="#ceph.rook.io/v1.CephObjectZone">CephObjectZone</a>, <a href="#ceph.rook.io/v1.CephObjectZoneGroup">CephObjectZoneGroup</a>, <a href="#ceph.rook.io/v1.FileMirrorStatus">FileMirrorStatus</a>, <a href="#ceph.rook.io/v1.NFSStatus">NFSStatus</a>, <a href="#ceph.rook.io/v1.RBDMirrorStatus">RBDMirrorStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>, <a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>, <a href="#ceph.rook.io/v1.CephObjectZone">CephObjectZone</a>, <a href="#ceph.rook.io/v1.CephObjectZoneGroup">CephObjectZoneGroup</a>, <a href="#ceph.rook.io/v1.FileMirrorStatus">FileMirrorStatus</a>, <a href="#ceph.rook.io/v1.NFSStatus">NFSStatus</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewayStatus">NVMeOFGatewayStatus</a>, <a href="#ceph.rook.io/v1.RBDMirrorStatus">RBDMirrorStatus</a>)
 </p>
 <div>
 <p>Status represents the status of an object</p>
