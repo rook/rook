@@ -23,7 +23,7 @@ See the [Helm support matrix](https://helm.sh/docs/topics/version_skew/) for mor
 The Ceph Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster.
 
 1. Install the Helm chart
-1. [Create a Rook cluster](../Getting-Started/quickstart.md#create-a-ceph-cluster).
+2. [Create a Rook cluster](../Getting-Started/quickstart.md#create-a-ceph-cluster).
 
 The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended that the rook operator be installed into the `rook-ceph` namespace (you will install your clusters into separate namespaces).
 
@@ -129,7 +129,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.registrar.tag` | Registrar image tag | `"v2.15.0"` |
 | `csi.resizer.repository` | Kubernetes CSI resizer image repository | `"registry.k8s.io/sig-storage/csi-resizer"` |
 | `csi.resizer.tag` | Resizer image tag | `"v2.0.0"` |
-| `csi.rookUseCsiOperator` |  | `true` |
+| `csi.rookUseCsiOperator` |  | `false` |
 | `csi.serviceMonitor.enabled` | Enable ServiceMonitor for Ceph CSI drivers | `false` |
 | `csi.serviceMonitor.interval` | Service monitor scrape interval | `"10s"` |
 | `csi.serviceMonitor.labels` | ServiceMonitor additional labels | `{}` |
@@ -182,8 +182,8 @@ The following table lists the configurable parameters of the rook-operator chart
 To deploy from a local build from your development environment:
 
 1. Build the Rook docker image: `make`
-1. Copy the image to your K8s cluster, such as with the `docker save` then the `docker load` commands
-1. Install the helm chart:
+2. Copy the image to your K8s cluster, such as with the `docker save` then the `docker load` commands
+3. Install the helm chart:
 
 ```console
 cd deploy/charts/rook-ceph
