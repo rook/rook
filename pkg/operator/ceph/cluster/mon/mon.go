@@ -227,15 +227,6 @@ func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookImage string, c
 
 	log.NamespacedInfo(c.Namespace, logger, "targeting the mon count %d", c.spec.Mon.Count)
 
-	monsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.ClusterInfo.Context, c.context, c.Namespace, config.MonType, AppName)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to check for mons to skip reconcile")
-	}
-	if monsToSkipReconcile.Len() > 0 {
-		log.NamespacedWarning(c.Namespace, logger, "skipping mon reconcile since mons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(monsToSkipReconcile))
-		return c.ClusterInfo, nil
-	}
-
 	// create the mons for a new cluster or ensure mons are running in an existing cluster
 	return c.ClusterInfo, c.startMons(c.spec.Mon.Count)
 }
@@ -247,8 +238,13 @@ func (c *Cluster) startMons(targetCount int) error {
 		return errors.Wrap(err, "failed to init mon config")
 	}
 
+	monsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.ClusterInfo.Context, c.context, c.Namespace, config.MonType, AppName)
+	if err != nil {
+		return errors.Wrap(err, "failed to check for mons to skip reconcile")
+	}
+
 	// Assign the mons to nodes
-	if err := c.assignMons(mons); err != nil {
+	if err := c.assignMons(mons, monsToSkipReconcile); err != nil {
 		return errors.Wrap(err, "failed to assign pods to mons")
 	}
 
@@ -274,7 +270,7 @@ func (c *Cluster) startMons(targetCount int) error {
 			if c.ClusterInfo.Context.Err() != nil {
 				return c.ClusterInfo.Context.Err()
 			}
-			if err := c.ensureMonsRunning(mons, i, targetCount, true); err != nil {
+			if err := c.ensureMonsRunning(mons, i, targetCount, true, monsToSkipReconcile); err != nil {
 				return err
 			}
 
@@ -299,7 +295,7 @@ func (c *Cluster) startMons(targetCount int) error {
 	} else {
 		// Ensure all the expected mon deployments exist, but don't require full quorum to continue
 		lastMonIndex := len(mons) - 1
-		if err := c.ensureMonsRunning(mons, lastMonIndex, targetCount, false); err != nil {
+		if err := c.ensureMonsRunning(mons, lastMonIndex, targetCount, false, monsToSkipReconcile); err != nil {
 			return err
 		}
 
@@ -493,7 +489,7 @@ func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
 //     to add a mon until we have reached the desired number of mons.
 //  2. To check that the majority of existing mons are in quorum. It is ok if not all mons are in quorum. (requireAllInQuorum = false)
 //     This is needed when the operator is restarted and all mons may not be up or in quorum.
-func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requireAllInQuorum bool) error {
+func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requireAllInQuorum bool, monsToSkipReconcile sets.Set[string]) error {
 	if requireAllInQuorum {
 		log.NamespacedInfo(c.Namespace, logger, "creating mon %s", mons[i].DaemonName)
 	} else {
@@ -519,7 +515,7 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 	}
 
 	// Start the deployment
-	if err := c.startDeployments(mons[0:expectedMonCount], requireAllInQuorum); err != nil {
+	if err := c.startDeployments(mons[0:expectedMonCount], requireAllInQuorum, monsToSkipReconcile); err != nil {
 		return errors.Wrap(err, "failed to start mon pods")
 	}
 
@@ -903,7 +899,7 @@ func (c *Cluster) removeCanaryDeployments(labelSelector string) {
 	}
 }
 
-func (c *Cluster) assignMons(mons []*monConfig) error {
+func (c *Cluster) assignMons(mons []*monConfig, monsToSkipReconcile sets.Set[string]) error {
 	// when monitors are scheduling below by invoking scheduleMonitor() a canary
 	// deployment and optional canary PVC are created. In order for the
 	// anti-affinity rules to be effective, we leave the canary pods in place
@@ -931,6 +927,11 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		// scheduling for this monitor has already been completed
 		if _, ok := c.mapping.Schedule[mon.DaemonName]; ok {
 			log.NamespacedDebug(c.Namespace, logger, "mon %s already scheduled", mon.DaemonName)
+			continue
+		}
+		// skip the mon if it is marked to skip reconcile
+		if monsToSkipReconcile.Has(mon.DaemonName) {
+			log.NamespacedInfo(c.Namespace, logger, "skipping scheduling for mon %q since marked to skip reconcile", mon.DaemonName)
 			continue
 		}
 
@@ -1028,7 +1029,7 @@ func (c *Cluster) monVolumeClaimTemplate(mon *monConfig) *corev1.PersistentVolum
 	return c.spec.Mon.VolumeClaimTemplate.ToPVC()
 }
 
-func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) error {
+func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool, monsToSkipDeployment sets.Set[string]) error {
 	if len(mons) == 0 {
 		return errors.New("cannot start 0 mons")
 	}
@@ -1065,6 +1066,11 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 
 	// Ensure each of the mons have been created. If already created, it will be a no-op.
 	for i := 0; i < len(mons); i++ {
+		if monsToSkipDeployment.Has(mons[i].DaemonName) {
+			log.NamespacedInfo(c.Namespace, logger, "skipping starting deployment for mon %q since marked to skip reconcile", mons[i].DaemonName)
+			continue
+		}
+
 		schedule := c.mapping.Schedule[mons[i].DaemonName]
 		err := c.startMon(mons[i], schedule)
 		if err != nil {
