@@ -72,6 +72,10 @@ func (c *FakeCephV1) CephNFSes(namespace string) v1.CephNFSInterface {
 	return newFakeCephNFSes(c, namespace)
 }
 
+func (c *FakeCephV1) CephNVMeOFGateways(namespace string) v1.CephNVMeOFGatewayInterface {
+	return newFakeCephNVMeOFGateways(c, namespace)
+}
+
 func (c *FakeCephV1) CephObjectRealms(namespace string) v1.CephObjectRealmInterface {
 	return newFakeCephObjectRealms(c, namespace)
 }
