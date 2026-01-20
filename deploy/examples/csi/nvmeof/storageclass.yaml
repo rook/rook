@@ -1,0 +1,31 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ceph-nvmeof
+parameters:
+  clusterID: rook-ceph
+  pool: nvmeof
+  subsystemNQN: nqn.2016-06.io.spdk:cnode1.rook-ceph
+  # Management API - talks to gateway to create subsystems/namespaces
+  nvmeofGatewayAddress: "172.30.47.120"
+  nvmeofGatewayPort: "5500"
+  # Data Plane - worker nodes connect here for actual I/O
+  # List ALL gateway pods for HA and multipath
+  listeners: |
+    [
+      {
+        "address": "10.129.2.36",
+        "port": 4420,
+        "hostname": "rook-ceph-nvmeof-nvmeof-a"
+      }
+    ]
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+  imageFormat: "2"
+  imageFeatures: layering,deep-flatten,exclusive-lock,object-map,fast-diff
+provisioner: nvmeof.csi.ceph.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: false

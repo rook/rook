@@ -1,0 +1,13 @@
+# This example is for Ceph v20 and above only
+
+apiVersion: ceph.rook.io/v1
+kind: CephNVMeOFGateway
+metadata:
+  name: nvmeof
+  namespace: rook-ceph # namespace:cluster
+spec:
+  image: quay.io/ceph/nvmeof:1.5
+  pool: nvmeof
+  group: group-a
+  instances: 1
+  hostNetwork: false
