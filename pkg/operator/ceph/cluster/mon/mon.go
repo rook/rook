@@ -1546,6 +1546,13 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 		return errors.Wrapf(err, "failed to get mon deployment %s", d.Name)
 	}
 
+	// check if its the floating mon
+	_, exists := existingDeployment.Labels[cephv1.FloatingMonLabelKey]
+	if exists {
+		log.NamespacedInfo(c.Namespace, logger, "mon %q is a floating mon, do not update it", m.DaemonName)
+		return nil
+	}
+
 	// persistent storage is not altered after the deployment is created. this
 	// means we need to be careful when updating the deployment to avoid new
 	// changes to the crd to change an existing pod's persistent storage. the

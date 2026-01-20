@@ -26,6 +26,7 @@ import (
 const (
 	// SkipReconcileLabelKey is a label indicating that the pod should not be reconciled
 	SkipReconcileLabelKey = "ceph.rook.io/do-not-reconcile"
+	FloatingMonLabelKey   = "ceph.rook.io/floating-mon"
 )
 
 // LabelsSpec is the main spec label for all daemons
