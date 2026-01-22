@@ -83,6 +83,12 @@ $(YQ):
 GOLANGCI_LINT_VERSION := $(strip $(shell $(YQ) .jobs.golangci.steps[2].with.version .github/workflows/golangci-lint.yaml))
 GOLANGCI_LINT := $(TOOLS_HOST_DIR)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 
+# KAL is a modified version of golangci-lint with itself built in as an addon. Downloading KAL as a
+# separate binary allows caching the binary between 'make' calls (vs building it into golangci-lint)
+# KAL version list: https://pkg.go.dev/sigs.k8s.io/kube-api-linter?tab=versions
+export KUBE_API_LINT_VERSION=v0.0.0-20260105171240-d42ba1d7b50c
+export KUBE_API_LINT=$(TOOLS_HOST_DIR)/golangci-lint-kube-api-linter-$(KUBE_API_LINT_VERSION)
+
 GO_OUT_DIR := $(abspath $(OUTPUT_DIR)/bin/$(PLATFORM))
 GO_TEST_OUTPUT := $(abspath $(OUTPUT_DIR)/tests/$(PLATFORM))
 
@@ -165,6 +171,12 @@ go.fmt-fix: $(GOLANGCI_LINT)
 go.golangci-lint: $(GOLANGCI_LINT)
 	@$(GOLANGCI_LINT) run
 
+.PHONY: go.kube-api-lint
+# When KAL was added, 1310 errors were reported in Rook's APIs. Show all by default.
+KUBE_API_LINT_OPTIONS ?= --max-issues-per-linter=2000
+go.kube-api-lint: $(KUBE_API_LINT)
+	cd $(ROOT_DIR)/pkg/apis && $(KUBE_API_LINT) run --config $(ROOT_DIR)/tests/scripts/kube-api-lint.yaml $(KUBE_API_LINT_OPTIONS)
+
 go.validate: go.vet go.fmt
 
 .PHONY: go.mod.update
@@ -195,6 +207,12 @@ $(GOLANGCI_LINT):
 	@curl -sL https://github.com/golangci/golangci-lint/releases/download/$(GOLANGCI_LINT_VERSION)/golangci-lint-$(patsubst v%,%,$(GOLANGCI_LINT_VERSION))-$(shell go env GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
 	@mv $(TOOLS_HOST_DIR)/tmp/golangci-lint-$(patsubst v%,%,$(GOLANGCI_LINT_VERSION))-$(shell go env GOHOSTOS)-$(GOHOSTARCH)/golangci-lint $(GOLANGCI_LINT)
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
+
+$(KUBE_API_LINT):
+	@echo === installing kube-api-lint@$(KUBE_API_LINT_VERSION)
+	@mkdir -p $(TOOLS_HOST_DIR)
+	GOBIN=$(TOOLS_HOST_DIR) go install sigs.k8s.io/kube-api-linter/cmd/golangci-lint-kube-api-linter@$(KUBE_API_LINT_VERSION)
+	@ mv $(TOOLS_HOST_DIR)/golangci-lint-kube-api-linter $(KUBE_API_LINT)
 
 $(GOJUNIT):
 	@echo === installing go-junit-report
