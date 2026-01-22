@@ -783,7 +783,7 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// Assign the pod to a node
 	mConf := []*monConfig{m}
-	if err := c.assignMons(mConf); err != nil {
+	if err := c.assignMons(mConf, sets.New[string]()); err != nil {
 		return errors.Wrap(err, "failed to place new mon on a node")
 	}
 
@@ -815,7 +815,7 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// Start the deployment
 	newMonMightBeInQuorum = true
-	if err := c.startDeployments(mConf, true); err != nil {
+	if err := c.startDeployments(mConf, true, sets.New[string]()); err != nil {
 		return errors.Wrapf(err, "failed to start new mon %s", m.DaemonName)
 	}
 
