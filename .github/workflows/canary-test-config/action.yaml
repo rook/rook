@@ -28,6 +28,9 @@ runs:
     - name: Setup Minikube
       uses: medyagh/setup-minikube@latest
       with:
+        # lock minikube version to ensure release branch CI doesn't fail when latest minikube no
+        # longer supports older k8s version we lock to
+        minikube-version: "1.37.0"
         kubernetes-version: v1.35.0
         driver: none
         container-runtime: docker
