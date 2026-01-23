@@ -196,7 +196,7 @@ The erasure coded pool must be set as the `dataPool` parameter in
 
 ## Node Loss
 
-If a node goes down where a pod is running where a RBD RWO volume is mounted, the volume cannot automatically be mounted on another node. The node must be guaranteed to be offline before the volume can be mounted on another node.
+If a node goes down where a pod is running where a volume is mounted, the volume cannot automatically be mounted on another node. The node must be guaranteed to be offline before the volume can be mounted on another node.
 
 
 ### Handling Node Loss
@@ -209,7 +209,7 @@ kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:N
 kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoSchedule
 ```
 
-After the taint is added to the node, the CephCSI driver will automatically handle the network fencing to prevent connections to Ceph from the RBD volume on that node.
+After the taint is added to the node, the CephCSI driver will automatically handle the network fencing to prevent connections to Ceph from the volume on that node.
 
 ### Node Recovery
 
