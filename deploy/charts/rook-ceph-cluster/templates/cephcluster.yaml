@@ -27,7 +27,9 @@ spec:
   cephVersion:
     image: "{{ .repository }}:{{ .tag }}"
     allowUnsupported: {{ .allowUnsupported }}
-    imagePullPolicy: {{ .imagePullPolicy }}
+    {{- with .imagePullPolicy }}
+    imagePullPolicy: {{ . }}
+    {{- end }}
   {{- end }}
 
   {{- .Values.cephClusterSpec | toYaml | nindent 2 }}
