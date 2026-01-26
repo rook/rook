@@ -477,7 +477,11 @@ func Test_updateExistingOSDs(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		d.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{}
+		container, err := findOSDContainer(d.Spec.Template.Spec.Containers)
+		if err != nil {
+			panic(err)
+		}
+		container.Env = []corev1.EnvVar{}
 		_, err = deploymentClient.Update(context.TODO(), d, metav1.UpdateOptions{})
 		if err != nil {
 			panic(err)

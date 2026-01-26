@@ -763,8 +763,9 @@ func TestGetOSDInfo(t *testing.T) {
 		// set the deployment to have bad info
 		d3, err := c.makeDeployment(osdProp, osd3, dataPathMap)
 		assert.NoError(t, err)
-		d3.Spec.Template.Spec.Containers[0].Env = append(d3.Spec.Template.Spec.Containers[0].Env,
-			corev1.EnvVar{Name: blockPathVarName, Value: ""})
+		container, err := findOSDContainer(d3.Spec.Template.Spec.Containers)
+		assert.NoError(t, err)
+		container.Env = append(container.Env, corev1.EnvVar{Name: blockPathVarName, Value: ""})
 		_, err = c.getOSDInfo(d3)
 		assert.Error(t, err)
 	})
