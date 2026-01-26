@@ -981,9 +981,8 @@ func (c *clusterConfig) generateVolumeSourceWithTLSSecret() (*v1.SecretVolumeSou
 }
 
 func (c *clusterConfig) generateVolumeSourceWithCaBundleSecret() (*v1.SecretVolumeSource, error) {
-	// Keep the ca-bundle as secure as possible in the container. Give only user read perms.
-	// Same as above for generateVolumeSourceWithTLSSecret function.
-	userReadOnly := int32(0o400)
+	// RGW runs as 'ceph' user and needs access to the CA bundle.
+	readOnly := int32(0o444)
 	caBundleVolSrc := &v1.SecretVolumeSource{
 		SecretName: c.store.Spec.Gateway.CaBundleRef,
 	}
@@ -995,7 +994,7 @@ func (c *clusterConfig) generateVolumeSourceWithCaBundleSecret() (*v1.SecretVolu
 		return nil, errors.New("CaBundle secret should be 'Opaque' type")
 	}
 	caBundleVolSrc.Items = []v1.KeyToPath{
-		{Key: caBundleKeyName, Path: caBundleFileName, Mode: &userReadOnly},
+		{Key: caBundleKeyName, Path: caBundleFileName, Mode: &readOnly},
 	}
 	return caBundleVolSrc, nil
 }
