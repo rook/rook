@@ -161,6 +161,19 @@ func getNodeAffinity(nodeAffinityName string, defaultNodeAffinity *corev1.NodeAf
 	return v1NodeAffinity
 }
 
+// getAffinity returns an Affinity struct with NodeAffinity if configured,
+// or nil if no affinity is set. This ensures the ceph-csi-operator can
+// use its defaults from OperatorConfig when no affinity is specified.
+func getAffinity(nodeAffinityEnv string) *corev1.Affinity {
+	nodeAffinity := getNodeAffinity(nodeAffinityEnv, nil)
+	if nodeAffinity == nil {
+		return nil
+	}
+	return &corev1.Affinity{
+		NodeAffinity: nodeAffinity,
+	}
+}
+
 func applyToPodSpec(pod *corev1.PodSpec, n *corev1.NodeAffinity, t []corev1.Toleration) {
 	pod.Tolerations = t
 	pod.Affinity = &corev1.Affinity{
