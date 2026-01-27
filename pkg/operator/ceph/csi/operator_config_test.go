@@ -29,6 +29,7 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	apifake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -37,10 +38,13 @@ import (
 
 func TestReconcileCSI_createOrUpdateOperatorConfig(t *testing.T) {
 	ns := "test"
+	cephv1.SetEnforceHostNetwork(true)
+	defer cephv1.SetEnforceHostNetwork(false)
 	r := &ReconcileCSI{
 		context: &clusterd.Context{
-			Clientset:     testop.New(t, 1),
-			RookClientset: rookclient.NewSimpleClientset(),
+			Clientset:           testop.New(t, 1),
+			RookClientset:       rookclient.NewSimpleClientset(),
+			ApiExtensionsClient: apifake.NewClientset(),
 		},
 		opManagerContext: context.TODO(),
 		opConfig: opcontroller.OperatorConfig{
@@ -82,10 +86,14 @@ func TestReconcileCSI_createOrUpdateOperatorConfig(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	r.client = cl
 
-	err := r.createOrUpdateOperatorConfig(*cluster)
+	err := r.setParams()
+	assert.NoError(t, err)
+
+	err = r.createOrUpdateOperatorConfig(*cluster)
 	assert.NoError(t, err)
 
 	err = cl.Get(context.TODO(), types.NamespacedName{Name: opConfigCRName, Namespace: r.opConfig.OperatorNamespace}, opConfig)
 	assert.NoError(t, err)
-	assert.Equal(t, *opConfig.Spec.DriverSpecDefaults.EnableMetadata, true)
+	assert.True(t, *opConfig.Spec.DriverSpecDefaults.EnableMetadata)
+	assert.True(t, *opConfig.Spec.DriverSpecDefaults.ControllerPlugin.HostNetwork)
 }
