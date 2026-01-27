@@ -1,5 +1,9 @@
-name: Cluster Setup
-description: Cluster setup for canary test
+name: setup cluster resources
+description: Setup cluster resources for canary/integration tests
+inputs:
+  kubernetes-version:
+    description: kubernetes version to use for the workflow
+    required: true
 
 runs:
   using: "composite"
@@ -7,14 +11,14 @@ runs:
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
       with:
-        tool-cache: false # removes old golang version but saves ~6GB
+        tool-cache: true # removes old golang version but saves ~6GB
         large-packages: false # takes a long time to run b/c package mgr
-        android: true # takes a long time to run b/c package mgr
+        android: false # takes a long time to run b/c package mgr
         dotnet: false # takes a long time to run b/c package mgr
         haskell: false # takes a long time to run b/c package mgr
 
     - name: setup golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
       with:
         go-version: "1.25"
 
@@ -31,7 +35,7 @@ runs:
         # lock minikube version to ensure release branch CI doesn't fail when latest minikube no
         # longer supports older k8s version we lock to
         minikube-version: "1.37.0"
-        kubernetes-version: v1.35.0
+        kubernetes-version: ${{ inputs.kubernetes-version }}
         driver: none
         container-runtime: docker
         memory: 6g
@@ -46,6 +50,11 @@ runs:
     - name: print k8s cluster status
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+    # This step is required for all the integration tests except the canary tests
+    - name: use local disk
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
 
     - name: build rook
       shell: bash --noprofile --norc -eo pipefail -x {0}
