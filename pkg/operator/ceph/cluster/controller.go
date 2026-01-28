@@ -43,7 +43,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	apituntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -499,38 +498,6 @@ func (c *ClusterController) requestClusterDelete(clusterObj *cephv1.CephCluster)
 			log.NamedError(nsName, logger, "skipping deletion of CephCluster %q. CephCluster CR %q already exists in this namespace. only one cluster cr per namespace is supported.",
 				nsName, existingCluster.namespacedName.Name)
 			return reconcile.Result{}, nil // do not requeue the delete
-		}
-	}
-	_, err := c.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(c.OpManagerCtx, "networkfences.csiaddons.openshift.io", metav1.GetOptions{})
-	if err == nil {
-		log.NamespacedInfo(clusterObj.Namespace, logger, "removing networkFence if matching cephCluster UID found")
-		networkFenceList := &addonsv1alpha1.NetworkFenceList{}
-		labelSelector := labels.SelectorFromSet(map[string]string{
-			networkFenceLabel: string(clusterObj.GetUID()),
-		})
-
-		opts := []client.DeleteAllOfOption{
-			client.MatchingLabels{
-				networkFenceLabel: string(clusterObj.GetUID()),
-			},
-			client.GracePeriodSeconds(0),
-		}
-		err = c.client.DeleteAllOf(c.OpManagerCtx, &addonsv1alpha1.NetworkFence{}, opts...)
-		if err != nil && !kerrors.IsNotFound(err) {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to delete networkFence with label %s", networkFenceLabel)
-		}
-
-		err = c.client.List(c.OpManagerCtx, networkFenceList, &client.MatchingLabelsSelector{Selector: labelSelector})
-		if err != nil && !kerrors.IsNotFound(err) {
-			return reconcile.Result{}, errors.Wrap(err, "failed to list networkFence")
-		}
-		if len(networkFenceList.Items) > 0 {
-			for i := range networkFenceList.Items {
-				err = opcontroller.RemoveFinalizerWithName(c.OpManagerCtx, c.client, &networkFenceList.Items[i], "csiaddons.openshift.io/network-fence")
-				if err != nil {
-					return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
-				}
-			}
 		}
 	}
 
