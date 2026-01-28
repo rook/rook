@@ -82,7 +82,6 @@ rules:
       - pods
       # Node access is needed for determining nodes where mons should run
       - nodes
-      - nodes/proxy
       # Rook watches secrets which it uses to configure access to external resources.
       # e.g., external Ceph cluster or object store
       - secrets
@@ -284,7 +283,6 @@ rules:
     resources:
       - configmaps
       - nodes
-      - nodes/proxy
       - persistentvolumes
     verbs:
       - get
