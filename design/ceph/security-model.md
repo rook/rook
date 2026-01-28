@@ -30,7 +30,7 @@ metadata:
   name: rook-operator
 rules:
 - apiGroups: [""]
-  resources: ["namespaces", "serviceaccounts", "secrets", "pods", "services", "nodes", "nodes/proxy", "configmaps", "events", "persistentvolumes", "persistentvolumeclaims"]
+  resources: ["namespaces", "serviceaccounts", "secrets", "pods", "services", "nodes", "configmaps", "events", "persistentvolumes", "persistentvolumeclaims"]
   verbs: [ "get", "list", "watch", "patch", "create", "update", "delete" ]
 - apiGroups: ["extensions"]
   resources: ["thirdpartyresources", "deployments", "daemonsets", "replicasets"]
@@ -79,7 +79,7 @@ metadata:
   name: rook-ceph-agent
 rules:
 - apiGroups: [""]
-  resources: ["pods", "secrets", "configmaps", "persistentvolumes", "nodes", "nodes/proxy"]
+  resources: ["pods", "secrets", "configmaps", "persistentvolumes", "nodes"]
   verbs: [ "get", "list" ]
 - apiGroups: ["storage.k8s.io"]
   resources: ["storageclasses"]
