@@ -694,8 +694,20 @@ func GetOSDID(d *appsv1.Deployment) (int, error) {
 	return osdID, nil
 }
 
+func findOSDContainer(containers []corev1.Container) (*corev1.Container, error) {
+	for i := range containers {
+		if containers[i].Name == "osd" {
+			return &containers[i], nil
+		}
+	}
+	return nil, errors.New("OSD container not found in deployment")
+}
+
 func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
-	container := d.Spec.Template.Spec.Containers[0]
+	container, err := findOSDContainer(d.Spec.Template.Spec.Containers)
+	if err != nil {
+		return OSDInfo{}, errors.Wrapf(err, "failed to find OSD container in deployment %q", d.Name)
+	}
 	var osd OSDInfo
 
 	osdID, err := GetOSDID(d)
@@ -706,7 +718,7 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 
 	isPVC := false
 
-	for _, envVar := range d.Spec.Template.Spec.Containers[0].Env {
+	for _, envVar := range container.Env {
 		if envVar.Name == "ROOK_NODE_NAME" {
 			osd.NodeName = envVar.Value
 		}
