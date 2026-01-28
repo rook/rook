@@ -208,6 +208,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 func (r *ReconcileCephNFS) connectionConfigInitContainer(nfs *cephv1.CephNFS, name string) v1.Container {
 	_, cephConfigMount := cephConfigVolumeAndMount()
 
+	// Use the cluster Ceph image to setup keyring even if the Ganesha image has been overridden.
 	return controller.GenerateMinimalCephConfInitContainer(
 		getNFSClientID(nfs, name),
 		keyring.VolumeMount().KeyringFilePath(),
@@ -242,8 +243,8 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 			"-p", ganeshaPid, // PID file location
 			"-N", logLevel, // Change Log level
 		},
-		Image:           r.cephClusterSpec.CephVersion.Image,
-		ImagePullPolicy: controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
+		Image:           r.GetNFSImage(nfs),
+		ImagePullPolicy: r.GetNFSImagePullPolicy(nfs),
 		VolumeMounts: []v1.VolumeMount{
 			cephConfigMount,
 			keyring.VolumeMount().Resource(instanceName(nfs, cfg.ID)),
@@ -286,17 +287,33 @@ func (r *ReconcileCephNFS) dbusContainer(nfs *cephv1.CephNFS) v1.Container {
 			"--nopidfile", // don't write a pid file
 			// some dbus-daemon versions have flag --nosyslog to send logs to sterr; not ceph upstream image
 		},
-		Image:           r.cephClusterSpec.CephVersion.Image,
-		ImagePullPolicy: controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
+		Image:           r.GetNFSImage(nfs),
+		ImagePullPolicy: r.GetNFSImagePullPolicy(nfs),
 		VolumeMounts: []v1.VolumeMount{
 			dbusMount,
 		},
-		Env:       k8sutil.ClusterDaemonEnvVars(r.cephClusterSpec.CephVersion.Image), // do not need access to Ceph env vars b/c not a Ceph daemon
+		Env:       k8sutil.ClusterDaemonEnvVars(r.GetNFSImage(nfs)), // do not need access to Ceph env vars b/c not a Ceph daemon
 		Resources: nfs.Spec.Server.Resources,
 		SecurityContext: &v1.SecurityContext{
 			RunAsUser: &dbusUID,
 		},
 	}
+}
+
+func (r *ReconcileCephNFS) GetNFSImage(nfs *cephv1.CephNFS) string {
+	if nfs.Spec.Server.Image != "" {
+		return nfs.Spec.Server.Image
+	}
+
+	return r.cephClusterSpec.CephVersion.Image
+}
+
+func (r *ReconcileCephNFS) GetNFSImagePullPolicy(nfs *cephv1.CephNFS) v1.PullPolicy {
+	if nfs.Spec.Server.Image != "" {
+		return controller.GetContainerImagePullPolicy(nfs.Spec.Server.ImagePullPolicy)
+	}
+
+	return controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy)
 }
 
 func getLabels(n *cephv1.CephNFS, name string, includeNewLabels bool) map[string]string {

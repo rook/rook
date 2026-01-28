@@ -8047,6 +8047,39 @@ ProbeSpec
 If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>image</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Image is the container image used to launch the Ceph NFS (Ganesha) daemon(s).
+The image must include the NFS Ganesha binaries, such as are included with the official Ceph releases. E.g.: quay.io/ceph/ceph:<tag>
+If not specified, the Ceph image defined in the CephCluster is used.
+Overriding the CephCluster defined image is not normally necessary when using the official Ceph images.
+The image must contain the NFS Ganesha and dbus packages.
+If the SSSD sidecar is enabled, the image must also contain the sssd-client package.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>imagePullPolicy</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#pullpolicy-v1-core">
+Kubernetes core/v1.PullPolicy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullPolicy describes a policy for if/when to pull a container image
+One of Always, Never, IfNotPresent.
+This field only has effect if an image is specified.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.GatewaySpec">GatewaySpec
