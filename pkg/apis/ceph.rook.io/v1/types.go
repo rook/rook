@@ -2336,6 +2336,15 @@ type ObjectUserCapSpec struct {
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
 	// Add capabilities for user to set rate limiter for user and bucket. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
 	RateLimit string `json:"ratelimit,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Add capabilities for user to fetch user info without keys. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	UserInfoWithoutKeys string `json:"user-info-without-keys,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Add capabilities for user to manage accounts. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	// Note: Only supported from Ceph Squid (v19.2.3) onwards
+	Accounts string `json:"accounts,omitempty"`
 }
 
 // ObjectUserQuotaSpec can be used to set quotas for the object store user to limit their usage. See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/?#quota-management) for more
