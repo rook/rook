@@ -453,6 +453,8 @@ metadata:
   name: ` + name + `
   namespace: ` + m.settings.Namespace + `
 spec:
+  image: quay.io/ceph/ceph:v18.2.7
+  imagePullPolicy: IfNotPresent
   rados:
     pool: .nfs
     namespace: nfs-ns
