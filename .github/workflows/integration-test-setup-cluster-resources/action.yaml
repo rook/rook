@@ -34,7 +34,7 @@ runs:
       with:
         # lock minikube version to ensure release branch CI doesn't fail when latest minikube no
         # longer supports older k8s version we lock to
-        minikube-version: "1.37.0"
+        minikube-version: "1.38.0"
         kubernetes-version: ${{ inputs.kubernetes-version }}
         driver: none
         container-runtime: docker
