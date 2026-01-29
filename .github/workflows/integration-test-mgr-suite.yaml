@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   TestCephMgrSuite:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: "contains(github.event.pull_request.labels.*.name, 'run-mgr-suite')"
     strategy:
       fail-fast: false
@@ -44,6 +44,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          use-local-disk-for-integration: true
 
       - name: TestCephMgrSuite
         run: |

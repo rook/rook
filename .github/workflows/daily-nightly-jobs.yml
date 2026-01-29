@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   canary-arm64:
-    runs-on: [ubuntu-22.04-arm]
+    runs-on: [ubuntu-24.04-arm]
     if: github.repository == 'rook/rook'
 
     steps:
@@ -64,7 +64,7 @@ jobs:
 
   smoke-suite-squid-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -104,7 +104,7 @@ jobs:
 
   smoke-suite-tentacle-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -144,7 +144,7 @@ jobs:
 
   smoke-suite-ceph-main:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -184,7 +184,7 @@ jobs:
 
   object-suite-ceph-main:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -224,7 +224,7 @@ jobs:
 
   upgrade-from-squid-stable-to-squid-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -264,7 +264,7 @@ jobs:
 
   upgrade-from-tentacle-stable-to-tentacle-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
