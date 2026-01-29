@@ -25,9 +25,10 @@ runs:
     - name: Install cri-dockerd
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
-        curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_amd64.deb
-        sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_amd64.deb
-        rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_amd64.deb
+        ARCH=$(go env GOARCH)
+        curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
+        sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
+        rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
 
     - name: Setup Minikube
       uses: medyagh/setup-minikube@latest
