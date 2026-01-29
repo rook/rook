@@ -2827,6 +2827,24 @@ type GaneshaServerSpec struct {
 	// If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.
 	// +optional
 	LivenessProbe *ProbeSpec `json:"livenessProbe,omitempty"`
+
+	// Image is the container image used to launch the Ceph NFS (Ganesha) daemon(s).
+	// The image must include the NFS Ganesha binaries, such as are included with the official Ceph releases. E.g.: quay.io/ceph/ceph:<tag>
+	// If not specified, the Ceph image defined in the CephCluster is used.
+	// Overriding the CephCluster defined image is not normally necessary when using the official Ceph images.
+	// The image must contain the NFS Ganesha and dbus packages.
+	// If the SSSD sidecar is enabled, the image must also contain the sssd-client package.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=1572864
+	Image string `json:"image,omitempty"`
+
+	// ImagePullPolicy describes a policy for if/when to pull a container image
+	// One of Always, Never, IfNotPresent.
+	// This field only has effect if an image is specified.
+	// +optional
+	// +kubebuilder:validation:Enum=IfNotPresent;Always;Never;""
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
 }
 
 // NFSSecuritySpec represents security configurations for an NFS server pod

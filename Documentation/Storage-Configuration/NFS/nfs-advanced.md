@@ -49,3 +49,31 @@ can be used. This creates an export for the `/testrgw` pseudo path on an existin
 ```console
 ceph nfs export create rgw my-nfs /testrgw bkt4exp
 ```
+
+## Deploying a different NFS Ganesha version
+
+The default behavior is to use `CephCluster.spec.cephVersion.image` as the
+basis for the NFS Ganesha pods. This may be overridden in order to change the
+NFS Ganesha version independently of the version bundled in the image used for
+the other Ceph cluster components. A example of why this might be desirable is
+to allow the use of unmodified official Ceph OCI images for all other Ceph
+cluster components, while still allowing the version of NFS Ganesha to be
+upgraded independently.
+
+The image must contain the NFS Ganesha and dbus packages. If the SSSD sidecar
+is enabled, the image must also contain the sssd-client package.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephNFS
+metadata:
+  name: my-nfs
+  namespace: rook-ceph
+spec:
+  rados:
+    pool: my-nfs-data0
+  server:
+    active: 1
+    image: custom/ganesha-image:latest"
+    imagePullPolicy: Always
+```

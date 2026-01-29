@@ -36,6 +36,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -495,6 +496,27 @@ func TestCephNFSController(t *testing.T) {
 			assert.Len(t, *deploymentsUpdated, 1)
 			assert.Equal(t, "rook-ceph-nfs-my-nfs-a", (*deploymentsUpdated)[0].Name)
 		})
+	})
+
+	t.Run("override ganesha OCI image", func(t *testing.T) {
+		cephNFS := baseCephNFS()
+		cephNFS.Spec.Server.Image = "custom/ganesha-image:latest"
+		cephNFS.Spec.Server.ImagePullPolicy = "Always"
+
+		cCtx := newContext(successExecutor(t))
+		cl := newControllerClient(cephNFS, cephClusterReady(cCtx))
+		r := newReconcile(cCtx, cl)
+
+		res, err := r.Reconcile(ctx, req)
+		require.NoError(t, err)
+		assert.Zero(t, res.RequeueAfter)
+		assertCephNFSReady(t, r)
+
+		deploy, err := cCtx.Clientset.AppsV1().Deployments(namespace).Get(ctx, "rook-ceph-nfs-my-nfs-a", metav1.GetOptions{})
+		require.NoError(t, err)
+
+		assert.Equal(t, cephNFS.Spec.Server.Image, deploy.Spec.Template.Spec.Containers[0].Image)
+		assert.Equal(t, cephNFS.Spec.Server.ImagePullPolicy, deploy.Spec.Template.Spec.Containers[0].ImagePullPolicy)
 	})
 }
 
