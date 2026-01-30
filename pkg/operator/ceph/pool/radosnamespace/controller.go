@@ -42,7 +42,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -75,7 +75,7 @@ type ReconcileCephBlockPoolRadosNamespace struct {
 	clusterInfo            *cephclient.ClusterInfo
 	radosNamespaceContexts map[string]*mirrorHealth
 	opManagerContext       context.Context
-	recorder               record.EventRecorder
+	recorder               events.EventRecorder
 	opConfig               opcontroller.OperatorConfig
 }
 
@@ -110,7 +110,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		context:                context,
 		radosNamespaceContexts: make(map[string]*mirrorHealth),
 		opManagerContext:       opManagerContext,
-		recorder:               mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:               mgr.GetEventRecorder("rook-" + controllerName),
 		opConfig:               opConfig,
 	}
 }
