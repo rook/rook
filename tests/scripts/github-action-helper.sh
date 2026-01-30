@@ -51,6 +51,7 @@ function find_extra_block_dev() {
   extra_dev="$(sudo lsblk --noheading --list --nodeps --output KNAME | egrep -v "($boot_dev|loop|nbd)" | head -1)"
   echo "  == find_extra_block_dev(): extra_dev='$extra_dev'" >/dev/stderr # debug in case of future errors
   echo "$extra_dev"                                                       # output of function
+  # as a last resort, create a fake `disk` type block device using a loop device
 }
 
 function block_dev() {
@@ -63,6 +64,21 @@ function block_dev() {
 function block_dev_basename() {
   declare -g DEFAULT_BLOCK_DEV_BASENAME
   : "${DEFAULT_BLOCK_DEV_BASENAME:=$(find_extra_block_dev)}"
+
+  # by definition, in this file, BLOCK should only contain the "sdX" portion of the block device name
+  # some external scripts export BLOCK as the full "/dev/sdX" path, which this script must handle
+  if [ -z "$BLOCK" ]; then
+    dd if=/dev/zero of="~/fake-disk.img" bs=5G count=0 seek=1
+    sudo losetup -f ~/fake-disk.img
+    LOOPBACK_DEV=$(sudo losetup --find --show ~/fake-disk.img)
+    echo <<EOF >~/fake-disk-dm-table.txt
+0 10485760 linear ${LOOPBACK_DEV} 0
+EOF
+    # `lsblk` uses the word before the first "-" as the block device type.
+    # So /dev/mapper/fake disk is recognized as "disk".
+    sudo dmsetup create -u disk-test fake-disk --table ~/fake-disk-dm-table.txt
+    DEFAULT_BLOCK_DEV_BASENAME=$(udevadm info -q name -n /dev/mapper/fake-disk)
+  fi
 
   echo "$DEFAULT_BLOCK_DEV_BASENAME"
 }
