@@ -42,8 +42,6 @@ var (
 	// Minimum supported version
 	Minimum = CephVersion{19, 2, 0, 0, ""}
 
-	// Reef Ceph version
-	Reef = CephVersion{18, 0, 0, 0, ""}
 	// Squid ceph version
 	Squid = CephVersion{19, 0, 0, 0, ""}
 	// Tentacle ceph version
@@ -86,8 +84,6 @@ func (v *CephVersion) CephVersionFormatted() string {
 // ReleaseName is the name of the Ceph release
 func (v *CephVersion) ReleaseName() string {
 	switch v.Major {
-	case Reef.Major:
-		return "reef"
 	case Squid.Major:
 		return "squid"
 	case Tentacle.Major:
@@ -205,11 +201,6 @@ func (v *CephVersion) IsAtLeastUmbrella() bool {
 // IsAtLeastSquid checks that the Ceph version is at least Squid
 func (v *CephVersion) IsAtLeastSquid() bool {
 	return v.IsAtLeast(Squid)
-}
-
-// IsAtLeastReef checks that the Ceph version is at least Reef
-func (v *CephVersion) IsAtLeastReef() bool {
-	return v.IsAtLeast(Reef)
 }
 
 // IsIdentical checks if Ceph versions are identical
