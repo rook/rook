@@ -4,6 +4,10 @@ inputs:
   kubernetes-version:
     description: kubernetes version to use for the workflow
     required: true
+  use-local-disk-for-integration:
+    description: run use_local_disk_for_integration_test (set to true for integration tests)
+    required: false
+    default: false
 
 runs:
   using: "composite"
@@ -54,6 +58,7 @@ runs:
 
     # This step is required for all the integration tests except the canary tests
     - name: use local disk
+      if: ${{ inputs.use-local-disk-for-integration == 'true' }}
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
 

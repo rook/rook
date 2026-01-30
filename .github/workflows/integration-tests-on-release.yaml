@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   TestCephHelmSuite:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -32,6 +32,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          use-local-disk-for-integration: true
 
       - name: TestCephHelmSuite
         run: |
@@ -56,7 +57,7 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephMultiClusterDeploySuite:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -71,6 +72,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          use-local-disk-for-integration: true
 
       - name: TestCephMultiClusterDeploySuite
         run: |
@@ -97,7 +99,7 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephSmokeSuite:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -112,6 +114,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          use-local-disk-for-integration: true
 
       - name: TestCephSmokeSuite
         run: |
@@ -135,7 +138,7 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephUpgradeSuite:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -150,6 +153,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          use-local-disk-for-integration: true
 
       - name: TestCephUpgradeSuite
         run: |
@@ -173,7 +177,7 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestHelmUpgradeSuite:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -188,6 +192,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          use-local-disk-for-integration: true
 
       - name: TestHelmUpgradeSuite
         run: |
@@ -212,7 +217,7 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephObjectSuite:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -227,6 +232,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          use-local-disk-for-integration: true
 
       - name: TestCephObjectSuite
         run: |
