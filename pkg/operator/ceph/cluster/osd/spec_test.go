@@ -187,7 +187,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 8, len(initCont.VolumeMounts))
 
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
-	cont := deployment.Spec.Template.Spec.Containers[0]
+	cont, err := findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	assert.Equal(t, spec.CephVersion.Image, cont.Image)
 	assert.Equal(t, 8, len(cont.VolumeMounts))
 	assert.Equal(t, "ceph-osd", cont.Command[0])
@@ -221,7 +222,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 5, len(initCont.VolumeMounts), initCont.VolumeMounts)
 	blkInitCont := deployment.Spec.Template.Spec.InitContainers[2]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
-	cont = deployment.Spec.Template.Spec.Containers[0]
+	cont, err = findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	assert.Equal(t, 9, len(cont.VolumeMounts), cont.VolumeMounts)
 
 	// Test OSD on PVC with RAW
@@ -239,7 +241,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "cephx-keyring-update", deployment.Spec.Template.Spec.InitContainers[3].Name)
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[4].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
-	cont = deployment.Spec.Template.Spec.Containers[0]
+	cont, err = findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
 
 	// Test with encrypted OSD on PVC with RAW
@@ -260,7 +263,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "cephx-keyring-update", deployment.Spec.Template.Spec.InitContainers[7].Name)
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[8].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
-	cont = deployment.Spec.Template.Spec.Containers[0]
+	cont, err = findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
 	osdProp.encrypted = false
 	assert.Equal(t, 11, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
@@ -282,7 +286,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "cephx-keyring-update", deployment.Spec.Template.Spec.InitContainers[4].Name)
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[5].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
-	cont = deployment.Spec.Template.Spec.Containers[0]
+	cont, err = findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
 	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
@@ -314,7 +319,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "cephx-keyring-update", deployment.Spec.Template.Spec.InitContainers[10].Name)
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[11].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
-	cont = deployment.Spec.Template.Spec.Containers[0]
+	cont, err = findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
 	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
@@ -342,7 +348,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "cephx-keyring-update", deployment.Spec.Template.Spec.InitContainers[5].Name)
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[6].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
-	cont = deployment.Spec.Template.Spec.Containers[0]
+	cont, err = findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
 	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
@@ -378,7 +385,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "cephx-keyring-update", deployment.Spec.Template.Spec.InitContainers[13].Name)
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[14].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
-	cont = deployment.Spec.Template.Spec.Containers[0]
+	cont, err = findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
 	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
@@ -407,7 +415,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "cephx-keyring-update", deployment.Spec.Template.Spec.InitContainers[8].Name)
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[9].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
-	cont = deployment.Spec.Template.Spec.Containers[0]
+	cont, err = findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
 	assert.Equal(t, 11, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes) // One more than the encryption with k8s for the kek get init container
 
@@ -432,7 +441,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "cephx-keyring-update", deployment.Spec.Template.Spec.InitContainers[8].Name)
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[9].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
-	cont = deployment.Spec.Template.Spec.Containers[0]
+	cont, err = findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
 	assert.Equal(t, 12, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
 
@@ -453,16 +463,20 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	osdProp.tuneFastDeviceClass = true
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.NoError(t, err)
+	cont, _ = findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	for _, flag := range defaultTuneFastSettings {
-		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Args, flag)
+		assert.Contains(t, cont.Args, flag)
 	}
 
 	// Test tune Slow settings when OSD on PVC
 	osdProp.tuneSlowDeviceClass = true
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.NoError(t, err)
+	cont, err = findOSDContainer(deployment.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
 	for _, flag := range defaultTuneSlowSettings {
-		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Args, flag)
+		assert.Contains(t, cont.Args, flag)
 	}
 
 	// Test shareProcessNamespace presence
@@ -509,10 +523,12 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		deployment, err := c.makeDeployment(osdProp, osd, dataPathMap)
 		assert.Nil(t, err)
 		assert.NotNil(t, deployment)
-		assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].LivenessProbe)
-		assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].StartupProbe)
-		assert.Equal(t, int32(900), deployment.Spec.Template.Spec.Containers[0].LivenessProbe.InitialDelaySeconds)
-		assert.Equal(t, int32(1000), deployment.Spec.Template.Spec.Containers[0].StartupProbe.InitialDelaySeconds)
+		cont, err := findOSDContainer(deployment.Spec.Template.Spec.Containers)
+		assert.NoError(t, err)
+		assert.NotNil(t, cont.LivenessProbe)
+		assert.NotNil(t, cont.StartupProbe)
+		assert.Equal(t, int32(900), cont.LivenessProbe.InitialDelaySeconds)
+		assert.Equal(t, int32(1000), cont.StartupProbe.InitialDelaySeconds)
 	})
 
 	// test custom topology label
@@ -672,7 +688,9 @@ func TestHostNetwork(t *testing.T) {
 	assert.Equal(t, "rook-ceph-osd-0", r.ObjectMeta.Name)
 	assert.Equal(t, true, r.Spec.Template.Spec.HostNetwork)
 	assert.Equal(t, corev1.DNSClusterFirstWithHostNet, r.Spec.Template.Spec.DNSPolicy)
-	assert.Equal(t, "2345", r.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().String())
+	cont, err := findOSDContainer(r.Spec.Template.Spec.Containers)
+	assert.NoError(t, err)
+	assert.Equal(t, "2345", cont.Resources.Limits.Memory().String())
 }
 
 func TestOsdPrepareResources(t *testing.T) {
