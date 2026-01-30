@@ -49,6 +49,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/object/user/opmask"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
@@ -334,7 +335,10 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// CR is not deleted, continue reconciling
 
 	// Generate user config
-	userConfig := generateUserConfig(cephObjectStoreUser)
+	userConfig, err := generateUserConfig(cephObjectStoreUser)
+	if err != nil {
+		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to generate user config for %q", cephObjectStoreUser.Name)
+	}
 
 	referencedSecrets := &map[types.UID]*corev1.Secret{}
 	// Set any provided key pair(s)
@@ -395,20 +399,18 @@ func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectStoreUser, userConfig *admin.User) error {
+func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectStoreUser, targetUser *admin.User) error {
 	nsName := opcontroller.NsName(u.Namespace, u.Name)
 	log.NamedInfo(nsName, logger, "creating ceph object user")
 
 	logCreateOrUpdate := fmt.Sprintf("retrieved existing ceph object user %q", u.Name)
-	var user admin.User
-	var err error
 	// lookup user by name only and not by access key
-	user, err = r.objContext.AdminOpsClient.GetUser(r.opManagerContext, admin.User{ID: u.Name})
+	liveUser, err := r.objContext.AdminOpsClient.GetUser(r.opManagerContext, admin.User{ID: u.Name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
-			user, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, *userConfig)
+			liveUser, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, *targetUser)
 			if err != nil {
-				return errors.Wrapf(err, "failed to create ceph object user %v", &userConfig.ID)
+				return errors.Wrapf(err, "failed to create ceph object user %v", &targetUser.ID)
 			}
 			logCreateOrUpdate = fmt.Sprintf("created ceph object user %q", u.Name)
 		} else {
@@ -416,33 +418,32 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		}
 	}
 
-	// Update max bucket if necessary
-	log.NamedTrace(nsName, logger, "user capabilities(id: %s, caps: %#v, user caps: %s, op mask: %s)",
-		user.ID, user.Caps, user.UserCaps, user.OpMask)
-	if *user.MaxBuckets != *userConfig.MaxBuckets {
-		user, err = r.objContext.AdminOpsClient.ModifyUser(r.opManagerContext, *userConfig)
+	// Update simple scalar fields supported by admin.ModifyUser() excluding keys, as this method is unable to handle multiple keys.
+	if !isUserSync(targetUser, &liveUser) {
+		liveUser, err = r.objContext.AdminOpsClient.ModifyUser(r.opManagerContext, *targetUser)
 		if err != nil {
-			return errors.Wrapf(err, "failed to update ceph object user %q max buckets", userConfig.ID)
+			return errors.Wrapf(err, "failed to update ceph object user %q", targetUser.ID)
 		}
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
 	}
 
-	// Update caps if necessary
-	user.UserCaps = generateUserCaps(user)
-	if user.UserCaps != userConfig.UserCaps {
+	// Update caps, if necessary
+	log.NamedTrace(nsName, logger, "user capabilities(id: %s, caps: %#v, user caps: %s, op mask: %s)",
+		liveUser.ID, liveUser.Caps, liveUser.UserCaps, liveUser.OpMask)
+	if targetUser.UserCaps != liveUser.UserCaps {
 		// If they are no caps to be removed, the API will return an error "missing user capabilities"
-		if user.UserCaps != "" {
-			log.NamedTrace(nsName, logger, "remove capabilities %s from user %s", user.UserCaps, userConfig.ID)
-			_, err = r.objContext.AdminOpsClient.RemoveUserCap(r.opManagerContext, userConfig.ID, user.UserCaps)
+		if liveUser.UserCaps != "" {
+			log.NamedTrace(nsName, logger, "remove capabilities %s from user %s", liveUser.UserCaps, targetUser.ID)
+			_, err = r.objContext.AdminOpsClient.RemoveUserCap(r.opManagerContext, targetUser.ID, liveUser.UserCaps)
 			if err != nil {
-				return errors.Wrapf(err, "failed to remove current ceph object user %q capabilities", userConfig.ID)
+				return errors.Wrapf(err, "failed to remove current ceph object user %q capabilities", targetUser.ID)
 			}
 		}
-		if userConfig.UserCaps != "" {
-			log.NamedTrace(nsName, logger, "set capabilities %s for user %s", userConfig.UserCaps, userConfig.ID)
-			_, err = r.objContext.AdminOpsClient.AddUserCap(r.opManagerContext, userConfig.ID, userConfig.UserCaps)
+		if targetUser.UserCaps != "" {
+			log.NamedTrace(nsName, logger, "set capabilities %s for user %s", targetUser.UserCaps, targetUser.ID)
+			_, err = r.objContext.AdminOpsClient.AddUserCap(r.opManagerContext, targetUser.ID, targetUser.UserCaps)
 			if err != nil {
-				return errors.Wrapf(err, "failed to update ceph object user %q capabilities", userConfig.ID)
+				return errors.Wrapf(err, "failed to update ceph object user %q capabilities", targetUser.ID)
 			}
 		}
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
@@ -472,18 +473,18 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		return errors.Wrapf(err, "failed to set quotas for user %q", u.Name)
 	}
 
-	if len(userConfig.Keys) == 0 {
+	if len(targetUser.Keys) == 0 {
 		// use the keys already set on the user & remove all but one key
-		if len(user.Keys) == 0 {
+		if len(liveUser.Keys) == 0 {
 			// something is wrong, there should be at least one key
 			return errors.Wrapf(err, "no keys set for user %q", u.Name)
 		}
 
-		userConfig.Keys = []admin.UserKeySpec{user.Keys[0]}
-		log.NamedDebug(nsName, logger, "reducing user %q keypairs to %v", u.Name, userConfig.Keys)
+		targetUser.Keys = []admin.UserKeySpec{liveUser.Keys[0]}
+		log.NamedDebug(nsName, logger, "reducing user %q keypairs to %v", u.Name, targetUser.Keys)
 	}
 
-	if err := r.reconcileUserKeys(nsName, userConfig.Keys); err != nil {
+	if err := r.reconcileUserKeys(nsName, targetUser.Keys); err != nil {
 		return errors.Wrapf(err, "failed to reconcile keys for user %q", u.Name)
 	}
 	log.NamedInfo(nsName, logger, "%s", logCreateOrUpdate)
@@ -543,7 +544,7 @@ func userInNamespaceAllowed(requestedNamespace string, allowedNamespaces []strin
 	return false
 }
 
-func generateUserCaps(user admin.User) string {
+func generateUserCaps(user *admin.User) string {
 	var caps string
 	for _, c := range user.Caps {
 		caps += fmt.Sprintf("%s=%s;", c.Type, c.Perm)
@@ -551,7 +552,7 @@ func generateUserCaps(user admin.User) string {
 	return caps
 }
 
-func generateUserConfig(user *cephv1.CephObjectStoreUser) *admin.User {
+func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 	// Set DisplayName to match Name if DisplayName is not set
 	displayName := user.Spec.DisplayName
 	if len(displayName) == 0 {
@@ -621,8 +622,17 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) *admin.User {
 			userConfig.UserCaps += fmt.Sprintf("ratelimit=%s;", user.Spec.Capabilities.RateLimit)
 		}
 	}
+	if user.Spec.OpMask != "" {
+		mask, err := opmask.Parse(user.Spec.OpMask)
+		if err != nil {
+			return nil, err
+		}
+		userConfig.OpMask = mask.String()
+	}
 
-	return userConfig
+	userConfig.UserCaps = generateUserCaps(userConfig)
+
+	return userConfig, nil
 }
 
 func generateCephUserSecretName(u *cephv1.CephObjectStoreUser) string {
@@ -986,4 +996,33 @@ func (r *ReconcileObjectStoreUser) generateUserKeySpec(user *cephv1.CephObjectSt
 	}
 
 	return &keys, &referencedSecrets, nil
+}
+
+// Determine if the simple scalar fields, supported by CephObjectStoreUser, of two `admin.User`s are in sync.
+// This is intended to determine if an update is needed/possible via AdminOpsClient.ModifyUser().
+// AdminOpsClient.ModifyUser() does not currently support updating all types of user configuration and only supports:
+//
+//	[]string{"uid", "display-name", "default-placement", "email", "generate-key", "access-key", "secret-key", "key-type", "max-buckets", "suspended", "op-mask"}))
+//
+// While this method does have support for updating keys, it is unable to handle multiple keys, so key reconciliation needs to be handled separately.
+// There is also no support for updating capabilities via ModifyUser().
+func isUserSync(targetUser, liveUser *admin.User) bool {
+	if targetUser.DisplayName != liveUser.DisplayName {
+		return false
+	}
+
+	if targetUser.MaxBuckets == nil && liveUser.MaxBuckets != nil ||
+		targetUser.MaxBuckets != nil && liveUser.MaxBuckets == nil {
+		return false
+	}
+
+	if targetUser.MaxBuckets != nil && liveUser.MaxBuckets != nil && *targetUser.MaxBuckets != *liveUser.MaxBuckets {
+		return false
+	}
+
+	if targetUser.OpMask != liveUser.OpMask {
+		return false
+	}
+
+	return true
 }
