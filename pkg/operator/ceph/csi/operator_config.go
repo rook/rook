@@ -18,6 +18,7 @@ package csi
 
 import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 
 	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	"github.com/pkg/errors"
@@ -30,8 +31,7 @@ import (
 )
 
 const (
-	opConfigCRName    = "ceph-csi-operator-config"
-	imageSetConfigMap = "rook-csi-operator-image-set-configmap"
+	opConfigCRName = "ceph-csi-operator-config"
 )
 
 func (r *ReconcileCSI) createOrUpdateOperatorConfig(cluster cephv1.CephCluster) error {
@@ -74,6 +74,8 @@ func (r *ReconcileCSI) createOrUpdateOperatorConfig(cluster cephv1.CephCluster) 
 }
 
 func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opConfig *csiopv1.OperatorConfig, imageSetCmName string) csiopv1.OperatorConfigSpec {
+	controllerPluginHostNetwork := opcontroller.EnforceHostNetwork() || CSIParam.EnableCSIHostNetwork
+
 	cephfsClientType := csiopv1.KernelCephFsClient
 	if CSIParam.ForceCephFSKernelClient == "false" {
 		cephfsClientType = csiopv1.AutoDetectCephFsClient
@@ -107,6 +109,7 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 				DeploymentStrategy: &appsv1.DeploymentStrategy{
 					Type: appsv1.RecreateDeploymentStrategyType,
 				},
+				HostNetwork: &controllerPluginHostNetwork,
 				PodCommonSpec: csiopv1.PodCommonSpec{
 					PrioritylClassName: &CSIParam.PluginPriorityClassName,
 					Affinity: &v1.Affinity{

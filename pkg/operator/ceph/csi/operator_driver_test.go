@@ -122,15 +122,12 @@ func TestReconcileCSI_createOrUpdateDriverResources(t *testing.T) {
 			c.SetName("testcluster")
 			c.NamespacedName()
 
-			cephv1.SetEnforceHostNetwork(true)
-			defer cephv1.SetEnforceHostNetwork(false)
 			err := r.createOrUpdateDriverResources(*cluster, c)
 			assert.NoError(t, err)
 
 			// Test RBD driver
 			err = cl.Get(context.TODO(), types.NamespacedName{Name: fmt.Sprintf("%s.rbd.csi.ceph.com", c.Namespace), Namespace: ns}, driver)
 			assert.NoError(t, err)
-			assert.True(t, *driver.Spec.ControllerPlugin.HostNetwork)
 			if tt.expectMultusAnnots {
 				// Verify that both NodePlugin and ControllerPlugin have Multus annotations
 				assert.Nil(t, driver.Spec.NodePlugin.PodCommonSpec.Annotations)
