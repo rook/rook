@@ -442,6 +442,8 @@ Here are some key lines to look for in the log:
 2019-05-30 19:02:57.353171 W | cephosd: skipping device sda that is in use
 2019-05-30 19:02:57.452168 W | skipping device "sdb5": ["Used by ceph-disk"]
 
+# NOTE: this also happens when pointing at a raw partition, but the partition label contains "ceph"
+
 # Other messages about a disk being unusable by ceph include:
 Insufficient space (<5GB) on vgs
 Insufficient space (<5GB)
