@@ -104,7 +104,7 @@ var (
 		Spec: cephv1.ObjectStoreUserSpec{
 			Store:            objectStore.Name,
 			ClusterNamespace: objectStore.Namespace,
-			OpMask:           "read, delete",
+			//			OpMask:           "read, delete",
 		},
 	}
 )
@@ -178,7 +178,7 @@ func TestObjectStoreUserOpMask(t *testing.T, k8sh *utils.K8sHelper, installer *i
 		t.Run(fmt.Sprintf("verify op_mask set on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
 			liveUser, err := adminClient.GetUser(ctx, admin.User{ID: osu1.Name})
 			require.NoError(t, err)
-			assert.Equal(t, "read, delete", liveUser.OpMask)
+			assert.Equal(t, "read, write, delete", liveUser.OpMask)
 		})
 
 		t.Run(fmt.Sprintf("update op-mask on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
