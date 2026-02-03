@@ -24,6 +24,8 @@ After the common resources are created, the next step is to create the Operator 
 
 * [`operator.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml): The most common settings for production deployments
     * `kubectl create -f operator.yaml`
+* [`csi-operator.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/csi-operator.yaml): Deploys the CSI operator, CRDs, and RBAC for the CSI driver (block and shared filesystem provisioning). Deploy alongside operator.yaml for CSI-based storage.
+    * `kubectl create -f csi-operator.yaml`
 * [`operator-openshift.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/operator-openshift.yaml): Includes all of the operator settings for running a basic Rook cluster in an OpenShift environment. You will also want to review the [OpenShift Prerequisites](../Getting-Started/ceph-openshift.md) to confirm the settings.
     * `oc create -f operator-openshift.yaml`
 
