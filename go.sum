@@ -1207,11 +1207,11 @@ github.com/prashantv/gostub v1.1.0 h1:BTyx3RfQjRHnUWaGF9oQos79AlQ5k8WNktv7VGvVH4
 github.com/prashantv/gostub v1.1.0/go.mod h1:A5zLQHz7ieHGG7is6LLXLz7I8+3LZzsrV0P1IAHhP5U=
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.44.1/go.mod h1:3WYi4xqXxGGXWDdQIITnLNmuDzO5n6wYva9spVhR4fg=
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.46.0/go.mod h1:3WYi4xqXxGGXWDdQIITnLNmuDzO5n6wYva9spVhR4fg=
-github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.88.0 h1:eKVckm/elKIvnNKQAO9WXxBOudphxpkZmT9+bevtvDo=
-github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.88.0/go.mod h1:IJwk1oNs212afqGbNnE84GAB95OHtJR/BuI1rKESiYk=
+github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.88.1 h1:K/r+qPGyr/Fx9vbN7biV9q2/PV5ETj+bVVH5RUvqEG8=
+github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.88.1/go.mod h1:IJwk1oNs212afqGbNnE84GAB95OHtJR/BuI1rKESiYk=
 github.com/prometheus-operator/prometheus-operator/pkg/client v0.46.0/go.mod h1:k4BrWlVQQsvBiTcDnKEMgyh/euRxyxgrHdur/ZX/sdA=
-github.com/prometheus-operator/prometheus-operator/pkg/client v0.88.0 h1:0Dtkv63g5ZZNFpZhZmpBLEKvZWCFSKjLhQ51o++pfqE=
-github.com/prometheus-operator/prometheus-operator/pkg/client v0.88.0/go.mod h1:yDIYnKV/WDrUq51ErEP+XNnAZ5x9E9PiGFq2cpeJLAE=
+github.com/prometheus-operator/prometheus-operator/pkg/client v0.88.1 h1:IPgsLDrjxouq6JzdVpenq/20dbG8iu1OCd65dWnHNpE=
+github.com/prometheus-operator/prometheus-operator/pkg/client v0.88.1/go.mod h1:HdPo2CAQtRuffDdy8yVsHA4XmUJKmAGGzVRgT6TYsgc=
 github.com/prometheus/client_golang v0.9.0/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.3/go.mod h1:/TN21ttK/J9q6uSwhBd54HahCDft0ttaMvbicHlPoso=
