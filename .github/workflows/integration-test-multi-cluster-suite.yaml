@@ -51,7 +51,7 @@ jobs:
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
           DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           export BLOCK="/dev/${DEVICE_NAME}"
-          export TEST_SCRATCH_DEVICE="/dev/${DEVICE_NAME}1"
+          export TEST_SCRATCH_DEVICE="/dev/${DEVICE_NAME}"
           export DEVICE_FILTER="$DEVICE_NAME"
           go test -v -timeout 1800s -failfast -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
 
