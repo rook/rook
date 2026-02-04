@@ -1616,7 +1616,7 @@ jobs:
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
-          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
+          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 6
           sudo lsblk
 
       - name: deploy first cluster rook
@@ -1639,7 +1639,7 @@ jobs:
       - name: wait for ceph cluster 1 to be ready
         run: |
           mkdir -p test
-          tests/scripts/validate_cluster.sh osd 1
+          tests/scripts/validate_cluster.sh osd 3
           kubectl -n rook-ceph get pods
 
       - name: create replicated mirrored pool on cluster 1
@@ -1649,6 +1649,14 @@ jobs:
           yq w -i pool-test.yaml spec.mirroring.mode image
           kubectl create -f pool-test.yaml
           timeout 180 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool to be created on cluster 1" && sleep 1; done'
+
+      - name: create ec pool on cluster 1
+        run: |
+          cd deploy/examples/
+          yq w -i pool-test.yaml spec.failureDomain osd
+          yq w -i pool-test.yaml metadata.name ecpool
+          kubectl create -f pool-ec.yaml
+          timeout 180 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool ecpool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool ec-pool to be created on cluster 1" && sleep 1; done'
 
       - name: create replicated mirrored pool 2 on cluster 1
         run: |
@@ -1665,6 +1673,13 @@ jobs:
           kubectl create -f pool-test.yaml
           timeout 180 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool to be created on cluster 2" && sleep 1; done'
 
+      - name: create ec-pool pool on cluster 2
+        run: |
+          cd deploy/examples/
+          yq w -i pool-ec.yaml metadata.namespace rook-ceph-secondary
+          kubectl create -f pool-ec.yaml
+          timeout 180 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool ecpool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool ec-pool to be created on cluster 2" && sleep 1; done'
+
       - name: create replicated mirrored pool 2 on cluster 2
         run: |
           cd deploy/examples/
@@ -1677,6 +1692,9 @@ jobs:
           kubectl exec -n rook-ceph deploy/rook-ceph-tools -ti -- rbd -p replicapool create test -s 1G
           kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd mirror image enable replicapool/test snapshot
           kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -ti -- rbd -p replicapool --data-pool ecpool create ec-test-image -s 1G
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd mirror image enable replicapool/ec-test-image snapshot
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info ec-test-image
           kubectl exec -n rook-ceph deploy/rook-ceph-tools -ti -- rbd -p replicapool2 create test -s 1G
           kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd mirror image enable replicapool2/test snapshot
           kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool2 info test
@@ -1708,7 +1726,12 @@ jobs:
       - name: verify image has been mirrored for replicapool
         run: |
           # let's wait a bit for the image to be present
-          timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool ls|grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored in pool replicapool" && sleep 1; done'
+          timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool ls|grep -c test)" -ge 1 ]; do echo "waiting for image to be mirrored in pool replicapool" && sleep 1; done'
+
+      - name: verify image has been mirrored for ec
+        run: |
+          # let's wait a bit for the image to be present
+          timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool ls|grep -c ec-test-image)" -eq 1 ]; do echo "waiting for image to be mirrored in ecpool replicapool" && sleep 1; done'
 
       - name: verify image has been mirrored for replicapool2
         run: |
@@ -1721,6 +1744,7 @@ jobs:
           timeout 80 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool2 -o jsonpath='{.status.mirroringStatus.summary.daemon_health}'|grep -c OK)" -eq 1 ]; do echo "waiting for mirroring status to be updated in replicapool2" && sleep 1; done'
           kubectl -n rook-ceph-secondary get cephblockpool replicapool -o yaml
           kubectl -n rook-ceph-secondary get cephblockpool replicapool2 -o yaml
+          kubectl -n rook-ceph-secondary get cephblockpool ecpool -o yaml
           kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
           kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool2 info test
 
@@ -1889,7 +1913,7 @@ jobs:
         run: |
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
+          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 6
           sudo lsblk
 
       - name: deploy first cluster rook
