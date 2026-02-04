@@ -492,6 +492,7 @@ jobs:
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          echo "BLOCK: $BLOCK"
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: prepare loop devices for osds
@@ -577,6 +578,7 @@ jobs:
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          echo "BLOCK: $BLOCK"
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: deploy cluster
@@ -697,6 +699,7 @@ jobs:
         run: |
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           tests/scripts/github-action-helper.sh use_local_disk
+          echo "BLOCK: $BLOCK"
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: create LV on disk
@@ -763,6 +766,7 @@ jobs:
         run: |
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           tests/scripts/github-action-helper.sh use_local_disk
+          echo "BLOCK: $BLOCK"
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: deploy cluster
@@ -823,6 +827,7 @@ jobs:
         run: |
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           tests/scripts/github-action-helper.sh use_local_disk
+          echo "BLOCK: $BLOCK"
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: create LV on disk
