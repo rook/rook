@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions: ["v1.34.0"]
+        kubernetes-version: ["v1.35.0"]
     steps:
       - name: checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -41,9 +41,9 @@ jobs:
           debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          kubernetes-version: ${{ matrix.kubernetes-versions }}
+          kubernetes-version: ${{ matrix.kubernetes-version }}
 
       - name: TestCephMgrSuite
         run: |
@@ -63,5 +63,5 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
-          name: ceph-mgr-suite-artifact-${{ matrix.kubernetes-versions }}
+          name: ceph-mgr-suite-artifact-${{ matrix.kubernetes-version }}
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
