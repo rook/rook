@@ -28,7 +28,7 @@ SIZE=2048M
 function usage {
   echo "Use me like this to create bluestore partitions:"
   echo "$0 --disk /dev/sda --bluestore-type block.db"
-  echo ""
+  echo "hello"
   echo "Use me like this to create multiple OSDs:"
   echo "$0 --disk /dev/sda --osd-count 2"
   echo ""
