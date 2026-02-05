@@ -42,7 +42,7 @@ import (
 func TestReconcileCephNFS_createConfigMap(t *testing.T) {
 	s := scheme.Scheme
 
-	clientset := k8sfake.NewSimpleClientset()
+	clientset := k8sfake.NewClientset()
 
 	c := &clusterd.Context{
 		Executor:  &exectest.MockExecutor{},
@@ -132,7 +132,7 @@ func TestReconcileCephNFS_upCephNFS(t *testing.T) {
 
 	s := scheme.Scheme
 
-	clientset := k8sfake.NewSimpleClientset()
+	clientset := k8sfake.NewClientset()
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -218,7 +218,7 @@ func TestUpCephNFS_SkipsReconcile(t *testing.T) {
 	s := scheme.Scheme
 	daemonID := "my-nfs-a"
 
-	clientset := k8sfake.NewSimpleClientset()
+	clientset := k8sfake.NewClientset()
 	client := fake.NewClientBuilder().WithScheme(s).Build()
 
 	dep := &appsv1.Deployment{

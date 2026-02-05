@@ -106,8 +106,8 @@ func TestOnK8sNode(t *testing.T) {
 	}
 	clientCluster := newClientCluster(client, ns, &clusterd.Context{
 		Executor:            executor,
-		Clientset:           k8sFake.NewSimpleClientset(),
-		ApiExtensionsClient: apifake.NewSimpleClientset(),
+		Clientset:           k8sFake.NewClientset(),
+		ApiExtensionsClient: apifake.NewClientset(),
 	})
 
 	node := &corev1.Node{

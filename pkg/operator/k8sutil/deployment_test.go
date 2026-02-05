@@ -104,7 +104,7 @@ func TestUpdateMultipleDeploymentsAndWait(t *testing.T) {
 		})
 	}
 
-	clientset = fake.NewSimpleClientset()
+	clientset = fake.NewClientset()
 	depsUpdated := []string{}
 	var deploymentReactor k8stesting.ReactionFunc = func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		switch action := action.(type) {
@@ -192,7 +192,7 @@ func TestUpdateMultipleDeployments(t *testing.T) {
 	var pds *int32 // progressDeadlineSeconds
 
 	t.Run("no deployments to be updated", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		deployments = []*appsv1.Deployment{}
 		deploymentsUpdated, failures, pds = UpdateMultipleDeployments(context.TODO(), clientset, deployments)
 		assert.Len(t, deploymentsUpdated, 0)
@@ -200,7 +200,7 @@ func TestUpdateMultipleDeployments(t *testing.T) {
 	})
 
 	t.Run("update deployments successfully", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		createDeploymentOrDie(clientset, deployment("d1", nil))
 		createDeploymentOrDie(clientset, deployment("d2", nil))
 		createDeploymentOrDie(clientset, deployment("d3", nil))
@@ -237,7 +237,7 @@ func TestUpdateMultipleDeployments(t *testing.T) {
 	})
 
 	t.Run("failures if deployments do not exist", func(t *testing.T) {
-		clientset = fake.NewSimpleClientset()
+		clientset = fake.NewClientset()
 		createDeploymentOrDie(clientset, deployment("d1", newInt32(30)))
 		createDeploymentOrDie(clientset, deployment("d3", newInt32(30)))
 		deployments = []*appsv1.Deployment{

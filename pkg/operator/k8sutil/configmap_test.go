@@ -29,7 +29,7 @@ import (
 )
 
 func TestDeleteConfigMap(t *testing.T) {
-	k8s := fake.NewSimpleClientset()
+	k8s := fake.NewClientset()
 	ctx := context.TODO()
 
 	cm := &v1.ConfigMap{
@@ -60,7 +60,7 @@ func TestDeleteConfigMap(t *testing.T) {
 }
 
 func TestGetOperatorSetting(t *testing.T) {
-	k8s := fake.NewSimpleClientset()
+	k8s := fake.NewClientset()
 	ctx := context.TODO()
 
 	operatorSettingConfigMapName := "rook-ceph-operator-config"
@@ -117,7 +117,7 @@ func TestGetOperatorSetting(t *testing.T) {
 }
 
 func TestCreateOrUpdateConfigMap(t *testing.T) {
-	k8s := fake.NewSimpleClientset()
+	k8s := fake.NewClientset()
 	ctx := context.TODO()
 
 	cm := &v1.ConfigMap{

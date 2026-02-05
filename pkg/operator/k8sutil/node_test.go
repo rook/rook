@@ -65,7 +65,7 @@ func TestValidNode(t *testing.T) {
 		},
 	}
 	// set up a fake k8s client set and watcher to generate events that the operator will listen to
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 
 	nodeErr := createNode("nodeA", v1.NodeReady, clientset)
 	assert.Nil(t, nodeErr)

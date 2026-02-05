@@ -83,9 +83,9 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 	t.Run("deletion blocked while dependencies exist", func(t *testing.T) {
 		// set up clusterd.Context
 		clusterdCtx := &clusterd.Context{
-			Clientset:           k8sfake.NewSimpleClientset(),
+			Clientset:           k8sfake.NewClientset(),
 			RookClientset:       rookclient.NewSimpleClientset(),
-			ApiExtensionsClient: apifake.NewSimpleClientset(),
+			ApiExtensionsClient: apifake.NewClientset(),
 		}
 
 		// create the cluster controller and tell it that the cluster has been deleted
