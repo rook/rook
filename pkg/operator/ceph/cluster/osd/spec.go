@@ -717,7 +717,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 
 	// add OSD container port only if service export is enabled
 	if osd.ExportService {
-		podTemplateSpec.Spec.Containers[0].Ports = c.getOSDContainerPorts()
+		container, err := findOSDContainer(podTemplateSpec.Spec.Containers)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find OSD container")
+		}
+		container.Ports = c.getOSDContainerPorts()
 	}
 
 	// If the log collector is enabled we add the side-car container
@@ -730,8 +734,12 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 		podTemplateSpec.Spec.Containers = append(podTemplateSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-osd.%s", osdID), c.clusterInfo.Namespace, c.spec, nil))
 	}
 
-	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureStartupProbe(podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck.StartupProbe[cephv1.KeyOSD])
-	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureLivenessProbe(podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck.LivenessProbe[cephv1.KeyOSD])
+	container, err := findOSDContainer(podTemplateSpec.Spec.Containers)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find OSD container")
+	}
+	*container = opconfig.ConfigureStartupProbe(*container, c.spec.HealthCheck.StartupProbe[cephv1.KeyOSD])
+	*container = opconfig.ConfigureLivenessProbe(*container, c.spec.HealthCheck.LivenessProbe[cephv1.KeyOSD])
 
 	if c.spec.Network.IsHost() {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
@@ -815,7 +823,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	osdAnnotations := cephv1.GetOSDAnnotations(c.spec.Annotations)
 	tcmallocMaxTotalThreadCacheBytes, ok := osdAnnotations[tcmallocMaxTotalThreadCacheBytesEnv]
 	if ok && tcmallocMaxTotalThreadCacheBytes != "" {
-		deployment.Spec.Template.Spec.Containers[0].Env = append(deployment.Spec.Template.Spec.Containers[0].Env, getTcmallocMaxTotalThreadCacheBytes(tcmallocMaxTotalThreadCacheBytes))
+		container, err := findOSDContainer(deployment.Spec.Template.Spec.Containers)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find OSD container")
+		}
+		container.Env = append(container.Env, getTcmallocMaxTotalThreadCacheBytes(tcmallocMaxTotalThreadCacheBytes))
 	}
 
 	return deployment, nil
