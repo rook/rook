@@ -763,7 +763,7 @@ function test_csi_nfs_workload {
 function test_csi_nvmeof_workload {
   cd "${REPO_DIR}/deploy/examples/csi/nvmeof"
 
-  local cephcsi_image="${1:-quay.io/nixpanic/cephcsi:nvmeof}"
+  local cephcsi_image="${1:-quay.io/cephcsi/cephcsi:canary}"
   local gateway_svc="rook-ceph-nvmeof-nvmeof-a"
   local gateway_listener_hostname="rook-ceph-nvmeof-nvmeof-a"
   local service_ip
