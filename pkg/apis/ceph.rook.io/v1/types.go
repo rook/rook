@@ -2722,6 +2722,49 @@ type RGWServiceSpec struct {
 
 // +genclient
 // +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:subresource:status
+// CephObjectStoreAccount represent the RGW user account
+type CephObjectStoreAccount struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ObjectStoreAccountSpec `json:"spec"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Status *ObjectStoreAccountStatus `json:"status,omitempty"`
+}
+
+// ObjectStoreAccountSpec represent the spec of a RGW Account
+type ObjectStoreAccountSpec struct {
+	// Name is esired name of the RGW account if different from the CephObjectStoreAccount CR name.
+	// +optional
+	Name string `json:"name,omitempty"`
+	// AccountID uniquely identifies an account and resource ownership. Format should be RGW followed by 17 digits (e.g.,
+	// RGW00889737169837717). If not specified, then ceph will auto generate the account ID.
+	// +optional
+	AccountID string `json:"accountID"`
+}
+
+// ObjectStoreAccountStatus represents the status of a CephObjectStoreAccount resource
+type ObjectStoreAccountStatus struct {
+	// +optional
+	Phase ConditionType `json:"phase,omitempty"`
+	// AccountID associated with the RGW user account
+	AccountID string `json:"accountID"`
+}
+
+// CephObjectStoreAccountList represents the Ceph object store accounts
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type CephObjectStoreAccountList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephObjectStoreAccount `json:"items"`
+}
+
+// +genclient
+// +genclient:noStatus
 // +kubebuilder:resource:shortName=nfs,path=cephnfses
 
 // CephNFS represents a Ceph NFS
