@@ -237,6 +237,10 @@ func WaitForDeploymentsToUpdate(
 	waitFunc := func() (done bool, err error) {
 		deployments, err := listFunc()
 		if err != nil {
+			// if the context got cancelled, then no need to wait or retry.
+			if errors.Is(err, context.Canceled) {
+				return true, errors.Wrap(err, "failed to list deployments due to context cancellation")
+			}
 			return false, errors.Wrap(err, "failed to list deployments")
 		}
 		if len(deployments.Items) < len(waitingOn) {
