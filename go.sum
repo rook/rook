@@ -551,8 +551,8 @@ github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyY
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/census-instrumentation/opencensus-proto v0.3.0/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/census-instrumentation/opencensus-proto v0.4.1/go.mod h1:4T9NM4+4Vw91VeyqjLS6ao50K5bOcLKN6Q42XnYaRYw=
-github.com/ceph/ceph-csi-operator/api v0.0.0-20250812090115-fdfb97fda6ee h1:LJ7Z18VUvWnOIMi5GmW/xW3SvpwEanQOtc7KYJQtfDM=
-github.com/ceph/ceph-csi-operator/api v0.0.0-20250812090115-fdfb97fda6ee/go.mod h1:EEVflOoFArAT+uAURWn3eHuV3I35HooEfSKzxF2SuYw=
+github.com/ceph/ceph-csi-operator/api v0.0.0-20260205113234-c2ca44439222 h1:jo+y+M8KXLU5aMF0HF7bzyMgdYNhgKqbtiJ3Br7C+kA=
+github.com/ceph/ceph-csi-operator/api v0.0.0-20260205113234-c2ca44439222/go.mod h1:bg+f729jTaUmqNGa6VF52XWTD0BYYwHMf140tRYzcak=
 github.com/ceph/ceph-csi/api v0.0.0-20241216133622-88b7e0d6684f h1:ja5xvJlv3Sq5dlQVQMeM/dlCwcUXgZXg/kTPmMMQhJ8=
 github.com/ceph/ceph-csi/api v0.0.0-20241216133622-88b7e0d6684f/go.mod h1:NfzKbdhaXhWh1PJCExML9dAXHCqEDppf26ueLWYdxlk=
 github.com/ceph/go-ceph v0.37.0 h1:KXliBe3ZDr3/AtfY7n9d1MG7ippYNCVhMPcAgm05CFI=
