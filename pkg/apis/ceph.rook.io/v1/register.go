@@ -71,6 +71,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&CephObjectStoreList{},
 		&CephObjectStoreUser{},
 		&CephObjectStoreUserList{},
+		&CephObjectStoreAccount{},
+		&CephObjectStoreAccountList{},
 		&CephObjectRealm{},
 		&CephObjectRealmList{},
 		&CephObjectZoneGroup{},

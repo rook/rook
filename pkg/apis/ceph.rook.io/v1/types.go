@@ -2733,6 +2733,68 @@ type RGWServiceSpec struct {
 
 // +genclient
 // +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:subresource:status
+// CephObjectStoreAccount represent the RGW user account
+type CephObjectStoreAccount struct {
+	metav1.TypeMeta `json:",inline"`
+	// +required
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ObjectStoreAccountSpec `json:"spec"` //nolint:kubeapilinter
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Status *ObjectStoreAccountStatus `json:"status,omitempty"` //nolint:kubeapilinter
+}
+
+// ObjectStoreAccountSpec represent the spec of a RGW Account
+type ObjectStoreAccountSpec struct {
+	// Store is the object store the account will be associated with
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:XValidation:message="store is immutable",rule="self == oldSelf"
+	Store string `json:"store,omitempty"`
+	// Name is the desired name of the RGW account if different from the CephObjectStoreAccount CR name.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	Name string `json:"name,omitempty"`
+	// AccountID uniquely identifies an account and resource ownership. Format should be RGW followed by 17 digits (e.g.,
+	// RGW00889737169837717). If not specified, then ceph will auto generate the account ID.
+	// +optional
+	// +kubebuilder:validation:MinLength=20
+	// +kubebuilder:validation:MaxLength=20
+	// +kubebuilder:validation:Pattern=`^RGW\d{17}$`
+	// +kubebuilder:validation:XValidation:message="accountID is immutable",rule="self == oldSelf"
+	AccountID string `json:"accountID,omitempty"`
+}
+
+// ObjectStoreAccountStatus represents the status of a CephObjectStoreAccount resource
+type ObjectStoreAccountStatus struct {
+	// +optional
+	Phase string `json:"phase,omitempty"` //nolint:kubeapilinter
+	// +optional
+	// AccountID associated with the RGW user account
+	// +kubebuilder:validation:MinLength=20
+	// +kubebuilder:validation:MaxLength=20
+	AccountID string `json:"accountID,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
+}
+
+// CephObjectStoreAccountList represents the Ceph object store accounts
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type CephObjectStoreAccountList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephObjectStoreAccount `json:"items"`
+}
+
+// +genclient
+// +genclient:noStatus
 // +kubebuilder:resource:shortName=nfs,path=cephnfses
 
 // CephNFS represents a Ceph NFS

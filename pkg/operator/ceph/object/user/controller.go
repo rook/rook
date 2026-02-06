@@ -493,14 +493,9 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 }
 
 func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephObjectStoreUser) error {
-	err := r.objectStoreInitialized(u)
+	opsContext, store, err := object.InitializeObjectStoreContext(r.context, r.clusterInfo, r.client, r.opManagerContext, u.Spec.Store, newMultisiteAdminOpsCtxFunc)
 	if err != nil {
-		return errors.Wrapf(err, "failed to detect if object store %q is initialized", u.Spec.Store)
-	}
-
-	store, err := r.getObjectStore(u)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get object store %q", u.Spec.Store)
+		return err
 	}
 
 	// Check if the object store allows users to be created in any namespace
@@ -518,16 +513,6 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 		return errors.Wrapf(err, "failed to get CephObjectStore %q advertise endpoint for object store user", u.Spec.Store)
 	}
 	r.advertiseEndpoint = advertiseEndpoint
-
-	objContext, err := object.NewMultisiteContext(r.context, r.clusterInfo, store)
-	if err != nil {
-		return errors.Wrapf(err, "Multisite failed to set on object context for object store user")
-	}
-
-	opsContext, err := newMultisiteAdminOpsCtxFunc(objContext, &store.Spec)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialized rgw admin ops client api")
-	}
 	r.objContext = opsContext
 
 	return nil
@@ -705,36 +690,6 @@ func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *cephv1.CephObjectStoreUser) error {
-	nsName := opcontroller.NsName(cephObjectStoreUser.Namespace, cephObjectStoreUser.Name)
-	cephObjectStore, err := r.getObjectStore(cephObjectStoreUser)
-	if err != nil {
-		return err
-	}
-	log.NamedDebug(nsName, logger, "CephObjectStore exists")
-
-	// If the rgw is external just return
-	// since there are no pods running
-	if cephObjectStore.Spec.IsExternal() {
-		return nil
-	}
-
-	// There are no pods running when the cluster is external
-	// Unless you pass the admin key...
-	pods, err := r.getRgwPodList(cephObjectStoreUser)
-	if err != nil {
-		return err
-	}
-
-	// check if at least one pod is running
-	if len(pods.Items) > 0 {
-		log.NamedDebug(nsName, logger, "%d RGW pods found where object store user %q is created", len(pods.Items), cephObjectStoreUser.Name)
-		return nil
-	}
-
-	return errors.New("no rgw pod found")
-}
-
 func (r *ReconcileObjectStoreUser) getObjectStore(user *cephv1.CephObjectStoreUser) (*cephv1.CephObjectStore, error) {
 	storeName := user.Spec.Store
 	nsName := client.ObjectKeyFromObject(user)
@@ -757,27 +712,6 @@ func (r *ReconcileObjectStoreUser) getObjectStore(user *cephv1.CephObjectStoreUs
 	}
 
 	return nil, errors.Errorf("could not find CephObjectStore %q referenced by CephObjectStoreUser %q", storeName, nsName)
-}
-
-func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.CephObjectStoreUser) (*corev1.PodList, error) {
-	pods := &corev1.PodList{}
-
-	// check if ObjectStore is initialized
-	// rook does this by starting the RGW pod(s)
-	listOpts := []client.ListOption{
-		client.InNamespace(clusterStoreNamespace(cephObjectStoreUser)),
-		client.MatchingLabels(labelsForRgw(cephObjectStoreUser.Spec.Store)),
-	}
-
-	err := r.client.List(r.opManagerContext, pods, listOpts...)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			return pods, errors.Wrap(err, "no rgw pod could not be found")
-		}
-		return pods, errors.Wrap(err, "failed to list rgw pods")
-	}
-
-	return pods, nil
 }
 
 // Namespace where the object store and cluster are expected to be found
@@ -816,10 +750,6 @@ func (r *ReconcileObjectStoreUser) validateUser(u *cephv1.CephObjectStoreUser) e
 		return errors.New("missing store")
 	}
 	return nil
-}
-
-func labelsForRgw(name string) map[string]string {
-	return map[string]string{"rgw": name, k8sutil.AppAttr: appName}
 }
 
 // updateStatus updates an object with a given status
