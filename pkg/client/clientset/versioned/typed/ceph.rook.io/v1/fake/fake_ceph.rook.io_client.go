@@ -84,6 +84,10 @@ func (c *FakeCephV1) CephObjectStores(namespace string) v1.CephObjectStoreInterf
 	return newFakeCephObjectStores(c, namespace)
 }
 
+func (c *FakeCephV1) CephObjectStoreAccounts(namespace string) v1.CephObjectStoreAccountInterface {
+	return newFakeCephObjectStoreAccounts(c, namespace)
+}
+
 func (c *FakeCephV1) CephObjectStoreUsers(namespace string) v1.CephObjectStoreUserInterface {
 	return newFakeCephObjectStoreUsers(c, namespace)
 }

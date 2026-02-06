@@ -47,7 +47,7 @@ SHELL := /usr/bin/env bash
 # Can be used or additional go build flags
 BUILDFLAGS ?=
 LDFLAGS ?=
-TAGS ?=
+TAGS ?= ceph_preview
 
 # turn on more verbose build
 V ?= 0
