@@ -16,6 +16,9 @@ defaults:
 permissions:
   contents: read
 
+env:
+  GOFLAGS: "-tags=ceph_preview"
+
 # cancel the in-progress workflow when PR is refreshed.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}

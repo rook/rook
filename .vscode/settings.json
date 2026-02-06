@@ -26,6 +26,9 @@
     "!Documentation/Helm-Charts",
   ],
   "gopls": {
-    "formatting.gofumpt": true
+    "formatting.gofumpt": true,
+    "buildFlags": [
+      "-tags=ceph_preview"
+    ]
   }
 }

@@ -12559,6 +12559,103 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
+  name: cephobjectstoreaccounts.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephObjectStoreAccount
+    listKind: CephObjectStoreAccountList
+    plural: cephobjectstoreaccounts
+    singular: cephobjectstoreaccount
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+      name: v1
+      schema:
+        openAPIV3Schema:
+          description: CephObjectStoreAccount represent the RGW user account
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: ObjectStoreAccountSpec represent the spec of a RGW Account
+              properties:
+                accountID:
+                  description: |-
+                    AccountID uniquely identifies an account and resource ownership. Format should be RGW followed by 17 digits (e.g.,
+                    RGW00889737169837717). If not specified, then ceph will auto generate the account ID.
+                  maxLength: 20
+                  minLength: 20
+                  pattern: ^RGW\d{17}$
+                  type: string
+                  x-kubernetes-validations:
+                    - message: accountID is immutable
+                      rule: self == oldSelf
+                name:
+                  description: Name is the desired name of the RGW account if different from the CephObjectStoreAccount CR name.
+                  maxLength: 253
+                  minLength: 1
+                  type: string
+                store:
+                  description: Store is the object store the account will be associated with
+                  maxLength: 253
+                  minLength: 1
+                  type: string
+                  x-kubernetes-validations:
+                    - message: store is immutable
+                      rule: self == oldSelf
+              type: object
+            status:
+              description: ObjectStoreAccountStatus represents the status of a CephObjectStoreAccount resource
+              properties:
+                accountID:
+                  description: AccountID associated with the RGW user account
+                  maxLength: 20
+                  minLength: 20
+                  type: string
+                observedGeneration:
+                  description: ObservedGeneration is the latest generation observed by the controller.
+                  format: int64
+                  type: integer
+                phase:
+                  type: string
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          required:
+            - metadata
+            - spec
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: cephobjectstores.ceph.rook.io
 spec:
   group: ceph.rook.io

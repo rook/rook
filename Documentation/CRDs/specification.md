@@ -4648,6 +4648,101 @@ Allow any string so that over-specified legacy clusters do not break on CRD upda
 <td></td>
 </tr></tbody>
 </table>
+<h3 id="ceph.rook.io/v1.CephObjectStoreAccount">CephObjectStoreAccount
+</h3>
+<div>
+<p>CephObjectStoreAccount represent the RGW user account</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>metadata</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectStoreAccountSpec">
+ObjectStoreAccountSpec
+</a>
+</em>
+</td>
+<td>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>store</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Store is the object store the account will be associated with</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Name is the desired name of the RGW account if different from the CephObjectStoreAccount CR name.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>accountID</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AccountID uniquely identifies an account and resource ownership. Format should be RGW followed by 17 digits (e.g.,
+RGW00889737169837717). If not specified, then ceph will auto generate the account ID.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectStoreAccountStatus">
+ObjectStoreAccountStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.CephStatus">CephStatus
 </h3>
 <p>
@@ -11623,6 +11718,114 @@ If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metad
 </p>
 <div>
 </div>
+<h3 id="ceph.rook.io/v1.ObjectStoreAccountSpec">ObjectStoreAccountSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephObjectStoreAccount">CephObjectStoreAccount</a>)
+</p>
+<div>
+<p>ObjectStoreAccountSpec represent the spec of a RGW Account</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>store</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Store is the object store the account will be associated with</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Name is the desired name of the RGW account if different from the CephObjectStoreAccount CR name.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>accountID</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AccountID uniquely identifies an account and resource ownership. Format should be RGW followed by 17 digits (e.g.,
+RGW00889737169837717). If not specified, then ceph will auto generate the account ID.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.ObjectStoreAccountStatus">ObjectStoreAccountStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephObjectStoreAccount">CephObjectStoreAccount</a>)
+</p>
+<div>
+<p>ObjectStoreAccountStatus represents the status of a CephObjectStoreAccount resource</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>phase</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>accountID</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AccountID associated with the RGW user account</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>observedGeneration</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ObservedGeneration is the latest generation observed by the controller.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ObjectStoreHostingSpec">ObjectStoreHostingSpec
 </h3>
 <p>

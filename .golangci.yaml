@@ -1,5 +1,8 @@
 ---
 version: "2"
+run:
+  build-tags:
+    - ceph_preview
 linters:
   default: none
   enable:

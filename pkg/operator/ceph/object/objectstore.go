@@ -43,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	validation "k8s.io/apimachinery/pkg/util/validation"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -1279,4 +1280,72 @@ func SetDefaultRealm(objContext *Context, realmName string) error {
 
 	log.NamedInfo(objContext.NsName(), logger, "successfully set realm %q as default", realmName+"/"+objContext.clusterInfo.Namespace)
 	return nil
+}
+
+// InitializeObjectStoreContext finds the CephObjectStore by storeName, verifies it
+// is initialized (has running RGW pods or is external), creates a multisite context,
+// and initializes the admin ops API client.
+func InitializeObjectStoreContext(
+	clusterdContext *clusterd.Context,
+	clusterInfo *cephclient.ClusterInfo,
+	k8sClient client.Client,
+	opManagerContext context.Context,
+	storeName string,
+	newAdminOpsCtxFunc func(*Context, *cephv1.ObjectStoreSpec) (*AdminOpsContext, error),
+) (*AdminOpsContext, *cephv1.CephObjectStore, error) {
+	store, err := getObjectStore(k8sClient, opManagerContext, storeName, clusterInfo.Namespace)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to get object store %q", storeName)
+	}
+
+	if !store.Spec.IsExternal() {
+		if err := checkRGWPodsRunning(k8sClient, opManagerContext, clusterInfo.Namespace, storeName); err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to detect if object store %q is initialized", storeName)
+		}
+	}
+
+	objContext, err := NewMultisiteContext(clusterdContext, clusterInfo, store)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to create multisite context for object store %q", store.Name)
+	}
+
+	opsContext, err := newAdminOpsCtxFunc(objContext, &store.Spec)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to initialize rgw admin ops client api")
+	}
+
+	return opsContext, store, nil
+}
+
+func getObjectStore(k8sClient client.Client, ctx context.Context, storeName, namespace string) (*cephv1.CephObjectStore, error) {
+	store := &cephv1.CephObjectStore{}
+	if err := k8sClient.Get(ctx, types.NamespacedName{Name: storeName, Namespace: namespace}, store); err != nil {
+		return nil, errors.Wrapf(err, "could not find CephObjectStore %q", storeName)
+	}
+	return store, nil
+}
+
+func checkRGWPodsRunning(k8sClient client.Client, ctx context.Context, namespace, storeName string) error {
+	pods := &v1.PodList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels(labelsForRgw(storeName)),
+	}
+
+	if err := k8sClient.List(ctx, pods, listOpts...); err != nil {
+		if kerrors.IsNotFound(err) {
+			return errors.Wrap(err, "no rgw pod could not be found")
+		}
+		return errors.Wrap(err, "failed to list rgw pods")
+	}
+
+	if len(pods.Items) > 0 {
+		return nil
+	}
+
+	return errors.New("no rgw pod found")
+}
+
+func labelsForRgw(name string) map[string]string {
+	return map[string]string{"rgw": name, k8sutil.AppAttr: AppName}
 }
