@@ -47,7 +47,10 @@ SHELL := /usr/bin/env bash
 # Can be used or additional go build flags
 BUILDFLAGS ?=
 LDFLAGS ?=
-TAGS ?=
+# Required for go-ceph rgw/admin account APIs which are gated behind
+# the ceph_preview build tag. Can be removed when go-ceph promotes
+# the account API out of preview.
+TAGS ?= ceph_preview
 
 # turn on more verbose build
 V ?= 0

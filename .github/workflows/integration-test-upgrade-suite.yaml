@@ -21,6 +21,12 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Required for go-ceph rgw/admin account APIs which are gated behind
+  # the ceph_preview build tag. Can be removed when go-ceph promotes
+  # the account API out of preview.
+  GOFLAGS: "-tags=ceph_preview"
+
 jobs:
   TestCephUpgradeSuite:
     if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
