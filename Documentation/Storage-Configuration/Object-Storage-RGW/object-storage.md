@@ -231,8 +231,8 @@ spec:
     poolPlacements:
     - name: us
       default: true
-      metadataPoolName: "us-data-pool"
-      dataPoolName: "us-meta-pool"
+      metadataPoolName: "us-meta-pool"
+      dataPoolName: "us-data-pool"
       storageClasses:
       - name: REDUCED_REDUNDANCY
         dataPoolName: "us-reduced-pool"
