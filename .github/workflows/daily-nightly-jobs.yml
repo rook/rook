@@ -29,7 +29,9 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
+        with:
+          kubernetes-version: "1.35.0"
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
