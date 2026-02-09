@@ -44,7 +44,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -216,7 +216,7 @@ func TestCephFilesystemController(t *testing.T) {
 	// Create a ReconcileCephFilesystem object with the scheme and fake client.
 	r := &ReconcileCephFilesystem{
 		client:           cl,
-		recorder:         record.NewFakeRecorder(5),
+		recorder:         events.NewFakeRecorder(50),
 		scheme:           s,
 		context:          c,
 		fsContexts:       make(map[string]*fsHealth),
@@ -264,7 +264,7 @@ func TestCephFilesystemController(t *testing.T) {
 		// Create a ReconcileCephFilesystem object with the scheme and fake client.
 		r = &ReconcileCephFilesystem{
 			client:           cl,
-			recorder:         record.NewFakeRecorder(5),
+			recorder:         events.NewFakeRecorder(50),
 			scheme:           s,
 			context:          c,
 			fsContexts:       make(map[string]*fsHealth),
@@ -324,7 +324,7 @@ func TestCephFilesystemController(t *testing.T) {
 		// Create a ReconcileCephFilesystem object with the scheme and fake client.
 		r = &ReconcileCephFilesystem{
 			client:           cl,
-			recorder:         record.NewFakeRecorder(5),
+			recorder:         events.NewFakeRecorder(50),
 			scheme:           s,
 			context:          c,
 			fsContexts:       make(map[string]*fsHealth),
@@ -408,7 +408,7 @@ func TestCephFilesystemController(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Create a ReconcileCephFilesystem object with the scheme and fake client.
-		fakeRecorder := record.NewFakeRecorder(5)
+		fakeRecorder := events.NewFakeRecorder(50)
 		r = &ReconcileCephFilesystem{
 			client:           cl,
 			recorder:         fakeRecorder,
@@ -527,7 +527,7 @@ func TestMdsKeyRotation(t *testing.T) {
 
 	r := &ReconcileCephFilesystem{
 		client:           cl,
-		recorder:         record.NewFakeRecorder(6),
+		recorder:         events.NewFakeRecorder(50),
 		scheme:           s,
 		context:          c,
 		fsContexts:       make(map[string]*fsHealth),

@@ -41,7 +41,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -79,7 +79,7 @@ type ReconcileCephNVMeOFGateway struct {
 	clusterInfo           *cephclient.ClusterInfo
 	opManagerContext      context.Context
 	opConfig              opcontroller.OperatorConfig
-	recorder              record.EventRecorder
+	recorder              events.EventRecorder
 	shouldRotateCephxKeys bool
 }
 
@@ -95,7 +95,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		context:          context,
 		opManagerContext: opManagerContext,
 		opConfig:         opConfig,
-		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 	}
 }
 
@@ -201,7 +201,7 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 			if err != nil {
 				return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to remove finalizer")
 			}
-			r.recorder.Event(cephNVMeOFGateway, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+			r.recorder.Eventf(cephNVMeOFGateway, nil, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 			return reconcile.Result{}, *cephNVMeOFGateway, nil
 		}
 		return reconcileResponse, *cephNVMeOFGateway, nil
@@ -215,7 +215,7 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 
 	if !cephNVMeOFGateway.GetDeletionTimestamp().IsZero() {
 		logger.Infof("deleting ceph nvmeof gateway %q", cephNVMeOFGateway.Name)
-		r.recorder.Eventf(cephNVMeOFGateway, v1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephNVMeOFGateway %q", cephNVMeOFGateway.Name)
+		r.recorder.Eventf(cephNVMeOFGateway, nil, v1.EventTypeNormal, string(cephv1.ReconcileStarted), string(cephv1.ReconcileStarted), "deleting CephNVMeOFGateway %q", cephNVMeOFGateway.Name)
 
 		runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
 		if err != nil {
@@ -227,7 +227,7 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 		if err != nil {
 			return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to remove finalizer")
 		}
-		r.recorder.Event(cephNVMeOFGateway, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+		r.recorder.Eventf(cephNVMeOFGateway, nil, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 		return reconcile.Result{}, *cephNVMeOFGateway, nil
 	}
 

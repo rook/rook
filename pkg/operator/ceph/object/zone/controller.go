@@ -29,7 +29,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -84,7 +84,7 @@ type ReconcileObjectZone struct {
 	clusterInfo      *cephclient.ClusterInfo
 	clusterSpec      *cephv1.ClusterSpec
 	opManagerContext context.Context
-	recorder         record.EventRecorder
+	recorder         events.EventRecorder
 }
 
 // Add creates a new CephObjectZone Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -100,7 +100,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		scheme:           mgr.GetScheme(),
 		context:          context,
 		opManagerContext: opManagerContext,
-		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 	}
 }
 

@@ -39,7 +39,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -67,7 +67,7 @@ type ReconcileNotifications struct {
 	client           client.Client
 	context          *clusterd.Context
 	opManagerContext context.Context
-	recorder         record.EventRecorder
+	recorder         events.EventRecorder
 }
 
 // Add creates a new CephBucketNotification controller and a new ObjectBucketClaim Controller and adds it to the Manager.
@@ -82,7 +82,7 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 		client:           mgr.GetClient(),
 		context:          context,
 		opManagerContext: opManagerContext,
-		recorder:         mgr.GetEventRecorderFor(controllerName),
+		recorder:         mgr.GetEventRecorder(controllerName),
 	}); err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 		client:           mgr.GetClient(),
 		context:          context,
 		opManagerContext: opManagerContext,
-		recorder:         mgr.GetEventRecorderFor(controllerName),
+		recorder:         mgr.GetEventRecorder(controllerName),
 	})
 }
 
@@ -140,7 +140,7 @@ func (r *ReconcileNotifications) reconcile(request reconcile.Request) (reconcile
 	// fetch the CephBucketNotification instance
 	notification := &cephv1.CephBucketNotification{ObjectMeta: metav1.ObjectMeta{Name: request.Name, Namespace: request.Namespace}}
 	bnName := request.NamespacedName
-	r.recorder.Eventf(notification, kapiv1.EventTypeNormal, string(cephv1.ReconcileStarted), "Started reconciling CephBucketNotification %q", bnName)
+	r.recorder.Eventf(notification, nil, kapiv1.EventTypeNormal, string(cephv1.ReconcileStarted), string(cephv1.ReconcileStarted), "Started reconciling CephBucketNotification %q", bnName)
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, notification)
 	if err != nil {
 		if kerrors.IsNotFound(err) {

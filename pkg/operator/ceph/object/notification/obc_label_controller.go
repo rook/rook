@@ -36,7 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -58,7 +58,7 @@ type ReconcileOBCLabels struct {
 	client           client.Client
 	context          *clusterd.Context
 	opManagerContext context.Context
-	recorder         record.EventRecorder
+	recorder         events.EventRecorder
 }
 
 func obcPredicate[T *bktv1alpha1.ObjectBucketClaim]() predicate.TypedFuncs[T] {
@@ -258,7 +258,7 @@ func (r *ReconcileOBCLabels) addNewNotification(p provisioner, ob bktv1alpha1.Ob
 	notification := &cephv1.CephBucketNotification{ObjectMeta: metav1.ObjectMeta{Name: label, Namespace: namespace}}
 	bnName := types.NamespacedName{Namespace: namespace, Name: label}
 	bucketName := types.NamespacedName{Name: ob.Spec.ClaimRef.Name, Namespace: namespace}
-	r.recorder.Eventf(notification, kapiv1.EventTypeNormal, string(cephv1.ReconcileStarted), "Started reconciling CephBucketNotification %q for ObjectBucketClaim %q", bnName, bucketName)
+	r.recorder.Eventf(notification, nil, kapiv1.EventTypeNormal, string(cephv1.ReconcileStarted), string(cephv1.ReconcileStarted), "Started reconciling CephBucketNotification %q for ObjectBucketClaim %q", bnName, bucketName)
 	if err := r.client.Get(r.opManagerContext, bnName, notification); err != nil {
 		if kerrors.IsNotFound(err) {
 			return waitForRequeueIfNotificationNotReady, *notification, errors.Wrapf(err, "CephBucketNotification %q not provisioned yet", bnName)
