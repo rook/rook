@@ -1,8 +1,18 @@
 name: Daily nightly jobs
 on:
-  schedule:
-    - cron: "0 0 * * *" # every day at midnight
-  workflow_dispatch: {}
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
+    branches:
+      - master
+      - release-*
+    paths-ignore:
+      - "Documentation/**"
+      - "design/**"
 
 defaults:
   run:
@@ -29,7 +39,9 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
+        with:
+          kubernetes-version: "1.35.0"
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
