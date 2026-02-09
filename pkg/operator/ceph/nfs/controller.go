@@ -40,7 +40,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -80,7 +80,7 @@ type ReconcileCephNFS struct {
 	clusterInfo           *cephclient.ClusterInfo
 	opManagerContext      context.Context
 	opConfig              opcontroller.OperatorConfig
-	recorder              record.EventRecorder
+	recorder              events.EventRecorder
 	shouldRotateCephxKeys bool
 }
 
@@ -98,7 +98,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		context:          context,
 		opManagerContext: opManagerContext,
 		opConfig:         opConfig,
-		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 	}
 }
 
@@ -226,7 +226,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 				return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to remove finalizer")
 			}
 
-			r.recorder.Event(cephNFS, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+			r.recorder.Eventf(cephNFS, nil, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 			// Return and do not requeue. Successful deletion.
 			return reconcile.Result{}, *cephNFS, nil
 		}
@@ -244,7 +244,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	// DELETE: the CR was deleted
 	if !cephNFS.GetDeletionTimestamp().IsZero() {
 		log.NamedInfo(request.NamespacedName, logger, "deleting ceph nfs")
-		r.recorder.Eventf(cephNFS, v1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephNFS %q", cephNFS.Name)
+		r.recorder.Eventf(cephNFS, nil, v1.EventTypeNormal, string(cephv1.ReconcileStarted), string(cephv1.ReconcileStarted), "deleting CephNFS %q", cephNFS.Name)
 
 		// Detect running Ceph version
 		runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
@@ -263,7 +263,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		if err != nil {
 			return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to remove finalizer")
 		}
-		r.recorder.Event(cephNFS, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+		r.recorder.Eventf(cephNFS, nil, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, *cephNFS, nil

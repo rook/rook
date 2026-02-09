@@ -38,7 +38,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -79,7 +79,7 @@ type ReconcileCephRBDMirror struct {
 	peers                 map[string]*peerSpec
 	opManagerContext      context.Context
 	opConfig              opcontroller.OperatorConfig
-	recorder              record.EventRecorder
+	recorder              events.EventRecorder
 	shouldRotateCephxKeys bool
 }
 
@@ -105,7 +105,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		peers:            make(map[string]*peerSpec),
 		opConfig:         opConfig,
 		opManagerContext: opManagerContext,
-		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 	}
 }
 
