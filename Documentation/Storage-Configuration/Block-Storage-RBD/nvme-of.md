@@ -199,12 +199,16 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
   csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
   csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-expand-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-expand-secret-namespace: rook-ceph
   imageFormat: "2"
   imageFeatures: layering,deep-flatten,exclusive-lock,object-map,fast-diff
 provisioner: nvmeof.csi.ceph.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
-allowVolumeExpansion: false
+allowVolumeExpansion: true
 ```
 
 Create the StorageClass:
