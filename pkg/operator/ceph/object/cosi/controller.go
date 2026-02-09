@@ -35,7 +35,7 @@ import (
 	kapiv1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -66,7 +66,7 @@ type ReconcileCephCOSIDriver struct {
 	context          *clusterd.Context
 	scheme           *runtime.Scheme
 	opManagerContext context.Context
-	recorder         record.EventRecorder
+	recorder         events.EventRecorder
 }
 
 // Add creates a new CephCOSIDriver Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -82,7 +82,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		context:          context,
 		scheme:           mgr.GetScheme(),
 		opManagerContext: opManagerContext,
-		recorder:         mgr.GetEventRecorderFor(controllerName),
+		recorder:         mgr.GetEventRecorder(controllerName),
 	}
 }
 
@@ -174,7 +174,7 @@ func (r *ReconcileCephCOSIDriver) reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, *cephCOSIDriver, nil
 	}
 
-	r.recorder.Eventf(cephCOSIDriver, kapiv1.EventTypeNormal, "Reconciling", "Reconciling Ceph COSI Driver %q", cephCOSIDriver.Name)
+	r.recorder.Eventf(cephCOSIDriver, nil, kapiv1.EventTypeNormal, "Reconciling", "Reconciling", "Reconciling Ceph COSI Driver %q", cephCOSIDriver.Name)
 	// Set the default CephCOSIDriver name if not already set
 	if cephCOSIDriver.Name == "" {
 		cephCOSIDriver.Name = CephCOSIDriverName

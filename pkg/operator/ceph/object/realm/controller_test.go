@@ -36,7 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -99,7 +99,7 @@ func TestCephObjectRealmController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(r.scheme).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileObjectRealm object with the scheme and fake client.
-	r = &ReconcileObjectRealm{client: cl, scheme: r.scheme, context: r.context, recorder: record.NewFakeRecorder(5)}
+	r = &ReconcileObjectRealm{client: cl, scheme: r.scheme, context: r.context, recorder: events.NewFakeRecorder(50)}
 	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
@@ -155,7 +155,7 @@ func TestCephObjectRealmController(t *testing.T) {
 	r.context.Executor = executor
 
 	// Create a ReconcileObjectRealm object with the scheme and fake client.
-	r = &ReconcileObjectRealm{client: cl, scheme: r.scheme, context: r.context, recorder: record.NewFakeRecorder(5)}
+	r = &ReconcileObjectRealm{client: cl, scheme: r.scheme, context: r.context, recorder: events.NewFakeRecorder(50)}
 
 	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
@@ -257,7 +257,7 @@ func getObjectRealmAndReconcileObjectRealm(t *testing.T) (*ReconcileObjectRealm,
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileObjectRealm object with the scheme and fake client.
 	clusterInfo := cephclient.AdminTestClusterInfo("rook")
-	r := &ReconcileObjectRealm{client: cl, scheme: s, context: c, clusterInfo: clusterInfo, recorder: record.NewFakeRecorder(5)}
+	r := &ReconcileObjectRealm{client: cl, scheme: s, context: c, clusterInfo: clusterInfo, recorder: events.NewFakeRecorder(50)}
 
 	return r, objectRealm
 }
@@ -286,7 +286,7 @@ func TestReconcileObjectRealm_createRealmKeys(t *testing.T) {
 				Clientset: k8sfake.NewClientset(),
 			},
 			scheme:   scheme,
-			recorder: record.NewFakeRecorder(5),
+			recorder: events.NewFakeRecorder(50),
 		}
 
 		for _, tName := range []string{"first reconcile", "second reconcile"} {
@@ -325,7 +325,7 @@ func TestReconcileObjectRealm_createRealmKeys(t *testing.T) {
 				Clientset: k8sfake.NewClientset(secret),
 			},
 			scheme:   scheme,
-			recorder: record.NewFakeRecorder(5),
+			recorder: events.NewFakeRecorder(50),
 		}
 
 		_, err := r.createRealmKeys(realm)

@@ -38,7 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -206,7 +206,7 @@ func TestCephObjectZoneController(t *testing.T) {
 	// Create a ReconcileObjectZone object with the scheme and fake client.
 	clusterInfo := cephclient.AdminTestClusterInfo("rook")
 
-	r := &ReconcileObjectZone{client: cl, scheme: s, context: c, clusterInfo: clusterInfo, recorder: record.NewFakeRecorder(5)}
+	r := &ReconcileObjectZone{client: cl, scheme: s, context: c, clusterInfo: clusterInfo, recorder: events.NewFakeRecorder(50)}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -248,7 +248,7 @@ func TestCephObjectZoneController(t *testing.T) {
 	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	// Create a ReconcileObjectZone object with the scheme and fake client.
-	r = &ReconcileObjectZone{client: cl, scheme: r.scheme, context: r.context, recorder: record.NewFakeRecorder(5)}
+	r = &ReconcileObjectZone{client: cl, scheme: r.scheme, context: r.context, recorder: events.NewFakeRecorder(50)}
 	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
@@ -299,7 +299,7 @@ func TestCephObjectZoneController(t *testing.T) {
 	}
 	r.context.Executor = executor
 
-	r = &ReconcileObjectZone{client: cl, scheme: r.scheme, context: r.context, recorder: record.NewFakeRecorder(5)}
+	r = &ReconcileObjectZone{client: cl, scheme: r.scheme, context: r.context, recorder: events.NewFakeRecorder(50)}
 
 	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
@@ -364,7 +364,7 @@ func TestCephObjectZoneController(t *testing.T) {
 
 	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
-	r = &ReconcileObjectZone{client: cl, scheme: s, context: c, clusterInfo: clusterInfo, recorder: record.NewFakeRecorder(5)}
+	r = &ReconcileObjectZone{client: cl, scheme: s, context: c, clusterInfo: clusterInfo, recorder: events.NewFakeRecorder(50)}
 
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: zonegroup, Namespace: namespace}, objectZoneGroup)
 	assert.NoError(t, err, objectZoneGroup)

@@ -45,7 +45,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apituntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -90,7 +90,7 @@ type ClusterController struct {
 	rookImage    string
 	clusterMap   sync.Map // map[string]*cluster
 	client       client.Client
-	recorder     record.EventRecorder
+	recorder     events.EventRecorder
 	OpManagerCtx context.Context
 }
 
@@ -115,7 +115,7 @@ func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController
 	// add "rook-" prefix to the controller name to make sure it is clear to all reading the events
 	// that they are coming from Rook. The controller name already has context that it is for Ceph
 	// and from the cluster controller.
-	clusterController.recorder = mgr.GetEventRecorderFor("rook-" + controllerName)
+	clusterController.recorder = mgr.GetEventRecorder("rook-" + controllerName)
 
 	return &ReconcileCephCluster{
 		client:            mgr.GetClient(),
@@ -358,7 +358,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 	if _, ok := cephCluster.GetLabels()[cephv1.SkipReconcileLabelKey]; ok {
 		log.NamespacedInfo(request.Namespace, logger, "skipping reconcile of CephCluster %q since label %q is set", cephCluster.Name, cephv1.SkipReconcileLabelKey)
 		if r.clusterController.recorder != nil {
-			r.clusterController.recorder.Eventf(cephCluster, corev1.EventTypeNormal, "ReconcileSkipped",
+			r.clusterController.recorder.Eventf(cephCluster, nil, corev1.EventTypeNormal, "ReconcileSkipped", "ReconcileSkipped",
 				"Skipping reconcile because label %q is set on the CephCluster", cephv1.SkipReconcileLabelKey)
 			// Extra log (tests/validation): makes it easy to confirm the event emission via operator logs.
 			log.NamespacedInfo(request.Namespace, logger, "recorded event %q for CephCluster %q (label %q is set)", "ReconcileSkipped", cephCluster.Name, cephv1.SkipReconcileLabelKey)

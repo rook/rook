@@ -39,7 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -68,7 +68,7 @@ var (
 	testCtx              = context.TODO()
 	testContext          *clusterd.Context
 	testScheme           = scheme.Scheme
-	testRecorder         = record.NewFakeRecorder(256)
+	testRecorder         = events.NewFakeRecorder(50)
 	getWasInvoked        = false
 	createdNotifications []string
 	deletedNotifications []string

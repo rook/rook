@@ -48,7 +48,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -71,7 +71,7 @@ type ReconcileCephClient struct {
 	context          *clusterd.Context
 	clusterInfo      *cephclient.ClusterInfo
 	opManagerContext context.Context
-	recorder         record.EventRecorder
+	recorder         events.EventRecorder
 }
 
 // Add creates a new CephClient Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -87,7 +87,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		scheme:           mgr.GetScheme(),
 		context:          context,
 		opManagerContext: opManagerContext,
-		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 	}
 }
 
@@ -219,14 +219,14 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 		if err != nil {
 			return reconcile.Result{}, *cephClient, errors.Wrapf(err, "failed to delete ceph client %q", cephClient.Name)
 		}
-		r.recorder.Eventf(cephClient, v1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephClient %q", cephClient.Name)
+		r.recorder.Eventf(cephClient, nil, v1.EventTypeNormal, string(cephv1.ReconcileStarted), string(cephv1.ReconcileStarted), "deleting CephClient %q", cephClient.Name)
 
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephClient)
 		if err != nil {
 			return reconcile.Result{}, *cephClient, errors.Wrap(err, "failed to remove finalizer")
 		}
-		r.recorder.Event(cephClient, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+		r.recorder.Eventf(cephClient, nil, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, *cephClient, nil

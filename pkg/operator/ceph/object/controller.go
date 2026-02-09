@@ -43,7 +43,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -91,7 +91,7 @@ type ReconcileCephObjectStore struct {
 	context          *clusterd.Context
 	clusterSpec      *cephv1.ClusterSpec
 	clusterInfo      *cephclient.ClusterInfo
-	recorder         record.EventRecorder
+	recorder         events.EventRecorder
 	opManagerContext context.Context
 	opConfig         opcontroller.OperatorConfig
 }
@@ -110,7 +110,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		scheme:           mgr.GetScheme(),
 		context:          context,
 		bktclient:        bktclient.NewForConfigOrDie(context.KubeConfig),
-		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 		opManagerContext: opManagerContext,
 		opConfig:         opConfig,
 	}

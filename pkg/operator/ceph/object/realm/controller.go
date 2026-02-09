@@ -28,7 +28,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -76,7 +76,7 @@ type ReconcileObjectRealm struct {
 	context          *clusterd.Context
 	clusterInfo      *cephclient.ClusterInfo
 	opManagerContext context.Context
-	recorder         record.EventRecorder
+	recorder         events.EventRecorder
 }
 
 // Add creates a new CephObjectRealm Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -92,7 +92,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		scheme:           mgr.GetScheme(),
 		context:          context,
 		opManagerContext: opManagerContext,
-		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 	}
 }
 
@@ -168,7 +168,7 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	// DELETE: the CR was deleted
 	if !cephObjectRealm.GetDeletionTimestamp().IsZero() {
 		log.NamedDebug(request.NamespacedName, logger, "deleting realm CR")
-		r.recorder.Eventf(cephObjectRealm, v1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephObjectRealm %q", cephObjectRealm.Name)
+		r.recorder.Eventf(cephObjectRealm, nil, v1.EventTypeNormal, string(cephv1.ReconcileStarted), string(cephv1.ReconcileStarted), "deleting CephObjectRealm %q", cephObjectRealm.Name)
 
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, *cephObjectRealm, nil
