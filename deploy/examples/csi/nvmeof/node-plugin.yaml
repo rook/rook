@@ -44,7 +44,7 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: metadata.namespace
-          image: quay.io/cephcsi/cephcsi:v3.16.0
+          image: quay.io/cephcsi/cephcsi:v3.16.1
           imagePullPolicy: Always
           name: csi-nvmeofplugin
           resources: {}

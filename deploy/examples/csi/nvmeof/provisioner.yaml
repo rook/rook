@@ -198,7 +198,7 @@ spec:
         - name: csi-nvmeofplugin
           # for stable functionality replace canary with latest release version
           # image: quay.io/gdidi/cephcsi:nvmeof
-          image: quay.io/cephcsi/cephcsi:v3.16.0
+          image: quay.io/cephcsi/cephcsi:v3.16.1
           command: ["/usr/local/bin/cephcsi"]
           args:
             - "--nodeid=$(NODE_ID)"
