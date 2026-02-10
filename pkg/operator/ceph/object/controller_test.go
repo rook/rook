@@ -45,7 +45,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -387,7 +387,7 @@ func TestCephObjectStoreController(t *testing.T) {
 			client:           cl,
 			scheme:           s,
 			context:          c,
-			recorder:         record.NewFakeRecorder(5),
+			recorder:         events.NewFakeRecorder(50),
 			opManagerContext: context.TODO(),
 		}
 
@@ -730,7 +730,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		client:           cl,
 		scheme:           s,
 		context:          c,
-		recorder:         record.NewFakeRecorder(5),
+		recorder:         events.NewFakeRecorder(50),
 		opManagerContext: ctx,
 	}
 
@@ -779,7 +779,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 			client:           cl,
 			scheme:           s,
 			context:          c,
-			recorder:         record.NewFakeRecorder(5),
+			recorder:         events.NewFakeRecorder(50),
 			opManagerContext: ctx,
 		}
 
@@ -896,7 +896,7 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 			client:           cl,
 			scheme:           s,
 			context:          c,
-			recorder:         record.NewFakeRecorder(5),
+			recorder:         events.NewFakeRecorder(50),
 			opManagerContext: ctx,
 		}
 
@@ -1334,7 +1334,7 @@ func TestKeyRotation(t *testing.T) {
 		client:           cl,
 		scheme:           s,
 		context:          c,
-		recorder:         record.NewFakeRecorder(10),
+		recorder:         events.NewFakeRecorder(50),
 		opManagerContext: ctx,
 	}
 

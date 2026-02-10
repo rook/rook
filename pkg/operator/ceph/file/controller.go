@@ -41,7 +41,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -73,7 +73,7 @@ var currentAndDesiredCephVersion = opcontroller.CurrentAndDesiredCephVersion
 // ReconcileCephFilesystem reconciles a CephFilesystem object
 type ReconcileCephFilesystem struct {
 	client                client.Client
-	recorder              record.EventRecorder
+	recorder              events.EventRecorder
 	scheme                *runtime.Scheme
 	context               *clusterd.Context
 	cephClusterSpec       *cephv1.ClusterSpec
@@ -100,7 +100,7 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCephFilesystem{
 		client:           mgr.GetClient(),
-		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 		scheme:           mgr.GetScheme(),
 		context:          context,
 		fsContexts:       make(map[string]*fsHealth),

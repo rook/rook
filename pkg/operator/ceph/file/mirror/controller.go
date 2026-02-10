@@ -38,7 +38,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -78,7 +78,7 @@ type ReconcileFilesystemMirror struct {
 	cephClusterSpec       *cephv1.ClusterSpec
 	opManagerContext      context.Context
 	opConfig              opcontroller.OperatorConfig
-	recorder              record.EventRecorder
+	recorder              events.EventRecorder
 	shouldRotateCephxKeys bool
 }
 
@@ -96,7 +96,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		context:          context,
 		opConfig:         opConfig,
 		opManagerContext: opManagerContext,
-		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 	}
 }
 
@@ -202,7 +202,7 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	cephCluster, isReadyToReconcile, _, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		log.NamedDebug(request.NamespacedName, logger, "CephCluster resource not ready in namespace %q, retrying in %q.", request.NamespacedName.Namespace, reconcileResponse.RequeueAfter.String())
-		r.recorder.Event(filesystemMirror, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+		r.recorder.Eventf(filesystemMirror, nil, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 		return reconcileResponse, *filesystemMirror, nil
 	}

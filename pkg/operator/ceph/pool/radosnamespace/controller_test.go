@@ -37,7 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -118,7 +118,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		context:          c,
 		opManagerContext: ctx,
 		opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
-		recorder:         record.NewFakeRecorder(5),
+		recorder:         events.NewFakeRecorder(50),
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
@@ -170,7 +170,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
 			client: cl, scheme: s, context: c, opManagerContext: context.TODO(),
-			recorder: record.NewFakeRecorder(5),
+			recorder: events.NewFakeRecorder(50),
 			opConfig: opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 		}
 		res, err := r.Reconcile(ctx, req)
@@ -250,7 +250,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opManagerContext:       context.TODO(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
-			recorder:               record.NewFakeRecorder(5),
+			recorder:               events.NewFakeRecorder(50),
 		}
 
 		// Enable CSI
@@ -303,7 +303,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			context:          c,
 			opManagerContext: ctx,
 			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
-			recorder:         record.NewFakeRecorder(5),
+			recorder:         events.NewFakeRecorder(50),
 		}
 
 		// Enable CSI
@@ -374,7 +374,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opManagerContext:       context.TODO(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
-			recorder:               record.NewFakeRecorder(5),
+			recorder:               events.NewFakeRecorder(50),
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -424,7 +424,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opManagerContext:       context.TODO(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
-			recorder:               record.NewFakeRecorder(5),
+			recorder:               events.NewFakeRecorder(50),
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -478,7 +478,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opManagerContext:       context.TODO(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
-			recorder:               record.NewFakeRecorder(5),
+			recorder:               events.NewFakeRecorder(50),
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -532,7 +532,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opManagerContext:       context.TODO(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
-			recorder:               record.NewFakeRecorder(5),
+			recorder:               events.NewFakeRecorder(50),
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -588,7 +588,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opManagerContext:       context.TODO(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
-			recorder:               record.NewFakeRecorder(5),
+			recorder:               events.NewFakeRecorder(50),
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -648,7 +648,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opManagerContext:       context.TODO(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
-			recorder:               record.NewFakeRecorder(5),
+			recorder:               events.NewFakeRecorder(50),
 		}
 
 		res, err := r.Reconcile(ctx, req)

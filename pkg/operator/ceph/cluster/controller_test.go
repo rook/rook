@@ -36,7 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -90,7 +90,7 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 
 		// create the cluster controller and tell it that the cluster has been deleted
 		controller := NewClusterController(clusterdCtx, "")
-		fakeRecorder := record.NewFakeRecorder(5)
+		fakeRecorder := events.NewFakeRecorder(50)
 		controller.recorder = fakeRecorder
 
 		// Create a fake client to mock API calls
@@ -243,7 +243,7 @@ func TestReconcileSkipsWhenSkipReconcileLabelSet(t *testing.T) {
 
 	clusterdCtx := &clusterd.Context{}
 	controller := NewClusterController(clusterdCtx, "")
-	fakeRecorder := record.NewFakeRecorder(5)
+	fakeRecorder := events.NewFakeRecorder(50)
 	controller.recorder = fakeRecorder
 
 	// Create a fake client to mock API calls

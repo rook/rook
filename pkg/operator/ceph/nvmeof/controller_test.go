@@ -39,7 +39,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -166,7 +166,7 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 	}
 
 	newReconcile := func(clusterCtx *clusterd.Context, cl client.WithWatch) *ReconcileCephNVMeOFGateway {
-		return &ReconcileCephNVMeOFGateway{client: cl, scheme: testScheme, context: clusterCtx, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
+		return &ReconcileCephNVMeOFGateway{client: cl, scheme: testScheme, context: clusterCtx, opManagerContext: ctx, recorder: events.NewFakeRecorder(50)}
 	}
 
 	req := reconcile.Request{
@@ -207,7 +207,7 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			nvmeof.Spec.Instances = 0
 			cl := newControllerClient(nvmeof, cephClusterReady(cCtx))
 			r := newReconcile(cCtx, cl)
-			fakeRecorder := record.NewFakeRecorder(5)
+			fakeRecorder := events.NewFakeRecorder(50)
 			r.recorder = fakeRecorder
 
 			res, err := r.Reconcile(ctx, req)
@@ -227,7 +227,7 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			nvmeof.Spec.Group = ""
 			cl := newControllerClient(nvmeof, cephClusterReady(cCtx))
 			r := newReconcile(cCtx, cl)
-			fakeRecorder := record.NewFakeRecorder(5)
+			fakeRecorder := events.NewFakeRecorder(50)
 			r.recorder = fakeRecorder
 
 			res, err := r.Reconcile(ctx, req)
@@ -514,7 +514,7 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 	}
 
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-	r := &ReconcileCephNVMeOFGateway{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
+	r := &ReconcileCephNVMeOFGateway{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: events.NewFakeRecorder(50)}
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -551,7 +551,7 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 	})
 
 	t.Run("subsequent reconcile - retain cephx status", func(t *testing.T) {
-		r := &ReconcileCephNVMeOFGateway{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
+		r := &ReconcileCephNVMeOFGateway{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: events.NewFakeRecorder(50)}
 		_, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		nvmeofResult := cephv1.CephNVMeOFGateway{}

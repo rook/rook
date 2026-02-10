@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -64,14 +64,14 @@ func Test_objKindOrBestGuess(t *testing.T) {
 }
 
 func TestReportReconcileResult(t *testing.T) {
-	setupTest := func() (*capnslog.PackageLogger, *bytes.Buffer, *record.FakeRecorder) {
+	setupTest := func() (*capnslog.PackageLogger, *bytes.Buffer, *events.FakeRecorder) {
 		logBuf := bytes.NewBuffer([]byte{})
 		logFmt := capnslog.NewLogFormatter(logBuf, "", 0)
 		capnslog.SetFormatter(logFmt)
 		logger := capnslog.NewPackageLogger("github.com/rook/rook", "")
 		capnslog.SetGlobalLogLevel(capnslog.TRACE)
 
-		recorder := record.NewFakeRecorder(3)
+		recorder := events.NewFakeRecorder(50)
 
 		return logger, logBuf, recorder
 	}

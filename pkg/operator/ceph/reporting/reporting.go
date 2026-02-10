@@ -28,7 +28,7 @@ import (
 	"github.com/rook/rook/pkg/util/dependents"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -113,7 +113,7 @@ func copyObject(obj client.Object) client.Object {
 // framework's Reconcile() method.
 func ReportReconcileResult(
 	logger *capnslog.PackageLogger,
-	recorder record.EventRecorder,
+	recorder events.EventRecorder,
 	reconcileRequest reconcile.Request,
 	obj client.Object,
 	reconcileResponse reconcile.Result,
@@ -147,7 +147,7 @@ func ReportReconcileResult(
 		logger.Errorf("%s", errorMsg)
 
 		// 2. event
-		recorder.Event(objCopy, corev1.EventTypeWarning, string(cephv1.ReconcileFailed), errorMsg)
+		recorder.Eventf(objCopy, nil, corev1.EventTypeWarning, string(cephv1.ReconcileFailed), string(cephv1.ReconcileFailed), errorMsg)
 
 		if !reconcileResponse.IsZero() {
 			// The framework will requeue immediately if there is an error. If we get an error with
@@ -159,7 +159,7 @@ func ReportReconcileResult(
 	} else if reconcileResponse.Requeue {
 		msg := fmt.Sprintf("requeuing %s %q", kind, nsName)
 		logger.Debug(msg)
-		recorder.Event(objCopy, corev1.EventTypeNormal, string(cephv1.ReconcileRequeuing), msg)
+		recorder.Eventf(objCopy, nil, corev1.EventTypeNormal, string(cephv1.ReconcileRequeuing), string(cephv1.ReconcileRequeuing), msg)
 	} else {
 		successMsg := fmt.Sprintf("successfully configured %s %q", kind, nsName)
 
@@ -167,7 +167,7 @@ func ReportReconcileResult(
 		logger.Debug(successMsg)
 
 		// 2. event
-		recorder.Event(objCopy, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), successMsg)
+		recorder.Eventf(objCopy, nil, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), string(cephv1.ReconcileSucceeded), successMsg)
 	}
 
 	return reconcileResponse, err
@@ -238,7 +238,7 @@ func UpdateStatusConditionsWithRetry(
 // 2. as an event on the object (via the given event recorder)
 // 3. as a condition on the object (added to the object's conditions list given)
 func ReportDeletionNotBlockedDueToDependents(
-	ctx context.Context, logger *capnslog.PackageLogger, client client.Client, recorder record.EventRecorder, obj statusConditionGetter,
+	ctx context.Context, logger *capnslog.PackageLogger, client client.Client, recorder events.EventRecorder, obj statusConditionGetter,
 ) {
 	kind, nsName, unblockedCond := GenerateConditionUnblockedDueToDependents(obj)
 	deletingMsg := fmt.Sprintf("deleting %s %q", kind, nsName.String())
@@ -247,7 +247,7 @@ func ReportDeletionNotBlockedDueToDependents(
 	logger.Infof("%s. %s", unblockedCond.Message, deletingMsg)
 
 	// 2. event
-	recorder.Event(obj, corev1.EventTypeNormal, string(cephv1.DeletingReason), deletingMsg)
+	recorder.Eventf(obj, nil, corev1.EventTypeNormal, string(cephv1.DeletingReason), string(cephv1.DeletingReason), deletingMsg)
 
 	// 3. condition
 	if err := UpdateStatusConditionsWithRetry(ctx, client, obj, nsName, kind, unblockedCond); err != nil {

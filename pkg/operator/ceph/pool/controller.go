@@ -45,7 +45,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -77,7 +77,7 @@ type ReconcileCephBlockPool struct {
 	clusterInfo       *cephclient.ClusterInfo
 	blockPoolContexts map[string]*blockPoolHealth
 	opManagerContext  context.Context
-	recorder          record.EventRecorder
+	recorder          events.EventRecorder
 	opConfig          opcontroller.OperatorConfig
 }
 
@@ -101,7 +101,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		context:           context,
 		blockPoolContexts: make(map[string]*blockPoolHealth),
 		opManagerContext:  opManagerContext,
-		recorder:          mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:          mgr.GetEventRecorder("rook-" + controllerName),
 		opConfig:          opConfig,
 	}
 }
@@ -289,7 +289,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// We must remove it first otherwise the checker will panic since the status/info will be nil
 		r.cancelMirrorMonitoring(cephBlockPool)
 
-		r.recorder.Event(cephBlockPool, corev1.EventTypeNormal, string(cephv1.ReconcileStarted), "starting blockpool deletion")
+		r.recorder.Eventf(cephBlockPool, nil, corev1.EventTypeNormal, string(cephv1.ReconcileStarted), string(cephv1.ReconcileStarted), "starting blockpool deletion")
 
 		log.NamedInfo(request.NamespacedName, logger, "deleting pool")
 		err = deletePool(r.context, clusterInfo, &poolSpec)
@@ -305,11 +305,11 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephBlockPool)
 		if err != nil {
-			r.recorder.Event(cephBlockPool, corev1.EventTypeWarning, string(cephv1.ReconcileFailed), "failed to remove finalizer")
+			r.recorder.Eventf(cephBlockPool, nil, corev1.EventTypeWarning, string(cephv1.ReconcileFailed), string(cephv1.ReconcileFailed), "failed to remove finalizer")
 			return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrap(err, "failed to remove finalizer")
 		}
 
-		r.recorder.Event(cephBlockPool, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+		r.recorder.Eventf(cephBlockPool, nil, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, *cephBlockPool, nil

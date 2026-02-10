@@ -41,7 +41,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -280,7 +280,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		context:           c,
 		blockPoolContexts: make(map[string]*blockPoolHealth),
 		opManagerContext:  context.TODO(),
-		recorder:          record.NewFakeRecorder(5),
+		recorder:          events.NewFakeRecorder(50),
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
@@ -337,7 +337,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			context:           c,
 			blockPoolContexts: make(map[string]*blockPoolHealth),
 			opManagerContext:  context.TODO(),
-			recorder:          record.NewFakeRecorder(5),
+			recorder:          events.NewFakeRecorder(50),
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -397,7 +397,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			context:           c,
 			blockPoolContexts: make(map[string]*blockPoolHealth),
 			opManagerContext:  context.TODO(),
-			recorder:          record.NewFakeRecorder(5),
+			recorder:          events.NewFakeRecorder(50),
 		}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -470,7 +470,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			context:           c,
 			blockPoolContexts: make(map[string]*blockPoolHealth),
 			opManagerContext:  context.TODO(),
-			recorder:          record.NewFakeRecorder(5),
+			recorder:          events.NewFakeRecorder(50),
 		}
 
 		pool.Spec.Mirroring.Mode = "image"
@@ -512,7 +512,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			context:           c,
 			blockPoolContexts: make(map[string]*blockPoolHealth),
 			opManagerContext:  context.TODO(),
-			recorder:          record.NewFakeRecorder(5),
+			recorder:          events.NewFakeRecorder(50),
 		}
 
 		pool.Spec.Mirroring.Peers.SecretNames = []string{peerSecretName}
@@ -550,7 +550,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			context:           c,
 			blockPoolContexts: make(map[string]*blockPoolHealth),
 			opManagerContext:  context.TODO(),
-			recorder:          record.NewFakeRecorder(5),
+			recorder:          events.NewFakeRecorder(50),
 		}
 		pool.Spec.Mirroring.Enabled = false
 		pool.Spec.Mirroring.Mode = "image"
@@ -627,7 +627,7 @@ func TestDeletionBlocked(t *testing.T) {
 		context:           c,
 		blockPoolContexts: make(map[string]*blockPoolHealth),
 		opManagerContext:  context.TODO(),
-		recorder:          record.NewFakeRecorder(5),
+		recorder:          events.NewFakeRecorder(50),
 		clusterInfo:       cephclient.AdminTestClusterInfo("mycluster"),
 	}
 	cephCluster := &cephv1.CephCluster{}
@@ -737,7 +737,7 @@ func TestIsAnyRadosNamespaceMirrored(t *testing.T) {
 		context:           c,
 		blockPoolContexts: make(map[string]*blockPoolHealth),
 		opManagerContext:  context.TODO(),
-		recorder:          record.NewFakeRecorder(5),
+		recorder:          events.NewFakeRecorder(50),
 		clusterInfo:       cephclient.AdminTestClusterInfo("mycluster"),
 	}
 
@@ -1132,7 +1132,7 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 		context:           c,
 		blockPoolContexts: make(map[string]*blockPoolHealth),
 		opManagerContext:  context.TODO(),
-		recorder:          record.NewFakeRecorder(5),
+		recorder:          events.NewFakeRecorder(50),
 	}
 
 	t.Setenv("POD_NAME", "test")

@@ -33,7 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -80,7 +80,7 @@ type ReconcileObjectStoreUser struct {
 	cephClusterSpec   *cephv1.ClusterSpec
 	clusterInfo       *cephclient.ClusterInfo
 	opManagerContext  context.Context
-	recorder          record.EventRecorder
+	recorder          events.EventRecorder
 }
 
 // Add creates a new CephObjectStoreUser Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -96,7 +96,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		scheme:           mgr.GetScheme(),
 		context:          context,
 		opManagerContext: opManagerContext,
-		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
+		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 	}
 }
 
@@ -300,7 +300,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 			if err != nil {
 				return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to remove finalizer")
 			}
-			r.recorder.Event(cephObjectStoreUser, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+			r.recorder.Eventf(cephObjectStoreUser, nil, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 			// Return and do not requeue. Successful deletion.
 			return reconcile.Result{}, *cephObjectStoreUser, nil
@@ -313,7 +313,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
 		log.NamedDebug(request.NamespacedName, logger, "deleting object store user")
-		r.recorder.Eventf(cephObjectStoreUser, corev1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephObjectStoreUser %q", cephObjectStoreUser.Name)
+		r.recorder.Eventf(cephObjectStoreUser, nil, corev1.EventTypeNormal, string(cephv1.ReconcileStarted), string(cephv1.ReconcileStarted), "deleting CephObjectStoreUser %q", cephObjectStoreUser.Name)
 
 		err := r.deleteUser(cephObjectStoreUser)
 		if err != nil {
@@ -325,7 +325,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to remove finalizer")
 		}
-		r.recorder.Event(cephObjectStoreUser, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+		r.recorder.Eventf(cephObjectStoreUser, nil, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, *cephObjectStoreUser, nil

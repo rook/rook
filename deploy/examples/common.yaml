@@ -71,6 +71,9 @@ rules:
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
     verbs: ["get", "list", "watch", "patch"]
@@ -129,6 +132,9 @@ rules:
   - apiGroups: [""]
     resources: ["secrets", "events"]
     verbs: ["get", "delete", "update", "create"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -190,6 +196,9 @@ rules:
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
     verbs: ["get", "list", "watch", "patch"]
@@ -334,6 +343,10 @@ rules:
       - create
       - update
       - delete
+  # controller-runtime records events in events.k8s.io API group
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
   - apiGroups:
       - storage.k8s.io
     resources:
@@ -522,6 +535,9 @@ rules:
       - list
       - get
       - watch
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
   - apiGroups:
       - storage.k8s.io
     resources:

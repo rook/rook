@@ -42,7 +42,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -207,7 +207,7 @@ func TestCephNFSController(t *testing.T) {
 
 	newReconcile := func(clusterCtx *clusterd.Context, cl client.WithWatch) *ReconcileCephNFS {
 		// Create a ReconcileCephNFS object with the scheme and fake client.
-		return &ReconcileCephNFS{client: cl, scheme: testScheme, context: clusterCtx, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
+		return &ReconcileCephNFS{client: cl, scheme: testScheme, context: clusterCtx, opManagerContext: ctx, recorder: events.NewFakeRecorder(50)}
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
@@ -252,7 +252,7 @@ func TestCephNFSController(t *testing.T) {
 			}
 			cl := newControllerClient(nfs, cephClusterNotReady())
 			r := newReconcile(cCtx, cl)
-			fakeRecorder := record.NewFakeRecorder(5)
+			fakeRecorder := events.NewFakeRecorder(50)
 			r.recorder = fakeRecorder
 
 			res, err := r.Reconcile(ctx, req)
@@ -626,7 +626,7 @@ func TestNFSKeyRotation(t *testing.T) {
 	}
 
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-	r := &ReconcileCephNFS{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
+	r := &ReconcileCephNFS{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: events.NewFakeRecorder(50)}
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -666,7 +666,7 @@ func TestNFSKeyRotation(t *testing.T) {
 	})
 
 	t.Run("subsequent reconcile - retain cephx status", func(t *testing.T) {
-		r := &ReconcileCephNFS{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
+		r := &ReconcileCephNFS{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: events.NewFakeRecorder(50)}
 		updateDeploymentAndWait, _ = testopk8s.UpdateDeploymentAndWaitStub()
 		_, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
