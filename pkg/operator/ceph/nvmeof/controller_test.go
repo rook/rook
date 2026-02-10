@@ -166,7 +166,7 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 	}
 
 	newReconcile := func(clusterCtx *clusterd.Context, cl client.WithWatch) *ReconcileCephNVMeOFGateway {
-		return &ReconcileCephNVMeOFGateway{client: cl, scheme: testScheme, context: clusterCtx, opManagerContext: ctx, recorder: events.NewFakeRecorder(50),}
+		return &ReconcileCephNVMeOFGateway{client: cl, scheme: testScheme, context: clusterCtx, opManagerContext: ctx, recorder: events.NewFakeRecorder(50)}
 	}
 
 	req := reconcile.Request{
@@ -514,7 +514,7 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 	}
 
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-	r := &ReconcileCephNVMeOFGateway{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: events.NewFakeRecorder(50),}
+	r := &ReconcileCephNVMeOFGateway{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: events.NewFakeRecorder(50)}
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -551,7 +551,7 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 	})
 
 	t.Run("subsequent reconcile - retain cephx status", func(t *testing.T) {
-		r := &ReconcileCephNVMeOFGateway{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: events.NewFakeRecorder(50),}
+		r := &ReconcileCephNVMeOFGateway{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: events.NewFakeRecorder(50)}
 		_, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		nvmeofResult := cephv1.CephNVMeOFGateway{}
