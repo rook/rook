@@ -620,6 +620,12 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) *admin.User {
 		if user.Spec.Capabilities.RateLimit != "" {
 			userConfig.UserCaps += fmt.Sprintf("ratelimit=%s;", user.Spec.Capabilities.RateLimit)
 		}
+		if user.Spec.Capabilities.UserInfoWithoutKeys != "" {
+			userConfig.UserCaps += fmt.Sprintf("user-info-without-keys=%s;", user.Spec.Capabilities.UserInfoWithoutKeys)
+		}
+		if user.Spec.Capabilities.Accounts != "" {
+			userConfig.UserCaps += fmt.Sprintf("accounts=%s;", user.Spec.Capabilities.Accounts)
+		}
 	}
 
 	return userConfig

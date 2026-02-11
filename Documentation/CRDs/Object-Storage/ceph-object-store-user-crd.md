@@ -60,3 +60,5 @@ spec:
     * `user-policy`
     * `odic-provider`
     * `ratelimit`
+    * `user-info-without-keys`
+    * `accounts` # minimum ceph version 19.2.3 for supporting this cap
