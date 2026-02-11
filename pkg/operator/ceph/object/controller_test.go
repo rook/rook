@@ -1137,14 +1137,16 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 	}
 
 	t.Run("create an external object store with missing secret", func(t *testing.T) {
+		externalObjectStore.DeletionTimestamp = nil
+		externalObjectStore.Finalizers = nil
 		objects := []runtime.Object{
 			cephCluster,
 			externalObjectStore,
 		}
 		r := getReconciler(objects)
 		res, err := r.Reconcile(ctx, req)
-		assert.Error(t, err)
-		assert.False(t, res.Requeue)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
 	})
 
 	t.Run("create an external object store with no external RGW endpoints", func(t *testing.T) {

@@ -565,6 +565,11 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		if err := UpdateEndpointForAdminOps(objContext, cephObjectStore); err != nil {
 			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to set endpoint", err)
 		}
+
+		// Validate that the admin ops user credentials exist
+		if _, _, err := GetAdminOPSUserCredentials(objContext, &cephObjectStore.Spec); err != nil {
+			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to get admin ops user credentials", err)
+		}
 	} else {
 		log.NamedInfo(namespacedName, logger, "reconciling object store deployments")
 
