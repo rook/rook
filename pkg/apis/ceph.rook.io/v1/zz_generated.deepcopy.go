@@ -4387,6 +4387,15 @@ func (in *ObjectStoreUserSpec) DeepCopyInto(out *ObjectStoreUserSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.OpMask != nil {
+		in, out := &in.OpMask, &out.OpMask
+		*out = new([]ObjectUserOpMask)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]ObjectUserOpMask, len(*in))
+			copy(*out, *in)
+		}
+	}
 	return
 }
 
