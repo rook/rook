@@ -437,6 +437,11 @@ func createNonMultisiteStore(objContext *Context, endpointArg string, store *cep
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", objContext.Zone)
 
+	// Ensure shared pools exist before creating the zone.
+	if err := CheckSharedPoolsExist(objContext, store.Spec.SharedPools); err != nil {
+		return errors.Wrapf(err, "shared pools must exist before creating object store")
+	}
+
 	err := createMultisiteConfigurations(objContext, store, "realm", realmArg, "create")
 	if err != nil {
 		return err
@@ -598,9 +603,12 @@ func deleteRealm(context *Context) error {
 	//  <name>
 	realmArg := fmt.Sprintf("--rgw-realm=%s", context.Name)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", context.Name)
-	_, err := RunAdminCommandNoMultisite(context, false, "realm", "delete", realmArg)
+
+	// Delete in reverse order: zone > zonegroup > realm.
+	// If the realm is deleted first, the zonegroup and zone deletions fail
+	_, err := runAdminCommand(context, false, "zone", "delete")
 	if err != nil {
-		log.NamedWarning(context.NsName(), logger, "failed to delete rgw realm %q. %v", context.Name, err)
+		log.NamedWarning(context.NsName(), logger, "failed to delete rgw zone %q. %v", context.Name, err)
 	}
 
 	_, err = RunAdminCommandNoMultisite(context, false, "zonegroup", "delete", realmArg, zoneGroupArg)
@@ -608,9 +616,9 @@ func deleteRealm(context *Context) error {
 		log.NamedWarning(context.NsName(), logger, "failed to delete rgw zonegroup %q. %v", context.Name, err)
 	}
 
-	_, err = runAdminCommand(context, false, "zone", "delete")
+	_, err = RunAdminCommandNoMultisite(context, false, "realm", "rm", realmArg)
 	if err != nil {
-		log.NamedWarning(context.NsName(), logger, "failed to delete rgw zone %q. %v", context.Name, err)
+		log.NamedWarning(context.NsName(), logger, "failed to delete rgw realm %q. %v", context.Name, err)
 	}
 
 	return nil
@@ -780,7 +788,7 @@ func ConfigureSharedPoolsForZone(objContext *Context, sharedPools cephv1.ObjectS
 	}
 
 	log.NamedInfo(objContext.NsName(), logger, "configuring shared pools for object store")
-	if err := sharedPoolsExist(objContext, sharedPools); err != nil {
+	if err := CheckSharedPoolsExist(objContext, sharedPools); err != nil {
 		return errors.Wrapf(err, "object store cannot be configured until shared pools exist")
 	}
 
@@ -828,7 +836,11 @@ func ConfigureSharedPoolsForZone(objContext *Context, sharedPools cephv1.ObjectS
 	return nil
 }
 
-func sharedPoolsExist(objContext *Context, sharedPools cephv1.ObjectSharedPoolsSpec) error {
+// CheckSharedPoolsExist checks that all pools referenced by the shared pools spec exist in ceph.
+func CheckSharedPoolsExist(objContext *Context, sharedPools cephv1.ObjectSharedPoolsSpec) error {
+	if sharedPools.DataPoolName == "" && sharedPools.MetadataPoolName == "" && len(sharedPools.PoolPlacements) == 0 {
+		return nil
+	}
 	existingPools, err := cephclient.ListPoolSummaries(objContext.Context, objContext.clusterInfo)
 	if err != nil {
 		return errors.Wrapf(err, "failed to list pools")
@@ -888,24 +900,27 @@ func adjustZoneDefaultPools(objContext *Context, zone map[string]interface{}, sp
 	// in non-multisite case zone name equals to rgw instance name
 	defaultMetaPool = defaultMetaPool + ":" + name
 	zonePoolNSSuffix := map[string]string{
-		"domain_root":     ".meta.root",
-		"control_pool":    ".control",
-		"gc_pool":         ".log.gc",
-		"lc_pool":         ".log.lc",
-		"log_pool":        ".log",
-		"intent_log_pool": ".log.intent",
-		"usage_log_pool":  ".log.usage",
-		"roles_pool":      ".meta.roles",
-		"reshard_pool":    ".log.reshard",
-		"user_keys_pool":  ".meta.users.keys",
-		"user_email_pool": ".meta.users.email",
-		"user_swift_pool": ".meta.users.swift",
-		"user_uid_pool":   ".meta.users.uid",
-		"otp_pool":        ".otp",
-		"notif_pool":      ".log.notif",
-		"topics_pool":     ".meta.topics",  // introduced in Ceph v19
-		"account_pool":    ".meta.account", // introduced in Ceph v19
-		"group_pool":      ".meta.group",   // introduced in Ceph v19
+		"domain_root":         ".meta.root",
+		"control_pool":        ".control",
+		"gc_pool":             ".log.gc",
+		"lc_pool":             ".log.lc",
+		"log_pool":            ".log",
+		"intent_log_pool":     ".log.intent",
+		"usage_log_pool":      ".log.usage",
+		"roles_pool":          ".meta.roles",
+		"reshard_pool":        ".log.reshard",
+		"user_keys_pool":      ".meta.users.keys",
+		"user_email_pool":     ".meta.users.email",
+		"user_swift_pool":     ".meta.users.swift",
+		"user_uid_pool":       ".meta.users.uid",
+		"otp_pool":            ".otp",
+		"notif_pool":          ".log.notif",
+		"topics_pool":         ".meta.topics",        // introduced in Ceph v19
+		"account_pool":        ".meta.account",       // introduced in Ceph v19
+		"group_pool":          ".meta.group",         // introduced in Ceph v19
+		"restore_pool":        ".log.restore",        // introduced in Ceph v19
+		"bucket_logging_pool": ".log.bucket-logging", // introduced in Ceph v20
+		"dedup_pool":          ".dedup",              // introduced in Ceph v20
 	}
 	for pool, nsSuffix := range zonePoolNSSuffix {
 		// replace rgw internal index pools with namespaced metadata pool

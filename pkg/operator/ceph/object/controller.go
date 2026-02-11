@@ -375,22 +375,31 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to get latest CephObjectStore %q", request.NamespacedName.String())
 		}
 		objCtx, err := NewMultisiteContext(r.context, r.clusterInfo, cephObjectStore)
-		if err != nil {
+		if err != nil && !kerrors.IsNotFound(err) {
 			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to get object context")
 		}
-		opsCtx, err := NewMultisiteAdminOpsContext(objCtx, &cephObjectStore.Spec)
-		if err != nil {
-			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to get admin ops API context")
+
+		// Check dependents only if we have a working multisite context.
+		// Context may be nil when zonegroup/realm CRDs are already deleted. Only zone has finalizers.
+		if objCtx != nil {
+			opsCtx, err := NewMultisiteAdminOpsContext(objCtx, &cephObjectStore.Spec)
+			if err != nil {
+				// If admin ops context fails during deletion, skip dependency check.
+				// The store may never have been fully created (e.g. pools didn't exist),
+				// so there can't be any dependents.
+				log.NamedWarning(request.NamespacedName, logger, "failed to get admin ops context during deletion, skipping dependency check: %v", err)
+			} else {
+				deps, err := cephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore, objCtx, opsCtx)
+				if err != nil {
+					return reconcile.Result{}, *cephObjectStore, err
+				}
+				if !deps.Empty() {
+					err := reporting.ReportDeletionBlockedDueToDependents(r.opManagerContext, logger, r.client, cephObjectStore, deps)
+					return opcontroller.WaitForRequeueIfFinalizerBlocked, *cephObjectStore, err
+				}
+				reporting.ReportDeletionNotBlockedDueToDependents(r.opManagerContext, logger, r.client, r.recorder, cephObjectStore)
+			}
 		}
-		deps, err := cephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore, objCtx, opsCtx)
-		if err != nil {
-			return reconcile.Result{}, *cephObjectStore, err
-		}
-		if !deps.Empty() {
-			err := reporting.ReportDeletionBlockedDueToDependents(r.opManagerContext, logger, r.client, cephObjectStore, deps)
-			return opcontroller.WaitForRequeueIfFinalizerBlocked, *cephObjectStore, err
-		}
-		reporting.ReportDeletionNotBlockedDueToDependents(r.opManagerContext, logger, r.client, r.recorder, cephObjectStore)
 
 		cfg := clusterConfig{
 			context:     r.context,
@@ -676,6 +685,17 @@ func (r *ReconcileCephObjectStore) getMultisiteResourceNames(cephObjectStore *ce
 		return "", "", "", nil, waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "error getting CephObjectZone %q", cephObjectStore.Spec.Zone.Name)
 	}
 	log.NamedDebug(nsName, logger, "CephObjectZone resource %s found", zone.Name)
+
+	// Wait for the zone to be fully configured (pools, placements, period commit)
+	// to avoid race condition in period commit in objectStore and Zone controllers
+	if zone.Status == nil || zone.Status.Phase != k8sutil.ReadyStatus {
+		gotPhase := ""
+		if zone.Status != nil {
+			gotPhase = zone.Status.Phase
+		}
+		logger.Infof("CephObjectZone %q is not ready yet (phase %q). waiting for it to be configured", zoneName, gotPhase)
+		return "", "", "", nil, waitForRequeueIfObjectStoreNotReady, fmt.Errorf("CephObjectZone %q is not ready", zoneName)
+	}
 
 	zonegroup := &cephv1.CephObjectZoneGroup{}
 	err = r.client.Get(r.opManagerContext, types.NamespacedName{Name: zone.Spec.ZoneGroup, Namespace: cephObjectStore.Namespace}, zonegroup)

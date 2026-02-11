@@ -206,6 +206,8 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	// Make sure an ObjectZoneGroup is present
 	realmName, reconcileResponse, err := r.getCephObjectZoneGroup(cephObjectZone)
 	if err != nil {
+		// Controller can stuck here if zonegroup CR was deleted because zonegroup controller don't have finalizer.
+		// TODO: ask should we add finalizers to zonegroup and realm?
 		return reconcileResponse, *cephObjectZone, err
 	}
 
@@ -269,6 +271,11 @@ func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zon
 			return fmt.Errorf("unable to create pools for zone: %w", err)
 		}
 		log.NamedDebug(objContext.NsName(), logger, "created pools ceph zone %q", zone.Name)
+	}
+
+	// Ensure shared pools exist before creating the zone.
+	if err := object.CheckSharedPoolsExist(objContext, zone.Spec.SharedPools); err != nil {
+		return errors.Wrapf(err, "shared pools must exist before creating zone")
 	}
 
 	err = r.createZoneIfNotExists(objContext, zone)
