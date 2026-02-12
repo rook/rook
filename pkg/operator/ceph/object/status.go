@@ -86,10 +86,15 @@ func updateStatus(ctx context.Context, observedGeneration int64, replicaCount in
 		insecurePort := objectStore.Spec.Gateway.Port
 		if insecurePort > 0 {
 			objectStore.Status.Endpoints.Insecure = getAllDNSEndpoints(objectStore, insecurePort, false)
+		} else if insecurePort == 0 {
+			objectStore.Status.Endpoints.Insecure = []string{}
 		}
+
 		securePort := objectStore.Spec.Gateway.SecurePort
 		if securePort > 0 {
 			objectStore.Status.Endpoints.Secure = getAllDNSEndpoints(objectStore, securePort, true)
+		} else if securePort == 0 {
+			objectStore.Status.Endpoints.Secure = []string{}
 		}
 
 		if cephx != nil {
