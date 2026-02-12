@@ -748,6 +748,97 @@ function test_csi_nfs_workload {
   kubectl exec -t pod/csinfs-demo-pod -- ls -alh /var/lib/www/html/
 }
 
+function test_csi_nvmeof_workload {
+  cd "${REPO_DIR}/deploy/examples/csi/nvmeof"
+
+  local cephcsi_image="${1:-quay.io/nixpanic/cephcsi:nvmeof}"
+  local gateway_svc="rook-ceph-nvmeof-nvmeof-a"
+  local service_ip
+  local old_gateway_pod
+
+  sed -i 's/failureDomain: .*/failureDomain: osd/' nvmeof-pool.yaml
+  sed -i 's/size: .*/size: 1/' nvmeof-pool.yaml
+  kubectl create -f nvmeof-pool.yaml
+  wait_for cephblockpool nvmeof rook-ceph 600
+
+  kubectl create -f "${REPO_DIR}/deploy/examples/nvmeof-test.yaml"
+  timeout 300 bash <<EOF
+until kubectl -n rook-ceph get pod --no-headers | awk '/rook-ceph-nvmeof-nvmeof-a-/ {print \$3}' | grep -q "^Running$"; do
+  echo "waiting for NVMe-oF gateway pod to be running"
+  sleep 5
+done
+EOF
+
+  service_ip="$(kubectl -n rook-ceph get svc "${gateway_svc}" -o jsonpath='{.spec.clusterIP}')"
+  if [[ -z "${service_ip}" ]]; then
+    echo "failed to discover gateway service IP for ${gateway_svc}"
+    exit 1
+  fi
+
+  sed -i "s|nvmeofGatewayAddress: \".*\"|nvmeofGatewayAddress: \"${service_ip}\"|g" storageclass.yaml
+  sed -i "s|\"address\": \".*\"|\"address\": \"${service_ip}\"|g" storageclass.yaml
+  sed -i "s|image: quay.io/cephcsi/cephcsi:.*|image: ${cephcsi_image}|g" provisioner.yaml
+  sed -i "s|image: quay.io/cephcsi/cephcsi:.*|image: ${cephcsi_image}|g" node-plugin.yaml
+
+  kubectl create -f provisioner.yaml
+  kubectl -n rook-ceph wait --for=condition=available deployment/csi-nvmeofplugin-provisioner --timeout=300s
+
+  kubectl create -f storageclass.yaml
+  kubectl create -f pvc.yaml
+  kubectl wait pvc/nvmeof-external-volume --for=jsonpath='{.status.phase}'=Bound --timeout=300s
+
+  # Ensure host kernel has NVMe/TCP initiator support for nodeplugin.
+  sudo modprobe nvme-tcp || sudo modprobe nvme_tcp || true
+  sudo modprobe nvme-fabrics || sudo modprobe nvme_fabrics || true
+  lsmod | grep -E 'nvme(_|-)(tcp|fabrics)' || true
+  if [[ ! -d /sys/module/nvme_tcp ]]; then
+    echo "nvme_tcp kernel module is required but unavailable on kernel $(uname -r)"
+    return 1
+  fi
+
+  kubectl create -f node-plugin.yaml
+  if ! kubectl -n rook-ceph rollout status daemonset/nvmeof.csi.ceph.com-nodeplugin --timeout=300s; then
+    kubectl -n rook-ceph get pods -l app=nvmeof.csi.ceph.com-nodeplugin -o wide || true
+    kubectl -n rook-ceph describe daemonset nvmeof.csi.ceph.com-nodeplugin || true
+    for pod in $(kubectl -n rook-ceph get pods -l app=nvmeof.csi.ceph.com-nodeplugin -o jsonpath='{.items[*].metadata.name}'); do
+      kubectl -n rook-ceph describe pod "$pod" || true
+      kubectl -n rook-ceph logs "$pod" -c csi-nvmeofplugin || true
+      kubectl -n rook-ceph logs "$pod" -c csi-nvmeofplugin --previous || true
+      kubectl -n rook-ceph logs "$pod" -c driver-registrar || true
+      kubectl -n rook-ceph logs "$pod" -c driver-registrar --previous || true
+    done
+    echo "nvmeof nodeplugin daemonset failed to become ready"
+    return 1
+  fi
+
+  kubectl create -f pod.yaml
+  kubectl wait pod/nvmeof-test-pod --for=condition=Ready --timeout=300s
+
+  kubectl -n default exec pod/nvmeof-test-pod -- sh -c "echo 'abcd' > /mnt/nvmeof/test.txt && cat /mnt/nvmeof/test.txt"
+  kubectl -n default exec pod/nvmeof-test-pod -- sh -c "grep -qx 'abcd' /mnt/nvmeof/test.txt"
+
+  old_gateway_pod="$(kubectl -n rook-ceph get pod --no-headers | awk '/rook-ceph-nvmeof-nvmeof-a-/ {print $1; exit}')"
+  kubectl -n rook-ceph delete pod "${old_gateway_pod}"
+  timeout 300 bash <<EOF
+until new_gateway_pod=\$(kubectl -n rook-ceph get pod --no-headers | awk '/rook-ceph-nvmeof-nvmeof-a-/ && \$3 == "Running" {print \$1; exit}') && [[ -n "\${new_gateway_pod}" && "\${new_gateway_pod}" != "${old_gateway_pod}" ]]; do
+  echo "waiting for NVMe-oF gateway pod restart"
+  sleep 5
+done
+EOF
+
+  kubectl get pvc,pod
+  kubectl -n default exec pod/nvmeof-test-pod -- sh -c "grep -qx 'abcd' /mnt/nvmeof/test.txt"
+  kubectl -n default exec pod/nvmeof-test-pod -- sh -c "echo 'abcd efg' > /mnt/nvmeof/test.txt && grep -qx 'abcd efg' /mnt/nvmeof/test.txt"
+
+  kubectl delete pod nvmeof-test-pod --grace-period=0 --force
+  kubectl wait --for=delete pod/nvmeof-test-pod --timeout=180s
+
+  kubectl create -f pod.yaml
+  kubectl wait pod/nvmeof-test-pod --for=condition=Ready --timeout=300s
+  kubectl -n default exec pod/nvmeof-test-pod -- sh -c "grep -qx 'abcd efg' /mnt/nvmeof/test.txt"
+  kubectl -n default exec pod/nvmeof-test-pod -- sh -c "echo 'abcd efg hij' > /mnt/nvmeof/test.txt && grep -qx 'abcd efg hij' /mnt/nvmeof/test.txt"
+}
+
 function toolbox() {
   kubectl -n rook-ceph exec -it "$(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')" -- "$@"
 }
