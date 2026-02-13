@@ -52,6 +52,8 @@ type Interface interface {
 	CephObjectRealms() CephObjectRealmInformer
 	// CephObjectStores returns a CephObjectStoreInformer.
 	CephObjectStores() CephObjectStoreInformer
+	// CephObjectStoreAccounts returns a CephObjectStoreAccountInformer.
+	CephObjectStoreAccounts() CephObjectStoreAccountInformer
 	// CephObjectStoreUsers returns a CephObjectStoreUserInformer.
 	CephObjectStoreUsers() CephObjectStoreUserInformer
 	// CephObjectZones returns a CephObjectZoneInformer.
@@ -141,6 +143,11 @@ func (v *version) CephObjectRealms() CephObjectRealmInformer {
 // CephObjectStores returns a CephObjectStoreInformer.
 func (v *version) CephObjectStores() CephObjectStoreInformer {
 	return &cephObjectStoreInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// CephObjectStoreAccounts returns a CephObjectStoreAccountInformer.
+func (v *version) CephObjectStoreAccounts() CephObjectStoreAccountInformer {
+	return &cephObjectStoreAccountInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // CephObjectStoreUsers returns a CephObjectStoreUserInformer.
