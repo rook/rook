@@ -444,7 +444,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 			}
 		}
 		if args[0] == "realm" {
-			if args[1] == "delete" {
+			if args[1] == "rm" {
 				realmDeleted = true
 				return "", nil
 			}
@@ -2029,8 +2029,8 @@ func Test_sharedPoolsExist(t *testing.T) {
 			}
 			context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", clusterInfo: client.AdminTestClusterInfo("mycluster")}
 
-			if err := sharedPoolsExist(context, tt.args.sharedPools); (err != nil) != tt.wantErr {
-				t.Errorf("sharedPoolsExist() error = %v, wantErr %v", err, tt.wantErr)
+			if err := CheckSharedPoolsExist(context, tt.args.sharedPools); (err != nil) != tt.wantErr {
+				t.Errorf("CheckSharedPoolsExist() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
