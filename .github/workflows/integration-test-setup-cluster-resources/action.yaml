@@ -4,6 +4,10 @@ inputs:
   kubernetes-version:
     description: kubernetes version to use for the workflow
     required: true
+  install-nvme-prerequisites:
+    description: install nvme-of initiator prerequisites on host
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -43,6 +47,20 @@ runs:
         cpus: 2
         addons: ingress
         cni: calico
+
+    - name: install nvme initiator prerequisites
+      if: inputs.install-nvme-prerequisites == 'true'
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y nvme-cli
+        sudo apt-get install -y "linux-modules-extra-$(uname -r)" || sudo apt-get install -y linux-modules-extra-azure || true
+        sudo modprobe nvme-fabrics || sudo modprobe nvme_fabrics || true
+        sudo modprobe nvme-tcp || sudo modprobe nvme_tcp || true
+        if [[ ! -d /sys/module/nvme_tcp ]]; then
+          echo "nvme_tcp kernel module is unavailable on this runner kernel: $(uname -r)"
+          exit 1
+        fi
 
     - name: install deps
       shell: bash --noprofile --norc -eo pipefail -x {0}
