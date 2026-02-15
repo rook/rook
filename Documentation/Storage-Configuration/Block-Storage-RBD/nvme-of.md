@@ -5,6 +5,12 @@ title: NVMe-oF Block Storage
 
 **This feature is experimental**
 
+!!! warning
+    The `listeners` list uses gateway pod IPs. If a gateway pod restarts
+    and gets a new IP, existing volumes will fail to mount. The
+    StorageClass is immutable, so you must delete and recreate it with
+    the new IPs. We are working to improve this behavior.
+
 NVMe over Fabrics (NVMe-oF) allows RBD volumes to be exposed and accessed via the NVMe/TCP protocol. This enables both Kubernetes pods within the cluster and external clients outside the cluster to connect to Ceph block storage using standard NVMe-oF initiators, providing high-performance block storage access over the network.
 
 ## Goals
