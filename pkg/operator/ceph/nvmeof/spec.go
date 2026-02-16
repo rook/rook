@@ -217,7 +217,8 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 	if hostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-	nvmeof.Spec.Placement.ApplyToPodSpec(&podSpec)
+	// Apply default spreading for gateway pods and let user-provided placement override defaults.
+	getDefaultNVMeOFPlacement().Merge(nvmeof.Spec.Placement).ApplyToPodSpec(&podSpec)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -252,6 +253,23 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 	}
 
 	return deployment, nil
+}
+
+func getDefaultNVMeOFPlacement() cephv1.Placement {
+	return cephv1.Placement{
+		TopologySpreadConstraints: []v1.TopologySpreadConstraint{
+			{
+				MaxSkew:           1,
+				TopologyKey:       "kubernetes.io/hostname",
+				WhenUnsatisfiable: v1.ScheduleAnyway,
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": AppName,
+					},
+				},
+			},
+		},
+	}
 }
 
 // createCephConfigInitContainer creates a minimal init container that generates
