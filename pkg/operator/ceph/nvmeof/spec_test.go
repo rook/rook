@@ -187,6 +187,95 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.GreaterOrEqual(t, nvmeofCont.LivenessProbe.TimeoutSeconds, int32(5))
 	})
 
+	t.Run("applies default placement when not specified", func(t *testing.T) {
+		nvmeof := &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
+				Pool:      "nvmeof",
+				Group:     "group-a",
+				Instances: 3,
+			},
+		}
+
+		r, configHash := newDeploymentSpecTest(t)
+		configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
+		d, err := r.makeDeployment(nvmeof, "0", configMapName, configHash)
+		assert.NoError(t, err)
+
+		if assert.NotNil(t, d.Spec.Template.Spec.Affinity) {
+			assert.Nil(t, d.Spec.Template.Spec.Affinity.PodAntiAffinity)
+		}
+
+		assert.Len(t, d.Spec.Template.Spec.TopologySpreadConstraints, 1)
+		assert.Equal(t, int32(1), d.Spec.Template.Spec.TopologySpreadConstraints[0].MaxSkew)
+		assert.Equal(t, "kubernetes.io/hostname", d.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey)
+		assert.Equal(t, v1.ScheduleAnyway, d.Spec.Template.Spec.TopologySpreadConstraints[0].WhenUnsatisfiable)
+		assert.Equal(t, map[string]string{"app": AppName}, d.Spec.Template.Spec.TopologySpreadConstraints[0].LabelSelector.MatchLabels)
+	})
+
+	t.Run("user placement overrides default placement", func(t *testing.T) {
+		nvmeof := &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
+				Pool:      "nvmeof",
+				Group:     "group-a",
+				Instances: 3,
+				Placement: cephv1.Placement{
+					PodAntiAffinity: &v1.PodAntiAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+							{
+								TopologyKey: "topology.kubernetes.io/zone",
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"app": "custom-app",
+									},
+								},
+							},
+						},
+					},
+					TopologySpreadConstraints: []v1.TopologySpreadConstraint{
+						{
+							MaxSkew:           2,
+							TopologyKey:       "topology.kubernetes.io/zone",
+							WhenUnsatisfiable: v1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"app": "custom-app",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		r, configHash := newDeploymentSpecTest(t)
+		configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
+		d, err := r.makeDeployment(nvmeof, "0", configMapName, configHash)
+		assert.NoError(t, err)
+
+		assert.NotNil(t, d.Spec.Template.Spec.Affinity)
+		assert.NotNil(t, d.Spec.Template.Spec.Affinity.PodAntiAffinity)
+		assert.Len(t, d.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, 1)
+		assert.Empty(t, d.Spec.Template.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
+		assert.Equal(t, "topology.kubernetes.io/zone", d.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey)
+		assert.Equal(t, map[string]string{"app": "custom-app"}, d.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchLabels)
+
+		assert.Len(t, d.Spec.Template.Spec.TopologySpreadConstraints, 1)
+		assert.Equal(t, int32(2), d.Spec.Template.Spec.TopologySpreadConstraints[0].MaxSkew)
+		assert.Equal(t, "topology.kubernetes.io/zone", d.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey)
+		assert.Equal(t, v1.DoNotSchedule, d.Spec.Template.Spec.TopologySpreadConstraints[0].WhenUnsatisfiable)
+		assert.Equal(t, map[string]string{"app": "custom-app"}, d.Spec.Template.Spec.TopologySpreadConstraints[0].LabelSelector.MatchLabels)
+	})
+
 	t.Run("with host network", func(t *testing.T) {
 		nvmeof := &cephv1.CephNVMeOFGateway{
 			ObjectMeta: metav1.ObjectMeta{
