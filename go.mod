@@ -22,7 +22,7 @@ require (
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20260205113234-c2ca44439222
 	github.com/ceph/ceph-csi/api v0.0.0-20241216133622-88b7e0d6684f
-	github.com/ceph/go-ceph v0.37.0
+	github.com/ceph/go-ceph v0.38.0
 	github.com/coreos/pkg v0.0.0-20240122114842-bbd7aa9bf6fb
 	github.com/csi-addons/kubernetes-csi-addons v0.14.0
 	github.com/gemalto/kmip-go v0.1.0
@@ -165,7 +165,7 @@ require (
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/oauth2 v0.32.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/term v0.37.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.13.0 // indirect
