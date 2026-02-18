@@ -99,7 +99,8 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 					Affinity: &v1.Affinity{
 						NodeAffinity: getNodeAffinity(pluginNodeAffinityEnv, &v1.NodeAffinity{}),
 					},
-					Tolerations: getToleration(pluginTolerationsEnv, []v1.Toleration{}),
+					Tolerations:     getToleration(pluginTolerationsEnv, []v1.Toleration{}),
+					ImagePullPolicy: v1.PullPolicy(CSIParam.ImagePullPolicy),
 				},
 				Resources:              csiopv1.NodePluginResourcesSpec{},
 				KubeletDirPath:         CSIParam.KubeletDirPath,
@@ -115,7 +116,8 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 					Affinity: &v1.Affinity{
 						NodeAffinity: getNodeAffinity(provisionerNodeAffinityEnv, &v1.NodeAffinity{}),
 					},
-					Tolerations: getToleration(provisionerTolerationsEnv, []v1.Toleration{}),
+					Tolerations:     getToleration(provisionerTolerationsEnv, []v1.Toleration{}),
+					ImagePullPolicy: v1.PullPolicy(CSIParam.ImagePullPolicy),
 				},
 				Replicas:  &CSIParam.ProvisionerReplicas,
 				Resources: csiopv1.ControllerPluginResourcesSpec{},
