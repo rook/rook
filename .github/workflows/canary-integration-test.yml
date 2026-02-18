@@ -1957,6 +1957,78 @@ jobs:
         with:
           debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
+  nvmeof-protocol:
+    runs-on: ubuntu-22.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ["quay.io/ceph/ceph:v20"]
+        kubernetes-version: ${{ fromJson(inputs.kubernetes-version) }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
+        with:
+          kubernetes-version: ${{ matrix.kubernetes-version }}
+
+      - name: install nvme initiator prerequisites
+        run: tests/scripts/github-action-helper.sh install_nvme_initiator_prerequisites
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
+
+      - name: validate-yaml
+        run: tests/scripts/github-action-helper.sh validate_yaml
+
+      - name: use local disk and create partitions for osds
+        run: |
+          tests/scripts/github-action-helper.sh use_local_disk
+          tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+      - name: deploy cluster without ceph-csi operator
+        run: |
+          OPERATOR_MANIFEST="deploy/examples/operator.yaml"
+          sed -i 's|# ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.1"|ROOK_CSI_CEPH_IMAGE: "quay.io/nixpanic/cephcsi:nvmeof"|' "${OPERATOR_MANIFEST}"
+          sed -i 's|ROOK_USE_CSI_OPERATOR: "true"|ROOK_USE_CSI_OPERATOR: "false"|' "${OPERATOR_MANIFEST}"
+
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "${OPERATOR_MANIFEST}"
+
+          export BLOCK="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          yq w -i -d0 deploy/examples/cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"
+          kubectl create -f deploy/examples/cluster-test.yaml
+          tests/scripts/github-action-helper.sh deploy_toolbox
+
+      - name: wait for prepare pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
+
+      - name: wait for ceph to be ready
+        env:
+          CSI_POD_MIN_COUNT: "6"
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+
+      - name: test ceph-csi-nvmeof plugin restart and data persistence
+        run: tests/scripts/github-action-helper.sh test_csi_nvmeof_workload
+
+      - name: collect common logs
+        if: always()
+        uses: ./.github/workflows/collect-logs
+        with:
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
+      - name: consider (post-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
   encryption-pvc-kms-ibm-kp:
     runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
