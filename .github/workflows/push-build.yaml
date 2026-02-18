@@ -20,7 +20,8 @@ permissions:
 jobs:
   push-image-to-container-registry:
     runs-on: ubuntu-22.04
-    if: github.repository == 'rook/rook'
+    # Run in upstream rook/rook or fork subhamkrai/rook
+    if: github.repository == 'rook/rook' || github.repository == 'subhamkrai/rook'
     steps:
       - name: checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -95,6 +96,15 @@ jobs:
           BRANCH_NAME: ${{ env.BRANCH_NAME }}
           AWS_USR: ${{ secrets.AWS_USR }}
           AWS_PSW: ${{ secrets.AWS_PSW }}
-          GITHUB_REF: $ {{ env.GITHUB_REF }}
+          GITHUB_REF: ${{ env.GITHUB_REF }}
         run: |
+          # Fork: push only to GHCR (no Docker Hub/Quay). Upstream unchanged.
+          if [ "${{ github.repository }}" != "rook/rook" ]; then
+            export GHCR_REGISTRY="ghcr.io/${{ github.repository_owner }}"
+            export DOCKER_REGISTRY="ghcr.io/${{ github.repository_owner }}"
+            export QUAY_REGISTRY="ghcr.io/${{ github.repository_owner }}"
+            export REGISTRIES="ghcr.io/${{ github.repository_owner }}"
+            [ -n "${{ secrets.S3_BUCKET_FORK }}" ] && export S3_BUCKET="${{ secrets.S3_BUCKET_FORK }}"
+            [ -n "${{ secrets.HELM_S3_BUCKET_FORK }}" ] && export HELM_S3_BUCKET="${{ secrets.HELM_S3_BUCKET_FORK }}"
+          fi
           tests/scripts/build-release.sh

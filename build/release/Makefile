@@ -56,12 +56,15 @@ FLAVORS ?= output images docs helm charts
 DOCKER_REGISTRY ?= docker.io/rook
 QUAY_REGISTRY ?= quay.io/rook
 GHCR_REGISTRY ?= ghcr.io/rook
+# Allow override from env (e.g. fork: REGISTRIES=ghcr.io/owner)
+ifeq ($(origin REGISTRIES),undefined)
 ifeq ($(TAGGED_RELEASE),false)
 # Publish always to dockerhub, including master and interim builds
 REGISTRIES = $(DOCKER_REGISTRY)
 else
 # Publish the images to all registries for tagged releases
 REGISTRIES = $(DOCKER_REGISTRY) $(QUAY_REGISTRY) $(GHCR_REGISTRY)
+endif
 endif
 IMAGE_ARCHS := $(subst linux_,,$(filter linux_%,$(PLATFORMS)))
 IMAGE_PLATFORMS := $(subst _,/,$(subst $(SPACE),$(COMMA),$(filter linux_%,$(PLATFORMS))))

@@ -36,9 +36,17 @@ if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs -d '\n')
 fi
 
-# Use Git access token for accessing the docs repo if set
+# Use Git access token for accessing the docs repo if set.
+# In GitHub Actions when not in upstream rook/rook, default to fork's docs repo.
 # shellcheck disable=SC2034
-export DOCS_GIT_REPO="${DOCS_GIT_REPO:-git@github.com:rook/rook.github.io.git}"
+if [ -z "${DOCS_GIT_REPO:-}" ]; then
+    if [ -n "${GITHUB_REPOSITORY:-}" ] && [ "${GITHUB_REPOSITORY}" != "rook/rook" ]; then
+        DOCS_GIT_REPO="git@github.com:${GITHUB_REPOSITORY_OWNER:-unknown}/rook.github.io.git"
+    else
+        DOCS_GIT_REPO="git@github.com:rook/rook.github.io.git"
+    fi
+fi
+export DOCS_GIT_REPO
 if [ -n "${GIT_API_TOKEN}" ]; then
     DOCS_GIT_REPO="${DOCS_GIT_REPO//git@/}"
     DOCS_GIT_REPO="${DOCS_GIT_REPO//:/\/}"
