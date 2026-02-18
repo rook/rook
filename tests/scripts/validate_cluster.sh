@@ -102,9 +102,10 @@ function test_demo_pool {
 }
 
 function test_csi {
-  timeout 360 bash -x <<-'EOF'
-    until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c csi.)" -ge 7 ]]; do
-      echo "waiting for csi pods to be ready"
+  csi_pod_min_count="${CSI_POD_MIN_COUNT:-7}"
+  timeout 360 bash -x <<EOF
+    until [[ "\$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running | grep -c csi.)" -ge "${csi_pod_min_count}" ]]; do
+      echo "waiting for csi pods to be ready (need ${csi_pod_min_count})"
       kubectl -n rook-ceph get pods | grep csi
       sleep 5
     done
