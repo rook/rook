@@ -681,7 +681,7 @@ func TestInitializeBlock(t *testing.T) {
 	// Common vars for all the tests
 	devices := &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
-			"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda"}},
+			"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
 		},
 	}
 
@@ -816,7 +816,7 @@ func TestInitializeBlock(t *testing.T) {
 	{
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb"}},
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
 			},
 		}
 
@@ -879,7 +879,7 @@ func TestInitializeBlock(t *testing.T) {
 	{
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", OSDsPerDevice: 2, MetadataDevice: "sdb"}},
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", OSDsPerDevice: 2, MetadataDevice: "sdb"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
 			},
 		}
 
@@ -942,8 +942,8 @@ func TestInitializeBlock(t *testing.T) {
 	{
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda"}},
-				"sdc": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sdc"}},
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
+				"sdc": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sdc"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
 			},
 		}
 
@@ -965,8 +965,8 @@ func TestInitializeBlock(t *testing.T) {
 	{
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb1"}},
-				"sdc": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sdc", MetadataDevice: "sdb1"}},
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb1"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
+				"sdc": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sdc", MetadataDevice: "sdb1"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
 			},
 		}
 
@@ -1012,7 +1012,7 @@ func TestInitializeBlock(t *testing.T) {
 	{
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb1"}},
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb1"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
 			},
 		}
 
@@ -1054,8 +1054,8 @@ func TestInitializeBlock(t *testing.T) {
 		metadataDevicePath := "/dev/test-rook-vg/test-rook-lv"
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb1"}},
-				"sdc": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sdc", MetadataDevice: metadataDevicePath}},
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb1"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
+				"sdc": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sdc", MetadataDevice: metadataDevicePath}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
 			},
 		}
 
@@ -1145,7 +1145,7 @@ func TestInitializeBlock(t *testing.T) {
 		metadataDevicePath := "/dev/nvme0n1"
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: metadataDeviceByIDPath}},
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: metadataDeviceByIDPath}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
 			},
 		}
 
@@ -1219,7 +1219,7 @@ func TestInitializeBlock(t *testing.T) {
 		metadataDevicePath := "/dev/nvme0n1p1"
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: metadataDeviceByIDPath}},
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: metadataDeviceByIDPath}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
 			},
 		}
 
@@ -1276,6 +1276,7 @@ func TestInitializeBlock(t *testing.T) {
 						Name:           "/dev/sda",
 						MetadataDevice: "/dev/disk/by-path/pci-0000:d8:00.0-nvme-1",
 					},
+					DeviceInfo: &sys.LocalDisk{Type: sys.DiskType},
 				},
 			},
 		}
@@ -1359,6 +1360,7 @@ func TestInitializeBlock(t *testing.T) {
 						Name:           "/dev/sda",
 						MetadataDevice: "/dev/disk/by-path/pci-0000:3a:00.0-nvme-1-part1",
 					},
+					DeviceInfo: &sys.LocalDisk{Type: sys.DiskType},
 				},
 			},
 		}
@@ -1421,6 +1423,7 @@ func TestInitializeBlock(t *testing.T) {
 						Name:           "/dev/sda",
 						MetadataDevice: metadataDevicePath,
 					},
+					DeviceInfo: &sys.LocalDisk{Type: sys.DiskType},
 				},
 			},
 		}
@@ -1503,6 +1506,7 @@ func TestInitializeBlock(t *testing.T) {
 						Name:           "/dev/sda",
 						MetadataDevice: "/dev/disk/by-path/pci-0000:d8:00.0-nvme-1",
 					},
+					DeviceInfo: &sys.LocalDisk{Type: sys.DiskType},
 				},
 			},
 		}
@@ -1903,7 +1907,7 @@ func TestInitializeBlockWithMD(t *testing.T) {
 	{
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "/dev/sdd"}},
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "/dev/sdd"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
 			},
 		}
 
@@ -1957,7 +1961,7 @@ func TestInitializeBlockWithMD(t *testing.T) {
 	{
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "vg0/lv0"}},
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "vg0/lv0"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
 			},
 		}
 		executor := &exectest.MockExecutor{}
@@ -1997,6 +2001,58 @@ func TestInitializeBlockWithMD(t *testing.T) {
 				{
 					Name: "vg0/lv0",
 					Type: "lvm",
+				},
+			},
+		}
+
+		err := a.initializeDevicesLVMMode(context, devices)
+		assert.NoError(t, err, "failed LV as metadataDevice test")
+	}
+	// Test initialize multipath device with metadata devices
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"dm-0": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/dm-0", MetadataDevice: "/dev/sdd"}, DeviceInfo: &sys.LocalDisk{Type: sys.MultiPath, RealPath: "/dev/mapper/mpatha"}},
+			},
+		}
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return err
+			}
+
+			// Second command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/mapper/mpatha" && args[12] == "--db-devices" && args[13] == "/dev/sdd" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/mapper/mpatha" && args[12] == "--db-devices" && args[13] == "/dev/sdd" && args[14] == "--report" {
+				return `[{"block_db": "/dev/sdd", "encryption": "None", "data": "/dev/mapper/mpatha", "data_size": "100.00 GB", "block_db_size": "10.00 GB"}]`, nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 4}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{
+					Name:     "sdd",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/wwn-0x6f4ee080051fd00029bb505f1df6ee3a /dev/disk/by-path/pci-0000:3b:00.0-scsi-0:2:0:0",
+				},
+				{
+					Name:     "dm-0",
+					Type:     "mpath",
+					RealPath: "/dev/mapper/mpatha",
 				},
 			},
 		}

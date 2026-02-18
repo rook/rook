@@ -610,7 +610,14 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 			}
 
 			logger.Infof("configuring new LVM device %s", name)
-			deviceArg := path.Join("/dev", name)
+			var deviceArg string
+			if device.DeviceInfo.Type == sys.MultiPath {
+				// `ceph-volume lvm batch` does not support kernel names (e.g. `/dev/dm-X`)
+				// for multipath devices. We should use real names (e.g. `/dev/mapper/mpathX`) instead.
+				deviceArg = device.DeviceInfo.RealPath
+			} else {
+				deviceArg = path.Join("/dev", name)
+			}
 
 			deviceOSDCount := osdsPerDeviceCount
 			if device.Config.OSDsPerDevice > 1 {
