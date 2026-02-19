@@ -85,6 +85,11 @@ monitoring:
 # imagePullSecrets:
 # - name: my-registry-secret
 
+# Labels and annotations to add to the CephCluster CR
+cephClusterMetadata:
+  annotations: {}
+  labels: {}
+
 # Specify these values to override the Ceph image in the cephClusterSpec below.
 # If specifying these values, do not include the cephVersion section in the cephClusterSpec.
 cephImage:
