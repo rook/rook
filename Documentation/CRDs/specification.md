@@ -28,6 +28,8 @@ Resource Types:
 </li><li>
 <a href="#ceph.rook.io/v1.CephFilesystemSubVolumeGroup">CephFilesystemSubVolumeGroup</a>
 </li><li>
+<a href="#ceph.rook.io/v1.CephLuaScript">CephLuaScript</a>
+</li><li>
 <a href="#ceph.rook.io/v1.CephNFS">CephNFS</a>
 </li><li>
 <a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>
@@ -1590,6 +1592,180 @@ CephFilesystemSubVolumeGroupStatus
 <td>
 <em>(Optional)</em>
 <p>Status represents the status of a CephFilesystem SubvolumeGroup</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephLuaScript">CephLuaScript
+</h3>
+<div>
+<p>CephLuaScript represents a Ceph Lua Script</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>apiVersion</code><br/>
+string</td>
+<td>
+<code>
+ceph.rook.io/v1
+</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code><br/>
+string
+</td>
+<td><code>CephLuaScript</code></td>
+</tr>
+<tr>
+<td>
+<code>metadata</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.LuaScriptSpec">
+LuaScriptSpec
+</a>
+</em>
+</td>
+<td>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>objectStoreName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The name of the object store to attach the Lua script</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>objectStoreNamespace</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The namespace of the object store to attach the Lua script</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tenant</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The tenant of users for which the Lua script is constrained against.
+This field is ignored when uploading a Lua script with the background context.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>context</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephLuaScriptContext">
+CephLuaScriptContext
+</a>
+</em>
+</td>
+<td>
+<p>The context for the Lua script to hook execution.
+One of preRequest, postRequest, background, getData, putData.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>script</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The Lua script body</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>scriptBase64</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The Lua script body in base64 encoded form</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>scriptURL</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The Lua script body fetchable through a URL</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>packages</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.LuaPackageSpec">
+[]LuaPackageSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>A list of Lua packages to be installed and added to the allowlist</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.LuaScriptStatus">
+LuaScriptStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
@@ -4390,6 +4566,37 @@ string
 </td>
 </tr>
 </tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephLuaScriptContext">CephLuaScriptContext
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.LuaScriptSpec">LuaScriptSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;background&#34;</p></td>
+<td><p>Will execute within a specified time interval</p>
+</td>
+</tr><tr><td><p>&#34;getData&#34;</p></td>
+<td><p>Will execute on objects&rsquo; data when objects are downloaded</p>
+</td>
+</tr><tr><td><p>&#34;postRequest&#34;</p></td>
+<td><p>Will execute after each operation is performed</p>
+</td>
+</tr><tr><td><p>&#34;preRequest&#34;</p></td>
+<td><p>Will execute before each operation is performed</p>
+</td>
+</tr><tr><td><p>&#34;putData&#34;</p></td>
+<td><p>Will execute on objects&rsquo; data when objects are uploaded</p>
+</td>
+</tr></tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CephNVMeOFGateway">CephNVMeOFGateway
 </h3>
@@ -9177,6 +9384,208 @@ k8s.io/apimachinery/pkg/api/resource.Quantity
 <td>
 <em>(Optional)</em>
 <p>MaxLogSize is the maximum size of the log per ceph daemons. Must be at least 1M.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.LuaPackageSpec">LuaPackageSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.LuaScriptSpec">LuaScriptSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The Lua package name</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>version</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The Lua package version</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>allowCompilation</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether a C compiler should compile the package source code. This defaults to false.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.LuaScriptSpec">LuaScriptSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephLuaScript">CephLuaScript</a>)
+</p>
+<div>
+<p>LuaScriptSpec represents the spec of a Lua script</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>objectStoreName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The name of the object store to attach the Lua script</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>objectStoreNamespace</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The namespace of the object store to attach the Lua script</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tenant</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The tenant of users for which the Lua script is constrained against.
+This field is ignored when uploading a Lua script with the background context.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>context</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephLuaScriptContext">
+CephLuaScriptContext
+</a>
+</em>
+</td>
+<td>
+<p>The context for the Lua script to hook execution.
+One of preRequest, postRequest, background, getData, putData.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>script</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The Lua script body</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>scriptBase64</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The Lua script body in base64 encoded form</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>scriptURL</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The Lua script body fetchable through a URL</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>packages</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.LuaPackageSpec">
+[]LuaPackageSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>A list of Lua packages to be installed and added to the allowlist</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.LuaScriptStatus">LuaScriptStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephLuaScript">CephLuaScript</a>)
+</p>
+<div>
+<p>LuaScriptStatus represents the status of Ceph Lua Script</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>Status</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Status">
+Status
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>Status</code> are embedded into this type.)
+</p>
 </td>
 </tr>
 </tbody>
@@ -14829,7 +15238,7 @@ int
 <h3 id="ceph.rook.io/v1.Status">Status
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>, <a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>, <a href="#ceph.rook.io/v1.CephObjectZone">CephObjectZone</a>, <a href="#ceph.rook.io/v1.CephObjectZoneGroup">CephObjectZoneGroup</a>, <a href="#ceph.rook.io/v1.FileMirrorStatus">FileMirrorStatus</a>, <a href="#ceph.rook.io/v1.NFSStatus">NFSStatus</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewayStatus">NVMeOFGatewayStatus</a>, <a href="#ceph.rook.io/v1.RBDMirrorStatus">RBDMirrorStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>, <a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>, <a href="#ceph.rook.io/v1.CephObjectZone">CephObjectZone</a>, <a href="#ceph.rook.io/v1.CephObjectZoneGroup">CephObjectZoneGroup</a>, <a href="#ceph.rook.io/v1.FileMirrorStatus">FileMirrorStatus</a>, <a href="#ceph.rook.io/v1.LuaScriptStatus">LuaScriptStatus</a>, <a href="#ceph.rook.io/v1.NFSStatus">NFSStatus</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewayStatus">NVMeOFGatewayStatus</a>, <a href="#ceph.rook.io/v1.RBDMirrorStatus">RBDMirrorStatus</a>)
 </p>
 <div>
 <p>Status represents the status of an object</p>

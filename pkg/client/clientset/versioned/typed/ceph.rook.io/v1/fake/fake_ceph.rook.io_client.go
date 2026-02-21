@@ -68,6 +68,10 @@ func (c *FakeCephV1) CephFilesystemSubVolumeGroups(namespace string) v1.CephFile
 	return newFakeCephFilesystemSubVolumeGroups(c, namespace)
 }
 
+func (c *FakeCephV1) CephLuaScripts(namespace string) v1.CephLuaScriptInterface {
+	return newFakeCephLuaScripts(c, namespace)
+}
+
 func (c *FakeCephV1) CephNFSes(namespace string) v1.CephNFSInterface {
 	return newFakeCephNFSes(c, namespace)
 }

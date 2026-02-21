@@ -63,6 +63,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&CephBlockPoolList{},
 		&CephFilesystem{},
 		&CephFilesystemList{},
+		&CephLuaScript{},
 		&CephNFS{},
 		&CephNFSList{},
 		&CephNVMeOFGateway{},
