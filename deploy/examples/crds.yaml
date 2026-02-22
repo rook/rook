@@ -9536,6 +9536,10 @@ spec:
                         type: string
                     type: object
                   type: array
+                observedGeneration:
+                  description: ObservedGeneration is the latest generation observed by the controller.
+                  format: int64
+                  type: integer
                 phase:
                   description: ConditionType represent a resource's status
                   type: string
