@@ -9543,11 +9543,8 @@ spec:
                         type: string
                     type: object
                   type: array
-                observedGeneration:
-                  description: ObservedGeneration is the latest generation observed by the controller.
-                  format: int64
-                  type: integer
                 phase:
+                  description: ConditionType represent a resource's status
                   type: string
               type: object
               x-kubernetes-preserve-unknown-fields: true
@@ -12759,6 +12756,10 @@ spec:
               type: string
             metadata:
               type: object
+            observedGeneration:
+              description: ObservedGeneration is the latest generation observed by the controller.
+              format: int64
+              type: integer
             spec:
               description: ObjectStoreSpec represent the spec of a pool
               properties:
