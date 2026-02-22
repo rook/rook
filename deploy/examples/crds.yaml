@@ -9424,7 +9424,7 @@ spec:
     listKind: CephLuaScriptList
     plural: cephluascripts
     shortNames:
-      - luascript
+      - cephls
     singular: cephluascript
   scope: Namespaced
   versions:
