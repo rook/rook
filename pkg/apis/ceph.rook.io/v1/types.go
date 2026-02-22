@@ -2809,16 +2809,17 @@ type CephLuaScriptContext string
 
 const (
 	// Will execute before each operation is performed
-	PreRequestCephLuaScriptContext  CephLuaScriptContext = "preRequest"
+	PreRequestCephLuaScriptContext CephLuaScriptContext = "preRequest"
 	// Will execute after each operation is performed
 	PostRequestCephLuaScriptContext CephLuaScriptContext = "postRequest"
 	// Will execute within a specified time interval
-	BackgroundCephLuaScriptContext  CephLuaScriptContext = "background"
+	BackgroundCephLuaScriptContext CephLuaScriptContext = "background"
 	// Will execute on objects' data when objects are downloaded
-	GetDataCephLuaScriptContext     CephLuaScriptContext = "getData"
+	GetDataCephLuaScriptContext CephLuaScriptContext = "getData"
 	// Will execute on objects' data when objects are uploaded
-	PutDataCephLuaScriptContext     CephLuaScriptContext = "putData"
+	PutDataCephLuaScriptContext CephLuaScriptContext = "putData"
 )
+
 // +genclient
 // +genclient:noStatus
 // +kubebuilder:resource:shortName=nfs,path=cephnfses
