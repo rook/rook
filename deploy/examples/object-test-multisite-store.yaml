@@ -1,0 +1,11 @@
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: test-store
+  namespace: rook-ceph
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: test-zone
