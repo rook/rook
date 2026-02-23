@@ -189,7 +189,16 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 
 	if !spec.PreservePoolsOnDelete {
 		if EmptyPool(spec.DataPool) && EmptyPool(spec.MetadataPool) {
-			log.NamedInfo(objContext.NsName(), logger, "skipping removal of pools since not specified in the object store")
+			if !IsNeedToCreateObjectStorePools(spec.SharedPools) {
+				// When shared pools are configured, "radosgw-admin zone delete" may leave behind
+				// per-zone pools (e.g., store-a.rgw.control, store-a.rgw.meta).
+				log.NamedInfo(objContext.NsName(), logger, "cleaning up per-zone ghost pools left by realm deletion")
+				if err := DeletePools(objContext, lastStore, objContext.Name); err != nil {
+					log.NamedWarning(objContext.NsName(), logger, "failed to clean up ghost pools: %v", err)
+				}
+			} else {
+				log.NamedInfo(objContext.NsName(), logger, "skipping removal of pools since not specified in the object store")
+			}
 			return nil
 		}
 		err = DeletePools(objContext, lastStore, objContext.Name)
@@ -595,12 +604,14 @@ func configureObjectStore(objContext *Context, store *cephv1.CephObjectStore, zo
 }
 
 func deleteRealm(context *Context) error {
-	//  <name>
 	realmArg := fmt.Sprintf("--rgw-realm=%s", context.Name)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", context.Name)
-	_, err := RunAdminCommandNoMultisite(context, false, "realm", "delete", realmArg)
+
+	// Delete in reverse order: zone → zonegroup → realm.
+	// Note: radosgw-admin uses "delete" for zone and zonegroup, but "rm" for realm.
+	_, err := runAdminCommand(context, false, "zone", "delete")
 	if err != nil {
-		log.NamedWarning(context.NsName(), logger, "failed to delete rgw realm %q. %v", context.Name, err)
+		log.NamedWarning(context.NsName(), logger, "failed to delete rgw zone %q. %v", context.Name, err)
 	}
 
 	_, err = RunAdminCommandNoMultisite(context, false, "zonegroup", "delete", realmArg, zoneGroupArg)
@@ -608,9 +619,9 @@ func deleteRealm(context *Context) error {
 		log.NamedWarning(context.NsName(), logger, "failed to delete rgw zonegroup %q. %v", context.Name, err)
 	}
 
-	_, err = runAdminCommand(context, false, "zone", "delete")
+	_, err = RunAdminCommandNoMultisite(context, false, "realm", "rm", realmArg)
 	if err != nil {
-		log.NamedWarning(context.NsName(), logger, "failed to delete rgw zone %q. %v", context.Name, err)
+		log.NamedWarning(context.NsName(), logger, "failed to delete rgw realm %q. %v", context.Name, err)
 	}
 
 	return nil

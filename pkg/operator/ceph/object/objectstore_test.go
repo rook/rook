@@ -444,7 +444,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 			}
 		}
 		if args[0] == "realm" {
-			if args[1] == "delete" {
+			if args[1] == "rm" {
 				realmDeleted = true
 				return "", nil
 			}

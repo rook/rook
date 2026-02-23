@@ -606,6 +606,9 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 			MetadataPool: metadataPool,
 			DataPool:     dataPool,
 		},
+		Status: &cephv1.Status{
+			Phase: k8sutil.ReadyStatus,
+		},
 	}
 
 	objectZoneGroup := &cephv1.CephObjectZoneGroup{
@@ -799,6 +802,176 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 	})
 }
 
+func TestCephObjectStoreControllerZoneNotReady(t *testing.T) {
+	// Verify that the object store controller requeues when the CephObjectZone
+	// is not yet Ready. This prevents a race condition where RGW starts before
+	// the zone controller has configured shared pool placements, causing RGW to
+	// auto-create unwanted default pools (see https://github.com/rook/rook/issues/17013).
+	ctx := context.TODO()
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
+
+	zoneName := "zone-a"
+	zoneGroupName := "zonegroup-a"
+	realmName := "realm-a"
+
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namespace,
+			Namespace: namespace,
+		},
+		Status: cephv1.ClusterStatus{
+			Phase: k8sutil.ReadyStatus,
+			CephStatus: &cephv1.CephStatus{
+				Health: "HEALTH_OK",
+			},
+		},
+	}
+
+	secrets := map[string][]byte{
+		"fsid":         []byte(name),
+		"mon-secret":   []byte("monsecret"),
+		"admin-secret": []byte("adminsecret"),
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon",
+			Namespace: namespace,
+		},
+		Data: secrets,
+		Type: k8sutil.RookType,
+	}
+
+	objectZoneGroup := &cephv1.CephObjectZoneGroup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      zoneGroupName,
+			Namespace: namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephObjectZoneGroup",
+		},
+		Spec: cephv1.ObjectZoneGroupSpec{},
+	}
+	objectZoneGroup.Spec.Realm = realmName
+
+	objectRealm := &cephv1.CephObjectRealm{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      realmName,
+			Namespace: namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephObjectRealm",
+		},
+		Spec: cephv1.ObjectRealmSpec{},
+	}
+
+	objectStore := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       store,
+			Namespace:  namespace,
+			Finalizers: []string{"cephobjectstore.ceph.rook.io"},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephObjectStore",
+		},
+		Spec: cephv1.ObjectStoreSpec{},
+	}
+	objectStore.Spec.Zone.Name = zoneName
+	objectStore.Spec.Gateway.Port = 80
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "status" {
+				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+			}
+			if args[0] == "versions" {
+				return dummyVersionsRaw, nil
+			}
+			return "", nil
+		},
+	}
+
+	clientset := test.New(t, 3)
+
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectZone{}, &cephv1.CephObjectZoneList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &cephv1.CephObjectStore{}, &cephv1.CephObjectStoreList{})
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      store,
+			Namespace: namespace,
+		},
+	}
+
+	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*cephver.CephVersion, *cephver.CephVersion, error) {
+		return &cephver.Squid, &cephver.Squid, nil
+	}
+
+	zoneNotReadyPhases := []struct {
+		name   string
+		status *cephv1.Status
+	}{
+		{"zone status is nil", nil},
+		{"zone is reconciling", &cephv1.Status{Phase: k8sutil.ReconcilingStatus}},
+		{"zone reconcile failed", &cephv1.Status{Phase: k8sutil.ReconcileFailedStatus}},
+		{"zone status is empty", &cephv1.Status{Phase: k8sutil.EmptyStatus}},
+	}
+
+	for _, tc := range zoneNotReadyPhases {
+		t.Run(tc.name, func(t *testing.T) {
+			objectZone := &cephv1.CephObjectZone{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      zoneName,
+					Namespace: namespace,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind: "CephObjectZone",
+				},
+				Spec: cephv1.ObjectZoneSpec{
+					ZoneGroup: zoneGroupName,
+				},
+				Status: tc.status,
+			}
+
+			object := []runtime.Object{
+				objectZone,
+				objectStore,
+				objectZoneGroup,
+				objectRealm,
+				cephCluster,
+			}
+
+			cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+			c := &clusterd.Context{
+				Executor:      executor,
+				RookClientset: rookfake.NewSimpleClientset(objectRealm, objectZoneGroup, objectZone, objectStore),
+				Clientset:     clientset,
+			}
+
+			r := &ReconcileCephObjectStore{
+				client:           cl,
+				scheme:           s,
+				context:          c,
+				recorder:         events.NewFakeRecorder(50),
+				opManagerContext: ctx,
+			}
+
+			_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+			if k8serrors.IsAlreadyExists(err) {
+				err = nil
+			}
+			assert.NoError(t, err)
+
+			res, err := r.Reconcile(ctx, req)
+			// Reconcile should requeue because the zone is not ready.
+			// The store stays in Progressing status, preventing RGW from
+			// starting before zone shared pools are configured.
+			assert.NoError(t, err)
+			assert.True(t, res.RequeueAfter > 0, "expected requeue while waiting for zone Ready")
+		})
+	}
+}
+
 func TestCephObjectExternalStoreController(t *testing.T) {
 	ctx := context.TODO()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
@@ -964,14 +1137,20 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 	}
 
 	t.Run("create an external object store with missing secret", func(t *testing.T) {
+		// Clear DeletionTimestamp that was set by the delete subtest above, since
+		// externalObjectStore is a shared pointer.
+		externalObjectStore.DeletionTimestamp = nil
+		externalObjectStore.Finalizers = nil
 		objects := []runtime.Object{
 			cephCluster,
 			externalObjectStore,
 		}
 		r := getReconciler(objects)
 		res, err := r.Reconcile(ctx, req)
-		assert.Error(t, err)
-		assert.False(t, res.Requeue)
+		// Missing secret is a NotFound error, which triggers a requeue
+		// (the secret may be created later by another controller or manually).
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
 	})
 
 	t.Run("create an external object store with no external RGW endpoints", func(t *testing.T) {
@@ -1202,6 +1381,9 @@ func TestKeyRotation(t *testing.T) {
 			ZoneGroup:    zoneGroupName,
 			MetadataPool: metadataPool,
 			DataPool:     dataPool,
+		},
+		Status: &cephv1.Status{
+			Phase: k8sutil.ReadyStatus,
 		},
 	}
 

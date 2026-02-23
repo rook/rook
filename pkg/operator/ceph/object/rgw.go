@@ -270,19 +270,27 @@ func (c *clusterConfig) deleteStore() {
 			}
 		}
 
-		// Delete the realm and pools
+		// Delete the realm and pools.
+		// NewMultisiteContext may return nil objContext when the CephObjectStore references a
+		// CephObjectZone (spec.zone.name is set) and the zone/zonegroup/realm CRDs have already
+		// been garbage-collected. This happens during simultaneous deletion of all multisite CRDs.
+		// Guard against nil to avoid a panic in that case — realm/pool cleanup is best-effort anyway.
 		objContext, err := NewMultisiteContext(c.context, c.clusterInfo, c.store)
 		if err != nil {
 			log.NamedError(nsName, logger, "failed to set multisite on object store %q. Error: %v", c.store.Name, err)
 		}
 
-		objContext.Endpoint = c.store.Status.Info["endpoint"]
+		if objContext != nil {
+			objContext.Endpoint = c.store.Status.Info["endpoint"]
 
-		go disableRGWDashboard(objContext)
+			go disableRGWDashboard(objContext)
 
-		err = deleteRealmAndPools(objContext, c.store.Spec)
-		if err != nil {
-			log.NamedError(nsName, logger, "failed to delete the realm and pools. Error: %v", err)
+			err = deleteRealmAndPools(objContext, c.store.Spec)
+			if err != nil {
+				log.NamedError(nsName, logger, "failed to delete the realm and pools. Error: %v", err)
+			}
+		} else {
+			log.NamedWarning(nsName, logger, "skipping realm/pool deletion: multisite context not available (zone/zonegroup/realm CRDs may already be deleted)")
 		}
 	}
 
