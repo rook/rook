@@ -72,18 +72,6 @@ S3_SYNC := aws s3 sync --only-show-errors
 S3_SYNC_DEL := aws s3 sync --only-show-errors --delete
 
 # ====================================================================================
-# tools
-
-MANIFEST_TOOL_VERSION=v1.0.2
-MANIFEST_TOOL := $(TOOLS_HOST_DIR)/manifest-tool-$(MANIFEST_TOOL_VERSION)
-
-$(MANIFEST_TOOL):
-	@echo === installing manifest-tool
-	mkdir -p $(TOOLS_HOST_DIR)
-	curl -sL https://github.com/estesp/manifest-tool/releases/download/$(MANIFEST_TOOL_VERSION)/manifest-tool-$(shell go env GOHOSTOS)-$(GOHOSTARCH) > $@
-	chmod +x $@
-
-# ====================================================================================
 # Targets
 
 build: $(addprefix build.,$(FLAVORS)) ;
@@ -192,10 +180,15 @@ publish.all.images.$(1): publish.image.$(1).$(2)
 endef
 $(foreach r,$(REGISTRIES), $(foreach a,$(IMAGE_ARCHS),$(eval $(call repo.targets,$(r),$(a)))))
 
+# Per-arch image refs for buildx imagetools create (registry + tag)
+define manifest_sources
+$(foreach a,$(IMAGE_ARCHS),$(1)/ceph-$(a):$(2))
+endef
+
 define repo.manifest.targets
-publish.manifest.image.$(1): publish.all.images.$(1) $(MANIFEST_TOOL)
-	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(1)/ceph-ARCH:$(VERSION) --target $(1)/ceph:$(VERSION)
-	$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS_COMMA) --template $(1)/ceph-ARCH:$(BRANCH_NAME) --target $(1)/ceph:$(BRANCH_NAME)
+publish.manifest.image.$(1): publish.all.images.$(1)
+	$(DOCKERCMD) buildx imagetools create -t $(1)/ceph:$(VERSION) $(call manifest_sources,$(1),$(VERSION))
+	$(DOCKERCMD) buildx imagetools create -t $(1)/ceph:$(BRANCH_NAME) $(call manifest_sources,$(1),$(BRANCH_NAME))
 	cosign sign --yes $(1)/ceph:$(VERSION)
 	cosign sign --yes $(1)/ceph:$(BRANCH_NAME)
 
