@@ -9519,7 +9519,6 @@ spec:
                 - objectStoreNamespace
               type: object
             status:
-              description: LuaScriptStatus represents the status of Ceph Lua Script
               properties:
                 conditions:
                   items:
@@ -9543,9 +9542,21 @@ spec:
                         type: string
                     type: object
                   type: array
+                observedGeneration:
+                  description: ObservedGeneration is the latest generation observed by the controller.
+                  format: int64
+                  type: integer
                 phase:
-                  description: ConditionType represent a resource's status
                   type: string
+                zone:
+                  description: The multisite info for the connected store
+                  properties:
+                    name:
+                      description: CephObjectStoreZone name this CephObjectStore is part of
+                      type: string
+                  required:
+                    - name
+                  type: object
               type: object
               x-kubernetes-preserve-unknown-fields: true
           required:

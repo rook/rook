@@ -6369,7 +6369,7 @@ The default is not set.</p>
 <h3 id="ceph.rook.io/v1.Condition">Condition
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>, <a href="#ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus</a>, <a href="#ceph.rook.io/v1.ClusterStatus">ClusterStatus</a>, <a href="#ceph.rook.io/v1.LuaScriptStatus">LuaScriptStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>, <a href="#ceph.rook.io/v1.Status">Status</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>, <a href="#ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus</a>, <a href="#ceph.rook.io/v1.ClusterStatus">ClusterStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>, <a href="#ceph.rook.io/v1.Status">Status</a>)
 </p>
 <div>
 <p>Condition represents a status condition on any Rook-Ceph Custom Resource.</p>
@@ -6528,7 +6528,7 @@ deletion.</p>
 <h3 id="ceph.rook.io/v1.ConditionType">ConditionType
 (<code>string</code> alias)</h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>, <a href="#ceph.rook.io/v1.CephClientStatus">CephClientStatus</a>, <a href="#ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus</a>, <a href="#ceph.rook.io/v1.CephFilesystemSubVolumeGroupStatus">CephFilesystemSubVolumeGroupStatus</a>, <a href="#ceph.rook.io/v1.ClusterStatus">ClusterStatus</a>, <a href="#ceph.rook.io/v1.Condition">Condition</a>, <a href="#ceph.rook.io/v1.LuaScriptStatus">LuaScriptStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>, <a href="#ceph.rook.io/v1.CephClientStatus">CephClientStatus</a>, <a href="#ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus</a>, <a href="#ceph.rook.io/v1.CephFilesystemSubVolumeGroupStatus">CephFilesystemSubVolumeGroupStatus</a>, <a href="#ceph.rook.io/v1.ClusterStatus">ClusterStatus</a>, <a href="#ceph.rook.io/v1.Condition">Condition</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>)
 </p>
 <div>
 <p>ConditionType represent a resource&rsquo;s status</p>
@@ -9575,7 +9575,6 @@ string
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephLuaScript">CephLuaScript</a>)
 </p>
 <div>
-<p>LuaScriptStatus represents the status of Ceph Lua Script</p>
 </div>
 <table>
 <thead>
@@ -9587,27 +9586,30 @@ string
 <tbody>
 <tr>
 <td>
-<code>phase</code><br/>
+<code>zone</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.ConditionType">
-ConditionType
+<a href="#ceph.rook.io/v1.ZoneSpec">
+ZoneSpec
 </a>
 </em>
 </td>
 <td>
-<em>(Optional)</em>
+<p>The multisite info for the connected store</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>conditions</code><br/>
+<code>Status</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.Condition">
-[]Condition
+<a href="#ceph.rook.io/v1.Status">
+Status
 </a>
 </em>
 </td>
 <td>
+<p>
+(Members of <code>Status</code> are embedded into this type.)
+</p>
 </td>
 </tr>
 </tbody>
@@ -15260,7 +15262,7 @@ int
 <h3 id="ceph.rook.io/v1.Status">Status
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>, <a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>, <a href="#ceph.rook.io/v1.CephObjectZone">CephObjectZone</a>, <a href="#ceph.rook.io/v1.CephObjectZoneGroup">CephObjectZoneGroup</a>, <a href="#ceph.rook.io/v1.FileMirrorStatus">FileMirrorStatus</a>, <a href="#ceph.rook.io/v1.NFSStatus">NFSStatus</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewayStatus">NVMeOFGatewayStatus</a>, <a href="#ceph.rook.io/v1.RBDMirrorStatus">RBDMirrorStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>, <a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>, <a href="#ceph.rook.io/v1.CephObjectZone">CephObjectZone</a>, <a href="#ceph.rook.io/v1.CephObjectZoneGroup">CephObjectZoneGroup</a>, <a href="#ceph.rook.io/v1.FileMirrorStatus">FileMirrorStatus</a>, <a href="#ceph.rook.io/v1.LuaScriptStatus">LuaScriptStatus</a>, <a href="#ceph.rook.io/v1.NFSStatus">NFSStatus</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewayStatus">NVMeOFGatewayStatus</a>, <a href="#ceph.rook.io/v1.RBDMirrorStatus">RBDMirrorStatus</a>)
 </p>
 <div>
 <p>Status represents the status of an object</p>
@@ -16106,7 +16108,7 @@ More info: <a href="https://kubernetes.io/docs/concepts/storage/volume-attribute
 <h3 id="ceph.rook.io/v1.ZoneSpec">ZoneSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.LuaScriptStatus">LuaScriptStatus</a>, <a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>)
 </p>
 <div>
 <p>ZoneSpec represents a Ceph Object Store Gateway Zone specification</p>

@@ -64,6 +64,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&CephFilesystem{},
 		&CephFilesystemList{},
 		&CephLuaScript{},
+		&CephLuaScriptList{},
 		&CephNFS{},
 		&CephNFSList{},
 		&CephNVMeOFGateway{},

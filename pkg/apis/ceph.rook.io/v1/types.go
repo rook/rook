@@ -1682,6 +1682,9 @@ type CephObjectStore struct {
 	Spec              ObjectStoreSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Status *ObjectStoreStatus `json:"status,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -2732,13 +2735,14 @@ type RGWServiceSpec struct {
 }
 
 // +genclient
-// +kubebuilder:resource:shortName=luascript,path=cephluascripts
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephLuaScript represents a Ceph Lua Script
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=cephls
 type CephLuaScript struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
@@ -2748,8 +2752,9 @@ type CephLuaScript struct {
 	Status *LuaScriptStatus `json:"status,omitempty"`
 }
 
-// LuaScriptStatus represents the status of Ceph Lua Script
 type LuaScriptStatus struct {
+	// The multisite info for the connected store
+	Zone   ZoneSpec `json:"zone,omitempty"`
 	Status `json:",inline"`
 }
 
@@ -2788,8 +2793,6 @@ type LuaScriptSpec struct {
 	// A list of Lua packages to be installed and added to the allowlist
 	// +optional
 	Packages []LuaPackageSpec `json:"packages,omitempty"`
-	// Exactly one of script, scriptBase64, or scriptURL must be set
-	// +kubebuilder:validation:XValidation:rule="int(self.script != '') + int(self.scriptBase64 != '') + int(self.scriptURL != '') == 1",message="Exactly one of script, scriptBase64, or scriptURL must be set"
 }
 
 type LuaPackageSpec struct {

@@ -39,8 +39,6 @@ type CephLuaScriptsGetter interface {
 type CephLuaScriptInterface interface {
 	Create(ctx context.Context, cephLuaScript *cephrookiov1.CephLuaScript, opts metav1.CreateOptions) (*cephrookiov1.CephLuaScript, error)
 	Update(ctx context.Context, cephLuaScript *cephrookiov1.CephLuaScript, opts metav1.UpdateOptions) (*cephrookiov1.CephLuaScript, error)
-	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, cephLuaScript *cephrookiov1.CephLuaScript, opts metav1.UpdateOptions) (*cephrookiov1.CephLuaScript, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
 	Get(ctx context.Context, name string, opts metav1.GetOptions) (*cephrookiov1.CephLuaScript, error)
