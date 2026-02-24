@@ -9476,6 +9476,9 @@ spec:
                   description: The name of the object store to attach the Lua script
                   minLength: 1
                   type: string
+                  x-kubernetes-validations:
+                    - message: Exactly one of script, scriptBase64, or scriptURL must be set
+                      rule: int(self.script != '') + int(self.scriptBase64 != '') + int(self.scriptURL != '') == 1
                 objectStoreNamespace:
                   description: The namespace of the object store to attach the Lua script
                   minLength: 1
