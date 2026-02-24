@@ -24,12 +24,14 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -90,6 +92,67 @@ func (c *clusterConfig) portString() string {
 		}
 	}
 	return portString
+}
+
+// rgwFrontendStr builds the "rgw frontends" value including the beast frontend name,
+// port/TLS config, SSL options, and cipher settings.
+func (c *clusterConfig) rgwFrontendStr() string {
+	frontendStr := fmt.Sprintf("%s %s", rgwFrontendName, c.portString())
+
+	if c.store.Spec.Security == nil {
+		return frontendStr
+	}
+
+	// Only emit ssl_options when SSLOptions is set.
+	if c.store.Spec.Security.SslOptions != nil {
+		if sslOptions := buildSSLOptions(c.store.Spec.Security.SslOptions); sslOptions != "" {
+			frontendStr = fmt.Sprintf("%s ssl_options=%s", frontendStr, sslOptions)
+		}
+	}
+
+	if len(c.store.Spec.Security.Ciphers) > 0 {
+		frontendStr = fmt.Sprintf("%s ssl_ciphers=%s", frontendStr, strings.Join(c.store.Spec.Security.Ciphers, ":"))
+	}
+
+	if len(c.store.Spec.Security.TlsGroups) > 0 {
+		frontendStr = fmt.Sprintf("%s tls_groups=%s", frontendStr, strings.Join(c.store.Spec.Security.TlsGroups, ":"))
+	}
+
+	return frontendStr
+}
+
+// buildSSLOptions constructs the colon-separated ssl_options string for the beast frontend.
+// See https://docs.ceph.com/en/latest/radosgw/frontends/
+func buildSSLOptions(opts *cephv1.SslOptionsSpec) string {
+	var options []string
+	if ptr.Deref(opts.DefaultWorkarounds, false) {
+		options = append(options, "default_workarounds")
+	}
+	if ptr.Deref(opts.NoCompression, false) {
+		options = append(options, "no_compression")
+	}
+	if ptr.Deref(opts.SingleDiffieHellmanUse, false) {
+		options = append(options, "single_dh_use")
+	}
+
+	// Omitted sslv2, sslv3, tlsv1_0, and tlsv1_1 default to disabled
+	if !ptr.Deref(opts.SSLv2, false) {
+		options = append(options, "no_sslv2")
+	}
+	if !ptr.Deref(opts.SSLv3, false) {
+		options = append(options, "no_sslv3")
+	}
+	if !ptr.Deref(opts.TLSv1_0, false) {
+		options = append(options, "no_tlsv1")
+	}
+	if !ptr.Deref(opts.TLSv1_1, false) {
+		options = append(options, "no_tlsv1_1")
+	}
+	if !ptr.Deref(opts.TLSv1_2, true) {
+		options = append(options, "no_tlsv1_2")
+	}
+
+	return strings.Join(options, ":")
 }
 
 func generateCephXUser(name string) string {

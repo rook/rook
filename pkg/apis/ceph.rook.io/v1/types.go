@@ -394,6 +394,64 @@ type ObjectStoreSecuritySpec struct {
 	// +optional
 	// +nullable
 	ServerSideEncryptionS3 KeyManagementServiceSpec `json:"s3,omitempty"`
+
+	// SslOptions sets the SSL context options for the Ceph RGW beast frontend.
+	// See https://docs.ceph.com/en/latest/radosgw/frontends/#options
+	// +optional
+	SslOptions *SslOptionsSpec `json:"sslOptions,omitzero"` //nolint:kubeapilinter // MinProperties cannot be applied to a struct pointer field
+
+	// Ciphers specifies the cipher suites used during the TLS handshake.
+	// Multiple suites are supported with ':' colon-separated.
+	// Each value must be a valid OpenSSL cipher suite name.
+	// See https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names
+	// +kubebuilder:validation:MinItems=0
+	// +kubebuilder:validation:MaxItems=1000
+	// +optional
+	Ciphers []string `json:"ciphers,omitempty"` //nolint:kubeapilinter // List doesn't have min/max length
+
+	// TlsGroups specifies one or more TLS Group strings separated by colons.
+	// Multiple suites are supported with ':' colon-separated.
+	// The pseudo group name DEFAULT can be used to select the OpenSSL built-in default list of groups.
+	// Other valid group names will depend on OpenSSL version
+	// See https://docs.openssl.org/master/man3/SSL_CTX_set1_curves/#description
+	// +optional
+	TlsGroups []string `json:"tlsGroups,omitempty"` //nolint:kubeapilinter // List doesn't have min/max length
+}
+
+// SslOptionsSpec specifies the SSL context options for the Ceph RGW beast frontend.
+// See https://docs.ceph.com/en/latest/radosgw/frontends/#options
+type SslOptionsSpec struct {
+	// defaultWorkarounds implements various bug workaround when true, or disables it when false. Default disabled.
+	// +optional
+	DefaultWorkarounds *bool `json:"defaultWorkarounds,omitempty"`
+
+	// noCompression disables compression when true, or disables it when false. Default disabled.
+	// +optional
+	NoCompression *bool `json:"noCompression,omitempty"`
+
+	// sslv2 enables SSL v2 when true, or disables it when false. Default disabled.
+	// +optional
+	SSLv2 *bool `json:"sslv2,omitempty"`
+
+	// sslv3 enables SSL v3 when true, or disables it when false. Default disabled.
+	// +optional
+	SSLv3 *bool `json:"sslv3,omitempty"`
+
+	// tlsv1_0 enables TLS v1.0 when true, or disables it when false. Default disabled.
+	// +optional
+	TLSv1_0 *bool `json:"tlsv1_0,omitempty"`
+
+	// tlsv1_1 enables TLS v1.1 when true, or disables it when false. Default disabled.
+	// +optional
+	TLSv1_1 *bool `json:"tlsv1_1,omitempty"`
+
+	// tlsv1_2 enables TLS v1.2 when true, or disables it when false. Default enabled.
+	// +optional
+	TLSv1_2 *bool `json:"tlsv1_2,omitempty"`
+
+	// SingleDiffieHellmanUse always creates a new key when using tmp_dh parameters when true, or disables it when false. Default disabled.
+	// +optional
+	SingleDiffieHellmanUse *bool `json:"singleDiffieHellmanUse,omitempty"`
 }
 
 // KeyManagementServiceSpec represent various details of the KMS server

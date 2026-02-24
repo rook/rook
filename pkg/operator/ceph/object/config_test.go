@@ -30,6 +30,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 )
 
 func newConfig(t *testing.T) *clusterConfig {
@@ -95,6 +96,163 @@ func TestPortString(t *testing.T) {
 	cfg.store.Spec.Gateway.Port = 80
 	result = cfg.portString()
 	assert.Equal(t, "port=8080", result)
+}
+
+func TestRgwFrontendStr(t *testing.T) {
+	// No Security set
+	cfg := newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	result := cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80", result, "case 1")
+
+	// Empty SslOptions struct
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		SslOptions: &cephv1.SslOptionsSpec{},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_options=no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1", result, "case 2")
+
+	// Restrict all old protocols
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		SslOptions: &cephv1.SslOptionsSpec{
+			SSLv2:   ptr.To(true),
+			SSLv3:   ptr.To(true),
+			TLSv1_0: ptr.To(true),
+			TLSv1_1: ptr.To(true),
+			TLSv1_2: ptr.To(true),
+		},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80", result, "case 3")
+
+	// Restrict to TLS 1.3 only
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		SslOptions: &cephv1.SslOptionsSpec{
+			SSLv2:   ptr.To(false),
+			SSLv3:   ptr.To(false),
+			TLSv1_0: ptr.To(false),
+			TLSv1_1: ptr.To(false),
+			TLSv1_2: ptr.To(false),
+		},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_options=no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1:no_tlsv1_2", result, "case 4")
+
+	// With ciphers only
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		Ciphers: []string{"AES256-SHA", "AES128-SHA"},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_ciphers=AES256-SHA:AES128-SHA", result, "case 5")
+
+	// With both SSL options and ciphers
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		SslOptions: &cephv1.SslOptionsSpec{},
+		Ciphers:    []string{"AES256-SHA"},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_options=no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1 ssl_ciphers=AES256-SHA", result, "case 6")
+
+	// With tls_groups only
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		TlsGroups: []string{"X25519", "P-256"},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 tls_groups=X25519:P-256", result, "case 7")
+
+	// Combined ssl_options, ssl_ciphers, tls_groups
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		SslOptions: &cephv1.SslOptionsSpec{
+			DefaultWorkarounds: ptr.To(true),
+			NoCompression:      ptr.To(true),
+		},
+		Ciphers: []string{
+			"TLS_DHE_RSA_WITH_AES_256_GCM_SHA384",
+			"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+		},
+		TlsGroups: []string{"X25519", "P-256"},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_options=default_workarounds:no_compression:no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1 ssl_ciphers=TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 tls_groups=X25519:P-256", result, "case 8")
+}
+
+func TestBuildSslOptions(t *testing.T) {
+	// All nil
+	result := buildSSLOptions(&cephv1.SslOptionsSpec{})
+	assert.Equal(t, "no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1", result, "case 1")
+
+	// All protocols explicitly disabled
+	result = buildSSLOptions(&cephv1.SslOptionsSpec{
+		SSLv2:   ptr.To(false),
+		SSLv3:   ptr.To(false),
+		TLSv1_0: ptr.To(false),
+		TLSv1_1: ptr.To(false),
+		TLSv1_2: ptr.To(false),
+	})
+	assert.Equal(t, "no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1:no_tlsv1_2", result, "case 2")
+
+	// Enable TLSv1.1, TLSv1.2, rest disabled
+	result = buildSSLOptions(&cephv1.SslOptionsSpec{
+		SSLv2:   ptr.To(false),
+		SSLv3:   ptr.To(false),
+		TLSv1_0: ptr.To(false),
+		TLSv1_1: ptr.To(true),
+		TLSv1_2: ptr.To(true),
+	})
+	assert.Equal(t, "no_sslv2:no_sslv3:no_tlsv1", result, "case 3")
+
+	// Enable all protocols
+	result = buildSSLOptions(&cephv1.SslOptionsSpec{
+		SSLv2:   ptr.To(true),
+		SSLv3:   ptr.To(true),
+		TLSv1_0: ptr.To(true),
+		TLSv1_1: ptr.To(true),
+		TLSv1_2: ptr.To(true),
+	})
+	assert.Equal(t, "", result, "case 4")
+
+	// Non-protocol beast options enabled; legacy TLS protocol pointers omitted (default off)
+	result = buildSSLOptions(&cephv1.SslOptionsSpec{
+		DefaultWorkarounds:     ptr.To(true),
+		NoCompression:          ptr.To(true),
+		SingleDiffieHellmanUse: ptr.To(true),
+	})
+	assert.Equal(t, "default_workarounds:no_compression:single_dh_use:no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1", result, "case 5")
+
+	// Non-protocol option plus TLS 1.2 enabled
+	result = buildSSLOptions(&cephv1.SslOptionsSpec{
+		DefaultWorkarounds: ptr.To(true),
+		TLSv1_2:            ptr.To(true),
+	})
+	assert.Equal(t, "default_workarounds:no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1", result, "case 6")
+
+	// Only TLSv1.2 disabled;
+	result = buildSSLOptions(&cephv1.SslOptionsSpec{
+		TLSv1_2: ptr.To(false),
+	})
+	assert.Equal(t, "no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1:no_tlsv1_2", result, "case 7")
 }
 
 func TestGenerateCephXUser(t *testing.T) {
