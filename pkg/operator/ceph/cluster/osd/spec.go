@@ -120,9 +120,12 @@ if [ "$ENCRYPTED" == "true" ] ; then
 
 	if ! ceph --name client.admin auth get-or-create "$LOCKBOX_USER" \
 			mon 'allow command "config-key get" with key="dm-crypt/osd/'$OSD_UUID'/luks"' \
-			--keyring /etc/ceph/admin-keyring-store/keyring > "$LOCKBOX_KEYRING_FILE"; then
+			--keyring /etc/ceph/admin-keyring-store/keyring > /tmp/lockbox.keyring; then
 		echo "failed to get latest cephx lockbox key for OSD. continuing OSD startup using on-disk key" >/dev/stderr
 		# allowing OSD to attempt to start could avoid full OSD outage due to mon/system issues
+	else
+		echo "got latest cephx lockbox key for OSD successfully. updating on-disk key" >/dev/stderr
+		mv /tmp/lockbox.keyring "$LOCKBOX_KEYRING_FILE"
 	fi
 fi
 
