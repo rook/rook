@@ -23,6 +23,7 @@ require (
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20260205113234-c2ca44439222
 	github.com/ceph/ceph-csi/api v0.0.0-20241216133622-88b7e0d6684f
 	github.com/ceph/go-ceph v0.38.0
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/coreos/pkg v0.0.0-20240122114842-bbd7aa9bf6fb
 	github.com/csi-addons/kubernetes-csi-addons v0.14.0
 	github.com/gemalto/kmip-go v0.1.0
@@ -84,7 +85,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containernetworking/cni v1.2.3 // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect

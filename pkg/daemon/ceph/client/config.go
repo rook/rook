@@ -57,6 +57,10 @@ var (
 	// DefaultConfigFile is the default name of the file where Ceph stores its configs. Can be
 	// overridden for unit tests.
 	DefaultConfigFile = "ceph.conf"
+
+	// DefaultWorkingDir is the default dir where Ceph stores tmp operator artifacts. Can be
+	// overridden for unit tests.
+	DefaultWorkingDir = "/tmp/ceph"
 )
 
 // GlobalConfig represents the [global] sections of Ceph's config file.
