@@ -577,8 +577,8 @@ func (r *ReconcileCephLuaScript) updateStatus(observedGeneration int64, name typ
 		luaScript.Status.ObservedGeneration = observedGeneration
 	}
 	if err := reporting.UpdateStatus(r.client, luaScript); err != nil {
-		log.NamedError(name, logger, "failed to set object zone %q status to %q. %v", name, status, err)
+		log.NamedError(name, logger, "failed to set lua script %q status to %q. %v", name, status, err)
 		return
 	}
-	log.NamedDebug(name, logger, "object zone %q status updated to %q", name, status)
+	log.NamedDebug(name, logger, "lua script %q status updated to %q", name, status)
 }
