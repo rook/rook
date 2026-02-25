@@ -9520,7 +9520,7 @@ spec:
               type: object
               x-kubernetes-validations:
                 - message: Exactly one of script, scriptBase64, or scriptURL must be set
-                  rule: '(self.script != ” ? 1 : 0) + (self.scriptBase64 != ” ? 1 : 0) + (self.scriptURL != ” ? 1 : 0) == 1'
+                  rule: ((size(self.script) > 0) != (size(self.scriptBase64) > 0)) != (size(self.scriptURL) > 0)
             status:
               properties:
                 conditions:

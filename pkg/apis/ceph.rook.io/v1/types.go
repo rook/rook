@@ -2767,7 +2767,7 @@ type CephLuaScriptList struct {
 }
 
 // LuaScriptSpec represents the spec of a Lua script
-// +kubebuilder:validation:XValidation:rule="(self.script != ” ? 1 : 0) + (self.scriptBase64 != ” ? 1 : 0) + (self.scriptURL != ” ? 1 : 0) == 1",message="Exactly one of script, scriptBase64, or scriptURL must be set"
+// +kubebuilder:validation:XValidation:rule="((size(self.script) > 0) != (size(self.scriptBase64) > 0)) != (size(self.scriptURL) > 0)",message="Exactly one of script, scriptBase64, or scriptURL must be set"
 type LuaScriptSpec struct {
 	// The name of the object store to attach the Lua script
 	// +kubebuilder:validation:MinLength=1
