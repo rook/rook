@@ -9511,9 +9511,6 @@ spec:
                 - objectStoreName
                 - objectStoreNamespace
               type: object
-              x-kubernetes-validations:
-                - message: Exactly one of script, scriptBase64, or scriptURL must be set
-                  rule: ((size(self.script) > 0) != (size(self.scriptBase64) > 0)) != (size(self.scriptURL) > 0)
             status:
               properties:
                 conditions:
