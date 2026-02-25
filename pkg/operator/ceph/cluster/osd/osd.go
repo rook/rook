@@ -796,6 +796,7 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	}
 
 	osd.Store = d.Labels[osdStore]
+	osd.DeviceType = d.Labels[deviceType]
 	osd.Encrypted = false
 	if d.Labels[encrypted] == "true" {
 		osd.Encrypted = true
