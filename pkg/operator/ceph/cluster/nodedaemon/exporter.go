@@ -178,6 +178,13 @@ func getCephExporterChownInitContainer(cephCluster cephv1.CephCluster) corev1.Co
 	)
 }
 
+func getExporterMetricsPort(cephCluster cephv1.CephCluster) int32 {
+	if cephCluster.Spec.Monitoring.Exporter != nil && cephCluster.Spec.Monitoring.Exporter.Port != 0 {
+		return cephCluster.Spec.Monitoring.Exporter.Port
+	}
+	return int32(DefaultMetricsPort)
+}
+
 func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion cephver.CephVersion) corev1.Container {
 	cephImage := cephCluster.Spec.CephVersion.Image
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
@@ -187,6 +194,7 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 	exporterEnvVar := generateExporterEnvVar()
 	envVars := append(controller.DaemonEnvVars(&cephCluster.Spec), exporterEnvVar)
 
+	metricsPort := getExporterMetricsPort(cephCluster)
 	prioLimit, statsPeriod := defaultPrioLimit, defaultStatsPeriod
 	if cephCluster.Spec.Monitoring.Exporter != nil {
 		prioLimit = strconv.Itoa(int(cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit))
@@ -194,7 +202,7 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 	}
 	args := []string{
 		"--sock-dir", sockDir,
-		"--port", strconv.Itoa(int(DefaultMetricsPort)),
+		"--port", strconv.Itoa(int(metricsPort)),
 		"--prio-limit", prioLimit,
 		"--stats-period", statsPeriod,
 	}
@@ -206,7 +214,7 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 
 	containerPort := corev1.ContainerPort{
 		Name:          "http-metrics",
-		ContainerPort: int32(DefaultMetricsPort),
+		ContainerPort: metricsPort,
 		Protocol:      corev1.ProtocolTCP,
 	}
 
@@ -241,7 +249,7 @@ func MakeCephExporterMetricsService(cephCluster cephv1.CephCluster, servicePortM
 			Ports: []corev1.ServicePort{
 				{
 					Name:     servicePortMetricName,
-					Port:     int32(DefaultMetricsPort),
+					Port:     getExporterMetricsPort(cephCluster),
 					Protocol: corev1.ProtocolTCP,
 				},
 			},
@@ -304,7 +312,7 @@ func applyPrometheusAnnotations(cephCluster cephv1.CephCluster, objectMeta *meta
 	if len(cephv1.GetCephExporterAnnotations(cephCluster.Spec.Annotations)) == 0 {
 		t := cephv1.Annotations{
 			"prometheus.io/scrape": "true",
-			"prometheus.io/port":   strconv.Itoa(int(DefaultMetricsPort)),
+			"prometheus.io/port":   strconv.Itoa(int(getExporterMetricsPort(cephCluster))),
 		}
 
 		t.ApplyToObjectMeta(objectMeta)

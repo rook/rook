@@ -508,6 +508,12 @@ type CephExporterSpec struct {
 	// +kubebuilder:default=5
 	StatsPeriodSeconds int64 `json:"statsPeriodSeconds,omitempty"`
 
+	// Port is the listening port of the ceph-exporter process. Defaults to 9926.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port int32 `json:"port,omitempty"`
+
 	// Whether host networking is enabled for CephExporter. If not set, the network settings from CephCluster.spec.networking will be applied.
 	// +nullable
 	// +optional

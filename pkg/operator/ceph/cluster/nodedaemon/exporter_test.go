@@ -41,6 +41,10 @@ import (
 )
 
 func assertCephExporterArgs(t *testing.T, args []string, ipv6 bool) {
+	assertCephExporterArgsWithPort(t, args, ipv6, "9926")
+}
+
+func assertCephExporterArgsWithPort(t *testing.T, args []string, ipv6 bool, port string) {
 	var expectedArgsLen int
 	if ipv6 {
 		expectedArgsLen = 10
@@ -53,7 +57,7 @@ func assertCephExporterArgs(t *testing.T, args []string, ipv6 bool) {
 	assert.Equal(t, "--sock-dir", args[0])
 	assert.Equal(t, "/run/ceph", args[1])
 	assert.Equal(t, "--port", args[2])
-	assert.Equal(t, "9926", args[3])
+	assert.Equal(t, port, args[3])
 	assert.Equal(t, "--prio-limit", args[4])
 	assert.Equal(t, "5", args[5])
 	assert.Equal(t, "--stats-period", args[6])
@@ -143,6 +147,25 @@ func TestCreateOrUpdateCephExporter(t *testing.T) {
 		assert.Equal(t, "3", args[5])
 		assert.Equal(t, "--stats-period", args[6])
 		assert.Equal(t, "7", args[7])
+	})
+
+	t.Run("exporter custom port", func(t *testing.T) {
+		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{
+			PerfCountersPrioLimit: 5,
+			StatsPeriodSeconds:    5,
+			Port:                  9927,
+		}
+		res, err := r.createOrUpdateCephExporter(node, tolerations, cephCluster, cephVersion)
+		assert.NoError(t, err)
+		assert.Equal(t, controllerutil.OperationResult("updated"), res)
+
+		err = r.client.Get(ctx, types.NamespacedName{Namespace: "rook-ceph", Name: name}, &deploy)
+		assert.NoError(t, err)
+
+		podSpec := deploy.Spec.Template
+		args := podSpec.Spec.Containers[0].Args
+		assertCephExporterArgsWithPort(t, args, false, "9927")
+		assert.Equal(t, int32(9927), podSpec.Spec.Containers[0].Ports[0].ContainerPort)
 	})
 }
 
@@ -408,8 +431,17 @@ func TestServiceSpec(t *testing.T) {
 	assert.NotNil(t, s)
 	assert.Equal(t, "rook-ceph-exporter", s.Name)
 	assert.Equal(t, 1, len(s.Spec.Ports))
+	assert.Equal(t, int32(DefaultMetricsPort), s.Spec.Ports[0].Port)
 	assert.Equal(t, 2, len(s.Labels))
 	assert.Equal(t, 2, len(s.Spec.Selector))
+
+	t.Run("custom exporter port", func(t *testing.T) {
+		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{Port: 9927}
+		s, err := MakeCephExporterMetricsService(cephCluster, exporterServiceMetricName, scheme.Scheme)
+		assert.NoError(t, err)
+		assert.NotNil(t, s)
+		assert.Equal(t, int32(9927), s.Spec.Ports[0].Port)
+	})
 }
 
 func TestApplyCephExporterLabels(t *testing.T) {
