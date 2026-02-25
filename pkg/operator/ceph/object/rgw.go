@@ -283,7 +283,9 @@ func (c *clusterConfig) deleteStore() {
 		if objContext != nil {
 			objContext.Endpoint = c.store.Status.Info["endpoint"]
 
-			go disableRGWDashboard(objContext)
+			if poolsExistForNonRawOps(objContext) {
+				go disableRGWDashboard(objContext)
+			}
 
 			err = deleteRealmAndPools(objContext, c.store.Spec)
 			if err != nil {

@@ -669,6 +669,9 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 			if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
 				return "", errors.New("test pool does not exit yet")
 			}
+			if args[0] == "osd" && args[1] == "lspools" {
+				return `[{"poolnum":1,"poolname":"zone-a.rgw.control"},{"poolnum":2,"poolname":"zone-a.rgw.meta"},{"poolnum":3,"poolname":"zone-a.rgw.log"},{"poolnum":4,"poolname":"zone-a.rgw.buckets.index"},{"poolnum":5,"poolname":"zone-a.rgw.buckets.non-ec"},{"poolnum":6,"poolname":"zone-a.rgw.otp"},{"poolnum":7,"poolname":"zone-a.rgw.buckets.data"},{"poolnum":8,"poolname":".rgw.root"}]`, nil
+			}
 			if args[0] == "versions" {
 				return dummyVersionsRaw, nil
 			}
@@ -761,6 +764,8 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 	})
 	t.Run("delete the same store", func(t *testing.T) {
 		calledCommitConfigChanges = false
+		// Simulate that the store was already created and has endpoints in the zone
+		zoneGroupGetMultisiteJSON = zoneGroupGetMultisiteJSONWithEndpoint
 
 		// no dependents
 		dependentsChecked := false
@@ -1039,6 +1044,9 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 			}
 			if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
 				return "", errors.New("test pool does not exit yet")
+			}
+			if args[0] == "osd" && args[1] == "lspools" {
+				return `[{"poolnum":1,"poolname":"default.rgw.control"},{"poolnum":2,"poolname":"default.rgw.meta"},{"poolnum":3,"poolname":"default.rgw.log"},{"poolnum":4,"poolname":"default.rgw.buckets.index"},{"poolnum":5,"poolname":"default.rgw.buckets.non-ec"},{"poolnum":6,"poolname":"default.rgw.otp"},{"poolnum":7,"poolname":"default.rgw.buckets.data"},{"poolnum":8,"poolname":".rgw.root"}]`, nil
 			}
 			if args[0] == "versions" {
 				return dummyVersionsRaw, nil

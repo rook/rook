@@ -382,22 +382,23 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		// Check dependents only if we have a working multisite context.
 		// Context may be nil when zone/zonegroup/realm CRDs are already deleted.
 		if objCtx != nil {
-			opsCtx, err := NewMultisiteAdminOpsContext(objCtx, &cephObjectStore.Spec)
-			if err != nil {
-				// If admin ops context fails during deletion, skip dependency check.
-				// The store may never have been fully created (e.g. pools didn't exist),
-				// so there can't be any dependents.
-				log.NamedWarning(request.NamespacedName, logger, "failed to get admin ops context during deletion, skipping dependency check: %v", err)
+			if !poolsExistForNonRawOps(objCtx) {
+				log.NamedInfo(request.NamespacedName, logger, "skipping bucket dependency check during deletion")
 			} else {
-				deps, err := cephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore, objCtx, opsCtx)
+				opsCtx, err := NewMultisiteAdminOpsContext(objCtx, &cephObjectStore.Spec)
 				if err != nil {
-					return reconcile.Result{}, *cephObjectStore, err
+					log.NamedWarning(request.NamespacedName, logger, "failed to get admin ops context during deletion, skipping dependency check: %v", err)
+				} else {
+					deps, err := cephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore, objCtx, opsCtx)
+					if err != nil {
+						return reconcile.Result{}, *cephObjectStore, err
+					}
+					if !deps.Empty() {
+						err := reporting.ReportDeletionBlockedDueToDependents(r.opManagerContext, logger, r.client, cephObjectStore, deps)
+						return opcontroller.WaitForRequeueIfFinalizerBlocked, *cephObjectStore, err
+					}
+					reporting.ReportDeletionNotBlockedDueToDependents(r.opManagerContext, logger, r.client, r.recorder, cephObjectStore)
 				}
-				if !deps.Empty() {
-					err := reporting.ReportDeletionBlockedDueToDependents(r.opManagerContext, logger, r.client, cephObjectStore, deps)
-					return opcontroller.WaitForRequeueIfFinalizerBlocked, *cephObjectStore, err
-				}
-				reporting.ReportDeletionNotBlockedDueToDependents(r.opManagerContext, logger, r.client, r.recorder, cephObjectStore)
 			}
 		}
 
