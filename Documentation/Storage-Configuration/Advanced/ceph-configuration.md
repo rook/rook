@@ -46,10 +46,10 @@ sed -i.bak \
     -e "s/\(.*serviceaccount\):.*:\(.*\) # serviceaccount:namespace:operator/\1:$ROOK_OPERATOR_NAMESPACE:\2 # serviceaccount:namespace:operator/g" \
     -e "s/\(.*serviceaccount\):.*:\(.*\) # serviceaccount:namespace:cluster/\1:$ROOK_CLUSTER_NAMESPACE:\2 # serviceaccount:namespace:cluster/g" \
     -e "s/\(.*\): [-_A-Za-z0-9]*\.\(.*\) # driver:namespace:cluster/\1: $ROOK_CLUSTER_NAMESPACE.\2 # driver:namespace:cluster/g" \
-  common.yaml operator.yaml cluster.yaml # add other files or change these as desired for your config
+  common.yaml operator.yaml csi-operator.yaml cluster.yaml # add other files or change these as desired for your config
 
 # You need to use `apply` for all Ceph clusters after the first if you have only one Operator
-kubectl apply -f crds.yaml -f common.yaml -f operator.yaml -f cluster.yaml # add other files as desired for yourconfig
+kubectl apply -f crds.yaml -f common.yaml -f operator.yaml -f csi-operator.yaml -f cluster.yaml # add other files as desired for yourconfig
 ```
 
 Also see the CSI driver
