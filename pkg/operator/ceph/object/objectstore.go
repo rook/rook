@@ -189,16 +189,7 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 
 	if !spec.PreservePoolsOnDelete {
 		if EmptyPool(spec.DataPool) && EmptyPool(spec.MetadataPool) {
-			if !IsNeedToCreateObjectStorePools(spec.SharedPools) {
-				// When shared pools are configured, "radosgw-admin zone delete" may leave behind
-				// per-zone pools (e.g., store-a.rgw.control, store-a.rgw.meta).
-				log.NamedInfo(objContext.NsName(), logger, "cleaning up per-zone ghost pools left by realm deletion")
-				if err := DeletePools(objContext, lastStore, objContext.Name); err != nil {
-					log.NamedWarning(objContext.NsName(), logger, "failed to clean up ghost pools: %v", err)
-				}
-			} else {
-				log.NamedInfo(objContext.NsName(), logger, "skipping removal of pools since not specified in the object store")
-			}
+			log.NamedInfo(objContext.NsName(), logger, "skipping removal of pools since not specified in the object store")
 			return nil
 		}
 		err = DeletePools(objContext, lastStore, objContext.Name)
@@ -756,6 +747,26 @@ func missingPools(context *Context) ([]string, error) {
 	}
 
 	return missingPools, nil
+}
+
+// poolsExistForNonRawOps checks whether all object store pools exist.
+// Non-raw radosgw-admin commands (ones not in RGW raw_storage_ops_list, see:
+// https://github.com/ceph/ceph/blob/649c3131862d310ce0b273dcbe08ebca0c2ec7ec/src/rgw/radosgw-admin/radosgw-admin.cc#L4540-L4567
+// )
+// trigger full RGW initialization which auto-creates default pools — for example user info called by disableRGWDashboard and
+// user create called by NewMultisiteAdminOpsContext during store deletion.
+// Use this function on delete reconciliation path to skip non-raw commands if pools were not created.
+func poolsExistForNonRawOps(context *Context) bool {
+	missing, err := missingPools(context)
+	if err != nil {
+		log.NamedWarning(context.NsName(), logger, "failed to check for missing pools, assuming they don't exist to avoid ghost pool creation: %v", err)
+		return false
+	}
+	if len(missing) > 0 {
+		log.NamedInfo(context.NsName(), logger, "some object store pools are missing, skipping non-raw radosgw-admin operations to avoid ghost pool creation: %v", missing)
+		return false
+	}
+	return true
 }
 
 func CreateObjectStorePools(context *Context, cluster *cephv1.ClusterSpec, metadataPool, dataPool cephv1.PoolSpec) error {
