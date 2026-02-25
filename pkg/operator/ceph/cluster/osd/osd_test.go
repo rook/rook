@@ -796,6 +796,91 @@ func TestGetOSDInfo(t *testing.T) {
 		assert.Equal(t, osd5.ID, osdInfo5.ID)
 		assert.Equal(t, osd5.CVMode, osdInfo5.CVMode)
 	})
+
+	t.Run("verify the existence of labels if the corresponding fields are set on OSDInfo and OSDProperties", func(t *testing.T) {
+		pvcName := "test-pvc"
+		osdInfo := &OSDInfo{
+			UUID:       "osd-uuid",
+			BlockPath:  "dev/logical-volume-path",
+			CVMode:     "raw",
+			Store:      "bluestore",
+			DeviceType: "ssd",
+		}
+		osdProp := osdProperties{
+			crushHostname: node,
+			pvc:           corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName},
+			selection:     cephv1.Selection{},
+			resources:     corev1.ResourceRequirements{},
+			storeConfig:   config.StoreConfig{},
+			encrypted:     true,
+		}
+
+		d, err := c.makeDeployment(osdProp, osdInfo, dataPathMap)
+		assert.NoError(t, err)
+
+		// deployment labels
+		assert.Equal(t, osdInfo.Store, d.Labels[osdStore])
+		assert.Equal(t, osdInfo.DeviceType, d.Labels[deviceType])
+		assert.Equal(t, "true", d.Labels[encrypted])
+		assert.Equal(t, pvcName, d.Labels[OSDOverPVCLabelKey])
+
+		// pod spec template labels
+		assert.Equal(t, osdInfo.Store, d.Spec.Template.Labels[osdStore])
+		assert.Equal(t, osdInfo.DeviceType, d.Spec.Template.Labels[deviceType])
+		assert.Equal(t, "true", d.Spec.Template.Labels[encrypted])
+		assert.Equal(t, pvcName, d.Spec.Template.Labels[OSDOverPVCLabelKey])
+
+		// getOSDInfo round-trip: all four fields must be recovered from the labels
+		updatedOSDInfo, err := c.getOSDInfo(d)
+		assert.NoError(t, err)
+		assert.Equal(t, osdInfo.Store, updatedOSDInfo.Store)
+		assert.Equal(t, osdInfo.DeviceType, updatedOSDInfo.DeviceType)
+		assert.True(t, updatedOSDInfo.Encrypted)
+		assert.Equal(t, pvcName, updatedOSDInfo.PVCName)
+	})
+
+	t.Run("verify the non-existence of labels if the corresponding fields are not set on OSDInfo and OSDProperties", func(t *testing.T) {
+		useAllDevices := true
+		osdInfo := &OSDInfo{
+			UUID:      "osd-uuid",
+			BlockPath: "vg1/lv1",
+			CVMode:    "lvm",
+			// Store and DeviceType are empty (zero values)
+		}
+		osdProp := osdProperties{
+			crushHostname: node,
+			selection: cephv1.Selection{
+				UseAllDevices: &useAllDevices,
+			},
+			resources:   corev1.ResourceRequirements{},
+			storeConfig: config.StoreConfig{},
+			// pvc is zero value (not on PVC)
+			// encrypted is false (zero value)
+		}
+
+		d, err := c.makeDeployment(osdProp, osdInfo, dataPathMap)
+		assert.NoError(t, err)
+
+		// deployment labels
+		assert.NotContains(t, d.Labels, deviceType)
+		assert.Equal(t, "false", d.Labels[encrypted])
+		assert.NotContains(t, d.Labels, OSDOverPVCLabelKey)
+		assert.Empty(t, d.Labels[osdStore])
+
+		// pod spec template labels
+		assert.NotContains(t, d.Spec.Template.Labels, deviceType)
+		assert.Equal(t, "false", d.Spec.Template.Labels[encrypted])
+		assert.NotContains(t, d.Spec.Template.Labels, OSDOverPVCLabelKey)
+		assert.Empty(t, d.Spec.Template.Labels[osdStore])
+
+		// getOSDInfo round-trip: absent/false labels must yield zero values
+		updatedOSDInfo, err := c.getOSDInfo(d)
+		assert.NoError(t, err)
+		assert.Empty(t, updatedOSDInfo.DeviceType)
+		assert.Empty(t, updatedOSDInfo.PVCName)
+		assert.False(t, updatedOSDInfo.Encrypted)
+		assert.Empty(t, updatedOSDInfo.Store)
+	})
 }
 
 func TestGetPreparePlacement(t *testing.T) {
