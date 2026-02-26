@@ -301,6 +301,19 @@ var cephVolumeRawPartitionTestResult = `{
     }
 }`
 
+// ceph-volume raw list reports the device via an LVM symlink (/dev/rhel/ceph-data)
+// while the inventory RealPath is /dev/mapper/rhel-ceph--data.
+var cephVolumeRAWLVMSymlinkTestResult = `{
+    "0": {
+        "ceph_fsid": "4bfe8b72-5e69-4330-b6c0-4d914db8ab89",
+        "device": "/dev/rhel/ceph-data",
+        "osd_id": 0,
+        "osd_uuid": "c03d7353-96e5-4a41-98de-830dfff97d06",
+        "type": "bluestore"
+    }
+}
+`
+
 func createPVCAvailableDevices() *DeviceOsdMapping {
 	devices := &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
@@ -2278,6 +2291,37 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	}
 	context = &clusterd.Context{
 		Devices: []*sys.LocalDisk{{RealPath: "/dev/vdb", Filesystem: "crypto_LUKS"}},
+	}
+	context.Executor = executor
+	err = agent.WipeDevicesFromOtherClusters(context)
+	assert.NoError(t, err)
+
+	// `ceph-volume raw list` returns an LVM symlink path (/dev/rhel/ceph-data) while
+	// the device RealPath is /dev/mapper/rhel-ceph--data. The device should still be
+	// matched via DevLinks and zapped.
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		if slices.Contains(args, "raw") && slices.Contains(args, "list") {
+			return cephVolumeRAWLVMSymlinkTestResult, nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		devicePath := "/dev/mapper/rhel-ceph--data"
+		if slices.Contains(args, "zap") {
+			if !slices.Contains(args, devicePath) {
+				return "", errors.Errorf("expected device %s to be zapped but got %v", devicePath, args)
+			}
+			return "", nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	context = &clusterd.Context{
+		Devices: []*sys.LocalDisk{{
+			RealPath: "/dev/mapper/rhel-ceph--data",
+			DevLinks: "/dev/rhel/ceph-data /dev/disk/by-id/dm-name-rhel-ceph--data /dev/mapper/rhel-ceph--data",
+		}},
 	}
 	context.Executor = executor
 	err = agent.WipeDevicesFromOtherClusters(context)
