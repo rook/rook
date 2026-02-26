@@ -63,6 +63,8 @@ The following table lists the configurable parameters of the rook-operator chart
 |-----------|-------------|---------|
 | `cephBlockPools` | A list of CephBlockPool configurations to deploy | See [below](#ceph-block-pools) |
 | `cephBlockPoolsVolumeSnapshotClass` | Settings for the block pool snapshot class | See [RBD Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#rbd-snapshots) |
+| `cephClusterMetadata.annotations` |  | `{}` |
+| `cephClusterMetadata.labels` |  | `{}` |
 | `cephClusterSpec` | Cluster configuration. | See [below](#ceph-cluster-spec) |
 | `cephFileSystemVolumeSnapshotClass` | Settings for the filesystem snapshot class | See [CephFS Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#cephfs-snapshots) |
 | `cephFileSystems` | A list of CephFileSystem configurations to deploy | See [below](#ceph-file-systems) |
