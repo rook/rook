@@ -206,6 +206,16 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	// Make sure an ObjectZoneGroup is present
 	realmName, reconcileResponse, err := r.getCephObjectZoneGroup(cephObjectZone)
 	if err != nil {
+		// If the zone is being deleted and the zonegroup CRD is already gone (e.g., all multisite
+		// CRDs deleted simultaneously), remove the finalizer so the zone CRD doesn't get stuck.
+		if !cephObjectZone.GetDeletionTimestamp().IsZero() && kerrors.IsNotFound(err) {
+			log.NamedWarning(request.NamespacedName, logger, "zonegroup CRD not found during zone deletion, removing finalizer")
+			err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectZone)
+			if err != nil {
+				return reconcile.Result{}, *cephObjectZone, errors.Wrap(err, "failed to remove finalizer")
+			}
+			return reconcile.Result{}, *cephObjectZone, nil
+		}
 		return reconcileResponse, *cephObjectZone, err
 	}
 

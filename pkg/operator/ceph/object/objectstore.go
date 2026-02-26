@@ -595,12 +595,14 @@ func configureObjectStore(objContext *Context, store *cephv1.CephObjectStore, zo
 }
 
 func deleteRealm(context *Context) error {
-	//  <name>
 	realmArg := fmt.Sprintf("--rgw-realm=%s", context.Name)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", context.Name)
-	_, err := RunAdminCommandNoMultisite(context, false, "realm", "delete", realmArg)
+
+	// Delete in reverse order: zone → zonegroup → realm.
+	// Note: radosgw-admin uses "delete" for zone and zonegroup, but "rm" for realm.
+	_, err := runAdminCommand(context, false, "zone", "delete")
 	if err != nil {
-		log.NamedWarning(context.NsName(), logger, "failed to delete rgw realm %q. %v", context.Name, err)
+		log.NamedWarning(context.NsName(), logger, "failed to delete rgw zone %q. %v", context.Name, err)
 	}
 
 	_, err = RunAdminCommandNoMultisite(context, false, "zonegroup", "delete", realmArg, zoneGroupArg)
@@ -608,9 +610,9 @@ func deleteRealm(context *Context) error {
 		log.NamedWarning(context.NsName(), logger, "failed to delete rgw zonegroup %q. %v", context.Name, err)
 	}
 
-	_, err = runAdminCommand(context, false, "zone", "delete")
+	_, err = RunAdminCommandNoMultisite(context, false, "realm", "rm", realmArg)
 	if err != nil {
-		log.NamedWarning(context.NsName(), logger, "failed to delete rgw zone %q. %v", context.Name, err)
+		log.NamedWarning(context.NsName(), logger, "failed to delete rgw realm %q. %v", context.Name, err)
 	}
 
 	return nil
@@ -745,6 +747,26 @@ func missingPools(context *Context) ([]string, error) {
 	}
 
 	return missingPools, nil
+}
+
+// poolsExistForNonRawOps checks whether all object store pools exist.
+// Non-raw radosgw-admin commands (ones not in RGW raw_storage_ops_list, see:
+// https://github.com/ceph/ceph/blob/649c3131862d310ce0b273dcbe08ebca0c2ec7ec/src/rgw/radosgw-admin/radosgw-admin.cc#L4540-L4567
+// )
+// trigger full RGW initialization which auto-creates default pools — for example user info called by disableRGWDashboard and
+// user create called by NewMultisiteAdminOpsContext during store deletion.
+// Use this function on delete reconciliation path to skip non-raw commands if pools were not created.
+func poolsExistForNonRawOps(context *Context) bool {
+	missing, err := missingPools(context)
+	if err != nil {
+		log.NamedWarning(context.NsName(), logger, "failed to check for missing pools, assuming they don't exist to avoid ghost pool creation: %v", err)
+		return false
+	}
+	if len(missing) > 0 {
+		log.NamedInfo(context.NsName(), logger, "some object store pools are missing, skipping non-raw radosgw-admin operations to avoid ghost pool creation: %v", missing)
+		return false
+	}
+	return true
 }
 
 func CreateObjectStorePools(context *Context, cluster *cephv1.ClusterSpec, metadataPool, dataPool cephv1.PoolSpec) error {
