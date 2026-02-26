@@ -25,6 +25,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -968,8 +969,12 @@ func getOSDDiskToBeWiped(context *clusterd.Context, existingOSDDevice string) (*
 
 	var osdDisk *sys.LocalDisk
 	for _, desiredDevice := range context.Devices {
-		if desiredDevice.RealPath == existingOSDDevice {
+		// Also check DevLinks since ceph-volume may report a symlink path
+		// (e.g. /dev/rhel/ceph-data) that differs from RealPath
+		// (e.g. /dev/mapper/rhel-ceph--data)
+		if desiredDevice.RealPath == existingOSDDevice || slices.Contains(strings.Split(desiredDevice.DevLinks, " "), existingOSDDevice) {
 			osdDisk = desiredDevice
+			break
 		}
 	}
 	return osdDisk, encryptedBlock, nil
