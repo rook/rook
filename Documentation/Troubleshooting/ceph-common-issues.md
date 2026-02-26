@@ -10,66 +10,24 @@ title: Ceph Common Issues
 
 - [Troubleshooting Techniques](#troubleshooting-techniques)
     - [Ceph Tools](#ceph-tools)
-        - [Tools in the Rook Toolbox](#tools-in-the-rook-toolbox)
-        - [Ceph Commands](#ceph-commands)
+    - [Tools in the Rook Toolbox](#tools-in-the-rook-toolbox)
+    - [Ceph Commands](#ceph-commands)
 - [Cluster failing to service requests](#cluster-failing-to-service-requests)
-    - [Symptoms](#symptoms)
-    - [Investigation](#investigation)
-    - [Solution](#solution)
 - [Monitors are the only pods running](#monitors-are-the-only-pods-running)
-    - [Symptoms](#symptoms-1)
-    - [Investigation](#investigation-1)
-        - [Operator fails to connect to the mon](#operator-fails-to-connect-to-the-mon)
-        - [Solution](#solution-1)
-        - [Failing mon pod](#failing-mon-pod)
-        - [Solution](#solution-2)
 - [PVCs stay in pending state](#pvcs-stay-in-pending-state)
-    - [Symptoms](#symptoms-2)
-    - [Investigation](#investigation-2)
-        - [Confirm if there are OSDs](#confirm-if-there-are-osds)
-        - [OSD Prepare Logs](#osd-prepare-logs)
-        - [CSI Driver](#csi-driver)
-        - [Operator unresponsiveness](#operator-unresponsiveness)
-    - [Solution](#solution-3)
 - [OSD pods are failing to start](#osd-pods-are-failing-to-start)
-    - [Symptoms](#symptoms-3)
-    - [Investigation](#investigation-3)
-    - [Solution](#solution-4)
 - [OSD pods are not created on my devices](#osd-pods-are-not-created-on-my-devices)
-    - [Symptoms](#symptoms-4)
-    - [Investigation](#investigation-4)
-    - [Solution](#solution-5)
 - [Node hangs after reboot](#node-hangs-after-reboot)
-    - [Symptoms](#symptoms-5)
-    - [Investigation](#investigation-5)
-    - [Solution](#solution-6)
 - [Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7](#using-multiple-shared-filesystem-cephfs-is-attempted-on-a-kernel-version-older-than-47)
-    - [Symptoms](#symptoms-6)
-    - [Solution](#solution-7)
 - [Set debug log level for all Ceph daemons](#set-debug-log-level-for-all-ceph-daemons)
 - [Activate log to file for a particular Ceph daemon](#activate-log-to-file-for-a-particular-ceph-daemon)
 - [A worker node using RBD devices hangs up](#a-worker-node-using-rbd-devices-hangs-up)
-    - [Symptoms](#symptoms-7)
-    - [Investigation](#investigation-6)
-    - [Solution](#solution-8)
 - [Too few PGs per OSD warning is shown](#too-few-pgs-per-osd-warning-is-shown)
-    - [Symptoms](#symptoms-8)
-    - [Solution](#solution-9)
 - [LVM metadata can be corrupted with OSD on LV-backed PVC](#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
-    - [Symptoms](#symptoms-9)
-    - [Solution](#solution-10)
 - [OSD prepare job fails due to low aio-max-nr setting](#osd-prepare-job-fails-due-to-low-aio-max-nr-setting)
 - [Unexpected partitions created](#unexpected-partitions-created)
-    - [Symptoms](#symptoms-10)
-    - [Solution](#solution-11)
-        - [Recover from corruption (v1.6.0-v1.6.7)](#recover-from-corruption-v160-v167)
 - [Operator environment variables are ignored](#operator-environment-variables-are-ignored)
-    - [Symptoms](#symptoms-11)
-    - [Investigation](#investigation-7)
-    - [Solution](#solution-12)
 - [The cluster is in an unhealthy state or fails to configure when LimitNOFILE=infinity in containerd](#the-cluster-is-in-an-unhealthy-state-or-fails-to-configure-when-limitnofileinfinity-in-containerd)
-    - [Symptoms](#symptoms-12)
-    - [Solution](#solution-13)
 
 
 Many of these problem cases are hard to summarize down to a short phrase that adequately describes the problem. Each problem will start with a bulleted list of symptoms. Keep in mind that all symptoms may not apply depending on the configuration of Rook. If the majority of the symptoms are seen there is a fair chance you are experiencing that problem.
@@ -94,7 +52,7 @@ After you verify the basic health of the running pods, next you will want to run
 * Other artifacts:
     * The monitors that are expected to be in quorum: `kubectl -n <cluster-namespace> get configmap rook-ceph-mon-endpoints -o yaml | grep data`
 
-#### Tools in the Rook Toolbox
+### Tools in the Rook Toolbox
 
 The [rook-ceph-tools pod](ceph-toolbox.md) provides a simple environment to run Ceph tools. Once the pod is up and running, connect to the pod to execute Ceph commands to evaluate that current state of the cluster.
 
@@ -102,7 +60,7 @@ The [rook-ceph-tools pod](ceph-toolbox.md) provides a simple environment to run 
 kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[*].metadata.name}') -- bash
 ```
 
-#### Ceph Commands
+### Ceph Commands
 
 Here are some common commands to troubleshoot a Ceph cluster:
 
