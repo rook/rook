@@ -615,6 +615,8 @@ function get_secret_key() {
 }
 
 function s3cmd() {
+  kubectl -n rook-ceph exec deploy/rook-ceph-tools -- radosgw-admin zone get --rgw-zone=zone-a
+  kubectl -n rook-ceph-secondary exec deploy/rook-ceph-tools -- radosgw-admin zone get --rgw-zone=zone-b
   command timeout 200 s3cmd -v --config=s3cfg --access_key="${S3CMD_ACCESS_KEY}" --secret_key="${S3CMD_SECRET_KEY}" "$@"
 }
 
@@ -629,7 +631,10 @@ function write_object_read_from_replica_cluster() {
   # ensure that test file has unique data
   echo "$test_object_name" >>"$test_object_name"
 
-  s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"
+  until s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"; do
+    echo "waiting for s3cmd to succeed"
+    sleep 5
+  done
   s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"
 
   # Schedule a signal for 60s into the future as a timeout on retrying s3cmd.
