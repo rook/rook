@@ -9416,6 +9416,156 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
+  name: cephluascripts.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephLuaScript
+    listKind: CephLuaScriptList
+    plural: cephluascripts
+    shortNames:
+      - cephls
+    singular: cephluascript
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+      name: v1
+      schema:
+        openAPIV3Schema:
+          description: CephLuaScript represents a Ceph Lua Script
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: LuaScriptSpec represents the spec of a Lua script
+              properties:
+                context:
+                  description: |-
+                    The context for the Lua script to hook execution.
+                    One of preRequest, postRequest, background, getData, putData.
+                  type: string
+                objectStoreName:
+                  description: The name of the object store to attach the Lua script
+                  minLength: 1
+                  type: string
+                objectStoreNamespace:
+                  description: The namespace of the object store to attach the Lua script
+                  minLength: 1
+                  type: string
+                packages:
+                  description: A list of Lua packages to be installed and added to the allowlist
+                  items:
+                    properties:
+                      allowCompilation:
+                        description: Whether a C compiler should compile the package source code. This defaults to false.
+                        nullable: true
+                        type: boolean
+                      name:
+                        description: The Lua package name
+                        minLength: 1
+                        type: string
+                      version:
+                        description: The Lua package version
+                        type: string
+                    required:
+                      - name
+                    type: object
+                  type: array
+                script:
+                  description: The Lua script body
+                  type: string
+                scriptBase64:
+                  description: The Lua script body in base64 encoded form
+                  type: string
+                scriptURL:
+                  description: The Lua script body fetchable through a URL
+                  type: string
+                tenant:
+                  description: |-
+                    The tenant of users for which the Lua script is constrained against.
+                    This field is ignored when uploading a Lua script with the background context.
+                  type: string
+              required:
+                - context
+                - objectStoreName
+                - objectStoreNamespace
+              type: object
+            status:
+              properties:
+                conditions:
+                  items:
+                    description: Condition represents a status condition on any Rook-Ceph Custom Resource.
+                    properties:
+                      lastHeartbeatTime:
+                        format: date-time
+                        type: string
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        type: string
+                      reason:
+                        description: ConditionReason is a reason for a condition
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        description: ConditionType represent a resource's status
+                        type: string
+                    type: object
+                  type: array
+                observedGeneration:
+                  description: ObservedGeneration is the latest generation observed by the controller.
+                  format: int64
+                  type: integer
+                phase:
+                  type: string
+                zone:
+                  description: The multisite info for the connected store
+                  properties:
+                    name:
+                      description: CephObjectStoreZone name this CephObjectStore is part of
+                      type: string
+                  required:
+                    - name
+                  type: object
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          required:
+            - metadata
+            - spec
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: cephnfses.ceph.rook.io
 spec:
   group: ceph.rook.io
@@ -12606,6 +12756,10 @@ spec:
               type: string
             metadata:
               type: object
+            observedGeneration:
+              description: ObservedGeneration is the latest generation observed by the controller.
+              format: int64
+              type: integer
             spec:
               description: ObjectStoreSpec represent the spec of a pool
               properties:

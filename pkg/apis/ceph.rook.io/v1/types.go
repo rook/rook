@@ -1682,6 +1682,9 @@ type CephObjectStore struct {
 	Spec              ObjectStoreSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Status *ObjectStoreStatus `json:"status,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -2730,6 +2733,95 @@ type RGWServiceSpec struct {
 	// optional
 	Annotations Annotations `json:"annotations,omitempty"`
 }
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephLuaScript represents a Ceph Lua Script
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=cephls
+type CephLuaScript struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              LuaScriptSpec `json:"spec"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Status *LuaScriptStatus `json:"status,omitempty"`
+}
+
+type LuaScriptStatus struct {
+	// The multisite info for the connected store
+	Zone   ZoneSpec `json:"zone,omitempty"`
+	Status `json:",inline"`
+}
+
+// CephLuaScriptList represents a list of Ceph Lua Scripts
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type CephLuaScriptList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephLuaScript `json:"items"`
+}
+
+// LuaScriptSpec represents the spec of a Lua script
+type LuaScriptSpec struct {
+	// The name of the object store to attach the Lua script
+	// +kubebuilder:validation:MinLength=1
+	ObjectStoreName string `json:"objectStoreName"`
+	// The namespace of the object store to attach the Lua script
+	// +kubebuilder:validation:MinLength=1
+	ObjectStoreNamespace string `json:"objectStoreNamespace"`
+	// The tenant of users for which the Lua script is constrained against.
+	// This field is ignored when uploading a Lua script with the background context.
+	// +optional
+	Tenant string `json:"tenant,omitempty"`
+	// The context for the Lua script to hook execution.
+	// One of preRequest, postRequest, background, getData, putData.
+	Context CephLuaScriptContext `json:"context"`
+	// The Lua script body
+	// +optional
+	Script string `json:"script,omitempty"`
+	// The Lua script body in base64 encoded form
+	// +optional
+	ScriptBase64 string `json:"scriptBase64,omitempty"`
+	// The Lua script body fetchable through a URL
+	// +optional
+	ScriptURL string `json:"scriptURL,omitempty"`
+	// A list of Lua packages to be installed and added to the allowlist
+	// +optional
+	Packages []LuaPackageSpec `json:"packages,omitempty"`
+}
+
+type LuaPackageSpec struct {
+	// The Lua package name
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+	// The Lua package version
+	// +optional
+	Version string `json:"version,omitempty"`
+	// Whether a C compiler should compile the package source code. This defaults to false.
+	// +nullable
+	// +optional
+	AllowCompilation *bool `json:"allowCompilation,omitempty"`
+}
+
+type CephLuaScriptContext string
+
+const (
+	// Will execute before each operation is performed
+	PreRequestCephLuaScriptContext CephLuaScriptContext = "preRequest"
+	// Will execute after each operation is performed
+	PostRequestCephLuaScriptContext CephLuaScriptContext = "postRequest"
+	// Will execute within a specified time interval
+	BackgroundCephLuaScriptContext CephLuaScriptContext = "background"
+	// Will execute on objects' data when objects are downloaded
+	GetDataCephLuaScriptContext CephLuaScriptContext = "getData"
+	// Will execute on objects' data when objects are uploaded
+	PutDataCephLuaScriptContext CephLuaScriptContext = "putData"
+)
 
 // +genclient
 // +genclient:noStatus

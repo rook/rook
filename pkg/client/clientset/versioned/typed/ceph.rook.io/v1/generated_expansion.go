@@ -38,6 +38,8 @@ type CephFilesystemMirrorExpansion interface{}
 
 type CephFilesystemSubVolumeGroupExpansion interface{}
 
+type CephLuaScriptExpansion interface{}
+
 type CephNFSExpansion interface{}
 
 type CephNVMeOFGatewayExpansion interface{}

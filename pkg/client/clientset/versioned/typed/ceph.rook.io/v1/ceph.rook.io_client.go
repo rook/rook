@@ -38,6 +38,7 @@ type CephV1Interface interface {
 	CephFilesystemsGetter
 	CephFilesystemMirrorsGetter
 	CephFilesystemSubVolumeGroupsGetter
+	CephLuaScriptsGetter
 	CephNFSesGetter
 	CephNVMeOFGatewaysGetter
 	CephObjectRealmsGetter
@@ -91,6 +92,10 @@ func (c *CephV1Client) CephFilesystemMirrors(namespace string) CephFilesystemMir
 
 func (c *CephV1Client) CephFilesystemSubVolumeGroups(namespace string) CephFilesystemSubVolumeGroupInterface {
 	return newCephFilesystemSubVolumeGroups(c, namespace)
+}
+
+func (c *CephV1Client) CephLuaScripts(namespace string) CephLuaScriptInterface {
+	return newCephLuaScripts(c, namespace)
 }
 
 func (c *CephV1Client) CephNFSes(namespace string) CephNFSInterface {
