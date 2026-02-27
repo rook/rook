@@ -33,27 +33,7 @@ openssl req -new -key "${DIR}"/"${SERVICE}".key -subj "/CN=system:node:${SERVICE
 
 export CSR_NAME=${SERVICE}-csr
 
-# Minimum 1.19.0 kubernetes version is required for certificates.k8s.io/v1 version
-SERVER_VERSION=$(kubectl version --short | awk -F  "."  '/Server Version/ {print $2}')
-MINIMUM_VERSION=19
-if [ "${SERVER_VERSION}" -lt "${MINIMUM_VERSION}" ]
-then
-    cat <<EOF >"${DIR}"/csr.yaml
-  apiVersion: certificates.k8s.io/v1beta1
-  kind: CertificateSigningRequest
-  metadata:
-    name: ${CSR_NAME}
-  spec:
-    groups:
-    - system:authenticated
-    request: $(cat "${DIR}"/server.csr | base64 | tr -d '\n')
-    usages:
-    - digital signature
-    - key encipherment
-    - server auth
-EOF
-else
-    cat <<EOF >"${DIR}"/csr.yaml
+cat <<EOF >"${DIR}"/csr.yaml
   apiVersion: certificates.k8s.io/v1
   kind: CertificateSigningRequest
   metadata:
@@ -68,7 +48,6 @@ else
     - key encipherment
     - server auth
 EOF
-fi
 
 kubectl create -f "${DIR}/"csr.yaml
 
