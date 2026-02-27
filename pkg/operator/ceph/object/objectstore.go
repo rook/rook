@@ -925,9 +925,12 @@ func adjustZoneDefaultPools(objContext *Context, zone map[string]interface{}, sp
 		"user_uid_pool":   ".meta.users.uid",
 		"otp_pool":        ".otp",
 		"notif_pool":      ".log.notif",
-		"topics_pool":     ".meta.topics",  // introduced in Ceph v19
-		"account_pool":    ".meta.account", // introduced in Ceph v19
-		"group_pool":      ".meta.group",   // introduced in Ceph v19
+		"topics_pool":         ".meta.topics",        // introduced in Ceph v19
+		"account_pool":        ".meta.account",       // introduced in Ceph v19
+		"group_pool":          ".meta.group",         // introduced in Ceph v19
+		"restore_pool":        ".log.restore",        // introduced in Ceph v20
+		"bucket_logging_pool": ".log.bucket-logging", // introduced in Ceph v20
+		"dedup_pool":          ".dedup",              // introduced in Ceph v20
 	}
 	for pool, nsSuffix := range zonePoolNSSuffix {
 		// replace rgw internal index pools with namespaced metadata pool
