@@ -288,8 +288,8 @@ generate: gen.codegen gen.crds gen.rbac gen.docs gen.crd-docs ## Update all gene
 
 # ====================================================================================
 # Help
+# available options:
 define HELPTEXT
-available options:
     DEBUG        Whether to generate debug symbols. Default is 0.
     PLATFORM     The platform to build.
     SUITE        The test suite to run.
@@ -305,4 +305,5 @@ help: ## Show this help menu.
 	@echo ""
 	@grep --no-filename -E '^[a-zA-Z_%-. ]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 	@echo ""
+	@echo "available options:"
 	@echo "$$HELPTEXT"
