@@ -84,7 +84,8 @@ promote: $(addprefix promote.,$(FLAVORS)) ;
 # ====================================================================================
 # docs
 
-deps.docs:
+
+deps.docs: 
 	pip3 install -r requirements_docs.txt
 
 build.docs: deps.docs
