@@ -1998,7 +1998,7 @@ jobs:
       - name: deploy cluster without ceph-csi operator
         run: |
           OPERATOR_MANIFEST="deploy/examples/operator.yaml"
-          sed -i 's|# ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.1"|ROOK_CSI_CEPH_IMAGE: "quay.io/nixpanic/cephcsi:nvmeof"|' "${OPERATOR_MANIFEST}"
+          sed -i 's|# ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.1"|ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:canary"|' "${OPERATOR_MANIFEST}"
           sed -i 's|ROOK_USE_CSI_OPERATOR: "true"|ROOK_USE_CSI_OPERATOR: "false"|' "${OPERATOR_MANIFEST}"
 
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "${OPERATOR_MANIFEST}"
