@@ -207,7 +207,10 @@ gen.codegen: codegen
 codegen: ${CODE_GENERATOR} ## Run code generators.
 	@build/codegen/codegen.sh
 
+.PHONY: mod.check
 mod.check: go.mod.check ## Check if any go modules changed.
+
+.PHONY: mod.update
 mod.update: go.mod.update ## Update all go modules.
 
 clean: ## Remove all files that are created by building.
