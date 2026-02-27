@@ -210,6 +210,9 @@ fmt-fix: $(YQ) ## Reformatting of go sources.
 golangci-lint: $(YQ)
 	@$(MAKE) go.golangci-lint
 
+.PHONY: go.lint
+go.lint: vet fmt golangci-lint ## run various go linting tools
+
 .PHONY: markdownlint
 markdownlint: ## Check formatting of documentation sources
 	@$(MARKDOWNLINT) "Documentation/**/*.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs
