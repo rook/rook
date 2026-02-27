@@ -213,6 +213,8 @@ jobs:
 
   TestCephObjectSuite:
     runs-on: ubuntu-22.04
+    env:
+      GOFLAGS: "-tags=ceph_preview"
     strategy:
       fail-fast: false
       matrix:

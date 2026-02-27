@@ -42,6 +42,7 @@ type CephV1Interface interface {
 	CephNVMeOFGatewaysGetter
 	CephObjectRealmsGetter
 	CephObjectStoresGetter
+	CephObjectStoreAccountsGetter
 	CephObjectStoreUsersGetter
 	CephObjectZonesGetter
 	CephObjectZoneGroupsGetter
@@ -107,6 +108,10 @@ func (c *CephV1Client) CephObjectRealms(namespace string) CephObjectRealmInterfa
 
 func (c *CephV1Client) CephObjectStores(namespace string) CephObjectStoreInterface {
 	return newCephObjectStores(c, namespace)
+}
+
+func (c *CephV1Client) CephObjectStoreAccounts(namespace string) CephObjectStoreAccountInterface {
+	return newCephObjectStoreAccounts(c, namespace)
 }
 
 func (c *CephV1Client) CephObjectStoreUsers(namespace string) CephObjectStoreUserInterface {
