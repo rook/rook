@@ -241,7 +241,7 @@ class S3Auth(AuthBase):
             lk = key.lower()
             try:
                 lk = lk.decode("utf-8")
-            except:
+            except Exception:
                 pass
             if headers[key] and (
                 lk in interesting_headers.keys() or lk.startswith("x-amz-")
@@ -847,7 +847,7 @@ class RadosJSON:
                         each_standby_mgr, monitoring_endpoint_port, ip_type
                     )
                 )
-        except:
+        except Exception:
             raise ExecutionFailureException(
                 f"Conversion of host: {failed_ip} to IP failed. "
                 "Please enter the IP addresses of all the ceph-mgrs with the '--monitoring-endpoint' flag"
