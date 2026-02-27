@@ -11722,6 +11722,37 @@ KeyManagementServiceSpec
 <p>The settings for supporting AWS-SSE:S3 with RGW</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>sslOptions</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SSLOptionsSpec">
+SSLOptionsSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>sslOptions sets the SSL context options for the Ceph RGW beast frontend.
+See <a href="https://docs.ceph.com/en/latest/radosgw/frontends/#options">https://docs.ceph.com/en/latest/radosgw/frontends/#options</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ciphers</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.OpenSslCipher">
+[]OpenSslCipher
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ciphers specifies the cipher suites used during the TLS handshake.
+Each entry must be a valid OpenSSL cipher suite name.
+See <a href="https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names">https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names</a></p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec
@@ -12673,6 +12704,14 @@ bool
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.OpenSslCipher">OpenSslCipher
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreSecuritySpec">ObjectStoreSecuritySpec</a>)
+</p>
+<div>
+<p>OpenSslCipher represents a single OpenSSL cipher suite name.</p>
+</div>
 <h3 id="ceph.rook.io/v1.OpsLogSidecar">OpsLogSidecar
 </h3>
 <p>
@@ -14005,6 +14044,121 @@ bool
 <td>
 <em>(Optional)</em>
 <p>Whether to use Keystone for authentication. This option maps directly to the rgw_s3_auth_use_keystone option. Enabling it allows generating S3 credentials via an OpenStack API call, see the docs. If not given, the defaults of the corresponding RGW option apply.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.SSLOptionsSpec">SSLOptionsSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreSecuritySpec">ObjectStoreSecuritySpec</a>)
+</p>
+<div>
+<p>SSLOptionsSpec configures the ssl_options for the Ceph RGW beast frontend.
+See <a href="https://docs.ceph.com/en/latest/radosgw/frontends/">https://docs.ceph.com/en/latest/radosgw/frontends/</a></p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>defaultWorkarounds</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>defaultWorkarounds implements various bug workarounds.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>noCompression</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>noCompression disables compression.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sslv2</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>sslv2 enables SSL v2.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sslv3</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>sslv3 enables SSL v3.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tlsv1_0</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>tlsv1_0 enables TLS v1.0.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tlsv1_1</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>tlsv1_1 enables TLS v1.1.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tlsv1_2</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>tlsv1_2 enables TLS v1.2.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>singleDiffieHellmanUse</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SingleDiffieHellmanUse always creates a new key when using tmp_dh parameters.</p>
 </td>
 </tr>
 </tbody>

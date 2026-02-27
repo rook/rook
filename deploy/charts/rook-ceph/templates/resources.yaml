@@ -14554,6 +14554,17 @@ spec:
                   description: Security represents security settings
                   nullable: true
                   properties:
+                    ciphers:
+                      description: |-
+                        ciphers specifies the cipher suites used during the TLS handshake.
+                        Each entry must be a valid OpenSSL cipher suite name.
+                        See https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names
+                      items:
+                        description: OpenSslCipher represents a single OpenSSL cipher suite name.
+                        maxLength: 175
+                        minLength: 35
+                        type: string
+                      type: array
                     keyRotation:
                       description: KeyRotation defines options for Key Rotation.
                       nullable: true
@@ -14595,6 +14606,37 @@ spec:
                         tokenSecretName:
                           description: TokenSecretName is the kubernetes secret containing the KMS token
                           type: string
+                      type: object
+                    sslOptions:
+                      description: |-
+                        sslOptions sets the SSL context options for the Ceph RGW beast frontend.
+                        See https://docs.ceph.com/en/latest/radosgw/frontends/#options
+                      nullable: true
+                      properties:
+                        defaultWorkarounds:
+                          description: defaultWorkarounds implements various bug workarounds.
+                          type: boolean
+                        noCompression:
+                          description: noCompression disables compression.
+                          type: boolean
+                        singleDiffieHellmanUse:
+                          description: SingleDiffieHellmanUse always creates a new key when using tmp_dh parameters.
+                          type: boolean
+                        sslv2:
+                          description: sslv2 enables SSL v2.
+                          type: boolean
+                        sslv3:
+                          description: sslv3 enables SSL v3.
+                          type: boolean
+                        tlsv1_0:
+                          description: tlsv1_0 enables TLS v1.0.
+                          type: boolean
+                        tlsv1_1:
+                          description: tlsv1_1 enables TLS v1.1.
+                          type: boolean
+                        tlsv1_2:
+                          description: tlsv1_2 enables TLS v1.2.
+                          type: boolean
                       type: object
                   type: object
                 sharedPools:

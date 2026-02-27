@@ -394,7 +394,60 @@ type ObjectStoreSecuritySpec struct {
 	// +optional
 	// +nullable
 	ServerSideEncryptionS3 KeyManagementServiceSpec `json:"s3,omitempty"`
+
+	// sslOptions sets the SSL context options for the Ceph RGW beast frontend.
+	// See https://docs.ceph.com/en/latest/radosgw/frontends/#options
+	// +optional
+	// +nullable
+	SSLOptions *SSLOptionsSpec `json:"sslOptions,omitempty"`
+
+	// ciphers specifies the cipher suites used during the TLS handshake.
+	// Each entry must be a valid OpenSSL cipher suite name.
+	// See https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names
+	// +optional
+	Ciphers []OpenSslCipher `json:"ciphers,omitempty"`
 }
+
+// SSLOptionsSpec configures the ssl_options for the Ceph RGW beast frontend.
+// See https://docs.ceph.com/en/latest/radosgw/frontends/
+type SSLOptionsSpec struct {
+	// defaultWorkarounds implements various bug workarounds.
+	// +optional
+	DefaultWorkarounds bool `json:"defaultWorkarounds,omitempty"`
+
+	// noCompression disables compression.
+	// +optional
+	NoCompression bool `json:"noCompression,omitempty"`
+
+	// sslv2 enables SSL v2.
+	// +optional
+	SSLv2 *bool `json:"sslv2,omitempty"`
+
+	// sslv3 enables SSL v3.
+	// +optional
+	SSLv3 *bool `json:"sslv3,omitempty"`
+
+	// tlsv1_0 enables TLS v1.0.
+	// +optional
+	TLSv1_0 *bool `json:"tlsv1_0,omitempty"`
+
+	// tlsv1_1 enables TLS v1.1.
+	// +optional
+	TLSv1_1 *bool `json:"tlsv1_1,omitempty"`
+
+	// tlsv1_2 enables TLS v1.2.
+	// +optional
+	TLSv1_2 *bool `json:"tlsv1_2,omitempty"`
+
+	// SingleDiffieHellmanUse always creates a new key when using tmp_dh parameters.
+	// +optional
+	SingleDiffieHellmanUse *bool `json:"singleDiffieHellmanUse,omitempty"`
+}
+
+// OpenSslCipher represents a single OpenSSL cipher suite name.
+// +kubebuilder:validation:MinLength=35
+// +kubebuilder:validation:MaxLength=175
+type OpenSslCipher string
 
 // KeyManagementServiceSpec represent various details of the KMS server
 type KeyManagementServiceSpec struct {
