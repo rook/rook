@@ -79,6 +79,8 @@ SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook
 # tests packages that will be compiled into binaries
 TEST_PACKAGES = $(GO_PROJECT)/tests/integration
 
+CHECKMAKE=go run github.com/checkmake/checkmake/cmd/checkmake@v0.3.2
+
 # the root go project
 GO_PROJECT=github.com/rook/rook
 
@@ -203,7 +205,8 @@ pylint:
 
 .PHONY: checkmake
 checkmake:
-	checkmake Makefile
+	@$(CHECKMAKE) Makefile
+
 .PHONY: shellcheck
 shellcheck:
 	shellcheck --severity=warning --format=gcc --shell=bash $(shell find $(ROOT_DIR) -type f -name '*.sh') build/reset build/sed-in-place
