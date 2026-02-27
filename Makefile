@@ -127,6 +127,7 @@ build.common: build.version helm.build mod.check crds gen-rbac
 do.build.platform.%:
 	@$(MAKE) PLATFORM=$* go.build
 
+.PHONY: do.build.parallel
 do.build.parallel: $(foreach p,$(PLATFORMS_TO_BUILD_FOR), do.build.platform.$(p))
 
 build: build.common ## Only build for linux platform
