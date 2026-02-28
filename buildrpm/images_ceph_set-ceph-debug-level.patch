@@ -1,0 +1,10 @@
+diff --git images/ceph/set-ceph-debug-level images/ceph/set-ceph-debug-level
+index d792961f7..469bed02f 100755
+--- images/ceph/set-ceph-debug-level
++++ images/ceph/set-ceph-debug-level
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env bash
++#!/usr/bin/bash
+
+ # Copyright 2021 The Rook Authors. All rights reserved.
+ #

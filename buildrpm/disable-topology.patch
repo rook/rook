@@ -1,0 +1,29 @@
+diff --git pkg/operator/ceph/csi/template/cephfs/csi-cephfsplugin-provisioner-dep.yaml pkg/operator/ceph/csi/template/cephfs/csi-cephfsplugin-provisioner-dep.yaml
+index d280f11f9..13990660a 100644
+--- pkg/operator/ceph/csi/template/cephfs/csi-cephfsplugin-provisioner-dep.yaml
++++ pkg/operator/ceph/csi/template/cephfs/csi-cephfsplugin-provisioner-dep.yaml
+@@ -98,6 +98,11 @@ spec:
+             - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+             - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
+             - "--extra-create-metadata=true"
++            {{- if .EnableCSITopology }}
++            - "--feature-gates=Topology=true"
++            {{- else }}
++            - "--feature-gates=Topology=false"
++            {{- end }}
+           env:
+             - name: ADDRESS
+               value: unix:///csi/csi-provisioner.sock
+diff --git pkg/operator/ceph/csi/template/rbd/csi-rbdplugin-provisioner-dep.yaml pkg/operator/ceph/csi/template/rbd/csi-rbdplugin-provisioner-dep.yaml
+index a564063f1..81ebadd48 100644
+--- pkg/operator/ceph/csi/template/rbd/csi-rbdplugin-provisioner-dep.yaml
++++ pkg/operator/ceph/csi/template/rbd/csi-rbdplugin-provisioner-dep.yaml
+@@ -40,6 +40,8 @@ spec:
+             - "--feature-gates=HonorPVReclaimPolicy=true"
+             {{- if .EnableCSITopology }}
+             - "--feature-gates=Topology=true"
++            {{- else }}
++            - "--feature-gates=Topology=false"
+             {{- end }}
+           env:
+             - name: ADDRESS

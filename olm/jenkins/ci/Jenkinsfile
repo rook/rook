@@ -1,0 +1,14 @@
+@Library('olcne-pipeline') _
+import com.oracle.olcne.pipeline.BranchPattern
+
+// NOTE: Make sure ceph image (ceph-container) built before rook
+String rookVersion  = "1.19.2";
+String rookImageTag = "v" + rookVersion
+
+olcnePipeline(
+  branchPattern: new BranchPattern(master: 'oracle/release/' + rookVersion, feature: '(?!^release/.*$)(^.*$)'),
+  containers: [('container-registry.oracle.com/olcne/ceph:' + rookImageTag): 'olcne/ceph:' + rookImageTag],
+  yumOL8Repos: ['ol8_appstream', 'ol8_codeready_builder'],
+  platforms: ['ol8'],
+  architectures: ['x86_64', 'aarch64'],
+)

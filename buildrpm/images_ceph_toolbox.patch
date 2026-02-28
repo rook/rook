@@ -1,0 +1,10 @@
+diff --git images/ceph/toolbox.sh images/ceph/toolbox.sh
+index 811c34bde..3698ffd60 100755
+--- images/ceph/toolbox.sh
++++ images/ceph/toolbox.sh
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env -S bash -e
++#!/usr/bin/bash -e
+
+ # Copyright 2016 The Rook Authors. All rights reserved.
+ #

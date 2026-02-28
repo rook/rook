@@ -1,0 +1,13 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+COPY rpms /tmp/
+RUN dnf install -y /tmp/*.rpm && \
+    dnf clean all && \
+    rm -rf /var/cache/yum/* /tmp/*.rpm
+
+RUN useradd rook -u 2016
+USER 2016
+
+ENTRYPOINT ["/usr/local/bin/rook"]
+CMD [""]
