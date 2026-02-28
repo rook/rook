@@ -1,0 +1,86 @@
+run:
+    skip-dirs:
+        - tests
+    skip-files:
+        - format_test.go
+        - wrap_go1_12.go
+        - wrap_go1_12_test.go
+        - wrap_test.go
+
+linters-settings:
+    gci:
+        local-prefixes: emperror.dev/errors
+    goimports:
+        local-prefixes: emperror.dev/errors
+    golint:
+        min-confidence: 0
+
+linters:
+    disable-all: true
+    enable:
+        - bodyclose
+        - deadcode
+        - dogsled
+        - dupl
+        - errcheck
+        - exhaustive
+        - exportloopref
+        - gci
+        - gochecknoglobals
+        - gochecknoinits
+        - gocognit
+        - goconst
+        - gocritic
+        - gocyclo
+        - godot
+        - gofmt
+        - gofumpt
+        - goimports
+        - golint
+        - goprintffuncname
+        - gosec
+        - gosimple
+        - govet
+        - ineffassign
+        - lll
+        - misspell
+        - nakedret
+        - nlreturn
+        - noctx
+        - nolintlint
+        - prealloc
+        - rowserrcheck
+        - scopelint
+        - sqlclosecheck
+        - staticcheck
+        - structcheck
+        - stylecheck
+        - typecheck
+        - unconvert
+        - unparam
+        - unused
+        - varcheck
+        - whitespace
+
+        # unused
+        # - depguard
+        # - goheader
+        # - gomodguard
+
+        # don't enable:
+        # - asciicheck
+        # - funlen
+        # - godox
+        # - goerr113
+        # - gomnd
+        # - interfacer
+        # - maligned
+        # - nestif
+        # - testpackage
+        # - wsl
+
+issues:
+    exclude-rules:
+        -   text: "package comment should not have leading space"
+            linters:
+                - golint

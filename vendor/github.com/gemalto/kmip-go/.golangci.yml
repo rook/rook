@@ -1,0 +1,140 @@
+version: "2"
+run:
+  tests: true
+linters:
+  default: none
+  enable:
+    - asciicheck
+    - bidichk
+    - containedctx
+    - contextcheck
+    - decorder
+    - depguard
+    - dupl
+    - durationcheck
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - forcetypeassert
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - goheader
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - govet
+    - grouper
+    - importas
+    - ineffassign
+    - makezero
+    - misspell
+    - nakedret
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - predeclared
+    - promlinter
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - tagliatelle
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - wastedassign
+    - whitespace
+  settings:
+    depguard:
+      rules:
+        all:
+          files:
+            - $all
+          deny:
+            - pkg: github.com/magiconair/properties/assert
+              desc: Use testify/assert package instead
+            - pkg: gopkg.in/go-playground/assert.v1
+              desc: Use testify/assert package instead
+            - pkg: github.com/pborman/uuid
+              desc: Use google/uuid package instead
+        main:
+          files:
+            - '!$test'
+            - '!**authorization/conditions.go'
+            - '!**yugotest/assertions.go'
+            - '!**yugometrics/backendtesting/compliance.go'
+            - '!**scopes/auth_scope.go'
+          deny:
+            - pkg: github.com/davecgh/go-spew/spew
+              desc: spew is usually only used in tests
+            - pkg: github.com/stretchr/testify
+              desc: testify is usually only used in tests
+    dupl:
+      threshold: 100
+    exhaustive:
+      default-signifies-exhaustive: true
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    gomodguard:
+      blocked:
+        modules:
+          - gopkg.in/go-playground/assert.v1:
+              recommendations:
+                - github.com/stretchr/testify
+              reason: testify is the test assertion framework we use
+    misspell:
+      locale: US
+    wsl:
+      allow-assign-and-anything: true
+      allow-separated-leading-comment: true
+      allow-cuddle-declarations: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupl
+          - errcheck
+          - errchkjson
+          - exportloopref
+          - forcetypeassert
+          - gochecknoglobals
+          - gochecknoinits
+          - gocyclo
+          - gosec
+          - nlreturn
+          - noctx
+        path: _test\.go
+      - linters:
+          - forbidigo
+          - gochecknoglobals
+          - gochecknoinits
+        path: cmd
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  new: false
+  fix: true
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      - requests.go

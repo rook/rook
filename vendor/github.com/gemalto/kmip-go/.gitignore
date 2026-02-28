@@ -1,0 +1,6 @@
+.idea
+scratch
+build
+vendor
+/pykmip-server/server.log
+/pykmip-server/server.db

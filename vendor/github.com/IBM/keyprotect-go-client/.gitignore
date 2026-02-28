@@ -1,0 +1,59 @@
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+
+# Folders
+_obj
+_test
+vendor
+
+# Architecture specific extensions/prefixes
+*.[568vq]
+[568vq].out
+
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+
+_testmain.go
+
+*.exe
+*.test
+*.prof
+
+.DS_Store
+
+cover.*
+
+# Eclipse
+.project
+
+# Visual Studio Code
+.vscode
+/*.covtmp
+**/coverage
+**/coverage.htmlvendor
+**/coverage.txt
+**/coverage.html
+**/cover.html
+**/coverage.out
+**/coverage.tmp
+*.coverprofile
+
+.env
+
+# SDK generator
+.openapi-generator-ignore
+.openapi-generator/VERSION
+
+# IDE files
+*.idea
+*.log
+
+# files produced by "npm install" commands during build
+package.json
+package-lock.json
+node_modules/

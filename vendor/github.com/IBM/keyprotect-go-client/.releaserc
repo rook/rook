@@ -1,0 +1,23 @@
+{
+  "debug": true,
+  "branches": [ "master" ],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/changelog",
+    [
+      "@semantic-release/exec", 
+      {
+        "prepareCmd": "bump2version --allow-dirty --current-version ${lastRelease.version} --new-version ${nextRelease.version} patch"
+      }
+    ],
+    [
+      "@semantic-release/git", 
+      {
+        "assets" : [ "CHANGELOG.md" ],
+        "message": "chore(release): ${nextRelease.version} release notes [skip ci]\n\n${nextRelease.notes}"
+      }
+    ],
+    "@semantic-release/github"
+  ]
+}

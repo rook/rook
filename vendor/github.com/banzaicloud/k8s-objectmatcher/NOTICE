@@ -1,0 +1,6 @@
+Copyright © 2019 Banzai Cloud
+
+Portions of this software were developed in the Kubernetes project: https://github.com/kubernetes/kubernetes
+
+The source file patch/annotation.go is based on https://github.com/kubernetes/kubernetes/blob/3d0c961d57bb90c112a0ee2f5ccdcb5c8570ad32/pkg/kubectl/apply.go
+The source file patch/deletenull.go is based on https://github.com/kubernetes/kubernetes/blob/433b448e8d42da70df5d50f4ce667bcb36aeeec2/staging/src/k8s.io/apimachinery/pkg/util/jsonmergepatch/patch.go

@@ -1,0 +1,1389 @@
+{
+  "enums": [
+    {
+      "name": "Credential Type",
+      "comment": "9.1.3.2.1 Table 289",
+      "values": {
+        "Attestation": 3,
+        "Device": 2,
+        "Username and Password": 1
+      },
+      "tags": [
+        "Credential Type"
+      ]
+    },
+    {
+      "name": "Key Compression Type",
+      "comment": "9.1.3.2.2 Table 290",
+      "values": {
+        "EC Public Key Type Uncompressed": 1,
+        "EC Public Key Type X9.62 Compressed Char2": 3,
+        "EC Public Key Type X9.62 Compressed Prime": 2,
+        "EC Public Key Type X9.62 Hybrid": 4
+      },
+      "tags": [
+        "Key Compression Type"
+      ]
+    },
+    {
+      "name": "Key Format Type",
+      "comment": "9.1.3.2.3 Table 291",
+      "values": {
+        "ECPrivateKey": 6,
+        "Opaque": 2,
+        "PKCS#1": 3,
+        "PKCS#12": 22,
+        "PKCS#8": 4,
+        "Raw": 1,
+        "Transparent DH Private Key": 12,
+        "Transparent DH Public Key": 13,
+        "Transparent DSA Private Key": 8,
+        "Transparent DSA Public Key": 9,
+        "Transparent EC Private Key": 20,
+        "Transparent EC Public Key": 21,
+        "Transparent ECDH Private Key": 16,
+        "Transparent ECDH Public Key": 17,
+        "Transparent ECDSA Private Key": 14,
+        "Transparent ECDSA Public Key": 15,
+        "Transparent ECMQV Private Key": 18,
+        "Transparent ECMQV Public Key": 19,
+        "Transparent RSA Private Key": 10,
+        "Transparent RSA Public Key": 11,
+        "Transparent Symmetric Key": 7,
+        "X.509": 5
+      },
+      "tags": [
+        "Key Format Type"
+      ]
+    },
+    {
+      "name": "Wrapping Method",
+      "comment": "9.1.3.2.4 Table 292",
+      "values": {
+        "Encrypt": 1,
+        "Encrypt then MAC/sign": 3,
+        "MAC/sign": 2,
+        "MAC/sign then encrypt": 4,
+        "TR-31": 5
+      },
+      "tags": [
+        "Wrapping Method"
+      ]
+    },
+    {
+      "name": "Recommended Curve",
+      "comment": "9.1.3.2.5 Table 293",
+      "values": {
+        "ANSIX9C2PNB163V1": 39,
+        "ANSIX9C2PNB163V2": 40,
+        "ANSIX9C2PNB163V3": 41,
+        "ANSIX9C2PNB176V1": 42,
+        "ANSIX9C2PNB208W1": 46,
+        "ANSIX9C2PNB272W1": 50,
+        "ANSIX9C2PNB304W1": 51,
+        "ANSIX9C2PNB368W1": 53,
+        "ANSIX9C2TNB191V1": 43,
+        "ANSIX9C2TNB191V2": 44,
+        "ANSIX9C2TNB191V3": 45,
+        "ANSIX9C2TNB239V1": 47,
+        "ANSIX9C2TNB239V2": 48,
+        "ANSIX9C2TNB239V3": 49,
+        "ANSIX9C2TNB359V1": 52,
+        "ANSIX9C2TNB431R1": 54,
+        "ANSIX9P192V2": 34,
+        "ANSIX9P192V3": 35,
+        "ANSIX9P239V1": 36,
+        "ANSIX9P239V2": 37,
+        "ANSIX9P239V3": 38,
+        "B-163": 3,
+        "B-233": 6,
+        "B-283": 9,
+        "B-409": 12,
+        "B-571": 15,
+        "BRAINPOOLP160R1": 55,
+        "BRAINPOOLP160T1": 56,
+        "BRAINPOOLP192R1": 57,
+        "BRAINPOOLP192T1": 58,
+        "BRAINPOOLP224R1": 59,
+        "BRAINPOOLP224T1": 60,
+        "BRAINPOOLP256R1": 61,
+        "BRAINPOOLP256T1": 62,
+        "BRAINPOOLP320R1": 63,
+        "BRAINPOOLP320T1": 64,
+        "BRAINPOOLP384R1": 65,
+        "BRAINPOOLP384T1": 66,
+        "BRAINPOOLP512R1": 67,
+        "BRAINPOOLP512T1": 68,
+        "K-163": 2,
+        "K-233": 5,
+        "K-283": 8,
+        "K-409": 11,
+        "K-571": 14,
+        "P-192": 1,
+        "P-224": 4,
+        "P-256": 7,
+        "P-384": 10,
+        "P-521": 13,
+        "SECP112R1": 16,
+        "SECP112R2": 17,
+        "SECP128R1": 18,
+        "SECP128R2": 19,
+        "SECP160K1": 20,
+        "SECP160R1": 21,
+        "SECP160R2": 22,
+        "SECP192K1": 23,
+        "SECP224K1": 24,
+        "SECP256K1": 25,
+        "SECT113R1": 26,
+        "SECT113R2": 27,
+        "SECT131R1": 28,
+        "SECT131R2": 29,
+        "SECT163R1": 30,
+        "SECT193R1": 31,
+        "SECT193R2": 32,
+        "SECT239K1": 33
+      },
+      "tags": [
+        "Recommended Curve"
+      ]
+    },
+    {
+      "name": "Certificate Type",
+      "comment": "9.1.3.2.6 Table 294",
+      "values": {
+        "PGP": 2,
+        "X.509": 1
+      },
+      "tags": [
+        "Certificate Type"
+      ]
+    },
+    {
+      "name": "Digital Signature Algorithm",
+      "comment": "9.1.3.2.7 Table 295",
+      "values": {
+        "DSA with SHA-1": 9,
+        "DSA with SHA224": 10,
+        "DSA with SHA256": 11,
+        "ECDSA with SHA-1": 12,
+        "ECDSA with SHA224": 13,
+        "ECDSA with SHA256": 14,
+        "ECDSA with SHA384": 15,
+        "ECDSA with SHA512": 16,
+        "MD2 with RSA Encryption": 1,
+        "MD5 with RSA Encryption": 2,
+        "RSASSA-PSS": 8,
+        "SHA-1 with RSA Encryption": 3,
+        "SHA-224 with RSA Encryption": 4,
+        "SHA-256 with RSA Encryption": 5,
+        "SHA-384 with RSA Encryption": 6,
+        "SHA-512 with RSA Encryption": 7,
+        "SHA3-256 with RSA Encryption": 17,
+        "SHA3-384 with RSA Encryption": 18,
+        "SHA3-512 with RSA Encryption": 19
+      },
+      "tags": [
+        "Digital Signature Algorithm"
+      ]
+    },
+    {
+      "name": "Split Key Method",
+      "comment": "9.1.3.2.8 Table 296",
+      "values": {
+        "Polynomial Sharing GF (2^16)": 2,
+        "Polynomial Sharing GF (2^8)": 4,
+        "Polynomial Sharing Prime Field": 3,
+        "XOR": 1
+      },
+      "tags": [
+        "Split Key Method"
+      ]
+    },
+    {
+      "name": "Secret Data Type",
+      "comment": "9.1.3.2.9 Table 9",
+      "values": {
+        "Password": 1,
+        "Seed": 2
+      },
+      "tags": [
+        "Secret Data Type"
+      ]
+    },
+    {
+      "name": "Opaque Data Type",
+      "comment": "9.1.3.2.10 Table 298",
+      "values": {},
+      "tags": [
+        "Opaque Data Type"
+      ]
+    },
+    {
+      "name": "Name Type",
+      "comment": "9.1.3.2.11 Table 299",
+      "values": {
+        "URI": 2,
+        "Uninterpreted Text String": 1
+      },
+      "tags": [
+        "Name Type"
+      ]
+    },
+    {
+      "name": "Object Type",
+      "comment": "9.1.3.2.12 Table 300",
+      "values": {
+        "Certificate": 1,
+        "Opaque Object": 8,
+        "PGP Key": 9,
+        "Private Key": 4,
+        "Public Key": 3,
+        "Secret Data": 7,
+        "Split Key": 5,
+        "Symmetric Key": 2,
+        "Template": 6
+      },
+      "tags": [
+        "Object Type"
+      ]
+    },
+    {
+      "name": "Cryptographic Algorithm",
+      "comment": "9.1.3.2.13 Table 301",
+      "values": {
+        "3DES": 2,
+        "AES": 3,
+        "Blowfish": 16,
+        "CAST5": 18,
+        "Camellia": 17,
+        "ChaCha20": 28,
+        "ChaCha20Poly1305": 30,
+        "DES": 1,
+        "DH": 13,
+        "DSA": 5,
+        "EC": 26,
+        "ECDH": 14,
+        "ECDSA": 6,
+        "ECMQV": 15,
+        "HMAC-MD5": 12,
+        "HMAC-SHA1": 7,
+        "HMAC-SHA224": 8,
+        "HMAC-SHA256": 9,
+        "HMAC-SHA3-224": 35,
+        "HMAC-SHA3-256": 36,
+        "HMAC-SHA3-384": 37,
+        "HMAC-SHA3-512": 38,
+        "HMAC-SHA384": 10,
+        "HMAC-SHA512": 11,
+        "IDEA": 19,
+        "MARS": 20,
+        "One Time Pad": 27,
+        "Poly1305": 29,
+        "RC2": 21,
+        "RC4": 22,
+        "RC5": 23,
+        "RSA": 4,
+        "SHA3-224": 31,
+        "SHA3-256": 32,
+        "SHA3-384": 33,
+        "SHA3-512": 34,
+        "SHAKE-128": 39,
+        "SHAKE-256": 40,
+        "SKIPJACK": 24,
+        "Twofish": 25
+      },
+      "tags": [
+        "Cryptographic Algorithm"
+      ]
+    },
+    {
+      "name": "Block Cipher Mode",
+      "comment": "9.1.3.2.14 Table 302",
+      "values": {
+        "AEAD": 18,
+        "AESKeyWrapPadding": 12,
+        "CBC": 1,
+        "CBC-MAC": 10,
+        "CCM": 8,
+        "CFB": 4,
+        "CMAC": 7,
+        "CTR": 6,
+        "ECB": 2,
+        "GCM": 9,
+        "NISTKeyWrap": 13,
+        "OFB": 5,
+        "PCBC": 3,
+        "X9.102 AESKW": 14,
+        "X9.102 AKW1": 16,
+        "X9.102 AKW2": 17,
+        "X9.102 TDKW": 15,
+        "XTS": 11
+      },
+      "tags": [
+        "Block Cipher Mode"
+      ]
+    },
+    {
+      "name": "Padding Method",
+      "comment": "9.1.3.2.15 Table 303",
+      "values": {
+        "ANSI X9.23": 6,
+        "ISO 10126": 7,
+        "None": 1,
+        "OAEP": 2,
+        "PKCS1 v1.5": 8,
+        "PKCS5": 3,
+        "PSS": 10,
+        "SSL3": 4,
+        "X9.31": 9,
+        "Zeros": 5
+      },
+      "tags": [
+        "Padding Method"
+      ]
+    },
+    {
+      "name": "Hashing Algorithm",
+      "comment": "9.1.3.2.16 Table 304",
+      "values": {
+        "MD2": 1,
+        "MD4": 2,
+        "MD5": 3,
+        "RIPEMD-160": 9,
+        "SHA-1": 4,
+        "SHA-224": 5,
+        "SHA-256": 6,
+        "SHA-3-224": 14,
+        "SHA-3-256": 15,
+        "SHA-3-384": 16,
+        "SHA-3-512": 17,
+        "SHA-384": 7,
+        "SHA-512": 8,
+        "SHA-512/224": 12,
+        "SHA-512/256": 13,
+        "Tiger": 10,
+        "Whirlpool": 11
+      },
+      "tags": [
+        "Hashing Algorithm",
+        "Mask Generator Hashing Algorithm"
+      ]
+    },
+    {
+      "name": "Key Role Type",
+      "comment": "9.1.3.2.17 Table 305",
+      "values": {
+        "BDK": 1,
+        "CVK": 2,
+        "DEK": 3,
+        "DUKPT": 22,
+        "IV": 23,
+        "KEK": 11,
+        "MAC16609": 12,
+        "MAC97971": 13,
+        "MAC97972": 14,
+        "MAC97973": 15,
+        "MAC97974": 16,
+        "MAC97975": 17,
+        "MKAC": 4,
+        "MKCP": 9,
+        "MKDAC": 7,
+        "MKDN": 8,
+        "MKOTH": 10,
+        "MKSMC": 5,
+        "MKSMI": 6,
+        "PVKIBM": 19,
+        "PVKOTH": 21,
+        "PVKPVV": 20,
+        "TRKBK": 24,
+        "ZPK": 18
+      },
+      "tags": [
+        "Key Role Type"
+      ]
+    },
+    {
+      "name": "State",
+      "comment": "9.1.3.2.18 Table 306",
+      "values": {
+        "Active": 2,
+        "Compromised": 4,
+        "Deactivated": 3,
+        "Destroyed": 5,
+        "Destroyed Compromised": 6,
+        "Pre-Active": 1
+      },
+      "tags": [
+        "State"
+      ]
+    },
+    {
+      "name": "Revocation Reason Code",
+      "comment": "9.1.3.2.19 Table 307",
+      "values": {
+        "Affiliation Changed": 4,
+        "CA Compromise": 3,
+        "Cessation of Operation": 6,
+        "Key Compromise": 2,
+        "Privilege Withdrawn": 7,
+        "Superseded": 5,
+        "Unspecified": 1
+      },
+      "tags": [
+        "Revocation Reason Code"
+      ]
+    },
+    {
+      "name": "Link Type",
+      "comment": "9.1.3.2.20 Table 308",
+      "values": {
+        "Certificate Link": 257,
+        "Child Link": 265,
+        "Derivation Base Object Link": 260,
+        "Derived Key Link": 261,
+        "Next Link": 267,
+        "PKCS#12 Certificate Link": 268,
+        "PKCS#12 Password Link": 269,
+        "Parent Link": 264,
+        "Previous Link": 266,
+        "Private Key Link": 259,
+        "Public Key Link": 258,
+        "Replaced Object Link": 263,
+        "Replacement Object Link": 262
+      },
+      "tags": [
+        "Link Type"
+      ]
+    },
+    {
+      "name": "Derivation Method",
+      "comment": "9.1.3.2.21 Table 309",
+      "values": {
+        "Asymmetric Key": 8,
+        "ENCRYPT": 4,
+        "HASH": 2,
+        "HMAC": 3,
+        "NIST800 - 108 - C": 5,
+        "NIST800 - 108 - DPI": 7,
+        "NIST800 - 108 - F": 6,
+        "PBKDF2": 1
+      },
+      "tags": [
+        "Derivation Method"
+      ]
+    },
+    {
+      "name": "Certificate Request Type",
+      "comment": "9.1.3.2.22 Table 310",
+      "values": {
+        "CRMF": 1,
+        "PEM": 3,
+        "PGP": 4,
+        "PKCS#10": 2
+      },
+      "tags": [
+        "Certificate Request Type"
+      ]
+    },
+    {
+      "name": "Validity Indicator",
+      "comment": "9.1.3.2.23 Table 311",
+      "values": {
+        "Invalid": 2,
+        "Unknown": 3,
+        "Valid": 1
+      },
+      "tags": [
+        "Validity Indicator"
+      ]
+    },
+    {
+      "name": "Query Function",
+      "comment": "9.1.3.2.24 Table 312",
+      "values": {
+        "Query Application Namespaces": 4,
+        "Query Attestation Types": 7,
+        "Query Capabilities": 11,
+        "Query Client Registration Methods": 12,
+        "Query Extension List": 5,
+        "Query Extension Map": 6,
+        "Query Objects": 2,
+        "Query Operations": 1,
+        "Query Profiles": 10,
+        "Query RNGs": 8,
+        "Query Server Information": 3,
+        "Query Validations": 9
+      },
+      "tags": [
+        "Query Function"
+      ]
+    },
+    {
+      "name": "Cancellation Result",
+      "comment": "9.1.3.2.25 Table 313",
+      "values": {
+        "Canceled": 1,
+        "Completed": 3,
+        "Failed": 4,
+        "Unable to Cancel": 2,
+        "Unavailable": 5
+      },
+      "tags": [
+        "Cancellation Result"
+      ]
+    },
+    {
+      "name": "Put Function",
+      "comment": "9.1.3.2.26 Table 314",
+      "values": {
+        "New": 1,
+        "Replace": 2
+      },
+      "tags": [
+        "Put Function"
+      ]
+    },
+    {
+      "name": "Operation",
+      "comment": "9.1.3.2.27 Table 315",
+      "values": {
+        "Activate": 18,
+        "Add Attribute": 13,
+        "Archive": 21,
+        "Cancel": 25,
+        "Certify": 6,
+        "Check": 9,
+        "Create": 1,
+        "Create Key Pair": 2,
+        "Create Split Key": 40,
+        "Decrypt": 32,
+        "Delete Attribute": 15,
+        "Derive Key": 5,
+        "Destroy": 20,
+        "Discover Versions": 30,
+        "Encrypt": 31,
+        "Export": 43,
+        "Get": 10,
+        "Get Attribute List": 12,
+        "Get Attributes": 11,
+        "Get Usage Allocation": 17,
+        "Hash": 39,
+        "Import": 42,
+        "Join Split Key": 41,
+        "Locate": 8,
+        "MAC": 35,
+        "MAC Verify": 36,
+        "Modify Attribute": 14,
+        "Notify": 27,
+        "Obtain Lease": 16,
+        "Poll": 26,
+        "Put": 28,
+        "Query": 24,
+        "RNG Retrieve": 37,
+        "RNG Seed": 38,
+        "Re-certify": 7,
+        "Re-key": 4,
+        "Re-key Key Pair": 29,
+        "Recover": 22,
+        "Register": 3,
+        "Revoke": 19,
+        "Sign": 33,
+        "Signature Verify": 34,
+        "Validate": 23
+      },
+      "tags": [
+        "Operation"
+      ]
+    },
+    {
+      "name": "Result Status",
+      "comment": "9.1.3.2.28 Table 316",
+      "values": {
+        "Operation Failed": 1,
+        "Operation Pending": 2,
+        "Operation Undone": 3,
+        "Success": 0
+      },
+      "tags": [
+        "Result Status"
+      ]
+    },
+    {
+      "name": "Result Reason",
+      "comment": "9.1.3.2.29 Table 317",
+      "values": {
+        "Application Namespace Not Supported": 15,
+        "Attestation Failed": 21,
+        "Attestation Required": 20,
+        "Authentication Not Successful": 3,
+        "Cryptographic Failure": 10,
+        "Encoding Option Error": 18,
+        "Feature Not Supported": 8,
+        "General Failure": 256,
+        "Illegal Operation": 11,
+        "Index Out of Bounds": 14,
+        "Invalid Field": 7,
+        "Invalid Message": 4,
+        "Item Not Found": 1,
+        "Key Compression Type Not Supported": 17,
+        "Key Format Type Not Supported": 16,
+        "Key Value Not Present": 19,
+        "Missing Data": 6,
+        "Not Extractable": 23,
+        "Object Already Exists": 24,
+        "Object archived": 13,
+        "Operation Canceled By Requester": 9,
+        "Operation Not Supported": 5,
+        "Permission Denied": 12,
+        "Response Too Large": 2,
+        "Sensitive": 22
+      },
+      "tags": [
+        "Result Reason"
+      ]
+    },
+    {
+      "name": "Batch Error Continuation Option",
+      "comment": "9.1.3.2.30 Table 318",
+      "values": {
+        "Continue": 1,
+        "Stop": 2,
+        "Undo": 3
+      },
+      "tags": [
+        "Batch Error Continuation Option"
+      ]
+    },
+    {
+      "name": "Usage Limits Unit",
+      "comment": "9.1.3.2.31 Table 319",
+      "values": {
+        "Byte": 1,
+        "Object": 2
+      },
+      "tags": [
+        "Usage Limits Unit"
+      ]
+    },
+    {
+      "name": "Encoding Option",
+      "comment": "9.1.3.2.32 Table 320",
+      "values": {
+        "No Encoding": 1,
+        "TTLV Encoding": 2
+      },
+      "tags": [
+        "Encoding Option"
+      ]
+    },
+    {
+      "name": "Object Group Member",
+      "comment": "9.1.3.2.33 Table 321",
+      "values": {
+        "Group Member Default": 2,
+        "Group Member Fresh": 1
+      },
+      "tags": [
+        "Object Group Member"
+      ]
+    },
+    {
+      "name": "Alternative Name Type",
+      "comment": "9.1.3.2.34 Table 322",
+      "values": {
+        "DNS Name": 5,
+        "Email Address": 4,
+        "IP Address": 7,
+        "Object Serial Number": 3,
+        "URI": 2,
+        "Uninterpreted Text String": 1,
+        "X.500 Distinguished Name": 6
+      },
+      "tags": [
+        "Alternative Name Type"
+      ]
+    },
+    {
+      "name": "Key Value Location Type",
+      "comment": "9.1.3.2.35 Table 323",
+      "values": {
+        "URI": 2,
+        "Uninterpreted Text String": 1
+      },
+      "tags": [
+        "Key Value Location Type"
+      ]
+    },
+    {
+      "name": "Attestation Type",
+      "comment": "9.1.3.2.36 Table 324",
+      "values": {
+        "SAML Assertion": 3,
+        "TCG Integrity Report": 2,
+        "TPM Quote": 1
+      },
+      "tags": [
+        "Attestation Type"
+      ]
+    },
+    {
+      "name": "RNG Algorithm",
+      "comment": "9.1.3.2.37 Table ",
+      "values": {
+        "ANSI X9.31": 5,
+        "ANSI X9.62": 6,
+        "DRBG": 3,
+        "FIPS 186-2": 2,
+        "NRBG": 4,
+        "Unspecified": 1
+      },
+      "tags": [
+        "RNG Algorithm"
+      ]
+    },
+    {
+      "name": "DRBG Algorithm",
+      "comment": "9.1.3.2.38",
+      "values": {
+        "CTR": 5,
+        "Dual - EC": 2,
+        "HMAC": 4,
+        "Hash": 3,
+        "Unspecified": 1
+      },
+      "tags": [
+        "DRBG Algorithm"
+      ]
+    },
+    {
+      "name": "FIPS186 Variation",
+      "comment": "9.1.3.2.39",
+      "values": {
+        "GP x-Change Notice": 3,
+        "GP x-Original": 2,
+        "Unspecified": 1,
+        "k-Change Notice": 7,
+        "k-Original": 6,
+        "x-Change Notice": 5,
+        "x-Original": 4
+      },
+      "tags": [
+        "FIPS186 Variation"
+      ]
+    },
+    {
+      "name": "Validation Authority Type",
+      "comment": "9.1.3.2.40",
+      "values": {
+        "Common Criteria": 3,
+        "NIST CMVP": 2,
+        "Unspecified": 1
+      },
+      "tags": [
+        "Validation Authority Type"
+      ]
+    },
+    {
+      "name": "Validation Type",
+      "comment": "9.1.3.2.41",
+      "values": {
+        "Firmware": 4,
+        "Hardware": 2,
+        "Hybrid": 5,
+        "Software": 3,
+        "Unspecified": 1
+      },
+      "tags": [
+        "Validation Type"
+      ]
+    },
+    {
+      "name": "Profile Name",
+      "comment": "9.1.3.2.42",
+      "values": {
+        "Advanced Cryptographic Client KMIP v1.2": 27,
+        "Advanced Cryptographic Client KMIP v1.3": 99,
+        "Advanced Cryptographic Client KMIP v1.4": 135,
+        "Advanced Cryptographic Server KMIP v1.2": 28,
+        "Advanced Cryptographic Server KMIP v1.3": 100,
+        "Advanced Cryptographic Server KMIP v1.4": 136,
+        "Advanced Symmetric Key Foundry Client KMIP v1.0": 33,
+        "Advanced Symmetric Key Foundry Client KMIP v1.1": 36,
+        "Advanced Symmetric Key Foundry Client KMIP v1.2": 39,
+        "Advanced Symmetric Key Foundry Client KMIP v1.3": 105,
+        "Advanced Symmetric Key Foundry Client KMIP v1.4": 141,
+        "Asymmetric Key Lifecycle Client KMIP v1.0": 19,
+        "Asymmetric Key Lifecycle Client KMIP v1.1": 20,
+        "Asymmetric Key Lifecycle Client KMIP v1.2": 21,
+        "Asymmetric Key Lifecycle Client KMIP v1.3": 95,
+        "Asymmetric Key Lifecycle Client KMIP v1.4": 131,
+        "Asymmetric Key Lifecycle Server KMIP v1.0": 22,
+        "Asymmetric Key Lifecycle Server KMIP v1.1": 23,
+        "Asymmetric Key Lifecycle Server KMIP v1.2": 24,
+        "Asymmetric Key Lifecycle Server KMIP v1.3": 96,
+        "Asymmetric Key Lifecycle Server KMIP v1.4": 132,
+        "Baseline Client Basic KMIP v1.2": 3,
+        "Baseline Client Basic KMIP v1.3": 87,
+        "Baseline Client Basic KMIP v1.4": 123,
+        "Baseline Client TLS v1.2 KMIP v1.2": 4,
+        "Baseline Client TLS v1.2 KMIP v1.3": 88,
+        "Baseline Client TLS v1.2 KMIP v1.4": 124,
+        "Baseline Server Basic KMIP v1.2": 1,
+        "Baseline Server Basic KMIP v1.3": 85,
+        "Baseline Server Basic KMIP v1.4": 121,
+        "Baseline Server TLS v1.2 KMIP v1.2": 2,
+        "Baseline Server TLS v1.2 KMIP v1.3": 86,
+        "Baseline Server TLS v1.2 KMIP v1.4": 122,
+        "Basic Cryptographic Client KMIP v1.2": 25,
+        "Basic Cryptographic Client KMIP v1.3": 97,
+        "Basic Cryptographic Client KMIP v1.4": 133,
+        "Basic Cryptographic Server KMIP v1.2": 26,
+        "Basic Cryptographic Server KMIP v1.3": 98,
+        "Basic Cryptographic Server KMIP v1.4": 134,
+        "Basic Symmetric Key Foundry Client KMIP v1.0": 31,
+        "Basic Symmetric Key Foundry Client KMIP v1.1": 34,
+        "Basic Symmetric Key Foundry Client KMIP v1.2": 37,
+        "Basic Symmetric Key Foundry Client KMIP v1.3": 103,
+        "Basic Symmetric Key Foundry Client KMIP v1.4": 139,
+        "Complete Server Basic KMIP v1.2": 5,
+        "Complete Server Basic KMIP v1.3": 89,
+        "Complete Server Basic KMIP v1.4": 125,
+        "Complete Server TLS v1.2 KMIP v1.2": 6,
+        "Complete Server TLS v1.2 KMIP v1.3": 90,
+        "Complete Server TLS v1.2 KMIP v1.4": 126,
+        "HTTPS Client KMIP v1.0": 67,
+        "HTTPS Client KMIP v1.1": 68,
+        "HTTPS Client KMIP v1.2": 69,
+        "HTTPS Client KMIP v1.3": 115,
+        "HTTPS Client KMIP v1.4": 151,
+        "HTTPS Server KMIP v1.0": 70,
+        "HTTPS Server KMIP v1.1": 71,
+        "HTTPS Server KMIP v1.2": 72,
+        "HTTPS Server KMIP v1.3": 116,
+        "HTTPS Server KMIP v1.4": 152,
+        "Intermediate Symmetric Key Foundry Client KMIP v1.0": 32,
+        "Intermediate Symmetric Key Foundry Client KMIP v1.1": 35,
+        "Intermediate Symmetric Key Foundry Client KMIP v1.2": 38,
+        "Intermediate Symmetric Key Foundry Client KMIP v1.3": 104,
+        "Intermediate Symmetric Key Foundry Client KMIP v1.4": 140,
+        "JSON Client KMIP v1.0": 73,
+        "JSON Client KMIP v1.1": 74,
+        "JSON Client KMIP v1.2": 75,
+        "JSON Client KMIP v1.3": 117,
+        "JSON Client KMIP v1.4": 153,
+        "JSON Server KMIP v1.0": 76,
+        "JSON Server KMIP v1.1": 77,
+        "JSON Server KMIP v1.2": 78,
+        "JSON Server KMIP v1.3": 118,
+        "JSON Server KMIP v1.4": 154,
+        "Opaque Managed Object Store Client KMIP v1.0": 43,
+        "Opaque Managed Object Store Client KMIP v1.1": 44,
+        "Opaque Managed Object Store Client KMIP v1.2": 45,
+        "Opaque Managed Object Store Client KMIP v1.3": 107,
+        "Opaque Managed Object Store Client KMIP v1.4": 143,
+        "Opaque Managed Object Store Server KMIP v1.0": 46,
+        "Opaque Managed Object Store Server KMIP v1.1": 47,
+        "Opaque Managed Object Store Server KMIP v1.2": 48,
+        "Opaque Managed Object Store Server KMIP v1.3": 108,
+        "Opaque Managed Object Store Server KMIP v1.4": 144,
+        "RNG Cryptographic Client KMIP v1.2": 29,
+        "RNG Cryptographic Client KMIP v1.3": 101,
+        "RNG Cryptographic Client KMIP v1.4": 137,
+        "RNG Cryptographic Server KMIP v1.2": 30,
+        "RNG Cryptographic Server KMIP v1.3": 102,
+        "RNG Cryptographic Server KMIP v1.4": 138,
+        "Storage Array with Self Encrypting Drive Client KMIP v1.0": 61,
+        "Storage Array with Self Encrypting Drive Client KMIP v1.1": 62,
+        "Storage Array with Self Encrypting Drive Client KMIP v1.2": 63,
+        "Storage Array with Self Encrypting Drive Client KMIP v1.3": 113,
+        "Storage Array with Self Encrypting Drive Client KMIP v1.4": 149,
+        "Storage Array with Self Encrypting Drive Server KMIP v1.0": 64,
+        "Storage Array with Self Encrypting Drive Server KMIP v1.1": 65,
+        "Storage Array with Self Encrypting Drive Server KMIP v1.2": 66,
+        "Storage Array with Self Encrypting Drive Server KMIP v1.3": 114,
+        "Storage Array with Self Encrypting Drive Server KMIP v1.4": 150,
+        "Suite B minLOS_128 Client KMIP v1.0": 49,
+        "Suite B minLOS_128 Client KMIP v1.1": 50,
+        "Suite B minLOS_128 Client KMIP v1.2": 51,
+        "Suite B minLOS_128 Client KMIP v1.3": 109,
+        "Suite B minLOS_128 Client KMIP v1.4": 145,
+        "Suite B minLOS_128 Server KMIP v1.0": 52,
+        "Suite B minLOS_128 Server KMIP v1.1": 53,
+        "Suite B minLOS_128 Server KMIP v1.2": 54,
+        "Suite B minLOS_128 Server KMIP v1.3": 110,
+        "Suite B minLOS_128 Server KMIP v1.4": 146,
+        "Suite B minLOS_192 Client KMIP v1.0": 55,
+        "Suite B minLOS_192 Client KMIP v1.1": 56,
+        "Suite B minLOS_192 Client KMIP v1.2": 57,
+        "Suite B minLOS_192 Client KMIP v1.3": 111,
+        "Suite B minLOS_192 Client KMIP v1.4": 147,
+        "Suite B minLOS_192 Server KMIP v1.0": 58,
+        "Suite B minLOS_192 Server KMIP v1.1": 59,
+        "Suite B minLOS_192 Server KMIP v1.2": 60,
+        "Suite B minLOS_192 Server KMIP v1.3": 112,
+        "Suite B minLOS_192 Server KMIP v1.4": 148,
+        "Symmetric Key Foundry Server KMIP v1.0": 40,
+        "Symmetric Key Foundry Server KMIP v1.1": 41,
+        "Symmetric Key Foundry Server KMIP v1.2": 42,
+        "Symmetric Key Foundry Server KMIP v1.3": 106,
+        "Symmetric Key Foundry Server KMIP v1.4": 142,
+        "Symmetric Key Lifecycle Client KMIP v1.0": 13,
+        "Symmetric Key Lifecycle Client KMIP v1.1": 14,
+        "Symmetric Key Lifecycle Client KMIP v1.2": 15,
+        "Symmetric Key Lifecycle Client KMIP v1.3": 93,
+        "Symmetric Key Lifecycle Client KMIP v1.4": 129,
+        "Symmetric Key Lifecycle Server KMIP v1.0": 16,
+        "Symmetric Key Lifecycle Server KMIP v1.1": 17,
+        "Symmetric Key Lifecycle Server KMIP v1.2": 18,
+        "Symmetric Key Lifecycle Server KMIP v1.3": 94,
+        "Symmetric Key Lifecycle Server KMIP v1.4": 130,
+        "Tape Library Client KMIP v1.0": 7,
+        "Tape Library Client KMIP v1.1": 8,
+        "Tape Library Client KMIP v1.2": 9,
+        "Tape Library Client KMIP v1.3": 91,
+        "Tape Library Client KMIP v1.4": 127,
+        "Tape Library Server KMIP v1.0": 10,
+        "Tape Library Server KMIP v1.1": 11,
+        "Tape Library Server KMIP v1.2": 12,
+        "Tape Library Server KMIP v1.3": 92,
+        "Tape Library Server KMIP v1.4": 128,
+        "XML Client KMIP v1.0": 79,
+        "XML Client KMIP v1.1": 80,
+        "XML Client KMIP v1.2": 81,
+        "XML Client KMIP v1.3": 119,
+        "XML Client KMIP v1.4": 155,
+        "XML Server KMIP v1.0": 82,
+        "XML Server KMIP v1.1": 83,
+        "XML Server KMIP v1.2": 84,
+        "XML Server KMIP v1.3": 120,
+        "XML Server KMIP v1.4": 156
+      },
+      "tags": [
+        "Profile Name"
+      ]
+    },
+    {
+      "name": "Unwrap Mode",
+      "comment": "9.1.3.2.43",
+      "values": {
+        "Not Processed": 3,
+        "Processed": 2,
+        "Unspecified": 1
+      },
+      "tags": [
+        "Unwrap Mode"
+      ]
+    },
+    {
+      "name": "Destroy Action",
+      "comment": "9.1.3.2.44",
+      "values": {
+        "Deleted": 6,
+        "Key Material Deleted": 2,
+        "Key Material Shredded": 3,
+        "Meta Data Deleted": 4,
+        "Meta Data Shredded": 5,
+        "Shredded": 7,
+        "Unspecified": 1
+      },
+      "tags": [
+        "Destroy Action"
+      ]
+    },
+    {
+      "name": "Shredding Algorithm",
+      "comment": "9.1.3.2.45",
+      "values": {
+        "Cryptographic": 2,
+        "Unspecified": 1,
+        "Unsupported": 3
+      },
+      "tags": [
+        "Shredding Algorithm"
+      ]
+    },
+    {
+      "name": "RNG Mode",
+      "comment": "9.1.3.2.46",
+      "values": {
+        "Non-Shared Instantiation": 3,
+        "Shared Instantiation": 2,
+        "Unspecified": 1
+      },
+      "tags": [
+        "RNG Mode"
+      ]
+    },
+    {
+      "name": "Client Registration Method",
+      "comment": "9.1.3.2.47",
+      "values": {
+        "Client Generated": 4,
+        "Client Registered": 5,
+        "Server On-Demand": 3,
+        "Server Pre-Generated": 2,
+        "Unspecified": 1
+      },
+      "tags": [
+        "Client Registration Method"
+      ]
+    },
+    {
+      "name": "Key Wrap Type",
+      "comment": "9.1.3.2.48",
+      "values": {
+        "As Registered": 2,
+        "Not Wrapped": 1
+      },
+      "tags": [
+        "Key Wrap Type"
+      ]
+    },
+    {
+      "name": "Mask Generator",
+      "comment": "9.1.3.2.49",
+      "values": {
+        "MGF1": 1
+      },
+      "tags": [
+        "Mask Generator"
+      ]
+    }
+  ],
+  "masks": [
+    {
+      "name": "Cryptographic Usage Mask",
+      "comment": "9.1.3.3.1",
+      "values": {
+        "CRL Sign": 8192,
+        "Certificate Sign": 4096,
+        "Content Commitment": 1024,
+        "Decrypt": 8,
+        "Derive Key": 512,
+        "Encrypt": 4,
+        "Export": 64,
+        "Generate Cryptogram": 16384,
+        "Key Agreement": 2048,
+        "MAC Generate": 128,
+        "MAC Verify": 256,
+        "Sign": 1,
+        "Translate Decrypt": 131072,
+        "Translate Encrypt": 65536,
+        "Translate Unwrap": 524288,
+        "Translate Wrap": 262144,
+        "Unwrap Key": 32,
+        "Validate Cryptogram": 32768,
+        "Verify": 2,
+        "Wrap Key": 16
+      },
+      "tags": [
+        "Cryptographic Usage Mask"
+      ]
+    },
+    {
+      "name": "Storage Status Mask",
+      "comment": "9.1.3.3.2",
+      "values": {
+        "Archival storage": 2,
+        "On-line storage": 1
+      },
+      "tags": [
+        "Storage Status Mask"
+      ]
+    }
+  ],
+  "tags": {
+    "Activation Date": "0x420001",
+    "Alternative Name": 4325567,
+    "Alternative Name Type": 4325569,
+    "Alternative Name Value": 4325568,
+    "Always Sensitive": 4325665,
+    "Application Data": 4325378,
+    "Application Namespace": 4325379,
+    "Application Specific Information": 4325380,
+    "Archive Date": 4325381,
+    "Asynchronous Capability": 4325616,
+    "Asynchronous Correlation Value": 4325382,
+    "Asynchronous Indicator": 4325383,
+    "Attestation Assertion": 4325580,
+    "Attestation Capability": 4325617,
+    "Attestation Capable Indicator": 4325587,
+    "Attestation Measurement": 4325579,
+    "Attestation Type": 4325575,
+    "Attribute": 4325384,
+    "Attribute Index": 4325385,
+    "Attribute Name": 4325386,
+    "Attribute Value": 4325387,
+    "Authenticated Encryption Additional Data": 4325630,
+    "Authenticated Encryption Tag": 4325631,
+    "Authentication": 4325388,
+    "Batch Continue Capability": 4325626,
+    "Batch Count": 4325389,
+    "Batch Error Continuation Option": 4325390,
+    "Batch Item": 4325391,
+    "Batch Order Option": 4325392,
+    "Batch Undo Capability": 4325625,
+    "Block Cipher Mode": 4325393,
+    "CRT Coefficient": 4325415,
+    "Cancellation Result": 4325394,
+    "Capability Information": 4325623,
+    "Certificate": 4325395,
+    "Certificate Identifier": 4325396,
+    "Certificate Issuer": 4325397,
+    "Certificate Issuer Alternative Name": 4325398,
+    "Certificate Issuer C": 4325656,
+    "Certificate Issuer CN": 4325652,
+    "Certificate Issuer DC": 4325662,
+    "Certificate Issuer DN Qualifier": 4325663,
+    "Certificate Issuer Distinguished Name": 4325399,
+    "Certificate Issuer Email": 4325655,
+    "Certificate Issuer L": 4325658,
+    "Certificate Issuer O": 4325653,
+    "Certificate Issuer OU": 4325654,
+    "Certificate Issuer ST": 4325657,
+    "Certificate Issuer Serial Number": 4325660,
+    "Certificate Issuer Title": 4325661,
+    "Certificate Issuer UID": 4325659,
+    "Certificate Length": 4325549,
+    "Certificate Request": 4325400,
+    "Certificate Request Type": 4325401,
+    "Certificate Serial Number": 4325551,
+    "Certificate Subject": 4325402,
+    "Certificate Subject Alternative Name": 4325403,
+    "Certificate Subject C": 4325644,
+    "Certificate Subject CN": 4325640,
+    "Certificate Subject DC": 4325650,
+    "Certificate Subject DN Qualifier": 4325651,
+    "Certificate Subject Distinguished Name": 4325404,
+    "Certificate Subject Email": 4325643,
+    "Certificate Subject L": 4325646,
+    "Certificate Subject O": 4325641,
+    "Certificate Subject OU": 4325642,
+    "Certificate Subject ST": 4325645,
+    "Certificate Subject Serial Number": 4325648,
+    "Certificate Subject Title": 4325649,
+    "Certificate Subject UID": 4325647,
+    "Certificate Type": 4325405,
+    "Certificate Value": 4325406,
+    "Client Correlation Value": 4325637,
+    "Client Registration Method": 4325622,
+    "Comment": 4325629,
+    "Common Template-Attribute": 4325407,
+    "Compromise  Date": 4325408,
+    "Compromise Occurrence Date": 4325409,
+    "Contact Information": 4325410,
+    "Correlation Value": 4325590,
+    "Counter Length": 4325584,
+    "Credential": 4325411,
+    "Credential Type": 4325412,
+    "Credential Value": 4325413,
+    "Criticality Indicator": 4325414,
+    "Cryptographic Algorithm": 4325416,
+    "Cryptographic Domain Parameters": 4325417,
+    "Cryptographic Length": 4325418,
+    "Cryptographic Parameters": 4325419,
+    "Cryptographic Usage Mask": 4325420,
+    "Custom Attribute": 4325421,
+    "D": 4325422,
+    "DRBG Algorithm": 4325595,
+    "Data": 4325570,
+    "Data Length": 4325572,
+    "Deactivation Date": 4325423,
+    "Derivation Data": 4325424,
+    "Derivation Method": 4325425,
+    "Derivation Parameters": 4325426,
+    "Description": 4325628,
+    "Destroy Action": 4325619,
+    "Destroy Date": 4325427,
+    "Device Identifier": 4325538,
+    "Device Serial Number": 4325552,
+    "Digest": 4325428,
+    "Digest Value": 4325429,
+    "Digested Data": 4325639,
+    "Digital Signature Algorithm": 4325550,
+    "Encoding Option": 4325539,
+    "Encryption Key Information": 4325430,
+    "Extension Information": 4325540,
+    "Extension Name": 4325541,
+    "Extension Tag": 4325542,
+    "Extension Type": 4325543,
+    "Extractable": 4325666,
+    "FIPS186 Variation": 4325596,
+    "Final Indicator": 4325592,
+    "Fixed Field Length": 4325583,
+    "Fresh": 4325544,
+    "G": 4325431,
+    "Hashing Algorithm": 4325432,
+    "IV Length": 4325581,
+    "IV/Counter/Nonce": 4325437,
+    "Init Indicator": 4325591,
+    "Initial Counter Value": 4325585,
+    "Initial Date": 4325433,
+    "Initialization Vector": 4325434,
+    "Invocation Field Length": 4325586,
+    "Issuer": 4325435,
+    "Issuer Alternative Name": 4325553,
+    "Issuer Distinguished Name": 4325554,
+    "Iteration Count": 4325436,
+    "J": 4325438,
+    "Key": 4325439,
+    "Key Block": 4325440,
+    "Key Compression Type": 4325441,
+    "Key Format Type": 4325442,
+    "Key Material": 4325443,
+    "Key Part Identifier": 4325444,
+    "Key Role Type": 4325507,
+    "Key Value": 4325445,
+    "Key Value Location": 4325560,
+    "Key Value Location Type": 4325562,
+    "Key Value Location Value": 4325561,
+    "Key Value Present": 4325563,
+    "Key Wrap Type": 4325624,
+    "Key Wrapping Data": 4325446,
+    "Key Wrapping Specification": 4325447,
+    "Last Change Date": 4325448,
+    "Lease Time": 4325449,
+    "Link": 4325450,
+    "Link Type": 4325451,
+    "Linked Object Identifier": 4325452,
+    "Located Items": 4325589,
+    "MAC Data": 4325574,
+    "MAC/Signature": 4325453,
+    "MAC/Signature Key Information": 4325454,
+    "Machine Identifier": 4325545,
+    "Mask Generator": 4325633,
+    "Mask Generator Hashing Algorithm": 4325634,
+    "Maximum Items": 4325455,
+    "Maximum Response Size": 4325456,
+    "Media Identifier": 4325546,
+    "Message Extension": 4325457,
+    "Modulus": 4325458,
+    "Name": 4325459,
+    "Name Type": 4325460,
+    "Name Value": 4325461,
+    "Network Identifier": 4325547,
+    "Never Extractable": 4325667,
+    "Nonce": 4325576,
+    "Nonce ID": 4325577,
+    "Nonce Value": 4325578,
+    "Object Group": 4325462,
+    "Object Group Member": 4325548,
+    "Object Type": 4325463,
+    "Offset": 4325464,
+    "Offset Items": 4325588,
+    "Opaque Data Type": 4325465,
+    "Opaque Data Value": 4325466,
+    "Opaque Object": 4325467,
+    "Operation": 4325468,
+    "Operation Policy Name": 4325469,
+    "Original Creation Date": 4325564,
+    "P": 4325470,
+    "P Source": 4325635,
+    "PGP Key": 4325565,
+    "PGP Key Version": 4325566,
+    "PKCS#12 Friendly Name": 4325627,
+    "Padding Method": 4325471,
+    "Password": 4325537,
+    "Prediction Resistance": 4325597,
+    "Prime Exponent P": 4325472,
+    "Prime Exponent Q": 4325473,
+    "Prime Field Size": 4325474,
+    "Private Exponent": 4325475,
+    "Private Key": 4325476,
+    "Private Key Template-Attribute": 4325477,
+    "Private Key Unique Identifier": 4325478,
+    "Process Start Date": 4325479,
+    "Profile Information": 4325611,
+    "Profile Name": 4325612,
+    "Protect Stop Date": 4325480,
+    "Protocol Version": 4325481,
+    "Protocol Version Major": 4325482,
+    "Protocol Version Minor": 4325483,
+    "Public Exponent": 4325484,
+    "Public Key": 4325485,
+    "Public Key Template-Attribute": 4325486,
+    "Public Key Unique Identifier": 4325487,
+    "Put Function": 4325488,
+    "Q": 4325489,
+    "Q String": 4325490,
+    "Qlength": 4325491,
+    "Query Function": 4325492,
+    "RNG Algorithm": 4325594,
+    "RNG Mode": 4325621,
+    "RNG Parameters": 4325593,
+    "Random IV": 4325573,
+    "Random Number Generator": 4325598,
+    "Recommended Curve": 4325493,
+    "Replace Existing": 4325668,
+    "Replaced Unique Identifier": 4325494,
+    "Request Header": 4325495,
+    "Request Message": 4325496,
+    "Request Payload": 4325497,
+    "Response Header": 4325498,
+    "Response Message": 4325499,
+    "Response Payload": 4325500,
+    "Result Message": 4325501,
+    "Result Reason": 4325502,
+    "Result Status": 4325503,
+    "Revocation Message": 4325504,
+    "Revocation Reason": 4325505,
+    "Revocation Reason Code": 4325506,
+    "Salt": 4325508,
+    "Salt Length": 4325632,
+    "Secret Data": 4325509,
+    "Secret Data Type": 4325510,
+    "Sensitive": 4325664,
+    "Serial Number": 4325511,
+    "Server Correlation Value": 4325638,
+    "Server Information": 4325512,
+    "Server Port": 4325614,
+    "Server URI": 4325613,
+    "Shredding Algorithm": 4325620,
+    "Signature Data": 4325571,
+    "Split Key": 4325513,
+    "Split Key Method": 4325514,
+    "Split Key Parts": 4325515,
+    "Split Key Threshold": 4325516,
+    "State": 4325517,
+    "Storage Status Mask": 4325518,
+    "Streaming Capability": 4325615,
+    "Subject Alternative Name": 4325555,
+    "Subject Distinguished Name": 4325556,
+    "Symmetric Key": 4325519,
+    "Tag Length": 4325582,
+    "Template": 4325520,
+    "Template-Attribute": 4325521,
+    "Time Stamp": 4325522,
+    "Trailer Field": 4325636,
+    "Unique Batch Item ID": 4325523,
+    "Unique Identifier": 4325524,
+    "Unwrap Mode": 4325618,
+    "Usage Limits": 4325525,
+    "Usage Limits Count": 4325526,
+    "Usage Limits Total": 4325527,
+    "Usage Limits Unit": 4325528,
+    "Username": 4325529,
+    "Validation Authority Country": 4325601,
+    "Validation Authority Type": 4325600,
+    "Validation Authority URI": 4325602,
+    "Validation Certificate Identifier": 4325607,
+    "Validation Certificate URI": 4325608,
+    "Validation Information": 4325599,
+    "Validation Level": 4325606,
+    "Validation Profile": 4325610,
+    "Validation Type": 4325605,
+    "Validation Vendor URI": 4325609,
+    "Validation Version Major": 4325603,
+    "Validation Version Minor": 4325604,
+    "Validity Date": 4325530,
+    "Validity Indicator": 4325531,
+    "Vendor Extension": 4325532,
+    "Vendor Identification": 4325533,
+    "Wrapping Method": 4325534,
+    "X": 4325535,
+    "X.509 Certificate Identifier": 4325557,
+    "X.509 Certificate Issuer": 4325558,
+    "X.509 Certificate Subject": 4325559,
+    "Y": 4325536
+  }
+}

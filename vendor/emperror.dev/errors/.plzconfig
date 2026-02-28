@@ -1,0 +1,21 @@
+[please]
+version = 15.5.0
+
+[go]
+importpath = emperror.dev/errors
+
+[buildconfig]
+golangci-lint-version = 1.31.0
+gotestsum-version = 0.5.3
+
+[alias "lint"]
+desc = Runs linters for this repo
+cmd = run ///pleasings2//tools/go:golangci-lint -- run
+
+[alias "gotest"]
+desc = Runs tests for this repo
+cmd = run ///pleasings2//tools/go:gotestsum -- --no-summary=skipped --format short -- -race -covermode=atomic -coverprofile=plz-out/log/coverage.txt ./...
+
+[alias "release"]
+desc = Release a new version
+cmd = run ///pleasings2//tools/misc:releaser --

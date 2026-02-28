@@ -1,0 +1,7 @@
+version: '3'
+services:
+  builder:
+    build:
+      context: .
+    volumes:
+    - ./build:/flume/build

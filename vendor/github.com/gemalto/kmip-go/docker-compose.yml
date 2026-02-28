@@ -1,0 +1,26 @@
+services:
+  builder:
+    cap_drop:
+      - ALL
+    build:
+      context: .
+    environment:
+      CGO_ENABLED: 0
+      KMIP_SERVER_ADDR: pykmip-server:5696
+    volumes:
+    - ./build:/project/build
+
+  dependencies:
+    image: waisbrot/wait
+    environment:
+      TARGETS: pykmip-server:5696
+    depends_on:
+    - pykmip-server
+
+  pykmip-server:
+    cap_drop:
+      - ALL
+    build:
+      context: pykmip-server
+    ports:
+      - 5696:5696
