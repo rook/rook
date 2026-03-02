@@ -62,7 +62,6 @@ cp `which controller-gen` .cache/tools/linux_%{arch}/controller-gen-v%{controlle
 cp `which helm` .cache/tools/linux_%{arch}/helm-v%{helm_version}
 
 # Build everything
-git tag --list
 mkdir -p `pwd`/_output/templates
 make VERSION=1.19.2 GO_BUILDFLAGS="-trimpath=false" GO_LDFLAGS="-X main.version=1.19.2" BUILD_CONTAINER_IMAGE=false TEMP=`pwd`/_output/templates build
 
