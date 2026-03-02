@@ -4,6 +4,14 @@ kind: CephCluster
 metadata:
   name: {{ .Values.clusterName | default .Release.Namespace | quote }}
   namespace: {{ .Release.Namespace | quote }} # namespace:cluster
+  {{- with .Values.cephClusterMetadata.labels }}
+  labels:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
+  {{- with .Values.cephClusterMetadata.annotations }}
+  annotations:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
 spec:
   {{- with .Values.monitoring }}
   monitoring:
