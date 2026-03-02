@@ -9,7 +9,6 @@
 %global yqv3_version %(echo $(grep ^YQv3_VERSION images/ceph/Makefile | cut -d= -f2) | awk '{$1=$1;print}')
 %global yqv4_version %(echo $(grep ^YQ_VERSION build/makelib/golang.mk | cut -d= -f2 | cut -dv -f2) | awk '{$1=$1;print}')
 %global controllergen_version %(echo $(grep ^CONTROLLER_GEN_VERSION Makefile | cut -d= -f2 | cut -dv -f2) | awk '{$1=$1;print}')
-%global operatorsdk_version %(echo $(grep ^OPERATOR_SDK_VERSION images/ceph/Makefile | cut -d= -f2 | cut -dv -f2) | awk '{$1=$1;print}')
 %global helm_version %(echo $(grep ^HELM_VERSION build/makelib/helm.mk | cut -d= -f2 | cut -dv -f2) | awk '{$1=$1;print}')
 %global s5cmd_version %(echo $(grep ^S5CMD_VERSION images/ceph/Makefile | cut -d= -f2) | awk '{$1=$1;print}')
 %global kubectl_version 1.14
@@ -36,7 +35,6 @@ BuildRequires:  golang
 BuildRequires:  helm = %{helm_version}
 BuildRequires:  yq = %{yqv3_version}
 BuildRequires:  yq4 = %{yqv4_version}
-BuildRequires:  operator-sdk = %{operatorsdk_version}
 BuildRequires:  kube-controller-tools = %{controllergen_version}
 BuildRequires:  kubectl >= %{kubectl_version}
 
@@ -58,7 +56,6 @@ BuildRequires:  kubectl >= %{kubectl_version}
 # a clear reason, these build dependencies are a good spot to
 # start looking
 mkdir -p .cache/tools/linux_%{arch}/
-cp `which operator-sdk` .cache/tools/linux_%{arch}/operator-sdk-v%{operatorsdk_version}
 cp `which yq` .cache/tools/linux_%{arch}/yq-%{yqv3_version}
 cp `which yq4` .cache/tools/linux_%{arch}/yq-v%{yqv4_version}
 cp `which controller-gen` .cache/tools/linux_%{arch}/controller-gen-v%{controllergen_version}
