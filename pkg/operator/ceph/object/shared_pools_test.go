@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1145,7 +1148,22 @@ func Test_adjustZoneDefaultPools(t *testing.T) {
 			srcZone := map[string]interface{}{}
 			err := json.Unmarshal([]byte(tt.args.beforeJSON), &srcZone)
 			assert.NoError(t, err)
-			objContext := &Context{clusterInfo: &cephclient.ClusterInfo{Namespace: "test"}}
+			// Provide a mock executor so checkPoolIsEmpty can run ceph/rados commands (best-effort).
+			executor := &exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+					if args[0] == "osd" && args[1] == "lspools" {
+						return `[]`, nil
+					}
+					return `{"pools":[]}`, nil
+				},
+				MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+					return "", nil
+				},
+			}
+			objContext := &Context{
+				Context:     &clusterd.Context{Executor: executor},
+				clusterInfo: cephclient.AdminTestClusterInfo("test"),
+			}
 			changedZone, err := adjustZoneDefaultPools(objContext, srcZone, tt.args.spec)
 
 			// check that source was not modified
