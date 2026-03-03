@@ -60,8 +60,18 @@ REAL_HOST_PLATFORM=$(shell go env GOHOSTOS)_$(GOHOSTARCH)
 
 # set the version number. you should not need to do this
 # for the majority of scenarios.
+#
+# NOTE: Some build environments (e.g., rpmbuild from a source tarball) do not have git metadata or tag names
+# available. In such cases, git describe may fail. Fall back to a deterministic default.
 ifeq ($(origin VERSION), undefined)
-VERSION := $(shell git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )
+VERSION := $(shell \
+	if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+		git describe --dirty --always --tags 2>/dev/null | sed 's/-/./2' | sed 's/-/./2' || true; \
+	fi \
+)
+endif
+ifeq ($(strip $(VERSION)),)
+VERSION := 0.0.0
 endif
 export VERSION
 

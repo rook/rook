@@ -80,7 +80,21 @@ $(YQ):
 	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(REAL_HOST_PLATFORM) -o $(YQ)
 	@chmod +x $(YQ)
 
-GOLANGCI_LINT_VERSION := $(strip $(shell $(YQ) .jobs.golangci.steps[2].with.version $(shell git show $(shell git describe --tags --abbrev=0):.github/workflows/golangci-lint.yaml)))
+# In some build environments (e.g., rpmbuild from a source tarball), there is no git metadata and/or
+# github workflow files might not be present. Avoid calling git to compute the golangci-lint version.
+#
+# Priority:
+# 1) If caller sets GOLANGCI_LINT_VERSION explicitly, use it.
+# 2) If .github/workflows/golangci-lint.yaml exists in the working tree, parse it with yq.
+# 3) Fall back to a known good default.
+GOLANGCI_LINT_VERSION ?= $(strip $(shell \
+	if [ -f .github/workflows/golangci-lint.yaml ]; then \
+		$(YQ) -r '.jobs.golangci.steps[2].with.version // ""' .github/workflows/golangci-lint.yaml 2>/dev/null; \
+	fi \
+))
+ifeq ($(strip $(GOLANGCI_LINT_VERSION)),)
+GOLANGCI_LINT_VERSION := v1.64.5
+endif
 GOLANGCI_LINT := $(TOOLS_HOST_DIR)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 
 GO_OUT_DIR := $(abspath $(OUTPUT_DIR)/bin/$(PLATFORM))
