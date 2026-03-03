@@ -530,17 +530,21 @@ function deploy_first_rook_cluster() {
   deploy_manifest_with_local_build csi-operator.yaml
   yq w -i -d0 cluster-test.yaml spec.dashboard.enabled false
   yq w -i -d0 cluster-test.yaml spec.storage.useAllDevices false
-  yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"1
+  yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"[1-3]
+
   kubectl create -f cluster-test.yaml
   deploy_toolbox
 }
 
+# deploy_second_rook_cluster will only work if there are 6 disk or partitions available
+# as we are picking "${DEVICE_NAME}"[4-6]
 function deploy_second_rook_cluster() {
   DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
   cd "${REPO_DIR}/deploy/examples"
   NAMESPACE=rook-ceph-secondary envsubst <common-second-cluster.yaml | kubectl create -f -
   sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
-  yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"2
+  yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"[4-6]
+
   yq w -i -d0 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
   kubectl create -f cluster-test.yaml
   yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
