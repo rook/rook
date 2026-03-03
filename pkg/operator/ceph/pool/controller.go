@@ -71,14 +71,14 @@ var _ reconcile.Reconciler = &ReconcileCephBlockPool{}
 
 // ReconcileCephBlockPool reconciles a CephBlockPool object
 type ReconcileCephBlockPool struct {
-	client            client.Client
-	scheme            *runtime.Scheme
-	context           *clusterd.Context
-	clusterInfo       *cephclient.ClusterInfo
-	blockPoolContexts map[string]*blockPoolHealth
-	opManagerContext  context.Context
-	recorder          events.EventRecorder
-	opConfig          opcontroller.OperatorConfig
+	client                  client.Client
+	scheme                  *runtime.Scheme
+	context                 *clusterd.Context
+	clusterInfo             *cephclient.ClusterInfo
+	blockPoolMirrorContexts map[string]*blockPoolHealth
+	opManagerContext        context.Context
+	recorder                events.EventRecorder
+	opConfig                opcontroller.OperatorConfig
 }
 
 type blockPoolHealth struct {
@@ -96,13 +96,13 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCephBlockPool{
-		client:            mgr.GetClient(),
-		scheme:            mgr.GetScheme(),
-		context:           context,
-		blockPoolContexts: make(map[string]*blockPoolHealth),
-		opManagerContext:  opManagerContext,
-		recorder:          mgr.GetEventRecorder("rook-" + controllerName),
-		opConfig:          opConfig,
+		client:                  mgr.GetClient(),
+		scheme:                  mgr.GetScheme(),
+		context:                 context,
+		blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
+		opManagerContext:        opManagerContext,
+		recorder:                mgr.GetEventRecorder("rook-" + controllerName),
+		opConfig:                opConfig,
 	}
 }
 
@@ -266,18 +266,6 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 	r.clusterInfo = clusterInfo
 
-	// Initialize the channel for this pool
-	// This allows us to track multiple CephBlockPool in the same namespace
-	blockPoolChannelKey := blockPoolChannelKeyName(cephBlockPool)
-	_, blockPoolContextsExists := r.blockPoolContexts[blockPoolChannelKey]
-	if !blockPoolContextsExists {
-		internalCtx, internalCancel := context.WithCancel(r.opManagerContext)
-		r.blockPoolContexts[blockPoolChannelKey] = &blockPoolHealth{
-			internalCtx:    internalCtx,
-			internalCancel: internalCancel,
-		}
-	}
-
 	poolSpec := cephBlockPool.ToNamedPoolSpec()
 	// DELETE: the CR was deleted
 	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
@@ -349,85 +337,13 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	if err := configureRBDStats(r.context, clusterInfo, ""); err != nil {
 		return reconcile.Result{}, *cephBlockPool, errors.Wrap(err, "failed to enable/disable stats collection for pool(s)")
 	}
-	checker := cephclient.NewMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &poolSpec, cephBlockPool)
-	// ADD PEERS
-	log.NamedDebug(request.NamespacedName, logger, "reconciling create rbd mirror peer configuration")
-	if cephBlockPool.Spec.Mirroring.Enabled {
-		// Always create a bootstrap peer token in case another cluster wants to add us as a peer
-		reconcileResponse, err = opcontroller.CreateBootstrapPeerSecret(r.context, clusterInfo, cephBlockPool, k8sutil.NewOwnerInfo(cephBlockPool, r.scheme))
+
+	if canConfigurePoolMirroring(poolSpec) {
+		var reconcileResult reconcile.Result
+		reconcileResult, statusErr, err = r.configurePoolMirroring(request, poolSpec, cephBlockPool, clusterInfo, observedGeneration, cephCluster)
 		if err != nil {
-			statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionFailure, k8sutil.ObservedGenerationNotAvailable, nil)
-			if statusErr != nil {
-				return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrapf(statusErr, "failed to update %q status to %q", request.NamespacedName, cephv1.ConditionFailure)
-			}
-			return reconcileResponse, *cephBlockPool, errors.Wrapf(err, "failed to create rbd-mirror bootstrap peer for pool %q.", cephBlockPool.GetName())
+			return reconcileResult, *cephBlockPool, err
 		}
-
-		// update rbdMirror cephXStatus immediately after bootstrapping the peer token
-		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionProgressing, observedGeneration, &cephCluster.Status.Cephx.RBDMirrorPeer)
-		if statusErr != nil {
-			return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrapf(statusErr, "failed to update %q status to %q", request.NamespacedName, cephv1.ConditionProgressing)
-		}
-
-		// Check if rbd-mirror CR and daemons are running
-		log.NamedDebug(request.NamespacedName, logger, "listing rbd-mirror CR")
-
-		// Add bootstrap peer if any
-		log.NamedDebug(request.NamespacedName, logger, "reconciling ceph bootstrap peers import")
-		reconcileResponse, err = r.reconcileAddBootstrapPeer(cephBlockPool, request.NamespacedName)
-		if err != nil {
-			return reconcileResponse, *cephBlockPool, errors.Wrap(err, "failed to add ceph rbd mirror peer")
-		}
-
-		// ReconcilePoolIDMap updates the `rook-ceph-csi-mapping-config` with local and peer cluster pool ID map
-		err = peermap.ReconcilePoolIDMap(r.opManagerContext, r.context, r.clusterInfo, cephBlockPool)
-		if err != nil {
-			return reconcileResponse, *cephBlockPool, errors.Wrapf(err, "failed to update pool ID mapping config for the pool %q", cephBlockPool.Name)
-		}
-
-		// update ObservedGeneration in status at the end of reconcile
-		// Set Ready status, we are done reconciling
-		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration, nil)
-
-		if cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
-			// Stop monitoring the mirroring status of this pool
-			if blockPoolContextsExists && r.blockPoolContexts[blockPoolChannelKey].started {
-				log.NamedInfo(request.NamespacedName, logger, "stop monitoring the mirroring status of the pool")
-				r.cancelMirrorMonitoring(cephBlockPool)
-			}
-			// Reset the MirrorHealthCheckSpec
-			checker.UpdateStatusMirroring(nil, nil, nil, "")
-		} else {
-			// Start monitoring of the pool
-			if r.blockPoolContexts[blockPoolChannelKey].started {
-				log.NamedDebug(request.NamespacedName, logger, "pool monitoring go routine already running!")
-			} else {
-				if cephBlockPool.Spec.Mirroring.Mode != "init-only" {
-					r.blockPoolContexts[blockPoolChannelKey].started = true
-					// Run the goroutine to update the mirroring status and skip when blockpool mirroing mode in init-only as radosnamespace mirroring is the right place to check
-					// mirroring status when blockpool mirroring mode is init-only.
-					go checker.CheckMirroring(r.blockPoolContexts[blockPoolChannelKey].internalCtx)
-				}
-			}
-		}
-
-		// If not mirrored there is no Status Info field to fulfil
-	} else {
-		// disable mirroring
-		err = r.disableMirroring(poolSpec.Name)
-		if err != nil {
-			log.NamedWarning(request.NamespacedName, logger, "failed to disable mirroring on pool. %v", err)
-		}
-		// update ObservedGeneration in status at the end of reconcile
-		// Set Ready status, we are done reconciling
-		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration, &cephv1.CephxStatus{})
-
-		// Stop monitoring the mirroring status of this pool
-		if blockPoolContextsExists && r.blockPoolContexts[blockPoolChannelKey].started {
-			r.cancelMirrorMonitoring(cephBlockPool)
-		}
-		// Reset the MirrorHealthCheckSpec
-		checker.UpdateStatusMirroring(nil, nil, nil, "")
 	}
 
 	if statusErr != nil {
@@ -437,6 +353,105 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	// Return and do not requeue
 	log.NamedDebug(request.NamespacedName, logger, "done reconciling")
 	return reconcile.Result{}, *cephBlockPool, nil
+}
+
+func (r *ReconcileCephBlockPool) configurePoolMirroring(request reconcile.Request, poolSpec cephv1.NamedPoolSpec, cephBlockPool *cephv1.CephBlockPool, clusterInfo *cephclient.ClusterInfo, observedGeneration int64, cephCluster cephv1.CephCluster) (reconcile.Result, error, error) {
+	checker := cephclient.NewMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &poolSpec, cephBlockPool)
+	// ADD PEERS
+	log.NamedDebug(request.NamespacedName, logger, "reconciling create rbd mirror peer configuration")
+
+	// Initialize the channel for this pool
+	// This allows us to track multiple CephBlockPool in the same namespace
+	blockPoolChannelKey := blockPoolChannelKeyName(cephBlockPool)
+	_, blockPoolMirrorContextsExists := r.blockPoolMirrorContexts[blockPoolChannelKey]
+	if !blockPoolMirrorContextsExists {
+		internalCtx, internalCancel := context.WithCancel(r.opManagerContext)
+		r.blockPoolMirrorContexts[blockPoolChannelKey] = &blockPoolHealth{
+			internalCtx:    internalCtx,
+			internalCancel: internalCancel,
+		}
+	}
+	var statusErr error
+
+	if cephBlockPool.Spec.Mirroring.Enabled {
+		// Always create a bootstrap peer token in case another cluster wants to add us as a peer
+		reconcileResponse, err := opcontroller.CreateBootstrapPeerSecret(r.context, clusterInfo, cephBlockPool, k8sutil.NewOwnerInfo(cephBlockPool, r.scheme))
+		if err != nil {
+			statusErr := r.updateStatus(request.NamespacedName, cephv1.ConditionFailure, k8sutil.ObservedGenerationNotAvailable, nil)
+			if statusErr != nil {
+				return opcontroller.ImmediateRetryResult, statusErr, errors.Wrapf(statusErr, "failed to update %q status to %q", request.NamespacedName, cephv1.ConditionFailure)
+			}
+			return reconcileResponse, statusErr, errors.Wrapf(err, "failed to create rbd-mirror bootstrap peer for pool %q.", cephBlockPool.GetName())
+		}
+
+		// update rbdMirror cephXStatus immediately after bootstrapping the peer token
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionProgressing, observedGeneration, &cephCluster.Status.Cephx.RBDMirrorPeer)
+		if statusErr != nil {
+			return opcontroller.ImmediateRetryResult, statusErr, errors.Wrapf(statusErr, "failed to update %q status to %q", request.NamespacedName, cephv1.ConditionProgressing)
+		}
+
+		// Check if rbd-mirror CR and daemons are running
+		log.NamedDebug(request.NamespacedName, logger, "listing rbd-mirror CR")
+
+		// Add bootstrap peer if any
+		log.NamedDebug(request.NamespacedName, logger, "reconciling ceph bootstrap peers import")
+		reconcileResponse, err = r.reconcileAddBootstrapPeer(cephBlockPool, request.NamespacedName)
+		if err != nil {
+			return reconcileResponse, statusErr, errors.Wrap(err, "failed to add ceph rbd mirror peer")
+		}
+
+		// ReconcilePoolIDMap updates the `rook-ceph-csi-mapping-config` with local and peer cluster pool ID map
+		err = peermap.ReconcilePoolIDMap(r.opManagerContext, r.context, r.clusterInfo, cephBlockPool)
+		if err != nil {
+			return reconcileResponse, statusErr, errors.Wrapf(err, "failed to update pool ID mapping config for the pool %q", cephBlockPool.Name)
+		}
+
+		// update ObservedGeneration in status at the end of reconcile
+		// Set Ready status, we are done reconciling
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration, nil)
+
+		if cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
+			// Stop monitoring the mirroring status of this pool
+			if blockPoolMirrorContextsExists && r.blockPoolMirrorContexts[blockPoolChannelKey].started {
+				log.NamedInfo(request.NamespacedName, logger, "stop monitoring the mirroring status of the pool")
+				r.cancelMirrorMonitoring(cephBlockPool)
+			}
+			// Reset the MirrorHealthCheckSpec
+			checker.UpdateStatusMirroring(nil, nil, nil, "")
+		} else {
+			// Start monitoring of the pool
+			if r.blockPoolMirrorContexts[blockPoolChannelKey].started {
+				log.NamedDebug(request.NamespacedName, logger, "pool monitoring go routine already running!")
+			} else {
+				if cephBlockPool.Spec.Mirroring.Mode != "init-only" {
+					r.blockPoolMirrorContexts[blockPoolChannelKey].started = true
+					// Run the goroutine to update the mirroring status and skip when blockpool mirroing mode in init-only as radosnamespace mirroring is the right place to check
+					// mirroring status when blockpool mirroring mode is init-only.
+					go checker.CheckMirroring(r.blockPoolMirrorContexts[blockPoolChannelKey].internalCtx)
+				}
+			}
+		}
+
+		// If not mirrored there is no Status Info field to fulfil
+	} else {
+		// disable mirroring
+		err := r.disableMirroring(poolSpec.Name)
+		if err != nil {
+			log.NamedWarning(request.NamespacedName, logger, "failed to disable mirroring on pool. %v", err)
+		}
+		// update ObservedGeneration in status at the end of reconcile
+		// Set Ready status, we are done reconciling
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration, &cephv1.CephxStatus{})
+
+		// Stop monitoring the mirroring status of this pool
+		if blockPoolMirrorContextsExists && r.blockPoolMirrorContexts[blockPoolChannelKey].started {
+			r.cancelMirrorMonitoring(cephBlockPool)
+		}
+		// Reset the MirrorHealthCheckSpec
+		checker.UpdateStatusMirroring(nil, nil, nil, "")
+	}
+
+	return reconcile.Result{}, statusErr, nil
 }
 
 // handlePoolDeletionBlocked updates the blockpool CR status with conditions about
@@ -656,13 +671,13 @@ func blockPoolChannelKeyName(p *cephv1.CephBlockPool) string {
 func (r *ReconcileCephBlockPool) cancelMirrorMonitoring(cephBlockPool *cephv1.CephBlockPool) {
 	channelKey := blockPoolChannelKeyName(cephBlockPool)
 
-	_, poolContextExists := r.blockPoolContexts[channelKey]
+	_, poolContextExists := r.blockPoolMirrorContexts[channelKey]
 	if poolContextExists {
 		// Cancel the context to stop the go routine
-		r.blockPoolContexts[channelKey].internalCancel()
+		r.blockPoolMirrorContexts[channelKey].internalCancel()
 
 		// Remove ceph block pool from the map
-		delete(r.blockPoolContexts, channelKey)
+		delete(r.blockPoolMirrorContexts, channelKey)
 	}
 }
 
@@ -742,4 +757,12 @@ func (r *ReconcileCephBlockPool) isAnyRadosNamespaceMirrored(poolName string) (b
 	}
 
 	return false, nil
+}
+
+func canConfigurePoolMirroring(poolSpec cephv1.NamedPoolSpec) bool {
+	// if the pool is erasure coded, we should not enable mirroring on it.
+	if poolSpec.IsErasureCoded() {
+		return false
+	}
+	return true
 }
