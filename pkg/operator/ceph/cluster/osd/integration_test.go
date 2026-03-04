@@ -335,7 +335,7 @@ func testOSDIntegration(t *testing.T) {
 			updateStatusConfigmap(clientset, statusMapWatcher, cpy)
 			if i == 2 {
 				t.Log("canceling orchestration")
-				time.Sleep(10 * time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 				// after the second status map is made ready, cancel the orchestration. wait a short
 				// while to make sure the watcher picks up the updated change
 				cancel()
