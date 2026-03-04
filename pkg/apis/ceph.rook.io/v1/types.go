@@ -1803,7 +1803,6 @@ type PoolPlacementSpec struct {
 	// Pool placement name. Name can be arbitrary. Placement with name "default" will be used as default.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._/-]+$`
 	Name string `json:"name"`
 
@@ -1813,23 +1812,20 @@ type PoolPlacementSpec struct {
 	Default bool `json:"default"`
 
 	// The metadata pool used to store ObjectStore bucket index.
+	// WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=128
-	// +kubebuilder:validation:XValidation:message="pool placement metadata pool is immutable",rule="self == oldSelf"
 	MetadataPoolName string `json:"metadataPoolName"`
 
 	// The data pool used to store ObjectStore objects data.
+	// WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=128
-	// +kubebuilder:validation:XValidation:message="pool placement data pool is immutable",rule="self == oldSelf"
 	DataPoolName string `json:"dataPoolName"`
 
 	// The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
 	// If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.
-	// +kubebuilder:validation:MaxLength=128
-	// +kubebuilder:validation:XValidation:message="pool placement non-EC pool is immutable",rule="self == oldSelf"
+	// WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
 	// +optional
 	DataNonECPoolName string `json:"dataNonECPoolName,omitempty"`
 
@@ -1849,14 +1845,13 @@ type PlacementStorageClassSpec struct {
 	// See AWS docs: https://aws.amazon.com/de/s3/storage-classes/
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=64
 	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._/-]+$`
 	Name string `json:"name"`
 
 	// DataPoolName is the data pool used to store ObjectStore objects data.
+	// WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=128
 	DataPoolName string `json:"dataPoolName"`
 }
 

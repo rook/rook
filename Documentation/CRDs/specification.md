@@ -13044,7 +13044,8 @@ string
 </em>
 </td>
 <td>
-<p>DataPoolName is the data pool used to store ObjectStore objects data.</p>
+<p>DataPoolName is the data pool used to store ObjectStore objects data.
+WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.</p>
 </td>
 </tr>
 </tbody>
@@ -13096,7 +13097,8 @@ string
 </em>
 </td>
 <td>
-<p>The metadata pool used to store ObjectStore bucket index.</p>
+<p>The metadata pool used to store ObjectStore bucket index.
+WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.</p>
 </td>
 </tr>
 <tr>
@@ -13107,7 +13109,8 @@ string
 </em>
 </td>
 <td>
-<p>The data pool used to store ObjectStore objects data.</p>
+<p>The data pool used to store ObjectStore objects data.
+WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.</p>
 </td>
 </tr>
 <tr>
@@ -13120,7 +13123,8 @@ string
 <td>
 <em>(Optional)</em>
 <p>The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
-If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.</p>
+If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.
+WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.</p>
 </td>
 </tr>
 <tr>

@@ -157,6 +157,32 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
 
+	// Canary test: verify all *_pool fields in zone.json are covered by Rook's zonePoolNSSuffix map.
+	// This catches new RGW pool fields added in newer Ceph versions that Rook doesn't yet handle,
+	// which would cause ghost default pools when shared pools are configured.
+	s.T().Run("all zone.json pool fields are covered by Rook shared pool mapping", func(t *testing.T) {
+		output, err := installer.Execute("radosgw-admin",
+			[]string{"zone", "get", "--rgw-zone=" + storeName, "--rgw-realm=" + storeName}, namespace)
+		require.NoError(t, err, "failed to get zone config")
+		require.NotEmpty(t, output, "zone config is empty")
+
+		var zoneConfig map[string]interface{}
+		err = json.Unmarshal([]byte(output), &zoneConfig)
+		require.NoError(t, err, "failed to parse zone config JSON")
+
+		knownPools := rgw.ZoneJsonPoolKeys()
+		for field, val := range zoneConfig {
+			if _, ok := val.(string); !ok {
+				continue
+			}
+			if !strings.HasSuffix(field, "_pool") {
+				continue
+			}
+			assert.Contains(t, knownPools, field,
+				"RGW zone.json contains unknown pool field %q — add it to zonePoolNSSuffix in pkg/operator/ceph/object/objectstore.go", field)
+		}
+	})
+
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable)
 	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable)
 	topickafka.TestBucketTopicKafka(s.T(), k8sh, installer, logger, tlsEnable)
