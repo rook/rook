@@ -120,9 +120,12 @@ build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
+# This target exists only for setting the variable
+.PHONY: build.common.var
+build.common.var: export SKIP_GEN_CRD_DOCS=true
+
 .PHONY: build.common
-build.common: export SKIP_GEN_CRD_DOCS=true
-build.common: build.version helm.build mod.check crds gen-rbac
+build.common:  build.common.var build.version helm.build mod.check crds gen-rbac
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 	@$(MAKE) -C images/ceph list-image
