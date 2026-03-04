@@ -59,6 +59,10 @@ func (r *ReconcileCSI) setParams() error {
 		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_RBD'")
 	}
 
+	if EnableNVMeoF, err = strconv.ParseBool(k8sutil.GetOperatorSetting("ROOK_CSI_ENABLE_NVMEOF", "true")); err != nil {
+		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_NVMEOF'")
+	}
+
 	if EnableCephFS, err = strconv.ParseBool(k8sutil.GetOperatorSetting("ROOK_CSI_ENABLE_CEPHFS", "true")); err != nil {
 		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_CEPHFS'")
 	}
@@ -117,6 +121,11 @@ func (r *ReconcileCSI) setParams() error {
 		return errors.Wrap(err, "error getting CSI RBD liveness metrics port.")
 	}
 
+	CSIParam.NVMeoFLivenessMetricsPort, err = getPortFromConfig("CSI_NVMEOF_LIVENESS_METRICS_PORT", DefaultNVMeoFLivenessMerticsPort)
+	if err != nil {
+		return errors.Wrap(err, "error getting CSI NVMe-oF liveness metrics port.")
+	}
+
 	CSIParam.EnableLiveness, err = strconv.ParseBool(k8sutil.GetOperatorSetting("CSI_ENABLE_LIVENESS", "false"))
 	if err != nil {
 		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_LIVENESS'")
@@ -139,6 +148,11 @@ func (r *ReconcileCSI) setParams() error {
 	CSIParam.EnableRBDSnapshotter = true
 	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_ENABLE_RBD_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableRBDSnapshotter = false
+	}
+
+	CSIParam.EnableNVMeoFSnapshotter = true
+	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_ENABLE_NVMEOF_SNAPSHOTTER", "true"), "false") {
+		CSIParam.EnableNVMeoFSnapshotter = false
 	}
 
 	CSIParam.EnableCephFSSnapshotter = true
@@ -298,6 +312,8 @@ func (r *ReconcileCSI) setParams() error {
 	CSIParam.CSINFSPodLabels = k8sutil.ParseStringToLabels(csiNFSPodLabels)
 	csiRBDPodLabels := k8sutil.GetOperatorSetting("ROOK_CSI_RBD_POD_LABELS", "")
 	CSIParam.CSIRBDPodLabels = k8sutil.ParseStringToLabels(csiRBDPodLabels)
+	csiNVMEOFPodLabels := k8sutil.GetOperatorSetting("ROOK_CSI_NVMEOF_POD_LABELS", "")
+	CSIParam.CSINVMeoFPodLabels = k8sutil.ParseStringToLabels(csiNVMEOFPodLabels)
 	CSIParam.CSIClusterName = k8sutil.GetOperatorSetting("CSI_CLUSTER_NAME", "")
 	CSIParam.ImagePullPolicy = k8sutil.GetOperatorSetting("ROOK_CSI_IMAGE_PULL_POLICY", DefaultCSIImagePullPolicy)
 	CSIParam.CephFSKernelMountOptions = k8sutil.GetOperatorSetting("CSI_CEPHFS_KERNEL_MOUNT_OPTIONS", "")
@@ -309,6 +325,10 @@ func (r *ReconcileCSI) setParams() error {
 	CSIParam.RBDAttachRequired = true
 	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_RBD_ATTACH_REQUIRED", "true"), "false") {
 		CSIParam.RBDAttachRequired = false
+	}
+	CSIParam.NVMeoFAttachRequired = true
+	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_NVMEOF_ATTACH_REQUIRED", "true"), "false") {
+		CSIParam.NVMeoFAttachRequired = false
 	}
 	CSIParam.NFSAttachRequired = true
 	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_NFS_ATTACH_REQUIRED", "true"), "false") {
@@ -389,6 +409,7 @@ func (r *ReconcileCSI) setParams() error {
 	// Set the driver names
 	CephFSDriverName = CSIParam.DriverNamePrefix + cephFSDriverSuffix
 	RBDDriverName = CSIParam.DriverNamePrefix + rbdDriverSuffix
+	NVMeoFDriverName = CSIParam.DriverNamePrefix + nvmeofDriverSuffix
 	NFSDriverName = CSIParam.DriverNamePrefix + nfsDriverSuffix
 	return nil
 }

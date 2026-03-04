@@ -49,6 +49,17 @@ func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster,
 			return errors.Wrapf(err, "failed to create or update RBD driver resource in the namespace %q", r.opConfig.OperatorNamespace)
 		}
 	}
+	if EnableNVMeoF {
+		logger.Info("Creating NVMeoF driver resources")
+		err := r.transferCSIDriverOwner(r.opManagerContext, NVMeoFDriverName)
+		if err != nil {
+			return errors.Wrap(err, "failed to create update NVMeoF driver for csi-operator driver CR ")
+		}
+		err = r.createOrUpdateNVMeoFDriverResource(cluster, clusterInfo)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create or update NVMeoF driver resource in the namespace %q", r.opConfig.OperatorNamespace)
+		}
+	}
 	if EnableCephFS {
 		logger.Info("Creating CephFS driver resources")
 		err := r.transferCSIDriverOwner(r.opManagerContext, CephFSDriverName)
@@ -118,6 +129,54 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 	err = r.createOrUpdateDriverResource(clusterInfo, rbdDriver)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create or update RBD driver resource %q", rbdDriver.Name)
+	}
+
+	return nil
+}
+
+func (r *ReconcileCSI) createOrUpdateNVMeoFDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
+	resourceName := fmt.Sprintf("%s.nvmeof.csi.ceph.com", r.opConfig.OperatorNamespace)
+	spec, err := r.generateDriverSpec(cluster)
+	if err != nil {
+		return err
+	}
+
+	spec.NodePlugin.Labels = CSIParam.CSINVMeoFPodLabels
+	spec.ControllerPlugin.Labels = CSIParam.CSINVMeoFPodLabels
+	nvmeofDriver := &csiopv1.Driver{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName,
+			Namespace: r.opConfig.OperatorNamespace,
+		},
+		Spec: spec,
+	}
+
+	nvmeofDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(nvmeofProvisionerResource)
+	nvmeofDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(nvmeofPluginResource)
+	nvmeofDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
+		Type: v1.RollingUpdateDaemonSetStrategyType,
+	}
+
+	if CSIParam.CSIDomainLabels != "" {
+		domainLabels := strings.Split(CSIParam.CSIDomainLabels, ",")
+		nvmeofDriver.Spec.NodePlugin.Topology = &csiopv1.TopologySpec{
+			DomainLabels: domainLabels,
+		}
+	}
+
+	if CSIParam.NVMeoFPluginUpdateStrategy == "OnDelete" {
+		nvmeofDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
+			Type: v1.OnDeleteDaemonSetStrategyType,
+		}
+	}
+
+	podVolumes := getPodVolumes(nvmeofPluginVolume, nvmeofPluginVolumeMount)
+	nvmeofDriver.Spec.NodePlugin.PodCommonSpec.Volumes = podVolumes
+
+	err = r.createOrUpdateDriverResource(clusterInfo, nvmeofDriver)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create or update NVMeoF driver resource %q", nvmeofDriver.Name)
 	}
 
 	return nil
