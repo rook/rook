@@ -427,6 +427,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
 	}
 
+	liveUser.UserCaps = generateUserCaps(&liveUser)
 	// Update caps, if necessary
 	log.NamedTrace(nsName, logger, "user capabilities(id: %s, caps: %#v, user caps: %s, op mask: %s)",
 		liveUser.ID, liveUser.Caps, liveUser.UserCaps, liveUser.OpMask)
@@ -646,7 +647,6 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 	}
 
 	userConfig.OpMask = opMask
-	userConfig.UserCaps = generateUserCaps(userConfig)
 
 	return userConfig, nil
 }
