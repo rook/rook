@@ -104,6 +104,8 @@ users:
   - system:serviceaccount:rook-ceph:ceph-csi-cephfs-nodeplugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:ceph-csi-nfs-ctrlplugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:ceph-csi-nfs-nodeplugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:ceph-csi-nvmeof-ctrlplugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:ceph-csi-nvmeof-nodeplugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:ceph-csi-rbd-ctrlplugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:ceph-csi-rbd-nodeplugin-sa # serviceaccount:namespace:operator
 ---
