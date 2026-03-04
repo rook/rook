@@ -27,7 +27,7 @@ parameters:
   csi.storage.k8s.io/node-expand-secret-namespace: rook-ceph
   imageFormat: "2"
   imageFeatures: layering,deep-flatten,exclusive-lock,object-map,fast-diff
-provisioner: nvmeof.csi.ceph.com
+provisioner: rook-ceph.nvmeof.csi.ceph.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
