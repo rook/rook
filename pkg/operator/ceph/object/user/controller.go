@@ -427,9 +427,17 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
 	}
 
+<<<<<<< HEAD
 	// Update caps if necessary
 	user.UserCaps = generateUserCaps(user)
 	if user.UserCaps != userConfig.UserCaps {
+=======
+	liveUser.UserCaps = generateUserCaps(&liveUser)
+	// Update caps, if necessary
+	log.NamedTrace(nsName, logger, "user capabilities(id: %s, caps: %#v, user caps: %s, op mask: %s)",
+		liveUser.ID, liveUser.Caps, liveUser.UserCaps, liveUser.OpMask)
+	if targetUser.UserCaps != liveUser.UserCaps {
+>>>>>>> b113e37da (object: call generateUserCaps after AdminOpsClient calls)
 		// If they are no caps to be removed, the API will return an error "missing user capabilities"
 		if user.UserCaps != "" {
 			logger.Tracef("remove capabilities %s from user %s", user.UserCaps, userConfig.ID)
@@ -622,7 +630,35 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) *admin.User {
 		}
 	}
 
+<<<<<<< HEAD
 	return userConfig
+=======
+	nsName := opcontroller.NsName(user.Namespace, user.Name)
+
+	var opMask string
+	if user.Spec.OpMask != nil && *user.Spec.OpMask != nil {
+		mask, err := opmask.FromSlice(*user.Spec.OpMask)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid op-mask specified for user %q", user.Name)
+		}
+		opMask = mask.String()
+
+		if opMask == "<none>" {
+			log.NamedTrace(nsName, logger, "removing all operations from op-mask for user %q", user.Name)
+		} else {
+			log.NamedTrace(nsName, logger, "setting op-mask for user %q: %v", user.Name, user.Spec.OpMask)
+		}
+	} else {
+		// If no explicit opmask is set, default to read/write/delete permissions, which is the default that the RGW applies when creating a user via the admin ops API.
+		opMask = "read, write, delete"
+
+		log.NamedTrace(nsName, logger, "setting default op-mask for user %q: %v", user.Name, opMask)
+	}
+
+	userConfig.OpMask = opMask
+
+	return userConfig, nil
+>>>>>>> b113e37da (object: call generateUserCaps after AdminOpsClient calls)
 }
 
 func generateCephUserSecretName(u *cephv1.CephObjectStoreUser) string {
