@@ -2019,13 +2019,20 @@ jobs:
           tests/scripts/github-action-helper.sh use_local_disk
           tests/scripts/github-action-helper.sh create_partitions_for_osds
 
-      - name: deploy cluster without ceph-csi operator
+      - name: deploy cluster
         run: |
           OPERATOR_MANIFEST="deploy/examples/operator.yaml"
-          sed -i 's|# ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.1"|ROOK_CSI_CEPH_IMAGE: "quay.io/nixpanic/cephcsi:nvmeof"|' "${OPERATOR_MANIFEST}"
-          sed -i 's|ROOK_USE_CSI_OPERATOR: "true"|ROOK_USE_CSI_OPERATOR: "false"|' "${OPERATOR_MANIFEST}"
+          # TODO: only :latest has all NVMe-oF features
+          sed -i 's|# ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.1"|ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:canary"|' "${OPERATOR_MANIFEST}"
+          # TODO: the Ceph-CSI/NVMe-oF driver is disabled by default
+          sed -i 's|ROOK_CSI_ENABLE_NVMEOF: "false"|ROOK_CSI_ENABLE_NVMEOF: "true"|' "${OPERATOR_MANIFEST}"
+
+          CSI_OPERATOR_MANIFEST="deploy/examples/csi-operator.yaml"
+          # TODO: only :latest can deploy Ceph-CSI/NVMe-oF
+          sed -i 's|image: quay.io/cephcsi/ceph-csi-operator:v0.5.0|image: quay.io/cephcsi/ceph-csi-operator:latest|' "${CSI_OPERATOR_MANIFEST}"
 
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "${OPERATOR_MANIFEST}"
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "${CSI_OPERATOR_MANIFEST}"
 
           export BLOCK="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           yq w -i -d0 deploy/examples/cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"
