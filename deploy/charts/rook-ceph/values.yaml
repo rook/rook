@@ -124,6 +124,10 @@ csi:
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
   rbdFSGroupPolicy: "File"
 
+  # -- Policy for modifying a volume's ownership or permissions when the NVMe-oF PVC is being mounted.
+  # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
+  nvmeofFSGroupPolicy: "File"
+
   # -- Policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
   cephFSFSGroupPolicy: "File"
@@ -164,7 +168,7 @@ csi:
   # @default -- `0`
   sidecarLogLevel:
 
-  # -- CSI driver name prefix for cephfs, rbd and nfs.
+  # -- CSI driver name prefix for cephfs, rbd, nvmeof and nfs.
   # @default -- `namespace name where rook-ceph operator is deployed`
   csiDriverNamePrefix:
 
@@ -175,6 +179,14 @@ csi:
   # -- A maxUnavailable parameter of CSI RBD plugin daemonset update strategy.
   # @default -- `1`
   rbdPluginUpdateStrategyMaxUnavailable:
+
+  # -- CSI NVMe-oF plugin daemonset update strategy, supported values are OnDelete and RollingUpdate
+  # @default -- `RollingUpdate`
+  nvmeofPluginUpdateStrategy:
+
+  # -- A maxUnavailable parameter of CSI NVMe-oF plugin daemonset update strategy.
+  # @default -- `1`
+  nvmeofPluginUpdateStrategyMaxUnavailable:
 
   # -- CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate
   # @default -- `RollingUpdate`
@@ -291,6 +303,77 @@ csi:
         limits:
           memory: 256Mi
     - name : csi-rbdplugin
+      resource:
+        requests:
+          memory: 512Mi
+          cpu: 250m
+        limits:
+          memory: 1Gi
+    - name : liveness-prometheus
+      resource:
+        requests:
+          memory: 128Mi
+          cpu: 50m
+        limits:
+          memory: 256Mi
+
+
+  # -- CEPH CSI NVMe-oF provisioner resource requirement list
+  # @default -- see values.yaml
+  csiNVMeoFProvisionerResource: |
+    - name : csi-provisioner
+      resource:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+    - name : csi-resizer
+      resource:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+    - name : csi-attacher
+      resource:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+    - name : csi-snapshotter
+      resource:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+    - name : csi-nvmeofplugin
+      resource:
+        requests:
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+    - name : liveness-prometheus
+      resource:
+        requests:
+          memory: 128Mi
+          cpu: 50m
+        limits:
+          memory: 256Mi
+
+  # -- CEPH CSI NVMe-oF plugin resource requirement list
+  # @default -- see values.yaml
+  csiNVMeoFPluginResource: |
+    - name : driver-registrar
+      resource:
+        requests:
+          memory: 128Mi
+          cpu: 50m
+        limits:
+          memory: 256Mi
+    - name : csi-nvmeofplugin
       resource:
         requests:
           memory: 512Mi
@@ -468,6 +551,10 @@ csi:
   # @default -- `8080`
   rbdLivenessMetricsPort:
 
+  # -- Ceph CSI NVMe-oF driver metrics port
+  # @default -- `8080`
+  nvmeofLivenessMetricsPort:
+
   serviceMonitor:
     # -- Enable ServiceMonitor for Ceph CSI drivers
     enabled: false
@@ -542,6 +629,9 @@ csi:
   # -- Labels to add to the CSI RBD Deployments and DaemonSets Pods
   rbdPodLabels: #"key1=value1,key2=value2"
 
+  # -- Labels to add to the CSI NVMe-oF Deployments and DaemonSets Pods
+  nvmeofPodLabels: #"key1=value1,key2=value2"
+
   csiAddons:
     # -- Enable CSIAddons
     enabled: false
@@ -584,6 +674,14 @@ csi:
   # to false since we'll have no VolumeAttachments to determine which node the PVC is mounted on.
   # Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details.
   rbdAttachRequired: true
+  # -- Whether to skip any attach operation altogether for NVMe-oF PVCs. See more details
+  # [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object).
+  # If set to false it skips the volume attachments and makes the creation of pods using the NVMe-oF PVC fast.
+  # **WARNING** It's highly discouraged to use this for RWO volumes as it can cause data corruption.
+  # csi-addons operations like Reclaimspace and PVC Keyrotation will also not be supported if set
+  # to false since we'll have no VolumeAttachments to determine which node the PVC is mounted on.
+  # Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details.
+  nvmeofAttachRequired: true
   # -- Whether to skip any attach operation altogether for NFS PVCs. See more details
   # [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object).
   # If cephFSAttachRequired is set to false it skips the volume attachments and makes the creation

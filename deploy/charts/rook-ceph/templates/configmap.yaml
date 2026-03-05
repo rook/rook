@@ -36,6 +36,7 @@ data:
   {{- with .Values.csi }}
   ROOK_USE_CSI_OPERATOR: {{ .rookUseCsiOperator | quote }}
   ROOK_CSI_ENABLE_RBD: {{ .enableRbdDriver | quote }}
+  ROOK_CSI_ENABLE_NVMEOF: {{ .enableNvmeofDriver | quote }}
   ROOK_CSI_ENABLE_CEPHFS: {{ .enableCephfsDriver | quote }}
   ROOK_CSI_DISABLE_DRIVER: {{ .disableCsiDriver | quote }}
   CSI_ENABLE_CEPHFS_SNAPSHOTTER: {{ .enableCephfsSnapshotter | quote }}
@@ -68,14 +69,23 @@ data:
   {{- with .rbdFSGroupPolicy }}
   CSI_RBD_FSGROUPPOLICY: {{ . | quote }}
   {{- end }}
+  {{- with .nvmeofFSGroupPolicy }}
+  CSI_NVMEOF_FSGROUPPOLICY: {{ . | quote }}
+  {{- end }}
   {{- with .cephFSFSGroupPolicy }}
   CSI_CEPHFS_FSGROUPPOLICY: {{ . | quote }}
   {{- end }}
   {{- with .nfsFSGroupPolicy }}
   CSI_NFS_FSGROUPPOLICY: {{ . | quote }}
   {{- end }}
+  {{- with .nvmeofPluginUpdateStrategy }}
+  CSI_NVMEOF_PLUGIN_UPDATE_STRATEGY: {{ . | quote }}
+  {{- end }}
   {{- with .rbdPluginUpdateStrategy }}
   CSI_RBD_PLUGIN_UPDATE_STRATEGY: {{ . | quote }}
+  {{- end }}
+  {{- with .nvmeofPluginUpdateStrategy }}
+  CSI_NVMEOF_PLUGIN_UPDATE_STRATEGY: {{ . | quote }}
   {{- end }}
   {{- with .cephFSKernelMountOptions }}
   CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: {{ . | quote }}
@@ -155,6 +165,9 @@ data:
   {{- with .rbdPodLabels }}
   ROOK_CSI_RBD_POD_LABELS: {{ . | quote }}
   {{- end }}
+  {{- with .nvmeofPodLabels }}
+  ROOK_CSI_NVMEOF_POD_LABELS: {{ . | quote }}
+  {{- end }}
   {{- with .provisionerTolerations }}
   CSI_PROVISIONER_TOLERATIONS: {{ . | toYaml | quote }}
   {{- end }}
@@ -212,6 +225,9 @@ data:
   {{- with .rbdLivenessMetricsPort }}
   CSI_RBD_LIVENESS_METRICS_PORT: {{ . | quote }}
   {{- end }}
+  {{- with .nvmeofLivenessMetricsPort }}
+  CSI_NVMEOF_LIVENESS_METRICS_PORT: {{ . | quote }}
+  {{- end }}
   {{- with .csiAddonsPort }}
   CSIADDONS_PORT: {{ . | quote }}
   {{- end }}
@@ -245,6 +261,12 @@ data:
   {{- with .csiRBDPluginResource }}
   CSI_RBD_PLUGIN_RESOURCE: {{ . | quote }}
   {{- end }}
+  {{- with .csiNVMeoFProvisionerResource }}
+  CSI_NVMEOF_PROVISIONER_RESOURCE: {{ . | quote }}
+  {{- end }}
+  {{- with .csiNVMeoFPluginResource }}
+  CSI_NVMEOF_PLUGIN_RESOURCE: {{ . | quote }}
+  {{- end }}
   {{- with .csiCephFSProvisionerResource }}
   CSI_CEPHFS_PROVISIONER_RESOURCE: {{ . | quote }}
   {{- end }}
@@ -263,6 +285,12 @@ data:
   {{- with .csiRBDPluginVolumeMount }}
   CSI_RBD_PLUGIN_VOLUME_MOUNT: {{ . | toYaml | quote }}
   {{- end }}
+  {{- with .csiNVMeoFPluginVolume }}
+  CSI_NVMEOF_PLUGIN_VOLUME: {{ . | toYaml | quote }}
+  {{- end }}
+  {{- with .csiNVMeoFPluginVolumeMount }}
+  CSI_NVMEOF_PLUGIN_VOLUME_MOUNT: {{ . | toYaml | quote }}
+  {{- end }}
   {{- with .csiCephFSPluginVolume }}
   CSI_CEPHFS_PLUGIN_VOLUME: {{ . | toYaml | quote }}
   {{- end }}
@@ -271,6 +299,7 @@ data:
   {{- end }}
   CSI_CEPHFS_ATTACH_REQUIRED: {{ .cephFSAttachRequired | quote }}
   CSI_RBD_ATTACH_REQUIRED: {{ .rbdAttachRequired | quote }}
+  CSI_NVMEOF_ATTACH_REQUIRED: {{ .nvmeofAttachRequired | quote }}
   CSI_NFS_ATTACH_REQUIRED: {{ .nfsAttachRequired | quote }}
   {{- with .kubeApiBurst }}
   CSI_KUBE_API_BURST: {{ . | quote }}
