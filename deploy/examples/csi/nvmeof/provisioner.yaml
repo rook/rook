@@ -198,7 +198,7 @@ spec:
         - name: csi-nvmeofplugin
           # for stable functionality replace canary with latest release version
           # image: quay.io/gdidi/cephcsi:nvmeof
-          image: quay.io/cephcsi/cephcsi:v3.16.1
+          image: quay.io/cephcsi/cephcsi:canary
           command: ["/usr/local/bin/cephcsi"]
           args:
             - "--nodeid=$(NODE_ID)"
@@ -244,8 +244,7 @@ spec:
               mountPath: /run/secrets/tokens
               readOnly: true
         - name: csi-provisioner
-          #          image: registry.k8s.io/sig-storage/csi-provisioner:v5.1.0
-          image: quay.io/nixpanic/csi-provisioner:pr1440
+          image: gcr.io/k8s-staging-sig-storage/csi-provisioner:canary
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=1"
@@ -299,8 +298,7 @@ spec:
             - name: socket-dir
               mountPath: /csi
         - name: csi-resizer
-          image: quay.io/nixpanic/csi-resizer:pr544
-          #          image: registry.k8s.io/sig-storage/csi-resizer:v1.12.0
+          image: gcr.io/k8s-staging-sig-storage/csi-resizer:canary
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
