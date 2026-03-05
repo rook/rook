@@ -7,7 +7,7 @@ parameters:
   pool: nvmeof
   subsystemNQN: nqn.2016-06.io.spdk:cnode1.rook-ceph
   # Management API - talks to gateway to create subsystems/namespaces
-  nvmeofGatewayAddress: "172.30.47.120"
+  nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-a"
   nvmeofGatewayPort: "5500"
   # Data Plane - worker nodes connect here for actual I/O
   # List ALL gateway pods for HA and multipath
@@ -27,7 +27,10 @@ parameters:
   csi.storage.k8s.io/node-expand-secret-namespace: rook-ceph
   imageFormat: "2"
   imageFeatures: layering,deep-flatten,exclusive-lock,object-map,fast-diff
-provisioner: nvmeof.csi.ceph.com
+# When using the CSI operator (ROOK_USE_CSI_OPERATOR=true), the driver name
+# is prefixed with the operator namespace: rook-ceph.nvmeof.csi.ceph.com
+# Without the CSI operator, use: nvmeof.csi.ceph.com
+provisioner: rook-ceph.nvmeof.csi.ceph.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true

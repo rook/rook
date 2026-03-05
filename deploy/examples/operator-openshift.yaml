@@ -106,6 +106,8 @@ users:
   - system:serviceaccount:rook-ceph:ceph-csi-nfs-nodeplugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:ceph-csi-rbd-ctrlplugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:ceph-csi-rbd-nodeplugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:ceph-csi-nvmeof-ctrlplugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:ceph-csi-nvmeof-nodeplugin-sa # serviceaccount:namespace:operator
 ---
 # Rook Ceph Operator Config
 # Use this ConfigMap to override operator configurations
@@ -202,7 +204,7 @@ data:
   # The default version of CSI supported by Rook will be started. To change the version
   # of the CSI driver to something other than what is officially supported, change
   # these images to the desired release of the CSI driver.
-  # ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.1"
+  ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:canary"
   # ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.16.0"
   # ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v2.1.0"
   # ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v6.1.1"
