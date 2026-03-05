@@ -27,7 +27,7 @@ This guide assumes a Rook cluster as explained in the [Quickstart Guide](../../G
 ### Requirements
 
 - **Ceph Version**: Ceph v20 (Tentacle) or later
-- **Disable the Ceph CSI operator**: We are still updating the Ceph CSI operator with NVMe-oF support. Currently, it is required to disable the CSI operator to test NVMe-oF. In operator.yaml, set `ROOK_USE_CSI_OPERATOR: "false"`.
+- **Ceph CSI operator**: v0.6 or later
 
 ## Step 1: Create a Ceph Block Pool
 
@@ -97,81 +97,33 @@ NAME                                         READY   STATUS    RESTARTS   AGE
 rook-ceph-nvmeof-nvmeof-a-85844ff6b8-4r8gj   1/1     Running   0          91s
 ```
 
-## Step 4: Deploy the NVMe-oF CSI Driver
+## Step 3: Deploy the NVMe-oF CSI Driver via CSI Operator
 
-The NVMe-oF CSI driver handles dynamic provisioning of volumes. Deploy the CSI provisioner with the NVMe-oF driver.
+The NVMe-oF CSI driver is deployed via the ceph-csi operator.
 
-Deploy the NVMe-oF CSI provisioner from the example manifest:
+Apply the `Driver` CR for NVMe-oF that will trigger the creation of the
+Ceph-CSI/NVMe-oF deployment and daemonset:
 
 ```console
-kubectl create -f deploy/examples/csi/nvmeof/provisioner.yaml
+kubectl create -f deploy/examples/csi/nvmeof/driver.yaml
 ```
 
-Verify the CSI provisioner pod is running:
+Verify the CSI operator created the controller and node plugins:
 
 ```console
-kubectl get pods -n rook-ceph -l app=csi-nvmeofplugin-provisioner
+kubectl get pods -n rook-ceph | grep nvmeof
 ```
 
 **Example Output**
 
 ```console
-NAME                                           READY   STATUS    RESTARTS   AGE
-csi-nvmeofplugin-provisioner-65b4fbbc8-jjsqj   4/4     Running   0          75s
+rook-ceph.nvmeof.csi.ceph.com-ctrlplugin-d9d77fb7c-kkl28   5/5     Running   0          60s
+rook-ceph.nvmeof.csi.ceph.com-nodeplugin-xvt5g              2/2     Running   0          60s
 ```
 
-## Step 5: Create the StorageClass
+## Step 4: Create the StorageClass
 
-Create a StorageClass that uses the NVMe-oF CSI driver. You'll need to gather the following information from the gateway:
-
-1. **nvmeofGatewayAddress**: A stable address for the gateway management API
-2. **nvmeofGatewayPort**: The gateway port (default: 5500)
-3. **listeners**: A JSON array containing listener information for each gateway instance
-
-Discover the values to use in the StorageClass:
-
-1. **nvmeofGatewayAddress**: Use the Service `CLUSTER-IP`.
-
-    ```console
-    kubectl get service -n rook-ceph rook-ceph-nvmeof-nvmeof-a
-    ```
-
-    **Example Output**
-
-    ```console
-    NAME                        TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)                               AGE
-    rook-ceph-nvmeof-nvmeof-a   ClusterIP   10.106.98.71   <none>        4420/TCP,5500/TCP,5499/TCP,8009/TCP   24m
-    ```
-
-2. **listeners.address**: Use the gateway pod IP.
-
-    ```console
-    kubectl get pods -n rook-ceph -l app=rook-ceph-nvmeof -o wide
-
-    ```
-
-    **Example Output**
-
-    ```console
-    NAME                                         READY   STATUS    RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
-    rook-ceph-nvmeof-nvmeof-a-5fd6cd4d46-mrbwk   1/1     Running   0          26m   10.244.0.16   minikube   <none>           <none>
-    ```
-
-3. **listeners.hostname**: Use the gateway deployment name.
-
-    ```console
-    kubectl get deployments.apps -n rook-ceph -l app=rook-ceph-nvmeof
-    ```
-
-    **Example Output**
-
-    ```console
-    NAME                        READY   UP-TO-DATE   AVAILABLE   AGE
-    rook-ceph-nvmeof-nvmeof-a   1/1     1            1           27m
-    ```
-
-Create the StorageClass:
-
+Create a StorageClass that uses the NVMe-oF CSI driver.
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -182,16 +134,11 @@ parameters:
   clusterID: rook-ceph
   pool: nvmeof
   subsystemNQN: nqn.2016-06.io.spdk:cnode1.rook-ceph
-  # Management API - talks to gateway to create subsystems/namespaces
-  nvmeofGatewayAddress: "10.106.98.71"
+  nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-a.rook-ceph.svc.cluster.local"
   nvmeofGatewayPort: "5500"
-  # Data Plane - worker nodes connect here for actual I/O
-  # List ALL gateway pods for HA and multipath
   listeners: |
     [
       {
-        "address": "10.244.0.16",
-        "port": 4420,
         "hostname": "rook-ceph-nvmeof-nvmeof-a"
       }
     ]
@@ -201,23 +148,27 @@ parameters:
   csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
   csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
   csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+  csi.storage.k8s.io/controller-modify-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-modify-secret-namespace: rook-ceph
   csi.storage.k8s.io/node-expand-secret-name: rook-csi-rbd-node
   csi.storage.k8s.io/node-expand-secret-namespace: rook-ceph
   imageFormat: "2"
   imageFeatures: layering,deep-flatten,exclusive-lock,object-map,fast-diff
-provisioner: nvmeof.csi.ceph.com
+provisioner: rook-ceph.nvmeof.csi.ceph.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
 ```
 
-Create the StorageClass:
+!!! note
+    The provisioner name `rook-ceph.nvmeof.csi.ceph.com` is prefixed
+    with the operator namespace.
 
 ```console
 kubectl create -f deploy/examples/csi/nvmeof/storageclass.yaml
 ```
 
-## Step 6: Create a PersistentVolumeClaim
+## Step 5: Create a PersistentVolumeClaim
 
 Create a PVC using the NVMe-oF storage class:
 
@@ -258,36 +209,9 @@ NAME                     STATUS   VOLUME                                     CAP
 nvmeof-external-volume   Bound    pvc-b4108580-5cfa-46d3-beff-320088a5bf3c   128Mi      RWO            ceph-nvmeof    20m
 ```
 
-## Step 7: Deploy the NVMe-oF CSI Node Plugin
+## Step 6: Create a Pod
 
-Deploy the NVMe-oF CSI node plugin:
-
-```console
-kubectl create -f deploy/examples/csi/nvmeof/node-plugin.yaml
-```
-
-Verify the node plugin pod is running:
-
-```console
-kubectl get pods -n rook-ceph -l app=nvmeof.csi.ceph.com-nodeplugin
-```
-
-**Example Output**
-
-```console
-NAME                               READY   STATUS    RESTARTS   AGE
-nvmeof.csi.ceph.com-nodeplugin-xnm82   2/2     Running   0          31h
-```
-
-## Step 8: Accessing Volumes via NVMe-oF
-
-Once the PVC is created and bound, the volume is available via NVMe-oF. The volume can be accessed by both Kubernetes pods within the cluster and external clients outside the cluster.
-
-### Access from Kubernetes Pods
-
-Kubernetes pods can consume NVMe-oF volumes by mounting the PVC directly. The CSI driver handles the NVMe-oF connection automatically when the pod mounts the volume.
-
-Create a sample pod that mounts the PVC:
+Create a pod that consumes the NVMe-oF volume:
 
 ```console
 kubectl create -f deploy/examples/csi/nvmeof/pod.yaml
@@ -296,15 +220,21 @@ kubectl create -f deploy/examples/csi/nvmeof/pod.yaml
 Verify the pod is running:
 
 ```console
-kubectl get pods -n default
+kubectl get pods -n default nvmeof-test-pod
 ```
 
 **Example Output**
 
 ```console
 NAME              READY   STATUS    RESTARTS   AGE
-nvmeof-test-pod   1/1     Running   0          29h
+nvmeof-test-pod   1/1     Running   0          60s
 ```
+
+## Step 7: Accessing Volumes via NVMe-oF
+
+Once the PVC is created and bound, the volume is available via
+NVMe-oF. The volume can be accessed by both Kubernetes pods within
+the cluster and external clients outside the cluster.
 
 ### Access from External Clients
 
@@ -366,7 +296,7 @@ sudo mount /dev/nvmeXnY /mnt/nvmeof
 For production deployments, configure multiple gateway instances for high availability:
 
 1. **Increase Gateway Instances**: Set `instances: 2` or higher in the `CephNVMeOFGateway` spec
-2. **Update StorageClass Listeners**: Add all gateway instance addresses and instance names to the `listeners` array
+2. **Update StorageClass Listeners**: Add all gateway deployment hostnames to the `listeners` array
 3. **Load Balancing**: Each gateway instance has its own Service; list all of them to support multipath/HA
 
 Example with multiple instances:
@@ -377,19 +307,16 @@ spec:
   # ... other settings
 ```
 
-Then update the StorageClass `listeners` to include all gateway instances/services:
+Then update the StorageClass `listeners` to include all gateway
+hostnames:
 
 ```yaml
 listeners: |
   [
     {
-      "address": "10.99.212.218",
-      "port": 4420,
       "hostname": "rook-ceph-nvmeof-nvmeof-a"
     },
     {
-      "address": "10.99.212.219",
-      "port": 4420,
       "hostname": "rook-ceph-nvmeof-nvmeof-b"
     }
   ]
@@ -403,16 +330,16 @@ listeners: |
 kubectl logs -n rook-ceph -l app=rook-ceph-nvmeof --tail=100
 ```
 
-### Check CSI Provisioner Logs
+### Check CSI Controller Plugin Logs
 
 ```console
-kubectl logs -n rook-ceph -l app=csi-nvmeofplugin-provisioner --tail=100
+kubectl logs -n rook-ceph deploy/rook-ceph.nvmeof.csi.ceph.com-ctrlplugin --tail=100
 ```
 
 ### Verify Gateway Service
 
 ```console
-kubectl describe service -n rook-ceph rook-ceph-nvmeof-my-nvmeof-0
+kubectl describe service -n rook-ceph rook-ceph-nvmeof-nvmeof-a
 ```
 
 ### Check PVC Events
@@ -446,17 +373,14 @@ kubectl delete pvc nvmeof-external-volume
 # Delete the StorageClass
 kubectl delete storageclass ceph-nvmeof
 
-# Delete the NVMe-oF CSI node plugin
-kubectl delete -f deploy/examples/csi/nvmeof/node-plugin.yaml
-
-# Delete the NVMe-oF CSI provisioner (includes ServiceAccount/RBAC)
-kubectl delete -f deploy/examples/csi/nvmeof/provisioner.yaml
+# Delete the NVMe-oF CSI operator resources
+kubectl delete -f deploy/examples/csi/nvmeof/csi-operator-nvmeof.yaml
 
 # Delete the NVMe-oF gateway
-kubectl delete -n rook-ceph cephnvmeofgateway.ceph.rook.io my-nvmeof
+kubectl delete -f deploy/examples/nvmeof-test.yaml
 
 # Delete the block pool (optional)
-kubectl delete -n rook-ceph cephblockpool.ceph.rook.io nvmeof
+kubectl delete -f deploy/examples/csi/nvmeof/nvmeof-pool.yaml
 ```
 
 ## References
