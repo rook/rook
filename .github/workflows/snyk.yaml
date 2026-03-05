@@ -20,8 +20,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version: "1.25"
+
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup@master
+        with:
+          snyk-version: "v1.1302.1"
+
       - name: run Snyk to check for code vulnerabilities
-        uses: snyk/actions/golang@86b1cee1b8e110a78d528b3e1328a80e218111d2 # master
+        run: snyk test --debug
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
           GOFLAGS: "-buildvcs=false"
