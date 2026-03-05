@@ -2927,6 +2927,12 @@ spec:
                           description: Only performance counters greater than or equal to this option are fetched
                           format: int64
                           type: integer
+                        port:
+                          description: Port is the listening port of the ceph-exporter process. Defaults to 9926.
+                          format: int32
+                          maximum: 65535
+                          minimum: 1
+                          type: integer
                         statsPeriodSeconds:
                           default: 5
                           description: Time to wait before sending requests again to exporter server (seconds)
