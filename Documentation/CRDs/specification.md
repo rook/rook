@@ -4032,6 +4032,18 @@ int64
 </tr>
 <tr>
 <td>
+<code>port</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Port is the listening port of the ceph-exporter process. Defaults to 9926.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>hostNetwork</code><br/>
 <em>
 bool
