@@ -68,6 +68,7 @@ func Setup(t *testing.T, k8sh *utils.K8sHelper) (*cephv1.CephObjectStore, func()
 			AllowUsersInNamespaces: []string{
 				"test-bucketowner",
 				"test-topickafka",
+				"test-usercaps",
 				"test-userkeys",
 				"test-useropmask",
 			},

@@ -43,6 +43,7 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 	bucketowner "github.com/rook/rook/tests/integration/object/bucket/owner"
 	topickafka "github.com/rook/rook/tests/integration/object/topic/kafka"
+	usercaps "github.com/rook/rook/tests/integration/object/user/caps"
 	userkeys "github.com/rook/rook/tests/integration/object/user/keys"
 	useropmask "github.com/rook/rook/tests/integration/object/user/opmask"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
@@ -198,6 +199,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 		userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
 		topickafka.TestBucketTopicKafka(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
 		useropmask.TestObjectStoreUserOpMask(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
+		usercaps.TestObjectStoreUserCaps(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
 	}
 
 	bucketNotificationTestStoreName := "bucket-notification-" + storeName
