@@ -767,10 +767,6 @@ function test_csi_nfs_workload {
 function test_csi_nvmeof_workload {
   cd "${REPO_DIR}/deploy/examples/csi/nvmeof"
 
-  local cephcsi_image="${1:-quay.io/nixpanic/cephcsi:nvmeof}"
-  local gateway_svc="rook-ceph-nvmeof-nvmeof-a"
-  local gateway_listener_hostname="rook-ceph-nvmeof-nvmeof-a"
-  local service_ip
   local old_gateway_pod
 
   sed -i 's/failureDomain: .*/failureDomain: osd/' nvmeof-pool.yaml
@@ -781,28 +777,39 @@ function test_csi_nvmeof_workload {
   kubectl create -f "${REPO_DIR}/deploy/examples/nvmeof-test.yaml"
   wait_for cephnvmeofgateway nvmeof rook-ceph 600
   timeout 300 bash <<EOF
-until kubectl -n rook-ceph get pod --no-headers | awk '/rook-ceph-nvmeof-nvmeof-a-/ {print \$3}' | grep -q "^Running$"; do
+until kubectl -n rook-ceph get pod --no-headers 2>/dev/null | awk '/rook-ceph-nvmeof-nvmeof-a-/ && \$3 == "Running" {f=1} END {exit !f}'; do
   echo "waiting for NVMe-oF gateway pod to be running"
   sleep 5
 done
 EOF
 
-  service_ip="$(kubectl -n rook-ceph get svc "${gateway_svc}" -o jsonpath='{.spec.clusterIP}')"
-  if [[ -z "${service_ip}" ]]; then
-    echo "failed to discover gateway service IP for ${gateway_svc}"
-    exit 1
+  # ceph-csi-operator creates these deployments, make sure they are available
+
+  timeout 300 bash <<EOF
+until kubectl -n rook-ceph get deployment --no-headers 2>/dev/null | grep -q "nvmeof"; do
+  echo "waiting for CSI operator to create NVMe-oF controller plugin deployment"
+  sleep 5
+done
+EOF
+
+  kubectl -n rook-ceph wait --for=condition=available \
+    deployment/rook-ceph.nvmeof.csi.ceph.com-ctrlplugin --timeout=300s
+
+  timeout 300 bash <<EOF
+until kubectl -n rook-ceph get daemonset --no-headers 2>/dev/null | grep -q "nvmeof"; do
+  echo "waiting for CSI operator to create NVMe-oF node plugin daemonset"
+  sleep 5
+done
+EOF
+
+  kubectl -n rook-ceph rollout status \
+    daemonset/rook-ceph.nvmeof.csi.ceph.com-nodeplugin --timeout=300s
+
+  lsmod | grep -E 'nvme(_|-)(tcp|fabrics)' || true
+  if [[ ! -d /sys/module/nvme_tcp ]]; then
+    echo "nvme_tcp kernel module is required but unavailable on kernel $(uname -r)"
+    return 1
   fi
-
-  sed -i "s|nvmeofGatewayAddress: \".*\"|nvmeofGatewayAddress: \"${service_ip}\"|g" storageclass.yaml
-  # ceph-csi PR 6061 expects listeners to include hostname only.
-  sed -i '/"address":/d' storageclass.yaml
-  sed -i '/"port":/d' storageclass.yaml
-  sed -i "s|\"hostname\": \".*\"|\"hostname\": \"${gateway_listener_hostname}\"|g" storageclass.yaml
-  sed -i "s|image: quay.io/cephcsi/cephcsi:.*|image: ${cephcsi_image}|g" provisioner.yaml
-  sed -i "s|image: quay.io/cephcsi/cephcsi:.*|image: ${cephcsi_image}|g" node-plugin.yaml
-
-  kubectl create -f provisioner.yaml
-  kubectl -n rook-ceph wait --for=condition=available deployment/csi-nvmeofplugin-provisioner --timeout=300s
 
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
@@ -810,23 +817,7 @@ EOF
     echo "PVC nvmeof-external-volume did not reach Bound; collecting diagnostics..."
     kubectl describe pvc nvmeof-external-volume || true
     kubectl get events -n default --sort-by=.metadata.creationTimestamp | tail -n 50 || true
-    kubectl -n rook-ceph logs deploy/csi-nvmeofplugin-provisioner -c csi-provisioner --tail=200 || true
-    kubectl -n rook-ceph logs deploy/csi-nvmeofplugin-provisioner -c csi-nvmeofplugin --tail=200 || true
-    return 1
-  fi
-
-  # Sanity check module availability; prerequisites are installed earlier in CI setup.
-  lsmod | grep -E 'nvme(_|-)(tcp|fabrics)' || true
-  if [[ ! -d /sys/module/nvme_tcp ]]; then
-    echo "nvme_tcp kernel module is required but unavailable on kernel $(uname -r)"
-    return 1
-  fi
-
-  kubectl create -f node-plugin.yaml
-  if ! kubectl -n rook-ceph rollout status daemonset/nvmeof.csi.ceph.com-nodeplugin --timeout=300s; then
-    kubectl -n rook-ceph get pods -l app=nvmeof.csi.ceph.com-nodeplugin -o wide || true
-    kubectl -n rook-ceph describe daemonset nvmeof.csi.ceph.com-nodeplugin || true
-    echo "nvmeof nodeplugin daemonset failed to become ready"
+    kubectl -n rook-ceph logs -l "app.kubernetes.io/part-of=rook-ceph.nvmeof.csi.ceph.com" --tail=200 || true
     return 1
   fi
 
@@ -836,10 +827,10 @@ EOF
   kubectl -n default exec pod/nvmeof-test-pod -- sh -c "echo 'abcd' > /mnt/nvmeof/test.txt && cat /mnt/nvmeof/test.txt"
   kubectl -n default exec pod/nvmeof-test-pod -- sh -c "grep -qx 'abcd' /mnt/nvmeof/test.txt"
 
-  old_gateway_pod="$(kubectl -n rook-ceph get pod --no-headers | awk '/rook-ceph-nvmeof-nvmeof-a-/ {print $1; exit}')"
+  old_gateway_pod="$(kubectl -n rook-ceph get pod --no-headers | awk '/rook-ceph-nvmeof-nvmeof-a-/ {if (!f) f=$1} END {print f}')"
   kubectl -n rook-ceph delete pod "${old_gateway_pod}"
   timeout 300 bash <<EOF
-until new_gateway_pod=\$(kubectl -n rook-ceph get pod --no-headers | awk '/rook-ceph-nvmeof-nvmeof-a-/ && \$3 == "Running" {print \$1; exit}') && [[ -n "\${new_gateway_pod}" && "\${new_gateway_pod}" != "${old_gateway_pod}" ]]; do
+until new_gateway_pod=\$(kubectl -n rook-ceph get pod --no-headers | awk '/rook-ceph-nvmeof-nvmeof-a-/ && \$3 == "Running" {if (!f) f=\$1} END {print f}') && [[ -n "\${new_gateway_pod}" && "\${new_gateway_pod}" != "${old_gateway_pod}" ]]; do
   echo "waiting for NVMe-oF gateway pod restart"
   sleep 5
 done
