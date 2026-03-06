@@ -2019,13 +2019,17 @@ jobs:
           tests/scripts/github-action-helper.sh use_local_disk
           tests/scripts/github-action-helper.sh create_partitions_for_osds
 
-      - name: deploy cluster without ceph-csi operator
+      - name: deploy cluster with ceph-csi operator
         run: |
           OPERATOR_MANIFEST="deploy/examples/operator.yaml"
-          sed -i 's|# ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.1"|ROOK_CSI_CEPH_IMAGE: "quay.io/nixpanic/cephcsi:nvmeof"|' "${OPERATOR_MANIFEST}"
-          sed -i 's|ROOK_USE_CSI_OPERATOR: "true"|ROOK_USE_CSI_OPERATOR: "false"|' "${OPERATOR_MANIFEST}"
+          CSI_OPERATOR_MANIFEST="deploy/examples/csi-operator.yaml"
+
+          sed -i 's|# ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.1"|ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:canary"|' "${OPERATOR_MANIFEST}"
+          sed -i 's|image: quay.io/cephcsi/ceph-csi-operator:v0.5.0|image: quay.io/cephcsi/ceph-csi-operator:latest|' "${CSI_OPERATOR_MANIFEST}"
+          sed -i 's#(rbd|cephfs|nfs)#(rbd|cephfs|nfs|nvmeof)#g' "${CSI_OPERATOR_MANIFEST}"
 
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "${OPERATOR_MANIFEST}"
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "${CSI_OPERATOR_MANIFEST}"
 
           export BLOCK="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           yq w -i -d0 deploy/examples/cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"
@@ -2041,7 +2045,7 @@ jobs:
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
       - name: test ceph-csi-nvmeof plugin restart and data persistence
-        run: tests/scripts/github-action-helper.sh test_csi_nvmeof_workload
+        run: tests/scripts/github-action-helper.sh test_csi_nvmeof_workload_with_operator
 
       - name: collect common logs
         if: always()
