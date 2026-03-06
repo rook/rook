@@ -275,12 +275,12 @@ func TestCephBlockPoolController(t *testing.T) {
 
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
 	r := &ReconcileCephBlockPool{
-		client:            cl,
-		scheme:            s,
-		context:           c,
-		blockPoolContexts: make(map[string]*blockPoolHealth),
-		opManagerContext:  context.TODO(),
-		recorder:          events.NewFakeRecorder(50),
+		client:                  cl,
+		scheme:                  s,
+		context:                 c,
+		blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
+		opManagerContext:        context.TODO(),
+		recorder:                events.NewFakeRecorder(50),
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
@@ -332,12 +332,12 @@ func TestCephBlockPoolController(t *testing.T) {
 		cl = fake.NewClientBuilder().WithRuntimeObjects(object...).Build()
 		// Create a ReconcileCephBlockPool object with the scheme and fake client.
 		r = &ReconcileCephBlockPool{
-			client:            cl,
-			scheme:            s,
-			context:           c,
-			blockPoolContexts: make(map[string]*blockPoolHealth),
-			opManagerContext:  context.TODO(),
-			recorder:          events.NewFakeRecorder(50),
+			client:                  cl,
+			scheme:                  s,
+			context:                 c,
+			blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
+			opManagerContext:        context.TODO(),
+			recorder:                events.NewFakeRecorder(50),
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -392,12 +392,12 @@ func TestCephBlockPoolController(t *testing.T) {
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 		// Create a ReconcileCephBlockPool object with the scheme and fake client.
 		r = &ReconcileCephBlockPool{
-			client:            cl,
-			scheme:            s,
-			context:           c,
-			blockPoolContexts: make(map[string]*blockPoolHealth),
-			opManagerContext:  context.TODO(),
-			recorder:          events.NewFakeRecorder(50),
+			client:                  cl,
+			scheme:                  s,
+			context:                 c,
+			blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
+			opManagerContext:        context.TODO(),
+			recorder:                events.NewFakeRecorder(50),
 		}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -465,12 +465,12 @@ func TestCephBlockPoolController(t *testing.T) {
 		}
 		c.Executor = executor
 		r = &ReconcileCephBlockPool{
-			client:            cl,
-			scheme:            s,
-			context:           c,
-			blockPoolContexts: make(map[string]*blockPoolHealth),
-			opManagerContext:  context.TODO(),
-			recorder:          events.NewFakeRecorder(50),
+			client:                  cl,
+			scheme:                  s,
+			context:                 c,
+			blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
+			opManagerContext:        context.TODO(),
+			recorder:                events.NewFakeRecorder(50),
 		}
 
 		pool.Spec.Mirroring.Mode = "image"
@@ -507,12 +507,12 @@ func TestCephBlockPoolController(t *testing.T) {
 
 		// Create a ReconcileCephBlockPool object with the scheme and fake client.
 		r = &ReconcileCephBlockPool{
-			client:            cl,
-			scheme:            s,
-			context:           c,
-			blockPoolContexts: make(map[string]*blockPoolHealth),
-			opManagerContext:  context.TODO(),
-			recorder:          events.NewFakeRecorder(50),
+			client:                  cl,
+			scheme:                  s,
+			context:                 c,
+			blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
+			opManagerContext:        context.TODO(),
+			recorder:                events.NewFakeRecorder(50),
 		}
 
 		pool.Spec.Mirroring.Peers.SecretNames = []string{peerSecretName}
@@ -545,12 +545,12 @@ func TestCephBlockPoolController(t *testing.T) {
 
 	t.Run("failure - mirroring disabled", func(t *testing.T) {
 		r = &ReconcileCephBlockPool{
-			client:            cl,
-			scheme:            s,
-			context:           c,
-			blockPoolContexts: make(map[string]*blockPoolHealth),
-			opManagerContext:  context.TODO(),
-			recorder:          events.NewFakeRecorder(50),
+			client:                  cl,
+			scheme:                  s,
+			context:                 c,
+			blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
+			opManagerContext:        context.TODO(),
+			recorder:                events.NewFakeRecorder(50),
 		}
 		pool.Spec.Mirroring.Enabled = false
 		pool.Spec.Mirroring.Mode = "image"
@@ -622,13 +622,13 @@ func TestDeletionBlocked(t *testing.T) {
 	}
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
 	r := &ReconcileCephBlockPool{
-		client:            cl,
-		scheme:            s,
-		context:           c,
-		blockPoolContexts: make(map[string]*blockPoolHealth),
-		opManagerContext:  context.TODO(),
-		recorder:          events.NewFakeRecorder(50),
-		clusterInfo:       cephclient.AdminTestClusterInfo("mycluster"),
+		client:                  cl,
+		scheme:                  s,
+		context:                 c,
+		blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
+		opManagerContext:        context.TODO(),
+		recorder:                events.NewFakeRecorder(50),
+		clusterInfo:             cephclient.AdminTestClusterInfo("mycluster"),
 	}
 	cephCluster := &cephv1.CephCluster{}
 	t.Run("deletion is allowed with no pool actually present", func(t *testing.T) {
@@ -732,13 +732,13 @@ func TestIsAnyRadosNamespaceMirrored(t *testing.T) {
 	}
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
 	r := &ReconcileCephBlockPool{
-		client:            cl,
-		scheme:            s,
-		context:           c,
-		blockPoolContexts: make(map[string]*blockPoolHealth),
-		opManagerContext:  context.TODO(),
-		recorder:          events.NewFakeRecorder(50),
-		clusterInfo:       cephclient.AdminTestClusterInfo("mycluster"),
+		client:                  cl,
+		scheme:                  s,
+		context:                 c,
+		blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
+		opManagerContext:        context.TODO(),
+		recorder:                events.NewFakeRecorder(50),
+		clusterInfo:             cephclient.AdminTestClusterInfo("mycluster"),
 	}
 
 	t.Run("rados namespace mirroring enabled", func(t *testing.T) {
@@ -1127,12 +1127,12 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
 	r := &ReconcileCephBlockPool{
-		client:            cl,
-		scheme:            s,
-		context:           c,
-		blockPoolContexts: make(map[string]*blockPoolHealth),
-		opManagerContext:  context.TODO(),
-		recorder:          events.NewFakeRecorder(50),
+		client:                  cl,
+		scheme:                  s,
+		context:                 c,
+		blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
+		opManagerContext:        context.TODO(),
+		recorder:                events.NewFakeRecorder(50),
 	}
 
 	t.Setenv("POD_NAME", "test")
@@ -1203,4 +1203,18 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, RDBMirrorPeerStatus, pool.Status.Cephx.PeerToken)
 	})
+}
+
+func TestCanConfigurePoolMirroring(t *testing.T) {
+	pool := &cephv1.CephBlockPool{}
+	assert.True(t, canConfigurePoolMirroring(pool.ToNamedPoolSpec()))
+
+	pool.Spec.Replicated.Size = 3
+	assert.True(t, canConfigurePoolMirroring(pool.ToNamedPoolSpec()))
+
+	ecpool := &cephv1.CephBlockPool{}
+	// test ec pool
+	ecpool.Spec.ErasureCoded.CodingChunks = 2
+	ecpool.Spec.ErasureCoded.DataChunks = 3
+	assert.False(t, canConfigurePoolMirroring(ecpool.ToNamedPoolSpec()))
 }
