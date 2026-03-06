@@ -79,6 +79,8 @@ SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook
 # tests packages that will be compiled into binaries
 TEST_PACKAGES = $(GO_PROJECT)/tests/integration
 
+CHECKMAKE=go run github.com/checkmake/checkmake/cmd/checkmake@v0.3.2
+
 # the root go project
 GO_PROJECT=github.com/rook/rook
 
@@ -118,9 +120,12 @@ build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
+# This target exists only for setting the variable
+.PHONY: build.common.var
+build.common.var: export SKIP_GEN_CRD_DOCS=true
+
 .PHONY: build.common
-build.common: export SKIP_GEN_CRD_DOCS=true
-build.common: build.version helm.build mod.check crds gen-rbac
+build.common:  build.common.var build.version helm.build mod.check crds gen-rbac
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 	@$(MAKE) -C images/ceph list-image
@@ -203,7 +208,8 @@ pylint:
 
 .PHONY: checkmake
 checkmake:
-	checkmake Makefile
+	@$(CHECKMAKE) Makefile
+
 .PHONY: shellcheck
 shellcheck:
 	shellcheck --severity=warning --format=gcc --shell=bash $(shell find $(ROOT_DIR) -type f -name '*.sh') build/reset build/sed-in-place
@@ -285,8 +291,8 @@ generate: gen.codegen gen.crds gen.rbac gen.docs gen.crd-docs ## Update all gene
 
 # ====================================================================================
 # Help
+# available options:
 define HELPTEXT
-available options:
     DEBUG        Whether to generate debug symbols. Default is 0.
     PLATFORM     The platform to build.
     SUITE        The test suite to run.
@@ -302,4 +308,5 @@ help: ## Show this help menu.
 	@echo ""
 	@grep --no-filename -E '^[a-zA-Z_%-. ]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 	@echo ""
+	@echo "available options:"
 	@echo "$$HELPTEXT"
