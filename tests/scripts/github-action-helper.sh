@@ -767,7 +767,6 @@ function test_csi_nfs_workload {
 function test_csi_nvmeof_workload {
   cd "${REPO_DIR}/deploy/examples/csi/nvmeof"
 
-  local cephcsi_image="${1:-quay.io/nixpanic/cephcsi:nvmeof}"
   local gateway_svc="rook-ceph-nvmeof-nvmeof-a"
   local gateway_listener_hostname="rook-ceph-nvmeof-nvmeof-a"
   local service_ip
@@ -798,11 +797,6 @@ EOF
   sed -i '/"address":/d' storageclass.yaml
   sed -i '/"port":/d' storageclass.yaml
   sed -i "s|\"hostname\": \".*\"|\"hostname\": \"${gateway_listener_hostname}\"|g" storageclass.yaml
-  sed -i "s|image: quay.io/cephcsi/cephcsi:.*|image: ${cephcsi_image}|g" provisioner.yaml
-  sed -i "s|image: quay.io/cephcsi/cephcsi:.*|image: ${cephcsi_image}|g" node-plugin.yaml
-
-  kubectl create -f provisioner.yaml
-  kubectl -n rook-ceph wait --for=condition=available deployment/csi-nvmeofplugin-provisioner --timeout=300s
 
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
@@ -810,8 +804,8 @@ EOF
     echo "PVC nvmeof-external-volume did not reach Bound; collecting diagnostics..."
     kubectl describe pvc nvmeof-external-volume || true
     kubectl get events -n default --sort-by=.metadata.creationTimestamp | tail -n 50 || true
-    kubectl -n rook-ceph logs deploy/csi-nvmeofplugin-provisioner -c csi-provisioner --tail=200 || true
-    kubectl -n rook-ceph logs deploy/csi-nvmeofplugin-provisioner -c csi-nvmeofplugin --tail=200 || true
+    kubectl -n rook-ceph logs "$(kubectl -n rook-ceph get pod --selector=app=rook-ceph.nvmeof.csi.ceph.com-ctrlplugin --field-selector=status.phase=Running -o name)" -c csi-nvmeofplugin --tail=200 || true
+    kubectl -n rook-ceph logs "$(kubectl -n rook-ceph get pod --selector=app=rook-ceph.nvmeof.csi.ceph.com-nodeplugin --field-selector=status.phase=Running -o name)" -c csi-nvmeofplugin --tail=200 || true
     return 1
   fi
 
@@ -819,14 +813,6 @@ EOF
   lsmod | grep -E 'nvme(_|-)(tcp|fabrics)' || true
   if [[ ! -d /sys/module/nvme_tcp ]]; then
     echo "nvme_tcp kernel module is required but unavailable on kernel $(uname -r)"
-    return 1
-  fi
-
-  kubectl create -f node-plugin.yaml
-  if ! kubectl -n rook-ceph rollout status daemonset/nvmeof.csi.ceph.com-nodeplugin --timeout=300s; then
-    kubectl -n rook-ceph get pods -l app=nvmeof.csi.ceph.com-nodeplugin -o wide || true
-    kubectl -n rook-ceph describe daemonset nvmeof.csi.ceph.com-nodeplugin || true
-    echo "nvmeof nodeplugin daemonset failed to become ready"
     return 1
   fi
 

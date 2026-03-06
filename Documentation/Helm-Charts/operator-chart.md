@@ -75,12 +75,14 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.csiCephFSPluginVolume` | The volume of the CephCSI CephFS plugin DaemonSet | `nil` |
 | `csi.csiCephFSPluginVolumeMount` | The volume mounts of the CephCSI CephFS plugin DaemonSet | `nil` |
 | `csi.csiCephFSProvisionerResource` | CEPH CSI CephFS provisioner resource requirement list | see values.yaml |
-| `csi.csiDriverNamePrefix` | CSI driver name prefix for cephfs, rbd and nfs. | `namespace name where rook-ceph operator is deployed` |
+| `csi.csiDriverNamePrefix` | CSI driver name prefix for cephfs, rbd, nvmeof and nfs. | `namespace name where rook-ceph operator is deployed` |
 | `csi.csiLeaderElectionLeaseDuration` | Duration in seconds that non-leader candidates will wait to force acquire leadership. | `137s` |
 | `csi.csiLeaderElectionRenewDeadline` | Deadline in seconds that the acting leader will retry refreshing leadership before giving up. | `107s` |
 | `csi.csiLeaderElectionRetryPeriod` | Retry period in seconds the LeaderElector clients should wait between tries of actions. | `26s` |
 | `csi.csiNFSPluginResource` | CEPH CSI NFS plugin resource requirement list | see values.yaml |
 | `csi.csiNFSProvisionerResource` | CEPH CSI NFS provisioner resource requirement list | see values.yaml |
+| `csi.csiNVMeoFPluginResource` | CEPH CSI NVMe-oF plugin resource requirement list | see values.yaml |
+| `csi.csiNVMeoFProvisionerResource` | CEPH CSI NVMe-oF provisioner resource requirement list | see values.yaml |
 | `csi.csiRBDPluginResource` | CEPH CSI RBD plugin resource requirement list | see values.yaml |
 | `csi.csiRBDPluginVolume` | The volume of the CephCSI RBD plugin DaemonSet | `nil` |
 | `csi.csiRBDPluginVolumeMount` | The volume mounts of the CephCSI RBD plugin DaemonSet | `nil` |
@@ -110,6 +112,12 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.nfsFSGroupPolicy` | Policy for modifying a volume's ownership or permissions when the NFS PVC is being mounted. supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html | `"File"` |
 | `csi.nfsPluginUpdateStrategy` | CSI NFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate | `RollingUpdate` |
 | `csi.nfsPodLabels` | Labels to add to the CSI NFS Deployments and DaemonSets Pods | `nil` |
+| `csi.nvmeofAttachRequired` | Whether to skip any attach operation altogether for NVMe-oF PVCs. See more details [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object). If set to false it skips the volume attachments and makes the creation of pods using the NVMe-oF PVC fast. **WARNING** It's highly discouraged to use this for RWO volumes as it can cause data corruption. csi-addons operations like Reclaimspace and PVC Keyrotation will also not be supported if set to false since we'll have no VolumeAttachments to determine which node the PVC is mounted on. Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details. | `true` |
+| `csi.nvmeofFSGroupPolicy` | Policy for modifying a volume's ownership or permissions when the NVMe-oF PVC is being mounted. supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html | `"File"` |
+| `csi.nvmeofLivenessMetricsPort` | Ceph CSI NVMe-oF driver metrics port | `8080` |
+| `csi.nvmeofPluginUpdateStrategy` | CSI NVMe-oF plugin daemonset update strategy, supported values are OnDelete and RollingUpdate | `RollingUpdate` |
+| `csi.nvmeofPluginUpdateStrategyMaxUnavailable` | A maxUnavailable parameter of CSI NVMe-oF plugin daemonset update strategy. | `1` |
+| `csi.nvmeofPodLabels` | Labels to add to the CSI NVMe-oF Deployments and DaemonSets Pods | `nil` |
 | `csi.pluginNodeAffinity` | The node labels for affinity of the CephCSI RBD plugin DaemonSet [^1] | `nil` |
 | `csi.pluginPriorityClassName` | PriorityClassName to be set on csi driver plugin pods | `"system-node-critical"` |
 | `csi.pluginTolerations` | Array of tolerations in YAML format which will be added to CephCSI plugin DaemonSet | `nil` |

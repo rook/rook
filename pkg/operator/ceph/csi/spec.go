@@ -53,6 +53,7 @@ type Param struct {
 	CephFSPluginUpdateStrategy               string
 	CephFSPluginUpdateStrategyMaxUnavailable string
 	NFSPluginUpdateStrategy                  string
+	NVMeoFPluginUpdateStrategy               string
 	RBDPluginUpdateStrategy                  string
 	RBDPluginUpdateStrategyMaxUnavailable    string
 	PluginPriorityClassName                  string
@@ -68,6 +69,7 @@ type Param struct {
 	EnableCSIHostNetwork                     bool
 	EnableOMAPGenerator                      bool
 	EnableRBDSnapshotter                     bool
+	EnableNVMeoFSnapshotter                  bool
 	EnableCephFSSnapshotter                  bool
 	EnableNFSSnapshotter                     bool
 	EnableCSIAddonsSideCar                   bool
@@ -78,6 +80,7 @@ type Param struct {
 	EnableLiveness                           bool
 	CephFSAttachRequired                     bool
 	RBDAttachRequired                        bool
+	NVMeoFAttachRequired                     bool
 	NFSAttachRequired                        bool
 	VolumeGroupSnapshotCLIFlag               string
 	VolumeGroupSnapshotSupported             bool
@@ -88,6 +91,7 @@ type Param struct {
 	CSIAddonsRBDProvisionerPort              uint16
 	CSIAddonsCephFSProvisionerPort           uint16
 	RBDLivenessMetricsPort                   uint16
+	NVMeoFLivenessMetricsPort                uint16
 	KubeApiBurst                             uint16
 	KubeApiQPS                               float32
 	LeaderElectionLeaseDuration              time.Duration
@@ -96,6 +100,7 @@ type Param struct {
 	ProvisionerReplicas                      int32
 	CSICephFSPodLabels                       map[string]string
 	CSINFSPodLabels                          map[string]string
+	CSINVMeoFPodLabels                       map[string]string
 	CSIRBDPodLabels                          map[string]string
 	CSILogRotation                           bool
 	CsiComponentName                         string
@@ -114,6 +119,7 @@ var (
 	CSIParam Param
 
 	EnableRBD                 = false
+	EnableNVMeoF              = false
 	EnableCephFS              = false
 	EnableNFS                 = false
 	enableCSIOperator         = false
@@ -122,6 +128,7 @@ var (
 	// driver names
 	CephFSDriverName string
 	NFSDriverName    string
+	NVMeoFDriverName string
 	RBDDriverName    string
 
 	// configuration map for csi
@@ -205,6 +212,9 @@ const (
 	rbdProvisionerResource = "CSI_RBD_PROVISIONER_RESOURCE"
 	rbdPluginResource      = "CSI_RBD_PLUGIN_RESOURCE"
 
+	nvmeofProvisionerResource = "CSI_NVMEOF_PROVISIONER_RESOURCE"
+	nvmeofPluginResource      = "CSI_NVMEOF_PLUGIN_RESOURCE"
+
 	cephFSProvisionerResource = "CSI_CEPHFS_PROVISIONER_RESOURCE"
 	cephFSPluginResource      = "CSI_CEPHFS_PLUGIN_RESOURCE"
 
@@ -217,6 +227,9 @@ const (
 	rbdPluginVolume      = "CSI_RBD_PLUGIN_VOLUME"
 	rbdPluginVolumeMount = "CSI_RBD_PLUGIN_VOLUME_MOUNT"
 
+	nvmeofPluginVolume      = "CSI_NVMEOF_PLUGIN_VOLUME"
+	nvmeofPluginVolumeMount = "CSI_NVMEOF_PLUGIN_VOLUME_MOUNT"
+
 	nfsPluginVolume      = "CSI_NFS_PLUGIN_VOLUME"
 	nfsPluginVolumeMount = "CSI_NFS_PLUGIN_VOLUME_MOUNT"
 
@@ -228,6 +241,8 @@ const (
 	DefaultCephFSLivenessMerticsPort      uint16 = 9081
 	DefaultRBDGRPCMerticsPort             uint16 = 9090
 	DefaultRBDLivenessMerticsPort         uint16 = 9080
+	DefaultNVMeoFGRPCMerticsPort          uint16 = 9093
+	DefaultNVMeoFLivenessMerticsPort      uint16 = 9083
 	DefaultCSIAddonsPort                  uint16 = 9070
 	DefaultCSIAddonsRBDProvisionerPort    uint16 = 9070
 	DefaultCSIAddonsCephFSProvisionerPort uint16 = 9070
@@ -253,23 +268,28 @@ const (
 
 	// driver daemonset names
 	CsiRBDPlugin    = "csi-rbdplugin"
+	CsiNVMeoFPlugin = "csi-nvmeofplugin"
 	CsiCephFSPlugin = "csi-cephfsplugin"
 	CsiNFSPlugin    = "csi-nfsplugin"
 
 	// driver deployment names
 	csiRBDProvisioner    = "csi-rbdplugin-provisioner"
+	csiNVMeoFProvisioner = "csi-nvmeofplugin-provisioner"
 	csiCephFSProvisioner = "csi-cephfsplugin-provisioner"
 	csiNFSProvisioner    = "csi-nfsplugin-provisioner"
 
 	// cephcsi container names
 	csiRBDContainerName    = "csi-rbdplugin"
+	csiNVMeoFContainerName = "csi-nvmeofplugin"
 	csiCephFSContainerName = "csi-cephfsplugin"
 	csiNFSContainerName    = "csi-nfsplugin"
 
 	RBDDriverShortName    = "rbd"
+	NVMeoFDriverShortName = "nvmeof"
 	CephFSDriverShortName = "cephfs"
 	NFSDriverShortName    = "nfs"
 	rbdDriverSuffix       = "rbd.csi.ceph.com"
+	nvmeofDriverSuffix    = "nvmeof.csi.ceph.com"
 	cephFSDriverSuffix    = "cephfs.csi.ceph.com"
 	nfsDriverSuffix       = "nfs.csi.ceph.com"
 	nodePlugin            = "node-plugin"
@@ -277,7 +297,7 @@ const (
 )
 
 func CSIEnabled() bool {
-	return EnableRBD || EnableCephFS || EnableNFS
+	return EnableRBD || EnableNVMeoF || EnableCephFS || EnableNFS
 }
 
 func IsHolderEnabled() bool {
@@ -348,6 +368,9 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			}
 			rbdService.Namespace = r.opConfig.OperatorNamespace
 		}
+	}
+	if EnableNVMeoF {
+		return errors.New("deploying NVMeoF CSI drivers is only supported with Ceph-CSI-Operator")
 	}
 	if EnableCephFS {
 		tp.CsiComponentName = nodePlugin
@@ -899,6 +922,19 @@ func validateCSIDriverNamePrefix(ctx context.Context, clientset kubernetes.Inter
 		}
 	}
 
+	if EnableNVMeoF {
+		nvmeofDriverNamePrefix, err := getCSIDriverNamePrefixFromDeployment(ctx, clientset, namespace, csiNVMeoFProvisioner, "csi-nvmeofplugin")
+		if err != nil {
+			return err
+		}
+		if nvmeofDriverNamePrefix != "" {
+			if nvmeofDriverNamePrefix != driverNamePrefix {
+				return errors.Errorf("nvmeof driver already exists with prefix %q, cannot use prefix %q", nvmeofDriverNamePrefix, driverNamePrefix)
+			}
+			return nil
+		}
+	}
+
 	if EnableCephFS {
 		cephFSDriverNamePrefix, err := getCSIDriverNamePrefixFromDeployment(ctx, clientset, namespace, csiCephFSProvisioner, "csi-cephfsplugin")
 		if err != nil {
@@ -955,7 +991,7 @@ func getPrefixFromArg(arg string) (string, bool) {
 	if strings.Contains(arg, "--drivername=") {
 		driverName := strings.Split(arg, "=")[1]
 
-		for _, suffix := range []string{rbdDriverSuffix, cephFSDriverSuffix, nfsDriverSuffix} {
+		for _, suffix := range []string{rbdDriverSuffix, nvmeofDriverSuffix, cephFSDriverSuffix, nfsDriverSuffix} {
 			// Add a dot as we are adding it to the Prefix
 			if prefix, ok := strings.CutSuffix(driverName, "."+suffix); ok {
 				return prefix, true
