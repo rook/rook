@@ -145,6 +145,7 @@ rules:
       - cephclusters
       - cephblockpools
       - cephfilesystems
+      - cephluascripts
       - cephnfses
       - cephnvmeofgateways
       - cephobjectstores
@@ -172,6 +173,7 @@ rules:
       - cephclusters/status
       - cephblockpools/status
       - cephfilesystems/status
+      - cephluascripts/status
       - cephnfses/status
       - cephnvmeofgateways/status
       - cephobjectstores/status
@@ -196,6 +198,7 @@ rules:
       - cephclusters/finalizers
       - cephblockpools/finalizers
       - cephfilesystems/finalizers
+      - cephluascripts/finalizers
       - cephnfses/finalizers
       - cephnvmeofgateways/finalizers
       - cephobjectstores/finalizers
