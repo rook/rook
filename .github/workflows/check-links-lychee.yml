@@ -1,0 +1,37 @@
+name: Check links
+
+on:
+  pull_request:
+#  repository_dispatch:
+#  workflow_dispatch:
+#  schedule:
+#    - cron: "00 18 * * *"
+
+jobs:
+  linkChecker:
+    runs-on: ubuntu-latest
+    #  issues: write perms required for peter-evans/create-issue-from-file
+    #permissions:
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: build the docs
+        run: |
+          python3 -m venv ./venv
+          source ./venv/bin/activate
+          make -C ./build/release deps.docs
+          make docs-build
+          make generate-docs-crds
+      - name: run the lychee  link checker
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          fail: true
+
+#      - name: Create Issue From File
+#        if: steps.lychee.outputs.exit_code != 0
+#        uses: peter-evans/create-issue-from-file@v5
+#        with:
+#          title: Link Checker Report
+#          content-filepath: ./lychee/out.md
+#          labels: report, automated issue
