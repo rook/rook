@@ -379,6 +379,7 @@ rules:
       - cephnvmeofgateways
       - cephobjectstores
       - cephobjectstoreusers
+      - cephobjectstoreaccounts
       - cephobjectrealms
       - cephobjectzonegroups
       - cephobjectzones
@@ -406,6 +407,7 @@ rules:
       - cephnvmeofgateways/status
       - cephobjectstores/status
       - cephobjectstoreusers/status
+      - cephobjectstoreaccounts/status
       - cephobjectrealms/status
       - cephobjectzonegroups/status
       - cephobjectzones/status
@@ -430,6 +432,7 @@ rules:
       - cephnvmeofgateways/finalizers
       - cephobjectstores/finalizers
       - cephobjectstoreusers/finalizers
+      - cephobjectstoreaccounts/finalizers
       - cephobjectrealms/finalizers
       - cephobjectzonegroups/finalizers
       - cephobjectzones/finalizers
