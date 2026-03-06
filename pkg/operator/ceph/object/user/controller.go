@@ -430,6 +430,8 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	// Update caps, if necessary
 	log.NamedTrace(nsName, logger, "user capabilities(id: %s, caps: %#v, user caps: %s, op mask: %s)",
 		liveUser.ID, liveUser.Caps, liveUser.UserCaps, liveUser.OpMask)
+	// Generate the user caps "string" for the live user, since the API does not return the caps in a "string" format as a list of Cap structs. Since go-ceph will only set caps via the "string" format, we need to generate the string format for the live user to compare with the target user caps "string".
+	liveUser.UserCaps = generateUserCaps(&liveUser)
 	if targetUser.UserCaps != liveUser.UserCaps {
 		// If they are no caps to be removed, the API will return an error "missing user capabilities"
 		if liveUser.UserCaps != "" {
@@ -646,7 +648,6 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 	}
 
 	userConfig.OpMask = opMask
-	userConfig.UserCaps = generateUserCaps(userConfig)
 
 	return userConfig, nil
 }
