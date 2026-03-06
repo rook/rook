@@ -18,6 +18,7 @@ package v1
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -182,7 +183,7 @@ func (c *CephObjectStore) GetAdvertiseEndpointUrl() (string, error) {
 	if isTls {
 		protocol = "https"
 	}
-	return fmt.Sprintf("%s://%s:%d", protocol, address, port), nil
+	return fmt.Sprintf("%s://%s", protocol, net.JoinHostPort(address, fmt.Sprintf("%d", port))), nil
 }
 
 func (c *CephObjectStore) GetStatusConditions() *[]Condition {

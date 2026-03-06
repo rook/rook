@@ -210,10 +210,18 @@ func TestCephObjectStore_GetAdvertiseEndpointUrl(t *testing.T) {
 		return s
 	}
 
-	addExternalIPs := func(s *CephObjectStore) *CephObjectStore {
+	addExternalIPv4IPs := func(s *CephObjectStore) *CephObjectStore {
 		s.Spec.Gateway.ExternalRgwEndpoints = []EndpointAddress{
 			{IP: "192.168.1.1"},
 			{IP: "192.168.1.2"},
+		}
+		return s
+	}
+
+	addExternalIPv6IPs := func(s *CephObjectStore) *CephObjectStore {
+		s.Spec.Gateway.ExternalRgwEndpoints = []EndpointAddress{
+			{IP: "2001:db8::1"},
+			{IP: "2001:db8::2"},
 		}
 		return s
 	}
@@ -267,12 +275,17 @@ func TestCephObjectStore_GetAdvertiseEndpointUrl(t *testing.T) {
 		{"nil hosting    : internal          : port + securePort         ", dualSpec(), "https://rook-ceph-rgw-my-store.my-ns.svc:8443", ""},
 		{"nil hosting    : internal          : securePort, no cert       ", removeCert(httpsSpec()), "", "Port"},
 		{"nil hosting    : internal          : port + securePort, no cert", removeCert(dualSpec()), "http://rook-ceph-rgw-my-store.my-ns.svc:8080", ""},
-		{"nil hosting    : external IPs      : empty                     ", addExternalIPs(emptySpec()), "", "Port"},
-		{"nil hosting    : external IPs      : port                      ", addExternalIPs(httpSpec()), "http://192.168.1.1:8080", ""},
-		{"nil hosting    : external IPs      : securePort                ", addExternalIPs(httpsSpec()), "https://192.168.1.1:8443", ""},
-		{"nil hosting    : external IPs      : port + securePort         ", addExternalIPs(dualSpec()), "https://192.168.1.1:8443", ""},
-		{"nil hosting    : external IPs      : securePort, no cert       ", addExternalIPs(removeCert(httpsSpec())), "", "Port"},
-		{"nil hosting    : external IPs      : port + securePort, no cert", addExternalIPs(removeCert(dualSpec())), "http://192.168.1.1:8080", ""},
+		{"nil hosting    : external IPs      : empty                     ", addExternalIPv4IPs(emptySpec()), "", "Port"},
+		{"nil hosting    : external IPs      : port                      ", addExternalIPv4IPs(httpSpec()), "http://192.168.1.1:8080", ""},
+		{"nil hosting    : external IPs      : securePort                ", addExternalIPv4IPs(httpsSpec()), "https://192.168.1.1:8443", ""},
+		{"nil hosting    : external IPs      : port + securePort         ", addExternalIPv4IPs(dualSpec()), "https://192.168.1.1:8443", ""},
+		{"nil hosting    : external IPs      : securePort, no cert       ", addExternalIPv4IPs(removeCert(httpsSpec())), "", "Port"},
+		{"nil hosting    : external IPs      : port + securePort, no cert", addExternalIPv4IPs(removeCert(dualSpec())), "http://192.168.1.1:8080", ""},
+		{"nil hosting    : external IPs      : port                      ", addExternalIPv6IPs(httpSpec()), "http://[2001:db8::1]:8080", ""},
+		{"nil hosting    : external IPs      : securePort                ", addExternalIPv6IPs(httpsSpec()), "https://[2001:db8::1]:8443", ""},
+		{"nil hosting    : external IPs      : port + securePort         ", addExternalIPv6IPs(dualSpec()), "https://[2001:db8::1]:8443", ""},
+		{"nil hosting    : external IPs      : securePort, no cert       ", addExternalIPv6IPs(removeCert(httpsSpec())), "", "Port"},
+		{"nil hosting    : external IPs      : port + securePort, no cert", addExternalIPv6IPs(removeCert(dualSpec())), "http://[2001:db8::1]:8080", ""},
 		{"nil hosting    : external Hostnames: empty                     ", addExternalHostnames(emptySpec()), "", "Port"},
 		{"nil hosting    : external Hostnames: port                      ", addExternalHostnames(httpSpec()), "http://s3.external.com:8080", ""},
 		{"nil hosting    : external Hostnames: securePort                ", addExternalHostnames(httpsSpec()), "https://s3.external.com:8443", ""},
@@ -286,12 +299,12 @@ func TestCephObjectStore_GetAdvertiseEndpointUrl(t *testing.T) {
 		{"nil advertise  : internal          : port + securePort         ", addNilAdvertise(dualSpec()), "https://rook-ceph-rgw-my-store.my-ns.svc:8443", ""},
 		{"nil advertise  : internal          : securePort, no cert       ", addNilAdvertise(removeCert(httpsSpec())), "", "Port"},
 		{"nil advertise  : internal          : port + securePort, no cert", addNilAdvertise(removeCert(dualSpec())), "http://rook-ceph-rgw-my-store.my-ns.svc:8080", ""},
-		{"nil advertise  : external IPs      : empty                     ", addNilAdvertise(addExternalIPs(emptySpec())), "", "Port"},
-		{"nil advertise  : external IPs      : port                      ", addNilAdvertise(addExternalIPs(httpSpec())), "http://192.168.1.1:8080", ""},
-		{"nil advertise  : external IPs      : securePort                ", addNilAdvertise(addExternalIPs(httpsSpec())), "https://192.168.1.1:8443", ""},
-		{"nil advertise  : external IPs      : port + securePort         ", addNilAdvertise(addExternalIPs(dualSpec())), "https://192.168.1.1:8443", ""},
-		{"nil advertise  : external IPs      : securePort, no cert       ", addNilAdvertise(addExternalIPs(removeCert(httpsSpec()))), "", "Port"},
-		{"nil advertise  : external IPs      : port + securePort, no cert", addNilAdvertise(addExternalIPs(removeCert(dualSpec()))), "http://192.168.1.1:8080", ""},
+		{"nil advertise  : external IPs      : empty                     ", addNilAdvertise(addExternalIPv4IPs(emptySpec())), "", "Port"},
+		{"nil advertise  : external IPs      : port                      ", addNilAdvertise(addExternalIPv4IPs(httpSpec())), "http://192.168.1.1:8080", ""},
+		{"nil advertise  : external IPs      : securePort                ", addNilAdvertise(addExternalIPv4IPs(httpsSpec())), "https://192.168.1.1:8443", ""},
+		{"nil advertise  : external IPs      : port + securePort         ", addNilAdvertise(addExternalIPv4IPs(dualSpec())), "https://192.168.1.1:8443", ""},
+		{"nil advertise  : external IPs      : securePort, no cert       ", addNilAdvertise(addExternalIPv4IPs(removeCert(httpsSpec()))), "", "Port"},
+		{"nil advertise  : external IPs      : port + securePort, no cert", addNilAdvertise(addExternalIPv4IPs(removeCert(dualSpec()))), "http://192.168.1.1:8080", ""},
 		{"nil advertise  : external Hostnames: empty                     ", addNilAdvertise(addExternalHostnames(emptySpec())), "", "Port"},
 		{"nil advertise  : external Hostnames: port                      ", addNilAdvertise(addExternalHostnames(httpSpec())), "http://s3.external.com:8080", ""},
 		{"nil advertise  : external Hostnames: securePort                ", addNilAdvertise(addExternalHostnames(httpsSpec())), "https://s3.external.com:8443", ""},
@@ -305,12 +318,12 @@ func TestCephObjectStore_GetAdvertiseEndpointUrl(t *testing.T) {
 		{"HTTP advertise : internal          : port + securePort         ", addAdvertiseHttp(dualSpec()), "http://my-endpoint.com:80", ""},
 		{"HTTP advertise : internal          : securePort, no cert       ", addAdvertiseHttp(removeCert(httpsSpec())), "", "Port"},
 		{"HTTP advertise : internal          : port + securePort, no cert", addAdvertiseHttp(removeCert(dualSpec())), "http://my-endpoint.com:80", ""},
-		{"HTTP advertise : external IPs      : empty                     ", addAdvertiseHttp(addExternalIPs(emptySpec())), "", "Port"},
-		{"HTTP advertise : external IPs      : port                      ", addAdvertiseHttp(addExternalIPs(httpSpec())), "http://my-endpoint.com:80", ""},
-		{"HTTP advertise : external IPs      : securePort                ", addAdvertiseHttp(addExternalIPs(httpsSpec())), "http://my-endpoint.com:80", ""},
-		{"HTTP advertise : external IPs      : port + securePort         ", addAdvertiseHttp(addExternalIPs(dualSpec())), "http://my-endpoint.com:80", ""},
-		{"HTTP advertise : external IPs      : securePort, no cert       ", addAdvertiseHttp(addExternalIPs(removeCert(httpsSpec()))), "", "Port"},
-		{"HTTP advertise : external IPs      : port + securePort, no cert", addAdvertiseHttp(addExternalIPs(removeCert(dualSpec()))), "http://my-endpoint.com:80", ""},
+		{"HTTP advertise : external IPs      : empty                     ", addAdvertiseHttp(addExternalIPv4IPs(emptySpec())), "", "Port"},
+		{"HTTP advertise : external IPs      : port                      ", addAdvertiseHttp(addExternalIPv4IPs(httpSpec())), "http://my-endpoint.com:80", ""},
+		{"HTTP advertise : external IPs      : securePort                ", addAdvertiseHttp(addExternalIPv4IPs(httpsSpec())), "http://my-endpoint.com:80", ""},
+		{"HTTP advertise : external IPs      : port + securePort         ", addAdvertiseHttp(addExternalIPv4IPs(dualSpec())), "http://my-endpoint.com:80", ""},
+		{"HTTP advertise : external IPs      : securePort, no cert       ", addAdvertiseHttp(addExternalIPv4IPs(removeCert(httpsSpec()))), "", "Port"},
+		{"HTTP advertise : external IPs      : port + securePort, no cert", addAdvertiseHttp(addExternalIPv4IPs(removeCert(dualSpec()))), "http://my-endpoint.com:80", ""},
 		{"HTTP advertise : external Hostnames: empty                     ", addAdvertiseHttp(addExternalHostnames(emptySpec())), "", "Port"},
 		{"HTTP advertise : external Hostnames: port                      ", addAdvertiseHttp(addExternalHostnames(httpSpec())), "http://my-endpoint.com:80", ""},
 		{"HTTP advertise : external Hostnames: securePort                ", addAdvertiseHttp(addExternalHostnames(httpsSpec())), "http://my-endpoint.com:80", ""},
@@ -324,12 +337,12 @@ func TestCephObjectStore_GetAdvertiseEndpointUrl(t *testing.T) {
 		{"HTTPS advertise: internal          : port + securePort         ", addAdvertiseHttps(dualSpec()), "https://my-endpoint.com:443", ""},
 		{"HTTPS advertise: internal          : securePort, no cert       ", addAdvertiseHttps(removeCert(httpsSpec())), "", "Port"},
 		{"HTTPS advertise: internal          : port + securePort, no cert", addAdvertiseHttps(removeCert(dualSpec())), "https://my-endpoint.com:443", ""},
-		{"HTTPS advertise: external IPs      : empty                     ", addAdvertiseHttps(addExternalIPs(emptySpec())), "", "Port"},
-		{"HTTPS advertise: external IPs      : port                      ", addAdvertiseHttps(addExternalIPs(httpSpec())), "https://my-endpoint.com:443", ""},
-		{"HTTPS advertise: external IPs      : securePort                ", addAdvertiseHttps(addExternalIPs(httpsSpec())), "https://my-endpoint.com:443", ""},
-		{"HTTPS advertise: external IPs      : port + securePort         ", addAdvertiseHttps(addExternalIPs(dualSpec())), "https://my-endpoint.com:443", ""},
-		{"HTTPS advertise: external IPs      : securePort, no cert       ", addAdvertiseHttps(addExternalIPs(removeCert(httpsSpec()))), "", "Port"},
-		{"HTTPS advertise: external IPs      : port + securePort, no cert", addAdvertiseHttps(addExternalIPs(removeCert(dualSpec()))), "https://my-endpoint.com:443", ""},
+		{"HTTPS advertise: external IPs      : empty                     ", addAdvertiseHttps(addExternalIPv4IPs(emptySpec())), "", "Port"},
+		{"HTTPS advertise: external IPs      : port                      ", addAdvertiseHttps(addExternalIPv4IPs(httpSpec())), "https://my-endpoint.com:443", ""},
+		{"HTTPS advertise: external IPs      : securePort                ", addAdvertiseHttps(addExternalIPv4IPs(httpsSpec())), "https://my-endpoint.com:443", ""},
+		{"HTTPS advertise: external IPs      : port + securePort         ", addAdvertiseHttps(addExternalIPv4IPs(dualSpec())), "https://my-endpoint.com:443", ""},
+		{"HTTPS advertise: external IPs      : securePort, no cert       ", addAdvertiseHttps(addExternalIPv4IPs(removeCert(httpsSpec()))), "", "Port"},
+		{"HTTPS advertise: external IPs      : port + securePort, no cert", addAdvertiseHttps(addExternalIPv4IPs(removeCert(dualSpec()))), "https://my-endpoint.com:443", ""},
 		{"HTTPS advertise: external Hostnames: empty                     ", addAdvertiseHttps(addExternalHostnames(emptySpec())), "", "Port"},
 		{"HTTPS advertise: external Hostnames: port                      ", addAdvertiseHttps(addExternalHostnames(httpSpec())), "https://my-endpoint.com:443", ""},
 		{"HTTPS advertise: external Hostnames: securePort                ", addAdvertiseHttps(addExternalHostnames(httpsSpec())), "https://my-endpoint.com:443", ""},
