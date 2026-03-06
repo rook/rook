@@ -1798,6 +1798,9 @@ type ObjectSharedPoolsSpec struct {
 	// is provided during bucket creation.
 	// If default placement is not provided, spec.sharedPools.dataPoolName and spec.sharedPools.MetadataPoolName will be used as default pools.
 	// If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metadataPool) will be used as defaults.
+	// +listType=map
+	// +listMapKey=name
+	// +kubebuilder:validation:MaxItems=10
 	// +optional
 	PoolPlacements []PoolPlacementSpec `json:"poolPlacements,omitempty"`
 }
@@ -1806,6 +1809,7 @@ type PoolPlacementSpec struct {
 	// Pool placement name. Name can be arbitrary. Placement with name "default" will be used as default.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._/-]+$`
 	Name string `json:"name"`
 
@@ -1817,21 +1821,28 @@ type PoolPlacementSpec struct {
 	// The metadata pool used to store ObjectStore bucket index.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=128
+	// +kubebuilder:validation:XValidation:message="pool placement metadata pool is immutable",rule="self == oldSelf"
 	MetadataPoolName string `json:"metadataPoolName"`
 
 	// The data pool used to store ObjectStore objects data.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=128
+	// +kubebuilder:validation:XValidation:message="pool placement data pool is immutable",rule="self == oldSelf"
 	DataPoolName string `json:"dataPoolName"`
 
 	// The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
 	// If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.
+	// +kubebuilder:validation:MaxLength=128
+	// +kubebuilder:validation:XValidation:message="pool placement non-EC pool is immutable",rule="self == oldSelf"
 	// +optional
 	DataNonECPoolName string `json:"dataNonECPoolName,omitempty"`
 
 	// StorageClasses can be selected by user to override dataPoolName during object creation.
 	// Each placement has default STANDARD StorageClass pointing to dataPoolName.
 	// This list allows defining additional StorageClasses on top of default STANDARD storage class.
+	// +kubebuilder:validation:MaxItems=10
 	// +optional
 	StorageClasses []PlacementStorageClassSpec `json:"storageClasses,omitempty"`
 }
@@ -1844,12 +1855,14 @@ type PlacementStorageClassSpec struct {
 	// See AWS docs: https://aws.amazon.com/de/s3/storage-classes/
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=64
 	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._/-]+$`
 	Name string `json:"name"`
 
 	// DataPoolName is the data pool used to store ObjectStore objects data.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=128
 	DataPoolName string `json:"dataPoolName"`
 }
 
