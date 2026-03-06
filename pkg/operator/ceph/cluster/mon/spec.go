@@ -33,12 +33,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/utils/ptr"
 )
 
 const (
 	// Full path of the command used to invoke the Ceph mon daemon
 	cephMonCommand = "ceph-mon"
+
+	// Label for the floating mon
+	floatingMonCm = "rook-ceph-floating-mon-config"
 )
 
 func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool) map[string]string {
@@ -62,6 +66,11 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 		}
 		if !canary {
 			labels["mon_daemon"] = "true"
+		}
+
+		if c.IsFloatingMon(monConfig.DaemonName) {
+			labels[k8sutil.AppAttr] = "rook-ceph-floating-mon"
+			log.NamespacedDebug(c.Namespace, logger, "labeling mon %q as floating mon", monConfig.DaemonName)
 		}
 	}
 
@@ -217,6 +226,12 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 	// Replace default unreachable node toleration
 	if c.monVolumeClaimTemplate(monConfig) != nil {
 		k8sutil.AddUnreachableNodeToleration(&podSpec)
+	}
+
+	if c.IsFloatingMon(monConfig.DaemonName) {
+		if err := c.floatingMonInitContainer(&podSpec, monConfig); err != nil {
+			return nil, err
+		}
 	}
 
 	pod := &corev1.Pod{
@@ -426,4 +441,124 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, clusterInfo *client.
 
 	err := k8sutil.UpdateDeploymentAndWait(clusterInfo.Context, context, deployment, clusterInfo.Namespace, callback)
 	return err
+}
+
+// floatingMonInitContainer configures the floating mon pod with init containers, volumes, and volume mounts
+// from a ConfigMap named "rook-ceph-floating-mon-config"
+func (c *Cluster) floatingMonInitContainer(podSpec *corev1.PodSpec, monConfig *monConfig) error {
+	log.NamespacedDebug(c.Namespace, logger, "fetching configmap for floating mon %q", monConfig.DaemonName)
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(c.ClusterInfo.Context, floatingMonCm, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("failed to get floating mon configmap %q. %v", floatingMonCm, err)
+		return nil
+	}
+
+	log.NamespacedDebug(c.Namespace, logger, "configuring floating mon pod %q", monConfig.DaemonName)
+
+	if err := c.applyFloatingMonInitContainers(podSpec, cm.Data); err != nil {
+		return err
+	}
+	if err := c.applyFloatingMonDaemonContainer(podSpec, cm.Data); err != nil {
+		return err
+	}
+	return c.applyShutDownAppContainer(podSpec, cm.Data)
+}
+
+// applyFloatingMonInitContainers prepends init containers and their volumes/mounts from the ConfigMap.
+func (c *Cluster) applyFloatingMonInitContainers(podSpec *corev1.PodSpec, data map[string]string) error {
+	var initContainers []corev1.Container
+	if err := unmarshalFromCM(data, "init-containers.yaml", &initContainers); err != nil {
+		return err
+	}
+
+	var volumes []corev1.Volume
+	if err := unmarshalFromCM(data, "init-containers-volumes.yaml", &volumes); err != nil {
+		return err
+	}
+
+	var volumeMounts []corev1.VolumeMount
+	if err := unmarshalFromCM(data, "init-containers-volume-mounts.yaml", &volumeMounts); err != nil {
+		return err
+	}
+
+	podSpec.InitContainers = append(initContainers, podSpec.InitContainers...)
+	podSpec.Volumes = append(podSpec.Volumes, volumes...)
+	if len(podSpec.Containers) > 0 {
+		podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, volumeMounts...)
+	}
+	return nil
+}
+
+// applyFloatingMonDaemonContainer updates the mon daemon container with extra
+// volumes, volume mounts, and optional extra args.
+func (c *Cluster) applyFloatingMonDaemonContainer(podSpec *corev1.PodSpec, data map[string]string) error {
+	var volumes []corev1.Volume
+	if err := unmarshalFromCM(data, "mon-volumes.yaml", &volumes); err != nil {
+		return err
+	}
+
+	var volumeMounts []corev1.VolumeMount
+	if err := unmarshalFromCM(data, "mon-volume-mounts.yaml", &volumeMounts); err != nil {
+		return err
+	}
+
+	var extraArgs []string
+	if err := unmarshalFromCM(data, "mon-args.yaml", &extraArgs); err != nil {
+		return err
+	}
+
+	existingMon := data["existing-mon"]
+
+	podSpec.Volumes = append(podSpec.Volumes, volumes...)
+
+	if len(podSpec.Containers) == 0 {
+		return nil
+	}
+
+	mon := &podSpec.Containers[0]
+	mon.VolumeMounts = append(mon.VolumeMounts, volumeMounts...)
+	mon.Args = append(mon.Args, extraArgs...)
+
+	if existingMon != "" && len(mon.Command) > 0 {
+		execLine := "exec " + mon.Command[0] + " \\\n  " + strings.Join(mon.Args, " \\\n  ")
+		mon.Command = []string{"sh", "-c"}
+		mon.Args = []string{existingMon + "\n" + execLine}
+	}
+
+	return nil
+}
+
+func (c *Cluster) applyShutDownAppContainer(podSpec *corev1.PodSpec, data map[string]string) error {
+	if data["shut-down-app.yaml"] == "" {
+		return nil
+	}
+
+	var container corev1.Container
+	if err := unmarshalFromCM(data, "shut-down-app.yaml", &container); err != nil {
+		return err
+	}
+
+	var volumes []corev1.Volume
+	if err := unmarshalFromCM(data, "shut-down-app-volumes.yaml", &volumes); err != nil {
+		return err
+	}
+
+	var volumeMounts []corev1.VolumeMount
+	if err := unmarshalFromCM(data, "shut-down-app-volume-mounts.yaml", &volumeMounts); err != nil {
+		return err
+	}
+
+	container.VolumeMounts = append(container.VolumeMounts, volumeMounts...)
+	podSpec.Volumes = append(podSpec.Volumes, volumes...)
+	podSpec.Containers = append(podSpec.Containers, container)
+	return nil
+}
+
+// unmarshalFromCM deserializes a YAML value from a ConfigMap data map into out.
+// Missing or empty keys are treated as empty values (no error).
+func unmarshalFromCM(data map[string]string, key string, out interface{}) error {
+	if err := yaml.Unmarshal([]byte(data[key]), out); err != nil {
+		return errors.Wrapf(err, "failed to parse %q from configmap %q", key, floatingMonCm)
+	}
+	return nil
 }
