@@ -92,8 +92,9 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, node)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			// if a node is not present, check if there are any node daemons to remove
-			r.listNodeDaemonsAndDelete(request.Name, "")
+			// if a node is not present, ignore the event
+			log.NamespacedDebug(request.Namespace, logger, "node %q not found. Ignoring since object must be deleted. %v", request.Name, err)
+			return reconcile.Result{}, nil
 		} else {
 			return reconcile.Result{}, errors.Wrapf(err, "could not get node %q", request.Name)
 		}
@@ -142,7 +143,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 
 		allDisabled := r.removeDisabledCrashCollectorDaemons(cephCluster.Spec, namespace) && r.removeDisabledCephExporterDaemons(cephCluster.Spec, namespace)
 		if allDisabled {
-			return reconcile.Result{}, nil
+			continue
 		}
 
 		// checking if secret "rook-ceph-crash-collector-keyring" is present which is required to create crashcollector pods
