@@ -93,10 +93,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			// if a node is not present, check if there are any node daemons to remove
-			err := r.listNodeDaemonsAndDelete(request.Name, "")
-			if err != nil {
-				log.NamespacedError(request.Namespace, logger, "failed to list and delete deployment on node %q; user should delete them manually. %v", request.Name, err)
-			}
+			r.listNodeDaemonsAndDelete(request.Name, "")
 		} else {
 			return reconcile.Result{}, errors.Wrapf(err, "could not get node %q", request.Name)
 		}
@@ -190,10 +187,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		} else {
 			// If there are no Ceph pods, check that there are no crash collector or ceph-exporter pods in case Ceph pods moved to another node
 			// Thus the crash collector and ceph-exporter must be removed from that node
-			err := r.listNodeDaemonsAndDelete(request.Name, namespace)
-			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "failed to list and delete deployments in namespace %q on node %q", namespace, request.Name)
-			}
+			r.listNodeDaemonsAndDelete(request.Name, namespace)
 		}
 
 		if err := r.reconcileCrashPruner(namespace, cephCluster, tolerations); err != nil {
@@ -324,18 +318,17 @@ func (r *ReconcileNode) cephPodList() ([]corev1.Pod, error) {
 	return cephPods, nil
 }
 
-func (r *ReconcileNode) listNodeDaemonsAndDelete(nodeName, ns string) error {
+// Delete the daemons and related resources as a best-effort
+func (r *ReconcileNode) listNodeDaemonsAndDelete(nodeName, ns string) {
 	// delete the crash daemons on the given node
 	if err := r.listDeploymentAndDelete(CrashCollectorAppName, nodeName, ns); err != nil {
-		return errors.Wrap(err, "failed to delete crash collector")
+		log.NamespacedInfo(ns, logger, "failed to delete crash collector. %v", err)
 	}
 
 	// delete the ceph-exporter daemons on the given node
 	if err := r.listDeploymentAndDelete(cephExporterAppName, nodeName, ns); err != nil {
-		return errors.Wrap(err, "failed to delete ceph-exporter")
+		log.NamespacedInfo(ns, logger, "failed to delete ceph-exporter. %v", err)
 	}
-
-	return nil
 }
 
 func (r *ReconcileNode) deleteDeployment(deployment appsv1.Deployment) error {
