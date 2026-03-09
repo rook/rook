@@ -7992,6 +7992,46 @@ int
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.FloatingMonSpec">FloatingMonSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MonSpec">MonSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name is the identifier for the floating monitor (recommended &ldquo;c&rdquo;)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>configmapName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ConfigMapName is the name of the ConfigMap containing key-value pairs
+of template variables for the floating mon deployment.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.GaneshaRADOSSpec">GaneshaRADOSSpec
 </h3>
 <p>
@@ -10236,6 +10276,22 @@ If set, Rook will not remove mons with given IDs from quorum.
 This parameter is used only for local Rook cluster running in normal mode
 and will be ignored if external or stretched mode is used.
 leading</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>floatingMon,omitempty,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.FloatingMonSpec">
+FloatingMonSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>FloatingMon is the specification of the floating monitor for two-node clusters.
+The floating mon is backed by a synchronously replicated store (e.g. DRBD)
+and can be scheduled on either node. Template variables are supplied via a ConfigMap.</p>
 </td>
 </tr>
 </tbody>

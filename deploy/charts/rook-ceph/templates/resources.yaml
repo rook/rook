@@ -2205,6 +2205,30 @@ spec:
                       type: array
                     failureDomainLabel:
                       type: string
+                    floatingMon:
+                      description: |-
+                        FloatingMon is the specification of the floating monitor for two-node clusters.
+                        The floating mon is backed by a synchronously replicated store (e.g. DRBD)
+                        and can be scheduled on either node. Template variables are supplied via a ConfigMap.
+                      minProperties: 2
+                      properties:
+                        configmapName:
+                          description: |-
+                            ConfigMapName is the name of the ConfigMap containing key-value pairs
+                            of template variables for the floating mon deployment.
+                          maxLength: 253
+                          minLength: 1
+                          type: string
+                        name:
+                          description: Name is the identifier for the floating monitor (recommended "c")
+                          maxLength: 1
+                          minLength: 1
+                          pattern: ^[a-z]$
+                          type: string
+                      required:
+                        - configmapName
+                        - name
+                      type: object
                     stretchCluster:
                       description: StretchCluster is the stretch cluster specification
                       properties:
