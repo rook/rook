@@ -797,6 +797,47 @@ type MonSpec struct {
 	// leading
 	// +optional
 	ExternalMonIDs []string `json:"externalMonIDs,omitempty"`
+
+	// Floating is the specification of the floating monitor
+	// +optional
+	Floating *FloatingMonSpec `json:"floating,omitempty"`
+}
+
+type FloatingMonSpec struct {
+	// Name is the name of the floating mon
+	// +kubebuilder:validation:Pattern=`^[a-z]$`
+	Name string `json:"name,omitempty"`
+
+	// NodeName is the Kubernetes node the floating mon is pinned to.
+	// The DRBD primary must be active on this node.
+	// +optional
+	NodeName string `json:"nodeName,omitempty"`
+
+	// DataDirHostPath is the host path of the floating mon data directory
+	// +kubebuilder:validation:Pattern=`^/(\S+)`
+	// +kubebuilder:validation:XValidation:message="DataDirHostPath is immutable",rule="self == oldSelf"
+	// +optional
+	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
+
+	// DRBDImage is the container image for the DRBD utility sidecars
+	// (drbd-init init container and shut-down-app sidecar container).
+	// +optional
+	DRBDImage string `json:"drbdImage,omitempty"`
+
+	// DRBDDevice is the host path to the DRBD block device that backs the mon data
+	// directory (e.g. /dev/drbd1).
+	// +optional
+	DRBDDevice string `json:"drbdDevice,omitempty"`
+
+	// DRBDConfPath is the host path to the DRBD configuration file
+	// (e.g. /etc/drbd.conf).
+	// +optional
+	DRBDConfPath string `json:"drbdConfPath,omitempty"`
+
+	// DRBDDirPath is the host path to the DRBD configuration directory
+	// (e.g. /etc/drbd.d).
+	// +optional
+	DRBDDirPath string `json:"drbdDirPath,omitempty"`
 }
 
 // VolumeClaimTemplate is a simplified version of K8s corev1's PVC. It has no type meta or status.
