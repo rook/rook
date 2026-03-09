@@ -57,6 +57,13 @@ var (
 
 	// wait for secret "rook-ceph-crash-collector-keyring" to be created
 	waitForRequeueIfSecretNotCreated = reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}
+
+	// exporterOrphanCheckDone tracks namespaces where the one-time orphaned
+	// exporter deployment cleanup has already run. The check only needs to
+	// happen once per operator lifetime – stale deployments can only
+	// accumulate while the operator is offline, so a single pass on startup
+	// is sufficient.
+	exporterOrphanCheckDone = map[string]bool{}
 )
 
 // ReconcileNode reconciles ReplicaSets
@@ -188,6 +195,18 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 					uniqueTolerations.Add(podToleration)
 				}
 			}
+		}
+
+		// Clean up any exporter deployments whose target node no longer exists.
+		// This only needs to run once per operator lifetime: stale deployments
+		// can only accumulate while the operator is offline, so a single pass
+		// on startup is sufficient. Skip subsequent reconciles to avoid the
+		// extra API calls, especially in large clusters.
+		if !exporterOrphanCheckDone[namespace] {
+			if err := r.deleteOrphanedExporterDeployments(namespace); err != nil {
+				logger.Errorf("failed to clean up orphaned ceph-exporter deployments in namespace %q. %v", namespace, err)
+			}
+			exporterOrphanCheckDone[namespace] = true
 		}
 
 		// If the node has Ceph pods we create the daemons

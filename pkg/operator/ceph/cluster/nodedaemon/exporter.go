@@ -33,8 +33,11 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -297,6 +300,42 @@ func applyCephExporterLabels(cephCluster cephv1.CephCluster, serviceMonitor *mon
 			logger.Debug("ceph-exporter labels not specified")
 		}
 	}
+}
+
+// deleteOrphanedExporterDeployments lists all ceph-exporter deployments in the given namespace
+// and deletes any whose target node (stored in the node_name label) no longer exists in the cluster.
+// This cleans up stale Pending exporter pods that were left behind when a node was removed while
+// the operator was not running.
+func (r *ReconcileNode) deleteOrphanedExporterDeployments(namespace string) error {
+	deploymentList := &appsv1.DeploymentList{}
+	err := r.client.List(r.opManagerContext, deploymentList,
+		client.MatchingLabels{k8sutil.AppAttr: cephExporterAppName},
+		client.InNamespace(namespace),
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to list exporter deployments in namespace %q", namespace)
+	}
+
+	for i := range deploymentList.Items {
+		d := deploymentList.Items[i]
+		nodeName, ok := d.Labels[NodeNameLabel]
+		if !ok {
+			continue
+		}
+		node := &corev1.Node{}
+		err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: nodeName}, node)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Infof("deleting orphaned ceph-exporter deployment %q: target node %q no longer exists", d.Name, nodeName)
+				if delErr := r.deleteDeployment(d); delErr != nil {
+					return errors.Wrapf(delErr, "failed to delete orphaned exporter deployment %q in namespace %q", d.Name, namespace)
+				}
+			} else {
+				return errors.Wrapf(err, "failed to check existence of node %q for exporter deployment %q", nodeName, d.Name)
+			}
+		}
+	}
+	return nil
 }
 
 func applyPrometheusAnnotations(cephCluster cephv1.CephCluster, objectMeta *metav1.ObjectMeta) {
