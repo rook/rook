@@ -235,7 +235,10 @@ helm.lint: | $(HELM) $(KUSTOMIZE) ## Check the helm charts
 	rm templated.yaml kustomization.yaml
 
 .PHONY: lint
-lint: yamllint pylint shellcheck checkmake vet markdownlint golangci-lint helm.lint  ## Run various linters
+lint: lint.fast pylint ## Run various linters
+
+.PHONY: lint.fast
+lint.fast: yamllint checkmake shellcheck markdownlint go.lint helm.lint ## Run a few rather lightweight/fast linters
 
 .PHONY: pylint
 pylint:
