@@ -1798,9 +1798,6 @@ type ObjectSharedPoolsSpec struct {
 	// is provided during bucket creation.
 	// If default placement is not provided, spec.sharedPools.dataPoolName and spec.sharedPools.MetadataPoolName will be used as default pools.
 	// If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metadataPool) will be used as defaults.
-	// +listType=map
-	// +listMapKey=name
-	// +kubebuilder:validation:MaxItems=10
 	// +optional
 	PoolPlacements []PoolPlacementSpec `json:"poolPlacements,omitempty"`
 }

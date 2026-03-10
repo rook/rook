@@ -19,6 +19,7 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -145,30 +146,19 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	logger.Infof("Running on Rook Cluster %s", namespace)
 	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, storeName, 3, tlsEnable, swiftAndKeystone)
 
-	// test that a second object store can be created (and deleted) while the first exists
-	s.T().Run("run a second object store", func(t *testing.T) {
-		otherStoreName := "other-" + storeName
-		// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
-		// and then deletes it.
-		deleteStore := true
-		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, swiftAndKeystone)
-	})
-
-	// now test operation of the first object store
-	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
-
 	// Canary test: verify all *_pool fields in zone.json are covered by Rook's zonePoolNSSuffix map.
 	// This catches new RGW pool fields added in newer Ceph versions that Rook doesn't yet handle,
 	// which would cause ghost default pools when shared pools are configured.
+	// Run right after store creation when the zone is fresh and definitely accessible.
 	s.T().Run("all zone.json pool fields are covered by Rook shared pool mapping", func(t *testing.T) {
 		output, err := installer.Execute("radosgw-admin",
-			[]string{"zone", "get", "--rgw-zone=" + storeName, "--rgw-realm=" + storeName}, namespace)
-		require.NoError(t, err, "failed to get zone config")
+			[]string{"zone", "get", fmt.Sprintf("--rgw-zone=%s", storeName), fmt.Sprintf("--rgw-realm=%s", storeName)}, namespace)
+		require.NoError(t, err, "failed to get zone config; output: %s", output)
 		require.NotEmpty(t, output, "zone config is empty")
 
 		var zoneConfig map[string]interface{}
 		err = json.Unmarshal([]byte(output), &zoneConfig)
-		require.NoError(t, err, "failed to parse zone config JSON")
+		require.NoError(t, err, "failed to parse zone config JSON; output: %s", output)
 
 		knownPools := rgw.ZoneJsonPoolKeys()
 		for field, val := range zoneConfig {
@@ -182,6 +172,18 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 				"RGW zone.json contains unknown pool field %q — add it to zonePoolNSSuffix in pkg/operator/ceph/object/objectstore.go", field)
 		}
 	})
+
+	// test that a second object store can be created (and deleted) while the first exists
+	s.T().Run("run a second object store", func(t *testing.T) {
+		otherStoreName := "other-" + storeName
+		// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
+		// and then deletes it.
+		deleteStore := true
+		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, swiftAndKeystone)
+	})
+
+	// now test operation of the first object store
+	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
 
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable)
 	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable)
