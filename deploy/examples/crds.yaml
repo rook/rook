@@ -14678,11 +14678,7 @@ spec:
                           - metadataPoolName
                           - name
                         type: object
-                      maxItems: 10
                       type: array
-                      x-kubernetes-list-map-keys:
-                        - name
-                      x-kubernetes-list-type: map
                     preserveRadosNamespaceDataOnDelete:
                       description: Whether the RADOS namespaces should be preserved on deletion of the object store
                       type: boolean
@@ -15767,11 +15763,7 @@ spec:
                           - metadataPoolName
                           - name
                         type: object
-                      maxItems: 10
                       type: array
-                      x-kubernetes-list-map-keys:
-                        - name
-                      x-kubernetes-list-type: map
                     preserveRadosNamespaceDataOnDelete:
                       description: Whether the RADOS namespaces should be preserved on deletion of the object store
                       type: boolean
