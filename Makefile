@@ -35,6 +35,7 @@ all: build
 CONTROLLER_GEN_VERSION=v0.19.0
 CT_VERSION := v3.13.0
 KUSTOMIZE_VERSION := v5.3.0
+MARKDOWNLINT_IMAGE_VERSION :=v0.21.0
 
 # include here and not earlier so that the version numbers are available
 # where needed
@@ -191,11 +192,11 @@ golangci-lint: $(YQ)
 
 .PHONY: markdownlint
 markdownlint: ## Check formatting of documentation sources
-	markdownlint-cli2 "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs
+	@$(MARKDOWNLINT) "Documentation/**/*.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs
 
 .PHONY: markdownlint.fix
 markdownlint.fix: ## Check and fix formatting of documentation sources
-	markdownlint-cli2 "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --fix --config .markdownlint-cli2.cjs
+	@$(MARKDOWNLINT) "Documentation/**/*.md" "#Documentation/Helm-Charts/**" --fix --config .markdownlint-cli2.cjs
 
 .PHONY: yamllint
 yamllint:

@@ -33,6 +33,33 @@ DOCKERCMD=$(shell podman version >/dev/null 2>&1 && echo podman)
 endif
 endif
 
+MARKDOWNLINT := $(DOCKERCMD) run --rm -v $$PWD:/workdir davidanson/markdownlint-cli2:$(MARKDOWNLINT_IMAGE_VERSION)
+
+#
+# === YAMLLINT ===
+
+# configuration of the yamllint container image:
+
+# User Inputs (from main Makefile or cmdline):
+# Set only what you need.
+# Priority: SHA > TAG > VERSION (defaulting to :latest)
+# Logic to determine the Suffix:
+ifdef YAMLLINT_IMAGE_SHA
+	YAMLLINT_IMAGE_SUFFIX := @$(YAMLLINT_IMAGE_SHA)
+else ifdef YAMLLINT_IMAGE_TAG
+	YAMLLINT_IMAGE_SUFFIX := :$(YAMLLINT_IMAGETAG)
+else ifdef YAMLLINT_VERSION
+	YAMLLINT_IMAGE_SUFFIX := :$(YAMLLINT_VERSION)
+else
+	YAMLLINT_IMAGE_SUFFIX := :latest
+endif
+
+YAMLLINT_IMAGE_BASE := cytopia/yamllint
+YAMLLINT_IMAGE := $(YAMLLINT_IMAGE_BASE)$(YAMLLINT_IMAGE_SUFFIX)
+
+YAMLLINT := $(DOCKERCMD) run  --rm -t -v $(CURDIR):/workdir:ro -w /workdir --entrypoint yamllint $(YAMLLINT_IMAGE)
+
+
 ifeq ($(origin PLATFORM), undefined)
 ifeq ($(origin GOOS), undefined)
 GOOS := $(shell go env GOOS)
