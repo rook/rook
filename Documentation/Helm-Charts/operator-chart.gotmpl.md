@@ -20,6 +20,7 @@ See the [Helm support matrix](https://helm.sh/docs/topics/version_skew/) for mor
 The Ceph Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster.
 
 1. Install the Helm chart
+1. Install the [Ceph-CSI drivers chart](csi-drivers-chart.md) so CSI can provision and mount volumes
 1. [Create a Rook cluster](../Getting-Started/quickstart.md#create-a-ceph-cluster).
 
 The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended that the rook operator be installed into the `rook-ceph` namespace (you will install your clusters into separate namespaces).
