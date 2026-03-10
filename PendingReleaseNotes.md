@@ -3,7 +3,10 @@
 ## Breaking Changes
 
 - The minimum supported Kubernetes version is v1.31.
-
+- The CSI operator is required for managing CSI driver settings.
+    - The CSI settings are removed from the Rook operator configmap and helm chart
+    - New installs must configure the CSI settings with the CSI CRs instead of Rook operator settings.
+    - Upgrades will continue working with the existing settings that had been applied by Rook previously. Further updates to CSI settings will need to be updated by the Rook admin.
 
 ## Features
 

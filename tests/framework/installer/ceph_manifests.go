@@ -29,7 +29,6 @@ import (
 type CephManifests interface {
 	Settings() *TestCephSettings
 	GetCRDs(k8shelper *utils.K8sHelper) string
-	GetCSINFSRBAC() string
 	GetCSIOperator() string
 	GetOperator() string
 	GetCommon() string
@@ -84,10 +83,6 @@ func (m *CephManifestsMaster) Settings() *TestCephSettings {
 
 func (m *CephManifestsMaster) GetCRDs(k8shelper *utils.K8sHelper) string {
 	return m.settings.readManifest("crds.yaml")
-}
-
-func (m *CephManifestsMaster) GetCSINFSRBAC() string {
-	return m.settings.readManifest("/csi/nfs/rbac.yaml")
 }
 
 func (m *CephManifestsMaster) GetOperator() string {

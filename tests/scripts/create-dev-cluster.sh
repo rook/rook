@@ -122,7 +122,8 @@ create_rook_cluster() {
     if ! kubectl get namespace "$ROOK_OPERATOR_NS" &> /dev/null; then
 	kubectl create namespace "$ROOK_OPERATOR_NS"
     fi
-    $KUBECTL apply -f crds.yaml -f common.yaml -f operator.yaml -f csi-operator.yaml
+    $KUBECTL apply -f crds.yaml -f common.yaml -f csi-operator.yaml
+    $KUBECTL apply -f operator.yaml
     $KUBECTL apply -f "$ROOK_CLUSTER_SPEC_FILE" -f toolbox.yaml
     $KUBECTL apply -f dashboard-external-http.yaml
 }

@@ -15,4 +15,4 @@ dependencies:
     version: 0.6.0
     repository: https://ceph.github.io/ceph-csi-operator
     alias: ceph-csi-operator
-    condition: csi.rookUseCsiOperator
+    condition: csi.installCsiOperator
