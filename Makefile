@@ -186,7 +186,7 @@ install: build.common
 	@$(MAKE) go.install
 
 .PHONY: check
-check: test ## Runs checks (unit tests)
+check: lint.fast test build ## Runs checks (some linters, build, and unit tests)
 
 .PHONY: test
 test: ## Runs unit tests.
