@@ -19,7 +19,7 @@ options=(
   --namespace rook-ceph
   --set crds.enabled=false
   --set csi.csiAddons.enabled=true
-  --set csi.rookUseCsiOperator=false
+  --set csi.installCsiOperator=false
 )
 
 for option in ${ADDITIONAL_HELM_CLI_OPTIONS}; do

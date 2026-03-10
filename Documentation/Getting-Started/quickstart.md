@@ -38,8 +38,8 @@ A simple Rook cluster is created for Kubernetes with the following `kubectl` com
 ```console
 $ git clone --single-branch --branch v1.20-beta.0 https://github.com/rook/rook.git
 cd rook/deploy/examples
-kubectl create -f crds.yaml -f common.yaml -f csi-operator.yaml -f operator.yaml
-kubectl create -f cluster.yaml
+kubectl create -f crds.yaml -f common.yaml -f csi-operator.yaml
+kubectl create -f operator.yaml -f cluster.yaml
 ```
 
 After the cluster is running, applications can consume [block, object, or file](#storage) storage.
@@ -59,7 +59,8 @@ The first step is to deploy the Rook operator.
 
 ```console
 cd deploy/examples
-kubectl create -f crds.yaml -f common.yaml -f csi-operator.yaml -f operator.yaml
+kubectl create -f crds.yaml -f common.yaml -f csi-operator.yaml
+kubectl create -f operator.yaml
 
 # verify the rook-ceph-operator is in the `Running` state before proceeding
 kubectl -n rook-ceph get pod

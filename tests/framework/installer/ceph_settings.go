@@ -92,13 +92,9 @@ func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 	manifest = strings.ReplaceAll(manifest, `# CSI_LOG_LEVEL: "0"`, `CSI_LOG_LEVEL: "5"`)
 	manifest = strings.ReplaceAll(manifest, `ROOK_ENABLE_DISCOVERY_DAEMON: "false"`, fmt.Sprintf(`ROOK_ENABLE_DISCOVERY_DAEMON: "%t"`, s.EnableDiscovery))
 	manifest = strings.ReplaceAll(manifest, `CSI_ENABLE_VOLUME_REPLICATION: "false"`, fmt.Sprintf(`CSI_ENABLE_VOLUME_REPLICATION: "%t"`, s.EnableVolumeReplication))
-	manifest = strings.ReplaceAll(manifest, `ROOK_CSI_ENABLE_NFS: "false"`, fmt.Sprintf(`ROOK_CSI_ENABLE_NFS: "%t"`, s.TestNFSCSI))
 	manifest = strings.ReplaceAll(manifest,
 		`# ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: "maxObjects,maxSize" # default allowed configs`,
 		`ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner"`)
-	if !s.EnableCsiOperator {
-		manifest = strings.ReplaceAll(manifest, `ROOK_USE_CSI_OPERATOR: "true"`, `ROOK_USE_CSI_OPERATOR: "false"`)
-	}
 	if s.ClusterConcurrency > 1 {
 		manifest = strings.ReplaceAll(manifest, `ROOK_RECONCILE_CONCURRENT_CLUSTERS: "1"`, fmt.Sprintf(`ROOK_RECONCILE_CONCURRENT_CLUSTERS: "%d"`, s.ClusterConcurrency))
 	}
@@ -130,6 +126,7 @@ func replaceNamespaces(name, manifest, operatorNamespace, clusterNamespace strin
 	// CSI Drivers
 	manifest = strings.ReplaceAll(manifest, "rook-ceph.cephfs.csi.ceph.com # csi-provisioner-name", operatorNamespace+".cephfs.csi.ceph.com")
 	manifest = strings.ReplaceAll(manifest, "rook-ceph.rbd.csi.ceph.com # csi-provisioner-name", operatorNamespace+".rbd.csi.ceph.com")
+	manifest = strings.ReplaceAll(manifest, "rook-ceph.nfs.csi.ceph.com # csi-provisioner-name", operatorNamespace+".nfs.csi.ceph.com")
 
 	// Bucket storage class
 	manifest = strings.ReplaceAll(manifest, "rook-ceph.ceph.rook.io/bucket # driver:namespace:cluster", clusterNamespace+".ceph.rook.io/bucket")

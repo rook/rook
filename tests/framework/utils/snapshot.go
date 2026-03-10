@@ -62,7 +62,7 @@ func (k8sh *K8sHelper) CheckSnapshotISReadyToUse(name, namespace string, retries
 	return false, fmt.Errorf("giving up waiting for %q snapshot in namespace %q", name, namespace)
 }
 
-// snapshotController creates or deletes the snapshotcontroller and required RBAC
+// snapshotController creates/applies or deletes the snapshotcontroller and required RBAC
 func (k8sh *K8sHelper) snapshotController(action string) error {
 	controllerURL := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, controllerPath)
 	controllerManifest, err := getManifestFromURL(controllerURL)
@@ -106,8 +106,8 @@ func (k8sh *K8sHelper) WaitForSnapshotController(retries int) error {
 }
 
 // CreateSnapshotController creates the snapshotcontroller and required RBAC
-func (k8sh *K8sHelper) CreateSnapshotController() error {
-	return k8sh.snapshotController("create")
+func (k8sh *K8sHelper) CreateSnapshotController(action string) error {
+	return k8sh.snapshotController(action)
 }
 
 // DeleteSnapshotController delete the snapshotcontroller and required RBAC
@@ -115,9 +115,9 @@ func (k8sh *K8sHelper) DeleteSnapshotController() error {
 	return k8sh.snapshotController("delete")
 }
 
-// snapshotCRD can be used for creating or deleting the snapshot CRD's
+// snapshotCRD can be used for creating, applying or deleting the snapshot CRD's
 func (k8sh *K8sHelper) snapshotCRD(action string) error {
-	// setting validate=false to skip CRD validation during create operation to
+	// setting validate=false to skip CRD validation during create/apply to
 	// support lower Kubernetes versions.
 	args := func(crdpath string) []string {
 		a := []string{
@@ -125,7 +125,7 @@ func (k8sh *K8sHelper) snapshotCRD(action string) error {
 			"-f",
 			crdpath,
 		}
-		if action == "create" {
+		if action == "create" || action == "apply" {
 			a = append(a, "--validate=false")
 		}
 		return a
@@ -169,8 +169,8 @@ func (k8sh *K8sHelper) snapshotCRD(action string) error {
 }
 
 // CreateSnapshotCRD creates the snapshot CRD
-func (k8sh *K8sHelper) CreateSnapshotCRD() error {
-	return k8sh.snapshotCRD("create")
+func (k8sh *K8sHelper) CreateSnapshotCRD(action string) error {
+	return k8sh.snapshotCRD(action)
 }
 
 // DeleteSnapshotCRD deletes the snapshot CRD

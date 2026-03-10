@@ -118,11 +118,10 @@ func fileSystemCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s
 
 func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, storageClassName, namespace string, testNFS bool) {
 	logger.Infof("install snapshot CRD")
-	err := k8sh.CreateSnapshotCRD()
+	err := k8sh.CreateSnapshotCRD("apply")
 	require.NoError(s.T(), err)
-
 	logger.Infof("install snapshot controller")
-	err = k8sh.CreateSnapshotController()
+	err = k8sh.CreateSnapshotController("apply")
 	require.NoError(s.T(), err)
 	// cleanup the CRD and controller in defer to make sure the CRD and
 	// controller are removed as block test also install CRD and controller.

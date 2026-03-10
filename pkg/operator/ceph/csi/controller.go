@@ -18,12 +18,11 @@ package csi
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"strconv"
 
 	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -138,9 +137,6 @@ func (r *ReconcileCSI) Reconcile(context context.Context, request reconcile.Requ
 	return reconcileResponse, err
 }
 
-// allow overriding for unit tests
-var reconcileSaveCSIDriverOptions = SaveCSIDriverOptions
-
 func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// reconcileResult is used to communicate the result of the reconciliation back to the caller
 	var reconcileResult reconcile.Result
@@ -155,8 +151,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	}
 
 	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, r.opConfig.OperatorNamespace)
-	// create an empty config map. config map will be filled with data
-	// later when clusters have mons
 	err = CreateCsiConfigMap(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, ownerInfo)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed creating csi config map")
@@ -166,18 +160,11 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to apply operator settings configmap")
 	}
 
-	enableCSIOperator, err = strconv.ParseBool(k8sutil.GetOperatorSetting("ROOK_USE_CSI_OPERATOR", "true"))
-	if err != nil {
-		return reconcileResult, errors.Wrap(err, "unable to parse value for 'ROOK_USE_CSI_OPERATOR'")
-	}
-
-	// do not recocnile if csi driver is disabled
-	disableCSI, err := strconv.ParseBool(k8sutil.GetOperatorSetting("ROOK_CSI_DISABLE_DRIVER", "false"))
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "unable to parse value for 'ROOK_CSI_DISABLE_DRIVER")
-	} else if disableCSI {
-		logger.Info("ceph csi driver is disabled")
-	}
+	// Set driver names based on operator namespace
+	driverPrefix := fmt.Sprintf("%s.", r.opConfig.OperatorNamespace)
+	CephFSDriverName = driverPrefix + cephFSDriverSuffix
+	RBDDriverName = driverPrefix + rbdDriverSuffix
+	NFSDriverName = driverPrefix + nfsDriverSuffix
 
 	// See if there is a CephCluster
 	cephClusters := &cephv1.CephClusterList{}
@@ -185,44 +172,20 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("no ceph cluster found not deploying ceph csi driver")
-			EnableRBD, EnableCephFS, EnableNFS = false, false, false
-			err = r.stopDrivers()
-			if err != nil {
-				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop Drivers")
-			}
-
 			return reconcile.Result{}, nil
 		}
-		// Error reading the object - requeue the request.
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to list ceph clusters")
 	}
 
-	// Do nothing if no ceph cluster is present
 	if len(cephClusters.Items) == 0 {
 		logger.Debug("no ceph cluster found not deploying ceph csi driver")
-		EnableRBD, EnableCephFS, EnableNFS = false, false, false
-		err = r.stopDrivers()
-		if err != nil {
-			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop Drivers")
-		}
-
 		return reconcile.Result{}, nil
 	}
-
-	// if at least one cephcluster is present update the csi lograte sidecar
-	// with the first listed ceph cluster specs with logrotate enabled
-	r.setCSILogrotateParams(cephClusters.Items)
 
 	err = peermap.CreateOrUpdateConfig(r.opManagerContext, r.context, &peermap.PeerIDMappings{})
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create pool ID mapping config map")
 	}
-
-	exists, err := checkCsiCephConfigMapExists(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace)
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get csi ceph.conf configmap")
-	}
-	CustomCSICephConfigExists = exists
 
 	for i, cluster := range cephClusters.Items {
 		if !cluster.DeletionTimestamp.IsZero() {
@@ -239,11 +202,8 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 			r.firstCephCluster = &cephClusters.Items[i].Spec
 		}
 
-		// Load cluster info for later use in updating the ceph-csi configmap
 		clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cluster.Namespace, &cephClusters.Items[i].Spec)
 		if err != nil {
-			// This avoids a requeue with exponential backoff and allows the controller to reconcile
-			// more quickly when the cluster is ready.
 			if errors.Is(err, opcontroller.ClusterInfoNoClusterNoSecret) {
 				logger.Infof("cluster info for cluster %q is not ready yet, will retry in %s, proceeding with ready clusters", cluster.Name, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String())
 				reconcileResult = opcontroller.WaitForRequeueIfCephClusterNotReady
@@ -252,88 +212,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to load cluster info for cluster %q", cluster.Name)
 		}
 		clusterInfo.OwnerInfo = k8sutil.NewOwnerInfo(&cephClusters.Items[i], r.scheme)
-
-		// ensure any remaining holder-related configs are cleared
-		holderEnabled = false
-		err = reconcileSaveCSIDriverOptions(r.context.Clientset, cluster.Namespace, clusterInfo)
-		if err != nil {
-			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to update CSI driver options for cluster %q", cluster.Name)
-		}
-
-		// disable Rook-managed CSI drivers if CSI operator is enabled
-		if EnableCSIOperator() {
-			logger.Info("disabling csi-driver since EnableCSIOperator is true")
-			err := r.stopDrivers()
-			if err != nil {
-				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop csi Drivers")
-			}
-			err = r.deleteRookCSICMIfExists()
-			if err != nil {
-				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to delete rook-ceph-csi-config configmap")
-			}
-			err = r.reconcileOperatorConfig(cluster, clusterInfo)
-			if err != nil {
-				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to reconcile csi-op config CR")
-			}
-			return reconcileResult, nil
-		}
-	}
-
-	if !disableCSI && !EnableCSIOperator() {
-		// delete CSI operator resources if CSI operator is disabled but CSI driver is enabled
-		err := r.deleteCSIOperatorResources()
-		if err != nil {
-			logger.Errorf("failed to delete CSI operator resources: %v", err)
-		}
-
-		err = r.validateAndConfigureDrivers(ownerInfo)
-		if err != nil {
-			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure ceph csi")
-		}
 	}
 
 	return reconcileResult, nil
-}
-
-func (r *ReconcileCSI) reconcileOperatorConfig(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
-	if err := r.setParams(); err != nil {
-		return errors.Wrapf(err, "failed to configure CSI parameters")
-	}
-
-	if err := validateCSIParam(); err != nil {
-		return errors.Wrapf(err, "failed to validate CSI parameters")
-	}
-
-	err := r.createOrUpdateOperatorConfig(cluster)
-	if err != nil {
-		return errors.Wrap(err, "failed to configure csi operator operator config cr")
-	}
-
-	err = r.createOrUpdateDriverResources(cluster, clusterInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed to configure ceph-CSI operator drivers cr")
-	}
-	return nil
-}
-
-func (r *ReconcileCSI) setCSILogrotateParams(cephClustersItems []cephv1.CephCluster) {
-	logger.Debug("set logrotate values in csi param")
-	spec := cephClustersItems[0].Spec
-	for _, cluster := range cephClustersItems {
-		if cluster.Spec.LogCollector.Enabled {
-			spec = cluster.Spec
-			break
-		}
-	}
-	csiRootPath = spec.DataDirHostPath
-	if spec.DataDirHostPath == "" {
-		csiRootPath = k8sutil.DataDir
-	}
-
-	CSIParam.CSILogRotation = spec.LogCollector.Enabled
-	if spec.LogCollector.Enabled {
-		maxSize, period := opcontroller.GetLogRotateConfig(spec)
-		CSIParam.CSILogRotationMaxSize = maxSize.String()
-		CSIParam.CSILogRotationPeriod = period
-	}
 }

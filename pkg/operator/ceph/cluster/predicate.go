@@ -145,31 +145,12 @@ func predicateForOperatorConfigCMWatcher[T *corev1.ConfigMap]() predicate.TypedF
 	return predicate.TypedFuncs[T]{
 		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
 			objNew := (*corev1.ConfigMap)(e.ObjectNew)
-			objOld := (*corev1.ConfigMap)(e.ObjectOld)
-
-			if objNew.Name != opcontroller.OperatorSettingConfigMapName {
-				return false
-			}
-
-			if objOld.Data["ROOK_USE_CSI_OPERATOR"] != objNew.Data["ROOK_USE_CSI_OPERATOR"] {
-				log.NamespacedInfo(objNew.Namespace, logger, "ROOK_USE_CSI_OPERATOR changed from %q to %q", objOld.Data["ROOK_USE_CSI_OPERATOR"], objNew.Data["ROOK_USE_CSI_OPERATOR"])
-				return true
-			}
-
-			return false
+			return objNew.Name == opcontroller.OperatorSettingConfigMapName
 		},
 
 		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
 			objNew := (*corev1.ConfigMap)(e.Object)
-			if objNew.Name != opcontroller.OperatorSettingConfigMapName {
-				return false
-			}
-
-			if objNew.Data["ROOK_USE_CSI_OPERATOR"] == "true" {
-				return true
-			}
-
-			return false
+			return objNew.Name == opcontroller.OperatorSettingConfigMapName
 		},
 
 		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
