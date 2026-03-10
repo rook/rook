@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -135,6 +136,37 @@ func (h *HelmHelper) InstallVersionedChart(namespace, chart, version string, val
 		return fmt.Errorf("failed to install helm chart %s with version %s in namespace: %v, err=%v", chart, version, namespace, err)
 	}
 	return nil
+}
+
+func (h *HelmHelper) InstallOrUpgradeHelmRepoChart(namespace, release, repoURL, repoName, chartName, version string, values map[string]interface{}) error {
+	if _, err := h.Execute("repo", "add", repoName, repoURL, "--force-update"); err != nil {
+		return fmt.Errorf("failed to add helm repo %q: %w", repoName, err)
+	}
+	if _, err := h.Execute("repo", "update"); err != nil {
+		logger.Warningf("helm repo update failed: %v", err)
+	}
+	cmdArgs := []string{
+		"upgrade", "--install", "--create-namespace",
+		release, repoName + "/" + chartName,
+		"--version", version,
+		"--namespace", namespace,
+	}
+	if err := h.installChart(cmdArgs, values); err != nil {
+		return fmt.Errorf("helm upgrade --install %q in namespace %q: %w", release, namespace, err)
+	}
+	return nil
+}
+
+func (h *HelmHelper) UninstallHelmReleaseIfExists(namespace, release string) error {
+	out, err := h.Execute("uninstall", release, "--namespace", namespace)
+	if err == nil {
+		return nil
+	}
+	msg := strings.ToLower(out + err.Error())
+	if strings.Contains(msg, "not found") {
+		return nil
+	}
+	return fmt.Errorf("helm uninstall %q in namespace %q: %w; output=%s", release, namespace, err, out)
 }
 
 func (h *HelmHelper) installChart(cmdArgs []string, values map[string]interface{}) error {

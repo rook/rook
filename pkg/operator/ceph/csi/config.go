@@ -34,6 +34,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var (
+	CephFSDriverName string
+	NFSDriverName    string
+	RBDDriverName    string
+
+	ConfigName = "rook-ceph-csi-config"
+	ConfigKey  = "csi-cluster-config-json"
+)
+
+const (
+	CsiRBDPlugin    = "csi-rbdplugin"
+	CsiCephFSPlugin = "csi-cephfsplugin"
+	CsiNFSPlugin    = "csi-nfsplugin"
+
+	rbdDriverSuffix    = "rbd.csi.ceph.com"
+	cephFSDriverSuffix = "cephfs.csi.ceph.com"
+	nfsDriverSuffix    = "nfs.csi.ceph.com"
+)
+
 func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephBlockPoolRadosNamespaceName, clusterID string) error {
 	logger.Info("creating ceph-csi clientProfile CR for rados namespace")
 

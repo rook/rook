@@ -281,7 +281,6 @@ gen.rbac: gen-rbac
 gen-rbac: $(HELM) $(YQ) helm.dependency.build ## Generate RBAC from Helm charts
 	@# output only stdout to the file; stderr for debugging should keep going to stderr
 	HELM=$(HELM) ./build/rbac/gen-common.sh
-	HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
 
 .PHONY: gen.docs
 gen.docs: docs ## generate docs
