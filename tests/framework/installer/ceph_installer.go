@@ -129,27 +129,22 @@ func (h *CephInstaller) CreateCephOperator() (err error) {
 		return errors.Errorf("Failed to create rook-operator pod: %v ", err)
 	}
 
-	if h.settings.TestNFSCSI {
-		csiNFSRBAC := h.Manifests.GetCSINFSRBAC()
-		if _, err = h.k8shelper.KubectlWithStdin(csiNFSRBAC, createFromStdinArgs...); err != nil {
-			return err
-		}
-	}
-
 	if err := h.CreateVolumeReplicationCRDs(); err != nil {
 		return errors.Wrap(err, "failed to create volume replication CRDs")
 	}
 
+	// Create CSI operator CRs (OperatorConfig, Driver, ImageSet) and wait for the CSI operator pod
+	if err := h.InstallCSIOperator(); err != nil {
+		return err
+	}
+
+	// operator.yaml deploys the Rook operator and the CSI operator CRs
 	_, err = h.k8shelper.KubectlWithStdin(h.Manifests.GetOperator(), createFromStdinArgs...)
 	if err != nil {
 		return errors.Errorf("Failed to create rook-operator pod: %v", err)
 	}
 
 	logger.Infof("Rook operator started")
-
-	if err := h.InstallCSIOperator(); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -760,15 +755,6 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 			} else {
 				logger.Infof("done deleting all the resources in the common manifest")
 			}
-			if h.settings.TestNFSCSI {
-				_, err = h.k8shelper.KubectlWithStdin(h.Manifests.GetCSINFSRBAC(), deleteFromStdinArgs...)
-				if err != nil {
-					logger.Errorf("failed to remove csi nfs rbac manifest. %v", err)
-				} else {
-					logger.Info("done deleting all the resources in the csi nfs rbac manifest")
-				}
-			}
-
 		}
 	}
 

@@ -60,17 +60,6 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 		"revisionHistoryLimit":  "3",
 		"enforceHostNetwork":    "false",
 	}
-	values["csi"] = map[string]interface{}{
-		"csiRBDProvisionerResource":    nil,
-		"csiRBDPluginResource":         nil,
-		"csiCephFSProvisionerResource": nil,
-		"csiCephFSPluginResource":      nil,
-	}
-
-	if !h.settings.EnableCsiOperator {
-		values["rookUseCsiOperator"] = false
-	}
-
 	// create the operator namespace
 	if err := h.k8shelper.CreateNamespace(h.settings.OperatorNamespace); err != nil {
 		return errors.Errorf("failed to create namespace %s. %v", h.settings.Namespace, err)

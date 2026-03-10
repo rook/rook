@@ -120,10 +120,8 @@ spec:
       restartPolicy: Always
       schedulerName: default-scheduler
       securityContext: {}
-      # FIXED: Use rook-csi-rbd-plugin-sa since nvmeof uses RBD backend
-      # This service account already exists and has the necessary permissions
-      serviceAccount: rook-csi-rbd-plugin-sa
-      serviceAccountName: rook-csi-rbd-plugin-sa
+      serviceAccount: ceph-csi-rbd-nodeplugin-sa
+      serviceAccountName: ceph-csi-rbd-nodeplugin-sa
       terminationGracePeriodSeconds: 30
       # tolerations:
       # - effect: NoSchedule

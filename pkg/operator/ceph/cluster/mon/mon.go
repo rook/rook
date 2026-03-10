@@ -55,8 +55,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
-
-	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
 
 const (
@@ -1190,20 +1188,7 @@ func (c *Cluster) saveMonConfig() error {
 		return errors.Wrap(err, "failed to write connection config for new mons")
 	}
 
-	monEndpoints := csi.MonEndpoints(c.ClusterInfo.AllMonitors(), c.spec.RequireMsgr2())
-	csiConfigEntry := &csi.CSIClusterConfigEntry{
-		Namespace: c.ClusterInfo.Namespace,
-		ClusterInfo: cephcsi.ClusterInfo{
-			Monitors: monEndpoints,
-		},
-	}
-
-	clusterId := c.Namespace // cluster id is same as cluster namespace for CephClusters
-	if err := csi.SaveClusterConfig(c.context.Clientset, clusterId, c.Namespace, c.ClusterInfo, csiConfigEntry); err != nil {
-		return errors.Wrap(err, "failed to update csi cluster config")
-	}
-
-	if csi.EnableCSIOperator() && len(c.ClusterInfo.AllMonitors()) > 0 {
+	if len(c.ClusterInfo.AllMonitors()) > 0 {
 		err := csi.CreateUpdateCephConnection(c.context.Client, c.ClusterInfo, c.spec)
 		if err != nil {
 			return errors.Wrap(err, "failed to create/update cephConnection")
