@@ -35,6 +35,8 @@ DOCKERCMD=$(shell podman version >/dev/null 2>&1 && echo podman)
 endif
 endif
 
+MARKDOWNLINT := $(DOCKERCMD) run --rm -v $$PWD:/workdir davidanson/markdownlint-cli2:$(MARKDOWNLINT_IMAGE_VERSION)
+
 ifeq ($(origin PLATFORM), undefined)
 ifeq ($(origin GOOS), undefined)
 GOOS := $(shell go env GOOS)
