@@ -33,6 +33,14 @@ all: build
 # Controller-gen version
 # f284e2e8... is master ahead of v0.5.0 which has ability to generate embedded objectmeta in CRDs
 CONTROLLER_GEN_VERSION=v0.19.0
+CT_VERSION := v3.13.0
+KUSTOMIZE_VERSION := v5.3.0
+
+# include here and not earlier so that the version numbers are available
+# where needed
+include build/makelib/common.mk
+include build/makelib/helm.mk
+
 
 # Set GOBIN
 ifeq (,$(shell go env GOBIN))
@@ -194,12 +202,12 @@ yamllint:
 	yamllint -c .yamllint deploy/examples/ --no-warnings
 
 .PHONY: helm.lint
-helm.lint: ## Check the helm charts
-	ct lint --charts=./deploy/charts/rook-ceph,./deploy/charts/rook-ceph-cluster --validate-yaml=false --validate-maintainers=false
-	helm -n rook-ceph template deploy/charts/rook-ceph > templated.yaml
-	helm -n rook-ceph template deploy/charts/rook-ceph-cluster >> templated.yaml
+helm.lint: | $(HELM) $(KUSTOMIZE) ## Check the helm charts
+	$(CT) lint --charts=./deploy/charts/rook-ceph,./deploy/charts/rook-ceph-cluster --validate-yaml=false --validate-maintainers=false --validate-chart-schema=false
+	$(HELM) -n rook-ceph template deploy/charts/rook-ceph > templated.yaml
+	$(HELM)  -n rook-ceph template deploy/charts/rook-ceph-cluster >> templated.yaml
 	echo 'resources: [templated.yaml]' > kustomization.yaml
-	kustomize build >/dev/null
+	$(KUSTOMIZE) build >/dev/null
 	rm templated.yaml kustomization.yaml
 
 .PHONY: lint
