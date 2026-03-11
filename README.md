@@ -14,7 +14,7 @@
 
 Rook is an open source **cloud-native storage orchestrator** for Kubernetes, providing the platform, framework, and support for Ceph storage to natively integrate with Kubernetes.
 
-[Ceph](https://ceph.com/) is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters.
+[Ceph](https://ceph.com/) is a distributed storage system that provides file, block and object storage and is deployed in large-scale production clusters.
 
 Rook automates deployment and management of Ceph to provide self-managing, self-scaling, and self-healing storage services.
 The Rook operator does this by building on Kubernetes resources to deploy, configure, provision, scale, upgrade, and monitor Ceph.
@@ -37,10 +37,8 @@ For filing bugs, suggesting improvements, or requesting new features, please ope
 
 ### Reporting Security Vulnerabilities
 
-If you find a vulnerability or a potential vulnerability in Rook please let us know immediately at
-[cncf-rook-security@lists.cncf.io](mailto:cncf-rook-security@lists.cncf.io). We'll send a confirmation email to acknowledge your
-report, and we'll send an additional email when we've identified the issues positively or
-negatively.
+If you find a vulnerability or a potential vulnerability in Rook, please let us know immediately at
+[cncf-rook-security@lists.cncf.io](mailto:cncf-rook-security@lists.cncf.io). We'll send a confirmation email to acknowledge your report and a follow-up email once the issue has been confirmed or dismissed.
 
 For further details, please see the complete [security release process](SECURITY.md).
 
