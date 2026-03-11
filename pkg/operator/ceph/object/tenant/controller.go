@@ -148,14 +148,27 @@ func (r *ReconcileTenantIdentity) Reconcile(ctx context.Context, request reconci
 		return reconcile.Result{}, nil
 	}
 
-	// Load cluster info - we need to find the CephCluster in the rook-ceph namespace
-	// For now, assume it's in the rook-ceph namespace
-	cephClusterNamespace := "rook-ceph"
-	cephCluster := &cephv1.CephCluster{}
-	err = r.client.Get(ctx, types.NamespacedName{Name: "rook-ceph", Namespace: cephClusterNamespace}, cephCluster)
+	// Load cluster info - find the CephCluster dynamically
+	// List all CephClusters in common namespaces
+	cephClusterNamespace := "openshift-storage"
+	cephClusterList := &cephv1.CephClusterList{}
+	err = r.client.List(ctx, cephClusterList, client.InNamespace(cephClusterNamespace))
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to get CephCluster in namespace %q", cephClusterNamespace)
+		// Try rook-ceph namespace as fallback
+		cephClusterNamespace = "rook-ceph"
+		err = r.client.List(ctx, cephClusterList, client.InNamespace(cephClusterNamespace))
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to list CephClusters in namespace %q", cephClusterNamespace)
+		}
 	}
+
+	if len(cephClusterList.Items) == 0 {
+		return reconcile.Result{}, errors.Errorf("no CephCluster found in namespace %q", cephClusterNamespace)
+	}
+
+	// Use the first CephCluster found
+	cephCluster := &cephClusterList.Items[0]
+	logger.Infof("using CephCluster %q in namespace %q for tenant identity", cephCluster.Name, cephCluster.Namespace)
 
 	// Populate clusterInfo
 	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephClusterNamespace, &cephCluster.Spec)
@@ -215,8 +228,20 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	logger.Infof("creating RGW User Account %q", accountID)
 
 	// Create object context for radosgw-admin commands
-	// We'll use a generic object store name - in a real implementation, this should be configurable
-	objContext := object.NewContext(r.context, r.clusterInfo, "")
+	// Find the CephObjectStore in the cluster namespace
+	objectStoreList := &cephv1.CephObjectStoreList{}
+	err := r.client.List(ctx, objectStoreList, client.InNamespace(r.clusterInfo.Namespace))
+	if err != nil {
+		return errors.Wrapf(err, "failed to list CephObjectStores in namespace %q", r.clusterInfo.Namespace)
+	}
+
+	if len(objectStoreList.Items) == 0 {
+		return errors.Errorf("no CephObjectStore found in namespace %q", r.clusterInfo.Namespace)
+	}
+
+	objectStoreName := objectStoreList.Items[0].Name
+	logger.Infof("using CephObjectStore %q for account %q", objectStoreName, accountID)
+	objContext := object.NewContext(r.context, r.clusterInfo, objectStoreName)
 
 	// Step 1: Create the RGW User Account
 	account, err := CreateAccount(objContext, accountID)
