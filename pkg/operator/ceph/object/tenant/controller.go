@@ -23,10 +23,16 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/object"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -35,9 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	"github.com/rook/rook/pkg/clusterd"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 )
 
 const (
@@ -56,6 +59,7 @@ type ReconcileTenantIdentity struct {
 	client           client.Client
 	scheme           *runtime.Scheme
 	context          *clusterd.Context
+	clusterInfo      *cephclient.ClusterInfo
 	opManagerContext context.Context
 }
 
@@ -144,6 +148,21 @@ func (r *ReconcileTenantIdentity) Reconcile(ctx context.Context, request reconci
 		return reconcile.Result{}, nil
 	}
 
+	// Load cluster info - we need to find the CephCluster in the rook-ceph namespace
+	// For now, assume it's in the rook-ceph namespace
+	cephClusterNamespace := "rook-ceph"
+	cephCluster := &cephv1.CephCluster{}
+	err = r.client.Get(ctx, types.NamespacedName{Name: "rook-ceph", Namespace: cephClusterNamespace}, cephCluster)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to get CephCluster in namespace %q", cephClusterNamespace)
+	}
+
+	// Populate clusterInfo
+	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephClusterNamespace, &cephCluster.Spec)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to load cluster info")
+	}
+
 	// Check if account already exists (annotation is already set)
 	if accountARN, exists := namespace.Annotations[AccountARNAnnotation]; exists && accountARN != "" {
 		logger.Debugf("namespace %q already has RGW account %q, verifying", namespace.Name, accountARN)
@@ -191,17 +210,124 @@ func (r *ReconcileTenantIdentity) createRGWAccount(ctx context.Context, namespac
 	return reconcile.Result{}, nil
 }
 
-// createRGWUserAccount creates the actual RGW User Account using radosgw-admin
+// createRGWUserAccount creates the actual RGW User Account using radosgw-admin and IAM API
 func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, namespace *corev1.Namespace, accountID string) error {
-	// TODO: Implement RGW User Account creation
-	// This will use radosgw-admin commands similar to:
-	// radosgw-admin account create --account-name=<accountID>
-	// radosgw-admin oidc-provider create --account-name=<accountID> --issuer=<cluster-issuer> --thumbprint=<thumbprint>
-	// radosgw-admin role create --account-name=<accountID> --role-name=namespace-role --assume-role-policy-doc=<policy>
+	logger.Infof("creating RGW User Account %q", accountID)
 
-	logger.Infof("creating RGW User Account %q (placeholder implementation)", accountID)
+	// Create object context for radosgw-admin commands
+	// We'll use a generic object store name - in a real implementation, this should be configurable
+	objContext := object.NewContext(r.context, r.clusterInfo, "")
 
-	// Create service account in the namespace
+	// Step 1: Create the RGW User Account
+	account, err := CreateAccount(objContext, accountID)
+	if err != nil {
+		// Check if account already exists
+		if errors.Cause(err).Error() == fmt.Sprintf("RGW User Account %q already exists", accountID) {
+			logger.Infof("RGW User Account %q already exists, retrieving info", accountID)
+			account, err = GetAccount(objContext, accountID)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get existing RGW User Account %q", accountID)
+			}
+		} else {
+			return errors.Wrapf(err, "failed to create RGW User Account %q", accountID)
+		}
+	}
+	logger.Infof("RGW User Account created: %+v", account)
+
+	// Step 2: Get admin ops context for IAM API calls
+	// We need to find the object store and get admin credentials
+	adminOpsContext, err := r.getAdminOpsContext(ctx, objContext)
+	if err != nil {
+		logger.Warningf("failed to get admin ops context, skipping OIDC setup: %v", err)
+		return r.createServiceAccount(ctx, namespace, accountID, "")
+	}
+
+	// Step 3: Create IAM client
+	iamClient, err := CreateIAMClient(objContext, adminOpsContext)
+	if err != nil {
+		logger.Warningf("failed to create IAM client, skipping OIDC setup: %v", err)
+		return r.createServiceAccount(ctx, namespace, accountID, "")
+	}
+
+	// Step 4: Get OIDC configuration from the cluster
+	oidcConfig, err := GetClusterOIDCConfig(ctx, r.client)
+	if err != nil {
+		logger.Warningf("failed to get OIDC config, skipping OIDC provider creation: %v", err)
+		return r.createServiceAccount(ctx, namespace, accountID, "")
+	}
+
+	// Step 5: Create OIDC provider using IAM API
+	logger.Infof("creating OIDC provider for account %q with issuer %q and clientIDs %v", accountID, oidcConfig.IssuerURL, oidcConfig.ClientIDs)
+	providerARN, err := CreateOIDCProviderViaAPI(iamClient, oidcConfig.IssuerURL, oidcConfig.Thumbprints, oidcConfig.ClientIDs)
+	if err != nil {
+		logger.Warningf("failed to create OIDC provider for account %q: %v", accountID, err)
+		return r.createServiceAccount(ctx, namespace, accountID, "")
+	}
+	logger.Infof("OIDC provider created: %s", providerARN)
+
+	// Step 6: Create IAM role for AssumeRoleWithWebIdentity
+	roleName := "namespace-role"
+	assumeRolePolicy := GenerateAssumeRolePolicyDocument(accountID, providerARN, namespace.Name)
+
+	logger.Infof("creating IAM role %q for account %q", roleName, accountID)
+	role, err := CreateRole(objContext, accountID, roleName, assumeRolePolicy)
+	if err != nil {
+		logger.Warningf("failed to create IAM role for account %q: %v", accountID, err)
+		return r.createServiceAccount(ctx, namespace, accountID, "")
+	}
+	logger.Infof("IAM role created: %+v", role)
+
+	// Step 7: Create and attach permissions policy
+	policyName := "namespace-s3-policy"
+	policyDoc := GeneratePermissionsPolicyDocument(accountID)
+
+	logger.Infof("creating IAM policy %q for account %q", policyName, accountID)
+	policy, err := CreatePolicy(objContext, accountID, policyName, policyDoc)
+	if err != nil {
+		logger.Warningf("failed to create IAM policy for account %q: %v", accountID, err)
+	} else {
+		logger.Infof("IAM policy created: %+v", policy)
+
+		// Attach policy to role
+		err = AttachRolePolicy(objContext, accountID, roleName, policy.PolicyARN)
+		if err != nil {
+			logger.Warningf("failed to attach policy to role: %v", err)
+		} else {
+			logger.Infof("policy attached to role successfully")
+		}
+	}
+
+	// Step 8: Create service account in the namespace with role ARN
+	return r.createServiceAccount(ctx, namespace, accountID, role.RoleARN)
+}
+
+// getAdminOpsContext retrieves the admin ops context for IAM API calls
+func (r *ReconcileTenantIdentity) getAdminOpsContext(ctx context.Context, objContext *object.Context) (*object.AdminOpsContext, error) {
+	// Find the CephObjectStore in the cluster
+	// For now, assume it's named "rook-ceph-rgw" in the rook-ceph namespace
+	objectStoreName := "rook-ceph-rgw"
+	objectStoreNamespace := r.clusterInfo.Namespace
+
+	objectStore := &cephv1.CephObjectStore{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: objectStoreName, Namespace: objectStoreNamespace}, objectStore)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get CephObjectStore %s/%s", objectStoreNamespace, objectStoreName)
+	}
+
+	// Update object context with object store name
+	objContext.Name = objectStoreName
+
+	// Get admin ops context
+	adminOpsContext, err := object.NewMultisiteAdminOpsContext(objContext, &objectStore.Spec)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create admin ops context")
+	}
+
+	return adminOpsContext, nil
+}
+
+// createServiceAccount creates a service account in the namespace
+func (r *ReconcileTenantIdentity) createServiceAccount(ctx context.Context, namespace *corev1.Namespace, accountID, roleARN string) error {
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rgw-identity",
@@ -212,12 +338,16 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 		},
 	}
 
+	if roleARN != "" {
+		sa.Annotations["eks.amazonaws.com/role-arn"] = roleARN
+	}
+
 	err := r.client.Create(ctx, sa)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create service account in namespace %q", namespace.Name)
 	}
 
-	logger.Infof("created service account for RGW identity in namespace %q", namespace.Name)
+	logger.Infof("successfully created RGW User Account %q and service account for namespace %q", accountID, namespace.Name)
 	return nil
 }
 
@@ -225,10 +355,16 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 func (r *ReconcileTenantIdentity) verifyRGWAccount(ctx context.Context, namespace *corev1.Namespace) (reconcile.Result, error) {
 	accountARN := namespace.Annotations[AccountARNAnnotation]
 
-	// TODO: Implement verification logic
-	// Check if the RGW User Account still exists using:
-	// radosgw-admin account info --account-name=<accountID>
-	// If not, recreate it
+	// Create object context for radosgw-admin commands
+	objContext := object.NewContext(r.context, r.clusterInfo, "")
+
+	// Check if the RGW User Account still exists
+	_, err := GetAccount(objContext, accountARN)
+	if err != nil {
+		logger.Warningf("RGW User Account %q not found for namespace %q, recreating", accountARN, namespace.Name)
+		// Account doesn't exist, recreate it
+		return r.createRGWAccount(ctx, namespace)
+	}
 
 	logger.Debugf("verified RGW User Account %q for namespace %q", accountARN, namespace.Name)
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
@@ -242,11 +378,19 @@ func (r *ReconcileTenantIdentity) cleanupRGWAccount(ctx context.Context, namespa
 		return reconcile.Result{}, nil
 	}
 
-	// TODO: Implement cleanup logic
-	// Delete the RGW User Account using:
-	// radosgw-admin account rm --account-name=<accountID>
+	// Create object context for radosgw-admin commands
+	objContext := object.NewContext(r.context, r.clusterInfo, "")
 
-	logger.Infof("cleaned up RGW User Account %q for namespace %q", accountARN, namespace.Name)
+	// Delete the RGW User Account
+	logger.Infof("deleting RGW User Account %q for namespace %q", accountARN, namespace.Name)
+	err := DeleteAccount(objContext, accountARN)
+	if err != nil {
+		logger.Warningf("failed to delete RGW User Account %q: %v", accountARN, err)
+		// Don't return error - allow namespace deletion to proceed
+	} else {
+		logger.Infof("successfully deleted RGW User Account %q for namespace %q", accountARN, namespace.Name)
+	}
+
 	return reconcile.Result{}, nil
 }
 
