@@ -24,6 +24,8 @@ else
 $(error "please install 'shasum' or 'sha256sum'")
 endif
 
+CT := go run github.com/helm/chart-testing/v3/ct@$(CT_VERSION)
+
 ifeq ($(origin DOCKERCMD),undefined)
 DOCKERCMD?=$(shell docker version >/dev/null 2>&1 && echo docker)
 ifeq ($(DOCKERCMD),)
@@ -87,6 +89,20 @@ TOOLS_HOST_DIR := $(TOOLS_DIR)/$(HOST_PLATFORM)
 ifeq ($(origin HOSTNAME), undefined)
 HOSTNAME := $(shell hostname)
 endif
+
+$(TOOLS_HOST_DIR):
+	@mkdir -p $@
+
+KUSTOMIZE := $(TOOLS_HOST_DIR)/kustomize-$(KUSTOMIZE_VERSION)
+
+$(KUSTOMIZE): | $(TOOLS_HOST_DIR)
+	@echo === installing kustomize
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@# kustomize releases use a specific naming convention: kustomize_vX.Y.Z_os_arch.tar.gz
+	@curl -sSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F$(KUSTOMIZE_VERSION)/kustomize_$(KUSTOMIZE_VERSION)_$(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
+	@mv -f $(TOOLS_HOST_DIR)/tmp/kustomize $(KUSTOMIZE)
+	@rm -rf $(TOOLS_HOST_DIR)/tmp
+	@chmod +x $(KUSTOMIZE)
 
 # a registry that is scoped to the current build tree on this host
 ifeq ($(origin BUILD_REGISTRY), undefined)
