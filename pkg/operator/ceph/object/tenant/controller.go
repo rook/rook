@@ -29,8 +29,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -75,21 +77,40 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to create a new %q", controllerName)
 	}
 	logger.Info("successfully started")
 
-	// Watch for changes to Kubernetes Namespaces
+	// Watch for changes to Namespaces - only watch annotation changes
+	annotationChangePredicate := predicate.TypedFuncs[*corev1.Namespace]{
+		UpdateFunc: func(e event.TypedUpdateEvent[*corev1.Namespace]) bool {
+			oldNS := e.ObjectOld
+			newNS := e.ObjectNew
+
+			// Check if identity binding annotation changed
+			oldBinding := oldNS.Annotations[IdentityBindingAnnotation]
+			newBinding := newNS.Annotations[IdentityBindingAnnotation]
+
+			if oldBinding != newBinding {
+				logger.Infof("namespace %q identity binding annotation changed from %q to %q", newNS.GetName(), oldBinding, newBinding)
+				return true
+			}
+
+			return false
+		},
+	}
+
+	logger.Info("watching for namespace annotation changes")
 	err = c.Watch(
 		source.Kind(
 			mgr.GetCache(),
 			&corev1.Namespace{},
 			&handler.TypedEnqueueRequestForObject[*corev1.Namespace]{},
-			opcontroller.WatchControllerPredicate[*corev1.Namespace](mgr.GetScheme()),
+			annotationChangePredicate,
 		),
 	)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to watch for namespace changes")
 	}
 
 	logger.Info("tenant identity controller started watching namespaces")
