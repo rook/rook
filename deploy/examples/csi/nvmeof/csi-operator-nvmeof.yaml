@@ -1,0 +1,283 @@
+# NVMe-oF CSI driver resources for the ceph-csi-operator.
+#
+# When ROOK_USE_CSI_OPERATOR is "true", apply this manifest to deploy
+# the NVMe-oF provisioner and nodeplugin via the CSI operator.
+#
+# Prerequisites:
+#   1. The Driver CRD must allow "nvmeof" in the name validation.
+#      If using csi-operator.yaml from before ceph-csi-operator PR #375,
+#      patch the CRD first (see patch-crd-nvmeof.sh or do it manually).
+#   2. The ceph-csi-operator image must be quay.io/cephcsi/ceph-csi-operator:latest
+#      (or any version that includes NVMe-oF support).
+#
+# Usage:
+#   kubectl apply -f csi-operator-nvmeof.yaml
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ceph-csi-nvmeof-ctrlplugin-sa
+  namespace: rook-ceph # namespace:operator
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ceph-csi-nvmeof-nodeplugin-sa
+  namespace: rook-ceph # namespace:operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ceph-csi-nvmeof-ctrlplugin-cr
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["patch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csinodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
+  - apiGroups: ["groupsnapshot.storage.k8s.io"]
+    resources: ["volumegroupsnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["groupsnapshot.storage.k8s.io"]
+    resources: ["volumegroupsnapshotcontents"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["groupsnapshot.storage.k8s.io"]
+    resources: ["volumegroupsnapshotcontents/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: ["groupsnapshot.storage.openshift.io"]
+    resources: ["volumegroupsnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["groupsnapshot.storage.openshift.io"]
+    resources: ["volumegroupsnapshotcontents"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["groupsnapshot.storage.openshift.io"]
+    resources: ["volumegroupsnapshotcontents/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumegroupreplicationcontents"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumegroupreplicationclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["tokenreviews"]
+    verbs: ["create"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["subjectaccessreviews"]
+    verbs: ["create"]
+  - apiGroups: ["cbt.storage.k8s.io"]
+    resources: ["snapshotmetadataservices"]
+    verbs: ["get", "list"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattributesclasses"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ceph-csi-nvmeof-nodeplugin-cr
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get"]
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["tokenreviews"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ceph-csi-nvmeof-ctrlplugin-crb
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-nvmeof-ctrlplugin-sa
+    namespace: rook-ceph # namespace:operator
+roleRef:
+  kind: ClusterRole
+  name: ceph-csi-nvmeof-ctrlplugin-cr
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ceph-csi-nvmeof-nodeplugin-crb
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-nvmeof-nodeplugin-sa
+    namespace: rook-ceph # namespace:operator
+roleRef:
+  kind: ClusterRole
+  name: ceph-csi-nvmeof-nodeplugin-cr
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ceph-csi-nvmeof-ctrlplugin-r
+  namespace: rook-ceph # namespace:operator
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+  - apiGroups: ["csiaddons.openshift.io"]
+    resources: ["csiaddonsnodes"]
+    verbs: ["get", "watch", "list", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/finalizers", "daemonsets/finalizers"]
+    verbs: ["update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ceph-csi-nvmeof-nodeplugin-r
+  namespace: rook-ceph # namespace:operator
+rules:
+  - apiGroups: ["csiaddons.openshift.io"]
+    resources: ["csiaddonsnodes"]
+    verbs: ["get", "watch", "list", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/finalizers", "daemonsets/finalizers"]
+    verbs: ["update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ceph-csi-nvmeof-ctrlplugin-rb
+  namespace: rook-ceph # namespace:operator
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-nvmeof-ctrlplugin-sa
+    namespace: rook-ceph # namespace:operator
+roleRef:
+  kind: Role
+  name: ceph-csi-nvmeof-ctrlplugin-r
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ceph-csi-nvmeof-nodeplugin-rb
+  namespace: rook-ceph # namespace:operator
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-nvmeof-nodeplugin-sa
+    namespace: rook-ceph # namespace:operator
+roleRef:
+  kind: Role
+  name: ceph-csi-nvmeof-nodeplugin-r
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: csi.ceph.io/v1
+kind: Driver
+metadata:
+  name: rook-ceph.nvmeof.csi.ceph.com
+  namespace: rook-ceph # namespace:operator
+spec:
+  clusterName: my-cluster
+  controllerPlugin:
+    affinity:
+      nodeAffinity: {}
+    imagePullPolicy: ""
+    priorityClassName: system-cluster-critical
+    replicas: 1
+    resources: {}
+  deployCsiAddons: false
+  enableMetadata: true
+  fsGroupPolicy: File
+  generateOMapInfo: false
+  imageSet:
+    name: rook-csi-operator-image-set-configmap
+  log:
+    verbosity: 5
+  nodePlugin:
+    affinity:
+      nodeAffinity: {}
+    enableSeLinuxHostMount: false
+    imagePullPolicy: ""
+    kubeletDirPath: /var/lib/kubelet
+    priorityClassName: system-node-critical
+    resources: {}
+    updateStrategy:
+      type: RollingUpdate
