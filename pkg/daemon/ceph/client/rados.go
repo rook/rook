@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -172,6 +173,22 @@ func findLockerWithCookie(lockers []radosLockerInfo, cookie string) *radosLocker
 		}
 	}
 	return nil
+}
+
+func RadosNamespaceHasObjects(context *clusterd.Context, clusterInfo *ClusterInfo, pool, namespace string) (bool, error) {
+	radosArgs := []string{
+		"--pool", pool,
+		"--namespace", namespace,
+		"ls",
+	}
+	command, args := FinalizeCephCommandArgs(RadosTool, clusterInfo, radosArgs, context.ConfigDir)
+	// Pipe through "head -c 1" so only 1 byte is buffered regardless of object count.
+	shellCmd := command + " " + strings.Join(args, " ") + " 2>/dev/null | head -c 1"
+	output, err := context.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, "sh", "-c", shellCmd)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to check for objects in rados://%s/%s", pool, namespace)
+	}
+	return len(output) > 0, nil
 }
 
 // RadosRemoveObject idempotently removes a rados object from the given pool and namespace.

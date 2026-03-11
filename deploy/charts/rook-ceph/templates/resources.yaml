@@ -14636,9 +14636,12 @@ spec:
                             description: |-
                               The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
                               If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.
+                              WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
                             type: string
                           dataPoolName:
-                            description: The data pool used to store ObjectStore objects data.
+                            description: |-
+                              The data pool used to store ObjectStore objects data.
+                              WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
                             minLength: 1
                             type: string
                           default:
@@ -14647,7 +14650,9 @@ spec:
                               Default is false.
                             type: boolean
                           metadataPoolName:
-                            description: The metadata pool used to store ObjectStore bucket index.
+                            description: |-
+                              The metadata pool used to store ObjectStore bucket index.
+                              WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
                             minLength: 1
                             type: string
                           name:
@@ -14663,7 +14668,9 @@ spec:
                             items:
                               properties:
                                 dataPoolName:
-                                  description: DataPoolName is the data pool used to store ObjectStore objects data.
+                                  description: |-
+                                    DataPoolName is the data pool used to store ObjectStore objects data.
+                                    WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
                                   minLength: 1
                                   type: string
                                 name:
@@ -14680,6 +14687,7 @@ spec:
                                 - dataPoolName
                                 - name
                               type: object
+                            maxItems: 10
                             type: array
                         required:
                           - dataPoolName
@@ -15716,9 +15724,12 @@ spec:
                             description: |-
                               The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
                               If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.
+                              WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
                             type: string
                           dataPoolName:
-                            description: The data pool used to store ObjectStore objects data.
+                            description: |-
+                              The data pool used to store ObjectStore objects data.
+                              WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
                             minLength: 1
                             type: string
                           default:
@@ -15727,7 +15738,9 @@ spec:
                               Default is false.
                             type: boolean
                           metadataPoolName:
-                            description: The metadata pool used to store ObjectStore bucket index.
+                            description: |-
+                              The metadata pool used to store ObjectStore bucket index.
+                              WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
                             minLength: 1
                             type: string
                           name:
@@ -15743,7 +15756,9 @@ spec:
                             items:
                               properties:
                                 dataPoolName:
-                                  description: DataPoolName is the data pool used to store ObjectStore objects data.
+                                  description: |-
+                                    DataPoolName is the data pool used to store ObjectStore objects data.
+                                    WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
                                   minLength: 1
                                   type: string
                                 name:
@@ -15760,6 +15775,7 @@ spec:
                                 - dataPoolName
                                 - name
                               type: object
+                            maxItems: 10
                             type: array
                         required:
                           - dataPoolName

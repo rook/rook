@@ -1815,23 +1815,27 @@ type PoolPlacementSpec struct {
 	Default bool `json:"default"`
 
 	// The metadata pool used to store ObjectStore bucket index.
+	// WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	MetadataPoolName string `json:"metadataPoolName"`
 
 	// The data pool used to store ObjectStore objects data.
+	// WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	DataPoolName string `json:"dataPoolName"`
 
 	// The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
 	// If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.
+	// WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
 	// +optional
 	DataNonECPoolName string `json:"dataNonECPoolName,omitempty"`
 
 	// StorageClasses can be selected by user to override dataPoolName during object creation.
 	// Each placement has default STANDARD StorageClass pointing to dataPoolName.
 	// This list allows defining additional StorageClasses on top of default STANDARD storage class.
+	// +kubebuilder:validation:MaxItems=10
 	// +optional
 	StorageClasses []PlacementStorageClassSpec `json:"storageClasses,omitempty"`
 }
@@ -1848,6 +1852,7 @@ type PlacementStorageClassSpec struct {
 	Name string `json:"name"`
 
 	// DataPoolName is the data pool used to store ObjectStore objects data.
+	// WARNING: Do not change this field after creation. Pool names are used in RADOS namespaces and renaming leads to data loss.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	DataPoolName string `json:"dataPoolName"`
