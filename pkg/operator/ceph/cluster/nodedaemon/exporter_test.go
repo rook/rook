@@ -36,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -483,4 +484,102 @@ func TestApplyCephExporterLabels(t *testing.T) {
 	sm.Spec.Endpoints[0].RelabelConfigs = nil
 	applyCephExporterLabels(cephCluster, sm)
 	assert.Nil(t, sm.Spec.Endpoints[0].RelabelConfigs)
+}
+
+func TestDeleteOrphanedExporterDeployments(t *testing.T) {
+	const namespace = "rook-ceph"
+	ctx := context.TODO()
+
+	s := scheme.Scheme
+	err := appsv1.AddToScheme(s)
+	assert.NoError(t, err)
+	err = corev1.AddToScheme(s)
+	assert.NoError(t, err)
+
+	// helper to build a ceph-exporter Deployment with an optional node_name label
+	makeExporterDeployment := func(name, nodeName string) *appsv1.Deployment {
+		labels := map[string]string{
+			k8sutil.AppAttr: cephExporterAppName,
+		}
+		if nodeName != "" {
+			labels[NodeNameLabel] = nodeName
+		}
+		return &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+				Labels:    labels,
+			},
+		}
+	}
+
+	makeNode := func(name string) *corev1.Node {
+		return &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+		}
+	}
+
+	t.Run("no deployments - no error", func(t *testing.T) {
+		r := &ReconcileNode{
+			client:           fake.NewClientBuilder().WithScheme(s).Build(),
+			opManagerContext: ctx,
+		}
+		assert.NoError(t, r.deleteOrphanedExporterDeployments(namespace))
+	})
+
+	t.Run("deployment whose node still exists is not deleted", func(t *testing.T) {
+		deploy := makeExporterDeployment("exporter-existing", "node1")
+		node := makeNode("node1")
+		r := &ReconcileNode{
+			client:           fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(deploy, node).Build(),
+			opManagerContext: ctx,
+		}
+		assert.NoError(t, r.deleteOrphanedExporterDeployments(namespace))
+
+		remaining := &appsv1.DeploymentList{}
+		assert.NoError(t, r.client.List(ctx, remaining, client.InNamespace(namespace)))
+		assert.Len(t, remaining.Items, 1)
+	})
+
+	t.Run("deployment whose node no longer exists is deleted", func(t *testing.T) {
+		deploy := makeExporterDeployment("exporter-orphaned", "gone-node")
+		r := &ReconcileNode{
+			client:           fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(deploy).Build(),
+			opManagerContext: ctx,
+		}
+		assert.NoError(t, r.deleteOrphanedExporterDeployments(namespace))
+
+		remaining := &appsv1.DeploymentList{}
+		assert.NoError(t, r.client.List(ctx, remaining, client.InNamespace(namespace)))
+		assert.Empty(t, remaining.Items)
+	})
+
+	t.Run("deployment without node_name label is skipped", func(t *testing.T) {
+		deploy := makeExporterDeployment("exporter-no-label", "")
+		r := &ReconcileNode{
+			client:           fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(deploy).Build(),
+			opManagerContext: ctx,
+		}
+		assert.NoError(t, r.deleteOrphanedExporterDeployments(namespace))
+
+		remaining := &appsv1.DeploymentList{}
+		assert.NoError(t, r.client.List(ctx, remaining, client.InNamespace(namespace)))
+		assert.Len(t, remaining.Items, 1)
+	})
+
+	t.Run("mixed: one orphaned one healthy deployment", func(t *testing.T) {
+		deployOrphaned := makeExporterDeployment("exporter-orphaned", "gone-node")
+		deployHealthy := makeExporterDeployment("exporter-healthy", "live-node")
+		node := makeNode("live-node")
+		r := &ReconcileNode{
+			client:           fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(deployOrphaned, deployHealthy, node).Build(),
+			opManagerContext: ctx,
+		}
+		assert.NoError(t, r.deleteOrphanedExporterDeployments(namespace))
+
+		remaining := &appsv1.DeploymentList{}
+		assert.NoError(t, r.client.List(ctx, remaining, client.InNamespace(namespace)))
+		assert.Len(t, remaining.Items, 1)
+		assert.Equal(t, "exporter-healthy", remaining.Items[0].Name)
+	})
 }
