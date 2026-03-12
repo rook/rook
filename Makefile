@@ -37,6 +37,24 @@ CT_VERSION := v3.13.0
 KUSTOMIZE_VERSION := v5.3.0
 MARKDOWNLINT_IMAGE_VERSION :=v0.21.0
 
+# Configuration for the yamllint contaioner image:
+#
+# container image tag:
+#
+#The image tag for the yamllint container image is formed in common.mk
+# based on the Information provided here.which can be overridden from
+# the commandline.
+#
+#
+# Note that Some "versions"like 'latest' work as image tag
+# whilemany specific versions like 1.26 or 1.32.0 do not.
+# We thereforeuse the SHA for the image tag.
+# see https://hub.docker.com/r/cytopia/yamllint/tags
+#one way of extracting the SHA of a working tag like latest is this:
+# podman inspect --format='{{index .RepoDigests 0}}' docker.io/cytopia/yamllint:latest
+#
+YAMLLINT_IMAGE_SHA := sha256:3e9eb827ab2b12a5ea5f49d4257bb3aca94bba9f1ba427c8bc7f2456385a5204
+
 # include here and not earlier so that the version numbers are available
 # where needed
 include build/makelib/common.mk
@@ -200,7 +218,7 @@ markdownlint.fix: ## Check and fix formatting of documentation sources
 
 .PHONY: yamllint
 yamllint:
-	yamllint -c .yamllint deploy/examples/ --no-warnings
+	$(YAMLLINT) -c .yamllint deploy/examples/
 
 .PHONY: helm.lint
 helm.lint: | $(HELM) $(KUSTOMIZE) ## Check the helm charts
