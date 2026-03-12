@@ -134,6 +134,37 @@ $(KUSTOMIZE): | $(TOOLS_HOST_DIR)
 	@rm -rf $(TOOLS_HOST_DIR)/tmp
 	@chmod +x $(KUSTOMIZE)
 
+
+SHELLCHECK := $(TOOLS_HOST_DIR)/shellcheck-$(SHELLCHECK_VERSION)
+
+# architecture mapping:
+# shellcheck uses aarch64 instead of arm64 for published darwin binaries
+# so we can't use go env GOHOSTARCH as usual.
+UNAME_M := $(shell uname -m)
+UNAME_S := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+
+# Map arm64 (Mac) and aarch64 (Linux) to ShellCheck's 'aarch64'
+ifeq ($(UNAME_M),x86_64)
+	SC_ARCH := x86_64
+else ifeq ($(UNAME_M),arm64)
+	SC_ARCH := aarch64
+else
+	SC_ARCH := $(UNAME_M)
+endif
+
+SHELLCHECK_URL := https://github.com/koalaman/shellcheck/releases/download/$(SHELLCHECK_VERSION)/shellcheck-$(SHELLCHECK_VERSION).$(UNAME_S).$(SC_ARCH).tar.xz
+
+
+
+
+$(SHELLCHECK): | $(TOOLS_HOST_DIR)
+	@echo === installing shellcheck ===
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@curl -sSL $(SHELLCHECK_URL) | tar xJ -C $(TOOLS_HOST_DIR)/tmp
+
+	@mv -f $(TOOLS_HOST_DIR)/tmp/shellcheck-$(SHELLCHECK_VERSION)/shellcheck $(SHELLCHECK)
+	@rm -rf $(TOOLS_HOST_DIR)/tmp
+
 # a registry that is scoped to the current build tree on this host
 ifeq ($(origin BUILD_REGISTRY), undefined)
 BUILD_REGISTRY := build-$(shell echo "$(HOSTNAME)-$(ROOT_DIR)" | $(SHA256CMD) | cut -c1-8)

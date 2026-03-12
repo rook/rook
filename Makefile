@@ -36,6 +36,7 @@ CONTROLLER_GEN_VERSION=v0.19.0
 CT_VERSION := v3.13.0
 KUSTOMIZE_VERSION := v5.3.0
 MARKDOWNLINT_IMAGE_VERSION :=v0.21.0
+SHELLCHECK_VERSION := v0.10.0
 
 # Configuration for the yamllint contaioner image:
 #
@@ -242,8 +243,8 @@ checkmake:
 	@$(CHECKMAKE) Makefile
 
 .PHONY: shellcheck
-shellcheck:
-	shellcheck --severity=warning --format=gcc --shell=bash $(shell find $(ROOT_DIR) -type f -name '*.sh') build/reset build/sed-in-place
+shellcheck: | $(SHELLCHECK)
+	$(SHELLCHECK) --severity=warning --format=gcc --shell=bash $(shell find $(ROOT_DIR) -type f -name '*.sh') build/reset build/sed-in-place
 
 .PHONY: gen.codegen
 gen.codegen: codegen
