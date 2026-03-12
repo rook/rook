@@ -111,7 +111,7 @@ CACHE_DIR := $(ROOT_DIR)/.cache
 endif
 
 TOOLS_DIR := $(CACHE_DIR)/tools
-TOOLS_HOST_DIR := $(TOOLS_DIR)/$(HOST_PLATFORM)
+TOOLS_HOST_DIR := $(TOOLS_DIR)/$(REAL_HOST_PLATFORM)
 
 ifeq ($(origin HOSTNAME), undefined)
 HOSTNAME := $(shell hostname)
