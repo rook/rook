@@ -1,9 +1,9 @@
 extends: default
-ignore: |
-  deploy/examples/csi/template
-  deploy/examples/crds.yaml
-  deploy/examples/monitoring/
-  deploy/examples/csi-operator.yaml
+ignore:
+  - deploy/examples/csi/template
+  - deploy/examples/crds.yaml
+  - deploy/examples/monitoring/
+  - deploy/examples/csi-operator.yaml
 rules:
   line-length: disable
   new-lines: disable
