@@ -34,6 +34,11 @@ KUSTOMIZE_VERSION := v5.3.0
 MARKDOWNLINT_IMAGE_VERSION := v0.22.0
 SHELLCHECK_VERSION := v0.10.0
 
+# For future updates,the SHA of the 'latest' tag can be obtained like this:
+# podman inspect --format='{{index .RepoDigests 0}}' docker.io/cytopia/yamllint:latest
+#
+YAMLLINT_IMAGE_SHA ?= sha256:3e9eb827ab2b12a5ea5f49d4257bb3aca94bba9f1ba427c8bc7f2456385a5204
+
 # include here and not earlier so that the version numbers are available
 # where needed
 include build/makelib/common.mk
@@ -196,7 +201,7 @@ markdownlint.fix: ## Check and fix formatting of documentation sources
 
 .PHONY: yamllint
 yamllint:
-	yamllint -c .yamllint deploy/examples/ --no-warnings
+	$(YAMLLINT) -c .yamllint deploy/examples/ --no-warnings
 
 .PHONY: helm.lint
 helm.lint: $(HELM) $(KUSTOMIZE) ## Check the helm charts
