@@ -97,6 +97,116 @@ func TestPortString(t *testing.T) {
 	assert.Equal(t, "port=8080", result)
 }
 
+func TestRgwFrontendStr(t *testing.T) {
+	// No Security set: default ssl_options always applied
+	cfg := newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	result := cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_options=no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1", result, "case 1")
+
+	// Empty SSLOptions struct: same as default
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		SSLOptions: &cephv1.SSLOptionsSpec{},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_options=no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1", result, "case 2")
+
+	// Restrict to TLS 1.3 only (all old protocols + TLS 1.2 disabled)
+	boolPtr := func(b bool) *bool { return &b }
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		SSLOptions: &cephv1.SSLOptionsSpec{
+			SSLv2:   boolPtr(false),
+			SSLv3:   boolPtr(false),
+			TLSv1_0: boolPtr(false),
+			TLSv1_1: boolPtr(false),
+			TLSv1_2: boolPtr(false),
+		},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_options=no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1:no_tlsv1_2", result, "case 3")
+
+	// With ciphers only (default ssl_options still applied)
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		Ciphers: []cephv1.OpenSslCipher{"AES256-SHA", "AES128-SHA"},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_options=no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1 ssl_ciphers=AES256-SHA:AES128-SHA", result, "case 4")
+
+	// With both SSL options and ciphers
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		SSLOptions: &cephv1.SSLOptionsSpec{},
+		Ciphers:    []cephv1.OpenSslCipher{"AES256-SHA"},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_options=no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1 ssl_ciphers=AES256-SHA", result, "case 5")
+}
+
+func TestBuildSSLOptions(t *testing.T) {
+	boolPtr := func(b bool) *bool { return &b }
+
+	// All nil (nothing set): Ceph default applied
+	result := buildSSLOptions(&cephv1.SSLOptionsSpec{})
+	assert.Equal(t, "no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1", result, "case 1")
+
+	// All protocols explicitly disabled
+	result = buildSSLOptions(&cephv1.SSLOptionsSpec{
+		SSLv2:   boolPtr(false),
+		SSLv3:   boolPtr(false),
+		TLSv1_0: boolPtr(false),
+		TLSv1_1: boolPtr(false),
+		TLSv1_2: boolPtr(false),
+	})
+	assert.Equal(t, "no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1:no_tlsv1_2", result, "case 2")
+
+	// Enable TLSv1.1, rest disabled, TLS 1.2 enabled
+	result = buildSSLOptions(&cephv1.SSLOptionsSpec{
+		SSLv2:   boolPtr(false),
+		SSLv3:   boolPtr(false),
+		TLSv1_0: boolPtr(false),
+		TLSv1_1: boolPtr(true),
+		TLSv1_2: boolPtr(true),
+	})
+	assert.Equal(t, "no_sslv2:no_sslv3:no_tlsv1", result, "case 3")
+
+	// Enable all protocols — no "no_" flags
+	result = buildSSLOptions(&cephv1.SSLOptionsSpec{
+		SSLv2:   boolPtr(true),
+		SSLv3:   boolPtr(true),
+		TLSv1_0: boolPtr(true),
+		TLSv1_1: boolPtr(true),
+		TLSv1_2: boolPtr(true),
+	})
+	assert.Equal(t, "", result, "case 4")
+
+	// Non-protocol options only (protocol fields nil → Ceph default)
+	result = buildSSLOptions(&cephv1.SSLOptionsSpec{
+		DefaultWorkarounds:     true,
+		NoCompression:          true,
+		SingleDiffieHellmanUse: boolPtr(true),
+	})
+	assert.Equal(t, "default_workarounds:no_compression:single_dh_use:no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1", result, "case 5")
+
+	// Non-protocol options with explicit protocol config
+	result = buildSSLOptions(&cephv1.SSLOptionsSpec{
+		DefaultWorkarounds: true,
+		TLSv1_2:            boolPtr(true),
+	})
+	assert.Equal(t, "default_workarounds:no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1", result, "case 6")
+}
+
 func TestGenerateCephXUser(t *testing.T) {
 	fakeUser := generateCephXUser("rook-ceph-rgw-fake-store-fake-user")
 	assert.Equal(t, "client.rgw.fake.store.fake.user", fakeUser)
