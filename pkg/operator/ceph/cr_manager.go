@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
 	"github.com/rook/rook/pkg/operator/ceph/file/subvolumegroup"
+	"github.com/rook/rook/pkg/operator/ceph/luascript"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/nvmeof"
 	"github.com/rook/rook/pkg/operator/ceph/object"
@@ -75,6 +76,7 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Conte
 	nodedaemon.Add,
 	pool.Add,
 	objectuser.Add,
+	luascript.Add,
 	realm.Add,
 	zonegroup.Add,
 	zone.Add,

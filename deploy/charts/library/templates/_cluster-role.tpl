@@ -64,6 +64,7 @@ rules:
       - cephclusters/finalizers
       - cephblockpools
       - cephfilesystems
+      - cephluascripts
       - cephnfses
       - cephnvmeofgateways
       - cephobjectstores
