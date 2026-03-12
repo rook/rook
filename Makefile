@@ -37,6 +37,25 @@ CT_VERSION := v3.13.0
 KUSTOMIZE_VERSION := v5.3.0
 MARKDOWNLINT_IMAGE_VERSION :=v0.21.0
 
+# Configuration for the yamllint contaioner image:
+#
+# version/tag settings(can be overridden from the cmdline):
+# Uncomment/Set only what you need.
+# # Priority: SHA > TAG > VERSION (defaulting to :latest)
+#
+# sha:
+YAMLLINT_IMAGE_SHA:=
+# this is the sha of the "latest" tag as of 2026-03-12:
+#YAMLLINT_IMAGE_SHA := sha256:3e9eb827ab2b12a5ea5f49d4257bb3aca94bba9f1ba427c8bc7f2456385a5204
+# tag:
+YAMLLINT_IMAGE_TAG :=
+# working tag:
+#YAMLLINT_IMAGE_TAG := 1.26
+# version:
+YAMLLINT_VERSION :=
+# many specific versions don't work as tags!
+#YAMLLINT_VERSION := 1.35.1
+
 # include here and not earlier so that the version numbers are available
 # where needed
 include build/makelib/common.mk
@@ -200,7 +219,7 @@ markdownlint.fix: ## Check and fix formatting of documentation sources
 
 .PHONY: yamllint
 yamllint:
-	yamllint -c .yamllint deploy/examples/ --no-warnings
+	$(YAMLLINT) -c .yamllint deploy/examples/
 
 .PHONY: helm.lint
 helm.lint: | $(HELM) $(KUSTOMIZE) ## Check the helm charts
