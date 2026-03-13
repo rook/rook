@@ -155,7 +155,8 @@ func CreateAccountRootUser(c *object.Context, accountID string) (*AccountRootUse
 
 	// Create a user with the account ID as the user ID
 	// The user will be associated with the account
-	userID := fmt.Sprintf("%s-root", accountID)
+	// RGW usernames must be lowercase and use underscores instead of hyphens
+	userID := fmt.Sprintf("%s_root", strings.ToLower(accountID))
 
 	args := []string{
 		"user",
