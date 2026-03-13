@@ -374,6 +374,14 @@ func (r *ReconcileTenantIdentity) getAdminOpsContext(ctx context.Context, objCon
 	// Update object context with object store name
 	objContext.Name = objectStoreName
 
+	// CRITICAL FIX: Update the endpoint for admin ops before creating admin ops context
+	// This ensures objContext.Endpoint is set, which is required by admin.New() in NewMultisiteAdminOpsContext
+	err = object.UpdateEndpointForAdminOps(objContext, objectStore)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to update endpoint for admin ops for object store %s/%s", objectStoreNamespace, objectStoreName)
+	}
+	logger.Infof("updated admin ops endpoint to %q for object store %s/%s", objContext.Endpoint, objectStoreNamespace, objectStoreName)
+
 	// Get admin ops context
 	adminOpsContext, err := object.NewMultisiteAdminOpsContext(objContext, &objectStore.Spec)
 	if err != nil {
