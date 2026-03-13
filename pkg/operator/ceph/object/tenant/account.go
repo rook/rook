@@ -89,7 +89,7 @@ func GetAccount(c *object.Context, accountName string) (*RGWAccount, error) {
 
 	args := []string{
 		"account",
-		"info",
+		"get",
 		"--account-name", accountName,
 	}
 
