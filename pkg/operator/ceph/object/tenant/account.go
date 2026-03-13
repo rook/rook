@@ -63,9 +63,10 @@ func CreateAccount(c *object.Context, accountName string) (*RGWAccount, error) {
 	logger.Infof("CreateAccount: radosgw-admin returned, err=%v, result length=%d", err, len(result))
 
 	if err != nil {
-		if strings.Contains(result, "account already exists") {
-			logger.Infof("CreateAccount: account %q already exists, returning error", accountName)
-			return nil, errors.Errorf("RGW User Account %q already exists", accountName)
+		// Check if account already exists - radosgw-admin returns "File exists" error
+		if strings.Contains(result, "File exists") || strings.Contains(result, "account already exists") {
+			logger.Infof("CreateAccount: account %q already exists, retrieving existing account", accountName)
+			return GetAccount(c, accountName)
 		}
 		logger.Errorf("CreateAccount: failed to create account %q: %v, result: %s", accountName, err, result)
 		return nil, errors.Wrapf(err, "failed to create RGW User Account %q. %s", accountName, result)
