@@ -282,7 +282,9 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	if err != nil {
 		logger.Warningf("failed to get admin ops context, skipping OIDC setup: %v", err)
 		// Create service account without role ARN - account was created successfully
-		_ = r.createServiceAccount(ctx, namespace, accountID, "")
+		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
+			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
+		}
 		return account, nil
 	}
 
@@ -290,7 +292,9 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	iamClient, err := CreateIAMClient(objContext, adminOpsContext)
 	if err != nil {
 		logger.Warningf("failed to create IAM client, skipping OIDC setup: %v", err)
-		_ = r.createServiceAccount(ctx, namespace, accountID, "")
+		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
+			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
+		}
 		return account, nil
 	}
 
@@ -298,7 +302,9 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	oidcConfig, err := GetClusterOIDCConfig(ctx, r.client)
 	if err != nil {
 		logger.Warningf("failed to get OIDC config, skipping OIDC provider creation: %v", err)
-		_ = r.createServiceAccount(ctx, namespace, accountID, "")
+		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
+			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
+		}
 		return account, nil
 	}
 
@@ -307,7 +313,9 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	providerARN, err := CreateOIDCProviderViaAPI(iamClient, oidcConfig.IssuerURL, oidcConfig.Thumbprints, oidcConfig.ClientIDs)
 	if err != nil {
 		logger.Warningf("failed to create OIDC provider for account %q: %v", accountID, err)
-		_ = r.createServiceAccount(ctx, namespace, accountID, "")
+		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
+			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
+		}
 		return account, nil
 	}
 	logger.Infof("OIDC provider created: %s", providerARN)
@@ -320,7 +328,9 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	role, err := CreateRole(objContext, accountID, roleName, assumeRolePolicy)
 	if err != nil {
 		logger.Warningf("failed to create IAM role for account %q: %v", accountID, err)
-		_ = r.createServiceAccount(ctx, namespace, accountID, "")
+		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
+			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
+		}
 		return account, nil
 	}
 	logger.Infof("IAM role created: %+v", role)

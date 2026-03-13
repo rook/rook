@@ -321,6 +321,9 @@ rules:
       - get
       - list
       - watch
+      - patch
+      - create
+      - update
   - apiGroups:
       - ""
       - "discovery.k8s.io"
