@@ -247,14 +247,15 @@ func GetServiceAccountToken(ctx context.Context, k8sClient client.Client, namesp
 
 // CreateIAMClient creates an AWS IAM client for RGW
 func CreateIAMClient(objContext *object.Context, adminOpsContext *object.AdminOpsContext) (*iam.IAM, error) {
-	// Create AWS session with RGW endpoint
-	// In RGW multisite, the zonegroup is used as the region
-	region := objContext.ZoneGroup
-	if region == "" {
-		// Fallback to a default region if zonegroup is not set
-		region = "default"
-		logger.Debugf("zonegroup not set, using default region %q", region)
-	}
+	// The IAM API is accessed through the regular RGW S3 endpoint, not the admin ops endpoint
+	// The admin ops endpoint (objContext.Endpoint) is for the admin API
+	// For IAM operations, we use the same endpoint but the AWS SDK will route to the IAM service
+	// RGW IAM API requires an empty region string
+	region := ""
+
+	// Use the same endpoint as admin ops - RGW handles routing internally
+	// The endpoint is the RGW service endpoint which handles both S3 and IAM APIs
+	iamEndpoint := objContext.Endpoint
 
 	// Create HTTP client with TLS certificate if available
 	httpClient := &http.Client{}
@@ -276,7 +277,7 @@ func CreateIAMClient(objContext *object.Context, adminOpsContext *object.AdminOp
 			}
 			logger.Debug("configured IAM client with RGW CA certificate")
 		}
-	} else if strings.HasPrefix(objContext.Endpoint, "https://") {
+	} else if strings.HasPrefix(iamEndpoint, "https://") {
 		// HTTPS endpoint but no certificate provided - use insecure
 		logger.Warning("HTTPS endpoint but no TLS certificate provided, using insecure TLS")
 		httpClient.Transport = &http.Transport{
@@ -292,17 +293,17 @@ func CreateIAMClient(objContext *object.Context, adminOpsContext *object.AdminOp
 			adminOpsContext.AdminOpsUserSecretKey,
 			"",
 		),
-		Endpoint:         aws.String(objContext.Endpoint),
+		Endpoint:         aws.String(iamEndpoint),
 		Region:           aws.String(region),
 		S3ForcePathStyle: aws.Bool(true),
-		DisableSSL:       aws.Bool(strings.HasPrefix(objContext.Endpoint, "http://")),
+		DisableSSL:       aws.Bool(strings.HasPrefix(iamEndpoint, "http://")),
 		HTTPClient:       httpClient,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create AWS session")
 	}
 
-	logger.Infof("created IAM client with endpoint %q and region %q", objContext.Endpoint, region)
+	logger.Infof("created IAM client with endpoint %q and empty region (required by RGW IAM API)", iamEndpoint)
 	return iam.New(sess), nil
 }
 
