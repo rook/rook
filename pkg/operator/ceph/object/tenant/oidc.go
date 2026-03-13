@@ -250,8 +250,7 @@ func CreateIAMClient(objContext *object.Context, adminOpsContext *object.AdminOp
 	// The IAM API is accessed through the regular RGW S3 endpoint, not the admin ops endpoint
 	// The admin ops endpoint (objContext.Endpoint) is for the admin API
 	// For IAM operations, we use the same endpoint but the AWS SDK will route to the IAM service
-	// RGW IAM API requires an empty region string
-	region := ""
+	// RGW IAM API doesn't use regions, but AWS SDK requires one, so we use a placeholder
 
 	// Use the same endpoint as admin ops - RGW handles routing internally
 	// The endpoint is the RGW service endpoint which handles both S3 and IAM APIs
@@ -287,23 +286,28 @@ func CreateIAMClient(objContext *object.Context, adminOpsContext *object.AdminOp
 		}
 	}
 
-	sess, err := session.NewSession(&aws.Config{
+	// Create AWS config with explicit region handling for RGW
+	// RGW IAM API doesn't use regions, but AWS SDK requires one
+	// We use "default" as a placeholder since RGW ignores it
+	awsConfig := &aws.Config{
 		Credentials: credentials.NewStaticCredentials(
 			adminOpsContext.AdminOpsUserAccessKey,
 			adminOpsContext.AdminOpsUserSecretKey,
 			"",
 		),
 		Endpoint:         aws.String(iamEndpoint),
-		Region:           aws.String(region),
+		Region:           aws.String("default"), // Placeholder region - RGW ignores this
 		S3ForcePathStyle: aws.Bool(true),
 		DisableSSL:       aws.Bool(strings.HasPrefix(iamEndpoint, "http://")),
 		HTTPClient:       httpClient,
-	})
+	}
+
+	sess, err := session.NewSession(awsConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create AWS session")
 	}
 
-	logger.Infof("created IAM client with endpoint %q and empty region (required by RGW IAM API)", iamEndpoint)
+	logger.Infof("created IAM client with endpoint %q and placeholder region 'default' (RGW ignores region)", iamEndpoint)
 	return iam.New(sess), nil
 }
 
