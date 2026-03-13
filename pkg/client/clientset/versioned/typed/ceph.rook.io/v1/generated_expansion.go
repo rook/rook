@@ -46,6 +46,8 @@ type CephObjectRealmExpansion interface{}
 
 type CephObjectStoreExpansion interface{}
 
+type CephObjectStoreAccountExpansion interface{}
+
 type CephObjectStoreUserExpansion interface{}
 
 type CephObjectZoneExpansion interface{}

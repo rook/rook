@@ -47,6 +47,11 @@ jobs:
           check-latest: true
       - name: govulncheck
         uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
+        env:
+          # Required for go-ceph rgw/admin account APIs which are gated behind
+          # the ceph_preview build tag. Can be removed when go-ceph promotes
+          # the account API out of preview.
+          GOFLAGS: "-tags=ceph_preview"
 
   kube-api-lint:
     name: kube-api-lint

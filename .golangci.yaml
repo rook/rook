@@ -1,5 +1,11 @@
 ---
 version: "2"
+run:
+  build-tags:
+    # Required for go-ceph rgw/admin account APIs which are gated behind
+    # the ceph_preview build tag. Can be removed when go-ceph promotes
+    # the account API out of preview.
+    - ceph_preview
 linters:
   default: none
   enable:
