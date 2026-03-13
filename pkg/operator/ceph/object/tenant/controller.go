@@ -297,6 +297,26 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	}
 
 	// Step 4: Create IAM client using account root user credentials
+	// First, ensure the endpoint is set in the object context
+	objectStore := &cephv1.CephObjectStore{}
+	err = r.client.Get(ctx, client.ObjectKey{Name: objectStoreName, Namespace: r.clusterInfo.Namespace}, objectStore)
+	if err != nil {
+		logger.Warningf("failed to get CephObjectStore for endpoint: %v", err)
+		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
+			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
+		}
+		return account, nil
+	}
+
+	err = object.UpdateEndpointForAdminOps(objContext, objectStore)
+	if err != nil {
+		logger.Warningf("failed to update endpoint for account %q: %v", accountID, err)
+		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
+			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
+		}
+		return account, nil
+	}
+
 	accountAdminOpsContext := &object.AdminOpsContext{
 		AdminOpsUserAccessKey: rootUser.AccessKey,
 		AdminOpsUserSecretKey: rootUser.SecretKey,
