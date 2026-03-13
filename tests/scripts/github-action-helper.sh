@@ -271,7 +271,7 @@ function build_rook_all() {
 
 function validate_yaml() {
   cd "${REPO_DIR}/deploy/examples"
-  kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml
+  kubectl create -f crds.yaml -f common.yaml -f csi-operator.yaml
 
   # create the volume replication CRDs
   replication_version=v0.3.0
@@ -297,15 +297,14 @@ function validate_yaml() {
 
 function create_cluster_prerequisites() {
   # this might be called from another function that has already done a cd
-  (cd "${REPO_DIR}/deploy/examples" && kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml)
+  (cd "${REPO_DIR}/deploy/examples" && kubectl create -f crds.yaml -f common.yaml -f csi-operator.yaml)
 }
 
 function remove_cluster_prerequisites() {
-  (cd "${REPO_DIR}/deploy/examples" && kubectl delete -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml)
+  (cd "${REPO_DIR}/deploy/examples" && kubectl delete -f crds.yaml -f common.yaml)
 }
 
 function deploy_manifest_with_local_build() {
-  sed -i 's/.*ROOK_CSI_ENABLE_NFS:.*/  ROOK_CSI_ENABLE_NFS: \"true\"/g' $1
   if [[ "$USE_LOCAL_BUILD" != "false" ]]; then
     sed -i "s|image: docker.io/rook/ceph:.*|image: docker.io/rook/ceph:local-build|g" $1
   fi
@@ -344,7 +343,6 @@ function deploy_cluster() {
   cd "${REPO_DIR}/deploy/examples"
 
   deploy_manifest_with_local_build operator.yaml
-  kubectl create -f csi-operator.yaml
 
   if [ $# == 0 ]; then
     sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)|g" cluster-test.yaml
@@ -527,7 +525,6 @@ function deploy_first_rook_cluster() {
   cd "${REPO_DIR}/deploy/examples"
 
   deploy_manifest_with_local_build operator.yaml
-  deploy_manifest_with_local_build csi-operator.yaml
   yq w -i -d0 cluster-test.yaml spec.dashboard.enabled false
   yq w -i -d0 cluster-test.yaml spec.storage.useAllDevices false
   yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"[1-3]

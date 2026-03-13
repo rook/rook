@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -99,10 +100,14 @@ func newTestStartClusterWithQuorumResponse(t *testing.T, namespace string, monRe
 			}
 		},
 	}
+	s := scheme.Scheme
+	assert.NoError(t, csiopv1.AddToScheme(s))
+	cl := fake.NewClientBuilder().WithScheme(s).Build()
 	return &clusterd.Context{
 		Clientset: clientset,
 		Executor:  executor,
 		ConfigDir: configDir,
+		Client:    cl,
 	}, nil
 }
 
@@ -442,7 +447,10 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	c := New(ctx, &clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	s := scheme.Scheme
+	assert.NoError(t, csiopv1.AddToScheme(s))
+	cl := fake.NewClientBuilder().WithScheme(s).Build()
+	c := New(ctx, &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Client: cl}, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// create the initial config map
@@ -489,7 +497,10 @@ func TestMaxMonID(t *testing.T) {
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	c := New(context.TODO(), &clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	s := scheme.Scheme
+	assert.NoError(t, csiopv1.AddToScheme(s))
+	cl := fake.NewClientBuilder().WithScheme(s).Build()
+	c := New(context.TODO(), &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Client: cl}, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// when the configmap is not found, the maxMonID is -1
@@ -1200,6 +1211,7 @@ func TestRotateMonCephxKeys(t *testing.T) {
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
 	s.AddKnownTypes(v1.SchemeGroupVersion, &v1.Secret{})
+	assert.NoError(t, csiopv1.AddToScheme(s))
 
 	object := []runtime.Object{
 		cluster,

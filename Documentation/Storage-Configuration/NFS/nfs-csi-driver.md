@@ -10,20 +10,8 @@ For this section, we will refer to Rook's deployment examples in the
 
 ## Enabling the CSI drivers
 
-The Ceph CSI NFS provisioner and driver require additional RBAC to operate. Apply the
-`deploy/examples/csi/nfs/rbac.yaml` manifest to deploy the additional resources.
-
-Rook will only deploy the Ceph CSI NFS provisioner and driver components when the
-`ROOK_CSI_ENABLE_NFS` config is set to `"true"` in the `rook-ceph-operator-config` configmap. Change
-the value in your manifest, or patch the resource as below.
-
-```console
-kubectl --namespace rook-ceph patch configmap rook-ceph-operator-config --type merge --patch '{"data":{"ROOK_CSI_ENABLE_NFS": "true"}}'
-```
-
-!!! note
-    The rook-ceph operator Helm chart will deploy the required RBAC and enable the driver
-    components if `csi.nfs.enabled` is set to `true`.
+The NFS CSI driver is managed by the ceph-csi-operator. The required RBAC is included in
+`deploy/examples/common.yaml` and the NFS Driver CR is defined in `deploy/examples/csi-operator.yaml`.
 
 ## Creating NFS exports via PVC
 

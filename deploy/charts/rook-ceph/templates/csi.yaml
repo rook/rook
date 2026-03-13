@@ -1,0 +1,158 @@
+{{- with .Values.csi }}
+---
+# ImageSet ConfigMap defines the container images used by the CSI drivers.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rook-csi-operator-image-set-configmap
+  namespace: {{ $.Release.Namespace }} # namespace:operator
+  labels:
+    {{- include "library.rook-ceph.labels" $ | nindent 4 }}
+data:
+  {{- with .provisioner }}
+  {{- if and .repository .tag }}
+  provisioner: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .attacher }}
+  {{- if and .repository .tag }}
+  attacher: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .resizer }}
+  {{- if and .repository .tag }}
+  resizer: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .snapshotter }}
+  {{- if and .repository .tag }}
+  snapshotter: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .registrar }}
+  {{- if and .repository .tag }}
+  registrar: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .cephcsi }}
+  {{- if and .repository .tag }}
+  plugin: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .csiAddons }}
+  {{- if and .repository .tag }}
+  addons: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+---
+# OperatorConfig defines the default settings for all CSI drivers.
+apiVersion: csi.ceph.io/v1
+kind: OperatorConfig
+metadata:
+  name: ceph-csi-operator-config
+  namespace: {{ $.Release.Namespace }} # namespace:operator
+  labels:
+    {{- include "library.rook-ceph.labels" $ | nindent 4 }}
+spec:
+  driverSpecDefaults:
+    log:
+      verbosity: {{ .logLevel | default 0 }}
+    imageSet:
+      name: rook-csi-operator-image-set-configmap
+    enableMetadata: {{ .enableMetadata | default false }}
+    generateOMapInfo: {{ .enableOMAPGenerator | default false }}
+    fsGroupPolicy: {{ .rbdFSGroupPolicy | default "File" }}
+    {{- with .csiAddons }}
+    deployCsiAddons: {{ .enabled | default false }}
+    {{- end }}
+    {{- if .forceCephFSKernelClient | default true }}
+    cephFsClientType: kernel
+    {{- else }}
+    cephFsClientType: fuse
+    {{- end }}
+    nodePlugin:
+      {{- with .pluginPriorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
+      {{- with .kubeletDirPath }}
+      kubeletDirPath: {{ . }}
+      {{- else }}
+      kubeletDirPath: /var/lib/kubelet
+      {{- end }}
+      enableSeLinuxHostMount: {{ .enablePluginSelinuxHostMount | default false }}
+    controllerPlugin:
+      {{- with .provisionerPriorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
+      replicas: {{ .provisionerReplicas | default 2 }}
+      deploymentStrategy:
+        type: Recreate
+---
+# RBD CSI Driver
+{{- if .enableRbdDriver }}
+apiVersion: csi.ceph.io/v1
+kind: Driver
+metadata:
+  name: {{ $.Release.Namespace }}.rbd.csi.ceph.com
+  namespace: {{ $.Release.Namespace }} # namespace:operator
+  labels:
+    {{- include "library.rook-ceph.labels" $ | nindent 4 }}
+spec:
+  fsGroupPolicy: {{ .rbdFSGroupPolicy | default "File" }}
+  nodePlugin:
+    updateStrategy:
+      {{- if .rbdPluginUpdateStrategy }}
+      type: {{ .rbdPluginUpdateStrategy }}
+      {{- else }}
+      type: RollingUpdate
+      {{- end }}
+  controllerPlugin: {}
+{{- end }}
+---
+# CephFS CSI Driver
+{{- if .enableCephfsDriver }}
+apiVersion: csi.ceph.io/v1
+kind: Driver
+metadata:
+  name: {{ $.Release.Namespace }}.cephfs.csi.ceph.com
+  namespace: {{ $.Release.Namespace }} # namespace:operator
+  labels:
+    {{- include "library.rook-ceph.labels" $ | nindent 4 }}
+spec:
+  fsGroupPolicy: {{ .cephFSFSGroupPolicy | default "File" }}
+  {{- if .forceCephFSKernelClient | default true }}
+  cephFsClientType: kernel
+  {{- else }}
+  cephFsClientType: fuse
+  {{- end }}
+  nodePlugin:
+    updateStrategy:
+      {{- if .cephFSPluginUpdateStrategy }}
+      type: {{ .cephFSPluginUpdateStrategy }}
+      {{- else }}
+      type: RollingUpdate
+      {{- end }}
+  controllerPlugin: {}
+{{- end }}
+---
+# NFS CSI Driver
+{{- if and .nfs .nfs.enabled }}
+apiVersion: csi.ceph.io/v1
+kind: Driver
+metadata:
+  name: {{ $.Release.Namespace }}.nfs.csi.ceph.com
+  namespace: {{ $.Release.Namespace }} # namespace:operator
+  labels:
+    {{- include "library.rook-ceph.labels" $ | nindent 4 }}
+spec:
+  fsGroupPolicy: {{ .nfsFSGroupPolicy | default "File" }}
+  nodePlugin:
+    updateStrategy:
+      {{- if .nfsPluginUpdateStrategy }}
+      type: {{ .nfsPluginUpdateStrategy }}
+      {{- else }}
+      type: RollingUpdate
+      {{- end }}
+  controllerPlugin: {}
+{{- end }}
+{{- end }}
