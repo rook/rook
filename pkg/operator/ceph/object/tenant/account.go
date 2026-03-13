@@ -177,6 +177,22 @@ func CreateAccountRootUser(c *object.Context, accountID string, accountName stri
 		return nil, errors.Wrapf(err, "failed to create root user for account %q. %s", accountID, result)
 	}
 
+	// Add OIDC provider capability to the root user
+	// This is required for the user to manage OIDC providers via the IAM API
+	capsArgs := []string{
+		"caps",
+		"add",
+		"--uid", userID,
+		"--caps", "oidc-provider=*",
+	}
+	_, capsErr := object.RunAdminCommandNoMultisite(c, false, capsArgs...)
+	if capsErr != nil {
+		logger.Warningf("failed to add oidc-provider capability to root user %q: %v", userID, capsErr)
+		// Don't fail - the user was created, just without the capability
+	} else {
+		logger.Infof("added oidc-provider capability to root user %q", userID)
+	}
+
 	// Parse the result to extract access key and secret key
 	var userInfo struct {
 		UserID string `json:"user_id"`
