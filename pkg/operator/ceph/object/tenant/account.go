@@ -50,7 +50,7 @@ type IAMRole struct {
 
 // CreateAccount creates a new RGW User Account
 func CreateAccount(c *object.Context, accountName string) (*RGWAccount, error) {
-	logger.Infof("creating RGW User Account %q", accountName)
+	logger.Infof("CreateAccount: starting for account %q", accountName)
 
 	args := []string{
 		"account",
@@ -58,11 +58,16 @@ func CreateAccount(c *object.Context, accountName string) (*RGWAccount, error) {
 		"--account-name", accountName,
 	}
 
+	logger.Infof("CreateAccount: calling radosgw-admin with args: %v", args)
 	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	logger.Infof("CreateAccount: radosgw-admin returned, err=%v, result length=%d", err, len(result))
+
 	if err != nil {
 		if strings.Contains(result, "account already exists") {
+			logger.Infof("CreateAccount: account %q already exists, returning error", accountName)
 			return nil, errors.Errorf("RGW User Account %q already exists", accountName)
 		}
+		logger.Errorf("CreateAccount: failed to create account %q: %v, result: %s", accountName, err, result)
 		return nil, errors.Wrapf(err, "failed to create RGW User Account %q. %s", accountName, result)
 	}
 
