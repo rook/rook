@@ -150,13 +150,12 @@ func DeleteAccount(c *object.Context, accountName string) error {
 
 // CreateAccountRootUser creates a root user for an RGW Account
 // The root user has full permissions within the account and can manage IAM resources
-func CreateAccountRootUser(c *object.Context, accountID string) (*AccountRootUser, error) {
-	logger.Infof("creating root user for account %q", accountID)
+func CreateAccountRootUser(c *object.Context, accountID string, accountName string) (*AccountRootUser, error) {
+	logger.Infof("creating root user for account %q (name: %q)", accountID, accountName)
 
-	// Create a user with the account ID as the user ID
-	// The user will be associated with the account
-	// RGW usernames must be lowercase and use underscores instead of hyphens
-	userID := fmt.Sprintf("%s_root", strings.ToLower(accountID))
+	// Use the account name as the username
+	// The account name is the namespace name, which should be a valid RGW username
+	userID := accountName
 
 	args := []string{
 		"user",

@@ -279,7 +279,7 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	// Step 2: Create account root user for IAM operations
 	// The IAM API requires account-specific credentials, not global admin credentials
 	logger.Infof("creating root user for account %q", accountID)
-	rootUser, err := CreateAccountRootUser(objContext, account.AccountID)
+	rootUser, err := CreateAccountRootUser(objContext, account.AccountID, account.AccountName)
 	if err != nil {
 		logger.Warningf("failed to create root user for account %q: %v", accountID, err)
 		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
