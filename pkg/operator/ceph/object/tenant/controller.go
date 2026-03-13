@@ -339,9 +339,8 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 
 // getAdminOpsContext retrieves the admin ops context for IAM API calls
 func (r *ReconcileTenantIdentity) getAdminOpsContext(ctx context.Context, objContext *object.Context) (*object.AdminOpsContext, error) {
-	// Find the CephObjectStore in the cluster
-	// For now, assume it's named "rook-ceph-rgw" in the rook-ceph namespace
-	objectStoreName := "rook-ceph-rgw"
+	// Find the CephObjectStore in the cluster - use the one we already found
+	objectStoreName := objContext.Name
 	objectStoreNamespace := r.clusterInfo.Namespace
 
 	objectStore := &cephv1.CephObjectStore{}
