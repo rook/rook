@@ -143,21 +143,7 @@ Discover the values to use in the StorageClass:
     rook-ceph-nvmeof-nvmeof-a   ClusterIP   10.106.98.71   <none>        4420/TCP,5500/TCP,5499/TCP,8009/TCP   24m
     ```
 
-2. **listeners.address**: Use the gateway pod IP.
-
-    ```console
-    kubectl get pods -n rook-ceph -l app=rook-ceph-nvmeof -o wide
-
-    ```
-
-    **Example Output**
-
-    ```console
-    NAME                                         READY   STATUS    RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
-    rook-ceph-nvmeof-nvmeof-a-5fd6cd4d46-mrbwk   1/1     Running   0          26m   10.244.0.16   minikube   <none>           <none>
-    ```
-
-3. **listeners.hostname**: Use the gateway deployment name.
+2. **listeners.hostname**: Use the gateway deployment name.
 
     ```console
     kubectl get deployments.apps -n rook-ceph -l app=rook-ceph-nvmeof
@@ -190,8 +176,6 @@ parameters:
   listeners: |
     [
       {
-        "address": "10.244.0.16",
-        "port": 4420,
         "hostname": "rook-ceph-nvmeof-nvmeof-a"
       }
     ]
@@ -366,7 +350,7 @@ sudo mount /dev/nvmeXnY /mnt/nvmeof
 For production deployments, configure multiple gateway instances for high availability:
 
 1. **Increase Gateway Instances**: Set `instances: 2` or higher in the `CephNVMeOFGateway` spec
-2. **Update StorageClass Listeners**: Add all gateway instance addresses and instance names to the `listeners` array
+2. **Update StorageClass Listeners**: Add all gateway instance names to the `listeners` array
 3. **Load Balancing**: Each gateway instance has its own Service; list all of them to support multipath/HA
 
 Example with multiple instances:
@@ -383,13 +367,9 @@ Then update the StorageClass `listeners` to include all gateway instances/servic
 listeners: |
   [
     {
-      "address": "10.99.212.218",
-      "port": 4420,
       "hostname": "rook-ceph-nvmeof-nvmeof-a"
     },
     {
-      "address": "10.99.212.219",
-      "port": 4420,
       "hostname": "rook-ceph-nvmeof-nvmeof-b"
     }
   ]
