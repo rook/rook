@@ -256,6 +256,36 @@ func CreateIAMClient(objContext *object.Context, adminOpsContext *object.AdminOp
 		logger.Debugf("zonegroup not set, using default region %q", region)
 	}
 
+	// Create HTTP client with TLS certificate if available
+	httpClient := &http.Client{}
+	if len(adminOpsContext.TlsCert) > 0 {
+		// Create a certificate pool with the RGW CA certificate
+		caCertPool := x509.NewCertPool()
+		if !caCertPool.AppendCertsFromPEM(adminOpsContext.TlsCert) {
+			logger.Warning("failed to append RGW CA certificate to pool, using insecure TLS")
+			httpClient.Transport = &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			}
+		} else {
+			httpClient.Transport = &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: caCertPool,
+				},
+			}
+			logger.Debug("configured IAM client with RGW CA certificate")
+		}
+	} else if strings.HasPrefix(objContext.Endpoint, "https://") {
+		// HTTPS endpoint but no certificate provided - use insecure
+		logger.Warning("HTTPS endpoint but no TLS certificate provided, using insecure TLS")
+		httpClient.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+	}
+
 	sess, err := session.NewSession(&aws.Config{
 		Credentials: credentials.NewStaticCredentials(
 			adminOpsContext.AdminOpsUserAccessKey,
@@ -266,6 +296,7 @@ func CreateIAMClient(objContext *object.Context, adminOpsContext *object.AdminOp
 		Region:           aws.String(region),
 		S3ForcePathStyle: aws.Bool(true),
 		DisableSSL:       aws.Bool(strings.HasPrefix(objContext.Endpoint, "http://")),
+		HTTPClient:       httpClient,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create AWS session")
