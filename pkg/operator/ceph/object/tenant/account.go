@@ -153,9 +153,9 @@ func DeleteAccount(c *object.Context, accountName string) error {
 func CreateAccountRootUser(c *object.Context, accountID string, accountName string) (*AccountRootUser, error) {
 	logger.Infof("creating root user for account %q (name: %q)", accountID, accountName)
 
-	// Use the account name as the username
-	// The account name is the namespace name, which should be a valid RGW username
-	userID := accountName
+	// Use account name with "-root" suffix
+	// RGW account root users have stricter validation - only alphanumeric and hyphens allowed
+	userID := fmt.Sprintf("%s-root", accountName)
 
 	args := []string{
 		"user",
