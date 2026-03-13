@@ -276,29 +276,43 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 		logger.Infof("RGW User Account created: %+v", account)
 	}
 
-	// Step 2: Get admin ops context for IAM API calls
-	// We need to find the object store and get admin credentials
-	adminOpsContext, err := r.getAdminOpsContext(ctx, objContext)
+	// Step 2: Create account root user for IAM operations
+	// The IAM API requires account-specific credentials, not global admin credentials
+	logger.Infof("creating root user for account %q", accountID)
+	rootUser, err := CreateAccountRootUser(objContext, account.AccountID)
 	if err != nil {
-		logger.Warningf("failed to get admin ops context, skipping OIDC setup: %v", err)
-		// Create service account without role ARN - account was created successfully
+		logger.Warningf("failed to create root user for account %q: %v", accountID, err)
+		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
+			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
+		}
+		return account, nil
+	}
+	logger.Infof("created root user for account %q with access key %q", accountID, rootUser.AccessKey)
+
+	// Step 3: Store root user credentials in a Secret for future use
+	err = r.storeRootUserCredentials(ctx, account.AccountID, rootUser)
+	if err != nil {
+		logger.Warningf("failed to store root user credentials: %v", err)
+		// Continue anyway - we have the credentials in memory
+	}
+
+	// Step 4: Create IAM client using account root user credentials
+	accountAdminOpsContext := &object.AdminOpsContext{
+		AdminOpsUserAccessKey: rootUser.AccessKey,
+		AdminOpsUserSecretKey: rootUser.SecretKey,
+		TlsCert:               []byte{}, // TLS cert will be handled by CreateIAMClient if needed
+	}
+
+	iamClient, err := CreateIAMClient(objContext, accountAdminOpsContext)
+	if err != nil {
+		logger.Warningf("failed to create IAM client for account %q: %v", accountID, err)
 		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
 			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
 		}
 		return account, nil
 	}
 
-	// Step 3: Create IAM client
-	iamClient, err := CreateIAMClient(objContext, adminOpsContext)
-	if err != nil {
-		logger.Warningf("failed to create IAM client, skipping OIDC setup: %v", err)
-		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
-			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
-		}
-		return account, nil
-	}
-
-	// Step 4: Get OIDC configuration from the cluster
+	// Step 5: Get OIDC configuration from the cluster
 	oidcConfig, err := GetClusterOIDCConfig(ctx, r.client)
 	if err != nil {
 		logger.Warningf("failed to get OIDC config, skipping OIDC provider creation: %v", err)
@@ -308,7 +322,7 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 		return account, nil
 	}
 
-	// Step 5: Create OIDC provider using IAM API
+	// Step 6: Create OIDC provider using IAM API with account root user credentials
 	logger.Infof("creating OIDC provider for account %q with issuer %q and clientIDs %v", accountID, oidcConfig.IssuerURL, oidcConfig.ClientIDs)
 	providerARN, err := CreateOIDCProviderViaAPI(iamClient, oidcConfig.IssuerURL, oidcConfig.Thumbprints, oidcConfig.ClientIDs)
 	if err != nil {
@@ -320,7 +334,7 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	}
 	logger.Infof("OIDC provider created: %s", providerARN)
 
-	// Step 6: Create IAM role for AssumeRoleWithWebIdentity
+	// Step 7: Create IAM role for AssumeRoleWithWebIdentity
 	roleName := "namespace-role"
 	assumeRolePolicy := GenerateAssumeRolePolicyDocument(accountID, providerARN, namespace.Name)
 
@@ -413,6 +427,36 @@ func (r *ReconcileTenantIdentity) createServiceAccount(ctx context.Context, name
 	}
 
 	logger.Infof("successfully created RGW User Account %q and service account for namespace %q", accountID, namespace.Name)
+	return nil
+}
+
+// storeRootUserCredentials stores the root user credentials in a Kubernetes Secret
+func (r *ReconcileTenantIdentity) storeRootUserCredentials(ctx context.Context, accountID string, rootUser *AccountRootUser) error {
+	secretName := fmt.Sprintf("rgw-account-%s-root-user", accountID)
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: r.clusterInfo.Namespace,
+			Labels: map[string]string{
+				"app":        "rook-ceph-rgw",
+				"account-id": accountID,
+			},
+		},
+		Type: corev1.SecretTypeOpaque,
+		StringData: map[string]string{
+			"access-key": rootUser.AccessKey,
+			"secret-key": rootUser.SecretKey,
+			"user-id":    rootUser.UserID,
+		},
+	}
+
+	err := r.client.Create(ctx, secret)
+	if err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrapf(err, "failed to create secret %q for account root user", secretName)
+	}
+
+	logger.Infof("stored root user credentials in secret %q", secretName)
 	return nil
 }
 

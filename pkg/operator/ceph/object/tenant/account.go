@@ -34,6 +34,13 @@ type RGWAccount struct {
 	// Additional fields as needed
 }
 
+// AccountRootUser represents the root user credentials for an RGW Account
+type AccountRootUser struct {
+	UserID    string `json:"user_id"`
+	AccessKey string `json:"access_key"`
+	SecretKey string `json:"secret_key"`
+}
+
 // OIDCProvider represents an OIDC provider configuration within an RGW Account
 type OIDCProvider struct {
 	ProviderARN string   `json:"provider_arn"`
@@ -139,6 +146,103 @@ func DeleteAccount(c *object.Context, accountName string) error {
 
 	logger.Infof("successfully deleted RGW User Account %q", accountName)
 	return nil
+}
+
+// CreateAccountRootUser creates a root user for an RGW Account
+// The root user has full permissions within the account and can manage IAM resources
+func CreateAccountRootUser(c *object.Context, accountID string) (*AccountRootUser, error) {
+	logger.Infof("creating root user for account %q", accountID)
+
+	// Create a user with the account ID as the user ID
+	// The user will be associated with the account
+	userID := fmt.Sprintf("%s-root", accountID)
+
+	args := []string{
+		"user",
+		"create",
+		"--uid", userID,
+		"--display-name", fmt.Sprintf("Root user for account %s", accountID),
+		"--account-id", accountID,
+		"--account-root",
+	}
+
+	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	if err != nil {
+		// Check if user already exists
+		if strings.Contains(result, "could not create user") && strings.Contains(result, "exists") {
+			logger.Infof("root user %q already exists for account %q, retrieving info", userID, accountID)
+			return GetAccountRootUser(c, userID)
+		}
+		logger.Errorf("failed to create root user for account %q: %v, result: %s", accountID, err, result)
+		return nil, errors.Wrapf(err, "failed to create root user for account %q. %s", accountID, result)
+	}
+
+	// Parse the result to extract access key and secret key
+	var userInfo struct {
+		UserID string `json:"user_id"`
+		Keys   []struct {
+			AccessKey string `json:"access_key"`
+			SecretKey string `json:"secret_key"`
+		} `json:"keys"`
+	}
+
+	err = json.Unmarshal([]byte(result), &userInfo)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse root user creation result. %s", result)
+	}
+
+	if len(userInfo.Keys) == 0 {
+		return nil, errors.Errorf("no keys generated for root user %q", userID)
+	}
+
+	rootUser := &AccountRootUser{
+		UserID:    userInfo.UserID,
+		AccessKey: userInfo.Keys[0].AccessKey,
+		SecretKey: userInfo.Keys[0].SecretKey,
+	}
+
+	logger.Infof("successfully created root user %q for account %q", userID, accountID)
+	return rootUser, nil
+}
+
+// GetAccountRootUser retrieves the root user information for an account
+func GetAccountRootUser(c *object.Context, userID string) (*AccountRootUser, error) {
+	logger.Infof("retrieving root user %q", userID)
+
+	args := []string{
+		"user",
+		"info",
+		"--uid", userID,
+	}
+
+	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get root user %q. %s", userID, result)
+	}
+
+	// Parse the result
+	var userInfo struct {
+		UserID string `json:"user_id"`
+		Keys   []struct {
+			AccessKey string `json:"access_key"`
+			SecretKey string `json:"secret_key"`
+		} `json:"keys"`
+	}
+
+	err = json.Unmarshal([]byte(result), &userInfo)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse root user info. %s", result)
+	}
+
+	if len(userInfo.Keys) == 0 {
+		return nil, errors.Errorf("no keys found for root user %q", userID)
+	}
+
+	return &AccountRootUser{
+		UserID:    userInfo.UserID,
+		AccessKey: userInfo.Keys[0].AccessKey,
+		SecretKey: userInfo.Keys[0].SecretKey,
+	}, nil
 }
 
 // CreateOIDCProvider creates an OIDC provider within an RGW User Account
