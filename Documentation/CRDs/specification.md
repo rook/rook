@@ -7895,6 +7895,111 @@ int
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.FloatingMonSpec">FloatingMonSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MonSpec">MonSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name is the name of the floating mon</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>nodeName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>NodeName is the Kubernetes node the floating mon is pinned to.
+The DRBD primary must be active on this node.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataDirHostPath</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DataDirHostPath is the host path of the floating mon data directory</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>drbdImage</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DRBDImage is the container image for the DRBD utility sidecars
+(drbd-init init container and shut-down-app sidecar container).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>drbdDevice</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DRBDDevice is the host path to the DRBD block device that backs the mon data
+directory (e.g. /dev/drbd1).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>drbdConfPath</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DRBDConfPath is the host path to the DRBD configuration file
+(e.g. /etc/drbd.conf).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>drbdDirPath</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DRBDDirPath is the host path to the DRBD configuration directory
+(e.g. /etc/drbd.d).</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.GaneshaRADOSSpec">GaneshaRADOSSpec
 </h3>
 <p>

@@ -329,6 +329,65 @@ func (c *Cluster) startMons(targetCount int) error {
 	// There may be orphaned resources if a mon failover was aborted.
 	c.removeOrphanMonResources()
 
+	// Reconcile the floating mon if defined in the spec.
+	if err := c.reconcileFloatingMon(); err != nil {
+		return errors.Wrap(err, "failed to reconcile floating mon")
+	}
+
+	return nil
+}
+
+// reconcileFloatingMon creates or updates the Deployment for the floating mon
+// defined by spec.Mon.Floating.
+func (c *Cluster) reconcileFloatingMon() error {
+	floating := c.spec.Mon.Floating
+	if floating == nil || floating.Name == "" {
+		return nil
+	}
+
+	log.NamespacedInfo(c.Namespace, logger, "reconciling floating mon %q", floating.Name)
+
+	dataDirHostPath := floating.DataDirHostPath
+	if dataDirHostPath == "" {
+		return errors.New("floating mon DataDirHostPath is not set")
+	}
+
+	monCfg := &monConfig{
+		ResourceName:   resourceName(floating.Name),
+		DaemonName:     floating.Name,
+		Port:           DefaultMsgr2Port,
+		NodeName:       floating.NodeName,
+		UseHostNetwork: c.spec.Network.IsHost(),
+		DataPathMap: config.NewStatefulDaemonDataPathMap(
+			dataDirHostPath, dataDirRelativeHostPath(floating.Name), config.MonType, floating.Name, c.Namespace),
+	}
+
+	d, err := c.makeFloatingMonDeployment(monCfg)
+	if err != nil {
+		return errors.Wrapf(err, "failed to build floating mon deployment for %q", floating.Name)
+	}
+
+	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(d); err != nil {
+		return errors.Wrapf(err, "failed to set last-applied annotation on floating mon deployment %q", d.Name)
+	}
+
+	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(c.ClusterInfo.Context, d.Name, metav1.GetOptions{})
+	if kerrors.IsNotFound(err) {
+		log.NamespacedInfo(c.Namespace, logger, "creating floating mon deployment %q", d.Name)
+		if _, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(c.ClusterInfo.Context, d, metav1.CreateOptions{}); err != nil {
+			return errors.Wrapf(err, "failed to create floating mon deployment %q", d.Name)
+		}
+		return nil
+	}
+	if err != nil {
+		return errors.Wrapf(err, "failed to get floating mon deployment %q", d.Name)
+	}
+
+	log.NamespacedInfo(c.Namespace, logger, "updating floating mon deployment %q", d.Name)
+	if err := updateDeploymentAndWait(c.context, c.ClusterInfo, d, config.MonType, floating.Name, c.spec.SkipUpgradeChecks, false); err != nil {
+		return errors.Wrapf(err, "failed to update floating mon deployment %q", d.Name)
+	}
+
 	return nil
 }
 
@@ -1527,6 +1586,13 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 	// check if the monitor deployment already exists. if the deployment does
 	// exist, also determine if it using pvc storage.
 	log.NamespacedInfo(c.Namespace, logger, "starting mon %q", m.DaemonName)
+
+	// The floating mon deployment is managed exclusively by reconcileFloatingMon.
+	if c.spec.Mon.Floating != nil && m.DaemonName == c.spec.Mon.Floating.Name {
+		log.NamespacedInfo(c.Namespace, logger, "skipping startMon for floating mon %q; handled by reconcileFloatingMon", m.DaemonName)
+		return nil
+	}
+
 	pvcExists := false
 	deploymentExists := false
 
