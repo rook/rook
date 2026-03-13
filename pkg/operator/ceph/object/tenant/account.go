@@ -254,6 +254,22 @@ func GetAccountRootUser(c *object.Context, userID string) (*AccountRootUser, err
 		return nil, errors.Errorf("no keys found for root user %q", userID)
 	}
 
+	// Ensure the root user has OIDC provider capability
+	// This is needed even for existing users that may have been created without it
+	capsArgs := []string{
+		"caps",
+		"add",
+		"--uid", userID,
+		"--caps", "oidc-provider=*",
+	}
+	_, capsErr := object.RunAdminCommandNoMultisite(c, false, capsArgs...)
+	if capsErr != nil {
+		logger.Warningf("failed to add oidc-provider capability to existing root user %q: %v", userID, capsErr)
+		// Don't fail - the user exists, just may not have the capability
+	} else {
+		logger.Infof("ensured oidc-provider capability on existing root user %q", userID)
+	}
+
 	return &AccountRootUser{
 		UserID:    userInfo.UserID,
 		AccessKey: userInfo.Keys[0].AccessKey,
