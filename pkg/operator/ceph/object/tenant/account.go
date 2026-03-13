@@ -157,12 +157,16 @@ func CreateAccountRootUser(c *object.Context, accountID string, accountName stri
 	// RGW account root users have strict validation - only alphanumeric characters allowed
 	// Account IDs are in format RGWxxxxxxxxxxxxxxxxx which is safe
 	userID := fmt.Sprintf("%s-root", accountID)
+	logger.Infof("creating root user with userID: %q for account %q", userID, accountID)
+
+	// Display name cannot contain spaces for account root users
+	displayName := fmt.Sprintf("RootUserFor%s", accountID)
 
 	args := []string{
 		"user",
 		"create",
 		"--uid", userID,
-		"--display-name", fmt.Sprintf("Root user for account %s", accountID),
+		"--display-name", displayName,
 		"--account-id", accountID,
 		"--account-root",
 	}
