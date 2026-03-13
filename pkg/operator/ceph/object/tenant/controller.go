@@ -214,14 +214,30 @@ func (r *ReconcileTenantIdentity) createRGWAccount(ctx context.Context, namespac
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to update namespace %q annotations", namespace.Name)
 	}
+	logger.Infof("updated namespace %q annotations: account-arn=%s, role-arn=%s", namespace.Name, accountID, namespace.Annotations[RoleARNAnnotation])
+
+	// Re-fetch the namespace to get the latest version after our update
+	// This ensures we have the correct resourceVersion for any future updates
+	freshNamespace := &corev1.Namespace{}
+	err = r.client.Get(ctx, types.NamespacedName{Name: namespace.Name}, freshNamespace)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to re-fetch namespace %q after annotation update", namespace.Name)
+	}
 
 	// Now create the actual RGW User Account
-	err = r.createRGWUserAccount(ctx, namespace, accountID)
+	err = r.createRGWUserAccount(ctx, freshNamespace, accountID)
 	if err != nil {
-		// If creation fails, remove the annotations so we can retry
-		delete(namespace.Annotations, AccountARNAnnotation)
-		delete(namespace.Annotations, RoleARNAnnotation)
-		updateErr := r.client.Update(ctx, namespace)
+		// If creation fails, re-fetch namespace again and remove the annotations so we can retry
+		cleanupNamespace := &corev1.Namespace{}
+		getErr := r.client.Get(ctx, types.NamespacedName{Name: namespace.Name}, cleanupNamespace)
+		if getErr != nil {
+			logger.Errorf("failed to fetch namespace for cleanup: %v", getErr)
+			return reconcile.Result{}, errors.Wrapf(err, "failed to create RGW User Account for namespace %q", namespace.Name)
+		}
+
+		delete(cleanupNamespace.Annotations, AccountARNAnnotation)
+		delete(cleanupNamespace.Annotations, RoleARNAnnotation)
+		updateErr := r.client.Update(ctx, cleanupNamespace)
 		if updateErr != nil {
 			logger.Errorf("failed to remove annotations after account creation failure: %v", updateErr)
 		}
