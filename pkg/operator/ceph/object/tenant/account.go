@@ -27,8 +27,9 @@ import (
 
 // RGWAccount represents a Ceph RGW User Account (Ceph 8.1+)
 type RGWAccount struct {
-	AccountID   string `json:"account_id"`
-	AccountName string `json:"account_name"`
+	AccountID   string `json:"id"`
+	Tenant      string `json:"tenant,omitempty"`
+	AccountName string `json:"name"`
 	Email       string `json:"email,omitempty"`
 	// Additional fields as needed
 }
