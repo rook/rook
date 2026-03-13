@@ -281,21 +281,25 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	adminOpsContext, err := r.getAdminOpsContext(ctx, objContext)
 	if err != nil {
 		logger.Warningf("failed to get admin ops context, skipping OIDC setup: %v", err)
-		return account, r.createServiceAccount(ctx, namespace, accountID, "")
+		// Create service account without role ARN - account was created successfully
+		_ = r.createServiceAccount(ctx, namespace, accountID, "")
+		return account, nil
 	}
 
 	// Step 3: Create IAM client
 	iamClient, err := CreateIAMClient(objContext, adminOpsContext)
 	if err != nil {
 		logger.Warningf("failed to create IAM client, skipping OIDC setup: %v", err)
-		return account, r.createServiceAccount(ctx, namespace, accountID, "")
+		_ = r.createServiceAccount(ctx, namespace, accountID, "")
+		return account, nil
 	}
 
 	// Step 4: Get OIDC configuration from the cluster
 	oidcConfig, err := GetClusterOIDCConfig(ctx, r.client)
 	if err != nil {
 		logger.Warningf("failed to get OIDC config, skipping OIDC provider creation: %v", err)
-		return account, r.createServiceAccount(ctx, namespace, accountID, "")
+		_ = r.createServiceAccount(ctx, namespace, accountID, "")
+		return account, nil
 	}
 
 	// Step 5: Create OIDC provider using IAM API
@@ -303,7 +307,8 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	providerARN, err := CreateOIDCProviderViaAPI(iamClient, oidcConfig.IssuerURL, oidcConfig.Thumbprints, oidcConfig.ClientIDs)
 	if err != nil {
 		logger.Warningf("failed to create OIDC provider for account %q: %v", accountID, err)
-		return account, r.createServiceAccount(ctx, namespace, accountID, "")
+		_ = r.createServiceAccount(ctx, namespace, accountID, "")
+		return account, nil
 	}
 	logger.Infof("OIDC provider created: %s", providerARN)
 
@@ -315,7 +320,8 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	role, err := CreateRole(objContext, accountID, roleName, assumeRolePolicy)
 	if err != nil {
 		logger.Warningf("failed to create IAM role for account %q: %v", accountID, err)
-		return account, r.createServiceAccount(ctx, namespace, accountID, "")
+		_ = r.createServiceAccount(ctx, namespace, accountID, "")
+		return account, nil
 	}
 	logger.Infof("IAM role created: %+v", role)
 
