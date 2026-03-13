@@ -248,6 +248,14 @@ func GetServiceAccountToken(ctx context.Context, k8sClient client.Client, namesp
 // CreateIAMClient creates an AWS IAM client for RGW
 func CreateIAMClient(objContext *object.Context, adminOpsContext *object.AdminOpsContext) (*iam.IAM, error) {
 	// Create AWS session with RGW endpoint
+	// In RGW multisite, the zonegroup is used as the region
+	region := objContext.ZoneGroup
+	if region == "" {
+		// Fallback to a default region if zonegroup is not set
+		region = "default"
+		logger.Debugf("zonegroup not set, using default region %q", region)
+	}
+
 	sess, err := session.NewSession(&aws.Config{
 		Credentials: credentials.NewStaticCredentials(
 			adminOpsContext.AdminOpsUserAccessKey,
@@ -255,7 +263,7 @@ func CreateIAMClient(objContext *object.Context, adminOpsContext *object.AdminOp
 			"",
 		),
 		Endpoint:         aws.String(objContext.Endpoint),
-		Region:           aws.String(""),
+		Region:           aws.String(region),
 		S3ForcePathStyle: aws.Bool(true),
 		DisableSSL:       aws.Bool(strings.HasPrefix(objContext.Endpoint, "http://")),
 	})
@@ -263,6 +271,7 @@ func CreateIAMClient(objContext *object.Context, adminOpsContext *object.AdminOp
 		return nil, errors.Wrap(err, "failed to create AWS session")
 	}
 
+	logger.Infof("created IAM client with endpoint %q and region %q", objContext.Endpoint, region)
 	return iam.New(sess), nil
 }
 
