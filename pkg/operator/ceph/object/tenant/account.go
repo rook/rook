@@ -85,7 +85,7 @@ func CreateAccount(c *object.Context, accountName string) (*RGWAccount, error) {
 
 // GetAccount retrieves information about an RGW User Account
 func GetAccount(c *object.Context, accountName string) (*RGWAccount, error) {
-	logger.Debugf("getting RGW User Account %q", accountName)
+	logger.Infof("GetAccount: retrieving RGW User Account %q", accountName)
 
 	args := []string{
 		"account",
@@ -93,15 +93,21 @@ func GetAccount(c *object.Context, accountName string) (*RGWAccount, error) {
 		"--account-name", accountName,
 	}
 
+	logger.Infof("GetAccount: calling radosgw-admin with args: %v", args)
 	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	logger.Infof("GetAccount: radosgw-admin returned, err=%v, result length=%d", err, len(result))
+
 	if err != nil {
 		if strings.Contains(result, "account not found") || strings.Contains(result, "no account info saved") {
+			logger.Errorf("GetAccount: account %q not found", accountName)
 			return nil, errors.Errorf("RGW User Account %q not found", accountName)
 		}
+		logger.Errorf("GetAccount: failed to get account %q: %v, result: %s", accountName, err, result)
 		return nil, errors.Wrapf(err, "failed to get RGW User Account %q. %s", accountName, result)
 	}
 
 	// Parse the result
+	logger.Infof("GetAccount: parsing JSON result for account %q", accountName)
 	var account RGWAccount
 	err = json.Unmarshal([]byte(result), &account)
 	if err != nil {
