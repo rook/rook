@@ -432,7 +432,8 @@ func (r *ReconcileTenantIdentity) createServiceAccount(ctx context.Context, name
 
 // storeRootUserCredentials stores the root user credentials in a Kubernetes Secret
 func (r *ReconcileTenantIdentity) storeRootUserCredentials(ctx context.Context, accountID string, rootUser *AccountRootUser) error {
-	secretName := fmt.Sprintf("rgw-account-%s-root-user", accountID)
+	// Kubernetes secret names must be lowercase
+	secretName := fmt.Sprintf("rgw-account-%s-root-user", strings.ToLower(accountID))
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
