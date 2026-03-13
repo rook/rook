@@ -19,6 +19,7 @@ package tenant
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
@@ -189,8 +190,8 @@ func (r *ReconcileTenantIdentity) Reconcile(ctx context.Context, request reconci
 
 // createRGWAccount creates a new RGW User Account for the namespace
 func (r *ReconcileTenantIdentity) createRGWAccount(ctx context.Context, namespace *corev1.Namespace) (reconcile.Result, error) {
-	// Generate account ID based on namespace name
-	accountID := fmt.Sprintf("RGW%s", namespace.Name)
+	// Generate account ID based on namespace name (without RGW prefix)
+	accountID := namespace.Name
 
 	logger.Infof("creating RGW User Account %q for namespace %q", accountID, namespace.Name)
 
@@ -201,22 +202,30 @@ func (r *ReconcileTenantIdentity) createRGWAccount(ctx context.Context, namespac
 	// 3. Create IAM role for AssumeRoleWithWebIdentity
 	// 4. Create service account in the namespace
 
-	// For now, we'll create a placeholder implementation
-	err := r.createRGWUserAccount(ctx, namespace, accountID)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to create RGW User Account for namespace %q", namespace.Name)
-	}
-
-	// Update namespace annotations with account ARN and role ARN
+	// Update namespace annotations FIRST to prevent repeated reconciliation
+	// This marks the account as "in progress" before we actually create it
 	if namespace.Annotations == nil {
 		namespace.Annotations = make(map[string]string)
 	}
 	namespace.Annotations[AccountARNAnnotation] = accountID
 	namespace.Annotations[RoleARNAnnotation] = fmt.Sprintf("arn:aws:iam::%s:role/namespace-role", accountID)
 
-	err = r.client.Update(ctx, namespace)
+	err := r.client.Update(ctx, namespace)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to update namespace %q annotations", namespace.Name)
+	}
+
+	// Now create the actual RGW User Account
+	err = r.createRGWUserAccount(ctx, namespace, accountID)
+	if err != nil {
+		// If creation fails, remove the annotations so we can retry
+		delete(namespace.Annotations, AccountARNAnnotation)
+		delete(namespace.Annotations, RoleARNAnnotation)
+		updateErr := r.client.Update(ctx, namespace)
+		if updateErr != nil {
+			logger.Errorf("failed to remove annotations after account creation failure: %v", updateErr)
+		}
+		return reconcile.Result{}, errors.Wrapf(err, "failed to create RGW User Account for namespace %q", namespace.Name)
 	}
 
 	logger.Infof("successfully created RGW User Account %q for namespace %q", accountID, namespace.Name)
@@ -247,17 +256,19 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	account, err := CreateAccount(objContext, accountID)
 	if err != nil {
 		// Check if account already exists
-		if errors.Cause(err).Error() == fmt.Sprintf("RGW User Account %q already exists", accountID) {
+		if strings.Contains(err.Error(), "already exists") {
 			logger.Infof("RGW User Account %q already exists, retrieving info", accountID)
 			account, err = GetAccount(objContext, accountID)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get existing RGW User Account %q", accountID)
 			}
+			logger.Infof("Retrieved existing RGW User Account: %+v", account)
 		} else {
 			return errors.Wrapf(err, "failed to create RGW User Account %q", accountID)
 		}
+	} else {
+		logger.Infof("RGW User Account created: %+v", account)
 	}
-	logger.Infof("RGW User Account created: %+v", account)
 
 	// Step 2: Get admin ops context for IAM API calls
 	// We need to find the object store and get admin credentials
