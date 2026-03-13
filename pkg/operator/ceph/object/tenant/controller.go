@@ -241,10 +241,12 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	objectStoreList := &cephv1.CephObjectStoreList{}
 	err := r.client.List(ctx, objectStoreList, client.InNamespace(r.clusterInfo.Namespace))
 	if err != nil {
+		logger.Errorf("failed to list CephObjectStores in namespace %q: %v", r.clusterInfo.Namespace, err)
 		return errors.Wrapf(err, "failed to list CephObjectStores in namespace %q", r.clusterInfo.Namespace)
 	}
 
 	if len(objectStoreList.Items) == 0 {
+		logger.Errorf("no CephObjectStore found in namespace %q", r.clusterInfo.Namespace)
 		return errors.Errorf("no CephObjectStore found in namespace %q", r.clusterInfo.Namespace)
 	}
 
@@ -253,6 +255,7 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	objContext := object.NewContext(r.context, r.clusterInfo, objectStoreName)
 
 	// Step 1: Create the RGW User Account
+	logger.Infof("attempting to create account %q using radosgw-admin", accountID)
 	account, err := CreateAccount(objContext, accountID)
 	if err != nil {
 		// Check if account already exists
