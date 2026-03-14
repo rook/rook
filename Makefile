@@ -33,6 +33,35 @@ all: build
 # Controller-gen version
 # f284e2e8... is master ahead of v0.5.0 which has ability to generate embedded objectmeta in CRDs
 CONTROLLER_GEN_VERSION=v0.19.0
+CT_VERSION := v3.13.0
+KUSTOMIZE_VERSION := v5.3.0
+MARKDOWNLINT_IMAGE_VERSION :=v0.21.0
+SHELLCHECK_VERSION := v0.10.0
+
+# Configuration for the yamllint contaioner image:
+#
+# version/tag settings(can be overridden from the cmdline):
+# Uncomment/Set only what you need.
+# # Priority: SHA > TAG > VERSION (defaulting to :latest)
+#
+# sha:
+YAMLLINT_IMAGE_SHA:=
+# this is the sha of the "latest" tag as of 2026-03-12:
+#YAMLLINT_IMAGE_SHA := sha256:3e9eb827ab2b12a5ea5f49d4257bb3aca94bba9f1ba427c8bc7f2456385a5204
+# tag:
+YAMLLINT_IMAGE_TAG :=
+# working tag:
+#YAMLLINT_IMAGE_TAG := 1.26
+# version:
+YAMLLINT_VERSION :=
+# many specific versions don't work as tags!
+#YAMLLINT_VERSION := 1.35.1
+
+# include here and not earlier so that the version numbers are available
+# where needed
+include build/makelib/common.mk
+include build/makelib/helm.mk
+
 
 # Set GOBIN
 ifeq (,$(shell go env GOBIN))
@@ -157,7 +186,7 @@ install: build.common
 	@$(MAKE) go.install
 
 .PHONY: check
-check: test ## Runs checks (unit tests)
+check: lint.fast test build ## Runs checks (some linters, build, and unit tests)
 
 .PHONY: test
 test: ## Runs unit tests.
@@ -181,29 +210,35 @@ fmt-fix: $(YQ) ## Reformatting of go sources.
 golangci-lint: $(YQ)
 	@$(MAKE) go.golangci-lint
 
+.PHONY: go.lint
+go.lint: vet fmt golangci-lint ## run various go linting tools
+
 .PHONY: markdownlint
 markdownlint: ## Check formatting of documentation sources
-	markdownlint-cli2 "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs
+	@$(MARKDOWNLINT) "Documentation/**/*.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs
 
 .PHONY: markdownlint.fix
 markdownlint.fix: ## Check and fix formatting of documentation sources
-	markdownlint-cli2 "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --fix --config .markdownlint-cli2.cjs
+	@$(MARKDOWNLINT) "Documentation/**/*.md" "#Documentation/Helm-Charts/**" --fix --config .markdownlint-cli2.cjs
 
 .PHONY: yamllint
 yamllint:
-	yamllint -c .yamllint deploy/examples/ --no-warnings
+	$(YAMLLINT) -c .yamllint deploy/examples/
 
 .PHONY: helm.lint
-helm.lint: ## Check the helm charts
-	ct lint --charts=./deploy/charts/rook-ceph,./deploy/charts/rook-ceph-cluster --validate-yaml=false --validate-maintainers=false
-	helm -n rook-ceph template deploy/charts/rook-ceph > templated.yaml
-	helm -n rook-ceph template deploy/charts/rook-ceph-cluster >> templated.yaml
+helm.lint: | $(HELM) $(KUSTOMIZE) ## Check the helm charts
+	$(CT) lint --charts=./deploy/charts/rook-ceph,./deploy/charts/rook-ceph-cluster --validate-yaml=false --validate-maintainers=false --validate-chart-schema=false
+	$(HELM) -n rook-ceph template deploy/charts/rook-ceph > templated.yaml
+	$(HELM)  -n rook-ceph template deploy/charts/rook-ceph-cluster >> templated.yaml
 	echo 'resources: [templated.yaml]' > kustomization.yaml
-	kustomize build >/dev/null
+	$(KUSTOMIZE) build >/dev/null
 	rm templated.yaml kustomization.yaml
 
 .PHONY: lint
-lint: yamllint pylint shellcheck checkmake vet markdownlint golangci-lint helm.lint  ## Run various linters
+lint: lint.fast pylint ## Run various linters
+
+.PHONY: lint.fast
+lint.fast: yamllint checkmake shellcheck markdownlint go.lint helm.lint ## Run a few rather lightweight/fast linters
 
 .PHONY: pylint
 pylint:
@@ -214,8 +249,8 @@ checkmake:
 	@$(CHECKMAKE) Makefile
 
 .PHONY: shellcheck
-shellcheck:
-	shellcheck --severity=warning --format=gcc --shell=bash $(shell find $(ROOT_DIR) -type f -name '*.sh') build/reset build/sed-in-place
+shellcheck: | $(SHELLCHECK)
+	$(SHELLCHECK) --severity=warning --format=gcc --shell=bash $(shell find $(ROOT_DIR) -type f -name '*.sh') build/reset build/sed-in-place
 
 .PHONY: gen.codegen
 gen.codegen: codegen
