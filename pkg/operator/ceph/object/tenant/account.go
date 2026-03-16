@@ -302,6 +302,12 @@ func CreateOIDCProvider(c *object.Context, accountName, issuer string, thumbprin
 		args = append(args, "--thumbprint", thumbprint)
 	}
 
+	// Add realm and zone
+	args = append(args,
+		fmt.Sprintf("--rgw-realm=%s", c.Realm),
+		fmt.Sprintf("--rgw-zone=%s", c.Zone),
+	)
+
 	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
 	if err != nil {
 		if strings.Contains(result, "provider already exists") {
@@ -331,6 +337,8 @@ func CreateRole(c *object.Context, accountName, roleName, assumeRolePolicyDoc st
 		"--account-id", accountName,
 		"--role-name", roleName,
 		"--assume-role-policy-doc", assumeRolePolicyDoc,
+		fmt.Sprintf("--rgw-realm=%s", c.Realm),
+		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
 	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
@@ -363,6 +371,8 @@ func GetRole(c *object.Context, accountName, roleName string) (*IAMRole, error) 
 		"get",
 		"--account-id", accountName,
 		"--role-name", roleName,
+		fmt.Sprintf("--rgw-realm=%s", c.Realm),
+		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
 	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
@@ -401,25 +411,6 @@ func GenerateAssumeRolePolicyDocument(accountName, oidcProviderARN, namespace st
     }
   ]
 }`, oidcProviderARN, namespace)
-
-	return policy
-}
-
-// GeneratePermissionsPolicyDocument generates a permissions policy document for the role
-func GeneratePermissionsPolicyDocument(accountName string) string {
-	// This policy grants full S3 access within the account
-	policy := fmt.Sprintf(`{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": "s3:*",
-      "Resource": [
-        "arn:aws:s3:::*"
-      ]
-    }
-  ]
-}`)
 
 	return policy
 }

@@ -362,24 +362,15 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	}
 	logger.Infof("IAM role created: %+v", role)
 
-	// Step 7: Create and attach permissions policy
-	policyName := "namespace-s3-policy"
-	policyDoc := GeneratePermissionsPolicyDocument(accountID)
+	// Step 7: Attach AWS managed policy for S3 full access to role
+	managedPolicyARN := "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 
-	logger.Infof("creating IAM policy %q for account %q", policyName, accountID)
-	policy, err := CreatePolicy(objContext, accountID, policyName, policyDoc)
+	logger.Infof("attaching managed policy %q to role %q for account %q", managedPolicyARN, roleName, accountID)
+	err = AttachRolePolicy(objContext, accountID, roleName, managedPolicyARN)
 	if err != nil {
-		logger.Warningf("failed to create IAM policy for account %q: %v", accountID, err)
+		logger.Warningf("failed to attach managed policy to role for account %q: %v", accountID, err)
 	} else {
-		logger.Infof("IAM policy created: %+v", policy)
-
-		// Attach policy to role
-		err = AttachRolePolicy(objContext, accountID, roleName, policy.PolicyARN)
-		if err != nil {
-			logger.Warningf("failed to attach policy to role: %v", err)
-		} else {
-			logger.Infof("policy attached to role successfully")
-		}
+		logger.Infof("managed policy %q attached to role %q successfully", managedPolicyARN, roleName)
 	}
 
 	// Step 8: Create service account in the namespace with role ARN

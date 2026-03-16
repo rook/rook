@@ -57,6 +57,8 @@ func CreatePolicy(c *object.Context, accountName, policyName, policyDocument str
 		"--account-id", accountName,
 		"--policy-name", policyName,
 		"--policy-doc", policyDocument,
+		fmt.Sprintf("--rgw-realm=%s", c.Realm),
+		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
 	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
@@ -88,6 +90,8 @@ func GetPolicy(c *object.Context, accountName, policyName string) (*Policy, erro
 		"get",
 		"--account-id", accountName,
 		"--policy-name", policyName,
+		fmt.Sprintf("--rgw-realm=%s", c.Realm),
+		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
 	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
@@ -105,6 +109,30 @@ func GetPolicy(c *object.Context, accountName, policyName string) (*Policy, erro
 	return &policy, nil
 }
 
+// PutRolePolicy adds or updates an inline policy document embedded with a role
+func PutRolePolicy(c *object.Context, accountName, roleName, policyName, policyDocument string) error {
+	logger.Infof("putting inline policy %q on role %q in account %q", policyName, roleName, accountName)
+
+	args := []string{
+		"role-policy",
+		"put",
+		"--account-id", accountName,
+		"--role-name", roleName,
+		"--policy-name", policyName,
+		"--policy-doc", policyDocument,
+		fmt.Sprintf("--rgw-realm=%s", c.Realm),
+		fmt.Sprintf("--rgw-zone=%s", c.Zone),
+	}
+
+	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to put inline policy %q on role %q. %s", policyName, roleName, result)
+	}
+
+	logger.Infof("successfully put inline policy %q on role %q", policyName, roleName)
+	return nil
+}
+
 // AttachRolePolicy attaches a policy to a role within an RGW User Account
 func AttachRolePolicy(c *object.Context, accountName, roleName, policyARN string) error {
 	logger.Infof("attaching policy %q to role %q in account %q", policyARN, roleName, accountName)
@@ -115,6 +143,8 @@ func AttachRolePolicy(c *object.Context, accountName, roleName, policyARN string
 		"--account-id", accountName,
 		"--role-name", roleName,
 		"--policy-arn", policyARN,
+		fmt.Sprintf("--rgw-realm=%s", c.Realm),
+		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
 	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
@@ -136,6 +166,8 @@ func DetachRolePolicy(c *object.Context, accountName, roleName, policyARN string
 		"--account-name", accountName,
 		"--role-name", roleName,
 		"--policy-arn", policyARN,
+		fmt.Sprintf("--rgw-realm=%s", c.Realm),
+		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
 	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
@@ -156,6 +188,8 @@ func DeletePolicy(c *object.Context, accountName, policyARN string) error {
 		"delete",
 		"--account-name", accountName,
 		"--policy-arn", policyARN,
+		fmt.Sprintf("--rgw-realm=%s", c.Realm),
+		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
 	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
