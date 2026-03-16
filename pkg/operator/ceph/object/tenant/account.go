@@ -59,6 +59,7 @@ type IAMRole struct {
 // CreateAccount creates a new RGW User Account
 func CreateAccount(c *object.Context, accountName string) (*RGWAccount, error) {
 	logger.Infof("CreateAccount: starting for account %q", accountName)
+	logger.Infof("CreateAccount: Context - Name=%q, Realm=%q, Zone=%q, ZoneGroup=%q", c.Name, c.Realm, c.Zone, c.ZoneGroup)
 
 	args := []string{
 		"account",
@@ -67,6 +68,7 @@ func CreateAccount(c *object.Context, accountName string) (*RGWAccount, error) {
 	}
 
 	logger.Infof("CreateAccount: calling radosgw-admin with args: %v", args)
+	logger.Infof("CreateAccount: about to call object.RunAdminCommand")
 	result, err := object.RunAdminCommand(c, false, args...)
 	logger.Infof("CreateAccount: radosgw-admin returned, err=%v, result length=%d", err, len(result))
 
