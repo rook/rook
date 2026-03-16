@@ -253,9 +253,12 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 		return nil, errors.Errorf("no CephObjectStore found in namespace %q", r.clusterInfo.Namespace)
 	}
 
-	objectStoreName := objectStoreList.Items[0].Name
-	logger.Infof("using CephObjectStore %q for account %q", objectStoreName, accountID)
-	objContext := object.NewContext(r.context, r.clusterInfo, objectStoreName)
+	objectStore := &objectStoreList.Items[0]
+	logger.Infof("using CephObjectStore %q for account %q", objectStore.Name, accountID)
+	objContext, err := object.NewMultisiteContext(r.context, r.clusterInfo, objectStore)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create object context for CephObjectStore %q", objectStore.Name)
+	}
 
 	// Step 1: Create the RGW User Account
 	logger.Infof("attempting to create account %q using radosgw-admin", accountID)
@@ -297,17 +300,7 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	}
 
 	// Step 4: Create IAM client using account root user credentials
-	// First, ensure the endpoint is set in the object context
-	objectStore := &cephv1.CephObjectStore{}
-	err = r.client.Get(ctx, client.ObjectKey{Name: objectStoreName, Namespace: r.clusterInfo.Namespace}, objectStore)
-	if err != nil {
-		logger.Warningf("failed to get CephObjectStore for endpoint: %v", err)
-		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
-			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
-		}
-		return account, nil
-	}
-
+	// The endpoint should already be set by NewMultisiteContext, but ensure it's updated
 	err = object.UpdateEndpointForAdminOps(objContext, objectStore)
 	if err != nil {
 		logger.Warningf("failed to update endpoint for account %q: %v", accountID, err)
