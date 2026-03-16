@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -47,10 +48,12 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const (
-	controllerName = "ceph-object-store-account-controller"
+	controllerName          = "ceph-object-store-account-controller"
+	rgwAccountNameMaxLength = 64
 )
 
 // newMultisiteAdminOpsCtxFunc helps us mocking the admin ops API client in unit test
@@ -199,7 +202,7 @@ func (r *ReconcileObjectStoreAccount) reconcile(request reconcile.Request) (reco
 	}
 
 	// Validate the object store has been initialized
-	opsCtx, _, err := object.InitializeObjectStoreContext(r.context, r.clusterInfo, r.client, r.opManagerContext, cephObjectStoreAccount.Spec.Store, newMultisiteAdminOpsCtxFunc)
+	opsCtx, objectStore, err := object.InitializeObjectStoreContext(r.context, r.clusterInfo, r.client, r.opManagerContext, cephObjectStoreAccount.Spec.Store, newMultisiteAdminOpsCtxFunc)
 	if err != nil {
 		if !cephObjectStoreAccount.GetDeletionTimestamp().IsZero() {
 			// Remove finalizer
@@ -245,8 +248,14 @@ func (r *ReconcileObjectStoreAccount) reconcile(request reconcile.Request) (reco
 		return reconcile.Result{}, *cephObjectStoreAccount, errors.Wrapf(err, "failed to reconcile account %q", cephObjectStoreAccount.Name)
 	}
 
-	// Update the status with the account ID
-	r.updateStatusWithAccountID(observedGeneration, request.NamespacedName, accountID)
+	// Reconcile the root user
+	secretName, err := r.reconcileRootUser(cephObjectStoreAccount, accountID, objectStore)
+	if err != nil {
+		return reconcile.Result{}, *cephObjectStoreAccount, errors.Wrapf(err, "failed to reconcile root user")
+	}
+
+	// Update the status with the account ID and root user secret name
+	r.updateStatusWithAccountID(observedGeneration, request.NamespacedName, accountID, secretName)
 
 	return reconcile.Result{}, *cephObjectStoreAccount, nil
 }
@@ -424,9 +433,22 @@ func (r *ReconcileObjectStoreAccount) deleteAccount(cephObjectStoreAccount *ceph
 		return nil
 	}
 
+	// Always attempt to delete the root user to ensure cleanup
+	rootUserID := getRootUserID(cephObjectStoreAccount)
+	log.NamedInfo(nsName, logger, "deleting root user %q for account %q", rootUserID, accountID)
+	err := object.DeleteAccountRootUser(r.opManagerContext, r.objContext, rootUserID)
+	if err != nil {
+		if !errors.Is(err, admin.ErrNoSuchUser) {
+			return errors.Wrapf(err, "failed to delete root user %q for account %q", rootUserID, accountID)
+		}
+		log.NamedInfo(nsName, logger, "root user %q not found, considering deletion successful", rootUserID)
+	} else {
+		log.NamedInfo(nsName, logger, "successfully deleted root user %q", rootUserID)
+	}
+
 	log.NamedInfo(nsName, logger, "deleting account %q", accountID)
 
-	err := object.DeleteAccount(r.opManagerContext, r.objContext, accountID)
+	err = object.DeleteAccount(r.opManagerContext, r.objContext, accountID)
 	if err != nil {
 		// If account doesn't exist, consider it successful (idempotent)
 		if errors.Is(err, admin.ErrNoSuchKey) {
@@ -438,6 +460,175 @@ func (r *ReconcileObjectStoreAccount) deleteAccount(cephObjectStoreAccount *ceph
 
 	log.NamedInfo(nsName, logger, "successfully deleted account %q", accountID)
 	return nil
+}
+
+// deleteRootUserSecret deletes the Kubernetes secret for root user credentials, treating "not found" as success.
+func (r *ReconcileObjectStoreAccount) deleteRootUserSecret(cephObjectStoreAccount *cephv1.CephObjectStoreAccount) error {
+	nsName := types.NamespacedName{Namespace: cephObjectStoreAccount.Namespace, Name: cephObjectStoreAccount.Name}
+	secretName := generateRootUserSecretName(cephObjectStoreAccount)
+	log.NamedInfo(nsName, logger, "deleting root user secret %q", secretName)
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: cephObjectStoreAccount.Namespace,
+		},
+	}
+	if err := r.client.Delete(r.opManagerContext, secret); err != nil {
+		if kerrors.IsNotFound(err) {
+			log.NamedInfo(nsName, logger, "root user secret %q not found, considering deletion successful", secretName)
+		} else {
+			return errors.Wrapf(err, "failed to delete root user secret %q", secretName)
+		}
+	} else {
+		log.NamedInfo(nsName, logger, "successfully deleted root user secret %q", secretName)
+	}
+	return nil
+}
+
+// skipRootUserCreation returns true if root user creation should be skipped.
+func skipRootUserCreation(cephObjectStoreAccount *cephv1.CephObjectStoreAccount) bool {
+	return cephObjectStoreAccount.Spec.RootUser != nil && cephObjectStoreAccount.Spec.RootUser.SkipCreate != nil && *cephObjectStoreAccount.Spec.RootUser.SkipCreate
+}
+
+// getRootUserID returns the root user UID derived from the CR's metadata.uid.
+// The root user's UID is the metadata.uid of the CephObjectStoreAccount CR,
+// ensuring global uniqueness across multi-cluster and multisite environments.
+func getRootUserID(cephObjectStoreAccount *cephv1.CephObjectStoreAccount) string {
+	return string(cephObjectStoreAccount.UID)
+}
+
+// getRootUserDisplayName returns the display name for the root user.
+func getRootUserDisplayName(cephObjectStoreAccount *cephv1.CephObjectStoreAccount) string {
+	if cephObjectStoreAccount.Spec.RootUser != nil && cephObjectStoreAccount.Spec.RootUser.DisplayName != "" {
+		return cephObjectStoreAccount.Spec.RootUser.DisplayName
+	}
+	// RGW enforces a maximum display name length of 64 characters
+	return truncate(fmt.Sprintf("root-%s", cephObjectStoreAccount.Name), rgwAccountNameMaxLength)
+}
+
+// accountResourceLabels returns the standard labels for resources related to a CephObjectStoreAccount.
+func accountResourceLabels(cephObjectStoreAccount *cephv1.CephObjectStoreAccount) map[string]string {
+	return map[string]string{
+		"cephObjectStoreAccountName": truncate(cephObjectStoreAccount.Name, validation.DNS1123LabelMaxLength),
+		"cephObjectStoreName":        truncate(cephObjectStoreAccount.Spec.Store, validation.DNS1123LabelMaxLength),
+		"cephObjectStoreNamespace":   truncate(cephObjectStoreAccount.Namespace, validation.DNS1123LabelMaxLength),
+	}
+}
+
+// truncate truncates a string to the specified maximum length.
+func truncate(value string, maxLen int) string {
+	if len(value) > maxLen {
+		return value[:maxLen]
+	}
+	return value
+}
+
+// generateRootUserSecretName returns the name of the Kubernetes secret for root user credentials.
+func generateRootUserSecretName(cephObjectStoreAccount *cephv1.CephObjectStoreAccount) string {
+	return fmt.Sprintf("rook-ceph-object-root-user-%s", cephObjectStoreAccount.Name)
+}
+
+// reconcileRootUser creates or updates the root user for the account and manages its credentials secret.
+// Returns the secret name if a root user was created, or empty string if skipped.
+func (r *ReconcileObjectStoreAccount) reconcileRootUser(cephObjectStoreAccount *cephv1.CephObjectStoreAccount, accountID string, objectStore *cephv1.CephObjectStore) (string, error) {
+	nsName := types.NamespacedName{Namespace: cephObjectStoreAccount.Namespace, Name: cephObjectStoreAccount.Name}
+	if skipRootUserCreation(cephObjectStoreAccount) {
+		// If skipCreate is set, delete any previously created root user
+		rootUserID := getRootUserID(cephObjectStoreAccount)
+		log.NamedInfo(nsName, logger, "skipCreate is true, deleting root user %q if it exists", rootUserID)
+		err := object.DeleteAccountRootUser(r.opManagerContext, r.objContext, rootUserID)
+		if err != nil && !errors.Is(err, admin.ErrNoSuchUser) {
+			return "", errors.Wrapf(err, "failed to delete root user %q for account %q", rootUserID, accountID)
+		}
+		log.NamedInfo(nsName, logger, "successfully deleted root user %q", rootUserID)
+
+		// Delete the stale credentials secret since the root user no longer exists
+		if err := r.deleteRootUserSecret(cephObjectStoreAccount); err != nil {
+			return "", err
+		}
+
+		return "", nil
+	}
+	rootUserID := getRootUserID(cephObjectStoreAccount)
+	displayName := getRootUserDisplayName(cephObjectStoreAccount)
+	accountRoot := true
+	generateKey := true
+
+	// Check if the root user already exists
+	user, err := object.GetAccountRootUser(r.opManagerContext, r.objContext, rootUserID)
+	if err != nil {
+		if !errors.Is(err, admin.ErrNoSuchUser) {
+			return "", errors.Wrapf(err, "failed to check if root user %q exists", rootUserID)
+		}
+
+		// Root user does not exist, create it
+		log.NamedInfo(nsName, logger, "creating root user %q for account %q", rootUserID, accountID)
+		user, err = object.CreateAccountRootUser(r.opManagerContext, r.objContext, admin.User{
+			ID:          rootUserID,
+			DisplayName: displayName,
+			AccountID:   accountID,
+			AccountRoot: &accountRoot,
+			GenerateKey: &generateKey,
+		})
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to create root user %q for account %q", rootUserID, accountID)
+		}
+		log.NamedInfo(nsName, logger, "successfully created root user %q for account %q", rootUserID, accountID)
+	} else {
+		// Root user exists, always update to ensure desired state
+		log.NamedInfo(nsName, logger, "updating root user %q", rootUserID)
+		user, err = object.ModifyAccountRootUser(r.opManagerContext, r.objContext, admin.User{
+			ID:          rootUserID,
+			DisplayName: displayName,
+		})
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to update root user %q", rootUserID)
+		}
+		log.NamedInfo(nsName, logger, "successfully updated root user %q", rootUserID)
+	}
+
+	// Reconcile the credentials secret
+	secretName, err := r.reconcileRootUserSecret(cephObjectStoreAccount, &user, objectStore)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to reconcile root user secret")
+	}
+
+	return secretName, nil
+}
+
+// reconcileRootUserSecret creates or updates the Kubernetes secret containing root user credentials.
+func (r *ReconcileObjectStoreAccount) reconcileRootUserSecret(cephObjectStoreAccount *cephv1.CephObjectStoreAccount, user *admin.User, objectStore *cephv1.CephObjectStore) (string, error) {
+	secretName := generateRootUserSecretName(cephObjectStoreAccount)
+	secrets := map[string]string{
+		"AccessKey": user.Keys[0].AccessKey,
+		"SecretKey": user.Keys[0].SecretKey,
+		"Endpoint":  r.objContext.Endpoint,
+	}
+	if objectStore.Spec.Gateway.SSLCertificateRef != "" {
+		secrets["SSLCertSecretName"] = objectStore.Spec.Gateway.SSLCertificateRef
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: cephObjectStoreAccount.Namespace,
+			Labels:    accountResourceLabels(cephObjectStoreAccount),
+		},
+		StringData: secrets,
+		Type:       k8sutil.RookType,
+	}
+
+	// Set owner reference to the CephObjectStoreAccount CR
+	if err := controllerutil.SetControllerReference(cephObjectStoreAccount, secret, r.scheme); err != nil {
+		return "", errors.Wrapf(err, "failed to set owner reference of root user secret %q", secretName)
+	}
+
+	// Create or update the secret
+	if err := opcontroller.CreateOrUpdateObject(r.opManagerContext, r.client, secret); err != nil {
+		return "", errors.Wrapf(err, "failed to create or update root user secret %q", secretName)
+	}
+
+	return secretName, nil
 }
 
 func (r *ReconcileObjectStoreAccount) updateStatus(observedGeneration int64, name types.NamespacedName, status string) {
@@ -465,7 +656,7 @@ func (r *ReconcileObjectStoreAccount) updateStatus(observedGeneration int64, nam
 	log.NamedDebug(name, logger, "object store account %q status updated to %q", name, status)
 }
 
-func (r *ReconcileObjectStoreAccount) updateStatusWithAccountID(observedGeneration int64, name types.NamespacedName, accountID string) {
+func (r *ReconcileObjectStoreAccount) updateStatusWithAccountID(observedGeneration int64, name types.NamespacedName, accountID, rootAccountSecretName string) {
 	account := &cephv1.CephObjectStoreAccount{}
 	if err := r.client.Get(r.opManagerContext, name, account); err != nil {
 		if kerrors.IsNotFound(err) {
@@ -481,6 +672,7 @@ func (r *ReconcileObjectStoreAccount) updateStatusWithAccountID(observedGenerati
 
 	account.Status.Phase = k8sutil.ReadyStatus
 	account.Status.AccountID = accountID
+	account.Status.RootAccountSecretName = rootAccountSecretName
 	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 		account.Status.ObservedGeneration = &observedGeneration
 	}

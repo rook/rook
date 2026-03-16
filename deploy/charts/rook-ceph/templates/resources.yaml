@@ -12634,6 +12634,23 @@ spec:
                   minLength: 1
                   pattern: ^[a-zA-Z0-9 ._-]+$
                   type: string
+                rootUser:
+                  description: |-
+                    RootUser configures the root user for the account. The root user is created by default
+                    and has default permissions across all account resources.
+                  properties:
+                    displayName:
+                      description: DisplayName for the root user
+                      maxLength: 64
+                      minLength: 1
+                      pattern: ^[\w+=,.@-]+$
+                      type: string
+                    skipCreate:
+                      description: |-
+                        SkipCreate when set to true, the root user will not be created for this account.
+                        This can be useful if the user wants to manually manage the root user outside of Rook.
+                      type: boolean
+                  type: object
                 store:
                   description: Store is the CephObjectStore the account will be associated with
                   maxLength: 253
@@ -12658,6 +12675,11 @@ spec:
                   format: int64
                   type: integer
                 phase:
+                  type: string
+                rootAccountSecretName:
+                  description: RootAccountSecretName is the name of the Kubernetes secret containing the root user's access credentials
+                  maxLength: 253
+                  minLength: 1
                   type: string
               type: object
           required:
