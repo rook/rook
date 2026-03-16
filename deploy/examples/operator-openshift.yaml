@@ -784,3 +784,23 @@ spec:
         - name: default-config-dir
           emptyDir: {}
 # OLM: END OPERATOR DEPLOYMENT
+
+---
+# Additional ClusterRoleBinding for openshift-storage namespace
+# This is needed when Rook is deployed via OLM in the openshift-storage namespace
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-global-openshift-storage
+  labels:
+    operator: rook
+    storage-backend: ceph
+    app.kubernetes.io/part-of: rook-ceph-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-global
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: openshift-storage

@@ -64,6 +64,8 @@ func CreateAccount(c *object.Context, accountName string) (*RGWAccount, error) {
 		"account",
 		"create",
 		"--account-name", accountName,
+		fmt.Sprintf("--rgw-realm=%s", c.Realm),
+		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
 	logger.Infof("CreateAccount: calling radosgw-admin with args: %v", args)
@@ -169,6 +171,8 @@ func CreateAccountRootUser(c *object.Context, accountID string, accountName stri
 		"--display-name", displayName,
 		"--account-id", accountID,
 		"--account-root",
+		fmt.Sprintf("--rgw-realm=%s", c.Realm),
+		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
 	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
