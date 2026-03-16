@@ -64,12 +64,10 @@ func CreateAccount(c *object.Context, accountName string) (*RGWAccount, error) {
 		"account",
 		"create",
 		"--account-name", accountName,
-		fmt.Sprintf("--rgw-realm=%s", c.Realm),
-		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
 	logger.Infof("CreateAccount: calling radosgw-admin with args: %v", args)
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	logger.Infof("CreateAccount: radosgw-admin returned, err=%v, result length=%d", err, len(result))
 
 	if err != nil {
@@ -104,7 +102,7 @@ func GetAccount(c *object.Context, accountName string) (*RGWAccount, error) {
 	}
 
 	logger.Infof("GetAccount: calling radosgw-admin with args: %v", args)
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	logger.Infof("GetAccount: radosgw-admin returned, err=%v, result length=%d", err, len(result))
 
 	if err != nil {
@@ -137,7 +135,7 @@ func DeleteAccount(c *object.Context, accountName string) error {
 		"--account-name", accountName,
 	}
 
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		if strings.Contains(result, "account not found") {
 			logger.Infof("RGW User Account %q not found, already deleted", accountName)
@@ -171,11 +169,9 @@ func CreateAccountRootUser(c *object.Context, accountID string, accountName stri
 		"--display-name", displayName,
 		"--account-id", accountID,
 		"--account-root",
-		fmt.Sprintf("--rgw-realm=%s", c.Realm),
-		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		// Check if user already exists
 		if strings.Contains(result, "could not create user") && strings.Contains(result, "exists") {
@@ -194,7 +190,7 @@ func CreateAccountRootUser(c *object.Context, accountID string, accountName stri
 		"--uid", userID,
 		"--caps", "oidc-provider=*",
 	}
-	_, capsErr := object.RunAdminCommandNoMultisite(c, false, capsArgs...)
+	_, capsErr := object.RunAdminCommand(c, false, capsArgs...)
 	if capsErr != nil {
 		logger.Warningf("failed to add oidc-provider capability to root user %q: %v", userID, capsErr)
 		// Don't fail - the user was created, just without the capability
@@ -240,7 +236,7 @@ func GetAccountRootUser(c *object.Context, userID string) (*AccountRootUser, err
 		"--uid", userID,
 	}
 
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get root user %q. %s", userID, result)
 	}
@@ -271,7 +267,7 @@ func GetAccountRootUser(c *object.Context, userID string) (*AccountRootUser, err
 		"--uid", userID,
 		"--caps", "oidc-provider=*",
 	}
-	_, capsErr := object.RunAdminCommandNoMultisite(c, false, capsArgs...)
+	_, capsErr := object.RunAdminCommand(c, false, capsArgs...)
 	if capsErr != nil {
 		logger.Warningf("failed to add oidc-provider capability to existing root user %q: %v", userID, capsErr)
 		// Don't fail - the user exists, just may not have the capability
@@ -302,13 +298,7 @@ func CreateOIDCProvider(c *object.Context, accountName, issuer string, thumbprin
 		args = append(args, "--thumbprint", thumbprint)
 	}
 
-	// Add realm and zone
-	args = append(args,
-		fmt.Sprintf("--rgw-realm=%s", c.Realm),
-		fmt.Sprintf("--rgw-zone=%s", c.Zone),
-	)
-
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		if strings.Contains(result, "provider already exists") {
 			return nil, errors.Errorf("OIDC provider already exists for account %q", accountName)
@@ -337,11 +327,9 @@ func CreateRole(c *object.Context, accountName, roleName, assumeRolePolicyDoc st
 		"--account-id", accountName,
 		"--role-name", roleName,
 		"--assume-role-policy-doc", assumeRolePolicyDoc,
-		fmt.Sprintf("--rgw-realm=%s", c.Realm),
-		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		if strings.Contains(result, "role already exists") {
 			logger.Infof("IAM role %q already exists for account %q, continuing", roleName, accountName)
@@ -371,11 +359,9 @@ func GetRole(c *object.Context, accountName, roleName string) (*IAMRole, error) 
 		"get",
 		"--account-id", accountName,
 		"--role-name", roleName,
-		fmt.Sprintf("--rgw-realm=%s", c.Realm),
-		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get IAM role %q for account %q. %s", roleName, accountName, result)
 	}

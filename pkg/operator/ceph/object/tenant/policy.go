@@ -57,11 +57,9 @@ func CreatePolicy(c *object.Context, accountName, policyName, policyDocument str
 		"--account-id", accountName,
 		"--policy-name", policyName,
 		"--policy-doc", policyDocument,
-		fmt.Sprintf("--rgw-realm=%s", c.Realm),
-		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		if strings.Contains(result, "policy already exists") {
 			logger.Infof("IAM policy %q already exists for account %q, continuing", policyName, accountName)
@@ -90,11 +88,9 @@ func GetPolicy(c *object.Context, accountName, policyName string) (*Policy, erro
 		"get",
 		"--account-id", accountName,
 		"--policy-name", policyName,
-		fmt.Sprintf("--rgw-realm=%s", c.Realm),
-		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get IAM policy %q for account %q. %s", policyName, accountName, result)
 	}
@@ -120,11 +116,9 @@ func PutRolePolicy(c *object.Context, accountName, roleName, policyName, policyD
 		"--role-name", roleName,
 		"--policy-name", policyName,
 		"--policy-doc", policyDocument,
-		fmt.Sprintf("--rgw-realm=%s", c.Realm),
-		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to put inline policy %q on role %q. %s", policyName, roleName, result)
 	}
@@ -143,11 +137,9 @@ func AttachRolePolicy(c *object.Context, accountName, roleName, policyARN string
 		"--account-id", accountName,
 		"--role-name", roleName,
 		"--policy-arn", policyARN,
-		fmt.Sprintf("--rgw-realm=%s", c.Realm),
-		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to attach policy %q to role %q. %s", policyARN, roleName, result)
 	}
@@ -166,11 +158,9 @@ func DetachRolePolicy(c *object.Context, accountName, roleName, policyARN string
 		"--account-name", accountName,
 		"--role-name", roleName,
 		"--policy-arn", policyARN,
-		fmt.Sprintf("--rgw-realm=%s", c.Realm),
-		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to detach policy %q from role %q. %s", policyARN, roleName, result)
 	}
@@ -188,11 +178,9 @@ func DeletePolicy(c *object.Context, accountName, policyARN string) error {
 		"delete",
 		"--account-name", accountName,
 		"--policy-arn", policyARN,
-		fmt.Sprintf("--rgw-realm=%s", c.Realm),
-		fmt.Sprintf("--rgw-zone=%s", c.Zone),
 	}
 
-	result, err := object.RunAdminCommandNoMultisite(c, false, args...)
+	result, err := object.RunAdminCommand(c, false, args...)
 	if err != nil {
 		if strings.Contains(result, "policy not found") {
 			logger.Infof("IAM policy %q not found, already deleted", policyARN)

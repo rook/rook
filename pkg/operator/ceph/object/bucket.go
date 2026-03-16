@@ -76,7 +76,7 @@ func bucketStatsFromRGW(stats rgwBucketStats) ObjectBucketStats {
 }
 
 func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, error) {
-	result, err := runAdminCommand(c,
+	result, err := RunAdminCommand(c,
 		true,
 		"bucket",
 		"stats",
@@ -100,7 +100,7 @@ func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, er
 }
 
 func GetBucketsStats(c *Context) (map[string]ObjectBucketStats, error) {
-	result, err := runAdminCommand(c,
+	result, err := RunAdminCommand(c,
 		true,
 		"bucket",
 		"stats")
@@ -123,7 +123,7 @@ func GetBucketsStats(c *Context) (map[string]ObjectBucketStats, error) {
 }
 
 func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, error) {
-	result, err := runAdminCommand(c,
+	result, err := RunAdminCommand(c,
 		false,
 		"metadata",
 		"get",
