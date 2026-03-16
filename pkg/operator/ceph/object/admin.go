@@ -301,13 +301,18 @@ func RunAdminCommandWithTimeout(c *Context, expectJSON bool, timeout time.Durati
 	// The following conditions tries to determine if the cluster is external
 	// When connecting to an external cluster, the Ceph user is different than client.admin
 	// This is not perfect though since "client.admin" is somehow supported...
+	logger.Debugf("RunAdminCommand: c.Name=%q, c.Realm=%q, c.Zone=%q, c.ZoneGroup=%q, Username=%q, AdminUsername=%q",
+		c.Name, c.Realm, c.Zone, c.ZoneGroup, c.clusterInfo.CephCred.Username, cephclient.AdminUsername)
 	if c.Name != "" && c.clusterInfo.CephCred.Username == cephclient.AdminUsername {
+		logger.Debugf("RunAdminCommand: adding realm/zonegroup/zone parameters")
 		options := []string{
 			fmt.Sprintf("--rgw-realm=%s", c.Realm),
 			fmt.Sprintf("--rgw-zonegroup=%s", c.ZoneGroup),
 			fmt.Sprintf("--rgw-zone=%s", c.Zone),
 		}
 		args = append(args, options...)
+	} else {
+		logger.Debugf("RunAdminCommand: NOT adding realm/zonegroup/zone parameters (Name=%q, Username=%q)", c.Name, c.clusterInfo.CephCred.Username)
 	}
 
 	// work around FIFO file I/O issue when radosgw-admin is not compatible between version
