@@ -242,6 +242,7 @@ func RunAdminCommandNoMultisiteWithTimeout(c *Context, expectJSON bool, timeout 
 	nsName := controller.NsName(c.clusterInfo.Namespace, c.Name)
 
 	// If Multus is enabled we proxy all the command to the mgr sidecar
+	logger.Infof("RunAdminCommandNoMultisite: IsMultus=%v, ConfigDir=%q", c.clusterInfo.NetworkSpec.IsMultus(), c.Context.ConfigDir)
 	if c.clusterInfo.NetworkSpec.IsMultus() {
 		// check if remote command arguments contains file path:
 		srcFile, dstFile := "", ""
