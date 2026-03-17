@@ -12,6 +12,12 @@ defaults:
 permissions:
   contents: read
 
+env:
+  # Required for go-ceph rgw/admin account APIs which are gated behind
+  # the ceph_preview build tag. Can be removed when go-ceph promotes
+  # the account API out of preview.
+  GOFLAGS: "-tags=ceph_preview"
+
 jobs:
   canary-arm64:
     runs-on: [ubuntu-22.04-arm]
