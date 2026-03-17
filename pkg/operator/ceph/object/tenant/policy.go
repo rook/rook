@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 )
@@ -127,24 +129,22 @@ func PutRolePolicy(c *object.Context, accountName, roleName, policyName, policyD
 	return nil
 }
 
-// AttachRolePolicy attaches a policy to a role within an RGW User Account
-func AttachRolePolicy(c *object.Context, accountName, roleName, policyARN string) error {
-	logger.Infof("attaching policy %q to role %q in account %q", policyARN, roleName, accountName)
+// AttachRolePolicyViaAPI attaches a managed policy to a role using the IAM API
+// Note: This must use the IAM API client, not radosgw-admin commands
+func AttachRolePolicyViaAPI(iamClient *iam.IAM, roleName, policyARN string) error {
+	logger.Infof("attaching managed policy %q to role %q via IAM API", policyARN, roleName)
 
-	args := []string{
-		"role-policy",
-		"attach",
-		"--account-id", accountName,
-		"--role-name", roleName,
-		"--policy-arn", policyARN,
+	input := &iam.AttachRolePolicyInput{
+		RoleName:  aws.String(roleName),
+		PolicyArn: aws.String(policyARN),
 	}
 
-	result, err := object.RunAdminCommand(c, false, args...)
+	_, err := iamClient.AttachRolePolicy(input)
 	if err != nil {
-		return errors.Wrapf(err, "failed to attach policy %q to role %q. %s", policyARN, roleName, result)
+		return errors.Wrapf(err, "failed to attach policy %q to role %q via IAM API", policyARN, roleName)
 	}
 
-	logger.Infof("successfully attached policy %q to role %q", policyARN, roleName)
+	logger.Infof("successfully attached managed policy %q to role %q", policyARN, roleName)
 	return nil
 }
 

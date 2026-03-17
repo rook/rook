@@ -171,6 +171,15 @@ func (r *ReconcileTenantIdentity) Reconcile(ctx context.Context, request reconci
 	cephCluster := &cephClusterList.Items[0]
 	logger.Infof("using CephCluster %q in namespace %q for tenant identity", cephCluster.Name, cephCluster.Namespace)
 
+	// Make sure the CephCluster is ready to reconcile
+	// This checks if the cluster is initialized and healthy before proceeding
+	clusterNamespacedName := types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}
+	_, isReadyToReconcile, _, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, clusterNamespacedName, controllerName)
+	if !isReadyToReconcile {
+		logger.Infof("CephCluster %q is not ready yet, waiting for cluster initialization", cephCluster.Name)
+		return reconcileResponse, nil
+	}
+
 	// Populate clusterInfo
 	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephClusterNamespace, &cephCluster.Spec)
 	if err != nil {
@@ -347,12 +356,12 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	}
 	logger.Infof("OIDC provider created: %s", providerARN)
 
-	// Step 7: Create IAM role for AssumeRoleWithWebIdentity
+	// Step 7: Create IAM role for AssumeRoleWithWebIdentity using IAM API
 	roleName := "namespace-role"
 	assumeRolePolicy := GenerateAssumeRolePolicyDocument(accountID, providerARN, namespace.Name)
 
-	logger.Infof("creating IAM role %q for account %q", roleName, accountID)
-	role, err := CreateRole(objContext, accountID, roleName, assumeRolePolicy)
+	logger.Infof("creating IAM role %q for account %q via IAM API", roleName, accountID)
+	role, err := CreateRoleViaAPI(iamClient, roleName, assumeRolePolicy)
 	if err != nil {
 		logger.Warningf("failed to create IAM role for account %q: %v", accountID, err)
 		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
@@ -360,13 +369,14 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 		}
 		return account, nil
 	}
-	logger.Infof("IAM role created: %+v", role)
+	logger.Infof("IAM role created via IAM API: %+v", role)
 
-	// Step 7: Attach AWS managed policy for S3 full access to role
+	// Step 8: Attach AWS managed policy for S3 full access to role using IAM API
+	// RGW supports AWS managed policies like AmazonS3FullAccess via the IAM API
 	managedPolicyARN := "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 
-	logger.Infof("attaching managed policy %q to role %q for account %q", managedPolicyARN, roleName, accountID)
-	err = AttachRolePolicy(objContext, accountID, roleName, managedPolicyARN)
+	logger.Infof("attaching managed policy %q to role %q for account %q using IAM API", managedPolicyARN, roleName, accountID)
+	err = AttachRolePolicyViaAPI(iamClient, roleName, managedPolicyARN)
 	if err != nil {
 		logger.Warningf("failed to attach managed policy to role for account %q: %v", accountID, err)
 	} else {

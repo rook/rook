@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 )
@@ -319,7 +321,8 @@ func CreateOIDCProvider(c *object.Context, accountName, issuer string, thumbprin
 	return &provider, nil
 }
 
-// CreateRole creates an IAM role within an RGW User Account
+// CreateRole creates an IAM role within an RGW User Account using radosgw-admin
+// Deprecated: Use CreateRoleViaAPI for new code
 func CreateRole(c *object.Context, accountName, roleName, assumeRolePolicyDoc string) (*IAMRole, error) {
 	logger.Infof("creating IAM role %q for account %q", roleName, accountName)
 
@@ -350,6 +353,60 @@ func CreateRole(c *object.Context, accountName, roleName, assumeRolePolicyDoc st
 
 	logger.Infof("successfully created IAM role %q for account %q", roleName, accountName)
 	return &role, nil
+}
+
+// CreateRoleViaAPI creates an IAM role using the IAM API
+func CreateRoleViaAPI(iamClient *iam.IAM, roleName, assumeRolePolicyDoc string) (*IAMRole, error) {
+	logger.Infof("creating IAM role %q via IAM API", roleName)
+
+	input := &iam.CreateRoleInput{
+		RoleName:                 aws.String(roleName),
+		AssumeRolePolicyDocument: aws.String(assumeRolePolicyDoc),
+	}
+
+	output, err := iamClient.CreateRole(input)
+	if err != nil {
+		// Check if role already exists
+		if strings.Contains(err.Error(), "EntityAlreadyExists") {
+			logger.Infof("IAM role %q already exists, continuing", roleName)
+			// Try to get the existing role
+			return GetRoleViaAPI(iamClient, roleName)
+		}
+		return nil, errors.Wrapf(err, "failed to create IAM role %q via IAM API", roleName)
+	}
+
+	role := &IAMRole{
+		RoleARN:              aws.StringValue(output.Role.Arn),
+		RoleName:             aws.StringValue(output.Role.RoleName),
+		AssumeRolePolicyDoc:  aws.StringValue(output.Role.AssumeRolePolicyDocument),
+		PermissionsPolicyDoc: "",
+	}
+
+	logger.Infof("successfully created IAM role %q via IAM API with ARN %q", roleName, role.RoleARN)
+	return role, nil
+}
+
+// GetRoleViaAPI retrieves an IAM role using the IAM API
+func GetRoleViaAPI(iamClient *iam.IAM, roleName string) (*IAMRole, error) {
+	logger.Debugf("getting IAM role %q via IAM API", roleName)
+
+	input := &iam.GetRoleInput{
+		RoleName: aws.String(roleName),
+	}
+
+	output, err := iamClient.GetRole(input)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get IAM role %q via IAM API", roleName)
+	}
+
+	role := &IAMRole{
+		RoleARN:              aws.StringValue(output.Role.Arn),
+		RoleName:             aws.StringValue(output.Role.RoleName),
+		AssumeRolePolicyDoc:  aws.StringValue(output.Role.AssumeRolePolicyDocument),
+		PermissionsPolicyDoc: "",
+	}
+
+	return role, nil
 }
 
 // GetRole retrieves an IAM role from an RGW User Account
