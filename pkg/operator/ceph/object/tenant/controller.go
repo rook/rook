@@ -348,13 +348,21 @@ func (r *ReconcileTenantIdentity) createRGWUserAccount(ctx context.Context, name
 	logger.Infof("creating OIDC provider for account %q with issuer %q and clientIDs %v", accountID, oidcConfig.IssuerURL, oidcConfig.ClientIDs)
 	providerARN, err := CreateOIDCProviderViaAPI(iamClient, oidcConfig.IssuerURL, oidcConfig.Thumbprints, oidcConfig.ClientIDs)
 	if err != nil {
-		logger.Warningf("failed to create OIDC provider for account %q: %v", accountID, err)
-		if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
-			logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
+		// Check if OIDC provider already exists
+		if strings.Contains(err.Error(), "EntityAlreadyExists") {
+			logger.Infof("OIDC provider already exists for account %q, continuing with role creation", accountID)
+			// Generate the expected provider ARN
+			providerARN = fmt.Sprintf("arn:aws:iam::%s:oidc-provider/%s", accountID, strings.TrimPrefix(oidcConfig.IssuerURL, "https://"))
+		} else {
+			logger.Warningf("failed to create OIDC provider for account %q: %v", accountID, err)
+			if err := r.createServiceAccount(ctx, namespace, accountID, ""); err != nil {
+				logger.Errorf("failed to create service account for namespace %q: %v", namespace.Name, err)
+			}
+			return account, nil
 		}
-		return account, nil
+	} else {
+		logger.Infof("OIDC provider created: %s", providerARN)
 	}
-	logger.Infof("OIDC provider created: %s", providerARN)
 
 	// Step 7: Create IAM role for AssumeRoleWithWebIdentity using IAM API
 	roleName := "namespace-role"
