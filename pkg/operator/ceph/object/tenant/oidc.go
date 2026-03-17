@@ -104,37 +104,15 @@ func getServiceAccountIssuer(ctx context.Context, k8sClient client.Client) (stri
 
 // getServiceAccountAudiences retrieves the audience values that will be in service account JWT tokens
 func getServiceAccountAudiences(ctx context.Context, k8sClient client.Client, issuerURL string) ([]string, error) {
-	// In Kubernetes/OpenShift, the audience (aud claim) in service account tokens is typically:
-	// 1. The API server URL
-	// 2. The issuer URL itself
-	// 3. "kubernetes.default.svc" or similar
+	// The audience in service account tokens must match what's configured in the projected token volume
+	// In our case, we use the issuer URL as the audience (see test-assume-role-pod.yaml)
+	// This must match exactly for AssumeRoleWithWebIdentity to work
 
-	// Try to get the API server URL from the kubernetes service
-	svc := &corev1.Service{}
-	err := k8sClient.Get(ctx, client.ObjectKey{
-		Namespace: "default",
-		Name:      "kubernetes",
-	}, svc)
+	// Only return the issuer URL as the audience
+	// This matches the "audience" field in the serviceAccountToken projection
+	audiences := []string{issuerURL}
 
-	audiences := []string{}
-
-	if err == nil && svc.Spec.ClusterIP != "" {
-		// Add the API server URL as an audience
-		apiServerURL := fmt.Sprintf("https://%s", svc.Spec.ClusterIP)
-		audiences = append(audiences, apiServerURL)
-	}
-
-	// Always include the issuer URL as a valid audience
-	audiences = append(audiences, issuerURL)
-
-	// Add common Kubernetes service names
-	audiences = append(audiences, "kubernetes.default.svc", "kubernetes.default", "kubernetes")
-
-	// In OpenShift, also check for the API server hostname
-	// Try to get it from the infrastructure config
-	// For now, we'll use the common patterns
-
-	logger.Debugf("detected service account audiences: %v", audiences)
+	logger.Infof("using service account audience: %v (must match projected token audience)", audiences)
 	return audiences, nil
 }
 
