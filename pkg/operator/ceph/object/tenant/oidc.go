@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -55,10 +56,19 @@ func GetClusterOIDCConfig(ctx context.Context, k8sClient client.Client) (*OIDCCo
 		return nil, errors.Wrap(err, "failed to get service account issuer")
 	}
 
-	// Get the OIDC thumbprints
-	thumbprints, err := getOIDCThumbprints(issuerURL)
+	// Fetch the OIDC discovery document to get the JWKS URI
+	jwksURL, err := getJWKSURLFromDiscovery(issuerURL)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get OIDC thumbprints")
+		return nil, errors.Wrap(err, "failed to get JWKS URL from OIDC discovery")
+	}
+
+	logger.Infof("JWKS URL from discovery: %s", jwksURL)
+
+	// Get the OIDC thumbprints from the JWKS URL (not the issuer URL)
+	// This is important because the JWKS URL might be different from the issuer URL
+	thumbprints, err := getOIDCThumbprints(jwksURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get OIDC thumbprints from JWKS URL")
 	}
 
 	// Get the client IDs (audience values) from the cluster
@@ -100,6 +110,46 @@ func getServiceAccountIssuer(ctx context.Context, k8sClient client.Client) (stri
 	// Fallback to the default Kubernetes service
 	// In OpenShift, this is typically https://kubernetes.default.svc
 	return "https://kubernetes.default.svc", nil
+}
+
+// getJWKSURLFromDiscovery fetches the OIDC discovery document and extracts the JWKS URI
+func getJWKSURLFromDiscovery(issuerURL string) (string, error) {
+	logger.Infof("fetching OIDC discovery document from %s", issuerURL)
+
+	discoveryURL := fmt.Sprintf("%s/.well-known/openid-configuration", issuerURL)
+
+	// Create HTTP client that skips SSL verification for internal cluster communication
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	resp, err := client.Get(discoveryURL)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to fetch OIDC discovery document from %s", discoveryURL)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", errors.Errorf("OIDC discovery document returned status %d", resp.StatusCode)
+	}
+
+	// Parse the discovery document
+	var discovery struct {
+		Issuer  string `json:"issuer"`
+		JWKSURI string `json:"jwks_uri"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&discovery); err != nil {
+		return "", errors.Wrap(err, "failed to parse OIDC discovery document")
+	}
+
+	if discovery.JWKSURI == "" {
+		return "", errors.New("OIDC discovery document does not contain jwks_uri")
+	}
+
+	logger.Infof("extracted JWKS URI: %s", discovery.JWKSURI)
+	return discovery.JWKSURI, nil
 }
 
 // getServiceAccountAudiences retrieves the audience values that will be in service account JWT tokens
