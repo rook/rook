@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -170,17 +171,32 @@ func getServiceAccountAudiences(ctx context.Context, k8sClient client.Client, is
 func getOIDCThumbprints(issuerURL string) ([]string, error) {
 	logger.Infof("retrieving OIDC thumbprints for issuer %s", issuerURL)
 
-	// Parse the issuer URL to get the host
-	host := strings.TrimPrefix(issuerURL, "https://")
-	host = strings.TrimPrefix(host, "http://")
-	host = strings.Split(host, "/")[0]
+	// Parse the URL to get host and port
+	urlStr := issuerURL
+	if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
+		urlStr = "https://" + urlStr
+	}
+
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse URL %s", issuerURL)
+	}
+
+	// Get the host:port for the connection
+	hostPort := parsedURL.Host
+	if parsedURL.Port() == "" {
+		// No port specified, use default HTTPS port
+		hostPort = hostPort + ":443"
+	}
+
+	logger.Debugf("connecting to %s to get certificate thumbprints", hostPort)
 
 	// Connect to the host and get the certificate chain
-	conn, err := tls.Dial("tcp", host+":443", &tls.Config{
+	conn, err := tls.Dial("tcp", hostPort, &tls.Config{
 		InsecureSkipVerify: true, // We only need the cert, not to validate it
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to %s", host)
+		return nil, errors.Wrapf(err, "failed to connect to %s", hostPort)
 	}
 	defer conn.Close()
 
