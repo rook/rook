@@ -1205,6 +1205,156 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 	})
 }
 
+func TestCephBlockPoolControllerPoolReachesReady(t *testing.T) {
+	namespace := "rook-ceph"
+
+	tests := []struct {
+		name         string
+		poolName     string
+		poolSpec     cephv1.PoolSpec
+		expectedType string
+	}{
+		{
+			name:     "erasure coded pool",
+			poolName: "ec-pool",
+			poolSpec: cephv1.PoolSpec{
+				ErasureCoded: cephv1.ErasureCodedSpec{
+					DataChunks:   2,
+					CodingChunks: 1,
+				},
+			},
+			expectedType: "Erasure Coded",
+		},
+		{
+			name:     "replicated pool",
+			poolName: "rep-pool",
+			poolSpec: cephv1.PoolSpec{
+				Replicated: cephv1.ReplicatedSpec{
+					Size:                   3,
+					RequireSafeReplicaSize: true,
+				},
+			},
+			expectedType: "Replicated",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.TODO()
+			capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+			os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
+
+			pool := &cephv1.CephBlockPool{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       tc.poolName,
+					Namespace:  namespace,
+					UID:        types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
+					Finalizers: []string{"cephblockpool.ceph.rook.io"},
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind: "CephBlockPool",
+				},
+				Spec: cephv1.NamedBlockPoolSpec{
+					PoolSpec: tc.poolSpec,
+				},
+				Status: &cephv1.CephBlockPoolStatus{
+					Phase: "",
+				},
+			}
+
+			cephCluster := &cephv1.CephCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      namespace,
+					Namespace: namespace,
+				},
+				Status: cephv1.ClusterStatus{
+					Phase: cephv1.ConditionReady,
+					CephVersion: &cephv1.ClusterVersion{
+						Version: "14.2.9-0",
+					},
+					CephStatus: &cephv1.CephStatus{
+						Health: "HEALTH_OK",
+					},
+					Cephx: cephv1.ClusterCephxStatus{},
+				},
+			}
+
+			objects := []runtime.Object{pool, cephCluster}
+
+			executor := &exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+					if args[0] == "status" {
+						return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+					}
+					if args[0] == "config" && args[2] == "mgr" && args[3] == "mgr/prometheus/rbd_stats_pools" {
+						return "", nil
+					}
+					if command == "ceph" && args[1] == "erasure-code-profile" {
+						return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
+					}
+					return "", nil
+				},
+			}
+
+			s := scheme.Scheme
+			s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPool{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &cephv1.CephBlockPoolList{})
+
+			cl := fake.NewClientBuilder().WithRuntimeObjects(objects...).Build()
+
+			c := &clusterd.Context{
+				Executor:      executor,
+				Client:        cl,
+				Clientset:     testop.New(t, 1),
+				RookClientset: rookclient.NewSimpleClientset(),
+			}
+
+			secrets := map[string][]byte{
+				"fsid":         []byte(tc.poolName),
+				"mon-secret":   []byte("monsecret"),
+				"admin-secret": []byte("adminsecret"),
+			}
+			secret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "rook-ceph-mon",
+					Namespace: namespace,
+				},
+				Data: secrets,
+				Type: k8sutil.RookType,
+			}
+			_, err := c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+			assert.NoError(t, err)
+
+			r := &ReconcileCephBlockPool{
+				client:                  cl,
+				scheme:                  s,
+				context:                 c,
+				blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
+				opManagerContext:        context.TODO(),
+				recorder:                events.NewFakeRecorder(50),
+			}
+
+			req := reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      tc.poolName,
+					Namespace: namespace,
+				},
+			}
+
+			_, err = c.RookClientset.CephV1().CephBlockPools(namespace).Create(ctx, pool, metav1.CreateOptions{})
+			assert.NoError(t, err)
+
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.Zero(t, res.RequeueAfter)
+
+			err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+			assert.NoError(t, err)
+			assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase, "%s pool status should reach Ready, not remain stuck in Progressing", tc.expectedType)
+			assert.Equal(t, tc.expectedType, pool.Status.Info["type"])
+		})
+	}
+}
+
 func TestCanConfigurePoolMirroring(t *testing.T) {
 	pool := &cephv1.CephBlockPool{}
 	assert.True(t, canConfigurePoolMirroring(pool.ToNamedPoolSpec()))
