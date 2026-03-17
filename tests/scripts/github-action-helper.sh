@@ -261,7 +261,12 @@ function build_rook() {
   tests/scripts/validate_modified_files.sh build
   docker images
   if [[ "$build_type" == "build" ]]; then
-    docker tag "$(docker images | awk '/build-/ {print $1}')" docker.io/rook/ceph:local-build
+     image_name="$(docker images | awk '/build-/ {print $1}')"
+     if [[ -z "${image_name}" ]]; then
+         echo "No build-* image found!"
+	 exit 1
+     fi
+     docker tag "${image_name}" docker.io/rook/ceph:local-build
   fi
 }
 
