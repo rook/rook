@@ -56,8 +56,10 @@ func TestGenerateAssumeRolePolicyDocument(t *testing.T) {
 
 	stringEquals, ok := condition["StringEquals"].(map[string]interface{})
 	assert.True(t, ok)
-	assert.Contains(t, stringEquals, "oidc:sub")
-	assert.Equal(t, "system:serviceaccount:test-namespace:rgw-identity", stringEquals["oidc:sub"])
+	// Condition key should be <issuer>:sub, not oidc:sub
+	// The issuer is extracted from the provider ARN
+	assert.Contains(t, stringEquals, "kubernetes.default.svc:sub")
+	assert.Equal(t, "system:serviceaccount:test-namespace:rgw-identity", stringEquals["kubernetes.default.svc:sub"])
 }
 
 func TestRGWAccountStructure(t *testing.T) {

@@ -437,6 +437,20 @@ func GetRole(c *object.Context, accountName, roleName string) (*IAMRole, error) 
 
 // GenerateAssumeRolePolicyDocument generates an assume role policy document for OIDC federation
 func GenerateAssumeRolePolicyDocument(accountName, oidcProviderARN, namespace string) string {
+	// Extract the issuer hostname from the provider ARN
+	// ARN format: arn:aws:iam::<account>:oidc-provider/<issuer>
+	// Example: arn:aws:iam::RGW123:oidc-provider/kubernetes.default.svc
+	issuer := "kubernetes.default.svc" // default
+	parts := strings.Split(oidcProviderARN, ":oidc-provider/")
+	if len(parts) == 2 {
+		issuer = parts[1]
+	}
+
+	// Ceph RGW constructs condition keys as: <issuer>:<claim-name>
+	// See: ceph/src/rgw/rgw_auth.cc WebIdentityApplier::modify_request_state()
+	// The issuer is used without the https:// prefix
+	conditionKey := issuer + ":sub"
+
 	// This policy allows the service account in the namespace to assume the role
 	// using AssumeRoleWithWebIdentity
 	policy := fmt.Sprintf(`{
@@ -450,12 +464,12 @@ func GenerateAssumeRolePolicyDocument(accountName, oidcProviderARN, namespace st
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "oidc:sub": "system:serviceaccount:%s:rgw-identity"
+          "%s": "system:serviceaccount:%s:rgw-identity"
         }
       }
     }
   ]
-}`, oidcProviderARN, namespace)
+}`, oidcProviderARN, conditionKey, namespace)
 
 	return policy
 }

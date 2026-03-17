@@ -109,7 +109,8 @@ func TestCompleteWorkflow(t *testing.T) {
 		stringEquals, ok := stmt.Condition["StringEquals"].(map[string]interface{})
 		assert.True(t, ok)
 		expectedSubject := "system:serviceaccount:" + namespace + ":rgw-identity"
-		assert.Equal(t, expectedSubject, stringEquals["oidc:sub"])
+		// Condition key should be <issuer>:sub, not oidc:sub
+		assert.Equal(t, expectedSubject, stringEquals["kubernetes.default.svc:sub"])
 
 		// Simulate role creation
 		role := &IAMRole{
