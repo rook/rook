@@ -194,10 +194,10 @@ yamllint:
 	yamllint -c .yamllint deploy/examples/ --no-warnings
 
 .PHONY: helm.lint
-helm.lint: ## Check the helm charts
-	ct lint --charts=./deploy/charts/rook-ceph,./deploy/charts/rook-ceph-cluster --validate-yaml=false --validate-maintainers=false
-	helm -n rook-ceph template deploy/charts/rook-ceph > templated.yaml
-	helm -n rook-ceph template deploy/charts/rook-ceph-cluster >> templated.yaml
+helm.lint: $(HELM) ## Check the helm charts
+	PATH="$(TOOLS_HOST_DIR):$$PATH" ct lint --charts=./deploy/charts/rook-ceph,./deploy/charts/rook-ceph-cluster --validate-yaml=false --validate-maintainers=false
+	$(HELM) -n rook-ceph template deploy/charts/rook-ceph > templated.yaml
+	$(HELM) -n rook-ceph template deploy/charts/rook-ceph-cluster >> templated.yaml
 	echo 'resources: [templated.yaml]' > kustomization.yaml
 	kustomize build >/dev/null
 	rm templated.yaml kustomization.yaml

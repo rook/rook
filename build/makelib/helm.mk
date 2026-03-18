@@ -36,7 +36,7 @@ endef
 
 HELM_HOME := $(abspath $(CACHE_DIR)/helm)
 HELM_VERSION := v3.18.2
-HELM := $(TOOLS_HOST_DIR)/helm-$(HELM_VERSION)
+HELM := $(TOOLS_HOST_DIR)/helm
 HELM_INDEX := $(HELM_OUTPUT_DIR)/index.yaml
 export HELM_HOME
 
