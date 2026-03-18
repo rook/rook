@@ -13,6 +13,9 @@ metadata:
     {{- . | toYaml | nindent 4 }}
   {{- end }}
 spec:
+  {{- if .Values.cephConfig }}
+  cephConfig: {{- toYaml .Values.cephConfig | nindent 4 }}
+  {{- end }}
   {{- with .Values.monitoring }}
   monitoring:
     enabled: {{ .enabled | default false }}

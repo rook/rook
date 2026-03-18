@@ -20,6 +20,10 @@ configOverride:
 #   osd_pool_default_size = 3
 #   osd_pool_default_min_size = 2
 
+cephConfig:
+  # global:
+  #   bluestore_slow_ops_warn_lifetime: '600'
+
 # Installs a debugging toolbox deployment
 toolbox:
   # -- Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md)
