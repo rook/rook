@@ -312,6 +312,10 @@ rules:
       - pods
       # Node access is needed for determining nodes where mons should run
       - nodes
+      # Namespace access is needed for tenant identity binding
+      - namespaces
+      # Service account access is needed for tenant identity binding
+      - serviceaccounts
       # Rook watches secrets which it uses to configure access to external resources.
       # e.g., external Ceph cluster or object store
       - secrets
