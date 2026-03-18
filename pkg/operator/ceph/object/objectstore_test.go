@@ -431,13 +431,13 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 			}
 			if args[1] == "erasure-code-profile" {
 				if args[2] == "ls" {
-					return `["default","myobj_ecprofile"]`, nil
+					return `["default","myobj.rgw.buckets.data_ecprofile"]`, nil
 				}
 				if args[2] == "rm" {
-					if args[3] == "myobj_ecprofile" {
+					if args[3] == "myobj.rgw.buckets.data_ecprofile" {
 						deletedErasureCodeProfile = true
 					} else {
-						assert.Fail(t, fmt.Sprintf("the erasure code profile to be deleted should be myobj_ecprofile. Actual: %s ", args[3]))
+						assert.Fail(t, fmt.Sprintf("the erasure code profile to be deleted should be myobj.rgw.buckets.data_ecprofile. Actual: %s ", args[3]))
 					}
 					return "", nil
 				}
