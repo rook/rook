@@ -431,8 +431,9 @@ func (c *clusterConfig) createKubernetesCaInstallInitContainer(rgwConfig *rgwCon
 			"cp /var/run/secrets/kubernetes.io/serviceaccount/ca.crt /etc/pki/ca-trust/source/anchors/kube-ca.crt && " +
 				// Update the trust store
 				"update-ca-trust && " +
-				// Copy the updated trust store to the shared volume so the main container can use it
-				"cp -r /etc/pki/ca-trust/extracted /ca-trust-output/ && " +
+				// Copy the entire ca-trust directory structure to the shared volume
+				// This includes both source/anchors and extracted directories
+				"cp -r /etc/pki/ca-trust/* /ca-trust-output/ && " +
 				"echo 'Kubernetes CA certificate installed successfully'",
 		},
 		Image:           c.clusterSpec.CephVersion.Image,
@@ -506,9 +507,11 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 	}
 
 	// Mount the shared CA trust store volume that was populated by the init container
+	// Mount at /etc/pki/ca-trust to include the entire trust store structure
+	// This ensures symlinks from /etc/pki/tls/certs/ work correctly
 	caTrustStoreMount := v1.VolumeMount{
 		Name:      "ca-trust-store",
-		MountPath: "/etc/pki/ca-trust/extracted",
+		MountPath: "/etc/pki/ca-trust",
 		ReadOnly:  true,
 	}
 
