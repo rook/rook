@@ -43,7 +43,7 @@ export HELM_HOME
 $(HELM_OUTPUT_DIR):
 	@mkdir -p $@
 
-$(HELM):
+$(HELM): $(TOOLS_HOST_DIR)
 	@echo === installing helm
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
 	@curl -sL https://get.helm.sh/helm-$(HELM_VERSION)-$(shell go env GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp

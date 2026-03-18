@@ -87,6 +87,8 @@ TOOLS_HOST_DIR := $(TOOLS_DIR)/$(HOST_PLATFORM)
 ifeq ($(origin HOSTNAME), undefined)
 HOSTNAME := $(shell hostname)
 endif
+$(TOOLS_HOST_DIR):
+	@mkdir -p $@
 
 # a registry that is scoped to the current build tree on this host
 ifeq ($(origin BUILD_REGISTRY), undefined)
