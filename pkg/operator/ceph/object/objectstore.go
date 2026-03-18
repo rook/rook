@@ -600,7 +600,7 @@ func deleteRealm(context *Context) error {
 
 	// Delete in reverse order: zone → zonegroup → realm.
 	// Note: radosgw-admin uses "delete" for zone and zonegroup, but "rm" for realm.
-	_, err := runAdminCommand(context, false, "zone", "delete")
+	_, err := RunAdminCommand(context, false, "zone", "delete")
 	if err != nil {
 		log.NamedWarning(context.NsName(), logger, "failed to delete rgw zone %q. %v", context.Name, err)
 	}
