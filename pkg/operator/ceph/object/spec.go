@@ -301,6 +301,15 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	}
 	podSpec.Volumes = append(podSpec.Volumes, kubernetesCaVol)
 
+	// Add EmptyDir volume for CA trust store to share between init container and main container
+	caTrustStoreVol := v1.Volume{
+		Name: "ca-trust-store",
+		VolumeSource: v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{},
+		},
+	}
+	podSpec.Volumes = append(podSpec.Volumes, caTrustStoreVol)
+
 	// Add init container to install Kubernetes CA certificate
 	podSpec.InitContainers = append(podSpec.InitContainers,
 		c.createKubernetesCaInstallInitContainer(rgwConfig))
@@ -391,22 +400,39 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 // the Kubernetes API server CA certificate into the system trust store.
 // This is required for RGW to verify the Kubernetes API server's SSL certificate
 // when fetching JWKS for OIDC token validation (STS AssumeRoleWithWebIdentity).
+// The init container writes the updated trust store to a shared EmptyDir volume
+// that is then mounted by the main RGW container.
 func (c *clusterConfig) createKubernetesCaInstallInitContainer(rgwConfig *rgwConfig) v1.Container {
 	kubernetesCaMount := v1.VolumeMount{
 		Name:      "kubernetes-ca-cert",
 		MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
 		ReadOnly:  true,
 	}
-	volumeMounts := append(controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), kubernetesCaMount)
+
+	// Mount the shared CA trust store volume where we'll write the updated trust store
+	caTrustStoreMount := v1.VolumeMount{
+		Name:      "ca-trust-store",
+		MountPath: "/ca-trust-output",
+		ReadOnly:  false,
+	}
+
+	volumeMounts := append(
+		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
+		kubernetesCaMount,
+		caTrustStoreMount,
+	)
 
 	return v1.Container{
 		Name:    "install-kubernetes-ca-cert",
 		Command: []string{"/bin/bash", "-c"},
 		Args: []string{
 			// Install Kubernetes CA certificate into system trust store
-			// This allows RGW to verify the Kubernetes API server's SSL certificate
+			// Copy the CA cert to the trust anchors directory
 			"cp /var/run/secrets/kubernetes.io/serviceaccount/ca.crt /etc/pki/ca-trust/source/anchors/kube-ca.crt && " +
+				// Update the trust store
 				"update-ca-trust && " +
+				// Copy the updated trust store to the shared volume so the main container can use it
+				"cp -r /etc/pki/ca-trust/extracted /ca-trust-output/ && " +
 				"echo 'Kubernetes CA certificate installed successfully'",
 		},
 		Image:           c.clusterSpec.CephVersion.Image,
@@ -479,6 +505,13 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		return v1.Container{}, errors.Wrap(err, "failed to generate default readiness probe")
 	}
 
+	// Mount the shared CA trust store volume that was populated by the init container
+	caTrustStoreMount := v1.VolumeMount{
+		Name:      "ca-trust-store",
+		MountPath: "/etc/pki/ca-trust/extracted",
+		ReadOnly:  true,
+	}
+
 	container := v1.Container{
 		Name:            "rgw",
 		Image:           c.clusterSpec.CephVersion.Image,
@@ -499,6 +532,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		VolumeMounts: append(
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolumeMount(),
+			caTrustStoreMount,
 		),
 		Env:             controller.DaemonEnvVars(c.clusterSpec),
 		Resources:       c.store.Spec.Gateway.Resources,
