@@ -268,6 +268,42 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 				c.createCaBundleUpdateInitContainer(rgwConfig))
 		}
 	}
+
+	// Add Kubernetes CA certificate for OIDC/STS support
+	// This allows RGW to verify the Kubernetes API server's SSL certificate
+	// when fetching JWKS for OIDC token validation
+	kubernetesCaVol := v1.Volume{
+		Name: "kubernetes-ca-cert",
+		VolumeSource: v1.VolumeSource{
+			Projected: &v1.ProjectedVolumeSource{
+				Sources: []v1.VolumeProjection{
+					{
+						ServiceAccountToken: &v1.ServiceAccountTokenProjection{
+							Path: "token",
+						},
+					},
+					{
+						ConfigMap: &v1.ConfigMapProjection{
+							LocalObjectReference: v1.LocalObjectReference{
+								Name: "kube-root-ca.crt",
+							},
+							Items: []v1.KeyToPath{
+								{
+									Key:  "ca.crt",
+									Path: "ca.crt",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	podSpec.Volumes = append(podSpec.Volumes, kubernetesCaVol)
+
+	// Add init container to install Kubernetes CA certificate
+	podSpec.InitContainers = append(podSpec.InitContainers,
+		c.createKubernetesCaInstallInitContainer(rgwConfig))
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
 		return v1.PodTemplateSpec{}, err
@@ -342,6 +378,36 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 		// copy all content of caBundleExtractedDir to avoid directory mount itself
 		Args: []string{
 			fmt.Sprintf("/usr/bin/update-ca-trust extract; cp -rf %s/* %s", caBundleExtractedDir, updatedCaBundleDir),
+		},
+		Image:           c.clusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
+		VolumeMounts:    volumeMounts,
+		Resources:       c.store.Spec.Gateway.Resources,
+		SecurityContext: controller.DefaultContainerSecurityContext(),
+	}
+}
+
+// createKubernetesCaInstallInitContainer creates an init container that installs
+// the Kubernetes API server CA certificate into the system trust store.
+// This is required for RGW to verify the Kubernetes API server's SSL certificate
+// when fetching JWKS for OIDC token validation (STS AssumeRoleWithWebIdentity).
+func (c *clusterConfig) createKubernetesCaInstallInitContainer(rgwConfig *rgwConfig) v1.Container {
+	kubernetesCaMount := v1.VolumeMount{
+		Name:      "kubernetes-ca-cert",
+		MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
+		ReadOnly:  true,
+	}
+	volumeMounts := append(controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), kubernetesCaMount)
+
+	return v1.Container{
+		Name:    "install-kubernetes-ca-cert",
+		Command: []string{"/bin/bash", "-c"},
+		Args: []string{
+			// Install Kubernetes CA certificate into system trust store
+			// This allows RGW to verify the Kubernetes API server's SSL certificate
+			"cp /var/run/secrets/kubernetes.io/serviceaccount/ca.crt /etc/pki/ca-trust/source/anchors/kube-ca.crt && " +
+				"update-ca-trust && " +
+				"echo 'Kubernetes CA certificate installed successfully'",
 		},
 		Image:           c.clusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
