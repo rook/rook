@@ -623,6 +623,13 @@ func (c *cluster) shouldSetClusterFullSettings() bool {
 }
 
 func (c *cluster) updateConfigStoreFromCRD() error {
+	// Ensure STS configuration is set up before applying other config
+	// This automatically generates an STS key and configures RGW for STS support
+	if err := c.ensureSTSConfiguration(); err != nil {
+		logger.Warningf("failed to ensure STS configuration: %v", err)
+		// Don't fail the reconciliation, just log the warning
+	}
+
 	monStore := config.GetMonStore(c.context, c.ClusterInfo)
 	cephConfigFromSecret, err := c.fetchCephConfigFromSecrets()
 	if err != nil {
