@@ -344,6 +344,8 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		if err != nil {
 			return reconcileResult, *cephBlockPool, err
 		}
+	} else {
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration, nil)
 	}
 
 	if statusErr != nil {
