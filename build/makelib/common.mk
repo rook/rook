@@ -103,6 +103,10 @@ export SED_IN_PLACE
 # Usage: make echo.PLATFORM
 echo.%: ; @echo $* = $($*)
 
+# Target for creating the build tools directory
+$(TOOLS_HOST_DIR):
+	@mkdir -p $@
+
 COMMA := ,
 SPACE :=
 SPACE +=
