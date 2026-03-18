@@ -726,7 +726,9 @@ func DeletePools(ctx *Context, lastStore bool, poolPrefix string) error {
 		return errors.Wrapf(err, "failed to list erasure code profiles for cluster %s", ctx.clusterInfo.Namespace)
 	}
 	// cleans up the EC profile for the data pool only. Metadata pools don't support EC (only replication is supported).
-	ecProfileName := cephclient.GetErasureCodeProfileForPool(ctx.Name)
+	// The profile name must match the full pool name used during creation (e.g., "<store>.rgw.buckets.data_ecprofile").
+	dataPool := poolName(poolPrefix, dataPoolName)
+	ecProfileName := cephclient.GetErasureCodeProfileForPool(dataPool)
 	for i := range erasureCodes {
 		if erasureCodes[i] == ecProfileName {
 			if err := cephclient.DeleteErasureCodeProfile(ctx.Context, ctx.clusterInfo, ecProfileName); err != nil {
