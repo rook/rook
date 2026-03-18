@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	defaultCOSISideCarImage    = "gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v20240513-v0.1.0-35-gefb3255"
+	defaultCOSISideCarImage    = "gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v0.2.2"
 	defaultCephCOSIDriverImage = "quay.io/ceph/cosi:v0.1.2"
 )
 
