@@ -95,7 +95,9 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterInfo *ClusterInf
 
 	args := []string{"osd", "erasure-code-profile", "set", profileName, "--force"}
 	args = append(args, profilePairs...)
-	_, err = NewCephCommand(context, clusterInfo, args).Run()
+	cmd := NewCephCommand(context, clusterInfo, args)
+	cmd.JsonOutput = false
+	_, err = cmd.Run()
 	if err != nil {
 		return errors.Wrap(err, "failed to set ec-profile")
 	}

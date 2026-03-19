@@ -589,6 +589,16 @@ func deletePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 			return errors.Wrapf(err, "failed to delete pool %q", p.Name)
 		}
 	}
+
+	// Clean up the erasure code profile for EC pools so that recreating with
+	// different settings does not fail
+	if p.IsErasureCoded() {
+		ecProfileName := cephclient.GetErasureCodeProfileForPool(p.Name)
+		if err := cephclient.DeleteErasureCodeProfile(context, clusterInfo, ecProfileName); err != nil {
+			logger.Warningf("failed to delete erasure code profile %q for pool %q: %v", ecProfileName, p.Name, err)
+		}
+	}
+
 	return nil
 }
 
