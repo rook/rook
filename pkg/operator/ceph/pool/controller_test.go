@@ -200,6 +200,45 @@ func TestDeletePool(t *testing.T) {
 	p = &cephv1.NamedPoolSpec{Name: "mypool"}
 	err = deletePool(context, clusterInfo, p)
 	assert.Error(t, err)
+
+	// delete an erasure coded pool should also delete the EC profile
+	ecProfileDeleted := false
+	failOnDelete = false
+	ecExecutor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			emptyPool := "{\"images\":{\"count\":0,\"provisioned_bytes\":0,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
+			if command == "ceph" && args[1] == "lspools" {
+				return `[{"poolnum":1,"poolname":"ecpool"}]`, nil
+			} else if command == "ceph" && args[1] == "pool" && args[2] == "get" {
+				return `{"pool": "ecpool","pool_id": 1,"size":1}`, nil
+			} else if command == "ceph" && args[1] == "pool" && args[2] == "delete" {
+				return "", nil
+			} else if command == "ceph" && args[1] == "erasure-code-profile" && args[2] == "rm" {
+				assert.Equal(t, "ecpool_ecprofile", args[3])
+				ecProfileDeleted = true
+				return "", nil
+			} else if args[0] == "pool" {
+				if args[1] == "stats" {
+					return emptyPool, nil
+				}
+				return "", errors.Errorf("rbd: error opening pool %q: (2) No such file or directory", args[3])
+			}
+			return "", errors.Errorf("unexpected rbd command %q", args)
+		},
+	}
+	ecContext := &clusterd.Context{Executor: ecExecutor}
+	ecPool := &cephv1.NamedPoolSpec{
+		Name: "ecpool",
+		PoolSpec: cephv1.PoolSpec{
+			ErasureCoded: cephv1.ErasureCodedSpec{
+				DataChunks:   2,
+				CodingChunks: 1,
+			},
+		},
+	}
+	err = deletePool(ecContext, clusterInfo, ecPool)
+	assert.NoError(t, err)
+	assert.True(t, ecProfileDeleted)
 }
 
 // TestCephBlockPoolController runs ReconcileCephBlockPool.Reconcile() against a
