@@ -31,7 +31,7 @@ import (
 func TestGenerateSTSKey(t *testing.T) {
 	key, err := generateSTSKey()
 	assert.NoError(t, err)
-	assert.Len(t, key, STSKeyLength*2, "STS key should be 16 hex characters")
+	assert.Len(t, key, STSKeyLength*2, "STS key should be 32 hex characters (16 bytes)")
 
 	// Validate the key
 	err = ValidateSTSKey(key)
@@ -50,23 +50,28 @@ func TestValidateSTSKey(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "valid key",
-			key:     "a1b2c3d4e5f6a7b8",
+			name:    "valid key - 32 hex chars",
+			key:     "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
 			wantErr: false,
 		},
 		{
-			name:    "too short",
+			name:    "too short - 16 hex chars",
+			key:     "a1b2c3d4e5f6a7b8",
+			wantErr: true,
+		},
+		{
+			name:    "too short - 8 hex chars",
 			key:     "a1b2c3d4",
 			wantErr: true,
 		},
 		{
-			name:    "too long",
-			key:     "a1b2c3d4e5f6a7b8c9d0",
+			name:    "too long - 40 hex chars",
+			key:     "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8",
 			wantErr: true,
 		},
 		{
 			name:    "invalid hex",
-			key:     "g1h2i3j4k5l6m7n8",
+			key:     "g1h2i3j4k5l6m7n8o9p0q1r2s3t4u5v6",
 			wantErr: true,
 		},
 		{
@@ -124,7 +129,7 @@ func TestEnsureSTSConfiguration(t *testing.T) {
 	})
 
 	t.Run("preserves user-configured values", func(t *testing.T) {
-		userKey := "fedcba0987654321"
+		userKey := "fedcba0987654321fedcba0987654321" // 32 hex chars
 		clientset := fake.NewSimpleClientset()
 		clusterInfo := client.AdminClusterInfo(ctx, ns, "test-cluster")
 		context := &clusterd.Context{

@@ -26,8 +26,9 @@ import (
 )
 
 const (
-	// STSKeyLength is the required length of the STS key in bytes (16 hex characters = 8 bytes)
-	STSKeyLength = 8
+	// STSKeyLength is the required length of the STS key in bytes (32 hex characters = 16 bytes)
+	// Ceph uses AES-128 encryption which requires a 16-byte (128-bit) key
+	STSKeyLength = 16
 )
 
 // ensureSTSConfiguration ensures that STS is properly configured for RGW
