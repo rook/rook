@@ -56,13 +56,13 @@ install it from system packages or follow the [official Helm guide](https://helm
 Developers can test quickly their changes by building and using the local Rook image
 on their minikube cluster.
 
-1) Set the local Docker environment to use minikube:
+1. Set the local Docker environment to use minikube:
 
     ```console
     eval $(minikube docker-env -p minikube)
     ```
 
-2) Build your local Rook image. The following command will generate a Rook image
+2. Build your local Rook image. The following command will generate a Rook image
 labeled in the format `local/ceph-<arch>`.
 
     ```console
@@ -70,13 +70,13 @@ labeled in the format `local/ceph-<arch>`.
     make BUILD_REGISTRY=local
     ```
 
-3) Tag the generated image as `rook/ceph:master` so operator will pick it.
+3. Tag the generated image as `rook/ceph:master` so operator will pick it.
 
     ```console
     docker tag "local/ceph-$(go env GOARCH)" 'rook/ceph:master'
     ```
 
-4) Create a Rook cluster in minikube, or if the Rook cluster is already configured, apply the new
+4. Create a Rook cluster in minikube, or if the Rook cluster is already configured, apply the new
 operator image by restarting the operator.
 
 
