@@ -2714,6 +2714,49 @@ string
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.AccountRootUserSpec">AccountRootUserSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreAccountSpec">ObjectStoreAccountSpec</a>)
+</p>
+<div>
+<p>AccountRootUserSpec defines the configuration for the account root user</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>skipCreate</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SkipCreate when set to true, the root user will not be created for this account.
+This can be useful if the user wants to manually manage the root user outside of Rook.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>displayName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisplayName for the root user</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.AdditionalVolumeMount">AdditionalVolumeMount
 </h3>
 <div>
@@ -11741,6 +11784,21 @@ string
 (e.g., RGW00889737169837717). If not specified, the ID will be automatically generated.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>rootUser</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AccountRootUserSpec">
+AccountRootUserSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RootUser configures the root user for the account. The root user is created by default
+and has default permissions across all account resources.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectStoreAccountStatus">ObjectStoreAccountStatus
@@ -11780,6 +11838,18 @@ string
 <td>
 <em>(Optional)</em>
 <p>AccountID associated with the RGW user account</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>rootAccountSecretName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RootAccountSecretName is the name of the Kubernetes secret containing the root user&rsquo;s access credentials</p>
 </td>
 </tr>
 <tr>

@@ -79,3 +79,62 @@ func DeleteAccount(ctx context.Context, adminOpsContext *AdminOpsContext, accoun
 
 	return nil
 }
+
+// CreateAccountRootUser creates a root user for the given RGW account using the admin ops API.
+func CreateAccountRootUser(ctx context.Context, adminOpsContext *AdminOpsContext, user admin.User) (admin.User, error) {
+	if user.ID == "" {
+		return admin.User{}, errors.New("user ID cannot be empty")
+	}
+	if user.AccountID == "" {
+		return admin.User{}, errors.New("account ID cannot be empty")
+	}
+
+	createdUser, err := adminOpsContext.AdminOpsClient.CreateUser(ctx, user)
+	if err != nil {
+		return admin.User{}, errors.Wrapf(err, "failed to create root user %q for account %q", user.ID, user.AccountID)
+	}
+
+	return createdUser, nil
+}
+
+// GetAccountRootUser retrieves a root user from RGW using the admin ops API.
+func GetAccountRootUser(ctx context.Context, adminOpsContext *AdminOpsContext, userID string) (admin.User, error) {
+	if userID == "" {
+		return admin.User{}, errors.New("user ID cannot be empty")
+	}
+
+	user, err := adminOpsContext.AdminOpsClient.GetUser(ctx, admin.User{ID: userID})
+	if err != nil {
+		return admin.User{}, errors.Wrapf(err, "failed to get root user %q", userID)
+	}
+
+	return user, nil
+}
+
+// ModifyAccountRootUser modifies an existing root user in RGW using the admin ops API.
+func ModifyAccountRootUser(ctx context.Context, adminOpsContext *AdminOpsContext, user admin.User) (admin.User, error) {
+	if user.ID == "" {
+		return admin.User{}, errors.New("user ID cannot be empty")
+	}
+
+	modifiedUser, err := adminOpsContext.AdminOpsClient.ModifyUser(ctx, user)
+	if err != nil {
+		return admin.User{}, errors.Wrapf(err, "failed to modify root user %q", user.ID)
+	}
+
+	return modifiedUser, nil
+}
+
+// DeleteAccountRootUser removes a root user from RGW using the admin ops API.
+func DeleteAccountRootUser(ctx context.Context, adminOpsContext *AdminOpsContext, userID string) error {
+	if userID == "" {
+		return errors.New("user ID cannot be empty")
+	}
+
+	err := adminOpsContext.AdminOpsClient.RemoveUser(ctx, admin.User{ID: userID})
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete root user %q", userID)
+	}
+
+	return nil
+}

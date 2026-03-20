@@ -2781,6 +2781,24 @@ type ObjectStoreAccountSpec struct {
 	// +kubebuilder:validation:Pattern=`^RGW\d{17}$`
 	// +kubebuilder:validation:XValidation:message="accountID is immutable",rule="self == oldSelf"
 	AccountID string `json:"accountID,omitempty"`
+	// RootUser configures the root user for the account. The root user is created by default
+	// and has default permissions across all account resources.
+	// +optional
+	RootUser *AccountRootUserSpec `json:"rootUser,omitempty"` //nolint:kubeapilinter // MinProperties cannot be applied to a struct pointer field
+}
+
+// AccountRootUserSpec defines the configuration for the account root user
+type AccountRootUserSpec struct {
+	// SkipCreate when set to true, the root user will not be created for this account.
+	// This can be useful if the user wants to manually manage the root user outside of Rook.
+	// +optional
+	SkipCreate *bool `json:"skipCreate,omitempty"`
+	// DisplayName for the root user
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=64
+	// +kubebuilder:validation:Pattern=`^[\w+=,.@-]+$`
+	DisplayName string `json:"displayName,omitempty"`
 }
 
 // ObjectStoreAccountStatus represents the status of a CephObjectStoreAccount resource
@@ -2792,6 +2810,11 @@ type ObjectStoreAccountStatus struct {
 	// +kubebuilder:validation:MinLength=20
 	// +kubebuilder:validation:MaxLength=20
 	AccountID string `json:"accountID,omitempty"`
+	// RootAccountSecretName is the name of the Kubernetes secret containing the root user's access credentials
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	RootAccountSecretName string `json:"rootAccountSecretName,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
