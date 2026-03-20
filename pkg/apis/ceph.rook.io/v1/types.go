@@ -803,6 +803,29 @@ type MonSpec struct {
 	// leading
 	// +optional
 	ExternalMonIDs []string `json:"externalMonIDs,omitempty"`
+
+	// FloatingMon is the specification of the floating monitor for two-node clusters.
+	// The floating mon is backed by a synchronously replicated store (e.g. DRBD)
+	// and can be scheduled on either node. Template variables are supplied via a ConfigMap.
+	// +optional
+	FloatingMon FloatingMonSpec `json:"floatingMon,omitempty,omitzero"`
+}
+
+// +kubebuilder:validation:MinProperties=2
+type FloatingMonSpec struct {
+	// Name is the identifier for the floating monitor (recommended "c")
+	// +kubebuilder:validation:Pattern=`^[a-z]$`
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=1
+	// +required
+	Name string `json:"name,omitempty"`
+
+	// ConfigMapName is the name of the ConfigMap containing key-value pairs
+	// of template variables for the floating mon deployment.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +required
+	ConfigMapName string `json:"configmapName,omitempty"`
 }
 
 // VolumeClaimTemplate is a simplified version of K8s corev1's PVC. It has no type meta or status.
