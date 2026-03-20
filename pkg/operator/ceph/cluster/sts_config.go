@@ -42,10 +42,11 @@ func (c *cluster) ensureSTSConfiguration() error {
 		c.Spec.CephConfig["global"] = make(map[string]string)
 	}
 
+	monStore := config.GetMonStore(c.context, c.ClusterInfo)
+
 	// Check if user has already configured the STS key
 	if _, exists := c.Spec.CephConfig["global"]["rgw_sts_key"]; !exists {
 		// Check if key exists in Ceph config store
-		monStore := config.GetMonStore(c.context, c.ClusterInfo)
 		existingKey, err := monStore.Get("global", "rgw_sts_key")
 		if err != nil || existingKey == "" {
 			// Generate a new STS key
@@ -55,6 +56,11 @@ func (c *cluster) ensureSTSConfiguration() error {
 				return errors.Wrap(err, "failed to generate STS encryption key")
 			}
 			c.Spec.CephConfig["global"]["rgw_sts_key"] = stsKey
+
+			// Immediately write to mon config store to avoid race condition with RGW startup
+			if err := monStore.Set("global", "rgw_sts_key", stsKey); err != nil {
+				return errors.Wrap(err, "failed to set rgw_sts_key in mon config store")
+			}
 			logger.Infof("automatically configured rgw_sts_key for STS support")
 		} else {
 			// Use existing key from config store
@@ -66,6 +72,11 @@ func (c *cluster) ensureSTSConfiguration() error {
 	// Enable STS authentication if not explicitly configured by user
 	if _, exists := c.Spec.CephConfig["global"]["rgw_s3_auth_use_sts"]; !exists {
 		c.Spec.CephConfig["global"]["rgw_s3_auth_use_sts"] = "true"
+
+		// Immediately write to mon config store to avoid race condition with RGW startup
+		if err := monStore.Set("global", "rgw_s3_auth_use_sts", "true"); err != nil {
+			return errors.Wrap(err, "failed to set rgw_s3_auth_use_sts in mon config store")
+		}
 		logger.Info("automatically enabled rgw_s3_auth_use_sts for STS support")
 	}
 
