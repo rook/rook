@@ -430,6 +430,8 @@ func (c *Cluster) builtinMgrPoolExists() bool {
 }
 
 func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
+	const maxFailureDomainWeightDifferencePercent = 10
+
 	failureDomain := c.getFailureDomainName()
 
 	if checkOSDPods {
@@ -463,12 +465,14 @@ func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
 			log.NamespacedInfo(c.Namespace, logger, "found %s %q in CRUSH map with weight %d", failureDomain, bucket.Name, bucket.Weight)
 			zoneCount++
 
-			// check that the weights of the failure domains are all the same
+			// Allow a small weight difference between failure domains.
+			// Ceph accepts slight imbalance in stretch mode, so we should not
+			// require exact equality here.
 			if zoneWeight == -1 {
 				// found the first matching bucket
 				zoneWeight = bucket.Weight
-			} else if zoneWeight != bucket.Weight {
-				log.NamespacedInfo(c.Namespace, logger, "found failure domains that have different weights")
+			} else if !weightsAreWithinPercent(zoneWeight, bucket.Weight, maxFailureDomainWeightDifferencePercent) {
+				log.NamespacedInfo(c.Namespace, logger, "found failure domains with weight difference above %d%%", maxFailureDomainWeightDifferencePercent)
 				return false, nil
 			}
 		}
@@ -482,6 +486,18 @@ func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
 	}
 	log.NamespacedInfo(c.Namespace, logger, "found two expected failure domains %q for the stretch cluster", failureDomain)
 	return true, nil
+}
+
+func weightsAreWithinPercent(first, second, maxDifferencePercent int) bool {
+	maxWeight := max(first, second)
+	if maxWeight == 0 {
+		return true
+	}
+
+	diff := maxWeight - min(first, second)
+
+	// Do the comparison with int64 to avoid overflowing int.
+	return int64(diff)*100 <= int64(maxWeight)*int64(maxDifferencePercent)
 }
 
 // ensureMonsRunning is called in two scenarios:

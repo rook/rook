@@ -1005,7 +1005,8 @@ func TestCheckIfArbiterReady(t *testing.T) {
 		},
 	}
 	crushZoneCount := 0
-	balanced := true
+	zoneWeightA := 2056
+	zoneWeightB := 2056
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			switch {
@@ -1016,10 +1017,9 @@ func TestCheckIfArbiterReady(t *testing.T) {
 					{"id": -3,"name": "mynode","type_id": 1,"type_name": "host","weight": 1028},
 					{"id": -4,"name": "mynode~hdd","type_id": 1,"type_name": "host","weight": 1028}`
 				for i := 0; i < crushZoneCount; i++ {
-					weight := 2056
-					if !balanced && i%2 == 1 {
-						// simulate unbalanced with every other zone having half the weight
-						weight = 1028
+					weight := zoneWeightA
+					if i%2 == 1 {
+						weight = zoneWeightB
 					}
 					crushBuckets = crushBuckets +
 						fmt.Sprintf(`,{"id": -%d,"name": "zone%d","type_id": 1,"type_name": "zone","weight": %d}
@@ -1050,15 +1050,21 @@ func TestCheckIfArbiterReady(t *testing.T) {
 	assert.True(t, ready)
 	assert.NoError(t, err)
 
-	// Valid, except the CRUSH map is not balanced
-	balanced = false
+	// Valid, even with small imbalance (within 10%)
+	zoneWeightB = 1954 // 4.96% less than zoneWeightA
+	ready, err = c.readyToConfigureArbiter(false)
+	assert.True(t, ready)
+	assert.NoError(t, err)
+
+	// Invalid, the CRUSH map is too imbalanced
+	zoneWeightB = 1028 // 50% less than zoneWeightA
 	ready, err = c.readyToConfigureArbiter(false)
 	assert.False(t, ready)
 	assert.NoError(t, err)
 
 	// Too many zones in the CRUSH map
 	crushZoneCount = 3
-	balanced = true
+	zoneWeightB = zoneWeightA
 	ready, err = c.readyToConfigureArbiter(false)
 	assert.False(t, ready)
 	assert.Error(t, err)
