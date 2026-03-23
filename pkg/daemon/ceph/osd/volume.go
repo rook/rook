@@ -36,6 +36,7 @@ import (
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/util/display"
+	rookexec "github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
@@ -1261,9 +1262,18 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 
 		// If no block is specified let's take the one we discovered
 		if setDevicePathFromList {
-			blockPath = osdInfo.Device
+			// Resolve kernel device names to persistent /dev/disk/by-id/ paths when available.
+			// Kernel names (e.g., /dev/nvme0n1) can change across reboots, causing OSD activation
+			// failures. Persistent paths are tied to device serial numbers and remain stable.
+			blockPath = resolveDeviceToPersistentPath(osdInfo.Device, context.Executor)
 			blockMetadataPath = osdInfo.DeviceDb
+			if blockMetadataPath != "" {
+				blockMetadataPath = resolveDeviceToPersistentPath(blockMetadataPath, context.Executor)
+			}
 			blockWalPath = osdInfo.DeviceWal
+			if blockWalPath != "" {
+				blockWalPath = resolveDeviceToPersistentPath(blockWalPath, context.Executor)
+			}
 		} else {
 			blockPath = block
 			blockMetadataPath = metadataBlock
@@ -1435,4 +1445,85 @@ func GetBackingDeviceForEncryptedBlock(context *clusterd.Context, disk string) (
 	}
 
 	return "", errors.Errorf("failed to find backing device for encrypted block %q", disk)
+}
+
+// resolveDeviceToPersistentPath resolves a kernel device path (e.g., /dev/nvme0n1) to a
+// persistent /dev/disk/by-id/ path using udev. Kernel device names can change across reboots;
+// persistent paths are tied to hardware identifiers and remain stable. Returns the original
+// path unchanged if no persistent path is found, on error, or for paths that are already
+// persistent (/dev/disk/...) or device-mapper (/dev/mapper/...).
+//
+// Preference order for by-id paths (most hardware-stable first):
+//   - wwn-*     (World Wide Name, SATA/SAS — IEEE-assigned, hardware-burned)
+//   - nvme-eui.* (NVMe EUI-64 — IEEE-assigned, hardware-burned)
+//   - ata-*, nvme-* (model-serial derived from IDENTIFY data)
+func resolveDeviceToPersistentPath(devicePath string, executor rookexec.Executor) string {
+	if !strings.HasPrefix(devicePath, "/dev/") ||
+		strings.HasPrefix(devicePath, "/dev/disk/") ||
+		strings.HasPrefix(devicePath, "/dev/mapper/") {
+		return devicePath
+	}
+
+	deviceName := strings.TrimPrefix(devicePath, "/dev/")
+	udevInfo, err := sys.GetUdevInfo(deviceName, executor)
+	if err != nil {
+		logger.Warningf("failed to get udev info for %q, using kernel device path: %v", devicePath, err)
+		return devicePath
+	}
+
+	devLinks, ok := udevInfo["DEVLINKS"]
+	if !ok || devLinks == "" {
+		return devicePath
+	}
+
+	// Collect candidate /dev/disk/by-id/ paths, skipping lvm-pv-uuid entries
+	// and numbered duplicates (e.g., nvme-Micron_..._1).
+	var candidates []string
+	for _, link := range strings.Fields(devLinks) {
+		if !strings.HasPrefix(link, "/dev/disk/by-id/") {
+			continue
+		}
+		if strings.Contains(link, "lvm-pv-uuid") {
+			continue
+		}
+		base := filepath.Base(link)
+		if matched, _ := filepath.Match("*_[0-9]", base); matched {
+			continue
+		}
+		candidates = append(candidates, link)
+	}
+
+	if len(candidates) == 0 {
+		return devicePath
+	}
+
+	// Select the most stable identifier: wwn- > nvme-eui. > anything else
+	best := candidates[0]
+	for _, c := range candidates[1:] {
+		best = preferByIDPath(best, c)
+	}
+
+	logger.Infof("resolved device %q to persistent path %q", devicePath, best)
+	return best
+}
+
+// preferByIDPath returns the more stable of two /dev/disk/by-id/ paths.
+// wwn- and nvme-eui. paths are hardware-burned identifiers (IEEE-assigned);
+// ata-/nvme- model-serial paths are derived from device IDENTIFY data.
+func preferByIDPath(a, b string) string {
+	rank := func(p string) int {
+		base := filepath.Base(p)
+		switch {
+		case strings.HasPrefix(base, "wwn-"):
+			return 0
+		case strings.HasPrefix(base, "nvme-eui."):
+			return 0
+		default:
+			return 1
+		}
+	}
+	if rank(a) <= rank(b) {
+		return a
+	}
+	return b
 }
