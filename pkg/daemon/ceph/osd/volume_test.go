@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"slices"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -299,6 +300,19 @@ var cephVolumeRawPartitionTestResult = `{
         "type": "bluestore"
     }
 }`
+
+// ceph-volume raw list reports the device via an LVM symlink (/dev/rhel/ceph-data)
+// while the inventory RealPath is /dev/mapper/rhel-ceph--data.
+var cephVolumeRAWLVMSymlinkTestResult = `{
+    "0": {
+        "ceph_fsid": "4bfe8b72-5e69-4330-b6c0-4d914db8ab89",
+        "device": "/dev/rhel/ceph-data",
+        "osd_id": 0,
+        "osd_uuid": "c03d7353-96e5-4a41-98de-830dfff97d06",
+        "type": "bluestore"
+    }
+}
+`
 
 func createPVCAvailableDevices() *DeviceOsdMapping {
 	devices := &DeviceOsdMapping{
@@ -2179,10 +2193,26 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 			return luksDump, nil
 		}
 
-		if contains(args, "zap") {
-			if !contains(args, devicePath) {
-				return "", errors.Errorf("device %s should not be zapped", devicePath)
+		// ZapDevice calls: stdbuf (ceph-volume lvm zap), umount, wipefs, ceph-bluestore-tool, dd
+		if command == "stdbuf" {
+			if !slices.Contains(args, "zap") || !slices.Contains(args, devicePath) {
+				return "", errors.Errorf("device %s should not be zapped, got %v", devicePath, args)
 			}
+			return "", nil
+		}
+		if command == "umount" {
+			return "not mounted", errors.New("not mounted")
+		}
+		if command == "wipefs" {
+			if args[1] != devicePath {
+				return "", errors.Errorf("device %s should not be zapped, got %s", devicePath, args[1])
+			}
+			return "", nil
+		}
+		if command == "ceph-bluestore-tool" {
+			return "", nil
+		}
+		if command == "dd" {
 			return "", nil
 		}
 		return "", errors.Errorf("unknown command %s %s", command, args)
@@ -2230,6 +2260,54 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	}
 	context = &clusterd.Context{
 		Devices: []*sys.LocalDisk{{RealPath: "/dev/vdb", Filesystem: "crypto_LUKS"}},
+	}
+	context.Executor = executor
+	err = agent.WipeDevicesFromOtherClusters(context)
+	assert.NoError(t, err)
+
+	// `ceph-volume raw list` returns an LVM symlink path (/dev/rhel/ceph-data) while
+	// the device RealPath is /dev/mapper/rhel-ceph--data. The device should still be
+	// matched via DevLinks and zapped.
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		if slices.Contains(args, "raw") && slices.Contains(args, "list") {
+			return cephVolumeRAWLVMSymlinkTestResult, nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		devicePath := "/dev/mapper/rhel-ceph--data"
+
+		// ZapDevice calls: stdbuf (ceph-volume lvm zap), umount, wipefs, ceph-bluestore-tool, dd
+		if command == "stdbuf" {
+			if !slices.Contains(args, "zap") || !slices.Contains(args, devicePath) {
+				return "", errors.Errorf("expected device %s to be zapped but got %v", devicePath, args)
+			}
+			return "", nil
+		}
+		if command == "umount" {
+			return "not mounted", errors.New("not mounted")
+		}
+		if command == "wipefs" {
+			if args[1] != devicePath {
+				return "", errors.Errorf("expected device %s to be zapped but got %v", devicePath, args)
+			}
+			return "", nil
+		}
+		if command == "ceph-bluestore-tool" {
+			return "", nil
+		}
+		if command == "dd" {
+			return "", nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	context = &clusterd.Context{
+		Devices: []*sys.LocalDisk{{
+			RealPath: "/dev/mapper/rhel-ceph--data",
+			DevLinks: "/dev/rhel/ceph-data /dev/disk/by-id/dm-name-rhel-ceph--data /dev/mapper/rhel-ceph--data",
+		}},
 	}
 	context.Executor = executor
 	err = agent.WipeDevicesFromOtherClusters(context)
