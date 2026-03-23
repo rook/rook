@@ -143,3 +143,107 @@ This single CR will:
 2. Create a root user for the account with the given display name
 3. Generate access credentials and store them in a Kubernetes secret
 4. Report the account ID and secret name in `status.rootAccountSecretName`
+
+## Account Users
+
+### Overview
+In addition to the root user (managed by the `CephObjectStoreAccount` CR), accounts can have regular users associated with them. These account users differ from standalone RGW users in following ways:
+
+- Account users start with **no default permissions** (unlike standalone users who can create buckets and upload objects by default).
+- Resources created by account users are **owned by the account**, not the individual user.
+- Account users are referenced by their display name in IAM policy ARNs, and the display name must match the pattern `[\w+=,.@-]+` for IAM compatibility.
+
+The existing `CephObjectStoreUser` CR is extended with an optional `accountRef` field to associate a user with an account.
+
+### API Changes
+
+The `CephObjectStoreUser` spec gains a new `accountRef` field:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: my-user
+  namespace: rook-ceph
+spec:
+  # [Required] The name of the object store to create the user in
+  store: my-store
+  # [Required] Display name for the user. Must match [\w+=,.@-]+ when accountRef is set.
+  displayName: "my-user"
+  # [Optional] Reference to the CephObjectStoreAccount to associate this user with.
+  # The account must be in the same namespace as the user.
+  accountRef:
+    # [Required] Name of the CephObjectStoreAccount CR
+    name: my-account
+```
+
+The `accountRef` is a reference to a `CephObjectStoreAccount` CR, not a raw account ID. The referenced account must be in the same namespace as the user. Users deploy the account and user CRs simultaneously without needing to wait for the account to be provisioned first.
+
+### Account User Creation
+
+When a `CephObjectStoreUser` with `accountRef` is created, the user controller will:
+
+1. **Resolve the account reference**: Look up the `CephObjectStoreAccount` CR by the name specified in `accountRef`, in the same namespace as the `CephObjectStoreUser` CR.
+
+2. **Validate the object store**: Ensure the `store` field on the user matches the `store` field on the referenced account. If they differ, the controller sets the user status to `Failed` with an appropriate error message.
+
+4. **Wait for the account to be ready**: If the referenced `CephObjectStoreAccount` does not exist or is not in `Ready` phase, the controller will requeue the reconciliation rather than failing. This supports workflows where the account and user CRs are deployed simultaneously.
+
+5. **Validate the display name**: When `accountRef` is set, the controller validates that `displayName` matches the pattern `[\w+=,.@-]+`. This is required because account users are referenced by their display name in IAM policy ARNs (e.g., `arn:aws:iam::RGW33567154695143645:user/my-user`), and names with spaces or unsupported characters will break IAM policy resolution. If the display name is invalid, the controller sets the user status to `Failed` with an appropriate error message. This validation is performed in the controller code rather than at the CRD level, because adding a CRD-level pattern constraint on `displayName` would break existing standalone `CephObjectStoreUser` CRs that have display names with spaces or special characters.
+
+6. **Create the user with the account ID**: Once the account is ready, the controller extracts the `accountID` from the account's `status.accountID` and passes it to the RGW admin ops API when creating or modifying the user.
+
+### Immutable Fields
+- `accountRef` is **immutable** once set. Moving a user between accounts changes resource ownership in Ceph and is a destructive operation that must be done manually.
+- Immutability is enforced at the CRD level using a CEL (Common Expression Language) validation rule on the field, consistent with how Rook enforces immutability for other fields like `accountID` and `store`:
+  ```go
+  // +kubebuilder:validation:XValidation:message="accountRef is immutable",rule="self == oldSelf"
+  ```
+- With this approach, the Kubernetes API server rejects any update that attempts to change `accountRef` before it reaches the controller. This includes changing the name, adding `accountRef` to an existing user, or removing it.
+
+### Account User Deletion
+
+When a `CephObjectStoreUser` with `accountRef` is deleted:
+- The controller deletes the user from the RGW via the admin ops API, same as for standalone users.
+- The account itself is not affected. Deleting the user simply removes it from the account.
+
+### Example: Full Account Setup with Users
+
+```yaml
+# 1. Create the account
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreAccount
+metadata:
+  name: my-account
+  namespace: rook-ceph
+spec:
+  store: my-store
+  rootUser:
+    displayName: "Root User"
+---
+# 2. Create a user associated with the account
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: my-user
+  namespace: rook-ceph
+spec:
+  store: my-store
+  displayName: "my-user"
+  accountRef:
+    name: my-account
+```
+
+Both CRs can be applied simultaneously. The user controller will wait for the account to become ready before creating the user in RGW.
+
+### External Cluster Considerations
+
+For external RGW clusters, the `accountRef` approach works as long as the account is managed via a `CephObjectStoreAccount` CR — the account controller uses the RGW admin ops API (HTTP), which works for both internal and external RGW deployments.
+
+Associating users with pre-existing accounts that were created outside of Rook (e.g., directly via `radosgw-admin`) is not supported in this iteration. Future work may add external binding support to `CephObjectStoreAccount`, allowing a CR to adopt an existing account by its account ID. Once bound, the `accountRef` mechanism works the same way — the user controller always resolves the account ID from the referenced CR's status.
+
+### Future Considerations
+
+- **Migrating standalone users into accounts**: In the future, all users may need to be associated with an account. This would require allowing `accountRef` to be added to existing standalone `CephObjectStoreUser` CRs as a day-2 operation. The CEL immutability rule would need to be relaxed from `self == oldSelf` to `!has(oldSelf) || self == oldSelf` to permit the transition from unset to set while still preventing changes or removal once set. Additionally, the current `CephObjectStoreUser` CRD has no validation on `displayName` — standalone users can have display names with spaces or special characters. However, account users are referenced by display name in IAM policy ARNs and must match `[\w+=,.@-]+`. Since adding a CRD-level pattern constraint would break existing standalone users, the display name validation must be enforced in the controller only when `accountRef` is set. Users migrating into an account would need to update their `displayName` to be IAM-compatible before or at the same time as setting `accountRef`.
+- **Cross-namespace account references**: Currently, `CephObjectStoreUser` must be in the same namespace as the referenced `CephObjectStoreAccount`. In the future, cross-namespace references could be supported by adding a `namespace` field to `accountRef` along with an opt-in mechanism on the `CephObjectStoreAccount` (e.g., `allowUsersFromNamespaces` list) to let the account owner control which namespaces can create users for their account. This prevents unauthorized cross-namespace association where any user could claim to belong to an account they don't own.
+- **External account binding**: Support for `CephObjectStoreAccount` to adopt pre-existing accounts in external RGW clusters by referencing a raw account ID.
