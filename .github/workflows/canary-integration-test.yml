@@ -1995,13 +1995,11 @@ jobs:
           tests/scripts/github-action-helper.sh use_local_disk
           tests/scripts/github-action-helper.sh create_partitions_for_osds
 
-      - name: deploy cluster without ceph-csi operator
+      - name: deploy cluster
         run: |
-          OPERATOR_MANIFEST="deploy/examples/operator.yaml"
-          sed -i 's|# ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.2"|ROOK_CSI_CEPH_IMAGE: "quay.io/nixpanic/cephcsi:nvmeof"|' "${OPERATOR_MANIFEST}"
-          sed -i 's|ROOK_USE_CSI_OPERATOR: "true"|ROOK_USE_CSI_OPERATOR: "false"|' "${OPERATOR_MANIFEST}"
-
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "${OPERATOR_MANIFEST}"
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "deploy/examples/operator.yaml"
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "deploy/examples/csi-operator.yaml"
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "deploy/examples/csi/nvmeof/driver.yaml"
 
           export BLOCK="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           yq w -i -d0 deploy/examples/cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"
