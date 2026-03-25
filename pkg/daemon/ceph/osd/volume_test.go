@@ -2337,7 +2337,10 @@ func TestResolveDeviceToPersistentPath(t *testing.T) {
 			}
 			return "", nil
 		}
-		// nvme-eui. is hardware-burned (IEEE), preferred over model-serial
+		// nvme-eui. is hardware-burned (IEEE), preferred over model-serial.
+		// nvme-Micron_7450_SERIAL_A_1 is filtered because the un-suffixed
+		// nvme-Micron_7450_SERIAL_A also exists in DEVLINKS, identifying _1
+		// as a udev namespace-ID suffix.
 		result := resolveDeviceToPersistentPath("/dev/nvme0n1", executor)
 		assert.Equal(t, "/dev/disk/by-id/nvme-eui.00000001", result)
 	})
@@ -2398,5 +2401,34 @@ func TestResolveDeviceToPersistentPath(t *testing.T) {
 		}
 		result := resolveDeviceToPersistentPath("/dev/sdb", executor)
 		assert.Equal(t, "/dev/disk/by-id/ata-WDC_SERIAL", result)
+	})
+
+	t.Run("namespace-suffixed path kept when base absent", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "udevadm" {
+				// Only nvme-FOO_1 exists, no nvme-FOO -- _1 could be part of the
+				// serial or the base link may be claimed by another device. Either
+				// way, we must keep it since it's the only model-serial link.
+				return "DEVLINKS=/dev/disk/by-id/nvme-FOO_1 /dev/disk/by-id/nvme-eui.AABB\n", nil
+			}
+			return "", nil
+		}
+		result := resolveDeviceToPersistentPath("/dev/nvme1n1", executor)
+		assert.Equal(t, "/dev/disk/by-id/nvme-eui.AABB", result)
+	})
+
+	t.Run("multi-digit namespace ID filtered", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "udevadm" {
+				// nvme-Model_Serial_12 is namespace 12; the un-suffixed
+				// nvme-Model_Serial also exists, confirming _12 is a NSID.
+				return "DEVLINKS=/dev/disk/by-id/nvme-Model_Serial /dev/disk/by-id/nvme-Model_Serial_12 /dev/disk/by-id/nvme-eui.CCDD\n", nil
+			}
+			return "", nil
+		}
+		result := resolveDeviceToPersistentPath("/dev/nvme2n1", executor)
+		assert.Equal(t, "/dev/disk/by-id/nvme-eui.CCDD", result)
 	})
 }

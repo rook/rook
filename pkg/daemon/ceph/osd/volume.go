@@ -63,6 +63,10 @@ var (
 
 	isEncrypted = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
 	isOnPVC     = os.Getenv(oposd.PVCBackedOSDVarName) == "true"
+
+	// nsidSuffixRe matches a trailing _N (one or more digits) that udev's
+	// 60-persistent-storage.rules appends as NVMe namespace IDs to by-id symlinks.
+	nsidSuffixRe = regexp.MustCompile(`_\d+$`)
 )
 
 type osdInfoBlock struct {
@@ -1454,9 +1458,42 @@ func GetBackingDeviceForEncryptedBlock(context *clusterd.Context, disk string) (
 // persistent (/dev/disk/...) or device-mapper (/dev/mapper/...).
 //
 // Preference order for by-id paths (most hardware-stable first):
-//   - wwn-*     (World Wide Name, SATA/SAS — IEEE-assigned, hardware-burned)
-//   - nvme-eui.* (NVMe EUI-64 — IEEE-assigned, hardware-burned)
-//   - ata-*, nvme-* (model-serial derived from IDENTIFY data)
+//
+// Tier 1 -- hardware-burned IEEE identifiers (equally preferred):
+//
+//   - wwn-*: World Wide Name (WWN), the unique hardware identifier for
+//     SATA and SAS devices. Assigned by IEEE (NAA format) and burned into
+//     the drive controller at manufacturing. Cannot change across firmware
+//     updates, kernel upgrades, or reboots.
+//     SCSI/SAS: defined in SPC-6 (INCITS 566-2025) S7.7.3
+//     "Device Identification VPD page", designator type NAA (3h).
+//     T10 committee: https://www.t10.org/members/w_spc6.htm
+//     SATA: WWN exposed via IDENTIFY DEVICE words 108-111, defined in
+//     ACS-5 (INCITS 558-2021). T13 committee: https://www.t13.org/
+//
+//   - nvme-eui.*: EUI-64 (Extended Unique Identifier), the unique hardware
+//     identifier for NVMe namespaces. Assigned by IEEE and burned into the
+//     NVMe controller at manufacturing. Same stability guarantees as WWN.
+//     Defined in NVM Express Base Specification Rev 2.1, S4.1.5.1
+//     "Identify Namespace data structure", EUI64 field.
+//     https://nvmexpress.org/wp-content/uploads/NVM-Express-Base-Specification-Revision-2.1-2024.08.05-Ratified.pdf
+//     All specs: https://nvmexpress.org/specifications/
+//
+// These are mutually exclusive by bus type: SATA/SAS devices expose wwn-,
+// NVMe devices expose nvme-eui. They never appear together for the same
+// device, so equal ranking between them is intentional.
+//
+// Tier 2 -- model-serial identifiers (fallback):
+//
+//   - ata-*, nvme-*: Constructed by udev from the device's IDENTIFY data
+//     (model name + serial number). Less stable because firmware updates can
+//     change the model string, serial number formatting varies across
+//     manufacturers, and udev's parsing of IDENTIFY data can change between
+//     versions. Used only when no Tier 1 identifier is available.
+//
+// Symlink naming is defined by systemd/udev 60-persistent-storage.rules:
+//
+//	https://github.com/systemd/systemd/blob/main/rules.d/60-persistent-storage.rules.in
 func resolveDeviceToPersistentPath(devicePath string, executor rookexec.Executor) string {
 	if !strings.HasPrefix(devicePath, "/dev/") ||
 		strings.HasPrefix(devicePath, "/dev/disk/") ||
@@ -1476,9 +1513,8 @@ func resolveDeviceToPersistentPath(devicePath string, executor rookexec.Executor
 		return devicePath
 	}
 
-	// Collect candidate /dev/disk/by-id/ paths, skipping lvm-pv-uuid entries
-	// and numbered duplicates (e.g., nvme-Micron_..._1).
-	var candidates []string
+	// Collect candidate /dev/disk/by-id/ paths, skipping lvm-pv-uuid entries.
+	var rawCandidates []string
 	for _, link := range strings.Fields(devLinks) {
 		if !strings.HasPrefix(link, "/dev/disk/by-id/") {
 			continue
@@ -1486,18 +1522,38 @@ func resolveDeviceToPersistentPath(devicePath string, executor rookexec.Executor
 		if strings.Contains(link, "lvm-pv-uuid") {
 			continue
 		}
-		base := filepath.Base(link)
-		if matched, _ := filepath.Match("*_[0-9]", base); matched {
-			continue
+		rawCandidates = append(rawCandidates, link)
+	}
+
+	// Filter namespace-suffixed duplicates: skip /dev/disk/by-id/FOO_N when
+	// /dev/disk/by-id/FOO also exists in DEVLINKS (N = one or more digits).
+	// NVMe namespace IDs are appended by udev's 60-persistent-storage.rules
+	// (e.g., nvme-Model_Serial_1 for namespace 1). We check for the
+	// un-suffixed path's existence rather than pattern-matching the suffix
+	// alone, so we never accidentally filter a device whose serial number
+	// legitimately ends in digits. If only FOO_N exists (FOO is absent),
+	// we keep it -- it may be the only valid link for this device.
+	candidateSet := make(map[string]bool, len(rawCandidates))
+	for _, c := range rawCandidates {
+		candidateSet[c] = true
+	}
+	var candidates []string
+	for _, c := range rawCandidates {
+		base := filepath.Base(c)
+		if loc := nsidSuffixRe.FindStringIndex(base); loc != nil {
+			unsuffixed := filepath.Join(filepath.Dir(c), base[:loc[0]])
+			if candidateSet[unsuffixed] {
+				continue // unsuffixed path exists; this is a namespace duplicate
+			}
 		}
-		candidates = append(candidates, link)
+		candidates = append(candidates, c)
 	}
 
 	if len(candidates) == 0 {
 		return devicePath
 	}
 
-	// Select the most stable identifier: wwn- > nvme-eui. > anything else
+	// Select the most stable identifier (see preferByIDPath for ranking).
 	best := candidates[0]
 	for _, c := range candidates[1:] {
 		best = preferByIDPath(best, c)
@@ -1508,16 +1564,26 @@ func resolveDeviceToPersistentPath(devicePath string, executor rookexec.Executor
 }
 
 // preferByIDPath returns the more stable of two /dev/disk/by-id/ paths.
-// wwn- and nvme-eui. paths are hardware-burned identifiers (IEEE-assigned);
-// ata-/nvme- model-serial paths are derived from device IDENTIFY data.
+//
+// Rank 0 (preferred): wwn- is the unique IEEE-assigned hardware identifier
+// for SATA/SAS devices (World Wide Name, NAA format, burned into the drive
+// controller at manufacturing). nvme-eui. is the equivalent for NVMe devices
+// (EUI-64, burned into the NVMe controller at manufacturing). Both are
+// immutable hardware identifiers. They are mutually exclusive by bus type --
+// a device will have one or the other, never both -- so equal ranking is
+// intentional.
+//
+// Rank 1 (fallback): ata-/nvme- model-serial paths are constructed by udev
+// from the device's IDENTIFY data and are less stable (see
+// resolveDeviceToPersistentPath comments for details and spec references).
 func preferByIDPath(a, b string) string {
 	rank := func(p string) int {
 		base := filepath.Base(p)
 		switch {
 		case strings.HasPrefix(base, "wwn-"):
-			return 0
+			return 0 // WWN: unique IEEE-assigned hardware ID for SATA/SAS
 		case strings.HasPrefix(base, "nvme-eui."):
-			return 0
+			return 0 // EUI-64: unique IEEE-assigned hardware ID for NVMe (mutually exclusive with wwn-)
 		default:
 			return 1
 		}
