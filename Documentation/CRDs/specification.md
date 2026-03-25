@@ -9193,7 +9193,7 @@ int
 <h3 id="ceph.rook.io/v1.Labels">Labels
 (<code>map[string]string</code> alias)</h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewaySpec">NVMeOFGatewaySpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.NVMeOFGatewaySpec">NVMeOFGatewaySpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>, <a href="#ceph.rook.io/v1.RGWServiceSpec">RGWServiceSpec</a>)
 </p>
 <div>
 <p>Labels are label for a given daemons</p>
@@ -13955,6 +13955,20 @@ Annotations
 <p>The annotations-related configuration to add/set on each rgw service.
 nullable
 optional</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>labels</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Labels">
+Labels
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The labels-related configuration to add/set on each rgw service.</p>
 </td>
 </tr>
 </tbody>

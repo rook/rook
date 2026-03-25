@@ -2740,6 +2740,9 @@ type RGWServiceSpec struct {
 	// nullable
 	// optional
 	Annotations Annotations `json:"annotations,omitempty"`
+	// The labels-related configuration to add/set on each rgw service.
+	// +optional
+	Labels Labels `json:"labels,omitempty"`
 }
 
 // +genclient
