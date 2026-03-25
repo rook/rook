@@ -115,7 +115,7 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 	podVolumes := getPodVolumes(rbdPluginVolume, rbdPluginVolumeMount)
 	rbdDriver.Spec.NodePlugin.PodCommonSpec.Volumes = podVolumes
 
-	err = r.createOrUpdateDriverResource(clusterInfo, rbdDriver)
+	err = r.createOrUpdateDriverResource(clusterInfo, rbdDriver, cluster.ObjectMeta)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create or update RBD driver resource %q", rbdDriver.Name)
 	}
@@ -169,7 +169,7 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 	podVolumes := getPodVolumes(cephFSPluginVolume, cephFSPluginVolumeMount)
 	cephFsDriver.Spec.NodePlugin.PodCommonSpec.Volumes = podVolumes
 
-	err = r.createOrUpdateDriverResource(clusterInfo, cephFsDriver)
+	err = r.createOrUpdateDriverResource(clusterInfo, cephFsDriver, cluster.ObjectMeta)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create or update cephFS driver resource %q", cephFsDriver.Name)
 	}
@@ -215,7 +215,7 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 		}
 	}
 
-	err = r.createOrUpdateDriverResource(clusterInfo, NFSDriver)
+	err = r.createOrUpdateDriverResource(clusterInfo, NFSDriver, cluster.ObjectMeta)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create or update NFS driver resource %q", NFSDriver.Name)
 	}
@@ -223,12 +223,13 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 	return nil
 }
 
-func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.ClusterInfo, driverResource *csiopv1.Driver) error {
+func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.ClusterInfo, driverResource *csiopv1.Driver, clusterMeta metav1.ObjectMeta) error {
 	spec := driverResource.Spec
 
 	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: driverResource.Name, Namespace: r.opConfig.OperatorNamespace}, driverResource)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			setHelmLabels(&driverResource.ObjectMeta, clusterMeta, cephCsiHelmDriversReleaseName, r.opConfig.OperatorNamespace)
 			err = r.client.Create(r.opManagerContext, driverResource)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create CSI-operator driver CR %q", driverResource.Name)
@@ -241,6 +242,7 @@ func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.Clust
 	}
 
 	driverResource.Spec = spec
+	setHelmLabels(&driverResource.ObjectMeta, clusterMeta, cephCsiHelmDriversReleaseName, r.opConfig.OperatorNamespace)
 	err = r.client.Update(r.opManagerContext, driverResource)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update CSI-operator driver CR %q", driverResource.Name)
@@ -255,7 +257,7 @@ func (r *ReconcileCSI) generateDriverSpec(cluster cephv1.CephCluster) (csiopv1.D
 	if CSIParam.ForceCephFSKernelClient == "false" {
 		cephfsClientType = csiopv1.AutoDetectCephFsClient
 	}
-	imageSetCmName, err := r.createImageSetConfigmap()
+	imageSetCmName, err := r.createImageSetConfigmap(cluster.ObjectMeta)
 	if err != nil {
 		return csiopv1.DriverSpec{}, errors.Wrapf(err, "failed to create ceph-CSI operator config ImageSetConfigmap for CR %s", opConfigCRName)
 	}
