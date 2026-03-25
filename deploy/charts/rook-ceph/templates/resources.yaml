@@ -13953,6 +13953,11 @@ spec:
                             nullable
                             optional
                           type: object
+                        labels:
+                          additionalProperties:
+                            type: string
+                          description: The labels-related configuration to add/set on each rgw service.
+                          type: object
                       type: object
                     sslCertificateRef:
                       description: The name of the secret that stores the ssl certificate for secure rgw connections

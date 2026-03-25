@@ -1715,3 +1715,21 @@ func TestRgwReadAffinity(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateServiceLabels(t *testing.T) {
+	store := simpleStore()
+	store.Spec.Gateway.Service = &cephv1.RGWServiceSpec{
+		Labels: cephv1.Labels{"my-label": "my-value"},
+	}
+	info := clienttest.CreateTestClusterInfo(1)
+	c := &clusterConfig{
+		clusterInfo: info,
+		store:       store,
+		clusterSpec: &cephv1.ClusterSpec{},
+	}
+	svc := c.generateService(store)
+	// Verify custom labels are applied
+	assert.Equal(t, "my-value", svc.ObjectMeta.Labels["my-label"])
+	// Verify default labels are still present
+	assert.Equal(t, "rook-ceph-rgw", svc.ObjectMeta.Labels["app"])
+}
