@@ -229,6 +229,7 @@ func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.Clust
 	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: driverResource.Name, Namespace: r.opConfig.OperatorNamespace}, driverResource)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			setHelmLabels(&driverResource.ObjectMeta, clusterHelmReleaseName, r.opConfig.OperatorNamespace)
 			err = r.client.Create(r.opManagerContext, driverResource)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create CSI-operator driver CR %q", driverResource.Name)
@@ -241,6 +242,7 @@ func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.Clust
 	}
 
 	driverResource.Spec = spec
+	setHelmLabels(&driverResource.ObjectMeta, clusterHelmReleaseName, r.opConfig.OperatorNamespace)
 	err = r.client.Update(r.opManagerContext, driverResource)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update CSI-operator driver CR %q", driverResource.Name)

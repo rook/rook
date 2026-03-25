@@ -31,8 +31,22 @@ import (
 )
 
 const (
-	opConfigCRName = "ceph-csi-operator-config"
+	opConfigCRName          = "ceph-csi-operator-config"
+	operatorHelmReleaseName = "rook-ceph"
+	clusterHelmReleaseName  = "rook-ceph-cluster"
 )
+
+func setHelmLabels(objMeta *metav1.ObjectMeta, releaseName, releaseNamespace string) {
+	if objMeta.Labels == nil {
+		objMeta.Labels = map[string]string{}
+	}
+	if objMeta.Annotations == nil {
+		objMeta.Annotations = map[string]string{}
+	}
+	objMeta.Labels["app.kubernetes.io/managed-by"] = "Helm"
+	objMeta.Annotations["meta.helm.sh/release-name"] = releaseName
+	objMeta.Annotations["meta.helm.sh/release-namespace"] = releaseNamespace
+}
 
 func (r *ReconcileCSI) createOrUpdateOperatorConfig(cluster cephv1.CephCluster) error {
 	logger.Info("Creating ceph-CSI operator config CR")
@@ -52,6 +66,7 @@ func (r *ReconcileCSI) createOrUpdateOperatorConfig(cluster cephv1.CephCluster) 
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			opConfig.Spec = spec
+			setHelmLabels(&opConfig.ObjectMeta, clusterHelmReleaseName, r.opConfig.OperatorNamespace)
 			err = r.client.Create(r.opManagerContext, opConfig)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create ceph-CSI operator operator config CR %q", opConfig.Name)
@@ -64,6 +79,7 @@ func (r *ReconcileCSI) createOrUpdateOperatorConfig(cluster cephv1.CephCluster) 
 	}
 
 	opConfig.Spec = spec
+	setHelmLabels(&opConfig.ObjectMeta, clusterHelmReleaseName, r.opConfig.OperatorNamespace)
 	err = r.client.Update(r.opManagerContext, opConfig)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update ceph-CSI operator operator config CR %q", opConfig.Name)
@@ -159,6 +175,7 @@ func (r *ReconcileCSI) createImageSetConfigmap() (string, error) {
 	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: cm.Name, Namespace: r.opConfig.OperatorNamespace}, cm)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
+			setHelmLabels(&cm.ObjectMeta, operatorHelmReleaseName, r.opConfig.OperatorNamespace)
 			err = r.client.Create(r.opManagerContext, cm)
 			if err != nil {
 				return "", errors.Wrapf(err, "failed to create imageSet cm  %q for ceph-CSI operator-config CR %q", cm.Name, opConfigCRName)
@@ -171,6 +188,7 @@ func (r *ReconcileCSI) createImageSetConfigmap() (string, error) {
 	}
 
 	cm.Data = data
+	setHelmLabels(&cm.ObjectMeta, operatorHelmReleaseName, r.opConfig.OperatorNamespace)
 	err = r.client.Update(r.opManagerContext, cm)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to updated imageSet cm  %q ceph-CSI operator-config CR %q", cm.Name, opConfigCRName)
