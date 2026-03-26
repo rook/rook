@@ -84,7 +84,12 @@ func (a *OsdAgent) GetReplaceOSDId(device string) int {
 
 	deviceReal, err1 := filepath.EvalSymlinks(device)
 	blockPathReal, err2 := filepath.EvalSymlinks(a.replaceOSD.BlockPath)
-	if err1 == nil && err2 == nil && deviceReal == blockPathReal {
+	if err1 != nil || err2 != nil {
+		logger.Debugf("could not resolve symlinks for OSD replacement comparison: device %q err=%v, blockPath %q err=%v",
+			device, err1, a.replaceOSD.BlockPath, err2)
+		return -1
+	}
+	if deviceReal == blockPathReal {
 		return a.replaceOSD.ID
 	}
 

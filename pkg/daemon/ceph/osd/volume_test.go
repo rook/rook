@@ -2432,3 +2432,30 @@ func TestResolveDeviceToPersistentPath(t *testing.T) {
 		assert.Equal(t, "/dev/disk/by-id/nvme-eui.CCDD", result)
 	})
 }
+
+func TestPreferByIDPath(t *testing.T) {
+	t.Run("wwn preferred over ata model-serial", func(t *testing.T) {
+		result := preferByIDPath("/dev/disk/by-id/ata-WDC_HC580_SERIAL", "/dev/disk/by-id/wwn-0x5000cca418d314ed")
+		assert.Equal(t, "/dev/disk/by-id/wwn-0x5000cca418d314ed", result)
+	})
+
+	t.Run("nvme-eui preferred over nvme model-serial", func(t *testing.T) {
+		result := preferByIDPath("/dev/disk/by-id/nvme-Micron_7450_SERIAL", "/dev/disk/by-id/nvme-eui.00000001")
+		assert.Equal(t, "/dev/disk/by-id/nvme-eui.00000001", result)
+	})
+
+	t.Run("wwn and nvme-eui are equal rank -- first arg wins", func(t *testing.T) {
+		result := preferByIDPath("/dev/disk/by-id/wwn-0x5000cca418d314ed", "/dev/disk/by-id/nvme-eui.00000001")
+		assert.Equal(t, "/dev/disk/by-id/wwn-0x5000cca418d314ed", result)
+	})
+
+	t.Run("two model-serial paths are equal rank -- first arg wins", func(t *testing.T) {
+		result := preferByIDPath("/dev/disk/by-id/ata-WDC_SERIAL_A", "/dev/disk/by-id/ata-WDC_SERIAL_B")
+		assert.Equal(t, "/dev/disk/by-id/ata-WDC_SERIAL_A", result)
+	})
+
+	t.Run("wwn preferred regardless of argument order", func(t *testing.T) {
+		result := preferByIDPath("/dev/disk/by-id/wwn-0x5000cca418d314ed", "/dev/disk/by-id/ata-WDC_HC580_SERIAL")
+		assert.Equal(t, "/dev/disk/by-id/wwn-0x5000cca418d314ed", result)
+	})
+}
