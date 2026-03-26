@@ -14984,6 +14984,25 @@ spec:
             spec:
               description: ObjectStoreUserSpec represent the spec of an Objectstoreuser
               properties:
+                accountRef:
+                  description: |-
+                    AccountRef is a reference to a CephObjectStoreAccount to associate this user with.
+                    The referenced account must be in the same namespace as the user.
+                    When set, the user is created as an account user with no default permissions,
+                    and resources created by this user are owned by the account.
+                  properties:
+                    name:
+                      description: Name of the CephObjectStoreAccount CR
+                      maxLength: 2048
+                      minLength: 1
+                      pattern: ^[a-zA-Z0-9 ._-]+$
+                      type: string
+                  required:
+                    - name
+                  type: object
+                  x-kubernetes-validations:
+                    - message: accountRef is immutable
+                      rule: self == oldSelf
                 capabilities:
                   description: Additional admin-level capabilities for the Ceph object store user
                   nullable: true
