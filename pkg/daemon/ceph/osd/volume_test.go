@@ -2240,10 +2240,26 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 			return luksDump, nil
 		}
 
-		if slices.Contains(args, "zap") {
-			if !slices.Contains(args, devicePath) {
-				return "", errors.Errorf("device %s should not be zapped", devicePath)
+		// ZapDevice calls: stdbuf (ceph-volume lvm zap), umount, wipefs, ceph-bluestore-tool, dd
+		if command == "stdbuf" {
+			if !slices.Contains(args, "zap") || !slices.Contains(args, devicePath) {
+				return "", errors.Errorf("device %s should not be zapped, got %v", devicePath, args)
 			}
+			return "", nil
+		}
+		if command == "umount" {
+			return "not mounted", errors.New("not mounted")
+		}
+		if command == "wipefs" {
+			if args[1] != devicePath {
+				return "", errors.Errorf("device %s should not be zapped, got %s", devicePath, args[1])
+			}
+			return "", nil
+		}
+		if command == "ceph-bluestore-tool" {
+			return "", nil
+		}
+		if command == "dd" {
 			return "", nil
 		}
 		return "", errors.Errorf("unknown command %s %s", command, args)
@@ -2309,10 +2325,27 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 		devicePath := "/dev/mapper/rhel-ceph--data"
-		if slices.Contains(args, "zap") {
-			if !slices.Contains(args, devicePath) {
+
+		// ZapDevice calls: stdbuf (ceph-volume lvm zap), umount, wipefs, ceph-bluestore-tool, dd
+		if command == "stdbuf" {
+			if !slices.Contains(args, "zap") || !slices.Contains(args, devicePath) {
 				return "", errors.Errorf("expected device %s to be zapped but got %v", devicePath, args)
 			}
+			return "", nil
+		}
+		if command == "umount" {
+			return "not mounted", errors.New("not mounted")
+		}
+		if command == "wipefs" {
+			if args[1] != devicePath {
+				return "", errors.Errorf("expected device %s to be zapped but got %v", devicePath, args)
+			}
+			return "", nil
+		}
+		if command == "ceph-bluestore-tool" {
+			return "", nil
+		}
+		if command == "dd" {
 			return "", nil
 		}
 		return "", errors.Errorf("unknown command %s %s", command, args)

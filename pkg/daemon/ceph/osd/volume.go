@@ -861,6 +861,69 @@ func (a *OsdAgent) appendDeviceClassArg(device *DeviceOsdIDEntry, args []string)
 	return args
 }
 
+// ZapDevice wipes a device using two methods for maximum reliability:
+//  1. First, run ceph-volume lvm zap to let Ceph handle cleanup
+//  2. Then, perform direct cleanup as a follow-up to ensure all metadata is removed:
+//     a. Unmount the device if mounted
+//     b. Remove filesystem signatures with wipefs
+//     c. Remove BlueStore signatures with ceph-bluestore-tool
+//     d. Zero the first 10MB of the device to clear any previous filesystem traces
+//
+// Running both methods ensures the device is fully cleaned regardless of
+// changes in ceph-volume behavior across Ceph versions.
+func ZapDevice(context *clusterd.Context, devicePath string) error {
+	// First, attempt ceph-volume lvm zap
+	output, err := context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", cephVolumeCmd, "lvm", "zap", devicePath)
+	if err != nil {
+		// log and continue with direct cleanup
+		logger.Warningf("ceph-volume lvm zap failed for %q (will continue with direct cleanup): %s. %v", devicePath, output, err)
+	} else {
+		logger.Infof("ceph-volume lvm zap output for %q: %s", devicePath, output)
+	}
+
+	// Follow up with Rook's internal cleanup to ensure all metadata is removed
+	logger.Infof("running rook's internal cleanup for device %q", devicePath)
+
+	// Unmount the device if it's mounted
+	if err := unmountDevice(context, devicePath); err != nil {
+		logger.Warningf("failed to unmount %q (may not be mounted): %v", devicePath, err)
+	}
+
+	// Remove all filesystem signatures with wipefs
+	output, err = context.Executor.ExecuteCommandWithCombinedOutput("wipefs", "--all", devicePath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to wipefs on %q: %s", devicePath, output)
+	}
+	logger.Infof("wipefs output for %q: %s", devicePath, output)
+
+	// Remove any BlueStore signatures
+	output, err = context.Executor.ExecuteCommandWithCombinedOutput("ceph-bluestore-tool", "zap-device", "--dev", devicePath, "--yes-i-really-really-mean-it")
+	if err != nil {
+		// Non-fatal: device may not have BlueStore signatures
+		logger.Warningf("ceph-bluestore-tool zap-device failed for %q (may not have BlueStore data): %s. %v", devicePath, output, err)
+	}
+
+	// Zero out the first 10MB to clear any remaining metadata
+	output, err = context.Executor.ExecuteCommandWithCombinedOutput("dd", "if=/dev/zero", fmt.Sprintf("of=%s", devicePath), "bs=1M", "count=10", "conv=fsync")
+	if err != nil {
+		return errors.Wrapf(err, "failed to zero device %q: %s", devicePath, output)
+	}
+
+	logger.Infof("successfully zapped device %q", devicePath)
+	return nil
+}
+
+func unmountDevice(context *clusterd.Context, devicePath string) error {
+	output, err := context.Executor.ExecuteCommandWithCombinedOutput("umount", devicePath)
+	if err != nil {
+		if strings.Contains(output, "not mounted") || strings.Contains(err.Error(), "not mounted") {
+			return nil
+		}
+		return errors.Wrapf(err, "failed to unmount %q: %s", devicePath, output)
+	}
+	return nil
+}
+
 // WipeDevicesFromOtherClusters wipes the OSD backed disks if they have metadata from a different ceph cluster.
 // The wiped disks can then be used to prepare OSDs for the current ceph cluster.
 func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error {
@@ -908,11 +971,9 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 				}
 				logger.Infof("begin wiping OSD %d device %q belonging to a different ceph cluster %q ", osdID, deviceToWipe, existingOSD.CephFsid)
 				logger.Infof("zap OSD.%d on device path %q", osdID, deviceToWipe)
-				output, err := context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", cephVolumeCmd, "lvm", "zap", deviceToWipe)
-				if err != nil {
-					return errors.Wrapf(err, "failed to zap osd.%d path %q. %s.", osdID, deviceToWipe, output)
+				if err := ZapDevice(context, deviceToWipe); err != nil {
+					return errors.Wrapf(err, "failed to zap osd.%d path %q", osdID, deviceToWipe)
 				}
-				logger.Infof("ceph-volume output: %s", output)
 				logger.Infof("successfully zapped osd.%d path %q", osdID, deviceToWipe)
 				logger.Infof("completed wiping OSD %d device %q belonging to a different ceph cluster", osdID, deviceToWipe)
 				// Since the device is wiped clean, clear the stale filesystem reference on the disk so that the wiped disk is not filtered out for filesystem check.
@@ -945,9 +1006,8 @@ func wipeEncryptedDevicesFromOtherClusters(context *clusterd.Context, currentClu
 			currentDiskCephFSID := strings.SplitAfter(ceph_fsid, "=")[1]
 			if currentDiskCephFSID != currentClusterFSID {
 				logger.Infof("cleaning encrypted disk %q (%q) that is part of a different ceph cluster %q", disk.Name, disk.RealPath, currentDiskCephFSID)
-				output, err := context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", cephVolumeCmd, "lvm", "zap", disk.RealPath)
-				if err != nil {
-					return errors.Wrapf(err, "failed to zap encrypted disk with different ceph cluster %q. %s.", disk.RealPath, output)
+				if err := ZapDevice(context, disk.RealPath); err != nil {
+					return errors.Wrapf(err, "failed to zap encrypted disk with different ceph cluster %q", disk.RealPath)
 				}
 				logger.Infof("completed wiping device %q belonging to a different ceph cluster", disk.RealPath)
 				// Since the device is wiped clean, clear the stale filesystem reference on the disk so that the wiped disk is not filtered out for filesystem check.
