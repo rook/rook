@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -72,17 +71,6 @@ type OSDDump struct {
 	FullRatio         float64             `json:"full_ratio"`
 	BackfillFullRatio float64             `json:"backfillfull_ratio"`
 	NearFullRatio     float64             `json:"nearfull_ratio"`
-}
-
-// IsFlagSet checks if an OSD flag is set
-func (dump *OSDDump) IsFlagSet(checkFlag string) bool {
-	flags := strings.SplitSeq(dump.Flags, ",")
-	for flag := range flags {
-		if flag == checkFlag {
-			return true
-		}
-	}
-	return false
 }
 
 // IsFlagSetOnCrushUnit checks if an OSD flag is set on specified Crush unit
@@ -280,21 +268,6 @@ func SetDeviceClass(context *clusterd.Context, clusterInfo *ClusterInfo, osdID i
 	return nil
 }
 
-func GetOSDPerfStats(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDPerfStats, error) {
-	args := []string{"osd", "perf"}
-	buf, err := NewCephCommand(context, clusterInfo, args).Run()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get osd perf")
-	}
-
-	var osdPerfStats OSDPerfStats
-	if err := json.Unmarshal(buf, &osdPerfStats); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal osd perf response")
-	}
-
-	return &osdPerfStats, nil
-}
-
 func GetOSDDump(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDDump, error) {
 	args := []string{"osd", "dump"}
 	cmd := NewCephCommand(context, clusterInfo, args)
@@ -309,12 +282,6 @@ func GetOSDDump(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDDump, 
 	}
 
 	return &osdDump, nil
-}
-
-func OSDOut(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) (string, error) {
-	args := []string{"osd", "out", strconv.Itoa(osdID)}
-	buf, err := NewCephCommand(context, clusterInfo, args).Run()
-	return string(buf), err
 }
 
 func OsdSafeToDestroy(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) (bool, error) {
