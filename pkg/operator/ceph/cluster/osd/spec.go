@@ -422,6 +422,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 		blockPathEnvVariable(osd.BlockPath),
 		cvModeEnvVariable(osd.CVMode),
 		dataDeviceClassEnvVar(osd.DeviceClass),
+		crushDeviceClassEnvVar(osd.DeviceClass),
 		k8sutil.PodIPEnvVar("ROOK_POD_IP"),
 	}...)
 	configEnvVars := append(c.getConfigEnvVars(osdProps, dataDir, false), []v1.EnvVar{
