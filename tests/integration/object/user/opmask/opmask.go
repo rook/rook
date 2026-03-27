@@ -28,7 +28,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/installer"
@@ -36,79 +35,28 @@ import (
 	utiladmin "github.com/rook/rook/tests/integration/object/util/admin"
 )
 
-var (
-	defaultName = "test-cosu-opmask"
+func TestObjectStoreUserOpMask(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, objectStore *cephv1.CephObjectStore) {
+	var (
+		defaultName = "test-useropmask"
 
-	ns = &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultName,
-		},
-	}
+		ns = &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: defaultName,
+			},
+		}
 
-	objectStore = &cephv1.CephObjectStore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultName,
-			// the CephObjectstore must be in the same ns as the CephCluster
-			Namespace: "object-ns",
-		},
-		Spec: cephv1.ObjectStoreSpec{
-			MetadataPool: cephv1.PoolSpec{
-				Replicated: cephv1.ReplicatedSpec{
-					Size:                   1,
-					RequireSafeReplicaSize: false,
-				},
+		osu1 = cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-user1",
+				Namespace: ns.Name,
 			},
-			DataPool: cephv1.PoolSpec{
-				Replicated: cephv1.ReplicatedSpec{
-					Size:                   1,
-					RequireSafeReplicaSize: false,
-				},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:            objectStore.Name,
+				ClusterNamespace: objectStore.Namespace,
 			},
-			Gateway: cephv1.GatewaySpec{
-				Port:      80,
-				Instances: 1,
-			},
-			AllowUsersInNamespaces: []string{ns.Name},
-		},
-	}
+		}
+	)
 
-	objectStoreSvc = &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objectStore.Name,
-			Namespace: objectStore.Namespace,
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{
-				"app":               "rook-ceph-rgw",
-				"rook_cluster":      objectStore.Namespace,
-				"rook_object_store": objectStore.Name,
-			},
-			Ports: []corev1.ServicePort{
-				{
-					Name:       "http",
-					Port:       80,
-					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(8080),
-				},
-			},
-			SessionAffinity: corev1.ServiceAffinityNone,
-			Type:            corev1.ServiceTypeNodePort,
-		},
-	}
-
-	osu1 = cephv1.CephObjectStoreUser{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-user1",
-			Namespace: ns.Name,
-		},
-		Spec: cephv1.ObjectStoreUserSpec{
-			Store:            objectStore.Name,
-			ClusterNamespace: objectStore.Namespace,
-		},
-	}
-)
-
-func TestObjectStoreUserOpMask(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool) {
 	t.Run("ObjectStoreUser keys", func(t *testing.T) {
 		if tlsEnable {
 			// Skip testing with and without TLS to reduce test time
@@ -120,30 +68,6 @@ func TestObjectStoreUserOpMask(t *testing.T, k8sh *utils.K8sHelper, installer *i
 
 		t.Run(fmt.Sprintf("create ns %q", ns.Name), func(t *testing.T) {
 			_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create CephObjectStore %q", objectStore.Name), func(t *testing.T) {
-			objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Create(ctx, objectStore, metav1.CreateOptions{})
-			require.NoError(t, err)
-
-			osReady := utils.Retry(180, time.Second, "CephObjectStore is Ready", func() bool {
-				liveOs, err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Get(ctx, objectStore.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				if liveOs.Status == nil {
-					return false
-				}
-
-				return liveOs.Status.Phase == cephv1.ConditionReady
-			})
-			require.True(t, osReady)
-		})
-
-		t.Run(fmt.Sprintf("create svc %q", objectStoreSvc.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Services(objectStore.Namespace).Create(ctx, objectStoreSvc, metav1.CreateOptions{})
 			require.NoError(t, err)
 		})
 
@@ -265,16 +189,6 @@ func TestObjectStoreUserOpMask(t *testing.T, k8sh *utils.K8sHelper, installer *i
 			require.NoError(t, err)
 
 			assert.Len(t, osus.Items, 0)
-		})
-
-		t.Run(fmt.Sprintf("delete svc %q", objectStoreSvc.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Services(objectStore.Namespace).Delete(ctx, objectStoreSvc.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("delete CephObjectStore %q", objectStore.Name), func(t *testing.T) {
-			err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Delete(ctx, objectStore.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("delete ns %q", ns.Name), func(t *testing.T) {
