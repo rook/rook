@@ -858,4 +858,24 @@ func TestIsUserSync(t *testing.T) {
 
 		assert.False(t, isUserSync(&a, &b))
 	})
+
+	t.Run("DefaultPlacement same", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "HDD-EC",
+		}
+		b := admin.User{
+			DefaultPlacement: "HDD-EC",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultPlacement different", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "HDD-EC",
+		}
+		b := admin.User{}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
 }
