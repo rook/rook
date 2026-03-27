@@ -649,6 +649,10 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 
 	userConfig.OpMask = opMask
 
+	if user.Spec.DefaultPlacement != nil {
+		userConfig.DefaultPlacement = *user.Spec.DefaultPlacement
+	}
+
 	return userConfig, nil
 }
 
@@ -1031,6 +1035,10 @@ func isUserSync(targetUser, liveUser *admin.User) bool {
 	}
 
 	if targetUser.OpMask != liveUser.OpMask {
+		return false
+	}
+
+	if targetUser.DefaultPlacement != liveUser.DefaultPlacement {
 		return false
 	}
 
