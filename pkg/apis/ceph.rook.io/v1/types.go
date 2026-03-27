@@ -2285,6 +2285,18 @@ type ObjectStoreUserSpec struct {
 	// +kubebuilder:validation:MaxItems=3
 	// +listType=set
 	OpMask *[]ObjectUserOpMask `json:"opMask,omitempty"`
+	// Override the default pool placement for buckets created by this user. If not provided, the default pool placement from the zone group will be used.
+	// +optional
+	// +nullable
+	// +kubebuilder:validation:MinLength=0
+	// +kubebuilder:validation:MaxLength=2048
+	DefaultPlacement *string `json:"defaultPlacement,omitempty"`
+	// Override the default storage class for objects created by this user. If not provided, the default `STANDARD` storage class will be used.
+	// +optional
+	// +nullable
+	// +kubebuilder:validation:MinLength=0
+	// +kubebuilder:validation:MaxLength=2048
+	DefaultStorageClass *string `json:"defaultStorageClass,omitempty"`
 }
 
 // Internally, RGW labels "operations" on persistent state as `RGW_OP_TYPE_READ` (`read`), `RGW_OP_TYPE_WRITE` (`write`), or `RGW_OP_TYPE_DELETE` (`delete`). All RGW users have an "operation mask", which does not function as mask or filter as is typically implied by the word "mask", but as a set of allowed or permissible "operation" types the user is able to perform. The "operation mask" is applied regardless of the bucket or IAM policy. For example, in order for an RGW user to be able to read an object from a bucket, that user must have **both** the `read` "op mask" bit and an IAM/bucket policy that allows `s3:GetObject`. The default operations allowed are `read`, `write`, and `delete`. Setting the value to `[]` (an empty YAML sequence) causes all "operations" in the mask to be removed, meaning that the user will not be able to perform any operations. These operation masks are supported: `read`, `write`, `delete`

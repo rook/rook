@@ -633,6 +633,9 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 	userConfig.OpMask = opMask
 	userConfig.UserCaps = generateUserCaps(userConfig)
 
+	userConfig.DefaultPlacement = user.Spec.DefaultPlacement
+	userConfig.DefaultStorageClass = user.Spec.DefaultStorageClass
+
 	return userConfig, nil
 }
 
@@ -967,6 +970,14 @@ func isUserSync(targetUser, liveUser *admin.User) bool {
 	}
 
 	if targetUser.OpMask != liveUser.OpMask {
+		return false
+	}
+
+	if targetUser.DefaultPlacement != liveUser.DefaultPlacement {
+		return false
+	}
+
+	if targetUser.DefaultStorageClass != liveUser.DefaultStorageClass {
 		return false
 	}
 

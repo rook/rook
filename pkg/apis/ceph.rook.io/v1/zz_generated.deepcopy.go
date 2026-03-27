@@ -4524,6 +4524,16 @@ func (in *ObjectStoreUserSpec) DeepCopyInto(out *ObjectStoreUserSpec) {
 			copy(*out, *in)
 		}
 	}
+	if in.DefaultPlacement != nil {
+		in, out := &in.DefaultPlacement, &out.DefaultPlacement
+		*out = new(string)
+		**out = **in
+	}
+	if in.DefaultStorageClass != nil {
+		in, out := &in.DefaultStorageClass, &out.DefaultStorageClass
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
