@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package bucketowner
+package owner
 
 import (
 	"bufio"
@@ -39,150 +39,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/intstr"
-)
-
-var (
-	defaultName = "test-bucket-owner"
-
-	ns = &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultName,
-		},
-	}
-
-	objectStore = &cephv1.CephObjectStore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultName,
-			// the CephObjectstore must be in the same ns as the CephCluster
-			Namespace: "object-ns",
-		},
-		Spec: cephv1.ObjectStoreSpec{
-			MetadataPool: cephv1.PoolSpec{
-				Replicated: cephv1.ReplicatedSpec{
-					Size:                   1,
-					RequireSafeReplicaSize: false,
-				},
-			},
-			DataPool: cephv1.PoolSpec{
-				Replicated: cephv1.ReplicatedSpec{
-					Size:                   1,
-					RequireSafeReplicaSize: false,
-				},
-			},
-			Gateway: cephv1.GatewaySpec{
-				Port:      80,
-				Instances: 1,
-			},
-			AllowUsersInNamespaces: []string{ns.Name},
-		},
-	}
-
-	objectStoreSvc = &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objectStore.Name,
-			Namespace: objectStore.Namespace,
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{
-				"app":               "rook-ceph-rgw",
-				"rook_cluster":      objectStore.Namespace,
-				"rook_object_store": objectStore.Name,
-			},
-			Ports: []corev1.ServicePort{
-				{
-					Name:       "http",
-					Port:       80,
-					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(8080),
-				},
-			},
-			SessionAffinity: corev1.ServiceAffinityNone,
-			Type:            corev1.ServiceTypeNodePort,
-		},
-	}
-
-	storageClass = &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultName,
-		},
-		Provisioner: objectStore.Namespace + ".ceph.rook.io/bucket",
-		Parameters: map[string]string{
-			"objectStoreName":      objectStore.Name,
-			"objectStoreNamespace": objectStore.Namespace,
-		},
-	}
-
-	// test user without any quotas set
-	osu1 = cephv1.CephObjectStoreUser{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-user1",
-			Namespace: ns.Name,
-		},
-		Spec: cephv1.ObjectStoreUserSpec{
-			Store:            objectStore.Name,
-			ClusterNamespace: objectStore.Namespace,
-		},
-	}
-
-	// test user with quotas set
-	osu2 = cephv1.CephObjectStoreUser{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-user2",
-			Namespace: ns.Name,
-		},
-		Spec: cephv1.ObjectStoreUserSpec{
-			Store:            objectStore.Name,
-			ClusterNamespace: objectStore.Namespace,
-			Quotas: &cephv1.ObjectUserQuotaSpec{
-				MaxBuckets: func(i int) *int { return &i }(1111),
-				MaxSize:    resource.NewQuantity(2222, resource.DecimalSI),
-				MaxObjects: func(i int64) *int64 { return &i }(3333),
-			},
-		},
-	}
-
-	obc1 = bktv1alpha1.ObjectBucketClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-obc1",
-			Namespace: ns.Name,
-		},
-		Spec: bktv1alpha1.ObjectBucketClaimSpec{
-			BucketName:       defaultName + "-obc1",
-			StorageClassName: storageClass.Name,
-			AdditionalConfig: map[string]string{
-				"bucketOwner": osu1.Name,
-			},
-		},
-	}
-
-	obc2 = bktv1alpha1.ObjectBucketClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-obc2",
-			Namespace: ns.Name,
-		},
-		Spec: bktv1alpha1.ObjectBucketClaimSpec{
-			BucketName:       defaultName + "-obc2",
-			StorageClassName: storageClass.Name,
-			AdditionalConfig: map[string]string{
-				"bucketOwner": osu1.Name,
-			},
-		},
-	}
-
-	obcBogusOwner = bktv1alpha1.ObjectBucketClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-bogus-owner",
-			Namespace: ns.Name,
-		},
-		Spec: bktv1alpha1.ObjectBucketClaimSpec{
-			BucketName:       defaultName,
-			StorageClassName: storageClass.Name,
-			AdditionalConfig: map[string]string{
-				"bucketOwner": defaultName + "-bogus-user",
-			},
-		},
-	}
 )
 
 func WaitForPodLogContainingText(k8sh *utils.K8sHelper, namespace string, selector *labels.Selector, text string, timeout time.Duration) error {
@@ -231,7 +87,98 @@ func WaitForPodLogContainingText(k8sh *utils.K8sHelper, namespace string, select
 	return nil
 }
 
-func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool) {
+func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, objectStore *cephv1.CephObjectStore) {
+	var (
+		defaultName = "test-bucketowner"
+
+		ns = &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: defaultName,
+			},
+		}
+
+		storageClass = &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: defaultName,
+			},
+			Provisioner: objectStore.Namespace + ".ceph.rook.io/bucket",
+			Parameters: map[string]string{
+				"objectStoreName":      objectStore.Name,
+				"objectStoreNamespace": objectStore.Namespace,
+			},
+		}
+
+		// test user without any quotas set
+		osu1 = cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-user1",
+				Namespace: ns.Name,
+			},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:            objectStore.Name,
+				ClusterNamespace: objectStore.Namespace,
+			},
+		}
+
+		// test user with quotas set
+		osu2 = cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-user2",
+				Namespace: ns.Name,
+			},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:            objectStore.Name,
+				ClusterNamespace: objectStore.Namespace,
+				Quotas: &cephv1.ObjectUserQuotaSpec{
+					MaxBuckets: func(i int) *int { return &i }(1111),
+					MaxSize:    resource.NewQuantity(2222, resource.DecimalSI),
+					MaxObjects: func(i int64) *int64 { return &i }(3333),
+				},
+			},
+		}
+
+		obc1 = bktv1alpha1.ObjectBucketClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-obc1",
+				Namespace: ns.Name,
+			},
+			Spec: bktv1alpha1.ObjectBucketClaimSpec{
+				BucketName:       defaultName + "-obc1",
+				StorageClassName: storageClass.Name,
+				AdditionalConfig: map[string]string{
+					"bucketOwner": osu1.Name,
+				},
+			},
+		}
+
+		obc2 = bktv1alpha1.ObjectBucketClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-obc2",
+				Namespace: ns.Name,
+			},
+			Spec: bktv1alpha1.ObjectBucketClaimSpec{
+				BucketName:       defaultName + "-obc2",
+				StorageClassName: storageClass.Name,
+				AdditionalConfig: map[string]string{
+					"bucketOwner": osu1.Name,
+				},
+			},
+		}
+
+		obcBogusOwner = bktv1alpha1.ObjectBucketClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-bogus-owner",
+				Namespace: ns.Name,
+			},
+			Spec: bktv1alpha1.ObjectBucketClaimSpec{
+				BucketName:       defaultName,
+				StorageClassName: storageClass.Name,
+				AdditionalConfig: map[string]string{
+					"bucketOwner": defaultName + "-bogus-user",
+				},
+			},
+		}
+	)
 	t.Run("OBC bucketOwner", func(t *testing.T) {
 		if tlsEnable {
 			// There is lots of coverage of rgw working with tls enabled; skipping to save time.
@@ -246,31 +193,6 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 
 		t.Run(fmt.Sprintf("create ns %q", ns.Name), func(t *testing.T) {
 			_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create CephObjectStore %q", objectStore.Name), func(t *testing.T) {
-			objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Create(ctx, objectStore, metav1.CreateOptions{})
-			require.NoError(t, err)
-
-			osReady := utils.Retry(180, time.Second, "CephObjectStore is Ready", func() bool {
-				liveOs, err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Get(ctx, objectStore.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				if liveOs.Status == nil {
-					return false
-				}
-
-				// return liveOs.Status.Phase == "Ready"
-				return liveOs.Status.Phase == cephv1.ConditionReady
-			})
-			require.True(t, osReady)
-		})
-
-		t.Run(fmt.Sprintf("create svc %q", objectStoreSvc.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Services(objectStore.Namespace).Create(ctx, objectStoreSvc, metav1.CreateOptions{})
 			require.NoError(t, err)
 		})
 
@@ -780,16 +702,6 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 
 		t.Run(fmt.Sprintf("delete sc %q", storageClass.Name), func(t *testing.T) {
 			err := k8sh.Clientset.StorageV1().StorageClasses().Delete(ctx, storageClass.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("delete svc %q", objectStoreSvc.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Services(objectStore.Namespace).Delete(ctx, objectStoreSvc.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("delete CephObjectStore %q", objectStore.Name), func(t *testing.T) {
-			err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Delete(ctx, objectStore.Name, metav1.DeleteOptions{})
 			require.NoError(t, err)
 		})
 
