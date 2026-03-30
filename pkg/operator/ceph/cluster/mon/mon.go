@@ -72,6 +72,8 @@ const (
 	EndpointExternalMonsKey = "externalMons"
 	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
 	AppName = "rook-ceph-mon"
+	// FloatingMonAppName is the app label used for floating mon deployments
+	FloatingMonAppName = "rook-ceph-floating-mon"
 	//nolint:gosec // OperatorCreds is the name of the secret
 	OperatorCreds  = "rook-ceph-operator-creds"
 	monClusterAttr = "mon_cluster"
@@ -330,6 +332,12 @@ func (c *Cluster) startMons(targetCount int) error {
 	c.removeOrphanMonResources()
 
 	return nil
+}
+
+// isFloatingMon returns true if the given mon name is the floating mon defined
+// in the CephCluster spec.
+func IsFloatingMon(c *Cluster, name string) bool {
+	return c.spec.Mon.FloatingMon.Name != "" && name == c.spec.Mon.FloatingMon.Name
 }
 
 func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
@@ -921,6 +929,12 @@ func (c *Cluster) assignMons(mons []*monConfig, monsToSkipReconcile sets.Set[str
 	// enforced using a node selector, or (2) configuration permits k8s to handle
 	// scheduling for the monitor.
 	for _, mon := range mons {
+		// No need to create canary pod and pvc for floating mon
+		if IsFloatingMon(c, mon.DaemonName) {
+			log.NamespacedDebug(c.Namespace, logger, "skipping scheduling for floating mon %q", mon.DaemonName)
+			continue
+		}
+
 		if c.ClusterInfo.Context.Err() != nil {
 			return c.ClusterInfo.Context.Err()
 		}
@@ -1079,6 +1093,10 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool, m
 				// and potentially cause more mons to fail. Therefore, we abort if the mon failed to start after upgrade.
 				return errors.Wrapf(err, "failed to upgrade mon %q.", mons[i].DaemonName)
 			}
+			if IsFloatingMon(c, mons[i].DaemonName) {
+				// Floating mon failures must not be silently skipped.
+				return errors.Wrapf(err, "failed to start floating mon %q", mons[i].DaemonName)
+			}
 			// We will attempt to start all mons, then check for quorum as needed after this. During an operator restart
 			// we need to do everything possible to verify the basic health of a cluster, complete the first orchestration,
 			// and start watching for all the CRs. If mons still have quorum we can continue with the orchestration even
@@ -1166,7 +1184,7 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig, requireAllInQuorum bool) 
 
 	// wait for the monitors to join quorum
 	sleepTime := 5
-	err := waitForQuorumWithMons(c.context, c.ClusterInfo, starting, sleepTime, requireAllInQuorum)
+	err := c.waitForQuorumWithMons(c.context, c.ClusterInfo, starting, sleepTime, requireAllInQuorum)
 	if err != nil {
 		return errors.Wrap(err, "failed to wait for mon quorum")
 	}
@@ -1524,18 +1542,32 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 //     - if HostPath -> leave node selector as is
 //     - if PVC      -> remove node selector, if present
 func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) error {
-	// check if the monitor deployment already exists. if the deployment does
-	// exist, also determine if it using pvc storage.
+	floating := IsFloatingMon(c, m.DaemonName)
 	log.NamespacedInfo(c.Namespace, logger, "starting mon %q", m.DaemonName)
+
+	// Build the deployment spec. Floating mons use a YAML template that
+	// defines their own volumes, placement, and scheduling. Normal mons
+	// use the standard spec builder and are configured further below.
 	pvcExists := false
 	deploymentExists := false
-
-	d, err := c.makeDeployment(m, false)
-	if err != nil {
-		return err
+	var d *apps.Deployment
+	var err error
+	if floating {
+		d, err = c.makeFloatingMonDeployment(m)
+		if err != nil {
+			return errors.Wrapf(err, "failed to build floating mon deployment for %q", m.DaemonName)
+		}
+	} else {
+		d, err = c.makeDeployment(m, false)
+		if err != nil {
+			return err
+		}
 	}
 
 	// apply cephx secret resource version to the deployment to ensure it restarts after key is rotated
+	if d.Spec.Template.Annotations == nil {
+		d.Spec.Template.Annotations = map[string]string{}
+	}
 	d.Spec.Template.Annotations[keyring.CephxKeyIdentifierAnnotation] = c.monKeySecretResourceVersion
 
 	// Set the deployment hash as an annotation
@@ -1552,6 +1584,41 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 		return errors.Wrapf(err, "failed to get mon deployment %s", d.Name)
 	}
 
+	if !floating {
+		if err := c.configureDefaultMonStorage(m, d, schedule, existingDeployment, pvcExists, deploymentExists); err != nil {
+			return err
+		}
+		if deploymentExists {
+			return nil
+		}
+	} else if deploymentExists {
+		return c.updateMon(m, d)
+	}
+
+	log.NamespacedDebug(c.Namespace, logger, "Starting mon: %+v", d.Name)
+	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(c.ClusterInfo.Context, d, metav1.CreateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to create mon deployment %s", d.Name)
+	}
+
+	// Commit the maxMonID after a mon deployment has been started (and not just scheduled)
+	if err := c.commitMaxMonID(m.DaemonName); err != nil {
+		return errors.Wrapf(err, "failed to commit maxMonId after starting mon %q", m.DaemonName)
+	}
+
+	// Persist the expected list of mons to the ConfigMap and EndpointSlice resources
+	// in case the operator is interrupted before the mon failover is completed.
+	// The config on disk won't be updated until the mon failover is completed
+	if err := c.persistExpectedMonDaemons(); err != nil {
+		return errors.Wrap(err, "failed to persist expected mon daemons")
+	}
+
+	return nil
+}
+
+// configureDefaultMonStorage sets up persistent storage volumes, placement, and
+// scheduling for a default mon deployment.
+func (c *Cluster) configureDefaultMonStorage(m *monConfig, d *apps.Deployment, schedule *controller.MonScheduleInfo, existingDeployment *apps.Deployment, pvcExists, deploymentExists bool) error {
 	// persistent storage is not altered after the deployment is created. this
 	// means we need to be careful when updating the deployment to avoid new
 	// changes to the crd to change an existing pod's persistent storage. the
@@ -1639,24 +1706,6 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), k8sutil.LabelHostname(),
 		map[string]string{k8sutil.AppAttr: AppName}, nodeSelector)
 
-	log.NamespacedDebug(c.Namespace, logger, "Starting mon: %+v", d.Name)
-	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(c.ClusterInfo.Context, d, metav1.CreateOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "failed to create mon deployment %s", d.Name)
-	}
-
-	// Commit the maxMonID after a mon deployment has been started (and not just scheduled)
-	if err := c.commitMaxMonID(m.DaemonName); err != nil {
-		return errors.Wrapf(err, "failed to commit maxMonId after starting mon %q", m.DaemonName)
-	}
-
-	// Persist the expected list of mons to the ConfigMap and EndpointSlice resources
-	// in case the operator is interrupted before the mon failover is completed.
-	// The config on disk won't be updated until the mon failover is completed
-	if err := c.persistExpectedMonDaemons(); err != nil {
-		return errors.Wrap(err, "failed to persist expected mon daemons")
-	}
-
 	return nil
 }
 
@@ -1685,7 +1734,7 @@ func hasMonPathChanged(d *apps.Deployment, claim *corev1.PersistentVolumeClaim) 
 	return false
 }
 
-func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, mons []string, sleepTime int, requireAllInQuorum bool) error {
+func (c *Cluster) waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, mons []string, sleepTime int, requireAllInQuorum bool) error {
 	log.NamespacedInfo(clusterInfo.Namespace, logger, "waiting for mon quorum with %v", mons)
 
 	// wait for monitors to establish quorum
@@ -1711,7 +1760,11 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.Cl
 		allPodsRunning := true
 		var runningMonNames []string
 		for _, m := range mons {
-			running, err := k8sutil.PodsRunningWithLabel(clusterInfo.Context, context.Clientset, clusterInfo.Namespace, fmt.Sprintf("app=%s,mon=%s", AppName, m))
+			monLabel := AppName
+			if IsFloatingMon(c, m) {
+				monLabel = FloatingMonAppName
+			}
+			running, err := k8sutil.PodsRunningWithLabel(clusterInfo.Context, context.Clientset, clusterInfo.Namespace, fmt.Sprintf("app=%s,mon=%s", monLabel, m))
 			if err != nil {
 				log.NamespacedInfo(clusterInfo.Namespace, logger, "failed to query mon pod status, trying again. %v", err)
 				continue

@@ -46,8 +46,10 @@ import (
 	v1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -585,8 +587,9 @@ func TestWaitForQuorum(t *testing.T) {
 	assert.NoError(t, err)
 	requireAllInQuorum := false
 	expectedMons := []string{"a"}
+	c := New(t.Context(), &clusterd.Context{Clientset: test.New(t, 1), ConfigDir: t.TempDir()}, "ns", cephv1.ClusterSpec{}, cephclient.NewMinimumOwnerInfoWithOwnerRef())
 	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
-	err = waitForQuorumWithMons(context, clusterInfo, expectedMons, 0, requireAllInQuorum)
+	err = c.waitForQuorumWithMons(context, clusterInfo, expectedMons, 0, requireAllInQuorum)
 	assert.NoError(t, err)
 }
 
@@ -1261,4 +1264,253 @@ func TestRotateMonCephxKeys(t *testing.T) {
 	shouldRotate, err = c.RotateMonCephxKeys(cluster)
 	assert.NoError(t, err)
 	assert.False(t, shouldRotate)
+}
+
+func newFloatingMonTestCluster(t *testing.T, namespace string) *Cluster {
+	t.Helper()
+	ctx, err := newTestStartCluster(t, namespace)
+	assert.NoError(t, err)
+	c := newCluster(ctx, namespace, true, v1.ResourceRequirements{})
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
+	c.ClusterInfo.CephVersion = cephver.Squid
+	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v18"}
+	c.spec.DataDirHostPath = "/var/lib/rook"
+	c.ClusterInfo.FSID = "test-fsid"
+
+	_, err = c.context.Clientset.CoreV1().ConfigMaps(namespace).Create(c.ClusterInfo.Context, &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: EndpointConfigMapName},
+		Data:       map[string]string{"maxMonId": "2"},
+	}, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	_, err = c.context.Clientset.CoreV1().ConfigMaps(namespace).Create(c.ClusterInfo.Context, &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "floating-vars", Namespace: namespace},
+		Data: map[string]string{
+			"DRBD_CONF_PATH": "/etc/drbd.d/mon.res", "DRBD_DIR_PATH": "/var/lib/drbd",
+			"DRBD_DEVICE_NAME": "/dev/drbd100", "DRBD_UTILS_IMAGE": "drbd-utils:latest",
+		},
+	}, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	c.spec.Mon.FloatingMon = cephv1.FloatingMonSpec{Name: "c", ConfigMapName: "floating-vars"}
+	return c
+}
+
+func TestFloatingMonParamValidation(t *testing.T) {
+	namespace := "ns"
+	c := newFloatingMonTestCluster(t, namespace)
+	monCfg := &monConfig{
+		DaemonName: "c", PublicIP: "10.0.0.100", Port: DefaultMsgr1Port,
+		DataPathMap: config.NewStatefulDaemonDataPathMap("/var/lib/rook", dataDirRelativeHostPath("c"), config.MonType, "c", namespace),
+	}
+
+	// built-in and configmap params are populated
+	t.Run("configmap merges with built-in params", func(t *testing.T) {
+		p, err := c.buildFloatingMonTemplateParams(c.spec.Mon.FloatingMon, monCfg, monCfg.DataPathMap, c.spec.DataDirHostPath)
+		assert.NoError(t, err)
+		assert.Equal(t, "c", p["NAME"])
+		assert.Equal(t, namespace, p["NAMESPACE"])
+		assert.Equal(t, "test-fsid", p["FSID"])
+		assert.Equal(t, "quay.io/ceph/ceph:v18", p["CEPH_IMAGE"])
+		assert.Equal(t, "10.0.0.100", p["PUBLIC_IP"])
+		assert.Equal(t, "/etc/drbd.d/mon.res", p["DRBD_CONF_PATH"])
+		assert.Equal(t, "/dev/drbd100", p["DRBD_DEVICE_NAME"])
+	})
+
+	// referencing a configmap that does not exist must fail
+	t.Run("missing configmap errors", func(t *testing.T) {
+		spec := cephv1.FloatingMonSpec{Name: "c", ConfigMapName: "does-not-exist"}
+		_, err := c.buildFloatingMonTemplateParams(spec, monCfg, monCfg.DataPathMap, c.spec.DataDirHostPath)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get floating mon configmap")
+	})
+
+	// configmap with empty data should still produce valid built-in params
+	t.Run("empty configmap data still has built-ins", func(t *testing.T) {
+		_, err := c.context.Clientset.CoreV1().ConfigMaps(namespace).Create(c.ClusterInfo.Context, &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "empty-cm", Namespace: namespace},
+			Data:       map[string]string{},
+		}, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		spec := cephv1.FloatingMonSpec{Name: "c", ConfigMapName: "empty-cm"}
+		p, err := c.buildFloatingMonTemplateParams(spec, monCfg, monCfg.DataPathMap, c.spec.DataDirHostPath)
+		assert.NoError(t, err)
+		assert.Equal(t, "c", p["NAME"])
+		assert.Equal(t, "quay.io/ceph/ceph:v18", p["CEPH_IMAGE"])
+		assert.Empty(t, p["DRBD_CONF_PATH"])
+	})
+
+	// configmap keys that collide with built-ins must not override them
+	t.Run("configmap cannot override built-in params", func(t *testing.T) {
+		_, err := c.context.Clientset.CoreV1().ConfigMaps(namespace).Create(c.ClusterInfo.Context, &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "bad-cm", Namespace: namespace},
+			Data:       map[string]string{"NAME": "hijacked", "FSID": "fake-fsid", "CUSTOM_KEY": "custom-val"},
+		}, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		spec := cephv1.FloatingMonSpec{Name: "c", ConfigMapName: "bad-cm"}
+		p, err := c.buildFloatingMonTemplateParams(spec, monCfg, monCfg.DataPathMap, c.spec.DataDirHostPath)
+		assert.NoError(t, err)
+		assert.Equal(t, "c", p["NAME"], "built-in NAME must not be overridden by configmap")
+		assert.Equal(t, "test-fsid", p["FSID"], "built-in FSID must not be overridden by configmap")
+		assert.Equal(t, "custom-val", p["CUSTOM_KEY"], "non-colliding configmap keys should pass through")
+	})
+}
+
+func TestFloatingMonDeployment(t *testing.T) {
+	namespace := "ns"
+	m := &monConfig{
+		ResourceName: "rook-ceph-mon-c", DaemonName: "c",
+		Port: DefaultMsgr1Port, PublicIP: "10.0.0.100",
+		DataPathMap: config.NewStatefulDaemonDataPathMap("/var/lib/rook", dataDirRelativeHostPath("c"), config.MonType, "c", namespace),
+	}
+
+	// basic deployment has a mon container with the right image and init containers
+	t.Run("creates deployment with mon container", func(t *testing.T) {
+		c := newFloatingMonTestCluster(t, namespace)
+		assert.NoError(t, c.startMon(m, nil))
+
+		d, err := c.context.Clientset.AppsV1().Deployments(namespace).Get(c.ClusterInfo.Context, m.ResourceName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, "rook-ceph-mon-c", d.Name)
+		assert.NotEmpty(t, d.Spec.Template.Spec.InitContainers)
+
+		foundMon := false
+		for _, ct := range d.Spec.Template.Spec.Containers {
+			if ct.Name == "mon" {
+				foundMon = true
+				assert.Equal(t, "quay.io/ceph/ceph:v18", ct.Image)
+			}
+		}
+		assert.True(t, foundMon, "expected mon container")
+	})
+
+	// resource limits are applied to the mon container
+	t.Run("resource limits applied", func(t *testing.T) {
+		c := newFloatingMonTestCluster(t, namespace)
+		c.spec.Resources = map[string]v1.ResourceRequirements{
+			"mon": {Limits: v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("500m"),
+				v1.ResourceMemory: resource.MustParse("2Gi"),
+			}},
+		}
+		assert.NoError(t, c.startMon(m, nil))
+
+		d, err := c.context.Clientset.AppsV1().Deployments(namespace).Get(c.ClusterInfo.Context, m.ResourceName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		for _, ct := range d.Spec.Template.Spec.Containers {
+			if ct.Name == "mon" {
+				assert.Equal(t, "500m", ct.Resources.Limits.Cpu().String())
+				assert.Equal(t, "2Gi", ct.Resources.Limits.Memory().String())
+			}
+		}
+	})
+
+	// mon annotations and labels from the CRD are applied
+	t.Run("annotations and labels applied", func(t *testing.T) {
+		c := newFloatingMonTestCluster(t, namespace)
+		c.spec.Annotations = cephv1.AnnotationsSpec{cephv1.KeyMon: cephv1.Annotations{"my-anno": "anno-val"}}
+		c.spec.Labels = cephv1.LabelsSpec{cephv1.KeyMon: cephv1.Labels{"my-label": "label-val"}}
+		assert.NoError(t, c.startMon(m, nil))
+
+		d, err := c.context.Clientset.AppsV1().Deployments(namespace).Get(c.ClusterInfo.Context, m.ResourceName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, "anno-val", d.Annotations["my-anno"])
+		assert.Equal(t, "label-val", d.Labels["my-label"])
+	})
+
+	t.Run("update path on existing deployment", func(t *testing.T) {
+		c := newFloatingMonTestCluster(t, namespace)
+		assert.NoError(t, c.startMon(m, nil))
+
+		updateCalled := false
+		updateDeploymentAndWait = func(_ *clusterd.Context, _ *cephclient.ClusterInfo, _ *apps.Deployment, _, _ string, _, _ bool) error {
+			updateCalled = true
+			return nil
+		}
+
+		assert.NoError(t, c.startMon(m, nil))
+		assert.True(t, updateCalled)
+	})
+
+	// PVC volumes are not injected even when VolumeClaimTemplate is set
+	t.Run("no PVC volumes injected", func(t *testing.T) {
+		c := newFloatingMonTestCluster(t, namespace)
+		c.spec.Mon.VolumeClaimTemplate = &cephv1.VolumeClaimTemplate{}
+		assert.NoError(t, c.startMon(m, nil))
+
+		d, err := c.context.Clientset.AppsV1().Deployments(namespace).Get(c.ClusterInfo.Context, m.ResourceName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		for _, vol := range d.Spec.Template.Spec.Volumes {
+			assert.Nil(t, vol.PersistentVolumeClaim)
+		}
+	})
+
+	// missing configmap prevents deployment creation
+	t.Run("missing configmap fails", func(t *testing.T) {
+		c := newFloatingMonTestCluster(t, namespace)
+		c.spec.Mon.FloatingMon = cephv1.FloatingMonSpec{Name: "c", ConfigMapName: "nonexistent"}
+
+		err := c.startMon(m, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get floating mon configmap")
+	})
+}
+
+func TestFloatingMonLabelsAndSchedulingSkip(t *testing.T) {
+	namespace := "ns"
+	c := newFloatingMonTestCluster(t, namespace)
+
+	floatingM := &monConfig{
+		ResourceName: "rook-ceph-mon-c", DaemonName: "c",
+		Port: DefaultMsgr1Port, PublicIP: "10.0.0.100",
+		DataPathMap: config.NewStatefulDaemonDataPathMap("/var/lib/rook", dataDirRelativeHostPath("c"), config.MonType, "c", namespace),
+	}
+	assert.NoError(t, c.startMon(floatingM, nil))
+
+	normalM := &monConfig{
+		ResourceName: "rook-ceph-mon-a", DaemonName: "a",
+		Port: DefaultMsgr1Port, PublicIP: "1.2.3.4",
+		DataPathMap: config.NewStatefulDaemonDataPathMap("/var/lib/rook", dataDirRelativeHostPath("a"), config.MonType, "a", namespace),
+	}
+	assert.NoError(t, c.startMon(normalM, &opcontroller.MonScheduleInfo{Hostname: "host-a"}))
+
+	floatingDeploy, err := c.context.Clientset.AppsV1().Deployments(namespace).Get(c.ClusterInfo.Context, floatingM.ResourceName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	normalDeploy, err := c.context.Clientset.AppsV1().Deployments(namespace).Get(c.ClusterInfo.Context, normalM.ResourceName, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	// labels differ between floating and normal mons
+	assert.Equal(t, FloatingMonAppName, floatingDeploy.Labels["app"])
+	assert.Equal(t, FloatingMonAppName, floatingDeploy.Spec.Selector.MatchLabels["app"])
+	assert.Equal(t, AppName, normalDeploy.Labels["app"])
+
+	// assignMons must skip the floating mon during canary scheduling
+	var scheduled []string
+	waitForMonitorScheduling = func(c *Cluster, d *apps.Deployment) (SchedulingResult, error) {
+		scheduled = append(scheduled, d.Labels[opcontroller.DaemonIDLabel])
+		node, _ := c.context.Clientset.CoreV1().Nodes().Get(c.ClusterInfo.Context, "node0", metav1.GetOptions{})
+		return SchedulingResult{Node: node}, nil
+	}
+
+	mons := []*monConfig{
+		{
+			ResourceName: "rook-ceph-mon-a", DaemonName: "a", Port: DefaultMsgr1Port,
+			DataPathMap: config.NewStatefulDaemonDataPathMap("/var/lib/rook", dataDirRelativeHostPath("a"), config.MonType, "a", namespace),
+		},
+		{
+			ResourceName: "rook-ceph-mon-b", DaemonName: "b", Port: DefaultMsgr1Port,
+			DataPathMap: config.NewStatefulDaemonDataPathMap("/var/lib/rook", dataDirRelativeHostPath("b"), config.MonType, "b", namespace),
+		},
+		{
+			ResourceName: "rook-ceph-mon-c", DaemonName: "c", Port: DefaultMsgr1Port,
+			DataPathMap: config.NewStatefulDaemonDataPathMap("/var/lib/rook", dataDirRelativeHostPath("c"), config.MonType, "c", namespace),
+		},
+	}
+
+	assert.NoError(t, c.assignMons(mons, sets.New[string]()))
+	assert.Contains(t, scheduled, "a")
+	assert.Contains(t, scheduled, "b")
+	assert.NotContains(t, scheduled, "c")
 }

@@ -17,9 +17,13 @@ limitations under the License.
 package mon
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
+	"os"
 	"path"
 	"strings"
+	"text/template"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -29,12 +33,17 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
+	rookversion "github.com/rook/rook/pkg/version"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/utils/ptr"
 )
+
+//go:embed template/floating-mon-drbd-deployment.yaml
+var floatingMonDeploymentDrbdTemplatePath string
 
 const (
 	// Full path of the command used to invoke the Ceph mon daemon
@@ -387,6 +396,129 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 	}
 
 	return container
+}
+
+// makeFloatingMonDeployment creates a Deployment for the floating mon defined in
+// spec.Mon.FloatingMon.
+func (c *Cluster) makeFloatingMonDeployment(monConfig *monConfig) (*apps.Deployment, error) {
+	floating := c.spec.Mon.FloatingMon
+	if floating.Name == "" {
+		return nil, errors.New("floating mon name is not defined")
+	}
+
+	dataDirHostPath := c.spec.DataDirHostPath
+	dataPathMap := config.NewStatefulDaemonDataPathMap(
+		dataDirHostPath,
+		dataDirRelativeHostPath(monConfig.DaemonName),
+		config.MonType,
+		monConfig.DaemonName,
+		c.Namespace,
+	)
+
+	drbdParams, err := c.buildFloatingMonTemplateParams(floating, monConfig, dataPathMap, dataDirHostPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build floating mon template params")
+	}
+
+	d, err := floatingMonTemplateToDeployment(monConfig.DaemonName, floatingMonDeploymentDrbdTemplatePath, drbdParams)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load floating mon deployment template")
+	}
+
+	k8sutil.AddRookVersionLabelToDeployment(d)
+	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&d.ObjectMeta)
+	cephv1.GetMonLabels(c.spec.Labels).ApplyToObjectMeta(&d.ObjectMeta)
+	if err := c.ownerInfo.SetControllerReference(d); err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference to floating mon deployment %q", d.Name)
+	}
+
+	monResources := cephv1.GetMonResources(c.spec.Resources)
+	for i := range d.Spec.Template.Spec.Containers {
+		if d.Spec.Template.Spec.Containers[i].Name == "mon" {
+			d.Spec.Template.Spec.Containers[i].Resources = monResources
+			break
+		}
+	}
+
+	return d, nil
+}
+
+// buildFloatingMonTemplateParams create template for floating mon spec.
+func (c *Cluster) buildFloatingMonTemplateParams(
+	floating cephv1.FloatingMonSpec,
+	monConfig *monConfig,
+	dataPathMap *config.DataPathMap,
+	dataDirHostPath string,
+) (map[string]string, error) {
+	p := make(map[string]string)
+
+	if floating.ConfigMapName != "" {
+		cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(
+			c.ClusterInfo.Context, floating.ConfigMapName, metav1.GetOptions{})
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get floating mon configmap %q", floating.ConfigMapName)
+		}
+		for k, v := range cm.Data {
+			p[k] = v
+		}
+	}
+
+	p["NAME"] = monConfig.DaemonName
+	p["NAMESPACE"] = c.Namespace
+	p["CLUSTER_NAME"] = c.ClusterInfo.NamespacedName().Name
+	p["OPERATOR_NAMESPACE"] = os.Getenv(k8sutil.PodNamespaceEnvVar)
+	p["ROOK_VERSION"] = rookversion.Version
+	p["CEPH_VERSION"] = controller.GetCephVersionLabel(c.ClusterInfo.CephVersion)
+	p["FSID"] = c.ClusterInfo.FSID
+	p["CEPH_IMAGE"] = c.spec.CephVersion.Image
+	p["IMAGE_PULL_POLICY"] = string(controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy))
+	p["PUBLIC_IP"] = monConfig.PublicIP
+	p["PRIORITY_CLASS_NAME"] = cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames)
+	p["HOST_DATA_DIR"] = dataPathMap.HostDataDir
+	p["HOST_SOCKET_DIR"] = path.Join(dataDirHostPath, "exporter")
+	p["HOST_LOG_DIR"] = dataPathMap.HostLogDir()
+	p["HOST_CRASH_DIR"] = dataPathMap.HostCrashDir()
+	p["CONTAINER_DATA_DIR"] = dataPathMap.ContainerDataDir
+	p["ROOK_MSGR2"] = floatingMonMsgr2Value(&c.spec)
+
+	return p, nil
+}
+
+// floatingMonMsgr2Value returns the ROOK_MSGR2 env var value derived from the cluster network spec,
+func floatingMonMsgr2Value(spec *cephv1.ClusterSpec) string {
+	if spec.Network.Connections == nil {
+		return ""
+	}
+	msgr2Required := spec.Network.Connections.RequireMsgr2
+	encryptionEnabled := spec.Network.Connections.Encryption != nil && spec.Network.Connections.Encryption.Enabled
+	compressionEnabled := spec.Network.Connections.Compression != nil && spec.Network.Connections.Compression.Enabled
+	return fmt.Sprintf("msgr2_%t_encryption_%t_compression_%t", msgr2Required, encryptionEnabled, compressionEnabled)
+}
+
+// floatingMonTemplateToDeployment renders the floating mon YAML template and unmarshals it
+func floatingMonTemplateToDeployment(name, templateData string, drbdParams map[string]string) (*apps.Deployment, error) {
+	rendered, err := renderFloatingMonTemplate(name, templateData, drbdParams)
+	if err != nil {
+		return nil, err
+	}
+	var d apps.Deployment
+	if err := yaml.Unmarshal(rendered, &d); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal floating mon deployment template")
+	}
+	return &d, nil
+}
+
+// renderFloatingMonTemplate executes the template with the given params map.
+func renderFloatingMonTemplate(name, templateData string, drbdParams map[string]string) ([]byte, error) {
+	var buf bytes.Buffer
+	t, err := template.New(name).Parse(templateData)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse floating mon template %q", name)
+	}
+	if err := t.Execute(&buf, drbdParams); err != nil {
+		return nil, errors.Wrapf(err, "failed to execute floating mon template %q", name)
+	}
+	return buf.Bytes(), nil
 }
 
 // UpdateCephDeploymentAndWait verifies a deployment can be stopped or continued
