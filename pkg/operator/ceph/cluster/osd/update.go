@@ -255,8 +255,12 @@ func (c *Cluster) getOSDUpdateInfo(errs *provisionErrors) (*updateQueue, *existe
 			errs.addError("%v. did a user create their own deployment with label %q?", selector, err)
 			continue
 		}
-		// all OSD deployments should be marked as existing
-		existenceList.Add(id)
+		detail := existingOSDDetail{
+			UUID: getOSDUUIDFromDeployment(&deps.Items[i]),
+		}
+		detail.NodeOrPVCName, _ = getNodeOrPVCName(&deps.Items[i])
+
+		existenceList.AddWithDetail(id, detail)
 		updateQueue.Push(id)
 	}
 
@@ -341,16 +345,22 @@ func (q *updateQueue) Remove(osdIDs []int) {
 	q.q = q.q[:lastIdx]
 }
 
+// existingOSDDetail stores identifying details about an existing OSD deployment.
+type existingOSDDetail struct {
+	UUID          string
+	NodeOrPVCName string
+}
+
 // An existenceList keeps track of which OSDs already have Deployments created for them that is
 // queryable in O(1) time.
 type existenceList struct {
-	m map[int]bool
+	m map[int]existingOSDDetail
 }
 
 // Create a new existenceList with capacity reserved.
 func newExistenceListWithCapacity(cap int) *existenceList {
 	return &existenceList{
-		m: make(map[int]bool, cap),
+		m: make(map[int]existingOSDDetail, cap),
 	}
 }
 
@@ -367,15 +377,26 @@ func (e *existenceList) Len() int {
 	return len(e.m)
 }
 
-// Add adds an item to the existenceList.
+// Add adds an item to the existenceList with no detail.
 func (e *existenceList) Add(osdID int) {
-	e.m[osdID] = true
+	e.m[osdID] = existingOSDDetail{}
+}
+
+// AddWithDetail adds an item to the existenceList along with its deployment details.
+func (e *existenceList) AddWithDetail(osdID int, detail existingOSDDetail) {
+	e.m[osdID] = detail
 }
 
 // Exists returns true if an item is recorded in the existence list or false if it does not.
 func (e *existenceList) Exists(osdID int) bool {
 	_, ok := e.m[osdID]
 	return ok
+}
+
+// Get returns the detail for an existing OSD or an empty detail and false if the OSD is not found.
+func (e *existenceList) Get(osdID int) (existingOSDDetail, bool) {
+	d, ok := e.m[osdID]
+	return d, ok
 }
 
 // return a function that will list only OSD deployments with the IDs given
