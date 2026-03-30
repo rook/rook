@@ -135,7 +135,7 @@ spec:
             - name: rook-config-override
               mountPath: /etc/rook-config-override
               readOnly: true
-      serviceAccountName: rook-ceph-default
+      serviceAccountName: {{ .Values.defaultServiceAccountName }}
       volumes:
         - name: ceph-admin-secret
           secret:
