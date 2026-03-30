@@ -742,6 +742,7 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 
 	if c.store.Spec.Gateway.Service != nil {
 		c.store.Spec.Gateway.Service.Annotations.ApplyToObjectMeta(&svc.ObjectMeta)
+		c.store.Spec.Gateway.Service.Labels.ApplyToObjectMeta(&svc.ObjectMeta)
 	}
 	if c.store.Spec.IsHostNetwork(c.clusterSpec) {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
