@@ -53,8 +53,8 @@ func MonInQuorumResponseFromMons(mons map[string]*client.MonInfo) string {
 
 func MonInQuorumResponseMany(count int) string {
 	resp := client.MonStatusResponse{Quorum: []int{0}}
-	resp.MonMap.Mons = []client.MonMapEntry{}
-	for i := 0; i <= count; i++ {
+	resp.MonMap.Mons = make([]client.MonMapEntry, 0, count)
+	for i := 0; i < count; i++ {
 		resp.MonMap.Mons = append(resp.MonMap.Mons, client.MonMapEntry{
 			Name:    fmt.Sprintf("rook-ceph-mon%d", i),
 			Rank:    0,
