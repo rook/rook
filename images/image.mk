@@ -21,6 +21,12 @@ override GOOS=linux
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(SELF_DIR)/../build/makelib/common.mk
 
+# common.mk may define targets (e.g., directory creation). Since GNU Make uses the first target
+# it sees as the default goal, this behavior may unintentionally mask the intended default goal
+# of all (AKA build).
+# Explicitly set the default goal for image builds to override this masking.
+.DEFAULT_GOAL := all
+
 # the registry used for cached images
 CACHE_REGISTRY := cache
 
