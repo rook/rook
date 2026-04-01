@@ -255,6 +255,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 
 func TestUpdateFailureDomain(t *testing.T) {
 	var newCrushRule string
+	var removedCrushRule string
 	currentFailureDomain := "rack"
 	currentDeviceClass := "default"
 	testCrushRuleName := "test_rule"
@@ -279,6 +280,10 @@ func TestUpdateFailureDomain(t *testing.T) {
 		if args[1] == "crush" {
 			if args[2] == "rule" && args[3] == "dump" {
 				return fmt.Sprintf(`{"steps": [{"item_name":"%s"},{"type":"%s"}]}`, currentDeviceClass, currentFailureDomain), nil
+			}
+			if args[2] == "rule" && args[3] == "rm" {
+				removedCrushRule = args[4]
+				return "", nil
 			}
 			newCrushRule = "foo"
 			return "", nil
@@ -332,6 +337,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 	})
 
 	t.Run("changing failure domain", func(t *testing.T) {
+		removedCrushRule = ""
 		p := cephv1.NamedPoolSpec{
 			Name: "mypool",
 			PoolSpec: cephv1.PoolSpec{
@@ -344,6 +350,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 		err := updatePoolCrushRule(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
 		assert.NoError(t, err)
 		assert.Equal(t, "mypool_zone", newCrushRule)
+		assert.Equal(t, testCrushRuleName, removedCrushRule)
 	})
 
 	t.Run("stretch cluster skips crush rule update", func(t *testing.T) {

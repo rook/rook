@@ -571,6 +571,17 @@ func updatePoolCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, cl
 		return errors.Wrapf(err, "failed to set crush rule on pool %q", pool.Name)
 	}
 
+	// Remove the old crush rule that is no longer in use.
+	// The command will fail safely if the rule is still referenced by another pool.
+	oldRule := details.CrushRule
+	args := []string{"osd", "crush", "rule", "rm", oldRule}
+	output, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		logger.Infof("old crush rule %q not removed (may still be in use by another pool): %v. %s", oldRule, err, string(output))
+	} else {
+		logger.Infof("removed old crush rule %q that is no longer in use", oldRule)
+	}
+
 	logger.Infof("Successfully updated pool %q failure domain to %q", pool.Name, pool.FailureDomain)
 	return nil
 }
