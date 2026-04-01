@@ -25,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/installer"
@@ -49,7 +48,7 @@ func (r *snsResolverV2) ResolveEndpoint(ctx context.Context, params sns.Endpoint
 	}, nil
 }
 
-func NewClient(objectStore *cephv1.CephObjectStore, svc *corev1.Service, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool) (*sns.Client, error) {
+func NewClient(objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool) (*sns.Client, error) {
 	ctx := context.TODO()
 
 	accessKey, secretKey, err := utils3.GetS3Credentials(objectStore, installer)

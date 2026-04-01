@@ -32,182 +32,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	utilsns "github.com/rook/rook/tests/integration/object/util/sns"
-)
-
-var (
-	defaultName = "test-topickafka"
-
-	ns = &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultName,
-		},
-	}
-
-	objectStore = &cephv1.CephObjectStore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultName,
-			// the CephObjectstore must be in the same ns as the CephCluster
-			Namespace: "object-ns",
-		},
-		Spec: cephv1.ObjectStoreSpec{
-			MetadataPool: cephv1.PoolSpec{
-				Replicated: cephv1.ReplicatedSpec{
-					Size:                   1,
-					RequireSafeReplicaSize: false,
-				},
-			},
-			DataPool: cephv1.PoolSpec{
-				Replicated: cephv1.ReplicatedSpec{
-					Size:                   1,
-					RequireSafeReplicaSize: false,
-				},
-			},
-			Gateway: cephv1.GatewaySpec{
-				Port:      80,
-				Instances: 1,
-			},
-			AllowUsersInNamespaces: []string{ns.Name},
-		},
-	}
-
-	objectStoreSvc = &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objectStore.Name,
-			Namespace: objectStore.Namespace,
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{
-				"app":               "rook-ceph-rgw",
-				"rook_cluster":      objectStore.Namespace,
-				"rook_object_store": objectStore.Name,
-			},
-			Ports: []corev1.ServicePort{
-				{
-					Name:       "http",
-					Port:       80,
-					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(8080),
-				},
-			},
-			SessionAffinity: corev1.ServiceAffinityNone,
-			Type:            corev1.ServiceTypeNodePort,
-		},
-	}
-
-	secret1 = &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-secret1",
-			Namespace: ns.Name,
-		},
-		Data: map[string][]byte{
-			"user-name": []byte("kafka-user1"),
-		},
-	}
-
-	secret2 = &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-secret2",
-			Namespace: ns.Name,
-		},
-		Data: map[string][]byte{
-			"password": []byte("kafka-pass2"),
-		},
-	}
-
-	secret3 = &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-secret3",
-			Namespace: ns.Name,
-		},
-		Data: map[string][]byte{
-			"user-name": []byte("kafka-user3"),
-		},
-	}
-
-	secret4 = &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-secret4",
-			Namespace: ns.Name,
-		},
-		Data: map[string][]byte{
-			"password": []byte("kafka-pass4"),
-		},
-	}
-
-	storageClass = &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultName,
-		},
-		Provisioner: objectStore.Namespace + ".ceph.rook.io/bucket",
-		Parameters: map[string]string{
-			"objectStoreName":      objectStore.Name,
-			"objectStoreNamespace": objectStore.Namespace,
-		},
-	}
-
-	obc1 = &bktv1alpha1.ObjectBucketClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-obc1",
-			Namespace: ns.Name,
-			Labels: map[string]string{
-				"bucket-notification-" + bn1.Name: bn1.Name,
-			},
-		},
-		Spec: bktv1alpha1.ObjectBucketClaimSpec{
-			BucketName:       defaultName + "-obc1",
-			StorageClassName: storageClass.Name,
-		},
-	}
-
-	bt1 = &cephv1.CephBucketTopic{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-topic1",
-			Namespace: ns.Name,
-		},
-		Spec: cephv1.BucketTopicSpec{
-			ObjectStoreName:      objectStore.Name,
-			ObjectStoreNamespace: objectStore.Namespace,
-			Persistent:           false,
-			Endpoint: cephv1.TopicEndpointSpec{
-				Kafka: &cephv1.KafkaEndpointSpec{
-					URI:      "kafka://kafka.example.com:9094",
-					AckLevel: "broker",
-					UseSSL:   false,
-					UserSecretRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret1.Name,
-						},
-						Key: "user-name",
-					},
-					PasswordSecretRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret2.Name,
-						},
-						Key: "password",
-					},
-				},
-			},
-		},
-	}
-
-	bn1 = &cephv1.CephBucketNotification{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-notification1",
-			Namespace: ns.Name,
-		},
-		Spec: cephv1.BucketNotificationSpec{
-			Topic: bt1.Name,
-			Events: []cephv1.BucketNotificationEvent{
-				"s3:ObjectCreated:*",
-			},
-		},
-	}
 )
 
 func checkStatusSecrets(t *testing.T, k8sh *utils.K8sHelper, bt *cephv1.CephBucketTopic, expectedSecrets []*corev1.Secret) {
@@ -301,9 +130,128 @@ func cephBucketTopicReady(t *testing.T, k8sh *utils.K8sHelper, bt *cephv1.CephBu
 	return liveBt
 }
 
-func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool) {
-	ctx := context.TODO()
-	var snsClient *sns.Client
+func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, objectStore *cephv1.CephObjectStore) {
+	var (
+		defaultName = "test-topickafka"
+
+		ns = &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: defaultName,
+			},
+		}
+
+		secret1 = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-secret1",
+				Namespace: ns.Name,
+			},
+			Data: map[string][]byte{
+				"user-name": []byte("kafka-user1"),
+			},
+		}
+
+		secret2 = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-secret2",
+				Namespace: ns.Name,
+			},
+			Data: map[string][]byte{
+				"password": []byte("kafka-pass2"),
+			},
+		}
+
+		secret3 = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-secret3",
+				Namespace: ns.Name,
+			},
+			Data: map[string][]byte{
+				"user-name": []byte("kafka-user3"),
+			},
+		}
+
+		secret4 = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-secret4",
+				Namespace: ns.Name,
+			},
+			Data: map[string][]byte{
+				"password": []byte("kafka-pass4"),
+			},
+		}
+
+		storageClass = &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: defaultName,
+			},
+			Provisioner: objectStore.Namespace + ".ceph.rook.io/bucket",
+			Parameters: map[string]string{
+				"objectStoreName":      objectStore.Name,
+				"objectStoreNamespace": objectStore.Namespace,
+			},
+		}
+
+		bt1 = &cephv1.CephBucketTopic{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-topic1",
+				Namespace: ns.Name,
+			},
+			Spec: cephv1.BucketTopicSpec{
+				ObjectStoreName:      objectStore.Name,
+				ObjectStoreNamespace: objectStore.Namespace,
+				Persistent:           false,
+				Endpoint: cephv1.TopicEndpointSpec{
+					Kafka: &cephv1.KafkaEndpointSpec{
+						URI:      "kafka://kafka.example.com:9094",
+						AckLevel: "broker",
+						UseSSL:   false,
+						UserSecretRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: secret1.Name,
+							},
+							Key: "user-name",
+						},
+						PasswordSecretRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: secret2.Name,
+							},
+							Key: "password",
+						},
+					},
+				},
+			},
+		}
+
+		bn1 = &cephv1.CephBucketNotification{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-notification1",
+				Namespace: ns.Name,
+			},
+			Spec: cephv1.BucketNotificationSpec{
+				Topic: bt1.Name,
+				Events: []cephv1.BucketNotificationEvent{
+					"s3:ObjectCreated:*",
+				},
+			},
+		}
+
+		obc1 = &bktv1alpha1.ObjectBucketClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-obc1",
+				Namespace: ns.Name,
+				Labels: map[string]string{
+					"bucket-notification-" + bn1.Name: bn1.Name,
+				},
+			},
+			Spec: bktv1alpha1.ObjectBucketClaimSpec{
+				BucketName:       defaultName + "-obc1",
+				StorageClassName: storageClass.Name,
+			},
+		}
+
+		ctx       = context.TODO()
+		snsClient *sns.Client
+	)
 
 	t.Run("CephBucketTopic kafka", func(t *testing.T) {
 		if tlsEnable {
@@ -313,30 +261,6 @@ func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *instal
 
 		t.Run(fmt.Sprintf("create ns %q", ns.Name), func(t *testing.T) {
 			_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create CephObjectStore %q", objectStore.Name), func(t *testing.T) {
-			objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Create(ctx, objectStore, metav1.CreateOptions{})
-			require.NoError(t, err)
-
-			osReady := utils.Retry(180, time.Second, "CephObjectStore is Ready", func() bool {
-				liveOs, err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Get(ctx, objectStore.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				if liveOs.Status == nil {
-					return false
-				}
-
-				return liveOs.Status.Phase == cephv1.ConditionReady
-			})
-			require.True(t, osReady)
-		})
-
-		t.Run(fmt.Sprintf("create svc %q", objectStoreSvc.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Services(objectStore.Namespace).Create(ctx, objectStoreSvc, metav1.CreateOptions{})
 			require.NoError(t, err)
 		})
 
@@ -386,7 +310,7 @@ func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *instal
 
 		t.Run("setup sns client", func(t *testing.T) {
 			var err error
-			snsClient, err = utilsns.NewClient(objectStore, objectStoreSvc, k8sh, installer, tlsEnable)
+			snsClient, err = utilsns.NewClient(objectStore, k8sh, installer, tlsEnable)
 			require.NoError(t, err)
 		})
 
@@ -681,16 +605,6 @@ func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *instal
 			require.NoError(t, err)
 
 			assert.Len(t, secrets.Items, 0)
-		})
-
-		t.Run(fmt.Sprintf("delete svc %q", objectStoreSvc.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Services(objectStore.Namespace).Delete(ctx, objectStoreSvc.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("delete CephObjectStore %q", objectStore.Name), func(t *testing.T) {
-			err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Delete(ctx, objectStore.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("delete ns %q", ns.Name), func(t *testing.T) {

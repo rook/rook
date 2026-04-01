@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package userkeys
+package keys
 
 import (
 	"context"
@@ -28,7 +28,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/installer"
@@ -36,180 +35,9 @@ import (
 	utiladmin "github.com/rook/rook/tests/integration/object/util/admin"
 )
 
-var (
-	defaultName = "test-userkeys"
-
-	ns = &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultName,
-		},
-	}
-
-	objectStore = &cephv1.CephObjectStore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultName,
-			// the CephObjectstore must be in the same ns as the CephCluster
-			Namespace: "object-ns",
-		},
-		Spec: cephv1.ObjectStoreSpec{
-			MetadataPool: cephv1.PoolSpec{
-				Replicated: cephv1.ReplicatedSpec{
-					Size:                   1,
-					RequireSafeReplicaSize: false,
-				},
-			},
-			DataPool: cephv1.PoolSpec{
-				Replicated: cephv1.ReplicatedSpec{
-					Size:                   1,
-					RequireSafeReplicaSize: false,
-				},
-			},
-			Gateway: cephv1.GatewaySpec{
-				Port:      80,
-				Instances: 1,
-			},
-			AllowUsersInNamespaces: []string{ns.Name},
-		},
-	}
-
-	objectStoreSvc = &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objectStore.Name,
-			Namespace: objectStore.Namespace,
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{
-				"app":               "rook-ceph-rgw",
-				"rook_cluster":      objectStore.Namespace,
-				"rook_object_store": objectStore.Name,
-			},
-			Ports: []corev1.ServicePort{
-				{
-					Name:       "http",
-					Port:       80,
-					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(8080),
-				},
-			},
-			SessionAffinity: corev1.ServiceAffinityNone,
-			Type:            corev1.ServiceTypeNodePort,
-		},
-	}
-
-	secret1 = &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-secret1",
-			Namespace: ns.Name,
-		},
-		Data: map[string][]byte{
-			"AWS_ACCESS_KEY_ID":     []byte("P1ANF2BP4K2LPGOR5SBB"),
-			"AWS_SECRET_ACCESS_KEY": []byte("yfCHPhhOed0vJkqZsGEODyJrdKqHD09OMTWCnwjX"),
-		},
-	}
-
-	secret2 = &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-secret2",
-			Namespace: ns.Name,
-		},
-		Data: map[string][]byte{
-			"AWS_ACCESS_KEY_ID":     []byte("2I6RPUTQFMNCSYEXZ6VM"),
-			"AWS_SECRET_ACCESS_KEY": []byte("uY066SWPfaOVlDeYc7GJyOTfkDejyDdXrqehS6wx"),
-		},
-	}
-
-	secret3 = &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-secret3",
-			Namespace: ns.Name,
-		},
-		Data: map[string][]byte{
-			"AWS_ACCESS_KEY_ID":     []byte("J4D0P20F3EDR51OSND7Y"),
-			"AWS_SECRET_ACCESS_KEY": []byte("jn89OpkXNoDlIHVVQ23mE2DZgPmuDK3WVH5ExOvQ"),
-		},
-	}
-
-	secret4 = &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-secret4",
-			Namespace: ns.Name,
-		},
-		Data: map[string][]byte{
-			"AWS_ACCESS_KEY_ID":     []byte("MPZX7DG5WJWQ6VPCSLYT"),
-			"AWS_SECRET_ACCESS_KEY": []byte("phh7DIxnLPeSD2V6FUouhmnWrKlKRD5dBykyXozX"),
-		},
-	}
-
-	secret5 = &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-secret5",
-			Namespace: ns.Name,
-		},
-		Data: map[string][]byte{
-			"AWS_ACCESS_KEY_ID":     []byte("7TNSSANCO5KXK23IPT91"),
-			"AWS_SECRET_ACCESS_KEY": []byte("HksEDf0hEh3PtTvl7s9x6CyXfkWuY8eAMYAcvH5l"),
-		},
-	}
-
-	osu1 = cephv1.CephObjectStoreUser{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaultName + "-user1",
-			Namespace: ns.Name,
-		},
-		Spec: cephv1.ObjectStoreUserSpec{
-			Store:            objectStore.Name,
-			ClusterNamespace: objectStore.Namespace,
-			Keys: []cephv1.ObjectUserKey{
-				{
-					AccessKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret1.Name,
-						},
-						Key: "AWS_ACCESS_KEY_ID",
-					},
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret1.Name,
-						},
-						Key: "AWS_SECRET_ACCESS_KEY",
-					},
-				},
-				{
-					AccessKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret2.Name,
-						},
-						Key: "AWS_ACCESS_KEY_ID",
-					},
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret2.Name,
-						},
-						Key: "AWS_SECRET_ACCESS_KEY",
-					},
-				},
-				{
-					AccessKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret3.Name,
-						},
-						Key: "AWS_ACCESS_KEY_ID",
-					},
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret3.Name,
-						},
-						Key: "AWS_SECRET_ACCESS_KEY",
-					},
-				},
-			},
-		},
-	}
-)
-
 // generate the secret name the operator is expected to generate for the CephObjectStoreUser
 func generateObjectStoreUserSecretName(osu cephv1.CephObjectStoreUser) string {
-	return "rook-ceph-object-user-" + osu.Namespace + "-" + osu.Name
+	return "rook-ceph-object-user-" + osu.Spec.Store + "-" + osu.Name
 }
 
 // find a UserKeySpec by AccessKey value
@@ -226,7 +54,7 @@ func checkStatusKeys(t *testing.T, k8sh *utils.K8sHelper, osu cephv1.CephObjectS
 	t.Run(fmt.Sprintf("cephObjectStoreUser %q has .status.keys set", osu.Name), func(t *testing.T) {
 		ctx := context.TODO()
 
-		liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu.Name, metav1.GetOptions{})
+		liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(osu.Namespace).Get(ctx, osu.Name, metav1.GetOptions{})
 		require.NoError(t, err)
 
 		require.NotNil(t, liveOsu.Status)
@@ -244,7 +72,7 @@ func checkStatusKeys(t *testing.T, k8sh *utils.K8sHelper, osu cephv1.CephObjectS
 			require.NoError(t, err)
 
 			// fetch the live secret for UID and ResourceVersion
-			liveSecret, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Get(ctx, secret.Name, metav1.GetOptions{})
+			liveSecret, err := k8sh.Clientset.CoreV1().Secrets(osu.Namespace).Get(ctx, secret.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			assert.Equal(t, liveSecret.Name, secretRef.Name)
@@ -284,7 +112,126 @@ func checkRgwUserKeys(t *testing.T, adminClient *admin.API, osu cephv1.CephObjec
 	})
 }
 
-func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool) {
+func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, objectStore *cephv1.CephObjectStore) {
+	var (
+		defaultName = "test-userkeys"
+
+		ns = &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: defaultName,
+			},
+		}
+
+		secret1 = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-secret1",
+				Namespace: ns.Name,
+			},
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("P1ANF2BP4K2LPGOR5SBB"),
+				"AWS_SECRET_ACCESS_KEY": []byte("yfCHPhhOed0vJkqZsGEODyJrdKqHD09OMTWCnwjX"),
+			},
+		}
+
+		secret2 = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-secret2",
+				Namespace: ns.Name,
+			},
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("2I6RPUTQFMNCSYEXZ6VM"),
+				"AWS_SECRET_ACCESS_KEY": []byte("uY066SWPfaOVlDeYc7GJyOTfkDejyDdXrqehS6wx"),
+			},
+		}
+
+		secret3 = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-secret3",
+				Namespace: ns.Name,
+			},
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("J4D0P20F3EDR51OSND7Y"),
+				"AWS_SECRET_ACCESS_KEY": []byte("jn89OpkXNoDlIHVVQ23mE2DZgPmuDK3WVH5ExOvQ"),
+			},
+		}
+
+		secret4 = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-secret4",
+				Namespace: ns.Name,
+			},
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("MPZX7DG5WJWQ6VPCSLYT"),
+				"AWS_SECRET_ACCESS_KEY": []byte("phh7DIxnLPeSD2V6FUouhmnWrKlKRD5dBykyXozX"),
+			},
+		}
+
+		secret5 = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-secret5",
+				Namespace: ns.Name,
+			},
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("7TNSSANCO5KXK23IPT91"),
+				"AWS_SECRET_ACCESS_KEY": []byte("HksEDf0hEh3PtTvl7s9x6CyXfkWuY8eAMYAcvH5l"),
+			},
+		}
+
+		osu1 = cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultName + "-user1",
+				Namespace: ns.Name,
+			},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:            objectStore.Name,
+				ClusterNamespace: objectStore.Namespace,
+				Keys: []cephv1.ObjectUserKey{
+					{
+						AccessKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: secret1.Name,
+							},
+							Key: "AWS_ACCESS_KEY_ID",
+						},
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: secret1.Name,
+							},
+							Key: "AWS_SECRET_ACCESS_KEY",
+						},
+					},
+					{
+						AccessKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: secret2.Name,
+							},
+							Key: "AWS_ACCESS_KEY_ID",
+						},
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: secret2.Name,
+							},
+							Key: "AWS_SECRET_ACCESS_KEY",
+						},
+					},
+					{
+						AccessKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: secret3.Name,
+							},
+							Key: "AWS_ACCESS_KEY_ID",
+						},
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: secret3.Name,
+							},
+							Key: "AWS_SECRET_ACCESS_KEY",
+						},
+					},
+				},
+			},
+		}
+	)
 	t.Run("ObjectStoreUser keys", func(t *testing.T) {
 		if tlsEnable {
 			// Skip testing with and without TLS to reduce test time
@@ -296,30 +243,6 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 
 		t.Run(fmt.Sprintf("create ns %q", ns.Name), func(t *testing.T) {
 			_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create CephObjectStore %q", objectStore.Name), func(t *testing.T) {
-			objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Create(ctx, objectStore, metav1.CreateOptions{})
-			require.NoError(t, err)
-
-			osReady := utils.Retry(180, time.Second, "CephObjectStore is Ready", func() bool {
-				liveOs, err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Get(ctx, objectStore.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				if liveOs.Status == nil {
-					return false
-				}
-
-				return liveOs.Status.Phase == cephv1.ConditionReady
-			})
-			require.True(t, osReady)
-		})
-
-		t.Run(fmt.Sprintf("create svc %q", objectStoreSvc.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Services(objectStore.Namespace).Create(ctx, objectStoreSvc, metav1.CreateOptions{})
 			require.NoError(t, err)
 		})
 
@@ -663,16 +586,6 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 			require.NoError(t, err)
 
 			assert.Len(t, secrets.Items, 0)
-		})
-
-		t.Run(fmt.Sprintf("delete svc %q", objectStoreSvc.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Services(objectStore.Namespace).Delete(ctx, objectStoreSvc.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("delete CephObjectStore %q", objectStore.Name), func(t *testing.T) {
-			err := k8sh.RookClientset.CephV1().CephObjectStores(objectStore.Namespace).Delete(ctx, objectStore.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("delete ns %q", ns.Name), func(t *testing.T) {
