@@ -75,6 +75,20 @@ kubectl delete storageclass csi-cephfs
     The cleanup jobs might not start if the resources created on top of Rook Cluster are not deleted completely.
     See [deleting block and file artifacts](#delete-the-block-and-file-artifacts)
 
+### Delete the CSI Operator Resources
+
+If the CSI Operator integration is enabled, the Rook operator will
+automatically clean up CSI operator resources (`OperatorConfig`, `Driver`, `ClientProfile`, `CephConnection`)
+when the last `CephCluster` is deleted. If the operator is not running or the automatic cleanup did not complete,
+remove them manually:
+
+```console
+kubectl -n rook-ceph delete operatorconfigs.csi.ceph.io --all
+kubectl -n rook-ceph delete drivers.csi.ceph.io --all
+kubectl -n rook-ceph delete clientprofiles.csi.ceph.io --all
+kubectl -n rook-ceph delete cephconnections.csi.ceph.io --all
+```
+
 ### Delete the Operator Resources
 
 Remove the Rook operator, RBAC, and CRDs, and the `rook-ceph` namespace.
