@@ -1559,6 +1559,27 @@ func resolveDeviceToPersistentPath(devicePath string, executor rookexec.Executor
 		best = preferByIDPath(best, c)
 	}
 
+	// Verify the persistent path resolves back to this device, but only
+	// if the path exists on the filesystem (it won't in unit tests where
+	// /dev/disk/by-id/ paths are synthetic from udev output).
+	// Some drives ship with bogus identifiers (e.g., Intel 660p's broken
+	// EUI-64 0100000000000000). The Linux kernel's NVME_QUIRK_BOGUS_NID
+	// handles known-bad devices, and runtime duplicate detection catches
+	// most collisions at probe time, but as a defense-in-depth measure we
+	// verify the symlink round-trips to the correct device. If it doesn't,
+	// the identifier is non-unique and we fall back to the kernel name.
+	if _, statErr := os.Lstat(best); statErr == nil {
+		resolvedReal, err := filepath.EvalSymlinks(best)
+		if err == nil {
+			deviceReal, err := filepath.EvalSymlinks(devicePath)
+			if err == nil && resolvedReal != deviceReal {
+				logger.Warningf("persistent path %q resolves to %q, not %q -- identifier may be non-unique, using kernel path",
+					best, resolvedReal, deviceReal)
+				return devicePath
+			}
+		}
+	}
+
 	logger.Infof("resolved device %q to persistent path %q", devicePath, best)
 	return best
 }
