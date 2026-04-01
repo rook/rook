@@ -37,6 +37,9 @@ else
 S5CMD_ARCH = Linux-arm64
 endif
 
+# build by default; allow opt-out by setting to false
+BUILD_CONTAINER_IMAGE ?= true
+
 # s5cmd's version
 S5CMD_VERSION = 2.3.0
 
@@ -57,12 +60,14 @@ do.build:
 	@mkdir -p $(BUILD_CONTEXT_DIR)/rook-external/test-data
 	@cp $(MANIFESTS_DIR)/create-external-cluster-resources.* $(BUILD_CONTEXT_DIR)/rook-external/
 	@cd $(BUILD_CONTEXT_DIR) && $(SED_IN_PLACE) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
-	@if [ -z "$(BUILD_CONTAINER_IMAGE)" ]; then\
+	@if [ "$(BUILD_CONTAINER_IMAGE)" != "false" ]; then\
 		$(DOCKERCMD) build --platform linux/$(GOARCH) $(BUILD_ARGS) \
 		--build-arg S5CMD_VERSION=$(S5CMD_VERSION) \
 		--build-arg S5CMD_ARCH=$(S5CMD_ARCH) \
 		-t $(CEPH_IMAGE) \
 		$(BUILD_CONTEXT_DIR);\
+	else \
+		echo "=== skipping container build because BUILD_CONTAINER_IMAGE=false"; \
 	fi
 	@if [ -z "$(SAVE_BUILD_CONTEXT_DIR)" ]; then\
 		rm -fr $(BUILD_CONTEXT_DIR);\
