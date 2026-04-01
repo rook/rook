@@ -1005,6 +1005,7 @@ func TestCheckIfArbiterReady(t *testing.T) {
 		},
 	}
 	crushZoneCount := 0
+	zone1WeightOverride := 0 // when non-zero, override zone 1's weight (i%2==1)
 	balanced := true
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -1020,6 +1021,9 @@ func TestCheckIfArbiterReady(t *testing.T) {
 					if !balanced && i%2 == 1 {
 						// simulate unbalanced with every other zone having half the weight
 						weight = 1028
+					}
+					if zone1WeightOverride != 0 && i%2 == 1 {
+						weight = zone1WeightOverride
 					}
 					crushBuckets = crushBuckets +
 						fmt.Sprintf(`,{"id": -%d,"name": "zone%d","type_id": 1,"type_name": "zone","weight": %d}
@@ -1050,11 +1054,43 @@ func TestCheckIfArbiterReady(t *testing.T) {
 	assert.True(t, ready)
 	assert.NoError(t, err)
 
-	// Valid, except the CRUSH map is not balanced
+	// Valid, except the CRUSH map is not balanced (50% difference)
 	balanced = false
 	ready, err = c.readyToConfigureArbiter(false)
 	assert.False(t, ready)
 	assert.NoError(t, err)
+
+	// Slightly unbalanced within 10%, but rejected on Ceph without the relaxed check
+	balanced = true
+	zone1WeightOverride = 2047 // ~0.4% difference from 2056
+	ready, err = c.readyToConfigureArbiter(false)
+	assert.False(t, ready)
+	assert.NoError(t, err)
+
+	// Still rejected on tentacle v20.2.1 (pre-backport)
+	c.ClusterInfo.CephVersion = cephver.CephVersion{Major: 20, Minor: 2, Extra: 1}
+	ready, err = c.readyToConfigureArbiter(false)
+	assert.False(t, ready)
+	assert.NoError(t, err)
+
+	// Accepted on tentacle v20.2.2 (ceph/ceph#67790)
+	c.ClusterInfo.CephVersion = cephver.CephVersion{Major: 20, Minor: 2, Extra: 2}
+	ready, err = c.readyToConfigureArbiter(false)
+	assert.True(t, ready)
+	assert.NoError(t, err)
+
+	// Accepted on Umbrella+ (ceph/ceph#66580)
+	c.ClusterInfo.CephVersion = cephver.Umbrella
+	ready, err = c.readyToConfigureArbiter(false)
+	assert.True(t, ready)
+	assert.NoError(t, err)
+
+	// Over 10% unbalanced, rejected even on supported versions
+	zone1WeightOverride = 1850 // ~10.0% difference from 2056
+	ready, err = c.readyToConfigureArbiter(false)
+	assert.False(t, ready)
+	assert.NoError(t, err)
+	zone1WeightOverride = 0
 
 	// Too many zones in the CRUSH map
 	crushZoneCount = 3
@@ -1062,6 +1098,26 @@ func TestCheckIfArbiterReady(t *testing.T) {
 	ready, err = c.readyToConfigureArbiter(false)
 	assert.False(t, ready)
 	assert.Error(t, err)
+}
+
+func TestCrushWeightsBalanced(t *testing.T) {
+	// Equal weights
+	assert.True(t, crushWeightsBalanced(2056, 2056))
+
+	// Within 10%
+	assert.True(t, crushWeightsBalanced(2056, 1900))       // ~7.6% diff
+	assert.True(t, crushWeightsBalanced(2747124, 2747111)) // from the issue report
+
+	// Exactly 10%
+	assert.True(t, crushWeightsBalanced(1000, 900))
+
+	// Beyond 10%
+	assert.False(t, crushWeightsBalanced(2056, 1028)) // 50% diff
+	assert.False(t, crushWeightsBalanced(1000, 899))
+
+	// Zero weights
+	assert.True(t, crushWeightsBalanced(0, 0))
+	assert.False(t, crushWeightsBalanced(100, 0))
 }
 
 func TestSkipReconcile(t *testing.T) {

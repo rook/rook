@@ -115,6 +115,11 @@ var (
 
 	// hook for tests to override
 	waitForMonitorScheduling = realWaitForMonitorScheduling
+
+	// relaxedStretchCrushWeightCheckVersion is the first Ceph release that allows
+	// stretch mode to be configured with up to 10% CRUSH weight difference between
+	// the two zones (ceph/ceph#66580, backported via ceph/ceph#67790 to tentacle v20.2.2).
+	relaxedStretchCrushWeightCheckVersion = cephver.CephVersion{Major: 20, Minor: 2, Extra: 2}
 )
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
@@ -463,13 +468,20 @@ func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
 			log.NamespacedInfo(c.Namespace, logger, "found %s %q in CRUSH map with weight %d", failureDomain, bucket.Name, bucket.Weight)
 			zoneCount++
 
-			// check that the weights of the failure domains are all the same
 			if zoneWeight == -1 {
 				// found the first matching bucket
 				zoneWeight = bucket.Weight
 			} else if zoneWeight != bucket.Weight {
-				log.NamespacedInfo(c.Namespace, logger, "found failure domains that have different weights")
-				return false, nil
+				// Ceph relaxed this check in ceph/ceph#66580 to allow up to 10% difference.
+				// The relaxed check is in Umbrella (v21+) and was backported to tentacle
+				// (ceph/ceph#67790, first appearing in v20.2.2). The squid backport
+				// (ceph/ceph#67789) is still pending and will be gated here once it lands.
+				if c.ClusterInfo.CephVersion.IsAtLeast(relaxedStretchCrushWeightCheckVersion) && crushWeightsBalanced(zoneWeight, bucket.Weight) {
+					log.NamespacedInfo(c.Namespace, logger, "found failure domains with different weights (%d vs %d) but within 10%% tolerance", zoneWeight, bucket.Weight)
+				} else {
+					log.NamespacedInfo(c.Namespace, logger, "found failure domains that have different weights (%d vs %d)", zoneWeight, bucket.Weight)
+					return false, nil
+				}
 			}
 		}
 	}
@@ -482,6 +494,26 @@ func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
 	}
 	log.NamespacedInfo(c.Namespace, logger, "found two expected failure domains %q for the stretch cluster", failureDomain)
 	return true, nil
+}
+
+// crushWeightsBalanced returns true if two CRUSH bucket weights are within 10% of each other.
+// This matches Ceph's mon_stretch_max_bucket_weight_delta default.
+func crushWeightsBalanced(a, b int) bool {
+	if a == b {
+		return true
+	}
+	maxWeight := a
+	if b > a {
+		maxWeight = b
+	}
+	if maxWeight == 0 {
+		return false
+	}
+	diff := a - b
+	if diff < 0 {
+		diff = -diff
+	}
+	return float64(diff)/float64(maxWeight) <= 0.1
 }
 
 // ensureMonsRunning is called in two scenarios:
