@@ -84,11 +84,11 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		return nil
 	}
 
-	// Simulate an environment where deployments exist for OSDs 3, 4, and 6
+	// Simulate an environment where deployments exist for OSDs 3, 4, and 6 on known nodes
 	deployments := newExistenceListWithCapacity(5)
-	deployments.Add(3)
-	deployments.Add(4)
-	deployments.Add(6)
+	deployments.AddWithLocation(3, "node0")
+	deployments.AddWithLocation(4, "node0")
+	deployments.AddWithLocation(6, "node2")
 
 	spec := cephv1.ClusterSpec{}
 	var status *OrchestrationStatus
@@ -169,6 +169,38 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		assert.Equal(t, 4, awaitingStatusConfigMaps.Len())
 		assert.Equal(t, 1, createConfig.finishedStatusConfigMaps.Len())
 		assert.True(t, createConfig.finishedStatusConfigMaps.Has(statusNameNode0))
+	})
+
+	t.Run("node: warn on duplicate OSD from different node", func(t *testing.T) {
+		doSetup()
+		// OSD 3 exists on "node0" (from AddWithLocation above), prepare reports it from "node2"
+		status = &OrchestrationStatus{
+			OSDs: []OSDInfo{
+				{ID: 3}, // duplicate — already on node0
+				{ID: 8}, // new OSD
+			},
+			PvcBackedOSD: false,
+		}
+		createConfig.createNewOSDsFromStatus(status, "node2", errs)
+		assert.Zero(t, errs.len())
+		// Only OSD 8 should be created, OSD 3 is skipped (warning logged but not an error)
+		assert.ElementsMatch(t, createCallsOnNode, []int{8})
+		assert.Len(t, createCallsOnPVC, 0)
+	})
+
+	t.Run("node: no warning on same-node duplicate", func(t *testing.T) {
+		doSetup()
+		// OSD 3 exists on "node0", prepare also reports it from "node0" — same node, no warning
+		status = &OrchestrationStatus{
+			OSDs: []OSDInfo{
+				{ID: 3}, // duplicate on same node
+			},
+			PvcBackedOSD: false,
+		}
+		createConfig.createNewOSDsFromStatus(status, "node0", errs)
+		assert.Zero(t, errs.len())
+		assert.Len(t, createCallsOnNode, 0) // OSD 3 skipped, nothing new to create
+		assert.Len(t, createCallsOnPVC, 0)
 	})
 
 	t.Run("node: skip creating OSDs for status configmaps that weren't created for this reconcile", func(t *testing.T) {

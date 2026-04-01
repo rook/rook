@@ -92,8 +92,15 @@ func (c *createConfig) createNewOSDsFromStatus(
 
 	for i, osd := range status.OSDs {
 		if c.deployments.Exists(osd.ID) {
-			// This OSD will be handled by the updater
-			log.NamespacedDebug(c.cluster.clusterInfo.Namespace, logger, "not creating deployment for OSD %d which already exists", osd.ID)
+			existingLocation := c.deployments.Location(osd.ID)
+			if existingLocation != "" && existingLocation != nodeOrPVCName {
+				log.NamespacedWarning(c.cluster.clusterInfo.Namespace, logger, "duplicate OSD ID detected: OSD %d is already running on %q but was also found on %q. "+
+					"The disk on %q likely contains stale OSD data from a previous deployment. "+
+					"See https://rook.io/docs/rook/latest/Getting-Started/ceph-teardown/#zapping-devices for cleanup instructions",
+					osd.ID, existingLocation, nodeOrPVCName, nodeOrPVCName)
+			} else {
+				log.NamespacedDebug(c.cluster.clusterInfo.Namespace, logger, "not creating deployment for OSD %d which already exists", osd.ID)
+			}
 			continue
 		}
 

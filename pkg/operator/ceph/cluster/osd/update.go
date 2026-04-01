@@ -255,8 +255,13 @@ func (c *Cluster) getOSDUpdateInfo(errs *provisionErrors) (*updateQueue, *existe
 			errs.addError("%v. did a user create their own deployment with label %q?", selector, err)
 			continue
 		}
-		// all OSD deployments should be marked as existing
-		existenceList.Add(id)
+		// all OSD deployments should be marked as existing along with their location
+		nodeOrPVC, err := getNodeOrPVCName(&deps.Items[i])
+		if err != nil {
+			existenceList.Add(id)
+		} else {
+			existenceList.AddWithLocation(id, nodeOrPVC)
+		}
 		updateQueue.Push(id)
 	}
 
@@ -342,15 +347,15 @@ func (q *updateQueue) Remove(osdIDs []int) {
 }
 
 // An existenceList keeps track of which OSDs already have Deployments created for them that is
-// queryable in O(1) time.
+// queryable in O(1) time. It also records the node or PVC name where each OSD is deployed.
 type existenceList struct {
-	m map[int]bool
+	m map[int]string // OSD ID -> node or PVC name
 }
 
 // Create a new existenceList with capacity reserved.
 func newExistenceListWithCapacity(cap int) *existenceList {
 	return &existenceList{
-		m: make(map[int]bool, cap),
+		m: make(map[int]string, cap),
 	}
 }
 
@@ -367,15 +372,27 @@ func (e *existenceList) Len() int {
 	return len(e.m)
 }
 
-// Add adds an item to the existenceList.
+// Add adds an item to the existenceList with an empty location.
 func (e *existenceList) Add(osdID int) {
-	e.m[osdID] = true
+	if _, ok := e.m[osdID]; !ok {
+		e.m[osdID] = ""
+	}
+}
+
+// AddWithLocation adds an item to the existenceList with the node or PVC name where it is deployed.
+func (e *existenceList) AddWithLocation(osdID int, nodeOrPVCName string) {
+	e.m[osdID] = nodeOrPVCName
 }
 
 // Exists returns true if an item is recorded in the existence list or false if it does not.
 func (e *existenceList) Exists(osdID int) bool {
 	_, ok := e.m[osdID]
 	return ok
+}
+
+// Location returns the node or PVC name where the OSD is deployed, or empty string if unknown.
+func (e *existenceList) Location(osdID int) string {
+	return e.m[osdID]
 }
 
 // return a function that will list only OSD deployments with the IDs given

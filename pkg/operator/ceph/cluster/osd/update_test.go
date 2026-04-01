@@ -783,6 +783,25 @@ func Test_existenceList(t *testing.T) {
 	l.Add(1)
 	assert.True(t, l.Exists(1))
 	assert.Equal(t, 4, l.Len())
+
+	// assert AddWithLocation and Location
+	l2 := newExistenceListWithCapacity(2)
+	l2.AddWithLocation(0, "node-a")
+	l2.AddWithLocation(1, "node-b")
+	assert.True(t, l2.Exists(0))
+	assert.True(t, l2.Exists(1))
+	assert.Equal(t, "node-a", l2.Location(0))
+	assert.Equal(t, "node-b", l2.Location(1))
+	assert.Equal(t, "", l2.Location(99)) // non-existent OSD
+
+	// Add without location should not overwrite existing location
+	l2.Add(0)
+	assert.Equal(t, "node-a", l2.Location(0))
+
+	// Add without location for new OSD should set empty location
+	l2.Add(5)
+	assert.True(t, l2.Exists(5))
+	assert.Equal(t, "", l2.Location(5))
 }
 
 func TestCluster_rotateCephxKey(t *testing.T) {
