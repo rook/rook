@@ -2218,6 +2218,30 @@ string
 <p>The op-mask of the user.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>defaultPlacement</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Override the default pool placement for buckets created by this user. If not provided, the default pool placement from the zone group will be used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultStorageClass</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Override the default storage class for objects created by this user. If not provided, the default <code>STANDARD</code> storage class will be used.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -12456,6 +12480,30 @@ string
 <td>
 <em>(Optional)</em>
 <p>The op-mask of the user.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultPlacement</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Override the default pool placement for buckets created by this user. If not provided, the default pool placement from the zone group will be used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultStorageClass</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Override the default storage class for objects created by this user. If not provided, the default <code>STANDARD</code> storage class will be used.</p>
 </td>
 </tr>
 </tbody>

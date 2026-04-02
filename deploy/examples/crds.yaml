@@ -15137,6 +15137,18 @@ spec:
                 clusterNamespace:
                   description: The namespace where the parent CephCluster and CephObjectStore are found
                   type: string
+                defaultPlacement:
+                  description: Override the default pool placement for buckets created by this user. If not provided, the default pool placement from the zone group will be used.
+                  maxLength: 2048
+                  minLength: 0
+                  nullable: true
+                  type: string
+                defaultStorageClass:
+                  description: Override the default storage class for objects created by this user. If not provided, the default `STANDARD` storage class will be used.
+                  maxLength: 2048
+                  minLength: 0
+                  nullable: true
+                  type: string
                 displayName:
                   description: The display name for the ceph user.
                   type: string
