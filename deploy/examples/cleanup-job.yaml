@@ -1,0 +1,150 @@
+# Rook Ceph Cluster Cleanup Job
+#
+# This manifest runs the same cleanup logic that the Rook operator executes
+# automatically when a CephCluster is deleted with cleanupPolicy set. Use it
+# when you need to clean up a node manually or when the operator-managed cleanup
+# did not run (e.g., the cluster was force-deleted).
+#
+# BEFORE APPLYING
+# ---------------
+# Replace every placeholder marked with <...> with the real value from your
+# cluster before applying this manifest.
+#
+# 1. <dataDirHostPath>
+#    The value of spec.dataDirHostPath in your CephCluster CR. Default: /var/lib/rook
+#
+# 2. <node-hostname>
+#    The hostname of the node to clean up. Run `kubectl get nodes` and use the
+#    value from the NAME column (which matches the kubernetes.io/hostname label).
+#
+# All other values (namespace, monitor secret, cluster FSID) are sourced
+# automatically from the cluster at runtime -- no manual substitution needed.
+#
+# USAGE
+# -----
+# Apply one Job per node that needs cleaning:
+#
+#   # Edit the nodeSelector and ROOK_DATA_DIR_HOST_PATH for each node, then:
+#   kubectl apply -f cleanup-job.yaml
+#
+#   # Watch progress:
+#   kubectl -n rook-ceph logs -f job/rook-ceph-cleanup-<node-hostname>
+#
+#   # Remove the Job when done:
+#   kubectl -n rook-ceph delete job rook-ceph-cleanup-<node-hostname>
+#
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Use a distinct name per node, e.g. rook-ceph-cleanup-<node-hostname>
+  name: rook-ceph-cleanup-<node-hostname>
+  namespace: rook-ceph # namespace:cluster
+  labels:
+    app: rook-ceph-cleanup
+    rook-ceph-cleanup: "true"
+spec:
+  template:
+    metadata:
+      name: rook-ceph-cleanup
+      labels:
+        app: rook-ceph-cleanup
+    spec:
+      serviceAccountName: rook-ceph-default
+      restartPolicy: OnFailure
+
+      # Pin the job to the specific node that needs cleaning.
+      # Replace <node-hostname> with the value of the node's
+      # kubernetes.io/hostname label (kubectl get nodes).
+      nodeSelector:
+        kubernetes.io/hostname: <node-hostname>
+
+      containers:
+        - name: host-cleanup
+          image: docker.io/rook/ceph:master
+          imagePullPolicy: IfNotPresent
+          args: ["ceph", "clean", "host"]
+
+          # Run as root: ceph-volume does not support non-root execution.
+          # See https://tracker.ceph.com/issues/53511
+          securityContext:
+            privileged: true
+            runAsUser: 0
+
+          env:
+            # Path on the host where Rook stores its data.
+            # Must match spec.dataDirHostPath in your CephCluster CR.
+            - name: ROOK_DATA_DIR_HOST_PATH
+              value: "<dataDirHostPath>" # e.g. /var/lib/rook
+
+            # Namespace of the running Job, sourced via the Downward API.
+            - name: ROOK_NAMESPACE_DIR
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+
+            # Monitor keyring secret, sourced from the rook-ceph-mon Secret.
+            - name: ROOK_MON_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: rook-ceph-mon
+                  key: mon-secret
+
+            # Ceph cluster FSID, sourced from the rook-ceph-mon Secret.
+            - name: ROOK_CLUSTER_FSID
+              valueFrom:
+                secretKeyRef:
+                  name: rook-ceph-mon
+                  key: fsid
+
+            # Namespace env var consumed by the cleanup daemon, sourced via the Downward API.
+            - name: ROOK_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+
+            - name: ROOK_LOG_LEVEL
+              value: "DEBUG"
+
+            # Disk sanitization settings.
+            # Method: metadata (default, fast) or shred (thorough, slow).
+            - name: ROOK_SANITIZE_METHOD
+              value: "metadata"
+
+            # Data source for sanitization: zero (default) or random.
+            - name: ROOK_SANITIZE_DATA_SOURCE
+              value: "zero"
+
+            # Number of sanitize iterations (minimum 1).
+            - name: ROOK_SANITIZE_ITERATION
+              value: "1"
+
+            - name: DM_DISABLE_UDEV
+              value: "1"
+
+          volumeMounts:
+            # Host data directory (must match ROOK_DATA_DIR_HOST_PATH).
+            - name: cleanup-volume
+              mountPath: "<dataDirHostPath>" # e.g. /var/lib/rook
+
+            # Required for ceph-volume disk operations.
+            - name: devices
+              mountPath: /dev
+
+            # Required for udev device event handling.
+            - name: run-udev
+              mountPath: /run/udev
+
+      volumes:
+        # Host path where Rook data lives (matches ROOK_DATA_DIR_HOST_PATH).
+        - name: cleanup-volume
+          hostPath:
+            path: "<dataDirHostPath>" # e.g. /var/lib/rook
+
+        - name: devices
+          hostPath:
+            path: /dev
+
+        - name: run-udev
+          hostPath:
+            path: /run/udev
