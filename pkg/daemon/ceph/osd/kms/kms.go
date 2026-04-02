@@ -362,7 +362,7 @@ func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Co
 
 	// A token must be specified if token-auth is used for KMS other than Azure
 	if !kms.IsAzureMS() {
-		if !kms.IsK8sAuthEnabled() && kms.TokenSecretName == "" {
+		if !kms.IsK8sAuthEnabled() && !kms.IsAgentAuthEnabled() && kms.TokenSecretName == "" {
 			if !kms.IsTokenAuthEnabled() {
 				return errors.New("failed to validate kms configuration (missing token in spec)")
 			}

@@ -381,6 +381,90 @@ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 
 * `tokenSecretName` can be (and often will be) the same for both kms and s3 configurations.
 
+### SSE-S3 with Vault Agent
+
+Instead of using a static token for SSE-S3, you can use a [Vault Agent](https://developer.hashicorp.com/vault/docs/agent-and-proxy/agent) running as a sidecar in the RGW pod. The agent authenticates to Vault using the pod's Kubernetes service account (via Vault's [Kubernetes auth method](https://developer.hashicorp.com/vault/docs/auth/kubernetes)) and acts as a local proxy, eliminating the need to manage static tokens.
+
+This approach uses the [Vault Agent Injector](https://developer.hashicorp.com/vault/docs/platform/k8s/injector) (a mutating admission webhook) to automatically inject the Vault Agent sidecar into RGW pods.
+
+#### Prerequisites
+
+1. **Deploy the Vault Agent Injector** in the cluster:
+
+    ```bash
+    helm repo add hashicorp https://helm.releases.hashicorp.com
+    helm install vault hashicorp/vault \
+        --set "injector.enabled=true" \
+        --set "server.enabled=false"   # if using an external Vault server
+    ```
+
+2. **Configure Vault** with the Kubernetes auth method, a policy, and a role:
+
+    ```bash
+    # Enable Kubernetes auth method
+    vault auth enable kubernetes
+
+    # Configure Kubernetes auth
+    vault write auth/kubernetes/config \
+        kubernetes_host="https://$KUBERNETES_HOST:443"
+
+    # Create a policy granting access to the transit engine
+    vault policy write rgw-sse-s3 - <<EOF
+    path "transit/keys/*" {
+      capabilities = ["create", "read", "update", "delete"]
+    }
+    path "transit/keys/+/rotate" {
+      capabilities = ["update"]
+    }
+    path "transit/datakey/plaintext/*" {
+      capabilities = ["update"]
+    }
+    path "transit/decrypt/*" {
+      capabilities = ["update"]
+    }
+    path "transit/export/encryption-key/*" {
+      capabilities = ["read"]
+    }
+    EOF
+
+    # Create a role bound to the RGW service account
+    vault write auth/kubernetes/role/rook-ceph-rgw \
+        bound_service_account_names=rook-ceph-rgw \
+        bound_service_account_namespaces=rook-ceph \
+        policies=rgw-sse-s3 \
+        ttl=1h
+    ```
+
+#### Configuration
+
+Set `VAULT_AUTH_METHOD: agent` in the `s3` connection details and add Vault Agent Injector annotations to the gateway spec. The `VAULT_ADDR` should point to the local Vault Agent proxy (typically `http://127.0.0.1:8100`). No `tokenSecretName` is needed since the injected agent handles authentication.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph
+spec:
+  gateway:
+    annotations:
+      vault.hashicorp.com/agent-inject: "true"
+      vault.hashicorp.com/role: "rook-ceph-rgw"
+      vault.hashicorp.com/agent-cache-enable: "true"
+      vault.hashicorp.com/agent-cache-listener-port: "8100"
+      # For TLS to Vault server:
+      # vault.hashicorp.com/ca-cert: "/vault/tls/ca.crt"
+      # vault.hashicorp.com/client-cert: "/vault/tls/tls.crt"
+      # vault.hashicorp.com/client-key: "/vault/tls/tls.key"
+  security:
+    s3:
+      connectionDetails:
+        KMS_PROVIDER: vault
+        VAULT_ADDR: http://127.0.0.1:8100
+        VAULT_SECRET_ENGINE: transit
+        VAULT_AUTH_METHOD: agent
+```
+
 ## Advanced configuration
 
 !!! warning

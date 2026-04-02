@@ -18,6 +18,34 @@ package v1
 
 import "testing"
 
+func TestKeyManagementServiceSpec_IsAgentAuthEnabled(t *testing.T) {
+	type fields struct {
+		ConnectionDetails map[string]string
+		TokenSecretName   string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{"agent auth is disabled - everything is empty", fields{ConnectionDetails: map[string]string{}, TokenSecretName: ""}, false},
+		{"agent auth is disabled - token is populated", fields{ConnectionDetails: map[string]string{"VAULT_AUTH_METHOD": "agent"}, TokenSecretName: "rook-ceph-test-secret"}, false},
+		{"agent auth is disabled since VAULT_AUTH_METHOD is not agent", fields{ConnectionDetails: map[string]string{"VAULT_AUTH_METHOD": "token"}, TokenSecretName: ""}, false},
+		{"agent auth is enabled", fields{ConnectionDetails: map[string]string{"VAULT_AUTH_METHOD": "agent"}, TokenSecretName: ""}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kms := &KeyManagementServiceSpec{
+				ConnectionDetails: tt.fields.ConnectionDetails,
+				TokenSecretName:   tt.fields.TokenSecretName,
+			}
+			if got := kms.IsAgentAuthEnabled(); got != tt.want {
+				t.Errorf("KeyManagementServiceSpec.IsAgentAuthEnabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestKeyManagementServiceSpec_IsK8sAuthEnabled(t *testing.T) {
 	type fields struct {
 		ConnectionDetails map[string]string
