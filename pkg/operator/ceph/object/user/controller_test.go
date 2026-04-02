@@ -596,6 +596,202 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 	})
 }
 
+func TestValidateUser(t *testing.T) {
+	r := &ReconcileObjectStoreUser{}
+
+	t.Run("standalone user with spaces in displayName is valid", func(t *testing.T) {
+		u := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1", Namespace: namespace},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:       store,
+				DisplayName: "My User With Spaces",
+			},
+		}
+		assert.NoError(t, r.validateUser(u))
+	})
+
+	t.Run("account user with IAM-compatible displayName is valid", func(t *testing.T) {
+		u := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1", Namespace: namespace},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:       store,
+				DisplayName: "my-user_01",
+				AccountRef:  cephv1.ObjectStoreUserAccountRef{Name: "my-account"},
+			},
+		}
+		assert.NoError(t, r.validateUser(u))
+	})
+
+	t.Run("account user with spaces in displayName is invalid", func(t *testing.T) {
+		u := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1", Namespace: namespace},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:       store,
+				DisplayName: "My User",
+				AccountRef:  cephv1.ObjectStoreUserAccountRef{Name: "my-account"},
+			},
+		}
+		err := r.validateUser(u)
+		assert.Error(t, err)
+	})
+
+	t.Run("account user with empty displayName falls back to Name", func(t *testing.T) {
+		u := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "valid-name", Namespace: namespace},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:      store,
+				AccountRef: cephv1.ObjectStoreUserAccountRef{Name: "my-account"},
+			},
+		}
+		assert.NoError(t, r.validateUser(u))
+	})
+
+	t.Run("account user with IAM special chars in displayName is valid", func(t *testing.T) {
+		u := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1", Namespace: namespace},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:       store,
+				DisplayName: "user+=,.@-test",
+				AccountRef:  cephv1.ObjectStoreUserAccountRef{Name: "my-account"},
+			},
+		}
+		assert.NoError(t, r.validateUser(u))
+	})
+}
+
+func TestResolveAccountRef(t *testing.T) {
+	ctx := context.TODO()
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion,
+		&cephv1.CephObjectStoreUser{},
+		&cephv1.CephObjectStoreAccount{},
+		&cephv1.CephObjectStoreAccountList{},
+	)
+
+	t.Run("account not found returns error", func(t *testing.T) {
+		u := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1", Namespace: namespace},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:      store,
+				AccountRef: cephv1.ObjectStoreUserAccountRef{Name: "missing-account"},
+			},
+		}
+		cl := fake.NewClientBuilder().WithScheme(s).Build()
+		r := &ReconcileObjectStoreUser{client: cl, opManagerContext: ctx}
+
+		accountID, result, err := r.resolveAccountRef(u)
+		assert.Error(t, err)
+		assert.Empty(t, accountID)
+		assert.True(t, result.Requeue)
+	})
+
+	t.Run("store mismatch returns error", func(t *testing.T) {
+		account := &cephv1.CephObjectStoreAccount{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-account", Namespace: namespace},
+			Spec: cephv1.ObjectStoreAccountSpec{
+				Store: "different-store",
+			},
+			Status: &cephv1.ObjectStoreAccountStatus{
+				Phase:     k8sutil.ReadyStatus,
+				AccountID: "RGW12345678901234567",
+			},
+		}
+		u := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1", Namespace: namespace},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:      store,
+				AccountRef: cephv1.ObjectStoreUserAccountRef{Name: "my-account"},
+			},
+		}
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(account).Build()
+		r := &ReconcileObjectStoreUser{client: cl, opManagerContext: ctx}
+
+		_, _, err := r.resolveAccountRef(u)
+		assert.Error(t, err)
+	})
+
+	t.Run("account not ready returns error", func(t *testing.T) {
+		account := &cephv1.CephObjectStoreAccount{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-account", Namespace: namespace},
+			Spec: cephv1.ObjectStoreAccountSpec{
+				Store: store,
+			},
+			Status: &cephv1.ObjectStoreAccountStatus{
+				Phase: "",
+			},
+		}
+		u := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1", Namespace: namespace},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:      store,
+				AccountRef: cephv1.ObjectStoreUserAccountRef{Name: "my-account"},
+			},
+		}
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(account).Build()
+		r := &ReconcileObjectStoreUser{client: cl, opManagerContext: ctx}
+
+		accountID, result, err := r.resolveAccountRef(u)
+		assert.Error(t, err)
+		assert.Empty(t, accountID)
+		assert.True(t, result.Requeue)
+	})
+
+	t.Run("account ready returns account ID", func(t *testing.T) {
+		expectedID := "RGW12345678901234567"
+		account := &cephv1.CephObjectStoreAccount{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-account", Namespace: namespace},
+			Spec: cephv1.ObjectStoreAccountSpec{
+				Store: store,
+			},
+			Status: &cephv1.ObjectStoreAccountStatus{
+				Phase:     k8sutil.ReadyStatus,
+				AccountID: expectedID,
+			},
+		}
+		u := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1", Namespace: namespace},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:      store,
+				AccountRef: cephv1.ObjectStoreUserAccountRef{Name: "my-account"},
+			},
+		}
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(account).Build()
+		r := &ReconcileObjectStoreUser{client: cl, opManagerContext: ctx}
+
+		accountID, result, err := r.resolveAccountRef(u)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedID, accountID)
+		assert.False(t, result.Requeue)
+	})
+
+	t.Run("account ready but no account ID returns error", func(t *testing.T) {
+		account := &cephv1.CephObjectStoreAccount{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-account", Namespace: namespace},
+			Spec: cephv1.ObjectStoreAccountSpec{
+				Store: store,
+			},
+			Status: &cephv1.ObjectStoreAccountStatus{
+				Phase:     k8sutil.ReadyStatus,
+				AccountID: "",
+			},
+		}
+		u := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1", Namespace: namespace},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:      store,
+				AccountRef: cephv1.ObjectStoreUserAccountRef{Name: "my-account"},
+			},
+		}
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(account).Build()
+		r := &ReconcileObjectStoreUser{client: cl, opManagerContext: ctx}
+
+		accountID, result, err := r.resolveAccountRef(u)
+		assert.Error(t, err)
+		assert.Empty(t, accountID)
+		assert.True(t, result.Requeue)
+	})
+}
+
 func TestIsUserSync(t *testing.T) {
 	t.Run("DisplayName same", func(t *testing.T) {
 		a := admin.User{

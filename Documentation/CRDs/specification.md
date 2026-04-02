@@ -2218,6 +2218,23 @@ string
 <p>The op-mask of the user.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>accountRef,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectStoreUserAccountRef">
+ObjectStoreUserAccountRef
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AccountRef is a reference to a CephObjectStoreAccount to associate this user with.
+The referenced account must be in the same namespace as the user.
+When set, the user is created as an account user with no default permissions,
+and resources created by this user are owned by the account.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -12351,6 +12368,35 @@ int64
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.ObjectStoreUserAccountRef">ObjectStoreUserAccountRef
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreUserSpec">ObjectStoreUserSpec</a>)
+</p>
+<div>
+<p>ObjectStoreUserAccountRef is a reference to a CephObjectStoreAccount</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the CephObjectStoreAccount CR</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ObjectStoreUserSpec">ObjectStoreUserSpec
 </h3>
 <p>
@@ -12456,6 +12502,23 @@ string
 <td>
 <em>(Optional)</em>
 <p>The op-mask of the user.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>accountRef,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectStoreUserAccountRef">
+ObjectStoreUserAccountRef
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AccountRef is a reference to a CephObjectStoreAccount to associate this user with.
+The referenced account must be in the same namespace as the user.
+When set, the user is created as an account user with no default permissions,
+and resources created by this user are owned by the account.</p>
 </td>
 </tr>
 </tbody>
