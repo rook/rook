@@ -41,10 +41,11 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/rook/rook/tests/integration/object/bucketowner"
+	bucketowner "github.com/rook/rook/tests/integration/object/bucket/owner"
 	topickafka "github.com/rook/rook/tests/integration/object/topic/kafka"
-	"github.com/rook/rook/tests/integration/object/user/opmask"
-	"github.com/rook/rook/tests/integration/object/user/userkeys"
+	userkeys "github.com/rook/rook/tests/integration/object/user/keys"
+	useropmask "github.com/rook/rook/tests/integration/object/user/opmask"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 )
 
 const (
@@ -185,10 +186,19 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
 
-	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable)
-	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable)
-	topickafka.TestBucketTopicKafka(s.T(), k8sh, installer, logger, tlsEnable)
-	opmask.TestObjectStoreUserOpMask(s.T(), k8sh, installer, logger, tlsEnable)
+	// The namespaced test packages below all skip when TLS is enabled, so only set up the
+	// shared store when it will actually be used.
+	var sharedObjectStore *cephv1.CephObjectStore
+	if !tlsEnable {
+		var teardownSharedStore func()
+		sharedObjectStore, teardownSharedStore = sharedstore.Setup(s.T(), k8sh)
+		defer teardownSharedStore()
+
+		bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
+		userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
+		topickafka.TestBucketTopicKafka(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
+		useropmask.TestObjectStoreUserOpMask(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
+	}
 
 	bucketNotificationTestStoreName := "bucket-notification-" + storeName
 	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, swiftAndKeystone)
