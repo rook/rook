@@ -43,7 +43,7 @@ export HELM_HOME
 $(HELM_OUTPUT_DIR):
 	@mkdir -p $@
 
-$(HELM):
+$(HELM): | $(TOOLS_HOST_DIR)
 	@echo === installing helm
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
 	@curl -sL https://get.helm.sh/helm-$(HELM_VERSION)-$(shell go env GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
@@ -121,7 +121,7 @@ HELM_DOCS_VERSION := v1.11.0
 HELM_DOCS := $(TOOLS_HOST_DIR)/helm-docs-$(HELM_DOCS_VERSION)
 HELM_DOCS_REPO := github.com/norwoodj/helm-docs/cmd/helm-docs
 
-$(HELM_DOCS): ## Installs helm-docs
+$(HELM_DOCS): | $(TOOLS_HOST_DIR) ## Installs helm-docs
 	@echo === installing helm-docs
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
 	@GOBIN=$(TOOLS_HOST_DIR)/tmp GO111MODULE=on go install $(HELM_DOCS_REPO)@$(HELM_DOCS_VERSION)
