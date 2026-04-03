@@ -64,7 +64,7 @@ endif
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-GOJUNIT := $(TOOLS_DIR)/go-junit-report
+GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
 
 GO := go
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
@@ -214,12 +214,12 @@ $(KUBE_API_LINT):
 	GOBIN=$(TOOLS_HOST_DIR) go install sigs.k8s.io/kube-api-linter/cmd/golangci-lint-kube-api-linter@$(KUBE_API_LINT_VERSION)
 	@ mv $(TOOLS_HOST_DIR)/golangci-lint-kube-api-linter $(KUBE_API_LINT)
 
-$(GOJUNIT):
+$(GOJUNIT): $(TOOLS_HOST_DIR)
 	@echo === installing go-junit-report
-	@mkdir -p $(TOOLS_DIR)/tmp
-	@curl -sL https://github.com/jstemmer/go-junit-report/releases/download/v2.1.0/go-junit-report-v2.1.0-$(GOOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_DIR)/tmp
-	@mv $(TOOLS_DIR)/tmp/go-junit-report $(TOOLS_DIR)
-	@rm -fr $(TOOLS_DIR)/tmp
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@curl -sL https://github.com/jstemmer/go-junit-report/releases/download/v2.1.0/go-junit-report-v2.1.0-$(GOOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
+	@mv $(TOOLS_HOST_DIR)/tmp/go-junit-report $(TOOLS_HOST_DIR)
+	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
 export CONTROLLER_GEN=$(TOOLS_HOST_DIR)/controller-gen-$(CONTROLLER_GEN_VERSION)
 $(CONTROLLER_GEN):
