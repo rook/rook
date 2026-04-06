@@ -70,10 +70,10 @@ spec:
     * `delete`
 * `keys`: Allows specifying credentials for the user. If not provided, the operator will generate them. ObjectUserKey defines a set of rgw user access credentials to be retrieved from secret resources. Child options are specified as <[]Object>.
     * `accessKeyRef`: Secret key selector for the access_key (commonly referred to as AWS_ACCESS_KEY_ID).
-      * `key`: The key of the secret to select from.  Must be a valid secret key.
-      * `name`: Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: [Kubernetes Object Names and IDs](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names)
-      * `optional`: Specify whether the Secret or its key must be defined.
+        * `key`: The key of the secret to select from.  Must be a valid secret key.
+        * `name`: Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: [Kubernetes Object Names and IDs](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names)
+        * `optional`: Specify whether the Secret or its key must be defined.
     * `secretKeyRef`: Secret key selector for the secret_key (commonly referred to as AWS_SECRET_ACCESS_KEY).
-      * `key`: The key of the secret to select from.  Must be a valid secret key.
-      * `name`: Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: [Kubernetes Object Names and IDs](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names)
-      * `optional`: Specify whether the Secret or its key must be defined.
+        * `key`: The key of the secret to select from.  Must be a valid secret key.
+        * `name`: Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: [Kubernetes Object Names and IDs](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names)
+        * `optional`: Specify whether the Secret or its key must be defined.
