@@ -158,13 +158,12 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 
 // DeleteBucket function deletes given bucket using s3 client
 func (s *S3Agent) DeleteBucket(name string) (bool, error) {
-	_, err := s.Client.DeleteBucket(&s3.DeleteBucketInput{
-		Bucket: aws.String(name),
+	_, err := s.ClientV2.DeleteBucket(context.TODO(), &s3v2.DeleteBucketInput{
+		Bucket: &name,
 	})
 	if err != nil {
 		logger.Errorf("failed to delete bucket. %v", err)
 		return false, err
-
 	}
 	return true, nil
 }
