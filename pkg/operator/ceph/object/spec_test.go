@@ -43,6 +43,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func configureSSEWithVaultAgent(c *clusterConfig) {
+	c.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{}
+	c.store.Spec.Security.ServerSideEncryptionS3 = cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}
+	c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["KMS_PROVIDER"] = "vault"
+	c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_ADDR"] = "http://127.0.0.1:8100"
+	c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_AUTH_METHOD"] = "agent"
+}
+
 func configureSSE(t *testing.T, c *clusterConfig, kms bool, s3 bool) {
 	c.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{}
 	if kms {
@@ -990,6 +998,25 @@ func TestAWSServerSideEncryption(t *testing.T) {
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(true)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(true)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(true)))
+	})
+
+	t.Run("SSE-S3 with vault agent auth sets agent options instead of token options", func(t *testing.T) {
+		configureSSEWithVaultAgent(c)
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+	})
+
+	t.Run("SSE-S3 with vault agent auth rejects tokenSecretName", func(t *testing.T) {
+		configureSSEWithVaultAgent(c)
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.ServerSideEncryptionS3.TokenSecretName = "vault-token"
+		_, err := c.makeDaemonContainer(rgwConfig)
+		assert.Error(t, err)
 	})
 }
 

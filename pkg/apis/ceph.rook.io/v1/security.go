@@ -41,6 +41,11 @@ func (kms *KeyManagementServiceSpec) IsK8sAuthEnabled() bool {
 	return getParam(kms.ConnectionDetails, vault.AuthMethod) == vault.AuthMethodKubernetes && kms.TokenSecretName == ""
 }
 
+// IsAgentAuthEnabled return whether Vault Agent auth is enabled
+func (kms *KeyManagementServiceSpec) IsAgentAuthEnabled() bool {
+	return getParam(kms.ConnectionDetails, vault.AuthMethod) == "agent" && kms.TokenSecretName == ""
+}
+
 // IsVaultKMS return whether Vault KMS is configured
 func (kms *KeyManagementServiceSpec) IsVaultKMS() bool {
 	return getParam(kms.ConnectionDetails, "KMS_PROVIDER") == secrets.TypeVault

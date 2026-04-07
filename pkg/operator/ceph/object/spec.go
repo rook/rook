@@ -285,19 +285,25 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		}
 		podSpec.Volumes = append(podSpec.Volumes, v)
 
-		if kmsEnabled && c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
+		kmsNeedsToken := kmsEnabled && c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled()
+		s3NeedsToken := s3Enabled && c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled()
+		if kmsNeedsToken {
 			vaultFileVol, _ := kms.VaultVolumeAndMountWithCustomName(c.store.Spec.Security.KeyManagementService.ConnectionDetails,
 				c.store.Spec.Security.KeyManagementService.TokenSecretName, sseKMS)
 			podSpec.Volumes = append(podSpec.Volumes, vaultFileVol)
 		}
-		if s3Enabled && c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled() {
+		if s3NeedsToken {
 			vaultFileVol, _ := kms.VaultVolumeAndMountWithCustomName(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails,
 				c.store.Spec.Security.ServerSideEncryptionS3.TokenSecretName, sseS3)
 			podSpec.Volumes = append(podSpec.Volumes, vaultFileVol)
 		}
 
-		podSpec.InitContainers = append(podSpec.InitContainers,
-			c.vaultTokenInitContainer(rgwConfig, kmsEnabled, s3Enabled))
+		// Only add the vault token init container if at least one of KMS or SSE-S3 needs token-based auth.
+		// When SSE-S3 uses agent auth, no token init container is needed for that part.
+		if kmsNeedsToken || s3NeedsToken {
+			podSpec.InitContainers = append(podSpec.InitContainers,
+				c.vaultTokenInitContainer(rgwConfig, kmsNeedsToken, s3NeedsToken))
+		}
 	}
 	c.store.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 
@@ -524,7 +530,9 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		log.NamedDebug(nsName, logger, "enabliing SSE-S3. %v", c.store.Spec.Security.ServerSideEncryptionS3)
 
 		container.Args = append(container.Args, c.sseS3DefaultOptions(s3EncryptionEnabled)...)
-		if c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled() {
+		if c.store.Spec.Security.ServerSideEncryptionS3.IsAgentAuthEnabled() {
+			container.Args = append(container.Args, c.sseS3VaultAgentOptions(s3EncryptionEnabled)...)
+		} else if c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled() {
 			container.Args = append(container.Args, c.sseS3VaultTokenOptions(s3EncryptionEnabled)...)
 		}
 		if c.store.Spec.Security.ServerSideEncryptionS3.IsTLSEnabled() {
@@ -896,6 +904,12 @@ func (c *clusterConfig) CheckRGWKMS() (bool, error) {
 
 func (c *clusterConfig) CheckRGWSSES3Enabled() (bool, error) {
 	if c.store.Spec.Security != nil && c.store.Spec.Security.ServerSideEncryptionS3.IsEnabled() {
+		// When agent auth is used, tokenSecretName must not be set
+		if kms.GetParam(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails, vault.AuthMethod) == "agent" &&
+			c.store.Spec.Security.ServerSideEncryptionS3.TokenSecretName != "" {
+			return false, errors.New("tokenSecretName must not be set when VAULT_AUTH_METHOD is agent for SSE-S3")
+		}
+
 		err := kms.ValidateConnectionDetails(c.clusterInfo.Context, c.context, &c.store.Spec.Security.ServerSideEncryptionS3, c.store.Namespace)
 		if err != nil {
 			return false, err
@@ -1085,6 +1099,19 @@ func (c *clusterConfig) sseKMSVaultTLSOptions(setOptions bool) []string {
 		}
 	}
 	return rgwOptions
+}
+
+func (c *clusterConfig) sseS3VaultAgentOptions(setOptions bool) []string {
+	if setOptions {
+		return []string{
+			cephconfig.NewFlag("rgw crypt sse s3 vault auth", "agent"),
+			cephconfig.NewFlag("rgw crypt sse s3 vault prefix",
+				path.Join(vaultPrefix, c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey])),
+			cephconfig.NewFlag("rgw crypt sse s3 vault secret engine",
+				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey]),
+		}
+	}
+	return []string{}
 }
 
 func (c *clusterConfig) sseS3VaultTLSOptions(setOptions bool) []string {
