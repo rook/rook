@@ -1007,6 +1007,7 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 	// On an initial OSD bootstrap, by the time we reach this code, the OSDs haven't registered yet
 	// Basically, this task is happening too quickly and OSD pods are not running yet.
 	// That's not an issue since it's an initial bootstrap and not an update.
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "osd versions detected: %+v", versions.Osd)
 	if len(versions.Osd) == 1 {
 		for v := range versions.Osd {
 			osdVersion, err = cephver.ExtractCephVersion(v)
@@ -1017,6 +1018,7 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 			// Ensure the required version of OSDs is set to the current consistent version,
 			// enabling the latest osd functionality and also preventing downgrades to a
 			// previous major ceph version.
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "detected single osd version %q, setting require-osd-release %s", osdVersion, osdVersion.ReleaseName())
 			err = cephclient.EnableReleaseOSDFunctionality(c.context, c.clusterInfo, osdVersion.ReleaseName())
 			if err != nil {
 				log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to enable new osd functionality. %v", err)
