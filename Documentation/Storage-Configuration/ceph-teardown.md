@@ -141,6 +141,21 @@ If disks are still reported locked, rebooting the node often helps clear LVM-rel
 If there are multiple Ceph clusters and some disks are not wiped yet, it is necessary to manually
 determine which disks map to which device mapper devices.
 
+### Single Node Cleanup
+
+If the operator-managed cleanup did not run on a specific node (for example, the cluster was force-deleted), you can clean up that node manually using the standalone cleanup Job in `deploy/examples/cleanup-job.yaml`.
+
+Before applying the manifest, replace the placeholder values:
+
+* `<dataDirHostPath>` with `spec.dataDirHostPath` from your CephCluster CR (default `/var/lib/rook`)
+* `<node-hostname>` with the hostname of the node to clean (from `kubectl get nodes`)
+
+```console
+kubectl apply -f deploy/examples/cleanup-job.yaml
+```
+
+The Job runs the same `ceph clean host` logic as the operator's automatic cleanup. It will delete Rook data under `dataDirHostPath` and wipe OSD disks on the target node. Apply one Job per node that needs cleaning.
+
 ### Troubleshooting
 
 The most common issue cleaning up the cluster is that the `rook-ceph` namespace or the cluster CRD remain indefinitely in the `terminating` state. A namespace cannot be removed until all of its resources are removed, so determine which resources are pending termination.
