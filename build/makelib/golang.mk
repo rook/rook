@@ -64,7 +64,7 @@ endif
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-GOJUNIT := $(TOOLS_DIR)/go-junit-report
+GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
 
 GO := go
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
@@ -74,9 +74,8 @@ GO_FULL_VERSION := $(shell $(GO) version)
 YQ_VERSION = v4.45.1
 YQ := $(TOOLS_HOST_DIR)/yq-$(YQ_VERSION)
 export YQ
-$(YQ):
+$(YQ): | $(TOOLS_HOST_DIR)
 	@echo === installing yq $(YQ_VERSION) $(REAL_HOST_PLATFORM)
-	@mkdir -p $(TOOLS_HOST_DIR)
 	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(REAL_HOST_PLATFORM) -o $(YQ)
 	@chmod +x $(YQ)
 
@@ -201,31 +200,29 @@ go.mod.clean:
 	@sudo rm -fr $(WORK_DIR)/cross_pkg
 	@$(GOHOST) clean -modcache
 
-$(GOLANGCI_LINT):
+$(GOLANGCI_LINT): | $(TOOLS_HOST_DIR)
 	@echo === installing golangci-lint-$(GOLANGCI_LINT_VERSION)
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
 	@curl -sL https://github.com/golangci/golangci-lint/releases/download/$(GOLANGCI_LINT_VERSION)/golangci-lint-$(patsubst v%,%,$(GOLANGCI_LINT_VERSION))-$(shell go env GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
 	@mv $(TOOLS_HOST_DIR)/tmp/golangci-lint-$(patsubst v%,%,$(GOLANGCI_LINT_VERSION))-$(shell go env GOHOSTOS)-$(GOHOSTARCH)/golangci-lint $(GOLANGCI_LINT)
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
-$(KUBE_API_LINT):
+$(KUBE_API_LINT): | $(TOOLS_HOST_DIR)
 	@echo === installing kube-api-lint@$(KUBE_API_LINT_VERSION)
-	@mkdir -p $(TOOLS_HOST_DIR)
 	GOBIN=$(TOOLS_HOST_DIR) go install sigs.k8s.io/kube-api-linter/cmd/golangci-lint-kube-api-linter@$(KUBE_API_LINT_VERSION)
 	@ mv $(TOOLS_HOST_DIR)/golangci-lint-kube-api-linter $(KUBE_API_LINT)
 
-$(GOJUNIT):
+$(GOJUNIT): | $(TOOLS_HOST_DIR)
 	@echo === installing go-junit-report
-	@mkdir -p $(TOOLS_DIR)/tmp
-	@curl -sL https://github.com/jstemmer/go-junit-report/releases/download/v2.1.0/go-junit-report-v2.1.0-$(GOOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_DIR)/tmp
-	@mv $(TOOLS_DIR)/tmp/go-junit-report $(TOOLS_DIR)
-	@rm -fr $(TOOLS_DIR)/tmp
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@curl -sL https://github.com/jstemmer/go-junit-report/releases/download/v2.1.0/go-junit-report-v2.1.0-$(GOOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
+	@mv $(TOOLS_HOST_DIR)/tmp/go-junit-report $(TOOLS_HOST_DIR)
+	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
 export CONTROLLER_GEN=$(TOOLS_HOST_DIR)/controller-gen-$(CONTROLLER_GEN_VERSION)
-$(CONTROLLER_GEN):
+$(CONTROLLER_GEN): | $(TOOLS_HOST_DIR)
 	{ \
 		set -e ;\
-		mkdir -p $(TOOLS_HOST_DIR) ;\
 		CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 		cd $$CONTROLLER_GEN_TMP_DIR ;\
 		go mod init tmp;\
@@ -241,6 +238,5 @@ $(CONTROLLER_GEN):
 
 export CODE_GENERATOR_VERSION=0.34.2
 export CODE_GENERATOR=$(TOOLS_HOST_DIR)/code-generator-$(CODE_GENERATOR_VERSION)
-$(CODE_GENERATOR):
-	mkdir -p $(TOOLS_HOST_DIR)
+$(CODE_GENERATOR): | $(TOOLS_HOST_DIR)
 	curl -sL https://github.com/kubernetes/code-generator/archive/refs/tags/v${CODE_GENERATOR_VERSION}.tar.gz | tar -xz -C $(TOOLS_HOST_DIR)
