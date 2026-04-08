@@ -68,7 +68,7 @@ jobs:
 
       - name: Quickly build Rook binary
         id: build
-        run: go build -o rook cmd/rook/*.go
+        run: go build -tags=ceph_preview -o rook cmd/rook/*.go
 
       - name: Run CLI validation test
         run: ./tests/scripts/multus/test-110-cli.sh
