@@ -96,6 +96,6 @@ jobs:
           BRANCH_NAME: ${{ env.BRANCH_NAME }}
           AWS_USR: ${{ secrets.AWS_USR }}
           AWS_PSW: ${{ secrets.AWS_PSW }}
-          GITHUB_REF: $ {{ env.GITHUB_REF }}
+          GITHUB_REF: ${{ env.GITHUB_REF }}
         run: |
           tests/scripts/build-release.sh
