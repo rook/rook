@@ -3,11 +3,11 @@ title: Development Flow
 ---
 
 Thank you for your time and effort to help us improve Rook! Here are a few steps to get started. If you have any questions,
-don't hesitate to reach out to us on our [Slack](https://Rook-io.slack.com) dev channel. Sign up for the Rook Slack [here](https://slack.rook.io).
+don't hesitate to reach out to us on our [Slack](https://rook-io.slack.com) dev channel. Sign up for the Rook Slack [here](https://slack.rook.io).
 
 ## Prerequisites
 
-1. [GO 1.22](https://golang.org/dl/) or greater installed
+1. Recent [GO](https://golang.org/dl/) version installed
 2. Git client installed
 3. GitHub account
 
