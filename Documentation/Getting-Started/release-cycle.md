@@ -23,7 +23,7 @@ maintenance does not indicate any SLA on response time.
 ## K8s Versions
 
 The minimum version supported by a Rook release is specified in the
-[Quickstart Guide](quickstart.md#minimum-version).
+[Quickstart Guide](quickstart.md#kubernetes-version).
 
 Rook expects to support the most recent six versions of Kubernetes. While these K8s
 versions may not all be supported by the K8s release cycle, we understand that
