@@ -24,12 +24,42 @@ else
 $(error "please install 'shasum' or 'sha256sum'")
 endif
 
+CT := go run github.com/helm/chart-testing/v3/ct@$(CT_VERSION)
+
 ifeq ($(origin DOCKERCMD),undefined)
 DOCKERCMD?=$(shell docker version >/dev/null 2>&1 && echo docker)
 ifeq ($(DOCKERCMD),)
 DOCKERCMD=$(shell podman version >/dev/null 2>&1 && echo podman)
 endif
 endif
+
+MARKDOWNLINT := $(DOCKERCMD) run --rm -v $$PWD:/workdir davidanson/markdownlint-cli2:$(MARKDOWNLINT_IMAGE_VERSION)
+
+
+#
+# === YAMLLINT ===
+
+# configuration of the yamllint container image:
+
+# User Inputs (from main Makefile or cmdline):
+# Set only what you need.
+# Priority: SHA > TAG > VERSION (defaulting to :latest)
+# Logic to determine the Suffix:
+ifdef YAMLLINT_IMAGE_SHA
+	YAMLLINT_IMAGE_SUFFIX := @$(YAMLLINT_IMAGE_SHA)
+else ifdef YAMLLINT_IMAGE_TAG
+	YAMLLINT_IMAGE_SUFFIX := :$(YAMLLINT_IMAGETAG)
+else ifdef YAMLLINT_VERSION
+	YAMLLINT_IMAGE_SUFFIX := :$(YAMLLINT_VERSION)
+else
+	YAMLLINT_IMAGE_SUFFIX := :latest
+endif
+
+YAMLLINT_IMAGE_BASE := cytopia/yamllint
+YAMLLINT_IMAGE := $(YAMLLINT_IMAGE_BASE)$(YAMLLINT_IMAGE_SUFFIX)
+
+YAMLLINT := $(DOCKERCMD) run  --rm -t -v $(CURDIR):/workdir:ro -w /workdir --entrypoint yamllint $(YAMLLINT_IMAGE)
+
 
 ifeq ($(origin PLATFORM), undefined)
 ifeq ($(origin GOOS), undefined)
@@ -87,6 +117,53 @@ TOOLS_HOST_DIR := $(TOOLS_DIR)/$(REAL_HOST_PLATFORM)
 ifeq ($(origin HOSTNAME), undefined)
 HOSTNAME := $(shell hostname)
 endif
+
+$(TOOLS_HOST_DIR):
+	@mkdir -p $@
+
+
+
+KUSTOMIZE := $(TOOLS_HOST_DIR)/kustomize-$(KUSTOMIZE_VERSION)
+
+$(KUSTOMIZE): | $(TOOLS_HOST_DIR)
+	@echo === installing kustomize
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@# kustomize releases use a specific naming convention: kustomize_vX.Y.Z_os_arch.tar.gz
+	@curl -sSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F$(KUSTOMIZE_VERSION)/kustomize_$(KUSTOMIZE_VERSION)_$(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
+	@mv -f $(TOOLS_HOST_DIR)/tmp/kustomize $(KUSTOMIZE)
+	@rm -rf $(TOOLS_HOST_DIR)/tmp
+	@chmod +x $(KUSTOMIZE)
+
+
+SHELLCHECK := $(TOOLS_HOST_DIR)/shellcheck-$(SHELLCHECK_VERSION)
+
+# architecture mapping:
+# shellcheck uses aarch64 instead of arm64 for published darwin binaries
+# so we can't use go env GOHOSTARCH as usual.
+UNAME_M := $(shell uname -m)
+UNAME_S := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+
+# Map arm64 (Mac) and aarch64 (Linux) to ShellCheck's 'aarch64'
+ifeq ($(UNAME_M),x86_64)
+	SC_ARCH := x86_64
+else ifeq ($(UNAME_M),arm64)
+	SC_ARCH := aarch64
+else
+	SC_ARCH := $(UNAME_M)
+endif
+
+SHELLCHECK_URL := https://github.com/koalaman/shellcheck/releases/download/$(SHELLCHECK_VERSION)/shellcheck-$(SHELLCHECK_VERSION).$(UNAME_S).$(SC_ARCH).tar.xz
+
+
+
+
+$(SHELLCHECK): | $(TOOLS_HOST_DIR)
+	@echo === installing shellcheck ===
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@curl -sSL $(SHELLCHECK_URL) | tar xJ -C $(TOOLS_HOST_DIR)/tmp
+
+	@mv -f $(TOOLS_HOST_DIR)/tmp/shellcheck-$(SHELLCHECK_VERSION)/shellcheck $(SHELLCHECK)
+	@rm -rf $(TOOLS_HOST_DIR)/tmp
 
 # a registry that is scoped to the current build tree on this host
 ifeq ($(origin BUILD_REGISTRY), undefined)
