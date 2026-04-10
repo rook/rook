@@ -97,6 +97,8 @@ func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHo
 			log.NamespacedError(cluster.Namespace, logger, "failed to run cluster clean up job on node %q. %v", hostName, err)
 		}
 	}
+
+	j := batch.Job{}
 }
 
 func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, monSecret, cephFSID string) v1.Container {

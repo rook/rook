@@ -43,7 +43,18 @@ func (c *Cluster) reconcileMonPDB() error {
 		return nil
 	}
 
-	op, err := c.createOrUpdateMonPDB(c.getMaxUnavailableMonPodCount())
+	maxUnavail := c.getMaxUnavailableMonPodCount()
+
+	allInQuorum := true
+	// TODO: how to detect if any mons not in quorum? or to get here, have we needed quorum anyway?
+	pdbCount := maxUnavail
+	if !allInQuorum {
+		// Be sure to retain PDB=0 if any mons are out of quorum.
+		// This supports the case where the rook operator restarted partway through a failover.
+		pdbCount = 0
+	}
+
+	op, err := c.createOrUpdateMonPDB(pdbCount)
 	if err != nil {
 		return errors.Wrapf(err, "failed to reconcile mon pdb on op %q", op)
 	}
