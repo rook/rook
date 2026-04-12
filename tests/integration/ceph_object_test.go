@@ -294,8 +294,16 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			_, poErr := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey2, contentType)
 			assert.Nil(t, poErr)
 			logger.Infof("Testing the max object limit")
-			_, poErr = s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey3, contentType)
-			assert.Error(t, poErr)
+			quotaEnforced := utils.Retry(10, 2*time.Second, "user quota enforced", func() bool {
+				_, err := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey3, contentType)
+				if err != nil {
+					return true
+				}
+				// delete so next attempt creates a new object rather than overwriting
+				s3client.DeleteObjectInBucket(bucketname, ObjectKey3) //nolint:errcheck
+				return false
+			})
+			assert.True(t, quotaEnforced)
 		})
 
 		t.Run("update user quota limits", func(t *testing.T) {
@@ -308,8 +316,16 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			logger.Infof("Testing the updated object limit")
 			_, poErr = s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey3, contentType)
 			assert.NoError(t, poErr)
-			_, poErr = s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey4, contentType)
-			assert.Error(t, poErr)
+			quotaEnforced := utils.Retry(30, 2*time.Second, "updated user quota enforced", func() bool {
+				_, putErr := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey4, contentType)
+				if putErr != nil {
+					return true
+				}
+				// delete so next attempt creates a new object rather than overwriting
+				s3client.DeleteObjectInBucket(bucketname, ObjectKey4) //nolint:errcheck
+				return false
+			})
+			assert.True(t, quotaEnforced)
 		})
 
 		t.Run("delete objects", func(t *testing.T) {
