@@ -265,10 +265,10 @@ func checkCephObjectUser(
 	namespace, storeName, userID string, checkQuotaAndCaps bool,
 ) {
 	logger.Infof("checking object store \"%s/%s\" user %q", namespace, storeName, userID)
-	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userID))
+	require.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userID), "user secret not found for %q", userID)
 
 	userInfo, err := helper.ObjectUserClient.GetUser(namespace, storeName, userID)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	assert.Equal(s.T(), userID, userInfo.UserID)
 	assert.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
 
