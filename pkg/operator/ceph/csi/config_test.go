@@ -55,6 +55,7 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 
 	cephBlockPoolRadosNamespacedName := types.NamespacedName{Namespace: ns, Name: "cephBlockPoolRadosNames"}
 	cephSubVolGrpNamespacedName := types.NamespacedName{Namespace: ns, Name: "cephSubVolumeGroupNames"}
+	cephSubVolGrpRadosNamespaceNamespacedName := types.NamespacedName{Namespace: ns, Name: "radosNamespaceName"}
 	csiOpClientProfile := &csiopv1.ClientProfile{}
 
 	// Register operator types with the runtime scheme.
@@ -69,7 +70,7 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 	err := CreateUpdateClientProfileRadosNamespace(context.TODO(), cl, c, cephBlockPoolRadosNamespacedName.Name, cephBlockPoolRadosNamespacedName.Name)
 	assert.NoError(t, err)
 
-	err = CreateUpdateClientProfileSubVolumeGroup(context.TODO(), cl, c, cephSubVolGrpNamespacedName.Name, cephSubVolGrpNamespacedName.Name)
+	err = CreateUpdateClientProfileSubVolumeGroup(context.TODO(), cl, c, cephSubVolGrpNamespacedName.Name, cephSubVolGrpNamespacedName.Name, cephSubVolGrpRadosNamespaceNamespacedName.Name)
 	assert.NoError(t, err)
 
 	err = cl.Get(context.TODO(), cephBlockPoolRadosNamespacedName, csiOpClientProfile)
@@ -80,6 +81,7 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, csiOpClientProfile.Spec.CephFs.SubVolumeGroup, cephSubVolGrpNamespacedName.Name)
 	assert.Equal(t, csiOpClientProfile.Spec.CephFs.KernelMountOptions["ms_mode"], kernelMountKeyVal[1])
+	assert.Equal(t, *csiOpClientProfile.Spec.CephFs.RadosNamespace, cephSubVolGrpRadosNamespaceNamespacedName.Name)
 }
 
 func TestParseMountOptions(t *testing.T) {
