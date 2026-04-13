@@ -20,6 +20,9 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/clusterd"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -150,4 +153,47 @@ func TestIsCephHealthy(t *testing.T) {
 	statusFake.Health.Status = "HEALTH_ERR"
 	s = isCephHealthy(statusFake)
 	assert.False(t, s)
+}
+
+func TestMuteHealthWarning(t *testing.T) {
+	tests := []struct {
+		name           string
+		warning        string
+		mockError      error
+		expectsWarning bool
+	}{
+		{
+			name:           "successful mute",
+			warning:        "MON_NETSPLIT",
+			mockError:      nil,
+			expectsWarning: false,
+		},
+		{
+			name:           "command failure logs warning",
+			warning:        "MON_NETSPLIT",
+			mockError:      errors.New("command execution failed"),
+			expectsWarning: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			executor := &exectest.MockExecutor{}
+			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+				assert.Equal(t, "ceph", command)
+				assert.Equal(t, "health", args[0])
+				assert.Equal(t, "mute", args[1])
+				assert.Equal(t, tt.warning, args[2])
+				assert.Equal(t, "--sticky", args[3])
+				return "", tt.mockError
+			}
+
+			context := &clusterd.Context{Executor: executor}
+			clusterInfo := AdminTestClusterInfo("mycluster")
+
+			assert.NotPanics(t, func() {
+				MuteHealthWarning(context, clusterInfo, tt.warning)
+			})
+		})
+	}
 }

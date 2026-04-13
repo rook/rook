@@ -315,3 +315,11 @@ func isCephHealthy(status CephStatus) bool {
 
 	return false
 }
+
+func MuteHealthWarning(context *clusterd.Context, clusterInfo *ClusterInfo, warning string) {
+	args := []string{"health", "mute", warning, "--sticky"}
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		logger.Warningf("failed to mute health warning %q: %v", warning, err)
+	}
+}
