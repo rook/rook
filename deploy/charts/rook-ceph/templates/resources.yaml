@@ -9343,6 +9343,16 @@ spec:
                   x-kubernetes-validations:
                     - message: ClusterID is immutable
                       rule: self == oldSelf
+                csiMetadataRadosNamespace:
+                  description: |-
+                    The RADOS namespace ceph-csi uses for additional metadata it stores in the metadata pool of the CephFS.
+                    If not specified the default of the ceph-csi driver is used.
+                  maxLength: 1024
+                  minLength: 1
+                  type: string
+                  x-kubernetes-validations:
+                    - message: CSIMetadataRadosNamespace is immutable
+                      rule: self == oldSelf
                 dataPoolName:
                   description: The data pool name for the Ceph Filesystem subvolume group layout, if the default CephFS pool is not desired.
                   type: string
