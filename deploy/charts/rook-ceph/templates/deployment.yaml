@@ -36,7 +36,7 @@ spec:
         - effect: NoExecute
           key: node.kubernetes.io/unreachable
           operator: Exists
-          tolerationSeconds: 5
+          tolerationSeconds: {{ .Values.unreachableNodeTolerationSeconds }}
         {{- with .Values.tolerations }}
         {{- . | toYaml | nindent 8 }}
         {{- end }}
@@ -104,6 +104,8 @@ spec:
               value: {{ .Values.disableDeviceHotplug | quote }}
             - name: ROOK_DISCOVER_DEVICES_INTERVAL
               value: {{ .Values.discoveryDaemonInterval | quote }}
+            - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
+              value: {{ .Values.unreachableNodeTolerationSeconds | quote }}
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
