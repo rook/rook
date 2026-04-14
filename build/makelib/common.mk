@@ -131,7 +131,6 @@ SPACE :=
 SPACE +=
 
 # define a newline
-define \n
-
+define NEWLINE
 
 endef
