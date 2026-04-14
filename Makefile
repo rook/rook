@@ -17,8 +17,7 @@
 # Set locale `LC_ALL=C` because different OSes have different sort behavior;
 # `C` sorting order is based on the byte values,
 # Reference: https://blog.zhimingwang.org/macos-lc_collate-hunt
-LC_ALL=C
-export LC_ALL
+export LC_ALL=C
 
 .PHONY: all
 all: build
