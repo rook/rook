@@ -1,4 +1,4 @@
- docker.io/rook/ceph:v1.19.3
+ docker.io/rook/ceph:v1.19.4
  gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v0.2.2
  quay.io/ceph/ceph:v19.2.3
  quay.io/ceph/cosi:v0.1.4
