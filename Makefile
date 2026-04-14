@@ -125,6 +125,7 @@ include build/makelib/golang.mk
 # ====================================================================================
 # Targets
 
+.PHONY: build.version
 build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
