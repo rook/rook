@@ -1575,6 +1575,19 @@ It must be unique among all Ceph clusters managed by Rook.
 If not specified, the clusterID will be generated and can be found in the CR status.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>csiMetadataRadosNamespace</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The RADOS namespace ceph-csi uses for additional metadata it stores in the metadata pool of the CephFS.
+If not specified the default of the ceph-csi driver is used.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -4256,6 +4269,19 @@ string
 <p>ClusterID to be used for this subvolume group in the CSI configuration.
 It must be unique among all Ceph clusters managed by Rook.
 If not specified, the clusterID will be generated and can be found in the CR status.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>csiMetadataRadosNamespace</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The RADOS namespace ceph-csi uses for additional metadata it stores in the metadata pool of the CephFS.
+If not specified the default of the ceph-csi driver is used.</p>
 </td>
 </tr>
 </tbody>
