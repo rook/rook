@@ -34,7 +34,6 @@ import (
 	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -199,13 +198,25 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 		return nil
 	}
 
-	// connect to the mons
-	// get the status and check for quorum
-	quorumStatus, err := cephclient.GetMonQuorumStatus(c.context, c.ClusterInfo)
+	// Update the mon PDBs in case any mons have joined or left the quorum.
+	// If any mons are out of quorum, this prevents more mons from being drained
+	// until we know the mon quorum is stable with full quorum.
+	qStatus, err := c.reconcileMonPDB()
 	if err != nil {
-		return errors.Wrap(err, "failed to get mon quorum status")
+		logger.Errorf("failed to update mon pdb. %v", err)
 	}
-	log.NamespacedDebug(c.Namespace, logger, "Mon quorum status: %+v", quorumStatus)
+
+	var quorumStatus cephclient.MonStatusResponse
+	if qStatus == nil {
+		// If the mon status was not queried by the pdb reconcile, query it here
+		quorumStatus, err = cephclient.GetMonQuorumStatus(c.context, c.ClusterInfo)
+		if err != nil {
+			return errors.Wrap(err, "failed to get mon quorum status")
+		}
+		log.NamespacedDebug(c.Namespace, logger, "Mon quorum status: %+v", quorumStatus)
+	} else {
+		quorumStatus = *qStatus
+	}
 
 	// handle external Mons
 	quorumStatus, err = c.reconcileExternalMons(ctx, quorumStatus)
@@ -652,19 +663,14 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) bool {
 		return true
 	}
 
-	// prevent any voluntary mon drain while failing over
-	if err := c.blockMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
-		log.NamespacedError(c.Namespace, logger, "failed to block mon drain. %v", err)
-	}
-
 	// bring up a new mon to replace the unhealthy mon
 	if err := c.failoverMon(name); err != nil {
 		log.NamespacedError(c.Namespace, logger, "failed to failover mon %q. %v", name, err)
 	}
 
-	// allow any voluntary mon drain after failover
-	if err := c.allowMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
-		log.NamespacedError(c.Namespace, logger, "failed to allow mon drain. %v", err)
+	// Reset the mon pdb since the quorum is likely healthy again after the failover.
+	if _, err := c.reconcileMonPDB(); err != nil {
+		logger.Errorf("failed to update mon pdb. %v", err)
 	}
 	return true
 }
