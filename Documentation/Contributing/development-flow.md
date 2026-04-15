@@ -255,7 +255,6 @@ Run `make lint` to run all linters. This will require the following CLI tools to
 * [yamllint](https://www.yamllint.com/)
 * [shellcheck](https://www.shellcheck.net/)
 * [pylint](https://www.pylint.org/)
-* [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2)
 
 Many of those tools are available via `brew` for MacOS or as Linux distribution packages.
 Otherwise refer to the respective project websites for installation instructions.
