@@ -116,7 +116,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.provisioner.repository` | Kubernetes CSI provisioner image repository | `"registry.k8s.io/sig-storage/csi-provisioner"` |
 | `csi.provisioner.tag` | Provisioner image tag | `"v6.1.1"` |
 | `csi.provisionerNodeAffinity` | The node labels for affinity of the CSI provisioner deployment [^1] | `nil` |
-| `csi.provisionerPriorityClassName` | PriorityClassName to be set on csi driver provisioner pods | `"system-cluster-critical"` |
+| `csi.provisionerPriorityClassName` | PriorityClassName to be set on csi driver provisioner pods | `"system-node-critical"` |
 | `csi.provisionerReplicas` | Set replicas for csi provisioner deployment | `2` |
 | `csi.provisionerTolerations` | Array of tolerations in YAML format which will be added to CSI provisioner deployment | `nil` |
 | `csi.rbdAttachRequired` | Whether to skip any attach operation altogether for RBD PVCs. See more details [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object). If set to false it skips the volume attachments and makes the creation of pods using the RBD PVC fast. **WARNING** It's highly discouraged to use this for RWO volumes as it can cause data corruption. csi-addons operations like Reclaimspace and PVC Keyrotation will also not be supported if set to false since we'll have no VolumeAttachments to determine which node the PVC is mounted on. Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details. | `true` |

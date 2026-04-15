@@ -118,7 +118,7 @@ csi:
   pluginPriorityClassName: system-node-critical
 
   # -- PriorityClassName to be set on csi driver provisioner pods
-  provisionerPriorityClassName: system-cluster-critical
+  provisionerPriorityClassName: system-node-critical
 
   # -- Policy for modifying a volume's ownership or permissions when the RBD PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
