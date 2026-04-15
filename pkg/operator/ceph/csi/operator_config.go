@@ -95,7 +95,7 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 			FsGroupPolicy:    k8scsiv1.FileFSGroupPolicy,
 			NodePlugin: &csiopv1.NodePluginSpec{
 				PodCommonSpec: csiopv1.PodCommonSpec{
-					PrioritylClassName: &CSIParam.ProvisionerPriorityClassName,
+					PrioritylClassName: &CSIParam.PluginPriorityClassName,
 					Affinity: &v1.Affinity{
 						NodeAffinity: getNodeAffinity(pluginNodeAffinityEnv, &v1.NodeAffinity{}),
 					},
@@ -112,7 +112,7 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 				},
 				HostNetwork: &controllerPluginHostNetwork,
 				PodCommonSpec: csiopv1.PodCommonSpec{
-					PrioritylClassName: &CSIParam.PluginPriorityClassName,
+					PrioritylClassName: &CSIParam.ProvisionerPriorityClassName,
 					Affinity: &v1.Affinity{
 						NodeAffinity: getNodeAffinity(provisionerNodeAffinityEnv, &v1.NodeAffinity{}),
 					},
