@@ -281,7 +281,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		}
 		r.updateStatus(observedGeneration, namespacedName, cephv1.ConditionReady)
 		if csi.EnableCSIOperator() {
-			err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemSubVolumeGroupName, buildClusterID(cephFilesystemSubVolumeGroup))
+			err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemSubVolumeGroupName, buildClusterID(cephFilesystemSubVolumeGroup), cephFilesystemSubVolumeGroup.Spec.CSIMetadataRadosNamespace)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subvolume")
 			}
@@ -334,7 +334,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady)
 
 	if csi.EnableCSIOperator() {
-		err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemSubVolumeGroupName, buildClusterID(cephFilesystemSubVolumeGroup))
+		err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemSubVolumeGroupName, buildClusterID(cephFilesystemSubVolumeGroup), cephFilesystemSubVolumeGroup.Spec.CSIMetadataRadosNamespace)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subvolumeGroup")
 		}

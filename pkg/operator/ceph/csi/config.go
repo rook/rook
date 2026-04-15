@@ -58,15 +58,15 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 	return createUpdateClientProfile(c, clusterInfo, csiOpClientProfile)
 }
 
-func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephFilesystemSubVolumeGroupName, clusterID string) error {
+func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephFilesystemSubVolumeGroupName, clusterID string, csiMetadataRadosNamespace string) error {
 	logger.Info("Creating ceph-csi clientProfile CR for subvolume group")
 
-	csiOpClientProfile := generateProfileSubVolumeGroupSpec(clusterInfo, cephFilesystemSubVolumeGroupName, clusterID)
+	csiOpClientProfile := generateProfileSubVolumeGroupSpec(clusterInfo, cephFilesystemSubVolumeGroupName, clusterID, csiMetadataRadosNamespace)
 
 	return createUpdateClientProfile(c, clusterInfo, csiOpClientProfile)
 }
 
-func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, cephFilesystemSubVolumeGroupName, clusterID string) *csiopv1.ClientProfile {
+func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, cephFilesystemSubVolumeGroupName, clusterID string, csiMetadataRadosNamespace string) *csiopv1.ClientProfile {
 	csiOpClientProfile := &csiopv1.ClientProfile{}
 	csiOpClientProfile.Name = clusterID
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
@@ -76,6 +76,7 @@ func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, ceph
 		},
 		CephFs: &csiopv1.CephFsConfigSpec{
 			SubVolumeGroup: cephFilesystemSubVolumeGroupName,
+			RadosNamespace: &csiMetadataRadosNamespace,
 			CephCsiSecrets: &csiopv1.CephCsiSecretsSpec{
 				ControllerPublishSecret: v1.SecretReference{
 					Name:      CsiCephFSProvisionerSecret,

@@ -3885,6 +3885,13 @@ type CephFilesystemSubVolumeGroupSpec struct {
 	// +kubebuilder:validation:MaxLength=36
 	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_-]+$`
 	ClusterID string `json:"clusterID,omitempty"`
+	// The RADOS namespace ceph-csi uses for additional metadata it stores in the metadata pool of the CephFS.
+	// If not specified the default of the ceph-csi driver is used.
+	// +optional
+	// +kubebuilder:validation:XValidation:message="CSIMetadataRadosNamespace is immutable",rule="self == oldSelf"
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=1024
+	CSIMetadataRadosNamespace string `json:"csiMetadataRadosNamespace,omitempty"`
 }
 
 // CephFilesystemSubVolumeGroupSpecPinning represents the pinning configuration of SubVolumeGroup
