@@ -16,6 +16,7 @@ Resolves #
 
 - [ ] **Commit Message Formatting**: Commit titles and messages follow guidelines in the [developer guide](https://rook.io/docs/rook/latest/Contributing/development-flow/#commit-structure).
 - [ ] Reviewed the developer guide on [Submitting a Pull Request](https://rook.io/docs/rook/latest/Contributing/development-flow/#submitting-a-pull-request)
+- [ ] Reviewed [AI guidelines](https://rook.io/docs/rook/latest/Contributing/ai-guidelines), if AI assisted with the PR.
 - [ ] [Pending release notes](https://github.com/rook/rook/blob/master/PendingReleaseNotes.md) updated with breaking and/or notable changes for the next minor release.
   - Overwriting Ceph's configurations should be marked as breaking changes.
 - [ ] Documentation has been updated, if necessary.

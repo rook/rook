@@ -106,6 +106,10 @@ second line is always blank, and other lines should be wrapped at 80 characters.
 This allows the message to be easier to read on GitHub as well as in various
 git tools.
 
+## AI Guidelines
+
+Review Rook's [AI Guidelines](https://rook.io/docs/rook/latest/Contributing/ai-guidelines)
+
 ## Change Approval
 
 The Rook project aims to empower contributors to approve and merge code changes autonomously.
