@@ -136,6 +136,12 @@ rook
 
 To submit a change, create a branch in your fork and then submit a pull request (PR) from the branch.
 
+### Begin with an Issue
+
+Before working on code changes requiring more than a simple bug fix, maintainers recommend creating a GitHub issue, including filling in the issue template.
+Discuss options for appropriate issue resolution with maintainers, and get confirmation before creating a pull request.
+This can help avoid unnecessary work needed when the design approach needs substantially changed before a contribution can be merged.
+
 ### Design Document
 
 For new features of significant scope and complexity, a design document is recommended before work begins on the implementation.
