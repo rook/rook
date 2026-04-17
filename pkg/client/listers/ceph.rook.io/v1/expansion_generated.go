@@ -98,6 +98,14 @@ type CephFilesystemSubVolumeGroupListerExpansion interface{}
 // CephFilesystemSubVolumeGroupNamespaceLister.
 type CephFilesystemSubVolumeGroupNamespaceListerExpansion interface{}
 
+// CephLuaScriptListerExpansion allows custom methods to be added to
+// CephLuaScriptLister.
+type CephLuaScriptListerExpansion interface{}
+
+// CephLuaScriptNamespaceListerExpansion allows custom methods to be added to
+// CephLuaScriptNamespaceLister.
+type CephLuaScriptNamespaceListerExpansion interface{}
+
 // CephNFSListerExpansion allows custom methods to be added to
 // CephNFSLister.
 type CephNFSListerExpansion interface{}
