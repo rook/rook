@@ -3200,7 +3200,7 @@ type DisruptionManagementSpec struct {
 	PGHealthCheckTimeout time.Duration `json:"pgHealthCheckTimeout,omitempty"`
 
 	// PgHealthyRegex is the regular expression that is used to determine which PG states should be considered healthy.
-	// The default is `^(active\+clean|active\+clean\+scrubbing|active\+clean\+scrubbing\+deep)$`
+	// The default is `^active(\+(clean|deep|scrubbing|snaptrim|snaptrim_wait))+$`
 	// +optional
 	PGHealthyRegex string `json:"pgHealthyRegex,omitempty"`
 
