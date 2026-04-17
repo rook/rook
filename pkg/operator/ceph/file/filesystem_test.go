@@ -215,6 +215,8 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 					return "", nil
 				} else if slices.Contains(args, "set") && slices.Contains(args, "allow_standby_replay") {
 					return "", nil
+				} else if slices.Contains(args, "set") && slices.Contains(args, "standby_count_wanted") {
+					return "", nil
 				} else if slices.Contains(args, "config") && slices.Contains(args, "mds_join_fs") {
 					return "", nil
 				} else if slices.Contains(args, "flag") && slices.Contains(args, "enable_multiple") {
@@ -295,6 +297,8 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 			} else if slices.Contains(args, "set") && slices.Contains(args, "max_mds") {
 				return "", nil
 			} else if slices.Contains(args, "set") && slices.Contains(args, "allow_standby_replay") {
+				return "", nil
+			} else if slices.Contains(args, "set") && slices.Contains(args, "standby_count_wanted") {
 				return "", nil
 			} else if slices.Contains(args, "config") && slices.Contains(args, "mds_join_fs") {
 				return "", nil
@@ -567,6 +571,8 @@ func TestUpgradeFilesystem(t *testing.T) {
 			if slices.Contains(args, "max_mds") {
 				return "", nil
 			} else if slices.Contains(args, "allow_standby_replay") {
+				return "", nil
+			} else if slices.Contains(args, "standby_count_wanted") {
 				return "", nil
 			}
 		}
