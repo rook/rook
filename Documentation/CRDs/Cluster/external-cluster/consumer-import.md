@@ -29,7 +29,7 @@ If not installing with Helm, here are the steps to install with manifests.
 Deploy Rook:
 
 ```console
-$ git clone --single-branch --branch master https://github.com/rook/rook.git
+$ git clone --single-branch --branch v1.21.0-beta.0 https://github.com/rook/rook.git
 cd rook/deploy/examples
 kubectl create -f crds.yaml -f common.yaml -f csi-operator.yaml
 kubectl create -f operator.yaml -f common-external.yaml -f cluster-external.yaml

@@ -90,7 +90,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `hostpathRequiresPrivileged` | Runs Ceph Pods as privileged to be able to write to `hostPaths` in OpenShift with SELinux restrictions. | `false` |
 | `image.pullPolicy` | Image pull policy | `"IfNotPresent"` |
 | `image.repository` | Image | `"docker.io/rook/ceph"` |
-| `image.tag` | Image tag | `master` |
+| `image.tag` | Image tag | `v1.21.0-beta.0` |
 | `imagePullSecrets` | imagePullSecrets option allow to pull docker images from private docker registry. Option will be passed to all service accounts. | `nil` |
 | `logLevel` | Global log level for the operator. Options: `ERROR`, `WARNING`, `INFO`, `DEBUG` | `"INFO"` |
 | `monRunAsRoot` | If true, ceph mon pods will be run as root | `false` |
