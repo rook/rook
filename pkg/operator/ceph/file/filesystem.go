@@ -230,6 +230,13 @@ func (f *Filesystem) updateFilesystem(context *clusterd.Context, clusterInfo *ce
 			err)
 	}
 
+	// set allow_standby_replay to match the spec, in case it changed since filesystem creation
+	if err := cephclient.AllowStandbyReplay(context, clusterInfo, f.Name, spec.MetadataServer.ActiveStandby); err != nil {
+		log.NamedWarning(opcontroller.NsName(f.Namespace, f.Name), logger,
+			"failed to set allow_standby_replay to %t for filesystem %s. %v",
+			spec.MetadataServer.ActiveStandby, f.Name, err)
+	}
+
 	if err := createOrUpdatePools(f, context, clusterInfo, clusterSpec, spec); err != nil {
 		return errors.Wrap(err, "failed to set pools size")
 	}
