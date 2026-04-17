@@ -6605,7 +6605,7 @@ string
 <td>
 <em>(Optional)</em>
 <p>PgHealthyRegex is the regular expression that is used to determine which PG states should be considered healthy.
-The default is <code>^(active\+clean|active\+clean\+scrubbing|active\+clean\+scrubbing\+deep)$</code></p>
+The default is <code>^active(\+(clean|deep|scrubbing|snaptrim|snaptrim_wait))+$</code></p>
 </td>
 </tr>
 <tr>
