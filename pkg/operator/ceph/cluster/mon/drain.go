@@ -18,9 +18,11 @@ package mon
 
 import (
 	"github.com/pkg/errors"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
 	policyv1 "k8s.io/api/policy/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -31,23 +33,54 @@ const (
 	monPDBName = "rook-ceph-mon-pdb"
 )
 
-func (c *Cluster) reconcileMonPDB() error {
+func (c *Cluster) reconcileMonPDB() (*cephclient.MonStatusResponse, error) {
 	if !c.spec.DisruptionManagement.ManagePodBudgets {
 		// TODO: Delete mon PDB
-		return nil
+		return nil, nil
 	}
 
 	monCount := c.spec.Mon.Count
 	if monCount <= 2 {
 		log.NamespacedDebug(c.Namespace, logger, "managePodBudgets is set, but mon-count <= 2. Not creating a disruptionbudget for Mons")
-		return nil
+		return nil, nil
 	}
 
-	op, err := c.createOrUpdateMonPDB(c.getMaxUnavailableMonPodCount())
+	// get the status and check for quorum
+	quorumStatus, err := cephclient.GetMonQuorumStatus(c.context, c.ClusterInfo)
 	if err != nil {
-		return errors.Wrapf(err, "failed to reconcile mon pdb on op %q", op)
+		return nil, errors.Wrap(err, "failed to get mon quorum status")
 	}
-	return nil
+	log.NamespacedDebug(c.Namespace, logger, "Mon quorum status: %+v", quorumStatus)
+
+	downMonCount := len(quorumStatus.MonMap.Mons) - len(quorumStatus.Quorum)
+
+	// If any mons are currently down, reduce the number of mons that can be drained
+	// to prevent more drains until the mon quorum can sufficiently handle another
+	// mon going down. This may block drains temporarily for longer than strictly needed,
+	// but will also prevent race conditions that would allow quorum to be lost
+	// if another node is drained before a down mon is fully back in quorum.
+	// nolint:gosec // G115 - casting will not cause overflow
+	allowedDown := c.getMaxUnavailableMonPodCount() - int32(downMonCount)
+	if allowedDown < 0 {
+		allowedDown = 0
+	}
+
+	// only update the mon pdb if the maxunavailable changed
+	currentMaxUnavailable, err := c.getExistingMaxUnavailable()
+	if err != nil {
+		log.NamespacedWarning(c.Namespace, logger, "failed to get current mon pdb maxunavailable, proceeding with update. %v", err)
+	} else if currentMaxUnavailable == allowedDown {
+		log.NamespacedDebug(c.Namespace, logger, "mon pdb maxunavailable is already set to %d", allowedDown)
+		return &quorumStatus, nil
+	}
+
+	// update the mon pdb since the maxunavailable changed
+	log.NamespacedInfo(c.Namespace, logger, "setting mon pdb maxUnavailable=%d (%d mons down)", allowedDown, downMonCount)
+	op, err := c.createOrUpdateMonPDB(allowedDown)
+	if err != nil {
+		return &quorumStatus, errors.Wrapf(err, "failed to reconcile mon pdb on op %q", op)
+	}
+	return &quorumStatus, nil
 }
 
 func (c *Cluster) createOrUpdateMonPDB(maxUnavailable int32) (controllerutil.OperationResult, error) {
@@ -72,31 +105,19 @@ func (c *Cluster) createOrUpdateMonPDB(maxUnavailable int32) (controllerutil.Ope
 	return controllerutil.CreateOrUpdate(c.ClusterInfo.Context, c.context.Client, pdb, mutateFunc)
 }
 
-// blockMonDrain makes MaxUnavailable in mon PDB to 0 to block any voluntary mon drains
-func (c *Cluster) blockMonDrain(request types.NamespacedName) error {
-	if !c.spec.DisruptionManagement.ManagePodBudgets {
-		return nil
-	}
-	log.NamespacedInfo(c.Namespace, logger, "prevent voluntary mon drain while failing over")
-	// change MaxUnavailable mon PDB to 0
-	_, err := c.createOrUpdateMonPDB(0)
+func (c *Cluster) getExistingMaxUnavailable() (int32, error) {
+	pdbRequest := types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}
+	existingPDB := &policyv1.PodDisruptionBudget{}
+	err := c.context.Client.Get(c.ClusterInfo.Context, pdbRequest, existingPDB)
 	if err != nil {
-		return errors.Wrapf(err, "failed to update MaxUnavailable for mon PDB %q", request.Name)
+		if apierrors.IsNotFound(err) {
+			log.NamespacedDebug(c.Namespace, logger, "mon pdb %q not found", monPDBName)
+			return -1, nil
+		}
+		return 0, errors.Wrapf(err, "failed to get mon pdb %q", existingPDB.Name)
 	}
-	return nil
-}
-
-// allowMonDrain updates the MaxUnavailable in mon PDB to 1 to allow voluntary mon drains
-func (c *Cluster) allowMonDrain(request types.NamespacedName) error {
-	if !c.spec.DisruptionManagement.ManagePodBudgets {
-		return nil
-	}
-	log.NamespacedInfo(c.Namespace, logger, "allow voluntary mon drain after failover")
-	_, err := c.createOrUpdateMonPDB(c.getMaxUnavailableMonPodCount())
-	if err != nil {
-		return errors.Wrapf(err, "failed to update MaxUnavailable for mon PDB %q", request.Name)
-	}
-	return nil
+	log.NamespacedDebug(c.Namespace, logger, "existing mon pdb maxUnavailable=%d", existingPDB.Spec.MaxUnavailable.IntVal)
+	return existingPDB.Spec.MaxUnavailable.IntVal, nil
 }
 
 func (c *Cluster) getMaxUnavailableMonPodCount() int32 {
