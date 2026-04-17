@@ -273,7 +273,7 @@ func (r *ReconcileCSI) generateDriverSpec(cluster cephv1.CephCluster) (csiopv1.D
 		FsGroupPolicy:    k8scsiv1.FileFSGroupPolicy,
 		NodePlugin: &csiopv1.NodePluginSpec{
 			PodCommonSpec: csiopv1.PodCommonSpec{
-				PrioritylClassName: &CSIParam.ProvisionerPriorityClassName,
+				PrioritylClassName: &CSIParam.PluginPriorityClassName,
 				Affinity: &corev1.Affinity{
 					NodeAffinity: getNodeAffinity(pluginNodeAffinityEnv, &corev1.NodeAffinity{}),
 				},
@@ -285,7 +285,7 @@ func (r *ReconcileCSI) generateDriverSpec(cluster cephv1.CephCluster) (csiopv1.D
 		},
 		ControllerPlugin: &csiopv1.ControllerPluginSpec{
 			PodCommonSpec: csiopv1.PodCommonSpec{
-				PrioritylClassName: &CSIParam.PluginPriorityClassName,
+				PrioritylClassName: &CSIParam.ProvisionerPriorityClassName,
 				Affinity: &corev1.Affinity{
 					NodeAffinity: getNodeAffinity(provisionerNodeAffinityEnv, &corev1.NodeAffinity{}),
 				},
