@@ -17,8 +17,7 @@
 # Set locale `LC_ALL=C` because different OSes have different sort behavior;
 # `C` sorting order is based on the byte values,
 # Reference: https://blog.zhimingwang.org/macos-lc_collate-hunt
-LC_ALL=C
-export LC_ALL
+export LC_ALL=C
 
 .PHONY: all
 all: build
@@ -125,16 +124,15 @@ include build/makelib/golang.mk
 # ====================================================================================
 # Targets
 
+.PHONY: build.version
 build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
-# This target exists only for setting the variable
-.PHONY: build.common.var
-build.common.var: export SKIP_GEN_CRD_DOCS=true
+
 
 .PHONY: build.common
-build.common:  build.common.var build.version helm.build mod.check crds gen-rbac
+build.common: build.version helm.build mod.check crds.manifests gen.rbac
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 	@$(MAKE) -C images/ceph list-image
@@ -251,12 +249,20 @@ prune: ## Prune cached artifacts.
 	@$(MAKE) -C images prune
 
 .PHONY: gen.crds
-gen.crds: crds
-.PHONY: crds
-crds: $(CONTROLLER_GEN) $(YQ)
+gen.crds: crds.manifests crds.docs
+
+.PHONY: crds.manifests
+crds.manifests: $(CONTROLLER_GEN) $(YQ)
 	@echo Updating CRD manifests
 	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
-	@GOBIN=$(GOBIN) build/crds/generate-crd-docs.sh
+
+.PHONY: crds.docs
+crds.docs: ## Build the documentation for CRDs
+	@# default behavior: generate unless user sets SKIP_GEN_CRD_DOCS=true
+	@SKIP_GEN_CRD_DOCS=$(SKIP_GEN_CRD_DOCS) GOBIN=$(GOBIN) build/crds/generate-crd-docs.sh
+
+.PHONY: crds
+crds: crds.manifests crds.docs
 
 .PHONY: gen.rbac
 gen.rbac: gen-rbac
@@ -290,11 +296,10 @@ docs-build:  ## Build the documentation to the `site/` directory
 
 .PHONY: gen.crd-docs
 gen.crd-docs: generate-docs-crds
-generate-docs-crds: ## Build the documentation for CRD
-	@GOBIN=$(GOBIN) build/crds/generate-crd-docs.sh
+generate-docs-crds: crds.docs ## Build the documentation for CRDs
 
 .PHONY: generate
-generate: gen.codegen gen.crds gen.rbac gen.docs gen.crd-docs ## Update all generated files (code, manifests, charts, and docs).
+generate: gen.codegen gen.crds gen.rbac ## Update all generated files (code, manifests, charts, and docs).
 
 
 
