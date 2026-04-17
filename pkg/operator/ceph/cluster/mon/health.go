@@ -157,6 +157,48 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
+	// The theoretical situation is that a k8s node upgrade takes longer than expected, and the node
+	// is coming back online just before the health check begins.
+	// Let's assume a cluster with mons a,b,c where node upgrade proceeds in the same order.
+	// mon.a's node is updating and offline for a while. Long enough for failover.
+	//
+	// Observed situation, for which operator logs are nonexistent:
+	// T-28 secs: mon.a's pod begins starting up on the re-schedulable node
+	// T-25 secs: mon.a's container starts (it will take unknown seconds to regain quorum)
+	// T-11 seconds: the k8s node upgrade proceeds to mon.b's node, and it's cordoned
+	// T-9 seconds: the existing PDB blocks mon.b from being evicted
+	// T-3 seconds: the existing PDB allows mon.b to be evicted on its node
+	//   (presumably, this is because mon.a is "Running" now, though not necessarily in quorum)
+	// T=0 seconds: rook begins failing over mon.a to mon.d (start mon.d-canary, scale mon.a to 0)
+	//
+	// Results:
+	// - mon.a is scaled down
+	// - mon.d will not join quorum while mon.a and mon.b are both down (quorum is only mon.c)
+	// - OSD PDBs prevent mon.b's node from draining, and because Rook cannot get quorum to check
+	//   OSD health this state persists
+	//
+	// Final outcome: kube node upgrade is deadlocked until manual intervention
+
+	// For this to happen, I think Rook must have health checked the mons after or shortly
+	// before T-3. mon.b would only able to be evicted if PDB=1 was set at the time, and PDB=0
+	// wouldn't be set until approx T=0. mon.a would have had to have to been out of quorum in order
+	// for Rook to attempt failover. (no logs to verify exactly)
+
+	// In theory, the health checker could have checked quorum even before T-28, but
+	// that seems unlikely. The health checker should get a ceph quorum result within a second.
+	// 16 max I would think.
+	// TODO: discuss w/ Travis. Maybe we could time the quorum result and not do any failovers if we
+	// don't hear from Ceph in a timely manner. Would that even help?
+
+	// I wonder if it would be good to assert the mon PDB=0 at this point rather than inside
+	// failMon(), so that any possible mon failover will already proceed with PDB=0 for a short time
+	// already.
+	// This could disrupt kube node upgrades during health checks. However, health checks are short,
+	// and the PDB should go back soon after, allowing a node drain to proceed, right?
+	// I think this would only be a problem if health check intervals are fairly short, but I think
+	// the current 45 secs (IIRC) shouldn't be a problem.
+	// TODO: discuss w/ Travis and Santosh
+
 	// If cluster details are not initialized
 	if err := c.ClusterInfo.IsInitialized(); err != nil {
 		return errors.Wrap(err, "skipping mon health check since cluster details are not initialized")
@@ -311,6 +353,9 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 			log.NamespacedWarning(c.Namespace, logger, "mon %q NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
 		}
 
+		// How can Rook determine before failover if the failover will not resolve
+		// quorum loss? If 2 of 3 mons are down, is failover still possible?
+		// TODO: discuss
 		if !c.failMon(len(quorumStatus.MonMap.Mons), desiredMonCount, mon.Name) {
 			// The failover was skipped, so we continue to see if another mon needs to failover
 			continue
@@ -657,11 +702,18 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) bool {
 		log.NamespacedError(c.Namespace, logger, "failed to block mon drain. %v", err)
 	}
 
+	// Our initial thoughts were to have some cooloff period here (15-45 seconds?) to allow the PDB
+	// to take effect, and then reassess mon quorum -- bail out early if the mon is back in quorum.
+	// But I wonder if that is more complex than this function should be, and if PDB=0 might be
+	// better set in the caller.
+
 	// bring up a new mon to replace the unhealthy mon
 	if err := c.failoverMon(name); err != nil {
 		log.NamespacedError(c.Namespace, logger, "failed to failover mon %q. %v", name, err)
 	}
 
+	// TODO: doesn't this assume that mons are in quorum? Should we set/leave PDB=0 if any mons are
+	// still out of quorum?
 	// allow any voluntary mon drain after failover
 	if err := c.allowMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
 		log.NamespacedError(c.Namespace, logger, "failed to allow mon drain. %v", err)
@@ -749,6 +801,11 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// Scale down the failed mon to allow a new one to start
 	if c.stopMonDuringFailover(name) {
+		// in addition to lowering the replica count, I wonder if Rook should forcibly attempt to
+		// delete the pod for the mon being failed over, in case pod teardown is blocked by the PDB
+		// This could allow our mon.d-canary to run, but it still might not allow quorum to be
+		// regained, so I'm not sure.
+		// TODO: thoughts Travis/Santosh
 		if err := c.updateMonDeploymentReplica(name, false); err != nil {
 			// attempt to continue with the failover even if the bad mon could not be stopped
 			log.NamespacedWarning(c.Namespace, logger, "failed to stop mon %q for failover. %v", name, err)
