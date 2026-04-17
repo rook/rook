@@ -119,12 +119,22 @@ func getFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName s
 }
 
 // AllowStandbyReplay gets detailed status information about a Ceph filesystem.
-func AllowStandbyReplay(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, allowStandbyReplay bool) error {
+func AllowStandbyReplay(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, allowStandbyReplay bool, wantedStandbyDaemons int32) error {
 	logger.Infof("setting allow_standby_replay to %t for filesystem %q", allowStandbyReplay, fsName)
 	args := []string{"fs", "set", fsName, "allow_standby_replay", strconv.FormatBool(allowStandbyReplay)}
 	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %s", fsName)
+	}
+	// if we don't need standby, set standby_count_wanted=0 to avoid
+	// getting 'insufficient standby MDS daemons' health issue
+	if !allowStandbyReplay {
+		wantedStandbyDaemons = 0
+	}
+	args = []string{"fs", "set", fsName, "standby_count_wanted", fmt.Sprint(wantedStandbyDaemons)}
+	_, err = NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to set standby_count_wanted to filesystem %s", fsName)
 	}
 
 	return nil

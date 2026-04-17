@@ -66,7 +66,7 @@ func createFilesystem(
 			return errors.Wrapf(err, "failed to create filesystem %q", fs.Name)
 		}
 	}
-	if err := cephclient.AllowStandbyReplay(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
+	if err := cephclient.AllowStandbyReplay(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveStandby, fs.Spec.MetadataServer.ActiveCount); err != nil {
 		return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %q", fs.Name)
 	}
 
