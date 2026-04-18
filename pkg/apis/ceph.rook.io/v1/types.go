@@ -2315,6 +2315,11 @@ type ObjectStoreUserSpec struct {
 	// +optional
 	// +kubebuilder:validation:XValidation:message="accountRef is immutable",rule="self == oldSelf"
 	AccountRef ObjectStoreUserAccountRef `json:"accountRef,omitzero"`
+	// Override the default pool placement for buckets created by this user. If not provided, the default pool placement from the zone group will be used.
+	// +optional
+	// +kubebuilder:validation:MinLength=0
+	// +kubebuilder:validation:MaxLength=2048
+	DefaultPlacement *string `json:"defaultPlacement,omitempty"`
 }
 
 // ObjectStoreUserAccountRef is a reference to a CephObjectStoreAccount
