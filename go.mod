@@ -4,6 +4,9 @@ go 1.25.0
 
 replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
+
+	github.com/kube-object-storage/lib-bucket-provisioner => github.com/karthikps97/lib-bucket-provisioner v0.0.0-20260420043715-46f0cf622ca9
+
 	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3
 
 	// TODO: remove this replace once https://github.com/libopenstorage/secrets/pull/83 is merged
