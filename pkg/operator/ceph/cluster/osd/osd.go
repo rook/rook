@@ -109,13 +109,13 @@ func New(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, spec ce
 	}
 }
 
-// OSDInfo represent all the properties of a given OSD
-type OSDInfo struct {
+// OSDInfoBase is the physical identity of an OSD as reported by ceph-volume,
+// without CRUSH metadata. See OSDInfo for the full shape.
+type OSDInfoBase struct {
 	ID             int    `json:"id"`
 	Cluster        string `json:"cluster"`
 	UUID           string `json:"uuid"`
 	DevicePartUUID string `json:"device-part-uuid"`
-	DeviceClass    string `json:"device-class"`
 	// BlockPath is the logical Volume path for an OSD created by Ceph-volume with format '/dev/<Volume Group>/<Logical Volume>' or simply /dev/vdb if block mode is used
 	BlockPath     string `json:"lv-path"`
 	MetadataPath  string `json:"metadata-path"`
@@ -126,13 +126,21 @@ type OSDInfo struct {
 	CVMode        string `json:"lv-mode"`
 	Store         string `json:"store"`
 	// Ensure the OSD daemon has affinity with the same topology from the OSD prepare pod
-	TopologyAffinity string             `json:"topologyAffinity"`
-	Encrypted        bool               `json:"encrypted"`
-	ExportService    bool               `json:"exportService"`
-	NodeName         string             `json:"nodeName"`
-	PVCName          string             `json:"pvcName"`
-	DeviceType       string             `json:"device-type"`
-	CephxStatus      cephv1.CephxStatus `json:"cephxStatus"`
+	TopologyAffinity string `json:"topologyAffinity"`
+	Encrypted        bool   `json:"encrypted"`
+	ExportService    bool   `json:"exportService"`
+	NodeName         string `json:"nodeName"`
+	PVCName          string `json:"pvcName"`
+}
+
+// OSDInfo is the wire format between the prepare job and the operator. It
+// embeds OSDInfoBase (ceph-volume output) and adds fields resolved from the CR
+// or managed by the operator.
+type OSDInfo struct {
+	OSDInfoBase
+	DeviceClass string             `json:"device-class"`
+	DeviceType  string             `json:"device-type"`
+	CephxStatus cephv1.CephxStatus `json:"cephxStatus"`
 }
 
 // OrchestrationStatus represents the status of an OSD orchestration

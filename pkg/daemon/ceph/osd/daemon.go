@@ -415,7 +415,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		rejectedReason := ""
 		if agent.pvcBacked {
 			block := fmt.Sprintf("/mnt/%s", agent.nodeName)
-			rawOsds, err := GetCephVolumeRawOSDs(context, agent.clusterInfo, agent.clusterInfo.FSID, block, agent.metadataDevice, "", false, true)
+			rawOsds, err := GetCephVolumeRawOSDs(context, agent.clusterInfo, agent.clusterInfo.FSID, block, agent.metadataDevice, "", false)
 			if err != nil {
 				isAvailable = false
 				rejectedReason = fmt.Sprintf("failed to detect if there is already an osd. %v", err)
@@ -525,7 +525,6 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 
 				if matched {
 					matchedDevice = desiredDevice
-					matchedDevice.UpdateDeviceClass(agent, device)
 					break
 				}
 			}
@@ -598,7 +597,7 @@ func getVolumeGroupName(lvPath string) string {
 }
 
 // GetOSDInfoById returns the osdInfo using the ceph volume list
-func GetOSDInfoById(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int) (*oposd.OSDInfo, error) {
+func GetOSDInfoById(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int) (*oposd.OSDInfoBase, error) {
 	// LVM mode OSDs
 	osdLVMList, err := GetCephVolumeLVMOSDs(context, clusterInfo, clusterInfo.FSID, "", false, false)
 	if err != nil {
@@ -607,12 +606,13 @@ func GetOSDInfoById(context *clusterd.Context, clusterInfo *client.ClusterInfo, 
 
 	for _, osdInfo := range osdLVMList {
 		if osdInfo.ID == osdID {
-			return &osdInfo, nil
+			base := osdInfo.OSDInfoBase
+			return &base, nil
 		}
 	}
 
 	// Raw mode OSDs
-	osdRawList, err := GetCephVolumeRawOSDs(context, clusterInfo, clusterInfo.FSID, "", "", "", false, true)
+	osdRawList, err := GetCephVolumeRawOSDs(context, clusterInfo, clusterInfo.FSID, "", "", "", false)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list raw osd(s)")
 	}

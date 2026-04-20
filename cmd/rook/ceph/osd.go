@@ -266,7 +266,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	}
 
 	// destroy the OSD using the OSD ID
-	var replaceOSD *oposd.OSDInfo
+	var replaceOSD *oposd.OSDInfoBase
 	if replaceOSDID != -1 {
 		logger.Infof("destroying osd.%d and cleaning its backing device", replaceOSDID)
 		replaceOSD, err = osddaemon.DestroyOSD(context, &clusterInfo, replaceOSDID, cfg.pvcBacked)

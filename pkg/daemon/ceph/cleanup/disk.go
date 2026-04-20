@@ -70,7 +70,7 @@ func (s *DiskSanitizer) StartSanitizeDisks() {
 	}
 
 	// Raw based OSDs
-	osdRawList, err := osd.GetCephVolumeRawOSDs(s.context, s.clusterInfo, s.clusterInfo.FSID, "", "", "", false, true)
+	osdRawList, err := osd.GetCephVolumeRawOSDs(s.context, s.clusterInfo, s.clusterInfo.FSID, "", "", "", false)
 	if err != nil {
 		logger.Errorf("failed to list raw osd(s). %v", err)
 	} else {
@@ -79,7 +79,7 @@ func (s *DiskSanitizer) StartSanitizeDisks() {
 	}
 }
 
-func (s *DiskSanitizer) SanitizeRawDisk(osdRawList []oposd.OSDInfo) {
+func (s *DiskSanitizer) SanitizeRawDisk(osdRawList []oposd.OSDInfoBase) {
 	// Initialize work group to wait for completion of all the go routine
 	var wg sync.WaitGroup
 
@@ -118,7 +118,7 @@ func (s *DiskSanitizer) SanitizeLVMDisk(osdLVMList []oposd.OSDInfo) {
 	// purge remaining LVM2 metadata from PV
 	for _, pv := range pvs {
 		wg2.Add(1)
-		go s.executeSanitizeCommand(oposd.OSDInfo{BlockPath: pv}, &wg2)
+		go s.executeSanitizeCommand(oposd.OSDInfoBase{BlockPath: pv}, &wg2)
 	}
 	wg2.Wait()
 }
@@ -197,7 +197,7 @@ func (s *DiskSanitizer) buildShredCommands(disk string) []ShredCommand {
 	return shredCommands
 }
 
-func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfo, wg *sync.WaitGroup) {
+func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfoBase, wg *sync.WaitGroup) {
 	// On return, notify the WaitGroup that we’re done
 	defer wg.Done()
 

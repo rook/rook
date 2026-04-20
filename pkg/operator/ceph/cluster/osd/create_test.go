@@ -136,7 +136,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		doSetup()
 		status = &OrchestrationStatus{
 			OSDs: []OSDInfo{
-				{ID: 0}, {ID: 1}, {ID: 2},
+				{OSDInfoBase: OSDInfoBase{ID: 0}}, {OSDInfoBase: OSDInfoBase{ID: 1}}, {OSDInfoBase: OSDInfoBase{ID: 2}},
 			},
 			PvcBackedOSD: false,
 		}
@@ -154,10 +154,10 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		doSetup()
 		status = &OrchestrationStatus{
 			OSDs: []OSDInfo{
-				{ID: 3}, {ID: 4}, // already exist
-				{ID: 5}, // does not exist
-				{ID: 6}, // already exists
-				{ID: 7}, // does not exist
+				{OSDInfoBase: OSDInfoBase{ID: 3}}, {OSDInfoBase: OSDInfoBase{ID: 4}}, // already exist
+				{OSDInfoBase: OSDInfoBase{ID: 5}}, // does not exist
+				{OSDInfoBase: OSDInfoBase{ID: 6}}, // already exists
+				{OSDInfoBase: OSDInfoBase{ID: 7}}, // does not exist
 			},
 			PvcBackedOSD: false,
 		}
@@ -175,7 +175,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		doSetup()
 		status = &OrchestrationStatus{
 			OSDs: []OSDInfo{
-				{ID: 0}, {ID: 1}, {ID: 2},
+				{OSDInfoBase: OSDInfoBase{ID: 0}}, {OSDInfoBase: OSDInfoBase{ID: 1}}, {OSDInfoBase: OSDInfoBase{ID: 2}},
 			},
 			PvcBackedOSD: false,
 		}
@@ -193,7 +193,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		doSetup()
 		status = &OrchestrationStatus{
 			OSDs: []OSDInfo{
-				{ID: 0}, {ID: 1}, {ID: 2},
+				{OSDInfoBase: OSDInfoBase{ID: 0}}, {OSDInfoBase: OSDInfoBase{ID: 1}}, {OSDInfoBase: OSDInfoBase{ID: 2}},
 			},
 			PvcBackedOSD: false,
 		}
@@ -228,7 +228,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		doSetup()
 		status = &OrchestrationStatus{
 			OSDs: []OSDInfo{
-				{ID: 0}, {ID: 1}, {ID: 2},
+				{OSDInfoBase: OSDInfoBase{ID: 0}}, {OSDInfoBase: OSDInfoBase{ID: 1}}, {OSDInfoBase: OSDInfoBase{ID: 2}},
 			},
 			PvcBackedOSD: true,
 		}
@@ -246,10 +246,10 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		doSetup()
 		status = &OrchestrationStatus{
 			OSDs: []OSDInfo{
-				{ID: 3}, {ID: 4}, // already exist
-				{ID: 5}, // does not exist
-				{ID: 6}, // already exists
-				{ID: 7}, // does not exist
+				{OSDInfoBase: OSDInfoBase{ID: 3}}, {OSDInfoBase: OSDInfoBase{ID: 4}}, // already exist
+				{OSDInfoBase: OSDInfoBase{ID: 5}}, // does not exist
+				{OSDInfoBase: OSDInfoBase{ID: 6}}, // already exists
+				{OSDInfoBase: OSDInfoBase{ID: 7}}, // does not exist
 			},
 			PvcBackedOSD: true,
 		}
@@ -267,7 +267,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		doSetup()
 		status = &OrchestrationStatus{
 			OSDs: []OSDInfo{
-				{ID: 0}, {ID: 1}, {ID: 2},
+				{OSDInfoBase: OSDInfoBase{ID: 0}}, {OSDInfoBase: OSDInfoBase{ID: 1}}, {OSDInfoBase: OSDInfoBase{ID: 2}},
 			},
 			PvcBackedOSD: true,
 		}
@@ -285,7 +285,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		doSetup()
 		status = &OrchestrationStatus{
 			OSDs: []OSDInfo{
-				{ID: 0}, {ID: 1}, {ID: 2},
+				{OSDInfoBase: OSDInfoBase{ID: 0}}, {OSDInfoBase: OSDInfoBase{ID: 1}}, {OSDInfoBase: OSDInfoBase{ID: 2}},
 			},
 			PvcBackedOSD: true,
 		}

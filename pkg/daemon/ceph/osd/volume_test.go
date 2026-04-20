@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -1604,7 +1605,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},
 	}
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", pvcBacked: true, storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
@@ -1631,7 +1632,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	assert.Equal(t, "", walBlockPath)
 
 	// Test for condition when osd is prepared with existing osd ID
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}, replaceOSD: &oposd.OSDInfo{ID: 3, BlockPath: "/dev/sda"}}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", pvcBacked: true, storeConfig: config.StoreConfig{StoreType: "bluestore"}, replaceOSD: &oposd.OSDInfoBase{ID: 3, BlockPath: "/dev/sda"}}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}, DeviceInfo: &sys.LocalDisk{RealPath: "/dev/sda"}},
@@ -1653,7 +1654,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	assert.Equal(t, "", walBlockPath)
 
 	// Test for condition that --osd-id is not passed for the devices that don't match the OSD to be replaced.
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}, replaceOSD: &oposd.OSDInfo{ID: 3, BlockPath: "/dev/sda"}}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", pvcBacked: true, storeConfig: config.StoreConfig{StoreType: "bluestore"}, replaceOSD: &oposd.OSDInfoBase{ID: 3, BlockPath: "/dev/sda"}}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}, DeviceInfo: &sys.LocalDisk{RealPath: "/dev/sdb"}},
@@ -1723,7 +1724,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},
 	}
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", pvcBacked: true, storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
@@ -1783,7 +1784,7 @@ func TestParseCephVolumeRawResult(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "name"}
 
 	context := &clusterd.Context{Executor: executor, Clientset: test.New(t, 3)}
-	osds, err := GetCephVolumeRawOSDs(context, clusterInfo, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", "", false, false)
+	osds, err := GetCephVolumeRawOSDs(context, clusterInfo, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", "", false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
@@ -2119,14 +2120,14 @@ func TestAppendOSDInfo(t *testing.T) {
 	// Set 1: duplicate entries
 	{
 		currentOSDs := []oposd.OSDInfo{
-			{ID: 0, Cluster: "ceph", UUID: "275950b5-dcb3-4c3e-b0df-014b16755dc5", DevicePartUUID: "", BlockPath: "/dev/ceph-48b22180-8358-4ab4-aec0-3fb83a20328b/osd-block-275950b5-dcb3-4c3e-b0df-014b16755dc5", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
-			{ID: 1, Cluster: "ceph", UUID: "3206c1c0-7ea2-412b-bd42-708cfe5e4acb", DevicePartUUID: "", BlockPath: "/dev/ceph-140a1344-636d-4442-85b3-bb3cd18ca002/osd-block-3206c1c0-7ea2-412b-bd42-708cfe5e4acb", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
-			{ID: 2, Cluster: "ceph", UUID: "7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", DevicePartUUID: "", BlockPath: "/dev/ceph-0c466524-57a3-4e5f-b4e3-04538ff0aced/osd-block-7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 0, Cluster: "ceph", UUID: "275950b5-dcb3-4c3e-b0df-014b16755dc5", DevicePartUUID: "", BlockPath: "/dev/ceph-48b22180-8358-4ab4-aec0-3fb83a20328b/osd-block-275950b5-dcb3-4c3e-b0df-014b16755dc5", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 1, Cluster: "ceph", UUID: "3206c1c0-7ea2-412b-bd42-708cfe5e4acb", DevicePartUUID: "", BlockPath: "/dev/ceph-140a1344-636d-4442-85b3-bb3cd18ca002/osd-block-3206c1c0-7ea2-412b-bd42-708cfe5e4acb", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 2, Cluster: "ceph", UUID: "7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", DevicePartUUID: "", BlockPath: "/dev/ceph-0c466524-57a3-4e5f-b4e3-04538ff0aced/osd-block-7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
 		}
 		newOSDs := []oposd.OSDInfo{
-			{ID: 2, Cluster: "ceph", UUID: "7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", DevicePartUUID: "", BlockPath: "/dev/mapper/ceph--0c466524--57a3--4e5f--b4e3--04538ff0aced-osd--block--7ea5e98b--755c--4837--a2a3--9ad61e67cf6f", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
-			{ID: 0, Cluster: "ceph", UUID: "275950b5-dcb3-4c3e-b0df-014b16755dc5", DevicePartUUID: "", BlockPath: "/dev/mapper/ceph--48b22180--8358--4ab4--aec0--3fb83a20328b-osd--block--275950b5--dcb3--4c3e--b0df--014b16755dc5", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
-			{ID: 1, Cluster: "ceph", UUID: "3206c1c0-7ea2-412b-bd42-708cfe5e4acb", DevicePartUUID: "", BlockPath: "/dev/mapper/ceph--140a1344--636d--4442--85b3--bb3cd18ca002-osd--block--3206c1c0--7ea2--412b--bd42--708cfe5e4acb", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 2, Cluster: "ceph", UUID: "7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", DevicePartUUID: "", BlockPath: "/dev/mapper/ceph--0c466524--57a3--4e5f--b4e3--04538ff0aced-osd--block--7ea5e98b--755c--4837--a2a3--9ad61e67cf6f", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 0, Cluster: "ceph", UUID: "275950b5-dcb3-4c3e-b0df-014b16755dc5", DevicePartUUID: "", BlockPath: "/dev/mapper/ceph--48b22180--8358--4ab4--aec0--3fb83a20328b-osd--block--275950b5--dcb3--4c3e--b0df--014b16755dc5", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 1, Cluster: "ceph", UUID: "3206c1c0-7ea2-412b-bd42-708cfe5e4acb", DevicePartUUID: "", BlockPath: "/dev/mapper/ceph--140a1344--636d--4442--85b3--bb3cd18ca002-osd--block--3206c1c0--7ea2--412b--bd42--708cfe5e4acb", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
 		}
 		trimmedOSDs := appendOSDInfo(currentOSDs, newOSDs)
 		assert.Equal(t, 3, len(trimmedOSDs))
@@ -2136,14 +2137,14 @@ func TestAppendOSDInfo(t *testing.T) {
 	// Set 2: no duplicate entries, just a mix of RAW and LVM OSDs should not trim anything
 	{
 		currentOSDs := []oposd.OSDInfo{
-			{ID: 0, Cluster: "ceph", UUID: "275950b5-dcb3-4c3e-b0df-014b16755dc5", DevicePartUUID: "", BlockPath: "/dev/ceph-48b22180-8358-4ab4-aec0-3fb83a20328b/osd-block-275950b5-dcb3-4c3e-b0df-014b16755dc5", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
-			{ID: 1, Cluster: "ceph", UUID: "3206c1c0-7ea2-412b-bd42-708cfe5e4acb", DevicePartUUID: "", BlockPath: "/dev/ceph-140a1344-636d-4442-85b3-bb3cd18ca002/osd-block-3206c1c0-7ea2-412b-bd42-708cfe5e4acb", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
-			{ID: 2, Cluster: "ceph", UUID: "7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", DevicePartUUID: "", BlockPath: "/dev/ceph-0c466524-57a3-4e5f-b4e3-04538ff0aced/osd-block-7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 0, Cluster: "ceph", UUID: "275950b5-dcb3-4c3e-b0df-014b16755dc5", DevicePartUUID: "", BlockPath: "/dev/ceph-48b22180-8358-4ab4-aec0-3fb83a20328b/osd-block-275950b5-dcb3-4c3e-b0df-014b16755dc5", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 1, Cluster: "ceph", UUID: "3206c1c0-7ea2-412b-bd42-708cfe5e4acb", DevicePartUUID: "", BlockPath: "/dev/ceph-140a1344-636d-4442-85b3-bb3cd18ca002/osd-block-3206c1c0-7ea2-412b-bd42-708cfe5e4acb", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 2, Cluster: "ceph", UUID: "7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", DevicePartUUID: "", BlockPath: "/dev/ceph-0c466524-57a3-4e5f-b4e3-04538ff0aced/osd-block-7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
 		}
 		newOSDs := []oposd.OSDInfo{
-			{ID: 3, Cluster: "ceph", UUID: "35e61dbc-4455-45fd-b5c8-39be2a29db02", DevicePartUUID: "", BlockPath: "/dev/sdb", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
-			{ID: 4, Cluster: "ceph", UUID: "f5c0ce2c-76ee-4cbf-94df-9e480da6c614", DevicePartUUID: "", BlockPath: "/dev/sdd", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
-			{ID: 5, Cluster: "ceph", UUID: "4aadb152-2b30-477a-963e-44447ded6a66", DevicePartUUID: "", BlockPath: "/dev/sde", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 3, Cluster: "ceph", UUID: "35e61dbc-4455-45fd-b5c8-39be2a29db02", DevicePartUUID: "", BlockPath: "/dev/sdb", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 4, Cluster: "ceph", UUID: "f5c0ce2c-76ee-4cbf-94df-9e480da6c614", DevicePartUUID: "", BlockPath: "/dev/sdd", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 5, Cluster: "ceph", UUID: "4aadb152-2b30-477a-963e-44447ded6a66", DevicePartUUID: "", BlockPath: "/dev/sde", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
 		}
 		trimmedOSDs := appendOSDInfo(currentOSDs, newOSDs)
 		assert.Equal(t, 6, len(trimmedOSDs))
@@ -2152,9 +2153,9 @@ func TestAppendOSDInfo(t *testing.T) {
 	{
 		currentOSDs := []oposd.OSDInfo{}
 		newOSDs := []oposd.OSDInfo{
-			{ID: 3, Cluster: "ceph", UUID: "35e61dbc-4455-45fd-b5c8-39be2a29db02", DevicePartUUID: "", BlockPath: "/dev/sdb", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
-			{ID: 4, Cluster: "ceph", UUID: "f5c0ce2c-76ee-4cbf-94df-9e480da6c614", DevicePartUUID: "", BlockPath: "/dev/sdd", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
-			{ID: 5, Cluster: "ceph", UUID: "4aadb152-2b30-477a-963e-44447ded6a66", DevicePartUUID: "", BlockPath: "/dev/sde", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 3, Cluster: "ceph", UUID: "35e61dbc-4455-45fd-b5c8-39be2a29db02", DevicePartUUID: "", BlockPath: "/dev/sdb", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 4, Cluster: "ceph", UUID: "f5c0ce2c-76ee-4cbf-94df-9e480da6c614", DevicePartUUID: "", BlockPath: "/dev/sdd", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
+			{OSDInfoBase: oposd.OSDInfoBase{ID: 5, Cluster: "ceph", UUID: "4aadb152-2b30-477a-963e-44447ded6a66", DevicePartUUID: "", BlockPath: "/dev/sde", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"}},
 		}
 		trimmedOSDs := appendOSDInfo(currentOSDs, newOSDs)
 		assert.Equal(t, 3, len(trimmedOSDs))
@@ -2359,4 +2360,210 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	context.Executor = executor
 	err = agent.WipeDevicesFromOtherClusters(context)
 	assert.NoError(t, err)
+}
+
+func newRawListExecutor(rawJSON string, lvmListEmpty bool, devLinksByDevice map[string]string) *exectest.MockExecutor {
+	return &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if command == "lsblk" && len(args) > 0 && strings.HasPrefix(args[0], "/dev/") {
+				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="disk" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
+			}
+			if command == "sgdisk" {
+				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
+			}
+			if command == "udevadm" && len(args) >= 3 && args[0] == "info" {
+				devPath := args[len(args)-1]
+				short := strings.TrimPrefix(devPath, "/dev/")
+				links := devLinksByDevice[short]
+				return fmt.Sprintf("DEVLINKS=%s\nID_FS_TYPE=\n", links), nil
+			}
+			if slices.Contains(args, "raw") && slices.Contains(args, "list") {
+				return rawJSON, nil
+			}
+			if lvmListEmpty && slices.Contains(args, "lvm") && slices.Contains(args, "list") {
+				return `{}`, nil
+			}
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		},
+	}
+}
+
+func TestListRawOSDsEnrichesDeviceClass(t *testing.T) {
+	const clusterFSID = "4bfe8b72-5e69-4330-b6c0-4d914db8ab89"
+	rawJSON := fmt.Sprintf(`{
+		"0": {"ceph_fsid": "%s", "device": "/dev/sda", "osd_id": 0, "osd_uuid": "uuid-a", "type": "bluestore"},
+		"1": {"ceph_fsid": "%s", "device": "/dev/sdb", "osd_id": 1, "osd_uuid": "uuid-b", "type": "bluestore"}
+	}`, clusterFSID, clusterFSID)
+
+	agent := &OsdAgent{
+		clusterInfo: &cephclient.ClusterInfo{FSID: clusterFSID},
+		storeConfig: config.StoreConfig{DeviceClass: "ssd"},
+		devices: []DesiredDevice{
+			{Name: "sda", DeviceClass: "fast"},
+		},
+	}
+
+	osds, err := agent.listRawOSDsEnriched(&clusterd.Context{Executor: newRawListExecutor(rawJSON, false, nil)}, "", "", "", false)
+	require.NoError(t, err)
+	require.Len(t, osds, 2)
+
+	byID := map[int]oposd.OSDInfo{}
+	for _, o := range osds {
+		byID[o.ID] = o
+	}
+	assert.Equal(t, "fast", byID[0].DeviceClass, "sda has per-device class")
+	assert.Equal(t, "hdd", byID[0].DeviceType)
+	assert.Equal(t, "ssd", byID[1].DeviceClass, "sdb has no per-device class, falls back to default")
+	assert.Equal(t, "hdd", byID[1].DeviceType)
+}
+
+func TestListRawOSDsEnriched_FullpathViaDevLinks(t *testing.T) {
+	const clusterFSID = "4bfe8b72-5e69-4330-b6c0-4d914db8ab89"
+	rawJSON := fmt.Sprintf(`{
+		"0": {"ceph_fsid": "%s", "device": "/dev/sda", "osd_id": 0, "osd_uuid": "uuid-a", "type": "bluestore"}
+	}`, clusterFSID)
+
+	agent := &OsdAgent{
+		clusterInfo: &cephclient.ClusterInfo{FSID: clusterFSID},
+		devices: []DesiredDevice{
+			{Name: "/dev/disk/by-id/wwn-0xabc", DeviceClass: "fast"},
+		},
+	}
+
+	executor := newRawListExecutor(rawJSON, false, map[string]string{
+		"sda": "/dev/disk/by-id/wwn-0xabc /dev/disk/by-path/pci-0000:00:01.0",
+	})
+
+	osds, err := agent.listRawOSDsEnriched(&clusterd.Context{Executor: executor}, "", "", "", false)
+	require.NoError(t, err)
+	require.Len(t, osds, 1)
+	assert.Equal(t, "fast", osds[0].DeviceClass, "fullpath spec must match via DevLinks")
+}
+
+func TestListRawOSDsEnriched_UdevFailureDegrades(t *testing.T) {
+	const clusterFSID = "4bfe8b72-5e69-4330-b6c0-4d914db8ab89"
+	rawJSON := fmt.Sprintf(`{
+		"0": {"ceph_fsid": "%s", "device": "/dev/sda", "osd_id": 0, "osd_uuid": "uuid-a", "type": "bluestore"}
+	}`, clusterFSID)
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if command == "lsblk" && len(args) > 0 && strings.HasPrefix(args[0], "/dev/") {
+				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="disk" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
+			}
+			if command == "sgdisk" {
+				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
+			}
+			if command == "udevadm" {
+				return "", errors.New("udev broken")
+			}
+			if slices.Contains(args, "raw") && slices.Contains(args, "list") {
+				return rawJSON, nil
+			}
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		},
+	}
+
+	agent := &OsdAgent{
+		clusterInfo: &cephclient.ClusterInfo{FSID: clusterFSID},
+		storeConfig: config.StoreConfig{DeviceClass: "ssd"},
+		devices: []DesiredDevice{
+			{Name: "/dev/disk/by-id/wwn-0xabc", DeviceClass: "fast"},
+		},
+	}
+
+	osds, err := agent.listRawOSDsEnriched(&clusterd.Context{Executor: executor}, "", "", "", false)
+	require.NoError(t, err, "udev failure must not abort listing")
+	require.Len(t, osds, 1)
+	// fullpath spec couldn't match (no DevLinks), so class falls through to the
+	// node-level default rather than the per-device "fast".
+	assert.Equal(t, "ssd", osds[0].DeviceClass)
+}
+
+func TestListRawOSDsEnriched_FallsBackToDeviceType(t *testing.T) {
+	const clusterFSID = "4bfe8b72-5e69-4330-b6c0-4d914db8ab89"
+	rawJSON := fmt.Sprintf(`{
+		"0": {"ceph_fsid": "%s", "device": "/dev/sda", "osd_id": 0, "osd_uuid": "uuid-a", "type": "bluestore"}
+	}`, clusterFSID)
+
+	agent := &OsdAgent{
+		clusterInfo: &cephclient.ClusterInfo{FSID: clusterFSID},
+	}
+
+	osds, err := agent.listRawOSDsEnriched(&clusterd.Context{Executor: newRawListExecutor(rawJSON, false, nil)}, "", "", "", false)
+	require.NoError(t, err)
+	require.Len(t, osds, 1)
+	assert.Equal(t, "hdd", osds[0].DeviceType)
+	assert.Equal(t, "hdd", osds[0].DeviceClass, "with no config anywhere, class falls back to DeviceType")
+}
+
+func TestConfigureCVDevicesPerDeviceClassIdempotent(t *testing.T) {
+	const (
+		clusterFSID = "4bfe8b72-5e69-4330-b6c0-4d914db8ab89"
+		osdUUID     = "c03d7353-96e5-4a41-98de-830dfff97d06"
+	)
+	rawJSON := fmt.Sprintf(`{
+		"0": {
+			"ceph_fsid": "%s",
+			"device": "/dev/vdb",
+			"osd_id": 0,
+			"osd_uuid": "%s",
+			"type": "bluestore"
+		}
+	}`, clusterFSID, osdUUID)
+	executor := newRawListExecutor(rawJSON, true, nil)
+
+	agent := &OsdAgent{
+		clusterInfo: &cephclient.ClusterInfo{
+			CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},
+			FSID:        clusterFSID,
+		},
+		nodeName:    "lima-rook",
+		storeConfig: config.StoreConfig{StoreType: "bluestore"},
+		devices:     []DesiredDevice{{Name: "vdb", DeviceClass: "fast"}},
+	}
+
+	// Empty entries: the OSD is already provisioned, so getAvailableDevices
+	// filtered it out.
+	devices := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
+
+	deviceOSDs, err := agent.configureCVDevices(&clusterd.Context{Executor: executor}, devices)
+	require.NoError(t, err)
+	require.Len(t, deviceOSDs, 1)
+	assert.Equal(t, "fast", deviceOSDs[0].DeviceClass)
+	assert.Equal(t, "hdd", deviceOSDs[0].DeviceType)
+}
+
+func TestInitializeDevicesLVMMode_MetadataHonorsNodeDefault(t *testing.T) {
+	var sawDeviceClass bool
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommand = func(command string, args ...string) error {
+		for i, a := range args {
+			if a == "--crush-device-class" && i+1 < len(args) && args[i+1] == "fast" {
+				sawDeviceClass = true
+			}
+		}
+		return nil
+	}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		return `[{"block_db": "/dev/sdb", "data": "/dev/sda"}]`, nil
+	}
+
+	devices := &DeviceOsdMapping{
+		Entries: map[string]*DeviceOsdIDEntry{
+			"sda": {Data: -1, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
+		},
+	}
+	a := &OsdAgent{
+		clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}},
+		nodeName:    "node1",
+		storeConfig: config.StoreConfig{StoreType: "bluestore", DeviceClass: "fast"},
+	}
+	ctx := &clusterd.Context{
+		Executor: executor,
+		Devices:  []*sys.LocalDisk{{Name: "sda"}, {Name: "sdb"}},
+	}
+
+	require.NoError(t, a.initializeDevicesLVMMode(ctx, devices))
+	assert.True(t, sawDeviceClass, "expected ceph-volume lvm batch to emit --crush-device-class fast")
 }

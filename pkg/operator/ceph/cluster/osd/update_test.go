@@ -826,10 +826,7 @@ func TestCluster_rotateCephxKey(t *testing.T) {
 
 	t.Run("empty status and config", func(t *testing.T) {
 		c := newTest(cephv1.CephxConfig{})
-		osdInfo := OSDInfo{
-			ID:          1,
-			CephxStatus: cephv1.CephxStatus{},
-		}
+		osdInfo := OSDInfo{OSDInfoBase: OSDInfoBase{ID: 1}, CephxStatus: cephv1.CephxStatus{}}
 
 		cephxStatus, err := c.rotateCephxKey(osdInfo)
 		assert.NoError(t, err)
@@ -842,10 +839,7 @@ func TestCluster_rotateCephxKey(t *testing.T) {
 			KeyRotationPolicy: "Disabled",
 			KeyGeneration:     3,
 		})
-		osdInfo := OSDInfo{
-			ID:          1,
-			CephxStatus: cephv1.CephxStatus{},
-		}
+		osdInfo := OSDInfo{OSDInfoBase: OSDInfoBase{ID: 1}, CephxStatus: cephv1.CephxStatus{}}
 
 		cephxStatus, err := c.rotateCephxKey(osdInfo)
 		assert.NoError(t, err)
@@ -858,10 +852,7 @@ func TestCluster_rotateCephxKey(t *testing.T) {
 			KeyRotationPolicy: "KeyGeneration",
 			KeyGeneration:     3,
 		})
-		osdInfo := OSDInfo{
-			ID:          1,
-			CephxStatus: cephv1.CephxStatus{},
-		}
+		osdInfo := OSDInfo{OSDInfoBase: OSDInfoBase{ID: 1}, CephxStatus: cephv1.CephxStatus{}}
 
 		cephxStatus, err := c.rotateCephxKey(osdInfo)
 		assert.NoError(t, err)
@@ -872,7 +863,7 @@ func TestCluster_rotateCephxKey(t *testing.T) {
 	t.Run("undefined status, empty config", func(t *testing.T) { // greenfield, no rotation
 		c := newTest(cephv1.CephxConfig{})
 		osdInfo := OSDInfo{
-			ID:          1,
+			OSDInfoBase: OSDInfoBase{ID: 1},
 			CephxStatus: keyring.UninitializedCephxStatus(), // shouldn't happen in reality
 		}
 
@@ -886,10 +877,7 @@ func TestCluster_rotateCephxKey(t *testing.T) {
 
 	t.Run("set status, empty config", func(t *testing.T) {
 		c := newTest(cephv1.CephxConfig{})
-		osdInfo := OSDInfo{
-			ID:          1,
-			CephxStatus: cephv1.CephxStatus{KeyGeneration: 1, KeyCephVersion: "19.2.6-0"},
-		}
+		osdInfo := OSDInfo{OSDInfoBase: OSDInfoBase{ID: 1}, CephxStatus: cephv1.CephxStatus{KeyGeneration: 1, KeyCephVersion: "19.2.6-0"}}
 
 		cephxStatus, err := c.rotateCephxKey(osdInfo)
 		assert.NoError(t, err)
@@ -902,10 +890,7 @@ func TestCluster_rotateCephxKey(t *testing.T) {
 			KeyRotationPolicy: "KeyGeneration",
 			KeyGeneration:     4,
 		})
-		osdInfo := OSDInfo{
-			ID:          2,
-			CephxStatus: cephv1.CephxStatus{KeyGeneration: 1, KeyCephVersion: "19.2.6-0"},
-		}
+		osdInfo := OSDInfo{OSDInfoBase: OSDInfoBase{ID: 2}, CephxStatus: cephv1.CephxStatus{KeyGeneration: 1, KeyCephVersion: "19.2.6-0"}}
 
 		cephxStatus, err := c.rotateCephxKey(osdInfo)
 		assert.NoError(t, err)
@@ -925,10 +910,7 @@ func TestCluster_rotateCephxKey(t *testing.T) {
 				return "", fmt.Errorf("mock error")
 			},
 		}
-		osdInfo := OSDInfo{
-			ID:          2,
-			CephxStatus: cephv1.CephxStatus{KeyGeneration: 1, KeyCephVersion: "19.2.6-0"},
-		}
+		osdInfo := OSDInfo{OSDInfoBase: OSDInfoBase{ID: 2}, CephxStatus: cephv1.CephxStatus{KeyGeneration: 1, KeyCephVersion: "19.2.6-0"}}
 
 		cephxStatus, err := c.rotateCephxKey(osdInfo)
 		assert.Error(t, err)

@@ -18,6 +18,7 @@ package osd
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -445,9 +446,9 @@ func TestPostReconcileUpdateOSDProperties(t *testing.T) {
 
 	// Start the first time
 	desiredOSDs := map[int]*OSDInfo{
-		0: {ID: 0, DeviceClass: "hdd"},
-		1: {ID: 1, DeviceClass: "hdd"},
-		2: {ID: 2, DeviceClass: "newclass"},
+		0: {OSDInfoBase: OSDInfoBase{ID: 0}, DeviceClass: "hdd"},
+		1: {OSDInfoBase: OSDInfoBase{ID: 1}, DeviceClass: "hdd"},
+		2: {OSDInfoBase: OSDInfoBase{ID: 2}, DeviceClass: "newclass"},
 	}
 	t.Run("test device class change", func(t *testing.T) {
 		c.spec.Storage = cephv1.StorageScopeSpec{AllowDeviceClassUpdate: true}
@@ -662,7 +663,7 @@ func TestGetPVCHostName(t *testing.T) {
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	c := &Cluster{context: &clusterd.Context{Clientset: clientset}, clusterInfo: clusterInfo}
-	osdInfo := OSDInfo{ID: 23}
+	osdInfo := OSDInfo{OSDInfoBase: OSDInfoBase{ID: 23}}
 	pvcName := "test-pvc"
 
 	// fail to get the host name when there is no pod or deployment
@@ -719,9 +720,9 @@ func TestGetOSDInfo(t *testing.T) {
 
 	node := "n1"
 	location := "root=default host=myhost zone=myzone"
-	osd1 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location, TopologyAffinity: "topology.rook.io/rack=rack0"}
-	osd2 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true}
-	osd3 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "raw"}
+	osd1 := &OSDInfo{OSDInfoBase: OSDInfoBase{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location, TopologyAffinity: "topology.rook.io/rack=rack0"}}
+	osd2 := &OSDInfo{OSDInfoBase: OSDInfoBase{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true}}
+	osd3 := &OSDInfo{OSDInfoBase: OSDInfoBase{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "raw"}}
 	osdProp := osdProperties{
 		crushHostname: node,
 		pvc:           corev1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
@@ -772,8 +773,8 @@ func TestGetOSDInfo(t *testing.T) {
 
 	t.Run("get info from node-based OSDs", func(t *testing.T) {
 		useAllDevices := true
-		osd4 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "lvm", Location: location}
-		osd5 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm"}
+		osd4 := &OSDInfo{OSDInfoBase: OSDInfoBase{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "lvm", Location: location}}
+		osd5 := &OSDInfo{OSDInfoBase: OSDInfoBase{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm"}}
 		osdProp = osdProperties{
 			crushHostname: node,
 			devices:       []cephv1.Device{},
@@ -800,10 +801,12 @@ func TestGetOSDInfo(t *testing.T) {
 	t.Run("verify the existence of labels if the corresponding fields are set on OSDInfo and OSDProperties", func(t *testing.T) {
 		pvcName := "test-pvc"
 		osdInfo := &OSDInfo{
-			UUID:       "osd-uuid",
-			BlockPath:  "dev/logical-volume-path",
-			CVMode:     "raw",
-			Store:      "bluestore",
+			OSDInfoBase: OSDInfoBase{
+				UUID:      "osd-uuid",
+				BlockPath: "dev/logical-volume-path",
+				CVMode:    "raw",
+				Store:     "bluestore",
+			},
 			DeviceType: "ssd",
 		}
 		osdProp := osdProperties{
@@ -842,9 +845,11 @@ func TestGetOSDInfo(t *testing.T) {
 	t.Run("verify the non-existence of labels if the corresponding fields are not set on OSDInfo and OSDProperties", func(t *testing.T) {
 		useAllDevices := true
 		osdInfo := &OSDInfo{
-			UUID:      "osd-uuid",
-			BlockPath: "vg1/lv1",
-			CVMode:    "lvm",
+			OSDInfoBase: OSDInfoBase{
+				UUID:      "osd-uuid",
+				BlockPath: "vg1/lv1",
+				CVMode:    "lvm",
+			},
 			// Store and DeviceType are empty (zero values)
 		}
 		osdProp := osdProperties{
@@ -994,9 +999,9 @@ func TestGetOSDInfoWithCustomRoot(t *testing.T) {
 
 	node := "n1"
 	location := "root=custom-root host=myhost zone=myzone"
-	osd1 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location}
-	osd2 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true, Location: location}
-	osd3 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "lvm", Location: location}
+	osd1 := &OSDInfo{OSDInfoBase: OSDInfoBase{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location}}
+	osd2 := &OSDInfo{OSDInfoBase: OSDInfoBase{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true, Location: location}}
+	osd3 := &OSDInfo{OSDInfoBase: OSDInfoBase{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "lvm", Location: location}}
 	osdProp := osdProperties{
 		crushHostname: node,
 		pvc:           corev1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
@@ -1379,4 +1384,65 @@ func TestValidateOSDSettings(t *testing.T) {
 		}
 		assert.Error(t, c.validateOSDSettings())
 	})
+}
+
+func TestOSDInfoJSON(t *testing.T) {
+	original := OSDInfo{
+		OSDInfoBase: OSDInfoBase{
+			ID:               7,
+			Cluster:          "ceph",
+			UUID:             "osd-uuid",
+			DevicePartUUID:   "part-uuid",
+			BlockPath:        "/dev/sda",
+			MetadataPath:     "/dev/sdb",
+			WalPath:          "/dev/sdc",
+			SkipLVRelease:    true,
+			Location:         "root=default host=h",
+			LVBackedPV:       true,
+			CVMode:           "raw",
+			Store:            "bluestore",
+			TopologyAffinity: "topology.rook.io/rack=rack0",
+			Encrypted:        true,
+			ExportService:    true,
+			NodeName:         "node1",
+			PVCName:          "pvc1",
+		},
+		DeviceClass: "fast",
+		DeviceType:  "ssd",
+		CephxStatus: cephv1.CephxStatus{KeyGeneration: 2, KeyCephVersion: "19.2.6-0"},
+	}
+
+	// Marshal and unmarshal back.
+	data, err := json.Marshal(original)
+	assert.NoError(t, err)
+	var decoded OSDInfo
+	assert.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, original, decoded)
+
+	// Unmarshal from a literal JSON string to catch struct-tag drift.
+	literal := `{
+		"id": 7,
+		"cluster": "ceph",
+		"uuid": "osd-uuid",
+		"device-part-uuid": "part-uuid",
+		"device-class": "fast",
+		"lv-path": "/dev/sda",
+		"metadata-path": "/dev/sdb",
+		"wal-path": "/dev/sdc",
+		"skip-lv-release": true,
+		"location": "root=default host=h",
+		"lv-backed-pv": true,
+		"lv-mode": "raw",
+		"store": "bluestore",
+		"topologyAffinity": "topology.rook.io/rack=rack0",
+		"encrypted": true,
+		"exportService": true,
+		"nodeName": "node1",
+		"pvcName": "pvc1",
+		"device-type": "ssd",
+		"cephxStatus": {"keyGeneration": 2, "keyCephVersion": "19.2.6-0"}
+	}`
+	var fromLiteral OSDInfo
+	assert.NoError(t, json.Unmarshal([]byte(literal), &fromLiteral))
+	assert.Equal(t, original, fromLiteral)
 }

@@ -19,6 +19,7 @@ package osd
 import (
 	"encoding/json"
 	"os"
+	"strings"
 
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/util/sys"
@@ -71,28 +72,46 @@ func (m *DeviceOsdMapping) String() string {
 	return string(b)
 }
 
-func (d *DesiredDevice) UpdateDeviceClass(agent *OsdAgent, device *sys.LocalDisk) {
-	// Rook sets the storage class of a device with the following priority.
-	//
-	// 1. the device-level configuration
-	// 2. the global or node-local configuration
-	// 3. the default value estimated from sysfs.
+// deviceClass resolves the CRUSH device class for a configured device:
+// per-device value first, node/cluster-level default otherwise. Returns "" when
+// nothing is configured.
+func (a *OsdAgent) deviceClass(d DesiredDevice) string {
 	if d.DeviceClass != "" {
-		return
+		return d.DeviceClass
 	}
+	return a.defaultDeviceClass()
+}
 
-	if agent.pvcBacked {
-		crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
-		if crushDeviceClass != "" {
-			d.DeviceClass = crushDeviceClass
-			return
+// deviceClassByPath returns the CRUSH device class for an OSD identified by
+// any of the given candidate paths (typically the block path plus its udev
+// DevLinks), with the following priority:
+//
+//  1. the device-level configuration from the CR, matched against any candidate
+//  2. the global or node-local default
+//
+// When multiple specs could match, the first configured device wins.
+// Returns "" when nothing is configured.
+func (a *OsdAgent) deviceClassByPath(paths []string) string {
+	for _, d := range a.devices {
+		if d.IsFilter || d.IsDevicePathFilter {
+			continue
 		}
-	} else {
-		if agent.storeConfig.DeviceClass != "" {
-			d.DeviceClass = agent.storeConfig.DeviceClass
-			return
+		normSpec := strings.TrimPrefix(d.Name, "/dev/")
+		for _, p := range paths {
+			if strings.TrimPrefix(p, "/dev/") == normSpec {
+				return a.deviceClass(d)
+			}
 		}
 	}
+	return a.defaultDeviceClass()
+}
 
-	d.DeviceClass = sys.GetDiskDeviceType(device)
+// defaultDeviceClass returns the node or cluster-level default CRUSH class.
+// PVC-backed prepare jobs read it from ROOK_OSD_CRUSH_DEVICE_CLASS (injected
+// by the operator); non-PVC jobs read it from a.storeConfig.DeviceClass.
+func (a *OsdAgent) defaultDeviceClass() string {
+	if a.pvcBacked {
+		return os.Getenv(oposd.CrushDeviceClassVarName)
+	}
+	return a.storeConfig.DeviceClass
 }

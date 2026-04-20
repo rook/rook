@@ -665,10 +665,12 @@ func setStatusConfigMapToCompleted(t *testing.T, cm *corev1.ConfigMap, numOSDsIf
 		osdID := testIDGenerator.osdID(t, cm.Name)
 		status.OSDs = []OSDInfo{
 			{
-				ID:        osdID,
-				UUID:      fmt.Sprintf("%032d", osdID),
-				BlockPath: "/dev/path/to/block",
-				CVMode:    "raw",
+				OSDInfoBase: OSDInfoBase{
+					ID:        osdID,
+					UUID:      fmt.Sprintf("%032d", osdID),
+					BlockPath: "/dev/path/to/block",
+					CVMode:    "raw",
+				},
 			},
 		}
 	} else {
@@ -679,10 +681,12 @@ func setStatusConfigMapToCompleted(t *testing.T, cm *corev1.ConfigMap, numOSDsIf
 			osdID := testIDGenerator.osdID(t, fmt.Sprintf("%s-%d", cm.Name, i))
 			disk := k8sutil.IndexToName(i)
 			status.OSDs = append(status.OSDs, OSDInfo{
-				ID:        osdID,
-				UUID:      fmt.Sprintf("%032d", osdID),
-				BlockPath: fmt.Sprintf("/dev/vd%s", disk),
-				CVMode:    "raw",
+				OSDInfoBase: OSDInfoBase{
+					ID:        osdID,
+					UUID:      fmt.Sprintf("%032d", osdID),
+					BlockPath: fmt.Sprintf("/dev/vd%s", disk),
+					CVMode:    "raw",
+				},
 			})
 		}
 	}

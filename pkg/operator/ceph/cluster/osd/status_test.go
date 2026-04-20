@@ -85,11 +85,13 @@ func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatch
 				status = &OrchestrationStatus{
 					OSDs: []OSDInfo{
 						{
-							ID:        1,
-							UUID:      "000000-0000-00000001",
-							Cluster:   "rook",
-							CVMode:    "raw",
-							BlockPath: "/dev/some/path",
+							OSDInfoBase: OSDInfoBase{
+								ID:        1,
+								UUID:      "000000-0000-00000001",
+								Cluster:   "rook",
+								CVMode:    "raw",
+								BlockPath: "/dev/some/path",
+							},
 						},
 					},
 					Status: OrchestrationStatusCompleted,
