@@ -757,3 +757,49 @@ func TestListSubvolumesInGroup(t *testing.T) {
 		assert.Empty(t, ret)
 	})
 }
+
+func TestAllowStandbyReplay(t *testing.T) {
+	cephFSName := "myfs"
+	newContext := func(standbyWanted bool, standbyCount int32) *clusterd.Context {
+		t.Helper()
+
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				t.Logf("Command: %s %v", command, args)
+				if args[0] == "fs" && args[1] == "set" && args[2] == cephFSName {
+					switch args[3] {
+					case "allow_standby_replay":
+						if args[4] == fmt.Sprint(standbyWanted) {
+							return "", nil
+						}
+					case "standby_count_wanted":
+						if args[4] == fmt.Sprint(standbyCount) {
+							return "", nil
+						}
+					}
+				}
+				panic(fmt.Sprintf("unhandled command %q %v", command, args))
+			},
+		}
+
+		return &clusterd.Context{Executor: executor}
+	}
+
+	t.Run("no standby mds", func(t *testing.T) {
+		ctx := newContext(false, 0)
+		err := AllowStandbyReplay(ctx, AdminTestClusterInfo("mycluster"), cephFSName, false, int32(1))
+		assert.NoError(t, err)
+	})
+
+	t.Run("standby mds", func(t *testing.T) {
+		ctx := newContext(true, 1)
+		err := AllowStandbyReplay(ctx, AdminTestClusterInfo("mycluster"), cephFSName, true, int32(1))
+		assert.NoError(t, err)
+	})
+
+	t.Run("standby mds multiple", func(t *testing.T) {
+		ctx := newContext(true, 3)
+		err := AllowStandbyReplay(ctx, AdminTestClusterInfo("mycluster"), cephFSName, true, int32(3))
+		assert.NoError(t, err)
+	})
+}

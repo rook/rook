@@ -268,7 +268,7 @@ func (c *Cluster) upgradeMDS() error {
 	log.NamedInfo(nsName, logger, "upgrading MDS cluster for filesystem %q", c.fs.Name)
 
 	// 1. set allow_standby_replay to false
-	if err := cephclient.AllowStandbyReplay(c.context, c.clusterInfo, c.fs.Name, false); err != nil {
+	if err := cephclient.AllowStandbyReplay(c.context, c.clusterInfo, c.fs.Name, false, 0); err != nil {
 		return errors.Wrap(err, "failed to setting allow_standby_replay to false")
 	}
 
@@ -422,7 +422,7 @@ func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclien
 	}
 
 	// set allow_standby_replay back
-	if err := cephclient.AllowStandbyReplay(context, clusterInfo, fsName, fs.Spec.MetadataServer.ActiveStandby); err != nil {
+	if err := cephclient.AllowStandbyReplay(context, clusterInfo, fsName, fs.Spec.MetadataServer.ActiveStandby, fs.Spec.MetadataServer.ActiveCount); err != nil {
 		return errors.Wrap(err, "failed to set allow_standby_replay to true")
 	}
 
