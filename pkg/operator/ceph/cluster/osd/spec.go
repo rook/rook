@@ -354,9 +354,15 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 		return nil, errors.Errorf("failed to generate deployment for OSD %d. required CVMode is not specified for this OSD", osd.ID)
 	}
 
-	if c.spec.Storage.AllowDeviceClassUpdate && osdProps.storeConfig.DeviceClass != "" && osdProps.storeConfig.DeviceClass != osd.DeviceClass {
-		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "The device class for osd %d is changing from %q to %q", osd.ID, osd.DeviceClass, osdProps.storeConfig.DeviceClass)
-		osd.DeviceClass = osdProps.storeConfig.DeviceClass
+	if c.spec.Storage.AllowDeviceClassUpdate {
+		desiredClass := osdProps.storeConfig.DeviceClass
+		if dc := perDeviceClassForOSD(osd, osdProps.devices); dc != "" {
+			desiredClass = dc
+		}
+		if desiredClass != "" && desiredClass != osd.DeviceClass {
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "The device class for osd %d is changing from %q to %q", osd.ID, osd.DeviceClass, desiredClass)
+			osd.DeviceClass = desiredClass
+		}
 	}
 	// Assign the resources specific to this device class
 	if resources, ok := cephv1.GetOSDResourcesForDeviceClass(c.spec.Resources, osd.DeviceClass); ok {

@@ -1002,3 +1002,127 @@ func TestCreateOSDService(t *testing.T) {
 	assert.Equal(t, 1, len(service.Spec.Ports))
 	assert.Equal(t, int32(osdPortv2), service.Spec.Ports[0].Port)
 }
+
+func crushDeviceClassEnvValue(t *testing.T, d *appsv1.Deployment) string {
+	t.Helper()
+	for _, c := range d.Spec.Template.Spec.Containers {
+		for _, e := range c.Env {
+			if e.Name == CrushDeviceClassVarName {
+				return e.Value
+			}
+		}
+	}
+	return ""
+}
+
+func newClusterWithAllowDeviceClassUpdate(t *testing.T, allowUpdate bool) *Cluster {
+	clientset := fake.NewClientset()
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", CephVersion: cephver.Squid}
+	clusterInfo.SetName("testing")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+	ctx := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	spec := cephv1.ClusterSpec{
+		Storage: cephv1.StorageScopeSpec{AllowDeviceClassUpdate: allowUpdate},
+	}
+	return New(ctx, clusterInfo, spec, "rook/rook:myversion")
+}
+
+func TestMakeDeploymentWithAllowDeviceClassUpdate(t *testing.T) {
+	tests := []struct {
+		name         string
+		currentOSD   string
+		perNodeNew   string
+		perDeviceNew string
+		want         string
+	}{
+		{
+			name:         "per-device class beats node-level",
+			currentOSD:   "hdd",
+			perNodeNew:   "slow",
+			perDeviceNew: "fast",
+			want:         "fast",
+		},
+		{
+			name:       "per-node updates when per-device is not set",
+			currentOSD: "slow",
+			perNodeNew: "fast",
+			want:       "fast",
+		},
+		{
+			name:         "per-device wins when per-node changes",
+			currentOSD:   "fast",
+			perNodeNew:   "very-fast",
+			perDeviceNew: "fast",
+			want:         "fast",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := newClusterWithAllowDeviceClassUpdate(t, true)
+			devices := []cephv1.Device{{Name: "vdb"}}
+			if tc.perDeviceNew != "" {
+				devices[0].Config = map[string]string{"deviceClass": tc.perDeviceNew}
+			}
+			osdProps := osdProperties{
+				crushHostname: "node1",
+				devices:       devices,
+				storeConfig:   config.StoreConfig{StoreType: "bluestore", DeviceClass: tc.perNodeNew},
+			}
+			osd := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vdb", CVMode: "raw", Store: "bluestore", DeviceClass: tc.currentOSD}
+			cfg := &provisionConfig{DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, "/var/lib/rook")}
+
+			d, err := c.makeDeployment(osdProps, osd, cfg)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, osd.DeviceClass)
+			assert.Equal(t, tc.want, crushDeviceClassEnvValue(t, d))
+		})
+	}
+}
+
+func TestMakeDeploymentAllowDeviceClassUpdateFalseLeavesClassAlone(t *testing.T) {
+	tests := []struct {
+		name         string
+		currentOSD   string
+		perNodeNew   string
+		perDeviceNew string
+	}{
+		{
+			name:         "per-device set, per-node changing",
+			currentOSD:   "hdd",
+			perNodeNew:   "slow",
+			perDeviceNew: "fast",
+		},
+		{
+			name:       "per-node-only changing",
+			currentOSD: "slow",
+			perNodeNew: "fast",
+		},
+		{
+			name:         "per-device set, per-node changing again",
+			currentOSD:   "fast",
+			perNodeNew:   "very-fast",
+			perDeviceNew: "fast",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := newClusterWithAllowDeviceClassUpdate(t, false)
+			devices := []cephv1.Device{{Name: "vdb"}}
+			if tc.perDeviceNew != "" {
+				devices[0].Config = map[string]string{"deviceClass": tc.perDeviceNew}
+			}
+			osdProps := osdProperties{
+				crushHostname: "node1",
+				devices:       devices,
+				storeConfig:   config.StoreConfig{StoreType: "bluestore", DeviceClass: tc.perNodeNew},
+			}
+			osd := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vdb", CVMode: "raw", Store: "bluestore", DeviceClass: tc.currentOSD}
+			cfg := &provisionConfig{DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, "/var/lib/rook")}
+
+			d, err := c.makeDeployment(osdProps, osd, cfg)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.currentOSD, osd.DeviceClass)
+			assert.Equal(t, tc.currentOSD, crushDeviceClassEnvValue(t, d))
+		})
+	}
+}
