@@ -797,6 +797,57 @@ func getDummyDeploymentOnNode(clientset *fake.Clientset, c *Cluster, nodeName st
 	return d
 }
 
+func TestDeploymentOnNodePerDeviceClassBeatsNodeLevel(t *testing.T) {
+	nodeName := "node1"
+	clientset := fake.NewClientset()
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", CephVersion: cephver.Squid}
+	clusterInfo.SetName("testing")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+	ctx := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+
+	spec := cephv1.ClusterSpec{
+		DataDirHostPath: "/var/lib/rook",
+		Storage: cephv1.StorageScopeSpec{
+			AllowDeviceClassUpdate: true,
+			Nodes: []cephv1.Node{
+				{
+					Name:   nodeName,
+					Config: map[string]string{"deviceClass": "slow"},
+					Selection: cephv1.Selection{
+						Devices: []cephv1.Device{
+							{Name: "vdb", Config: map[string]string{"deviceClass": "fast"}},
+						},
+					},
+				},
+			},
+		},
+	}
+	c := New(ctx, clusterInfo, spec, "myversion")
+	c.ValidStorage.Nodes = spec.Storage.Nodes
+
+	osd := &OSDInfo{
+		OSDInfoBase: OSDInfoBase{
+			ID:        0,
+			UUID:      "some-uuid",
+			BlockPath: "/dev/vdb",
+			CVMode:    "raw",
+			Store:     "bluestore",
+		},
+		DeviceClass: "fast",
+	}
+	d, err := deploymentOnNode(c, osd, nodeName, c.newProvisionConfig())
+	assert.NoError(t, err)
+
+	var envClass string
+	for _, e := range d.Spec.Template.Spec.Containers[0].Env {
+		if e.Name == "ROOK_OSD_DEVICE_CLASS" {
+			envClass = e.Value
+			break
+		}
+	}
+	assert.Equal(t, "fast", envClass, "per-device class should beat node-level class when AllowDeviceClassUpdate=true")
+}
+
 func TestOSDPlacement(t *testing.T) {
 	clientset := fake.NewClientset()
 	clusterInfo := &cephclient.ClusterInfo{

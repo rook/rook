@@ -512,6 +512,12 @@ func deploymentOnNode(c *Cluster, osd *OSDInfo, nodeName string, config *provisi
 		return nil, errors.Wrapf(err, "failed to generate config for %s", osdLongName)
 	}
 
+	// Set the per-device class here so the update check at spec.go:357 does not
+	// overwrite it with the node-level default when AllowDeviceClassUpdate is enabled.
+	if dc := perDeviceClassForOSD(osd, osdProps.devices); dc != "" {
+		osdProps.storeConfig.DeviceClass = dc
+	}
+
 	d, err := c.makeDeployment(osdProps, osd, config)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to generate deployment for %s", osdLongName)
@@ -586,6 +592,22 @@ func (c *Cluster) getOSDPropsForNode(nodeName, deviceClass string) (osdPropertie
 	}
 
 	return osdProps, nil
+}
+
+func perDeviceClassForOSD(osd *OSDInfo, devices []cephv1.Device) string {
+	if osd.BlockPath == "" {
+		return ""
+	}
+	short := strings.TrimPrefix(osd.BlockPath, "/dev/")
+	for _, d := range devices {
+		if d.Name != "" && strings.TrimPrefix(d.Name, "/dev/") == short {
+			return d.Config[osdconfig.DeviceClassKey]
+		}
+		if d.FullPath != "" && d.FullPath == osd.BlockPath {
+			return d.Config[osdconfig.DeviceClassKey]
+		}
+	}
+	return ""
 }
 
 func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {

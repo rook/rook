@@ -1386,6 +1386,76 @@ func TestValidateOSDSettings(t *testing.T) {
 	})
 }
 
+func TestPerDeviceClassForOSD(t *testing.T) {
+	tests := []struct {
+		name     string
+		osd      *OSDInfo
+		devices  []cephv1.Device
+		expected string
+	}{
+		{
+			name:     "match by short name, /dev/ prefix on blockPath",
+			osd:      &OSDInfo{OSDInfoBase: OSDInfoBase{BlockPath: "/dev/vdb"}},
+			devices:  []cephv1.Device{{Name: "vdb", Config: map[string]string{"deviceClass": "fast"}}},
+			expected: "fast",
+		},
+		{
+			name:     "match by name with /dev/ prefix in spec",
+			osd:      &OSDInfo{OSDInfoBase: OSDInfoBase{BlockPath: "/dev/vdb"}},
+			devices:  []cephv1.Device{{Name: "/dev/vdb", Config: map[string]string{"deviceClass": "fast"}}},
+			expected: "fast",
+		},
+		{
+			name:     "match by FullPath literal equality",
+			osd:      &OSDInfo{OSDInfoBase: OSDInfoBase{BlockPath: "/dev/disk/by-id/wwn-0xabc"}},
+			devices:  []cephv1.Device{{FullPath: "/dev/disk/by-id/wwn-0xabc", Config: map[string]string{"deviceClass": "fast"}}},
+			expected: "fast",
+		},
+		{
+			name:     "no match across devices returns empty",
+			osd:      &OSDInfo{OSDInfoBase: OSDInfoBase{BlockPath: "/dev/vdb"}},
+			devices:  []cephv1.Device{{Name: "vdc", Config: map[string]string{"deviceClass": "fast"}}},
+			expected: "",
+		},
+		{
+			name:     "matching spec without deviceClass returns empty",
+			osd:      &OSDInfo{OSDInfoBase: OSDInfoBase{BlockPath: "/dev/vdb"}},
+			devices:  []cephv1.Device{{Name: "vdb"}},
+			expected: "",
+		},
+		{
+			name:     "empty blockPath returns empty",
+			osd:      &OSDInfo{},
+			devices:  []cephv1.Device{{Name: "vdb", Config: map[string]string{"deviceClass": "fast"}}},
+			expected: "",
+		},
+		{
+			name: "first matching entry wins on duplicate names",
+			osd:  &OSDInfo{OSDInfoBase: OSDInfoBase{BlockPath: "/dev/vdb"}},
+			devices: []cephv1.Device{
+				{Name: "vdb", Config: map[string]string{"deviceClass": "fast"}},
+				{Name: "vdb", Config: map[string]string{"deviceClass": "slow"}},
+			},
+			expected: "fast",
+		},
+		{
+			// LVM blockPath can't be matched to a short kernel name. Caller
+			// must rely on osd.DeviceClass already being resolved by the
+			// daemon list-back path in that case.
+			name:     "LVM blockPath does not match short-name spec",
+			osd:      &OSDInfo{OSDInfoBase: OSDInfoBase{BlockPath: "/dev/ceph-xxx/osd-block-yyy"}},
+			devices:  []cephv1.Device{{Name: "vdb", Config: map[string]string{"deviceClass": "fast"}}},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, perDeviceClassForOSD(tt.osd, tt.devices))
+		})
+	}
+}
+
 func TestOSDInfoJSON(t *testing.T) {
 	original := OSDInfo{
 		OSDInfoBase: OSDInfoBase{
