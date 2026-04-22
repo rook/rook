@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
+        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.33.11", "1.35.4"]
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -66,7 +66,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
+        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.33.11", "1.35.4"]
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -107,7 +107,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
+        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.33.11", "1.35.4"]
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -145,7 +145,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
+        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.33.11", "1.35.4"]
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -183,7 +183,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
+        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.33.11", "1.35.4"]
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -222,7 +222,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.30.14", "1.35.0"]
+        kubernetes-version: ["v1.31.14", "1.35.4"]
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
