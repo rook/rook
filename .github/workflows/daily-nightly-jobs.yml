@@ -37,7 +37,7 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          kubernetes-version: "1.35.0"
+          kubernetes-version: "1.35.4"
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
@@ -88,7 +88,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.35.0"
+          kubernetes-version: "1.35.4"
 
       - name: TestCephSmokeSuite
         run: |
@@ -128,7 +128,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.35.0"
+          kubernetes-version: "1.35.4"
 
       - name: TestCephSmokeSuite
         run: |
@@ -168,7 +168,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.35.0"
+          kubernetes-version: "1.35.4"
 
       - name: TestCephSmokeSuite
         run: |
@@ -208,7 +208,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.35.0"
+          kubernetes-version: "1.35.4"
 
       - name: TestCephObjectSuite
         run: |
@@ -248,7 +248,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.35.0"
+          kubernetes-version: "1.35.4"
 
       - name: TestCephUpgradeSuite
         run: |
@@ -288,7 +288,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.35.0"
+          kubernetes-version: "1.35.4"
 
       - name: TestCephUpgradeSuite
         run: |
