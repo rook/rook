@@ -81,6 +81,10 @@ func TestPreClusterStartValidation(t *testing.T) {
 			{Name: "b"},
 			{Name: "c"},
 		}}}}}}, true},
+		{"TNF cluster with floating mon", args{&cluster{ClusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 2)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 3, AllowMultiplePerNode: false, FloatingMon: cephv1.FloatingMonSpec{
+			Name:          "c",
+			ConfigMapName: "rook-floating-mon-config",
+		}}}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
