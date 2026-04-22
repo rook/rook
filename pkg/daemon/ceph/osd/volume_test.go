@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -1599,18 +1600,43 @@ func TestInitializeBlockPVC(t *testing.T) {
 
 		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
-	// Test with flag --crush-device-class.
-	t.Setenv(oposd.CrushDeviceClassVarName, "foo")
+	// node-level class via storeConfig (flag-bound to ROOK_OSD_CRUSH_DEVICE_CLASS)
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},
 	}
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore", DeviceClass: "foo"}}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
 		},
 	}
 
+	blockPath, metadataBlockPath, walBlockPath, err = a.initializeBlockPVC(context, devices, false)
+	assert.Nil(t, err)
+	assert.Equal(t, "/mnt/set1-data-0-rpf2k", blockPath)
+	assert.Equal(t, "", metadataBlockPath)
+	assert.Equal(t, "", walBlockPath)
+
+	// per-device class overrides node-level
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--crush-device-class" ||
+			args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "prepare" && args[6] == "--bluestore" && args[9] == "--crush-device-class" {
+			if len(args) > 9 {
+				assert.Equal(t, "bar", args[10])
+			} else {
+				assert.Equal(t, "bar", args[8])
+			}
+			return initializeBlockPVCTestResult, nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore", DeviceClass: "foo"}}
+	devices = &DeviceOsdMapping{
+		Entries: map[string]*DeviceOsdIDEntry{
+			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k", DeviceClass: "bar"}},
+		},
+	}
 	blockPath, metadataBlockPath, walBlockPath, err = a.initializeBlockPVC(context, devices, false)
 	assert.Nil(t, err)
 	assert.Equal(t, "/mnt/set1-data-0-rpf2k", blockPath)
@@ -1631,7 +1657,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	assert.Equal(t, "", walBlockPath)
 
 	// Test for condition when osd is prepared with existing osd ID
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}, replaceOSD: &oposd.OSDInfo{ID: 3, BlockPath: "/dev/sda"}}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore", DeviceClass: "foo"}, replaceOSD: &oposd.OSDInfo{ID: 3, BlockPath: "/dev/sda"}}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}, DeviceInfo: &sys.LocalDisk{RealPath: "/dev/sda"}},
@@ -1653,7 +1679,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	assert.Equal(t, "", walBlockPath)
 
 	// Test for condition that --osd-id is not passed for the devices that don't match the OSD to be replaced.
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}, replaceOSD: &oposd.OSDInfo{ID: 3, BlockPath: "/dev/sda"}}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore", DeviceClass: "foo"}, replaceOSD: &oposd.OSDInfo{ID: 3, BlockPath: "/dev/sda"}}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}, DeviceInfo: &sys.LocalDisk{RealPath: "/dev/sdb"}},
@@ -1718,12 +1744,11 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	}
 
 	// Test with flag --block.db and --crush-device-class flag.
-	t.Setenv(oposd.CrushDeviceClassVarName, "foo")
 	context = &clusterd.Context{Executor: executor}
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},
 	}
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore", DeviceClass: "foo"}}
 
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
@@ -1783,7 +1808,7 @@ func TestParseCephVolumeRawResult(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "name"}
 
 	context := &clusterd.Context{Executor: executor, Clientset: test.New(t, 3)}
-	osds, err := GetCephVolumeRawOSDs(context, clusterInfo, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", "", false, false)
+	osds, err := GetCephVolumeRawOSDs(context, clusterInfo, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", "", false, false, nil)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
@@ -2359,4 +2384,86 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	context.Executor = executor
 	err = agent.WipeDevicesFromOtherClusters(context)
 	assert.NoError(t, err)
+}
+
+func TestFindDeviceClass(t *testing.T) {
+	tests := []struct {
+		name       string
+		devices    []DesiredDevice
+		blockPath  string
+		kernelName string
+		devLinks   string
+		want       string
+	}{
+		{"short name matches", []DesiredDevice{{Name: "vdb", DeviceClass: "fast"}}, "/dev/vdb", "vdb", "", "fast"},
+		{"/dev/-prefixed name matches", []DesiredDevice{{Name: "/dev/vdb", DeviceClass: "fast"}}, "/dev/vdb", "vdb", "", "fast"},
+		{"kernel-name fallback (LVM blockPath)", []DesiredDevice{{Name: "sdb", DeviceClass: "fast"}}, "/dev/ceph-abc/osd-block-xyz", "sdb", "", "fast"},
+		{"fullpath via DevLinks", []DesiredDevice{{Name: "/dev/disk/by-id/wwn-0x123", DeviceClass: "fast"}}, "/dev/sda", "sda", "/dev/disk/by-id/wwn-0x123 /dev/disk/by-path/pci-foo", "fast"},
+		{"fullpath without DevLinks does not match", []DesiredDevice{{Name: "/dev/disk/by-id/wwn-0x123", DeviceClass: "fast"}}, "/dev/sda", "sda", "", ""},
+		{"no match returns empty", []DesiredDevice{{Name: "vdb", DeviceClass: "fast"}}, "/dev/vdc", "vdc", "", ""},
+		{"filter entry skipped", []DesiredDevice{{Name: "vd.*", DeviceClass: "fast", IsFilter: true}}, "/dev/vdb", "vdb", "", ""},
+		{"device-path filter skipped", []DesiredDevice{{Name: "/dev/vd.*", DeviceClass: "fast", IsDevicePathFilter: true}}, "/dev/vdb", "vdb", "", ""},
+		{"entry without class skipped", []DesiredDevice{{Name: "vdb"}}, "/dev/vdb", "vdb", "", ""},
+		{"empty list returns empty", nil, "/dev/vdb", "vdb", "", ""},
+		{"entry without name skipped", []DesiredDevice{{DeviceClass: "fast"}}, "/dev/vdb", "vdb", "", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, findDeviceClass(tc.devices, tc.blockPath, tc.kernelName, tc.devLinks))
+		})
+	}
+}
+
+func TestGetCephVolumeRawOSDsHonorDeviceClass(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if command == "stdbuf" && args[4] == "raw" && args[5] == "list" {
+			return cephVolumeRAWTestResult, nil
+		}
+		if command == "lsblk" && (args[0] == "/dev/vdb" || args[0] == "/dev/vdc") {
+			base := strings.TrimPrefix(args[0], "/dev/")
+			return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="disk" PKNAME="" NAME="%s" KNAME="%s"`, args[0], base), nil
+		}
+		if command == "udevadm" {
+			return "", nil
+		}
+		if command == "sgdisk" {
+			return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
+		}
+		return "", errors.Errorf("unknown command: %s, args: %#v", command, args)
+	}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "name"}
+	ctx := &clusterd.Context{Executor: executor, Clientset: test.New(t, 3)}
+
+	tests := []struct {
+		name       string
+		perNode    string
+		devices    []DesiredDevice
+		wantPerDev map[string]string
+	}{
+		{
+			name:       "per-device class wins over disk-derived class",
+			devices:    []DesiredDevice{{Name: "vdb", DeviceClass: "fast"}},
+			wantPerDev: map[string]string{"/dev/vdb": "fast", "/dev/vdc": "hdd"},
+		},
+		{
+			name:       "per-node class only (no per-device) applies to all OSDs",
+			perNode:    "slow",
+			devices:    []DesiredDevice{{Name: "vdb"}, {Name: "vdc"}},
+			wantPerDev: map[string]string{"/dev/vdb": "slow", "/dev/vdc": "slow"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(oposd.CrushDeviceClassVarName, tc.perNode)
+			osds, err := GetCephVolumeRawOSDs(ctx, clusterInfo, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", "", false, false, tc.devices)
+			assert.NoError(t, err)
+			require.Len(t, osds, 2)
+			got := map[string]string{}
+			for _, o := range osds {
+				got[o.BlockPath] = o.DeviceClass
+			}
+			assert.Equal(t, tc.wantPerDev, got)
+		})
+	}
 }
