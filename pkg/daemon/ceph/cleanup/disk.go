@@ -70,7 +70,7 @@ func (s *DiskSanitizer) StartSanitizeDisks() {
 	}
 
 	// Raw based OSDs
-	osdRawList, err := osd.GetCephVolumeRawOSDs(s.context, s.clusterInfo, s.clusterInfo.FSID, "", "", "", false, true)
+	osdRawList, err := osd.GetCephVolumeRawOSDs(s.context, s.clusterInfo, s.clusterInfo.FSID, "", "", "", false, true, nil)
 	if err != nil {
 		logger.Errorf("failed to list raw osd(s). %v", err)
 	} else {
