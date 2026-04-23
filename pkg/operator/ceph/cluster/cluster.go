@@ -307,8 +307,12 @@ func preClusterStartValidation(cluster *cluster) error {
 	}
 	if !cluster.Spec.Mon.AllowMultiplePerNode {
 		// Check that there are enough nodes to have a chance of starting the requested number of mons
+		monCountToSchedule := cluster.Spec.Mon.Count
+		if cluster.Spec.Mon.FloatingMon.Name != "" {
+			monCountToSchedule--
+		}
 		nodes, err := cluster.context.Clientset.CoreV1().Nodes().List(cluster.ClusterInfo.Context, metav1.ListOptions{})
-		if err == nil && len(nodes.Items) < cluster.Spec.Mon.Count {
+		if err == nil && len(nodes.Items) < monCountToSchedule {
 			return errors.Errorf("cannot start %d mons on %d node(s) when allowMultiplePerNode is false", cluster.Spec.Mon.Count, len(nodes.Items))
 		}
 	}
