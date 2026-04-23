@@ -320,7 +320,11 @@ function deploy_manifest_with_local_build() {
 function deploy_toolbox() {
   cd "${REPO_DIR}/deploy/examples"
   sed -i 's/image: quay\.io\/ceph\/ceph:.*/image: quay.io\/ceph\/ceph:v18/' toolbox.yaml
+  local ns
+  ns=$(yq r toolbox.yaml metadata.namespace 2>/dev/null)
+  timeout 300 bash -c 'until kubectl get secret rook-ceph-mon -n "$1" &>/dev/null && kubectl get cm rook-ceph-mon-endpoints -n "$1" &>/dev/null; do sleep 2; done' _ "${ns}"
   kubectl create -f toolbox.yaml
+  kubectl -n "${ns}" wait --for=condition=available deployment/rook-ceph-tools --timeout=300s
 }
 
 function replace_ceph_image() {

@@ -1685,7 +1685,7 @@ jobs:
           cd deploy/examples/
           yq w -i pool-test.yaml metadata.name replicapool2
           kubectl create -f pool-test.yaml
-          timeout 180 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool2 to be created on cluster 2" && sleep 1; done'
+          timeout 180 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool2 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool2 to be created on cluster 2" && sleep 1; done'
 
       - name: create images in the pools
         run: |
