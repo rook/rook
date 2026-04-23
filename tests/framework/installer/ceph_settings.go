@@ -54,6 +54,26 @@ type TestCephSettings struct {
 	KubernetesVersion           string
 	EnableCsiOperator           bool
 	ClusterConcurrency          int
+	// OsdCount is the number of OSDs in PVC-based storageClassDeviceSets (defaults to 1)
+	OsdCount int
+	// OsdPVCSize is the storage request for each OSD PVC (defaults to "10Gi")
+	OsdPVCSize string
+	// AllowLoopDevices sets ROOK_CEPH_ALLOW_LOOP_DEVICES to allow loop devices in test clusters
+	AllowLoopDevices bool
+}
+
+func (s *TestCephSettings) osdCount() int {
+	if s.OsdCount <= 0 {
+		return 1
+	}
+	return s.OsdCount
+}
+
+func (s *TestCephSettings) osdPVCSize() string {
+	if s.OsdPVCSize == "" {
+		return "10Gi"
+	}
+	return s.OsdPVCSize
 }
 
 func (s *TestCephSettings) ApplyEnvVars() {
@@ -101,6 +121,9 @@ func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 	}
 	if s.ClusterConcurrency > 1 {
 		manifest = strings.ReplaceAll(manifest, `ROOK_RECONCILE_CONCURRENT_CLUSTERS: "1"`, fmt.Sprintf(`ROOK_RECONCILE_CONCURRENT_CLUSTERS: "%d"`, s.ClusterConcurrency))
+	}
+	if s.AllowLoopDevices {
+		manifest = strings.ReplaceAll(manifest, `ROOK_CEPH_ALLOW_LOOP_DEVICES: "false"`, `ROOK_CEPH_ALLOW_LOOP_DEVICES: "true"`)
 	}
 	return manifest
 }

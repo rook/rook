@@ -220,7 +220,7 @@ spec:
       ` + crushRoot + `
     storageClassDeviceSets:
     - name: set1
-      count: 1
+      count: ` + strconv.Itoa(m.settings.osdCount()) + `
       portable: false
       tuneDeviceClass: true
       encrypted: false
@@ -230,7 +230,7 @@ spec:
         spec:
           resources:
             requests:
-              storage: 10Gi
+              storage: ` + m.settings.osdPVCSize() + `
           storageClassName: ` + m.settings.StorageClassName + `
           volumeMode: Block
           accessModes:
