@@ -479,7 +479,7 @@ data:
 
   # Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options
   # Set to "ms_mode=secure" when connections.encrypted is enabled in CephCluster CR
-  # CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: "ms_mode=secure"
+  CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: "ms_mode=prefer-crc"
 
   # (Optional) Duration in seconds that non-leader candidates will wait to force acquire leadership. Default to 137 seconds.
   # CSI_LEADER_ELECTION_LEASE_DURATION: "137s"
