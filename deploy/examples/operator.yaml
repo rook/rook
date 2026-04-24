@@ -31,6 +31,10 @@ data:
   # Allow using loop devices for osds in test clusters.
   ROOK_CEPH_ALLOW_LOOP_DEVICES: "false"
 
+  # Delete unused generated CRUSH rules after the mgr starts. Disable this if
+  # you need Rook to leave custom CRUSH rules in place.
+  ROOK_DELETE_UNUSED_CRUSH_RULES: "true"
+
   # Enable CSI Operator
   ROOK_USE_CSI_OPERATOR: "true"
   # Enable the CSI driver.

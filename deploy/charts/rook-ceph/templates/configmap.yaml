@@ -22,6 +22,7 @@ data:
   ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: {{ . | quote }}
   {{- end }}
   ROOK_CEPH_ALLOW_LOOP_DEVICES: {{ .Values.allowLoopDevices | quote }}
+  ROOK_DELETE_UNUSED_CRUSH_RULES: {{ .Values.deleteUnusedCrushRules | quote }}
   ROOK_ENABLE_DISCOVERY_DAEMON: {{ .Values.enableDiscoveryDaemon | quote }}
   {{- with .Values.discoverDaemonUdev }}
   DISCOVER_DAEMON_UDEV_BLACKLIST: {{ . | quote }}

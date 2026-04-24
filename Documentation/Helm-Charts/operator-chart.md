@@ -141,6 +141,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.topology.enabled` | Enable topology based provisioning | `false` |
 | `currentNamespaceOnly` | Whether the operator should watch cluster CRD in its own namespace or not | `false` |
 | `customHostnameLabel` | Custom label to identify node hostname. If not set `kubernetes.io/hostname` will be used | `nil` |
+| `deleteUnusedCrushRules` | If true, delete unused generated CRUSH rules after the mgr starts | `true` |
 | `disableDeviceHotplug` | Disable automatic orchestration when new devices are discovered. | `false` |
 | `discover.nodeAffinity` | The node labels for affinity of `discover-agent` [^1] | `nil` |
 | `discover.podLabels` | Labels to add to the discover pods | `nil` |
