@@ -256,13 +256,13 @@ Common cases that may need tests:
 
 ## Linting
 
-Run `make lint` to run all linters. This will require the following CLI tools to be installed on the system:
+Run `make lint` to run several linters. This will require
+the [pylint](https://www.pylint.org/) CLI tool to be installed on the system in the PATH
 
-* [yamllint](https://www.yamllint.com/)
-* [pylint](https://www.pylint.org/)
-
-Many of those tools are available via `brew` for MacOS or as Linux distribution packages.
-Otherwise refer to the respective project websites for installation instructions.
+pylint is available via `brew` for MacOS and as a distribution package
+for many Linux distributions. It can also be installed into the system
+or a python virtual environment (venv) with `pip`.
+Refer to the respective project website for more installation instructions.
 
 !!! tip
     Run `make help` to see a list of all possible make targets
