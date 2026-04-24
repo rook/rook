@@ -37,6 +37,10 @@ endif
 
 MARKDOWNLINT := $(DOCKERCMD) run --rm -v $$PWD:/workdir davidanson/markdownlint-cli2:$(MARKDOWNLINT_IMAGE_VERSION)
 
+ifneq ($(strip $(YAMLLINT_IMAGE_SHA)),)
+YAMLLINT := $(DOCKERCMD) run  --rm -t -v $(CURDIR):/workdir:ro -w /workdir --entrypoint yamllint cytopia/yamllint@$(YAMLLINT_IMAGE_SHA)
+endif
+
 ifeq ($(origin PLATFORM), undefined)
 ifeq ($(origin GOOS), undefined)
 GOOS := $(shell go env GOOS)
