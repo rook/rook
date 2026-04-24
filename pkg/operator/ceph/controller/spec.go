@@ -82,25 +82,21 @@ type daemonConfig struct {
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-spec")
 
 var (
-	osdLivenessProbeScript = `
-outp="$(ceph --admin-daemon %s %s 2>&1)"
+	osdLivenessProbeScript = `outp="$(ceph --admin-daemon %s %s 2>&1)"
 rc=$?
 if [ $rc -ne 0 ] && [ ! -f /tmp/osd-sleep ]; then
 	echo "ceph daemon health check failed with the following output:"
 	echo "$outp" | sed -e 's/^/> /g'
 	exit $rc
-fi
-`
+fi`
 
-	livenessProbeScript = `
-outp="$(ceph --admin-daemon %s %s 2>&1)"
+	livenessProbeScript = `outp="$(ceph --admin-daemon %s %s 2>&1)"
 rc=$?
 if [ $rc -ne 0 ]; then
 	echo "ceph daemon health check failed with the following output:"
 	echo "$outp" | sed -e 's/^/> /g'
 	exit $rc
-fi
-`
+fi`
 
 	cronLogRotate = `
 CEPH_CLIENT_ID=%s
