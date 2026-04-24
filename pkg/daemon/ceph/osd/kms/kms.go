@@ -501,7 +501,7 @@ func putSecret(v secrets.Secrets, secretName, secretValue string, keyContext map
 	if key != "" {
 		logger.Debugf("key %q already exists in kms!", secretName)
 		if key != secretValue {
-			logger.Error("value for secret %q is not expected to be changed", secretName)
+			logger.Errorf("value for secret %q is not expected to be changed", secretName)
 		}
 		return nil
 	}
