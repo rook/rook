@@ -297,6 +297,8 @@ docs-build:  ## Build the documentation to the `site/` directory
 
 .PHONY: gen.crd-docs
 gen.crd-docs: generate-docs-crds
+
+.PHONY: generate-docs-crds
 generate-docs-crds: crds.docs ## Build the documentation for CRDs
 
 .PHONY: generate
