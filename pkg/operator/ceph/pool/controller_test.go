@@ -159,6 +159,8 @@ func TestCephPoolName(t *testing.T) {
 
 func TestDeletePool(t *testing.T) {
 	failOnDelete := false
+	deletedPools := map[string]bool{}
+	deletedCrushRules := map[string]bool{}
 	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -166,10 +168,17 @@ func TestDeletePool(t *testing.T) {
 			p := "{\"images\":{\"count\":1,\"provisioned_bytes\":1024,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
 			logger.Infof("Command: %s %v", command, args)
 			if command == "ceph" && args[1] == "lspools" {
+				if deletedPools["mypool"] {
+					return `[]`, nil
+				}
 				return `[{"poolnum":1,"poolname":"mypool"}]`, nil
 			} else if command == "ceph" && args[1] == "pool" && args[2] == "get" {
-				return `{"pool": "mypool","pool_id": 1,"size":1}`, nil
+				return `{"pool": "mypool","pool_id": 1,"size":1,"crush_rule":"mypool_zone"}`, nil
 			} else if command == "ceph" && args[1] == "pool" && args[2] == "delete" {
+				deletedPools[args[3]] = true
+				return "", nil
+			} else if command == "ceph" && args[1] == "crush" && args[2] == "rule" && args[3] == "rm" {
+				deletedCrushRules[args[4]] = true
 				return "", nil
 			} else if args[0] == "pool" {
 				if args[1] == "stats" {
@@ -189,29 +198,39 @@ func TestDeletePool(t *testing.T) {
 	p := &cephv1.NamedPoolSpec{Name: "mypool"}
 	err := deletePool(context, clusterInfo, p)
 	assert.NoError(t, err)
+	assert.True(t, deletedPools["mypool"])
+	assert.True(t, deletedCrushRules["mypool_zone"])
 
 	// succeed even if the pool doesn't exist
 	p = &cephv1.NamedPoolSpec{Name: "otherpool"}
 	err = deletePool(context, clusterInfo, p)
 	assert.Nil(t, err)
+	assert.False(t, deletedPools["otherpool"])
 
 	// fail if images/snapshosts exist in the pool
 	failOnDelete = true
+	deletedPools["mypool"] = false
 	p = &cephv1.NamedPoolSpec{Name: "mypool"}
 	err = deletePool(context, clusterInfo, p)
 	assert.Error(t, err)
+	assert.False(t, deletedPools["mypool"])
 
 	// delete an erasure coded pool should also delete the EC profile
 	ecProfileDeleted := false
 	failOnDelete = false
+	ecDeletedPools := map[string]bool{}
 	ecExecutor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			emptyPool := "{\"images\":{\"count\":0,\"provisioned_bytes\":0,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
 			if command == "ceph" && args[1] == "lspools" {
+				if ecDeletedPools["ecpool"] {
+					return `[]`, nil
+				}
 				return `[{"poolnum":1,"poolname":"ecpool"}]`, nil
 			} else if command == "ceph" && args[1] == "pool" && args[2] == "get" {
 				return `{"pool": "ecpool","pool_id": 1,"size":1}`, nil
 			} else if command == "ceph" && args[1] == "pool" && args[2] == "delete" {
+				ecDeletedPools[args[3]] = true
 				return "", nil
 			} else if command == "ceph" && args[1] == "erasure-code-profile" && args[2] == "rm" {
 				assert.Equal(t, "ecpool_ecprofile", args[3])
@@ -239,6 +258,7 @@ func TestDeletePool(t *testing.T) {
 	err = deletePool(ecContext, clusterInfo, ecPool)
 	assert.NoError(t, err)
 	assert.True(t, ecProfileDeleted)
+	assert.True(t, ecDeletedPools["ecpool"])
 }
 
 // TestCephBlockPoolController runs ReconcileCephBlockPool.Reconcile() against a
