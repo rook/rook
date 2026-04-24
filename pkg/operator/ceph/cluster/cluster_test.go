@@ -232,6 +232,66 @@ func TestConfigureMsgr2(t *testing.T) {
 	}
 }
 
+func TestPostMgrStartupActionsCleansUnusedCrushRules(t *testing.T) {
+	removedRules := []string{}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if command == "ceph" && args[1] == "lspools" {
+				return `[{"poolnum":1,"poolname":"mypool"}]`, nil
+			}
+			if command == "ceph" && args[1] == "pool" && args[2] == "get" {
+				return `{"pool":"mypool","pool_id":1,"crush_rule":"mypool_zone"}`, nil
+			}
+			if command == "ceph" && args[1] == "crush" && args[2] == "dump" {
+				return `{"rules":[{"rule_name":"mypool"},{"rule_name":"mypool_zone","steps":[{},{"type":"zone"}]}]}`, nil
+			}
+			if command == "ceph" && args[1] == "crush" && args[2] == "rule" && args[3] == "rm" {
+				removedRules = append(removedRules, args[4])
+				return "", nil
+			}
+			return "", errors.Errorf("unexpected ceph command %q", args)
+		},
+	}
+
+	c := &cluster{
+		context: &clusterd.Context{
+			Clientset: testop.New(t, 1),
+			Executor:  executor,
+		},
+		ClusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"),
+		Spec:        &cephv1.ClusterSpec{},
+	}
+
+	err := c.postMgrStartupActions()
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"mypool"}, removedRules)
+}
+
+func TestPostMgrStartupActionsSkipsUnusedCrushRuleCleanupWhenDisabled(t *testing.T) {
+	t.Setenv(deleteUnusedCrushRulesSetting, "false")
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			t.Fatalf("unexpected ceph command %s %v", command, args)
+			return "", nil
+		},
+	}
+
+	c := &cluster{
+		context: &clusterd.Context{
+			Clientset: testop.New(t, 1),
+			Executor:  executor,
+		},
+		ClusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"),
+		Spec:        &cephv1.ClusterSpec{},
+		Namespace:   "rook-ceph",
+	}
+
+	err := c.postMgrStartupActions()
+	assert.NoError(t, err)
+}
+
 func TestTelemetry(t *testing.T) {
 	var expectedSettings map[string]string
 	clientset := testop.New(t, 3)

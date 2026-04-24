@@ -55,7 +55,8 @@ import (
 )
 
 const (
-	detectVersionName = "rook-ceph-detect-version"
+	detectVersionName             = "rook-ceph-detect-version"
+	deleteUnusedCrushRulesSetting = "ROOK_DELETE_UNUSED_CRUSH_RULES"
 )
 
 var telemetryMutex sync.Mutex
@@ -571,7 +572,25 @@ func (c *cluster) postMgrStartupActions() error {
 	if err := c.updateConfigStoreFromCRD(); err != nil {
 		return errors.Wrap(err, "failed to set config store options")
 	}
+	if !cleanupUnusedCrushRulesEnabled(c.Namespace) {
+		log.NamespacedInfo(c.Namespace, logger, "skipping cleanup of unused crush rules because %s is disabled", deleteUnusedCrushRulesSetting)
+		return nil
+	}
+	if err := client.CleanupUnusedCrushRules(c.context, c.ClusterInfo); err != nil {
+		log.NamespacedError(c.Namespace, logger, "failed to clean up unused crush rules. %v", err)
+	}
 	return nil
+}
+
+func cleanupUnusedCrushRulesEnabled(namespace string) bool {
+	setting := k8sutil.GetOperatorSetting(deleteUnusedCrushRulesSetting, "true")
+	enabled, err := strconv.ParseBool(setting)
+	if err != nil {
+		log.NamespacedWarning(namespace, logger, "invalid value %q for %s, defaulting to true. %v", setting, deleteUnusedCrushRulesSetting, err)
+		return true
+	}
+
+	return enabled
 }
 
 func (c *cluster) configureStorageSettings() error {

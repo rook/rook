@@ -94,7 +94,7 @@ func TestFilesystemGetMarshal(t *testing.T) {
 func TestFilesystemRemove(t *testing.T) {
 	dataDeleted := false
 	metadataDeleted := false
-	crushDeleted := false
+	deletedPools := map[string]bool{}
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
 	fs := CephFilesystemDetails{
@@ -119,9 +119,12 @@ func TestFilesystemRemove(t *testing.T) {
 		}
 		if args[0] == "osd" {
 			if args[1] == "lspools" {
-				pools := []*CephStoragePoolSummary{
-					{Name: "mydata", Number: 1},
-					{Name: "mymetadata", Number: 2},
+				pools := []*CephStoragePoolSummary{}
+				if !deletedPools["mydata"] {
+					pools = append(pools, &CephStoragePoolSummary{Name: "mydata", Number: 1})
+				}
+				if !deletedPools["mymetadata"] {
+					pools = append(pools, &CephStoragePoolSummary{Name: "mymetadata", Number: 2})
 				}
 				output, err := json.Marshal(pools)
 				assert.Nil(t, err)
@@ -129,24 +132,20 @@ func TestFilesystemRemove(t *testing.T) {
 			}
 			if args[1] == "pool" {
 				if args[2] == "get" {
-					return `{"pool_id":1}`, nil
+					return `{"pool_id":1,"crush_rule":"myrule"}`, nil
 				}
 				if args[2] == "delete" {
 					if args[3] == "mydata" {
+						deletedPools["mydata"] = true
 						dataDeleted = true
 						return "", nil
 					}
 					if args[3] == "mymetadata" {
+						deletedPools["mymetadata"] = true
 						metadataDeleted = true
 						return "", nil
 					}
 				}
-			}
-			if args[1] == "crush" {
-				assert.Equal(t, "rule", args[2])
-				assert.Equal(t, "rm", args[3])
-				crushDeleted = true
-				return "", nil
 			}
 		}
 		emptyPool := "{\"images\":{\"count\":0,\"provisioned_bytes\":0,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
@@ -162,7 +161,6 @@ func TestFilesystemRemove(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, metadataDeleted)
 	assert.True(t, dataDeleted)
-	assert.True(t, crushDeleted)
 }
 
 func TestFailAllStandbyReplayMDS(t *testing.T) {

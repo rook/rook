@@ -23,10 +23,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/log"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -38,6 +40,12 @@ const (
 	PgAutoscaleModeProperty = "pg_autoscale_mode"
 	PgAutoscaleModeOn       = "on"
 )
+
+// crushRuleMutex coordinates crush rule cleanup with pool reconciles. Pool
+// reconciles take a read lock while they create or update a crush rule and
+// attach it to a pool. Cleanup takes the write lock so it cannot delete a rule
+// until all in-flight pool reconciles have finished referencing it.
+var crushRuleMutex sync.RWMutex
 
 type CephStoragePoolSummary struct {
 	Name   string `json:"poolname"`
@@ -305,11 +313,10 @@ func DeletePool(context *clusterd.Context, clusterInfo *ClusterInfo, name string
 		return errors.Wrapf(err, "failed to delete pool %q. %s", name, string(output))
 	}
 
-	// remove the crush rule for this pool and ignore the error in case the rule is still in use or not found
-	args = []string{"osd", "crush", "rule", "rm", name}
-	output, err = NewCephCommand(context, clusterInfo, args).Run()
-	if err != nil {
-		logger.Errorf("failed to delete crush rule %q. %v. %s", name, err, string(output))
+	if pool.CrushRule != "" {
+		if err := deleteCrushRule(context, clusterInfo, pool.CrushRule); err != nil {
+			logger.Warningf("failed to delete crush rule %q after deleting pool %q. %v", pool.CrushRule, name, err)
+		}
 	}
 
 	logger.Infof("purge completed for pool %q", name)
@@ -443,6 +450,11 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 	// If it's a replicated pool, ensure the failure domain is desired
 	checkFailureDomain := false
 
+	// Hold a read lock until the pool references any crush rule changes made
+	// during this reconcile so cleanup cannot remove the rule prematurely.
+	crushRuleMutex.RLock()
+	defer crushRuleMutex.RUnlock()
+
 	// The crush rule name is the same as the pool unless we have a stretch cluster.
 	crushRuleName := pool.Name
 	if clusterSpec.IsStretchCluster() {
@@ -502,7 +514,7 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 	logger.Infof("reconciling replicated pool %s succeeded", pool.Name)
 
 	if checkFailureDomain || pool.PoolSpec.DeviceClass != "" {
-		if err = updatePoolCrushRule(context, clusterInfo, clusterSpec, pool); err != nil {
+		if err = updatePoolCrushRuleLocked(context, clusterInfo, clusterSpec, pool); err != nil {
 			return errors.Wrapf(err, "failed to update crush rule for pool %q", pool.Name)
 		}
 	}
@@ -510,6 +522,13 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 }
 
 func updatePoolCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec) error {
+	crushRuleMutex.RLock()
+	defer crushRuleMutex.RUnlock()
+
+	return updatePoolCrushRuleLocked(context, clusterInfo, clusterSpec, pool)
+}
+
+func updatePoolCrushRuleLocked(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec) error {
 	if pool.EnableCrushUpdates == nil || !*pool.EnableCrushUpdates {
 		logger.Debugf("Skipping crush rule update for pool %q: EnableCrushUpdates is disabled", pool.Name)
 		return nil
@@ -561,7 +580,9 @@ func updatePoolCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, cl
 	logger.Infof("updating pool %q failure domain from %q to %q with new crush rule %q", pool.Name, currentFailureDomain, pool.FailureDomain, crushRuleName)
 	logger.Infof("crush rule %q will no longer be used by pool %q", details.CrushRule, pool.Name)
 
-	// Create a new crush rule for the expected failure domain
+	// The caller holds the read lock until the pool references the newly
+	// created crush rule so cleanup cannot remove it in between the create and
+	// set operations.
 	if err := createReplicationCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool); err != nil {
 		return errors.Wrapf(err, "failed to create replicated crush rule %q", crushRuleName)
 	}
@@ -572,6 +593,70 @@ func updatePoolCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, cl
 	}
 
 	logger.Infof("Successfully updated pool %q failure domain to %q", pool.Name, pool.FailureDomain)
+	return nil
+}
+
+func CleanupUnusedCrushRules(context *clusterd.Context, clusterInfo *ClusterInfo) error {
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "attempting to acquire crush cleanup lock")
+	crushRuleMutex.Lock()
+	defer crushRuleMutex.Unlock()
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "acquired crush cleanup lock")
+
+	usedRules, err := getUsedCrushRules(context, clusterInfo)
+	if err != nil {
+		return err
+	}
+
+	crushMap, err := GetCrushMap(context, clusterInfo)
+	if err != nil {
+		return err
+	}
+
+	var lastErr error
+	for _, rule := range crushMap.Rules {
+		if _, inUse := usedRules[rule.Name]; inUse {
+			logger.Debugf("crush rule %q is still in use", rule.Name)
+			continue
+		}
+		logger.Infof("crush rule %q is unused and will be deleted", rule.Name)
+		if err := deleteCrushRule(context, clusterInfo, rule.Name); err != nil {
+			logger.Warningf("failed to delete unused crush rule %q, continuing with remaining rules. %v", rule.Name, err)
+			lastErr = err
+		}
+	}
+
+	return lastErr
+}
+
+func getUsedCrushRules(context *clusterd.Context, clusterInfo *ClusterInfo) (map[string]struct{}, error) {
+	usedRules := map[string]struct{}{}
+
+	pools, err := ListPoolSummaries(context, clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, pool := range pools {
+		details, err := GetPoolDetails(context, clusterInfo, pool.Name)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get pool %q details while checking crush rule usage", pool.Name)
+		}
+		if details.CrushRule != "" {
+			usedRules[details.CrushRule] = struct{}{}
+		}
+	}
+
+	return usedRules, nil
+}
+
+func deleteCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, crushRuleName string) error {
+	args := []string{"osd", "crush", "rule", "rm", crushRuleName}
+	output, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete crush rule %q. %s", crushRuleName, string(output))
+	}
+
+	logger.Infof("deleted unused crush rule %q", crushRuleName)
 	return nil
 }
 

@@ -221,6 +221,10 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 					return "", nil
 				} else if slices.Contains(args, "flag") && slices.Contains(args, "enable_multiple") {
 					return "", nil
+				} else if len(args) >= 3 && args[0] == "osd" && args[1] == "crush" && args[2] == "dump" {
+					return `{"rules":[]}`, nil
+				} else if len(args) >= 4 && args[0] == "osd" && args[1] == "crush" && args[2] == "rule" && args[3] == "rm" {
+					return "", nil
 				} else if reflect.DeepEqual(args[0:5], []string{"osd", "crush", "rule", "create-replicated", fsName + "-data1"}) {
 					return "", nil
 				} else if reflect.DeepEqual(args[0:4], []string{"osd", "pool", "create", fsName + "-data1"}) {
@@ -306,6 +310,10 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				return "", nil
 			} else if slices.Contains(args, "config") && slices.Contains(args, "get") {
 				return "{}", nil
+			} else if len(args) >= 3 && args[0] == "osd" && args[1] == "crush" && args[2] == "dump" {
+				return `{"rules":[]}`, nil
+			} else if len(args) >= 4 && args[0] == "osd" && args[1] == "crush" && args[2] == "rule" && args[3] == "rm" {
+				return "", nil
 			} else if reflect.DeepEqual(args[0:5], []string{"osd", "crush", "rule", "create-replicated", fsName + "-data1"}) {
 				return "", nil
 			} else if reflect.DeepEqual(args[0:3], []string{"osd", "pool", "application"}) {

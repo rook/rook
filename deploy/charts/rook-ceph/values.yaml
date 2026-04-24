@@ -77,6 +77,9 @@ containerSecurityContext:
 # -- If true, loop devices are allowed to be used for osds in test clusters
 allowLoopDevices: false
 
+# -- If true, delete unused generated CRUSH rules after the mgr starts
+deleteUnusedCrushRules: true
+
 ceph-csi-operator:
   nameOverride: ceph-csi
   fullnameOverride: ceph-csi
