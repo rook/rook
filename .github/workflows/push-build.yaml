@@ -12,15 +12,16 @@ defaults:
     # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
     shell: bash --noprofile --norc -eo pipefail -x {0}
 
-permissions:
-  contents: read
-  packages: write
-  id-token: write # for cosign OIDC keyless signing
+permissions: {}
 
 jobs:
   push-image-to-container-registry:
     runs-on: ubuntu-22.04
     if: github.repository == 'rook/rook'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # for cosign OIDC keyless signing
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
