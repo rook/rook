@@ -1,5 +1,6 @@
 nav:
     - development-flow.md
+    - ai-guidelines.md
     - development-environment.md
     - documentation.md
     - ...
