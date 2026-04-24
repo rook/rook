@@ -19,6 +19,7 @@ package installer
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -59,9 +60,14 @@ func (h *CephInstaller) UpgradeRookOperatorViaHelm() error {
 }
 
 func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
+	imageValues := map[string]interface{}{"tag": h.settings.RookVersion}
+	if h.settings.RookVersion == Version1_18 {
+		repo, tag := splitImageRef(PreUpgradeRookImage)
+		imageValues = map[string]interface{}{"repository": repo, "tag": tag}
+	}
 	values := map[string]interface{}{
 		"enableDiscoveryDaemon": h.settings.EnableDiscovery,
-		"image":                 map[string]interface{}{"tag": h.settings.RookVersion},
+		"image":                 imageValues,
 		"monitoring":            map[string]interface{}{"enabled": true},
 		"revisionHistoryLimit":  "3",
 		"enforceHostNetwork":    "false",
@@ -72,7 +78,7 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 	}
 
 	if upgrade {
-		h.adoptRookOperatorHelmResourcesForUpgrade()
+		// h.adoptRookOperatorHelmResourcesForUpgrade()
 	}
 
 	if h.settings.RookVersion == LocalBuildTag {
@@ -111,8 +117,12 @@ func (h *CephInstaller) UpgradeRookCephClusterViaHelm() error {
 }
 
 func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
+	clusterImage := "rook/ceph:" + h.settings.RookVersion
+	if h.settings.RookVersion == Version1_18 {
+		clusterImage = PreUpgradeRookImage
+	}
 	values := map[string]interface{}{
-		"image": "rook/ceph:" + h.settings.RookVersion,
+		"image": clusterImage,
 	}
 
 	// Set the host path the first time, but use the same path for an upgrade
@@ -450,4 +460,16 @@ func (h *CephInstaller) CreateObjectStoreConfiguration(values map[string]interfa
 		},
 	}
 	return nil
+}
+
+func splitImageRef(ref string) (repository, tag string) {
+	i := strings.LastIndex(ref, ":")
+	if i < 0 {
+		return ref, "latest"
+	}
+	after := ref[i+1:]
+	if strings.Contains(after, "/") {
+		return ref, "latest"
+	}
+	return ref[:i], after
 }

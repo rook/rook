@@ -25,6 +25,8 @@ import (
 const (
 	// The version from which the upgrade test will start
 	Version1_18 = "v1.18.8"
+	// PreUpgradeRookImage is the operator/Rook daemon image used before upgrading to local-build.
+	PreUpgradeRookImage = "subham03/rook:csih"
 )
 
 // CephManifestsPreviousVersion wraps rook yaml definitions
@@ -37,12 +39,21 @@ func (m *CephManifestsPreviousVersion) Settings() *TestCephSettings {
 	return m.settings
 }
 
+// fromPreviousRelease loads release YAML from GitHub and swaps the release rook/ceph image for PreUpgradeRookImage.
+func (m *CephManifestsPreviousVersion) fromPreviousRelease(filename string) string {
+	manifest := readManifestFromGitHub(m.settings.RookVersion, filename)
+	manifest = replaceNamespaces(filename, manifest, m.settings.OperatorNamespace, m.settings.Namespace)
+	manifest = strings.ReplaceAll(manifest, "docker.io/rook/ceph:"+m.settings.RookVersion, PreUpgradeRookImage)
+	manifest = strings.ReplaceAll(manifest, "rook/ceph:"+m.settings.RookVersion, PreUpgradeRookImage)
+	return manifest
+}
+
 func (m *CephManifestsPreviousVersion) GetCRDs(k8shelper *utils.K8sHelper) string {
-	return m.settings.readManifestFromGitHub("crds.yaml")
+	return m.fromPreviousRelease("crds.yaml")
 }
 
 func (m *CephManifestsPreviousVersion) GetCSIOperator() string {
-	manifest := m.settings.readManifestFromGitHub("csi-operator.yaml")
+	manifest := m.fromPreviousRelease("csi-operator.yaml")
 	return m.settings.replaceCSIOperatorSettings(m.settings.OperatorNamespace, manifest)
 }
 
@@ -50,29 +61,29 @@ func (m *CephManifestsPreviousVersion) GetCSIOperator() string {
 func (m *CephManifestsPreviousVersion) GetOperator() string {
 	var manifest string
 	if utils.IsPlatformOpenShift() {
-		manifest = m.settings.readManifestFromGitHub("operator-openshift.yaml")
+		manifest = m.fromPreviousRelease("operator-openshift.yaml")
 	} else {
-		manifest = m.settings.readManifestFromGitHub("operator.yaml")
+		manifest = m.fromPreviousRelease("operator.yaml")
 	}
 	return m.settings.replaceOperatorSettings(manifest)
 }
 
 // GetCommon returns rook-cluster manifest
 func (m *CephManifestsPreviousVersion) GetCommon() string {
-	return m.settings.readManifestFromGitHub("common.yaml")
+	return m.fromPreviousRelease("common.yaml")
 }
 
 // GetRookToolBox returns rook-toolbox manifest
 func (m *CephManifestsPreviousVersion) GetToolbox() string {
 	if m.settings.DirectMountToolbox {
-		manifest := strings.ReplaceAll(m.settings.readManifestFromGitHub("direct-mount.yaml"), "name: rook-direct-mount", "name: rook-ceph-tools")
+		manifest := strings.ReplaceAll(m.fromPreviousRelease("direct-mount.yaml"), "name: rook-direct-mount", "name: rook-ceph-tools")
 		return strings.ReplaceAll(manifest, "app: rook-direct-mount", "app: rook-ceph-tools")
 	}
-	return m.settings.readManifestFromGitHub("toolbox.yaml")
+	return m.fromPreviousRelease("toolbox.yaml")
 }
 
 func (m *CephManifestsPreviousVersion) GetCommonExternal() string {
-	return m.settings.readManifestFromGitHub("common-external.yaml")
+	return m.fromPreviousRelease("common-external.yaml")
 }
 
 //**********************************************************************************

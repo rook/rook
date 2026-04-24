@@ -544,7 +544,11 @@ func (h *CephInstaller) installRookOperator() (bool, error) {
 func (h *CephInstaller) InstallRook() (bool, error) {
 	if h.settings.RookVersion != LocalBuildTag {
 		// make sure we have the images from a previous release locally so the test doesn't hit a timeout
-		assert.NoError(h.T(), h.k8shelper.GetDockerImage("rook/ceph:"+h.settings.RookVersion))
+		pull := "rook/ceph:" + h.settings.RookVersion
+		if h.settings.RookVersion == Version1_18 {
+			pull = PreUpgradeRookImage
+		}
+		assert.NoError(h.T(), h.k8shelper.GetDockerImage(pull))
 	}
 
 	assert.NoError(h.T(), h.k8shelper.GetDockerImage(h.settings.CephVersion.Image))

@@ -92,6 +92,7 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialRookVersion string, initia
 		CephVersion:                 initialCephVersion,
 		EnableCsiOperator:           true,
 	}
+	s.settings.ApplyEnvVars()
 
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
 	s.helper = clients.CreateTestClient(s.k8sh, s.installer.Manifests)
@@ -111,7 +112,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
-	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(baseRookImage, objectUserID, preFilename)
+	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(installer.PreUpgradeRookImage, objectUserID, preFilename)
 
 	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
@@ -131,7 +132,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	//
 	// Upgrade Rook from the last release branch to master
 	//
-	logger.Infof("*** UPGRADING ROOK FROM %s to master ***", baseRookImage)
+	logger.Infof("*** UPGRADING ROOK FROM %s (manifest/chart ref %s) to master ***", installer.PreUpgradeRookImage, baseRookImage)
 	s.gatherLogs(s.settings.OperatorNamespace, "_before_master_upgrade")
 	s.upgradeToMaster()
 
@@ -140,7 +141,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	err := s.installer.WaitForToolbox(s.namespace)
 	assert.NoError(s.T(), err)
 
-	logger.Infof("Done with automatic upgrade from %s to master", baseRookImage)
+	logger.Infof("Done with automatic upgrade from %s (ref %s) to master", installer.PreUpgradeRookImage, baseRookImage)
 	newFile := "post-upgrade-previous-to-master-file"
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
@@ -152,7 +153,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	// do not need retry b/c the OBC controller runs parallel to Rook-Ceph orchestration
 	assert.True(s.T(), s.helper.BucketClient.CheckOBC(obcName, "bound"))
 
-	logger.Infof("Verified upgrade from %s to master", baseRookImage)
+	logger.Infof("Verified upgrade from %s (ref %s) to master", installer.PreUpgradeRookImage, baseRookImage)
 
 	// SKIP the Ceph version upgrades for the helm test
 	if s.settings.UseHelm {
@@ -241,7 +242,7 @@ func (s *UpgradeSuite) TestUpgradeCephToTentacleDevel() {
 	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false)
 }
 
-func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preFilename string) (int, []string, []string) {
+func (s *UpgradeSuite) deployClusterforUpgrade(operatorImageExpect, objectUserID, preFilename string) (int, []string, []string) {
 	//
 	// Create block, object, and file storage before the upgrade
 	// The helm chart already created these though.
@@ -290,7 +291,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preF
 	require.True(s.T(), created)
 
 	// verify that we're actually running the right pre-upgrade image
-	s.verifyOperatorImage(baseRookImage)
+	s.verifyOperatorImage(operatorImageExpect)
 
 	assert.NoError(s.T(), s.k8sh.WriteToPod("", rbdPodName, preFilename, simpleTestMessage))
 	assert.NoError(s.T(), s.k8sh.ReadFromPod("", rbdPodName, preFilename, simpleTestMessage))
@@ -330,13 +331,14 @@ func (s *UpgradeSuite) upgradeCephVersion(newCephImage string, numOSDs int) {
 	s.waitForUpgradedDaemons(oldCephVersion, "ceph-version", numOSDs, false)
 }
 
-func (s *UpgradeSuite) verifyOperatorImage(expectedImage string) {
+func (s *UpgradeSuite) verifyOperatorImage(expected string) {
 	systemNamespace := installer.SystemNamespace(s.namespace)
 
-	// verify that the operator spec is updated
 	version, err := k8sutil.GetDeploymentImage(context.TODO(), s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
 	assert.NoError(s.T(), err)
-	assert.Contains(s.T(), "docker.io/rook/ceph:"+expectedImage, version)
+	short := strings.TrimPrefix(expected, "docker.io/")
+	assert.True(s.T(), strings.Contains(version, expected) || strings.Contains(version, short),
+		"operator image %q should match %q", version, expected)
 }
 
 func (s *UpgradeSuite) verifyRookUpgrade(numOSDs int) {
