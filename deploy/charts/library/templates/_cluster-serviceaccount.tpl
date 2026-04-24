@@ -57,7 +57,7 @@ metadata:
 kind: ServiceAccount
 apiVersion: v1
 metadata:
-  name: rook-ceph-default
+  name: {{ .Values.defaultServiceAccountName }}
   namespace: {{ .Release.Namespace }} # namespace:cluster
   labels:
     {{- include "library.rook-ceph.labels" . | nindent 4 }}

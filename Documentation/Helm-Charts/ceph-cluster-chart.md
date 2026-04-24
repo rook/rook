@@ -75,6 +75,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `clusterName` | The metadata.name of the CephCluster CR | The same as the namespace |
 | `configOverride` | Cluster ceph.conf override | `nil` |
 | `csiDriverNamePrefix` | CSI driver name prefix for cephfs, rbd and nfs. | `namespace name where rook-ceph operator is deployed` |
+| `defaultServiceAccountName` | Name of the default service account used when there is not a service specific service account. For example, it is used by the tool box and crash collector pods. | `"rook-ceph-default"` |
 | `ingress.dashboard` | Enable an ingress for the ceph-dashboard | `{}` |
 | `kubeVersion` | Optional override of the target kubernetes version | `nil` |
 | `monitoring.createPrometheusRules` | Whether to create the Prometheus rules for Ceph alerts | `false` |

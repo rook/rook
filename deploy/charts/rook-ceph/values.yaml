@@ -660,6 +660,9 @@ revisionHistoryLimit:
 # -- Blacklist certain disks according to the regex provided.
 discoverDaemonUdev:
 
+# -- Name of the default service account used when there is not a service specific service account. For example, it is used by the tool box and crash collector pods.
+defaultServiceAccountName: rook-ceph-default
+
 # -- imagePullSecrets option allow to pull docker images from private docker registry. Option will be passed to all service accounts.
 imagePullSecrets:
 # - name: my-registry-secret
