@@ -151,6 +151,12 @@ csi:
   # Hence enable metadata is false by default
   enableMetadata: false
 
+  # -- Enable fencing of nodes during non-graceful shutdowns for RBD & CephFS volumes.
+  # Fencing is a feature that allows the driver to fence a node when it is tainted with node.kubernetes.io/out-of-service.
+  # The feature is introduced in v0.4.0 or later for ceph-csi-operator and v3.15.0 or later for ceph-csi.
+  # Hence enable fencing is false by default for backward compatibility.
+  enableFencing: false
+
   # -- Set replicas for csi provisioner deployment
   provisionerReplicas: 2
 

@@ -47,6 +47,7 @@ data:
   CSI_ENABLE_OMAP_GENERATOR: {{ .enableOMAPGenerator | quote }}
   CSI_ENABLE_HOST_NETWORK: {{ .enableCSIHostNetwork | quote }}
   CSI_ENABLE_METADATA: {{ .enableMetadata | quote }}
+  CSI_ENABLE_FENCING: {{ .enableFencing | quote }}
   CSI_ENABLE_VOLUME_GROUP_SNAPSHOT: {{ .enableVolumeGroupSnapshot | quote }}
   {{- with .csiDriverNamePrefix }}
   CSI_DRIVER_NAME_PREFIX: {{ . | quote }}

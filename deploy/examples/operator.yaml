@@ -60,6 +60,12 @@ data:
   # Hence enable metadata is false by default.
   # CSI_ENABLE_METADATA: "true"
 
+  # Set to true to enable fencing of nodes during non-graceful shutdowns for RBD & CephFS volumes.
+  # Fencing is a feature that allows the driver to fence a node when it is tainted with node.kubernetes.io/out-of-service.
+  # The feature is introduced in v0.4.0 or later for ceph-csi-operator and v3.15.0 or later for ceph-csi.
+  # Hence enable fencing is false by default for backward compatibility.
+  # CSI_ENABLE_FENCING: "true"
+
   # cluster name identifier to set as metadata on the CephFS subvolume and RBD images. This will be useful in cases
   # like for example, when two container orchestrator clusters (Kubernetes/OCP) are using a single ceph cluster.
   # CSI_CLUSTER_NAME: "my-prod-cluster"

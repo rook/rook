@@ -90,6 +90,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.enableCSIHostNetwork` | Enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary in some network configurations where the SDN does not provide access to an external cluster or there is significant drop in read/write performance | `true` |
 | `csi.enableCephfsDriver` | Enable Ceph CSI CephFS driver | `true` |
 | `csi.enableCephfsSnapshotter` | Enable Snapshotter in CephFS provisioner pod | `true` |
+| `csi.enableFencing` | Enable fencing of nodes during non-graceful shutdowns for RBD & CephFS volumes. Fencing is a feature that allows the driver to fence a node when it is tainted with node.kubernetes.io/out-of-service. The feature is introduced in v0.4.0 or later for ceph-csi-operator and v3.15.0 or later for ceph-csi. Hence enable fencing is false by default for backward compatibility. | `false` |
 | `csi.enableLiveness` | Enable Ceph CSI Liveness sidecar deployment | `false` |
 | `csi.enableMetadata` | Enable adding volume metadata on the CephFS subvolumes and RBD images. Not all users might be interested in getting volume/snapshot details as metadata on CephFS subvolume and RBD images. Hence enable metadata is false by default | `false` |
 | `csi.enableNFSSnapshotter` | Enable Snapshotter in NFS provisioner pod | `true` |
