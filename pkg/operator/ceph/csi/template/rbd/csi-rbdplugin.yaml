@@ -86,6 +86,9 @@ spec:
             {{- if .EnableCSITopology }}
             - "--domainlabels={{ .CSIDomainLabels }}"
             {{- end }}
+            {{ if .EnableFencing }}
+            - "--enable-fencing={{ .EnableFencing }}"
+            {{ end }}
           env:
             - name: POD_IP
               valueFrom:

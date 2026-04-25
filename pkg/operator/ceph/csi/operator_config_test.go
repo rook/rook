@@ -96,4 +96,5 @@ func TestReconcileCSI_createOrUpdateOperatorConfig(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, *opConfig.Spec.DriverSpecDefaults.EnableMetadata)
 	assert.True(t, *opConfig.Spec.DriverSpecDefaults.ControllerPlugin.HostNetwork)
+	assert.Empty(t, opConfig.Spec.DriverSpecDefaults.EnableFencing)
 }

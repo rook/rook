@@ -183,6 +183,11 @@ func (r *ReconcileCSI) setParams() error {
 		CSIParam.CSIEnableMetadata = false
 	}
 
+	CSIParam.EnableFencing = false
+	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_ENABLE_FENCING", "false"), "true") {
+		CSIParam.EnableFencing = true
+	}
+
 	if strings.EqualFold(k8sutil.GetOperatorSetting("CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {
 		CSIParam.CephFSPluginUpdateStrategy = onDelete
 	} else {

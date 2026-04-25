@@ -298,6 +298,13 @@ func (r *ReconcileCSI) generateDriverSpec(cluster cephv1.CephCluster) (csiopv1.D
 		CephFsClientType: cephfsClientType,
 	}
 
+	// since enableFencing is introduced in
+	// v0.4.0 or later for ceph-csi-operator and v3.15.0 or later for ceph-csi,
+	// it's recommended not to set enableFencing when the parameter is false for backward compatibility.
+	if CSIParam.EnableFencing {
+		driverSpec.EnableFencing = &CSIParam.EnableFencing
+	}
+
 	// Apply Multus annotations if the cluster uses Multus networking
 	if cluster.Spec.Network.IsMultus() {
 		// Apply Multus to ControllerPlugin only

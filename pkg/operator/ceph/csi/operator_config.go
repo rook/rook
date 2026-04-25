@@ -134,6 +134,13 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 		}
 	}
 
+	// since enableFencing is introduced in
+	// v0.4.0 or later for ceph-csi-operator and v3.15.0 or later for ceph-csi,
+	// it's recommended not to set enableFencing when the parameter is false for backward compatibility.
+	if CSIParam.EnableFencing {
+		opConfig.Spec.DriverSpecDefaults.EnableFencing = &CSIParam.EnableFencing
+	}
+
 	return opConfig.Spec
 }
 

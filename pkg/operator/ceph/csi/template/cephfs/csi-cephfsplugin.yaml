@@ -82,6 +82,9 @@ spec:
             {{ if .CephFSKernelMountOptions }}
             - "--kernelmountoptions={{ .CephFSKernelMountOptions }}"
             {{ end }}
+            {{ if .EnableFencing }}
+            - "--enable-fencing={{ .EnableFencing }}"
+            {{ end }}
           env:
             - name: POD_IP
               valueFrom:

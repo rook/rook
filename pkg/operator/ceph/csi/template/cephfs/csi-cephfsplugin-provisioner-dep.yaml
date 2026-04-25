@@ -153,6 +153,9 @@ spec:
             {{ if .CSIEnableMetadata }}
             - "--setmetadata={{ .CSIEnableMetadata }}"
             {{ end }}
+            {{ if .EnableFencing }}
+            - "--enable-fencing={{ .EnableFencing }}"
+            {{ end }}
             {{ if .CSIClusterName }}
             - "--clustername={{ .CSIClusterName }}"
             {{ end }}

@@ -64,6 +64,7 @@ type Param struct {
 	CSIDomainLabels                          string
 	GRPCTimeout                              time.Duration
 	CSIEnableMetadata                        bool
+	EnableFencing                            bool
 	EnablePluginSelinuxHostMount             bool
 	EnableCSIHostNetwork                     bool
 	EnableOMAPGenerator                      bool

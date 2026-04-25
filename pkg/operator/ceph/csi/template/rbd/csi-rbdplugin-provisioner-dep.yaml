@@ -245,6 +245,9 @@ spec:
             {{ if .CSIClusterName }}
             - "--clustername={{ .CSIClusterName }}"
             {{ end }}
+            {{ if .EnableFencing }}
+            - "--enable-fencing={{ .EnableFencing }}"
+            {{ end }}
           env:
             - name: POD_IP
               valueFrom:
