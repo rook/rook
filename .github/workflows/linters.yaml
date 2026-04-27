@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0
 
       - name: Lint YAML files
-        run: make yamllint
+        run: make lint.yaml
 
   pylint:
     runs-on: ubuntu-latest
@@ -49,8 +49,8 @@ jobs:
           pip install requests
           pip install pygit2
 
-      - name: Lint Python files
-        run: make pylint
+      - name: Lint Python scripts
+        run: make lint.python
 
       - name: Setup black for py
         uses: psf/black@c6755bb741b6481d6b3d3bb563c83fa060db96c9 # stable

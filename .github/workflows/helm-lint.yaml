@@ -31,5 +31,5 @@ jobs:
           fetch-depth: 0
 
 
-      - name: Run chart-testing (lint)
-        run: make helm.lint
+      - name: Lint the helm charts
+        run: make lint.helm
