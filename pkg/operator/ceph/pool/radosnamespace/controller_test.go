@@ -241,7 +241,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		}
 		c.Executor = executor
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
 			client:                 cl,
@@ -253,8 +253,6 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			recorder:               events.NewFakeRecorder(50),
 		}
 
-		// Enable CSI
-		csi.EnableRBD = true
 		t.Setenv("POD_NAMESPACE", namespace)
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
@@ -270,13 +268,8 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.ConditionReady, cephBlockPoolRadosNamespace.Status.Phase)
 
-		// test that csi configmap is created
-		cm, err := c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
-		assert.NoError(t, err)
-		assert.NotEmpty(t, cm.Data[csi.ConfigKey])
-		assert.Contains(t, cm.Data[csi.ConfigKey], "clusterID")
-		assert.Contains(t, cm.Data[csi.ConfigKey], name)
-		err = c.Clientset.CoreV1().ConfigMaps(namespace).Delete(ctx, csi.ConfigName, metav1.DeleteOptions{})
+		// csi configmap exists but is no longer populated by SaveClusterConfig
+		_, err = c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
 		assert.NoError(t, err)
 	})
 
@@ -284,7 +277,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		cephCluster.Spec.External.Enable = true
 		csiOpClientProfile := &csiopv1.ClientProfile{}
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{}, &csiopv1.ClientProfile{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{})
 		objects := []runtime.Object{
 			cephBlockPoolRadosNamespace,
 			cephCluster,
@@ -306,8 +299,6 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			recorder:         events.NewFakeRecorder(50),
 		}
 
-		// Enable CSI
-		csi.EnableRBD = true
 		t.Setenv("POD_NAMESPACE", namespace)
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
@@ -324,12 +315,6 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		assert.Equal(t, cephv1.ConditionReady, cephBlockPoolRadosNamespace.Status.Phase)
 		assert.NotEmpty(t, cephBlockPoolRadosNamespace.Status.Info["clusterID"])
 
-		// test that csi configmap is created
-		cm, err := c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
-		assert.NoError(t, err)
-		assert.NotEmpty(t, cm.Data[csi.ConfigKey])
-		assert.Contains(t, cm.Data[csi.ConfigKey], "clusterID")
-		assert.Contains(t, cm.Data[csi.ConfigKey], name)
 		cephCluster.Spec.External.Enable = false
 	})
 

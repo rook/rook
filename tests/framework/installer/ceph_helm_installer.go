@@ -19,6 +19,7 @@ package installer
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -31,6 +32,12 @@ import (
 const (
 	OperatorChartName    = "rook-ceph"
 	CephClusterChartName = "rook-ceph-cluster"
+
+	cephCsiOperatorHelmRepoURL  = "https://ceph.github.io/ceph-csi-operator"
+	cephCsiOperatorHelmRepoName = "ceph-csi-operator"
+	cephCsiDriversChartName     = "ceph-csi-drivers"
+	cephCsiDriversChartVersion  = "0.6.0"
+	cephCsiDriversReleaseName   = "ceph-csi-drivers"
 )
 
 // The Ceph Storage CustomResource and StorageClass names used in testing
@@ -53,27 +60,25 @@ func (h *CephInstaller) UpgradeRookOperatorViaHelm() error {
 }
 
 func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
+	imageValues := map[string]interface{}{"tag": h.settings.RookVersion}
+	if h.settings.RookVersion == Version1_18 {
+		repo, tag := splitImageRef(PreUpgradeRookImage)
+		imageValues = map[string]interface{}{"repository": repo, "tag": tag}
+	}
 	values := map[string]interface{}{
 		"enableDiscoveryDaemon": h.settings.EnableDiscovery,
-		"image":                 map[string]interface{}{"tag": h.settings.RookVersion},
+		"image":                 imageValues,
 		"monitoring":            map[string]interface{}{"enabled": true},
 		"revisionHistoryLimit":  "3",
 		"enforceHostNetwork":    "false",
 	}
-	values["csi"] = map[string]interface{}{
-		"csiRBDProvisionerResource":    nil,
-		"csiRBDPluginResource":         nil,
-		"csiCephFSProvisionerResource": nil,
-		"csiCephFSPluginResource":      nil,
-	}
-
-	if !h.settings.EnableCsiOperator {
-		values["rookUseCsiOperator"] = false
-	}
-
 	// create the operator namespace
 	if err := h.k8shelper.CreateNamespace(h.settings.OperatorNamespace); err != nil {
 		return errors.Errorf("failed to create namespace %s. %v", h.settings.Namespace, err)
+	}
+
+	if upgrade {
+		// h.adoptRookOperatorHelmResourcesForUpgrade()
 	}
 
 	if h.settings.RookVersion == LocalBuildTag {
@@ -90,6 +95,18 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 	return nil
 }
 
+func (h *CephInstaller) adoptRookOperatorHelmResourcesForUpgrade() {
+	ns := h.settings.OperatorNamespace
+	h.adoptResourceForHelm("configmap", "rook-csi-operator-image-set-configmap", ns, OperatorChartName, ns)
+	rel := cephCsiDriversReleaseName
+	h.adoptResourceForHelm("operatorconfigs.csi.ceph.io", "ceph-csi-operator-config", ns, rel, ns)
+	h.adoptResourceForHelm("drivers.csi.ceph.io", ns+".rbd.csi.ceph.com", ns, rel, ns)
+	h.adoptResourceForHelm("drivers.csi.ceph.io", ns+".cephfs.csi.ceph.com", ns, rel, ns)
+	if h.settings.TestNFSCSI {
+		h.adoptResourceForHelm("drivers.csi.ceph.io", ns+".nfs.csi.ceph.com", ns, rel, ns)
+	}
+}
+
 // CreateRookCephClusterViaHelm creates rook cluster via Helm
 func (h *CephInstaller) CreateRookCephClusterViaHelm() error {
 	return h.configureRookCephClusterViaHelm(false)
@@ -100,8 +117,12 @@ func (h *CephInstaller) UpgradeRookCephClusterViaHelm() error {
 }
 
 func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
+	clusterImage := "rook/ceph:" + h.settings.RookVersion
+	if h.settings.RookVersion == Version1_18 {
+		clusterImage = PreUpgradeRookImage
+	}
 	values := map[string]interface{}{
-		"image": "rook/ceph:" + h.settings.RookVersion,
+		"image": clusterImage,
 	}
 
 	// Set the host path the first time, but use the same path for an upgrade
@@ -165,7 +186,129 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 		}
 	}
 
+	if h.settings.RookVersion == LocalBuildTag && h.settings.UseHelm {
+		if err := h.InstallCephCsiDriversViaHelm(); err != nil {
+			return errors.Wrap(err, "failed to install ceph-csi-drivers chart")
+		}
+	}
+
 	return nil
+}
+
+func csiDriverChartValues(driverName string) map[string]interface{} {
+	return map[string]interface{}{
+		"name":           driverName,
+		"enabled":        true,
+		"snapshotPolicy": "volumeSnapshot",
+		"imageSet": map[string]interface{}{
+			"name": "rook-csi-operator-image-set-configmap",
+		},
+		"nodePlugin": map[string]interface{}{
+			"kubeletDirPath":         "/var/lib/kubelet",
+			"priorityClassName":      "system-node-critical",
+			"enableSeLinuxHostMount": false,
+		},
+		"controllerPlugin": map[string]interface{}{
+			"priorityClassName": "system-cluster-critical",
+			"replicas":          2,
+			"deploymentStrategy": map[string]interface{}{
+				"type": "Recreate",
+			},
+		},
+	}
+}
+
+func (h *CephInstaller) InstallCephCsiDriversViaHelm() error {
+	if err := h.k8shelper.CreateSnapshotCRD("create"); err != nil {
+		return errors.Wrap(err, "failed to install snapshot CRDs")
+	}
+	if err := h.k8shelper.CreateSnapshotController("create"); err != nil {
+		return errors.Wrap(err, "failed to install snapshot controller")
+	}
+	if err := h.k8shelper.WaitForSnapshotController(15); err != nil {
+		return errors.Wrap(err, "snapshot controller is not ready")
+	}
+	op := h.settings.OperatorNamespace
+
+	drivers := map[string]interface{}{
+		"rbd":    csiDriverChartValues(fmt.Sprintf("%s.rbd.csi.ceph.com", op)),
+		"cephfs": csiDriverChartValues(fmt.Sprintf("%s.cephfs.csi.ceph.com", op)),
+		"nvmeof": map[string]interface{}{"enabled": false},
+	}
+	if h.settings.TestNFSCSI {
+		drivers["nfs"] = csiDriverChartValues(fmt.Sprintf("%s.nfs.csi.ceph.com", op))
+	} else {
+		drivers["nfs"] = map[string]interface{}{"enabled": false}
+	}
+	values := map[string]interface{}{
+		"operatorConfig": map[string]interface{}{
+			"name":      "ceph-csi-operator-config",
+			"namespace": op,
+			"create":    true,
+			"driverSpecDefaults": map[string]interface{}{
+				"log": map[string]interface{}{"verbosity": 0},
+				"imageSet": map[string]interface{}{
+					"name": "rook-csi-operator-image-set-configmap",
+				},
+				"snapshotPolicy":   "volumeSnapshot",
+				"enableMetadata":   false,
+				"generateOMapInfo": false,
+				"fsGroupPolicy":    "File",
+				"deployCsiAddons":  false,
+				"cephFsClientType": "kernel",
+				"nodePlugin": map[string]interface{}{
+					"kubeletDirPath":         "/var/lib/kubelet",
+					"priorityClassName":      "system-node-critical",
+					"enableSeLinuxHostMount": false,
+				},
+				"controllerPlugin": map[string]interface{}{
+					"priorityClassName": "system-cluster-critical",
+					"replicas":          2,
+					"deploymentStrategy": map[string]interface{}{
+						"type": "Recreate",
+					},
+				},
+			},
+		},
+		"drivers": drivers,
+	}
+	return h.helmHelper.InstallOrUpgradeHelmRepoChart(
+		op,
+		cephCsiDriversReleaseName,
+		cephCsiOperatorHelmRepoURL,
+		cephCsiOperatorHelmRepoName,
+		cephCsiDriversChartName,
+		cephCsiDriversChartVersion,
+		values,
+	)
+}
+
+// adoptResourceForHelm annotates an existing resource so Helm can adopt it on upgrade.
+func (h *CephInstaller) adoptResourceForHelm(resourceType, name, resourceNamespace, releaseName, releaseNamespace string) {
+	annotateArgs := []string{
+		"annotate", resourceType, name,
+		"meta.helm.sh/release-name=" + releaseName,
+		"meta.helm.sh/release-namespace=" + releaseNamespace,
+		"--overwrite",
+	}
+	labelArgs := []string{
+		"label", resourceType, name,
+		"app.kubernetes.io/managed-by=Helm",
+		"--overwrite",
+	}
+	// CRDs are cluster-scoped; omit -n so kubectl does not suggest a namespaced context.
+	if resourceType != "crd" {
+		annotateArgs = append([]string{"-n", resourceNamespace}, annotateArgs...)
+		labelArgs = append([]string{"-n", resourceNamespace}, labelArgs...)
+	}
+	_, err := h.k8shelper.Kubectl(annotateArgs...)
+	if err != nil {
+		logger.Warningf("could not annotate %s/%s for helm adoption (may not exist yet): %v", resourceType, name, err)
+	}
+	_, err = h.k8shelper.Kubectl(labelArgs...)
+	if err != nil {
+		logger.Warningf("could not label %s/%s for helm adoption (may not exist yet): %v", resourceType, name, err)
+	}
 }
 
 // removeCephClusterHelmResources tidies up the helm created CRs and Storage Classes, as they interfere with other tests.
@@ -317,4 +460,16 @@ func (h *CephInstaller) CreateObjectStoreConfiguration(values map[string]interfa
 		},
 	}
 	return nil
+}
+
+func splitImageRef(ref string) (repository, tag string) {
+	i := strings.LastIndex(ref, ":")
+	if i < 0 {
+		return ref, "latest"
+	}
+	after := ref[i+1:]
+	if strings.Contains(after, "/") {
+		return ref, "latest"
+	}
+	return ref[:i], after
 }
