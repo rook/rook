@@ -30,7 +30,6 @@ import (
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	awssession "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -172,7 +171,7 @@ func (s *S3Agent) DeleteBucket(name string) (bool, error) {
 func (s *S3Agent) PutObjectInBucket(bucketname string, body string, key string,
 	contentType string,
 ) (bool, error) {
-	_, err := s.Client.PutObject(&s3.PutObjectInput{
+	_, err := s.ClientV2.PutObject(context.TODO(), &s3v2.PutObjectInput{
 		Body:        strings.NewReader(body),
 		Bucket:      &bucketname,
 		Key:         &key,
@@ -181,21 +180,19 @@ func (s *S3Agent) PutObjectInBucket(bucketname string, body string, key string,
 	if err != nil {
 		logger.Errorf("failed to put object in bucket. %v", err)
 		return false, err
-
 	}
 	return true, nil
 }
 
 // GetObjectInBucket function retrieves an object from a bucket using s3 client
 func (s *S3Agent) GetObjectInBucket(bucketname string, key string) (string, error) {
-	result, err := s.Client.GetObject(&s3.GetObjectInput{
-		Bucket: aws.String(bucketname),
-		Key:    aws.String(key),
+	result, err := s.ClientV2.GetObject(context.TODO(), &s3v2.GetObjectInput{
+		Bucket: &bucketname,
+		Key:    &key,
 	})
 	if err != nil {
 		logger.Errorf("failed to retrieve object from bucket. %v", err)
 		return "ERROR_ OBJECT NOT FOUND", err
-
 	}
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(result.Body)
@@ -208,22 +205,18 @@ func (s *S3Agent) GetObjectInBucket(bucketname string, key string) (string, erro
 
 // DeleteObjectInBucket function deletes given bucket using s3 client
 func (s *S3Agent) DeleteObjectInBucket(bucketname string, key string) (bool, error) {
-	_, err := s.Client.DeleteObject(&s3.DeleteObjectInput{
-		Bucket: aws.String(bucketname),
-		Key:    aws.String(key),
+	_, err := s.ClientV2.DeleteObject(context.TODO(), &s3v2.DeleteObjectInput{
+		Bucket: &bucketname,
+		Key:    &key,
 	})
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchBucket:
-				return true, nil
-			case s3.ErrCodeNoSuchKey:
-				return true, nil
-			}
+		var noSuchBucket *s3types.NoSuchBucket
+		var noSuchKey *s3types.NoSuchKey
+		if errors.As(err, &noSuchBucket) || errors.As(err, &noSuchKey) {
+			return true, nil
 		}
 		logger.Errorf("failed to delete object from bucket. %v", err)
 		return false, err
-
 	}
 	return true, nil
 }
