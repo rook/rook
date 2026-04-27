@@ -203,7 +203,13 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 				return "", nil
 			}
 		}
+		if args[1] == "lspools" {
+			return `[{"poolnum":2,"poolname":"mypool"}]`, nil
+		}
 		if args[1] == "crush" {
+			if args[2] == "dump" {
+				return `{"rules":[{"rule_name":"replicapool_osd"}]}`, nil
+			}
 			crushRuleCreated = true
 			assert.Equal(t, "rule", args[2])
 			if args[3] == "dump" {
@@ -366,6 +372,47 @@ func TestUpdateFailureDomain(t *testing.T) {
 		assert.Equal(t, "", newCrushRule)
 		assert.False(t, cephCommandCalled)
 	})
+}
+
+func TestCleanupUnusedCrushRules(t *testing.T) {
+	removedRules := []string{}
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if command == "ceph" && args[1] == "lspools" {
+			return `[{"poolnum":1,"poolname":"mypool"},{"poolnum":2,"poolname":"otherpool"}]`, nil
+		}
+		if command == "ceph" && args[1] == "pool" && args[2] == "get" {
+			switch args[3] {
+			case "mypool":
+				return `{"pool":"mypool","pool_id":1,"crush_rule":"mypool_zone_ssd"}`, nil
+			case "otherpool":
+				return `{"pool":"otherpool","pool_id":2,"crush_rule":"shared_rule"}`, nil
+			}
+		}
+		if command == "ceph" && args[1] == "crush" && args[2] == "dump" {
+			return `{"rules":[
+				{"rule_name":"mypool"},
+				{"rule_name":"mypool_zone","steps":[{},{"type":"zone"}]},
+				{"rule_name":"mypool_zone_ssd","steps":[{},{"type":"zone","item_name":"default~ssd"}]},
+				{"rule_name":"shared_rule","steps":[{"item_name":"default"},{"type":"host"}]},
+				{"rule_name":"custom_rule","steps":[{"item_name":"default"},{"type":"zone"}]}
+			]}`, nil
+		}
+		if command == "ceph" && args[1] == "crush" && args[2] == "rule" && args[3] == "rm" {
+			removedRules = append(removedRules, args[4])
+			return "", nil
+		}
+
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	err := CleanupUnusedCrushRules(context, AdminTestClusterInfo("mycluster"))
+	assert.NoError(t, err)
+	slices.Sort(removedRules)
+	expected := []string{"custom_rule", "mypool", "mypool_zone"}
+	assert.Equal(t, expected, removedRules)
 }
 
 func TestExtractPoolDetails(t *testing.T) {
