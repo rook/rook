@@ -92,6 +92,13 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterInfo *ClusterInf
 	if pool.DeviceClass != "" {
 		profilePairs = append(profilePairs, fmt.Sprintf("crush-device-class=%s", pool.DeviceClass))
 	}
+	if pool.ErasureCoded.StripeUnit != nil && !pool.ErasureCoded.StripeUnit.IsZero() {
+		stripeBytes, ok := pool.ErasureCoded.StripeUnit.AsInt64()
+		if !ok {
+			return errors.Errorf("erasure-coded stripeUnit %q cannot be represented as a byte stripe for Ceph", pool.ErasureCoded.StripeUnit.String())
+		}
+		profilePairs = append(profilePairs, fmt.Sprintf("stripe_unit=%d", stripeBytes))
+	}
 
 	args := []string{"osd", "erasure-code-profile", "set", profileName, "--force"}
 	args = append(args, profilePairs...)

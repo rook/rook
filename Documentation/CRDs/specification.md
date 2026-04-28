@@ -7169,6 +7169,19 @@ string
 If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>stripeUnit</code><br/>
+<em>
+k8s.io/apimachinery/pkg/api/resource.Quantity
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
+Value must be a multiple of 4096 (4Ki).</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ExternalSpec">ExternalSpec
