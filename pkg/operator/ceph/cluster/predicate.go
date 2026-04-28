@@ -140,12 +140,26 @@ func isHotPlugCM(cm *corev1.ConfigMap) bool {
 	return false
 }
 
-// predicateForOperatorConfigCMWatcher is the predicate function to trigger reconcile on operator config ConfigMap events
-func predicateForOperatorConfigCMWatcher[T *corev1.ConfigMap]() predicate.TypedFuncs[T] {
+// predicateForClusterConfigMapWatcher is the predicate function to trigger reconcile on operator config ConfigMap events
+func predicateForClusterConfigMapWatcher[T *corev1.ConfigMap](ctx context.Context, client client.Client) predicate.TypedFuncs[T] {
 	return predicate.TypedFuncs[T]{
 		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
 			objNew := (*corev1.ConfigMap)(e.ObjectNew)
-			return objNew.Name == opcontroller.OperatorSettingConfigMapName
+			objOld := (*corev1.ConfigMap)(e.ObjectOld)
+
+			if objNew.Name == opcontroller.OperatorSettingConfigMapName {
+				if objOld.Data["ROOK_USE_CSI_OPERATOR"] != objNew.Data["ROOK_USE_CSI_OPERATOR"] {
+					log.NamespacedInfo(objNew.Namespace, logger, "ROOK_USE_CSI_OPERATOR changed from %q to %q", objOld.Data["ROOK_USE_CSI_OPERATOR"], objNew.Data["ROOK_USE_CSI_OPERATOR"])
+					return true
+				}
+			}
+
+			if isFloatingMonConfigMap(ctx, client, objNew) {
+				log.NamespacedInfo(objNew.Namespace, logger, "floating mon ConfigMap %q changed", objNew.Name)
+				return true
+			}
+
+			return false
 		},
 
 		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
@@ -161,6 +175,25 @@ func predicateForOperatorConfigCMWatcher[T *corev1.ConfigMap]() predicate.TypedF
 			return false
 		},
 	}
+}
+
+// isFloatingMonConfigMap checks if any floating mon configuration refers to the updated ConfigMap
+func isFloatingMonConfigMap(ctx context.Context, client client.Client, cm *corev1.ConfigMap) bool {
+	clusterList := cephv1.CephClusterList{}
+	err := client.List(ctx, &clusterList)
+	if err != nil {
+		return false
+	}
+
+	for _, cluster := range clusterList.Items {
+		if cluster.Spec.Mon.FloatingMon.ConfigMapName != "" {
+			if cm.GetName() == cluster.Spec.Mon.FloatingMon.ConfigMapName {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func watchControllerPredicate[T *cephv1.CephCluster](ctx context.Context, c client.Client) predicate.TypedFuncs[T] {
