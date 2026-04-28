@@ -17,9 +17,10 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/service/s3"
+	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
@@ -161,17 +162,17 @@ func NewBucketPolicy(ps ...PolicyStatement) *BucketPolicy {
 }
 
 // PutBucketPolicy applies the policy to the bucket
-func (s *S3Agent) PutBucketPolicy(bucket string, policy BucketPolicy) (*s3.PutBucketPolicyOutput, error) {
+func (s *S3Agent) PutBucketPolicy(bucket string, policy BucketPolicy) (*s3v2.PutBucketPolicyOutput, error) {
 	confirmRemoveSelfBucketAccess := false
 	serializedPolicy, _ := json.Marshal(policy)
 	consumablePolicy := string(serializedPolicy)
 
-	p := &s3.PutBucketPolicyInput{
+	p := &s3v2.PutBucketPolicyInput{
 		Bucket:                        &bucket,
 		ConfirmRemoveSelfBucketAccess: &confirmRemoveSelfBucketAccess,
 		Policy:                        &consumablePolicy,
 	}
-	out, err := s.Client.PutBucketPolicy(p)
+	out, err := s.ClientV2.PutBucketPolicy(context.TODO(), p)
 	if err != nil {
 		return out, err
 	}
@@ -179,7 +180,7 @@ func (s *S3Agent) PutBucketPolicy(bucket string, policy BucketPolicy) (*s3.PutBu
 }
 
 func (s *S3Agent) GetBucketPolicy(bucket string) (*BucketPolicy, error) {
-	out, err := s.Client.GetBucketPolicy(&s3.GetBucketPolicyInput{
+	out, err := s.ClientV2.GetBucketPolicy(context.TODO(), &s3v2.GetBucketPolicyInput{
 		Bucket: &bucket,
 	})
 	if err != nil {
