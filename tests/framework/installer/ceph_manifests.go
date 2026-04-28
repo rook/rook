@@ -175,7 +175,7 @@ spec:
   network:
     hostNetwork: false
     connections:
-      requireMsgr2: ` + strconv.FormatBool(m.settings.RequireMsgr2) + `
+      requireMsgr2: true
       encryption:
         enabled: ` + strconv.FormatBool(m.settings.ConnectionsEncrypted) + `
       compression:
@@ -253,19 +253,20 @@ spec:
 `
 	}
 
+	msMode := "prefer-crc"
 	if m.settings.ConnectionsEncrypted {
-		clusterSpec += `
+		msMode = "secure"
+	}
+	clusterSpec += `
   csi:
     cephfs:
-      kernelMountOptions: ms_mode=secure
-  `
-	}
-	return clusterSpec + `
+      kernelMountOptions: ms_mode=` + msMode + `
   priorityClassNames:
     mon: system-node-critical
     osd: system-node-critical
     mgr: system-cluster-critical
 `
+	return clusterSpec
 }
 
 func (m *CephManifestsMaster) GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string {

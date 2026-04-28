@@ -325,7 +325,7 @@ class RadosJSON:
         common_group.add_argument(
             "--v2-port-enable",
             action="store_true",
-            default=False,
+            default=True,
             help="Enable v2 mon port(3300) for mons",
         )
 
