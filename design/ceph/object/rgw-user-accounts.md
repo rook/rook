@@ -242,6 +242,69 @@ For external RGW clusters, the `accountRef` approach works as long as the accoun
 
 Associating users with pre-existing accounts that were created outside of Rook (e.g., directly via `radosgw-admin`) is not supported in this iteration. Future work may add external binding support to `CephObjectStoreAccount`, allowing a CR to adopt an existing account by its account ID. Once bound, the `accountRef` mechanism works the same way — the user controller always resolves the account ID from the referenced CR's status.
 
+## Account Quotas
+
+### Overview
+RGW accounts support two types of quotas that control resource consumption:
+- **Account Quota**: Aggregate storage limit across all users and buckets in the account. Tracks total size and total object count at the account level.
+- **Bucket Quota**: Per-bucket storage limit applied to every bucket in the account. Each individual bucket is subject to this limit.
+
+Additionally, accounts have **resource limits** that control the number of entities (users, roles, groups, buckets, access keys) that can be created within the account.
+
+When resources are account-owned, all usage statistics and quota enforcement apply to the account as a whole rather than its individual users. This enables aggregated billing and capacity management at the tenant level.
+
+### API Changes
+
+The `CephObjectStoreAccount` spec will be extended with a `quotas` field:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreAccount
+metadata:
+  name: my-account
+  namespace: rook-ceph
+spec:
+  store: my-store
+  # [Optional] Quotas for the account
+  quotas:
+    # [Optional] Maximum total size of all objects across all buckets in the account.
+    maxSize: 10Gi
+    # [Optional] Maximum total number of objects across all buckets in the account.
+    maxObjects: 1000000
+    # [Optional] Maximum total size of objects in any individual bucket in the account.
+    maxBucketSize: 1Gi
+    # [Optional] Maximum number of objects in any individual bucket in the account.
+    maxBucketObjects: 100000
+    # [Optional] Maximum number of buckets the account can own.
+    maxBuckets: 100
+    # [Optional] Maximum number of users the account can have.
+    maxUsers: 50
+    # [Optional] Maximum number of roles the account can have.
+    maxRoles: 50
+    # [Optional] Maximum number of groups the account can have.
+    maxGroups: 20
+    # [Optional] Maximum number of access keys the account can have.
+    maxAccessKeys: 100
+  rootUser:
+    displayName: "root-my-account"
+```
+
+### Quota Reconciliation
+
+The account controller reconciles quotas as follows:
+
+- **Account quota** (`maxSize`, `maxObjects`): enabled when either field is set, disabled when both are removed.
+- **Bucket quota** (`maxBucketSize`, `maxBucketObjects`): enabled when either field is set, disabled when both are removed.
+- **Resource limits** (`maxBuckets`, `maxUsers`, `maxRoles`, `maxGroups`, `maxAccessKeys`): set via account modify API. Unset fields default to unlimited (-1).
+
+**Note**: Account and Bucket quota APIs (`Quota`, `BucketQuota` of type `admin.QuotaSpec)`) in `go-ceph` are not implemented yet.
+
+#### Interaction with User-Level Quotas
+
+When a user belongs to an account, buckets are owned by the account rather than the individual user. Since RGW enforces quotas based on bucket ownership, account quotas apply instead of user-level quotas for storage operations. Setting user-level quotas (`spec.quotas`) on a `CephObjectStoreUser` with `accountRef` has no practical effect.
+
+The existing `CephObjectStoreUser` quota support continues to work for standalone users (those without `accountRef`).
+
 ### Future Considerations
 
 - **Migrating standalone users into accounts**: In the future, all users may need to be associated with an account. This would require allowing `accountRef` to be added to existing standalone `CephObjectStoreUser` CRs as a day-2 operation. The CEL immutability rule would need to be relaxed from `self == oldSelf` to `!has(oldSelf) || self == oldSelf` to permit the transition from unset to set while still preventing changes or removal once set. Additionally, the current `CephObjectStoreUser` CRD has no validation on `displayName` — standalone users can have display names with spaces or special characters. However, account users are referenced by display name in IAM policy ARNs and must match `[\w+=,.@-]+`. Since adding a CRD-level pattern constraint would break existing standalone users, the display name validation must be enforced in the controller only when `accountRef` is set. Users migrating into an account would need to update their `displayName` to be IAM-compatible before or at the same time as setting `accountRef`.
