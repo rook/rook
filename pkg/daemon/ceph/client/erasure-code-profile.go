@@ -82,6 +82,7 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterInfo *ClusterInf
 		fmt.Sprintf("m=%d", pool.ErasureCoded.CodingChunks),
 		fmt.Sprintf("plugin=%s", defaultProfile.Plugin),
 		fmt.Sprintf("technique=%s", defaultProfile.Technique),
+		fmt.Sprintf("stripe_unit=%d", pool.ErasureCoded.StripeUnit),
 	}
 	if pool.FailureDomain != "" {
 		profilePairs = append(profilePairs, fmt.Sprintf("crush-failure-domain=%s", pool.FailureDomain))
