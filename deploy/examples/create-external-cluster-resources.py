@@ -2030,17 +2030,20 @@ class RadosJSON:
 
         # if 'CEPHFS_FS_NAME' exists, then only add 'cephfs' StorageClass
         if self.out_map["CEPHFS_FS_NAME"]:
+            cephfs_data = {
+                "fsName": self.out_map["CEPHFS_FS_NAME"],
+                "pool": self.out_map["CEPHFS_POOL_NAME"],
+                "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_CEPHFS_PROVISIONER_SECRET_NAME']}",
+                "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_CEPHFS_PROVISIONER_SECRET_NAME']}",
+                "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_CEPHFS_NODE_SECRET_NAME']}",
+            }
+            if self.out_map["SUBVOLUME_GROUP"]:
+                cephfs_data["subvolumeGroup"] = self.out_map["SUBVOLUME_GROUP"]
             json_out.append(
                 {
                     "name": "cephfs",
                     "kind": "StorageClass",
-                    "data": {
-                        "fsName": self.out_map["CEPHFS_FS_NAME"],
-                        "pool": self.out_map["CEPHFS_POOL_NAME"],
-                        "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_CEPHFS_PROVISIONER_SECRET_NAME']}",
-                        "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_CEPHFS_PROVISIONER_SECRET_NAME']}",
-                        "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_CEPHFS_NODE_SECRET_NAME']}",
-                    },
+                    "data": cephfs_data,
                 }
             )
         # if 'RGW_ENDPOINT' exists, then only add 'ceph-rgw' StorageClass
