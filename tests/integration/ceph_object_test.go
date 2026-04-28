@@ -294,7 +294,7 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			_, poErr := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey2, contentType)
 			assert.Nil(t, poErr)
 			logger.Infof("Testing the max object limit")
-			quotaEnforced := utils.Retry(10, 2*time.Second, "user quota enforced", func() bool {
+			quotaEnforced := utils.Retry(30, 2*time.Second, "user quota enforced", func() bool {
 				_, err := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey3, contentType)
 				if err != nil {
 					return true

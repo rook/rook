@@ -17,16 +17,19 @@ limitations under the License.
 package bucket
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
+	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -223,8 +226,9 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	// if the policy does not exist, we'll create a new and append the statement to it
 	policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() != "NoSuchBucketPolicy" {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) {
+			if apiErr.ErrorCode() != "NoSuchBucketPolicy" {
 				return nil, err
 			}
 		}
@@ -320,7 +324,8 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		// call before the policy was attached to the bucket
 		policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
 		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NoSuchBucketPolicy" {
+			var apiErr smithy.APIError
+			if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchBucketPolicy" {
 				policy = nil
 				log.NamedError(nsName, logger, "no bucket policy for bucket %q, so no need to drop policy", p.bucketName)
 
@@ -758,17 +763,18 @@ func (p *Provisioner) setBucketQuota(bucket *bucket) error {
 func (p *Provisioner) setBucketPolicy(bucket *bucket) error {
 	nsName := p.objectContext.NsName()
 	additionalConfig := bucket.additionalConfig
+	ctx := context.TODO()
 
-	svc := p.s3Agent.Client
+	svc := p.s3Agent.ClientV2
 	var livePolicy *string
 
-	policyResp, err := svc.GetBucketPolicy(&s3.GetBucketPolicyInput{
+	policyResp, err := svc.GetBucketPolicy(ctx, &s3v2.GetBucketPolicyInput{
 		Bucket: &p.bucketName,
 	})
 	if err != nil {
-		// when no policy is set, an err with code "NoSuchBucketPolicy" is returned
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() != "NoSuchBucketPolicy" {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) {
+			if apiErr.ErrorCode() != "NoSuchBucketPolicy" {
 				return errors.Wrapf(err, "failed to fetch policy for bucket %q", p.bucketName)
 			}
 		}
@@ -784,16 +790,14 @@ func (p *Provisioner) setBucketPolicy(bucket *bucket) error {
 
 	log.NamedDebug(nsName, logger, "Policy for bucket %q has changed. diff:%s", p.bucketName, diff)
 	if additionalConfig.bucketPolicy == nil {
-		// if policy is out of sync and the new policy is nil, we should delete the live policy
-		_, err = svc.DeleteBucketPolicy(&s3.DeleteBucketPolicyInput{
+		_, err = svc.DeleteBucketPolicy(ctx, &s3v2.DeleteBucketPolicyInput{
 			Bucket: &p.bucketName,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "failed to delete policy for bucket %q", p.bucketName)
 		}
 	} else {
-		// set the new policy
-		_, err = svc.PutBucketPolicy(&s3.PutBucketPolicyInput{
+		_, err = svc.PutBucketPolicy(ctx, &s3v2.PutBucketPolicyInput{
 			Bucket: &p.bucketName,
 			Policy: additionalConfig.bucketPolicy,
 		})
@@ -808,27 +812,24 @@ func (p *Provisioner) setBucketPolicy(bucket *bucket) error {
 func (p *Provisioner) setBucketLifecycle(bucket *bucket) error {
 	nsName := p.objectContext.NsName()
 	additionalConfig := bucket.additionalConfig
+	ctx := context.TODO()
 
-	svc := p.s3Agent.Client
-	var liveLc *s3.GetBucketLifecycleConfigurationOutput
+	svc := p.s3Agent.ClientV2
+	var liveLc *s3v2.GetBucketLifecycleConfigurationOutput
 
-	liveLc, err := svc.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
+	liveLc, err := svc.GetBucketLifecycleConfiguration(ctx, &s3v2.GetBucketLifecycleConfigurationInput{
 		Bucket: &p.bucketName,
 	})
 	if err != nil {
-		// when no lifecycle configuration is set, an err with a "code" of
-		// NoSuchLifecycleConfiguration is returned
-		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NoSuchLifecycleConfiguration" {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchLifecycleConfiguration" {
 			log.NamedDebug(nsName, logger, "no lifecycle configuration set for bucket %q", p.bucketName)
 		} else {
 			return errors.Wrapf(err, "failed to fetch lifecycle configuration for bucket %q", p.bucketName)
 		}
 	}
 
-	// parse the conf supplied lifecycle configuration json as aws-sdk-go will not operate on a
-	// json string
-	confLc := &s3.BucketLifecycleConfiguration{}
-	// don't try to parse the conf json if it is nil
+	confLc := &s3types.BucketLifecycleConfiguration{}
 	if additionalConfig.bucketLifecycle != nil {
 		err = json.Unmarshal([]byte(*additionalConfig.bucketLifecycle), confLc)
 		if err != nil {
@@ -836,38 +837,45 @@ func (p *Provisioner) setBucketLifecycle(bucket *bucket) error {
 		}
 	}
 
-	// Comparing the conf json with a json serialization of the live rules is
-	// unreliable as aws-sdk-go does not tag fields with "ommitempty". The
-	// GetBucketLifecycleConfigurationOutput type has a String() method that
-	// returns a json like format which isn't valid json.  The options are to
-	// write a custom json unmarshaler or compare go structs directly.
+	// Compare go structs directly rather than JSON serialization, since SDK
+	// types don't use omitempty tags and String() output isn't valid JSON.
+	var liveRules []s3types.LifecycleRule
+	if liveLc != nil {
+		liveRules = liveLc.Rules
+	}
+	diffLiveLc := &s3types.BucketLifecycleConfiguration{Rules: liveRules}
 
-	// convert the api returned GetBucketLifecycleConfigurationOutput to a
-	// BucketLifecycleConfiguration for apples to apples comparison to determine
-	// sync state
-	diffLiveLc := &s3.BucketLifecycleConfiguration{Rules: liveLc.Rules}
-
-	// note that the xml serialization of the rules returned by rgw sorts the
-	// rules by "ID".  The rule ordering from the
-	// PutBucketLifecycleConfiguration() call is not preserved.
-	diff := cmp.Diff(diffLiveLc, confLc)
+	// cmpopts.IgnoreUnexported is required because AWS SDK v2 types embed
+	// an unexported noSmithyDocumentSerde field that cmp.Diff cannot handle.
+	// This list must be updated if new s3types structs are used in lifecycle
+	// rules (e.g. when RGW adds support for additional lifecycle features).
+	ignoreUnexported := cmpopts.IgnoreUnexported(
+		s3types.BucketLifecycleConfiguration{},
+		s3types.LifecycleRule{},
+		s3types.LifecycleExpiration{},
+		s3types.LifecycleRuleFilter{},
+		s3types.LifecycleRuleAndOperator{},
+		s3types.AbortIncompleteMultipartUpload{},
+		s3types.NoncurrentVersionExpiration{},
+		s3types.NoncurrentVersionTransition{},
+		s3types.Transition{},
+		s3types.Tag{},
+	)
+	diff := cmp.Diff(diffLiveLc, confLc, ignoreUnexported)
 	if diff == "" {
-		// policy is in sync
 		return nil
 	}
 
 	log.NamedDebug(nsName, logger, "Lifecycle configuration for bucket %q has changed. diff:%s", p.bucketName, diff)
 	if additionalConfig.bucketLifecycle == nil {
-		// if policy is out of sync and the new policy is nil, delete the live policy
-		_, err = svc.DeleteBucketLifecycle(&s3.DeleteBucketLifecycleInput{
+		_, err = svc.DeleteBucketLifecycle(ctx, &s3v2.DeleteBucketLifecycleInput{
 			Bucket: &p.bucketName,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "failed to delete lifecycle configuration for bucket %q", p.bucketName)
 		}
 	} else {
-		// set the new policy
-		_, err = svc.PutBucketLifecycleConfiguration(&s3.PutBucketLifecycleConfigurationInput{
+		_, err = svc.PutBucketLifecycleConfiguration(ctx, &s3v2.PutBucketLifecycleConfigurationInput{
 			Bucket:                 &p.bucketName,
 			LifecycleConfiguration: confLc,
 		})
