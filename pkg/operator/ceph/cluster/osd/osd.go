@@ -818,6 +818,19 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	return osd, nil
 }
 
+func getOSDUUIDFromDeployment(d *appsv1.Deployment) string {
+	container, err := findOSDContainer(d.Spec.Template.Spec.Containers)
+	if err != nil {
+		return ""
+	}
+	for _, envVar := range container.Env {
+		if envVar.Name == "ROOK_OSD_UUID" {
+			return envVar.Value
+		}
+	}
+	return ""
+}
+
 func osdIsOnPVC(d *appsv1.Deployment) bool {
 	if _, ok := d.Labels[OSDOverPVCLabelKey]; ok {
 		return true
