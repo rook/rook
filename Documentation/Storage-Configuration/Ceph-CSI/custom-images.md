@@ -2,51 +2,49 @@
 title: Custom Images
 ---
 
-By default, Rook will deploy the latest stable version of the Ceph CSI driver.
-Commonly, there is no need to change this default version that is deployed.
-For scenarios that require deploying a custom image (e.g. downstream releases),
-the defaults can be overridden with the following settings.
-
-The CSI configuration variables are found in the `rook-ceph-operator-config` ConfigMap.
-These settings can also be specified as environment variables on the operator deployment, though
-the configmap values will override the env vars if both are specified.
+CSI drivers are now managed by the [ceph-csi-operator](https://github.com/ceph/ceph-csi-operator).
+The admin configures CSI container images through an `ImageSet` ConfigMap that is
+referenced by the `OperatorConfig` CR. By default, Rook's Helm chart creates this
+ConfigMap with the latest stable versions. Commonly, there is no need to change
+the defaults. For scenarios that require custom images (e.g. downstream releases),
+edit the `ImageSet` ConfigMap directly.
 
 ```console
-kubectl -n $ROOK_OPERATOR_NAMESPACE edit configmap rook-ceph-operator-config
+kubectl -n $ROOK_OPERATOR_NAMESPACE edit configmap rook-csi-operator-image-set-configmap
 ```
 
-The default upstream images are included below, which you can change to your desired images.
+The default upstream images are included below, which can be customized to the desired images.
 
 ```yaml
-ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.16.2"
-ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.16.0"
-ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v6.1.1"
-ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v4.11.0"
-ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v2.1.0"
-ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v8.5.0"
-ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.14.0"
+plugin: "quay.io/cephcsi/cephcsi:v3.16.2"
+provisioner: "registry.k8s.io/sig-storage/csi-provisioner:v6.1.1"
+attacher: "registry.k8s.io/sig-storage/csi-attacher:v4.11.0"
+resizer: "registry.k8s.io/sig-storage/csi-resizer:v2.1.0"
+snapshotter: "registry.k8s.io/sig-storage/csi-snapshotter:v8.5.0"
+registrar: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.16.0"
+addons: "quay.io/csiaddons/k8s-sidecar:v0.14.0"
 ```
 
-### **Use private repository**
-
-If image version is not passed along with the image name in any of the variables above,
-Rook will add the corresponding default version to that image.
-Example: if `ROOK_CSI_CEPH_IMAGE: "quay.io/private-repo/cephcsi"` is passed,
-Rook will add internal default version and consume it as `"quay.io/private-repo/cephcsi:v3.12.0"`.
+When using Helm, the images are configured under the `csi` section of `values.yaml`
+(e.g. `csi.cephcsi.repository`, `csi.cephcsi.tag`) and are rendered into the
+`ImageSet` ConfigMap automatically.
 
 ### **Use default images**
 
-If you would like Rook to use the default upstream images, then you may simply remove all
-variables matching `ROOK_CSI_*_IMAGE` from the above ConfigMap and/or the operator deployment.
+To use the default upstream images, leave the `ImageSet` ConfigMap
+unchanged or, for Helm installs, do not override any `csi.*` image values.
 
 ### **Verifying updates**
 
-You can use the below command to see the CSI images currently being used in the cluster. Note that
-not all images (like `volumereplication-operator`) may be present in every cluster depending on
-which CSI features are enabled.
+Use the below command to see the CSI images currently being used in the cluster.
+Not all images may be present depending on which CSI features are enabled.
 
 ```console
-kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app in (csi-rbdplugin,csi-rbdplugin-provisioner,csi-cephfsplugin,csi-cephfsplugin-provisioner)' | sort | uniq
+kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app.kubernetes.io/part-of in (ceph-csi-rbd, ceph-csi-cephfs, ceph-csi-nfs)' | sort | uniq
 ```
 
-The default images can also be found with each release in the [images list](https://github.com/rook/rook/blob/master/deploy/examples/images.txt)
+To inspect the `ImageSet` ConfigMap directly:
+
+```console
+kubectl -n $ROOK_OPERATOR_NAMESPACE get configmap rook-csi-operator-image-set-configmap -o yaml
+```

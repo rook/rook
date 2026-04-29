@@ -88,12 +88,10 @@ IMAGE_TMP="/tmp/rook-ceph-image-list"
 list-image: ## Create a list of images for offline installation
 	@echo "producing list of images for offline installation"
 	rm -f $(IMAGE_TMP)
-	awk '/image:/ {print $2}' $(MANIFESTS_DIR)/operator.yaml $(MANIFESTS_DIR)/cluster.yaml $(MANIFESTS_DIR)/csi-operator.yaml | \
-		cut -d: -f2- | tee $(IMAGE_TMP)
-	awk '/quay.io/ || /registry.k8s.io/ {print $3}' ../../pkg/operator/ceph/csi/spec.go | \
-		cut -d= -f2- | tr -d '"' | tee -a $(IMAGE_TMP)
-	awk '/quay.io/ || /gcr.io/ {print $4}' ../../pkg/operator/ceph/object/cosi/spec.go | \
-		cut -d= -f2- | tr -d '"' | tee -a $(IMAGE_TMP)
+	awk '/image:/ && NF > 1 {print $$2}' $(MANIFESTS_DIR)/operator.yaml $(MANIFESTS_DIR)/cluster.yaml $(MANIFESTS_DIR)/csi-operator.yaml >$(IMAGE_TMP)
+	grep -E '^[[:space:]]+(provisioner|attacher|resizer|snapshotter|registrar|plugin|addons):' $(MANIFESTS_DIR)/operator.yaml | sed -E 's/.*"([^"]+)".*/\1/' >>$(IMAGE_TMP)
+	test ! -f ../../pkg/operator/ceph/csi/spec.go || grep -E 'quay\.io|registry\.k8s\.io' ../../pkg/operator/ceph/csi/spec.go | sed -E 's/.*"([^"]+)".*/\1/' >>$(IMAGE_TMP)
+	grep -E 'quay\.io|gcr\.io' ../../pkg/operator/ceph/object/cosi/spec.go | sed -E 's/.*"([^"]+)".*/\1/' >>$(IMAGE_TMP)
 	rm -f $(MANIFESTS_DIR)/images.txt
-	cat $(IMAGE_TMP) | sort -h | uniq | grep -v '^[[:space:]]*$$' | tee $(MANIFESTS_DIR)/images.txt
+	sort -h $(IMAGE_TMP) | uniq | grep -v '^[[:space:]]*$$' >$(MANIFESTS_DIR)/images.txt
 	rm -f $(IMAGE_TMP)
