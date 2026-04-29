@@ -184,7 +184,7 @@ func startRadosNamespaceCleanup(cmd *cobra.Command, args []string) error {
 
 func startBlockPoolCleanup(cmd *cobra.Command, args []string) error {
 	rook.SetLogLevel()
-	rook.LogStartupInfo(cleanUpRadosNamespaceCmd.Flags())
+	rook.LogStartupInfo(cleanUpBlockPoolCmd.Flags())
 
 	ctx := cmd.Context()
 	context := createContext()
