@@ -299,6 +299,79 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		assert.True(t, createConfig.finishedStatusConfigMaps.Has(statusNamePVC1))
 		induceFailureCreatingOSD = -1 // off
 	})
+
+	t.Run("node: duplicate OSD ID with different UUID is reported as error", func(t *testing.T) {
+		doSetup()
+		awaitingStatusConfigMaps.Insert(statusConfigMapName("node0"))
+		createConfig = c.newCreateConfig(c.newProvisionConfig(), awaitingStatusConfigMaps, deployments)
+
+		deploymentsWithDetails := newExistenceListWithCapacity(3)
+		deploymentsWithDetails.AddWithDetail(3, existingOSDDetail{UUID: "uuid-aaa", NodeOrPVCName: "server175"})
+		deploymentsWithDetails.AddWithDetail(4, existingOSDDetail{UUID: "uuid-bbb", NodeOrPVCName: "server175"})
+		deploymentsWithDetails.AddWithDetail(6, existingOSDDetail{UUID: "uuid-ccc", NodeOrPVCName: "server175"})
+		createConfig.deployments = deploymentsWithDetails
+
+		status = &OrchestrationStatus{
+			OSDs: []OSDInfo{
+				{ID: 3, UUID: "uuid-different"},
+				{ID: 5, UUID: "uuid-eee"},
+			},
+			PvcBackedOSD: false,
+		}
+		createConfig.createNewOSDsFromStatus(status, "node0", errs)
+		assert.Equal(t, 1, errs.len())
+		assert.Contains(t, errs.asMessages(), "duplicate OSD ID 3 detected")
+		assert.Contains(t, errs.asMessages(), "node0")
+		assert.Contains(t, errs.asMessages(), "server175")
+		assert.Contains(t, errs.asMessages(), "zapping-devices")
+		assert.ElementsMatch(t, createCallsOnNode, []int{5})
+		assert.Len(t, createCallsOnPVC, 0)
+	})
+
+	t.Run("node: same OSD ID with same UUID is not an error", func(t *testing.T) {
+		doSetup()
+		awaitingStatusConfigMaps.Insert(statusConfigMapName("node0"))
+		createConfig = c.newCreateConfig(c.newProvisionConfig(), awaitingStatusConfigMaps, deployments)
+
+		deploymentsWithDetails := newExistenceListWithCapacity(1)
+		deploymentsWithDetails.AddWithDetail(3, existingOSDDetail{UUID: "uuid-aaa", NodeOrPVCName: "node0"})
+		createConfig.deployments = deploymentsWithDetails
+
+		status = &OrchestrationStatus{
+			OSDs: []OSDInfo{
+				{ID: 3, UUID: "uuid-aaa"},
+			},
+			PvcBackedOSD: false,
+		}
+		createConfig.createNewOSDsFromStatus(status, "node0", errs)
+		assert.Zero(t, errs.len())
+		assert.Len(t, createCallsOnNode, 0)
+		assert.Len(t, createCallsOnPVC, 0)
+	})
+
+	t.Run("pvc: duplicate OSD ID with different UUID is reported as error", func(t *testing.T) {
+		doSetup()
+		awaitingStatusConfigMaps.Insert(statusConfigMapName("pvc1"))
+		createConfig = c.newCreateConfig(c.newProvisionConfig(), awaitingStatusConfigMaps, deployments)
+
+		deploymentsWithDetails := newExistenceListWithCapacity(1)
+		deploymentsWithDetails.AddWithDetail(55, existingOSDDetail{UUID: "uuid-server175-osd55", NodeOrPVCName: "pvc-original"})
+		createConfig.deployments = deploymentsWithDetails
+
+		status = &OrchestrationStatus{
+			OSDs: []OSDInfo{
+				{ID: 55, UUID: "uuid-server178-sdf"},
+			},
+			PvcBackedOSD: true,
+		}
+		createConfig.createNewOSDsFromStatus(status, "pvc1", errs)
+		assert.Equal(t, 1, errs.len())
+		assert.Contains(t, errs.asMessages(), "duplicate OSD ID 55 detected")
+		assert.Contains(t, errs.asMessages(), "pvc1")
+		assert.Contains(t, errs.asMessages(), "pvc-original")
+		assert.Len(t, createCallsOnNode, 0)
+		assert.Len(t, createCallsOnPVC, 0)
+	})
 }
 
 func Test_startProvisioningOverPVCs(t *testing.T) {
