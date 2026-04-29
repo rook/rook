@@ -38,7 +38,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 * `--rgw-zonegroup-name`: (optional) Provides the name of the rgw-zone-group
 * `--upgrade`: (optional) Upgrades the cephCSIKeyrings(For example: client.csi-cephfs-provisioner) and client.healthchecker ceph users with new permissions needed for the new cluster version and older permission will still be applied.
 * `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--k8s-cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
-* `--v2-port-enable`: (optional) Enables the v2 mon port (3300) for mons.
+* `--v2-port-enable`: (optional) If false, disables the v2 mon port (3300) and only enables the v1 mon port (6789).
 * `--topology-pools`: (optional) Comma-separated list of topology-constrained rbd pools
 * `--topology-failure-domain-label`: (optional) K8s cluster failure domain label (example: zone, rack, or host) for the topology-pools that match the ceph domain
 * `--topology-failure-domain-values`: (optional) Comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the `topology-pools` list

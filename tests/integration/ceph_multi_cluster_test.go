@@ -82,7 +82,6 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		MultipleMgrs:       true,
 		RookVersion:        installer.LocalBuildTag,
 		CephVersion:        installer.SquidVersion,
-		RequireMsgr2:       true,
 		ClusterConcurrency: 2,
 	}
 	s.settings.ApplyEnvVars()

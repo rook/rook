@@ -548,7 +548,7 @@ data:
 
   # Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options
   # Set to "ms_mode=secure" when connections.encrypted is enabled in CephCluster CR
-  # CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: "ms_mode=secure"
+  CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: "ms_mode=prefer-crc"
 
   # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"

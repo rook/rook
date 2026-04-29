@@ -57,6 +57,12 @@ those releases.
 ## Breaking changes in v1.20
 
 * The minimum supported Kubernetes version is v1.31.
+* The default Ceph msgr protocol is now v2. Until this release, both v1 (port 6789) and v2 (port 3300)
+    have been enabled on the mon daemons. The v1 port is obsolete, so we recommended to move to v2 and
+    consider enabling security features such as encryption on the wire. Requires kernel 5.11.
+    If still on an older kernel, it is possible to disable this setting and keep the v1 protocol enabled.
+    * Internal clusters: In the CephCluster CR: `network.connections.requireMsgr2: false`
+    * External clusters: `--v2-port-enable=False`
 
 ## Considerations
 
