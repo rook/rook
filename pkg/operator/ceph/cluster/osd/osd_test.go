@@ -839,6 +839,54 @@ func TestGetOSDInfo(t *testing.T) {
 		assert.Equal(t, pvcName, updatedOSDInfo.PVCName)
 	})
 
+	t.Run("detect encryption from dmcrypt block path when encrypted label is missing", func(t *testing.T) {
+		osdInfo := &OSDInfo{
+			UUID:      "osd-uuid",
+			BlockPath: "/dev/mapper/set1-data-0-abc-block-dmcrypt",
+			CVMode:    "raw",
+		}
+		osdProp := osdProperties{
+			crushHostname: node,
+			pvc:           corev1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
+			selection:     cephv1.Selection{},
+			resources:     corev1.ResourceRequirements{},
+			storeConfig:   config.StoreConfig{},
+		}
+
+		d, err := c.makeDeployment(osdProp, osdInfo, dataPathMap)
+		assert.NoError(t, err)
+
+		// simulate a pre-label upgrade by removing the encrypted label
+		delete(d.Labels, encrypted)
+		delete(d.Spec.Template.Labels, encrypted)
+
+		updatedOSDInfo, err := c.getOSDInfo(d)
+		assert.NoError(t, err)
+		assert.True(t, updatedOSDInfo.Encrypted)
+	})
+
+	t.Run("encrypted label is set from OSDInfo when osdProps does not indicate encryption", func(t *testing.T) {
+		osdInfo := &OSDInfo{
+			UUID:      "osd-uuid",
+			BlockPath: "/dev/mapper/set1-data-0-abc-block-dmcrypt",
+			CVMode:    "raw",
+			Encrypted: true,
+		}
+		osdProp := osdProperties{
+			crushHostname: node,
+			pvc:           corev1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
+			selection:     cephv1.Selection{},
+			resources:     corev1.ResourceRequirements{},
+			storeConfig:   config.StoreConfig{},
+			encrypted:     false,
+		}
+
+		d, err := c.makeDeployment(osdProp, osdInfo, dataPathMap)
+		assert.NoError(t, err)
+		assert.Equal(t, "true", d.Labels[encrypted])
+		assert.Equal(t, "true", d.Spec.Template.Labels[encrypted])
+	})
+
 	t.Run("verify the non-existence of labels if the corresponding fields are not set on OSDInfo and OSDProperties", func(t *testing.T) {
 		useAllDevices := true
 		osdInfo := &OSDInfo{
