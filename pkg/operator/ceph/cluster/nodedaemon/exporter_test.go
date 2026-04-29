@@ -110,6 +110,7 @@ func TestCreateOrUpdateCephExporter(t *testing.T) {
 	assert.Equal(t, "", podSpec.ObjectMeta.Labels["foo"])
 	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
 	assert.Equal(t, false, podSpec.Spec.HostNetwork)
+	assert.Equal(t, corev1.DNSClusterFirst, podSpec.Spec.DNSPolicy)
 	assert.Equal(t, "", podSpec.Spec.PriorityClassName)
 	assert.Equal(t, k8sutil.DefaultServiceAccount, podSpec.Spec.ServiceAccountName)
 
@@ -128,6 +129,7 @@ func TestCreateOrUpdateCephExporter(t *testing.T) {
 	assert.Equal(t, "bar", podSpec.ObjectMeta.Labels["foo"])
 	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
 	assert.Equal(t, true, podSpec.Spec.HostNetwork)
+	assert.Equal(t, corev1.DNSClusterFirstWithHostNet, podSpec.Spec.DNSPolicy)
 	assert.Equal(t, "test-priority-class", podSpec.Spec.PriorityClassName)
 
 	t.Run("exporter config", func(t *testing.T) {
