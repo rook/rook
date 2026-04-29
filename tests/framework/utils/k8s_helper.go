@@ -1218,7 +1218,22 @@ func (k8sh *K8sHelper) WaitUntilZeroPVs() bool {
 			return true
 		}
 		logger.Infof("waiting for PV count to be zero.")
-
+		if i%5 == 0 {
+			for _, pv := range pvList.Items {
+				logger.Infof("PV %s is in %s phase. %+v", pv.Name, pv.Status.Phase, pv)
+			}
+		}
+		allVolumesReleased := true
+		for _, pv := range pvList.Items {
+			if pv.Status.Phase == v1.VolumeReleased {
+				logger.Warningf("PV %s is in Released phase, ignoring it for deletion wait", pv.Name)
+				continue
+			}
+			allVolumesReleased = false
+		}
+		if allVolumesReleased {
+			return true
+		}
 		time.Sleep(RetryInterval * time.Second)
 	}
 	return false
