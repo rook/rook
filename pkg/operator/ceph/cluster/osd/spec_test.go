@@ -1002,3 +1002,63 @@ func TestCreateOSDService(t *testing.T) {
 	assert.Equal(t, 1, len(service.Spec.Ports))
 	assert.Equal(t, int32(osdPortv2), service.Spec.Ports[0].Port)
 }
+
+func crushDeviceClassEnvValue(t *testing.T, d *appsv1.Deployment) string {
+	t.Helper()
+	for _, c := range d.Spec.Template.Spec.Containers {
+		for _, e := range c.Env {
+			if e.Name == CrushDeviceClassVarName {
+				return e.Value
+			}
+		}
+	}
+	return ""
+}
+
+func newPerDeviceClassCluster(t *testing.T, allowUpdate bool) *Cluster {
+	clientset := fake.NewClientset()
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", CephVersion: cephver.Squid}
+	clusterInfo.SetName("testing")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+	ctx := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	spec := cephv1.ClusterSpec{
+		Storage: cephv1.StorageScopeSpec{AllowDeviceClassUpdate: allowUpdate},
+	}
+	return New(ctx, clusterInfo, spec, "rook/rook:myversion")
+}
+
+func TestMakeDeploymentPerDeviceClassBeatsNodeLevel(t *testing.T) {
+	c := newPerDeviceClassCluster(t, true)
+	osdProps := osdProperties{
+		crushHostname: "node1",
+		devices: []cephv1.Device{
+			{Name: "vdb", Config: map[string]string{"deviceClass": "fast"}},
+		},
+		storeConfig: config.StoreConfig{StoreType: "bluestore", DeviceClass: "slow"},
+	}
+	osd := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vdb", CVMode: "raw", Store: "bluestore", DeviceClass: "hdd"}
+	cfg := &provisionConfig{DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, "/var/lib/rook")}
+
+	d, err := c.makeDeployment(osdProps, osd, cfg)
+	assert.NoError(t, err)
+	assert.Equal(t, "fast", osd.DeviceClass)
+	assert.Equal(t, "fast", crushDeviceClassEnvValue(t, d))
+}
+
+func TestMakeDeploymentAllowDeviceClassUpdateFalseLeavesClassAlone(t *testing.T) {
+	c := newPerDeviceClassCluster(t, false)
+	osdProps := osdProperties{
+		crushHostname: "node1",
+		devices: []cephv1.Device{
+			{Name: "vdb", Config: map[string]string{"deviceClass": "fast"}},
+		},
+		storeConfig: config.StoreConfig{StoreType: "bluestore", DeviceClass: "slow"},
+	}
+	osd := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vdb", CVMode: "raw", Store: "bluestore", DeviceClass: "hdd"}
+	cfg := &provisionConfig{DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, "/var/lib/rook")}
+
+	d, err := c.makeDeployment(osdProps, osd, cfg)
+	assert.NoError(t, err)
+	assert.Equal(t, "hdd", osd.DeviceClass)
+	assert.Equal(t, "hdd", crushDeviceClassEnvValue(t, d))
+}
