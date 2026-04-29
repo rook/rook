@@ -17,6 +17,8 @@ limitations under the License.
 package osd
 
 import (
+	"path/filepath"
+
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -71,9 +73,23 @@ func getDeviceLVPath(context *clusterd.Context, deviceName string) string {
 	return output
 }
 
-// GetReplaceOSDId returns the OSD ID based on the device name
+// GetReplaceOSDId returns the OSD ID based on the device name.
+// Compares both directly and via symlink resolution to handle cases where one
+// path is a kernel name (/dev/nvme0n1) and the other is a persistent path
+// (/dev/disk/by-id/nvme-...).
 func (a *OsdAgent) GetReplaceOSDId(device string) int {
 	if device == a.replaceOSD.BlockPath {
+		return a.replaceOSD.ID
+	}
+
+	deviceReal, err1 := filepath.EvalSymlinks(device)
+	blockPathReal, err2 := filepath.EvalSymlinks(a.replaceOSD.BlockPath)
+	if err1 != nil || err2 != nil {
+		logger.Debugf("could not resolve symlinks for OSD replacement comparison: device %q err=%v, blockPath %q err=%v",
+			device, err1, a.replaceOSD.BlockPath, err2)
+		return -1
+	}
+	if deviceReal == blockPathReal {
 		return a.replaceOSD.ID
 	}
 

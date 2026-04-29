@@ -2360,3 +2360,135 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	err = agent.WipeDevicesFromOtherClusters(context)
 	assert.NoError(t, err)
 }
+
+func TestResolveDeviceToPersistentPath(t *testing.T) {
+	t.Run("NVMe prefers eui over model-serial", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "udevadm" {
+				return "DEVLINKS=/dev/disk/by-id/nvme-Micron_7450_SERIAL_A /dev/disk/by-id/nvme-Micron_7450_SERIAL_A_1 /dev/disk/by-id/nvme-eui.00000001\nDEVNAME=/dev/nvme0n1\n", nil
+			}
+			return "", nil
+		}
+		// nvme-eui. is hardware-burned (IEEE), preferred over model-serial.
+		// nvme-Micron_7450_SERIAL_A_1 is filtered because the un-suffixed
+		// nvme-Micron_7450_SERIAL_A also exists in DEVLINKS, identifying _1
+		// as a udev namespace-ID suffix.
+		result := resolveDeviceToPersistentPath("/dev/nvme0n1", executor)
+		assert.Equal(t, "/dev/disk/by-id/nvme-eui.00000001", result)
+	})
+
+	t.Run("SATA prefers wwn over ata model-serial", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "udevadm" {
+				return "DEVLINKS=/dev/disk/by-id/ata-WDC_HC580_SERIAL /dev/disk/by-id/wwn-0x5000cca418d314ed\n", nil
+			}
+			return "", nil
+		}
+		// wwn- is hardware-burned (IEEE), preferred over ata- model-serial
+		result := resolveDeviceToPersistentPath("/dev/sda", executor)
+		assert.Equal(t, "/dev/disk/by-id/wwn-0x5000cca418d314ed", result)
+	})
+
+	t.Run("no by-id path returns kernel path", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "udevadm" {
+				return "DEVNAME=/dev/vdb\n", nil
+			}
+			return "", nil
+		}
+		result := resolveDeviceToPersistentPath("/dev/vdb", executor)
+		assert.Equal(t, "/dev/vdb", result)
+	})
+
+	t.Run("udevadm failure returns kernel path", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			return "", errors.New("udevadm not found")
+		}
+		result := resolveDeviceToPersistentPath("/dev/nvme0n1", executor)
+		assert.Equal(t, "/dev/nvme0n1", result)
+	})
+
+	t.Run("already persistent path is returned as-is", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		result := resolveDeviceToPersistentPath("/dev/disk/by-id/nvme-Micron_SERIAL", executor)
+		assert.Equal(t, "/dev/disk/by-id/nvme-Micron_SERIAL", result)
+	})
+
+	t.Run("device-mapper path is returned as-is", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		result := resolveDeviceToPersistentPath("/dev/mapper/crypt-device", executor)
+		assert.Equal(t, "/dev/mapper/crypt-device", result)
+	})
+
+	t.Run("lvm-pv-uuid links are skipped", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "udevadm" {
+				return "DEVLINKS=/dev/disk/by-id/lvm-pv-uuid-abc123 /dev/disk/by-id/ata-WDC_SERIAL\n", nil
+			}
+			return "", nil
+		}
+		result := resolveDeviceToPersistentPath("/dev/sdb", executor)
+		assert.Equal(t, "/dev/disk/by-id/ata-WDC_SERIAL", result)
+	})
+
+	t.Run("namespace-suffixed path kept when base absent", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "udevadm" {
+				// Only nvme-FOO_1 exists, no nvme-FOO -- _1 could be part of the
+				// serial or the base link may be claimed by another device. Either
+				// way, we must keep it since it's the only model-serial link.
+				return "DEVLINKS=/dev/disk/by-id/nvme-FOO_1 /dev/disk/by-id/nvme-eui.AABB\n", nil
+			}
+			return "", nil
+		}
+		result := resolveDeviceToPersistentPath("/dev/nvme1n1", executor)
+		assert.Equal(t, "/dev/disk/by-id/nvme-eui.AABB", result)
+	})
+
+	t.Run("multi-digit namespace ID filtered", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "udevadm" {
+				// nvme-Model_Serial_12 is namespace 12; the un-suffixed
+				// nvme-Model_Serial also exists, confirming _12 is a NSID.
+				return "DEVLINKS=/dev/disk/by-id/nvme-Model_Serial /dev/disk/by-id/nvme-Model_Serial_12 /dev/disk/by-id/nvme-eui.CCDD\n", nil
+			}
+			return "", nil
+		}
+		result := resolveDeviceToPersistentPath("/dev/nvme2n1", executor)
+		assert.Equal(t, "/dev/disk/by-id/nvme-eui.CCDD", result)
+	})
+}
+
+func TestPreferByIDPath(t *testing.T) {
+	t.Run("wwn preferred over ata model-serial", func(t *testing.T) {
+		result := preferByIDPath("/dev/disk/by-id/ata-WDC_HC580_SERIAL", "/dev/disk/by-id/wwn-0x5000cca418d314ed")
+		assert.Equal(t, "/dev/disk/by-id/wwn-0x5000cca418d314ed", result)
+	})
+
+	t.Run("nvme-eui preferred over nvme model-serial", func(t *testing.T) {
+		result := preferByIDPath("/dev/disk/by-id/nvme-Micron_7450_SERIAL", "/dev/disk/by-id/nvme-eui.00000001")
+		assert.Equal(t, "/dev/disk/by-id/nvme-eui.00000001", result)
+	})
+
+	t.Run("wwn and nvme-eui are equal rank -- first arg wins", func(t *testing.T) {
+		result := preferByIDPath("/dev/disk/by-id/wwn-0x5000cca418d314ed", "/dev/disk/by-id/nvme-eui.00000001")
+		assert.Equal(t, "/dev/disk/by-id/wwn-0x5000cca418d314ed", result)
+	})
+
+	t.Run("two model-serial paths are equal rank -- first arg wins", func(t *testing.T) {
+		result := preferByIDPath("/dev/disk/by-id/ata-WDC_SERIAL_A", "/dev/disk/by-id/ata-WDC_SERIAL_B")
+		assert.Equal(t, "/dev/disk/by-id/ata-WDC_SERIAL_A", result)
+	})
+
+	t.Run("wwn preferred regardless of argument order", func(t *testing.T) {
+		result := preferByIDPath("/dev/disk/by-id/wwn-0x5000cca418d314ed", "/dev/disk/by-id/ata-WDC_HC580_SERIAL")
+		assert.Equal(t, "/dev/disk/by-id/wwn-0x5000cca418d314ed", result)
+	})
+}
