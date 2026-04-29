@@ -47,6 +47,7 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 		ErasureCoded: cephv1.ErasureCodedSpec{
 			DataChunks:   2,
 			CodingChunks: 3,
+			StripeUnit:   4096,
 		},
 	}
 
@@ -66,7 +67,8 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 				assert.Equal(t, fmt.Sprintf("m=%d", spec.ErasureCoded.CodingChunks), args[6])
 				assert.Equal(t, "plugin=myplugin", args[7])
 				assert.Equal(t, "technique=t", args[8])
-				nextArg := 9
+				assert.Equal(t, fmt.Sprintf("stripe_unit=%d", spec.ErasureCoded.StripeUnit), args[9])
+				nextArg := 10
 				if failureDomain != "" {
 					assert.Equal(t, fmt.Sprintf("crush-failure-domain=%s", failureDomain), args[nextArg])
 					nextArg++

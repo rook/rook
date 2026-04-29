@@ -477,6 +477,13 @@ spec:
                         as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                       minimum: 0
                       type: integer
+                    stripeUnit:
+                      default: 4096
+                      description: Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
+                      format: int64
+                      maximum: 4194304
+                      minimum: 1024
+                      type: integer
                   required:
                     - codingChunks
                     - dataChunks
@@ -7757,6 +7764,13 @@ spec:
                               as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                             minimum: 0
                             type: integer
+                          stripeUnit:
+                            default: 4096
+                            description: Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
+                            format: int64
+                            maximum: 4194304
+                            minimum: 1024
+                            type: integer
                         required:
                           - codingChunks
                           - dataChunks
@@ -7951,6 +7965,13 @@ spec:
                             The number of chunks required to recover an object when any single OSD is lost is the same
                             as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
+                          type: integer
+                        stripeUnit:
+                          default: 4096
+                          description: Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
+                          format: int64
+                          maximum: 4194304
+                          minimum: 1024
                           type: integer
                       required:
                         - codingChunks
@@ -12875,6 +12896,13 @@ spec:
                             as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                        stripeUnit:
+                          default: 4096
+                          description: Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
+                          format: int64
+                          maximum: 4194304
+                          minimum: 1024
+                          type: integer
                       required:
                         - codingChunks
                         - dataChunks
@@ -14517,6 +14545,13 @@ spec:
                             as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                        stripeUnit:
+                          default: 4096
+                          description: Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
+                          format: int64
+                          maximum: 4194304
+                          minimum: 1024
+                          type: integer
                       required:
                         - codingChunks
                         - dataChunks
@@ -15532,6 +15567,13 @@ spec:
                             as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                        stripeUnit:
+                          default: 4096
+                          description: Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
+                          format: int64
+                          maximum: 4194304
+                          minimum: 1024
+                          type: integer
                       required:
                         - codingChunks
                         - dataChunks
@@ -15721,6 +15763,13 @@ spec:
                             The number of chunks required to recover an object when any single OSD is lost is the same
                             as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
+                          type: integer
+                        stripeUnit:
+                          default: 4096
+                          description: Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
+                          format: int64
+                          maximum: 4194304
+                          minimum: 1024
                           type: integer
                       required:
                         - codingChunks
