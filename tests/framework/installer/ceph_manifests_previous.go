@@ -41,10 +41,6 @@ func (m *CephManifestsPreviousVersion) GetCRDs(k8shelper *utils.K8sHelper) strin
 	return m.settings.readManifestFromGitHub("crds.yaml")
 }
 
-func (m *CephManifestsPreviousVersion) GetCSINFSRBAC() string {
-	return m.settings.readManifestFromGitHub("/csi/nfs/rbac.yaml")
-}
-
 func (m *CephManifestsPreviousVersion) GetCSIOperator() string {
 	manifest := m.settings.readManifestFromGitHub("csi-operator.yaml")
 	return m.settings.replaceCSIOperatorSettings(m.settings.OperatorNamespace, manifest)

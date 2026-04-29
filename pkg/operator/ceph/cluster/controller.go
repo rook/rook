@@ -547,13 +547,7 @@ func (c *ClusterController) requestClusterDelete(clusterObj *cephv1.CephCluster)
 }
 
 func (c *ClusterController) checkIfVolumesExist(cluster *cephv1.CephCluster) error {
-	if csi.CSIEnabled() {
-		err := c.csiVolumesAllowForDeletion(cluster)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return c.csiVolumesAllowForDeletion(cluster)
 }
 
 func (c *ClusterController) csiVolumesAllowForDeletion(cluster *cephv1.CephCluster) error {

@@ -51,8 +51,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
-
-	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
 
 const (
@@ -245,13 +243,6 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 			log.NamedInfo(request.NamespacedName, logger, "Removing finalizer from SVG CR %s without checking if the subvolume group contains any data as more than one SVG(count %d) contains the same filesystem and same SVG.", cephFilesystemSubVolumeGroup.Name, len(cephFsSvgList.Items))
 		}
 
-		if len(cephFsSvgList.Items) <= 1 {
-			err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Namespace, r.clusterInfo, nil)
-			if err != nil {
-				return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
-			}
-		}
-
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephFilesystemSubVolumeGroup)
 		if err != nil {
@@ -275,16 +266,10 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	}
 	if cephCluster.Spec.External.Enable {
 		log.NamedDebug(request.NamespacedName, logger, "skip creating external subvolume in external mode, create it manually, the controller will assume it's there")
-		err = r.updateClusterConfig(cephFilesystemSubVolumeGroup, cephCluster)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
-		}
 		r.updateStatus(observedGeneration, namespacedName, cephv1.ConditionReady)
-		if csi.EnableCSIOperator() {
-			err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemSubVolumeGroupName, buildClusterID(cephFilesystemSubVolumeGroup), cephFilesystemSubVolumeGroup.Spec.CSIMetadataRadosNamespace)
-			if err != nil {
-				return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subvolume")
-			}
+		err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemSubVolumeGroupName, buildClusterID(cephFilesystemSubVolumeGroup), cephFilesystemSubVolumeGroup.Spec.CSIMetadataRadosNamespace)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subvolume")
 		}
 		return reconcile.Result{}, nil
 	}
@@ -321,11 +306,6 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 	}
 
-	err = r.updateClusterConfig(cephFilesystemSubVolumeGroup, cephCluster)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
-	}
-
 	err = cephclient.PinCephFSSubVolumeGroup(r.context, r.clusterInfo, cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup, getSubvolumeGroupName(cephFilesystemSubVolumeGroup))
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to pin filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
@@ -333,11 +313,9 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 
 	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady)
 
-	if csi.EnableCSIOperator() {
-		err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemSubVolumeGroupName, buildClusterID(cephFilesystemSubVolumeGroup), cephFilesystemSubVolumeGroup.Spec.CSIMetadataRadosNamespace)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subvolumeGroup")
-		}
+	err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemSubVolumeGroupName, buildClusterID(cephFilesystemSubVolumeGroup), cephFilesystemSubVolumeGroup.Spec.CSIMetadataRadosNamespace)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subvolumeGroup")
 	}
 
 	// Return and do not requeue
@@ -350,35 +328,6 @@ func getSubvolumeGroupName(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSu
 		return cephFilesystemSubVolumeGroup.Spec.Name
 	}
 	return cephFilesystemSubVolumeGroup.Name
-}
-
-func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup, cephCluster cephv1.CephCluster) error {
-	// Update CSI config map
-	// If the mon endpoints change, the mon health check go routine will take care of updating the
-	// config map, so no special care is needed in this controller
-	csiClusterConfigEntry := csi.CSIClusterConfigEntry{
-		Namespace: r.clusterInfo.Namespace,
-		ClusterInfo: cephcsi.ClusterInfo{
-			Monitors: csi.MonEndpoints(r.clusterInfo.AllMonitors(), cephCluster.Spec.RequireMsgr2()),
-			CephFS: cephcsi.CephFS{
-				SubvolumeGroup:     getSubvolumeGroupName(cephFilesystemSubVolumeGroup),
-				KernelMountOptions: r.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,
-				FuseMountOptions:   r.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
-			},
-			ReadAffinity: cephcsi.ReadAffinity{
-				Enabled:             csi.ReadAffinityEnabled(r.clusterInfo.CSIDriverSpec.ReadAffinity.Enabled, r.clusterInfo.CephVersion),
-				CrushLocationLabels: r.clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels,
-			},
-		},
-	}
-
-	csiClusterConfigEntry.CephFS.NetNamespaceFilePath = ""
-
-	err := csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Namespace, r.clusterInfo, &csiClusterConfigEntry)
-	if err != nil {
-		return errors.Wrap(err, "failed to save cluster config")
-	}
-	return nil
 }
 
 // Create the ceph filesystem subvolume group
