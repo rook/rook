@@ -199,8 +199,6 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 	})
 
 	t.Run("remove notification label from OBC", func(t *testing.T) {
-		// TODO: add remove notification label support in OBC
-		t.Skipped()
 		obc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(obcNamespace).Get(ctx, obcName, metav1.GetOptions{})
 		assert.Nil(t, err)
 		delete(obc.Labels, bucketNotificationLabelPrefix+notificationName)
