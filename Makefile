@@ -176,8 +176,8 @@ test: ## Runs unit tests.
 test-integration: ## Runs integration tests.
 	@$(MAKE) go.test.integration
 
-.PHONY: vet
-vet: ## Runs lint checks on go sources.
+.PHONY: lint.vet
+lint.vet: ## Runs lint checks on go sources.
 	@$(MAKE) go.init
 	@$(MAKE) go.vet
 
@@ -192,7 +192,7 @@ golangci-lint: $(YQ)
 	@$(MAKE) go.golangci-lint
 
 .PHONY: lint.go
-lint.go: lint.fmt vet golangci-lint ## run various go linters
+lint.go: lint.fmt lint.vet golangci-lint ## run various go linters
 
 
 .PHONY: lint.markdown
