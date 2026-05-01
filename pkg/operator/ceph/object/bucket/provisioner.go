@@ -51,6 +51,7 @@ type Provisioner struct {
 	bucketName      string
 	storeDomainName string
 	storePort       int32
+	storeUseTLS     bool
 	// access keys for acct for the bucket *owner*
 	cephUserName         string
 	accessKeyID          string
@@ -564,12 +565,13 @@ func (p *Provisioner) setObjectStoreDomainNameAndPort(sc *storagev1.StorageClass
 		return err
 	}
 
-	domainName, port, _, err := store.GetAdvertiseEndpoint()
+	domainName, port, useTLS, err := store.GetAdvertiseEndpoint()
 	if err != nil {
 		return errors.Wrapf(err, `failed to get advertise endpoint for CephObjectStore "%s/%s"`, p.clusterInfo.Namespace, p.objectStoreName)
 	}
 	p.storeDomainName = domainName
 	p.storePort = port
+	p.storeUseTLS = useTLS
 
 	return nil
 }
@@ -594,6 +596,9 @@ func (p *Provisioner) setEndpoint(sc *storagev1.StorageClass) {
 }
 
 func (p Provisioner) getObjectStoreEndpoint() string {
+	if p.storeUseTLS {
+		return object.BuildDNSEndpoint(p.storeDomainName, p.storePort, true)
+	}
 	return fmt.Sprintf("%s:%d", p.storeDomainName, p.storePort)
 }
 
@@ -609,6 +614,7 @@ func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
 		if p.storePort == 0 {
 			return errors.New("failed to discover endpoint port (is empty)")
 		}
+		p.storeUseTLS = false
 		// If no endpoint exists let's see if CephObjectStore exists
 	} else {
 		if err := p.setObjectStoreDomainNameAndPort(sc); err != nil {
@@ -893,7 +899,7 @@ func (p *Provisioner) setTlsCaCert() error {
 		return err
 	}
 	p.tlsCert = make([]byte, 0)
-	if objStore.Spec.Gateway.SecurePort == p.storePort {
+	if objStore.Spec.Gateway.SecurePort == p.storePort || p.storeUseTLS {
 		p.tlsCert, p.insecureTLS, err = object.GetTlsCaCert(p.objectContext, &objStore.Spec)
 		if err != nil {
 			return err

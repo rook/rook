@@ -86,6 +86,18 @@ func TestNewS3Agent(t *testing.T) {
 		assert.NotNil(t, s3Agent.ClientV2)
 		assert.Equal(t, "https://endpoint", *s3Agent.ClientV2.Options().BaseEndpoint)
 	})
+	t.Run("test with https endpoint without custom tls", func(t *testing.T) {
+		debug := false
+		insecure := false
+		endpoint := "https://endpoint"
+		s3Agent, err := NewS3Agent(accessKey, secretKey, endpoint, debug, nil, insecure, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, s3Agent.Client.Config.HTTPClient.Transport.(*http.Transport).TLSClientConfig.RootCAs)
+		assert.False(t, s3Agent.Client.Config.HTTPClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify)
+		assert.False(t, *s3Agent.Client.Config.DisableSSL)
+		assert.NotNil(t, s3Agent.ClientV2)
+		assert.Equal(t, "https://endpoint", *s3Agent.ClientV2.Options().BaseEndpoint)
+	})
 	t.Run("test with custom http.Client", func(t *testing.T) {
 		debug := true
 		logLevel := aws.LogDebug

@@ -117,6 +117,25 @@ func TestPopulateDomainAndPort(t *testing.T) {
 	err = p.populateDomainAndPort(sc)
 	assert.NoError(t, err)
 	assert.Equal(t, "rook-ceph-rgw-test-store.ns.svc", p.storeDomainName)
+	assert.Equal(t, int32(80), p.storePort)
+	assert.False(t, p.storeUseTLS)
+	assert.Equal(t, "rook-ceph-rgw-test-store.ns.svc:80", p.getObjectStoreEndpoint())
+
+	cephObjectStore.Spec.Hosting = &cephv1.ObjectStoreHostingSpec{
+		AdvertiseEndpoint: &cephv1.ObjectEndpointSpec{
+			DnsName: "s3.domain.com",
+			Port:    443,
+			UseTls:  true,
+		},
+	}
+	_, err = p.context.RookClientset.CephV1().CephObjectStores(namespace).Update(ctx, cephObjectStore, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+	err = p.populateDomainAndPort(sc)
+	assert.NoError(t, err)
+	assert.Equal(t, "s3.domain.com", p.storeDomainName)
+	assert.Equal(t, int32(443), p.storePort)
+	assert.True(t, p.storeUseTLS)
+	assert.Equal(t, "https://s3.domain.com:443", p.getObjectStoreEndpoint())
 }
 
 func TestQuanityToInt64(t *testing.T) {
