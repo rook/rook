@@ -187,3 +187,39 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.Equal(t, 8443, int(svc.Spec.Ports[0].Port))
 	assert.Equal(t, 8443, int(svc.Spec.Ports[0].TargetPort.IntVal))
 }
+
+func TestCreateSelfSignedCertRetriesWrappedDeadlineExceeded(t *testing.T) {
+	ctx := context.TODO()
+	clientset := test.New(t, 3)
+	attempts := 0
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
+			if arg[0] == "config-key" && arg[1] == "get" {
+				return "", errors.New("cert not found")
+			}
+			if arg[0] == "dashboard" && arg[1] == "create-self-signed-cert" {
+				attempts++
+				if attempts < 3 {
+					return "", errors.Wrap(context.DeadlineExceeded, "test timeout")
+				}
+			}
+			return "", nil
+		},
+	}
+
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	clusterInfo := &cephclient.ClusterInfo{
+		Namespace: "myns",
+		OwnerInfo: ownerInfo,
+		Context:   ctx,
+	}
+	c := &Cluster{
+		clusterInfo: clusterInfo,
+		context:     &clusterd.Context{Clientset: clientset, Executor: executor},
+	}
+
+	alreadyCreated, err := c.createSelfSignedCert()
+	assert.NoError(t, err)
+	assert.False(t, alreadyCreated)
+	assert.Equal(t, 3, attempts)
+}
