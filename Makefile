@@ -217,8 +217,10 @@ lint.helm: $(HELM) $(KUSTOMIZE) ## Check the helm charts
 	$(KUSTOMIZE) build >/dev/null
 	rm templated.yaml kustomization.yaml
 
+.PHONY: lint.quick
+lint.quick: lint.yaml lint.shell lint.make lint.go lint.helm lint.markdown ## run some (faster) linters
 .PHONY: lint
-lint: lint.yaml lint.python lint.shell lint.make lint.go lint.markdown lint.helm ## Run various linters
+lint: lint.quick lint.python ## Run various linters
 
 .PHONY: lint.python
 lint.python: ## lint python scripts
