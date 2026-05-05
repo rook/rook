@@ -102,18 +102,34 @@ func fileSystemCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s
 	require.NoError(s.T(), err)
 	logger.Infof("delete clone pvc")
 
+	// Get the PV name before deleting the PVC
+	clonePVName, err := k8sh.GetPVCVolumeName(defaultNamespace, clonePVCName)
+	assert.NoError(s.T(), err)
+
 	err = helper.FSClient.DeletePVC(defaultNamespace, clonePVCName)
 	assertNoErrorUnlessNotFound(s, err)
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, clonePVCName))
+
+	// Wait for the PV to be deleted as well
+	assert.True(s.T(), retryPVCheck(k8sh, clonePVName, false, ""))
+	logger.Infof("clone PV %s deleted successfully", clonePVName)
 
 	// delete the parent PVC and app
 	err = k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
 	require.NoError(s.T(), err)
 	logger.Infof("delete parent pvc")
 
+	// Get the PV name before deleting the PVC
+	parentPVName, err := k8sh.GetPVCVolumeName(defaultNamespace, pvcName)
+	assert.NoError(s.T(), err)
+
 	err = helper.FSClient.DeletePVC(defaultNamespace, pvcName)
 	assertNoErrorUnlessNotFound(s, err)
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, pvcName))
+
+	// Wait for the PV to be deleted as well
+	assert.True(s.T(), retryPVCheck(k8sh, parentPVName, false, ""))
+	logger.Infof("parent PV %s deleted successfully", parentPVName)
 }
 
 func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, storageClassName, namespace string, testNFS bool) {
@@ -215,9 +231,17 @@ func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper
 	require.NoError(s.T(), err)
 	logger.Infof("delete restore pvc")
 
+	// Get the PV name before deleting the PVC
+	restorePVName, err := k8sh.GetPVCVolumeName(defaultNamespace, restorePVCName)
+	assert.NoError(s.T(), err)
+
 	err = helper.FSClient.DeletePVC(defaultNamespace, restorePVCName)
 	assertNoErrorUnlessNotFound(s, err)
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, restorePVCName))
+
+	// Wait for the PV to be deleted as well
+	assert.True(s.T(), retryPVCheck(k8sh, restorePVName, false, ""))
+	logger.Infof("restore PV %s deleted successfully", restorePVName)
 
 	// delete the snapshot
 	logger.Infof("delete snapshot")
@@ -231,9 +255,17 @@ func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper
 	require.NoError(s.T(), err)
 	logger.Infof("delete parent pvc")
 
+	// Get the PV name before deleting the PVC
+	parentPVName, err := k8sh.GetPVCVolumeName(defaultNamespace, pvcName)
+	assert.NoError(s.T(), err)
+
 	err = helper.FSClient.DeletePVC(defaultNamespace, pvcName)
 	assertNoErrorUnlessNotFound(s, err)
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, pvcName))
+
+	// Wait for the PV to be deleted as well
+	assert.True(s.T(), retryPVCheck(k8sh, parentPVName, false, ""))
+	logger.Infof("parent PV %s deleted successfully", parentPVName)
 
 	logger.Infof("delete snapshotclass")
 	if !testNFS {
@@ -439,12 +471,22 @@ func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper
 		k8sh.PrintPodDescribe(namespace, podName)
 		assert.Fail(s.T(), fmt.Sprintf("make sure %s pod is terminated", podName))
 	}
+
+	// Get the PV name before deleting the PVC
+	pvName, err := k8sh.GetPVCVolumeName(namespace, podName)
+	assert.NoError(s.T(), err)
+
 	err = helper.FSClient.DeletePVC(namespace, podName)
 	assertNoErrorUnlessNotFound(s, err)
 	isdeleted := k8sh.WaitUntilPVCIsDeleted(namespace, podName)
 	if !isdeleted {
 		assert.Fail(s.T(), fmt.Sprintf("Failed to delete PVC %q", podName))
 	}
+
+	// Wait for the PV to be deleted
+	assert.True(s.T(), retryPVCheck(k8sh, pvName, false, ""))
+	logger.Infof("PV %s deleted successfully", pvName)
+
 	isPVListZero := k8sh.WaitUntilZeroPVs()
 	if !isPVListZero {
 		assert.Fail(s.T(), "PV list is not zero")
