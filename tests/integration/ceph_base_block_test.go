@@ -435,10 +435,27 @@ func createAndWaitForPVC(helper *clients.TestClient, k8sh *utils.K8sHelper, s *s
 
 func deleteBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterInfo *client.ClusterInfo, poolName, storageClassName, blockName string, requireBlockImagesRemoved bool) {
 	logger.Infof("deleteBlockLite: cleaning up after test")
+
+	// Get PV name from PVC before deleting so we can wait for PV cleanup
+	ctx := context.TODO()
+	pvName := ""
+	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(defaultNamespace).Get(ctx, blockName, metav1.GetOptions{})
+	if err == nil {
+		pvName = pvc.Spec.VolumeName
+	}
+
 	// Delete pvc and storageclass
-	err := helper.BlockClient.DeletePVC(defaultNamespace, blockName)
+	err = helper.BlockClient.DeletePVC(defaultNamespace, blockName)
 	assertNoErrorUnlessNotFound(s, err)
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, blockName))
+
+	// Wait for the PV to be deleted by the CSI driver before deleting the pool,
+	// otherwise the CSI DeleteVolume call will fail after the pool is gone and
+	// the PV will be stuck with its finalizer.
+	if pvName != "" {
+		assert.True(s.T(), k8sh.WaitUntilPVIsDeleted(pvName), "PV %q should be deleted after PVC deletion", pvName)
+	}
+
 	if requireBlockImagesRemoved {
 		assert.NoError(s.T(), retryBlockImageCountCheck(helper, clusterInfo, 0), "Make sure block images were deleted")
 	}

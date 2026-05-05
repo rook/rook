@@ -1206,18 +1206,36 @@ func (k8sh *K8sHelper) WaitUntilPVCIsDeleted(namespace string, pvcname string) b
 	return false
 }
 
-func (k8sh *K8sHelper) WaitUntilZeroPVs() bool {
-	ListOpts := metav1.ListOptions{}
+func (k8sh *K8sHelper) WaitUntilPVIsDeleted(pvName string) bool {
 	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
-		pvList, err := k8sh.Clientset.CoreV1().PersistentVolumes().List(ctx, ListOpts)
+		_, err := k8sh.Clientset.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
+		if err != nil && kerrors.IsNotFound(err) {
+			logger.Infof("PV %s is deleted", pvName)
+			return true
+		}
+		logger.Infof("waiting for PV %s to be deleted", pvName)
+		time.Sleep(RetryInterval * time.Second)
+	}
+	return false
+}
+
+func (k8sh *K8sHelper) WaitUntilZeroPVs() bool {
+	listOpts := metav1.ListOptions{}
+	ctx := context.TODO()
+	for i := 0; i < RetryLoop; i++ {
+		pvList, err := k8sh.Clientset.CoreV1().PersistentVolumes().List(ctx, listOpts)
 		if err != nil && kerrors.IsNotFound(err) {
 			return true
 		}
 		if len(pvList.Items) == 0 {
 			return true
 		}
-		logger.Infof("waiting for PV count to be zero.")
+		pvNames := make([]string, len(pvList.Items))
+		for j, pv := range pvList.Items {
+			pvNames[j] = fmt.Sprintf("%s(phase=%s)", pv.Name, pv.Status.Phase)
+		}
+		logger.Infof("waiting for PV count to be zero. remaining PVs: %v", pvNames)
 
 		time.Sleep(RetryInterval * time.Second)
 	}

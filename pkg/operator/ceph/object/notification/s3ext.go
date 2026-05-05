@@ -17,73 +17,92 @@ limitations under the License.
 package notification
 
 import (
+	"context"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
+	"time"
 
-	"github.com/aws/aws-sdk-go/aws/awsutil"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/s3"
+	v4signer "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/pkg/errors"
 )
 
 type DeleteBucketNotificationRequestInput struct {
-	_ struct{} `locationName:"DeleteBucketNotificationRequestInput" type:"structure"`
-
-	// The name of the bucket for which to get the notification configuration.
-	//
 	// Bucket is a required field
-	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+	Bucket *string
 
 	// The account id of the expected bucket owner. If the bucket is owned by a
 	// different account, the request will fail with an HTTP 403 (Access Denied)
 	// error.
-	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+	ExpectedBucketOwner *string
 }
 
-// String returns the string representation
-func (s DeleteBucketNotificationRequestInput) String() string {
-	return awsutil.Prettify(s)
-}
-
-// GoString returns the string representation
-func (s DeleteBucketNotificationRequestInput) GoString() string {
-	return s.String()
-}
-
-// Validate inspects the fields of the type to determine if they are valid.
-func (s *DeleteBucketNotificationRequestInput) Validate() error {
-	invalidParams := request.ErrInvalidParams{Context: "DeleteBucketNotificationRequest"}
-	if s.Bucket == nil {
-		invalidParams.Add(request.NewErrParamRequired("Bucket"))
-	}
-	if s.Bucket != nil && len(*s.Bucket) < 1 {
-		invalidParams.Add(request.NewErrParamMinLen("Bucket", 1))
-	}
-
-	if invalidParams.Len() > 0 {
-		return invalidParams
+func (s *DeleteBucketNotificationRequestInput) validate() error {
+	if s.Bucket == nil || *s.Bucket == "" {
+		return errors.New("Bucket is a required field")
 	}
 	return nil
 }
 
-const opDeleteBucketNotification = "DeleteBucketNotification"
+// SHA-256 hash of an empty payload, used for signing requests with no body.
+const emptyPayloadSHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
-func DeleteBucketNotificationRequest(c *s3.S3, input *DeleteBucketNotificationRequestInput, notificationId string) *request.Request {
-	op := &request.Operation{
-		Name:       opDeleteBucketNotification,
-		HTTPMethod: http.MethodDelete,
-		HTTPPath:   "/{Bucket}?notification",
-	}
-
-	if len(notificationId) > 0 {
-		op.HTTPPath = "/{Bucket}?notification=" + notificationId
-	}
+// DeleteBucketNotification sends a Ceph-specific DELETE request to remove a
+// bucket notification configuration. This is not part of the standard AWS S3
+// API, so we build and sign the HTTP request manually using the v2 client's
+// credentials and endpoint.
+func DeleteBucketNotification(ctx context.Context, client *s3v2.Client, input *DeleteBucketNotificationRequestInput, notificationId string) error {
 	if input == nil {
 		input = &DeleteBucketNotificationRequestInput{}
 	}
+	if err := input.validate(); err != nil {
+		return err
+	}
 
-	return c.NewRequest(op, input, nil)
-}
+	opts := client.Options()
 
-func DeleteBucketNotification(c *s3.S3, input *DeleteBucketNotificationRequestInput, notificationId string) error {
-	req := DeleteBucketNotificationRequest(c, input, notificationId)
-	return req.Send()
+	baseEndpoint := ""
+	if opts.BaseEndpoint != nil {
+		baseEndpoint = strings.TrimRight(*opts.BaseEndpoint, "/")
+	}
+
+	reqURL := fmt.Sprintf("%s/%s?notification", baseEndpoint, *input.Bucket)
+	if notificationId != "" {
+		reqURL = fmt.Sprintf("%s/%s?notification=%s", baseEndpoint, *input.Bucket, notificationId)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, reqURL, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to build HTTP request for DeleteBucketNotification")
+	}
+
+	req.Header.Set("x-amz-content-sha256", emptyPayloadSHA256)
+	if input.ExpectedBucketOwner != nil {
+		req.Header.Set("x-amz-expected-bucket-owner", *input.ExpectedBucketOwner)
+	}
+
+	creds, err := opts.Credentials.Retrieve(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve credentials for DeleteBucketNotification")
+	}
+
+	signer := v4signer.NewSigner()
+	if err := signer.SignHTTP(ctx, creds, req, emptyPayloadSHA256, "s3", opts.Region, time.Now()); err != nil {
+		return errors.Wrap(err, "failed to sign DeleteBucketNotification request")
+	}
+
+	resp, err := opts.HTTPClient.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "failed to send DeleteBucketNotification request")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("DeleteBucketNotification failed with HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
