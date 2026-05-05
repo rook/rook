@@ -293,10 +293,11 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 		rescheduleImmediately := false
 		if _, ok := c.monTimeoutList[mon.Name]; !ok {
 			c.monTimeoutList[mon.Name] = time.Now()
-
-			// If the assigned node is not found, skip the timeout wait
-			rescheduleImmediately = c.shouldFailoverMonImmediately(ctx, mon.Name)
 		}
+
+		// Check if the assigned node exists on every health check iteration
+		// to detect if a node is deleted during the timeout
+		rescheduleImmediately = c.shouldFailoverMonImmediately(ctx, mon.Name)
 
 		// when the timeout for the mon has been reached, continue to the
 		// normal failover mon pod part of the code
