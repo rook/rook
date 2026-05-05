@@ -1371,6 +1371,13 @@ type ErasureCodedSpec struct {
 	// +kubebuilder:validation:Enum=isa;jerasure
 	// +optional
 	Algorithm string `json:"algorithm,omitempty"`
+
+	// Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
+	// +default=4096
+	// +kubebuilder:validation:Minimum=1024
+	// +kubebuilder:validation:Maximum=4194304
+	// +optional
+	StripeUnit int64 `json:"stripeUnit,omitempty"`
 }
 
 // +genclient
