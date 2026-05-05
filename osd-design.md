@@ -10,7 +10,7 @@ This design proposes a workflow to replace a single failed OSD in place — pres
 
 ## Notation
 
-- **User** - the human cluster admin who edits the CR. 
+- **User** - the human cluster admin who edits the CR.
 - **Operator** - the Rook controller process.
 - **Data LV / data device** - the LV (or block device) holding an OSD's bulk data. One per OSD.
 - **DB LV / metadata device** - the LV holding the OSD's rocksdb (`block.db`). One per OSD; multiple OSDs can share the same metadata device.
@@ -25,52 +25,45 @@ Two facts about the environment shape every later choice in this design.
 
 ### Rook cannot tell a replacement disk from a new disk
 
-When a fresh empty disk appears on a node, Rook gets no signal — from the kernel, from Ceph, from the disk itself — that says "I am the replacement for the OSD that just failed". The next CephCluster reconcile calls `startProvisioningOverNodes`, which spawns a prepare-job on each node. With `useAllDevices: true` (or a matching `deviceFilter`) the prepare-job auto-provisions a new OSD on the empty disk with a fresh ID; orphan resources for the failed OSD stay leaked.
+When a fresh empty disk appears on a node, Rook has no way to tell it's the replacement for a failed OSD. The next CephCluster reconcile calls `startProvisioningOverNodes`, which spawns a prepare-job on each node. With `useAllDevices: true` (or a matching `deviceFilter`) the prepare-job auto-provisions a new OSD on the empty disk with a fresh ID; orphan resources for the failed OSD stay leaked.
 
-This is why the user must declare the intent first via `spec.storage.replaceOSD`, *before* swapping the disk. Swapping the disk first is unsafe: any reconcile trigger between the swap and the CR edit will auto-provision the new disk with a fresh ID, defeating the flow.
+This is why the user must mark the OSD for replacement in the CR *before* swapping the disk. Otherwise, a reconcile triggered between the swap and the CR edit auto-provisions the new disk with a fresh ID instead of replacing osd.5.
 
 ### Storage device config must tolerate device swap
 
-Rook lets users identify OSD data devices in three ways via `spec.storage`:
+Rook lets users identify OSD data devices via `spec.storage`:
 
 - `useAllDevices: true` — match any empty disk on the node.
-- `deviceFilter: "<regex>"` — match disks whose `lsblk` properties match a regex (e.g., model, vendor).
-- `nodes[].devices[].name: "<value>"` — match a specific path or name. The value can be a kernel name (`vdb`), a raw path (`/dev/sdc`), or a udev symlink path (`/dev/disk/by-path/...`, `/dev/disk/by-id/...`).
+- `deviceFilter: "<regex>"` — match disks whose `lsblk` properties match a regex.
+- `nodes[].devices[].name: "<value>"` — match a specific path or name. Accepts a kernel name (`vdb`), a raw path (`/dev/sdc`), or a udev symlink (`/dev/disk/by-path/...`, `/dev/disk/by-id/...`).
+- `nodes[].devices[].fullpath: "<value>"` — explicit DevLinks match (`/dev/disk/by-id/...`, `/dev/disk/by-path/...`). Compared against discovered symlinks, not regex.
 
-Each shape interacts differently with the Linux device-naming interfaces. The relevant guarantees:
+Each shape interacts differently with the Linux device-naming interfaces:
 
-- **Kernel names** (`vdb`, `sdc`, `/dev/sdc`) are not persistent across reboot, hot-swap, or HBA topology changes — SCSI/SATA enumeration is allocation-order based. See [Arch Wiki: Persistent block device naming](https://wiki.archlinux.org/title/Persistent_block_device_naming). [Ceph's own admin docs](https://docs.ceph.com/en/latest/rados/operations/add-or-rm-osds/#replacing-an-osd) use raw paths like `/dev/sdX` in their replacement examples, but the manual procedure can be re-validated at each step; an automated flow has fewer recovery options if the name has shifted.
-- **`/dev/disk/by-path/...`** is built by udev rules from the sysfs port path. Same physical port → same `by-path` symlink (guaranteed). Different port → different `by-path`. So `by-path` survives a *same-slot* swap and breaks on a different-slot swap. Same-slot replacement is **not** a Rook or Ceph requirement: [Ceph upstream is silent on slot semantics](https://docs.ceph.com/en/latest/rados/operations/add-or-rm-osds/#replacing-an-osd); cephadm's `ceph orch device replace` is slot-agnostic.
+- **Kernel names** (`vdb`, `sdc`, `/dev/sdc`) are not guaranteed to be persistent (see [Arch Wiki: Persistent block device naming](https://wiki.archlinux.org/title/Persistent_block_device_naming)). [Ceph's own admin docs](https://docs.ceph.com/en/latest/rados/operations/add-or-rm-osds/#replacing-an-osd) use raw paths like `/dev/sdX` in their replacement examples, but the manual procedure can be re-validated at each step; an automated flow has fewer recovery options if the name has shifted.
+- **`/dev/disk/by-path/...`** is built by udev rules from the sysfs port path. Same physical port → same `by-path` symlink. So `by-path` survives a *same-slot* swap and breaks on a different-slot swap. Same-slot replacement is **not** a Rook or Ceph requirement: [Ceph upstream is silent on slot semantics](https://docs.ceph.com/en/latest/rados/operations/add-or-rm-osds/#replacing-an-osd); cephadm's `ceph orch device replace` is slot-agnostic.
 - **`/dev/disk/by-id/...`** identifies the disk by hardware serial / WWN. Different disk → different `by-id`. Useless for replacement (the new disk *is* a different disk).
 - **`/dev/disk/by-uuid/...`** identifies the filesystem/LV UUID. The replacement disk has a fresh UUID after provisioning. Same as `by-id`: useless here.
 
-The shapes that tolerate any swap (same-slot or different-slot, any new disk) are `useAllDevices` and `deviceFilter` — both slot-and-disk-agnostic. `by-path` tolerates only same-slot replacement. Kernel names tolerate only the lucky case where the kernel happens to assign the same name.
+The shapes that tolerate any swap (same-slot or different-slot, any new disk) are `useAllDevices` and `deviceFilter`. `by-path` tolerates only same-slot replacement. Kernel names tolerate only the lucky case where the kernel happens to assign the same name. `by-id`/`by-uuid` references in `name`/`fullpath` cannot work for a disk that hasn't been seen yet.
 
-**Tension with per-device CR config.** Some legitimate Rook layouts *require* exact `name:` entries — notably per-device `config.metadataDevice` (`Documentation/CRDs/Cluster/ceph-cluster-crd.md:393-394`), which attaches a metadata-device pairing to a specific data device entry. There's no way to express "this data device pairs with that NVMe" via `useAllDevices` alone. Strictly rejecting all exact references in this flow would block these layouts. See "Multiple metadata devices on one node" in Out of scope.
-
-The replacement flow's pre-check #5 enforces a validation policy — the default and configurability are open question U-10. The intent is that users with simple homogeneous-node setups (`useAllDevices` / `deviceFilter`) work transparently, while users on slot-stable hardware or per-device config can opt into a more permissive policy.
+The replacement flow must validate the affected OSD's CR references beforehand so the new disk is still resolvable under those references after the swap.
 
 ## Current gaps
 
-Rook already has a same-device replacement flow for OSDs whose data and DB share one device. The user triggers it via `spec.storage.migration.confirmation` in the CR; the operator passes the OSD ID to the prepare-job pod via the `ROOK_REPLACE_OSD` env var, and the prepare-job calls `ceph-volume raw prepare --osd-id` to provision a new OSD reusing the destroyed slot. For the shared-metadata case, five gaps prevent that flow from working end-to-end:
+Rook has no automated flow for replacing a failed OSD today. The closest existing primitive is the migration flow (`spec.storage.migration.confirmation`), which recreates OSDs in place after encryption or store-type spec changes: it destroys the OSD and re-prepares with `ceph-volume raw prepare --osd-id` via the `ROOK_REPLACE_OSD` env var. Migration only covers raw-mode OSDs; the shared-metadata case needs five additional fixes:
 
 1. The replacement code path runs only in raw mode; LVM mode (required when a metadata device is configured) does not pass `--osd-id`, so the new OSD gets a new ID. (`initializeDevicesLVMMode`, [volume.go#L584-L844](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L584-L844))
 2. Destroy zaps only the data LV; the DB LV on the shared metadata disk stays as an orphan. (`DestroyOSD`, [remove.go#L244-L292](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/remove.go#L244-L292))
-3. The dm-crypt key in Ceph's config-key store is never removed, leading to LUKS collisions on retry of encrypted OSDs. (same `DestroyOSD` body — [remove.go#L244-L292](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/remove.go#L244-L292))
-4. Once any OSD is provisioned on a shared metadata disk, Rook's inventory excludes that disk from future discovery (the "has children" filter). (`DiscoverDevicesWithFilter`, [disk.go#L97-L111](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/clusterd/disk.go#L97-L111))
+3. The dm-crypt key in Ceph's config-key store is never removed, leading to LUKS collisions on retry of encrypted OSDs. (`DestroyOSD`, [remove.go#L244-L292](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/remove.go#L244-L292))
+4. **The prepare-pod can't find a shared metadata disk once it hosts a DB LV.** Rook's disk-discovery (`DiscoverDevicesWithFilter`, [disk.go#L97-L111](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/clusterd/disk.go#L97-L111)) skips any disk with `len(deviceChild) > 1` as a guard against claiming a user-partitioned disk. The first OSD's DB LV trips that filter, and the prepare-pod's `initializeDevicesLVMMode` then errors with `metadata device <X> is not found`. Same root cause as upstream issues [#15868](https://github.com/rook/rook/issues/15868) and parts of [#17477](https://github.com/rook/rook/issues/17477).
 5. `OSDInfo.MetadataPath` is never populated for LVM-mode OSDs (the parser walks only `[block]` entries from `ceph-volume lvm list`), so the operator has no record of which metadata disk a destroyed OSD used. (`GetCephVolumeLVMOSDs`, [volume.go#L1104-L1177](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L1104-L1177))
 
 ## Proposed flow
 
 This flow orchestrates [Ceph's documented OSD-replacement procedure](https://docs.ceph.com/en/latest/rados/operations/add-or-rm-osds/#replacing-an-osd) (`safe-to-destroy` → `osd destroy` → `lvm zap` → `lvm prepare --osd-id` → `lvm activate`) across short-lived Kubernetes Jobs, with operator-side state for crash recovery and Rook-specific gates around auto-provisioning. cephadm — Ceph's container-orchestrator analogue — preserves OSD IDs by default ([cephadm OSD service docs](https://docs.ceph.com/en/latest/cephadm/services/osd/#replacing-an-osd)); this design follows the same convention.
 
-Two short-lived jobs — Destroy Job and Prepare Job — separated by the wait for the replacement disk. The operator owns all phase transitions and the wait; jobs are workers observed via `Job.status.succeeded`. 
-
->Why split into two jobs (vs. one job like the existing OSD migration flow)?
->- The disk-swap wait can take hours. Keeping a job pod alive across it is wasteful — the operator, not a job, should own the wait.
->- Destroy and prepare are independently retryable. If destroy succeeds and prepare fails, only prepare re-runs.
-
-One OSD per reconcile cycle, gated by `safe-to-destroy <id>`.
+Two short-lived jobs — Destroy Job and Prepare Job — separated by the wait for the replacement disk. The operator owns all phase transitions and the wait; jobs are workers observed via `Job.status.succeeded`. Replacements run serially cluster-wide.
 
 ### Sequence
 
@@ -78,261 +71,263 @@ One OSD per reconcile cycle, gated by `safe-to-destroy <id>`.
 sequenceDiagram
     autonumber
     actor User
-    participant CR as CephCluster CR
+    participant CR as Rook CR
     participant Op as Operator
-    participant Map as Replacement CM
-    participant OldPod as OSD pod 5 old
+    participant OldPod as Old OSD pod
     participant DJ as Destroy Job
     participant PJ as Prepare Job
     participant Ceph as Ceph
-    participant NewPod as OSD pod 5 new
 
-    User->>CR: set spec.storage.replaceOSD id=5
+    User->>CR: set replaceOSD id=5
     Op->>CR: read trigger
-    Op->>Ceph: ceph osd dump get fsid for osd.5
+    Op->>CR: write phase=Validating
+    Op->>Ceph: ceph osd dump (validate exists, get fsid)
+    Op->>Ceph: safe-to-destroy 5
     Op->>OldPod: read deployment env
-    Op->>Map: write phase=destroy-pending,<br/>layout
+    Op->>CR: update phase=Destroying + OSD info
     Op->>OldPod: delete deployment
+    destroy OldPod
     Op->>OldPod: wait for pod termination
-    Op->>DJ: create
+    Op->>+DJ: create
     DJ->>Ceph: ceph osd destroy osd.5
-    DJ->>Ceph: ceph config-key exists, rm
-    DJ->>DJ: cryptsetup close db mapping
+    DJ->>Ceph: config-key rm dm-crypt key (if encrypted)
+    DJ->>DJ: cryptsetup close db mapping (if encrypted)
     DJ->>DJ: lvremove db lv
     DJ->>DJ: ceph-volume lvm zap data lv
-    Op->>DJ: observe Succeeded
-    Op->>Map: phase=prepare-pending,<br/>pending-db-lv-name
-    Note over User,Op: User swaps the failed disk<br/>(any time after CR edit)
-    Note over Op: Wait for replacement disk:<br/>- with rook-discover: watch local-device-NODE CM<br/>- without: spawn inventory Job, requeue 5m (U-9)
-    Op->>PJ: create
-    PJ->>PJ: lvcreate using persisted lv name
-    PJ->>Ceph: ceph-volume lvm prepare<br/>osd-id=5
-    Note over PJ: writes per-node status CM<br/>(rook-ceph-osd-NODE-status,<br/>existing CM, not Map)
-    Op->>PJ: observe Succeeded
-    Op->>Map: phase=deployment-pending
+    DJ-->>-Op: Succeeded
+    Op->>CR: phase=Waiting
+    Note over Op: wait for replacement disk (non-blocking)
+    Note over User,Op: User swaps the failed disk
+    Op->>CR: phase=Preparing
+    Op->>+PJ: create from recorded OSD info
+    PJ->>PJ: lvcreate using persisted name
+    PJ->>Ceph: ceph-volume lvm prepare --osd-id 5
+    PJ->>PJ: write new OSD info to existing per-node status CM
+    PJ-->>-Op: Succeeded
+    create participant NewPod as New OSD pod
     Op->>NewPod: create deployment with id 5
     NewPod->>Ceph: lvm activate, join cluster
-    Op->>Map: phase=completed once Ready
+    Op->>Ceph: ceph osd metadata 5 until Ready
+    Op->>CR: phase=Completed
 ```
 
-### ConfigMaps and phase state
+### Open question: controller placement
 
-Two ConfigMaps appear in the flow:
+The diagram doesn't pick a concrete CR or controller for the replacement reconcile logic. Two candidates: extend the existing CephCluster controller (which already hosts `spec.storage.migration`), or introduce a separate `CephOSDReplace` CRD with its own controller. The design leans toward the separate CRD for the following reasons:
 
-1. **`osd-replacement-state`** — new in this design. Per-cluster, single-key. Lives in the operator namespace, owner-ref'd to the CephCluster (same lifecycle pattern as `osd-migration-config` at [`migrate.go#L42-L44`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/migrate.go)). Created when validation persists the trigger (Step 3); transitioned through phases by the operator; deleted (or its single entry overwritten) when the user moves on to a different OSD or clears `replaceOSD`.
-2. **`rook-ceph-osd-<node>-status`** — existing per-node prepare-job output CM. The Prepare Job (Step 7) writes the new OSD's layout here; the existing reconcile path at [`status.go#L324`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/status.go#L324) consumes it to create the daemon Deployment. This design does not change its shape or lifecycle.
+1. **CephCluster's `Reconcile()` runs mon, mgr, and osd reconcile sequentially in one call** ([`cluster.go#L116-L160`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/cluster.go#L116-L160)). New long-running logic on the OSD path can interfere with mon/mgr reconcile for the same cluster.
+2. **Replacement is long-running and multi-step**, so its state has to survive between reconciles. The cluster controller has no existing place to store sub-operation state — adding one (a side ConfigMap, or extending `CephCluster.status`) is part of the cost.
+3. **Replacement reconciles need two outcomes the current cluster reconcile can't express**: terminal failure (bad CR rejected) and `RequeueAfter` (waiting for external events — disk inserted, Job done). Today `osd.Cluster.Start()` returns plain `error`; the parent reconcile has no way to learn "OSD step is mid-replacement, retry in N minutes." It's also unclear how a requeue would interact with components reconciled after the OSD step in the same `Reconcile` call.
 
-The replacement CM holds at most one entry per cluster, keyed by `osd-id`. Re-trigger of the same OSD (with a fresh `confirmation` string — see "Trigger already consumed" in Step 1 pre-checks) overwrites the entry's confirmation and resets phase. Trigger of a different OSD ID while one is in flight does not collide: the "no other replacement in progress" pre-check blocks it until the in-flight one completes. Collision on re-trigger is structurally impossible.
+Concrete shape of each candidate:
 
-**Phase state machine:**
+- **Extend the cluster controller** — state in either a side ConfigMap (`osd-replacement-state`, mirroring `osd-migration-config`) or `CephCluster.status`. Same UX as `spec.storage.migration`.
+- **New `CephOSDReplace` CRD + dedicated controller** — state on `.status`. Independent reconcile goroutine; never touches the existing OSD path. Light coupling on the cluster side: skip auto-provisioning on affected nodes; surface an `OSDReplacementInProgress` condition.
 
-```
-                       ┌────────── (timeout) ──────────┐
-                       ▼                                │
-(no entry) → destroy-pending → prepare-pending → deployment-pending → completed → (GC'd)
-                                       ▲
-                                       └── (cancel via remove replaceOSD; only honored in waiting-for-disk substate)
-```
+The rest of this design proposes the CRD shape concretely. Using `spec.storage.replaceOSD` on CephCluster instead is a fallback that reuses the same state machine and step semantics — implications flagged inline where they differ.
 
-- **destroy-pending**: operator deleted the OSD deployment, Destroy Job is in flight or about to start.
-- **prepare-pending**: Destroy Job succeeded, two substates — *waiting for disk* (no Prepare Job yet, only `pending-db-lv-name` reserved) and *Job running* (`lvcreate` and `ceph-volume lvm prepare` in flight).
-- **deployment-pending**: Prepare Job succeeded, operator is creating the new daemon Deployment.
-- **completed**: new daemon Ready in Ceph; entry kept until the next spec change for audit, then GC'd.
+### State
 
-**Full example of the record:**
+State lives on `CephOSDReplace.spec` (immutable post-create) and `.status` (operator-updated). Status surfacing follows the standard Kubernetes conditions pattern. Field details and sources inline as YAML comments below. For raw-mode OSDs, `dbLV`, `metadataSourceDevice`, `metadataVG`, and `databaseSizeMB` are absent and `dataLV` is the raw device path; the Destroy step skips DB cleanup and the Prepare step omits `--block.db`.
 
 ```yaml
-osd-id: 5
-node: node-1                     # required for Destroy/Prepare Job NodeSelector; survives Step 4's deployment delete
-phase: destroy-pending           # destroy-pending → prepare-pending → deployment-pending → completed
-data-lv: /dev/ceph-data-vg-5/osd-block-aaa...
-db-lv: /dev/ceph-metadata-vg-1/osd-db-bbb...
-metadata-source-device: nvme0n1
-metadata-vg: ceph-metadata-vg-1
-crush-device-class: hdd
-database-size-mb: 4096
-encrypted: true
-osd-fsid: 8b7e6c19-...
-pending-db-lv-name:              # populated when phase advances to prepare-pending
-expected-disk-pending: false     # set true while phase=prepare-pending; gates auto-provision skip per required change 6
-confirmation:                    # value from spec at trigger time; populated on phase=completed
-new-fsid:                        # populated on phase=completed; for audit/diagnostics only, never for re-arming
-completed-at:                    # populated on phase=completed
+apiVersion: ceph.rook.io/v1
+kind: CephOSDReplace
+metadata:
+  name: replace-osd-5
+  namespace: rook-ceph
+spec:                                          # immutable post-create; re-replace = create a new CR
+  cephCluster: my-cluster                      # target cluster in this namespace
+  osdId: 5
+  confirmation: yes-really-replace-osd-5       # must equal "yes-really-replace-osd-{osdId}"; typo guard against destroying the wrong OSD
+  autoOut: false                               # optional; if true, operator marks healthy OSD `out` automatically. Default: false (fail-fast on up+in)
+  safeToDestroyTimeout: 1h                     # optional; how long Validating tolerates EBUSY before Failed. Default: 1h
+  diskWaitTimeout: 24h                         # optional; how long Waiting tolerates a missing disk before Failed. Default: 24h
+
+status:
+  phase: Destroying                            # Pending | Validating | Destroying | Waiting | Preparing | Completed | Failed | Cancelled
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: Destroying
+      message: Destroy Job in flight
+      observedGeneration: 1
+      lastTransitionTime: "2026-05-05T12:00:00Z"
+
+  # captured at the Validating → Destroying transition
+  osdInfo:
+    node: node-1                                          # OSD deployment NodeSelector; survives the deployment delete
+    dataLV: /dev/ceph-data-vg-5/osd-block-aaa...          # OSD deployment env ROOK_BLOCK_PATH
+    dbLV: /dev/ceph-metadata-vg-1/osd-db-bbb...           # OSD deployment env ROOK_METADATA_DEVICE; absent for raw-mode OSDs
+    metadataSourceDevice: nvme0n1                         # OSD deployment env ROOK_METADATA_SOURCE_DEVICE; absent for raw-mode OSDs; from `ceph-volume lvm list` if env missing (see Capture step)
+    metadataVG: ceph-metadata-vg-1                        # from `pvs --noheadings -o vg_name <metadataSourceDevice>`
+    crushDeviceClass: hdd                                 # OSD deployment env ROOK_OSD_CRUSH_DEVICE_CLASS
+    databaseSizeMB: 4096                                  # from `lvs --noheadings -o lv_size <dbLV>` ÷ 1MiB
+    encrypted: true                                       # from LV tag `ceph.encrypted` on <dbLV>
+    osdFsid: 8b7e6c19-...                                 # from `ceph osd dump --format json`
+
+  # populated on phase=Completed
+  newFsid: ""                                  # for audit only; never used for re-arming
+  completedAt: null
 ```
 
-**Reconcile order on every cycle:** the OSD reconcile entry-point ([`Cluster.Start` in `osd.go#L255`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/osd.go#L255)) gains a new first-step subroutine that runs **before** the existing `updateAndCreateOSDs` path:
+`metadataSourceDevice` and the env it's read from (`ROOK_METADATA_SOURCE_DEVICE`) are only present on OSDs deployed after required changes #2 and #5 land; older OSDs use the fallback in [Capture](#3-capture). U-8 explores eliminating the fallback at the source.
 
-1. **GC** stale entries (rules in "Long-term state cleanup" below).
-2. **Drive in-flight** entries forward via the state machine.
-3. **Validate** any newly-set `spec.replaceOSD` and persist the entry on success.
+**Cancel and re-replace.** Cancel = delete the CR; a finalizer runs the operator's cleanup (delete partially-allocated DB LV if any; leave the OSD `destroyed` for the user to `ceph osd purge` manually). Re-replacement of the same OSD = create a new CR with a different name. Terminal CRs (`Completed`, `Cancelled`, `Failed`) are inert — keep them as audit trail or delete them; the operator requires neither.
 
-Only after this returns does `updateAndCreateOSDs` run. This ordering prevents auto-provisioning from racing a fresh trigger when the operator restarts after a CR edit (the "operator-down race"): a replacement disk inserted during operator downtime is held off via the `expected-disk-pending` flag in the record until the replacement Prepare Job claims it.
+#### Coordination
+
+Replacements run serially cluster-wide as a simplifying choice, matching cephadm's `osd rm` queue and Rook's existing OSD migration. Per-OSD `safe-to-destroy` only returns OK once the OSD is fully drained from every PG's acting set, so concurrent destroys of independently-safe OSDs are technically safe — but serial keeps the operational model simple.
+
+With a separate `CephOSDReplace` CRD, coordination is explicit: new CRs enter `Pending` and wait for any peer `CephOSDReplace` in the same namespace (targeting the same cluster) to reach a terminal phase. FIFO ordering by `(creationTimestamp, UID)` — the UID tiebreaker handles same-second creations. Race-safe under optimistic concurrency: two CRs that see each other both stay `Pending`; the older wakes first.
+
+Extending CephCluster with a `spec.storage.replaceOSD` field needs no coordination logic — a single field admits only one in-flight replacement.
+
+#### Phase state machine
+
+```
+  Pending ─→ Validating ─→ Destroying ─→ Waiting ─→ Preparing ─→ Completed
+                  │                         │
+                  ▼                         ▼
+             Failed/Cancelled            Failed/Cancelled
+```
+
+(With the cluster-CR fallback, `Pending` is omitted — a single `spec.storage.replaceOSD` field admits only one in-flight replacement.)
+
+Per-phase behavior:
+
+| Phase | Normal exit | Transient failure (retried) | Terminal exit |
+|---|---|---|---|
+| (no record) | → `Pending` once trigger valid | — | — |
+| `Pending` | → `Validating` once no earlier peer is in non-terminal phase | re-checks each reconcile while an earlier peer is in-flight | → `Cancelled` if user deletes the CR |
+| `Validating` | → `Destroying` once all checks pass | `safe-to-destroy` returns EBUSY (peers backfilling) — re-checked each reconcile | → `Cancelled` on CR delete; → `Failed` with `reason=InvalidSpec` (target OSD missing, unstable device name, confirmation mismatch) or `reason=OSDStillIn` (up+in target without `autoOut: true`) or `reason=NotSafeToDestroy` (escalation timeout) |
+| `Destroying` | → `Waiting` on Destroy Job success | Destroy Job retries on transient errors (Ceph unreachable, pod scheduling) | — |
+| `Waiting` | → `Preparing` once replacement disk visible | inventory poll until disk visible | → `Cancelled` on CR delete; → `Failed` with `reason=ReplacementDiskMissing` after disk-swap wait expires |
+| `Preparing` | → `Completed` when new daemon is Ready in Ceph | Prepare Job pod retries on transient errors; `lvcreate` precheck handles partial LV from a prior pod; Deployment creation retries | — |
+| `Completed` | record persists for audit | — | terminal |
+| `Cancelled`, `Failed` | record persists for audit | — | terminal until user-side action |
+
+Phase is the operator's internal cursor. The user-visible signal is a single `Ready` condition: `True` only on `Completed`; `False` otherwise, with `reason` set to the current phase name (or a typed terminal reason for `Failed`: `InvalidSpec`, `OSDStillIn`, `NotSafeToDestroy`, `ReplacementDiskMissing`). This gives `kubectl wait --for=condition=Ready` semantics. Use `metav1.Condition` (with `observedGeneration`), not Rook's legacy `cephv1.Condition`.
+
+#### Reconcile resume behavior
+
+| Phase on disk | Recovery on next reconcile |
+|---|---|
+| no record | Trigger re-evaluated. If valid, record created with `phase=Pending`. No destructive action taken yet. |
+| `Pending` | Peer list re-evaluated; if no earlier-timestamp peer is in non-terminal phase, advance to `Validating`. No destructive action taken yet. |
+| `Validating` | Checks re-run (idempotent); `safe-to-destroy` escalation clock continues from the record's creation timestamp. No destructive action taken yet. |
+| `Destroying`, no Destroy Job | Operator re-issues the deployment delete (idempotent), waits for pod termination, creates the Destroy Job. |
+| `Destroying`, Destroy Job in flight | Operator awaits Job; on retry, recreates it. All commands in Destroy step are idempotent via precheck patterns. |
+| `Waiting` | Operator polls for replacement disk; once visible, advances to `Preparing` and creates the Prepare Job (UUID generated inline, baked into Job env so pod retries reuse it). |
+| `Preparing`, Prepare Job in flight | Operator awaits Job; on retry, recreates it. `lvcreate` skipped if LV exists; `lvm prepare --osd-id` reuses the destroyed slot. |
+| `Preparing`, Prepare Job done | Existing per-node OSD-status reconcile creates the Deployment; operator polls `ceph osd metadata` until Ready, then transitions to `Completed`. |
+| `Completed` | Validation short-circuits; record deleted on next spec change. |
+
+> **⚠️ Destroy is irreversible.** Once `Validating` passes (phase advances to `Destroying`), `osd.5` will be destroyed on this reconcile cycle. There is no preview surfacing the captured OSD info. If the user typed the wrong OSD ID, the wrong OSD is gone — recovery is via [Cancellation](#cancellation), not by retracting the trigger.
 
 ### Step-by-step
 
-The walk-through uses a concrete example:
+The walk-through uses the running example.
 
-```
-OSD ID:           5
-metadata VG:      ceph-metadata-vg-1
-data device:      /dev/sdc → /dev/sdh after swap
-databaseSizeMB:   4096
-crush-device-class: hdd
-encryption:       on
-```
+#### 1. Trigger — user creates a `CephOSDReplace` CR
 
-#### Step 1 — User sets `replaceOSD` on the CR (diagram arrows 1-2)
+Typical case is a failed disk: Ceph auto-marks the OSD `down` and `out` after `mon_osd_down_out_interval` (default 600s) and backfills; once the OSD is drained from every PG's acting set, `safe-to-destroy` clears and the flow proceeds. The user creates a `CephOSDReplace` CR and replaces failed device in datacenter.
 
-Typical trigger is a failed disk, but failure is not required — `safe-to-destroy` is the only gate, so the flow also covers proactive replacement of a healthy OSD.
+For proactive replacement of a healthy (up+in) OSD, two options:
 
-```yaml
-spec:
-  storage:
-    useAllNodes: true
-    useAllDevices: true     # or use deviceFilter; an exact `name:` entry on osd.5's device would be rejected by pre-check #5
-    replaceOSD:
-      id: 5
-      confirmation: "yes-really-replace-osd-5"
-```
+1. **Default — user marks `out` first.** With `autoOut: false` (default), Validating fails fast on a still-`in` OSD with `reason=OSDStillIn`. The user runs `ceph osd out <id>` themselves, waits for backfill, then re-applies the CR.
+2. **Opt-in — `autoOut: true`.** Operator runs `ceph osd out <id>` at entry to Validating and loops `safe-to-destroy` through the full backfill. The `safeToDestroyTimeout` should be extended to fit the cluster's expected backfill time when using this.
 
-`confirmation` is a free-form string the user picks. It does not encode the OSD ID; the example just embeds `5` for human clarity. To re-trigger replacement of the *same* OSD ID after a successful run, the user changes `confirmation` to a new string (e.g., `"yes-really-replace-osd-5-take-2"`). Same UX as `spec.storage.migration.confirmation` today.
+The disk can be swapped any time after the CR is applied — the Capture step tolerates a missing data PV. If multiple OSDs need replacement — open question U-2.
 
-The user can swap the disk at any point after the edit succeeds — before, during, or after destroy. Step 5 tolerates a missing data PV. Only ordering rule: edit the CR first, then swap.
+#### 2. Validate
 
-If multiple OSDs need replacement, the user sets `replaceOSD`, waits for completion, then sets it again with a different ID. `replaceOSD` is an object, not a list — same shape as `spec.storage.migration` for consistency. Parallelism is open question U-2.
+Phase `Validating`. Entered when a fresh trigger advances out of `Pending` and no matching record exists. The operator persists the record on entry (so the `safe-to-destroy` escalation clock — origin = record creation timestamp — survives reconciles), then runs the checks below each reconcile cycle until exit. Failures land on `phase=Failed` with a typed `reason` exposed via `.status.conditions`.
 
-**Pre-checks.** Each check runs on each reconcile when `spec.replaceOSD` is set. Possible outcomes per check:
+1. **Confirmation matches.** `spec.confirmation` must equal `"yes-really-replace-osd-{spec.osdId}"`. → `Failed` with `reason=InvalidSpec` on mismatch (typo guard).
+2. **Target OSD exists** in the OSD map. → `Failed` with `reason=InvalidSpec` if absent.
+3. **Target OSD is destroyable.** If the OSD is `up && in`: with `spec.autoOut: false` (default), → `Failed` with `reason=OSDStillIn`. With `spec.autoOut: true`, the operator runs `ceph osd out <id>` once at entry and falls through to check 5.
+4. **CR-level device matching is swap-tolerant.** → `Failed` with `reason=InvalidSpec` if the OSD's data device is referenced by an unstable name in the CR. Validation policy is configurable per U-10.
+5. **`safe-to-destroy <id>` returns OK.** Returns EBUSY while any PG still has the OSD in its acting set — the only safety gate (`down`/`out` alone is not sufficient because data may not have replicated). EBUSY → stay in `Validating`, re-check next reconcile. `spec.safeToDestroyTimeout` exceeded → `Failed` with `reason=NotSafeToDestroy`.
 
-- **Continue** — advance to the next check.
-- **Short-circuit** — no action this reconcile (idempotency / in-flight).
-- **Terminal-reject** — set `ReplacementRejected` condition + Kubernetes Event via `opcontroller.UpdateCondition` ([`conditions.go#L35`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/controller/conditions.go#L35)); user must change spec to recover.
-- **Transient-wait** — set a `WaitingFor*` condition; re-evaluate next reconcile, no spec change needed.
+When all checks pass, the operator advances to `Destroying` and proceeds to [Capture](#3-capture).
 
-1. **Trigger already consumed.** Replacement CM has a `phase: completed` entry whose `(osd-id, confirmation)` match the spec. Match is on `(id, confirmation)` only — *not* `new-fsid`. (Re-using fsid would silently destroy an OSD that the user manually purged and recreated outside this flow.) → **Short-circuit.**
-2. **Trigger already in flight.** Replacement CM has an in-progress entry (any phase before `completed`) whose `(osd-id, confirmation)` match the spec. → **Short-circuit**; the state machine drives the existing entry forward instead of re-validating.
-3. **OSD 5 exists** in the OSD map. → **Terminal-reject** if absent (wrong ID, user edits spec).
-4. **`safe-to-destroy 5`** returns OK. The only safety gate; `down`/`out` alone is not sufficient because data may not have replicated to peers. → **Transient-wait** (`WaitingForSafeToDestroy`) while peers backfill — verified on Ceph v19.2.2 in [`osd-rep-log.md`](osd-rep-log.md) §1.2 that `safe-to-destroy` returns EBUSY in this state. Bounded escalation timeout (default 1h; see U-4) flips to terminal `SafeToDestroyTimeout` — backfill stuck for 1h+ warrants paging.
-5. **Failed OSD's CR matching is swap-tolerant** — evaluated per the validation policy (default `strict`; see U-10 for the policy and configurability discussion):
-   - **`strict`** — reject if the failed OSD is matched by *any* exact `name:` entry in `spec.storage.nodes[*].devices[*]` on the OSD's node. The CR must match the failed OSD via `useAllDevices` or `deviceFilter`. Implementation: look up the failed OSD's data device from its deployment; scan the CR's `name:` entries on that node; reject if any resolves to that device.
-   - **`accept-by-path`** — reject only kernel-name-style references (`vdb`, `sdc`, `/dev/sdc`); accept `/dev/disk/by-path/...` references. The user takes responsibility for performing same-slot replacement.
-   - **`lenient`** — accept any CR shape. Mismatches surface as a Step 6 stall (`ReplacementDiskMissing` after the U-4 timeout).
+There is no auto-provisioning-race detection. If the user mis-orders — inserts the disk before creating the `CephOSDReplace` CR — Rook auto-provisions a new OSD on it (with a fresh ID), and the subsequent replacement then stalls in the Wait step (no empty disk left to claim). The user resolves by purging the auto-provisioned OSD; the design relies on this observable failure mode rather than embedding pre-trigger detection.
 
-   → **Terminal-reject** if the chosen policy rejects (spec must be made swap-tolerant before this flow can run).
-6. **No unexpected OSD on the node** — catches the auto-provisioning race (a replacement disk was inserted before this trigger fired and Rook auto-provisioned a new OSD on it). Compare:
-   - `ceph osd metadata` filtered by hostname (already used by [`clusterdisruption/osd.go#L450`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/disruption/clusterdisruption/osd.go#L450)),
-   - vs. OSD Deployments owned by Rook on this node (`app=rook-ceph-osd`, filtered by `NodeSelector[k8sutil.LabelHostname()]`).
+#### 3. Capture
 
-   Any OSD Ceph reports with no matching Rook Deployment is unexpected. → **Terminal-reject** (user removes the orphan before re-triggering).
-7. **No other replacement is in progress** (different `osd-id`). → **Transient-wait** (`WaitingForInFlightReplacement`); self-clearing once the in-flight entry reaches `completed` and is GC'd.
+Capture the failed OSD's info from sources that do not require the failed data device. Runs at the `Validating` → `Destroying` transition: the operator captures the fields below and atomically updates the existing record (sets `phase=Destroying` plus the captured fields). From this point on, the record carries OSD info; a crashed operator restarts and resumes from the persisted phase.
 
-#### Step 2 — Capture layout
+The OSD's own DB LV is the source for `database-size-mb` and `encrypted` (the metadata VG is by construction intact at this step: failure is on the data device, and the destroy LV-removal hasn't run yet). Live spec is *not* the source: a user-edited `spec.storage.config.databaseSizeMB` between original provisioning and replacement would size the new DB LV inconsistently with siblings, and `encrypted` is immutable per-OSD so a CR-level toggle cannot retroactively change it. If the OSD's own LV is missing, fall back to a surviving sibling LV in the same VG.
 
-The operator captures the OSD's layout from sources that do not require the failed data device.
+For OSDs whose deployment predates required changes #2 and #5, `ROOK_METADATA_DEVICE` and `ROOK_METADATA_SOURCE_DEVICE` are absent. A one-shot `ceph-volume lvm list --format json` Job on the OSD's node, via Rook's existing `cmdreporter`, fills both. Output's `[db]` entry: `devices` → metadata source device, `tags.ceph.db_device` → DB LV path. Correct even when the data device has physically failed (reads from VG metadata replicated on the metadata-VG's surviving PV). Verified on the Lima cluster.
 
-| Field                     | Source                                                                                       | Example                               |
-| ------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `osd-fsid`                | `ceph osd dump --format json`                                                                | `8b7e6c19-...`                        |
-| `osd-id`                  | OSD pod label `ceph-osd-id`                                                                  | `5`                                   |
-| `node`                    | OSD deployment `Spec.Template.Spec.NodeSelector[k8sutil.LabelHostname()]`                    | `node-1`                              |
-| `data-lv`                 | OSD deployment env `ROOK_BLOCK_PATH`                                                         | `/dev/ceph-data-vg-5/osd-block-aaa…`  |
-| `db-lv`                   | OSD deployment env `ROOK_METADATA_DEVICE` ¹                                                  | `/dev/ceph-metadata-vg-1/osd-db-bbb…` |
-| `metadata-source-device`  | OSD deployment env `ROOK_METADATA_SOURCE_DEVICE` ²                                           | `nvme0n1`                             |
-| `crush-device-class`      | OSD deployment env `ROOK_OSD_CRUSH_DEVICE_CLASS`                                             | `hdd`                                 |
-| `metadata-vg`             | `pvs --noheadings -o vg_name <metadata-source-device>`                                       | `ceph-metadata-vg-1`                  |
-| `database-size-mb`        | `lvs --noheadings -o lv_size <db-lv>` ÷ 1MiB ³                                               | `4096`                                |
-| `encrypted`               | LV tag `ceph.encrypted` on `<db-lv>` ³                                                       | `true`                                |
+#### 4. Destroy
 
-¹ Existing env, but populated only for raw-mode OSDs today. Required change #2 fixes the parser to populate it for LVM-mode OSDs as well.
-² New env, added by required change #5. For OSDs whose deployment predates required change #5, this env is missing — see fallback below.
-³ Read from the OSD's own DB LV (the metadata VG is by construction intact at Step 2: failure is on the data device, and Step 5's `lvremove` hasn't run yet). Live spec is *not* the source: a user-edited `spec.storage.config.databaseSizeMB` between original provisioning and replacement would size the new DB LV inconsistently with siblings, and `encrypted` is immutable per-OSD so a CR-level toggle cannot retroactively change it. If the OSD's own LV is missing for any reason, fall back to a surviving sibling LV in the same VG.
-
-**Fallback when `ROOK_METADATA_*` env vars are missing.** For deployments predating required change #5, the operator captures `db-lv` and `metadata-source-device` from a one-shot `ceph-volume lvm list --format json` Job on the OSD's node, via Rook's existing `cmdreporter` ([`cmdreporter.go`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/k8sutil/cmdreporter/cmdreporter.go) — same pattern used today for network/version detection). The pod profile mirrors the prepare-job's (privileged + `/dev`, `/run/lvm`, `/run/udev` mounts, NodeSelector pinned to the failed OSD's node). Output's `[db]` entry: `devices` field is the metadata source device, `tags.ceph.db_device` is the DB LV path. Correct even when the data device has physically failed — `ceph-volume lvm list` reads from VG metadata replicated on the metadata-VG's surviving PV. Verified empirically against the Lima cluster's output for a healthy shared-metadata OSD. If the Job fails or returns no entry for the target OSD, validation rejects with `LayoutCaptureFailed` (terminal — user investigates, e.g. metadata disk also failed → out of scope).
-
-#### Step 3 — Persist the replacement record (diagram arrow 5)
-
-Operator writes the replacement CM with `phase: destroy-pending` and the layout captured in Step 2. Field schema and lifecycle: see "ConfigMaps and phase state" above. From this point on, the record is the source of truth for retry — a crashed operator restarts and resumes from the persisted phase.
-
-#### Step 4 — Delete OSD deployment, wait for pod termination, create Destroy Job (diagram arrows 6-8)
-
-Operator calls `k8sutil.DeleteDeployment` ([`deployment.go#L388`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/k8sutil/deployment.go#L388)) on `rook-ceph-osd-5` — this deletes the deployment and polls until the pod is gone. Then it creates the Destroy Job populated with the layout. The pod-gone wait is required: while the daemon runs, it holds the DB-side LUKS mapping open and Step 5's `cryptsetup close` would fail.
+Operator calls `k8sutil.DeleteDeployment` ([`deployment.go#L388`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/k8sutil/deployment.go#L388)) on `rook-ceph-osd-5` — this deletes the deployment and polls until the pod is gone. The pod-gone wait is required: while the daemon runs, it holds the DB-side LUKS mapping open and the next step's `cryptsetup close` would fail.
 
 If the wait times out (transiently NotReady node), the operator sets `WaitingForOSDPodTermination` and re-checks on the next reconcile. The operator does NOT force-delete: a stuck pod on a NotReady node may still be holding the LUKS mapping when kubelet recovers; force-delete would diverge K8s and host state.
 
-**Host permanently down — out of scope.** If the host is genuinely gone (powered off, hardware failure), this flow cannot proceed: the Destroy Job's NodeSelector pins it to that node, and even a force-deleted OSD pod doesn't bring the kubelet back. The Destroy Job stays Pending. Replacement of an OSD on a permanently-dead host is a different workflow (node decommission, then OSD-out-and-purge, then re-add the host with fresh OSDs) — handled by existing Rook flows, not this design. The operator surfaces this case via a `ReplacementHostUnavailable` event after both the pod-termination wait and a Destroy-Job-Pending wait expire.
+**Host permanently down — out of scope.** If the host is gone (powered off, hardware failure), this flow cannot proceed: the Destroy Job's NodeSelector pins it to that node, and force-deleting the OSD pod doesn't bring the kubelet back. The Destroy Job stays Pending. Replacement of an OSD on a permanently-dead host is a different workflow (node decommission, then OSD-out-and-purge, then re-add the host with fresh OSDs) — handled by existing Rook flows.
 
-#### Step 5 — Destroy Job (diagram arrows 9-13)
-
-Operator-owned phase stays `destroy-pending` until the Job reports `Succeeded`. The Job's container invokes `DestroyOSD` ([`remove.go#L244-L292`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/remove.go#L244-L292)) — the same Go function the existing migration flow already calls from [`cmd/rook/ceph/osd.go#L272`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/cmd/rook/ceph/osd.go). The bash below specifies the behavior `DestroyOSD` must implement after required change #3 lands (today it only does the first step and a partial last step). Each operation is idempotent on retry; no standalone shell script ships in the operator.
+The Destroy Job's container invokes `DestroyOSD` ([`remove.go#L244-L292`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/remove.go#L244-L292)) — the same Go function the existing migration flow already calls from [`cmd/rook/ceph/osd.go#L272`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/cmd/rook/ceph/osd.go). The bash below specifies the behavior `DestroyOSD` must implement after required change #3 lands (today it only does the first step and a partial last step). Each operation is idempotent on retry; no standalone shell script ships in the operator.
 
 ```bash
-# 5.1 Destroy in Ceph (preserves OSD ID 5 for reuse).
+# Destroy in Ceph (preserves OSD ID 5 for reuse).
 ceph osd destroy osd.5 --yes-i-really-mean-it    # idempotent: already-destroyed → succeeds
 
-# 5.2 Remove dm-crypt key. On Ceph v19.2.2 (verified) `ceph osd destroy` already
-#     cleans the key and `config-key rm` on a missing key is itself idempotent
-#     (returns 0), so this whole step is typically a no-op. The explicit `exists`
-#     precheck is defensive: keeps the chain safe on older Ceph versions where
-#     rm's exit-code behavior on missing key has not been measured.
+# Remove dm-crypt key. On Ceph v19.2.2 (verified) `ceph osd destroy` already
+# cleans the key and `config-key rm` on a missing key is itself idempotent
+# (returns 0), so this whole step is typically a no-op. The explicit `exists`
+# precheck is defensive: keeps the chain safe on older Ceph versions where
+# rm's exit-code behavior on missing key has not been measured.
 ceph config-key exists dm-crypt/osd/8b7e6c19-.../luks \
   && ceph config-key rm dm-crypt/osd/8b7e6c19-.../luks
 
-# 5.3 Close DB-side LUKS mapping. The cryptsetup arg is the device-mapper name,
-#     not the LUKS UUID. Enumerate children with TYPE explicit and pick the crypt
-#     child specifically — robust against future LV-stack shapes (snapshots,
-#     thin pools) that could produce additional non-crypt children.
-#     Precheck pattern (no || true): if the mapping is gone, do nothing; if it's
-#     present and close fails (busy device), the error bubbles up and the state
-#     machine retries.
+# Close DB-side LUKS mapping. Enumerate children with TYPE explicit and pick
+# the crypt child specifically — robust against future LV-stack shapes.
 DB_MAPPING=$(lsblk -nlo NAME,TYPE /dev/ceph-metadata-vg-1/osd-db-bbb... | awk '$2=="crypt"{print $1; exit}')
 [ -n "$DB_MAPPING" ] && cryptsetup status "$DB_MAPPING" >/dev/null 2>&1 \
   && cryptsetup close "$DB_MAPPING"
 
-# 5.4 Free the DB slot. Precheck (no || true): real lvremove failures bubble up
-#     and the state machine retries.
+# Free the DB slot. Real lvremove failures bubble up; state machine retries.
 lvs /dev/ceph-metadata-vg-1/osd-db-bbb... >/dev/null 2>&1 \
   && lvremove -f /dev/ceph-metadata-vg-1/osd-db-bbb...
 
-# 5.5 Zap the data LV (also handles the data-side dm-crypt mapping).
-#     Precheck mirrors 5.4: skip if the LV no longer exists. Real failures
-#     (zap returns non-zero with the LV present — partial wipe, busy device)
-#     bubble up via Job exit and are retried by the state machine.
+# Zap the data LV (also handles the data-side dm-crypt mapping).
 lvs /dev/ceph-data-vg-5/osd-block-aaa... >/dev/null 2>&1 \
   && ceph-volume lvm zap /dev/ceph-data-vg-5/osd-block-aaa... --destroy
 ```
 
-After Job completes successfully, operator advances record to `phase: prepare-pending` and does Step 6.
+After the Job completes, operator advances the record to `phase: Waiting`.
 
-#### Step 6 — Pre-allocate DB LV name and wait for replacement disk (diagram arrow 14)
+#### 5. Wait for replacement disk
 
-Operator generates a fresh uuid for the new DB LV and persists it in the record (`pending-db-lv-name`) before Step 7.1's `lvcreate` runs. On retry, the same name is reused — no orphan DB LVs from retries.
+The wait is non-blocking (see [Open question: controller placement](#open-question-controller-placement) above). Each reconcile cycle either checks for the disk and yields, or finds it and creates the Prepare Job. Inventory needs a path that doesn't auto-provision — the standard prepare-job spawn for this node would otherwise claim the empty disk with a fresh ID. Two cases:
 
-The operator then waits for the replacement disk to appear on the node. The operator pod has no `/dev` access; the existing prepare-job spawn (which would otherwise inventory the node) is *suppressed* for this node by change #6's `expected-disk-pending` flag — without that suppression, it would auto-provision the new disk with a fresh ID. So inventory needs a path that doesn't provision:
+- **`rook-discover` enabled** — operator watches the per-node `local-device-<node>` CM. Reconcile triggers on CM update via the hotplug-CM watch. Latency: seconds (rook-discover's udev monitor) up to its `ROOK_DISCOVER_DEVICES_INTERVAL` (default 60 min) for the polling fallback.
+- **`rook-discover` disabled** (the operator's default) — the operator yields with a periodic re-check (default 5 min; see U-9), and on each cycle spawns a one-shot `ceph-volume inventory --format json` Job via `cmdreporter`. The Job is read-only — does not auto-provision — so it doesn't conflict with the replacement.
 
-- **If `rook-discover` is enabled:** operator watches the per-node `local-device-<node>` CM. Reconcile is triggered on CM update via the hotplug-CM watch (`controller.go:279`). Latency: seconds (rook-discover's udev monitor) up to its `ROOK_DISCOVER_DEVICES_INTERVAL` (default 60 min) for the polling fallback.
-- **If `rook-discover` is disabled** (the operator's default): the operator returns `Result{RequeueAfter: 5m}` from each reconcile while in `prepare-pending` waiting-for-disk, and spawns a one-shot `ceph-volume inventory --format json` Job via the existing `cmdreporter` pattern (same one used for Step 2's older-OSD fallback). The Job runs node-side, writes its output to a result CM, and the operator reads it on the next reconcile. Latency ≈ `RequeueAfter` interval (5m) + Job pod startup.
-
-The 5-min `RequeueAfter` interval is a working default, not a load-bearing decision — see open question U-9. The wait blocks only this OSD's flow; other OSD reconcile work proceeds normally.
-
-While waiting, the operator sets `WaitingForReplacementDisk` on the CephCluster status. Default timeout 24h (U-4). On timeout the condition flips to `ReplacementDiskMissing` and polling stops.
+While waiting, the operator surfaces a `WaitingForReplacementDisk` condition. Default timeout `spec.diskWaitTimeout` (24h). On timeout the condition flips to `ReplacementDiskMissing` and polling stops.
 
 **Recovery from timeout — two paths:**
 
-1. **Insert the disk and bump `confirmation`** in the CR. Pre-checks re-run and the wait resumes. `pending-db-lv-name` is preserved across the cycle (Step 7.1's precheck handles the LV being either already-allocated or absent).
-2. **Abandon** by removing `spec.storage.replaceOSD`. Per "Handling cancellation", removing the field in this substate is honored: the operator GCs the record; `osd.5` stays `destroyed` in the OSD map; user runs `ceph osd purge 5` manually if they want to remove the slot.
+1. **Insert the disk and create a new CR** for the same OSD ID (re-replacement). The new CR enters `Validating` fresh; the failed CR is inert.
+2. **Abandon** by deleting the CR. Per [Cancellation](#cancellation), this substate honors cancel: the finalizer cleans up; `osd.5` stays `destroyed`; user runs `ceph osd purge 5` manually if they want to remove the slot.
 
-#### Step 7 — Prepare Job (diagram arrows 15-17)
+#### 6. Prepare
 
-Phase `prepare-pending`. The Job receives the record (including `pending-db-lv-name`) as env vars.
+Phase `Preparing` (entered when the replacement disk is visible). The operator generates a fresh UUID for the new DB LV and bakes it into the Job spec as an env var (same pattern as `ROOK_REPLACE_OSD` in `provision_spec.go:317,322`); pod retries within the Job's backoff reuse the same env. The Job performs:
 
 ```bash
-# 7.1 Pre-allocate the DB LV using the persisted name. Idempotent on retry —
-#     if the LV already exists from a previous attempt, lvcreate is skipped.
+# Pre-allocate the DB LV using the persisted name. Idempotent on retry —
+# if the LV already exists from a previous attempt, lvcreate is skipped.
 lvs /dev/ceph-metadata-vg-1/osd-db-12cf3a91-... >/dev/null 2>&1 \
   || lvcreate -L 4096M -n osd-db-12cf3a91-... ceph-metadata-vg-1 --wipesignatures y
 
-# 7.2 Provision the new OSD with the preserved ID.
-#     --dmcrypt is conditional on the record's `encrypted` field;
-#     omitted for unencrypted OSDs.
+# Provision the new OSD with the preserved ID.
+# --dmcrypt is conditional on the record's `encrypted` field;
+# omitted for unencrypted OSDs.
 ceph-volume lvm prepare \
   --bluestore [--dmcrypt] \
   --osd-id 5 \
@@ -341,113 +336,51 @@ ceph-volume lvm prepare \
   --crush-device-class hdd
 ```
 
-(The uuid in `osd-db-12cf3a91-...` is the operator-generated uuid from Step 6, not the OSD's fsid. ceph-volume assigns its own fsid during prepare and writes `ceph.osd_fsid` / `ceph.db_uuid` LV tags.)
+The UUID in `osd-db-12cf3a91-...` is the operator-generated UUID from the Wait step, not the OSD's fsid. ceph-volume assigns its own fsid during prepare and writes `ceph.osd_fsid` / `ceph.db_uuid` LV tags.
 
-Prepare writes the new OSD's layout (data path, DB path, metadata source device) to the per-node status CM that Rook already uses to drive daemon creation. After the Job succeeds, operator advances to `phase: deployment-pending`.
+Prepare writes the new OSD's info to the per-node prepare-job status CM that Rook already uses to drive daemon creation. The phase stays `Preparing` while the operator creates the Deployment and waits for the new daemon to become Ready in Ceph.
 
-#### Step 8 — Operator creates the new OSD deployment (diagram arrows 18-20)
+#### 7. Activate
 
-Reuses the existing reconcile path: `createOSDsForStatusMap` ([`status.go#L324`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/status.go#L324)) sees the per-node status CM the Prepare Job wrote and creates the daemon Deployment from it. The new deployment carries `ROOK_METADATA_DEVICE` and `ROOK_METADATA_SOURCE_DEVICE` (no fallback `lvm list` job needed for a future replacement of this same OSD).
+Reuses the existing reconcile path: `createOSDsForStatusMap` ([`status.go#L324`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/status.go#L324)) sees the per-node status CM the Prepare Job wrote and creates the daemon Deployment from it. The new deployment carries `ROOK_METADATA_DEVICE` and `ROOK_METADATA_SOURCE_DEVICE` directly — no fallback Job needed for any future replacement of this OSD.
 
-#### Step 9 — Mark replacement complete (diagram arrow 21)
+#### 8. Complete
 
-Operator polls `ceph osd metadata <id>`. Ready = a record returned with a non-empty fsid, `id` matching, and `hostname` matching the record's `node`. This single check covers both the up-in-Ceph signal and the new-fsid capture; `ceph osd metadata` is the source of truth, not K8s readiness-probe semantics.
+Like the disk wait, the wait for the new daemon to join Ceph is non-blocking. Each reconcile cycle calls `ceph osd metadata <id>`. Ready = a record returned with a non-empty fsid, `id` matching, and `hostname` matching the record's `node`. This single check covers both the up-in-Ceph signal and the new-fsid capture.
 
-On Ready, the operator transitions the replacement CM entry from `phase: deployment-pending` to `phase: completed` and records `confirmation`, `new-fsid`, and `completed-at`. The entry is kept (not deleted) so the next reconcile sees the consumed trigger and short-circuits via pre-check #1. Same UX as `spec.storage.migration` today: the operator never mutates `spec.replaceOSD`; the user clears the field manually when they want to move on.
+On Ready, the operator transitions to `phase: Completed` and records `newFsid` and `completedAt`. The record persists for audit; the user keeps or deletes the CR at their leisure (the next reconcile short-circuits on the terminal phase).
 
-If the new OSD does not reach Ready, the record stays in its in-progress phase and the next reconcile resumes from there.
+### Cancellation
 
-### Idempotency / resume table
-
-| Phase on disk                 | Recovery on next reconcile                                                                                                |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| no record                     | Validation re-evaluated. No destructive action taken yet.                                                                 |
-| `destroy-pending`, no Destroy Job exists | Operator re-issues the deployment delete (idempotent), waits for pod termination, creates the Destroy Job.    |
-| `destroy-pending`, Destroy Job in flight | Operator awaits Job; on retry, recreates the Job. All commands in Step 5 are idempotent via precheck patterns. |
-| `prepare-pending`, no Prepare Job yet | Operator polls for replacement disk; once visible, creates Prepare Job. Same `pending-db-lv-name` reused — no new orphan. |
-| `prepare-pending`, Prepare Job in flight | Operator awaits Job; on retry, recreates it. `lvcreate` skipped if LV exists (7.1 precheck). `lvm prepare --osd-id` reuses the destroyed slot. |
-| `deployment-pending`          | Existing per-node OSD-status reconcile creates the deployment.                                                            |
-| `completed` (with consumed `confirmation` + `new-fsid`) | Flow done. Pre-check #1 (trigger already consumed) short-circuits subsequent reconciles until spec moves on; entry then GC'd per "Long-term state cleanup". |
-
-> **⚠️ Destroy is irreversible.** Once pre-checks pass and the operator persists the record (Step 3), `osd.5` will be destroyed on this reconcile cycle. There is no "are you sure?" preview surfacing the captured layout. If the user typed the wrong OSD ID, the wrong OSD is gone — recovery is via the cancellation table below, not by retracting the trigger.
-
-### Long-term state cleanup
-
-GC runs first on every reconcile cycle (see "Reconcile order" in "ConfigMaps and phase state"). It only acts on entries that are **not** in an in-progress phase — for in-progress entries, the cancellation table below governs; GC does not touch them. This precedence prevents the user-changes-`replaceOSD.id`-mid-flight failure mode where mid-flight osd.5 would be destroyed, then GC'd, and stuck `destroyed` with no replacement.
-
-GC rules:
-
-| Spec state | Entry phase | Action |
-|---|---|---|
-| `replaceOSD` unset | `completed` | GC the completed entry. |
-| `replaceOSD` unset | `prepare-pending` (waiting-for-disk only) | GC per cancellation table below. |
-| `replaceOSD` unset | any other in-progress phase | No action; cancellation table governs. |
-| `replaceOSD` set; `(id, confirmation)` differ from a `completed` entry | `completed` | GC; treat spec as fresh trigger. |
-| `replaceOSD` set; mismatch on in-progress entry | any in-progress phase | No action; in-flight flow runs to completion, then GC fires next cycle. |
-
-If the user changes `spec.replaceOSD.id` from 5 to 7 mid-flight: osd.5's flow runs to `completed`; on the next reconcile, GC removes the entry (its `osd-id=5` ≠ `spec.id=7`); pre-checks then run for osd.7. The spec change is effectively queued.
-
-### Handling cancellation
-
-`replaceOSD` is a mutable spec field. Removing it (or changing its ID mid-flight) is a "cancel" intent. The operator's response depends on phase:
+Cancel = delete the `CephOSDReplace` CR. A finalizer runs the operator's per-phase response:
 
 | Phase | Cancel honored? | Effect |
 |---|---|---|
-| Pre-Step 3 (validation in flight, no record persisted yet) | Yes | Operator detects field is gone on next reconcile and stops. No state to unwind. |
-| `destroy-pending` (Destroy Job in flight or about to start) | No | State record drives the flow forward. Destroy is short-lived; cancel is a no-op. |
-| `prepare-pending`, waiting-for-disk (destroy complete; only `pending-db-lv-name` reserved, no `lvcreate` yet) | Yes | Operator GCs the record. `osd.5` stays `destroyed`; user runs `ceph osd purge 5` to remove the slot. **No orphan LV** (Step 6 only reserves the *name*; `lvcreate` runs in Step 7.1). **ID-preserving retry of osd.5 is unavailable after this cancel** — the original Deployment is gone (Step 4) and data + DB LVs are wiped (Step 5), so a future `replaceOSD: {id: 5}` trigger has no layout to capture in Step 2 and aborts with `LayoutCaptureFailed`. To re-add an OSD here, the user accepts a fresh ID. |
-| `prepare-pending`, Prepare-Job-running (`lvcreate` may have run; `ceph-volume lvm prepare` may have started LUKS-formatting) | Only on Job failure | `ceph-volume lvm prepare` cannot be safely interrupted mid-call (partial dm-crypt + half-LUKS LV). Operator records the cancel intent and acts at Job exit: **on Job failure**, GC the record; the partially-allocated DB LV is left as a named orphan (`pending-db-lv-name`, easy to `lvremove`); osd.5 stays `destroyed`. **On Job success**, cancel is **not** honored — the new OSD is provisioned and joins the cluster. Removing the just-provisioned OSD is an `out`+`purge` workflow, not a rollback of this flow. |
-| `deployment-pending` or `completed` | No | New OSD is already provisioned. The failed disk is replaced; cancel makes no sense. |
+| `Pending` | Yes | Finalizer removes the CR. Nothing has happened. |
+| `Validating` | Yes | Finalizer removes the CR. Nothing destructive has happened. (If `autoOut: true` was set and the operator marked the OSD `out`, the OSD stays `out` — user marks `in` manually if they want to recover the cluster's original layout.) |
+| `Destroying` | No | State record drives the flow forward. Destroy is short-lived; cancel is a no-op. |
+| `Waiting` (destroy complete; no Prepare Job yet) | Yes | Finalizer removes the CR. `osd.5` stays `destroyed`; user runs `ceph osd purge 5` to remove the slot. **No orphan LV**. **ID-preserving retry of osd.5 is unavailable after this cancel** — the original Deployment is gone (Destroy step) and data + DB LVs are wiped, so a future `CephOSDReplace` for the same ID has no OSD info to capture and aborts with `OSDInfoCaptureFailed`. To re-add an OSD here, the user accepts a fresh ID. |
+| `Preparing`, Prepare Job running (`lvcreate` may have run; `ceph-volume lvm prepare` may have started LUKS-formatting) | Only on Job failure | `ceph-volume lvm prepare` cannot be safely interrupted mid-call (partial dm-crypt + half-LUKS LV). Operator records the cancel intent and acts at Job exit: **on Job failure**, finalizer removes the CR; the partially-allocated DB LV is left as a named orphan (UUID is in the failed Job's env); osd.5 stays `destroyed`. **On Job success**, cancel is **not** honored — the new OSD is provisioned and joins the cluster. Removing the just-provisioned OSD is an `out`+`purge` workflow, not a rollback of this flow. |
+| `Preparing` (post-Job, awaiting daemon Ready) or `Completed` | No | New OSD is already provisioned. Cancel makes no sense. |
 
 ## Required code changes
 
-Six changes. Items 1–3 and 5 are independent bug fixes worth landing regardless of this design; 4 and 6 are the new replacement flow.
+Six changes. Items 1–3 and 5 are independent bug fixes that map 1:1 to the five gaps in [Current gaps](#current-gaps) and are worth landing regardless of this design. Item 4 wires LVM-mode replacement; item 6 is the new orchestration. Implementation-level details (algorithms, edge cases, pattern reuse) are tracked separately from the design.
 
-| # | Fix                                                                                                                                                                                                                                                                                                                                              | File / lines                                       |
-|---|----|----|
-| 1 | Inventory must include shared metadata disks. See "Change #1 details" below. | [disk.go#L97-L111](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/clusterd/disk.go#L97-L111) |
-| 2 | Populate `OSDInfo.MetadataPath` and a new `OSDInfo.MetadataDevice` field for LVM-mode OSDs. The data is in `ceph-volume lvm list --format json`'s `[db]` section (LV `path` and source `devices`); the parser today walks only `[block]` entries. Forward-compat across rolling upgrade: `OSDInfo` uses standard `encoding/json` struct tags ([`osd.go#L113-L136`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/osd.go#L113-L136)) with no `DisallowUnknownFields` policy. An old operator decoding a new prepare-job's status CM silently drops the new field. A new operator decoding an old CM gets the zero value (empty string), and Step 2's `lvm list` fallback handles that case. | [volume.go#L1104-L1177](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L1104-L1177) |
-| 3 | `DestroyOSD` cleans up the DB LV and the dm-crypt config-key. Add `ceph config-key exists+rm`, `cryptsetup close <mapping>`, and `lvremove -f <metadata-path>` (gated on `osdInfo.MetadataPath != ""`). Use precheck patterns (see Step 5) so genuine failures bubble up while already-clean state is tolerated. | [remove.go#L244-L292](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/remove.go#L244-L292) |
-| 4 | Wire LVM-mode replacement through `lvm prepare --osd-id`. Today only raw mode at [volume.go#L548-L555](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L548-L555) adds `--osd-id`. When `a.replaceOSD != nil` *and* a metadata device is set, pre-allocate the DB LV with `lvcreate` (using the operator-persisted name) and call `lvm prepare --osd-id` instead of `lvm batch`. **Why this primitive over `purge` + `lvm batch`:** `lvm prepare --osd-id` claims a destroyed slot atomically (race-safe; no implicit reuse via mon's lowest-free allocation policy) and matches the existing same-device replacement flow at [volume.go#L548-L555](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L548-L555). Alternatives tested and discussed in [`osd-id-reuse-analysis.md`](osd-id-reuse-analysis.md) (U-7). | [volume.go](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go) |
-| 5 | Pass `OSDInfo.MetadataDevice` to the OSD daemon deployment as a new `ROOK_METADATA_SOURCE_DEVICE` env var. Future destroys read the metadata layout from the deployment without a node-side rescan. | [spec.go#L950-L1010](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/spec.go#L950-L1010) |
-| 6 | New `osd-replacement-state` ConfigMap, Destroy/Prepare Job split, reconcile-order pinning. See "Change #6 details" below. | [migrate.go](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/migrate.go), [osd.go](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/osd.go) |
-
-#### Change #1 details — inventory bypass for Ceph-tagged shared metadata disks
-
-Today [`disk.go#L97-L111`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/clusterd/disk.go#L97-L111) calls `sys.ListDevicesChild` (lsblk-based) and skips any disk where `len(children) > 1`. Once any OSD's DB LV lands on a shared metadata disk, this filter incorrectly excludes the disk from inventory, so future OSDs can't get DB LV slots on it.
-
-**Algorithm:** when `len(children) > 1`, run `lvs --noheadings -o lv_name,vg_name,lv_tags` filtered to those children and check for the `ceph.cluster_fsid=<this-cluster-fsid>` LV tag — the same authoritative signal Rook already uses elsewhere ([volume.go#L85-L90](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L85-L90), [volume.go#L1130-L1135](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L1130-L1135)). If any child carries this cluster's FSID, treat the disk as available.
-
-**Edge cases:**
-
-- Mixed Ceph-tagged and untagged children → still bypass. Ceph LVs identify the disk as ours; untagged LVs would block c-v from using their PE anyway — no Rook-side issue.
-- `lvs` returns error / EBUSY → conservative: fall back to today's skip behavior, log.
-- No tagged children, `len > 1` → skip (today's behavior; foreign LVM or partition table).
-
-VG/LV name patterns are convention, not guarantee; tags are. Cost: one `lvs` per filtered disk (only when `len > 1`); Rook already shells out to `lvs` / `pvs` during inventory.
-
-#### Change #6 details — replacement state machine and reconcile-order pinning
-
-Adds a new ConfigMap `osd-replacement-state` (separate from the existing `osd-migration-config` to avoid breaking that flow's int-keyed reader). Schema, lifecycle, and phase state machine: see "ConfigMaps and phase state" above. Persists `pending-db-lv-name` so Prepare Job retry doesn't orphan DB LVs. Splits the single prepare-job model into a Destroy Job + Prepare Job (motivated by the disk-swap wait — see "Proposed flow" intro).
-
-**Reconcile-order pinning.** The OSD reconcile entry-point [`Cluster.Start`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/osd.go#L255) gets a new first-step subroutine that runs **before** the existing `updateAndCreateOSDs` path. The subroutine reads `spec.replaceOSD` and the replacement CM, runs GC → drives in-flight entries → validates new spec. Only then does `updateAndCreateOSDs` run.
-
-The `expected-disk-pending: true` flag on the record (set while phase=`prepare-pending`) is the wire that prevents the auto-provisioning race: in `updateAndCreateOSDs`, the prepare-job spawn for a node with an `expected-disk-pending` entry is skipped — the empty replacement disk on that node is held off until the replacement Prepare Job claims it.
-
-**Implementation pattern reuse:**
-
-- Replacement CM lifecycle: same shape as `osd-migration-config` ([`migrate.go#L42-L44`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/migrate.go) — per-cluster, owner-ref'd to CephCluster, written via `k8sutil.CreateOrUpdateConfigMap`).
-- Destroy Job pod profile: clones `c.provisionPodTemplateSpec` ([`provision_spec.go`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/provision_spec.go)) — same image, mounts, NodeSelector, RBAC.
-- Conditions: set via `opcontroller.UpdateCondition` ([`conditions.go#L35`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/controller/conditions.go#L35)).
-- Bounded waits: `util.RetryWithTimeout` ([`retry.go#L57`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/util/retry.go#L57)) — already used by OSD migration.
-- Pod-deletion wait: `k8sutil.DeleteDeployment` ([`deployment.go#L388`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/k8sutil/deployment.go#L388)).
-- Device-name validation (raw kernel-name rejection): extend `c.validateOSDSettings` ([`osd.go#L189`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/osd.go#L189)).
+| # | Fix | File / lines |
+|---|---|---|
+| 1 | Inventory must include shared metadata disks. The current `len(children) > 1` filter excludes any disk hosting a Ceph LV. Algorithm: when the filter would trigger, check children for the `ceph.cluster_fsid=<this-cluster-fsid>` LV tag — same authoritative signal Rook already uses elsewhere — and bypass the filter if any child carries this cluster's FSID. | [disk.go#L97-L111](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/clusterd/disk.go#L97-L111) |
+| 2 | Populate `OSDInfo.MetadataPath` and a new `OSDInfo.MetadataDevice` field for LVM-mode OSDs. The data is in `ceph-volume lvm list --format json`'s `[db]` section (LV `path` and source `devices`); the parser today walks only `[block]` entries. Forward-compat across rolling upgrade: standard `encoding/json` decode with no `DisallowUnknownFields` policy — old operator silently drops the new field; new operator decoding an old CM gets the zero value (which the Capture fallback handles). | [volume.go#L1104-L1177](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L1104-L1177) |
+| 3 | `DestroyOSD` cleans up the DB LV and the dm-crypt config-key. Add `ceph config-key exists+rm`, `cryptsetup close <mapping>`, and `lvremove -f <metadata-path>` (gated on `osdInfo.MetadataPath != ""`). Use the precheck patterns from the Destroy step so genuine failures bubble up while already-clean state is tolerated. | [remove.go#L244-L292](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/remove.go#L244-L292) |
+| 4 | Wire LVM-mode replacement through `lvm prepare --osd-id`. Today only raw mode at [volume.go#L548-L555](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L548-L555) adds `--osd-id`. When `a.replaceOSD != nil` and a metadata device is set, pre-allocate the DB LV with `lvcreate` (using the operator-persisted name) and call `lvm prepare --osd-id` instead of `lvm batch`. `lvm prepare --osd-id` claims a destroyed slot atomically (race-safe; no implicit reuse via mon's lowest-free allocation policy) and matches the existing same-device replacement flow. | [volume.go](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go) |
+| 5 | Pass `OSDInfo.MetadataDevice` to the OSD daemon deployment as a new `ROOK_METADATA_SOURCE_DEVICE` env var. Future destroys read the metadata info from the deployment without a node-side rescan. | [spec.go#L950-L1010](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/spec.go#L950-L1010) |
+| 6 | Orchestration — `CephOSDReplace` CRD definition + dedicated controller implementing the state machine (Pending queue, Validating with confirmation/up+in/safe-to-destroy checks, Destroy/Prepare Job split, non-blocking disk wait). Cluster-side coupling: skip auto-provisioning on nodes with an active replacement; surface an `OSDReplacementInProgress` condition on `CephCluster.status`. | new package `pkg/operator/ceph/cluster/osd/replace/` |
 
 ## Out of scope
 
 ### Multiple metadata devices on one node — works conditionally
 
-Rook supports per-device metadata-device pairing (`Documentation/CRDs/Cluster/ceph-cluster-crd.md:393-394`):
+Rook supports per-device metadata-device pairing:
 
 ```yaml
 nodes:
@@ -461,12 +394,12 @@ nodes:
     config: { metadataDevice: "nvme1n1" }   # different metadata device on the same node
 ```
 
-This layout requires exact `name:` references — the per-device `config:` block can only be attached to a specific device entry, not to a regex match. Replacement of a single OSD on this layout works structurally (each OSD's `metadata-source-device` is captured in its record at destroy time), with two caveats:
+This setup requires exact `name:` (or `fullpath:`) references — the per-device `config:` block can only be attached to a specific device entry, not to a regex match. Replacement of a single OSD on this setup works structurally (each OSD's `metadata-source-device` is captured in its record at destroy time), with two caveats:
 
-- **Validation policy must permit exact `name:`** entries — pre-check #5's `accept-by-path` or `lenient` mode (U-10). The default `strict` mode rejects this layout from the flow.
-- **Same-slot replacement is required** — `by-path` resolves only when the new disk is in the original slot. Different-slot replacement stalls at Step 6.
+- **Validation policy must permit exact entries** — see U-10. The default `strict` mode rejects this setup from the flow.
+- **Same-slot replacement is required** — `by-path` resolves only when the new disk is in the original slot. Different-slot replacement stalls in the Wait step.
 
-The broader multi-metadata-device feature work (improvements to per-device `metadataDevice` UX, multi-NVMe-per-node layouts) was scoped separately by maintainers in [#13240](https://github.com/rook/rook/issues/13240) (tracked by `zhucan`). This design does not add new logic for that layout — it just doesn't actively forbid replacement on it under permissive validation.
+The broader multi-metadata-device feature work (improvements to per-device `metadataDevice` UX, multi-NVMe-per-node setups) was scoped separately by maintainers in [#13240](https://github.com/rook/rook/issues/13240) (tracked by `zhucan`). This design does not add new logic for that setup — it just doesn't actively forbid replacement on it under permissive validation.
 
 ### PVC-based OSD replacement — separate design
 
@@ -474,62 +407,32 @@ PVC-backed OSDs use a different code path (raw mode via `GetCephVolumeRawOSDs`, 
 
 ### Permanently-down host — different workflow
 
-If the OSD's host is gone, this flow cannot proceed (Step 4 / Step 5 require the host). Existing Rook node-decommission + OSD-purge flow handles it.
+If the OSD's host is gone, this flow cannot proceed (the Destroy step requires the host). Existing Rook node-decommission + OSD-purge flow handles it.
 
 ## Open questions
 
-- **U-1 — Trigger surface.** *Decision: CR field `spec.storage.replaceOSD: {id, confirmation}`.* Matches the existing `spec.storage.migration` precedent (same UX — user clears the field manually after success), keeps trigger state in the CR, no separate object lifecycle. Alternatives below are listed for review discussion.
-  - Annotation on the OSD deployment (`rook-ceph.io/replace-osd: "<confirmation>"`). Operator removes the annotation on success — no spec mutation. Rejected: the OSD's deployment is *deleted* in Step 4 before destroy, so an annotation on it disappears mid-flight (state would have to migrate to the state-record CM anyway).
-  - New `CephOSDReplacement` CRD, one short-lived resource per intent, deleted on success. Rejected: new CRD is a heavier API surface for a feature that already fits the existing `spec.storage` shape; consistency with `spec.storage.migration` is more valuable than per-intent isolation.
+### Decided (rationale captured for review)
 
-- **U-2 — Parallelism.** Issue #13240 names multi-disk-failure on a chassis as a real operational pain — replacing 4 disks means 4 sequential edits, each blocking on disk-swap wait + reconcile cadence (potentially hours per OSD). This design stays serial because `safe-to-destroy` and `lvm prepare --osd-id` are both naturally one-at-a-time. Two follow-up paths that don't break the serial-execution invariant:
-  - (a) **Widen the trigger surface to a list** (`replaceOSDs: [{id, confirmation}, ...]`) so the user records all intents upfront and the operator processes them in sequence without per-OSD CR edits. Cheap; removes most of the user-visible pain.
-  - (b) **N-per-reconcile execution** via N parallel Destroy/Prepare Jobs each running `lvm prepare --osd-id <i>`, gated on cluster health and per-OSD `safe-to-destroy`. Bigger; needs careful PG-safety rules. The obvious-looking `lvm batch --osd-ids X Y Z --prepare` primitive does **not** work for shared-metadata setups (rejects the metadata VG outright — see U-7 / [`osd-id-reuse-analysis.md`](osd-id-reuse-analysis.md) Path E); (b) must use N parallel `lvm prepare --osd-id` invocations, not a single `lvm batch` call.
+- **U-1 — Trigger surface.** Decision: dedicated `CephOSDReplace` CRD with `spec` carrying trigger fields (see [State](#state)). Cluster-CR fallback shape: `spec.storage.replaceOSD: {id, confirmation, ...}` mirroring `spec.storage.migration`.
+- **U-6 — State-record substrate.** Resolved by [Open question: controller placement](#open-question-controller-placement) — `CephOSDReplace.status`.
+- **U-7 — OSD-ID preservation primitive.** Decision: `ceph osd destroy` + `lvm prepare --osd-id` + operator pre-allocates DB LV. This is [Ceph's documented replacement procedure](https://docs.ceph.com/en/latest/rados/operations/add-or-rm-osds/#replacing-an-osd) — the design just orchestrates it across pods. Verified end-to-end on Ceph v19.2.2 (`osd-rep-log.md`). Race-safe: the destroyed slot can't be claimed by another OSD between destroy and prepare. Matches Rook's existing same-device replacement flow ([volume.go#L548-L555](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L548-L555)). Alternatives compared in `osd-id-reuse-analysis.md`.
 
-- **U-3 — Auto-replace mode.** This design requires explicit user input. A follow-up could add an opt-in "auto-replace on disk swap" mode (e.g. `spec.storage.autoReplaceOSDs: true`): when an OSD is `down_in` and a new empty disk appears in its CR-managed slot, the operator runs the same flow without an explicit trigger. Extra checks (cluster health, PG state) would gate it. Deferred.
+### Open for PR-review decision
 
-- **U-4 — Configurability of the two timeouts.** Two distinct timers, different physical phenomena, different SLAs:
-  - `replacement-disk` wait (default 24h): time to swap a failed disk; covers walk-away-and-handle-tomorrow workflows.
-  - `safe-to-destroy` retry timeout (default 1h): time backfill is allowed to take after the user triggers replacement on a still-recovering OSD. 24h here would mask a stuck backfill and warrants paging.
-  Per-replacement override (`spec.storage.replaceOSD.timeoutSeconds`) handles different chassis-swap SLAs but adds API surface; operator-global only is simpler.
+- **U-O — Controller placement.** [Open question: controller placement](#open-question-controller-placement) lays out the trade-offs. The doc leans toward the CRD option but does not prescribe. Maintainers' call.
+- **U-2 — Parallelism.** Issue #13240 names multi-disk-failure on a chassis as a real operational pain — replacing N disks means N sequential CR edits, each blocking on disk-swap wait + reconcile cadence. This design stays serial for operational simplicity, not correctness — per-OSD `safe-to-destroy`'s drained semantic makes concurrent destroys safe. Two follow-up paths: (a) widen the trigger surface to a list (`replaceOSDs: [{id, confirmation}, …]`); (b) N-per-reconcile execution via N parallel Destroy/Prepare Jobs each running `lvm prepare --osd-id <i>`. An `lvm batch --osd-ids X Y Z --prepare` invocation does **not** work for shared-metadata setups (rejects the metadata VG outright); (b) must use N parallel `lvm prepare --osd-id` invocations, not a single `lvm batch` call.
+- **U-3 — Auto-replace mode.** Follow-up: opt-in `spec.storage.autoReplaceOSDs: true` to run the same flow without explicit trigger when an OSD is `down_in` and a new empty disk appears. Extra checks (cluster health, PG state) would gate it. Deferred.
+- **U-4 — Default timeout values.** Per-CR configurability is decided (`spec.safeToDestroyTimeout`, `spec.diskWaitTimeout` — see [State](#state)). Defaults open: 1h / 24h is a starting point. `safeToDestroyTimeout` default fits the failed-disk path (Ceph auto-`out`s and backfills before the user even creates the CR); needs a longer override when `autoOut: true` is used on a healthy OSD where backfill begins inside the flow.
+- **U-5 — Faster wake on disk-swap.** With `rook-discover` enabled, latency floor is its udev-event delivery (seconds) up to `ROOK_DISCOVER_DEVICES_INTERVAL` (60 min). Without it, the wait re-checks every U-9 interval. Optional follow-up: treat udev "new disk" events on the node as reconcile triggers while a replacement is in progress.
+- **U-8 — `getOSDInfo` fallback for old deployments.** Rook regenerates each OSD's Deployment spec on every reconcile, but `getOSDInfo` only recovers what's already in the env. For OSDs deployed before changes #2 and #5, the new env vars are missing → empty values on regenerated deployments. The Capture fallback handles this per replacement. Alternative: push the `lvm list` fallback into `getOSDInfo` itself, so existing deployments get backfilled on operator upgrade. The per-replacement fallback then becomes redundant. Worth doing if change #2's footprint is small.
+- **U-9 — Wait-for-disk re-check pattern.** Default 5 min interval is a working starting point. Lower (1 min) cuts latency at the cost of more inventory-Job pods. Likely cluster-config-tunable rather than hardcoded.
+- **U-10 — Device-matching validation policy.** Three policies: `strict` (reject any exact entry on the OSD's data device), `accept-by-path` (reject only kernel-name entries), `lenient` (accept anything; mismatch surfaces as Wait-step stall). Defaults and configurability scope (operator-global / per-replacement / hard-coded) are open.
 
-- **U-5 — Faster wake on disk-swap.** With `rook-discover` enabled, latency floor is its udev-event delivery (seconds) up to `ROOK_DISCOVER_DEVICES_INTERVAL` (60 min). Without it, the wait re-checks every U-9 interval. Optional follow-up: treat udev "new disk" events on the node as reconcile triggers while a replacement is in progress — push from `rook-discover`, or a small sidecar deployed only while waiting. Optimization, not a correctness gap.
-
-- **U-6 — State-store choice for the replacement record.** *Decision: ConfigMap `osd-replacement-state`.* Matches Rook's existing OSD-orchestration pattern (per-node status CMs, `osd-migration-config`); clean object lifecycle (create/delete); doesn't pollute CR `.status` with transient state-machine state (no precedent for that in Rook). Alternatives below are listed for review discussion.
-  - CR `.status.replaceOSD`. Pros: visible via `kubectl get cephcluster -o yaml`; integrates natively with Conditions; one fewer object lifecycle. Cons: mixing transient operational state with the CR's status block is unidiomatic in Rook; status updates may race with other status writers; no precedent in the codebase for state-machine state in `.status`. Conditions can still be used independently of where the record lives.
-  - Annotation on the CephCluster CR. Pros: simple, visible. Cons: limited to ~256KB total annotation size on the resource (shared with other consumers); awkward to update structurally; no precedent for state machines in annotations.
-
-- **U-7 — Approach for OSD-ID preservation: `destroy + prepare --osd-id` vs alternatives.** Full comparison in [`osd-id-reuse-analysis.md`](osd-id-reuse-analysis.md). Summary:
-
-  - **Chosen:** `ceph osd destroy` + `lvm prepare --osd-id` + operator pre-allocates DB LV. This is [Ceph's documented replacement procedure](https://docs.ceph.com/en/latest/rados/operations/add-or-rm-osds/#replacing-an-osd) — the design just orchestrates it across pods. Verified end-to-end on Ceph v19.2.2 (`osd-rep-log.md`). Race-safe: the destroyed slot can't be claimed by another OSD between destroy and prepare. Matches Rook's existing same-device replacement flow ([volume.go#L548-L555](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L548-L555)).
-  - **Alternative — `purge` + `lvm prepare` without `--osd-id`** (used by SAP runbook + GH issue #13240 comment 3193842038): the slot is freed by `purge`, mon allocates lowest free which happens to be the just-freed ID. Implicit reuse; depends on mon allocation policy and a non-racy purge-prepare window.
-  - **Alternative — `purge` + `lvm batch --prepare`** (suggested by maintainers in #13240): same implicit-ID-reuse mechanism as above, with ceph-volume handling DB-LV allocation. Verified on Ceph v19.2.2 — works (`osd-id-reuse-analysis.md` Path C); shares the implicit-reuse race window with B.
-  - **Alternative — `destroy` + `lvm batch --osd-ids X --prepare`** (`lvm batch` does have `--osd-ids` plural): verified on Ceph v19.2.2 — does **not** work with shared metadata devices. ceph-volume's `--osd-ids` path rejects metadata VGs with existing free PE space ("1 fast devices were passed, but none are available"). Eliminated.
-
-- **U-9 — Wait-for-disk re-check pattern (interval and trigger).** Step 6's wait without `rook-discover` runs an inventory Job on each reconcile and re-queues. Two related questions:
-  - **Interval.** Default 5 min is a working starting point. Lower (1 min) cuts user-visible latency at the cost of more inventory-Job pods. Higher (15 min) is gentler. Likely cluster-config-tunable rather than hardcoded.
-  - **Self-requeue vs. user re-trigger.** Alternative: instead of `Result{RequeueAfter: ...}`, the operator could emit a `WaitingForReplacementDisk` event and require the user to bump `confirmation` once they've swapped the disk to nudge the next reconcile. Pro: no operator-side polling, no inventory-Job spam. Con: breaks the "set replaceOSD and walk away" UX from the user story; user has to come back.
-  - Proposed: `RequeueAfter` with a configurable interval (default 5 min). Decide during PR review.
-
-- **U-10 — Device-matching validation policy for replacement.** Pre-check #5's policy is pluggable; the three policies (`strict`, `accept-by-path`, `lenient`) are defined in Step 1. Two questions for PR review:
-
-  1. **What should the default be?**
-     - `strict` is safest (pre-destroy rejection, clean UX), but adds adoption friction: existing kernel-name CRs and per-device `metadataDevice` layouts are blocked from this flow until migrated. [Ceph upstream](https://docs.ceph.com/en/latest/rados/operations/add-or-rm-osds/#replacing-an-osd) is laxer (uses raw `/dev/sdX` in examples); Rook generally permits exact `name:` entries, so strict here is more conservative than the rest of the ecosystem.
-     - `accept-by-path` is the moderate middle. Kernel names rejected; by-path users can use the flow with same-slot discipline.
-     - `lenient` maximizes compatibility but defers diagnosis 24h into the flow (post-destroy stall). Recoverable but bad UX.
-
-  2. **Should the policy be configurable, and at what scope?**
-     - **Operator-global** (env var like `ROOK_OSD_REPLACEMENT_DEVICE_VALIDATION`) — one knob per cluster, easy to set; doesn't accommodate mixed CR shapes within a cluster.
-     - **Per-replacement** (`spec.storage.replaceOSD.deviceMatchingMode: <strict|accept-by-path|lenient>`) — most flexible, additional CR API surface.
-     - **Hard-coded** with no override — simplest, no API surface, but no escape valve for users hitting the per-device-config tension or slot-stable hardware.
-
-  - **Helper (orthogonal):** a one-shot tool that rewrites a user's `storage` spec to `useAllDevices` or `deviceFilter` would reduce strict-policy friction regardless of the default.
-
-  No load-bearing recommendation; flagging for PR-review decision.
+## Validation plan
 
 Coverage areas this design must validate (detailed scenarios in [`osd-test-scenarios.md`](osd-test-scenarios.md)):
 
-- **Happy path** on shared-metadata layouts: single OSD replaced while siblings stay up, both with and without `encryptedDevice: true`; multiple metadata devices on the same node (per-device config); same-device (raw-mode) regression.
+- **Happy path** on shared-metadata setups: single OSD replaced while siblings stay up, with and without `encryptedDevice: true`; multiple metadata devices on the same node (per-device config); same-device (raw-mode) regression.
 - **Required-change validation**: new OSD deployment carries non-empty `ROOK_METADATA_DEVICE` / `ROOK_METADATA_SOURCE_DEVICE`; metadata VG with healthy siblings is now visible to inventory.
 - **Crash recovery**: Destroy Job and Prepare Job killed mid-run; state-record-driven retry produces no orphan DB LVs across N retries.
 - **Validation gates**: trigger after auto-provisioning is rejected; raw kernel-name device addressing is rejected before any destructive action.
