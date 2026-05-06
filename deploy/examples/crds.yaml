@@ -14710,6 +14710,17 @@ spec:
                   description: Security represents security settings
                   nullable: true
                   properties:
+                    ciphers:
+                      description: |-
+                        Ciphers specifies the cipher suites used during the TLS handshake.
+                        Multiple suites are supported with ':' colon-separated.
+                        Each value must be a valid OpenSSL cipher suite name.
+                        See https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names
+                      items:
+                        type: string
+                      maxItems: 1000
+                      minItems: 0
+                      type: array
                     keyRotation:
                       description: KeyRotation defines options for Key Rotation.
                       nullable: true
@@ -14752,6 +14763,46 @@ spec:
                           description: TokenSecretName is the kubernetes secret containing the KMS token
                           type: string
                       type: object
+                    sslOptions:
+                      description: |-
+                        SslOptions sets the SSL context options for the Ceph RGW beast frontend.
+                        See https://docs.ceph.com/en/latest/radosgw/frontends/#options
+                      properties:
+                        defaultWorkarounds:
+                          description: defaultWorkarounds implements various bug workaround when true, or disables it when false. Default disabled.
+                          type: boolean
+                        noCompression:
+                          description: noCompression disables compression when true, or disables it when false. Default disabled.
+                          type: boolean
+                        singleDiffieHellmanUse:
+                          description: SingleDiffieHellmanUse always creates a new key when using tmp_dh parameters when true, or disables it when false. Default disabled.
+                          type: boolean
+                        sslv2:
+                          description: sslv2 enables SSL v2 when true, or disables it when false. Default disabled.
+                          type: boolean
+                        sslv3:
+                          description: sslv3 enables SSL v3 when true, or disables it when false. Default disabled.
+                          type: boolean
+                        tlsv1_0:
+                          description: tlsv1_0 enables TLS v1.0 when true, or disables it when false. Default disabled.
+                          type: boolean
+                        tlsv1_1:
+                          description: tlsv1_1 enables TLS v1.1 when true, or disables it when false. Default disabled.
+                          type: boolean
+                        tlsv1_2:
+                          description: tlsv1_2 enables TLS v1.2 when true, or disables it when false. Default enabled.
+                          type: boolean
+                      type: object
+                    tlsGroups:
+                      description: |-
+                        TlsGroups specifies one or more TLS Group strings separated by colons.
+                        Multiple suites are supported with ':' colon-separated.
+                        The pseudo group name DEFAULT can be used to select the OpenSSL built-in default list of groups.
+                        Other valid group names will depend on OpenSSL version
+                        See https://docs.openssl.org/master/man3/SSL_CTX_set1_curves/#description
+                      items:
+                        type: string
+                      type: array
                   type: object
                 sharedPools:
                   description: The pool information when configuring RADOS namespaces in existing pools.

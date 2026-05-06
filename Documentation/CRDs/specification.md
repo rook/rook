@@ -12064,6 +12064,52 @@ KeyManagementServiceSpec
 <p>The settings for supporting AWS-SSE:S3 with RGW</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>sslOptions,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SslOptionsSpec">
+SslOptionsSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SslOptions sets the SSL context options for the Ceph RGW beast frontend.
+See <a href="https://docs.ceph.com/en/latest/radosgw/frontends/#options">https://docs.ceph.com/en/latest/radosgw/frontends/#options</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ciphers</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ciphers specifies the cipher suites used during the TLS handshake.
+Multiple suites are supported with &lsquo;:&rsquo; colon-separated.
+Each value must be a valid OpenSSL cipher suite name.
+See <a href="https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names">https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tlsGroups</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TlsGroups specifies one or more TLS Group strings separated by colons.
+Multiple suites are supported with &lsquo;:&rsquo; colon-separated.
+The pseudo group name DEFAULT can be used to select the OpenSSL built-in default list of groups.
+Other valid group names will depend on OpenSSL version
+See <a href="https://docs.openssl.org/master/man3/SSL_CTX_set1_curves/#description">https://docs.openssl.org/master/man3/SSL_CTX_set1_curves/#description</a></p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec
@@ -15126,6 +15172,121 @@ string
 <td>
 <em>(Optional)</em>
 <p>Items is the list schedules times for a given snapshot</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.SslOptionsSpec">SslOptionsSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreSecuritySpec">ObjectStoreSecuritySpec</a>)
+</p>
+<div>
+<p>SslOptionsSpec specifies the SSL context options for the Ceph RGW beast frontend.
+See <a href="https://docs.ceph.com/en/latest/radosgw/frontends/#options">https://docs.ceph.com/en/latest/radosgw/frontends/#options</a></p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>defaultWorkarounds</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>defaultWorkarounds implements various bug workaround when true, or disables it when false. Default disabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>noCompression</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>noCompression disables compression when true, or disables it when false. Default disabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sslv2</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>sslv2 enables SSL v2 when true, or disables it when false. Default disabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sslv3</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>sslv3 enables SSL v3 when true, or disables it when false. Default disabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tlsv1_0</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>tlsv1_0 enables TLS v1.0 when true, or disables it when false. Default disabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tlsv1_1</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>tlsv1_1 enables TLS v1.1 when true, or disables it when false. Default disabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tlsv1_2</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>tlsv1_2 enables TLS v1.2 when true, or disables it when false. Default enabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>singleDiffieHellmanUse</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SingleDiffieHellmanUse always creates a new key when using tmp_dh parameters when true, or disables it when false. Default disabled.</p>
 </td>
 </tr>
 </tbody>
