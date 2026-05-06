@@ -95,18 +95,34 @@ func blockCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *sui
 	require.NoError(s.T(), err)
 	logger.Infof("delete clone pvc")
 
+	// Get the PV name before deleting the PVC
+	clonePVName, err := k8sh.GetPVCVolumeName(defaultNamespace, clonePVCName)
+	assert.NoError(s.T(), err)
+
 	err = helper.BlockClient.DeletePVC(defaultNamespace, clonePVCName)
 	assertNoErrorUnlessNotFound(s, err)
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, clonePVCName))
+
+	// Wait for the PV to be deleted as well
+	assert.True(s.T(), retryPVCheck(k8sh, clonePVName, false, ""))
+	logger.Infof("clone PV %s deleted successfully", clonePVName)
 
 	// delete the parent PVC and app
 	err = k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
 	require.NoError(s.T(), err)
 	logger.Infof("delete parent pvc")
 
+	// Get the PV name before deleting the PVC
+	parentPVName, err := k8sh.GetPVCVolumeName(defaultNamespace, pvcName)
+	assert.NoError(s.T(), err)
+
 	err = helper.BlockClient.DeletePVC(defaultNamespace, pvcName)
 	assertNoErrorUnlessNotFound(s, err)
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, pvcName))
+
+	// Wait for the PV to be deleted as well
+	assert.True(s.T(), retryPVCheck(k8sh, parentPVName, false, ""))
+	logger.Infof("parent PV %s deleted successfully", parentPVName)
 }
 
 func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, storageClassName, namespace string) {
@@ -204,9 +220,17 @@ func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *
 	require.NoError(s.T(), err)
 	logger.Infof("delete restore pvc")
 
+	// Get the PV name before deleting the PVC
+	restorePVName, err := k8sh.GetPVCVolumeName(defaultNamespace, restorePVCName)
+	assert.NoError(s.T(), err)
+
 	err = helper.BlockClient.DeletePVC(defaultNamespace, restorePVCName)
 	assertNoErrorUnlessNotFound(s, err)
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, restorePVCName))
+
+	// Wait for the PV to be deleted as well
+	assert.True(s.T(), retryPVCheck(k8sh, restorePVName, false, ""))
+	logger.Infof("restore PV %s deleted successfully", restorePVName)
 
 	// delete the snapshot
 	logger.Infof("delete snapshot")
@@ -220,9 +244,17 @@ func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *
 	require.NoError(s.T(), err)
 	logger.Infof("delete parent pvc")
 
+	// Get the PV name before deleting the PVC
+	parentPVName, err := k8sh.GetPVCVolumeName(defaultNamespace, pvcName)
+	assert.NoError(s.T(), err)
+
 	err = helper.BlockClient.DeletePVC(defaultNamespace, pvcName)
 	assertNoErrorUnlessNotFound(s, err)
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, pvcName))
+
+	// Wait for the PV to be deleted as well
+	assert.True(s.T(), retryPVCheck(k8sh, parentPVName, false, ""))
+	logger.Infof("parent PV %s deleted successfully", parentPVName)
 
 	logger.Infof("delete snapshotclass")
 
@@ -435,10 +467,23 @@ func createAndWaitForPVC(helper *clients.TestClient, k8sh *utils.K8sHelper, s *s
 
 func deleteBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterInfo *client.ClusterInfo, poolName, storageClassName, blockName string, requireBlockImagesRemoved bool) {
 	logger.Infof("deleteBlockLite: cleaning up after test")
+	// Get the PV name before deleting the PVC
+	pvName, err := k8sh.GetPVCVolumeName(defaultNamespace, blockName)
+	if err != nil {
+		logger.Warningf("failed to get PV name for PVC %s: %v", blockName, err)
+	}
+
 	// Delete pvc and storageclass
-	err := helper.BlockClient.DeletePVC(defaultNamespace, blockName)
+	err = helper.BlockClient.DeletePVC(defaultNamespace, blockName)
 	assertNoErrorUnlessNotFound(s, err)
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, blockName))
+
+	// Wait for the PV to be deleted as well
+	if pvName != "" {
+		assert.True(s.T(), retryPVCheck(k8sh, pvName, false, ""))
+		logger.Infof("PV %s deleted successfully", pvName)
+	}
+
 	if requireBlockImagesRemoved {
 		assert.NoError(s.T(), retryBlockImageCountCheck(helper, clusterInfo, 0), "Make sure block images were deleted")
 	}
