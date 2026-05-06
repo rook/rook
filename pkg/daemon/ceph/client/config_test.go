@@ -144,6 +144,122 @@ func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, lo
 	}
 }
 
+func TestMergeDefaultConfigWithRookConfigOverrideTrailingNewline(t *testing.T) {
+	ctx := context.TODO()
+	configDir := t.TempDir()
+	clientset := test.New(t, 3)
+	ns := "test-namespace"
+
+	clusterInfo := &ClusterInfo{
+		FSID:          "myfsid",
+		MonitorSecret: "monsecret",
+		Namespace:     ns,
+		InternalMonitors: map[string]*MonInfo{
+			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
+		},
+		CephCred: CephCred{Username: "admin", Secret: "mysecret"},
+		Context:  ctx,
+	}
+
+	t.Run("config without trailing newline", func(t *testing.T) {
+		context := &clusterd.Context{
+			ConfigDir: configDir,
+			Clientset: clientset,
+		}
+
+		// Create ConfigMap with config that does NOT end with a trailing newline
+		data := map[string]string{
+			"config": "[global]\nbdev_enable_discard = true\nbdev_async_discard = true",
+		}
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      k8sutil.ConfigOverrideName,
+				Namespace: ns,
+			},
+			Data: data,
+		}
+		_, err := clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		// Generate config file -- this should not error even without trailing newline
+		configFilePath, err := generateConfigFile(context, clusterInfo, configDir, filepath.Join(configDir, "mykeyring"), nil, nil)
+		assert.NoError(t, err)
+
+		// Read the generated config file and verify it ends with a newline
+		content, err := ini.Load(configFilePath)
+		assert.NoError(t, err)
+		verifyConfigValue(t, content, "global", "bdev_enable_discard", "true")
+		verifyConfigValue(t, content, "global", "bdev_async_discard", "true")
+
+		// Also verify the raw file content ends with a newline
+		rawContent, err := ini.Load(configFilePath)
+		assert.NoError(t, err)
+		assert.NotNil(t, rawContent)
+
+		// Clean up configmap for next test
+		_ = clientset.CoreV1().ConfigMaps(ns).Delete(ctx, k8sutil.ConfigOverrideName, metav1.DeleteOptions{})
+	})
+
+	t.Run("config with trailing newline", func(t *testing.T) {
+		configDir2 := t.TempDir()
+		context := &clusterd.Context{
+			ConfigDir: configDir2,
+			Clientset: clientset,
+		}
+
+		// Create ConfigMap with config that DOES end with a trailing newline
+		data := map[string]string{
+			"config": "[global]\nbdev_enable_discard = true\nbdev_async_discard = true\n",
+		}
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      k8sutil.ConfigOverrideName,
+				Namespace: ns,
+			},
+			Data: data,
+		}
+		_, err := clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		configFilePath, err := generateConfigFile(context, clusterInfo, configDir2, filepath.Join(configDir2, "mykeyring"), nil, nil)
+		assert.NoError(t, err)
+
+		content, err := ini.Load(configFilePath)
+		assert.NoError(t, err)
+		verifyConfigValue(t, content, "global", "bdev_enable_discard", "true")
+		verifyConfigValue(t, content, "global", "bdev_async_discard", "true")
+
+		// Clean up configmap for next test
+		_ = clientset.CoreV1().ConfigMaps(ns).Delete(ctx, k8sutil.ConfigOverrideName, metav1.DeleteOptions{})
+	})
+
+	t.Run("empty config does not cause error", func(t *testing.T) {
+		configDir3 := t.TempDir()
+		context := &clusterd.Context{
+			ConfigDir: configDir3,
+			Clientset: clientset,
+		}
+
+		// Create ConfigMap with empty config
+		data := map[string]string{
+			"config": "",
+		}
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      k8sutil.ConfigOverrideName,
+				Namespace: ns,
+			},
+			Data: data,
+		}
+		_, err := clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		configFilePath, err := generateConfigFile(context, clusterInfo, configDir3, filepath.Join(configDir3, "mykeyring"), nil, nil)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, configFilePath)
+	})
+}
+
 func verifyConfigValue(t *testing.T, actualConf *ini.File, section, key, expectedVal string) {
 	s, err := actualConf.GetSection(section)
 	if !assert.Nil(t, err) {
