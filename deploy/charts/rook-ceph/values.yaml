@@ -77,6 +77,9 @@ containerSecurityContext:
 # -- If true, loop devices are allowed to be used for osds in test clusters
 allowLoopDevices: false
 
+# -- If true, ceph mon pods will be run as root
+monRunAsRoot: false
+
 # -- If true, delete unused generated CRUSH rules after the mgr starts
 deleteUnusedCrushRules: true
 
