@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -51,6 +52,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -138,6 +140,18 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 	err = c.postMonStartupActions()
 	if err != nil {
 		return errors.Wrap(err, "failed to execute post actions after all the ceph monitors started")
+	}
+
+	// Before entering mgr creation, we must create at least one pool based on the default stretch rule
+	// Wait for the .mgr pool to be created, which we expect is defined as a CephBlockPool
+	log.NamespacedInfo(c.Namespace, logger, "waiting for the builtin .mgr pool to be created")
+	pollInterval := 5 * time.Second
+	totalWaitTime := 2 * time.Minute
+	err = wait.PollUntilContextTimeout(c.ClusterInfo.Context, pollInterval, totalWaitTime, true, func(ctx context.Context) (bool, error) {
+		return c.mons.BuiltinMgrPoolExists(), nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to wait for .mgr pool to be created")
 	}
 
 	// Start Ceph manager

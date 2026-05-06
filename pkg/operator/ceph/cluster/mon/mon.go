@@ -418,7 +418,7 @@ func (c *Cluster) ConfigureArbiter() error {
 	//  https://github.com/ceph/ceph/pull/61371
 	log.NamespacedInfo(c.Namespace, logger, "enabling stretch mode... waiting for the builtin .mgr pool to be created")
 	err = wait.PollUntilContextTimeout(c.ClusterInfo.Context, pollInterval, totalWaitTime, true, func(ctx context.Context) (bool, error) {
-		return c.builtinMgrPoolExists(), nil
+		return c.BuiltinMgrPoolExists(), nil
 	})
 	if err != nil {
 		return errors.Wrapf(err, "failed to wait for .mgr pool to be created before setting the stretch tiebreaker")
@@ -432,7 +432,7 @@ func (c *Cluster) ConfigureArbiter() error {
 	return nil
 }
 
-func (c *Cluster) builtinMgrPoolExists() bool {
+func (c *Cluster) BuiltinMgrPoolExists() bool {
 	_, err := cephclient.GetPoolDetails(c.context, c.ClusterInfo, ".mgr")
 
 	// If the call fails, either the pool does not exist or else there is some Ceph error.
