@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
@@ -606,15 +607,23 @@ func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
 	endpoint := getObjectStoreEndpoint(sc)
 	// if endpoint is present, let's introspect it
 	if endpoint != "" {
-		p.storeDomainName = cephutil.GetIPFromEndpoint(endpoint)
+		endpointHostPort := endpoint
+		p.storeUseTLS = false
+		if u, err := url.Parse(endpoint); err == nil && u.Scheme != "" {
+			if u.Scheme == "https" {
+				p.storeUseTLS = true
+			}
+			endpointHostPort = u.Host
+		}
+
+		p.storeDomainName = cephutil.GetIPFromEndpoint(endpointHostPort)
 		if p.storeDomainName == "" {
 			return errors.New("failed to discover endpoint IP (is empty)")
 		}
-		p.storePort = cephutil.GetPortFromEndpoint(endpoint)
+		p.storePort = cephutil.GetPortFromEndpoint(endpointHostPort)
 		if p.storePort == 0 {
 			return errors.New("failed to discover endpoint port (is empty)")
 		}
-		p.storeUseTLS = false
 		// If no endpoint exists let's see if CephObjectStore exists
 	} else {
 		if err := p.setObjectStoreDomainNameAndPort(sc); err != nil {
