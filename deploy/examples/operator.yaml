@@ -219,7 +219,6 @@ spec:
             - name: ROOK_CURRENT_NAMESPACE_ONLY
               value: "false"
 
-            # Experimental: The number of Ceph clusters to reconcile in parallel.
             # The default is 1, which means each cluster is reconciled sequentially within the operator.
             # When set to a value greater than 1, the operator can reconcile multiple clusters concurrently,
             # and all logging will be interleaved in the same operator log.
