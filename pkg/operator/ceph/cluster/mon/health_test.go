@@ -242,6 +242,11 @@ func TestScheduleFailoverImmediately(t *testing.T) {
 	assert.False(t, c.shouldFailoverMonImmediately((context.TODO()), "b"))
 	// mon c is assigned to a non-existent node, so it should failover immediately
 	assert.True(t, c.shouldFailoverMonImmediately((context.TODO()), "c"))
+	// Test that the function detects node deletion when called repeatedly
+	err = clientset.CoreV1().Nodes().Delete(context.TODO(), "a", metav1.DeleteOptions{})
+	assert.NoError(t, err)
+	// node a has been deleted, so mon a should failover immediately
+	assert.True(t, c.shouldFailoverMonImmediately((context.TODO()), "a"))
 }
 
 func TestTrackMonsOutOfQuorum(t *testing.T) {
