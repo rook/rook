@@ -1458,9 +1458,17 @@ func TestFloatingMonDeployment(t *testing.T) {
 	t.Run("resource limits applied", func(t *testing.T) {
 		c := newFloatingMonTestCluster(t, namespace)
 		c.spec.Resources = map[string]v1.ResourceRequirements{
-			"mon": {Limits: v1.ResourceList{
+			cephv1.ResourcesKeyMon: {Limits: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("500m"),
 				v1.ResourceMemory: resource.MustParse("2Gi"),
+			}},
+			cephv1.ResourcesKeyLogCollector: {Limits: v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("10m"),
+				v1.ResourceMemory: resource.MustParse("32Mi"),
+			}},
+			cephv1.ResourcesKeyFloatingMonShutDownApp: {Limits: v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("20m"),
+				v1.ResourceMemory: resource.MustParse("48Mi"),
 			}},
 		}
 		assert.NoError(t, c.startMon(m, nil))
@@ -1468,9 +1476,17 @@ func TestFloatingMonDeployment(t *testing.T) {
 		d, err := c.context.Clientset.AppsV1().Deployments(namespace).Get(c.ClusterInfo.Context, m.ResourceName, metav1.GetOptions{})
 		assert.NoError(t, err)
 		for _, ct := range d.Spec.Template.Spec.Containers {
-			if ct.Name == "mon" {
+			if ct.Name == cephv1.ResourcesKeyMon {
 				assert.Equal(t, "500m", ct.Resources.Limits.Cpu().String())
 				assert.Equal(t, "2Gi", ct.Resources.Limits.Memory().String())
+			}
+			if strings.Contains(ct.Name, "log") {
+				assert.Equal(t, "10m", ct.Resources.Limits.Cpu().String())
+				assert.Equal(t, "32Mi", ct.Resources.Limits.Memory().String())
+			}
+			if ct.Name == cephv1.ResourcesKeyFloatingMonShutDownApp {
+				assert.Equal(t, "20m", ct.Resources.Limits.Cpu().String())
+				assert.Equal(t, "48Mi", ct.Resources.Limits.Memory().String())
 			}
 		}
 	})

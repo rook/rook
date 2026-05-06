@@ -434,9 +434,13 @@ func (c *Cluster) makeFloatingMonDeployment(monConfig *monConfig) (*apps.Deploym
 
 	monResources := cephv1.GetMonResources(c.spec.Resources)
 	for i := range d.Spec.Template.Spec.Containers {
-		if d.Spec.Template.Spec.Containers[i].Name == "mon" {
+		switch d.Spec.Template.Spec.Containers[i].Name {
+		case cephv1.ResourcesKeyMon:
 			d.Spec.Template.Spec.Containers[i].Resources = monResources
-			break
+		case "log-collector":
+			d.Spec.Template.Spec.Containers[i].Resources = cephv1.GetLogCollectorResources(c.spec.Resources)
+		case cephv1.ResourcesKeyFloatingMonShutDownApp:
+			d.Spec.Template.Spec.Containers[i].Resources = cephv1.GetFloatingMonShutDownAppResources(c.spec.Resources)
 		}
 	}
 
