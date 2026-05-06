@@ -21,7 +21,11 @@ A disk corresponding to `osd.5` fails on a node where five HDD OSDs share one NV
 
 ## Constraints
 
-Two facts about the environment shape every later choice in this design.
+Three facts about the environment shape every later choice in this design.
+
+### Replacement is same-host
+
+The new disk must go to the same host as the destroyed OSD. The captured `metadataVG` is host-local, and the Prepare Job runs `ceph-volume lvm prepare --block.db /dev/<metadataVG>/...` against it. Cross-host replacement is permitted by Ceph but out of scope here.
 
 ### Rook cannot tell a replacement disk from a new disk
 
@@ -51,7 +55,7 @@ The replacement flow must validate the affected OSD's CR references beforehand s
 
 ## Current gaps
 
-Rook has no automated flow for replacing a failed OSD today. The closest existing primitive is the migration flow (`spec.storage.migration.confirmation`), which recreates OSDs in place after encryption or store-type spec changes: it destroys the OSD and re-prepares with `ceph-volume raw prepare --osd-id` via the `ROOK_REPLACE_OSD` env var. Migration only covers raw-mode OSDs; the shared-metadata case needs six additional fixes:
+Rook has no automated flow for replacing a failed OSD today. The closest existing primitive is the migration flow (`spec.storage.migration.confirmation`), which recreates OSDs in place after encryption or store-type spec changes: it destroys the OSD and re-prepares with `ceph-volume raw prepare --osd-id` via the `ROOK_REPLACE_OSD` env var. Migration only covers raw-mode OSDs; the shared-metadata case needs seven additional fixes:
 
 1. The replacement code path runs only in raw mode; LVM mode (required when a metadata device is configured) does not pass `--osd-id`, so the new OSD gets a new ID. (`initializeDevicesLVMMode`, [volume.go#L587-L847](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L587-L847))
 2. Destroy zaps only the data LV; the DB LV on the shared metadata disk stays as an orphan. (`DestroyOSD`, [remove.go#L244-L290](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/remove.go#L244-L290))
@@ -59,6 +63,7 @@ Rook has no automated flow for replacing a failed OSD today. The closest existin
 4. **The prepare-pod can't find a shared metadata disk once any OSD lives on it.** Rook's disk-discovery (`DiscoverDevicesWithFilter`, [disk.go#L97-L111](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/clusterd/disk.go#L97-L111)) skips any disk with `len(deviceChild) > 1` as a guard against claiming a user-partitioned disk. From the first OSD onward — encrypted or not — that count is ≥ 2 (parent + LV, plus crypt mapping if encrypted), so the filter triggers and the prepare-pod's `initializeDevicesLVMMode` errors with `metadata device <X> is not found`. Same root cause as upstream issues [#15868](https://github.com/rook/rook/issues/15868) and parts of [#17477](https://github.com/rook/rook/issues/17477).
 5. `OSDInfo.MetadataPath` is not populated by the prepare-job re-discovery path on LVM-mode OSDs (`GetCephVolumeLVMOSDs` walks only `[block]` entries from `ceph-volume lvm list`). The operator-side path (`getOSDInfo` at [osd.go#L748](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/osd.go#L748)) does populate it from `ROOK_METADATA_DEVICE` env, but anything that goes through re-discovery (a redeploy after CM loss) loses the field. ([volume.go#L1082-L1177](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L1082-L1177))
 6. The OSD deployment has no env carrying the DB LV's *source physical device* — only the LV path itself (`ROOK_METADATA_DEVICE`). At replacement time, the operator needs the source device to resolve the metadata VG and to identify the disk for the auto-provisioning skip. This design introduces a new `ROOK_METADATA_SOURCE_DEVICE` env, plumbed through the daemon-deployment spec.
+7. **No discover-only mode in the prepare-job.** The prepare-job conflates discovery and provisioning in a single sequential pass (`Provision`, [daemon.go#L159-L283](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/daemon.go#L159-L283)) — no way to inventory a node without auto-claiming any empty disks it finds. The replacement flow needs "scan but don't claim" so the empty replacement disk doesn't get auto-provisioned with a fresh ID before the operator can drive `ceph-volume lvm prepare --osd-id`. This design adds a `ROOK_DISCOVER_ONLY` mode to the prepare-job; the cluster controller passes it for nodes with an active `CephOSDReplace`.
 
 ## Proposed flow
 
@@ -181,7 +186,17 @@ The queue is implemented via a `Pending` phase. Each reconcile, the controller l
 
 > Extending CephCluster with a `spec.storage.replaceOSD` field needs no coordination logic — a single field admits only one in-flight replacement.
 
-In both shapes, the cluster controller's auto-provisioning must skip nodes with an active replacement — otherwise the empty replacement disk gets claimed with a fresh ID before the Prepare step can use it. Mechanism: the replacement controller publishes an `OSDReplacementInProgress` condition on `CephCluster.status` (with the affected node listed); the cluster controller's auto-provisioning reads this condition before spawning prepare-jobs. Without explicit trigger, Rook has no way to tell a replacement disk from a new disk (see [Constraints](#rook-cannot-tell-a-replacement-disk-from-a-new-disk)).
+#### Auto-provisioning skip
+
+The Rook cluster controller spawns the prepare-job, which by default auto-discovers devices and provisions new OSDs. To make the replacement flow work, the cluster controller must run the prepare-job in "discover only" mode on a node where a replacement is running — discovery happens, provisioning doesn't.
+
+In the existing cluster controller, add a gate before each `runPrepareJob` call in `startProvisioningOverNodes` ([create.go#L345](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/create.go#L345)): list `CephOSDReplace` CRs whose `rook.io/osd-replacement-node` label equals the current node; if any is in a non-terminal phase, launch the Job with `ROOK_DISCOVER_ONLY=true` in its env. The replacement controller stamps this label on its CR at creation, reading the node from the target OSD's deployment. It clears the label on transition to a terminal phase; the deletion finalizer is a backup.
+
+In discover-only mode, the prepare-job runs the same discovery code as a normal run (`DiscoverDevicesWithFilter` + `getAvailableDevices` at [daemon.go#L341](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/daemon.go#L341)) and writes the eligible-device list to the existing per-node status CM (`rook-ceph-osd-<node>-status`) — without running `lvm batch`.
+
+When the discovery DaemonSet is enabled (`ROOK_ENABLE_DISCOVERY_DAEMON=true`), `local-device-<node>` is updated on udev events with seconds latency. The replacement controller may watch that CM as a fast wake-up signal, but treats the discover-only status CM as authoritative — `local-device-<node>` is unfiltered (does not apply the cluster's `deviceFilter`/`useAllDevices`).
+
+> With the cluster-CR fallback (`spec.storage.replaceOSD` on CephCluster), the cluster controller reads its own spec field instead of listing CRs — same flag plumbing.
 
 #### Phase state machine
 
@@ -223,7 +238,7 @@ On creation, the CR enters `Pending` and waits for any in-flight replacement to 
 
 #### 2. Validate
 
-> **⚠️ Destroy is irreversible.** Once Validate passes, `osd.5` is destroyed on the next reconcile. If the user typed the wrong OSD ID, the wrong OSD is gone.
+> ** Destroy is irreversible.** Once Validate passes, `osd.5` is destroyed on the next reconcile. If the user typed the wrong OSD ID, the wrong OSD is gone.
 
 Run each reconcile cycle until all checks pass or one fails terminally:
 
@@ -271,7 +286,7 @@ After the Job completes, operator advances the record to `phase: Waiting`. The c
 
 #### 4. Wait for replacement disk
 
-Each reconcile of the CR, the controller checks if the replacement disk is visible on the node; if not, it requeues. Discovery uses Rook's existing paths — `rook-discover` (when enabled) for udev-event-driven updates, otherwise the operator's per-reconcile prepare-job inventory. The cluster controller skips auto-provisioning on the node while this CR is active (see [Coordination](#coordination)).
+Each reconcile of the CR, the controller checks if the replacement disk is visible by reading the per-node status CM (`rook-ceph-osd-<node>-status`, populated by the cluster controller's prepare-job in discover-only mode — see [Auto-provisioning skip](#auto-provisioning-skip)). If the empty replacement disk isn't there yet, requeue. When it appears, advance to `Preparing`.
 
 Timeout per `spec.diskWaitTimeout` (default 24h) → `Failed` with `reason=ReplacementDiskMissing`. After timeout, the user can either insert the disk and create a new CR for the same OSD ID, or delete the CR (osd stays destroyed; `ceph osd purge` to free the slot).
 
@@ -372,4 +387,6 @@ If the OSD's host is gone, this flow cannot proceed (the Destroy step requires t
    ```
 
    Should this be configurable, more permissive (user takes responsibility for any name), or stricter (reject `by-path` too)?
+
+7. **Cross-host replacement for non-shared-metadata OSDs.** Same-host is required by this design because the captured `metadataVG` lives on the original host. For OSDs without a metadata device  this argument doesn't apply. Ceph itself permits cross-host replacement: `ceph osd destroy` retains no host info; CRUSH auto-relocates the OSD on daemon start at the cost of full PG remapping. Should this flow be supported by Rook osd replacement?
 
