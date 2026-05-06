@@ -204,6 +204,7 @@ func (bp *BucketPolicy) ModifyBucketPolicy(ps ...PolicyStatement) *BucketPolicy 
 		for j, oldP := range bp.Statement {
 			if newP.Sid == oldP.Sid {
 				bp.Statement[j] = newP
+				match = true
 			}
 		}
 		if !match {
