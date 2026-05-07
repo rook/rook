@@ -55,8 +55,9 @@ Rook has no automated flow for replacing a failed OSD today. The closest existin
 
 1. `DestroyOSD` cleans up only the data LV. The DB LV on the shared metadata disk stays as an orphan, and the dm-crypt key in Ceph's config-key store is never removed (causing LUKS collisions on retry of encrypted OSDs). (`DestroyOSD`, [remove.go#L244-L290](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/remove.go#L244-L290))
 2. **The prepare-pod can't find a shared metadata disk once any OSD lives on it.** Rook's disk-discovery (`DiscoverDevicesWithFilter`, [disk.go#L97-L111](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/clusterd/disk.go#L97-L111)) skips any disk with `len(deviceChild) > 1` as a guard against claiming a user-partitioned disk. From the first OSD onward — encrypted or not — that count is ≥ 2 (parent + LV, plus crypt mapping if encrypted), so the filter triggers and the prepare-pod's `initializeDevicesLVMMode` errors with `metadata device <X> is not found`. Same root cause as upstream issues [#15868](https://github.com/rook/rook/issues/15868) and parts of [#17477](https://github.com/rook/rook/issues/17477).
-3. The OSD deployment has no env carrying the DB LV's *source physical device* — only the LV path itself (`ROOK_METADATA_DEVICE`). At replacement time, the operator needs the source device to resolve the metadata VG and to identify the disk for the auto-provisioning skip. This design introduces a new `ROOK_METADATA_SOURCE_DEVICE` env, plumbed through the daemon-deployment spec.
-4. **No discover-only mode in the prepare-job.** The prepare-job conflates discovery and provisioning in a single sequential pass (`Provision`, [daemon.go#L159-L283](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/daemon.go#L159-L283)) — no way to inventory a node without auto-claiming any empty disks it finds. The replacement flow needs "scan but don't claim" so the empty replacement disk doesn't get auto-provisioned with a fresh ID before the operator can drive `ceph-volume lvm prepare --osd-id`. This design adds a `ROOK_DISCOVER_ONLY` mode to the prepare-job; the cluster controller passes it for nodes with an active `CephOSDReplace`.
+3. **`ROOK_METADATA_DEVICE` is empty in OSD deployments.** `GetCephVolumeLVMOSDs` ([volume.go#L1082-L1182](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L1082-L1182)) constructs `OSDInfo` without setting `MetadataPath`, so the deployment env is empty. The replacement flow's env-first capture path needs `MetadataPath` populated.
+4. The OSD deployment has no env carrying the DB LV's *source physical device* — only the LV path itself (`ROOK_METADATA_DEVICE`). At replacement time, the operator needs the source device to resolve the metadata VG and to identify the disk for the auto-provisioning skip. This design introduces a new `ROOK_METADATA_SOURCE_DEVICE` env, plumbed through the daemon-deployment spec.
+5. **No discover-only mode in the prepare-job.** The prepare-job conflates discovery and provisioning in a single sequential pass (`Provision`, [daemon.go#L159-L283](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/daemon.go#L159-L283)) — no way to inventory a node without auto-claiming any empty disks it finds. The replacement flow needs "scan but don't claim" so the empty replacement disk doesn't get auto-provisioned with a fresh ID before the operator can drive `ceph-volume lvm prepare --osd-id`. This design adds a `ROOK_DISCOVER_ONLY` mode to the prepare-job; the cluster controller passes it for nodes with an active `CephOSDReplace`.
 
 ## Proposed flow
 
@@ -76,6 +77,7 @@ sequenceDiagram
 
     User->>CR: create CR with osd id 5
     Op->>CR: read CR
+    Note over Op: Pending phase elided — see Coordination
     Op->>CR: write phase=Validating
     Op->>Ceph: ceph osd dump (validate exists, get fsid)
     Op->>CR: write phase=Waiting
@@ -132,10 +134,12 @@ kind: CephOSDReplace
 metadata:
   name: replace-osd-5
   namespace: rook-ceph
+  labels:
+    rook.io/osd-replacement-node: node-1       # operator-managed; equals the target OSD's host node
 spec:
   cephCluster: my-cluster                      # immutable; target cluster in this namespace
   osdId: 5                                     # immutable
-  confirmation: yes-really-replace-osd-5       # must equal "yes-really-replace-osd-{osdId}"; typo guard against destroying the wrong OSD
+  confirmation: yes-really-replace-osd-5       # must equal "yes-really-replace-osd-{osdId}"; copy-paste guard against operating on the wrong OSD
   autoOut: false                               # optional; if true, operator marks healthy OSD `out` automatically (during Replacing). Default: false (fail-fast on up+in at Validating)
   safeToDestroyTimeout: 1h                     # optional; how long Replacing tolerates EBUSY on safe-to-destroy before Failed. Default: 1h
   diskWaitTimeout: 24h                         # optional; how long Waiting tolerates a missing disk before Failed. Default: 24h
@@ -154,8 +158,8 @@ status:
   osdInfo:
     node: node-1                                          # OSD deployment NodeSelector; survives the deployment delete
     dataLV: /dev/ceph-data-vg-5/osd-block-aaa...          # OSD deployment env ROOK_BLOCK_PATH
-    dbLV: /dev/ceph-metadata-vg-1/osd-db-bbb...           # OSD deployment env ROOK_METADATA_DEVICE; absent for raw-mode OSDs
-    metadataSourceDevice: /dev/vdd                        # new env ROOK_METADATA_SOURCE_DEVICE (added by this design); absent for raw-mode OSDs
+    dbLV: /dev/ceph-metadata-vg-1/osd-db-bbb...           # OSD deployment env ROOK_METADATA_DEVICE (populated by gap #3 fix)
+    metadataSourceDevice: /dev/vdd                        # new env ROOK_METADATA_SOURCE_DEVICE (added by this design)
     metadataVG: ceph-metadata-vg-1                        # from `pvs --noheadings -o vg_name <metadataSourceDevice>` on the OSD's host (metadata device must still be readable)
     crushDeviceClass: hdd                                 # OSD deployment env ROOK_OSD_CRUSH_DEVICE_CLASS
     databaseSizeMB: 1500                                  # from `ceph-volume lvm list --format json` lv_size (bytes) / 1048576
@@ -185,7 +189,7 @@ The Rook cluster controller spawns the prepare-job, which by default auto-discov
 
 In the existing cluster controller, add a gate before each `runPrepareJob` call in `startProvisioningOverNodes` ([create.go#L345](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/create.go#L345)): list `CephOSDReplace` CRs whose `rook.io/osd-replacement-node` label equals the current node; if any is in a non-terminal phase, launch the Job with `ROOK_DISCOVER_ONLY=true` in its env. The replacement controller stamps this label on its CR at creation, reading the node from the target OSD's deployment. It clears the label on transition to a terminal phase; the deletion finalizer is a backup.
 
-In discover-only mode, the prepare-job runs the same discovery code as a normal run (`DiscoverDevicesWithFilter` + `getAvailableDevices` at [daemon.go#L341](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/daemon.go#L341)) and writes the eligible-device list to the existing per-node status CM (`rook-ceph-osd-<node>-status`) and stops without provisioning.
+In discover-only mode, the prepare-job runs the same discovery code as a normal run (`DiscoverDevicesWithFilter` + `getAvailableDevices`) and writes the eligible-device list to the existing per-node status CM (`rook-ceph-osd-<node>-status`) and stops without provisioning.
 
 The optional discovery DaemonSet (`ROOK_ENABLE_DISCOVERY_DAEMON=true`) only inventories devices; it doesn't provision. When enabled, it updates `local-device-<node>` on udev events with seconds latency. The replacement controller may watch that CM as a fast wake-up signal, but treats the discover-only status CM as authoritative — `local-device-<node>` is unfiltered (does not apply the cluster's `deviceFilter`/`useAllDevices`).
 
@@ -241,28 +245,31 @@ If `spec.diskWaitTimeout` (default 24h) is exceeded, transitions to `Failed` wit
 
 2. **Wait for `safe-to-destroy` OK.** `ceph osd safe-to-destroy <id>` returns OK only after the OSD is fully drained from every PG's acting set. Requeued until OK. If `spec.safeToDestroyTimeout` (default 1h) is exceeded, transitions to `Failed` with `reason=NotSafeToDestroy`.
 
-3. **Capture OSDInfo.** Full details are in [CRD proposal](#crd-proposal). Most fields come from the OSD deployment's env. Two come off the host:
+3. **Capture OSDInfo.** Full details are in [CRD proposal](#crd-proposal). Most fields come from the OSD deployment's env. Two come off the host, via a one-shot privileged Job on the target node (same pod scaffold as the Replace Job):
 
    ```bash
    # databaseSizeMB and encrypted — lv_size and tags.ceph.encrypted from the OSD's DB LV:
    ceph-volume lvm list /dev/<metadataVG>/osd-db-<dbUuid> --format json
 
-   # metadataSourceDevice — devices[0] of the db entry - fallback for older OSDs missing ROOK_METADATA_SOURCE_DEVICE:
-   ceph-volume lvm list --format json   # runs on the OSD's node
+   # metadataSourceDevice — devices[0] of the db entry; fallback for older OSDs missing ROOK_METADATA_SOURCE_DEVICE:
+   ceph-volume lvm list --format json
    ```
 
 4. **Delete OSD deployment.** The operator calls `k8sutil.DeleteDeployment` ([`deployment.go#L388`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/k8sutil/deployment.go#L388)) on `rook-ceph-osd-5` and polls until the pod is gone.
 
-5. **Replace Job.** A single short-lived Job runs the destroy + prepare bash sequence in one container. The pod scaffold (volumes, security context, init containers, `DM_DISABLE_UDEV=1`) is reused from `c.provisionPodTemplateSpec`; without `DM_DISABLE_UDEV=1` `lvcreate`/`cryptsetup` hangs in `udev_wait` and `ceph-volume lvm prepare` fails with `RADOS permission denied`. The new DB LV's UUID is generated by the operator at Job creation and passed via env.
+5. **Replace Job.** A single short-lived Job runs the destroy + prepare bash sequence in one container. The pod scaffold is reused from `provisionPodTemplateSpec` (the cluster controller's existing prepare-job pod scaffold), which carries two settings the Job needs: `DM_DISABLE_UDEV=1` prevents `lvcreate`/`cryptsetup` from hanging in `udev_wait`, and the `cephx-keyring-update` init container provides a fresh `bootstrap-osd` keyring so `ceph-volume lvm prepare` doesn't fail with `RADOS permission denied`. The new DB LV's UUID is generated by the operator at Job creation and passed via env.
 
    The container's command:
 
 ```bash
+set -euo pipefail
+
 # Re-check safe-to-destroy (insurance against races between phase transition and Job start).
 ceph osd safe-to-destroy 5
 
-# Destroy in Ceph (preserves OSD ID 5 for reuse).
-ceph osd destroy osd.5 --yes-i-really-mean-it
+# Destroy in Ceph (preserves OSD ID 5 for reuse). Idempotent on retry.
+ceph osd dump --format json | jq -e '.osds[] | select(.osd==5) | .state | contains(["destroyed"])' >/dev/null \
+  || ceph osd destroy osd.5 --yes-i-really-mean-it
 
 # Remove dm-crypt key (no-op on Ceph v19+; defensive for older versions).
 ceph config-key exists dm-crypt/osd/<osdFsid>/luks \
@@ -314,7 +321,7 @@ Cancel = delete the `CephOSDReplace` CR; a finalizer runs any cleanup needed.
 **Replacing — best-effort, deferred.** Once `Replacing` begins, the operator commits to running through to a terminal phase. Cancel intent is recorded but not acted on mid-flow:
 
 - If the Replace Job is in flight, the operator lets it complete. `ceph-volume lvm prepare` cannot be safely interrupted mid-call (partial dm-crypt + half-LUKS LV).
-- On Job failure, the finalizer cleans up any partially-allocated DB LV and removes the CR.
+- On Job failure, the finalizer spawns a one-shot cleanup Job on the target node (same pod scaffold) to remove any partially-allocated DB LV before removing the CR.
 - On Job success, cancel is not honored — the new OSD joins the cluster.
 
 ## Notes on Scope
