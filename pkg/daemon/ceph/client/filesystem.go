@@ -525,7 +525,7 @@ func listSubVolumeSnapshotPendingClones(context *clusterd.Context, clusterInfo *
 	}
 
 	if err := json.Unmarshal(buf, &pendingClones); err != nil {
-		return pendingClones, errors.Wrapf(err, "failed to unmarshal pending clones list for for snapshot %q in filesystem %q subvolume group %q", snap, fsName, groupName)
+		return pendingClones, errors.Wrapf(err, "failed to unmarshal pending clones list for snapshot %q in filesystem %q subvolume group %q", snap, fsName, groupName)
 	}
 
 	return pendingClones, nil
