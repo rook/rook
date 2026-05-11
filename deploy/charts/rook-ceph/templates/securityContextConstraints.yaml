@@ -19,7 +19,7 @@ allowHostNetwork: false
 allowHostPorts: false
 {{- end }}
 priority:
-allowedCapabilities: ["MKNOD"]
+allowedCapabilities: ["MKNOD", "SYS_ADMIN"]
 allowHostIPC: true
 readOnlyRootFilesystem: false
 # drop all default privileges
