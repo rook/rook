@@ -397,7 +397,8 @@ func TestCleanupUnusedCrushRules(t *testing.T) {
 				{"rule_name":"mypool_zone","steps":[{},{"type":"zone"}]},
 				{"rule_name":"mypool_zone_ssd","steps":[{},{"type":"zone","item_name":"default~ssd"}]},
 				{"rule_name":"shared_rule","steps":[{"item_name":"default"},{"type":"host"}]},
-				{"rule_name":"custom_rule","steps":[{"item_name":"default"},{"type":"zone"}]}
+				{"rule_name":"custom_rule","steps":[{"item_name":"default"},{"type":"zone"}]},
+				{"rule_name":"replicated_rule","steps":[{"item_name":"default"},{"type":"host"}]}
 			]}`, nil
 		}
 		if command == "ceph" && args[1] == "crush" && args[2] == "rule" && args[3] == "rm" {
@@ -413,6 +414,28 @@ func TestCleanupUnusedCrushRules(t *testing.T) {
 	slices.Sort(removedRules)
 	expected := []string{"custom_rule", "mypool", "mypool_zone"}
 	assert.Equal(t, expected, removedRules)
+	assert.NotContains(t, removedRules, "replicated_rule")
+}
+
+func TestCleanupUnusedCrushRulesNoPools(t *testing.T) {
+	removedRules := []string{}
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if command == "ceph" && args[1] == "lspools" {
+			return `[]`, nil
+		}
+		if command == "ceph" && args[1] == "crush" && args[2] == "rule" && args[3] == "rm" {
+			removedRules = append(removedRules, args[4])
+			return "", nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	err := CleanupUnusedCrushRules(context, AdminTestClusterInfo("mycluster"))
+	assert.NoError(t, err)
+	assert.Empty(t, removedRules)
 }
 
 func TestExtractPoolDetails(t *testing.T) {
