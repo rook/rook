@@ -23,7 +23,7 @@ A disk corresponding to `osd.5` fails on a node where five HDD OSDs share one NV
 
 ### Replacement is same-host
 
-The new disk must go to the same host as the destroyed OSD: the DB slot freed by destroying the old OSD lives on a metadata device attached to that host, and the replacement OSD's DB must reuse it. Cross-host replacement is permitted by Ceph but out of scope here.
+The new disk must go to the same host as the destroyed OSD: the DB LV reused by the replacement lives on a metadata device attached to that host. Cross-host replacement is permitted by Ceph but out of scope here.
 
 ### Rook cannot tell a replacement disk from a new disk
 
@@ -98,15 +98,13 @@ sequenceDiagram
     J->>Ceph: safe-to-destroy 5 (re-check)
     J->>Ceph: ceph osd destroy osd.5
     J->>Ceph: config-key rm dm-crypt key (if encrypted)
-    J->>J: cryptsetup close db mapping (if encrypted)
-    J->>J: lvremove db lv
-    J->>J: ceph-volume lvm zap data lv
-    J->>J: lvcreate new db lv
-    J->>Ceph: ceph-volume lvm prepare --osd-id 5
+    J->>J: ceph-volume lvm zap db lv (in place; closes dm-crypt + wipes LUKS + clears tags)
+    J->>J: ceph-volume lvm zap data lv --destroy
+    J->>Ceph: ceph-volume lvm prepare --osd-id 5 --block.db <same db lv path>
     J->>J: write new OSD info to per-node status CM
     J-->>-Op: Succeeded
     create participant NewPod as New OSD pod
-    Op->>NewPod: create deployment (id=5, dataLV, new dbLV, encrypted)
+    Op->>NewPod: create deployment (id=5, dataLV, dbLV, encrypted)
     NewPod->>Ceph: join cluster
     Op->>Ceph: ceph osd metadata 5 until Ready
     Op->>CR: phase=Completed
@@ -161,10 +159,7 @@ status:
     node: node-1                                          # OSD deployment NodeSelector (operator reads via K8s API)
     dataLV: /dev/ceph-data-vg-5/osd-block-aaa...          # OSD deployment env ROOK_BLOCK_PATH
     dbLV: /dev/ceph-metadata-vg-1/osd-db-bbb...           # `[db].lv_path` from `ceph-volume lvm list` (Capture Job)
-    metadataSourceDevice: /dev/vdd                        # `[db].devices[0]` from `ceph-volume lvm list` (Capture Job)
-    metadataVG: ceph-metadata-vg-1                        # `[db].vg_name` from `ceph-volume lvm list` (Capture Job)
     crushDeviceClass: hdd                                 # OSD deployment env ROOK_OSD_CRUSH_DEVICE_CLASS
-    databaseSizeMB: 1500                                  # `[db].lv_size` (bytes) / 1048576 from `ceph-volume lvm list` (Capture Job)
     encrypted: true                                       # `[db].tags.ceph.encrypted` from `ceph-volume lvm list` (Capture Job)
     osdFsid: 07bb0602-5e27-4fcc-86b1-c1faa0bc20ac         # `ceph osd dump`: `.osds[id=].uuid` (operator via mon)
 
@@ -250,66 +245,59 @@ If `spec.diskWaitTimeout` (default 24h) is exceeded, transitions to `Failed` wit
 3. **Capture OSDInfo.** Field sources (full schema in [CRD proposal](#crd-proposal)):
 
    - `node`, `dataLV`, `crushDeviceClass`: from the OSD deployment env, read by the operator via the K8s API.
-   - `dbLV`, `metadataVG`, `metadataSourceDevice`, `databaseSizeMB`, `encrypted`: from `ceph-volume lvm list --format json`'s `[db]` entry. Host-only call, run by a **Capture Job** the operator spawns on the target node. The Job assumes the metadata device is still readable from the target node; if it has failed too, replacement cannot proceed. The Job writes captured fields to a per-replacement ConfigMap named `rook-ceph-osd-replace-<crName>`, owned by the `CephOSDReplace` CR (cascade-deleted on CR delete) and kept for the CR's lifetime. The operator waits for Job success, reads the CM, and copies fields to `.status.osdInfo` before proceeding to step 4 below.
+   - `dbLV`, `encrypted`: from `ceph-volume lvm list --format json`'s `[db]` entry. Host-only call, run by a **Capture Job** the operator spawns on the target node. The Job assumes the metadata device is still readable from the target node; if it has failed too, replacement cannot proceed. The Job writes captured fields to a per-replacement ConfigMap named `rook-ceph-osd-replace-<crName>`, owned by the `CephOSDReplace` CR (cascade-deleted on CR delete) and kept for the CR's lifetime. The operator waits for Job success, reads the CM, and copies fields to `.status.osdInfo` before proceeding to step 4 below.
    - `osdFsid`: from `ceph osd dump --format json` run by the operator via its mon connection.
 
    Jobs spawned at this and later steps use a deterministic name including an attempt counter (e.g., `rook-ceph-osd-replace-<crName>-capture-<n>`, `-replace-<n>`) to avoid name collisions on retry; the operator increments `<n>` on each spawn after a prior attempt's terminal status.
 
 4. **Delete OSD deployment.** The operator calls `k8sutil.DeleteDeployment` ([`deployment.go#L388`](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/k8sutil/deployment.go#L388)) on `rook-ceph-osd-5` and polls until the pod is gone.
 
-5. **Replace Job.** Built on the existing prepare-job pattern (same one the OSD migration flow uses): a new rook subcommand on the prepare-job's pod scaffold (`provisionPodTemplateSpec`) runs the destroy + prepare bash sequence. The new DB LV's UUID is generated by the operator at Job creation and passed via env.
+5. **Replace Job.** Built on the existing prepare-job pattern (same one the OSD migration flow uses): a new rook subcommand on the prepare-job's pod scaffold (`provisionPodTemplateSpec`) runs the destroy + prepare bash sequence. The Job's env carries the captured `osdInfo` fields plus the new data-device path from the per-node inventory CM.
 
    The container's command:
 
 ```bash
 set -euo pipefail
 
-# Skip safe-to-destroy + destroy if osd.5 is already destroyed (idempotent on Job retry).
+# Placeholders below match osdInfo field names:
+# <osdId>, <osdFsid>, <dbLV>, <dataLV>, <crushDeviceClass>, plus <newDataDevice>
+# (the path the operator picked up from the per-node inventory CM during Wait).
+
+# Skip safe-to-destroy + destroy if the OSD is already destroyed (idempotent on Job retry).
 already_destroyed() {
   ceph osd dump --format json | python3 -c "
 import sys, json
 osds = json.load(sys.stdin).get('osds', [])
-o = next((o for o in osds if o.get('osd') == 5), None)
+o = next((o for o in osds if o.get('osd') == <osdId>), None)
 sys.exit(0 if o and 'destroyed' in (o.get('state') or []) else 1)
 "
 }
 
 if ! already_destroyed; then
   # Re-check safe-to-destroy (insurance against races between phase transition and Job start).
-  ceph osd safe-to-destroy 5
-  # Destroy in Ceph (preserves OSD ID 5 for reuse).
-  ceph osd destroy osd.5 --yes-i-really-mean-it
+  ceph osd safe-to-destroy <osdId>
+  # Destroy in Ceph (preserves the OSD ID for reuse).
+  ceph osd destroy osd.<osdId> --yes-i-really-mean-it
 fi
 
 # Remove dm-crypt key (no-op on Ceph v19+; defensive for older versions).
 ceph config-key exists dm-crypt/osd/<osdFsid>/luks \
   && ceph config-key rm dm-crypt/osd/<osdFsid>/luks
 
-# Close DB-side LUKS mapping.
-DB_MAPPING=$(lsblk -nlo NAME,TYPE /dev/ceph-metadata-vg-1/osd-db-<dbUuid> | awk '$2=="crypt"{print $1; exit}')
-[ -n "$DB_MAPPING" ] && cryptsetup status "$DB_MAPPING" >/dev/null 2>&1 \
-  && cryptsetup close "$DB_MAPPING"
+# Wipe the existing DB LV in place; idempotent on a wiped LV.
+ceph-volume lvm zap <dbLV>
 
-# Free the DB slot.
-lvs /dev/ceph-metadata-vg-1/osd-db-<dbUuid> >/dev/null 2>&1 \
-  && lvremove -f /dev/ceph-metadata-vg-1/osd-db-<dbUuid>
+# `zap --destroy` errors on a missing LV, so guard with `lvs` for retry-safety.
+lvs <dataLV> >/dev/null 2>&1 \
+  && ceph-volume lvm zap <dataLV> --destroy
 
-# Zap the data LV (also handles the data-side dm-crypt mapping).
-lvs /dev/ceph-data-vg-5/osd-block-<dataUuid> >/dev/null 2>&1 \
-  && ceph-volume lvm zap /dev/ceph-data-vg-5/osd-block-<dataUuid> --destroy
-
-# Pre-allocate the new DB LV; skip if it already exists (retry-safe).
-lvs /dev/ceph-metadata-vg-1/osd-db-12cf3a91-... >/dev/null 2>&1 \
-  || lvcreate -L 1500M -n osd-db-12cf3a91-... ceph-metadata-vg-1 --wipesignatures y
-
-# Provision the new OSD with the preserved ID. --dmcrypt only when the record's
-# `encrypted` field is true.
+# Provision the new OSD with the preserved ID, reusing the zapped DB LV.
 ceph-volume lvm prepare \
   --bluestore [--dmcrypt] \
-  --osd-id 5 \
-  --data /dev/vdh \
-  --block.db /dev/ceph-metadata-vg-1/osd-db-12cf3a91-... \
-  --crush-device-class hdd
+  --osd-id <osdId> \
+  --data <newDataDevice> \
+  --block.db <dbLV> \
+  --crush-device-class <crushDeviceClass>
 ```
 
    The Job writes the new OSD's info to `rook-ceph-osd-<node>-status` (the per-node CM Rook already uses to drive daemon creation).
@@ -331,7 +319,7 @@ Cancel = delete the `CephOSDReplace` CR; a finalizer runs any cleanup needed.
 **Replacing — best-effort, deferred.** Once `Replacing` begins, the operator commits to running through to a terminal phase. Cancel intent is recorded but not acted on mid-flow:
 
 - If the Replace Job is in flight, the operator lets it complete. `ceph-volume lvm prepare` cannot be safely interrupted mid-call (partial dm-crypt + half-LUKS LV).
-- On Job failure, the finalizer spawns a one-shot cleanup Job on the target node (same pod scaffold) to remove any partially-allocated DB LV before removing the CR.
+- On Job failure, the operator retries the Replace Job with an incremented attempt counter (`…-replace-<n>`). The destroy and zap sub-steps are idempotent; recovery from a crash mid-`lvm prepare` (partial VG on the new disk) is an implementation detail. The finalizer removes the CR only after the Job reaches a terminal phase.
 - On Job success, cancel is not honored — the new OSD joins the cluster.
 
 ## Notes on Scope
@@ -352,10 +340,14 @@ nodes:
     config: { metadataDevice: "nvme1n1" }   # different metadata device on the same node
 ```
 
-This setup requires exact `name:` (or `fullpath:`) references — the per-device `config:` block can only be attached to a specific device entry, not to a regex match. Replacement of a single OSD on this setup works structurally (each OSD's `metadataSourceDevice` is captured in its `osdInfo` at destroy time), with two caveats:
+This setup requires exact `name:` (or `fullpath:`) references — the per-device `config:` block can only be attached to a specific device entry, not to a regex match. Replacement of a single OSD on this setup works structurally (each OSD's `dbLV` path encodes the metadata VG, which sits on exactly one physical device — so the replacement targets the correct metadata device by construction), with two caveats:
 
 - **Device-name validation must permit exact entries** — see [open question 6](#open-questions).
 - **Same-slot replacement is required** — `by-path` resolves only when the new disk is in the original slot. Different-slot replacement stalls in the Wait step.
+
+### Non-shared-metadata OSDs — same CRD, simpler bash
+
+The flow naturally covers OSDs without a separate metadata device — single-disk LVM-mode OSDs and `ceph-volume raw` OSDs. `osdInfo.dbLV` is empty for these cases, the Replace Job skips the DB-LV zap step and the `--block.db` arg, and the prepare call simplifies to `ceph-volume {lvm,raw} prepare --osd-id <id> --data <new-disk> [--dmcrypt] --crush-device-class <class>`. The CV mode (lvm vs raw) is already tracked in Rook's existing `OSDInfo`. Implementation may branch the Replace Job bash on `osdInfo.dbLV == ""` and on CV mode; the rest of the flow (CRD, state machine, Capture Job, auto-provisioning skip, Replace Job scaffold) is shared.
 
 ### PVC-based OSD replacement — separate design
 
@@ -387,6 +379,6 @@ PVC-backed OSDs use a different code path (raw mode via `GetCephVolumeRawOSDs`, 
 
    Should this be configurable, more permissive (user takes responsibility for any name), or stricter (reject `by-path` too)?
 
-7. **Cross-host replacement for non-shared-metadata OSDs.** Same-host is required by this design because the captured `metadataVG` lives on the original host. For OSDs without a metadata device this argument doesn't apply. Ceph itself permits cross-host replacement: `ceph osd destroy` retains no host info; CRUSH auto-relocates the OSD on daemon start at the cost of full PG remapping. Should this flow be supported by Rook osd replacement?
+7. **Cross-host replacement for non-shared-metadata OSDs.** Same-host is required by this design because the captured `dbLV` lives on the original host's metadata VG. For OSDs without a metadata device this argument doesn't apply. Ceph itself permits cross-host replacement: `ceph osd destroy` retains no host info; CRUSH auto-relocates the OSD on daemon start at the cost of full PG remapping. Should this flow be supported by Rook osd replacement?
 
 8. **Combine Capture and Replace into one Job.** The Capture step currently runs as a separate Job before the Replace Job. It could be merged into the Replace Job's first commands, with intermediate state persisted to a per-replacement ConfigMap (mirroring the prepare-job's CM hand-off pattern) so the Job remains retry-idempotent: on retry the Job reads the CM if present and skips re-capture, then proceeds with destroy + prepare. Saves one Job spawn per replacement; adds a CM-check branch at the top of the Job's bash and a CM-write helper invocation.
