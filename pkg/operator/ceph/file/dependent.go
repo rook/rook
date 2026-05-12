@@ -60,7 +60,7 @@ func filesystemExists(clusterdCtx *clusterd.Context, clusterInfo *cephclient.Clu
 	_, err := cephclient.GetFilesystem(clusterdCtx, clusterInfo, name)
 	if err != nil {
 		if code, ok := kexec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
-			log.NamedInfo(nsName, logger, "filesystem deletion will continue without checking for dependencies since the the filesystem does not exist within Ceph")
+			log.NamedInfo(nsName, logger, "filesystem deletion will continue without checking for dependencies since the filesystem does not exist within Ceph")
 			return false, nil
 		}
 		return false, errors.Wrapf(err, "failed to check for existence of CephFilesystem %q", nsName)

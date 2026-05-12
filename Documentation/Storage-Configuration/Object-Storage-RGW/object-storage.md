@@ -684,7 +684,7 @@ The Ceph Object Gateway supports accessing buckets using
 [virtual host-style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html)
 addressing, which allows addressing buckets using the bucket name as a subdomain in the endpoint.
 
-AWS has deprecated the the alternative path-style addressing mode which is Rook and Ceph's default.
+AWS has deprecated the alternative path-style addressing mode which is Rook and Ceph's default.
 As a result, many end-user applications have begun to remove path-style support entirely. Many
 production clusters will have to enable virtual host-style address.
 
