@@ -607,6 +607,15 @@ func CleanupUnusedCrushRules(context *clusterd.Context, clusterInfo *ClusterInfo
 		return err
 	}
 
+	// Skip cleanup when no pools exist yet. During initial cluster setup, this function
+	// runs after MGR startup but before pools are created. Deleting the default
+	// "replicated_rule" in this window leaves the cluster with zero CRUSH rules, causing
+	// Ceph internal modules (e.g. devicehealth) to crash when they try to create pools.
+	if len(usedRules) == 0 {
+		logger.Infof("no crush rules are in use yet, skipping cleanup")
+		return nil
+	}
+
 	crushMap, err := GetCrushMap(context, clusterInfo)
 	if err != nil {
 		return err
@@ -616,6 +625,10 @@ func CleanupUnusedCrushRules(context *clusterd.Context, clusterInfo *ClusterInfo
 	for _, rule := range crushMap.Rules {
 		if _, inUse := usedRules[rule.Name]; inUse {
 			logger.Debugf("crush rule %q is still in use", rule.Name)
+			continue
+		}
+		if rule.Name == "replicated_rule" {
+			logger.Debugf("skipping deletion of default crush rule %q", rule.Name)
 			continue
 		}
 		logger.Infof("crush rule %q is unused and will be deleted", rule.Name)
