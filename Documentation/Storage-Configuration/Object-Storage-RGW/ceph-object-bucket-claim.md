@@ -108,7 +108,7 @@ OBCs in unexpected ways. At worst, users may brick the whole S3 object store for
 (`bucketPolicy` in particular). Administrators should take care to enable features only when they
 are personally willing to take on the risks.
 
-OBC `additionalConfig` fields can be enabled and disabled using the the `rook-ceph-operator-config`
+OBC `additionalConfig` fields can be enabled and disabled using the `rook-ceph-operator-config`
 configmap value `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS`.
 
 ### OBC Custom Resource after Bucket Provisioning

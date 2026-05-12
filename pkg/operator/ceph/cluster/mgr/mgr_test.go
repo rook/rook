@@ -348,7 +348,7 @@ func TestUpdateServiceSelectors(t *testing.T) {
 		_, err2 := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(clusterInfo.Context, &svc2, metav1.CreateOptions{})
 		assert.NoError(t, err2)
 
-		// Check the the label has been only removed from svc1
+		// Check the label has been only removed from svc1
 		c.updateServiceSelectors()
 
 		// Make sure we remove controller.DaemonIDLabel label from all services tagged as 'app: rook-ceph-mgr'

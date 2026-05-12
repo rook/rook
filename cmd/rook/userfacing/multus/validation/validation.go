@@ -109,7 +109,7 @@ func init() {
 			"The namespace for validation test resources. "+
 				"It is recommended to set this to the namespace in which Rook's Ceph cluster will be installed.")
 
-		// VarPF() keeps the the specific var passed to it for setting at runtime, and the current
+		// VarPF() keeps the specific var passed to it for setting at runtime, and the current
 		// val of that var when VarPF() is called is used as the default
 		validationConfig.ResourceTimeout = defaultConfig.ResourceTimeout
 		t := (*timeoutMinutes)(&validationConfig.ResourceTimeout)
