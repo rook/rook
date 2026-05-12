@@ -223,7 +223,7 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 		}
 		c.Executor = executor
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{})
 		// Create a ReconcileCephFilesystemSubVolumeGroup object with the scheme and fake client.
 		r = &ReconcileCephFilesystemSubVolumeGroup{
 			client:           cl,
@@ -232,8 +232,6 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 			opManagerContext: ctx,
 		}
 
-		// Enable CSI
-		csi.EnableRBD = true
 		t.Setenv("POD_NAMESPACE", namespace)
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
@@ -251,11 +249,8 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 		assert.NotEmpty(t, cephFilesystemSubVolumeGroup.Status.Info["clusterID"])
 
 		// test that csi configmap is created
-		cm, err := c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
+		_, err = c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
 		assert.NoError(t, err)
-		assert.NotEmpty(t, cm.Data[csi.ConfigKey])
-		assert.Contains(t, cm.Data[csi.ConfigKey], "clusterID")
-		assert.Contains(t, cm.Data[csi.ConfigKey], "group-a")
 		err = c.Clientset.CoreV1().ConfigMaps(namespace).Delete(ctx, csi.ConfigName, metav1.DeleteOptions{})
 		assert.NoError(t, err)
 	})
@@ -282,8 +277,6 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 			opManagerContext: ctx,
 		}
 
-		// Enable CSI
-		csi.EnableRBD = true
 		t.Setenv("POD_NAMESPACE", namespace)
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
@@ -300,12 +293,8 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 		assert.Equal(t, cephv1.ConditionReady, cephFilesystemSubVolumeGroup.Status.Phase)
 		assert.NotEmpty(t, cephFilesystemSubVolumeGroup.Status.Info["clusterID"])
 
-		// test that csi configmap is created
-		cm, err := c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
+		_, err = c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
 		assert.NoError(t, err)
-		assert.NotEmpty(t, cm.Data[csi.ConfigKey])
-		assert.Contains(t, cm.Data[csi.ConfigKey], "clusterID")
-		assert.Contains(t, cm.Data[csi.ConfigKey], "group-a")
 	})
 
 	t.Run("success - test with multus ceph cluster", func(t *testing.T) {
@@ -331,8 +320,6 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 			opManagerContext: ctx,
 		}
 
-		// Enable CSI
-		csi.EnableRBD = true
 		t.Setenv("POD_NAMESPACE", namespace)
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
@@ -345,12 +332,8 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 		assert.False(t, res.Requeue)
 
 		// test that csi configmap is created
-		cm, err := c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
+		_, err = c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
 		assert.NoError(t, err)
-		assert.NotEmpty(t, cm.Data[csi.ConfigKey])
-		assert.Contains(t, cm.Data[csi.ConfigKey], "clusterID")
-		assert.Contains(t, cm.Data[csi.ConfigKey], "group-a")
-		assert.Contains(t, cm.Data[csi.ConfigKey], "netNamespaceFilePath")
 	})
 }
 

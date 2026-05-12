@@ -20,7 +20,6 @@ package cluster
 import (
 	"context"
 
-	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -115,20 +114,6 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		}
 	}
 
-	// Save CSI configmap
-	monEndpoints := csi.MonEndpoints(cluster.ClusterInfo.InternalMonitors, cluster.Spec.RequireMsgr2())
-	csiConfigEntry := &csi.CSIClusterConfigEntry{
-		Namespace: cluster.ClusterInfo.Namespace,
-		ClusterInfo: cephcsi.ClusterInfo{
-			Monitors: monEndpoints,
-		},
-	}
-
-	clusterId := cluster.namespacedName.Namespace // cluster id is same as cluster namespace for CephClusters
-	err = csi.SaveClusterConfig(c.context.Clientset, clusterId, cluster.namespacedName.Namespace, cluster.ClusterInfo, csiConfigEntry)
-	if err != nil {
-		return errors.Wrap(err, "failed to update csi cluster config")
-	}
 	log.NamespacedInfo(cluster.Namespace, logger, "successfully updated csi config map")
 
 	// Create Crash Collector Secret
@@ -169,16 +154,14 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		}
 	}
 
-	if csi.EnableCSIOperator() {
-		log.NamespacedInfo(cluster.Namespace, logger, "create cephConnection and defaultClientProfile for external mode")
-		err = csi.CreateUpdateCephConnection(c.context.Client, cluster.ClusterInfo, *cluster.Spec)
-		if err != nil {
-			return errors.Wrap(err, "failed to create/update cephConnection")
-		}
-		err = csi.CreateDefaultClientProfile(c.context.Client, cluster.ClusterInfo)
-		if err != nil {
-			return errors.Wrap(err, "failed to create/update default client profile")
-		}
+	log.NamespacedInfo(cluster.Namespace, logger, "create cephConnection and defaultClientProfile for external mode")
+	err = csi.CreateUpdateCephConnection(c.context.Client, cluster.ClusterInfo, *cluster.Spec)
+	if err != nil {
+		return errors.Wrap(err, "failed to create/update cephConnection")
+	}
+	err = csi.CreateDefaultClientProfile(c.context.Client, cluster.ClusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to create/update default client profile")
 	}
 
 	opcontroller.UpdateCondition(c.OpManagerCtx, c.context, cluster.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionConnected, v1.ConditionTrue, cephv1.ClusterConnectedReason, "Cluster connected successfully")

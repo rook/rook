@@ -1,4 +1,4 @@
-{{- if and .Values.monitoring.enabled .Values.csi.serviceMonitor.enabled (or .Values.csi.enableLiveness .Values.csi.enableGrpcMetrics) -}}
+{{- if and .Values.monitoring.enabled .Values.csi.serviceMonitor.enabled -}}
 ---
 kind: ServiceMonitor
 apiVersion: monitoring.coreos.com/v1
@@ -18,9 +18,7 @@ spec:
     matchLabels:
       app: csi-metrics
   endpoints:
-    {{- if .Values.csi.enableLiveness }}
     - port: csi-http-metrics
       path: /metrics
       interval: {{ .Values.csi.serviceMonitor.interval }}
-    {{- end }}
 {{- end }}

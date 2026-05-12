@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
@@ -62,7 +63,7 @@ func TestCheckHealth(t *testing.T) {
 	objects := []runtime.Object{
 		getCephCluster("default", "default"),
 	}
-	client := getClient(objects...)
+	client := getClient(t, objects...)
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	context := &clusterd.Context{
@@ -456,7 +457,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 	objects := []runtime.Object{
 		getCephCluster("default", "default"),
 	}
-	client := getClient(objects...)
+	client := getClient(t, objects...)
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	context := &clusterd.Context{
@@ -529,7 +530,7 @@ func TestAddRemoveMons(t *testing.T) {
 	objects := []runtime.Object{
 		getCephCluster("default", "default"),
 	}
-	client := getClient(objects...)
+	client := getClient(t, objects...)
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	context := &clusterd.Context{
@@ -1020,7 +1021,7 @@ func TestExternalMons_inSpec_notInQuorum(t *testing.T) {
 	objects := []runtime.Object{
 		getCephCluster("default", "default"),
 	}
-	client := getClient(objects...)
+	client := getClient(t, objects...)
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	context := &clusterd.Context{
@@ -1155,7 +1156,7 @@ func TestExternalMons_inSpec_inQuorum(t *testing.T) {
 	objects := []runtime.Object{
 		getCephCluster("default", "default"),
 	}
-	client := getClient(objects...)
+	client := getClient(t, objects...)
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	context := &clusterd.Context{
@@ -1302,11 +1303,12 @@ func TestExternalMons_inSpec_inQuorum(t *testing.T) {
 	}
 }
 
-func getClient(obj ...runtime.Object) client.Client {
+func getClient(t *testing.T, obj ...runtime.Object) client.Client {
 	// Register operator types with the runtime scheme.
-	scheme := scheme.Scheme
-	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
-	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+	assert.NoError(t, csiopv1.AddToScheme(s))
+	client := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(obj...).Build()
 	return client
 }
 

@@ -1,5 +1,6 @@
 nav:
     - helm-charts.md
     - operator-chart.md
+    - csi-drivers-chart.md
     - ceph-cluster-chart.md
     - ...
