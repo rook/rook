@@ -41,7 +41,7 @@ func NewSecurityContextConstraints(name string, namespaces ...string) *secv1.Sec
 		AllowHostIPC:             true,
 		AllowHostNetwork:         false,
 		AllowHostPorts:           false,
-		AllowedCapabilities:      []corev1.Capability{"MKNOD"},
+		AllowedCapabilities:      []corev1.Capability{"MKNOD", "SYS_ADMIN"},
 		RequiredDropCapabilities: []corev1.Capability{"ALL"},
 		DefaultAddCapabilities:   []corev1.Capability{},
 		RunAsUser: secv1.RunAsUserStrategyOptions{
