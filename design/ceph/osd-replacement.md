@@ -98,7 +98,7 @@ sequenceDiagram
     J->>Ceph: safe-to-destroy 5 (re-check)
     J->>Ceph: ceph osd destroy osd.5
     J->>Ceph: config-key rm dm-crypt key (if encrypted)
-    J->>J: ceph-volume lvm zap db lv (in place; closes dm-crypt + wipes LUKS + clears tags)
+    J->>J: ceph-volume lvm zap db lv (in place, closes dm-crypt + wipes LUKS + clears tags)
     J->>J: ceph-volume lvm zap data lv --destroy
     J->>Ceph: ceph-volume lvm prepare --osd-id 5 --block.db <same db lv path>
     J->>J: write new OSD info to per-node status CM
