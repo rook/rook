@@ -548,7 +548,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	osdLabels := c.getOSDLabels(*osd, failureDomainValue, osdProps.portable)
 
 	// update encryption label on the OSD deployment
-	if osdProps.storeConfig.EncryptedDevice || osdProps.encrypted {
+	if osdProps.storeConfig.EncryptedDevice || osdProps.encrypted || osd.Encrypted {
 		osdLabels[encrypted] = "true"
 	} else {
 		osdLabels[encrypted] = "false"

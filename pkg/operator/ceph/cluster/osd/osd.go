@@ -797,8 +797,11 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 
 	osd.Store = d.Labels[osdStore]
 	osd.DeviceType = d.Labels[deviceType]
+	// Detect encryption from the block path as a fallback for deployments that predate the
+	// "encrypted" label. On upgrade, the label won't exist yet, but the dmcrypt block path
+	// is always present on encrypted OSDs regardless of the Rook version that created them.
 	osd.Encrypted = false
-	if d.Labels[encrypted] == "true" {
+	if d.Labels[encrypted] == "true" || strings.Contains(osd.BlockPath, "-dmcrypt") {
 		osd.Encrypted = true
 	}
 
