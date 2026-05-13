@@ -19,25 +19,17 @@ package topic
 
 import (
 	"context"
-	"crypto/hmac"
-
-	//nolint:gosec // sha1 is needed for v2 signatures
-	"crypto/sha1"
-	"encoding/base64"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	awsrequest "github.com/aws/aws-sdk-go/aws/request"
-	awssession "github.com/aws/aws-sdk-go/aws/session"
-	awsv4signer "github.com/aws/aws-sdk-go/aws/signer/v4"
-	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
+	snstypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
+	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -60,8 +52,21 @@ type provisioner struct {
 	opManagerContext context.Context
 }
 
+// snsEndpointResolver implements sns.EndpointResolverV2 to point at the Ceph RGW endpoint.
+type snsEndpointResolver struct {
+	endpoint string
+}
+
+func (r *snsEndpointResolver) ResolveEndpoint(ctx context.Context, params sns.EndpointParameters) (smithyendpoints.Endpoint, error) {
+	u, err := url.Parse(r.endpoint)
+	if err != nil {
+		return smithyendpoints.Endpoint{}, err
+	}
+	return smithyendpoints.Endpoint{URI: *u}, nil
+}
+
 // A new client type is needed here since topic management is part of AWS's Simple Notification Service (SNS) and not part of S3
-func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.SNS, error) {
+func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.Client, error) {
 	objStore, err := p.context.RookClientset.CephV1().CephObjectStores(objectStoreName.Namespace).Get(p.opManagerContext, objectStoreName.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get CephObjectStore %v", objectStoreName)
@@ -77,14 +82,7 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 		return nil, errors.Wrap(err, "failed to get Ceph RGW admin ops user credentials")
 	}
 
-	// pass log level to AWS session
-	logLevel := aws.LogOff
-	if logger.LevelAt(capnslog.DEBUG) {
-		logLevel = aws.LogDebugWithHTTPBody
-	}
-
-	// pass TLS indication and certificates to AWS session
-	client := http.Client{
+	httpClient := &http.Client{
 		Timeout: object.HttpTimeOut,
 	}
 	tlsEnabled := objStore.Spec.IsTLSEnabled()
@@ -94,86 +92,55 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 			return nil, errors.Wrap(err, "failed to get TLS certificate for the object store")
 		}
 		if len(tlsCert) > 0 {
-			client.Transport = object.BuildTransportTLS(tlsCert, false)
+			httpClient.Transport = object.BuildTransportTLS(tlsCert, false)
 		}
 	}
 
-	sess, err := awssession.NewSession(
-		aws.NewConfig().
-			WithRegion(object.CephRegion).
-			WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
-			WithEndpoint(objContext.Endpoint).
-			WithMaxRetries(3).
-			WithDisableSSL(!tlsEnabled).
-			WithHTTPClient(&client).
-			WithLogLevel(logLevel),
-	)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create a new session for CephBucketTopic provisioning with %q", objectStoreName)
-	}
+	endpoint := objContext.Endpoint
 
-	log.NamedDebug(objectStoreName, logger, "session created. endpoint %q secure %v",
-		*sess.Config.Endpoint,
+	log.NamedDebug(objectStoreName, logger, "creating SNS client. endpoint %q secure %v",
+		endpoint,
 		tlsEnabled,
 	)
-	snsClient := sns.New(sess)
-	// This is a hack to workaround the following RGW issue: https://tracker.ceph.com/issues/50039
-	// note that using: "github.com/aws/aws-sdk-go/private/signer/v2"
-	// * would add the signature to the query and not the header
-	// * use sha246 and not sha1
-	customSignername := "cephV2.SignRequestHandler"
-	snsClient.Handlers.Sign.Swap(awsv4signer.SignRequestHandler.Name, awsrequest.NamedHandler{
-		Name: customSignername,
-		Fn: func(req *awsrequest.Request) {
-			credentials, err := req.Config.Credentials.Get()
-			if err != nil {
-				log.NamedDebug(objectStoreName, logger, "%s failed to get credentials: %v", customSignername, err)
-				return
-			}
-			date := req.Time.UTC().Format(time.RFC1123Z)
-			contentType := "application/x-www-form-urlencoded; charset=utf-8"
-			stringToSign := req.HTTPRequest.Method + "\n\n" + contentType + "\n" + date + "\n" + req.HTTPRequest.URL.Path
-			hash := hmac.New(sha1.New, []byte(credentials.SecretAccessKey))
-			hash.Write([]byte(stringToSign))
-			signature := base64.StdEncoding.EncodeToString(hash.Sum(nil))
-			if len(req.HTTPRequest.Header["Authorization"]) == 0 {
-				req.HTTPRequest.Header.Add("Authorization", "AWS "+credentials.AccessKeyID+":"+signature)
-			}
-			if len(req.HTTPRequest.Header["Date"]) == 0 {
-				req.HTTPRequest.Header.Add("Date", date)
-			}
-		},
+
+	var logMode aws.ClientLogMode
+	if logger.LevelAt(capnslog.DEBUG) {
+		logMode = aws.LogRequestWithBody | aws.LogResponseWithBody
+	}
+
+	snsClient := sns.NewFromConfig(aws.Config{
+		Region:           object.CephRegion,
+		Credentials:      aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+		HTTPClient:       httpClient,
+		RetryMaxAttempts: 3,
+		RetryMode:        aws.RetryModeStandard,
+		ClientLogMode:    logMode,
+	}, func(o *sns.Options) {
+		o.EndpointResolverV2 = &snsEndpointResolver{endpoint: endpoint}
 	})
+
 	return snsClient, nil
 }
 
-func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[string]*string, *map[types.UID]*corev1.Secret, error) {
-	attr := make(map[string]*string)
+func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[string]string, *map[types.UID]*corev1.Secret, error) {
+	attr := make(map[string]string)
 	nsName := controller.NsName(topic.Namespace, topic.Name)
-	// Currently, referencedSecrets is only used by the kafka endpoint but it
-	// could be used by other endpoints in the future.
 	referencedSecrets := make(map[types.UID]*corev1.Secret)
 
-	attr["OpaqueData"] = &topic.Spec.OpaqueData
-	persistent := strconv.FormatBool(topic.Spec.Persistent)
-	attr["persistent"] = &persistent
-	var verifySSL string
-	var useSSL string
+	attr["OpaqueData"] = topic.Spec.OpaqueData
+	attr["persistent"] = strconv.FormatBool(topic.Spec.Persistent)
 	if topic.Spec.Endpoint.AMQP != nil {
 		log.NamedInfo(nsName, logger, "creating CephBucketTopic %q with endpoint %q", nsName, topic.Spec.Endpoint.AMQP.URI)
-		attr["push-endpoint"] = &topic.Spec.Endpoint.AMQP.URI
-		attr["amqp-exchange"] = &topic.Spec.Endpoint.AMQP.Exchange
-		attr["amqp-ack-level"] = &topic.Spec.Endpoint.AMQP.AckLevel
-		verifySSL = strconv.FormatBool(!topic.Spec.Endpoint.AMQP.DisableVerifySSL)
-		attr["verify-ssl"] = &verifySSL
+		attr["push-endpoint"] = topic.Spec.Endpoint.AMQP.URI
+		attr["amqp-exchange"] = topic.Spec.Endpoint.AMQP.Exchange
+		attr["amqp-ack-level"] = topic.Spec.Endpoint.AMQP.AckLevel
+		attr["verify-ssl"] = strconv.FormatBool(!topic.Spec.Endpoint.AMQP.DisableVerifySSL)
 	}
 	if topic.Spec.Endpoint.HTTP != nil {
 		log.NamedInfo(nsName, logger, "creating CephBucketTopic %q with endpoint %q", nsName, topic.Spec.Endpoint.HTTP.URI)
-		attr["push-endpoint"] = &topic.Spec.Endpoint.HTTP.URI
-		verifySSL = strconv.FormatBool(!topic.Spec.Endpoint.HTTP.DisableVerifySSL)
-		attr["verify-ssl"] = &verifySSL
-		cloudEvents := strconv.FormatBool(topic.Spec.Endpoint.HTTP.SendCloudEvents)
-		attr["cloudevents"] = &cloudEvents
+		attr["push-endpoint"] = topic.Spec.Endpoint.HTTP.URI
+		attr["verify-ssl"] = strconv.FormatBool(!topic.Spec.Endpoint.HTTP.DisableVerifySSL)
+		attr["cloudevents"] = strconv.FormatBool(topic.Spec.Endpoint.HTTP.SendCloudEvents)
 	}
 	if topic.Spec.Endpoint.Kafka != nil {
 		kafka := topic.Spec.Endpoint.Kafka
@@ -216,14 +183,11 @@ func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[st
 		// do not log passphrases, if set
 		log.NamedInfo(nsName, logger, "creating CephBucketTopic %q with endpoint %q", nsName, uri.Redacted())
 
-		kafkaUri := uri.String()
-		attr["push-endpoint"] = &kafkaUri
-		useSSL = strconv.FormatBool(topic.Spec.Endpoint.Kafka.UseSSL)
-		attr["use-ssl"] = &useSSL
-		attr["kafka-ack-level"] = &topic.Spec.Endpoint.Kafka.AckLevel
-		verifySSL = strconv.FormatBool(!topic.Spec.Endpoint.Kafka.DisableVerifySSL)
-		attr["verify-ssl"] = &verifySSL
-		attr["mechanism"] = &topic.Spec.Endpoint.Kafka.Mechanism
+		attr["push-endpoint"] = uri.String()
+		attr["use-ssl"] = strconv.FormatBool(topic.Spec.Endpoint.Kafka.UseSSL)
+		attr["kafka-ack-level"] = topic.Spec.Endpoint.Kafka.AckLevel
+		attr["verify-ssl"] = strconv.FormatBool(!topic.Spec.Endpoint.Kafka.DisableVerifySSL)
+		attr["mechanism"] = topic.Spec.Endpoint.Kafka.Mechanism
 	}
 
 	return attr, &referencedSecrets, nil
@@ -243,7 +207,7 @@ func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, *map[ty
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to generate topic attributes for CephBucketTopic %q", nsName)
 	}
-	topicOutput, err := snsClient.CreateTopic(&sns.CreateTopicInput{
+	topicOutput, err := snsClient.CreateTopic(p.opManagerContext, &sns.CreateTopicInput{
 		Name:       &topic.Name,
 		Attributes: attr,
 	})
@@ -273,9 +237,10 @@ func deleteTopic(p provisioner, topic *cephv1.CephBucketTopic) error {
 		return errors.Wrapf(err, "failed to create SNS client for CephBucketTopic %q deletion", nsName)
 	}
 
-	_, err = snsClient.DeleteTopic(&sns.DeleteTopicInput{TopicArn: topic.Status.ARN})
+	_, err = snsClient.DeleteTopic(p.opManagerContext, &sns.DeleteTopicInput{TopicArn: topic.Status.ARN})
 	if err != nil {
-		if err.(awserr.Error).Code() != sns.ErrCodeNotFoundException {
+		var notFoundErr *snstypes.NotFoundException
+		if !errors.As(err, &notFoundErr) {
 			return errors.Wrapf(err, "failed to delete CephBucketTopic %q", nsName)
 		}
 		log.NamedWarning(nsName, logger, "ignore CephBucketTopic deletion. %q was already deleted", nsName)
