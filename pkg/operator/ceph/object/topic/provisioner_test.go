@@ -38,12 +38,12 @@ func TestTopicAttributesCreation(t *testing.T) {
 
 	t.Run("test HTTP attributes", func(t *testing.T) {
 		uri := "http://localhost"
-		expectedAttrs := map[string]*string{
-			"OpaqueData":    &emptyString,
-			"cloudevents":   &falseString,
-			"persistent":    &falseString,
-			"push-endpoint": &uri,
-			"verify-ssl":    &trueString,
+		expectedAttrs := map[string]string{
+			"OpaqueData":    emptyString,
+			"cloudevents":   falseString,
+			"persistent":    falseString,
+			"push-endpoint": uri,
+			"verify-ssl":    trueString,
 		}
 		bucketTopic := &cephv1.CephBucketTopic{
 			ObjectMeta: metav1.ObjectMeta{
@@ -73,13 +73,13 @@ func TestTopicAttributesCreation(t *testing.T) {
 		uri := "amqp://my-rabbitmq-service:5672/vhost1"
 		ackLevel := "broker"
 		exchange := "ex1"
-		expectedAttrs := map[string]*string{
-			"OpaqueData":     &emptyString,
-			"persistent":     &falseString,
-			"push-endpoint":  &uri,
-			"verify-ssl":     &trueString,
-			"amqp-exchange":  &exchange,
-			"amqp-ack-level": &ackLevel,
+		expectedAttrs := map[string]string{
+			"OpaqueData":     emptyString,
+			"persistent":     falseString,
+			"push-endpoint":  uri,
+			"verify-ssl":     trueString,
+			"amqp-exchange":  exchange,
+			"amqp-ack-level": ackLevel,
 		}
 		bucketTopic := &cephv1.CephBucketTopic{
 			ObjectMeta: metav1.ObjectMeta{
@@ -111,14 +111,14 @@ func TestTopicAttributesCreation(t *testing.T) {
 		uri := "kafka://my-kafka-service:9092"
 		ackLevel := "broker"
 		mechanism := "SCRAM-SHA-512"
-		expectedAttrs := map[string]*string{
-			"OpaqueData":      &emptyString,
-			"persistent":      &falseString,
-			"push-endpoint":   &uri,
-			"verify-ssl":      &trueString,
-			"kafka-ack-level": &ackLevel,
-			"use-ssl":         &trueString,
-			"mechanism":       &mechanism,
+		expectedAttrs := map[string]string{
+			"OpaqueData":      emptyString,
+			"persistent":      falseString,
+			"push-endpoint":   uri,
+			"verify-ssl":      trueString,
+			"kafka-ack-level": ackLevel,
+			"use-ssl":         trueString,
+			"mechanism":       mechanism,
 		}
 		bucketTopic := &cephv1.CephBucketTopic{
 			ObjectMeta: metav1.ObjectMeta{
