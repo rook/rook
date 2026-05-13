@@ -50,8 +50,6 @@ const (
 	sgdiskCmd = "sgdisk"
 	// CephLVPrefix is the prefix of a LV owned by ceph-volume
 	CephLVPrefix = "ceph--"
-	// DeviceMapperPrefix is the prefix of a LV from the device mapper interface
-	DeviceMapperPrefix = "dm-"
 )
 
 // CephVolumeInventory represents the output of the ceph-volume inventory command

@@ -17,8 +17,6 @@ limitations under the License.
 package config
 
 const (
-	// Bluestore represents a bluestore OSD
-	Bluestore = "bluestore"
 	// WalDefaultSizeMB is the default WAL size in Megabytes for Rocksdb in Bluestore
 	WalDefaultSizeMB = 576
 )

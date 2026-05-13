@@ -78,8 +78,6 @@ const (
 
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
-	// MaxMonCount Maximum allowed mon count for a cluster
-	MaxMonCount = 9
 
 	// DefaultMsgr1Port is the default port Ceph mons use to communicate amongst themselves prior
 	// to Ceph Nautilus.

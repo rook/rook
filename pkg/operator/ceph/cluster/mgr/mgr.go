@@ -55,8 +55,6 @@ const (
 	mgrRoleLabelName          = "mgr_role"
 	activeMgrStatus           = "active"
 	standbyMgrStatus          = "standby"
-	monitoringPath            = "/etc/ceph-monitoring/"
-	serviceMonitorFile        = "service-monitor.yaml"
 	serviceMonitorPort        = "http-metrics"
 	// minimum amount of memory in MB to run the pod
 	cephMgrPodMinimumMemory uint64 = 512

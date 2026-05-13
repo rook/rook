@@ -45,7 +45,6 @@ import (
 )
 
 const (
-	packageName               = "ceph-cosi"
 	controllerName            = "ceph-cosi-controller"
 	CephCOSIDriverName        = "ceph-cosi-driver"
 	COSISideCarName           = "objectstorage-provisioner-sidecar"
