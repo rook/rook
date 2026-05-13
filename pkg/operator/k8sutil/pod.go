@@ -44,8 +44,6 @@ const (
 	// PrivateIPEnvVar pod IP env var
 	PrivateIPEnvVar = "ROOK_PRIVATE_IP"
 
-	// DefaultRepoPrefix repo prefix
-	DefaultRepoPrefix = "rook"
 	// ConfigOverrideName config override name
 	ConfigOverrideName = "rook-config-override"
 	// ConfigOverrideVal config override value

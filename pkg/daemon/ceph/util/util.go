@@ -23,12 +23,6 @@ import (
 	"github.com/coreos/pkg/capnslog"
 )
 
-const (
-	RBDSysBusPathDefault = "/sys/bus/rbd"
-	RBDDevicesDir        = "devices"
-	RBDDevicePathPrefix  = "/dev/rbd"
-)
-
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-ceph-util")
 
 // GetIPFromEndpoint return the IP from an endpoint string (192.168.0.1:6789)

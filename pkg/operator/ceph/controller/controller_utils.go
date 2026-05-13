@@ -73,10 +73,6 @@ var (
 	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
 	ImmediateRetryResult = reconcile.Result{Requeue: true}
 
-	// ImmediateRetryResultNoBackoff Return this for a immediate retry of the reconciliation loop with the same request object.
-	// Override the exponential backoff behavior by setting the RequeueAfter time explicitly.
-	ImmediateRetryResultNoBackoff = reconcile.Result{Requeue: true, RequeueAfter: time.Second}
-
 	// WaitForRequeueIfCephClusterNotReady waits for the CephCluster to be ready
 	WaitForRequeueIfCephClusterNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 

@@ -25,18 +25,6 @@ import (
 )
 
 const (
-	// CephHealthOK denotes the status of ceph cluster when healthy.
-	CephHealthOK = "HEALTH_OK"
-
-	// CephHealthWarn denotes the status of ceph cluster when unhealthy but recovering.
-	CephHealthWarn = "HEALTH_WARN"
-
-	// CephHealthErr denotes the status of ceph cluster when unhealthy but usually needs
-	// manual intervention.
-	CephHealthErr = "HEALTH_ERR"
-)
-
-const (
 	defaultPgHealthyRegex = `^active(\+(clean|deep|scrubbing|snaptrim|snaptrim_wait))+$`
 )
 

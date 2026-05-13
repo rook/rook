@@ -53,14 +53,13 @@ const (
 
 	// value not credential, just configuration keys.
 	//nolint:gosec
-	kmipEndpoint         = "KMIP_ENDPOINT"
-	kmipTLSServerName    = "TLS_SERVER_NAME"
-	kmipReadTimeOut      = "READ_TIMEOUT"
-	kmipWriteTimeOut     = "WRITE_TIMEOUT"
-	KmipCACert           = "CA_CERT"
-	KmipClientCert       = "CLIENT_CERT"
-	KmipClientKey        = "CLIENT_KEY"
-	KmipUniqueIdentifier = "UNIQUE_IDENTIFIER"
+	kmipEndpoint      = "KMIP_ENDPOINT"
+	kmipTLSServerName = "TLS_SERVER_NAME"
+	kmipReadTimeOut   = "READ_TIMEOUT"
+	kmipWriteTimeOut  = "WRITE_TIMEOUT"
+	KmipCACert        = "CA_CERT"
+	KmipClientCert    = "CLIENT_CERT"
+	KmipClientKey     = "CLIENT_KEY"
 
 	// EtcKmipDir is kmip config dir.
 	EtcKmipDir = "/etc/kmip"

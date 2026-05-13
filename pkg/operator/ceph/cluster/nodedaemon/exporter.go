@@ -43,8 +43,6 @@ import (
 )
 
 const (
-	monitoringPath                   = "/etc/ceph-monitoring/"
-	serviceMonitorFile               = "exporter-service-monitor.yaml"
 	sockDir                          = "/run/ceph"
 	defaultPrioLimit                 = "5"
 	defaultStatsPeriod               = "5"

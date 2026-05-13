@@ -52,7 +52,6 @@ type Images struct {
 }
 
 const (
-	mirrorModeDisabled = "disabled"
 	mirrorModeInitOnly = "init-only"
 )
 

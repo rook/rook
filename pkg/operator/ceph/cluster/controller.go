@@ -59,9 +59,7 @@ const (
 )
 
 const (
-	// DefaultClusterName states the default name of the rook-cluster if not provided.
-	DefaultClusterName = "rook-ceph"
-	disableHotplugEnv  = "ROOK_DISABLE_DEVICE_HOTPLUG"
+	disableHotplugEnv = "ROOK_DISABLE_DEVICE_HOTPLUG"
 )
 
 var (
