@@ -17,10 +17,11 @@ limitations under the License.
 package clients
 
 import (
+	"context"
 	b64 "encoding/base64"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/service/s3"
+	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/installer"
@@ -162,7 +163,7 @@ func (b *BucketOperation) CheckBucketNotificationSetonRGW(namespace, storeName, 
 		return false
 	}
 	logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
-	notifications, err := s3client.Client.GetBucketNotificationConfiguration(&s3.GetBucketNotificationConfigurationRequest{
+	notifications, err := s3client.ClientV2.GetBucketNotificationConfiguration(context.TODO(), &s3v2.GetBucketNotificationConfigurationInput{
 		Bucket: &bucketname,
 	})
 	if err != nil {
