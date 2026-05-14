@@ -1428,3 +1428,70 @@ func TestValidateOSDSettings(t *testing.T) {
 		assert.Error(t, c.validateOSDSettings())
 	})
 }
+
+func TestPerDeviceClassForOSD(t *testing.T) {
+	tests := []struct {
+		name    string
+		osd     OSDInfo
+		devices []cephv1.Device
+		want    string
+	}{
+		{
+			name:    "short name match",
+			osd:     OSDInfo{BlockPath: "/dev/vdb"},
+			devices: []cephv1.Device{{Name: "vdb", Config: map[string]string{"deviceClass": "fast"}}},
+			want:    "fast",
+		},
+		{
+			name:    "CR name with /dev/ prefix matches",
+			osd:     OSDInfo{BlockPath: "/dev/vdb"},
+			devices: []cephv1.Device{{Name: "/dev/vdb", Config: map[string]string{"deviceClass": "fast"}}},
+			want:    "fast",
+		},
+		{
+			name:    "FullPath match",
+			osd:     OSDInfo{BlockPath: "/dev/disk/by-id/wwn-0x123"},
+			devices: []cephv1.Device{{FullPath: "/dev/disk/by-id/wwn-0x123", Config: map[string]string{"deviceClass": "nvmeish"}}},
+			want:    "nvmeish",
+		},
+		{
+			name:    "empty BlockPath returns empty",
+			osd:     OSDInfo{BlockPath: ""},
+			devices: []cephv1.Device{{Name: "vdb", Config: map[string]string{"deviceClass": "fast"}}},
+			want:    "",
+		},
+		{
+			name:    "no match returns empty",
+			osd:     OSDInfo{BlockPath: "/dev/vdc"},
+			devices: []cephv1.Device{{Name: "vdb", Config: map[string]string{"deviceClass": "fast"}}},
+			want:    "",
+		},
+		{
+			name:    "spec without class returns empty",
+			osd:     OSDInfo{BlockPath: "/dev/vdb"},
+			devices: []cephv1.Device{{Name: "vdb"}},
+			want:    "",
+		},
+		{
+			name: "first match wins",
+			osd:  OSDInfo{BlockPath: "/dev/vdb"},
+			devices: []cephv1.Device{
+				{Name: "vdb", Config: map[string]string{"deviceClass": "first"}},
+				{Name: "vdb", Config: map[string]string{"deviceClass": "second"}},
+			},
+			want: "first",
+		},
+		{
+			// LVM limitation: BlockPath is an LV path, doesn't map to CR Name.
+			name:    "LVM BlockPath returns empty",
+			osd:     OSDInfo{BlockPath: "/dev/ceph-abc/osd-block-xyz"},
+			devices: []cephv1.Device{{Name: "sdb", Config: map[string]string{"deviceClass": "fast"}}},
+			want:    "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, perDeviceClassForOSD(&tc.osd, tc.devices))
+		})
+	}
+}
