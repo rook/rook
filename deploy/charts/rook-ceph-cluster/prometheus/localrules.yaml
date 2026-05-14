@@ -699,7 +699,7 @@ groups:
         annotations:
           description: "The prometheus job that scrapes from Ceph Exporter is no longer defined, this will effectively mean you'll have no metrics or alerts for the cluster.  Please review the job definitions in the prometheus.yml file of the prometheus instance."
           summary: "The scrape job for Ceph Exporter is missing from Prometheus"
-        expr: "sum(absent(up{job=\"rook-ceph-exporter\"})) and sum(ceph_osd_metadata{ceph_version=~\"^ceph version (1[89]|[2-9][0-9]).*\"}) > 0"
+        expr: "sum(absent(up{job=\"rook-ceph-exporter\"}))"
         for: "30s"
         labels:
           oid: "1.3.6.1.4.1.50495.1.2.1.12.1"
