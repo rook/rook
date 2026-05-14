@@ -23,6 +23,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/rook/rook/pkg/clusterd"
 )
@@ -40,6 +41,7 @@ func TestCreateProfileWithDeviceClass(t *testing.T) {
 }
 
 func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass string) {
+	stripeUnit := resource.MustParse("4Ki")
 	spec := cephv1.PoolSpec{
 		FailureDomain: failureDomain,
 		CrushRoot:     crushRoot,
@@ -47,6 +49,7 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 		ErasureCoded: cephv1.ErasureCodedSpec{
 			DataChunks:   2,
 			CodingChunks: 3,
+			StripeUnit:   &stripeUnit,
 		},
 	}
 
@@ -77,6 +80,13 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 				}
 				if deviceClass != "" {
 					assert.Equal(t, fmt.Sprintf("crush-device-class=%s", deviceClass), args[nextArg])
+					nextArg++
+				}
+				if spec.ErasureCoded.StripeUnit != nil && !spec.ErasureCoded.StripeUnit.IsZero() {
+					stripeBytes, ok := spec.ErasureCoded.StripeUnit.AsInt64()
+					assert.True(t, ok)
+					assert.Equal(t, fmt.Sprintf("stripe_unit=%d", stripeBytes), args[nextArg])
+					assert.Equal(t, stripeBytes, int64(4096), "Validate the resource conversion to bytes")
 				}
 				return "", nil
 			}
