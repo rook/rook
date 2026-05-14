@@ -534,7 +534,7 @@ spec:
               name: rook-ceph-log
             - mountPath: /var/lib/ceph/crash
               name: rook-ceph-crash
-        - name: shut-down-app
+        - name: floating-mon-shutdown
           image: {{ .DRBD_UTILS_IMAGE }}
           imagePullPolicy: {{ .IMAGE_PULL_POLICY }}
           securityContext:

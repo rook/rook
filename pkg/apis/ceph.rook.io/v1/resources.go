@@ -45,8 +45,10 @@ const (
 	ResourcesKeyFilesystemMirror = "fsmirror"
 	// ResourcesKeyCleanup represents the name of resource in the CR for the cleanup
 	ResourcesKeyCleanup = "cleanup"
-	// ResourcesKeyCleanup represents the name of resource in the CR for ceph-exporter
+	// ResourcesKeyCephExporter represents the name of resource in the CR for ceph-exporter
 	ResourcesKeyCephExporter = "exporter"
+	// ResourcesKeyFloatingMonShutDownApp is the resource key and container name for the floating mon DRBD shutdown sidecar.
+	ResourcesKeyFloatingMonShutDownApp = "floating-mon-shutdown"
 )
 
 // GetMgrResources returns the resources for the MGR service
@@ -107,9 +109,14 @@ func GetCrashCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCrashCollector]
 }
 
-// GetLogCollectorResources returns the resources for the logo collector
+// GetLogCollectorResources returns the resources for the log collector
 func GetLogCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyLogCollector]
+}
+
+// GetFloatingMonShutDownAppResources returns resources for the floating mon DRBD shutdown sidecar.
+func GetFloatingMonShutDownAppResources(p ResourceSpec) v1.ResourceRequirements {
+	return p[ResourcesKeyFloatingMonShutDownApp]
 }
 
 // GetCleanupResources returns the resources for the cleanup job
