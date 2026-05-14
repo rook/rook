@@ -145,7 +145,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 			// I'm leaving this code with an empty metadata device for now
 			metadataBlock, walBlock = "", ""
 
-			rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV, false)
+			rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV, false, a.devices)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get device already provisioned by ceph-volume raw")
 			}
@@ -160,7 +160,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 			osds = append(osds, lvmOsds...)
 
 			// List existing OSD(s) configured with ceph-volume raw mode
-			rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, "", "", false, false)
+			rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, "", "", false, false, a.devices)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get device already provisioned by ceph-volume raw")
 			}
@@ -212,7 +212,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	if !a.pvcBacked {
 		block = ""
 	}
-	rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV, false)
+	rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV, false, a.devices)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume raw")
 	}
@@ -298,10 +298,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				}
 			}
 
-			crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
-			if crushDeviceClass != "" {
-				immediateExecuteArgs = append(immediateExecuteArgs, []string{crushDeviceClassFlag, crushDeviceClass}...)
-			}
+			immediateExecuteArgs = a.appendDeviceClassArg(device, immediateExecuteArgs)
 
 			if isEncrypted {
 				immediateExecuteArgs = append(immediateExecuteArgs, encryptedFlag)
@@ -846,6 +843,31 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 	return nil
 }
 
+// findDeviceClass returns the CR-declared deviceClass for the OSD, or "" if not found.
+func findDeviceClass(devices []DesiredDevice, blockPath, kernelName, devLinks string) string {
+	short := strings.TrimPrefix(blockPath, "/dev/")
+	for _, d := range devices {
+		if d.IsFilter || d.IsDevicePathFilter || d.DeviceClass == "" || d.Name == "" {
+			continue
+		}
+		// match by device name:
+		if shortName := strings.TrimPrefix(d.Name, "/dev/"); shortName != "" {
+			if shortName == short || shortName == kernelName {
+				return d.DeviceClass
+			}
+		}
+		// match by fullname (udev DEVLINKS):
+		if strings.HasPrefix(d.Name, "/dev/") && devLinks != "" {
+			for _, link := range strings.Fields(devLinks) {
+				if link == d.Name {
+					return d.DeviceClass
+				}
+			}
+		}
+	}
+	return ""
+}
+
 func (a *OsdAgent) appendDeviceClassArg(device *DeviceOsdIDEntry, args []string) []string {
 	deviceClass := device.Config.DeviceClass
 	if deviceClass == "" {
@@ -1180,7 +1202,7 @@ func readCVLogContent(cvLogFilePath string) string {
 // On the other hand, the PVC scenario always uses the PVC block as a block to check whether the
 // disk is an OSD or not.
 // The same goes for "metadataBlock" and "walBlock" they are only used in the prepare job.
-func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, cephfsid, block, metadataBlock, walBlock string, lvBackedPV, skipDeviceClass bool) ([]oposd.OSDInfo, error) {
+func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, cephfsid, block, metadataBlock, walBlock string, lvBackedPV, skipDeviceClass bool, devices []DesiredDevice) ([]oposd.OSDInfo, error) {
 	// lv can be a block device if raw mode is used
 	cvMode := "raw"
 
@@ -1360,8 +1382,18 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			osd.DeviceType = deviceType
 			logger.Infof("setting device type %q for device %q", osd.DeviceType, diskInfo.Name)
 
-			crushDeviceClass := sys.GetDiskDeviceClass(oposd.CrushDeviceClassVarName, deviceType)
-			osd.DeviceClass = crushDeviceClass
+			osd.DeviceClass = sys.GetDiskDeviceClass(oposd.CrushDeviceClassVarName, deviceType)
+			if len(devices) > 0 {
+				// populate udev DevLinks to match CR device fullpath entries
+				if _, err := clusterd.PopulateDeviceUdevInfo(blockPath, context.Executor, diskInfo); err != nil {
+					logger.Warningf("failed to populate udev info for %q: %v", blockPath, err)
+				}
+				if dc := findDeviceClass(devices, blockPath, diskInfo.KernelName, diskInfo.DevLinks); dc != "" {
+					osd.DeviceClass = dc
+				} else {
+					logger.Debugf("no CR per-device spec matched blockPath=%q kernel=%q devLinks=%q; using disk-derived class", blockPath, diskInfo.KernelName, diskInfo.DevLinks)
+				}
+			}
 			logger.Infof("setting device class %q for device %q", osd.DeviceClass, diskInfo.Name)
 		}
 
