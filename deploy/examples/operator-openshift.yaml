@@ -18,7 +18,7 @@ allowHostNetwork: false
 # set to true if running rook with the provider as host
 allowHostPorts: false
 priority:
-allowedCapabilities: ["MKNOD", "SYS_ADMIN", "NET_RAW"]
+allowedCapabilities: ["MKNOD", "SYS_ADMIN"]
 allowHostIPC: true
 readOnlyRootFilesystem: false
 # drop all default privileges
