@@ -251,7 +251,8 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 	clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{Config: map[string]string{CrushRootConfigKey: "cluster-crush-root"}}}
 	err := createReplicatedPoolForApp(context, AdminTestClusterInfo("mycluster"), clusterSpec, p, DefaultPGCount)
 	assert.Nil(t, err)
-	assert.True(t, crushRuleCreated)
+	// The base crush rule should not be recreated for an existing pool.
+	assert.False(t, crushRuleCreated)
 	if compressionMode != "" {
 		assert.True(t, compressionModeCreated)
 	} else {
@@ -436,6 +437,47 @@ func TestCleanupUnusedCrushRulesNoPools(t *testing.T) {
 	err := CleanupUnusedCrushRules(context, AdminTestClusterInfo("mycluster"))
 	assert.NoError(t, err)
 	assert.Empty(t, removedRules)
+}
+
+func TestExistingPoolDoesNotRecreateBaseCrushRule(t *testing.T) {
+	crushRuleCreated := false
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[1] == "pool" && args[2] == "get" {
+			// Pool already exists and uses a suffixed crush rule
+			return `{"pool":"mypool","pool_id":1,"size":3,"crush_rule":"mypool_host_ssd"}`, nil
+		}
+		if args[1] == "crush" && args[2] == "rule" {
+			if args[3] == "create-replicated" {
+				crushRuleCreated = true
+				return "", nil
+			}
+			if args[3] == "dump" {
+				return `{"steps": [{"item_name":"default~ssd"},{"type":"host"}]}`, nil
+			}
+		}
+		if args[1] == "pool" && args[2] == "set" {
+			return "", nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	enableCrushUpdates := true
+	p := cephv1.NamedPoolSpec{
+		Name: "mypool",
+		PoolSpec: cephv1.PoolSpec{
+			FailureDomain:      "host",
+			DeviceClass:        "ssd",
+			Replicated:         cephv1.ReplicatedSpec{Size: 3},
+			EnableCrushUpdates: &enableCrushUpdates,
+		},
+	}
+	clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
+	err := createReplicatedPoolForApp(context, AdminTestClusterInfo("mycluster"), clusterSpec, p, DefaultPGCount)
+	assert.NoError(t, err)
+	assert.False(t, crushRuleCreated, "base crush rule should not be created when the pool already exists")
 }
 
 func TestExtractPoolDetails(t *testing.T) {
