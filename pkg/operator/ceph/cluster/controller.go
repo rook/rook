@@ -296,7 +296,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 			mgr.GetCache(),
 			&corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}},
 			handler.TypedEnqueueRequestsFromMapFunc(cmHandler),
-			predicateForOperatorConfigCMWatcher(),
+			predicateForClusterConfigMapWatcher(opManagerContext, mgr.GetClient()),
 		),
 	)
 	if err != nil {
