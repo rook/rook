@@ -341,7 +341,9 @@ func (c *Cluster) Start() error {
 	c.deleteAllStatusConfigMaps()
 
 	// The following block is used to apply any command(s) required by an upgrade
-	c.applyUpgradeOSDFunctionality()
+	if err := c.applyUpgradeOSDFunctionality(); err != nil {
+		return err
+	}
 
 	err = c.reconcileKeyRotationCronJob()
 	if err != nil {
@@ -1017,40 +1019,51 @@ func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]stri
 	return topologyAffinity
 }
 
-func (c *Cluster) applyUpgradeOSDFunctionality() {
+func (c *Cluster) applyUpgradeOSDFunctionality() error {
 	var osdVersion *cephver.CephVersion
 
 	// Get all the daemons versions
 	versions, err := cephclient.GetAllCephDaemonVersions(c.context, c.clusterInfo)
 	if err != nil {
-		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to get ceph daemons versions; this likely means there are no osds yet. %v", err)
-		return
+		logger.Warningf("failed to get ceph daemons versions; this likely means there are no osds yet. %v", err)
+		return nil
 	}
 
-	// If length is one, this clearly indicates that all the osds are running the same version
-	// If this is the first time we are creating a cluster length will be 0
-	// On an initial OSD bootstrap, by the time we reach this code, the OSDs haven't registered yet
-	// Basically, this task is happening too quickly and OSD pods are not running yet.
+	// If this is the first time we are creating a cluster length will be 0.
+	// On an initial OSD bootstrap, by the time we reach this code, the OSDs haven't registered yet.
 	// That's not an issue since it's an initial bootstrap and not an update.
-	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "osd versions detected: %+v", versions.Osd)
-	if len(versions.Osd) == 1 {
-		for v := range versions.Osd {
-			osdVersion, err = cephver.ExtractCephVersion(v)
-			if err != nil {
-				log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to extract ceph version. %v", err)
-				return
-			}
-			// Ensure the required version of OSDs is set to the current consistent version,
-			// enabling the latest osd functionality and also preventing downgrades to a
-			// previous major ceph version.
-			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "detected single osd version %q, setting require-osd-release %s", osdVersion, osdVersion.ReleaseName())
-			err = cephclient.EnableReleaseOSDFunctionality(c.context, c.clusterInfo, osdVersion.ReleaseName())
-			if err != nil {
-				log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to enable new osd functionality. %v", err)
-				return
-			}
+	if len(versions.Osd) == 0 {
+		logger.Infof("no OSD versions reported yet, likely initial bootstrap; skipping require-osd-release")
+		return nil
+	}
+
+	// If length is greater than one, not all OSDs have converged to the same version yet.
+	// Return an error to trigger a controller requeue. On the next reconcile, the OSDs
+	// should have registered their new version with the monitors.
+	if len(versions.Osd) > 1 {
+		return errors.Errorf("OSD versions have not yet converged to a single version (currently %d versions reported: %v); "+
+			"requeuing reconcile to retry setting require-osd-release", len(versions.Osd), versions.Osd)
+	}
+
+	// len(versions.Osd) == 1: all OSDs are running the same version
+	for v := range versions.Osd {
+		osdVersion, err = cephver.ExtractCephVersion(v)
+		if err != nil {
+			logger.Warningf("failed to extract ceph version. %v", err)
+			return nil
+		}
+		// Ensure the required version of OSDs is set to the current consistent version,
+		// enabling the latest osd functionality and also preventing downgrades to a
+		// previous major ceph version.
+		logger.Infof("all OSDs are running version %q, setting require-osd-release to %q", v, osdVersion.ReleaseName())
+		err = cephclient.EnableReleaseOSDFunctionality(c.context, c.clusterInfo, osdVersion.ReleaseName())
+		if err != nil {
+			logger.Warningf("failed to enable new osd functionality. %v", err)
+			return nil
 		}
 	}
+
+	return nil
 }
 
 // deleteOSDDeployment deletes an existing OSD deployment and saves the information in the configmap
