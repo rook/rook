@@ -67,7 +67,7 @@ func TestOrchestrationStatus(t *testing.T) {
 	assert.Equal(t, status, *retrievedStatus)
 }
 
-func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatcher *watch.FakeWatcher) {
+func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatcher *watch.RaceFreeFakeWatcher) {
 	ctx := context.TODO()
 	// if no valid osd node, don't need to check its status, return immediately
 	if len(c.spec.Storage.Nodes) == 0 {
