@@ -44,6 +44,8 @@ EOF
     echo "$DATE merging config override from ${CONFIG_OVERRIDE}"
     echo "" >> ${CEPH_CONFIG}
     cat ${CONFIG_OVERRIDE} >> ${CEPH_CONFIG}
+    # Ensure the ceph config file ends with a trailing newline
+    echo "" >> ${CEPH_CONFIG}
   fi
 }
 

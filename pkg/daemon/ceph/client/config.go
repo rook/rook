@@ -152,6 +152,13 @@ func mergeDefaultConfigWithRookConfigOverride(clusterdContext *clusterd.Context,
 		return nil
 	}
 
+	// Ensure the config ends with a trailing newline. Ceph's config parser
+	// requires a trailing newline at EOF; without one, Ceph daemons can fail
+	// to start with a parse error.
+	if !strings.HasSuffix(config, "\n") {
+		config += "\n"
+	}
+
 	if err := configFile.Append([]byte(config)); err != nil {
 		return errors.Wrapf(err, "failed to load config data from %q", k8sutil.ConfigOverrideName)
 	}
