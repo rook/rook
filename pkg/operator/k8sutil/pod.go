@@ -184,6 +184,7 @@ func GetMatchingContainer(containers []v1.Container, name string) (v1.Container,
 	var result *v1.Container
 	if len(containers) == 1 {
 		// if there is only one pod, use its image rather than require a set container name
+		// #nosec G602 -- len(containers) == 1 is checked above so index 0 is always valid
 		result = &containers[0]
 	} else {
 		// if there are multiple pods, we require the container to have the expected name

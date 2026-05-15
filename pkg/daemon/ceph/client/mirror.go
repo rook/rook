@@ -325,7 +325,7 @@ func removeSnapshotSchedule(context *clusterd.Context, clusterInfo *ClusterInfo,
 
 // `poolName` is the name of the pool or the pool/radosNamespace
 func EnableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string, snapshotSchedules []cephv1.SnapshotScheduleSpec) error {
-	logger.Info("resetting current snapshot schedules in cluster namespace %q", clusterInfo.Namespace)
+	logger.Infof("resetting current snapshot schedules in cluster namespace %q", clusterInfo.Namespace)
 	// Reset any existing schedules
 	err := removeSnapshotSchedules(context, clusterInfo, poolName)
 	if err != nil {

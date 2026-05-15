@@ -404,6 +404,7 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 		}
 	}
 
+	// #nosec G703 -- lvmConfPath is a hard-coded constant, not user input
 	if err = os.WriteFile(lvmConfPath, output, 0o600); err != nil {
 		return errors.Wrapf(err, "failed to update lvm config file %q", lvmConfPath)
 	}

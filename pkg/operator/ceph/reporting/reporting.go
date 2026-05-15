@@ -69,7 +69,7 @@ func objKindOrBestGuess(obj client.Object) string {
 
 	// typed nil, or object's typemeta is empty
 	t := reflect.TypeOf(obj)
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		return t.Elem().Name()
 	}
 	return t.Name()
@@ -88,7 +88,7 @@ func copyObject(obj client.Object) client.Object {
 	// object to use as the copy in this case.
 	var nonNilCopy client.Object
 	t := reflect.TypeOf(obj)
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		innerType := t.Elem()
 		newObj := reflect.New(innerType)
 		nonNilCopy = newObj.Interface().(client.Object)

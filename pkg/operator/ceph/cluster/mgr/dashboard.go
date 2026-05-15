@@ -373,6 +373,7 @@ func GeneratePassword(length int, keyType KeyType) (string, error) {
 		return "", errors.Wrap(err, "failed to generate password")
 	}
 	for i, pass := range passwd {
+		// #nosec G115 -- len(passwordChars) is small (constant string) and fits in a byte
 		passwd[i] = passwordChars[pass%byte(len(passwordChars))]
 	}
 	return string(passwd), nil

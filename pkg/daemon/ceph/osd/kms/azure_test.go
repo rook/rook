@@ -61,6 +61,7 @@ func Test_AzureKVCert(t *testing.T) {
 	})
 
 	t.Run("valid azure cert secret is available", func(t *testing.T) {
+		// #nosec G101 -- this is a test fixture, not real credentials
 		config := map[string]string{
 			"KMS_PROVIDER":            "azure-kv",
 			azureClientCertSecretName: "azure-cert-2",

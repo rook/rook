@@ -32,6 +32,7 @@ func TestGetEncryptionVolume(t *testing.T) {
 	// No KMS
 	osdProps := osdProperties{pvc: v1.PersistentVolumeClaimVolumeSource{ClaimName: "set1-data-1-bbgcw"}}
 	v, vM := c.getEncryptionVolume(osdProps)
+	// #nosec G101 -- this is a Kubernetes Secret reference (test fixture), not a credential value
 	assert.Equal(t, v1.Volume{Name: "osd-encryption-key", VolumeSource: v1.VolumeSource{Secret: &v1.SecretVolumeSource{SecretName: "rook-ceph-osd-encryption-key-set1-data-1-bbgcw", Items: []v1.KeyToPath{{Key: "dmcrypt-key", Path: "luks_key"}}, DefaultMode: &m}}}, v)
 	assert.Equal(t, v1.VolumeMount{Name: "osd-encryption-key", ReadOnly: true, MountPath: "/etc/ceph"}, vM)
 

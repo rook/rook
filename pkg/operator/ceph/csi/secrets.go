@@ -322,7 +322,7 @@ func updateCephStatusWithCephxStatus(context *clusterd.Context, clusterInfo *cli
 		cephCluster.Status.Cephx.CSI.PriorKeyCount = uint8(getPriorKeyCount(currentKeyCount)) //nolint:gosec // disable G115
 
 		if err := reporting.UpdateStatus(context.Client, cephCluster); err != nil {
-			return errors.Wrapf(err, "failed to update cephCluster %q to update csi cephx status to %q in namespace %q", namespacedName.Name, cephxStatus, namespacedName.Namespace)
+			return errors.Wrapf(err, "failed to update cephCluster %q to update csi cephx status to %+v in namespace %q", namespacedName.Name, cephxStatus, namespacedName.Namespace)
 		}
 		return nil
 	})

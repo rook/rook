@@ -400,11 +400,11 @@ func (kms *kmipKMS) verifyResponse(
 	uniqueBatchItemID []byte,
 ) (*kmip.ResponseBatchItem, error) {
 	if respMsg.ResponseHeader.BatchCount != 1 {
-		return nil, fmt.Errorf("batch count %q should be \"1\"",
+		return nil, fmt.Errorf("batch count %d should be \"1\"",
 			respMsg.ResponseHeader.BatchCount)
 	}
 	if len(respMsg.BatchItem) != 1 {
-		return nil, fmt.Errorf("batch Intems list len %q should be \"1\"",
+		return nil, fmt.Errorf("batch Intems list len %d should be \"1\"",
 			len(respMsg.BatchItem))
 	}
 	batchItem := respMsg.BatchItem[0]

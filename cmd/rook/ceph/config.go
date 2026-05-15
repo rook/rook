@@ -83,6 +83,7 @@ keyring = ` + keyring + `
 `
 
 	var fileMode os.FileMode = 0o444 // read-only
+	// #nosec G703 -- path is a constant returned by DefaultConfigFilePath, not user input
 	err := os.WriteFile(cephclient.DefaultConfigFilePath(), []byte(cfg), fileMode)
 	if err != nil {
 		rook.TerminateFatal(errors.Wrapf(err, "failed to write config file"))

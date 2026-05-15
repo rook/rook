@@ -361,6 +361,7 @@ func TestCephObjectStoreAccountController(t *testing.T) {
 			return &cephobject.AdminOpsContext{
 				Context:               *msContext,
 				AdminOpsUserAccessKey: "53S6B9S809NUP19IJ2K3",
+				// #nosec G101 -- fake test credential
 				AdminOpsUserSecretKey: "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR",
 				AdminOpsClient:        adminClient,
 			}, nil

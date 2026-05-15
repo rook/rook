@@ -390,7 +390,7 @@ func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 		d.MetadataDevice = cd.StoreConfig.MetadataDevice
 
 		if d.OSDsPerDevice < 1 {
-			return nil, errors.Errorf("osds per device should be greater than 0 (%q)", d.OSDsPerDevice)
+			return nil, errors.Errorf("osds per device should be greater than 0 (%d)", d.OSDsPerDevice)
 		}
 
 		result = append(result, d)
