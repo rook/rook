@@ -201,7 +201,7 @@ func TestAddRemoveNode(t *testing.T) {
 	cmErr := createDiscoverConfigmap(nodeName, "rook-system", clientset)
 	assert.Nil(t, cmErr)
 
-	statusMapWatcher := watch.NewFake()
+	statusMapWatcher := watch.NewRaceFreeFake()
 	clientset.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(statusMapWatcher, nil))
 
 	clusterInfo := &cephclient.ClusterInfo{
@@ -361,7 +361,7 @@ func TestAddRemoveNode(t *testing.T) {
 	c = New(context, clusterInfo, cephCluster.Spec, "myversion")
 
 	// reset the orchestration status watcher
-	statusMapWatcher = watch.NewFake()
+	statusMapWatcher = watch.NewRaceFreeFake()
 	clientset.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(statusMapWatcher, nil))
 
 	startErr = nil
