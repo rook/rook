@@ -287,6 +287,7 @@ func WriteCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo) error 
 	if err != nil {
 		return errors.Wrap(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
 	}
+	// #nosec G703 -- path is a constant returned by DefaultConfigFilePath, not user input
 	err = os.WriteFile(DefaultConfigFilePath(), src, 0o600)
 	if err != nil {
 		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %q", DefaultConfigFilePath())

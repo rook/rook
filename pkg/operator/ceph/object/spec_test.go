@@ -317,6 +317,7 @@ func TestSSLPodSpec(t *testing.T) {
 		{
 			SubPath: "ldap",
 			VolumeSource: &cephv1.ConfigFileVolumeSource{
+				// #nosec G101 -- this is a Kubernetes Secret reference (test fixture), not a credential value
 				Secret: &v1.SecretVolumeSource{
 					SecretName: "my-rgw-ldap-secret",
 				},

@@ -134,7 +134,7 @@ func updatePoolStatusMirroring(c *mirrorChecker, mirrorStatus *cephv1.MirroringS
 	blockPool := &cephv1.CephBlockPool{}
 	if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, blockPool); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephBlockPool %q resource not found for updating the mirroring status, ignoring.", c.namespacedName)
+			logger.Debugf("CephBlockPool %q resource not found for updating the mirroring status, ignoring.", c.namespacedName)
 			return
 		}
 		logger.Warningf("failed to retrieve ceph block pool %q to update mirroring status. %v", c.namespacedName.Name, err)
@@ -159,7 +159,7 @@ func updateRadosNamespaceStatusMirroring(c *mirrorChecker, mirrorStatus *cephv1.
 		radosNamespace := &cephv1.CephBlockPoolRadosNamespace{}
 		if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, radosNamespace); err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debug("CephBlockPoolRadosNamespace %q resource not found for updating the mirroring status, ignoring.", c.namespacedName)
+				logger.Debugf("CephBlockPoolRadosNamespace %q resource not found for updating the mirroring status, ignoring.", c.namespacedName)
 				return nil
 			}
 			return err
@@ -172,7 +172,7 @@ func updateRadosNamespaceStatusMirroring(c *mirrorChecker, mirrorStatus *cephv1.
 		namespaceName := types.NamespacedName{Name: radosNamespace.Spec.BlockPoolName, Namespace: radosNamespace.Namespace}
 		if err := c.client.Get(c.clusterInfo.Context, namespaceName, blockPool); err != nil {
 			if kerrors.IsNotFound(err) {
-				logger.Debug("CephBlockPool %q resource not found for updating the mirroring status, ignoring.", namespaceName)
+				logger.Debugf("CephBlockPool %q resource not found for updating the mirroring status, ignoring.", namespaceName)
 				return nil
 			}
 			return err

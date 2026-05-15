@@ -469,6 +469,7 @@ func adminKeyringVolume() v1.Volume {
 	return v1.Volume{
 		Name: "ceph-admin-keyring",
 		VolumeSource: v1.VolumeSource{
+			// #nosec G101 -- this is a Kubernetes Secret reference, not a credential value
 			Secret: &v1.SecretVolumeSource{
 				SecretName: "rook-ceph-admin-keyring",
 				Items: []v1.KeyToPath{

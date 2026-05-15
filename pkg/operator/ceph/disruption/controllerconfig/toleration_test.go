@@ -151,6 +151,7 @@ func TestTolerationSet(t *testing.T) {
 
 		// append the previous one again if it's within range, else append the last one
 		if i > 0 {
+			// #nosec G602 -- i > 0 is checked above so i-1 is always within bounds
 			tolerationsWithDuplicates = append(tolerationsWithDuplicates, uniqueTolerationsManualB[i-1])
 		} else {
 			tolerationsWithDuplicates = append(tolerationsWithDuplicates, uniqueTolerationsManualB[len(uniqueTolerationsManualB)-1])

@@ -473,7 +473,7 @@ func GetSpec(obj client.Object) interface{} {
 	val := reflect.ValueOf(obj)
 
 	// If obj is a pointer, get the element
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
 

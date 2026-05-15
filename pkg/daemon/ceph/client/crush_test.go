@@ -322,6 +322,7 @@ func TestCrushName(t *testing.T) {
 		assert.True(t, IsNormalizedCrushNameEqual(normalizedCrushName, normalizedCrushName))
 		if i > 0 {
 			// slightly different crush name
+			// #nosec G602 -- i > 0 is checked above so i-1 is always within bounds
 			differentCrushName := crushNames[i-1]
 			differentNormalizedCrushName := NormalizeCrushName(differentCrushName)
 			assert.False(t, IsNormalizedCrushNameEqual(crushName, differentNormalizedCrushName))

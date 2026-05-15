@@ -65,6 +65,7 @@ func TestVaultTLSEnvVarFromSecret(t *testing.T) {
 	})
 	t.Run("ibm kp", func(t *testing.T) {
 		spec := cephv1.ClusterSpec{
+			// #nosec G101 -- this is a test fixture, not real credentials
 			Security: cephv1.ClusterSecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
 				TokenSecretName:   "ibm-kp-token",
 				ConnectionDetails: map[string]string{"KMS_PROVIDER": TypeIBM, "IBM_KP_SERVICE_INSTANCE_ID": "1"},
@@ -140,6 +141,7 @@ func TestVaultConfigToEnvVar(t *testing.T) {
 		},
 		{
 			"ibm kp - IBM_KP_SERVICE_API_KEY is removed from the details",
+			// #nosec G101 -- this is a test fixture, not real credentials
 			args{spec: cephv1.ClusterSpec{Security: cephv1.ClusterSecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": TypeIBM, "IBM_KP_SERVICE_API_KEY": "foo", "IBM_KP_SERVICE_INSTANCE_ID": "1"}, TokenSecretName: "ibm-kp-token"}}}},
 			[]v1.EnvVar{
 				{Name: "IBM_KP_SERVICE_API_KEY", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "ibm-kp-token"}, Key: "IBM_KP_SERVICE_API_KEY"}}},
