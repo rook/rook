@@ -29,11 +29,11 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.25"
+          go-version: "1.26"
       - name: golangci-lint
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         with:
-          version: v2.6.2
+          version: v2.12.2
           # actions/setup-go already handles caching
           skip-cache: true
 
@@ -43,7 +43,7 @@ jobs:
     steps:
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.25"
+          go-version: "1.26"
           check-latest: true
       - name: govulncheck
         uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
@@ -62,7 +62,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.25"
+          go-version: "1.26"
       - name: kube-api-lint
         run: |
           # --new: show only new issues introduced in the PR, ignoring existing issues
