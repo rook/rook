@@ -13,7 +13,7 @@ replace (
 )
 
 require (
-	github.com/IBM/keyprotect-go-client v0.15.1
+	github.com/IBM/keyprotect-go-client v0.16.0
 	github.com/aws/aws-sdk-go v1.55.8
 	github.com/aws/aws-sdk-go-v2 v1.41.7
 	github.com/aws/aws-sdk-go-v2/config v1.32.17
