@@ -202,6 +202,9 @@ func loadCsiSettings(namespace string, cephClusterSpec *cephv1.ClusterSpec) ceph
 			if cephClusterSpec.NetworkEncryptionEnabled() {
 				log.NamespacedInfo(namespace, logger, "setting default cephfs kernel mount options to 'ms_mode=secure' since encryption is enabled")
 				settings.CephFS.KernelMountOptions = "ms_mode=secure"
+			} else {
+				log.NamespacedInfo(namespace, logger, "setting default cephfs kernel mount options to 'ms_mode=prefer-crc'")
+				settings.CephFS.KernelMountOptions = "ms_mode=prefer-crc"
 			}
 		}
 	}
