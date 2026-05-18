@@ -1,7 +1,6 @@
 #################################################################################################################
-# Create an object store with settings for replication in a production environment. A minimum of 3 hosts with
-# OSDs are required in this example.
-#  kubectl create -f object.yaml
+# Create an object store with settings for an external Ceph cluster.
+#  kubectl create -f object-external.yaml
 #################################################################################################################
 
 apiVersion: ceph.rook.io/v1
