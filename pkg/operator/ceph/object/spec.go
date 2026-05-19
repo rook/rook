@@ -47,6 +47,7 @@ import (
 
 const (
 	serviceAccountName = "rook-ceph-rgw"
+	rgwContainerName   = "rgw"
 	sseKMS             = "ssekms"
 	sseS3              = "sses3"
 	vaultPrefix        = "/v1/"
@@ -331,7 +332,11 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 
 	addVols, addMounts := c.store.Spec.Gateway.AdditionalVolumeMounts.GenerateVolumesAndMounts("/var/rgw/")
 	podTemplateSpec.Spec.Volumes = append(podTemplateSpec.Spec.Volumes, addVols...)
-	podTemplateSpec.Spec.Containers[0].VolumeMounts = append(podTemplateSpec.Spec.Containers[0].VolumeMounts, addMounts...)
+	rgwContainer, err := k8sutil.GetContainerByName(podTemplateSpec.Spec.Containers, rgwContainerName)
+	if err != nil {
+		return podTemplateSpec, errors.Wrapf(err, "failed to find %q container in RGW pod spec", rgwContainerName)
+	}
+	rgwContainer.VolumeMounts = append(rgwContainer.VolumeMounts, addMounts...)
 
 	return podTemplateSpec, nil
 }
@@ -420,7 +425,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 	}
 
 	container := v1.Container{
-		Name:            "rgw",
+		Name:            rgwContainerName,
 		Image:           c.clusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		Command: []string{

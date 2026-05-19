@@ -165,13 +165,14 @@ func GetOperatorServiceAccount(ctx context.Context, clientset kubernetes.Interfa
 	return pod.Spec.ServiceAccountName
 }
 
-func CheckOperatorResources(ctx context.Context, clientset kubernetes.Interface) {
+func CheckOperatorResources(ctx context.Context, clientset kubernetes.Interface, containerName string) {
 	// Getting the info of the operator pod
 	pod, err := k8sutil.GetRunningPod(ctx, clientset)
 	TerminateOnError(err, "failed to get pod")
-	resource := pod.Spec.Containers[0].Resources
+	container, err := k8sutil.GetContainerByName(pod.Spec.Containers, containerName)
+	TerminateOnError(err, "failed to find operator container in pod")
 	// set env var if operator pod resources are set
-	if !reflect.DeepEqual(resource, (v1.ResourceRequirements{})) {
+	if !reflect.DeepEqual(container.Resources, (v1.ResourceRequirements{})) {
 		os.Setenv("OPERATOR_RESOURCES_SPECIFIED", "true")
 	}
 }
