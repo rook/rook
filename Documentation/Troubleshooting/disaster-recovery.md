@@ -180,7 +180,7 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
 7. Install Rook Ceph in the new Kubernetes cluster.
 8. Watch the operator logs with `kubectl -n rook-ceph logs -f rook-ceph-operator-xxxxxxx`, and wait until the orchestration has settled.
 9. **STATE**: Now the cluster will have `rook-ceph-mon-a`, `rook-ceph-mgr-a`, and all the auxiliary pods up and running, and zero (hopefully) `rook-ceph-osd-ID-xxxxxx` running. `ceph -s` output should report 1 mon, 1 mgr running, and all of the OSDs down, all PGs are in `unknown` state. Rook should not start any OSD daemon since all devices belongs to the old cluster (which have a different `fsid`).
-10. Run `kubectl -n rook-ceph exec -it rook-ceph-mon-a-xxxxxxxx bash` to enter the `rook-ceph-mon-a` pod,
+10. Run `kubectl -n rook-ceph exec -it rook-ceph-mon-a-xxxxxxxx -- bash` to enter the `rook-ceph-mon-a` pod,
 
     ```console
     mon-a# cat /etc/ceph/keyring-store/keyring  # save this keyring content for later use
@@ -233,7 +233,7 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
 17. Bring the Rook Ceph operator back online by running `kubectl -n rook-ceph edit deploy/rook-ceph-operator` and set `replicas` to `1`.
 18. Watch the operator logs with `kubectl -n rook-ceph logs -f rook-ceph-operator-xxxxxxx`, and wait until the orchestration has settled.
 19. **STATE**: Now the new cluster should be up and running with authentication disabled. `ceph -s` should report 1 mon & 1 mgr & all of the OSDs up and running, and all PGs in either `active` or `degraded` state.
-20. Run `kubectl -n rook-ceph exec -it rook-ceph-tools-XXXXXXX bash` to enter tools pod:
+20. Run `kubectl -n rook-ceph exec -it rook-ceph-tools-XXXXXXX -- bash` to enter tools pod:
 
     ```console
     vi key
