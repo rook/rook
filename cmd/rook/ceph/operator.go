@@ -64,7 +64,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 		rook.TerminateFatal(errors.Errorf("rook operator namespace is not provided. expose it via downward API in the rook operator manifest file using environment variable %q", k8sutil.PodNamespaceEnvVar))
 	}
 
-	rook.CheckOperatorResources(cmd.Context(), context.Clientset)
+	rook.CheckOperatorResources(cmd.Context(), context.Clientset, containerName)
 	rookImage := rook.GetOperatorImage(cmd.Context(), context.Clientset, containerName)
 	rookBaseImageCephVersion, err := rook.GetOperatorBaseImageCephVersion(context)
 	if err != nil {
