@@ -33,6 +33,7 @@ type CephManifests interface {
 	GetOperator() string
 	GetCommon() string
 	GetCommonExternal() string
+	GetNetworkPolicy() string
 	GetCephCluster() string
 	GetExternalCephCluster() string
 	GetToolbox() string
@@ -107,6 +108,10 @@ func (m *CephManifestsMaster) GetCommonExternal() string {
 
 func (m *CephManifestsMaster) GetCommon() string {
 	return m.settings.readManifest("common.yaml")
+}
+
+func (m *CephManifestsMaster) GetNetworkPolicy() string {
+	return m.settings.readManifest("networkpolicy.yaml")
 }
 
 func (m *CephManifestsMaster) GetToolbox() string {
