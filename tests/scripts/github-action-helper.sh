@@ -375,6 +375,7 @@ function deploy_cluster() {
   kubectl create -f monitoring/rbac.yaml
 
   kubectl create -f cluster-test.yaml
+  kubectl create -f networkpolicy.yaml
 
   deploy_toolbox
 }

@@ -14,3 +14,4 @@
 - SSE-S3 with Vault Agent: Added support for server-side encryption with SSE-S3 using HashiCorp Vault Agent authentication. See the [CephObjectStore Security Settings](Documentation/CRDs/Object-Storage/ceph-object-store-crd.md#sse-s3-with-vault-agent) for more details.
 - Unused CRUSH rule cleanup: Rook now deletes unused CRUSH rules by default after the Ceph mgr starts. Set `ROOK_DELETE_UNUSED_CRUSH_RULES` to `false` in the operator config to disable this cleanup.
 - Declare stable the feature to concurrently reconcile multiple Ceph Clusters with the setting `ROOK_RECONCILE_CONCURRENT_CLUSTERS`.
+- NetworkPolicy examples (experimental): Added example NetworkPolicy definitions for Rook-Ceph operator and operand pods to restrict egress/ingress traffic. See `deploy/examples/networkpolicy.yaml`.
