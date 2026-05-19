@@ -19,8 +19,10 @@ package nfs
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
 )
@@ -35,18 +37,22 @@ func (r *ReconcileCephNFS) addSecurityConfigsToPod(nfs *cephv1.CephNFS, pod *v1.
 
 	if sec.SSSD != nil {
 		log.NamedDebug(nsName, logger, "configuring system security services daemon (SSSD) for CephNFS")
-		addSSSDConfigsToPod(r, nfs, pod)
+		if err := addSSSDConfigsToPod(r, nfs, pod); err != nil {
+			return err
+		}
 	}
 
 	if sec.Kerberos != nil {
 		log.NamedDebug(nsName, logger, "configuring Kerberos for CephNFS")
-		addKerberosConfigsToPod(r, nfs, pod)
+		if err := addKerberosConfigsToPod(r, nfs, pod); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func addSSSDConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.PodSpec) {
+func addSSSDConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.PodSpec) error {
 	nsName := controller.NsName(nfs.Namespace, nfs.Name)
 
 	// generate /etc/nsswitch.conf file for the nfs-ganesha pod
@@ -54,8 +60,11 @@ func addSSSDConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.PodSp
 
 	pod.InitContainers = append(pod.InitContainers, *nssCfgInitContainer)
 	pod.Volumes = append(pod.Volumes, *nssCfgVol)
-	// assume the first container is the NFS-Ganesha container
-	pod.Containers[0].VolumeMounts = append(pod.Containers[0].VolumeMounts, *nssCfgMount)
+	ganesha, err := k8sutil.GetContainerByName(pod.Containers, ganeshaContainerName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add SSSD config")
+	}
+	ganesha.VolumeMounts = append(ganesha.VolumeMounts, *nssCfgMount)
 
 	sidecarCfg := nfs.Spec.Security.SSSD.Sidecar
 	if sidecarCfg != nil {
@@ -65,19 +74,27 @@ func addSSSDConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.PodSp
 		pod.InitContainers = append(pod.InitContainers, *init)
 		pod.Containers = append(pod.Containers, *sidecar)
 		pod.Volumes = append(pod.Volumes, vols...)
-		// assume the first container is the NFS-Ganesha container
-		pod.Containers[0].VolumeMounts = append(pod.Containers[0].VolumeMounts, mounts...)
+		// re-look up the container; appending the sidecar may have reallocated pod.Containers
+		ganesha, err = k8sutil.GetContainerByName(pod.Containers, ganeshaContainerName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to add SSSD sidecar mounts")
+		}
+		ganesha.VolumeMounts = append(ganesha.VolumeMounts, mounts...)
 	}
+	return nil
 }
 
-func addKerberosConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.PodSpec) {
+func addKerberosConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.PodSpec) error {
 	init, volume, ganeshaMounts := generateKrbConfResources(r, nfs)
 
 	pod.InitContainers = append(pod.InitContainers, *init)
 	pod.Volumes = append(pod.Volumes, *volume)
-	// assume the first container is the NFS-Ganesha container
+	ganesha, err := k8sutil.GetContainerByName(pod.Containers, ganeshaContainerName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add Kerberos config")
+	}
 	for _, m := range ganeshaMounts {
-		pod.Containers[0].VolumeMounts = append(pod.Containers[0].VolumeMounts, *m)
+		ganesha.VolumeMounts = append(ganesha.VolumeMounts, *m)
 	}
 
 	configVolSrc := nfs.Spec.Security.Kerberos.ConfigFiles.VolumeSource
@@ -85,7 +102,7 @@ func addKerberosConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.P
 		vol, mnt := kerberosConfigFilesVolAndMount(*configVolSrc)
 
 		pod.Volumes = append(pod.Volumes, vol)
-		pod.Containers[0].VolumeMounts = append(pod.Containers[0].VolumeMounts, mnt)
+		ganesha.VolumeMounts = append(ganesha.VolumeMounts, mnt)
 	}
 
 	keytabVolSrc := nfs.Spec.Security.Kerberos.KeytabFile.VolumeSource
@@ -93,8 +110,9 @@ func addKerberosConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.P
 		vol, mnt := keytabVolAndMount(*keytabVolSrc)
 
 		pod.Volumes = append(pod.Volumes, vol)
-		pod.Containers[0].VolumeMounts = append(pod.Containers[0].VolumeMounts, mnt)
+		ganesha.VolumeMounts = append(ganesha.VolumeMounts, mnt)
 	}
+	return nil
 }
 
 func generateSssdSidecarResources(nfs *cephv1.CephNFS, sidecarCfg *cephv1.SSSDSidecar) (

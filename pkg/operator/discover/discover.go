@@ -236,8 +236,11 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 	}
 
 	if opcontroller.LoopDevicesAllowed() {
-		ds.Spec.Template.Spec.Containers[0].Env = append(ds.Spec.Template.Spec.Containers[0].Env,
-			v1.EnvVar{Name: "CEPH_VOLUME_ALLOW_LOOP_DEVICES", Value: "true"})
+		c, err := k8sutil.GetContainerByName(ds.Spec.Template.Spec.Containers, discoverDaemonsetName)
+		if err != nil {
+			return fmt.Errorf("failed to find rook-discover container in daemonset spec. %+v", err)
+		}
+		c.Env = append(c.Env, v1.EnvVar{Name: "CEPH_VOLUME_ALLOW_LOOP_DEVICES", Value: "true"})
 	}
 
 	_, err = d.clientset.AppsV1().DaemonSets(namespace).Create(ctx, ds, metav1.CreateOptions{})
