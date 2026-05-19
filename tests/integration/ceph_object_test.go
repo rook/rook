@@ -251,10 +251,10 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		assert.True(t, created)
 		logger.Info("OBC created successfully")
 
-		var bkt rgw.ObjectBucket
+		var bkt ObjectBucket
 		i := 0
 		for i = 0; i < 4; i++ {
-			b, code, err := rgw.GetBucket(rgwcontext, bucketname)
+			b, code, err := GetBucket(rgwcontext, bucketname)
 			if b != nil && err == nil {
 				bkt = *b
 				break
@@ -1050,7 +1050,7 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		logger.Info("ensure OBC bucket was deleted")
 		var rgwErr int
 		for i = 0; i < 4; i++ {
-			_, rgwErr, _ = rgw.GetBucket(rgwcontext, bucketname)
+			_, rgwErr, _ = GetBucket(rgwcontext, bucketname)
 			if rgwErr == rgw.RGWErrorNotFound {
 				break
 			}

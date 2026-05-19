@@ -34,30 +34,30 @@ import (
 
 func TestExtractJson(t *testing.T) {
 	s := "invalid json"
-	_, err := extractJSON(s)
+	_, err := ExtractJSON(s)
 	assert.Error(t, err)
 
 	s = `{"test": "test"}`
-	match, err := extractJSON(s)
+	match, err := ExtractJSON(s)
 	assert.NoError(t, err)
 	assert.True(t, json.Valid([]byte(match)))
 
 	s = `this line can't be parsed as json
 {"test": "test"}`
-	match, err = extractJSON(s)
+	match, err = ExtractJSON(s)
 	assert.NoError(t, err)
 	assert.True(t, json.Valid([]byte(match)))
 
 	s = `this line can't be parsed as json
 {"test":
 "test"}`
-	match, err = extractJSON(s)
+	match, err = ExtractJSON(s)
 	assert.NoError(t, err)
 	assert.True(t, json.Valid([]byte(match)))
 
 	s = `{"test": "test"}
 this line can't be parsed as json`
-	match, err = extractJSON(s)
+	match, err = ExtractJSON(s)
 	assert.NoError(t, err)
 	assert.True(t, json.Valid([]byte(match)))
 
@@ -72,7 +72,7 @@ this line can't be parsed as json`
 }
 this line can't be parsed as json
 `
-	match, err = extractJSON(s)
+	match, err = ExtractJSON(s)
 	assert.NoError(t, err)
 	assert.True(t, json.Valid([]byte(match)))
 	assert.Equal(t, `{
@@ -84,14 +84,14 @@ this line can't be parsed as json
 }`, match)
 
 	s = `[{"test": "test"}]`
-	match, err = extractJSON(s)
+	match, err = ExtractJSON(s)
 	assert.NoError(t, err)
 	assert.True(t, json.Valid([]byte(match)))
 	assert.Equal(t, `[{"test": "test"}]`, match)
 
 	s = `this line can't be parsed as json
 [{"test": "test"}]`
-	match, err = extractJSON(s)
+	match, err = ExtractJSON(s)
 	assert.NoError(t, err)
 	assert.True(t, json.Valid([]byte(match)))
 	assert.Equal(t, `[{"test": "test"}]`, match)
@@ -110,7 +110,7 @@ this line can't be parsed as json
 ]
 this line can't be parsed as json
 `
-	match, err = extractJSON(s)
+	match, err = ExtractJSON(s)
 	assert.NoError(t, err)
 	assert.True(t, json.Valid([]byte(match)))
 	assert.Equal(t, `[

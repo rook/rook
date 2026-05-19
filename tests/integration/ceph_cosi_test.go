@@ -95,10 +95,10 @@ func testCOSIDriver(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sH
 		assert.Nil(t, err)
 		rgwcontext, err := rgw.NewMultisiteContext(context, clusterInfo, objectStore)
 		assert.Nil(t, err)
-		var bkt rgw.ObjectBucket
+		var bkt ObjectBucket
 		i := 0
 		for i = 0; i < 4; i++ {
-			b, code, err := rgw.GetBucket(rgwcontext, cosiBucket)
+			b, code, err := GetBucket(rgwcontext, cosiBucket)
 			if b != nil && err == nil {
 				bkt = *b
 				break
