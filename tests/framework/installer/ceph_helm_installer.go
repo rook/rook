@@ -19,7 +19,6 @@ package installer
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -193,27 +192,6 @@ func csiDriverChartValues(driverName string) map[string]interface{} {
 	}
 }
 
-func normalizedCSIDriverName(driverName string) string {
-	return strings.ToLower(strings.ReplaceAll(driverName, ".", "-"))
-}
-
-// patchCSIDriverServiceAccounts patches the service accounts for the CSI drivers. Since, ceph-csi-operator latest
-// release v1.0.0, serviceAccount creation is moved to csi-driver chart. We need to patch the service accounts for the CSI drivers
-// to match the required naming convention used by csi-driver chart serviceAccount.
-func (h *CephInstaller) patchCSIDriverServiceAccounts(op string, driverNames []string) error {
-	for _, driverName := range driverNames {
-		sa := normalizedCSIDriverName(driverName)
-		patch := fmt.Sprintf(
-			`{"spec":{"nodePlugin":{"serviceAccountName":"%s-nodeplugin-sa"},"controllerPlugin":{"serviceAccountName":"%s-ctrlplugin-sa"}}}`,
-			sa, sa,
-		)
-		if _, err := h.k8shelper.Kubectl("patch", "drivers.csi.ceph.io", driverName, "-n", op, "--type=merge", "-p", patch); err != nil {
-			return errors.Wrapf(err, "failed to patch CSI driver %q", driverName)
-		}
-	}
-	return nil
-}
-
 func (h *CephInstaller) InstallCephCsiDriversViaHelm() error {
 	if err := h.k8shelper.CreateSnapshotCRD("create"); err != nil {
 		return errors.Wrap(err, "failed to install snapshot CRDs")
@@ -224,29 +202,22 @@ func (h *CephInstaller) InstallCephCsiDriversViaHelm() error {
 	if err := h.k8shelper.WaitForSnapshotController(30); err != nil {
 		return errors.Wrap(err, "snapshot controller is not ready")
 	}
+	op := h.settings.OperatorNamespace
 
-	driverNames := []string{
-		fmt.Sprintf("%s.rbd.csi.ceph.com", h.settings.OperatorNamespace),
-		fmt.Sprintf("%s.cephfs.csi.ceph.com", h.settings.OperatorNamespace),
-	}
 	drivers := map[string]interface{}{
-		"rbd":    csiDriverChartValues(driverNames[0]),
-		"cephfs": csiDriverChartValues(driverNames[1]),
+		"rbd":    csiDriverChartValues(fmt.Sprintf("%s.rbd.csi.ceph.com", op)),
+		"cephfs": csiDriverChartValues(fmt.Sprintf("%s.cephfs.csi.ceph.com", op)),
 		"nvmeof": map[string]interface{}{"enabled": false},
 	}
-
 	if h.settings.TestNFSCSI {
-		nfsDriver := fmt.Sprintf("%s.nfs.csi.ceph.com", h.settings.OperatorNamespace)
-		driverNames = append(driverNames, nfsDriver)
-		drivers["nfs"] = csiDriverChartValues(nfsDriver)
+		drivers["nfs"] = csiDriverChartValues(fmt.Sprintf("%s.nfs.csi.ceph.com", op))
 	} else {
 		drivers["nfs"] = map[string]interface{}{"enabled": false}
 	}
-
 	values := map[string]interface{}{
 		"operatorConfig": map[string]interface{}{
 			"name":      "ceph-csi-operator-config",
-			"namespace": h.settings.OperatorNamespace,
+			"namespace": op,
 			"create":    true,
 			"driverSpecDefaults": map[string]interface{}{
 				"log": map[string]interface{}{"verbosity": 0},
@@ -275,23 +246,15 @@ func (h *CephInstaller) InstallCephCsiDriversViaHelm() error {
 		},
 		"drivers": drivers,
 	}
-
-	if err := h.helmHelper.InstallOrUpgradeHelmRepoChart(
-		h.settings.OperatorNamespace,
+	return h.helmHelper.InstallOrUpgradeHelmRepoChart(
+		op,
 		cephCsiDriversReleaseName,
 		cephCsiOperatorHelmRepoURL,
 		cephCsiOperatorHelmRepoName,
 		cephCsiDriversChartName,
 		cephCsiDriversChartVersion,
 		values,
-	); err != nil {
-		return err
-	}
-
-	if err := h.patchCSIDriverServiceAccounts(h.settings.OperatorNamespace, driverNames); err != nil {
-		return err
-	}
-	return nil
+	)
 }
 
 // removeCephClusterHelmResources tidies up the helm created CRs and Storage Classes, as they interfere with other tests.
