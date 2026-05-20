@@ -44,11 +44,10 @@ const (
 	dashboardPortHTTP   = 7000
 	dashboardUsername   = "admin"
 	//nolint:gosec // because of the word `Password`
-	dashboardPasswordName          = "rook-ceph-dashboard-password"
-	passwordLength                 = 20
-	passwordKeyName                = "password"
-	certAlreadyConfiguredErrorCode = 5
-	invalidArgErrorCode            = int(syscall.EINVAL)
+	dashboardPasswordName = "rook-ceph-dashboard-password"
+	passwordLength        = 20
+	passwordKeyName       = "password"
+	invalidArgErrorCode   = int(syscall.EINVAL)
 )
 
 var (

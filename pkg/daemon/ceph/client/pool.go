@@ -37,8 +37,6 @@ const (
 	reallyConfirmFlag       = "--yes-i-really-really-mean-it"
 	targetSizeRatioProperty = "target_size_ratio"
 	CompressionModeProperty = "compression_mode"
-	PgAutoscaleModeProperty = "pg_autoscale_mode"
-	PgAutoscaleModeOn       = "on"
 )
 
 // crushRuleMutex coordinates crush rule cleanup with pool reconciles. Pool

@@ -31,11 +31,6 @@ import (
 const (
 	// LocalBuildTag tag for the latest manifests
 	LocalBuildTag = "local-build"
-
-	// test suite names
-	CassandraTestSuite = "cassandra"
-	CephTestSuite      = "ceph"
-	NFSTestSuite       = "nfs"
 )
 
 var (

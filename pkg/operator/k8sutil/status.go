@@ -19,8 +19,6 @@ package k8sutil
 const (
 	// ReadyStatus reflects the completeness of tasks for ceph related CRs
 	ReadyStatus = "Ready"
-	// ProcessingStatus reflects that the tasks are in progress for ceph related CRs
-	ProcessingStatus = "Processing"
 	// FailedStatus reflects that some task failed for ceph related CRs
 	FailedStatus = "Failed"
 	// ReconcilingStatus indicates the CR is reconciling

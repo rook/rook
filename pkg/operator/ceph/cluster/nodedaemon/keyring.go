@@ -34,7 +34,6 @@ import (
 
 const (
 	crashClient          = `client.crash`
-	exporterClient       = `client.ceph-exporter`
 	crashKeyringTemplate = `
 [client.crash]
 	key = %s
