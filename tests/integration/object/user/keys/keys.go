@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	utiladmin "github.com/rook/rook/tests/integration/object/util/admin"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 )
 
 // generate the secret name the operator is expected to generate for the CephObjectStoreUser
@@ -112,9 +113,10 @@ func checkRgwUserKeys(t *testing.T, adminClient *admin.API, osu cephv1.CephObjec
 	})
 }
 
-func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, objectStore *cephv1.CephObjectStore) {
+func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, store *sharedstore.Sharedstore) {
 	var (
 		defaultName = "test-userkeys"
+		objectStore = store.ObjectStore()
 
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
