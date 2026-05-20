@@ -60,7 +60,6 @@ const (
 	DaemonIDLabel                           = "ceph_daemon_id"
 	daemonTypeLabel                         = "ceph_daemon_type"
 	ExternalMgrAppName                      = "rook-ceph-mgr-external"
-	ExternalCephExporterName                = "rook-ceph-exporter-external"
 	ServiceExternalMetricName               = "http-external-metrics"
 	CephUserID                              = int64(167)
 	livenessProbeTimeoutSeconds       int32 = 5

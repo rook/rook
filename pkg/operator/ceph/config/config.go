@@ -60,12 +60,6 @@ const (
 
 	// CrashType defines the crash collector DaemonType
 	CrashType = "crashcollector"
-
-	// CephUser is the Linux Ceph username
-	CephUser = "ceph"
-
-	// CephGroup is the Linux Ceph groupname
-	CephGroup = "ceph"
 )
 
 var (
