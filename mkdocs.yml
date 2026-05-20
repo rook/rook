@@ -1,13 +1,14 @@
+
 site_name: Rook Ceph Documentation
 docs_dir: Documentation/
-site_url: "https://rook.io"
+site_url: "https://rook.io/docs/rook/latest-release/"
 repo_url: https://github.com/rook/rook
 edit_uri: edit/master/Documentation/
 site_author: Rook Authors
 site_description: "Rook Ceph Documentation"
 use_directory_urls: true
 copyright: |
-  <a class="logo" href="/">
+  <a class="logo" href=".">
     <img src="https://rook.io/images/rook-logo-small.svg" alt="rook.io logo" />
   </a>
   <p>
