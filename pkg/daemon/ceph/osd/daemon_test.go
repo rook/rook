@@ -445,6 +445,19 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 1, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["dm-0"].Data)
 
+	// select an exact logical volume with a metadata device
+	agent.devices = []DesiredDevice{{Name: "/dev/mapper/vg1-lv1", MetadataDevice: "/dev/mapper/vg1-lv2"}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["dm-0"].Data)
+
+	// logical volume with osdsPerDevice > 1 is rejected
+	agent.devices = []DesiredDevice{{Name: "/dev/mapper/vg1-lv1", OSDsPerDevice: 2}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+
 	// select all devices except those that have a prefix of "s"
 	agent.devices = []DesiredDevice{{Name: "^[^s]", IsFilter: true}}
 	mapping, err = getAvailableDevices(context, agent)
