@@ -8750,7 +8750,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: CSI_SERVICE_ACCOUNT_PREFIX
-              value: ""
+              value: "ceph-csi-"
             - name: WATCH_NAMESPACE
               value: ""
           image: quay.io/cephcsi/ceph-csi-operator:v1.0.0
