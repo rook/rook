@@ -27,31 +27,37 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestGetContainerInPod(t *testing.T) {
+func TestGetContainerByName(t *testing.T) {
 	expectedName := "mycontainer"
 	imageName := "myimage"
 
-	// no container fails
-	_, err := GetMatchingContainer([]v1.Container{}, expectedName)
+	// empty list returns an error
+	_, err := GetContainerByName([]v1.Container{}, expectedName)
 	assert.NotNil(t, err)
 
-	// one container will allow any name
-	container, err := GetMatchingContainer([]v1.Container{{Name: "foo", Image: imageName}}, expectedName)
-	assert.Nil(t, err)
-	assert.Equal(t, imageName, container.Image)
+	// single non-matching container returns an error
+	_, err = GetContainerByName([]v1.Container{{Name: "foo", Image: imageName}}, expectedName)
+	assert.NotNil(t, err)
 
-	// multiple container fails if we don't find the correct name
-	container, err = GetMatchingContainer(
+	// multiple containers with no match returns an error
+	_, err = GetContainerByName(
 		[]v1.Container{{Name: "foo", Image: imageName}, {Name: "bar", Image: imageName}},
 		expectedName)
 	assert.NotNil(t, err)
 
-	// multiple container succeeds if we find the correct name
-	container, err = GetMatchingContainer(
+	// match returns the container
+	container, err := GetContainerByName(
 		[]v1.Container{{Name: "foo", Image: imageName}, {Name: expectedName, Image: imageName}},
 		expectedName)
 	assert.Nil(t, err)
 	assert.Equal(t, imageName, container.Image)
+
+	// returned pointer references the slice element, so mutations are visible
+	containers := []v1.Container{{Name: expectedName, Image: imageName}}
+	c, err := GetContainerByName(containers, expectedName)
+	assert.Nil(t, err)
+	c.Image = "newimage"
+	assert.Equal(t, "newimage", containers[0].Image)
 }
 
 func TestGetPodPhaseMap(t *testing.T) {
