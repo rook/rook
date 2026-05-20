@@ -131,10 +131,6 @@ func DeleteImageFromTrashInRadosNamespace(context *clusterd.Context, clusterInfo
 	return nil
 }
 
-func DeleteImageInPool(context *clusterd.Context, clusterInfo *ClusterInfo, name, poolName string) error {
-	return DeleteImageInRadosNamespace(context, clusterInfo, name, poolName, "")
-}
-
 func DeleteImageInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, name, poolName, namespace string) error {
 	logger.Infof("deleting rbd image %q from pool %q", name, poolName)
 	imageSpec := getImageSpec(name, poolName)

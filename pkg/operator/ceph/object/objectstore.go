@@ -173,7 +173,7 @@ func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStore
 			}
 		}
 
-		_, err = runAdminCommand(objContext, false, "zone", "modify", endpointArg)
+		_, err = RunAdminCommand(objContext, false, "zone", "modify", endpointArg)
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone %q", objContext.Name, spec.Zone.Name)
 		}
@@ -625,7 +625,7 @@ func deleteRealm(context *Context) error {
 
 	// Delete in reverse order: zone → zonegroup → realm.
 	// Note: radosgw-admin uses "delete" for zone and zonegroup, but "rm" for realm.
-	_, err := runAdminCommand(context, false, "zone", "delete")
+	_, err := RunAdminCommand(context, false, "zone", "delete")
 	if err != nil {
 		log.NamedWarning(context.NsName(), logger, "failed to delete rgw zone %q. %v", context.Name, err)
 	}
@@ -974,7 +974,7 @@ func adjustZoneDefaultPools(objContext *Context, zone map[string]interface{}, sp
 			// not a pool property
 			continue
 		}
-		if _, ok := zonePoolNSSuffix[field]; !ok {
+		if !ZoneJsonPoolKeys().Has(field) {
 			log.NamedWarning(objContext.NsName(), logger, "zone config %q contains unknown pool %q", name, field)
 		}
 	}
@@ -1330,7 +1330,7 @@ func listsAreEqual(a, b []string) bool {
 }
 
 func CheckIfZonePresentInZoneGroup(objContext *Context) (bool, error) {
-	output, err := runAdminCommand(objContext, true, "zonegroup", "get")
+	output, err := RunAdminCommand(objContext, true, "zonegroup", "get")
 	if err != nil {
 		return false, err
 	}

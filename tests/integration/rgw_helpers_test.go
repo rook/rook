@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Rook Authors. All rights reserved.
+Copyright 2026 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package object
+package integration
 
 import (
 	"encoding/json"
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 )
 
 const (
@@ -52,20 +53,6 @@ type rgwBucketStats struct {
 	}
 }
 
-type ObjectBuckets []ObjectBucket
-
-func (slice ObjectBuckets) Len() int {
-	return len(slice)
-}
-
-func (slice ObjectBuckets) Less(i, j int) bool {
-	return slice[i].Name < slice[j].Name
-}
-
-func (slice ObjectBuckets) Swap(i, j int) {
-	slice[i], slice[j] = slice[j], slice[i]
-}
-
 func bucketStatsFromRGW(stats rgwBucketStats) ObjectBucketStats {
 	s := ObjectBucketStats{Size: 0, NumberOfObjects: 0}
 	for _, usage := range stats.Usage {
@@ -75,8 +62,8 @@ func bucketStatsFromRGW(stats rgwBucketStats) ObjectBucketStats {
 	return s
 }
 
-func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, error) {
-	result, err := runAdminCommand(c,
+func GetBucketStats(c *rgw.Context, bucketName string) (*ObjectBucketStats, bool, error) {
+	result, err := rgw.RunAdminCommand(c,
 		true,
 		"bucket",
 		"stats",
@@ -99,31 +86,8 @@ func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, er
 	return &stat, false, nil
 }
 
-func GetBucketsStats(c *Context) (map[string]ObjectBucketStats, error) {
-	result, err := runAdminCommand(c,
-		true,
-		"bucket",
-		"stats")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to list buckets")
-	}
-
-	var rgwStats []rgwBucketStats
-	if err := json.Unmarshal([]byte(result), &rgwStats); err != nil {
-		return nil, errors.Wrapf(err, "failed to read buckets stats result=%s", result)
-	}
-
-	stats := map[string]ObjectBucketStats{}
-
-	for _, rgwStat := range rgwStats {
-		stats[rgwStat.Bucket] = bucketStatsFromRGW(rgwStat)
-	}
-
-	return stats, nil
-}
-
-func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, error) {
-	result, err := runAdminCommand(c,
+func GetBucketMetadata(c *rgw.Context, bucket string) (*ObjectBucketMetadata, bool, error) {
+	result, err := rgw.RunAdminCommand(c,
 		false,
 		"metadata",
 		"get",
@@ -135,7 +99,7 @@ func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, 
 	if strings.Contains(result, "can't get key") {
 		return nil, true, errors.New("not found")
 	}
-	match, err := extractJSON(result)
+	match, err := rgw.ExtractJSON(result)
 	if err != nil {
 		return nil, false, errors.Wrapf(err, "failed to read buckets list result=%s", result)
 	}
@@ -158,24 +122,24 @@ func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, 
 	return &ObjectBucketMetadata{Owner: s.Data.Owner, CreatedAt: createdAt}, false, nil
 }
 
-func GetBucket(c *Context, bucket string) (*ObjectBucket, int, error) {
+func GetBucket(c *rgw.Context, bucket string) (*ObjectBucket, int, error) {
 	stat, notFound, err := GetBucketStats(c, bucket)
 	if notFound {
-		return nil, RGWErrorNotFound, errors.New("Bucket not found")
+		return nil, rgw.RGWErrorNotFound, errors.New("Bucket not found")
 	}
 
 	if err != nil {
-		return nil, RGWErrorUnknown, errors.Wrap(err, "Failed to get bucket stats")
+		return nil, rgw.RGWErrorUnknown, errors.Wrap(err, "Failed to get bucket stats")
 	}
 
-	metadata, notFound, err := getBucketMetadata(c, bucket)
+	metadata, notFound, err := GetBucketMetadata(c, bucket)
 	if notFound {
-		return nil, RGWErrorNotFound, errors.New("Bucket not found")
+		return nil, rgw.RGWErrorNotFound, errors.New("Bucket not found")
 	}
 
 	if err != nil {
-		return nil, RGWErrorUnknown, err
+		return nil, rgw.RGWErrorUnknown, err
 	}
 
-	return &ObjectBucket{Name: bucket, ObjectBucketMetadata: ObjectBucketMetadata{Owner: metadata.Owner, CreatedAt: metadata.CreatedAt}, ObjectBucketStats: *stat}, RGWErrorNone, nil
+	return &ObjectBucket{Name: bucket, ObjectBucketMetadata: ObjectBucketMetadata{Owner: metadata.Owner, CreatedAt: metadata.CreatedAt}, ObjectBucketStats: *stat}, rgw.RGWErrorNone, nil
 }

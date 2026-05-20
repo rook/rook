@@ -89,14 +89,14 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 	log.NamedDebug(c.NsName(), logger, "getting s3 user %q", id)
 	// note: err is set for non-existent user but result output is also empty
-	result, err := runAdminCommand(c, false, "user", "info", "--uid", id)
+	result, err := RunAdminCommand(c, false, "user", "info", "--uid", id)
 	if strings.Contains(result, "no user info saved") {
 		return nil, RGWErrorNotFound, errors.New("warn: s3 user not found")
 	}
 	if err != nil {
 		return nil, RGWErrorUnknown, errors.Wrapf(err, "radosgw-admin command err. %s", result)
 	}
-	match, err := extractJSON(result)
+	match, err := ExtractJSON(result)
 	if err != nil {
 		return nil, RGWErrorParse, errors.Wrap(err, "failed to get json")
 	}
@@ -207,7 +207,7 @@ func ListUserBuckets(c *Context, id string, opts ...string) (string, error) {
 		args = append(args, opts...)
 	}
 
-	result, err := runAdminCommand(c, false, args...)
+	result, err := RunAdminCommand(c, false, args...)
 
 	return result, errors.Wrapf(err, "failed to list buckets for user uid=%q", id)
 }
@@ -220,7 +220,7 @@ func DeleteUser(c *Context, id string, opts ...string) (string, error) {
 	if opts != nil {
 		args = append(args, opts...)
 	}
-	result, err := runAdminCommand(c, false, args...)
+	result, err := RunAdminCommand(c, false, args...)
 	if err != nil {
 		// If User does not exist return success
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {

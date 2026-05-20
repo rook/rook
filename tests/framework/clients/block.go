@@ -178,7 +178,7 @@ func (b *BlockOperation) ListImagesInPool(clusterInfo *client.ClusterInfo, poolN
 // DeleteBlockImage Function to list all the blocks created/being managed by rook
 func (b *BlockOperation) DeleteBlockImage(clusterInfo *client.ClusterInfo, image BlockImage) error {
 	context := b.k8sClient.MakeContext()
-	return client.DeleteImageInPool(context, clusterInfo, image.Name, image.PoolName)
+	return client.DeleteImageInRadosNamespace(context, clusterInfo, image.Name, image.PoolName, "")
 }
 
 // CreateClientPod starts a pod that should have a block PVC.

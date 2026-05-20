@@ -205,7 +205,8 @@ func NewMultisiteAdminOpsContext(
 	}, nil
 }
 
-func extractJSON(output string) (string, error) {
+// Deprecated: This function is *temporarily* exported for use in integration tests. Any integration test relying on this function should be refactored to not rely on internal implementation details.
+func ExtractJSON(output string) (string, error) {
 	// `radosgw-admin` sometimes leaves logs to stderr even if it succeeds.
 	// So we should skip them if parsing output as json.
 	// valid JSON can be an object (in braces) or an array (in brackets)
@@ -278,7 +279,7 @@ func RunAdminCommandNoMultisiteWithTimeout(c *Context, expectJSON bool, timeout 
 		return fmt.Sprintf("%s. %s", output, stderr), err
 	}
 	if expectJSON {
-		match, err := extractJSON(output)
+		match, err := ExtractJSON(output)
 		if err != nil {
 			return output, errors.Wrap(err, "failed to parse as JSON")
 		}
@@ -289,7 +290,9 @@ func RunAdminCommandNoMultisiteWithTimeout(c *Context, expectJSON bool, timeout 
 }
 
 // This function is for running radosgw-admin commands in scenarios where an object-store has been created and the Context has been updated with the appropriate realm, zone group, and zone.
-func runAdminCommand(c *Context, expectJSON bool, args ...string) (string, error) {
+//
+// Deprecated: This function is *temporarily* exported for use in integration tests. Any integration test relying on this function should be refactored to not rely on internal implementation details.
+func RunAdminCommand(c *Context, expectJSON bool, args ...string) (string, error) {
 	return runAdminCommandWithTimeout(c, expectJSON, exec.CephCommandsTimeout, args...)
 }
 
@@ -355,14 +358,14 @@ func isInvalidFlagError(err error) bool {
 // CommitConfigChanges commits changes to RGW configs for realm/zonegroup/zone changes idempotently.
 // Under the hood, this updates the RGW config period and commits the change if changes are detected.
 func CommitConfigChanges(c *Context) error {
-	currentPeriod, err := runAdminCommand(c, true, "period", "get")
+	currentPeriod, err := RunAdminCommand(c, true, "period", "get")
 	if err != nil {
 		return errorOrIsNotFound(err, "failed to get the current RGW configuration period to see if it needs changed")
 	}
 
 	// this stages the current config changes and returns what the new period config will look like
 	// without committing the changes
-	stagedPeriod, err := runAdminCommand(c, true, "period", "update")
+	stagedPeriod, err := RunAdminCommand(c, true, "period", "update")
 	if err != nil {
 		return errorOrIsNotFound(err, "failed to stage the current RGW configuration period")
 	}
@@ -382,7 +385,7 @@ func CommitConfigChanges(c *Context) error {
 	// DO NOT MODIFY THE MESSAGE BELOW. It is checked in integration tests.
 	log.NamedInfo(nsName, logger, "committing changes to RGW configuration period for CephObjectStore %q", nsName)
 	// don't expect json output since we don't intend to use the output from the command
-	_, err = runAdminCommand(c, false, "period", "update", "--commit")
+	_, err = RunAdminCommand(c, false, "period", "update", "--commit")
 	if err != nil {
 		return errorOrIsNotFound(err, "failed to commit RGW configuration period changes")
 	}
