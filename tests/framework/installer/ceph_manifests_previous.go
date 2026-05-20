@@ -75,6 +75,10 @@ func (m *CephManifestsPreviousVersion) GetCommonExternal() string {
 	return m.settings.readManifestFromGitHub("common-external.yaml")
 }
 
+func (m *CephManifestsPreviousVersion) GetNetworkPolicy() string {
+	return ""
+}
+
 //**********************************************************************************
 //**********************************************************************************
 // Methods in this section may need to be customized depending on new
