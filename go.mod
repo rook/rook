@@ -22,7 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sns v1.39.17
 	github.com/aws/smithy-go v1.25.1
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
-	github.com/ceph/ceph-csi-operator/api v0.0.0-20260205113234-c2ca44439222
+	github.com/ceph/ceph-csi-operator/api v0.0.0-20260518095804-6df1327e1679
 	github.com/ceph/ceph-csi/api v0.0.0-20241216133622-88b7e0d6684f
 	github.com/ceph/go-ceph v0.39.0
 	github.com/coreos/pkg v0.0.0-20240122114842-bbd7aa9bf6fb

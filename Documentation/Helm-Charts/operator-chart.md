@@ -47,7 +47,7 @@ The following table lists the configurable parameters of the rook-operator chart
 |-----------|-------------|---------|
 | `allowLoopDevices` | If true, loop devices are allowed to be used for osds in test clusters | `false` |
 | `annotations` | Pod annotations | `{}` |
-| `ceph-csi-operator.controllerManager.manager.env.csiServiceAccountPrefix` |  | `"ceph-csi-"` |
+| `ceph-csi-operator.controllerManager.manager.env.csiServiceAccountPrefix` |  | `""` |
 | `ceph-csi-operator.fullnameOverride` |  | `"ceph-csi"` |
 | `ceph-csi-operator.nameOverride` |  | `"ceph-csi"` |
 | `cephCommandsTimeoutSeconds` | The timeout for ceph commands in seconds | `"15"` |

@@ -35,7 +35,7 @@ const (
 	cephCsiOperatorHelmRepoURL  = "https://ceph.github.io/ceph-csi-operator"
 	cephCsiOperatorHelmRepoName = "ceph-csi-operator"
 	cephCsiDriversChartName     = "ceph-csi-drivers"
-	cephCsiDriversChartVersion  = "0.6.0"
+	cephCsiDriversChartVersion  = "1.0.0"
 	cephCsiDriversReleaseName   = "ceph-csi-drivers"
 )
 
@@ -199,7 +199,7 @@ func (h *CephInstaller) InstallCephCsiDriversViaHelm() error {
 	if err := h.k8shelper.CreateSnapshotController("create"); err != nil {
 		return errors.Wrap(err, "failed to install snapshot controller")
 	}
-	if err := h.k8shelper.WaitForSnapshotController(15); err != nil {
+	if err := h.k8shelper.WaitForSnapshotController(30); err != nil {
 		return errors.Wrap(err, "snapshot controller is not ready")
 	}
 	op := h.settings.OperatorNamespace
