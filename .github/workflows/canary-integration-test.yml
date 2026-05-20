@@ -1937,6 +1937,9 @@ jobs:
         run: |
           tests/scripts/github-action-helper.sh wait_for cephcluster my-cluster rook-ceph
           tests/scripts/github-action-helper.sh wait_for cephcluster my-cluster rook-ceph-secondary
+          # wait for the RGW deployments to be ready to serve traffic
+          kubectl -n rook-ceph wait --for=condition=available deployment/rook-ceph-rgw-multisite-store-a --timeout=300s
+          kubectl -n rook-ceph-secondary wait --for=condition=available deployment/rook-ceph-rgw-zone-b-multisite-store-a --timeout=300s
 
       - name: write an object to one cluster, read from the other
         shell: bash --noprofile --norc -eo pipefail -x {0}

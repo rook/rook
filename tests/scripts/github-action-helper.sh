@@ -635,8 +635,26 @@ function write_object_read_from_replica_cluster() {
   # ensure that test file has unique data
   echo "$test_object_name" >>"$test_object_name"
 
-  s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"
-  s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"
+  local retry_timeout=60
+  local retry_start=$SECONDS
+  until s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"; do
+    if (( SECONDS - retry_start >= retry_timeout )); then
+      echo "timed out waiting for s3cmd mb to succeed"
+      exit 1
+    fi
+    echo "waiting for RGW to accept connections before creating bucket"
+    sleep 5
+  done
+
+  retry_start=$SECONDS
+  until s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"; do
+    if (( SECONDS - retry_start >= retry_timeout )); then
+      echo "timed out waiting for s3cmd put to succeed"
+      exit 1
+    fi
+    echo "waiting for RGW to accept connections before uploading object"
+    sleep 5
+  done
 
   # Schedule a signal for 60s into the future as a timeout on retrying s3cmd.
   # This voodoo is to avoid running everything under a new shell started by
