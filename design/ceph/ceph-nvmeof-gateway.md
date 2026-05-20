@@ -83,6 +83,52 @@ NVMe-oF Gateways: Serve NVMe-oF protocol and manage RBD backend connections
 
 * Note:  In this document, when we refer to 'NVMe namespace,' we mean the NVMe protocol's concept of a logical block device, not Kubernetes resource namespaces.
 
+### External Client Access Flow
+
+External clients outside the Kubernetes cluster connect through a LoadBalancer
+service that exposes the NVMe-oF data and discovery ports:
+
+```
+┌─────────────────────┐
+│   External Client   │
+│                     │
+│  nvme-cli           │
+│  nvme-tcp module    │
+└────────┬────────────┘
+         │
+         │  NVMe-oF / TCP (port 4420)
+         │
+         ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                           Network                                  │
+│                                                                    │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │              LoadBalancer Service                            │  │
+│  │         Ports: 4420 (I/O), 8009 (discovery)                  │  │
+│  └──────────────────────────┬──────────────────────────────── ─-┘  │
+│                             │                                      │
+│  ┌──────────────────────────┴───────────────────────────────────┐  │
+│  │                   Kubernetes Cluster                         │  │
+│  │                                                              │  │
+│  │   ┌─────────────────────────────────────────────────────┐    │  │
+│  │   │          NVMe-oF Gateway Pod (SPDK-based)           │    │  │
+│  │   │       Ports: 4420 (I/O), 5500 (gRPC), 8009 (disc)   │    │  │
+│  │   └──────────────────────┬──────────────────────────────┘    │  │
+│  │                          │                                   │  │
+│  │   ┌──────────────────────┴─────────────────────────── ───┐   │  │
+│  │   │              Ceph Cluster (OSDs)                     │   │  │
+│  │   │                                                      │   │  │
+│  │   │   ┌──────────────────────────────────────────────┐   │   │  │
+│  │   │   │    RBD Image (replicated block pool)         │   │   │  │
+│  │   │   └──────────────────────────────────────────────┘   │   │  │
+│  │   └──────────────────────────────────────────────────────┘   │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+Port 5500 (gRPC management API) is only used for internal communication between
+the CSI driver and the gateway and should not be exposed externally.
+
 ### Components Responsibilities
 
 * **Volume Provisioning**: CSI driver creates RBD image and configures it in NVMe-oF gateway.

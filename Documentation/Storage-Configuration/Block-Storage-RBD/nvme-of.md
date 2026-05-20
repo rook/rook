@@ -241,37 +241,99 @@ External clients outside the Kubernetes cluster can connect to the gateway using
 
 #### Prerequisites for External Clients
 
-- **NVMe-oF Initiator**: The client must have the `nvme-tcp` kernel module loaded and `nvme-cli` installed
-- **Network Access**: The client must be able to reach the gateway service IP and ports
+- Linux with kernel 5.0+ (NVMe-oF/TCP support)
+- `nvme-cli` installed
+- `nvme-tcp` kernel module available
+- Network access to the cluster's LoadBalancer IP
 
-#### Discover Subsystems
+#### Expose the Gateway Externally
 
-From the external client, discover available NVMe-oF subsystems:
+The gateway service is ClusterIP by default (internal only). Create a LoadBalancer
+service to allow external clients to connect:
 
-```bash
-nvme discover -t tcp -a <gateway-service-ip> -s 5500
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: rook-ceph-nvmeof-nvmeof-a-lb
+  namespace: rook-ceph
+spec:
+  type: LoadBalancer
+  selector:
+    app: rook-ceph-nvmeof
+    ceph_daemon_id: nvmeof-a
+    ceph_daemon_type: nvmeof
+    rook_cluster: rook-ceph
+  ports:
+    - name: io
+      port: 4420
+      targetPort: 4420
+      protocol: TCP
+    - name: discovery
+      port: 8009
+      targetPort: 8009
+      protocol: TCP
 ```
 
-Replace `<gateway-service-ip>` with the gateway service ClusterIP or an accessible endpoint.
+Wait for the external IP to be assigned:
 
-#### Connect to Subsystem
-
-Connect to the discovered subsystem:
-
-```bash
-nvme connect -t tcp -n <subsystem-nqn> -a <gateway-ip> -s 5500
+```console
+kubectl get svc -n rook-ceph rook-ceph-nvmeof-nvmeof-a-lb
 ```
 
-Replace:
+#### Add the External Client as an Allowed Host
 
-- `<subsystem-nqn>` with the `subsystemNQN` value from your StorageClass (e.g., `nqn.2016-06.io.spdk:cnode1.rook-ceph`)
-- `<gateway-ip>` with the gateway service IP or pod IP
+By default, the NVMe-oF subsystem rejects connections from unknown clients. Allow
+any host to connect by adding the wildcard host (`*`) via the gateway gRPC API:
+
+```console
+kubectl -n rook-ceph exec deploy/rook-ceph-nvmeof-nvmeof-a -- python3 -c "
+import sys; sys.path.insert(0, '/src')
+from control.proto import gateway_pb2 as pb2, gateway_pb2_grpc as pb2_grpc
+import grpc
+
+pod_ip = '$(kubectl get pod -n rook-ceph -l ceph_daemon_type=nvmeof -o jsonpath='{.items[0].status.podIP}')'
+channel = grpc.insecure_channel(pod_ip + ':5500')
+stub = pb2_grpc.GatewayStub(channel)
+
+nqn = 'nqn.2016-06.io.spdk:cnode1.rook-ceph'
+
+req = pb2.add_host_req(subsystem_nqn=nqn, host_nqn='*')
+resp = stub.add_host(req)
+print('Allow any host result:', resp.error_message)
+"
+```
+
+!!! note
+    For production environments, add specific client NQNs instead of the wildcard.
+    Get the client's NQN with `cat /etc/nvme/hostnqn` on the external machine.
+
+#### Connect from the External Client
+
+Load the NVMe-oF/TCP kernel module:
+
+```console
+sudo modprobe nvme-tcp
+```
+
+Connect to the NVMe-oF subsystem using the LoadBalancer address:
+
+```console
+sudo nvme connect -t tcp \
+  -n <subsystem-nqn> \
+  -a <LOADBALANCER_IP_OR_HOSTNAME> \
+  -s 4420
+```
+
+Replace `<subsystem-nqn>` with the `subsystemNQN` value from your StorageClass
+(e.g., `nqn.2016-06.io.spdk:cnode1.rook-ceph`) and `<LOADBALANCER_IP_OR_HOSTNAME>`
+with the LoadBalancer external IP or DNS name.
 
 #### Access the Volume
 
 Once connected, the NVMe namespace will appear as a block device on the client:
 
-```bash
+```console
 lsblk | grep nvme
 ```
 
@@ -281,13 +343,17 @@ The device will typically appear as `/dev/nvmeXnY` where X is the controller num
 
 If you want to format and mount the device:
 
-```bash
-# Format the device
+```console
 sudo mkfs.ext4 /dev/nvmeXnY
-
-# Mount the device
-sudo mkdir /mnt/nvmeof
+sudo mkdir -p /mnt/nvmeof
 sudo mount /dev/nvmeXnY /mnt/nvmeof
+```
+
+#### Disconnect from the External Client
+
+```console
+sudo umount /mnt/nvmeof
+sudo nvme disconnect -n <subsystem-nqn>
 ```
 
 ## High Availability
@@ -347,6 +413,14 @@ kubectl describe service -n rook-ceph rook-ceph-nvmeof-nvmeof-a
 kubectl describe pvc nvmeof-external-volume
 ```
 
+### External Client Connection Issues
+
+- Verify the LoadBalancer external IP has been assigned: `kubectl get svc -n rook-ceph rook-ceph-nvmeof-nvmeof-a-lb`
+- Verify `nvme-tcp` module is loaded: `lsmod | grep nvme_tcp`
+- Check firewall rules allow TCP port 4420 outbound
+- If you see "Subsystem does not allow host" in gateway logs, add the client's NQN to the allowed hosts list (see the [allowed host](#add-the-external-client-as-an-allowed-host) step)
+- `kubectl port-forward` does not work for NVMe-oF because it tunnels TCP through HTTP/WebSocket
+
 ### Verify Ceph CSI Config
 
 Ensure the `rook-ceph-csi-config` ConfigMap exists and contains the cluster configuration:
@@ -360,9 +434,19 @@ kubectl get configmap -n rook-ceph rook-ceph-csi-config -o yaml
 !!! warning
     Deleting the PVC will also delete the underlying RBD image and NVMe namespace. Ensure you have backups if needed.
 
-To clean up all the artifacts created:
+If using external clients, disconnect them first:
 
 ```console
+sudo umount /mnt/nvmeof
+sudo nvme disconnect -n <subsystem-nqn>
+```
+
+Then clean up all the cluster artifacts:
+
+```console
+# Delete the LoadBalancer service (if created for external access)
+kubectl delete svc -n rook-ceph rook-ceph-nvmeof-nvmeof-a-lb
+
 # Delete the test pod
 kubectl delete -f deploy/examples/csi/nvmeof/pod.yaml
 
