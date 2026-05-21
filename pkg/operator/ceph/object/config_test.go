@@ -196,6 +196,27 @@ func TestRgwFrontendStr(t *testing.T) {
 	}
 	result = cfg.rgwFrontendStr()
 	assert.Equal(t, "beast port=80 ssl_options=default_workarounds:no_compression:no_sslv2:no_sslv3:no_tlsv1:no_tlsv1_1 ssl_ciphers=TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 tls_groups=X25519:P-256", result, "case 8")
+
+	// With cipher suites only (TLS 1.3)
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		CipherSuites: []string{"TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_ciphersuites=TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256", result, "case 9")
+
+	// With both ciphers (TLS 1.2) and cipher suites (TLS 1.3)
+	cfg = newConfig(t)
+	cfg.clusterSpec.Network.HostNetwork = true
+	cfg.store.Spec.Gateway.Port = 80
+	cfg.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+		Ciphers:      []string{"AES256-SHA"},
+		CipherSuites: []string{"TLS_AES_256_GCM_SHA384"},
+	}
+	result = cfg.rgwFrontendStr()
+	assert.Equal(t, "beast port=80 ssl_ciphers=AES256-SHA ssl_ciphersuites=TLS_AES_256_GCM_SHA384", result, "case 10")
 }
 
 func TestBuildSslOptions(t *testing.T) {

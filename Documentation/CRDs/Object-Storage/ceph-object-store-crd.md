@@ -346,7 +346,58 @@ Ceph RGW supports Server Side Encryption as defined in [AWS S3 protocol](https:/
 
 Refer to the [Vault KMS section](../../Storage-Configuration/Advanced/key-management-system.md#vault) for details about Vault. If these settings are defined, then RGW will establish a connection between Vault and whenever S3 client sends request with Server Side Encryption. [Ceph's Vault documentation](https://docs.ceph.com/en/latest/radosgw/vault/) has more details.
 
-The `security` section contains settings related to KMS encryption of the RGW.
+The `security` section contains settings related to KMS encryption of the RGW and TLS options for the RGW beast frontend.
+
+### Beast frontend TLS options
+
+When TLS is enabled on the gateway, Rook configures the Ceph RGW beast frontend with optional TLS settings from the `security` section. These map directly to [beast frontend options](https://docs.ceph.com/en/latest/radosgw/frontends/#options):
+
+* `sslOptions`: SSL context options (protocol versions, workarounds, etc.)
+* `ciphers`: Cipher strings for `ssl_ciphers` (TLS v1.2 and below). Requires at least one of `tlsv1_2`, `tlsv1_1`, or `tlsv1_0` to be enabled in `sslOptions`.
+* `cipherSuites`: Cipher strings for `ssl_ciphersuites` (TLS v1.3).To restrict the gateway to TLS 1.3 only, set `tlsv1_2`, `tlsv1_1`, and `tlsv1_0` to `false` in `sslOptions`.
+* `tlsGroups`: Colon-separated TLS group names for `tls_groups`
+
+Example for TLS 1.2 cipher control:
+
+```yaml
+security:
+  ciphers:
+    - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+  tlsGroups:
+    - X25519
+    - P-256
+```
+
+Example for TLS 1.3 cipher suite control:
+
+```yaml
+security:
+  sslOptions:
+    tlsv1_2: false
+    tlsv1_1: false
+    tlsv1_0: false
+  cipherSuites:
+    - TLS_AES_256_GCM_SHA384
+    - TLS_CHACHA20_POLY1305_SHA256
+  tlsGroups:
+    - X25519
+    - P-256
+```
+
+Example for TLS 1.2 and TLS 1.3 cipher control:
+
+```yaml
+security:
+  ciphers:
+    - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+  cipherSuites:
+    - TLS_AES_256_GCM_SHA384
+  tlsGroups:
+    - X25519
+    - P-256
+```
+
+### KMS encryption
 
 ```yaml
 security:
