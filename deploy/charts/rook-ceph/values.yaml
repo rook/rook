@@ -89,8 +89,7 @@ ceph-csi-operator:
   controllerManager:
     manager:
       env:
-        csiServiceAccountPrefix: "ceph-csi-"
-
+        csiServiceAccountPrefix: ""
 csi:
   # -- When true, install the ceph-csi-operator subchart (see Chart.yaml `condition`).
   installCsiOperator: true
