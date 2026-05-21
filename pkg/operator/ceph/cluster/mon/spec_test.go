@@ -153,19 +153,38 @@ func checkMsgr2Required(t *testing.T, container v1.Container, expectedRequireMsg
 	foundMsgr2Port := false
 	foundBrackets := false
 
-	for _, arg := range container.Args {
-		if arg == "--ms-bind-msgr1=false" {
+	// When IP family selection wraps the container, args are embedded in a
+	// shell script in Args[0]. Collect all strings to search through.
+	wrapped := len(container.Command) == 2 && container.Command[0] == "/bin/sh"
+	var searchArgs []string
+	if wrapped {
+		searchArgs = []string{container.Args[0]}
+	} else {
+		searchArgs = container.Args
+	}
+
+	for _, arg := range searchArgs {
+		if strings.Contains(arg, "--ms-bind-msgr1=false") {
 			foundDisabledMsgr1 = true
 		}
-		if strings.HasPrefix(arg, "--public-bind-addr=") {
-			// flag should always refer to the env var, no matter what
-			assert.Contains(t, arg, "$(ROOK_POD_IP)")
-			if strings.HasSuffix(arg, ":3300") {
+		if strings.Contains(arg, "--public-bind-addr=") {
+			// In wrapped mode, $(ROOK_POD_IP) is replaced with $ROOK_POD_IP
+			if wrapped {
+				assert.Contains(t, arg, "$ROOK_POD_IP")
+			} else {
+				assert.Contains(t, arg, "$(ROOK_POD_IP)")
+			}
+			if strings.Contains(arg, ":3300") {
 				foundMsgr2Port = true
 			}
-			// brackets are expected for IPv6 addrs
-			if strings.Contains(arg, "[$(ROOK_POD_IP)]") {
-				foundBrackets = true
+			if wrapped {
+				if strings.Contains(arg, "[$ROOK_POD_IP]") {
+					foundBrackets = true
+				}
+			} else {
+				if strings.Contains(arg, "[$(ROOK_POD_IP)]") {
+					foundBrackets = true
+				}
 			}
 		}
 	}

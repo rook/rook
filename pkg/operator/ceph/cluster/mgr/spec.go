@@ -221,6 +221,8 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			config.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 	}
 
+	controller.WrapContainerForIPFamily(&container, &c.spec)
+
 	return container
 }
 

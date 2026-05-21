@@ -256,6 +256,96 @@ func TestNetworkBindingFlags(t *testing.T) {
 	}
 }
 
+func TestNeedsIPFamilySelection(t *testing.T) {
+	tests := []struct {
+		name    string
+		network cephv1.NetworkSpec
+		want    bool
+	}{
+		{"ipv6", cephv1.NetworkSpec{IPFamily: cephv1.IPv6}, true},
+		{"ipv4", cephv1.NetworkSpec{IPFamily: cephv1.IPv4}, true},
+		{"no family", cephv1.NetworkSpec{}, false},
+		{"dualstack", cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}, false},
+		{"host network", cephv1.NetworkSpec{IPFamily: cephv1.IPv6, HostNetwork: true}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, NeedsIPFamilySelection(tt.network))
+		})
+	}
+}
+
+func TestWrapContainerForIPFamily(t *testing.T) {
+	t.Run("no-op when ipFamily is not set", func(t *testing.T) {
+		container := v1.Container{
+			Command: []string{"ceph-mon"},
+			Args:    []string{"--public-bind-addr=$(ROOK_POD_IP):3300"},
+		}
+		spec := &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{}}
+		WrapContainerForIPFamily(&container, spec)
+		assert.Equal(t, []string{"ceph-mon"}, container.Command)
+		assert.Equal(t, []string{"--public-bind-addr=$(ROOK_POD_IP):3300"}, container.Args)
+	})
+
+	t.Run("wraps for IPv6", func(t *testing.T) {
+		container := v1.Container{
+			Command: []string{"ceph-mon"},
+			Args:    []string{"--foreground", "--public-bind-addr=[$(ROOK_POD_IP)]:3300"},
+			Env:     []v1.EnvVar{{Name: "ROOK_POD_IP", Value: "test"}},
+		}
+		spec := &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6}}
+		WrapContainerForIPFamily(&container, spec)
+
+		assert.Equal(t, []string{"/bin/sh", "-c"}, container.Command)
+		assert.Len(t, container.Args, 1)
+		script := container.Args[0]
+		// Should contain IPv6 pattern
+		assert.Contains(t, script, "*:*")
+		// Should use shell expansion, not Kubernetes expansion
+		assert.Contains(t, script, "$ROOK_POD_IP")
+		assert.NotContains(t, script, "$(ROOK_POD_IP)")
+		// Should exec the original command
+		assert.Contains(t, script, "exec ceph-mon")
+		assert.Contains(t, script, "--foreground")
+		assert.Contains(t, script, "[$ROOK_POD_IP]:3300")
+		// Should have ROOK_POD_IPS env var
+		found := false
+		for _, env := range container.Env {
+			if env.Name == "ROOK_POD_IPS" {
+				assert.Equal(t, "status.podIPs", env.ValueFrom.FieldRef.FieldPath)
+				found = true
+			}
+		}
+		assert.True(t, found, "ROOK_POD_IPS env var should be present")
+	})
+
+	t.Run("wraps for IPv4", func(t *testing.T) {
+		container := v1.Container{
+			Command: []string{"ceph-mgr"},
+			Args:    []string{"--public-addr=$(ROOK_POD_IP)"},
+		}
+		spec := &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4}}
+		WrapContainerForIPFamily(&container, spec)
+
+		assert.Equal(t, []string{"/bin/sh", "-c"}, container.Command)
+		script := container.Args[0]
+		assert.Contains(t, script, "*.*")
+		assert.Contains(t, script, "exec ceph-mgr")
+		assert.Contains(t, script, "--public-addr=$ROOK_POD_IP")
+		assert.NotContains(t, script, "$(ROOK_POD_IP)")
+	})
+
+	t.Run("no-op for dualstack", func(t *testing.T) {
+		container := v1.Container{
+			Command: []string{"ceph-mon"},
+			Args:    []string{"--public-bind-addr=$(ROOK_POD_IP)"},
+		}
+		spec := &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}}
+		WrapContainerForIPFamily(&container, spec)
+		assert.Equal(t, []string{"ceph-mon"}, container.Command)
+	})
+}
+
 func TestExtractMgrIP(t *testing.T) {
 	activeMgrRaw := "172.17.0.12:6801/2535462469"
 	ip := extractMgrIP(activeMgrRaw)

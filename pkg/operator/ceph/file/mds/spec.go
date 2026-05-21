@@ -160,6 +160,8 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig, fsName string) v1
 		WorkingDir:    cephconfig.VarLogCephDir,
 	}
 
+	controller.WrapContainerForIPFamily(&container, c.clusterSpec)
+
 	return container
 }
 
