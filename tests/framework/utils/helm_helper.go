@@ -146,7 +146,7 @@ func (h *HelmHelper) InstallOrUpgradeHelmRepoChart(namespace, release, repoURL, 
 		logger.Warningf("helm repo update failed: %v", err)
 	}
 	cmdArgs := []string{
-		"upgrade", "--install", "--create-namespace",
+		"upgrade", "--install", "--force", "--create-namespace",
 		release, repoName + "/" + chartName,
 		"--version", version,
 		"--namespace", namespace,
