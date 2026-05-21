@@ -400,14 +400,21 @@ type ObjectStoreSecuritySpec struct {
 	// +optional
 	SslOptions *SslOptionsSpec `json:"sslOptions,omitzero"` //nolint:kubeapilinter // MinProperties cannot be applied to a struct pointer field
 
-	// Ciphers specifies the cipher suites used during the TLS handshake.
-	// Multiple suites are supported with ':' colon-separated.
+	// Ciphers specifies the cipher suites used during the TLS handshake for TLS v1.2 and below.
 	// Each value must be a valid OpenSSL cipher suite name.
-	// See https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names
+	// See https://docs.openssl.org/master/man1/openssl-ciphers/
 	// +kubebuilder:validation:MinItems=0
 	// +kubebuilder:validation:MaxItems=1000
 	// +optional
 	Ciphers []string `json:"ciphers,omitempty"` //nolint:kubeapilinter // List doesn't have min/max length
+
+	// CipherSuites specifies the cipher suites used during the TLS handshake for TLS v1.3.
+	// Each value must be a valid OpenSSL cipher suite name.
+	// See https://docs.openssl.org/master/man1/openssl-ciphers/
+	// +kubebuilder:validation:MinItems=0
+	// +kubebuilder:validation:MaxItems=1000
+	// +optional
+	CipherSuites []string `json:"cipherSuites,omitempty"` //nolint:kubeapilinter // List doesn't have min/max length
 
 	// TlsGroups specifies one or more TLS Group strings separated by colons.
 	// Multiple suites are supported with ':' colon-separated.

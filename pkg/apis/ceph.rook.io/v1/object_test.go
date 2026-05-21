@@ -129,6 +129,47 @@ func TestValidateObjectStoreSpec(t *testing.T) {
 	})
 }
 
+func TestValidateObjectStoreSecurity(t *testing.T) {
+	objectStore := &CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-store", Namespace: "rook-ceph"},
+		Spec:       ObjectStoreSpec{},
+	}
+
+	t.Run("cipher suites allowed with TLS 1.3 enabled", func(t *testing.T) {
+		objectStore.Spec.Security = &ObjectStoreSecuritySpec{
+			CipherSuites: []string{"TLS_AES_256_GCM_SHA384"},
+		}
+		assert.NoError(t, validateObjectStoreSecurity(&objectStore.Spec))
+	})
+
+	t.Run("ciphers require TLS 1.2 or below enabled", func(t *testing.T) {
+		objectStore.Spec.Security = &ObjectStoreSecuritySpec{
+			Ciphers: []string{"AES256-SHA"},
+			SslOptions: &SslOptionsSpec{
+				TLSv1_2: boolPtr(false),
+				TLSv1_1: boolPtr(false),
+				TLSv1_0: boolPtr(false),
+			},
+		}
+		err := validateObjectStoreSecurity(&objectStore.Spec)
+		assert.ErrorContains(t, err, "ciphers requires at least one TLS version")
+
+		objectStore.Spec.Security.SslOptions.TLSv1_2 = boolPtr(true)
+		err = validateObjectStoreSecurity(&objectStore.Spec)
+		assert.NoError(t, err)
+	})
+
+	t.Run("ciphers and cipher suites allowed together", func(t *testing.T) {
+		objectStore.Spec.Security = &ObjectStoreSecuritySpec{
+			Ciphers:      []string{"AES256-SHA"},
+			CipherSuites: []string{"TLS_AES_256_GCM_SHA384"},
+		}
+		assert.NoError(t, validateObjectStoreSecurity(&objectStore.Spec))
+	})
+}
+
+func boolPtr(b bool) *bool { return &b }
+
 func TestIsTLSEnabled(t *testing.T) {
 	objStore := &CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{

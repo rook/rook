@@ -4443,6 +4443,11 @@ func (in *ObjectStoreSecuritySpec) DeepCopyInto(out *ObjectStoreSecuritySpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.CipherSuites != nil {
+		in, out := &in.CipherSuites, &out.CipherSuites
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.TlsGroups != nil {
 		in, out := &in.TlsGroups, &out.TlsGroups
 		*out = make([]string, len(*in))
