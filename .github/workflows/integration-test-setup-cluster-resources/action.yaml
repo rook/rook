@@ -9,7 +9,7 @@ runs:
   using: "composite"
   steps:
     - name: Free Disk Space (Ubuntu)
-      uses: jlumbroso/free-disk-space@main
+      uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
       with:
         tool-cache: true # removes old golang version but saves ~6GB
         large-packages: false # takes a long time to run b/c package mgr
@@ -31,7 +31,7 @@ runs:
         rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
 
     - name: Setup Minikube
-      uses: medyagh/setup-minikube@latest
+      uses: medyagh/setup-minikube@e9e035a86bbc3caea26a450bd4dbf9d0c453682e # v0.0.21
       with:
         # lock minikube version to ensure release branch CI doesn't fail when latest minikube no
         # longer supports older k8s version we lock to
