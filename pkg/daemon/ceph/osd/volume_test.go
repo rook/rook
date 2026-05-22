@@ -1063,7 +1063,7 @@ func TestInitializeBlock(t *testing.T) {
 		}
 	}
 
-	// Test with two metadata partition devices, one is lvm, one is partition
+	// Test with two metadata devices, one is lvm, one is partition — both use lvm prepare
 	{
 		metadataDevicePath := "/dev/test-rook-vg/test-rook-lv"
 		devices := &DeviceOsdMapping{
@@ -1077,52 +1077,22 @@ func TestInitializeBlock(t *testing.T) {
 			MockExecuteCommand: func(command string, args ...string) error {
 				logger.Infof("%s %v", command, args)
 
-				var err error
-				// Validate base common args
-				if args[8] == "--yes" {
-					// lvm will use `ceph-volume lvm batch`
-					err = testBaseArgs(args)
-				} else {
-					// partition will use `ceph-volume lvm prepare`
-					err = testBasePrepareArgs(args)
-				}
+				err := testBasePrepareArgs(args)
 				if err != nil {
 					return err
 				}
 
-				// for partition
+				// partition metadata device
 				if args[7] == "--data" && args[8] == "/dev/sda" && args[9] == "--block.db" && args[10] == "/dev/sdb1" {
 					return nil
 				}
 
-				// First command for lvm
-				if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sdc" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
-					return nil
-				}
-
-				// Second command for lvm
-				if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sdc" && args[12] == "--db-devices" && args[13] == metadataDevicePath && args[14] == "--report" {
+				// lvm metadata device
+				if args[7] == "--data" && args[8] == "/dev/sdc" && args[9] == "--block.db" && args[10] == metadataDevicePath {
 					return nil
 				}
 
 				return errors.Errorf("unknown command %s %s", command, args)
-			},
-
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-				logger.Infof("%s %v", command, args)
-
-				// Validate base common args
-				err := testBaseArgs(args)
-				if err != nil {
-					return "", err
-				}
-
-				// First command
-				if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sdc" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
-					return fmt.Sprintf(`[{"block_db": "%s", "data": "%s"}]`, metadataDevicePath, "/dev/sdc"), nil
-				}
-
-				return "", errors.Errorf("unknown command %s %s", command, args)
 			},
 		}
 
@@ -1425,7 +1395,7 @@ func TestInitializeBlock(t *testing.T) {
 		logger.Info("success, go to next test")
 	}
 
-	// Test with metadata devices with lvm
+	// Test with metadata devices with lvm — should use lvm prepare
 	{
 		metadataDevicePath := "/dev/test-rook-vg/test-rook-lv"
 		devices := &DeviceOsdMapping{
@@ -1446,40 +1416,17 @@ func TestInitializeBlock(t *testing.T) {
 		executor.MockExecuteCommand = func(command string, args ...string) error {
 			logger.Infof("%s %v", command, args)
 
-			// Validate base common args
-			err := testBaseArgs(args)
+			err := testBasePrepareArgs(args)
 			if err != nil {
 				return err
 			}
 
-			// First command
-			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
-				return nil
-			}
-
-			// Second command
-			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath && args[14] == "--report" {
+			// lvm prepare with LV metadata device
+			if args[7] == "--data" && args[8] == "/dev/sda" && args[9] == "--block.db" && args[10] == metadataDevicePath {
 				return nil
 			}
 
 			return errors.Errorf("unknown command %s %s", command, args)
-		}
-
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-			logger.Infof("%s %v", command, args)
-
-			// Validate base common args
-			err := testBaseArgs(args)
-			if err != nil {
-				return "", err
-			}
-
-			// First command
-			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
-				return fmt.Sprintf(`[{"block_db": "%s", "data": "%s"}]`, metadataDevicePath, "/dev/sda"), nil
-			}
-
-			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 		agent := &OsdAgent{
 			clusterInfo: &cephclient.ClusterInfo{
@@ -1995,7 +1942,7 @@ func TestInitializeBlockWithMD(t *testing.T) {
 		assert.NoError(t, err, "failed default behavior test")
 	}
 
-	// Test initialize with LV as metadata devices
+	// Test initialize with LV as metadata device — should use lvm prepare
 	{
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
@@ -2006,26 +1953,17 @@ func TestInitializeBlockWithMD(t *testing.T) {
 		executor.MockExecuteCommand = func(command string, args ...string) error {
 			logger.Infof("%s %v", command, args)
 
-			// Validate base common args
-			err := testBaseArgs(args)
+			err := testBasePrepareArgs(args)
 			if err != nil {
 				return err
 			}
 
-			// Second command
-			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/vg0/lv0" {
+			// lvm prepare with LV metadata device
+			if args[7] == "--data" && args[8] == "/dev/sda" && args[9] == "--block.db" && args[10] == "/dev/vg0/lv0" {
 				return nil
 			}
 
 			return errors.Errorf("unknown command %s %s", command, args)
-		}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-			// First command
-			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/vg0/lv0" && args[14] == "--report" {
-				return `[{"block_db": "vg0/lv0", "encryption": "None", "data": "/dev/sda", "data_size": "100.00 GB", "block_db_size": "10.00 GB"}]`, nil
-			}
-
-			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 4}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 		context := &clusterd.Context{
@@ -2202,6 +2140,14 @@ func TestIsSafeToUseRawMode(t *testing.T) {
 		assert.True(t, isSafeToUseRawMode(device))
 	})
 
+	t.Run("not safe if device is a logical volume", func(t *testing.T) {
+		device.Config.OSDsPerDevice = 1
+		device.Config.MetadataDevice = ""
+		device.DeviceInfo.Type = sys.LVMType
+		assert.False(t, isSafeToUseRawMode(device))
+		device.DeviceInfo.Type = sys.DiskType
+	})
+
 	t.Run("not safe if OSDs per device > 1", func(t *testing.T) {
 		device.Config.OSDsPerDevice = 2
 		assert.False(t, isSafeToUseRawMode(device))
@@ -2229,7 +2175,7 @@ func TestLVMModeAllowed(t *testing.T) {
 
 	// lvm
 	device.DeviceInfo.Type = sys.LVMType
-	assert.False(t, lvmModeAllowed(device, storeConfig))
+	assert.True(t, lvmModeAllowed(device, storeConfig))
 
 	// non-encrypted part
 	device.DeviceInfo.Type = sys.PartType

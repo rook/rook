@@ -445,6 +445,12 @@ func (a *OsdAgent) allowRawMode(context *clusterd.Context) (bool, error) {
 
 // test if safe to use raw mode for a particular device
 func isSafeToUseRawMode(device *DeviceOsdIDEntry) bool {
+	// ceph-volume raw mode does not support LVM logical volumes
+	if device.DeviceInfo != nil && device.DeviceInfo.Type == sys.LVMType {
+		logger.Debugf("won't use raw mode for disk %q since it is a logical volume", device.Config.Name)
+		return false
+	}
+
 	// ceph-volume raw mode does not support more than one OSD per disk
 	if device.Config.OSDsPerDevice > 1 {
 		logger.Debugf("won't use raw mode for disk %q since osd per device is %d", device.Config.Name, device.Config.OSDsPerDevice)
@@ -461,10 +467,6 @@ func isSafeToUseRawMode(device *DeviceOsdIDEntry) bool {
 }
 
 func lvmModeAllowed(device *DeviceOsdIDEntry, storeConfig *config.StoreConfig) bool {
-	if device.DeviceInfo.Type == sys.LVMType {
-		logger.Infof("skipping device %q for lvm mode since LVM logical volumes don't support `metadataDevice` or `osdsPerDevice` > 1", device.Config.Name)
-		return false
-	}
 	if device.DeviceInfo.Type == sys.PartType && storeConfig.EncryptedDevice {
 		logger.Infof("skipping partition %q for lvm mode since encryption is not supported on partitions with a `metadataDevice` or `osdsPerDevice > 1`", device.Config.Name)
 		return false
@@ -614,6 +616,16 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 				// `ceph-volume lvm batch` does not support kernel names (e.g. `/dev/dm-X`)
 				// for multipath devices. We should use real names (e.g. `/dev/mapper/mpathX`) instead.
 				deviceArg = device.DeviceInfo.RealPath
+			} else if device.DeviceInfo.Type == sys.LVMType {
+				// `ceph-volume lvm prepare` needs the VG/LV path (e.g. `/dev/vg/lv`), not
+				// the kernel dm name (e.g. `/dev/dm-0`). Find it from the device links.
+				deviceArg = path.Join("/dev", name)
+				for _, link := range strings.Split(device.DeviceInfo.DevLinks, " ") {
+					if strings.HasPrefix(link, "/dev/") && !strings.HasPrefix(link, "/dev/disk/") && !strings.HasPrefix(link, "/dev/mapper/") {
+						deviceArg = link
+						break
+					}
+				}
 			} else {
 				deviceArg = path.Join("/dev", name)
 			}
@@ -646,8 +658,15 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 				if metadataDevice == nil {
 					return errors.Errorf("metadata device %s is not found", md)
 				}
-				// lvm device format is /dev/<vg>/<lv>
-				if metadataDevice.Type != sys.LVMType {
+				if metadataDevice.Type == sys.LVMType {
+					// Find the /dev/<vg>/<lv> path from DevLinks for ceph-volume compatibility
+					for _, link := range strings.Split(metadataDevice.DevLinks, " ") {
+						if strings.HasPrefix(link, "/dev/") && !strings.HasPrefix(link, "/dev/disk/") && !strings.HasPrefix(link, "/dev/mapper/") {
+							md = link
+							break
+						}
+					}
+				} else {
 					md = metadataDevice.Name
 				}
 
@@ -671,6 +690,9 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 						return errors.Errorf("Partition device %s can not be specified as metadataDevice in the global OSD configuration or in the node level OSD configuration", md)
 					}
 					metadataDevices[md]["part"] = "true" // ceph-volume lvm batch only supports disk and lvm
+				}
+				if metadataDevice.Type == sys.LVMType {
+					metadataDevices[md]["part"] = "true" // ceph-volume lvm batch does not support existing LVs as --db-devices
 				}
 				deviceDBSizeMB := getDatabaseSize(a.storeConfig.DatabaseSizeMB, device.Config.DatabaseSizeMB)
 				if a.storeConfig.IsValidStoreType() && deviceDBSizeMB > 0 {
