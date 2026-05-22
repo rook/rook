@@ -21,7 +21,7 @@ runs:
 
     - name: set up tmate session for debugging
       if: env.USE_TMATE
-      uses: mxschmitt/action-tmate@v3
+      uses: mxschmitt/action-tmate@c0afd6f790e3a5564914980036ebf83216678101 # v3.23
       with:
         limit-access-to-actor: false
         detached: true
