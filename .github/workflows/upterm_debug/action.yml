@@ -18,7 +18,7 @@ runs:
 
     - name: set up upterm session
       if: ${{ env.ENABLE_UPTERM }}
-      uses: owenthereal/action-upterm@v1
+      uses: owenthereal/action-upterm@f26ebc11e22a09b8365f39d2cdafd06f63b42053 # v1.14.0
       with:
         # detached: true
         ## whether to limit ssh access and adds the ssh public key for the user which triggered the workflow:
