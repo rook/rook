@@ -72,7 +72,7 @@ func CephMgrStat(context *clusterd.Context, clusterInfo *ClusterInfo) (*MgrStat,
 func MgrEnableModule(context *clusterd.Context, clusterInfo *ClusterInfo, name string, force bool) error {
 	retryCount := 5
 	var err error
-	for i := 0; i < retryCount; i++ {
+	for i := range retryCount {
 		if name == "balancer" {
 			logger.Debug("balancer module is always 'on', doing nothing", name)
 			return nil
@@ -150,7 +150,7 @@ func setMinCompatClient(context *clusterd.Context, clusterInfo *ClusterInfo, ver
 // mgrSetBalancerMode sets the given mode to the balancer module
 func mgrSetBalancerMode(context *clusterd.Context, clusterInfo *ClusterInfo, balancerModuleMode string) error {
 	retryCount := 5
-	for i := 0; i < retryCount; i++ {
+	for i := range retryCount {
 		err := setBalancerMode(context, clusterInfo, balancerModuleMode)
 		if err != nil {
 			if i < retryCount-1 {

@@ -212,7 +212,7 @@ func (k8sh *K8sHelper) ExecToolboxWithRetry(retries int, namespace, command stri
 	var err error
 	var output, stderr string
 	cliFinal := append([]string{command}, commandArgs...)
-	for i := 0; i < retries; i++ {
+	for i := range retries {
 		output, stderr, err = k8sh.remoteExecutor.ExecCommandInContainerWithFullOutput(context.TODO(), "rook-ceph-tools", "rook-ceph-tools", namespace, cliFinal...)
 		if err == nil {
 			return output, nil
@@ -259,7 +259,7 @@ func (k8sh *K8sHelper) DeleteResource(args ...string) error {
 // WaitForCustomResourceDeletion waits for the CRD deletion
 func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace, name string, checkerFunc func() error) error {
 	// wait for the operator to finalize and delete the CRD
-	for i := 0; i < 90; i++ {
+	for range 90 {
 		err := checkerFunc()
 		if err == nil {
 			logger.Infof("custom resource %q in namespace %q still exists", name, namespace)
@@ -389,7 +389,7 @@ func (k8sh *K8sHelper) WaitForLabeledPodsToRunWithRetries(label string, namespac
 	options := metav1.ListOptions{LabelSelector: label}
 	ctx := context.TODO()
 	var lastPod v1.Pod
-	for i := 0; i < retries; i++ {
+	for range retries {
 		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, options)
 		lastStatus := ""
 		running := 0
@@ -553,7 +553,7 @@ func (k8sh *K8sHelper) getPodDescribe(namespace string, args ...string) string {
 func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
 	ctx := context.TODO()
 	getOpts := metav1.GetOptions{}
-	for i := 0; i < 60; i++ {
+	for range 60 {
 		pod, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(ctx, name, getOpts)
 		if err == nil {
 			if pod.Status.Phase == "Running" {
@@ -648,7 +648,7 @@ func (k8sh *K8sHelper) WriteToPod(namespace, podName, filename, message string) 
 func (k8sh *K8sHelper) WriteToPodRetry(namespace, podName, filename, message string, retries int) error {
 	logger.Infof("Writing file %s to pod %s", filename, podName)
 	var err error
-	for i := 0; i < retries; i++ {
+	for i := range retries {
 		if i > 0 {
 			logger.Infof("retrying write in 5s...")
 			time.Sleep(5 * time.Second)
@@ -671,7 +671,7 @@ func (k8sh *K8sHelper) ReadFromPod(namespace, podName, filename, expectedMessage
 func (k8sh *K8sHelper) ReadFromPodRetry(namespace, podName, filename, expectedMessage string, retries int) error {
 	logger.Infof("Reading file %s from pod %s", filename, podName)
 	var err error
-	for i := 0; i < retries; i++ {
+	for i := range retries {
 		if i > 0 {
 			logger.Infof("retrying read in 5s...")
 			time.Sleep(5 * time.Second)
@@ -1536,7 +1536,7 @@ func (k8sh *K8sHelper) WaitForDeploymentCount(label, namespace string, count int
 func (k8sh *K8sHelper) WaitForDeploymentCountWithRetries(label, namespace string, count, retries int) error {
 	ctx := context.TODO()
 	options := metav1.ListOptions{LabelSelector: label}
-	for i := 0; i < retries; i++ {
+	for range retries {
 		deps, err := k8sh.Clientset.AppsV1().Deployments(namespace).List(ctx, options)
 		numDeps := 0
 		if err == nil {
@@ -1566,7 +1566,7 @@ func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReadyWithRetries(label, name
 	listOpts := metav1.ListOptions{LabelSelector: label}
 	ctx := context.TODO()
 	var lastDep apps.Deployment
-	for i := 0; i < retries; i++ {
+	for range retries {
 		deps, err := k8sh.Clientset.AppsV1().Deployments(namespace).List(ctx, listOpts)
 		ready := 0
 		if err == nil && len(deps.Items) > 0 {

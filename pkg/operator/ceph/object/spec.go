@@ -42,7 +42,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"k8s.io/utils/ptr"
 )
 
 const (
@@ -799,7 +798,7 @@ func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore
 			{
 				Addresses: k8sEndpointAddrs,
 				Conditions: discoveryv1.EndpointConditions{
-					Ready: ptr.To(true),
+					Ready: new(true),
 				},
 			},
 		},
@@ -942,9 +941,9 @@ func addPortToEndpoint(endpoints *discoveryv1.EndpointSlice, name string, port i
 		return
 	}
 	endpoints.Ports = append(endpoints.Ports, discoveryv1.EndpointPort{
-		Name:     ptr.To(name),
-		Port:     ptr.To(port),
-		Protocol: ptr.To(v1.ProtocolTCP),
+		Name:     new(name),
+		Port:     new(port),
+		Protocol: new(v1.ProtocolTCP),
 	})
 }
 

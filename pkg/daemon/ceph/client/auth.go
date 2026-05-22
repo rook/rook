@@ -93,24 +93,24 @@ func AuthGetCaps(context *clusterd.Context, clusterInfo *ClusterInfo, name strin
 		return nil, errors.Wrapf(err, "failed to get caps for %q", name)
 	}
 
-	var data []map[string]interface{}
+	var data []map[string]any
 	err = json.Unmarshal(output, &data)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal auth get response")
 	}
 	caps = make(map[string]string)
 
-	if data[0]["caps"].(map[string]interface{})["mon"] != nil {
-		caps["mon"] = data[0]["caps"].(map[string]interface{})["mon"].(string)
+	if data[0]["caps"].(map[string]any)["mon"] != nil {
+		caps["mon"] = data[0]["caps"].(map[string]any)["mon"].(string)
 	}
-	if data[0]["caps"].(map[string]interface{})["mds"] != nil {
-		caps["mds"] = data[0]["caps"].(map[string]interface{})["mds"].(string)
+	if data[0]["caps"].(map[string]any)["mds"] != nil {
+		caps["mds"] = data[0]["caps"].(map[string]any)["mds"].(string)
 	}
-	if data[0]["caps"].(map[string]interface{})["mgr"] != nil {
-		caps["mgr"] = data[0]["caps"].(map[string]interface{})["mgr"].(string)
+	if data[0]["caps"].(map[string]any)["mgr"] != nil {
+		caps["mgr"] = data[0]["caps"].(map[string]any)["mgr"].(string)
 	}
-	if data[0]["caps"].(map[string]interface{})["osd"] != nil {
-		caps["osd"] = data[0]["caps"].(map[string]interface{})["osd"].(string)
+	if data[0]["caps"].(map[string]any)["osd"] != nil {
+		caps["osd"] = data[0]["caps"].(map[string]any)["osd"].(string)
 	}
 
 	return caps, err
@@ -132,7 +132,7 @@ func AuthRotate(context *clusterd.Context, clusterInfo *ClusterInfo, name string
 		return "", errors.Wrapf(err, "failed auth rotate %s", name)
 	}
 
-	var data []map[string]interface{}
+	var data []map[string]any
 	err = json.Unmarshal(buf, &data)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to unmarshal auth rotate %s response", name)
@@ -159,7 +159,7 @@ func AuthDelete(context *clusterd.Context, clusterInfo *ClusterInfo, name string
 }
 
 func parseAuthKey(buf []byte) (string, error) {
-	var resp map[string]interface{}
+	var resp map[string]any
 	if err := json.Unmarshal(buf, &resp); err != nil {
 		return "", errors.Wrap(err, "failed to unmarshal get/create key response")
 	}

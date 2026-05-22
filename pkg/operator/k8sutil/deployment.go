@@ -19,6 +19,7 @@ package k8sutil
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -119,7 +120,7 @@ func WaitForDeploymentToStart(ctx context.Context, clusterdContext *clusterd.Con
 	// wait for the deployment to be restarted up to 300s
 	sleepTime := 3
 	attempts := 100
-	for i := 0; i < attempts; i++ {
+	for range attempts {
 		// check for the status of the deployment
 		d, err := clusterdContext.Clientset.AppsV1().Deployments(deployment.Namespace).Get(ctx, deployment.Name, metav1.GetOptions{})
 		if err != nil {
@@ -229,9 +230,7 @@ func WaitForDeploymentsToUpdate(
 ) Failures {
 	// do not modify the input!
 	waitingOn := DeploymentsUpdated{}
-	for k, v := range deploymentsUpdated {
-		waitingOn[k] = v
-	}
+	maps.Copy(waitingOn, deploymentsUpdated)
 	failures := Failures{}
 
 	waitFunc := func() (done bool, err error) {
@@ -429,7 +428,7 @@ func GetDeploymentOwnerReference(ctx context.Context, clientset kubernetes.Inter
 func WaitForDeploymentImage(ctx context.Context, clientset kubernetes.Interface, namespace, label, container string, initContainer bool, desiredImage string) error {
 	sleepTime := 3
 	attempts := 120
-	for i := 0; i < attempts; i++ {
+	for range attempts {
 		deployments, err := clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{LabelSelector: label})
 		if err != nil {
 			return fmt.Errorf("failed to list deployments with label %s. %v", label, err)

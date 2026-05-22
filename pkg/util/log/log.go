@@ -22,42 +22,42 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func NamedInfo(name types.NamespacedName, logger *capnslog.PackageLogger, message string, args ...interface{}) {
+func NamedInfo(name types.NamespacedName, logger *capnslog.PackageLogger, message string, args ...any) {
 	NamespacedInfo(name.String(), logger, message, args...)
 }
 
-func NamedWarning(name types.NamespacedName, logger *capnslog.PackageLogger, message string, args ...interface{}) {
+func NamedWarning(name types.NamespacedName, logger *capnslog.PackageLogger, message string, args ...any) {
 	NamespacedWarning(name.String(), logger, message, args...)
 }
 
-func NamedError(name types.NamespacedName, logger *capnslog.PackageLogger, message string, args ...interface{}) {
+func NamedError(name types.NamespacedName, logger *capnslog.PackageLogger, message string, args ...any) {
 	NamespacedError(name.String(), logger, message, args...)
 }
 
-func NamedDebug(name types.NamespacedName, logger *capnslog.PackageLogger, message string, args ...interface{}) {
+func NamedDebug(name types.NamespacedName, logger *capnslog.PackageLogger, message string, args ...any) {
 	NamespacedDebug(name.String(), logger, message, args...)
 }
 
-func NamedTrace(name types.NamespacedName, logger *capnslog.PackageLogger, message string, args ...interface{}) {
+func NamedTrace(name types.NamespacedName, logger *capnslog.PackageLogger, message string, args ...any) {
 	NamespacedTrace(name.String(), logger, message, args...)
 }
 
-func NamespacedInfo(namespace string, logger *capnslog.PackageLogger, message string, args ...interface{}) {
+func NamespacedInfo(namespace string, logger *capnslog.PackageLogger, message string, args ...any) {
 	logger.Infof("[%s] %s", namespace, fmt.Sprintf(message, args...))
 }
 
-func NamespacedWarning(namespace string, logger *capnslog.PackageLogger, message string, args ...interface{}) {
+func NamespacedWarning(namespace string, logger *capnslog.PackageLogger, message string, args ...any) {
 	logger.Warningf("[%s] %s", namespace, fmt.Sprintf(message, args...))
 }
 
-func NamespacedError(namespace string, logger *capnslog.PackageLogger, message string, args ...interface{}) {
+func NamespacedError(namespace string, logger *capnslog.PackageLogger, message string, args ...any) {
 	logger.Errorf("[%s] %s", namespace, fmt.Sprintf(message, args...))
 }
 
-func NamespacedDebug(namespace string, logger *capnslog.PackageLogger, message string, args ...interface{}) {
+func NamespacedDebug(namespace string, logger *capnslog.PackageLogger, message string, args ...any) {
 	logger.Debugf("[%s] %s", namespace, fmt.Sprintf(message, args...))
 }
 
-func NamespacedTrace(namespace string, logger *capnslog.PackageLogger, message string, args ...interface{}) {
+func NamespacedTrace(namespace string, logger *capnslog.PackageLogger, message string, args ...any) {
 	logger.Tracef("[%s] %s", namespace, fmt.Sprintf(message, args...))
 }

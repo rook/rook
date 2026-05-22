@@ -19,6 +19,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net"
 	"testing"
 	"time"
@@ -71,12 +72,8 @@ func (c *ClusterInfo) AllMonitors() map[string]*MonInfo {
 		return c.InternalMonitors
 	}
 	res := make(map[string]*MonInfo, len(c.InternalMonitors)+len(c.ExternalMons))
-	for id, mon := range c.InternalMonitors {
-		res[id] = mon
-	}
-	for id, mon := range c.ExternalMons {
-		res[id] = mon
-	}
+	maps.Copy(res, c.InternalMonitors)
+	maps.Copy(res, c.ExternalMons)
 	return res
 }
 

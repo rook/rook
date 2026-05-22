@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -579,10 +580,8 @@ func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID 
 		}
 		if p.Spec.CSI.VolumeAttributes["clusterID"] == clusterID {
 			// check PV is created by drivers deployed by rook
-			for _, d := range drivers {
-				if d == p.Spec.CSI.Driver {
-					return true, nil
-				}
+			if slices.Contains(drivers, p.Spec.CSI.Driver) {
+				return true, nil
 			}
 		}
 	}

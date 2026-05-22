@@ -18,6 +18,8 @@ limitations under the License.
 package pool
 
 import (
+	"maps"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -81,9 +83,7 @@ func updateStatusInfo(cephBlockPool *cephv1.CephBlockPool) {
 	m := make(map[string]string)
 	if cephBlockPool.Status.Phase == cephv1.ConditionReady && cephBlockPool.Spec.Mirroring.Enabled {
 		mirroringInfo := opcontroller.GenerateStatusInfo(cephBlockPool)
-		for key, value := range mirroringInfo {
-			m[key] = value
-		}
+		maps.Copy(m, mirroringInfo)
 	}
 
 	if cephBlockPool.Spec.IsReplicated() {

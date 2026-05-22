@@ -1145,7 +1145,7 @@ func Test_adjustZoneDefaultPools(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srcZone := map[string]interface{}{}
+			srcZone := map[string]any{}
 			err := json.Unmarshal([]byte(tt.args.beforeJSON), &srcZone)
 			assert.NoError(t, err)
 			// Provide a mock executor so checkPoolIsEmpty can run ceph/rados commands (best-effort).
@@ -1167,7 +1167,7 @@ func Test_adjustZoneDefaultPools(t *testing.T) {
 			changedZone, err := adjustZoneDefaultPools(objContext, srcZone, tt.args.spec)
 
 			// check that source was not modified
-			orig := map[string]interface{}{}
+			orig := map[string]any{}
 			jErr := json.Unmarshal([]byte(tt.args.beforeJSON), &orig)
 			assert.NoError(t, jErr)
 			assert.EqualValues(t, orig, srcZone, "src was not modified")
@@ -1634,12 +1634,12 @@ func Test_adjustZonePlacementPools(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srcZone := map[string]interface{}{}
+			srcZone := map[string]any{}
 			err := json.Unmarshal([]byte(tt.args.beforeJSON), &srcZone)
 			assert.NoError(t, err)
 			changedZone, err := adjustZonePlacementPools(srcZone, tt.args.spec)
 			// check that source zone was not modified:
-			orig := map[string]interface{}{}
+			orig := map[string]any{}
 			jErr := json.Unmarshal([]byte(tt.args.beforeJSON), &orig)
 			assert.NoError(t, jErr)
 			assert.EqualValues(t, srcZone, orig, "source obj was not modified")
@@ -2012,15 +2012,15 @@ func Test_adjustZoneGroupPlacementTargets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			zj := map[string]interface{}{}
+			zj := map[string]any{}
 			err := json.Unmarshal([]byte(tt.args.zone), &zj)
 			assert.NoError(t, err)
-			srcGroup := map[string]interface{}{}
+			srcGroup := map[string]any{}
 			err = json.Unmarshal([]byte(tt.args.groupBefore), &srcGroup)
 			assert.NoError(t, err)
 			changedGroup, err := adjustZoneGroupPlacementTargets(srcGroup, zj, tt.args.defaultPlacement)
 
-			orig := map[string]interface{}{}
+			orig := map[string]any{}
 			jErr := json.Unmarshal([]byte(tt.args.groupBefore), &orig)
 			assert.NoError(t, jErr)
 			assert.EqualValues(t, orig, srcGroup, "src was not modified")
@@ -2105,7 +2105,7 @@ func Test_createPlacementTargetsFromZonePoolPlacements(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			zo := map[string]interface{}{}
+			zo := map[string]any{}
 			_ = json.Unmarshal([]byte(tt.args.zone), &zo)
 			got, err := createPlacementTargetsFromZonePoolPlacements(zo)
 			if (err != nil) != tt.wantErr {

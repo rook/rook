@@ -19,6 +19,7 @@ package mgr
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -100,7 +101,7 @@ func (c *Cluster) getReplicas() int {
 func (c *Cluster) getDaemonIDs() []string {
 	var daemonIDs []string
 	replicas := c.getReplicas()
-	for i := 0; i < replicas; i++ {
+	for i := range replicas {
 		daemonIDs = append(daemonIDs, k8sutil.IndexToName(i))
 	}
 	return daemonIDs
@@ -251,14 +252,7 @@ func (c *Cluster) removeExtraMgrs(daemonIDs []string) {
 			// skipping evaluation of non-mgr daemon that mistakenly matched the mgr labels
 			continue
 		}
-		found := false
-		for _, daemonID := range daemonIDs {
-			if id == daemonID {
-				// mark the mgr as found if the ID matches
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(daemonIDs, id)
 		if !found {
 			err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(c.clusterInfo.Context, mgrDeployment.Name, metav1.DeleteOptions{})
 			if err == nil {
@@ -547,12 +541,7 @@ func (c *Cluster) moduleMeetsMinVersion(name string) (*cephver.CephVersion, bool
 
 func wellKnownModule(name string) bool {
 	knownModules := []string{dashboardModuleName, PrometheusModuleName, crashModuleName}
-	for _, known := range knownModules {
-		if name == known {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(knownModules, name)
 }
 
 // EnableServiceMonitor add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster

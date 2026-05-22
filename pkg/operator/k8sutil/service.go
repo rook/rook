@@ -177,7 +177,7 @@ func GetExportedServiceIP(fqdn string) (string, error) {
 
 	ips := []net.IP{}
 	var err error
-	for i := 0; i < retryCount; i++ {
+	for i := range retryCount {
 		ips, err = net.LookupIP(fqdn)
 		if err != nil {
 			if i < retryCount-1 {

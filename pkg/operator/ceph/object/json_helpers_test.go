@@ -110,7 +110,7 @@ func Test_getObjPropertyStr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			obj := map[string]interface{}{}
+			obj := map[string]any{}
 			_ = json.Unmarshal([]byte(tt.args.json), &obj)
 			got, err := getObjProperty[string](obj, tt.args.path...)
 			if (err != nil) != tt.wantErr {
@@ -132,7 +132,7 @@ func Test_getObjPropertyObjArr(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    []interface{}
+		want    []any
 		wantErr bool
 	}{
 		{
@@ -146,9 +146,9 @@ func Test_getObjPropertyObjArr(t *testing.T) {
 					"a", "b",
 				},
 			},
-			want: []interface{}{
-				map[string]interface{}{"c": "val1"},
-				map[string]interface{}{"d": "val2"},
+			want: []any{
+				map[string]any{"c": "val1"},
+				map[string]any{"d": "val2"},
 			},
 			wantErr: false,
 		},
@@ -205,9 +205,9 @@ func Test_getObjPropertyObjArr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			obj := map[string]interface{}{}
+			obj := map[string]any{}
 			_ = json.Unmarshal([]byte(tt.args.json), &obj)
-			got, err := getObjProperty[[]interface{}](obj, tt.args.path...)
+			got, err := getObjProperty[[]any](obj, tt.args.path...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getObjProperty() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -220,20 +220,20 @@ func Test_getObjPropertyObjArr(t *testing.T) {
 }
 
 func Test_deepCopyJson(t *testing.T) {
-	in := map[string]interface{}{
-		"key": []interface{}{"1", "2", "3"},
+	in := map[string]any{
+		"key": []any{"1", "2", "3"},
 	}
 	inCopy, err := deepCopyJson(in)
 	assert.NoError(t, err)
 	assert.EqualValues(t, in, inCopy)
 
-	assert.EqualValues(t, []interface{}{"1", "2", "3"}, in["key"])
-	assert.EqualValues(t, []interface{}{"1", "2", "3"}, inCopy["key"])
+	assert.EqualValues(t, []any{"1", "2", "3"}, in["key"])
+	assert.EqualValues(t, []any{"1", "2", "3"}, inCopy["key"])
 
-	inCopy["key"].([]interface{})[1] = "7"
+	inCopy["key"].([]any)[1] = "7"
 
-	assert.EqualValues(t, []interface{}{"1", "2", "3"}, in["key"])
-	assert.EqualValues(t, []interface{}{"1", "7", "3"}, inCopy["key"])
+	assert.EqualValues(t, []any{"1", "2", "3"}, in["key"])
+	assert.EqualValues(t, []any{"1", "7", "3"}, inCopy["key"])
 }
 
 func Test_updateObjProperty(t *testing.T) {
@@ -291,7 +291,7 @@ func Test_updateObjProperty(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			obj := map[string]interface{}{}
+			obj := map[string]any{}
 			err := json.Unmarshal([]byte(tt.args.json), &obj)
 			assert.NoError(t, err)
 			prev, err := updateObjProperty(obj, tt.args.val, tt.args.path...)
@@ -312,13 +312,13 @@ func Test_updateObjProperty(t *testing.T) {
 func Test_updateObjPropertyObj(t *testing.T) {
 	type args struct {
 		json string
-		val  map[string]interface{}
+		val  map[string]any
 		path []string
 	}
 	tests := []struct {
 		name     string
 		args     args
-		wantPrev map[string]interface{}
+		wantPrev map[string]any
 		wantJSON string
 		wantErr  bool
 	}{
@@ -326,12 +326,12 @@ func Test_updateObjPropertyObj(t *testing.T) {
 			name: "exists",
 			args: args{
 				json: `{"a":{"b":{"c": "val1"}}}`,
-				val:  map[string]interface{}{"d": "val2"},
+				val:  map[string]any{"d": "val2"},
 				path: []string{
 					"a", "b",
 				},
 			},
-			wantPrev: map[string]interface{}{"c": "val1"},
+			wantPrev: map[string]any{"c": "val1"},
 			wantJSON: `{"a":{"b":{"d":"val2"}}}`,
 			wantErr:  false,
 		},
@@ -339,7 +339,7 @@ func Test_updateObjPropertyObj(t *testing.T) {
 			name: "not exists",
 			args: args{
 				json: `{"a":{"b":{}}}`,
-				val:  map[string]interface{}{"c": "val1"},
+				val:  map[string]any{"c": "val1"},
 				path: []string{
 					"a", "c",
 				},
@@ -351,7 +351,7 @@ func Test_updateObjPropertyObj(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			obj := map[string]interface{}{}
+			obj := map[string]any{}
 			err := json.Unmarshal([]byte(tt.args.json), &obj)
 			assert.NoError(t, err)
 			prev, err := updateObjProperty(obj, tt.args.val, tt.args.path...)
@@ -372,13 +372,13 @@ func Test_updateObjPropertyObj(t *testing.T) {
 func Test_updateObjPropertyArr(t *testing.T) {
 	type args struct {
 		json string
-		val  []interface{}
+		val  []any
 		path []string
 	}
 	tests := []struct {
 		name     string
 		args     args
-		wantPrev []interface{}
+		wantPrev []any
 		wantJSON string
 		wantErr  bool
 	}{
@@ -386,16 +386,16 @@ func Test_updateObjPropertyArr(t *testing.T) {
 			name: "exists",
 			args: args{
 				json: `{"a":{"b":[{"c": "val"}]}}`,
-				val: []interface{}{
-					map[string]interface{}{"d": "val1"},
-					map[string]interface{}{"e": "val2"},
+				val: []any{
+					map[string]any{"d": "val1"},
+					map[string]any{"e": "val2"},
 				},
 				path: []string{
 					"a", "b",
 				},
 			},
-			wantPrev: []interface{}{
-				map[string]interface{}{"c": "val"},
+			wantPrev: []any{
+				map[string]any{"c": "val"},
 			},
 			wantJSON: `{"a":{"b":[{"d":"val1"},{"e":"val2"}]}}`,
 			wantErr:  false,
@@ -404,9 +404,9 @@ func Test_updateObjPropertyArr(t *testing.T) {
 			name: "not exists",
 			args: args{
 				json: `{"a":{"b":{}}}`,
-				val: []interface{}{
-					map[string]interface{}{"c": "val1"},
-					map[string]interface{}{"d": "val2"},
+				val: []any{
+					map[string]any{"c": "val1"},
+					map[string]any{"d": "val2"},
 				},
 				path: []string{
 					"a", "c",
@@ -419,7 +419,7 @@ func Test_updateObjPropertyArr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			obj := map[string]interface{}{}
+			obj := map[string]any{}
 			err := json.Unmarshal([]byte(tt.args.json), &obj)
 			assert.NoError(t, err)
 			prev, err := updateObjProperty(obj, tt.args.val, tt.args.path...)

@@ -18,6 +18,7 @@ package nodedaemon
 
 import (
 	"fmt"
+	"maps"
 	"path"
 
 	"github.com/pkg/errors"
@@ -97,9 +98,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 
 		//  make a copy labels for pod to avoid rook version gets added to pod spec
 		podLabels := map[string]string{}
-		for key, value := range deploymentLabels {
-			podLabels[key] = value
-		}
+		maps.Copy(podLabels, deploymentLabels)
 		k8sutil.AddRookVersionLabelToDeployment(deploy)
 
 		deploy.Spec.Template = corev1.PodTemplateSpec{

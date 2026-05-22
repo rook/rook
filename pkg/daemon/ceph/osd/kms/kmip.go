@@ -342,7 +342,7 @@ func (kms *kmipKMS) discover(conn io.ReadWriter) error {
 func (kms *kmipKMS) send(
 	conn io.ReadWriter,
 	operation kmip14.Operation,
-	payload interface{},
+	payload any,
 ) (*kmip.ResponseMessage, *ttlv.Decoder, []byte, error) {
 	biID := uuid.New()
 

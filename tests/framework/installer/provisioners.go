@@ -19,6 +19,7 @@ package installer
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rook/rook/tests/framework/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -75,16 +76,17 @@ reclaimPolicy: Delete
 	if readOnly {
 		accessMode = "ReadWriteOnce"
 	}
-	yamlToCreate := fmt.Sprintf(storageClass, hostPathStorageClassName)
-	for i := 0; i < count; i++ {
+	var yamlToCreate strings.Builder
+	yamlToCreate.WriteString(fmt.Sprintf(storageClass, hostPathStorageClassName))
+	for i := range count {
 		tempDir, err := os.MkdirTemp("", "example")
 		if err != nil {
 			return fmt.Errorf("failed to create temp dir. %v", err)
 		}
 		logger.Infof("created temp dir: %s", tempDir)
-		yamlToCreate += fmt.Sprintf(pv, i, hostPathStorageClassName, pvcSize, accessMode, tempDir)
+		yamlToCreate.WriteString(fmt.Sprintf(pv, i, hostPathStorageClassName, pvcSize, accessMode, tempDir))
 	}
-	out, err := k8shelper.KubectlWithStdin(yamlToCreate, createFromStdinArgs...)
+	out, err := k8shelper.KubectlWithStdin(yamlToCreate.String(), createFromStdinArgs...)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create hostpath provisioner StorageClass: %+v. %s", err, out)
 	}

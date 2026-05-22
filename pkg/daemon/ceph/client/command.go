@@ -263,7 +263,7 @@ func ExecuteCephCommandWithRetry(
 	retries int,
 	waitTime time.Duration,
 ) ([]byte, error) {
-	for i := 0; i < retries; i++ {
+	for i := range retries {
 		action, data, err := cmd()
 		if err != nil {
 			logger.Infof("command failed for %s. trying again...", action)

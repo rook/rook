@@ -20,6 +20,7 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -767,9 +768,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	// cause the osd pods to be updated with every rook upgrade even if
 	// the osds don't need to restart.
 	deploymentLabels := map[string]string{}
-	for key, value := range podTemplateSpec.Labels {
-		deploymentLabels[key] = value
-	}
+	maps.Copy(deploymentLabels, podTemplateSpec.Labels)
 
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

@@ -53,7 +53,7 @@ func (h *HelmHelper) Execute(args ...string) (string, error) {
 	return result, nil
 }
 
-func createValuesFile(path string, values map[string]interface{}) error {
+func createValuesFile(path string, values map[string]any) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("could not create values file: %v", err)
@@ -82,7 +82,7 @@ func createValuesFile(path string, values map[string]interface{}) error {
 }
 
 // InstallLocalHelmChart installs a give helm chart
-func (h *HelmHelper) InstallLocalHelmChart(upgrade bool, namespace, chart string, values map[string]interface{}) error {
+func (h *HelmHelper) InstallLocalHelmChart(upgrade bool, namespace, chart string, values map[string]any) error {
 	rootDir, err := FindRookRoot()
 	if err != nil {
 		return errors.Wrap(err, "failed to find rook root")
@@ -101,7 +101,7 @@ func (h *HelmHelper) InstallLocalHelmChart(upgrade bool, namespace, chart string
 
 	var lastErr error
 	maxRetries := 5
-	for i := 0; i < maxRetries; i++ {
+	for i := range maxRetries {
 		err = h.installChart(cmdArgs, values)
 		if err != nil {
 			lastErr = fmt.Errorf("failed to install local helm chart %s with in namespace: %v, err=%v", chart, namespace, err)
@@ -116,7 +116,7 @@ func (h *HelmHelper) InstallLocalHelmChart(upgrade bool, namespace, chart string
 	return lastErr
 }
 
-func (h *HelmHelper) InstallVersionedChart(namespace, chart, version string, values map[string]interface{}) error {
+func (h *HelmHelper) InstallVersionedChart(namespace, chart, version string, values map[string]any) error {
 	logger.Infof("adding rook-release helm repo")
 	cmdArgs := []string{"repo", "add", "rook-release", "https://charts.rook.io/release"}
 	_, err := h.Execute(cmdArgs...)
@@ -138,7 +138,7 @@ func (h *HelmHelper) InstallVersionedChart(namespace, chart, version string, val
 	return nil
 }
 
-func (h *HelmHelper) InstallOrUpgradeHelmRepoChart(namespace, release, repoURL, repoName, chartName, version string, values map[string]interface{}) error {
+func (h *HelmHelper) InstallOrUpgradeHelmRepoChart(namespace, release, repoURL, repoName, chartName, version string, values map[string]any) error {
 	if _, err := h.Execute("repo", "add", repoName, repoURL, "--force-update"); err != nil {
 		return fmt.Errorf("failed to add helm repo %q: %w", repoName, err)
 	}
@@ -169,7 +169,7 @@ func (h *HelmHelper) UninstallHelmReleaseIfExists(namespace, release string) err
 	return fmt.Errorf("helm uninstall %q in namespace %q: %w; output=%s", release, namespace, err, out)
 }
 
-func (h *HelmHelper) installChart(cmdArgs []string, values map[string]interface{}) error {
+func (h *HelmHelper) installChart(cmdArgs []string, values map[string]any) error {
 	if values != nil {
 		testValuesPath := "values-test.yaml"
 		if err := createValuesFile(testValuesPath, values); err != nil {

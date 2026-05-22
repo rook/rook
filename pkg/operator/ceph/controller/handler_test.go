@@ -38,7 +38,7 @@ func TestObjectToCRMapper(t *testing.T) {
 			Namespace: namespace,
 		},
 		TypeMeta: metav1.TypeMeta{
-			Kind: reflect.TypeOf(cephv1.CephFilesystem{}).Name(),
+			Kind: reflect.TypeFor[cephv1.CephFilesystem]().Name(),
 		},
 	}
 

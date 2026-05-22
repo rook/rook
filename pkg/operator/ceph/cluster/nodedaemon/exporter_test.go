@@ -35,7 +35,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -323,7 +322,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
 
 		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
-		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = new(false)
 		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
 		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
 
@@ -341,7 +340,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
 
 		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
-		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = new(false)
 		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
 		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
 
@@ -358,7 +357,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
 
 		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
-		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = new(false)
 		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
 		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
 
@@ -376,7 +375,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
 
 		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
-		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = new(false)
 		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
 		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
 
@@ -394,7 +393,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
 
 		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
-		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = new(false)
 		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
 		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
 
@@ -411,7 +410,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
 
 		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{}
-		cephCluster.Spec.Monitoring.Exporter.HostNetwork = ptr.To(false)
+		cephCluster.Spec.Monitoring.Exporter.HostNetwork = new(false)
 		cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit = prioLimitString
 		cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds = statsPeriodString
 

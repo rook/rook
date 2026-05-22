@@ -157,7 +157,7 @@ func (s *SmokeSuite) TestMonFailover() {
 	assert.NoError(s.T(), err)
 
 	// Wait for the health check to start a new monitor
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		deployments, err := s.getNonCanaryMonDeployments()
 		require.NoError(s.T(), err)
 
@@ -205,7 +205,7 @@ func (s *SmokeSuite) TestPoolResize() {
 	clusterInfo := client.AdminTestClusterInfo(s.settings.Namespace)
 
 	// Wait for pool to appear
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		pools, err := s.helper.PoolClient.ListCephPools(clusterInfo)
 		require.NoError(s.T(), err)
 		for _, p := range pools {
@@ -229,7 +229,7 @@ func (s *SmokeSuite) TestPoolResize() {
 
 	poolResized := false
 	// Wait for pool resize to happen
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		details, err := s.helper.PoolClient.GetCephPoolDetails(clusterInfo, poolName)
 		require.NoError(s.T(), err)
 		if details.Size > 1 {
@@ -286,7 +286,7 @@ func (s *SmokeSuite) TestCreateClient() {
 
 	clientFound := false
 
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		clients, _ := s.helper.UserClient.Get(clusterInfo, "client."+clientName)
 		if clients != "" {
 			clientFound = true

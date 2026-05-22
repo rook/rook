@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,7 +55,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/utils/ptr"
 )
 
 const (
@@ -506,10 +506,7 @@ func crushWeightsBalanced(a, b int) bool {
 	if a == b {
 		return true
 	}
-	maxWeight := a
-	if b > a {
-		maxWeight = b
-	}
+	maxWeight := max(b, a)
 	if maxWeight == 0 {
 		return false
 	}
@@ -789,7 +786,7 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	// spin up the canary deployment. if it exists, delete it first, since if it
 	// already exists it may have been scheduled with a different crd config.
 	createdDeployment := false
-	for i := 0; i < canaryRetries; i++ {
+	for range canaryRetries {
 		if c.ClusterInfo.Context.Err() != nil {
 			return nil, c.ClusterInfo.Context.Err()
 		}
@@ -839,7 +836,7 @@ func realWaitForMonitorScheduling(c *Cluster, d *apps.Deployment) (SchedulingRes
 	result := SchedulingResult{}
 
 	// wait for the scheduler to make a placement decision
-	for i := 0; i < canaryRetries; i++ {
+	for i := range canaryRetries {
 		if c.ClusterInfo.Context.Err() != nil {
 			return result, c.ClusterInfo.Context.Err()
 		}
@@ -1107,7 +1104,7 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool, m
 	}
 
 	// Ensure each of the mons have been created. If already created, it will be a no-op.
-	for i := 0; i < len(mons); i++ {
+	for i := range mons {
 		if monsToSkipDeployment.Has(mons[i].DaemonName) {
 			log.NamespacedInfo(c.Namespace, logger, "skipping starting deployment for mon %q since marked to skip reconcile", mons[i].DaemonName)
 			continue
@@ -1324,15 +1321,15 @@ func (c *Cluster) createEndpointSliceForAddresses(addresses []string, addressTyp
 
 	endpointSlicePorts := []discoveryv1.EndpointPort{}
 	endpointSlicePorts = append(endpointSlicePorts, discoveryv1.EndpointPort{
-		Name:     ptr.To(DefaultMsgr2PortName),
-		Port:     ptr.To(DefaultMsgr2Port),
-		Protocol: ptr.To(corev1.ProtocolTCP),
+		Name:     new(DefaultMsgr2PortName),
+		Port:     new(DefaultMsgr2Port),
+		Protocol: new(corev1.ProtocolTCP),
 	})
 	if !c.spec.RequireMsgr2() {
 		endpointSlicePorts = append(endpointSlicePorts, discoveryv1.EndpointPort{
-			Name:     ptr.To(DefaultMsgr1PortName),
-			Port:     ptr.To(DefaultMsgr1Port),
-			Protocol: ptr.To(corev1.ProtocolTCP),
+			Name:     new(DefaultMsgr1PortName),
+			Port:     new(DefaultMsgr1Port),
+			Protocol: new(corev1.ProtocolTCP),
 		})
 	}
 
@@ -1858,13 +1855,7 @@ func monFoundInQuorum(name string, monQuorumStatusResp cephclient.MonStatusRespo
 
 	// using the current initial monitor's mon map entry, check to see if it's in the quorum list
 	// (a list of monitor rank values)
-	for _, q := range monQuorumStatusResp.Quorum {
-		if monMapEntry.Rank == q {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(monQuorumStatusResp.Quorum, monMapEntry.Rank)
 }
 
 func requiredDuringScheduling(spec *cephv1.ClusterSpec) bool {

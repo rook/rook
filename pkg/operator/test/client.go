@@ -83,7 +83,7 @@ func AddReadyNode(t *testing.T, clientset *fake.Clientset, name, ip string) {
 //   - ip from 0.0.0.0 to <count-1>.<count-1>.<count-1>.<count-1>
 func AddSomeReadyNodes(t *testing.T, clientset *fake.Clientset, count int) {
 	t.Helper()
-	for i := 0; i < count; i++ {
+	for i := range count {
 		name := fmt.Sprintf("node%d", i)
 		ip := fmt.Sprintf("%d.%d.%d.%d", i, i, i, i)
 		AddReadyNode(t, clientset, name, ip)

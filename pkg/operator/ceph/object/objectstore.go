@@ -917,7 +917,7 @@ func sharedPoolsExist(objContext *Context, sharedPools cephv1.ObjectSharedPoolsS
 	return nil
 }
 
-func adjustZoneDefaultPools(objContext *Context, zone map[string]interface{}, spec cephv1.ObjectSharedPoolsSpec) (map[string]interface{}, error) {
+func adjustZoneDefaultPools(objContext *Context, zone map[string]any, spec cephv1.ObjectSharedPoolsSpec) (map[string]any, error) {
 	name, err := getObjProperty[string](zone, "name")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get zone name: %w", err)
@@ -1037,7 +1037,6 @@ func createSimilarPools(ctx *Context, pools []string, cluster *cephv1.ClusterSpe
 		waitGroup, _ := errgroup.WithContext(ctx.clusterInfo.Context)
 		for _, pool := range pools {
 			// Avoid the loop reusing the same value with a closure
-			pool := pool
 
 			waitGroup.Go(func() error { return createRGWPool(ctx, cluster, poolSpec, pgCount, pool) })
 		}
@@ -1321,7 +1320,7 @@ func listsAreEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		if as[i] != bs[i] {
 			return false
 		}

@@ -158,7 +158,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 		require.NoError(t, err, "failed to get zone config; output: %s", output)
 		require.NotEmpty(t, output, "zone config is empty")
 
-		var zoneConfig map[string]interface{}
+		var zoneConfig map[string]any
 		err = json.Unmarshal([]byte(output), &zoneConfig)
 		require.NoError(t, err, "failed to parse zone config JSON; output: %s", output)
 

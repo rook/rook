@@ -30,22 +30,22 @@ import (
 // application, we allow the calling application to make a very simple Logger type that will be
 // compatible with this library.
 type Logger interface {
-	Infof(format string, args ...interface{})
-	Debugf(format string, args ...interface{})
-	Warningf(format string, args ...interface{})
+	Infof(format string, args ...any)
+	Debugf(format string, args ...any)
+	Warningf(format string, args ...any)
 }
 
 type SimpleStderrLogger struct{}
 
-func (*SimpleStderrLogger) Infof(format string, args ...interface{}) {
+func (*SimpleStderrLogger) Infof(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, " INFO: "+format+"\n", args...)
 }
 
-func (*SimpleStderrLogger) Debugf(format string, args ...interface{}) {
+func (*SimpleStderrLogger) Debugf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
 }
 
-func (*SimpleStderrLogger) Warningf(format string, args ...interface{}) {
+func (*SimpleStderrLogger) Warningf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, " WARN: "+format+"\n", args...)
 }
 

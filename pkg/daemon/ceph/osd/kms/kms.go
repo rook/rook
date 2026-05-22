@@ -251,7 +251,7 @@ func (c *Config) UpdateSecret(secretName, secretValue string) error {
 		k := buildVaultKeyContext(c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
 		// Build Secret
 		secretName = GenerateOSDEncryptionSecretName(secretName)
-		data := make(map[string]interface{})
+		data := make(map[string]any)
 		data[secretName] = secretValue
 
 		_, err = v.PutSecret(secretName, data, k)
@@ -507,7 +507,7 @@ func putSecret(v secrets.Secrets, secretName, secretValue string, keyContext map
 	}
 
 	// Build Secret
-	data := make(map[string]interface{})
+	data := make(map[string]any)
 	data[secretName] = secretValue
 
 	//nolint:gosec // Write the encryption key in Vault

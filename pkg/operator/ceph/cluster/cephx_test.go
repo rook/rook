@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
@@ -963,12 +964,7 @@ func isCommand(cargs []string, lookFor ...string) bool {
 }
 
 func hasArg(args []string, lookFor string) bool {
-	for _, arg := range args {
-		if arg == lookFor {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(args, lookFor)
 }
 
 const (

@@ -71,7 +71,7 @@ func validatePoolPlacementStorageClasses(scList []cephv1.PlacementStorageClassSp
 	return nil
 }
 
-func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSharedPoolsSpec) (map[string]interface{}, error) {
+func adjustZonePlacementPools(zone map[string]any, spec cephv1.ObjectSharedPoolsSpec) (map[string]any, error) {
 	name, err := getObjProperty[string](zone, "name")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get zone name: %w", err)
@@ -83,7 +83,7 @@ func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSha
 		return nil, fmt.Errorf("unable to deep copy config for zone %s: %w", name, err)
 	}
 
-	placements, err := getObjProperty[[]interface{}](zone, "placement_pools")
+	placements, err := getObjProperty[[]any](zone, "placement_pools")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get pool placements for zone %s: %w", name, err)
 	}
@@ -93,7 +93,7 @@ func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSha
 	inConfig := map[string]struct{}{}
 	idxToRemove := map[int]struct{}{}
 	for i, p := range placements {
-		pObj, ok := p.(map[string]interface{})
+		pObj, ok := p.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("unable to cast pool placement to object for zone %s: %+v", name, p)
 		}
@@ -140,7 +140,7 @@ func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSha
 	}
 	if len(idxToRemove) != 0 {
 		// delete placements from slice
-		updated := make([]interface{}, 0, len(placements)-len(idxToRemove))
+		updated := make([]any, 0, len(placements)-len(idxToRemove))
 		for i := range placements {
 			if _, ok := idxToRemove[i]; ok {
 				// remove
@@ -168,7 +168,7 @@ func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSha
 	// Reason: 'radosgw-admin zone set --infile' sorts placement_pools by key before storing it in ceph
 	// and returns JSON with sorted placement_pools array. So we sort input array for easy comparison with applied JSON.
 	sort.Slice(placements, func(i, j int) bool {
-		pI, ok := placements[i].(map[string]interface{})
+		pI, ok := placements[i].(map[string]any)
 		if !ok {
 			return false
 		}
@@ -176,7 +176,7 @@ func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSha
 		if err != nil {
 			return false
 		}
-		pJ, ok := placements[j].(map[string]interface{})
+		pJ, ok := placements[j].(map[string]any)
 		if !ok {
 			return false
 		}
@@ -276,7 +276,7 @@ func toZonePlacementPool(spec cephv1.PoolPlacementSpec, ns string) ZonePlacement
 	return res
 }
 
-func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}, defaultPlacement string) (map[string]interface{}, error) {
+func adjustZoneGroupPlacementTargets(group, zone map[string]any, defaultPlacement string) (map[string]any, error) {
 	name, err := getObjProperty[string](group, "name")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get zonegroup name: %w", err)
@@ -297,7 +297,7 @@ func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}, default
 	if err != nil {
 		return nil, fmt.Errorf("unable to create targets from placements for zonegroup %q: %w", name, err)
 	}
-	currentTargets, err := getObjProperty[[]interface{}](group, "placement_targets")
+	currentTargets, err := getObjProperty[[]any](group, "placement_targets")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get targets from placements for zonegroup %q: %w", name, err)
 	}
@@ -305,7 +305,7 @@ func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}, default
 	applied := map[string]struct{}{}
 	idxToRemove := map[int]struct{}{}
 	for i, target := range currentTargets {
-		tObj, ok := target.(map[string]interface{})
+		tObj, ok := target.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("unable to cast placement target to object for zonegroup %q: %+v", name, target)
 		}
@@ -315,7 +315,7 @@ func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}, default
 		}
 		// update target:
 		if desired, ok := desiredTargets[tName]; ok {
-			sc := []interface{}{}
+			sc := []any{}
 			ok = castJson(desired.StorageClasses, &sc)
 			if ok {
 				_, err = updateObjProperty(tObj, sc, "storage_classes")
@@ -334,7 +334,7 @@ func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}, default
 	}
 	if len(idxToRemove) != 0 {
 		// delete targets from slice
-		updated := make([]interface{}, 0, len(currentTargets)-len(idxToRemove))
+		updated := make([]any, 0, len(currentTargets)-len(idxToRemove))
 		for i := range currentTargets {
 			if _, ok := idxToRemove[i]; ok {
 				// remove
@@ -366,20 +366,20 @@ func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}, default
 	return group, nil
 }
 
-func createPlacementTargetsFromZonePoolPlacements(zone map[string]interface{}) (map[string]ZonegroupPlacementTarget, error) {
+func createPlacementTargetsFromZonePoolPlacements(zone map[string]any) (map[string]ZonegroupPlacementTarget, error) {
 	zoneName, err := getObjProperty[string](zone, "name")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get zone name: %w", err)
 	}
 
-	zonePoolPlacements, err := getObjProperty[[]interface{}](zone, "placement_pools")
+	zonePoolPlacements, err := getObjProperty[[]any](zone, "placement_pools")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get pool placements for zone %q: %w", zoneName, err)
 	}
 
 	res := make(map[string]ZonegroupPlacementTarget, len(zonePoolPlacements))
 	for _, pp := range zonePoolPlacements {
-		ppObj, ok := pp.(map[string]interface{})
+		ppObj, ok := pp.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("unable to cast zone pool placement to json obj for zone %q: %+v", zoneName, pp)
 		}
@@ -387,7 +387,7 @@ func createPlacementTargetsFromZonePoolPlacements(zone map[string]interface{}) (
 		if err != nil {
 			return nil, fmt.Errorf("unable to get pool placement key for zone %q: %w", zoneName, err)
 		}
-		storClasses, err := getObjProperty[map[string]interface{}](ppObj, "val", "storage_classes")
+		storClasses, err := getObjProperty[map[string]any](ppObj, "val", "storage_classes")
 		if err != nil {
 			return nil, fmt.Errorf("unable to get pool placement storage classes for zone %q: %w", zoneName, err)
 		}
@@ -403,7 +403,7 @@ func createPlacementTargetsFromZonePoolPlacements(zone map[string]interface{}) (
 	return res, nil
 }
 
-func getZoneJSON(objContext *Context) (map[string]interface{}, error) {
+func getZoneJSON(objContext *Context) (map[string]any, error) {
 	if objContext.Realm == "" {
 		return nil, fmt.Errorf("get zone: object store realm is missing from context")
 	}
@@ -426,11 +426,11 @@ func getZoneJSON(objContext *Context) (map[string]interface{}, error) {
 		return nil, errors.Wrap(err, "failed to get rgw zone group")
 	}
 	log.NamedDebug(objContext.NsName(), logger, "get zone success: rgw-realm=%s, rgw-zone=%s, res=%s", objContext.Realm, objContext.Zone, jsonStr)
-	res := map[string]interface{}{}
+	res := map[string]any{}
 	return res, json.Unmarshal([]byte(jsonStr), &res)
 }
 
-func getZoneGroupJSON(objContext *Context) (map[string]interface{}, error) {
+func getZoneGroupJSON(objContext *Context) (map[string]any, error) {
 	if objContext.Realm == "" {
 		return nil, fmt.Errorf("get zonegroup: object store realm is missing from context")
 	}
@@ -457,11 +457,11 @@ func getZoneGroupJSON(objContext *Context) (map[string]interface{}, error) {
 		return nil, errors.Wrap(err, "failed to get rgw zone group")
 	}
 	log.NamedDebug(objContext.NsName(), logger, "get zonegroup success: rgw-realm=%s, rgw-zone=%s, rgw-zonegroup=%s, res=%s", objContext.Realm, objContext.Zone, objContext.ZoneGroup, jsonStr)
-	res := map[string]interface{}{}
+	res := map[string]any{}
 	return res, json.Unmarshal([]byte(jsonStr), &res)
 }
 
-func updateZoneJSON(objContext *Context, zone map[string]interface{}) (map[string]interface{}, error) {
+func updateZoneJSON(objContext *Context, zone map[string]any) (map[string]any, error) {
 	if objContext.Realm == "" {
 		return nil, fmt.Errorf("update zone: object store realm is missing from context")
 	}
@@ -488,12 +488,12 @@ func updateZoneJSON(objContext *Context, zone map[string]interface{}) (map[strin
 		return nil, errors.Wrap(err, "failed to set zone config")
 	}
 	log.NamedDebug(objContext.NsName(), logger, "update zone: %s json config updated value from %q to %q", objContext.Zone, string(configBytes), string(updatedBytes))
-	updated := map[string]interface{}{}
+	updated := map[string]any{}
 	err = json.Unmarshal([]byte(updatedBytes), &updated)
 	return updated, err
 }
 
-func updateZoneGroupJSON(objContext *Context, group map[string]interface{}) (map[string]interface{}, error) {
+func updateZoneGroupJSON(objContext *Context, group map[string]any) (map[string]any, error) {
 	if objContext.Realm == "" {
 		return nil, fmt.Errorf("update zonegroup: object store realm is missing from context")
 	}
@@ -524,7 +524,7 @@ func updateZoneGroupJSON(objContext *Context, group map[string]interface{}) (map
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to set zonegroup config %s", updatedBytes))
 	}
-	updated := map[string]interface{}{}
+	updated := map[string]any{}
 	err = json.Unmarshal([]byte(updatedBytes), &updated)
 	return updated, err
 }

@@ -885,8 +885,8 @@ func getBlockPathFromActivateInitContainer(d *appsv1.Deployment) (string, error)
 		scanner := bufio.NewScanner(strings.NewReader(script))
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
-			if strings.HasPrefix(line, varAssignment) {
-				device := strings.TrimPrefix(line, varAssignment)
+			if after, ok := strings.CutPrefix(line, varAssignment); ok {
+				device := after
 				return device, nil
 			}
 		}
@@ -1216,8 +1216,8 @@ func (c *Cluster) initializeNodeConfigmaps() error {
 	c.nodeConfigmaps = map[string]struct{}{}
 	prefix := k8sutil.ConfigOverrideName + "-"
 	for _, configmap := range configmaps.Items {
-		if strings.HasPrefix(configmap.Name, prefix) {
-			nodeName := strings.TrimPrefix(configmap.Name, prefix)
+		if after, ok := strings.CutPrefix(configmap.Name, prefix); ok {
+			nodeName := after
 			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "found node %q configmap, will mount it for alternate ceph conf overrides for osds on this node", nodeName)
 			c.nodeConfigmaps[nodeName] = struct{}{}
 		}

@@ -123,7 +123,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 	// start a new deployment and scale up
 	// We force a single deployment and later set the deployment replica to the "instances" value
 	desiredRgwInstances := 1
-	for i := 0; i < desiredRgwInstances; i++ {
+	for i := range desiredRgwInstances {
 		var err error
 
 		daemonLetterID := k8sutil.IndexToName(i)

@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -328,11 +329,8 @@ func (c *cephStatusChecker) getRookPodsOnNode(node string) ([]v1.Pod, error) {
 		return podsOnNode, errors.Wrapf(err, "failed to get pods on node %q", node)
 	}
 	for _, pod := range pods.Items {
-		for _, label := range appLabels {
-			if pod.Labels["app"] == label {
-				podsOnNode = append(podsOnNode, pod)
-				break
-			}
+		if slices.Contains(appLabels, pod.Labels["app"]) {
+			podsOnNode = append(podsOnNode, pod)
 		}
 	}
 	return podsOnNode, nil

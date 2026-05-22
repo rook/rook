@@ -18,6 +18,7 @@ package clients
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
@@ -74,10 +75,5 @@ func IsClusterHealthy(testClient *TestClient, namespace string) (bool, error) {
 }
 
 func monInQuorum(mon client.MonMapEntry, quorum []int) bool {
-	for _, entry := range quorum {
-		if entry == mon.Rank {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(quorum, mon.Rank)
 }

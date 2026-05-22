@@ -51,7 +51,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -291,8 +290,8 @@ func TestPersistMons(t *testing.T) {
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	expectedPorts := []discoveryv1.EndpointPort{
-		{Name: ptr.To(DefaultMsgr2PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr2Port)},
-		{Name: ptr.To(DefaultMsgr1PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr1Port)},
+		{Name: new(DefaultMsgr2PortName), Protocol: new(v1.ProtocolTCP), Port: new(DefaultMsgr2Port)},
+		{Name: new(DefaultMsgr1PortName), Protocol: new(v1.ProtocolTCP), Port: new(DefaultMsgr1Port)},
 	}
 
 	// Persist mon a
@@ -338,8 +337,8 @@ func TestCreateEndpointSlices(t *testing.T) {
 	// RequireMsgr2=false
 	c := New(context.TODO(), &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	expectedPorts := []discoveryv1.EndpointPort{
-		{Name: ptr.To(DefaultMsgr2PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr2Port)},
-		{Name: ptr.To(DefaultMsgr1PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr1Port)},
+		{Name: new(DefaultMsgr2PortName), Protocol: new(v1.ProtocolTCP), Port: new(DefaultMsgr2Port)},
+		{Name: new(DefaultMsgr1PortName), Protocol: new(v1.ProtocolTCP), Port: new(DefaultMsgr1Port)},
 	}
 	testCreateEndpointSlicesForCluster(t, c, expectedPorts)
 
@@ -356,7 +355,7 @@ func TestCreateEndpointSlices(t *testing.T) {
 			},
 		}, ownerInfo)
 	expectedPorts = []discoveryv1.EndpointPort{
-		{Name: ptr.To(DefaultMsgr2PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr2Port)},
+		{Name: new(DefaultMsgr2PortName), Protocol: new(v1.ProtocolTCP), Port: new(DefaultMsgr2Port)},
 	}
 	testCreateEndpointSlicesForCluster(t, c, expectedPorts)
 }

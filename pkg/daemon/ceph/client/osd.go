@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -77,10 +78,8 @@ type OSDDump struct {
 func (dump *OSDDump) IsFlagSetOnCrushUnit(checkFlag, crushUnit string) bool {
 	for unit, list := range dump.CrushNodeFlags {
 		if crushUnit == unit {
-			for _, flag := range list {
-				if flag == checkFlag {
-					return true
-				}
+			if slices.Contains(list, checkFlag) {
+				return true
 			}
 		}
 	}
@@ -142,7 +141,7 @@ type OsdTree struct {
 		Type            string   `json:"type"`
 		TypeID          int      `json:"type_id"`
 		Children        []int    `json:"children,omitempty"`
-		PoolWeights     struct{} `json:"pool_weights,omitempty"`
+		PoolWeights     struct{} `json:"pool_weights"`
 		CrushWeight     float64  `json:"crush_weight,omitempty"`
 		Depth           int      `json:"depth,omitempty"`
 		Exists          int      `json:"exists,omitempty"`

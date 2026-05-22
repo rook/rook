@@ -104,7 +104,7 @@ func DeleteBatchJob(ctx context.Context, clientset kubernetes.Interface, namespa
 	// deletion so we add some buffer to that time.
 	retries := 30
 	sleepInterval := 3 * time.Second
-	for i := 0; i < retries; i++ {
+	for range retries {
 		_, err := clientset.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil && errors.IsNotFound(err) {
 			logger.Infof("batch job %s deleted", name)

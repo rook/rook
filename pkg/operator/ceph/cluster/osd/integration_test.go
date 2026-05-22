@@ -673,7 +673,7 @@ func setStatusConfigMapToCompleted(t *testing.T, cm *corev1.ConfigMap, numOSDsIf
 		}
 	} else {
 		status.OSDs = []OSDInfo{}
-		for i := 0; i < numOSDsIfOnNode; i++ {
+		for i := range numOSDsIfOnNode {
 			// in order to generate multiple OSDs on a node, pretend they have different configmap
 			// names (simply append the index). this is still deterministic.
 			osdID := testIDGenerator.osdID(t, fmt.Sprintf("%s-%d", cm.Name, i))

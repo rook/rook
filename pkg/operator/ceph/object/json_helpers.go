@@ -13,7 +13,7 @@ import (
 //	obj = {"a":{"b":"foo"}}
 //	// will return "foo"
 //	getObjProperty(obj,"a","b")
-func getObjProperty[T string | map[string]interface{} | []interface{}](obj map[string]interface{}, path ...string) (T, error) {
+func getObjProperty[T string | map[string]any | []any](obj map[string]any, path ...string) (T, error) {
 	var res T
 	if len(path) == 0 {
 		return res, fmt.Errorf("json property path is empty")
@@ -34,7 +34,7 @@ func getObjProperty[T string | map[string]interface{} | []interface{}](obj map[s
 			return res, nil
 		}
 		// walk to the next obj in the path
-		obj, ok = val.(map[string]interface{})
+		obj, ok = val.(map[string]any)
 		if !ok {
 			return res, fmt.Errorf("json property %q is not an object, got %+v", strings.Join(path[:i+1], "."), val)
 		}
@@ -45,7 +45,7 @@ func getObjProperty[T string | map[string]interface{} | []interface{}](obj map[s
 
 // updateObjProperty - helper function to manipulate JSON Objects.
 // sets new value to json object nested field only if it is already exists in json and returns previous value.
-func updateObjProperty[T string | []string | map[string]interface{} | []interface{}](obj map[string]interface{}, val T, path ...string) (T, error) {
+func updateObjProperty[T string | []string | map[string]any | []any](obj map[string]any, val T, path ...string) (T, error) {
 	var prev T
 	if len(path) == 0 {
 		return prev, fmt.Errorf("json property path is empty")
@@ -79,7 +79,7 @@ func updateObjProperty[T string | []string | map[string]interface{} | []interfac
 		if !ok {
 			return prev, fmt.Errorf("json property %q is not found", strings.Join(path[:i+1], "."))
 		}
-		obj, ok = next.(map[string]interface{})
+		obj, ok = next.(map[string]any)
 		if !ok {
 			return prev, fmt.Errorf("json property %q is not an object, got %+v", strings.Join(path[:i+1], "."), next)
 		}
@@ -91,7 +91,7 @@ func updateObjProperty[T string | []string | map[string]interface{} | []interfac
 // castJson - helper function to manipulate JSON Objects.
 // Tries to cast any type to any type by converting to JSON and back.
 // Returns true on success.
-func castJson(in, out interface{}) bool {
+func castJson(in, out any) bool {
 	bytes, err := json.Marshal(in)
 	if err != nil {
 		return false
@@ -102,23 +102,23 @@ func castJson(in, out interface{}) bool {
 
 // toObj - helper function to manipulate JSON Objects.
 // Casts any go struct to map representing JSON object.
-func toObj(val interface{}) (map[string]interface{}, error) {
+func toObj(val any) (map[string]any, error) {
 	bytes, err := json.Marshal(val)
 	if err != nil {
 		return nil, err
 	}
-	obj := map[string]interface{}{}
+	obj := map[string]any{}
 	return obj, json.Unmarshal(bytes, &obj)
 }
 
 // deepCopyJson - helper function to manipulate JSON Objects.
 // Makes deep copy of json object by converting to JSON and back.
-func deepCopyJson(in map[string]interface{}) (map[string]interface{}, error) {
+func deepCopyJson(in map[string]any) (map[string]any, error) {
 	bytes, err := json.Marshal(in)
 	if err != nil {
 		return nil, err
 	}
-	res := map[string]interface{}{}
+	res := map[string]any{}
 	err = json.Unmarshal(bytes, &res)
 	return res, err
 }

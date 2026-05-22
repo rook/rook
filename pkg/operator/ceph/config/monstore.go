@@ -144,14 +144,14 @@ func (m *MonStore) GetDaemon(who string) ([]Option, error) {
 	if err != nil {
 		return []Option{}, errors.Wrapf(err, "failed to get config for daemon %q. output: %s", who, string(out))
 	}
-	var result map[string]interface{}
+	var result map[string]any
 	err = json.Unmarshal(out, &result)
 	if err != nil {
 		return []Option{}, errors.Wrapf(err, "failed to parse json config for daemon %q. json: %s", who, string(out))
 	}
 	daemonOptions := []Option{}
 	for k := range result {
-		v := result[k].(map[string]interface{})
+		v := result[k].(map[string]any)
 		optionWho := v["section"].(string)
 		// Only get specialized options (don't take global one)
 		if optionWho == who {

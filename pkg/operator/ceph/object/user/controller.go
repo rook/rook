@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
@@ -547,11 +548,11 @@ func userInNamespaceAllowed(requestedNamespace string, allowedNamespaces []strin
 }
 
 func generateUserCaps(user *admin.User) string {
-	var caps string
+	var caps strings.Builder
 	for _, c := range user.Caps {
-		caps += fmt.Sprintf("%s=%s;", c.Type, c.Perm)
+		caps.WriteString(fmt.Sprintf("%s=%s;", c.Type, c.Perm))
 	}
-	return caps
+	return caps.String()
 }
 
 func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {

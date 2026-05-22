@@ -81,7 +81,7 @@ func newProvisionErrors() *provisionErrors {
 	}
 }
 
-func (e *provisionErrors) addError(message string, args ...interface{}) {
+func (e *provisionErrors) addError(message string, args ...any) {
 	logger.Errorf(message, args...)
 	e.errors = append(e.errors, errors.Errorf(message, args...))
 }
@@ -132,7 +132,7 @@ func UpdateNodeOrPVCStatus(ctx context.Context, kv *k8sutil.ConfigMapKVStore, no
 	return cmName
 }
 
-func (c *Cluster) handleOrchestrationFailure(errors *provisionErrors, nodeName, message string, args ...interface{}) {
+func (c *Cluster) handleOrchestrationFailure(errors *provisionErrors, nodeName, message string, args ...any) {
 	errors.addError(message, args...)
 	status := OrchestrationStatus{Status: OrchestrationStatusFailed, Message: message}
 	UpdateNodeOrPVCStatus(c.clusterInfo.Context, c.kv, nodeName, status)

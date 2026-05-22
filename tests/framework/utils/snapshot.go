@@ -43,7 +43,7 @@ const (
 
 // CheckSnapshotISReadyToUse checks snapshot is ready to use
 func (k8sh *K8sHelper) CheckSnapshotISReadyToUse(name, namespace string, retries int) (bool, error) {
-	for i := 0; i < retries; i++ {
+	for i := range retries {
 		// sleep first and try to check snapshot is ready to cover the error cases.
 		time.Sleep(time.Duration(i) * time.Second)
 		ready, err := k8sh.executor.ExecuteCommandWithOutput("kubectl", "get", "volumesnapshot", name, "--namespace", namespace, "-o", "jsonpath={.status.readyToUse}")
@@ -91,7 +91,7 @@ func (k8sh *K8sHelper) WaitForSnapshotController(retries int) error {
 	namespace := "kube-system"
 	ctx := context.TODO()
 	snapshotterName := "snapshot-controller"
-	for i := 0; i < retries; i++ {
+	for range retries {
 		ss, err := k8sh.Clientset.AppsV1().Deployments(namespace).Get(ctx, snapshotterName, metav1.GetOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err

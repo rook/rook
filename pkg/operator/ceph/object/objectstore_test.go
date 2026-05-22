@@ -1058,7 +1058,7 @@ func Test_createMultisiteConfigurations(t *testing.T) {
 	executor := getExecutor()
 	returnErrString := getreturnErrString()
 	store := &cephv1.CephObjectStore{}
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		ctx := &clusterd.Context{
 			Executor: executor[i],
 		}

@@ -20,6 +20,7 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"strings"
@@ -39,7 +40,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/utils/ptr"
 )
 
 //go:embed template/floating-mon-drbd-deployment.yaml
@@ -79,11 +79,11 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 
 func (c *Cluster) getFailureDomainName() string {
 	label := GetFailureDomainLabel(c.spec)
-	index := strings.Index(label, "/")
-	if index == -1 {
+	_, after, ok := strings.Cut(label, "/")
+	if !ok {
 		return label
 	}
-	return label[index+1:]
+	return after
 }
 
 func GetFailureDomainLabel(spec cephv1.ClusterSpec) string {
@@ -190,7 +190,7 @@ func (c *Cluster) makeDeploymentPVC(m *monConfig, canary bool) (*corev1.Persiste
 func makeMonSecurityContext() *corev1.PodSecurityContext {
 	if controller.CephMonRunAsRoot() {
 		return &corev1.PodSecurityContext{
-			RunAsUser: ptr.To(int64(0)),
+			RunAsUser: new(int64(0)),
 		}
 	}
 	return &corev1.PodSecurityContext{}
@@ -462,9 +462,7 @@ func (c *Cluster) buildFloatingMonTemplateParams(
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get floating mon configmap %q", floating.ConfigMapName)
 		}
-		for k, v := range cm.Data {
-			p[k] = v
-		}
+		maps.Copy(p, cm.Data)
 	}
 
 	p["NAME"] = monConfig.DaemonName

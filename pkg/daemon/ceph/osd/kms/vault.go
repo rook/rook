@@ -18,6 +18,7 @@ package kms
 
 import (
 	"context"
+	"maps"
 	"os"
 	"strings"
 
@@ -73,14 +74,12 @@ type removeCertFilesFunction func()
 
 // InitVault inits the secret store
 func InitVault(ctx context.Context, context *clusterd.Context, namespace string, config map[string]string) (secrets.Secrets, error) {
-	c := make(map[string]interface{})
+	c := make(map[string]any)
 
 	// So that we don't alter the content of c.config for later iterations
 	// We just want to swap the name of the TLS config secret name --> file name for the kms lib
 	oriConfig := make(map[string]string)
-	for k, v := range config {
-		oriConfig[k] = v
-	}
+	maps.Copy(oriConfig, config)
 
 	// Populate TLS config
 	newConfigWithTLS, removeCertFiles, err := configTLS(ctx, context, namespace, oriConfig)

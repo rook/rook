@@ -44,7 +44,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/utils/ptr"
 )
 
 const (
@@ -882,15 +881,15 @@ func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.Moni
 			{
 				Addresses: addresses,
 				Conditions: discoveryv1.EndpointConditions{
-					Ready: ptr.To(true),
+					Ready: new(true),
 				},
 			},
 		},
 		Ports: []discoveryv1.EndpointPort{
 			{
-				Name:     ptr.To(ServiceExternalMetricName),
-				Port:     ptr.To(int32(monitoringSpec.ExternalMgrPrometheusPort)),
-				Protocol: ptr.To(v1.ProtocolTCP),
+				Name:     new(ServiceExternalMetricName),
+				Port:     new(int32(monitoringSpec.ExternalMgrPrometheusPort)),
+				Protocol: new(v1.ProtocolTCP),
 			},
 		},
 	}

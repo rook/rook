@@ -280,7 +280,7 @@ func (vt *ValidationTest) applyServiceAccountToPodSpec(ps *core.PodSpec) {
 	}
 }
 
-func loadTemplate(name, templateFileText string, config interface{}) ([]byte, error) {
+func loadTemplate(name, templateFileText string, config any) ([]byte, error) {
 	var writer bytes.Buffer
 	t := template.New(name)
 	t, err := t.Parse(templateFileText)

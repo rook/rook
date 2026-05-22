@@ -235,7 +235,7 @@ func runCommandWithOutput(cmd *exec.Cmd, combinedOutput bool) (string, error) {
 	} else {
 		output, err = cmd.Output()
 		if err != nil {
-			output = []byte(fmt.Sprintf("%s. %s", string(output), assertErrorType(err)))
+			output = fmt.Appendf(nil, "%s. %s", string(output), assertErrorType(err))
 		}
 	}
 

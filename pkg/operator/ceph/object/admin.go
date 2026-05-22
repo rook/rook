@@ -246,8 +246,8 @@ func RunAdminCommandNoMultisiteWithTimeout(c *Context, expectJSON bool, timeout 
 		// check if remote command arguments contains file path:
 		srcFile, dstFile := "", ""
 		for i, arg := range args {
-			if strings.HasPrefix(arg, "--infile=") {
-				srcFile = strings.TrimPrefix(arg, "--infile=")
+			if after, ok := strings.CutPrefix(arg, "--infile="); ok {
+				srcFile = after
 				// place dest file to tmp dir and update cmd argument
 				dstFile = "/tmp/" + filepath.Base(srcFile)
 				args[i] = strings.ReplaceAll(arg, srcFile, dstFile)
@@ -420,8 +420,8 @@ func periodWillChange(current, staged string) (bool, error) {
 	// Rook could commit unnecessary period changes or fail to commit necessary period changes
 	// depending on how the RGW output has changed. Rook cannot detect this class of failures, and
 	// the behavior cannot be specifically known.
-	var currentJSON map[string]interface{}
-	var stagedJSON map[string]interface{}
+	var currentJSON map[string]any
+	var stagedJSON map[string]any
 	var err error
 
 	err = json.Unmarshal([]byte(current), &currentJSON)

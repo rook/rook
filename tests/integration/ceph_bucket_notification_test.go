@@ -208,7 +208,7 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 		assert.Nil(t, err)
 		// check whether existing bucket notification uneffected
 		var notificationPresent bool
-		for i := 0; i < 4; i++ {
+		for range 4 {
 			notificationPresent = helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName, helper, objectStore.Spec.IsTLSEnabled())
 			if !notificationPresent {
 				break

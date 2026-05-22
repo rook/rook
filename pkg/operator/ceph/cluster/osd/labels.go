@@ -18,6 +18,7 @@ package osd
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -64,9 +65,7 @@ func (c *Cluster) getOSDLabels(osd OSDInfo, failureDomainValue string, portable 
 		labels[deviceType] = osd.DeviceType
 	}
 
-	for k, v := range getOSDTopologyLocationLabels(osd.Location) {
-		labels[k] = v
-	}
+	maps.Copy(labels, getOSDTopologyLocationLabels(osd.Location))
 	return labels
 }
 

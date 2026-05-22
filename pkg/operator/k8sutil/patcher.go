@@ -32,8 +32,8 @@ import (
 type Patcher struct {
 	client      client.Client
 	hasStatus   bool
-	old         map[string]interface{}
-	oldStatus   interface{}
+	old         map[string]any
+	oldStatus   any
 	objectPatch client.Patch
 	statusPatch client.Patch
 }

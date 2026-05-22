@@ -140,7 +140,7 @@ func deleteResourceAndWait(namespace, name, resourceType string,
 
 	// wait for the resource to be deleted
 	sleepTime := 2 * time.Second
-	for i := 0; i < 45; i++ {
+	for i := range 45 {
 		// check for the existence of the resource
 		err = getAction()
 		if err != nil {

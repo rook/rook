@@ -536,7 +536,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		pool.Spec.Mirroring.Peers.SecretNames = []string{}
 		err = r.client.Update(context.TODO(), pool)
 		assert.NoError(t, err)
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			res, err := r.Reconcile(ctx, req)
 			assert.NoError(t, err)
 			assert.False(t, res.Requeue)

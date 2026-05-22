@@ -85,7 +85,7 @@ func checkRgwTopicEndpoint(t *testing.T, snsClient *sns.Client, arn, user, pass 
 			require.NoError(t, err)
 
 			// the sns endpoint attributes are returned as JSON
-			var endpointJSON map[string]interface{}
+			var endpointJSON map[string]any
 			err = json.Unmarshal([]byte(topicAttrs.Attributes["EndPoint"]), &endpointJSON)
 			require.NoError(t, err)
 

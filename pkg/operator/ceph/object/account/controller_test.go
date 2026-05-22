@@ -43,7 +43,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/events"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -1148,7 +1147,7 @@ func TestDeleteAccount(t *testing.T) {
 			Spec: cephv1.ObjectStoreAccountSpec{
 				Store: store,
 				RootUser: &cephv1.AccountRootUserSpec{
-					SkipCreate: ptr.To(true),
+					SkipCreate: new(true),
 				},
 			},
 			Status: &cephv1.ObjectStoreAccountStatus{
@@ -1419,7 +1418,7 @@ func TestSkipRootUserCreation(t *testing.T) {
 	t.Run("skip when skipCreate is true", func(t *testing.T) {
 		account := &cephv1.CephObjectStoreAccount{
 			Spec: cephv1.ObjectStoreAccountSpec{
-				RootUser: &cephv1.AccountRootUserSpec{SkipCreate: ptr.To(true)},
+				RootUser: &cephv1.AccountRootUserSpec{SkipCreate: new(true)},
 			},
 		}
 		assert.True(t, skipRootUserCreation(account))
@@ -1428,7 +1427,7 @@ func TestSkipRootUserCreation(t *testing.T) {
 	t.Run("do not skip when skipCreate is false", func(t *testing.T) {
 		account := &cephv1.CephObjectStoreAccount{
 			Spec: cephv1.ObjectStoreAccountSpec{
-				RootUser: &cephv1.AccountRootUserSpec{SkipCreate: ptr.To(false)},
+				RootUser: &cephv1.AccountRootUserSpec{SkipCreate: new(false)},
 			},
 		}
 		assert.False(t, skipRootUserCreation(account))
@@ -1603,7 +1602,7 @@ func TestReconcileRootUser(t *testing.T) {
 			},
 			Spec: cephv1.ObjectStoreAccountSpec{
 				Store:    store,
-				RootUser: &cephv1.AccountRootUserSpec{SkipCreate: ptr.To(true)},
+				RootUser: &cephv1.AccountRootUserSpec{SkipCreate: new(true)},
 			},
 		}
 
@@ -1664,7 +1663,7 @@ func TestReconcileRootUser(t *testing.T) {
 			},
 			Spec: cephv1.ObjectStoreAccountSpec{
 				Store:    store,
-				RootUser: &cephv1.AccountRootUserSpec{SkipCreate: ptr.To(true)},
+				RootUser: &cephv1.AccountRootUserSpec{SkipCreate: new(true)},
 			},
 		}
 

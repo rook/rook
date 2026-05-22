@@ -277,7 +277,7 @@ func WatchPredicateForNonCRDObject[T client.Object](owner runtime.Object, scheme
 // that event or not. The goal is to avoid double-reconcile as much as possible.
 // If the patch could contain sensitive data, isValidEvent will not leak the data to logs.
 func isValidEvent(patch []byte, objectName string, patchContainsSensitiveData bool) bool {
-	var p map[string]interface{}
+	var p map[string]any
 	err := json.Unmarshal(patch, &p)
 	if err != nil {
 		logErrorUnlessSensitive("failed to unmarshal patch", err, patchContainsSensitiveData)
@@ -469,7 +469,7 @@ func DuplicateCephClusters(ctx context.Context, c client.Client, object *cephv1.
 	return false
 }
 
-func GetSpec(obj client.Object) interface{} {
+func GetSpec(obj client.Object) any {
 	val := reflect.ValueOf(obj)
 
 	// If obj is a pointer, get the element

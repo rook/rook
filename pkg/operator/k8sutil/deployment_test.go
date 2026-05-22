@@ -220,7 +220,7 @@ func TestUpdateMultipleDeployments(t *testing.T) {
 
 	t.Run("do not update deployments with no modifications", func(t *testing.T) {
 		// clientset with preexisting and updated deployments from previous test
-		d3 := modifiedDeployment("d3", newInt32(5))
+		d3 := modifiedDeployment("d3", new(int32(5)))
 		// d3.ObjectMeta.Labels = map[string]string{
 		// 	"new": "label",
 		// }
@@ -238,13 +238,13 @@ func TestUpdateMultipleDeployments(t *testing.T) {
 
 	t.Run("failures if deployments do not exist", func(t *testing.T) {
 		clientset = fake.NewClientset()
-		createDeploymentOrDie(clientset, deployment("d1", newInt32(30)))
-		createDeploymentOrDie(clientset, deployment("d3", newInt32(30)))
+		createDeploymentOrDie(clientset, deployment("d1", new(int32(30))))
+		createDeploymentOrDie(clientset, deployment("d3", new(int32(30))))
 		deployments = []*appsv1.Deployment{
-			modifiedDeployment("d1", newInt32(30)),
-			modifiedDeployment("d2", newInt32(30)),
-			modifiedDeployment("d3", newInt32(30)),
-			modifiedDeployment("d4", newInt32(30)),
+			modifiedDeployment("d1", new(int32(30))),
+			modifiedDeployment("d2", new(int32(30))),
+			modifiedDeployment("d3", new(int32(30))),
+			modifiedDeployment("d4", new(int32(30))),
 		}
 		deploymentsUpdated, failures, pds = UpdateMultipleDeployments(context.TODO(), clientset, deployments)
 		assert.Len(t, deploymentsUpdated, 2)
@@ -462,22 +462,18 @@ func Test_maxInt32Ptr(t *testing.T) {
 		args args
 		want int32
 	}{
-		{"a nil", args{nil, newInt32(2)}, 2},
-		{"b nil", args{newInt32(0), nil}, 0},
-		{"negatives", args{newInt32(-5), newInt32(-4)}, -4},
-		{"neg and pos", args{newInt32(-3), newInt32(1)}, 1},
-		{"positives", args{newInt32(1), newInt32(3)}, 3},
-		{"with zero", args{newInt32(0), newInt32(2)}, 2},
+		{"a nil", args{nil, new(int32(2))}, 2},
+		{"b nil", args{new(int32(0)), nil}, 0},
+		{"negatives", args{new(int32(-5)), new(int32(-4))}, -4},
+		{"neg and pos", args{new(int32(-3)), new(int32(1))}, 1},
+		{"positives", args{new(int32(1)), new(int32(3))}, 3},
+		{"with zero", args{new(int32(0)), new(int32(2))}, 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, *maxInt32Ptr(tt.args.a, tt.args.b))
 		})
 	}
-}
-
-func newInt32(i int32) *int32 {
-	return &i
 }
 
 func createDeploymentOrDie(clientset *fake.Clientset, d *appsv1.Deployment) {

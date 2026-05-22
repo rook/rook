@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -378,7 +379,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 6, len(cc), cc)
 		// check mon entries of 1st cluster amd mon overlapping with 2nd cluster
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			assert.Equal(t, 2, len(cc[i].Monitors))
 			assert.False(t, contains(cc[i].Monitors, cluster2Mons))
 
@@ -402,7 +403,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		}
 		// check for overlapping
 		// check mon entries of 1st cluster amd mon overlapping with 2nd cluster
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			assert.False(t, contains(cc[i].Monitors, cluster2Mons))
 		}
 		// check mon entries of 2nd cluster
@@ -420,7 +421,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.Equal(t, 6, len(cc), cc)
 		// check for overlapping
 		// check mon entries of 1st cluster amd mon overlapping with 2nd cluster
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			assert.False(t, contains(cc[i].Monitors, cluster2Mons))
 			assert.Equal(t, 2, len(cc[i].Monitors))
 		}
@@ -494,10 +495,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 
 func contains(src, dest []string) bool {
 	for _, s := range src {
-		for _, d := range dest {
-			if s == d {
-				return true
-			}
+		if slices.Contains(dest, s) {
+			return true
 		}
 	}
 

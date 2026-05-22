@@ -505,7 +505,7 @@ func assertNoErrorUnlessNotFound(s *suite.Suite, err error) {
 
 func checkPoolDeleted(helper *clients.TestClient, s *suite.Suite, namespace, name string) {
 	// only retry once to see if the pool was deleted
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		found, err := helper.PoolClient.CephPoolExists(namespace, name)
 		if err != nil {
 			// try again on failure since the pool may have been in an unexpected state while deleting

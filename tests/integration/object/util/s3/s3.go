@@ -36,18 +36,18 @@ func GetS3Credentials(objectStore *cephv1.CephObjectStore, installer *installer.
 	}
 
 	// extract api creds from json output
-	var userInfo map[string]interface{}
+	var userInfo map[string]any
 	err = json.Unmarshal([]byte(output), &userInfo)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to unmarshal user info")
 	}
 
-	accessKey, ok := userInfo["keys"].([]interface{})[0].(map[string]interface{})["access_key"].(string)
+	accessKey, ok := userInfo["keys"].([]any)[0].(map[string]any)["access_key"].(string)
 	if !ok {
 		return "", "", errors.New("failed to get access key")
 	}
 
-	secretKey, ok := userInfo["keys"].([]interface{})[0].(map[string]interface{})["secret_key"].(string)
+	secretKey, ok := userInfo["keys"].([]any)[0].(map[string]any)["secret_key"].(string)
 	if !ok {
 		return "", "", errors.New("failed to get secret key")
 	}

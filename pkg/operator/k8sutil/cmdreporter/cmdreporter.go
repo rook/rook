@@ -318,7 +318,7 @@ func (cr *cmdReporterCfg) initJobSpec() (*batch.Job, error) {
 			Labels:    commonLabels,
 		},
 		Spec: batch.JobSpec{
-			Completions: newInt32(1),
+			Completions: new(int32(1)),
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: commonLabels,
@@ -406,8 +406,6 @@ func copyBinariesVolAndMount() (v1.Volume, v1.VolumeMount) {
 	m := v1.VolumeMount{Name: vName, MountPath: mDir}
 	return v, m
 }
-
-func newInt32(i int32) *int32 { return &i }
 
 // MockCmdReporterJob creates a job using the package's internal creation mechanism without
 // validating any inputs. Use only for unit testing.

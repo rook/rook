@@ -187,7 +187,7 @@ func (s *CephMgrSuite) waitForOrchestrationModule() {
 		Backend   string `json:"backend"`
 	}
 
-	for timeout := 0; timeout < 30; timeout++ {
+	for range 30 {
 		logger.Info("Waiting for rook orchestrator module enabled and ready ...")
 		output, err := s.execute([]string{"status", "--format", "json"})
 		logger.Infof("%s", output)

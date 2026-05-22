@@ -210,7 +210,7 @@ func (vt *ValidationTest) startClients(
 	// start clients that simulate OSDs (connected to both public and cluster nets)
 	osdsPerNode := nodeConfig.OSDsPerNode
 	vt.Logger.Infof("starting %d %s validation clients for node type %q", osdsPerNode, ClientTypeOSD, nodeType)
-	for i := 0; i < osdsPerNode; i++ {
+	for i := range osdsPerNode {
 		attachToClusterNet := true
 		ds, err := vt.generateClientDaemonSet(true, attachToClusterNet, serverPublicAddr, serverClusterAddr, nodeType, ClientTypeOSD, i, nodeConfig.Placement)
 		if err != nil {
@@ -231,7 +231,7 @@ func (vt *ValidationTest) startClients(
 	}
 	otherPerNode := nodeConfig.OtherDaemonsPerNode
 	vt.Logger.Infof("starting %d %s (non-OSD) validation clients for node type %q", otherPerNode, ClientTypeNonOSD, nodeType)
-	for i := 0; i < otherPerNode; i++ {
+	for i := range otherPerNode {
 		attachToClusterNet := false
 		ds, err := vt.generateClientDaemonSet(true, attachToClusterNet, serverPublicAddr, serverClusterAddr, nodeType, ClientTypeNonOSD, i, nodeConfig.Placement)
 		if err != nil {

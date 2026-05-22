@@ -229,7 +229,7 @@ func TestActiveMgrLabels(t *testing.T) {
 	validateStart(t, c)
 
 	mgrNames := []string{"a", "b"}
-	for i := 0; i < len(mgrNames); i++ {
+	for i := range mgrNames {
 		// Simulate the Mgr pod having been created
 		daemonName := mgrNames[i]
 		mgrPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{

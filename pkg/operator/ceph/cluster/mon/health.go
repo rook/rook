@@ -230,7 +230,7 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	log.NamespacedDebug(c.Namespace, logger, "targeting the mon count %d", desiredMonCount)
 
 	// Source of truth of which mons should exist is our *clusterInfo*
-	monsNotFound := map[string]interface{}{}
+	monsNotFound := map[string]any{}
 	for _, mon := range c.ClusterInfo.InternalMonitors {
 		monsNotFound[mon.Name] = struct{}{}
 	}

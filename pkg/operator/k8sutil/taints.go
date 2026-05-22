@@ -17,6 +17,8 @@ limitations under the License.
 package k8sutil
 
 import (
+	"slices"
+
 	v1 "k8s.io/api/core/v1"
 	cloudproviderapi "k8s.io/cloud-provider/api"
 )
@@ -43,10 +45,5 @@ var WellKnownTaints = []string{
 // TaintIsWellKnown returns true if the taint's key is in the WellKnownTaints list. False otherwise.
 // See WellKnownTaints for more information.
 func TaintIsWellKnown(t v1.Taint) bool {
-	for _, w := range WellKnownTaints {
-		if t.Key == w {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(WellKnownTaints, t.Key)
 }

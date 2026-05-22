@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -771,10 +772,5 @@ func TestGetGaneshaConfigObject(t *testing.T) {
 }
 
 func stringInSlice(str string, slice []string) bool {
-	for _, s := range slice {
-		if s == str {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, str)
 }

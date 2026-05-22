@@ -18,6 +18,7 @@ package mgr
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"strconv"
 
@@ -391,9 +392,7 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 
 func (c *Cluster) buildSelectorLabels(labels map[string]string) map[string]string {
 	selectorLabels := make(map[string]string)
-	for k, v := range labels {
-		selectorLabels[k] = v
-	}
+	maps.Copy(selectorLabels, labels)
 	selectorLabels["mgr_role"] = "active"
 	return selectorLabels
 }

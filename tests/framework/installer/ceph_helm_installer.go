@@ -59,10 +59,10 @@ func (h *CephInstaller) UpgradeRookOperatorViaHelm() error {
 }
 
 func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
-	values := map[string]interface{}{
+	values := map[string]any{
 		"enableDiscoveryDaemon": h.settings.EnableDiscovery,
-		"image":                 map[string]interface{}{"tag": h.settings.RookVersion},
-		"monitoring":            map[string]interface{}{"enabled": true},
+		"image":                 map[string]any{"tag": h.settings.RookVersion},
+		"monitoring":            map[string]any{"enabled": true},
 		"revisionHistoryLimit":  "3",
 		"enforceHostNetwork":    "false",
 	}
@@ -95,7 +95,7 @@ func (h *CephInstaller) UpgradeRookCephClusterViaHelm() error {
 }
 
 func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
-	values := map[string]interface{}{
+	values := map[string]any{
 		"image": "rook/ceph:" + h.settings.RookVersion,
 	}
 
@@ -108,7 +108,7 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 		}
 	}
 
-	var clusterCRD map[string]interface{}
+	var clusterCRD map[string]any
 	if err := yaml.Unmarshal([]byte(h.Manifests.GetCephCluster()), &clusterCRD); err != nil {
 		return err
 	}
@@ -116,21 +116,21 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 
 	values["operatorNamespace"] = h.settings.OperatorNamespace
 	values["configOverride"] = clusterCustomSettings
-	values["toolbox"] = map[string]interface{}{
+	values["toolbox"] = map[string]any{
 		"enabled":   true,
 		"resources": nil,
 	}
-	values["monitoring"] = map[string]interface{}{
+	values["monitoring"] = map[string]any{
 		"enabled":               true,
 		"createPrometheusRules": true,
 	}
-	values["ingress"] = map[string]interface{}{
-		"dashboard": map[string]interface{}{
-			"annotations": map[string]interface{}{
+	values["ingress"] = map[string]any{
+		"dashboard": map[string]any{
+			"annotations": map[string]any{
 				"kubernetes.io/ingress-class":                "nginx",
 				"nginx.ingress.kubernetes.io/rewrite-target": "/ceph-dashboard/$2",
 			},
-			"host": map[string]interface{}{
+			"host": map[string]any{
 				"name":     "localhost",
 				"path":     "/ceph-dashboard(/|$)(.*)",
 				"pathType": "ImplementationSpecific",
@@ -169,23 +169,23 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 	return nil
 }
 
-func csiDriverChartValues(driverName string) map[string]interface{} {
-	return map[string]interface{}{
+func csiDriverChartValues(driverName string) map[string]any {
+	return map[string]any{
 		"name":           driverName,
 		"enabled":        true,
 		"snapshotPolicy": "volumeSnapshot",
-		"imageSet": map[string]interface{}{
+		"imageSet": map[string]any{
 			"name": "rook-csi-operator-image-set-configmap",
 		},
-		"nodePlugin": map[string]interface{}{
+		"nodePlugin": map[string]any{
 			"kubeletDirPath":         "/var/lib/kubelet",
 			"priorityClassName":      "system-node-critical",
 			"enableSeLinuxHostMount": false,
 		},
-		"controllerPlugin": map[string]interface{}{
+		"controllerPlugin": map[string]any{
 			"priorityClassName": "system-cluster-critical",
 			"replicas":          2,
-			"deploymentStrategy": map[string]interface{}{
+			"deploymentStrategy": map[string]any{
 				"type": "Recreate",
 			},
 		},
@@ -204,24 +204,24 @@ func (h *CephInstaller) InstallCephCsiDriversViaHelm() error {
 	}
 	op := h.settings.OperatorNamespace
 
-	drivers := map[string]interface{}{
+	drivers := map[string]any{
 		"rbd":    csiDriverChartValues(fmt.Sprintf("%s.rbd.csi.ceph.com", op)),
 		"cephfs": csiDriverChartValues(fmt.Sprintf("%s.cephfs.csi.ceph.com", op)),
-		"nvmeof": map[string]interface{}{"enabled": false},
+		"nvmeof": map[string]any{"enabled": false},
 	}
 	if h.settings.TestNFSCSI {
 		drivers["nfs"] = csiDriverChartValues(fmt.Sprintf("%s.nfs.csi.ceph.com", op))
 	} else {
-		drivers["nfs"] = map[string]interface{}{"enabled": false}
+		drivers["nfs"] = map[string]any{"enabled": false}
 	}
-	values := map[string]interface{}{
-		"operatorConfig": map[string]interface{}{
+	values := map[string]any{
+		"operatorConfig": map[string]any{
 			"name":      "ceph-csi-operator-config",
 			"namespace": op,
 			"create":    true,
-			"driverSpecDefaults": map[string]interface{}{
-				"log": map[string]interface{}{"verbosity": 0},
-				"imageSet": map[string]interface{}{
+			"driverSpecDefaults": map[string]any{
+				"log": map[string]any{"verbosity": 0},
+				"imageSet": map[string]any{
 					"name": "rook-csi-operator-image-set-configmap",
 				},
 				"snapshotPolicy":   "volumeSnapshot",
@@ -230,15 +230,15 @@ func (h *CephInstaller) InstallCephCsiDriversViaHelm() error {
 				"fsGroupPolicy":    "File",
 				"deployCsiAddons":  false,
 				"cephFsClientType": "kernel",
-				"nodePlugin": map[string]interface{}{
+				"nodePlugin": map[string]any{
 					"kubeletDirPath":         "/var/lib/kubelet",
 					"priorityClassName":      "system-node-critical",
 					"enableSeLinuxHostMount": false,
 				},
-				"controllerPlugin": map[string]interface{}{
+				"controllerPlugin": map[string]any{
 					"priorityClassName": "system-cluster-critical",
 					"replicas":          2,
-					"deploymentStrategy": map[string]interface{}{
+					"deploymentStrategy": map[string]any{
 						"type": "Recreate",
 					},
 				},
@@ -320,24 +320,24 @@ func (h *CephInstaller) ConfirmHelmClusterInstalledCorrectly() error {
 }
 
 // CreateBlockPoolConfiguration creates a block store configuration
-func (h *CephInstaller) CreateBlockPoolConfiguration(values map[string]interface{}, name, scName string) error {
+func (h *CephInstaller) CreateBlockPoolConfiguration(values map[string]any, name, scName string) error {
 	testBlockPoolBytes := []byte(h.Manifests.GetBlockPool("testPool", "1"))
-	var testBlockPoolCRD map[string]interface{}
+	var testBlockPoolCRD map[string]any
 	if err := yaml.Unmarshal(testBlockPoolBytes, &testBlockPoolCRD); err != nil {
 		return err
 	}
 
 	storageClassBytes := []byte(h.Manifests.GetBlockStorageClass(name, scName, "Delete"))
-	var testBlockSC map[string]interface{}
+	var testBlockSC map[string]any
 	if err := yaml.Unmarshal(storageClassBytes, &testBlockSC); err != nil {
 		return err
 	}
 
-	values["cephBlockPools"] = []map[string]interface{}{
+	values["cephBlockPools"] = []map[string]any{
 		{
 			"name": name,
 			"spec": testBlockPoolCRD["spec"],
-			"storageClass": map[string]interface{}{
+			"storageClass": map[string]any{
 				"enabled":              true,
 				"isDefault":            true,
 				"name":                 scName,
@@ -351,24 +351,24 @@ func (h *CephInstaller) CreateBlockPoolConfiguration(values map[string]interface
 }
 
 // CreateFileSystemConfiguration creates a filesystem configuration
-func (h *CephInstaller) CreateFileSystemConfiguration(values map[string]interface{}, name, scName string) error {
+func (h *CephInstaller) CreateFileSystemConfiguration(values map[string]any, name, scName string) error {
 	testFilesystemBytes := []byte(h.Manifests.GetFilesystem("testFilesystem", 1))
-	var testFilesystemCRD map[string]interface{}
+	var testFilesystemCRD map[string]any
 	if err := yaml.Unmarshal(testFilesystemBytes, &testFilesystemCRD); err != nil {
 		return err
 	}
 
 	storageClassBytes := []byte(h.Manifests.GetFileStorageClass(name, scName))
-	var testFileSystemSC map[string]interface{}
+	var testFileSystemSC map[string]any
 	if err := yaml.Unmarshal(storageClassBytes, &testFileSystemSC); err != nil {
 		return err
 	}
 
-	values["cephFileSystems"] = []map[string]interface{}{
+	values["cephFileSystems"] = []map[string]any{
 		{
 			"name": name,
 			"spec": testFilesystemCRD["spec"],
-			"storageClass": map[string]interface{}{
+			"storageClass": map[string]any{
 				"enabled":       true,
 				"name":          scName,
 				"parameters":    testFileSystemSC["parameters"],
@@ -380,24 +380,24 @@ func (h *CephInstaller) CreateFileSystemConfiguration(values map[string]interfac
 }
 
 // CreateObjectStoreConfiguration creates an object store configuration
-func (h *CephInstaller) CreateObjectStoreConfiguration(values map[string]interface{}, name, scName string) error {
+func (h *CephInstaller) CreateObjectStoreConfiguration(values map[string]any, name, scName string) error {
 	testObjectStoreBytes := []byte(h.Manifests.GetObjectStore(name, 2, 8080, false, false))
-	var testObjectStoreCRD map[string]interface{}
+	var testObjectStoreCRD map[string]any
 	if err := yaml.Unmarshal(testObjectStoreBytes, &testObjectStoreCRD); err != nil {
 		return err
 	}
 
 	storageClassBytes := []byte(h.Manifests.GetBucketStorageClass(name, scName, "Delete"))
-	var testObjectStoreSC map[string]interface{}
+	var testObjectStoreSC map[string]any
 	if err := yaml.Unmarshal(storageClassBytes, &testObjectStoreSC); err != nil {
 		return err
 	}
 
-	values["cephObjectStores"] = []map[string]interface{}{
+	values["cephObjectStores"] = []map[string]any{
 		{
 			"name": name,
 			"spec": testObjectStoreCRD["spec"],
-			"storageClass": map[string]interface{}{
+			"storageClass": map[string]any{
 				"enabled":       true,
 				"name":          scName,
 				"parameters":    testObjectStoreSC["parameters"],

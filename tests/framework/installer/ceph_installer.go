@@ -256,7 +256,7 @@ func (h *CephInstaller) CreateCephCluster() error {
 	rookCluster := h.Manifests.GetCephCluster()
 	logger.Info(rookCluster)
 	maxTry := 10
-	for i := 0; i < maxTry; i++ {
+	for i := range maxTry {
 		_, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...)
 		if err == nil {
 			break
@@ -341,7 +341,7 @@ func (h *CephInstaller) CreateRookExternalCluster(externalManifests CephManifest
 	}
 
 	var clusterStatus cephv1.ClusterStatus
-	for i := 0; i < 16; i++ {
+	for range 16 {
 		ctx := context.TODO()
 		clusterResource, err := h.k8shelper.RookClientset.CephV1().CephClusters(externalSettings.Namespace).Get(ctx, externalSettings.ClusterName, metav1.GetOptions{})
 		if err != nil {
@@ -596,7 +596,7 @@ func (h *CephInstaller) InstallRook() (bool, error) {
 	}
 
 	const loopCount = 20
-	for i := 0; i < loopCount; i++ {
+	for i := range loopCount {
 		_, err = client.Status(h.k8shelper.MakeContext(), client.AdminTestClusterInfo(h.settings.Namespace))
 		if err == nil {
 			logger.Infof("toolbox ready")
@@ -821,7 +821,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 	}
 
 	// wait a bit longer for the system namespace to be cleaned up after their deletion
-	for i := 0; i < 15; i++ {
+	for range 15 {
 		_, err := h.k8shelper.Clientset.CoreV1().Namespaces().Get(ctx, h.settings.OperatorNamespace, metav1.GetOptions{})
 		if err != nil && kerrors.IsNotFound(err) {
 			logger.Infof("operator namespace %q removed", h.settings.OperatorNamespace)
@@ -1042,7 +1042,7 @@ spec:
 func (h *CephInstaller) addCleanupPolicy(namespace, clusterName string) error {
 	// Retry updating the CR a few times in case of random failure
 	var returnErr error
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		ctx := context.TODO()
 		cluster, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(ctx, clusterName, metav1.GetOptions{})
 		if err != nil {
