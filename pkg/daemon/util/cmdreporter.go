@@ -160,7 +160,7 @@ func (r *CmdReporter) runCommand() (stdout, stderr string, retcode int, err erro
 	// Capture stdout and stderr, and also send both to the container stdout/stderr, similar to the
 	// 'tee' command
 	stdoutTee := io.MultiWriter(&capturedStdout, os.Stdout)
-	stderrTee := io.MultiWriter(&capturedStderr, os.Stdout)
+	stderrTee := io.MultiWriter(&capturedStderr, os.Stderr)
 
 	c := execCommand(baseCmd, fullArgs...)
 	c.Stdout = stdoutTee

@@ -19,6 +19,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -229,6 +230,58 @@ func TestRunner_Run(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, r.Run())
 	verifyConfigMap(k8s, "", "", "0", "preexisting-configmap", "preexisting-namespace")
+}
+
+func TestRunner_runCommandMirrorsStderrToStderr(t *testing.T) {
+	ctx := context.TODO()
+	origExecCommand := execCommand
+	execCommand = mockExecCommand
+	defer func() { execCommand = origExecCommand }()
+
+	err := os.Setenv("GO_HELPER_PROCESS_STDERR", "this is stderr")
+	assert.NoError(t, err)
+	defer func() { os.Unsetenv("GO_HELPER_PROCESS_STDERR") }()
+
+	stdoutFile, err := os.CreateTemp("", "cmdreporter-stdout")
+	assert.NoError(t, err)
+	defer os.Remove(stdoutFile.Name())
+	defer stdoutFile.Close()
+
+	stderrFile, err := os.CreateTemp("", "cmdreporter-stderr")
+	assert.NoError(t, err)
+	defer os.Remove(stderrFile.Name())
+	defer stderrFile.Close()
+
+	origStdout := os.Stdout
+	origStderr := os.Stderr
+	os.Stdout = stdoutFile
+	os.Stderr = stderrFile
+	defer func() {
+		os.Stdout = origStdout
+		os.Stderr = origStderr
+	}()
+
+	r, err := NewCmdReporter(ctx, fake.NewClientset(), []string{"standin-cmd"}, []string{}, "stream-configmap", "stream-namespace")
+	assert.NoError(t, err)
+
+	stdout, stderr, retcode, err := r.runCommand()
+	assert.NoError(t, err)
+	assert.Equal(t, "", stdout)
+	assert.Equal(t, "this is stderr", stderr)
+	assert.Equal(t, 0, retcode)
+
+	_, err = stdoutFile.Seek(0, 0)
+	assert.NoError(t, err)
+	_, err = stderrFile.Seek(0, 0)
+	assert.NoError(t, err)
+
+	stdoutBytes, err := io.ReadAll(stdoutFile)
+	assert.NoError(t, err)
+	stderrBytes, err := io.ReadAll(stderrFile)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "", string(stdoutBytes))
+	assert.Equal(t, "this is stderr", string(stderrBytes))
 }
 
 // Inspired by: https://github.com/golang/go/blob/master/src/os/exec/exec_test.go
