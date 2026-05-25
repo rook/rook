@@ -140,6 +140,26 @@ if [[ "$CV_MODE" == "lvm" ]]; then
 	# activate osd
 	ceph-volume lvm activate --no-systemd "$OSD_STORE_FLAG" "$OSD_ID" "$OSD_UUID"
 
+	# For encrypted LVM OSDs, resize the full stack: PV → LV → LUKS.
+	# All operations are no-ops if the underlying device hasn't grown.
+	if [ "$ENCRYPTED" == "true" ]; then
+		VG_NAME=$(dirname "$DEVICE" | xargs basename)
+		pvresize "$(pvs --noheadings -o pv_name -S vg_name="$VG_NAME" 2>/dev/null | tr -d ' ')"
+		# With osd_per_device > 1, multiple LVs share the same VG. Absolute target
+		# (total/count) divides space equally and is a no-op on restarts.
+		OSD_COUNT=$(vgs --noheadings --nosuffix -o lv_count "$VG_NAME" 2>/dev/null | tr -d ' ')
+		TOTAL_EXTENTS=$(vgs --noheadings --nosuffix -o vg_extent_count "$VG_NAME" 2>/dev/null | tr -d ' ')
+		lvextend -l "$((TOTAL_EXTENTS / OSD_COUNT))" "$DEVICE" || true
+
+		DM_NAME=$(basename "$(readlink "$OSD_DATA_DIR/block")")
+		KEY_FILE=$(mktemp /tmp/.luks_key.XXXXXX)
+		trap "rm -f '$KEY_FILE'" EXIT
+		ceph --cluster ceph --name "$LOCKBOX_USER" \
+			--keyring "$LOCKBOX_KEYRING_FILE" \
+			config-key get "dm-crypt/osd/$OSD_UUID/luks" > "$KEY_FILE"
+		cryptsetup --verbose resize "$DM_NAME" --key-file "$KEY_FILE"
+	fi
+
 	# copy the tmpfs directory to a temporary directory
 	# this is needed because when the init container exits, the tmpfs goes away and its content with it
 	# this will result in the emptydir to be empty when accessed by the main osd container
