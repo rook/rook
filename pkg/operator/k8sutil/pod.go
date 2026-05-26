@@ -96,28 +96,22 @@ func ConfigDirEnvVar(dataDir string) v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_CONFIG_DIR", Value: dataDir}
 }
 
-// GetContainerImage returns the container image
-// matching the given name for a pod. If the pod
-// only has a single container, the name argument
-// is ignored.
+// GetContainerImage returns the container image matching the given name for a pod.
 func GetContainerImage(pod *v1.Pod, name string) (string, error) {
 	return GetSpecContainerImage(pod.Spec, name, false)
 }
 
-// GetSpecContainerImage returns the container image
-// for a podspec, given a container name. The name is
-// ignored if the podspec has a single container, in
-// which case the image for that container is returned.
+// GetSpecContainerImage returns the container image for a podspec, given a container name.
 func GetSpecContainerImage(spec v1.PodSpec, name string, initContainer bool) (string, error) {
 	containers := spec.Containers
 	if initContainer {
 		containers = spec.InitContainers
 	}
-	image, err := GetMatchingContainer(containers, name)
+	container, err := GetContainerByName(containers, name)
 	if err != nil {
 		return "", err
 	}
-	return image.Image, nil
+	return container.Image, nil
 }
 
 // Replaces the pod default toleration of 300s used when the node controller
@@ -174,32 +168,17 @@ func GetRunningPod(ctx context.Context, clientset kubernetes.Interface) (*v1.Pod
 	return pod, nil
 }
 
-// GetMatchingContainer takes a list of containers and a name,
-// and returns the first container in the list matching the
-// name. If the list contains a single container it is always
-// returned, even if the name does not match.
-func GetMatchingContainer(containers []v1.Container, name string) (v1.Container, error) {
-	var result *v1.Container
-	if len(containers) == 1 {
-		// if there is only one pod, use its image rather than require a set container name
-		// #nosec G602 -- len(containers) == 1 is checked above so index 0 is always valid
-		result = &containers[0]
-	} else {
-		// if there are multiple pods, we require the container to have the expected name
-		for _, container := range containers {
-			if container.Name == name {
-				localcontainer := container
-				result = &localcontainer
-				break
-			}
+// GetContainerByName returns a pointer to the container in the slice whose
+// Name matches the given name. The returned pointer references the slice
+// element, so callers may mutate the container in place. Returns an error
+// if no container matches.
+func GetContainerByName(containers []v1.Container, name string) (*v1.Container, error) {
+	for i := range containers {
+		if containers[i].Name == name {
+			return &containers[i], nil
 		}
 	}
-
-	if result == nil {
-		return v1.Container{}, fmt.Errorf("failed to find image for container %s", name)
-	}
-
-	return *result, nil
+	return nil, fmt.Errorf("container %q not found", name)
 }
 
 // PodsRunningWithLabel returns the number of running pods with the given label

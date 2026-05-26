@@ -48,6 +48,8 @@ var floatingMonDeploymentDrbdTemplatePath string
 const (
 	// Full path of the command used to invoke the Ceph mon daemon
 	cephMonCommand = "ceph-mon"
+	// Name of the main mon container in the mon deployment pod spec
+	monContainerName = "mon"
 )
 
 func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool) map[string]string {
@@ -309,7 +311,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 	podIPEnvVar := "ROOK_POD_IP"
 
 	container := corev1.Container{
-		Name: "mon",
+		Name: monContainerName,
 		Command: []string{
 			cephMonCommand,
 		},

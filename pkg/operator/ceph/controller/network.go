@@ -275,7 +275,11 @@ func discoverAddressRanges(
 	// set up net status vol from downward api, plus init container to wait for net status to be available
 	netStatusVol, netStatusMount := networkStatusVolumeAndMount()
 	job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, netStatusVol)
-	job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts, netStatusMount)
+	canaryContainer, err := k8sutil.GetContainerByName(job.Spec.Template.Spec.Containers, cmdreporter.CmdReporterContainerName)
+	if err != nil {
+		return ranges, errors.Wrapf(err, "failed to find %q container in ceph %q network canary job", cmdreporter.CmdReporterContainerName, cephNetwork)
+	}
+	canaryContainer.VolumeMounts = append(canaryContainer.VolumeMounts, netStatusMount)
 	job.Spec.Template.Spec.InitContainers = append(job.Spec.Template.Spec.InitContainers, containerWaitForNetworkStatus(clusterSpec, rookImage))
 
 	stdout, stderr, retcode, err := networkCanary.Run(ctx, detectNetworkCIDRTimeout)
