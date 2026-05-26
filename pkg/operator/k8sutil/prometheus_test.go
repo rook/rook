@@ -38,4 +38,6 @@ func TestGetServiceMonitor(t *testing.T) {
 	assert.NotNil(t, servicemonitor.Spec.NamespaceSelector.MatchNames)
 	assert.NotNil(t, servicemonitor.Spec.Selector.MatchLabels)
 	assert.NotNil(t, servicemonitor.Spec.Endpoints)
+	assert.Equal(t, "cluster", servicemonitor.Spec.Endpoints[0].RelabelConfigs[0].TargetLabel)
+	assert.Equal(t, namespace, *servicemonitor.Spec.Endpoints[0].RelabelConfigs[0].Replacement)
 }
