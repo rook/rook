@@ -624,6 +624,18 @@ function s3cmd() {
   command timeout 200 s3cmd -v --config=s3cfg --access_key="${S3CMD_ACCESS_KEY}" --secret_key="${S3CMD_SECRET_KEY}" "$@"
 }
 
+function retry() {
+  local retries=$1; shift
+  local attempt
+  for (( attempt=1; attempt<=retries; attempt++ )); do
+    if "$@"; then return 0; fi
+    echo "$* failed (attempt ${attempt}/${retries}), retrying in 5s..."
+    sleep 5
+  done
+  echo "$* failed after ${retries} attempts"
+  exit 1
+}
+
 function write_object_read_from_replica_cluster() {
   local write_cluster_ip=${1?ip address of cluster to write to is required}
   local read_cluster_ip=${2?ip address of cluster to read from is required}
@@ -635,8 +647,8 @@ function write_object_read_from_replica_cluster() {
   # ensure that test file has unique data
   echo "$test_object_name" >>"$test_object_name"
 
-  s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"
-  s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"
+  retry 3 s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"
+  retry 3 s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"
 
   # Schedule a signal for 60s into the future as a timeout on retrying s3cmd.
   # This voodoo is to avoid running everything under a new shell started by
