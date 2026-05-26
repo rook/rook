@@ -515,8 +515,8 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 							matched = false
 							continue
 						}
-						if desiredDevice.MetadataDevice != "" {
-							logger.Infof("logical volume %q is not picked because OSD on LV with metadata device is not allowed", device.Name)
+						if desiredDevice.OSDsPerDevice > 1 {
+							logger.Infof("logical volume %q is not picked because osdsPerDevice > 1 on LV is not supported", device.Name)
 							matched = false
 							continue
 						}
