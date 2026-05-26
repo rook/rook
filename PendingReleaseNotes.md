@@ -7,6 +7,7 @@
     - The CSI settings are removed from the Rook operator configmap and helm chart
     - New installs must configure the CSI settings with the CSI CRs instead of Rook operator settings.
     - Upgrades will continue working with the existing settings that had been applied by Rook previously. Further updates to CSI settings will need to be updated by the Rook admin.
+- Go 1.26 is now the minimum version of Go required to build Rook.
 
 ## Features
 
