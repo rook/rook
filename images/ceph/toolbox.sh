@@ -77,7 +77,13 @@ cat <<EOF > ${KEYRING_FILE}
 key = ${ceph_secret}
 EOF
 
-# write the initial config file
+# wait for mon endpoints to appear
+until mon_endpoints=$(cat ${MON_CONFIG} | sed 's/[a-z0-9_-]\+=//g') && [ -n "${mon_endpoints}" ]; do
+  echo "waiting for mon endpoints to appear in ${MON_CONFIG}..."
+  sleep 5
+done
+
+# wait for endpoints to be available, then write the initial config file
 write_endpoints
 
 # continuously update the mon endpoints if they fail over
