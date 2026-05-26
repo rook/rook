@@ -735,10 +735,14 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	// avoid issues with the real deployment, the canary should be careful not
 	// to modify the storage by instead running an innocuous command.
 	d.Spec.Template.Spec.InitContainers = []corev1.Container{}
-	d.Spec.Template.Spec.Containers[0].Image = c.rookImage
+	monContainer, err := k8sutil.GetContainerByName(d.Spec.Template.Spec.Containers, monContainerName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to find %q container in mon canary deployment", monContainerName)
+	}
+	monContainer.Image = c.rookImage
 	// As PID 1, sleep will not capture the SIGTERM signal, so use a bash
 	// trap to exit cleanly and quickly when the pod is deleted.
-	d.Spec.Template.Spec.Containers[0].Command = []string{
+	monContainer.Command = []string{
 		"/bin/bash",
 		"-c",
 		`trap 'exit' SIGTERM
@@ -746,8 +750,8 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	}
 
 	// remove the startup and liveness probes on the canary pod
-	d.Spec.Template.Spec.Containers[0].StartupProbe = nil
-	d.Spec.Template.Spec.Containers[0].LivenessProbe = nil
+	monContainer.StartupProbe = nil
+	monContainer.LivenessProbe = nil
 
 	// setup affinity settings for pod scheduling
 	p := c.getMonPlacement(mon.Zone)

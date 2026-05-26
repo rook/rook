@@ -39,6 +39,7 @@ import (
 const (
 	// AppName is the name of the app
 	AppName               = "rook-ceph-nfs"
+	ganeshaContainerName  = "nfs-ganesha"
 	ganeshaConfigVolume   = "ganesha-config"
 	nfsPort               = 2049
 	ganeshaPid            = "/var/run/ganesha/ganesha.pid"
@@ -233,7 +234,7 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 	}
 
 	container := v1.Container{
-		Name: "nfs-ganesha",
+		Name: ganeshaContainerName,
 		Command: []string{
 			"ganesha.nfsd",
 		},
