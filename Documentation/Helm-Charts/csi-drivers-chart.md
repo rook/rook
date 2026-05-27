@@ -20,3 +20,78 @@ Ceph-CSI publishes the drivers chart from the `ceph-csi-operator` Helm repositor
 helm repo add ceph-csi-operator https://ceph.github.io/ceph-csi-operator
 helm install ceph-csi-drivers --namespace rook-ceph ceph-csi-operator/ceph-csi-drivers
 ```
+
+## Custom settings
+
+Below are some examples of common settings that may need to be customized in the CSI drivers chart. Create a values file with the desired settings and install with `-f values.yaml`.
+
+### CSI-Addons sidecar
+
+```yaml
+operatorConfig:
+  driverSpecDefaults:
+    deployCsiAddons: true
+```
+
+See: [CSI-Addons sidecar](../Storage-Configuration/Ceph-CSI/csi-configuration.md#csi-addons-sidecar)
+
+### Controller plugin replicas
+
+```yaml
+operatorConfig:
+  driverSpecDefaults:
+    controllerPlugin:
+      replicas: 2
+```
+
+See: [Controller replicas and strategy](../Storage-Configuration/Ceph-CSI/csi-configuration.md#controller-replicas-and-strategy)
+
+### CephFS client type
+
+```yaml
+drivers:
+  cephfs:
+    cephFsClientType: fuse
+```
+
+See: [CephFS client type (kernel vs FUSE)](../Storage-Configuration/Ceph-CSI/csi-configuration.md#cephfs-client-type-kernel-vs-fuse)
+
+### RBD driver name prefix
+
+```yaml
+drivers:
+  rbd:
+    name: rook-ceph.rbd.csi.ceph.com
+```
+
+**Note** The prefix `rook-ceph` should always be the rook operator namespace.
+
+See: [Driver name / provisioner prefix](../Storage-Configuration/Ceph-CSI/csi-configuration.md#driver-name--provisioner-prefix)
+
+### NFS CSI driver
+
+```yaml
+drivers:
+  nfs:
+    enabled: true
+    name: rook-ceph.nfs.csi.ceph.com
+```
+
+See: [Enable NFS CSI driver](../Storage-Configuration/Ceph-CSI/csi-configuration.md#enable-nfs-csi-driver)
+
+### kubelet path
+
+```yaml
+operatorConfig:
+  driverSpecDefaults:
+    nodePlugin:
+      kubeletDirPath: /var/lib/kubelet
+      enableSeLinuxHostMount: true
+```
+
+See: [Node plugin kubelet path and SELinux host mount](../Storage-Configuration/Ceph-CSI/csi-configuration.md#node-plugin-kubelet-path-and-selinux-host-mount)
+
+### Custom CSI images
+
+Custom CSI images are configured from the [rook-ceph](operator-chart.md#configuration) chart.
+See the default images in the `rook-ceph` chart [values](https://github.com/rook/rook/blob/release-1.20/deploy/charts/rook-ceph/values.yaml#L97-L137)
