@@ -113,6 +113,9 @@ func (c *clusterConfig) rgwFrontendStr() string {
 	if len(c.store.Spec.Security.Ciphers) > 0 {
 		frontendStr = fmt.Sprintf("%s ssl_ciphers=%s", frontendStr, strings.Join(c.store.Spec.Security.Ciphers, ":"))
 	}
+	if len(c.store.Spec.Security.CipherSuites) > 0 {
+		frontendStr = fmt.Sprintf("%s ssl_ciphersuites=%s", frontendStr, strings.Join(c.store.Spec.Security.CipherSuites, ":"))
+	}
 
 	if len(c.store.Spec.Security.TlsGroups) > 0 {
 		frontendStr = fmt.Sprintf("%s tls_groups=%s", frontendStr, strings.Join(c.store.Spec.Security.TlsGroups, ":"))

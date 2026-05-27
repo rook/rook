@@ -12101,10 +12101,23 @@ See <a href="https://docs.ceph.com/en/latest/radosgw/frontends/#options">https:/
 </td>
 <td>
 <em>(Optional)</em>
-<p>Ciphers specifies the cipher suites used during the TLS handshake.
-Multiple suites are supported with &lsquo;:&rsquo; colon-separated.
+<p>Ciphers specifies the cipher suites used during the TLS handshake for TLS v1.2 and below.
 Each value must be a valid OpenSSL cipher suite name.
-See <a href="https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names">https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names</a></p>
+See <a href="https://docs.openssl.org/master/man1/openssl-ciphers/">https://docs.openssl.org/master/man1/openssl-ciphers/</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cipherSuites</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CipherSuites specifies the cipher suites used during the TLS handshake for TLS v1.3.
+Each value must be a valid OpenSSL cipher suite name.
+See <a href="https://docs.openssl.org/master/man1/openssl-ciphers/">https://docs.openssl.org/master/man1/openssl-ciphers/</a></p>
 </td>
 </tr>
 <tr>

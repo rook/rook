@@ -14796,12 +14796,21 @@ spec:
                   description: Security represents security settings
                   nullable: true
                   properties:
+                    cipherSuites:
+                      description: |-
+                        CipherSuites specifies the cipher suites used during the TLS handshake for TLS v1.3.
+                        Each value must be a valid OpenSSL cipher suite name.
+                        See https://docs.openssl.org/master/man1/openssl-ciphers/
+                      items:
+                        type: string
+                      maxItems: 1000
+                      minItems: 0
+                      type: array
                     ciphers:
                       description: |-
-                        Ciphers specifies the cipher suites used during the TLS handshake.
-                        Multiple suites are supported with ':' colon-separated.
+                        Ciphers specifies the cipher suites used during the TLS handshake for TLS v1.2 and below.
                         Each value must be a valid OpenSSL cipher suite name.
-                        See https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names
+                        See https://docs.openssl.org/master/man1/openssl-ciphers/
                       items:
                         type: string
                       maxItems: 1000
