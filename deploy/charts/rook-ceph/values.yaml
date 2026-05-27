@@ -7,7 +7,7 @@ image:
   repository: docker.io/rook/ceph
   # -- Image tag
   # @default -- `master`
-  tag: v1.18.10
+  tag: v1.18.11
   # -- Image pull policy
   pullPolicy: IfNotPresent
 
