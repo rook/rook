@@ -8753,7 +8753,7 @@ spec:
               value: "ceph-csi-"
             - name: WATCH_NAMESPACE
               value: ""
-          image: quay.io/cephcsi/ceph-csi-operator:v1.0.0
+          image: quay.io/cephcsi/ceph-csi-operator:v1.0.1
           livenessProbe:
             httpGet:
               path: /healthz

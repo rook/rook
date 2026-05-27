@@ -35,7 +35,7 @@ const (
 	cephCsiOperatorHelmRepoURL  = "https://ceph.github.io/ceph-csi-operator"
 	cephCsiOperatorHelmRepoName = "ceph-csi-operator"
 	cephCsiDriversChartName     = "ceph-csi-drivers"
-	cephCsiDriversChartVersion  = "1.0.0"
+	cephCsiDriversChartVersion  = "1.0.1"
 	cephCsiDriversReleaseName   = "ceph-csi-drivers"
 )
 
