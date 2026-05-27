@@ -29,8 +29,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	smithylogging "github.com/aws/smithy-go/logging"
 	"github.com/pkg/errors"
 )
+
+type rookLogger struct{}
+
+func (r rookLogger) Logf(classification smithylogging.Classification, format string, v ...interface{}) {
+	logger.Debugf(format, v...)
+}
 
 // Region for aws golang sdk
 const CephRegion = "us-east-1"
@@ -76,6 +83,9 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 		RetryMaxAttempts: 5,
 		RetryMode:        aws.RetryModeStandard,
 		ClientLogMode:    logMode,
+	}
+	if debug {
+		cfg.Logger = rookLogger{}
 	}
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.UsePathStyle = true
