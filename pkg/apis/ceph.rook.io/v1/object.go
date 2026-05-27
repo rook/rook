@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/utils/ptr"
 )
 
 const ServiceServingCertKey = "service.beta.openshift.io/serving-cert-secret-name"
@@ -119,7 +120,38 @@ func ValidateObjectSpec(gs *CephObjectStore) error {
 		}
 	}
 
+	if err := validateObjectStoreSecurity(&gs.Spec); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// validateObjectStoreSecurity validates the ssl_ciphers applies to TLS v1.2 and below; ssl_ciphersuites applies to TLS v1.3 only.
+// See https://docs.ceph.com/en/latest/radosgw/frontends/#options
+func validateObjectStoreSecurity(spec *ObjectStoreSpec) error {
+	if spec.Security == nil {
+		return nil
+	}
+
+	sec := spec.Security
+	if len(sec.Ciphers) == 0 && len(sec.CipherSuites) == 0 {
+		return nil
+	}
+
+	if len(sec.Ciphers) > 0 && !isTLSv1_2orBelowEnabled(sec.SslOptions) {
+		return errors.New("ciphers requires at least one TLS version of 1.2 or below to be enabled in sslOptions")
+	}
+
+	return nil
+}
+
+// isTLS12OrBelowEnabled check if TLS v1.2 or below is enabled
+func isTLSv1_2orBelowEnabled(opts *SslOptionsSpec) bool {
+	if opts == nil {
+		return true
+	}
+	return ptr.Deref(opts.TLSv1_2, true) || ptr.Deref(opts.TLSv1_1, false) || ptr.Deref(opts.TLSv1_0, false)
 }
 
 func (s *ObjectStoreSpec) GetServiceServingCert() string {
