@@ -25,7 +25,7 @@ import (
 	"time"
 
 	v4signer "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
-	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/pkg/errors"
 )
 
@@ -53,7 +53,7 @@ const emptyPayloadSHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495
 // bucket notification configuration. This is not part of the standard AWS S3
 // API, so we build and sign the HTTP request manually using the v2 client's
 // credentials and endpoint.
-func DeleteBucketNotification(ctx context.Context, client *s3v2.Client, input *DeleteBucketNotificationRequestInput, notificationId string) error {
+func DeleteBucketNotification(ctx context.Context, client *s3.Client, input *DeleteBucketNotificationRequestInput, notificationId string) error {
 	if input == nil {
 		input = &DeleteBucketNotificationRequestInput{}
 	}

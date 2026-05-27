@@ -25,30 +25,25 @@ import (
 	"net/url"
 	"strings"
 
-	v2aws "github.com/aws/aws-sdk-go-v2/aws"
-	v2creds "github.com/aws/aws-sdk-go-v2/credentials"
-	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	awssession "github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/pkg/errors"
 )
 
 // Region for aws golang sdk
 const CephRegion = "us-east-1"
 
-// S3Agent wraps the s3.S3 structure to allow for wrapper methods
+// S3Agent wraps the S3 client to allow for wrapper methods
 type S3Agent struct {
-	Client   *s3.S3       // v1 client
-	ClientV2 *s3v2.Client // v2 client
+	Client *s3.Client
 }
 
 func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte, insecure bool, httpClient *http.Client) (*S3Agent, error) {
-	logLevel := aws.LogOff
+	var logMode aws.ClientLogMode
 	if debug {
-		logLevel = aws.LogDebug
+		logMode = aws.LogSigning
 	}
 
 	tlsEnabled := false
@@ -64,28 +59,6 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 		}
 	}
 
-	// -----------------------------
-	// SDK v1 client initialization
-	// -----------------------------
-	v1Session, err := awssession.NewSession(
-		aws.NewConfig().
-			WithRegion(CephRegion).
-			WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
-			WithEndpoint(endpoint).
-			WithS3ForcePathStyle(true).
-			WithMaxRetries(5).
-			WithDisableSSL(!tlsEnabled).
-			WithHTTPClient(httpClient).
-			WithLogLevel(logLevel),
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create v1 session")
-	}
-	v1Client := s3.New(v1Session)
-
-	// -----------------------------
-	// SDK v2 client initialization
-	// -----------------------------
 	scheme := "http"
 	if tlsEnabled {
 		scheme = "https"
@@ -94,24 +67,21 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 	if perr != nil || (u.Scheme != "http" && u.Scheme != "https") {
 		u, _ = url.Parse(scheme + "://" + endpoint)
 	}
-	// Use the officially-supported v2 endpoint customization mechanism.
-	// This keeps S3's internal endpoint customizations (including hostname handling)
-	// consistent with the SDK's expectations, which is especially important for TLS.
 	baseEndpoint := u.String()
-	v2Cfg := v2aws.Config{
+	cfg := aws.Config{
 		Region:           CephRegion,
-		Credentials:      v2aws.NewCredentialsCache(v2creds.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+		Credentials:      aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
 		HTTPClient:       httpClient,
 		BaseEndpoint:     &baseEndpoint,
 		RetryMaxAttempts: 5,
-		RetryMode:        v2aws.RetryModeStandard,
+		RetryMode:        aws.RetryModeStandard,
+		ClientLogMode:    logMode,
 	}
-	v2Client := s3v2.NewFromConfig(v2Cfg, func(o *s3v2.Options) {
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.UsePathStyle = true
 	})
 	return &S3Agent{
-		Client:   v1Client,
-		ClientV2: v2Client,
+		Client: client,
 	}, nil
 }
 
@@ -132,11 +102,11 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 		logger.Debugf("creating bucket %q", name)
 	}
 
-	input := &s3v2.CreateBucketInput{
+	input := &s3.CreateBucketInput{
 		Bucket: &name,
 	}
 
-	_, err := s.ClientV2.CreateBucket(context.TODO(), input)
+	_, err := s.Client.CreateBucket(context.TODO(), input)
 	if err != nil {
 		var alreadyExists *s3types.BucketAlreadyExists
 		var alreadyOwned *s3types.BucketAlreadyOwnedByYou
@@ -157,7 +127,7 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 
 // DeleteBucket function deletes given bucket using s3 client
 func (s *S3Agent) DeleteBucket(name string) (bool, error) {
-	_, err := s.ClientV2.DeleteBucket(context.TODO(), &s3v2.DeleteBucketInput{
+	_, err := s.Client.DeleteBucket(context.TODO(), &s3.DeleteBucketInput{
 		Bucket: &name,
 	})
 	if err != nil {
@@ -171,7 +141,7 @@ func (s *S3Agent) DeleteBucket(name string) (bool, error) {
 func (s *S3Agent) PutObjectInBucket(bucketname string, body string, key string,
 	contentType string,
 ) (bool, error) {
-	_, err := s.ClientV2.PutObject(context.TODO(), &s3v2.PutObjectInput{
+	_, err := s.Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Body:        strings.NewReader(body),
 		Bucket:      &bucketname,
 		Key:         &key,
@@ -186,7 +156,7 @@ func (s *S3Agent) PutObjectInBucket(bucketname string, body string, key string,
 
 // GetObjectInBucket function retrieves an object from a bucket using s3 client
 func (s *S3Agent) GetObjectInBucket(bucketname string, key string) (string, error) {
-	result, err := s.ClientV2.GetObject(context.TODO(), &s3v2.GetObjectInput{
+	result, err := s.Client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: &bucketname,
 		Key:    &key,
 	})
@@ -205,7 +175,7 @@ func (s *S3Agent) GetObjectInBucket(bucketname string, key string) (string, erro
 
 // DeleteObjectInBucket function deletes given bucket using s3 client
 func (s *S3Agent) DeleteObjectInBucket(bucketname string, key string) (bool, error) {
-	_, err := s.ClientV2.DeleteObject(context.TODO(), &s3v2.DeleteObjectInput{
+	_, err := s.Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
 		Bucket: &bucketname,
 		Key:    &key,
 	})

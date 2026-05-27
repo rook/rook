@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"strings"
 
-	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	smithy "github.com/aws/smithy-go"
 	"github.com/ceph/go-ceph/rgw/admin"
@@ -765,10 +765,10 @@ func (p *Provisioner) setBucketPolicy(bucket *bucket) error {
 	additionalConfig := bucket.additionalConfig
 	ctx := context.TODO()
 
-	svc := p.s3Agent.ClientV2
+	svc := p.s3Agent.Client
 	var livePolicy *string
 
-	policyResp, err := svc.GetBucketPolicy(ctx, &s3v2.GetBucketPolicyInput{
+	policyResp, err := svc.GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{
 		Bucket: &p.bucketName,
 	})
 	if err != nil {
@@ -790,14 +790,14 @@ func (p *Provisioner) setBucketPolicy(bucket *bucket) error {
 
 	log.NamedDebug(nsName, logger, "Policy for bucket %q has changed. diff:%s", p.bucketName, diff)
 	if additionalConfig.bucketPolicy == nil {
-		_, err = svc.DeleteBucketPolicy(ctx, &s3v2.DeleteBucketPolicyInput{
+		_, err = svc.DeleteBucketPolicy(ctx, &s3.DeleteBucketPolicyInput{
 			Bucket: &p.bucketName,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "failed to delete policy for bucket %q", p.bucketName)
 		}
 	} else {
-		_, err = svc.PutBucketPolicy(ctx, &s3v2.PutBucketPolicyInput{
+		_, err = svc.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
 			Bucket: &p.bucketName,
 			Policy: additionalConfig.bucketPolicy,
 		})
@@ -814,10 +814,10 @@ func (p *Provisioner) setBucketLifecycle(bucket *bucket) error {
 	additionalConfig := bucket.additionalConfig
 	ctx := context.TODO()
 
-	svc := p.s3Agent.ClientV2
-	var liveLc *s3v2.GetBucketLifecycleConfigurationOutput
+	svc := p.s3Agent.Client
+	var liveLc *s3.GetBucketLifecycleConfigurationOutput
 
-	liveLc, err := svc.GetBucketLifecycleConfiguration(ctx, &s3v2.GetBucketLifecycleConfigurationInput{
+	liveLc, err := svc.GetBucketLifecycleConfiguration(ctx, &s3.GetBucketLifecycleConfigurationInput{
 		Bucket: &p.bucketName,
 	})
 	if err != nil {
@@ -868,14 +868,14 @@ func (p *Provisioner) setBucketLifecycle(bucket *bucket) error {
 
 	log.NamedDebug(nsName, logger, "Lifecycle configuration for bucket %q has changed. diff:%s", p.bucketName, diff)
 	if additionalConfig.bucketLifecycle == nil {
-		_, err = svc.DeleteBucketLifecycle(ctx, &s3v2.DeleteBucketLifecycleInput{
+		_, err = svc.DeleteBucketLifecycle(ctx, &s3.DeleteBucketLifecycleInput{
 			Bucket: &p.bucketName,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "failed to delete lifecycle configuration for bucket %q", p.bucketName)
 		}
 	} else {
-		_, err = svc.PutBucketLifecycleConfiguration(ctx, &s3v2.PutBucketLifecycleConfigurationInput{
+		_, err = svc.PutBucketLifecycleConfiguration(ctx, &s3.PutBucketLifecycleConfigurationInput{
 			Bucket:                 &p.bucketName,
 			LifecycleConfiguration: confLc,
 		})

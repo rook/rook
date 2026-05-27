@@ -20,7 +20,7 @@ package notification
 import (
 	"context"
 
-	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
@@ -144,7 +144,7 @@ var createNotification = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, t
 	if err != nil {
 		return errors.Wrapf(err, "failed to create S3 agent for CephBucketNotification %q provisioning for bucket %q", bnName, bucketName)
 	}
-	_, err = s3Agent.ClientV2.PutBucketNotificationConfiguration(p.opManagerContext, &s3v2.PutBucketNotificationConfigurationInput{
+	_, err = s3Agent.Client.PutBucketNotificationConfiguration(p.opManagerContext, &s3.PutBucketNotificationConfigurationInput{
 		Bucket: &bucketName,
 		NotificationConfiguration: &s3types.NotificationConfiguration{
 			TopicConfigurations: []s3types.TopicConfiguration{
@@ -176,7 +176,7 @@ var getAllRGWNotifications = func(p provisioner, ob *bktv1alpha1.ObjectBucket) (
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create S3 agent for CephBucketNotification provisioning for bucket %q", bucketName)
 	}
-	nc, err := s3Agent.ClientV2.GetBucketNotificationConfiguration(p.opManagerContext, &s3v2.GetBucketNotificationConfigurationInput{
+	nc, err := s3Agent.Client.GetBucketNotificationConfiguration(p.opManagerContext, &s3.GetBucketNotificationConfigurationInput{
 		Bucket:              &bucketName,
 		ExpectedBucketOwner: &ownerName,
 	})
@@ -204,7 +204,7 @@ var deleteNotification = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, n
 	if err != nil {
 		return errors.Wrapf(err, "failed to create S3 agent for deleting all bucket notifications from bucket %q", bucketName)
 	}
-	if err := DeleteBucketNotification(context.TODO(), s3Agent.ClientV2, &DeleteBucketNotificationRequestInput{
+	if err := DeleteBucketNotification(context.TODO(), s3Agent.Client, &DeleteBucketNotificationRequestInput{
 		Bucket: &bucket.Spec.Endpoint.BucketName,
 	}, notificationId); err != nil {
 		return errors.Wrapf(err, "failed to delete bucket notification %q from bucket %q", notificationId, bucketName)
