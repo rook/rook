@@ -19,20 +19,23 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -55,6 +58,20 @@ const (
 )
 
 var objectStoreServicePrefix = "rook-ceph-rgw-"
+
+var lifecycleCmpOpts = cmp.Options{
+	cmpopts.IgnoreUnexported(
+		s3types.LifecycleRule{},
+		s3types.LifecycleExpiration{},
+		s3types.LifecycleRuleFilter{},
+		s3types.LifecycleRuleAndOperator{},
+		s3types.AbortIncompleteMultipartUpload{},
+		s3types.NoncurrentVersionExpiration{},
+		s3types.NoncurrentVersionTransition{},
+		s3types.Transition{},
+		s3types.Tag{},
+	),
+}
 
 func TestCephObjectSuite(t *testing.T) {
 	s := new(ObjectSuite)
@@ -116,7 +133,7 @@ func (s *ObjectSuite) TestWithTLS() {
 func cleanUpTLS(s *ObjectSuite) {
 	err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			logger.Fatal("failed to deleted store TLS secret")
 		}
 	}
@@ -604,7 +621,7 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		})
 
 		t.Run("policy was applied verbatim to bucket", func(t *testing.T) {
-			policyResp, err := s3client.Client.GetBucketPolicy(&s3.GetBucketPolicyInput{
+			policyResp, err := s3client.Client.GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{
 				Bucket: &bucketName,
 			})
 			require.NoError(t, err)
@@ -651,7 +668,7 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		t.Run("policy update applied verbatim to bucket", func(t *testing.T) {
 			var livePolicy string
 			utils.Retry(20, time.Second, "policy changed", func() bool {
-				policyResp, err := s3client.Client.GetBucketPolicy(&s3.GetBucketPolicyInput{
+				policyResp, err := s3client.Client.GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{
 					Bucket: &bucketName,
 				})
 				if err != nil {
@@ -704,15 +721,15 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		t.Run("policy was removed from bucket", func(t *testing.T) {
 			var err error
 			utils.Retry(20, time.Second, "policy is gone", func() bool {
-				_, err = s3client.Client.GetBucketPolicy(&s3.GetBucketPolicyInput{
+				_, err = s3client.Client.GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{
 					Bucket: &bucketName,
 				})
 				return err != nil
 			})
 			require.Error(t, err)
-			require.Implements(t, (*awserr.Error)(nil), err)
-			aerr, _ := err.(awserr.Error)
-			assert.Equal(t, aerr.Code(), "NoSuchBucketPolicy")
+			var apiErr smithy.APIError
+			require.True(t, errors.As(err, &apiErr))
+			assert.Equal(t, "NoSuchBucketPolicy", apiErr.ErrorCode())
 		})
 
 		t.Run("delete bucket", func(t *testing.T) {
@@ -839,16 +856,16 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		})
 
 		t.Run("lifecycle was applied verbatim to bucket", func(t *testing.T) {
-			liveLc, err := s3client.Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
+			liveLc, err := s3client.Client.GetBucketLifecycleConfiguration(ctx, &s3.GetBucketLifecycleConfigurationInput{
 				Bucket: &bucketName,
 			})
 			require.NoError(t, err)
 
-			confLc := &s3.GetBucketLifecycleConfigurationOutput{}
+			confLc := &s3types.BucketLifecycleConfiguration{}
 			err = json.Unmarshal([]byte(bucketLifecycle1), confLc)
 			require.NoError(t, err)
 
-			assert.Equal(t, confLc, liveLc)
+			assert.True(t, cmp.Equal(confLc.Rules, liveLc.Rules, lifecycleCmpOpts...), cmp.Diff(confLc.Rules, liveLc.Rules, lifecycleCmpOpts...))
 		})
 
 		t.Run("update obc bucketLifecycle", func(t *testing.T) {
@@ -891,21 +908,21 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		t.Run("lifecycle update applied verbatim to bucket", func(t *testing.T) {
 			var liveLc *s3.GetBucketLifecycleConfigurationOutput
 
-			confLc := &s3.GetBucketLifecycleConfigurationOutput{}
+			confLc := &s3types.BucketLifecycleConfiguration{}
 			err = json.Unmarshal([]byte(bucketLifecycle2), confLc)
 			require.NoError(t, err)
 
 			utils.Retry(20, time.Second, "lifecycle changed", func() bool {
-				liveLc, err = s3client.Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
+				liveLc, err = s3client.Client.GetBucketLifecycleConfiguration(ctx, &s3.GetBucketLifecycleConfigurationInput{
 					Bucket: &bucketName,
 				})
 				if err != nil {
 					return false
 				}
 
-				return cmp.Equal(confLc, liveLc)
+				return cmp.Equal(confLc.Rules, liveLc.Rules, lifecycleCmpOpts...)
 			})
-			assert.Equal(t, confLc, liveLc)
+			assert.True(t, cmp.Equal(confLc.Rules, liveLc.Rules, lifecycleCmpOpts...), cmp.Diff(confLc.Rules, liveLc.Rules, lifecycleCmpOpts...))
 		})
 
 		t.Run("remove obc bucketLifecycle", func(t *testing.T) {
@@ -955,18 +972,19 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 				t.Skip("Waiting for rgw fix from regression in v19.2.3")
 			}
 			utils.Retry(20, time.Second, "lifecycle is gone", func() bool {
-				_, err = s3client.Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
+				_, err = s3client.Client.GetBucketLifecycleConfiguration(ctx, &s3.GetBucketLifecycleConfigurationInput{
 					Bucket: &bucketName,
 				})
-				if aerr, ok := err.(awserr.Error); ok {
-					return aerr.Code() == "NoSuchLifecycleConfiguration"
+				var apiErr smithy.APIError
+				if errors.As(err, &apiErr) {
+					return apiErr.ErrorCode() == "NoSuchLifecycleConfiguration"
 				}
 				return false
 			})
 			require.Error(t, err)
-			require.Implements(t, (*awserr.Error)(nil), err)
-			aerr, _ := err.(awserr.Error)
-			assert.Equal(t, aerr.Code(), "NoSuchLifecycleConfiguration")
+			var apiErr smithy.APIError
+			require.True(t, errors.As(err, &apiErr))
+			assert.Equal(t, "NoSuchLifecycleConfiguration", apiErr.ErrorCode())
 		})
 
 		t.Run("delete bucket", func(t *testing.T) {
