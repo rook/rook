@@ -54,16 +54,16 @@ The following table lists the configurable parameters of the rook-operator chart
 | `containerSecurityContext` | Set the container security context for the operator | `{"capabilities":{"drop":["ALL"]},"runAsGroup":2016,"runAsNonRoot":true,"runAsUser":2016}` |
 | `crds.enabled` | Whether the helm chart should create and update the CRDs. If false, the CRDs must be managed independently with deploy/examples/crds.yaml. **WARNING** Only set during first deployment. If later disabled the cluster may be DESTROYED. If the CRDs are deleted in this case, see [the disaster recovery guide](https://rook.io/docs/rook/latest/Troubleshooting/disaster-recovery/#restoring-crds-after-deletion) to restore them. | `true` |
 | `csi.attacher.repository` | Kubernetes CSI Attacher image repository | `"registry.k8s.io/sig-storage/csi-attacher"` |
-| `csi.attacher.tag` | Attacher image tag | `"v4.11.0"` |
+| `csi.attacher.tag` | Attacher image tag | `"v4.12.0"` |
 | `csi.cephcsi.repository` | Ceph CSI image repository | `"quay.io/cephcsi/cephcsi"` |
-| `csi.cephcsi.tag` | Ceph CSI image tag | `"v3.16.2"` |
+| `csi.cephcsi.tag` | Ceph CSI image tag | `"v3.17.0"` |
 | `csi.csiAddons.repository` | CSIAddons sidecar image repository | `"quay.io/csiaddons/k8s-sidecar"` |
 | `csi.csiAddons.tag` | CSIAddons sidecar image tag | `"v0.14.0"` |
 | `csi.installCsiOperator` | When true, install the ceph-csi-operator subchart (see Chart.yaml `condition`). | `true` |
 | `csi.provisioner.repository` | Kubernetes CSI provisioner image repository | `"registry.k8s.io/sig-storage/csi-provisioner"` |
-| `csi.provisioner.tag` | Provisioner image tag | `"v6.1.1"` |
+| `csi.provisioner.tag` | Provisioner image tag | `"v6.2.0"` |
 | `csi.registrar.repository` | Kubernetes CSI registrar image repository | `"registry.k8s.io/sig-storage/csi-node-driver-registrar"` |
-| `csi.registrar.tag` | Registrar image tag | `"v2.16.0"` |
+| `csi.registrar.tag` | Registrar image tag | `"v2.17.0"` |
 | `csi.resizer.repository` | Kubernetes CSI resizer image repository | `"registry.k8s.io/sig-storage/csi-resizer"` |
 | `csi.resizer.tag` | Resizer image tag | `"v2.1.0"` |
 | `csi.serviceMonitor.enabled` | Enable ServiceMonitor for CSI metrics | `false` |
