@@ -174,6 +174,79 @@ data:
   # RevisionHistoryLimit value for all deployments created by rook.
   # ROOK_REVISION_HISTORY_LIMIT: "3"
 ---
+# CSI operator resources managed by the admin.
+# These CRs define the configuration for CSI drivers deployed by the ceph-csi-operator.
+# Customize these as needed for your environment.
+
+# ImageSet ConfigMap defines the container images used by the CSI drivers.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rook-csi-operator-image-set-configmap
+  namespace: rook-ceph # namespace:operator
+data:
+  provisioner: "registry.k8s.io/sig-storage/csi-provisioner:v6.2.0"
+  attacher: "registry.k8s.io/sig-storage/csi-attacher:v4.12.0"
+  resizer: "registry.k8s.io/sig-storage/csi-resizer:v2.1.0"
+  snapshotter: "registry.k8s.io/sig-storage/csi-snapshotter:v8.5.0"
+  registrar: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.17.0"
+  plugin: "quay.io/cephcsi/cephcsi:v3.17.0"
+  addons: "quay.io/csiaddons/k8s-sidecar:v0.14.0"
+---
+# OperatorConfig defines the default settings for all CSI drivers.
+apiVersion: csi.ceph.io/v1
+kind: OperatorConfig
+metadata:
+  name: ceph-csi-operator-config
+  namespace: rook-ceph # namespace:operator
+spec:
+  driverSpecDefaults:
+    log:
+      verbosity: 0
+    imageSet:
+      name: rook-csi-operator-image-set-configmap
+    enableMetadata: true
+    generateOMapInfo: false
+    fsGroupPolicy: File
+    deployCsiAddons: true
+    cephFsClientType: kernel
+    nodePlugin:
+      priorityClassName: "system-node-critical"
+      kubeletDirPath: /var/lib/kubelet
+      enableSeLinuxHostMount: false
+    controllerPlugin:
+      priorityClassName: "system-cluster-critical"
+      replicas: 1
+      deploymentStrategy:
+        type: Recreate
+---
+# RBD CSI Driver
+apiVersion: csi.ceph.io/v1
+kind: Driver
+metadata:
+  name: rook-ceph.rbd.csi.ceph.com # csi-provisioner-name
+  namespace: rook-ceph # namespace:operator
+spec:
+  fsGroupPolicy: File
+  nodePlugin:
+    updateStrategy:
+      type: RollingUpdate
+  controllerPlugin: {}
+---
+# CephFS CSI Driver
+apiVersion: csi.ceph.io/v1
+kind: Driver
+metadata:
+  name: rook-ceph.cephfs.csi.ceph.com # csi-provisioner-name
+  namespace: rook-ceph # namespace:operator
+spec:
+  fsGroupPolicy: File
+  cephFsClientType: kernel
+  nodePlugin:
+    updateStrategy:
+      type: RollingUpdate
+  controllerPlugin: {}
+---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT
 apiVersion: apps/v1
