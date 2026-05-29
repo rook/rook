@@ -37,7 +37,6 @@ runs:
         # longer supports older k8s version we lock to
         minikube-version: "1.38.0"
         kubernetes-version: ${{ inputs.kubernetes-version }}
-        driver: none
         container-runtime: containerd
         memory: 6g
         cpus: 2
