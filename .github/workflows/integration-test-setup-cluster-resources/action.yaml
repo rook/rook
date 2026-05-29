@@ -22,13 +22,17 @@ runs:
       with:
         go-version: "1.26"
 
-    - name: Install cri-dockerd
+    - name: Install cri-dockerd and libvirt/kvm
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         ARCH=$(go env GOARCH)
         curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
         sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
         rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
+        sudo apt-get update
+        sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils
+
+
 
     - name: Setup Minikube
       uses: medyagh/setup-minikube@e9e035a86bbc3caea26a450bd4dbf9d0c453682e # v0.0.21
@@ -37,7 +41,7 @@ runs:
         # longer supports older k8s version we lock to
         minikube-version: "1.38.0"
         kubernetes-version: ${{ inputs.kubernetes-version }}
-        driver: none
+        driver: kvm2
         container-runtime: docker
         memory: 6g
         cpus: 2
