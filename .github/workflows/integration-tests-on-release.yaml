@@ -21,7 +21,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+<<<<<<< HEAD
         kubernetes-version: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
+=======
+        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.34.8", "v1.35.5"]
+>>>>>>> fbbbf6f8e (ci: testk8s v1.34 instead of v1.33 for releases)
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -60,7 +64,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+<<<<<<< HEAD
         kubernetes-version: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
+=======
+        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.34.8", "v1.35.5"]
+>>>>>>> fbbbf6f8e (ci: testk8s v1.34 instead of v1.33 for releases)
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -101,7 +109,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+<<<<<<< HEAD
         kubernetes-version: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
+=======
+        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.34.8", "v1.35.5"]
+>>>>>>> fbbbf6f8e (ci: testk8s v1.34 instead of v1.33 for releases)
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -139,7 +151,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+<<<<<<< HEAD
         kubernetes-version: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
+=======
+        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.34.8", "v1.35.5"]
+>>>>>>> fbbbf6f8e (ci: testk8s v1.34 instead of v1.33 for releases)
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -177,7 +193,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+<<<<<<< HEAD
         kubernetes-version: ["v1.30.14", "v1.32.11", "v1.33.7", "1.35.0"]
+=======
+        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.34.8", "v1.35.5"]
+>>>>>>> fbbbf6f8e (ci: testk8s v1.34 instead of v1.33 for releases)
     steps:
       - name: checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
