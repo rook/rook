@@ -38,7 +38,7 @@ runs:
         minikube-version: "1.38.0"
         kubernetes-version: ${{ inputs.kubernetes-version }}
         driver: none
-        container-runtime: docker
+        container-runtime: containerd
         memory: 6g
         cpus: 2
         addons: ingress
