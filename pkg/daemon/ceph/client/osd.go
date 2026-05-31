@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -268,6 +269,24 @@ func SetDeviceClass(context *clusterd.Context, clusterInfo *ClusterInfo, osdID i
 	return nil
 }
 
+// unmarshalJSONWithInfFix attempts a direct JSON unmarshal first,
+// and if that fails due to unquoted "inf" tokens (which can appear in
+// 'ceph osd dump' output for fields like read_balance.score_acting),
+// it replaces 'inf' with '"Infinity"' and retries. This minimizes
+// risk of false-positive matches since the replacement is only done
+// when the initial parse fails.
+func unmarshalJSONWithInfFix(buf []byte, v interface{}) error {
+	if err := json.Unmarshal(buf, v); err != nil {
+		// Replace unquoted 'inf' with '"Infinity"' and retry
+		fixed := strings.ReplaceAll(string(buf), "inf", `"Infinity"`)
+		if fixed == string(buf) {
+			return err
+		}
+		return json.Unmarshal([]byte(fixed), v)
+	}
+	return nil
+}
+
 func GetOSDDump(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDDump, error) {
 	args := []string{"osd", "dump"}
 	cmd := NewCephCommand(context, clusterInfo, args)
@@ -277,7 +296,7 @@ func GetOSDDump(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDDump, 
 	}
 
 	var osdDump OSDDump
-	if err := json.Unmarshal(buf, &osdDump); err != nil {
+	if err := unmarshalJSONWithInfFix(buf, &osdDump); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal osd dump response")
 	}
 

@@ -214,3 +214,37 @@ func TestOSDOkToStop(t *testing.T) {
 		assert.Equal(t, "--max=0", seenArgs[3])
 	})
 }
+
+func TestUnmarshalJSONWithInfFix(t *testing.T) {
+	t.Run("bare inf triggers replacement and succeeds", func(t *testing.T) {
+		jsonWithInf := []byte(`{"osds":[{"osd":0,"up":1,"in":1,"inf":true}]}`)
+		var result struct {
+			OSDs []struct {
+				OSD string `json:"osd"`
+				Inf  bool   `json:"inf"`
+			} `json:"osds"`
+		}
+		err := unmarshalJSONWithInfFix(jsonWithInf, &result)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(result.OSDs))
+	})
+
+	t.Run("clean JSON (no inf) short-circuits on first try", func(t *testing.T) {
+		cleanJSON := []byte(`{"osds":[{"osd":0,"up":1,"in":1}],"flags":""}`)
+		var result struct {
+			OSDs   []interface{} `json:"osds"`
+			Flags  string        `json:"flags"`
+		}
+		err := unmarshalJSONWithInfFix(cleanJSON, &result)
+		assert.NoError(t, err)
+	})
+
+	t.Run("malformed JSON with no inf substring returns error", func(t *testing.T) {
+		malformed := []byte(`{"osds":[{"osd":}]}`)
+		var result struct {
+			OSDs []interface{} `json:"osds"`
+		}
+		err := unmarshalJSONWithInfFix(malformed, &result)
+		assert.Error(t, err)
+	})
+}
