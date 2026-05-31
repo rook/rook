@@ -1,0 +1,9 @@
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: cephfs-pvc-snapshot
+spec:
+  volumeSnapshotClassName: csi-cephfsplugin-snapclass
+  source:
+    persistentVolumeClaimName: cephfs-pvc

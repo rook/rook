@@ -1,0 +1,369 @@
+/*
+Copyright 2023 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package nodedaemon
+
+import (
+	"context"
+	"fmt"
+	"strconv"
+
+	"github.com/pkg/errors"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/util/log"
+
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+)
+
+const (
+	sockDir                          = "/run/ceph"
+	defaultPrioLimit                 = "5"
+	defaultStatsPeriod               = "5"
+	DefaultMetricsPort        uint16 = 9926
+	exporterServiceMetricName        = "ceph-exporter-http-metrics"
+	exporterKeyringUsername          = "client.ceph-exporter"
+	exporterKeyName                  = "rook-ceph-exporter-keyring"
+)
+
+// createOrUpdateCephExporter is a wrapper around controllerutil.CreateOrUpdate
+func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations []corev1.Toleration, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) (controllerutil.OperationResult, error) {
+	if cephCluster.Spec.Monitoring.MetricsDisabled {
+		log.NamespacedInfo(cephCluster.Namespace, logger, "Skipping exporter reconcile since monitoring.metricsDisabled is true")
+		return controllerutil.OperationResultNone, nil
+	}
+
+	nodeHostnameLabel, ok := node.Labels[k8sutil.LabelHostname()]
+	if !ok {
+		return controllerutil.OperationResultNone, errors.Errorf("label key %q does not exist on node %q", k8sutil.LabelHostname(), node.GetName())
+	}
+	deploy := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", cephExporterAppName), nodeHostnameLabel),
+			Namespace: cephCluster.GetNamespace(),
+		},
+	}
+	deploy.Spec.RevisionHistoryLimit = controller.RevisionHistoryLimit()
+	err := controllerutil.SetControllerReference(&cephCluster, deploy, r.scheme)
+	if err != nil {
+		return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of ceph-exporter deployment %q", deploy.Name)
+	}
+
+	volumes := append(
+		controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "", cephCluster.Spec.DataDirHostPath),
+		keyring.Volume().Exporter())
+
+	mutateFunc := func() error {
+		// labels for the pod, the deployment, and the deploymentSelector
+		deploymentLabels := map[string]string{
+			k8sutil.LabelHostname(): nodeHostnameLabel,
+			k8sutil.AppAttr:         cephExporterAppName,
+			NodeNameLabel:           node.GetName(),
+		}
+		deploymentLabels[controller.DaemonIDLabel] = "exporter"
+		deploymentLabels[k8sutil.ClusterAttr] = cephCluster.GetNamespace()
+
+		selectorLabels := map[string]string{
+			k8sutil.LabelHostname(): nodeHostnameLabel,
+			k8sutil.AppAttr:         cephExporterAppName,
+			NodeNameLabel:           node.GetName(),
+		}
+
+		nodeSelector := map[string]string{k8sutil.LabelHostname(): nodeHostnameLabel}
+
+		// Deployment selector is immutable so we set this value only if
+		// a new object is going to be created
+		if deploy.ObjectMeta.CreationTimestamp.IsZero() {
+			deploy.Spec.Selector = &metav1.LabelSelector{
+				MatchLabels: selectorLabels,
+			}
+		}
+
+		deploy.ObjectMeta.Labels = deploymentLabels
+		cephv1.GetCephExporterLabels(cephCluster.Spec.Labels).ApplyToObjectMeta(&deploy.ObjectMeta)
+		k8sutil.AddRookVersionLabelToDeployment(deploy)
+		if cephVersion != nil {
+			controller.AddCephVersionLabelToDeployment(*cephVersion, deploy)
+		}
+
+		// wait for previous exporter pod to be deleted, before creating a new one
+		// to avoid fighting for the same socket file
+		deploy.Spec.Strategy.Type = appsv1.RecreateDeploymentStrategyType
+		hostNetwork := exporterIsHost(cephCluster)
+		dnsPolicy := corev1.DNSClusterFirst
+		if hostNetwork {
+			dnsPolicy = corev1.DNSClusterFirstWithHostNet
+		}
+		var terminationGracePeriodSeconds int64 = 2
+		deploy.Spec.Template = corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: deploymentLabels,
+			},
+			Spec: corev1.PodSpec{
+				NodeSelector: nodeSelector,
+				InitContainers: []corev1.Container{
+					getCephExporterChownInitContainer(cephCluster),
+				},
+				Containers: []corev1.Container{
+					getCephExporterDaemonContainer(cephCluster, *cephVersion),
+				},
+				Tolerations:                   tolerations,
+				RestartPolicy:                 corev1.RestartPolicyAlways,
+				HostNetwork:                   hostNetwork,
+				DNSPolicy:                     dnsPolicy,
+				Volumes:                       volumes,
+				PriorityClassName:             cephv1.GetCephExporterPriorityClassName(cephCluster.Spec.PriorityClassNames),
+				TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+				SecurityContext:               &corev1.PodSecurityContext{},
+				ServiceAccountName:            k8sutil.DefaultServiceAccount,
+			},
+		}
+
+		// If the log collector is enabled we add the side-car container
+		if cephCluster.Spec.LogCollector.Enabled {
+			shareProcessNamespace := true
+			deploy.Spec.Template.Spec.ShareProcessNamespace = &shareProcessNamespace
+			deploy.Spec.Template.Spec.Containers = append(deploy.Spec.Template.Spec.Containers, *controller.LogCollectorContainer("ceph-client.ceph-exporter", cephCluster.GetNamespace(), cephCluster.Spec, nil))
+		}
+
+		cephv1.GetCephExporterAnnotations(cephCluster.Spec.Annotations).ApplyToObjectMeta(&deploy.Spec.Template.ObjectMeta)
+		applyPrometheusAnnotations(cephCluster, &deploy.Spec.Template.ObjectMeta)
+
+		return nil
+	}
+
+	return controllerutil.CreateOrUpdate(r.opManagerContext, r.client, deploy, mutateFunc)
+}
+
+func getCephExporterChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
+	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
+	mounts := controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath)
+
+	return controller.ChownCephDataDirsInitContainer(
+		*dataPathMap,
+		cephCluster.Spec.CephVersion.Image,
+		controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
+		mounts,
+		cephv1.GetCephExporterResources(cephCluster.Spec.Resources),
+		controller.DefaultContainerSecurityContext(),
+		"",
+	)
+}
+
+func getExporterMetricsPort(cephCluster cephv1.CephCluster) int32 {
+	if cephCluster.Spec.Monitoring.Exporter != nil && cephCluster.Spec.Monitoring.Exporter.Port != 0 {
+		return cephCluster.Spec.Monitoring.Exporter.Port
+	}
+	return int32(DefaultMetricsPort)
+}
+
+func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion cephver.CephVersion) corev1.Container {
+	cephImage := cephCluster.Spec.CephVersion.Image
+	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
+	volumeMounts := controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath)
+	volumeMounts = append(volumeMounts, keyring.VolumeMount().Exporter())
+
+	exporterEnvVar := generateExporterEnvVar()
+	envVars := append(controller.DaemonEnvVars(&cephCluster.Spec), exporterEnvVar)
+
+	metricsPort := getExporterMetricsPort(cephCluster)
+	prioLimit, statsPeriod := defaultPrioLimit, defaultStatsPeriod
+	if cephCluster.Spec.Monitoring.Exporter != nil {
+		prioLimit = strconv.Itoa(int(cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit))
+		statsPeriod = strconv.Itoa(int(cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds))
+	}
+	args := []string{
+		"--sock-dir", sockDir,
+		"--port", strconv.Itoa(int(metricsPort)),
+		"--prio-limit", prioLimit,
+		"--stats-period", statsPeriod,
+	}
+
+	// If DualStack or IPv6 is enabled ensure ceph-exporter binds to both IPv6 and IPv4 interfaces.
+	if cephCluster.Spec.Network.DualStack || cephCluster.Spec.Network.IPFamily == "IPv6" {
+		args = append(args, "--addrs", "::")
+	}
+
+	containerPort := corev1.ContainerPort{
+		Name:          "http-metrics",
+		ContainerPort: metricsPort,
+		Protocol:      corev1.ProtocolTCP,
+	}
+
+	container := corev1.Container{
+		Name:            "ceph-exporter",
+		Command:         []string{"ceph-exporter"},
+		Args:            args,
+		Image:           cephImage,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
+		Env:             envVars,
+		Ports:           []corev1.ContainerPort{containerPort},
+		VolumeMounts:    volumeMounts,
+		Resources:       cephv1.GetCephExporterResources(cephCluster.Spec.Resources),
+		SecurityContext: controller.DefaultContainerSecurityContext(),
+	}
+
+	return container
+}
+
+// MakeCephExporterMetricsService generates the Kubernetes service object for the exporter monitoring service
+func MakeCephExporterMetricsService(cephCluster cephv1.CephCluster, servicePortMetricName string, scheme *runtime.Scheme) (*corev1.Service, error) {
+	labels := controller.AppLabels(cephExporterAppName, cephCluster.Namespace)
+
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cephExporterAppName,
+			Namespace: cephCluster.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Ports: []corev1.ServicePort{
+				{
+					Name:     servicePortMetricName,
+					Port:     getExporterMetricsPort(cephCluster),
+					Protocol: corev1.ProtocolTCP,
+				},
+			},
+			Selector: labels,
+		},
+	}
+
+	err := controllerutil.SetControllerReference(&cephCluster, svc, scheme)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference to monitoring service %q", svc.Name)
+	}
+	return svc, nil
+}
+
+// EnableCephExporterServiceMonitor add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the exporter
+func EnableCephExporterServiceMonitor(context *clusterd.Context, cephCluster cephv1.CephCluster, scheme *runtime.Scheme, opManagerContext context.Context, servicePortMetricName string) error {
+	serviceMonitor := k8sutil.GetServiceMonitor(cephExporterAppName, cephCluster.Namespace, servicePortMetricName)
+
+	if cephCluster.Spec.Monitoring.Interval != nil {
+		duration := cephCluster.Spec.Monitoring.Interval.Duration.String()
+		serviceMonitor.Spec.Endpoints[0].Interval = monitoringv1.Duration(duration)
+	}
+
+	cephv1.GetCephExporterLabels(cephCluster.Spec.Labels).OverwriteApplyToObjectMeta(&serviceMonitor.ObjectMeta)
+
+	err := controllerutil.SetControllerReference(&cephCluster, serviceMonitor, scheme)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference to service monitor %q", serviceMonitor.Name)
+	}
+	serviceMonitor.Spec.Selector.MatchLabels = controller.AppLabels(cephExporterAppName, cephCluster.Namespace)
+	applyCephExporterLabels(cephCluster, serviceMonitor)
+
+	if _, err = k8sutil.CreateOrUpdateServiceMonitor(context, opManagerContext, serviceMonitor); err != nil {
+		return errors.Wrap(err, "service monitor could not be enabled")
+	}
+	return nil
+}
+
+func applyCephExporterLabels(cephCluster cephv1.CephCluster, serviceMonitor *monitoringv1.ServiceMonitor) {
+	if cephCluster.Spec.Labels != nil {
+		cephv1.GetMonitoringLabels(cephCluster.Spec.Labels).OverwriteApplyToObjectMeta(&serviceMonitor.ObjectMeta)
+		if cephExporterLabels, ok := cephCluster.Spec.Labels["exporter"]; ok {
+			if managedBy, ok := cephExporterLabels["rook.io/managedBy"]; ok {
+				relabelConfig := monitoringv1.RelabelConfig{
+					TargetLabel: "managedBy",
+					Replacement: &managedBy,
+				}
+				serviceMonitor.Spec.Endpoints[0].RelabelConfigs = append(
+					serviceMonitor.Spec.Endpoints[0].RelabelConfigs, relabelConfig)
+			} else {
+				log.NamespacedInfo(cephCluster.Namespace, logger, "rook.io/managedBy not specified in ceph-exporter labels")
+			}
+		} else {
+			log.NamespacedDebug(cephCluster.Namespace, logger, "ceph-exporter labels not specified")
+		}
+	}
+}
+
+// deleteOrphanedExporterDeployments lists all ceph-exporter deployments in the given namespace
+// and deletes any whose target node (stored in the node_name label) no longer exists in the cluster.
+// This cleans up stale Pending exporter pods that were left behind when a node was removed while
+// the operator was not running.
+func (r *ReconcileNode) deleteOrphanedExporterDeployments(namespace string) error {
+	deploymentList := &appsv1.DeploymentList{}
+	err := r.client.List(r.opManagerContext, deploymentList,
+		client.MatchingLabels{k8sutil.AppAttr: cephExporterAppName},
+		client.InNamespace(namespace),
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to list exporter deployments in namespace %q", namespace)
+	}
+
+	for i := range deploymentList.Items {
+		d := deploymentList.Items[i]
+		nodeName, ok := d.Labels[NodeNameLabel]
+		if !ok {
+			continue
+		}
+		node := &corev1.Node{}
+		err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: nodeName}, node)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				log.NamespacedInfo(namespace, logger, "deleting orphaned ceph-exporter deployment %q: target node %q no longer exists", d.Name, nodeName)
+				if delErr := r.deleteDeployment(d); delErr != nil {
+					return errors.Wrapf(delErr, "failed to delete orphaned exporter deployment %q in namespace %q", d.Name, namespace)
+				}
+			} else {
+				return errors.Wrapf(err, "failed to check existence of node %q for exporter deployment %q", nodeName, d.Name)
+			}
+		}
+	}
+	return nil
+}
+
+func applyPrometheusAnnotations(cephCluster cephv1.CephCluster, objectMeta *metav1.ObjectMeta) {
+	if len(cephv1.GetCephExporterAnnotations(cephCluster.Spec.Annotations)) == 0 {
+		t := cephv1.Annotations{
+			"prometheus.io/scrape": "true",
+			"prometheus.io/port":   strconv.Itoa(int(getExporterMetricsPort(cephCluster))),
+		}
+
+		t.ApplyToObjectMeta(objectMeta)
+	}
+}
+
+func generateExporterEnvVar() corev1.EnvVar {
+	val := fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -n %s -k %s", exporterKeyringUsername, keyring.VolumeMount().ExporterKeyringFilePath())
+	env := corev1.EnvVar{Name: "CEPH_ARGS", Value: val}
+
+	return env
+}
+
+func exporterIsHost(cephCluster cephv1.CephCluster) bool {
+	hostNetwork := cephCluster.Spec.Network.IsHost()
+	if cephCluster.Spec.Monitoring.Exporter != nil && cephCluster.Spec.Monitoring.Exporter.HostNetwork != nil {
+		hostNetwork = *cephCluster.Spec.Monitoring.Exporter.HostNetwork
+	}
+	return hostNetwork
+}

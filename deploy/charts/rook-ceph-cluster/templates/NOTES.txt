@@ -1,0 +1,8 @@
+The Ceph Cluster has been installed. Check its status by running:
+  kubectl --namespace {{ .Release.Namespace }} get cephcluster
+
+Visit https://rook.io/docs/rook/latest/CRDs/Cluster/ceph-cluster-crd/ for more information about the Ceph CRD.
+
+Important Notes:
+- You can only deploy a single cluster per namespace
+- If you wish to delete this cluster and start fresh, you will also have to wipe the OSD disks using `sfdisk`

@@ -1,0 +1,83 @@
+###################################################################################################################
+# Create the common resources that are necessary to start an external Ceph cluster in a different namespace
+# These resources can be created after an operator that is already running but assumes common.yaml has been injected
+# The samples all assume that your existing operator running "rook-ceph" namespace will also watch and have permissions
+# to interact with an external cluster configured in "rook-ceph-external" cluster.
+#
+# kubectl create -f crds.yaml -f common.yaml -f operator.yaml -f common-external.yaml
+#
+# If there is no cluster managed by the current Rook Operator
+# you can simply replace all occurrence of rook-ceph-external with rook-ceph
+#
+# And remove the following code:
+#
+#   apiVersion: v1
+#   kind: Namespace
+#   metadata:
+#     name: rook-ceph-external
+#
+# Then kubectl create -f cluster-external.yaml
+###################################################################################################################
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-ceph-external # namespace:cluster
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-cluster-mgmt
+  namespace: rook-ceph-external # namespace:cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-cluster-mgmt
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: rook-ceph # namespace:operator
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: rook-ceph-external # namespace:cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cmd-reporter
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-cmd-reporter
+    namespace: rook-ceph-external # namespace:cluster
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: rook-ceph-external # namespace:cluster
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-default
+  namespace: rook-ceph-external # namespace:cluster
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: rook-ceph-external # namespace:cluster
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete

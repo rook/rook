@@ -1,0 +1,49 @@
+{{- if .Values.monitoring -}}
+{{- if .Values.monitoring.createPrometheusRules -}}
+---
+kind: PrometheusRule
+apiVersion: monitoring.coreos.com/v1
+metadata:
+  labels:
+    prometheus: rook-prometheus
+    role: alert-rules
+    {{- with  .Values.monitoring.prometheusRule.labels }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
+  {{- with .Values.monitoring.prometheusRule.annotations }}
+  annotations:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
+  name: prometheus-ceph-rules
+  namespace: {{ .Values.monitoring.rulesNamespaceOverride | default .Release.Namespace }}
+spec:
+  {{- $rulesFile := "prometheus/localrules.yaml" }}
+  {{- if .Values.cephClusterSpec.external }}
+    {{- if .Values.cephClusterSpec.external.enable }}
+      {{- $rulesFile = "prometheus/externalrules.yaml" }}
+    {{- end }}
+  {{- end }}
+  {{- $defaultRules := .Files.Get $rulesFile | fromYaml }}
+  groups:
+  {{- range $group := $defaultRules.groups }}
+    {{- $rules := list }}
+    {{- range $rule := $group.rules }}
+      {{- $ruleName := ternary $rule.alert $rule.record (hasKey $rule "alert") }}
+      {{- $ruleOverrides := get $.Values.monitoring.prometheusRuleOverrides $ruleName }}
+      {{- if $ruleOverrides }}
+        {{- if not $ruleOverrides.disabled }}
+          {{- $ruleMerged := mergeOverwrite $rule $ruleOverrides }}
+          {{- $rules = append $rules $ruleMerged }}
+        {{- end }}
+      {{- else }}
+        {{- $rules = append $rules $rule }}
+      {{- end }}
+    {{- end }}
+    {{- if gt (len $rules) 0 }}
+    - name: {{ $group.name }}
+      rules:
+        {{- $rules | toYaml | nindent 8 }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

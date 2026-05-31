@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: rook-ceph # namespace:cluster
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-prometheus: "true"
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-rules
+  labels:
+    rbac.ceph.rook.io/aggregate-to-prometheus: "true"
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["get"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: rook-ceph # namespace:cluster
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: rook-prometheus
+  namespace: rook-ceph # namespace:cluster
+  labels:
+    prometheus: rook-prometheus
+spec:
+  serviceAccountName: prometheus
+  serviceMonitorSelector:
+    matchLabels:
+      team: rook
+  ruleSelector:
+    matchLabels:
+      role: alert-rules
+      prometheus: rook-prometheus
+  resources:
+    requests:
+      memory: 400Mi

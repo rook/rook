@@ -1,0 +1,30 @@
+#################################################################################################################
+# If Rook is not managing any existing cluster in the 'rook-ceph' namespace do:
+#   kubectl create -f ../../examples/crds.yaml -f ../../examples/common.yaml -f ../../examples/operator.yaml
+#   kubectl create -f common-external.yaml -f cluster-external.yaml
+#
+# If there is already a cluster managed by Rook in 'rook-ceph' then do:
+#   kubectl create -f common-external.yaml
+#   kubectl create -f common-external.yaml
+#################################################################################################################
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph-external
+  namespace: rook-ceph # namespace:cluster
+spec:
+  external:
+    enable: true
+  crashCollector:
+    disable: true
+  healthCheck:
+    daemonHealth:
+      mon:
+        disabled: false
+        interval: 45s
+  # optionally, the ceph-mgr IP address can be passed to gather metric from the prometheus exporter
+  # monitoring:
+  #   enabled: true
+  #   externalMgrEndpoints:
+  #   - ip: ip
+  #     externalMgrPrometheusPort: 9283

@@ -1,0 +1,140 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: rook-ceph-operator
+  namespace: {{ .Release.Namespace }} # namespace:operator
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.scaleDownOperator | ternary 0 1 }}
+  {{- if not (typeIs "<nil>" .Values.revisionHistoryLimit) }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: rook-ceph-operator
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: rook-ceph-operator
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+        {{- with .Values.operatorPodLabels }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
+      {{- with .Values.annotations }}
+      annotations:
+        {{- . | toYaml | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
+      tolerations:
+        - effect: NoExecute
+          key: node.kubernetes.io/unreachable
+          operator: Exists
+          tolerationSeconds: {{ .Values.unreachableNodeTolerationSeconds }}
+        {{- with .Values.tolerations }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
+      containers:
+        - name: rook-ceph-operator
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["ceph", "operator"]
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+            {{- . | toYaml | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - mountPath: /var/lib/rook
+              name: rook-config
+            - mountPath: /etc/ceph
+              name: default-config-dir
+          env:
+            - name: ROOK_CURRENT_NAMESPACE_ONLY
+              value: {{ .Values.currentNamespaceOnly | quote }}
+            - name: ROOK_RECONCILE_CONCURRENT_CLUSTERS
+              value: {{ .Values.reconcileConcurrentClusters | quote }}
+            {{- with .Values.discover }}
+            {{- with .toleration }}
+            - name: DISCOVER_TOLERATION
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .tolerationKey }}
+            - name: DISCOVER_TOLERATION_KEY
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .tolerations }}
+            - name: DISCOVER_TOLERATIONS
+              value: {{ . | toYaml | quote }}
+            {{- end }}
+            {{- with .priorityClassName }}
+            - name: DISCOVER_PRIORITY_CLASS_NAME
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .nodeAffinity }}
+            - name: DISCOVER_AGENT_NODE_AFFINITY
+              value: {{ . | toYaml | quote }}
+            {{- end }}
+            {{- with .podLabels }}
+            - name: DISCOVER_AGENT_POD_LABELS
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .resources }}
+            - name: DISCOVER_DAEMON_RESOURCES
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Capabilities.APIVersions.Has "security.openshift.io/v1" }}
+            - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+              value: "true"
+            {{- else }}
+            - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+              value: {{ .Values.hostpathRequiresPrivileged | quote }}
+            {{- end }}
+            {{- with .Values.customHostnameLabel }}
+            - name: ROOK_CUSTOM_HOSTNAME_LABEL
+              value: {{ . | quote }}
+            {{- end }}
+            - name: ROOK_DISABLE_DEVICE_HOTPLUG
+              value: {{ .Values.disableDeviceHotplug | quote }}
+            - name: ROOK_DISCOVER_DEVICES_INTERVAL
+              value: {{ .Values.discoveryDaemonInterval | quote }}
+            - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
+              value: {{ .Values.unreachableNodeTolerationSeconds | quote }}
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          {{- with .Values.resources }}
+          resources:
+            {{- . | toYaml | nindent 12 }}
+          {{- end }}
+      {{- if .Values.useOperatorHostNetwork }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- . | toYaml | nindent 8 }}
+      {{- end }}
+      {{- if .Values.rbacEnable }}
+      serviceAccountName: rook-ceph-system
+      {{- end }}
+      volumes:
+        - name: rook-config
+          emptyDir: {}
+        - name: default-config-dir
+          emptyDir: {}

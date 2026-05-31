@@ -1,0 +1,10 @@
+mike
+mkdocs
+mkdocs-awesome-pages-plugin
+mkdocs-exclude
+mkdocs-macros-plugin
+mkdocs-material
+mkdocs-material-extensions
+mkdocs-minify-plugin
+mkdocs-redirects
+pygit2

@@ -1,0 +1,110 @@
+#################################################################################################################
+# Create a filesystem with settings for erasure-coding instead of replication. A minimum of three nodes with OSDs
+# are required in this example since the default failureDomain is host.
+#  kubectl create -f filesystem-ec.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
+metadata:
+  name: myfs-ec
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The metadata pool spec
+  metadataPool:
+    replicated:
+      # You need at least three OSDs on different nodes for this config to work
+      size: 3
+  # The list of data pool specs
+  dataPools:
+    # For erasure coded pools, we have to create a replicated pool as the default
+    # data pool and an erasure-coded pool as a secondary pool.
+    - replicated:
+        size: 3
+    # You need at least three `bluestore` OSDs on different nodes for this config to work
+    - name: erasurecoded
+      erasureCoded:
+        dataChunks: 2
+        codingChunks: 1
+      # Inline compression mode for the data pool
+      parameters:
+        compression_mode: none
+  # Whether to preserve filesystem after CephFilesystem CRD deletion
+  preserveFilesystemOnDelete: true
+  # The metadata service (mds) configuration
+  metadataServer:
+    # The number of active MDS instances
+    activeCount: 1
+    # Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
+    # If false, standbys will be available, but will not have a warm cache.
+    activeStandby: true
+    # The affinity rules to apply to the mds deployment
+    placement:
+      #  nodeAffinity:
+      #    requiredDuringSchedulingIgnoredDuringExecution:
+      #      nodeSelectorTerms:
+      #      - matchExpressions:
+      #        - key: role
+      #          operator: In
+      #          values:
+      #          - mds-node
+      #  topologySpreadConstraints:
+      #  tolerations:
+      #  - key: mds-node
+      #    operator: Exists
+      #  podAffinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - rook-ceph-mds
+            # topologyKey: kubernetes.io/hostname will place MDS across different hosts
+            topologyKey: kubernetes.io/hostname
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - rook-ceph-mds
+              # topologyKey: */zone can be used to spread MDS across different AZ
+              topologyKey: topology.kubernetes.io/zone
+    # A key/value list of annotations
+    annotations:
+    #  key: value
+    # A key/value list of labels
+    labels:
+    #  key: value
+    resources:
+    # The requests and limits set here, allow the filesystem MDS Pod(s) to use half of one CPU core and 1 gigabyte of memory
+    #  limits:
+    #    memory: "1024Mi"
+    #  requests:
+    #    cpu: "500m"
+    #    memory: "1024Mi"
+    # priorityClassName: my-priority-class
+---
+# create default csi subvolume group
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystemSubVolumeGroup
+metadata:
+  name: myfs-csi # lets keep the svg crd name same as `filesystem name + csi` for the default csi svg
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The name of the subvolume group. If not set, the default is the name of the subvolumeGroup CR.
+  name: csi
+  # filesystemName is the metadata name of the CephFilesystem CR where the subvolume group will be created
+  filesystemName: myfs
+  # reference https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups
+  # only one out of (export, distributed, random) can be set at a time
+  # by default pinning is set with value: distributed=1
+  # for disabling default values set (distributed=0)
+  pinning:
+    distributed: 1 # distributed=<0, 1> (disabled=0)
+    # export:      # export=<0-256> (disabled=-1)
+    # random:      # random=[0.0, 1.0](disabled=0.0)

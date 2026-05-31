@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+
+# Copyright 2021 The Rook Authors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -e
+
+if [ -z "$1" ]; then
+  echo "no debug level passed choose between 0 and 20"
+  exit 1
+fi
+
+CEPH_DEBUG_LEVEL=$1
+CEPH_DEBUG_FLAG=(
+  lockdep
+  context
+  crush
+  mds
+  mds_balancer
+  mds_locker
+  mds_log
+  mds_log_expire
+  mds_migrator
+  buffer
+  timer
+  filer
+  striper
+  objecter
+  rados
+  rbd
+  rbd_mirror
+  rbd_replay
+  journaler
+  objectcacher
+  client
+  osd
+  optracker
+  objclass
+  ms
+  mon
+  monc
+  paxos
+  tp
+  auth
+  crypto
+  finisher
+  reserver
+  heartbeatmap
+  perfcounter
+  rgw
+  rgw_sync
+  civetweb
+  javaclient
+  asok
+  throttle
+  refs
+  compressor
+  bluestore
+  bluefs
+  bdev
+  kstore
+  rocksdb
+  leveldb
+  memdb
+  fuse
+  mgr
+  mgrc
+  dpdk
+  eventtrace
+)
+
+#############
+# FUNCTIONS #
+#############
+check() {
+  ok_to_run=1
+  if [[ "$CEPH_DEBUG_LEVEL" =~ ^[0-9]+$ ]]; then
+    if [ "$CEPH_DEBUG_LEVEL" -ge 0 ] && [ "$CEPH_DEBUG_LEVEL" -le 20 ]; then
+      ok_to_run=0
+    fi
+    elif [[ "$CEPH_DEBUG_LEVEL" == "default" ]]; then
+    ok_to_run=0
+  fi
+}
+
+exec_ceph_command() {
+  local debug_level=$1
+  local action=set
+  if [[ "$debug_level" == "default" ]]; then
+    action="rm"
+  fi
+
+  # exec command
+  for flag in "${CEPH_DEBUG_FLAG[@]}"; do
+    ARGS=("$action" global debug_"$flag")
+    if [[ "$debug_level" != "default" ]]; then
+      ARGS+=("$debug_level")
+    fi
+    # put stdout in /dev/null since increase debug log will overflow the terminal
+    echo "ceph config ${ARGS[*]}"
+    ceph config "${ARGS[@]}" &> /dev/null & pids+=($!)
+
+  done
+  echo "waiting for all the new logging configuration to be applied, this can take a few seconds"
+  wait "${pids[@]}"
+}
+
+########
+# MAIN #
+########
+check
+if [ "$ok_to_run" -eq 0 ]; then
+  exec_ceph_command "$CEPH_DEBUG_LEVEL"
+else
+  echo "Wrong debug level $CEPH_DEBUG_LEVEL"
+  echo "MUST be integer between 0 and 20 or 'default' to reset all values"
+  exit 1
+fi

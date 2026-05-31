@@ -1,0 +1,61 @@
+{{- $root := . -}}
+{{- $filesystemvsc := .Values.cephFileSystemVolumeSnapshotClass -}}
+{{- $blockpoolvsc := .Values.cephBlockPoolsVolumeSnapshotClass -}}
+{{- if $filesystemvsc.enabled }}
+---
+kind: VolumeSnapshotClass
+apiVersion: snapshot.storage.k8s.io/v1
+metadata:
+  name: {{ $filesystemvsc.name }}
+  {{- with $filesystemvsc.labels }}
+  labels:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "{{ if $filesystemvsc.isDefault }}true{{ else }}false{{ end }}"
+    {{- with $filesystemvsc.annotations }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
+{{- if $root.Values.csiDriverNamePrefix }}
+driver: {{ $root.Values.csiDriverNamePrefix }}.cephfs.csi.ceph.com
+{{- else }}
+driver: {{ $root.Values.operatorNamespace }}.cephfs.csi.ceph.com
+{{- end }}
+parameters:
+  clusterID: {{ .Release.Namespace }}
+  csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/snapshotter-secret-namespace: {{ .Release.Namespace }}
+  {{- with $filesystemvsc.parameters }}
+  {{- . | toYaml | nindent 2 }}
+  {{- end }}
+deletionPolicy: {{ $filesystemvsc.deletionPolicy | default "Delete" }}
+{{- end }}
+{{- if $blockpoolvsc.enabled }}
+---
+kind: VolumeSnapshotClass
+apiVersion: snapshot.storage.k8s.io/v1
+metadata:
+  name: {{ $blockpoolvsc.name }}
+  {{- with $blockpoolvsc.labels }}
+  labels:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "{{ if $blockpoolvsc.isDefault }}true{{ else }}false{{ end }}"
+    {{- with $blockpoolvsc.annotations }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
+{{- if $root.Values.csiDriverNamePrefix }}
+driver: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
+{{- else }}
+driver: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
+{{- end }}
+parameters:
+  clusterID: {{ .Release.Namespace }}
+  csi.storage.k8s.io/snapshotter-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/snapshotter-secret-namespace: {{ .Release.Namespace }}
+  {{- with $blockpoolvsc.parameters }}
+  {{- . | toYaml | nindent 2 }}
+  {{- end }}
+deletionPolicy: {{ $blockpoolvsc.deletionPolicy | default "Delete" }}
+{{- end }}

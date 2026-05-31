@@ -1,0 +1,68 @@
+#################################################################################################################
+# Create a Ceph pool with settings for replication in production environments. A minimum of 3 OSDs on
+# different hosts are required in this example.
+#  kubectl create -f pool.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The failure domain will spread the replicas of the data across different failure zones
+  failureDomain: host
+  # For a pool based on raw copies, specify the number of copies. A size of 1 indicates no redundancy.
+  replicated:
+    size: 3
+    # Disallow setting pool with replica 1, this could lead to data loss without recovery.
+    # Make sure you're *ABSOLUTELY CERTAIN* that is what you want
+    requireSafeReplicaSize: true
+    # hybridStorage:
+    #   primaryDeviceClass: ssd
+    #   secondaryDeviceClass: hdd
+    # The number for replicas per failure domain, the value must be a divisor of the replica count. If specified, the most common value is 2 for stretch clusters, where the replica count would be 4.
+    # replicasPerFailureDomain: 2
+    # The name of the failure domain to place further down replicas
+    # subFailureDomain: host
+  # Ceph CRUSH root location of the rule
+  # For reference: https://docs.ceph.com/docs/master/rados/operations/crush-map/#types-and-buckets
+  #crushRoot: my-root
+  # The Ceph CRUSH device class associated with the CRUSH replicated rule
+  # For reference: https://docs.ceph.com/docs/master/rados/operations/crush-map/#device-classes
+  # If device classes are specified, ensure this property is added to every pool in the cluster,
+  # otherwise Ceph will warn about pools with overlapping roots.
+  #deviceClass: my-class
+  # allow rook to update pool spec and crush rule, use with caution, disabled by default
+  #enableCrushUpdates: true
+  # Enables collecting RBD per-image IO statistics by enabling dynamic OSD performance counters. Defaults to false.
+  # For reference: https://docs.ceph.com/docs/master/mgr/prometheus/#rbd-io-statistics
+  # enableRBDStats: true
+  # Set any property on a given pool
+  # see https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values
+  parameters:
+    # Inline compression mode for the data pool
+    # Further reference: https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
+    compression_mode: none
+    # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
+    # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
+    #target_size_ratio: ".5"
+  mirroring:
+    enabled: false
+    # mirroring mode: pool level or per image
+    # for more details see: https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#enable-mirroring
+    mode: image
+    # specify the schedule(s) on which snapshots should be taken
+    # snapshotSchedules:
+    #   - interval: 24h # daily snapshots
+    #     startTime: 14:00:00-05:00
+  # reports pool mirroring status if enabled
+  statusCheck:
+    mirror:
+      disabled: false
+      interval: 60s
+  # quota in bytes and/or objects, default value is 0 (unlimited)
+  # see https://docs.ceph.com/en/latest/rados/operations/pools/#set-pool-quotas
+  # quotas:
+  #   maxSize: "10Gi" # valid suffixes include k, M, G, T, P, E, Ki, Mi, Gi, Ti, Pi, Ei
+  #   maxObjects: 1000000000 # 1 billion objects

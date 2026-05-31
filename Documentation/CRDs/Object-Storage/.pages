@@ -1,0 +1,7 @@
+nav:
+    - ceph-object-store-crd.md
+    - ceph-object-store-user-crd.md
+    - ceph-object-realm-crd.md
+    - ceph-object-zonegroup-crd.md
+    - ceph-object-zone-crd.md
+    - ...

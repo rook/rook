@@ -1,0 +1,60 @@
+{
+  "extends": [
+    "@commitlint/config-conventional"
+  ],
+  "rules": {
+    "type-enum": [
+      2,
+      "always",
+      [
+        "block",
+        "bot",
+        "build",
+        "cephfsmirror",
+        "ci",
+        "core",
+        "cosi",
+        "csi",
+        "doc",
+        "docs",
+        "exporter",
+        "external",
+        "file",
+        "helm",
+        "k8sutil",
+        "manifest",
+        "mds",
+        "mgr",
+        "mon",
+        "monitoring",
+        "multus",
+        "network",
+        "nvmeof",
+        "nfs",
+        "object",
+        "operator",
+        "osd",
+        "pool",
+        "rbdmirror",
+        "rgw",
+        "security",
+        "subvolumegroup",
+        "namespace",
+        "test",
+        "tests"
+      ]
+    ],
+    "body-leading-blank": [
+      2,
+      "always"
+    ],
+    "footer-leading-blank": [
+      2,
+      "always"
+    ],
+    "body-max-line-length": [
+      0,
+      "always"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+---
+version: "2"
+run:
+  build-tags:
+    # Required for go-ceph rgw/admin account APIs which are gated behind
+    # the ceph_preview build tag. Can be removed when go-ceph promotes
+    # the account API out of preview.
+    - ceph_preview
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - gosec
+    - ineffassign
+    - staticcheck
+    - unused
+  exclusions:
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - staticcheck
+        text: "QF1008:" # could remove embedded field "Connection" from selector (staticcheck)
+      - linters:
+          - staticcheck
+        text: "QF1007:" # could merge conditional assignment into variable declaration (staticcheck)
+      - linters:
+          - staticcheck
+        text: "QF1001:" # could apply De Morgan's law (staticcheck)
+      - linters:
+          - staticcheck
+        text: "QF1006:" # could lift into loop condition (staticcheck)
+      - linters:
+          - staticcheck
+        text: "Requeue is deprecated"
+      - linters:
+          - staticcheck
+        text: "Use aws-sdk-go-v2" # aws-sdk-go v1 deprecated warning
+formatters:
+  enable:
+    - gofmt
+    - gofumpt

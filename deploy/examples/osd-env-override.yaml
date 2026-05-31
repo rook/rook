@@ -1,0 +1,19 @@
+# ###############################################################################################################
+# The `rook-ceph-osd-env-override` ConfigMap is a development feature
+# that allows to inject arbitrary environment variables to OSD-related
+# containers created by the operator.
+# ###############################################################################################################
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rook-ceph-osd-env-override
+  namespace: rook-ceph # namespace:cluster
+data:
+  # Bypass the ASan's assertion that it is the very first loaded DSO.
+  # This is necessary for crimson-osd as it's currently built with
+  # the ASan sanitizer turned on which means the `libasan.so` must
+  # the be the very first loaded dynamic library. Unfortunately, this
+  # isn't fulfilled as the containers use `ld.preload`, so ASan was
+  # aborting the entire OSD.
+  ASAN_OPTIONS: verify_asan_link_order=0

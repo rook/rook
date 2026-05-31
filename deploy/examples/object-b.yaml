@@ -1,0 +1,76 @@
+#################################################################################################################
+# Create an object store with settings for shared pools in a production environment. A minimum of 3 hosts with
+# OSDs are required in this example. This example shows two object stores being created with the same
+# shared metadata and data pools. The pool sharing will utilize RADOS namespaces to keep the object store
+# data independent, while avoiding the growth of PGs in the cluster.
+#  kubectl create -f object-shared-pools.yaml
+#  kubectl create -f object-a.yaml -f object-b.yaml
+#################################################################################################################
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: store-b
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # Shared pools must be defined separately from the object store.
+  # For this example, the pools are defined in object-shared-pools.yaml.
+  # Multiple object stores can be created to share these pools.
+  sharedPools:
+    metadataPoolName: rgw-meta-pool
+    dataPoolName: rgw-data-pool
+    preserveRadosNamespaceDataOnDelete: true
+  # The gateway service configuration
+  gateway:
+    # A reference to the secret in the rook namespace where the ssl certificate is stored
+    # sslCertificateRef:
+    # A reference to the secret in the rook namespace where the ca bundle is stored
+    # caBundleRef:
+    # The port that RGW pods will listen on (http)
+    port: 80
+    # The port that RGW pods will listen on (https). An ssl certificate is required.
+    # securePort: 443
+    # The number of pods in the rgw deployment
+    instances: 1
+    # The affinity rules to apply to the rgw deployment.
+    placement:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - rook-ceph-rgw
+              # topologyKey: */zone can be used to spread RGW across different AZ
+              topologyKey: kubernetes.io/hostname
+    # A key/value list of annotations
+    #  nodeAffinity:
+    #    requiredDuringSchedulingIgnoredDuringExecution:
+    #      nodeSelectorTerms:
+    #      - matchExpressions:
+    #        - key: role
+    #          operator: In
+    #          values:
+    #          - rgw-node
+    #  topologySpreadConstraints:
+    #  tolerations:
+    #  - key: rgw-node
+    #    operator: Exists
+    #  podAffinity:
+    #  podAntiAffinity:
+    # A key/value list of annotations
+    annotations:
+    #  key: value
+    # A key/value list of labels
+    labels:
+    #  key: value
+    resources:
+    # The requests and limits set here, allow the object store gateway Pod(s) to use half of one CPU core and 1 gigabyte of memory
+    #  limits:
+    #    memory: "1024Mi"
+    #  requests:
+    #    cpu: "500m"
+    #    memory: "1024Mi"
+    priorityClassName: system-cluster-critical

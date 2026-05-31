@@ -1,0 +1,22 @@
+name: Assign issue to contributor
+on:
+  issue_comment:
+    types: [created, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  assign:
+    permissions:
+      # write permissions are needed to assign the issue.
+      issues: write
+    name: Run self assign job
+    runs-on: ubuntu-latest
+    steps:
+      - name: take the issue
+        uses: bdougie/take-action@1439165ac45a7461c2d89a59952cd7d941964b87 # main
+        with:
+          message: Thanks for taking this issue! Let us know if you have any questions!
+          trigger: /assign
+          token: ${{ secrets.GITHUB_TOKEN }}

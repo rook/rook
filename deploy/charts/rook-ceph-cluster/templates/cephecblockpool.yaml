@@ -1,0 +1,69 @@
+{{- $root := . -}}
+{{- range $ecblockpool := .Values.cephECBlockPools }}
+---
+kind: CephBlockPool
+apiVersion: ceph.rook.io/v1
+metadata:
+  name: {{ $ecblockpool.name }}
+  namespace: {{ $root.Release.Namespace }} # namespace:cluster
+spec:
+  {{- $ecblockpool.spec.dataPool | toYaml | nindent 2 }}
+---
+kind: CephBlockPool
+apiVersion: ceph.rook.io/v1
+metadata:
+  name: {{ $ecblockpool.name }}-metadata
+  namespace: {{ $root.Release.Namespace }} # namespace:cluster
+spec:
+  {{- $ecblockpool.spec.metadataPool | toYaml | nindent 2 }}
+{{- if $ecblockpool.storageClass.enabled }}
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: {{ $ecblockpool.storageClass.name }}
+  {{- with $ecblockpool.storageClass.labels }}
+  labels:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "{{ if $ecblockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
+    {{- with $ecblockpool.storageClass.annotations }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
+
+{{- if $root.Values.csiDriverNamePrefix }}
+provisioner: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
+{{- else }}
+provisioner: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
+{{- end }}
+parameters:
+  clusterID: {{ $ecblockpool.parameters.clusterID }}
+  pool: {{ $ecblockpool.name }}-metadata
+  dataPool: {{ $ecblockpool.name }}
+  imageFormat: "{{ $ecblockpool.parameters.imageFormat }}"
+  imageFeatures: {{ $ecblockpool.parameters.imageFeatures }}
+
+  # The secrets contain Ceph admin credentials. These are generated automatically by the operator
+  # in the same namespace as the cluster.
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: {{ $root.Release.Namespace }} # namespace:cluster
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: {{ $root.Release.Namespace }} # namespace:cluster
+  csi.storage.k8s.io/controller-publish-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-publish-secret-namespace: {{ $root.Release.Namespace }} # namespace:cluster
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: {{ $root.Release.Namespace }} # namespace:cluster
+  # Specify the filesystem type of the volume. If not specified, csi-provisioner
+  # will set default as `ext4`.
+  csi.storage.k8s.io/fstype: ext4
+
+# uncomment the following to use rbd-nbd as mounter on supported nodes
+# **IMPORTANT**: CephCSI v3.4.0 onwards a volume healer functionality is added to reattach
+# the PVC to application pod if nodeplugin pod restart.
+# Its still in Alpha support. Therefore, this option is not recommended for production use.
+#mounter: rbd-nbd
+allowVolumeExpansion: {{ $ecblockpool.storageClass.allowVolumeExpansion }}
+reclaimPolicy: {{ $ecblockpool.storageClass.reclaimPolicy }}
+{{- end }}
+{{- end }}

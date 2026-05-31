@@ -1,0 +1,13 @@
+---
+apiVersion: groupsnapshot.storage.k8s.io/v1beta1
+kind: VolumeGroupSnapshot
+metadata:
+  name: cephfs-groupsnapshot
+spec:
+  source:
+    selector:
+      matchLabels:
+        # The PVCs require this label for them to be
+        # included in the VolumeGroupSnapshot
+        group: snapshot-test
+  volumeGroupSnapshotClassName: csi-cephfsplugin-groupsnapclass

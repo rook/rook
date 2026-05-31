@@ -1,0 +1,14 @@
+#################################################################################################################
+# Create a Ceph pool with settings a test environment. Only a single OSD is required.
+#  kubectl create -f pool-test.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph # namespace:cluster
+spec:
+  failureDomain: osd
+  replicated:
+    size: 1

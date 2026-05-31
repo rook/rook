@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rook-ceph-nfs-my-nfs-load-balancer
+  namespace: rook-ceph # namespace:cluster
+spec:
+  ports:
+    - name: nfs
+      port: 2049
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app: rook-ceph-nfs
+
+    # Use the name of the CephNFS here
+    ceph_nfs: my-nfs
+
+    # It is safest to send clients to a single NFS server instance. Instance "a" always exists.
+    instance: a

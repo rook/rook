@@ -1,0 +1,83 @@
+---
+# Operator settings that can be updated without an operator restart
+# Operator settings that require an operator restart are found in the operator env vars
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: rook-ceph-operator-config
+  namespace: {{ .Release.Namespace }} # namespace:operator
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+data:
+  ROOK_LOG_LEVEL: {{ .Values.logLevel | quote }}
+  ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS: {{ .Values.cephCommandsTimeoutSeconds | quote }}
+  ROOK_OBC_WATCH_OPERATOR_NAMESPACE: {{ .Values.enableOBCWatchOperatorNamespace | quote }}
+  {{- with .Values.operatorMetricsBindAddress }}
+  ROOK_OPERATOR_METRICS_BIND_ADDRESS: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.obcProvisionerNamePrefix }}
+  ROOK_OBC_PROVISIONER_NAME_PREFIX: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.obcAllowAdditionalConfigFields }}
+  ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: {{ . | quote }}
+  {{- end }}
+  ROOK_CEPH_ALLOW_LOOP_DEVICES: {{ .Values.allowLoopDevices | quote }}
+  ROOK_CEPH_MON_RUN_AS_ROOT: {{ .Values.monRunAsRoot | quote }}
+  ROOK_DELETE_UNUSED_CRUSH_RULES: {{ .Values.deleteUnusedCrushRules | quote }}
+  ROOK_ENABLE_DISCOVERY_DAEMON: {{ .Values.enableDiscoveryDaemon | quote }}
+  {{- with .Values.discoverDaemonUdev }}
+  DISCOVER_DAEMON_UDEV_BLACKLIST: {{ . | quote }}
+  {{- end }}
+  {{- if not (typeIs "<nil>" .Values.revisionHistoryLimit) }}
+  ROOK_REVISION_HISTORY_LIMIT: {{ .Values.revisionHistoryLimit | quote }}
+  {{- end }}
+  {{- with .Values.enforceHostNetwork }}
+  ROOK_ENFORCE_HOST_NETWORK: {{ . | quote }}
+  {{- end }}
+{{- with .Values.csi }}
+---
+# ImageSet ConfigMap defines the container images used by the CSI drivers.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rook-csi-operator-image-set-configmap
+  namespace: {{ $.Release.Namespace }} # namespace:operator
+  labels:
+    {{- include "library.rook-ceph.labels" $ | nindent 4 }}
+data:
+  {{- with .provisioner }}
+  {{- if and .repository .tag }}
+  provisioner: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .attacher }}
+  {{- if and .repository .tag }}
+  attacher: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .resizer }}
+  {{- if and .repository .tag }}
+  resizer: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .snapshotter }}
+  {{- if and .repository .tag }}
+  snapshotter: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .registrar }}
+  {{- if and .repository .tag }}
+  registrar: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .cephcsi }}
+  {{- if and .repository .tag }}
+  plugin: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+  {{- with .csiAddons }}
+  {{- if and .repository .tag }}
+  addons: "{{ .repository }}:{{ .tag }}"
+  {{- end }}
+  {{- end }}
+{{- end }}

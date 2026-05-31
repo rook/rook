@@ -1,0 +1,164 @@
+#################################################################################################################
+# Create a filesystem with settings with replication enabled for a production environment.
+# A minimum of 3 OSDs on different nodes are required in this example.
+# If one mds daemon per node is too restrictive, see the podAntiAffinity below.
+#  kubectl create -f filesystem.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
+metadata:
+  name: myfs
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The metadata pool spec. Must use replication.
+  metadataPool:
+    replicated:
+      size: 3
+      requireSafeReplicaSize: true
+    parameters:
+      # Inline compression mode for the data pool
+      # Further reference: https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
+      compression_mode:
+        none
+        # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
+      # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
+      #target_size_ratio: ".5"
+  # The list of data pool specs. Can use replication or erasure coding.
+  dataPools:
+    - name: replicated
+      failureDomain: host
+      replicated:
+        size: 3
+        # Disallow setting pool with replica 1, this could lead to data loss without recovery.
+        # Make sure you're *ABSOLUTELY CERTAIN* that is what you want
+        requireSafeReplicaSize: true
+      parameters:
+        # Inline compression mode for the data pool
+        # Further reference: https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
+        compression_mode:
+          none
+          # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
+        # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
+        #target_size_ratio: ".5"
+  # Whether to preserve filesystem after CephFilesystem CRD deletion
+  preserveFilesystemOnDelete: true
+  # The metadata service (mds) configuration
+  metadataServer:
+    # The number of active MDS instances
+    activeCount: 1
+    # Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
+    # If true, double the number of mds daemons will be created.
+    activeStandby: true
+    # The affinity rules to apply to the mds deployment
+    placement:
+      #  nodeAffinity:
+      #    requiredDuringSchedulingIgnoredDuringExecution:
+      #      nodeSelectorTerms:
+      #      - matchExpressions:
+      #        - key: role
+      #          operator: In
+      #          values:
+      #          - mds-node
+      #  topologySpreadConstraints:
+      #  tolerations:
+      #  - key: mds-node
+      #    operator: Exists
+      #  podAffinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - rook-ceph-mds
+            ## Add this if you want to allow mds daemons for different filesystems to run on one
+            ## node. The value in "values" must match .metadata.name.
+            #    - key: rook_file_system
+            #          operator: In
+            #          values:
+            #            - myfs
+            # topologyKey: kubernetes.io/hostname will place MDS across different hosts
+            topologyKey: kubernetes.io/hostname
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - rook-ceph-mds
+              # topologyKey: */zone can be used to spread MDS across different AZ
+              topologyKey: topology.kubernetes.io/zone
+    # A key/value list of annotations
+    # annotations:
+    #  key: value
+    # A key/value list of labels
+    # labels:
+    #  key: value
+    # resources:
+    # The requests and limits set here, allow the filesystem MDS Pod(s) to use half of one CPU core and 1 gigabyte of memory
+    #  limits:
+    #    memory: "1024Mi"
+    #  requests:
+    #    cpu: "500m"
+    #    memory: "1024Mi"
+    # Factor applied to resources.limits.memory to determine the MDS cache memory limit.
+    # Default is 0.5 (50% of memory limit). MDS uses approximately 125% of this value in RAM.
+    # For high-volume file ingest/delete scenarios, consider lower values like 0.25.
+    # Valid range: 0.0 - 1.0
+    # cacheMemoryLimitFactor: 0.5
+    # Factor applied to resources.requests.memory when limits.memory is not set.
+    # Default is 0.8 (80% of memory request).
+    # Valid range: 0.0 - 1.0
+    # cacheMemoryRequestFactor: 0.8
+    priorityClassName: system-cluster-critical
+    livenessProbe:
+      disabled: false
+    startupProbe:
+      disabled: false
+  # Filesystem mirroring settings
+  # mirroring:
+  #   enabled: true
+  #   # list of Kubernetes Secrets containing the peer token
+  #   # for more details see: https://docs.ceph.com/en/latest/dev/cephfs-mirroring/#bootstrap-peers
+  #   # Add the secret name if it already exists else specify the empty list here.
+  #   peers:
+  #     secretNames:
+  #     - secondary-cluster-peer
+  #   # specify the schedule(s) on which snapshots should be taken
+  #   # see the official syntax here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#add-and-remove-schedules
+  #   snapshotSchedules:
+  #     - path: /
+  #       interval: 24h # daily snapshots
+  #   # The startTime should be mentioned in the format YYYY-MM-DDTHH:MM:SS
+  #   # If startTime is not specified, then by default the start time is considered as midnight UTC.
+  #   # see usage here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#usage
+  #   # startTime: 2022-07-15T11:55:00
+  #   # manage retention policies
+  #   # see syntax duration here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#add-and-remove-retention-policies
+  #   snapshotRetention:
+  #     - path: /
+  #       duration: "h 24"
+---
+# create default csi subvolume group
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystemSubVolumeGroup
+metadata:
+  name: myfs-csi # lets keep the svg crd name same as `filesystem name + csi` for the default csi svg
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The name of the subvolume group. If not set, the default is the name of the subvolumeGroup CR.
+  name: csi
+  # filesystemName is the metadata name of the CephFilesystem CR where the subvolume group will be created
+  filesystemName: myfs
+  # reference https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups
+  # only one out of (export, distributed, random) can be set at a time
+  # by default pinning is set with value: distributed=1
+  # for disabling default values set (distributed=0)
+  pinning:
+    distributed: 1 # distributed=<0, 1> (disabled=0)
+    # export:      # export=<0-256> (disabled=-1)
+    # random:      # random=[0.0, 1.0](disabled=0.0)

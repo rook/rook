@@ -1,0 +1,49 @@
+{{- $root := . -}}
+{{- range $blockpool := .Values.cephBlockPools }}
+---
+kind: CephBlockPool
+apiVersion: ceph.rook.io/v1
+metadata:
+  name: {{ $blockpool.name }}
+  namespace: {{ $root.Release.Namespace }} # namespace:cluster
+spec:
+  {{- $blockpool.spec | toYaml | nindent 2 }}
+{{- if $blockpool.storageClass.enabled }}
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: {{ $blockpool.storageClass.name | quote }}
+  {{- with $blockpool.storageClass.labels }}
+  labels:
+    {{- . | nindent 4 }}
+  {{- end }}
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "{{ if $blockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
+    {{- with $blockpool.storageClass.annotations }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
+{{- if $root.Values.csiDriverNamePrefix }}
+provisioner: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
+{{- else }}
+provisioner: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
+{{- end }}
+parameters:
+  pool: {{ $blockpool.name | quote }}
+  clusterID: {{ $root.Release.Namespace | quote }}
+  {{- with $blockpool.storageClass.parameters }}
+  {{- tpl (. | toYaml) $ | nindent 2 }}
+  {{- end }}
+reclaimPolicy: {{ $blockpool.storageClass.reclaimPolicy | default "Delete" }}
+allowVolumeExpansion: {{ $blockpool.storageClass.allowVolumeExpansion | default "true" }}
+volumeBindingMode: {{ $blockpool.storageClass.volumeBindingMode | default "Immediate" }}
+{{- with $blockpool.storageClass.mountOptions }}
+mountOptions:
+  {{- . | toYaml | nindent 2 }}
+{{- end }}
+{{- with $blockpool.storageClass.allowedTopologies }}
+allowedTopologies:
+  {{- . | toYaml | nindent 2 }}
+{{- end }}
+{{- end }}
+{{- end }}

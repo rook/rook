@@ -1,0 +1,37 @@
+#################################################################################################################
+# Create filesystem-mirror daemon
+#  kubectl create -f filesystem-mirror.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystemMirror
+metadata:
+  name: my-fs-mirror
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The affinity rules to apply to the mds deployment
+  placement:
+  #  nodeAffinity:
+  #    requiredDuringSchedulingIgnoredDuringExecution:
+  #      nodeSelectorTerms:
+  #      - matchExpressions:
+  #        - key: role
+  #          operator: In
+  #          values:
+  #          - cephfs-mirror
+  #  tolerations:
+  #  - key: cephfs-mirror-node
+  #    operator: Exists
+  #  podAffinity:
+  #  podAntiAffinity:
+  # A key/value list of annotations
+  annotations:
+  #  key: value
+  resources:
+    # The requests and limits, for example to allow the cephfs-mirror pod(s) to use half of one CPU core and 1 gigabyte of memory
+    limits:
+      memory: "1Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+  # priorityClassName: my-priority-class

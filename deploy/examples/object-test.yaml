@@ -1,0 +1,22 @@
+#################################################################################################################
+# Create an object store with settings for a test environment. Only a single OSD is required in this example.
+#  kubectl create -f object-test.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  metadataPool:
+    replicated:
+      size: 1
+  dataPool:
+    replicated:
+      size: 1
+  preservePoolsOnDelete: false
+  gateway:
+    port: 80
+    # securePort: 443
+    instances: 1

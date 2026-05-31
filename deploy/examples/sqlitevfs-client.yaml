@@ -1,0 +1,178 @@
+# CephClient - sqlitevfs
+#
+# Applying this will prompt Rook to create a similarly named ceph client
+---
+apiVersion: ceph.rook.io/v1
+kind: CephClient
+metadata:
+  name: sqlitevfs
+  namespace: rook-ceph # namespace:cluster
+spec:
+  caps:
+    mon: 'allow r'
+    osd: 'profile rbd pool=example'
+
+# ServiceAccount - sqlitevfs-setup
+#
+# This service account will be used to set up workloads that use the sqlitevfs CephClient
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sqlitevfs-setup
+
+# ClusterRole - sqlitevfs-setup
+#
+# This ClusterRole will allow the sqlitevfs-setup workload to access credentials during setup
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: sqlitevfs-setup
+rules:
+  - apiGroups: ["ceph.rook.io"]
+    resources:
+      - 'cephclients'
+    verbs:
+      - 'get'
+
+  - apiGroups: [""]
+    resources:
+      - 'secrets'
+    verbs:
+      - 'get'
+    resourceNames:
+      - rook-ceph-client-sqlitevfs
+
+  - apiGroups: [""]
+    resources:
+      - 'configmaps'
+    verbs:
+      - 'get'
+    resourceNames:
+      - rook-ceph-mon-endpoints
+
+# ClusterRoleBinding - sqlitevfs-setup
+#
+# Binds the sqlitevfs-setup ClusteRole
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: sqlitevfs-setup
+roleRef:
+  kind: ClusterRole
+  name: sqlitevfs-setup
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: sqlitevfs-setup
+    apiGroup: ""
+
+# Deployment - sqlitevfs
+#
+# A deployment that uses libcephsqlite (https://docs.ceph.com/en/latest/rados/api/libcephsqlite/)
+# via a pre-created ceph client (via the CephClient CRD).
+#
+# This deployment performs lengthy setup via it's init container to prepare credentials for use
+# credentials are stored on an ephemeral in-memory emptyDir volume between the initContainer and the workload
+#
+# Once the deployment is running, you may `kubectl exec` into the container and use sqlite like so:
+#
+# ```
+# export CEPH_CONF=/libsqliteceph/ceph.conf;
+# export CEPH_KEYRING=/libsqliteceph/ceph.keyring;
+# export CEPH_ARGS="--id sqlitevfs";
+# sqlite3
+# ```
+#
+# Once in the SQLite console:
+# sqlite> .load libcephsqlite.so
+# sqlite> .open file:///yourpoolname:/sqlitevfs.db?vfs=ceph
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sqlitevfs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sqlitevfs
+      component: app
+  template:
+    metadata:
+      labels:
+        app: sqlitevfs
+        component: app
+    spec:
+      serviceAccountName: sqlitevfs-setup
+
+      initContainers:
+        ## Setup Ceph SQLite VFS
+        - name: setup
+          image: docker.io/bitnami/kubectl:1.21.11
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Wait until sqlitevfs cephclient is ready
+              SECRET_NAME=`kubectl get cephclient ${CEPH_CLIENT_NAME} -o jsonpath='{.status.info.secretName}' -n ${CEPH_NS}`
+              while [ -z "${SECRET_NAME}" ]; do
+                sleep 3;
+                echo -e "[info] checking for cephclient [${CEPH_CLIENT_NAME}]...";
+                SECRET_NAME=`kubectl get cephclient ${CEPH_CLIENT_NAME} -o jsonpath='{.status.info.secretName}' -n ${CEPH_NS}`;
+              done;
+
+              echo -e "[info] found ceph client secret [${SECRET_NAME}] in namespace [${CEPH_NS}], extracting content...";
+              SECRET_CONTENT=`kubectl get secret ${SECRET_NAME} -o jsonpath="{.data.${CEPH_CLIENT_NAME}}" -n ${CEPH_NS} | base64 -d`;
+
+              echo -e "[info] writing ceph keyring...";
+              echo -e "[client.${CEPH_CLIENT_NAME}]" > /libsqliteceph/ceph.keyring;
+              echo -e "  key = ${SECRET_CONTENT}" >> /libsqliteceph/ceph.keyring;
+              echo -e "  caps mon = 'allow r'" >> /libsqliteceph/ceph.keyring;
+              echo -e "  caps osd = 'profile rbd pool=raid1, profile rbd pool=rook-raid-1-3n-host'" >> /libsqliteceph/ceph.keyring;
+
+              echo -e "retrieving mon endpoints...";
+              MON_ENDPOINTS=`kubectl get configmap rook-ceph-mon-endpoints -o jsonpath='{.data.data}' -n ${CEPH_NS} | sed 's/.=//g'`;
+
+              echo -e "[info] writing out ceph.conf...";
+              echo -e "[global]" > /libsqliteceph/ceph.conf;
+              echo -e "mon_host=${MON_ENDPOINTS}" >> /libsqliteceph/ceph.conf;
+
+              echo -e "[info] writing ceph args...";
+              echo -e "--id ${CEPH_CLIENT_NAME}" > /libsqliteceph/ceph.args
+
+              echo -e "[info] successfully set up temporary libsqliteceph credentials!";
+          env:
+            - name: CEPH_CLIENT_NAME
+              value: sqlitevfs
+            - name: CEPH_NS
+              value: rook-ceph
+          volumeMounts:
+            - name: libsqliteceph-config
+              mountPath: /libsqliteceph
+
+      containers:
+        - name: sqlitevfs
+          image: alpine:3.16.2
+          command:
+            - /bin/ash
+            - -c
+            - |
+              apk add ceph vim sqlite;
+
+              export CEPH_CONF=/libsqliteceph/ceph.conf;
+              export CEPH_KEYRING=/libsqliteceph/ceph.keyring;
+              export CEPH_ARGS="--id sqlitevfs";
+
+              # Sleep forever (kubectl exec in to test!)
+              sleep infinity;
+          volumeMounts:
+            - name: libsqliteceph-config
+              mountPath: /libsqliteceph
+
+      volumes:
+        - name: libsqliteceph-config
+          emptyDir:
+            medium: Memory

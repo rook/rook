@@ -1,0 +1,90 @@
+#################################################################################################################
+# Create a storage class with a data pool that uses erasure coding for a production environment.
+# A metadata pool is created with replication enabled. A minimum of 3 nodes with OSDs are required in this
+# example since the default failureDomain is host.
+#  kubectl create -f storageclass-ec.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicated-metadata-pool
+  namespace: rook-ceph # namespace:cluster
+spec:
+  replicated:
+    size: 2
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: ec-data-pool
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # Make sure you have enough nodes and OSDs running bluestore to support the replica size or erasure code chunks.
+  # For the below settings, you need at least 3 OSDs on different nodes (because the `failureDomain` is `host` by default).
+  erasureCoded:
+    dataChunks: 2
+    codingChunks: 1
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-ceph-block
+provisioner: rook-ceph.rbd.csi.ceph.com # csi-provisioner-name
+parameters:
+  # clusterID is the namespace where the rook cluster is running
+  # If you change this namespace, also change the namespace below where the secret namespaces are defined
+  clusterID: rook-ceph # namespace:cluster
+
+  # If you want to use erasure coded pool with RBD, you need to create
+  # two pools. one erasure coded and one replicated.
+  # You need to specify the replicated pool here in the `pool` parameter, it is
+  # used for the metadata of the images.
+  # The erasure coded pool must be set as the `dataPool` parameter below.
+  dataPool: ec-data-pool
+  pool: replicated-metadata-pool
+
+  # (optional) mapOptions is a comma-separated list of map options.
+  # For krbd options refer
+  # https://docs.ceph.com/docs/master/man/8/rbd/#kernel-rbd-krbd-options
+  # For nbd options refer
+  # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
+  # mapOptions: lock_on_read,queue_depth=1024
+
+  # (optional) unmapOptions is a comma-separated list of unmap options.
+  # For krbd options refer
+  # https://docs.ceph.com/docs/master/man/8/rbd/#kernel-rbd-krbd-options
+  # For nbd options refer
+  # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
+  # unmapOptions: force
+
+  # RBD image format. Defaults to "2".
+  imageFormat: "2"
+
+  # RBD image features, equivalent to OR'd bitfield value: 63
+  # Available for imageFormat: "2". Older releases of CSI RBD
+  # support only the `layering` feature. The Linux kernel (KRBD) supports the
+  # full feature complement as of 5.4
+  # imageFeatures: layering,fast-diff,object-map,deep-flatten,exclusive-lock
+  imageFeatures: layering
+
+  # The secrets contain Ceph admin credentials. These are generated automatically by the operator
+  # in the same namespace as the cluster.
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph # namespace:cluster
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph # namespace:cluster
+  csi.storage.k8s.io/controller-publish-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-publish-secret-namespace: rook-ceph # namespace:cluster
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph # namespace:cluster
+  # Specify the filesystem type of the volume. If not specified, csi-provisioner
+  # will set default as `ext4`.
+  csi.storage.k8s.io/fstype: ext4
+# uncomment the following to use rbd-nbd as mounter on supported nodes
+# **IMPORTANT**: CephCSI v3.4.0 onwards a volume healer functionality is added to reattach
+# the PVC to application pod if nodeplugin pod restart.
+# Its still in Alpha support. Therefore, this option is not recommended for production use.
+#mounter: rbd-nbd
+allowVolumeExpansion: true
+reclaimPolicy: Delete

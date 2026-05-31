@@ -1,0 +1,12 @@
+apiVersion: replication.storage.openshift.io/v1alpha1
+kind: VolumeReplicationClass
+metadata:
+  name: rbd-volumereplicationclass
+spec:
+  provisioner: rook-ceph.rbd.csi.ceph.com
+  parameters:
+    mirroringMode: snapshot
+    schedulingInterval: "12m"
+    schedulingStartTime: "16:18:43"
+    replication.storage.openshift.io/replication-secret-name: rook-csi-rbd-provisioner
+    replication.storage.openshift.io/replication-secret-namespace: rook-ceph # namespace:operator

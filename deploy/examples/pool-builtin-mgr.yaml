@@ -1,0 +1,21 @@
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  # If the built-in Ceph pool used by the Ceph mgr needs to be configured with alternate
+  # settings, create this pool with any of the pool properties. Create this pool immediately
+  # with the cluster CR, or else some properties may not be applied when Ceph creates the
+  # pool by default.
+  name: builtin-mgr
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The required pool name with underscores cannot be specified as a K8s resource name, thus we override
+  # the pool name created in Ceph with this name property.
+  name: .mgr
+  failureDomain: host
+  replicated:
+    size: 3
+    requireSafeReplicaSize: true
+  parameters:
+    compression_mode: none
+  mirroring:
+    enabled: false

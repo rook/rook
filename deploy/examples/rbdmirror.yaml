@@ -1,0 +1,44 @@
+#################################################################################################################
+# Create rbd-mirror daemon(s)
+#  kubectl create -f rbdmirror.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephRBDMirror
+metadata:
+  name: my-rbd-mirror
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # the number of rbd-mirror daemons to deploy
+  count: 1
+  # list of Kubernetes Secrets containing the peer token
+  # for more details see: https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#bootstrap-peers
+  #peers:
+  #  secretNames:
+  #  - secondary-cluster-peer
+  # The affinity rules to apply to the rbd-mirror deployment
+  placement:
+  #  nodeAffinity:
+  #    requiredDuringSchedulingIgnoredDuringExecution:
+  #      nodeSelectorTerms:
+  #      - matchExpressions:
+  #        - key: role
+  #          operator: In
+  #          values:
+  #          - rbd-mirror-node
+  #  tolerations:
+  #  - key: rbd-mirror-node
+  #    operator: Exists
+  #  podAffinity:
+  #  podAntiAffinity:
+  # A key/value list of annotations
+  annotations:
+  #  key: value
+  resources:
+    # The requests and limits, for example to allow the rbd-mirror pod(s) to use half of one CPU core and 1 gigabyte of memory
+    limits:
+      memory: "1Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+  # priorityClassName: my-priority-class

@@ -1,0 +1,277 @@
+{
+    "epoch": 19,
+    "default_fscid": 1,
+    "compat": {
+        "compat": {},
+        "ro_compat": {},
+        "incompat": {
+            "feature_1": "base v0.20",
+            "feature_2": "client writeable ranges",
+            "feature_3": "default file layouts on dirs",
+            "feature_4": "dir inode in separate object",
+            "feature_5": "mds uses versioned encoding",
+            "feature_6": "dirfrag is stored in omap",
+            "feature_8": "no anchor table",
+            "feature_9": "file layout v2",
+            "feature_10": "snaprealm v2"
+        }
+    },
+    "feature_flags": {
+        "enable_multiple": true,
+        "ever_enabled_multiple": true
+    },
+    "standbys": [],
+    "filesystems": [
+        {
+            "mdsmap": {
+                "epoch": 19,
+                "flags": 50,
+                "flags_state": {
+                    "joinable": true,
+                    "allow_snaps": true,
+                    "allow_multimds_snaps": true,
+                    "allow_standby_replay": true
+                },
+                "ever_allowed_features": 32,
+                "explicitly_allowed_features": 32,
+                "created": "2023-10-04T11:52:39.450914+0000",
+                "modified": "2023-10-04T13:36:07.867946+0000",
+                "tableserver": 0,
+                "root": 0,
+                "session_timeout": 60,
+                "session_autoclose": 300,
+                "required_client_features": {},
+                "max_file_size": 1099511627776,
+                "last_failure": 0,
+                "last_failure_osd_epoch": 85,
+                "compat": {
+                    "compat": {},
+                    "ro_compat": {},
+                    "incompat": {
+                        "feature_1": "base v0.20",
+                        "feature_2": "client writeable ranges",
+                        "feature_3": "default file layouts on dirs",
+                        "feature_4": "dir inode in separate object",
+                        "feature_5": "mds uses versioned encoding",
+                        "feature_6": "dirfrag is stored in omap",
+                        "feature_7": "mds uses inline data",
+                        "feature_8": "no anchor table",
+                        "feature_9": "file layout v2",
+                        "feature_10": "snaprealm v2"
+                    }
+                },
+                "max_mds": 1,
+                "in": [
+                    0
+                ],
+                "up": {
+                    "mds_0": 12534
+                },
+                "failed": [],
+                "damaged": [],
+                "stopped": [],
+                "info": {
+                    "gid_12534": {
+                        "gid": 12534,
+                        "name": "myfs-b",
+                        "rank": 0,
+                        "incarnation": 17,
+                        "state": "up:rejoin",
+                        "state_seq": 3,
+                        "addr": "10.244.2.20:6801/2640787256",
+                        "addrs": {
+                            "addrvec": [
+                                {
+                                    "type": "v2",
+                                    "addr": "10.244.2.20:6800",
+                                    "nonce": 2640787256
+                                },
+                                {
+                                    "type": "v1",
+                                    "addr": "10.244.2.20:6801",
+                                    "nonce": 2640787256
+                                }
+                            ]
+                        },
+                        "join_fscid": 1,
+                        "export_targets": [],
+                        "features": 4540138320759226367,
+                        "flags": 0,
+                        "compat": {
+                            "compat": {},
+                            "ro_compat": {},
+                            "incompat": {
+                                "feature_1": "base v0.20",
+                                "feature_2": "client writeable ranges",
+                                "feature_3": "default file layouts on dirs",
+                                "feature_4": "dir inode in separate object",
+                                "feature_5": "mds uses versioned encoding",
+                                "feature_6": "dirfrag is stored in omap",
+                                "feature_7": "mds uses inline data",
+                                "feature_8": "no anchor table",
+                                "feature_9": "file layout v2",
+                                "feature_10": "snaprealm v2"
+                            }
+                        }
+                    }
+                },
+                "data_pools": [
+                    3
+                ],
+                "metadata_pool": 2,
+                "enabled": true,
+                "fs_name": "myfs",
+                "balancer": "",
+                "standby_count_wanted": 1
+            },
+            "id": 1
+        },
+        {
+            "mdsmap": {
+                "epoch": 13,
+                "flags": 50,
+                "flags_state": {
+                    "joinable": true,
+                    "allow_snaps": true,
+                    "allow_multimds_snaps": true,
+                    "allow_standby_replay": true
+                },
+                "ever_allowed_features": 32,
+                "explicitly_allowed_features": 32,
+                "created": "2023-10-04T11:53:12.291488+0000",
+                "modified": "2023-10-04T12:10:56.711212+0000",
+                "tableserver": 0,
+                "root": 0,
+                "session_timeout": 60,
+                "session_autoclose": 300,
+                "required_client_features": {},
+                "max_file_size": 1099511627776,
+                "last_failure": 0,
+                "last_failure_osd_epoch": 0,
+                "compat": {
+                    "compat": {},
+                    "ro_compat": {},
+                    "incompat": {
+                        "feature_1": "base v0.20",
+                        "feature_2": "client writeable ranges",
+                        "feature_3": "default file layouts on dirs",
+                        "feature_4": "dir inode in separate object",
+                        "feature_5": "mds uses versioned encoding",
+                        "feature_6": "dirfrag is stored in omap",
+                        "feature_7": "mds uses inline data",
+                        "feature_8": "no anchor table",
+                        "feature_9": "file layout v2",
+                        "feature_10": "snaprealm v2"
+                    }
+                },
+                "max_mds": 1,
+                "in": [
+                    0
+                ],
+                "up": {
+                    "mds_0": 24755
+                },
+                "failed": [],
+                "damaged": [],
+                "stopped": [],
+                "info": {
+                    "gid_24755": {
+                        "gid": 24755,
+                        "name": "myfs-a-a",
+                        "rank": 0,
+                        "incarnation": 10,
+                        "state": "up:active",
+                        "state_seq": 5,
+                        "addr": "10.244.1.14:6801/1909720117",
+                        "addrs": {
+                            "addrvec": [
+                                {
+                                    "type": "v2",
+                                    "addr": "10.244.1.14:6800",
+                                    "nonce": 1909720117
+                                },
+                                {
+                                    "type": "v1",
+                                    "addr": "10.244.1.14:6801",
+                                    "nonce": 1909720117
+                                }
+                            ]
+                        },
+                        "join_fscid": 2,
+                        "export_targets": [],
+                        "features": 4540138320759226367,
+                        "flags": 0,
+                        "compat": {
+                            "compat": {},
+                            "ro_compat": {},
+                            "incompat": {
+                                "feature_1": "base v0.20",
+                                "feature_2": "client writeable ranges",
+                                "feature_3": "default file layouts on dirs",
+                                "feature_4": "dir inode in separate object",
+                                "feature_5": "mds uses versioned encoding",
+                                "feature_6": "dirfrag is stored in omap",
+                                "feature_7": "mds uses inline data",
+                                "feature_8": "no anchor table",
+                                "feature_9": "file layout v2",
+                                "feature_10": "snaprealm v2"
+                            }
+                        }
+                    },
+                    "gid_26507": {
+                        "gid": 26507,
+                        "name": "myfs-a-b",
+                        "rank": 0,
+                        "incarnation": 0,
+                        "state": "up:standby-replay",
+                        "state_seq": 1,
+                        "addr": "10.244.3.2:6801/1455891216",
+                        "addrs": {
+                            "addrvec": [
+                                {
+                                    "type": "v2",
+                                    "addr": "10.244.3.2:6800",
+                                    "nonce": 1455891216
+                                },
+                                {
+                                    "type": "v1",
+                                    "addr": "10.244.3.2:6801",
+                                    "nonce": 1455891216
+                                }
+                            ]
+                        },
+                        "join_fscid": 2,
+                        "export_targets": [],
+                        "features": 4540138320759226367,
+                        "flags": 0,
+                        "compat": {
+                            "compat": {},
+                            "ro_compat": {},
+                            "incompat": {
+                                "feature_1": "base v0.20",
+                                "feature_2": "client writeable ranges",
+                                "feature_3": "default file layouts on dirs",
+                                "feature_4": "dir inode in separate object",
+                                "feature_5": "mds uses versioned encoding",
+                                "feature_6": "dirfrag is stored in omap",
+                                "feature_7": "mds uses inline data",
+                                "feature_8": "no anchor table",
+                                "feature_9": "file layout v2",
+                                "feature_10": "snaprealm v2"
+                            }
+                        }
+                    }
+                },
+                "data_pools": [
+                    5
+                ],
+                "metadata_pool": 4,
+                "enabled": true,
+                "fs_name": "myfs-a",
+                "balancer": "",
+                "standby_count_wanted": 1
+            },
+            "id": 2
+        }
+    ]
+}

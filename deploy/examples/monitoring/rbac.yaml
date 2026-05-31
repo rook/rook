@@ -1,0 +1,113 @@
+---
+# OLM: BEGIN ROLE
+# Aspects for creation of monitoring resources
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-monitor
+  namespace: rook-ceph # namespace:cluster
+rules:
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - servicemonitors
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+# OLM: END ROLE
+---
+# OLM: BEGIN ROLE BINDING
+# Allow creation of monitoring resources
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-monitor
+  namespace: rook-ceph # namespace:cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-monitor
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: rook-ceph # namespace:cluster
+# OLM: END ROLE BINDING
+---
+# OLM: BEGIN ROLE
+# Aspects for metrics collection
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-metrics
+  namespace: rook-ceph # namespace:cluster
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - endpoints
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+# OLM: END ROLE
+---
+# OLM: BEGIN ROLE BINDING
+# Allow collection of metrics
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-metrics
+  namespace: rook-ceph # namespace:cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-metrics
+subjects:
+  - kind: ServiceAccount
+    # change to the serviceaccount and namespace to use for monitoring
+    name: prometheus-k8s
+    namespace: rook-ceph # namespace:cluster
+# OLM: END ROLE BINDING
+---
+# OLM: BEGIN ROLE
+# Allow management of monitoring resources in the mgr
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-monitor-mgr
+  namespace: rook-ceph # namespace:cluster
+rules:
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - servicemonitors
+    verbs:
+      - get
+      - list
+      - create
+      - update
+# OLM: END ROLE
+---
+# OLM: BEGIN ROLE BINDING
+# Allow creation of monitoring resources in the mgr
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-monitor-mgr
+  namespace: rook-ceph # namespace:cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-monitor-mgr
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-mgr
+    namespace: rook-ceph # namespace:cluster
+# OLM: END ROLE BINDING
+---

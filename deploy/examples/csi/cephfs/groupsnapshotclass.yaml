@@ -1,0 +1,15 @@
+---
+apiVersion: groupsnapshot.storage.k8s.io/v1beta1
+kind: VolumeGroupSnapshotClass
+metadata:
+  name: csi-cephfsplugin-groupsnapclass
+driver: rook-ceph.cephfs.csi.ceph.com # csi-provisioner-name
+parameters:
+  # Specify a string that identifies your cluster. Ceph CSI supports any
+  # unique string. When Ceph CSI is deployed by Rook use the Rook namespace,
+  # for example "rook-ceph".
+  clusterID: rook-ceph # namespace: cluster
+  fsName: myfs
+  csi.storage.k8s.io/group-snapshotter-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/group-snapshotter-secret-namespace: rook-ceph
+deletionPolicy: Delete

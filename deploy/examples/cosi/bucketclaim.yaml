@@ -1,0 +1,9 @@
+kind: BucketClaim
+apiVersion: objectstorage.k8s.io/v1alpha1
+metadata:
+  name: sample-bucket
+  namespace: default # any namespace
+spec:
+  bucketClassName: sample-bcc
+  protocols:
+    - s3

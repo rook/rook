@@ -1,0 +1,70 @@
+#################################################################################################################
+# Create an object store with multisite settings that is syncing with another multisite cluster for a
+# production environment. A minimum of 3 hosts with OSDs are required in this example.
+#  kubectl create -f object-multisite-pull-realm.yaml
+#################################################################################################################
+apiVersion: v1
+kind: Secret
+metadata:
+  name: realm-a-keys
+  namespace: rook-ceph-secondary
+data:
+  # TODO: Replace with keys for your cluster
+  # these keys should be the base64 encoded versions of the actual keys or copied from the realm's on the other cluster's secret
+  access-key: VzFjNFltMVdWRTFJWWxZelZWQT0=
+  secret-key: WVY1MFIxeExkbG84U3pKdlRseEZXVGR3T3k1U1dUSS9KaTFoUVE9PQ==
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectRealm
+metadata:
+  name: realm-a
+  namespace: rook-ceph-secondary
+spec:
+  # This endpoint in this section needs is an endpoint from the master zone in the master zone group of realm-a. See object-multisite.md for more details.
+  # This value must include http(s):// at the beginning
+  # ex:
+  #   pull:
+  #     endpoint: http://10.103.133.16:80
+  pull:
+    endpoint: <endpoint>
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZoneGroup
+metadata:
+  name: zonegroup-a
+  namespace: rook-ceph-secondary
+spec:
+  realm: realm-a
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZone
+metadata:
+  name: zone-b
+  namespace: rook-ceph-secondary
+spec:
+  zoneGroup: zonegroup-a
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+      requireSafeReplicaSize: true
+  dataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+      requireSafeReplicaSize: true
+    parameters:
+      bulk: "true"
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: zone-b-multisite-store
+  namespace: rook-ceph-secondary
+spec:
+  gateway:
+    port: 80
+    # securePort: 443
+    instances: 1
+  zone:
+    name: zone-b

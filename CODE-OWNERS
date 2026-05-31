@@ -1,0 +1,18 @@
+# Code ownership file that specifies approvers and reviewers for the Rook codebase.
+# Approvers have push access to merge PRs after approved by another approver or reviewer.
+# An approver is equivalent to a Rook maintainer for all intents and purposes as described in the Rook governance.
+
+approvers:
+- travisn
+- galexrt
+- jbw976
+- BlaineEXE
+- leseb
+- satoru-takeuchi
+- subhamkrai
+- sp98
+- parth-gr
+- jhoblitt
+reviewers:
+- Madhu-1
+- arttor

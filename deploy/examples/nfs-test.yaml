@@ -1,0 +1,26 @@
+# This example is for Ceph v16 and above only. If you are using Ceph v15, see Rook v1.8 examples
+# from the 'release-1.8' branch
+
+apiVersion: ceph.rook.io/v1
+kind: CephNFS
+metadata:
+  name: my-nfs
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # Settings for the NFS server
+  server:
+    active: 1
+    logLevel: NIV_DEBUG
+  security: {}
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: builtin-nfs
+  namespace: rook-ceph # namespace:cluster
+spec:
+  name: .nfs
+  failureDomain: osd
+  replicated:
+    size: 1
+    requireSafeReplicaSize: false

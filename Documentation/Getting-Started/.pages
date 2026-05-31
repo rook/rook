@@ -1,0 +1,11 @@
+nav:
+    - intro.md
+    - glossary.md
+    - Prerequisites
+    - quickstart.md
+    - storage-architecture.md
+    - example-configurations.md
+    - ceph-openshift.md
+    - ceph-teardown.md
+    - release-cycle.md
+    - ...

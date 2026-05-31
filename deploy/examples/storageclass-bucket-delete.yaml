@@ -1,0 +1,16 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-ceph-delete-bucket
+provisioner: rook-ceph.ceph.rook.io/bucket # driver:namespace:cluster
+# set the reclaim policy to delete the bucket and all objects
+# when its OBC is deleted.
+reclaimPolicy: Delete
+parameters:
+  objectStoreName: my-store
+  objectStoreNamespace: rook-ceph # namespace:cluster
+  # To accommodate brownfield cases reference the existing bucket name here instead
+  # of in the ObjectBucketClaim (OBC). In this case the provisioner will grant
+  # access to the bucket by creating a new user, attaching it to the bucket, and
+  # providing the credentials via a Secret in the namespace of the requesting OBC.
+  #bucketName:

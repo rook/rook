@@ -1,0 +1,17 @@
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: ceph-retain-bucket
+spec:
+  # To create a new bucket specify either `bucketName` or
+  # `generateBucketName` here. Both cannot be used. To access
+  # an existing bucket the bucket name needs to be defined in
+  # the StorageClass referenced here, and both `bucketName` and
+  # `generateBucketName` must be omitted in the OBC.
+  #bucketName:
+  generateBucketName: ceph-bkt
+  storageClassName: rook-ceph-retain-bucket
+  additionalConfig:
+    # To set for quota for OBC
+    #maxObjects: "1000"
+    #maxSize: "2G"

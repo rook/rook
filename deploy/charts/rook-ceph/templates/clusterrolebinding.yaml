@@ -1,0 +1,67 @@
+{{- if .Values.rbacEnable -}}
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-system
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-system
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: {{ .Release.Namespace }} # namespace:operator
+---
+# Grant the rook system daemons cluster-wide access to manage the Rook CRDs, PVCs, and storage classes
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-global
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-global
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: {{ .Release.Namespace }} # namespace:operator
+---
+kind: ClusterRoleBinding
+# Give Rook-Ceph Operator permissions to provision ObjectBuckets in response to ObjectBucketClaims.
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-object-bucket
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-object-bucket
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: {{ .Release.Namespace }} # namespace:operator
+---
+# RBAC for ceph cosi driver service account
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: objectstorage-provisioner-role-binding
+  labels:
+    app.kubernetes.io/part-of: container-object-storage-interface
+    app.kubernetes.io/component: driver-ceph
+    app.kubernetes.io/name: cosi-driver-ceph
+subjects:
+  - kind: ServiceAccount
+    name: objectstorage-provisioner
+    namespace: {{ .Release.Namespace }} # namespace:operator
+roleRef:
+  kind: ClusterRole
+  name: objectstorage-provisioner-role
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

@@ -1,0 +1,12 @@
+####################################################################################################
+# Create the common resources that are necessary to start the operator and the ceph cluster.
+# These resources *must* be created before the operator.yaml and cluster.yaml or their variants.
+# The samples all assume that a single operator will manage a single cluster crd in the same
+# "rook-ceph" namespace.
+####################################################################################################
+
+# Namespace where the operator and other rook resources are created
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-ceph # namespace:cluster

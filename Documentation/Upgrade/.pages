@@ -1,0 +1,5 @@
+nav:
+    - health-verification.md
+    - rook-upgrade.md
+    - ceph-upgrade.md
+    - ...

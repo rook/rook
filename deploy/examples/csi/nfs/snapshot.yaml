@@ -1,0 +1,9 @@
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: nfs-pvc-snapshot
+spec:
+  volumeSnapshotClassName: csi-nfsplugin-snapclass
+  source:
+    persistentVolumeClaimName: nfs-pvc

@@ -1,0 +1,41 @@
+apiVersion: ceph.rook.io/v1
+kind: CephObjectRealm
+metadata:
+  name: test-realm
+  namespace: rook-ceph
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZoneGroup
+metadata:
+  name: test-zonegroup
+  namespace: rook-ceph
+spec:
+  realm: test-realm
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZone
+metadata:
+  name: test-zone
+  namespace: rook-ceph
+spec:
+  zoneGroup: test-zonegroup
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 1
+      requireSafeReplicaSize: false
+  dataPool:
+    failureDomain: host
+    replicated:
+      size: 1
+      requireSafeReplicaSize: false
+  sharedPools:
+    poolPlacements:
+      - name: placement-a
+        metadataPoolName: rgw-meta-pool
+        dataPoolName: rgw-data-pool
+        default: true
+      - name: placement-b
+        metadataPoolName: rgw-meta-pool
+        dataPoolName: rgw-data-pool
+    preserveRadosNamespaceDataOnDelete: true

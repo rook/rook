@@ -1,0 +1,158 @@
+#################################################################################################################
+# Create an object store with settings specific for OpenShift. A minimum of 3 OSDs are required in this example
+# for the replication since the failureDomain is host.
+#  oc create -f object-openshift.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The pool spec used to create the metadata pools. Must use replication.
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+      # Disallow setting pool with replica 1, this could lead to data loss without recovery.
+      # Make sure you're *ABSOLUTELY CERTAIN* that is what you want
+      requireSafeReplicaSize: true
+    parameters:
+      # Inline compression mode for the data pool
+      # Further reference: https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
+      compression_mode: none
+      # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
+      # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
+      #target_size_ratio: ".5"
+  # The pool spec used to create the data pool. Can use replication or erasure coding.
+  dataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+      # Disallow setting pool with replica 1, this could lead to data loss without recovery.
+      # Make sure you're *ABSOLUTELY CERTAIN* that is what you want
+      requireSafeReplicaSize: true
+    parameters:
+      # RGW data pools are expected to be large, so mark them as "bulk" so that the PG autoscaler will treat them accordingly
+      # (see https://docs.ceph.com/en/reef/rados/operations/placement-groups/)
+      # In short, it will precreate a full number of PGs, so that the cluster works with optimal performance from day 1.
+      bulk: "true"
+      # Inline compression mode for the data pool
+      # Further reference: https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
+      compression_mode: none
+      # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
+      # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
+      #target_size_ratio: ".5"
+  # Whether to preserve metadata and data pools on object store deletion
+  preservePoolsOnDelete: true
+  # The gateway service configuration
+  gateway:
+    # A reference to the secret in the rook namespace where the ssl certificate is stored
+    # sslCertificateRef:
+    # The port that RGW pods will listen on (http)
+    port: 8080
+    # The port that RGW pods will listen on (https). An ssl certificate is required.
+    # securePort: 443
+    # The number of pods in the rgw deployment
+    instances: 1
+    # The affinity rules to apply to the rgw deployment
+    placement:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - rook-ceph-rgw
+              # topologyKey: */zone can be used to spread RGW across different AZ
+              topologyKey: kubernetes.io/hostname
+    #  topologySpreadConstraints:
+    #  tolerations:
+    #  - key: rgw-node
+    #    operator: Exists
+    #  podAffinity:
+    #  podAntiAffinity:
+    # A key/value list of annotations
+    annotations:
+    #  key: value
+    # A key/value list of labels
+    labels:
+    #  key: value
+    resources:
+    # The requests and limits set here, allow the object store gateway Pod(s) to use half of one CPU core and 1 gigabyte of memory
+    #  limits:
+    #    memory: "1024Mi"
+    #  requests:
+    #    cpu: "500m"
+    #    memory: "1024Mi"
+    # priorityClassName: my-priority-class
+    #zone:
+    #  name: zone-a
+    #  # Configuration for the Kubernetes Service created for the RGW cluster
+    #service:
+    #  # A key-value list of annotations to apply to the RGW service
+    #  annotations:
+    #    service.beta.openshift.io/serving-cert-secret-name: <name of TLS secret automatic generation>
+  # service endpoint healthcheck
+  healthCheck:
+    # Configure the pod probes for the rgw daemon
+    startupProbe:
+      disabled: false
+    readinessProbe:
+      disabled: false
+  # security oriented settings
+  # security:
+  # To enable the KMS configuration properly don't forget to uncomment the Secret at the end of the file
+  #   kms: # configures RGW with AWS-SSE:KMS settings
+  #     # name of the config map containing all the kms connection details
+  #     connectionDetails:
+  #        KMS_PROVIDER: "vault"
+  #        VAULT_ADDR: VAULT_ADDR_CHANGE_ME # e,g: http://vault.my-domain.com:8200
+  #        VAULT_BACKEND_PATH: "rook"
+  #        VAULT_SECRET_ENGINE: "kv"
+  #        VAULT_BACKEND: v2
+  #     # name of the secret containing the kms authentication token
+  #     tokenSecretName: rook-vault-token
+  #   s3: # configures RGW with AWS-SSE:S3 settings
+  #     # name of the config map containing all the kms connection details
+  #     connectionDetails:
+  #        KMS_PROVIDER: "vault"
+  #        VAULT_ADDR: VAULT_ADDR_CHANGE_ME # e,g: http://vault.my-domain.com:8200
+  #        VAULT_BACKEND_PATH: "rook"
+  #        VAULT_SECRET_ENGINE: "transit"
+  #     # name of the secret containing the kms authentication token
+  #     tokenSecretName: rook-vault-token
+# # UNCOMMENT THIS TO ENABLE A KMS CONNECTION
+# # Also, do not forget to replace both:
+# #  * ROOK_TOKEN_CHANGE_ME: with a base64 encoded value of the token to use
+# #  * VAULT_ADDR_CHANGE_ME: with the Vault address
+# ---
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: rook-vault-token
+#   namespace: rook-ceph # namespace:cluster
+# data:
+#   token: ROOK_TOKEN_CHANGE_ME
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rook-ceph-rgw-my-store # We recommend name to be the same as the service name below, but it is not required
+  namespace: rook-ceph # namespace:cluster
+spec:
+  port:
+    targetPort: http
+  # if TLS is enabled, remove the above http port and uncomment the https port and tls settings
+  #  port:
+  #    targetPort: https
+  #  tls:
+  #    insecureEdgeTerminationPolicy: Redirect
+  #    termination: reencrypt
+  to:
+    kind: Service
+    name: rook-ceph-rgw-my-store # The name of the RGW service is in the form 'rook-ceph-rgw-<objectstore-name>'

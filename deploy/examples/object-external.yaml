@@ -1,0 +1,18 @@
+#################################################################################################################
+# Create an object store with settings for an external Ceph cluster.
+#  kubectl create -f object-external.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: external-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    # The port on which **ALL** the gateway(s) are listening on.
+    # Passing a single IP from a load-balancer is also valid.
+    port: 80
+    externalRgwEndpoints:
+      - ip: 192.168.39.182
+        # hostname: example.com

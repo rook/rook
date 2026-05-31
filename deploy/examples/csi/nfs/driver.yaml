@@ -1,0 +1,12 @@
+# NFS CSI Driver
+apiVersion: csi.ceph.io/v1
+kind: Driver
+metadata:
+  name: rook-ceph.nfs.csi.ceph.com # csi-provisioner-name
+  namespace: rook-ceph # namespace:operator
+spec:
+  fsGroupPolicy: File
+  nodePlugin:
+    updateStrategy:
+      type: RollingUpdate
+  controllerPlugin: {}

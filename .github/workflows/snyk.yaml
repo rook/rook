@@ -1,0 +1,37 @@
+name: Security scanning
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
+
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
+        with:
+          snyk-version: "v1.1302.1"
+
+      - name: run Snyk to check for code vulnerabilities
+        run: snyk test --debug
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          GOFLAGS: "-buildvcs=false"

@@ -1,0 +1,203 @@
+#################################################################################################################
+# Create a Ceph pool with settings for replication in production environments. A minimum of 3 OSDs on
+# different hosts are required in this example.
+#  kubectl create -f nfs.yaml
+#
+# This example is for Ceph v16 and above only. If you are using Ceph v15, see Rook v1.8 examples
+# from the 'release-1.8' branch
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephNFS
+metadata:
+  name: my-nfs
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # Settings for the NFS server
+  server:
+    # The number of active NFS servers
+    # Rook supports creating more than one active NFS server, but cannot guarantee high availability
+    active: 1
+
+    # where to run the NFS server
+    placement:
+      # nodeAffinity:
+      #   requiredDuringSchedulingIgnoredDuringExecution:
+      #     nodeSelectorTerms:
+      #     - matchExpressions:
+      #       - key: role
+      #         operator: In
+      #         values:
+      #         - nfs-node
+      # topologySpreadConstraints:
+      # tolerations:
+      # - key: nfs-node
+      #   operator: Exists
+      # podAffinity:
+      # podAntiAffinity:
+
+    # A key/value list of annotations to apply to NFS server pods
+    annotations:
+      # key: value
+
+    # A key/value list of labels to apply to NFS server pods
+    labels:
+      # key: value
+
+    # Resource requests and limits to apply to NFS server pods
+    resources:
+      # limits:
+      #   memory: "8Gi"
+      # requests:
+      #   cpu: "3"
+      #   memory: "8Gi"
+
+    # Set priority class to set to influence the scheduler's pod preemption
+    # priorityClassName:
+
+    # The logging levels: NIV_NULL | NIV_FATAL | NIV_MAJ | NIV_CRIT | NIV_WARN | NIV_EVENT | NIV_INFO | NIV_DEBUG | NIV_MID_DEBUG |NIV_FULL_DEBUG |NB_LOG_LEVEL
+    logLevel: NIV_INFO
+
+    # Allow liveness-probe via pod's nfs port (TCP 2049)
+    # livenessProbe:
+    #   disabled: false
+
+  # Configure security options for the NFS cluster. See docs for more information:
+  # https://rook.github.io/docs/rook/latest/Storage-Configuration/NFS/nfs-security/
+  security:
+    # kerberos:
+    #   principalName: "nfs"
+    #   configFiles:
+    #     volumeSource:
+    #       configMap:
+    #         name: krb5-conf
+    #         defaultMode: 0644 # required?
+    #   keytabFile:
+    #     volumeSource:
+    #       secret:
+    #         secretName: keytab
+    #         defaultMode: 0600 # required
+    #
+    # sssd:
+    #   sidecar:
+    #     image: registry.access.redhat.com/rhel7/sssd:latest
+    #     sssdConfigFile:
+    #       volumeSource:
+    #         configMap:
+    #           name: my-nfs-sssd-config
+    #           defaultMode: 0600 # mode must be 0600
+    #     additionalFiles:
+    #       - subPath: ca-certs
+    #         volumeSource:
+    #           secret:
+    #             secretName: sssd-tls-certificates
+    #             defaultMode: 0600 # mode must be 0600 for TLS certs
+    #       - subPath: kerberos.crt
+    #         volumeSource:
+    #           hostPath:
+    #             path: /etc/pki/kerberos.crt
+    #             type: File
+    #     # debugLevel: 6
+    #     resources:
+    #       limits:
+    #         memory: "1Gi"
+    #       requests:
+    #         cpu: "2"
+    #         memory: "1Gi"
+# ---
+# # The built-in Ceph pool ".nfs" is used for storing configuration for all CephNFS clusters. If this
+# # shared pool needs to be configured with alternate settings, create this pool (once) with any of
+# # the pool properties. Create this pool before creating any CephNFSes, or else some properties may
+# # not be applied when the pool is created by default. This pool must be replicated.
+# apiVersion: ceph.rook.io/v1
+# kind: CephBlockPool
+# metadata:
+#   name: builtin-nfs
+#   namespace: rook-ceph # namespace:cluster
+# spec:
+#   # The required pool name ".nfs" cannot be specified as a K8s resource name, thus we override
+#   # the pool name created in Ceph with this name property
+#   name: .nfs
+#   failureDomain: host
+#   replicated:
+#     size: 3
+#     requireSafeReplicaSize: true
+
+# ---
+# # Example configmap for providing sssd.conf file to the SSSD sidecar
+# # Note that this example uses an obfuscated password that may still not be as secure as desired
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: my-nfs-sssd-config
+#   namespace: rook-ceph # namespace:cluster
+# data:
+#   sssd.conf: |
+#     [sssd]
+#     # Only the nss service is required for the SSSD sidecar.
+#     services = nss
+#     domains = default
+#     config_file_version = 2
+#
+#     [nss]
+#     filter_users = root
+#
+#     [domain/default]
+#     id_provider = ldap
+#     ldap_uri = ldap://server.address
+#     ldap_search_base = dc=example,dc=net
+#     ldap_default_bind_dn = cn=admin,dc=example,dc=net
+#     ldap_default_authtok_type = obfuscated_password
+#     ldap_default_authtok = some-obfuscated-password
+#     ldap_user_search_base = ou=users,dc=example,dc=net
+#     ldap_group_search_base = ou=groups,dc=example,dc=net
+#     ldap_access_filter = memberOf=cn=rook,ou=groups,dc=example,dc=net
+#     # recommended options for speeding up LDAP lookups:
+#     enumerate = false
+#     ignore_group_members = true
+#
+#     this can reference /etc/sssd/rook-additional/certs/ca.crt from the secret below if
+#     sssd.sidecar.additionalFiles uses the example below
+# ---
+# # Example secret containing a ca.crt added to SSSD additional files
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: sssd-tls-certificates
+#   namespace: rook-ceph
+# data:
+#   ca.crt: aSBhbSBhIGNlcnQK
+
+# # Example secret and configmap providing krb5.keytab and krb5 config files
+# ---
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: keytab
+#   namespace: rook-ceph
+# data:
+#   # e.g., Keytab containing principal nfs/rook-ceph-my-nfs@EXAMPLE.NET
+#   krb5.keytab: # your keytab here
+# ---
+# # suggest not putting [logging] section in here
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: krb5-conf
+#   namespace: rook-ceph
+# data:
+#   example-net.conf: |
+#     [libdefaults]
+#     default_realm = EXAMPLE.NET
+#
+#     [realms]
+#     EXAMPLE.NET = {
+#     kdc = kerberos-server.default.svc:88
+#     admin_server = kerberos-server.default.svc:749
+#     }
+#
+#     [domain_realm]
+#     .example.net = EXAMPLE.NET
+#     example.net = EXAMPLE.NET
+#     kerberos-server.default.svc = EXAMPLE.NET # e.g., kerberos server with a k8s service endpoint
+#     kerberos-server = EXAMPLE.NET

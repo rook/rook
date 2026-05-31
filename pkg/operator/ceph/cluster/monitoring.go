@@ -1,0 +1,104 @@
+/*
+Copyright 2020 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package cluster to manage a Ceph cluster.
+package cluster
+
+import (
+	"context"
+
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/util/log"
+)
+
+var monitorDaemonList = []string{"mon", "osd", "status"}
+
+func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInfo *cephclient.ClusterInfo) {
+	var isEnabled bool
+	for _, daemon := range monitorDaemonList {
+		// Is the monitoring enabled for that daemon?
+		isEnabled = isMonitoringEnabled(daemon, cluster.Spec)
+		if health, ok := cluster.monitoringRoutines.Load(daemon); ok {
+			// If the context Err() is nil this means it hasn't been cancelled yet
+			if health.(*opcontroller.ClusterHealth).InternalCtx.Err() == nil {
+				log.NamespacedDebug(cluster.Namespace, logger, "monitoring routine for %q is already running", daemon)
+				if !isEnabled {
+					health.(*opcontroller.ClusterHealth).InternalCancel()
+				}
+			}
+		} else {
+			if isEnabled {
+				// Instantiate the monitoring goroutine context from the parent context
+				// They can individually be cancelled and will be cancelled when the parent context is cancelled
+				internalCtx, internalCancel := context.WithCancel(c.OpManagerCtx)
+
+				cluster.monitoringRoutines.Store(daemon, &opcontroller.ClusterHealth{
+					InternalCtx:    internalCtx,
+					InternalCancel: internalCancel,
+				})
+
+				// We can't use mon.IsFloatingMon(cluster.mons, daemon) because the mon ID is not available.
+				if daemon == "mon" && cluster.Spec.Mon.FloatingMon.Name != "" {
+					log.NamespacedInfo(cluster.Namespace, logger, "skip mon health check since floating mon %q is configured", daemon)
+					continue
+				}
+
+				// Run the go routine
+				c.startMonitoringCheck(cluster, clusterInfo, daemon)
+			}
+		}
+	}
+}
+
+func isMonitoringEnabled(daemon string, clusterSpec *cephv1.ClusterSpec) bool {
+	switch daemon {
+	case "mon":
+		return !clusterSpec.HealthCheck.DaemonHealth.Monitor.Disabled
+
+	case "osd":
+		return !clusterSpec.HealthCheck.DaemonHealth.ObjectStorageDaemon.Disabled
+
+	case "status":
+		return !clusterSpec.HealthCheck.DaemonHealth.Status.Disabled
+	}
+
+	return false
+}
+
+func (c *ClusterController) startMonitoringCheck(cluster *cluster, clusterInfo *cephclient.ClusterInfo, daemon string) {
+	switch daemon {
+	case "mon":
+		healthChecker := mon.NewHealthChecker(cluster.mons)
+		log.NamespacedInfo(cluster.Namespace, logger, "enabling ceph %s monitoring goroutine", daemon)
+		go healthChecker.Check(&cluster.monitoringRoutines, daemon)
+
+	case "osd":
+		if !cluster.Spec.External.Enable {
+			osdChecker := osd.NewOSDHealthMonitor(c.context, clusterInfo, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove, cluster.Spec.HealthCheck)
+			log.NamespacedInfo(cluster.Namespace, logger, "enabling ceph %s monitoring goroutine", daemon)
+			go osdChecker.Start(&cluster.monitoringRoutines, daemon)
+		}
+
+	case "status":
+		cephChecker := newCephStatusChecker(c.context, clusterInfo, cluster.Spec)
+		log.NamespacedInfo(cluster.Namespace, logger, "enabling ceph %s monitoring goroutine", daemon)
+		go cephChecker.checkCephStatus(&cluster.monitoringRoutines, daemon)
+	}
+}

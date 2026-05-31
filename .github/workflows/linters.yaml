@@ -1,0 +1,56 @@
+name: Linters
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  yaml-linter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Lint YAML files
+        run: make lint.yaml
+
+  pylint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: 3.12
+
+      - name: Install pylint and requirements
+        run: |
+          pip install pylint
+          pip install pylint --upgrade
+          pip install requests
+          pip install pygit2
+
+      - name: Lint Python scripts
+        run: make lint.python
+
+      - name: Setup black for py
+        uses: psf/black@87928e6d6761a4a6d22250e1fee5601b3998086e # stable

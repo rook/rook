@@ -1,0 +1,58 @@
+#################################################################################################################
+# Create an object store with multisite settings for a production environment. A minimum of 3 hosts with OSDs
+# are required in this example.
+#  kubectl create -f object-multisite.yaml
+#################################################################################################################
+apiVersion: ceph.rook.io/v1
+kind: CephObjectRealm
+metadata:
+  name: realm-a
+  namespace: rook-ceph # namespace:cluster
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZoneGroup
+metadata:
+  name: zonegroup-a
+  namespace: rook-ceph # namespace:cluster
+spec:
+  realm: realm-a
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZone
+metadata:
+  name: zone-a
+  namespace: rook-ceph # namespace:cluster
+spec:
+  zoneGroup: zonegroup-a
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+      requireSafeReplicaSize: true
+  dataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+      requireSafeReplicaSize: true
+    parameters:
+      compression_mode: none
+      bulk: "true"
+  # recommended to set this value if ingress used for exposing rgw endpoints
+  # customEndpoints:
+  #   - "http://rgw-a.fqdn"
+  #   - "http://rgw-b.fqdn"
+  # if the pools need to be removed from backend enable following setting
+  # preservePoolsOnDelete: false
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: multisite-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    # securePort: 443
+    instances: 1
+  zone:
+    name: zone-a

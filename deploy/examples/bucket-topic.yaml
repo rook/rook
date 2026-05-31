@@ -1,0 +1,28 @@
+apiVersion: ceph.rook.io/v1
+kind: CephBucketTopic
+metadata:
+  name: my-topic
+  # the topic should be created in the app namespace
+spec:
+  objectStoreName: my-store
+  objectStoreNamespace: rook-ceph
+  opaqueData: my@email.com
+  persistent: false
+  endpoint:
+    http:
+      uri: http://my-notification-endpoint:8080
+      # uri: https://my-notification-endpoint:8443
+      disableVerifySSL: true
+      sendCloudEvents: false
+    # amqp:
+    #   uri: amqp://my-rabbitmq-service:5672/vhost1
+    #   uri: amqps://my-rabbitmq-service:5671/vhost1
+    #   disableVerifySSL: true
+    #   ackLevel: broker # none, broker(default), routable
+    #   exchange: my-exchange # mandatory field for amqp
+    # kafka:
+    #   uri: kafka://my-kafka-service:9092
+    #   disableVerifySSL: true
+    #   ackLevel: broker # none, broker (default)
+    #   useSSL: false
+    #   mechanism: PLAIN

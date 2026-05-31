@@ -1,0 +1,59 @@
+# This is a Pod and not a Deployment because there is intended to only be one running
+apiVersion: apps/v1
+kind: Pod
+metadata:
+  name: multus-validation-test-web-server
+  labels:
+    app: multus-validation-test-web-server
+    app.kubernetes.io/name: "nginx"
+    app.kubernetes.io/instance: "nginx" # there is only one instance
+    app.kubernetes.io/component: "server"
+    app.kubernetes.io/part-of: "multus-validation-test"
+    app.kubernetes.io/managed-by: "rook-cli"
+  annotations:
+    k8s.v1.cni.cncf.io/networks: "{{ .NetworksAnnotationValue }}"
+spec:
+  nodeSelector:
+  {{- range $k, $v := .Placement.NodeSelector }}
+    {{ $k }}: {{ $v }}
+  {{- end }}
+  tolerations:
+  {{- range $idx, $toleration := .Placement.Tolerations }}
+    - {{ $toleration.ToJSON }}
+  {{- end }}
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+    runAsGroup: 101
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: multus-validation-test-web-server
+      image: "{{ .NginxImage }}"
+      resources: {}
+      ports:
+        - containerPort: 8080
+      readinessProbe:
+        httpGet:
+          port: 8080
+          scheme: HTTP
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - "ALL"
+      volumeMounts:
+        - name: var-cache-nginx
+          mountPath: /var/cache/nginx
+        - name: server-conf
+          mountPath: /etc/nginx/conf.d
+        - name: var-run
+          mountPath: /var/run
+  volumes:
+    - name: var-cache-nginx
+      emptyDir: {}
+    - name: server-conf
+      configMap:
+        name: multus-validation-test-web-server-conf
+    - name: var-run
+      emptyDir: {}

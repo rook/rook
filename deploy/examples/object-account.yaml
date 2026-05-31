@@ -1,0 +1,18 @@
+#################################################################################################################
+# Create an object store account to manage RGW resources.
+#  kubectl create -f object-account.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreAccount
+metadata:
+  name: my-account
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The object store in which the account will be created
+  store: my-store
+  # An optional name for the RGW account if different from the CephObjectStoreAccount CR name
+  # name: "my-rgw-account"
+  # An optional unique account ID. Format: RGW followed by 17 digits (e.g., RGW00889737169837717).
+  # If not specified, Ceph will auto-generate the account ID.
+  # accountID: "RGW00889737169837717"

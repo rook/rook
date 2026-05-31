@@ -1,0 +1,93 @@
+#################################################################################################################
+# We need many operations to remove OSDs as written in Documentation/Storage-Configuration/Advanced/ceph-osd-mgmt.md.
+# This job can automate some of that operations: mark OSDs as `out`, purge these OSDs,
+# and delete the corresponding resources like OSD deployments, OSD prepare jobs, and PVCs.
+#
+# Please note the following.
+#
+# - This job only works for `down` OSDs.
+# - This job doesn't wait for backfilling to be completed.
+#
+# If you want to remove `up` OSDs and/or want to wait for backfilling to be completed between each OSD removal,
+# please do it by hand.
+#################################################################################################################
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rook-ceph-purge-osd
+  namespace: rook-ceph # namespace:cluster
+  labels:
+    app: rook-ceph-purge-osd
+spec:
+  template:
+    metadata:
+      labels:
+        app: rook-ceph-purge-osd
+    spec:
+      serviceAccountName: rook-ceph-purge-osd
+      containers:
+        - name: osd-removal
+          image: docker.io/rook/ceph:master
+          # TODO: Insert the OSD ID in the last parameter that is to be removed
+          # The OSD IDs are a comma-separated list. For example: "0" or "0,2".
+          # If you want to preserve the OSD PVCs, set `--preserve-pvc true`.
+          #
+          # A --force-osd-removal option is available if the OSD should be destroyed even though the
+          # removal could lead to data loss.
+          args:
+            - "ceph"
+            - "osd"
+            - "remove"
+            - "--preserve-pvc"
+            - "false"
+            - "--force-osd-removal"
+            - "false"
+            - "--osd-ids"
+            - "<OSD-IDs>"
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: ROOK_MON_ENDPOINTS
+              valueFrom:
+                configMapKeyRef:
+                  key: data
+                  name: rook-ceph-mon-endpoints
+            - name: ROOK_CEPH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: ceph-username
+                  name: rook-ceph-mon
+            - name: ROOK_CONFIG_DIR
+              value: /var/lib/rook
+            - name: ROOK_CEPH_CONFIG_OVERRIDE
+              value: /etc/rook/config/override.conf
+            - name: ROOK_FSID
+              valueFrom:
+                secretKeyRef:
+                  key: fsid
+                  name: rook-ceph-mon
+            - name: ROOK_LOG_LEVEL
+              value: DEBUG
+          volumeMounts:
+            - mountPath: /etc/ceph
+              name: ceph-conf-emptydir
+            - mountPath: /var/lib/rook
+              name: rook-config
+            - name: ceph-admin-secret
+              mountPath: /var/lib/rook-ceph-mon
+      volumes:
+        - name: ceph-admin-secret
+          secret:
+            secretName: rook-ceph-mon
+            optional: false
+            items:
+              - key: ceph-secret
+                path: secret.keyring
+        - emptyDir: {}
+          name: ceph-conf-emptydir
+        - emptyDir: {}
+          name: rook-config
+      restartPolicy: Never

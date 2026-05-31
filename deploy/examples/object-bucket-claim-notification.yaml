@@ -1,0 +1,13 @@
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: ceph-notification-bucket
+  labels:
+    # labels that don't have this structure: bucket-notification-<name> : <name>
+    # are ignored by the operator's bucket notifications provisioning mechanism
+    some: value
+    # the following label adds notifications to this bucket
+    bucket-notification-my-notification: my-notification
+spec:
+  generateBucketName: ceph-bkt
+  storageClassName: rook-ceph-delete-bucket

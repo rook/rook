@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rook-direct-mount
+  namespace: rook-ceph # namespace:cluster
+  labels:
+    app: rook-direct-mount
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rook-direct-mount
+  template:
+    metadata:
+      labels:
+        app: rook-direct-mount
+    spec:
+      dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: rook-ceph-default
+      containers:
+        - name: rook-direct-mount
+          image: docker.io/rook/ceph:master
+          command: ["/bin/bash"]
+          args: ["-m", "-c", "/usr/local/bin/toolbox.sh"]
+          imagePullPolicy: IfNotPresent
+          tty: true
+          env:
+            - name: ROOK_CEPH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rook-ceph-mon
+                  key: ceph-username
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          volumeMounts:
+            - mountPath: /dev
+              name: dev
+            - mountPath: /sys/bus
+              name: sysbus
+            - mountPath: /lib/modules
+              name: libmodules
+            - name: mon-endpoint-volume
+              mountPath: /etc/rook
+            - name: ceph-admin-secret
+              mountPath: /var/lib/rook-ceph-mon
+      # if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
+      hostNetwork: true
+      volumes:
+        - name: ceph-admin-secret
+          secret:
+            secretName: rook-ceph-mon
+            optional: false
+            items:
+              - key: ceph-secret
+                path: secret.keyring
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: sysbus
+          hostPath:
+            path: /sys/bus
+        - name: libmodules
+          hostPath:
+            path: /lib/modules
+        - name: mon-endpoint-volume
+          configMap:
+            name: rook-ceph-mon-endpoints
+            items:
+              - key: data
+                path: mon-endpoints

@@ -1,0 +1,8 @@
+apiVersion: csi.ceph.io/v1
+kind: Driver
+metadata:
+  name: rook-ceph.nvmeof.csi.ceph.com
+  namespace: rook-ceph # namespace:operator
+spec:
+  controllerPlugin:
+    hostNetwork: false
