@@ -1,0 +1,51 @@
+#################################################################################################################
+# Define the settings for the rook-ceph cluster with DRBD floating monitor for testing.
+# This is designed for two-node minikube clusters with DRBD installed.
+# All nodes are used for Ceph storage, and a floating monitor is configured to use DRBD.
+#
+# For testing, a two-node minikube cluster can be created:
+#   minikube start --profile=rook --nodes=2 --driver=kvm2 --cpus=4 --memory=8192 --disk-size=40g
+#
+# Then install DRBD with:
+#   tests/scripts/install-drbd-minikube.sh
+#
+# And run the test with:
+#   tests/scripts/test-drbd-floating-mon.sh
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph # namespace:cluster
+spec:
+  dataDirHostPath: /var/lib/rook
+  cephVersion:
+    image: quay.io/ceph/ceph:v20.2.1
+    allowUnsupported: false
+  # The path on the host where configuration files will be persisted
+  # IMPORTANT: Disable host networking for floating monitor
+  network:
+    hostNetwork: false
+  mon:
+    # Number of monitors - must be 3 for two-node with floating mon
+    count: 3
+    # Floating monitor configuration
+    floatingMon:
+      # Name of the floating monitor (typically 'c')
+      name: c
+      # ConfigMap containing DRBD configuration
+      configmapName: drbd-configure
+  priorityClassNames:
+    mon: system-node-critical
+    osd: system-node-critical
+    mgr: system-cluster-critical
+  storage:
+    useAllNodes: true
+    useAllDevices: false
+  cephConfig:
+    global:
+      # Set OSD replica size to 2 for two-node cluster
+      osd_pool_default_size: "2"
+      mon_warn_on_pool_no_redundancy: "false"
+      mon_max_pg_per_osd: "500"
