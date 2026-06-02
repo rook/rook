@@ -811,6 +811,28 @@ spec:
 This configuration will split the replication of volumes across unique
 racks in the data center setup.
 
+## OSD Device Class via Node Label
+
+The CRUSH device class for all OSDs on a node can be set using the node label `osd.rook.io/device-class`. This label can be applied retroactively on nodes with provisioned OSDs, or on new nodes about to be added to the cluster.
+
+For example, if a node has `osd.rook.io/device-class: fast`, OSDs on the node will be assigned the `fast` device class.
+
+This can help group nodes of the same performance tier together in one pool.
+
+`allowDeviceClassUpdate: true` must be set in the CephCluster storage spec for the device class to be updated on existing OSDs. Without this setting, the node label will only affect newly provisioned OSDs.
+
+!!! warning
+    Changing an OSD's device class will cause Ceph to rebalance data for any pools whose CRUSH rules target that device class. Plan device class changes of existing nodes and OSDs carefully to avoid unexpected data movement.
+
+### Resolving device classes
+
+The device class for a node is determined as follows:
+
+* If the per-node `deviceClass` in the CephCluster CR **and** the `osd.rook.io/device-class` node label are both set, the operator will log an error and **skip** that node. The user must remove one to resolve the conflict.
+* If only the CR `deviceClass` is set, it is used.
+* If only the node label is set, it is used.
+* If neither is set, Ceph auto-detects the class (defaults to `hdd`, `ssd`, or `nvme` based on hardware).
+
 ## Deleting a CephCluster
 
 During deletion of a CephCluster resource, Rook protects against accidental or premature destruction

@@ -18,6 +18,7 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -32,7 +33,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -796,6 +799,17 @@ func getDummyDeploymentOnPVC(clientset *fake.Clientset, c *Cluster, pvcName stri
 
 // WARNING! modifies c.ValidStorage
 func getDummyDeploymentOnNode(clientset *fake.Clientset, c *Cluster, nodeName string, osdID int) *appsv1.Deployment {
+	// Ensure the node exists in the fake clientset so resolveDeviceClass can look it up
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   nodeName,
+			Labels: map[string]string{corev1.LabelHostname: nodeName},
+		},
+	}
+	if _, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{}); err != nil && !kerrors.IsAlreadyExists(err) {
+		panic(err)
+	}
+
 	osd := &OSDInfo{
 		ID:        osdID,
 		UUID:      "some-uuid",
@@ -810,6 +824,96 @@ func getDummyDeploymentOnNode(clientset *fake.Clientset, c *Cluster, nodeName st
 		panic(err)
 	}
 	return d
+}
+
+func TestDeploymentOnNode_DeviceClassFromLabel(t *testing.T) {
+	clientset := fake.NewClientset()
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "node0",
+			Labels: map[string]string{corev1.LabelHostname: "node0", NodeDeviceClassLabelKey: "fast"},
+		},
+	}
+	_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   "ns",
+		CephVersion: cephver.Squid,
+	}
+	clusterInfo.SetName("test")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+	clusterInfo.Context = context.TODO()
+
+	spec := cephv1.ClusterSpec{
+		Storage: cephv1.StorageScopeSpec{
+			Nodes:                  []cephv1.Node{{Name: "node0"}},
+			AllowDeviceClassUpdate: true,
+		},
+		DataDirHostPath: "/var/lib/rook",
+	}
+	ctx := &clusterd.Context{Clientset: clientset}
+	c := New(ctx, clusterInfo, spec, "rook/rook:master")
+	c.ValidStorage.Nodes = []cephv1.Node{{Name: "node0"}}
+
+	osd := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vda", CVMode: "raw", Store: "bluestore"}
+	config := c.newProvisionConfig()
+
+	t.Run("node label device class flows into deployment", func(t *testing.T) {
+		d, err := deploymentOnNode(c, osd, "node0", config)
+		assert.NoError(t, err)
+		// Check ROOK_OSD_DEVICE_CLASS env var
+		for _, container := range d.Spec.Template.Spec.Containers {
+			for _, env := range container.Env {
+				if env.Name == "ROOK_OSD_DEVICE_CLASS" {
+					assert.Equal(t, "fast", env.Value)
+					return
+				}
+			}
+		}
+		t.Fatal("ROOK_OSD_DEVICE_CLASS env var not found")
+	})
+
+	t.Run("conflict between CR and label returns error", func(t *testing.T) {
+		specWithCR := cephv1.ClusterSpec{
+			Storage: cephv1.StorageScopeSpec{
+				Nodes: []cephv1.Node{{Name: "node0", Config: map[string]string{"deviceClass": "hdd"}}},
+			},
+			DataDirHostPath: "/var/lib/rook",
+		}
+		c2 := New(ctx, clusterInfo, specWithCR, "rook/rook:master")
+		c2.ValidStorage.Nodes = []cephv1.Node{{Name: "node0", Config: map[string]string{"deviceClass": "hdd"}}}
+
+		_, err := deploymentOnNode(c2, osd, "node0", c2.newProvisionConfig())
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "conflict")
+	})
+
+	t.Run("AllowDeviceClassUpdate false does not change existing OSD class", func(t *testing.T) {
+		specNoUpdate := cephv1.ClusterSpec{
+			Storage: cephv1.StorageScopeSpec{
+				Nodes:                  []cephv1.Node{{Name: "node0"}},
+				AllowDeviceClassUpdate: false,
+			},
+			DataDirHostPath: "/var/lib/rook",
+		}
+		c3 := New(ctx, clusterInfo, specNoUpdate, "rook/rook:master")
+		c3.ValidStorage.Nodes = []cephv1.Node{{Name: "node0"}}
+
+		osdWithClass := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vda", CVMode: "raw", Store: "bluestore", DeviceClass: "hdd"}
+		d, err := deploymentOnNode(c3, osdWithClass, "node0", c3.newProvisionConfig())
+		assert.NoError(t, err)
+		// OSD should keep "hdd" even though node label says "fast"
+		for _, container := range d.Spec.Template.Spec.Containers {
+			for _, env := range container.Env {
+				if env.Name == "ROOK_OSD_DEVICE_CLASS" {
+					assert.Equal(t, "hdd", env.Value)
+					return
+				}
+			}
+		}
+		t.Fatal("ROOK_OSD_DEVICE_CLASS env var not found")
+	})
 }
 
 func TestOSDPlacement(t *testing.T) {
