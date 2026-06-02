@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,6 +46,7 @@ type OSDHealthMonitor struct {
 	clusterInfo                    *client.ClusterInfo
 	removeOSDsIfOUTAndSafeToRemove bool
 	interval                       *time.Duration
+	lastRequireOSDRelease          string
 }
 
 // NewOSDHealthMonitor instantiates OSD monitoring
@@ -100,6 +102,44 @@ func (m *OSDHealthMonitor) checkOSDHealth() {
 	err := m.checkOSDDump()
 	if err != nil {
 		log.NamespacedDebug(m.clusterInfo.Namespace, logger, "failed to check OSD Dump. %v", err)
+	}
+	m.checkRequireOSDRelease()
+}
+
+// checkRequireOSDRelease checks if all OSDs report the same version and, if so,
+// sets the require-osd-release flag. This handles the case where versions had not
+// yet converged at the end of the reconcile (e.g. OSDs were still restarting).
+// The release is only set when it differs from the last value that was successfully applied.
+func (m *OSDHealthMonitor) checkRequireOSDRelease() {
+	versions, err := client.GetAllCephDaemonVersions(m.context, m.clusterInfo)
+	if err != nil {
+		log.NamespacedDebug(m.clusterInfo.Namespace, logger, "failed to get ceph daemons versions. %v", err)
+		return
+	}
+
+	if len(versions.Osd) != 1 {
+		log.NamespacedDebug(m.clusterInfo.Namespace, logger, "OSD versions have not converged to a single version yet (%d reported); will retry on next health check", len(versions.Osd))
+		return
+	}
+
+	for v := range versions.Osd {
+		osdVersion, err := cephver.ExtractCephVersion(v)
+		if err != nil {
+			log.NamespacedWarning(m.clusterInfo.Namespace, logger, "failed to extract ceph version. %v", err)
+			return
+		}
+		releaseName := osdVersion.ReleaseName()
+		if releaseName == m.lastRequireOSDRelease {
+			// Already set to this release; nothing to do
+			return
+		}
+		log.NamespacedInfo(m.clusterInfo.Namespace, logger, "all OSDs are running version %q, setting require-osd-release to %q", v, releaseName)
+		err = client.EnableReleaseOSDFunctionality(m.context, m.clusterInfo, releaseName)
+		if err != nil {
+			log.NamespacedWarning(m.clusterInfo.Namespace, logger, "failed to enable new osd functionality. %v", err)
+			return
+		}
+		m.lastRequireOSDRelease = releaseName
 	}
 }
 
