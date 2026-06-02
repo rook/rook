@@ -127,8 +127,8 @@ func TestNewOSDHealthMonitor(t *testing.T) {
 		args args
 		want *OSDHealthMonitor
 	}{
-		{"default-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{}}, &OSDHealthMonitor{c, clusterInfo, false, &defaultHealthCheckInterval}},
-		{"10s-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{ObjectStorageDaemon: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}, &OSDHealthMonitor{c, clusterInfo, false, &time10s}},
+		{"default-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{}}, &OSDHealthMonitor{c, clusterInfo, false, &defaultHealthCheckInterval, ""}},
+		{"10s-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{ObjectStorageDaemon: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}, &OSDHealthMonitor{c, clusterInfo, false, &time10s, ""}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -137,4 +137,153 @@ func TestNewOSDHealthMonitor(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCheckRequireOSDRelease validates checkRequireOSDRelease() which runs on every
+// health-monitor tick. The method:
+//  1. Queries "ceph versions" to get all OSD daemon versions
+//  2. If exactly one OSD version exists (all converged), extracts the release name
+//  3. Skips if the release name matches the cached value (avoids redundant ceph calls)
+//  4. Calls "ceph osd require-osd-release <name>" and caches on success
+//
+// Each subtest targets one branch in this flow.
+func TestCheckRequireOSDRelease(t *testing.T) {
+	clusterInfo := client.AdminTestClusterInfo("test")
+
+	// HAPPY PATH: All OSDs upgraded to squid, cache is empty → should set the flag and cache it.
+	t.Run("single converged version sets lastRequireOSDRelease", func(t *testing.T) {
+		enableCalls := 0
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				// handles: ceph versions
+				if args[0] == "versions" {
+					// All 3 OSDs report the same version (single map entry)
+					return `{"osd":{"ceph version 19.2.0 (abc) squid (stable)":3}}`, nil
+				}
+				// handles: ceph osd require-osd-release squid
+				if args[0] == "osd" && args[1] == "require-osd-release" {
+					assert.Equal(t, "squid", args[2])
+					enableCalls++
+					return "", nil
+				}
+				return "", nil
+			},
+		}
+		ctx := &clusterd.Context{Executor: executor}
+		mon := &OSDHealthMonitor{
+			context:     ctx,
+			clusterInfo: clusterInfo,
+			// lastRequireOSDRelease is "" (zero value) — nothing cached yet
+		}
+
+		mon.checkRequireOSDRelease()
+
+		assert.Equal(t, "squid", mon.lastRequireOSDRelease) // cached after success
+		assert.Equal(t, 1, enableCalls)                     // called exactly once
+	})
+
+	// CACHING: Release already cached as "squid" and OSDs still report squid →
+	// should NOT call EnableReleaseOSDFunctionality again (avoids redundant work every 60s).
+	t.Run("cached release skips EnableReleaseOSDFunctionality", func(t *testing.T) {
+		enableCalls := 0
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				// handles: ceph versions
+				if args[0] == "versions" {
+					return `{"osd":{"ceph version 19.2.0 (abc) squid (stable)":3}}`, nil
+				}
+				// handles: ceph osd require-osd-release (should NOT be reached)
+				if args[0] == "osd" && args[1] == "require-osd-release" {
+					enableCalls++
+					return "", nil
+				}
+				return "", nil
+			},
+		}
+		ctx := &clusterd.Context{Executor: executor}
+		mon := &OSDHealthMonitor{
+			context:               ctx,
+			clusterInfo:           clusterInfo,
+			lastRequireOSDRelease: "squid", // already cached from a previous tick
+		}
+
+		mon.checkRequireOSDRelease()
+
+		assert.Equal(t, "squid", mon.lastRequireOSDRelease) // unchanged
+		assert.Equal(t, 0, enableCalls)                     // skipped — no ceph command issued
+	})
+
+	// MIXED VERSIONS: Upgrade in progress — some OSDs on squid, some on tentacle.
+	// Should bail early without setting anything.
+	t.Run("multiple OSD versions does not set release", func(t *testing.T) {
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				// handles: ceph versions
+				if args[0] == "versions" {
+					// Two map entries → versions have not converged
+					return `{"osd":{"ceph version 19.2.0 (abc) squid (stable)":2,"ceph version 20.1.0 (def) tentacle (stable)":1}}`, nil
+				}
+				return "", nil
+			},
+		}
+		ctx := &clusterd.Context{Executor: executor}
+		mon := &OSDHealthMonitor{
+			context:     ctx,
+			clusterInfo: clusterInfo,
+		}
+
+		mon.checkRequireOSDRelease()
+
+		assert.Equal(t, "", mon.lastRequireOSDRelease) // still empty — no action taken
+	})
+
+	// ERROR QUERYING VERSIONS: "ceph versions" fails (e.g. mons unreachable).
+	// Should bail early, cache stays empty so it retries on the next tick.
+	t.Run("error from GetAllCephDaemonVersions does not set release", func(t *testing.T) {
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				// handles: ceph versions — returns an error
+				if args[0] == "versions" {
+					return "", fmt.Errorf("simulated error")
+				}
+				return "", nil
+			},
+		}
+		ctx := &clusterd.Context{Executor: executor}
+		mon := &OSDHealthMonitor{
+			context:     ctx,
+			clusterInfo: clusterInfo,
+		}
+
+		mon.checkRequireOSDRelease()
+
+		assert.Equal(t, "", mon.lastRequireOSDRelease) // no change — will retry next tick
+	})
+
+	// ERROR SETTING FLAG: Versions converged but "ceph osd require-osd-release" fails.
+	// Should NOT cache the release name, so the next tick retries the operation.
+	t.Run("error from EnableReleaseOSDFunctionality does not cache", func(t *testing.T) {
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				// handles: ceph versions — returns converged
+				if args[0] == "versions" {
+					return `{"osd":{"ceph version 19.2.0 (abc) squid (stable)":3}}`, nil
+				}
+				// handles: ceph osd require-osd-release — returns an error
+				if args[0] == "osd" && args[1] == "require-osd-release" {
+					return "", fmt.Errorf("simulated enable error")
+				}
+				return "", nil
+			},
+		}
+		ctx := &clusterd.Context{Executor: executor}
+		mon := &OSDHealthMonitor{
+			context:     ctx,
+			clusterInfo: clusterInfo,
+		}
+
+		mon.checkRequireOSDRelease()
+
+		assert.Equal(t, "", mon.lastRequireOSDRelease) // NOT cached — ensures retry
+	})
 }
