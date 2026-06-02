@@ -10,7 +10,7 @@ by Ceph daemons and clients.
 
 For this experimental feature, some caveats should be noted:
 
-- Only Ceph versions v19.2.3 and higher have the capabilities Rook requires for key rotation.
+- Only Ceph versions v19.2.4 and higher have the capabilities Rook requires for key rotation.
 - Ceph Monitor (mon) keys cannot be rotated in Ceph v19 due to Ceph architecture limitations.
 
 ## Overview
@@ -70,7 +70,7 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v19.2.3
+    image: quay.io/ceph/ceph:v19.2.4
   security:
     cephx:
       daemon:

@@ -936,7 +936,7 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			}
 			logger.Infof("CephCluster version: %s", cephcluster.Status.CephVersion.Version)
 			if strings.HasPrefix(cephcluster.Status.CephVersion.Version, "19.2.3") {
-				t.Skip("Waiting for rgw fix from regression in v19.2.3")
+				t.Skip("Waiting for rgw fix from regression in v19.2.4")
 			}
 			utils.Retry(20, time.Second, "lifecycle is gone", func() bool {
 				_, err = s3client.Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
