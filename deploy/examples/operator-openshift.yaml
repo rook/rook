@@ -177,6 +177,8 @@ data:
 # CSI operator resources managed by the admin.
 # These CRs define the configuration for CSI drivers deployed by the ceph-csi-operator.
 # Customize these as needed for your environment.
+# For the complete list of ceph-csi-operator chart settings, see:
+# https://github.com/ceph/ceph-csi-operator/blob/main/docs/helm-charts/drivers-chart.md#configuration
 
 # ImageSet ConfigMap defines the container images used by the CSI drivers.
 apiVersion: v1
@@ -216,7 +218,7 @@ spec:
       enableSeLinuxHostMount: false
     controllerPlugin:
       priorityClassName: "system-cluster-critical"
-      replicas: 1
+      replicas: 2
       deploymentStrategy:
         type: Recreate
 ---
