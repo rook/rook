@@ -52,20 +52,6 @@ type rgwBucketStats struct {
 	}
 }
 
-type ObjectBuckets []ObjectBucket
-
-func (slice ObjectBuckets) Len() int {
-	return len(slice)
-}
-
-func (slice ObjectBuckets) Less(i, j int) bool {
-	return slice[i].Name < slice[j].Name
-}
-
-func (slice ObjectBuckets) Swap(i, j int) {
-	slice[i], slice[j] = slice[j], slice[i]
-}
-
 func bucketStatsFromRGW(stats rgwBucketStats) ObjectBucketStats {
 	s := ObjectBucketStats{Size: 0, NumberOfObjects: 0}
 	for _, usage := range stats.Usage {
@@ -97,29 +83,6 @@ func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, er
 	stat := bucketStatsFromRGW(rgwStats)
 
 	return &stat, false, nil
-}
-
-func GetBucketsStats(c *Context) (map[string]ObjectBucketStats, error) {
-	result, err := runAdminCommand(c,
-		true,
-		"bucket",
-		"stats")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to list buckets")
-	}
-
-	var rgwStats []rgwBucketStats
-	if err := json.Unmarshal([]byte(result), &rgwStats); err != nil {
-		return nil, errors.Wrapf(err, "failed to read buckets stats result=%s", result)
-	}
-
-	stats := map[string]ObjectBucketStats{}
-
-	for _, rgwStat := range rgwStats {
-		stats[rgwStat.Bucket] = bucketStatsFromRGW(rgwStat)
-	}
-
-	return stats, nil
 }
 
 func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, error) {
