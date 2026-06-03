@@ -34,11 +34,21 @@ $(shell \
 )
 endef
 
-HELM_HOME := $(abspath $(CACHE_DIR)/helm)
 HELM_VERSION := v3.18.2
 HELM := $(TOOLS_HOST_DIR)/helm-$(HELM_VERSION)
 HELM_INDEX := $(HELM_OUTPUT_DIR)/index.yaml
-export HELM_HOME
+
+# Pin all Helm state under the project-local cache dir. Without these, helm
+# falls back to the user's global ~/.cache/helm, which causes index file
+# corruption when parallel make targets (make -jN) mutate the same cached
+# repository index concurrently (observed as: "empty index.yaml file" for
+# ceph-csi-operator in CI).
+HELM_CACHE_HOME := $(abspath $(CACHE_DIR)/helm/cache)
+HELM_CONFIG_HOME := $(abspath $(CACHE_DIR)/helm/config)
+HELM_DATA_HOME := $(abspath $(CACHE_DIR)/helm/data)
+export HELM_CACHE_HOME
+export HELM_CONFIG_HOME
+export HELM_DATA_HOME
 
 $(HELM_OUTPUT_DIR):
 	@mkdir -p $@
@@ -72,10 +82,13 @@ helm.build: $(HELM_INDEX)
 define helm.dependency.update
 helm.dependency.update.$(1): $(HELM)
 	@echo === updating helm dependencies for $(1)
+	@mkdir -p $(HELM_CACHE_HOME) $(HELM_CONFIG_HOME) $(HELM_DATA_HOME)
 	@if [ "$(call helm_needs_dependencies,$(1))" = "missing" ]; then \
 		echo "Dependencies missing, downloading..."; \
 		if [ "$(1)" = "rook-ceph" ]; then \
+			rm -f $(HELM_CACHE_HOME)/repository/ceph-csi-operator-index.yaml; \
 			$(HELM) repo add ceph-csi-operator https://ceph.github.io/ceph-csi-operator --force-update; \
+			$(HELM) repo update ceph-csi-operator; \
 		fi; \
 		cd $(HELM_CHARTS_DIR)/$(1) && $(HELM) dependency update; \
 	else \
