@@ -96,11 +96,6 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 }
 
 // CreateBucket creates a bucket with the given name
-func (s *S3Agent) CreateBucketNoInfoLogging(name string) error {
-	return s.createBucket(name, false)
-}
-
-// CreateBucket creates a bucket with the given name
 func (s *S3Agent) CreateBucket(name string) error {
 	return s.createBucket(name, true)
 }
@@ -133,18 +128,6 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 		logger.Debugf("successfully created bucket %q", name)
 	}
 	return nil
-}
-
-// DeleteBucket function deletes given bucket using s3 client
-func (s *S3Agent) DeleteBucket(name string) (bool, error) {
-	_, err := s.Client.DeleteBucket(context.TODO(), &s3.DeleteBucketInput{
-		Bucket: &name,
-	})
-	if err != nil {
-		logger.Errorf("failed to delete bucket. %v", err)
-		return false, err
-	}
-	return true, nil
 }
 
 // PutObjectInBucket function puts an object in a bucket using s3 client
