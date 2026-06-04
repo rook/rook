@@ -186,7 +186,8 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 
 	// check and make sure the bucket exists
 	log.NamedInfo(nsName, logger, "Checking for existing bucket %q", p.bucketName)
-	if exists, _, err := p.bucketExists(p.bucketName); !exists {
+	exists, owner, err := p.bucketExists(p.bucketName)
+	if !exists {
 		return nil, errors.Wrapf(err, "bucket %s does not exist", p.bucketName)
 	}
 
@@ -205,7 +206,18 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		}
 	}
 
-	err = p.setS3Agent()
+	// the bucket-level operations below (policy, lifecycle) are only permitted
+	// for the bucket owner; the OBC user has no access to the bucket until the
+	// policy statement built below is applied. composeObjectBucket() still
+	// returns the OBC user's credentials set above.
+	ownerUser, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: owner})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get owner %q of bucket %q", owner, p.bucketName)
+	}
+	if len(ownerUser.Keys) == 0 {
+		return nil, errors.Errorf("owner %q of bucket %q has no access keys", owner, p.bucketName)
+	}
+	err = p.setS3AgentWithCreds(ownerUser.Keys[0].AccessKey, ownerUser.Keys[0].SecretKey)
 	if err != nil {
 		return nil, err
 	}
@@ -227,10 +239,8 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
 	if err != nil {
 		var apiErr smithy.APIError
-		if errors.As(err, &apiErr) {
-			if apiErr.ErrorCode() != "NoSuchBucketPolicy" {
-				return nil, err
-			}
+		if !errors.As(err, &apiErr) || apiErr.ErrorCode() != "NoSuchBucketPolicy" {
+			return nil, err
 		}
 	}
 
@@ -352,9 +362,17 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		// drop policy if present
 		if policy != nil {
 			policy = policy.DropPolicyStatements(p.cephUserName)
-			_, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
-			if err != nil {
-				return err
+			if len(policy.Statement) == 0 {
+				// rather than putting a policy with no statements, remove the policy
+				_, err := p.s3Agent.Client.DeleteBucketPolicy(p.clusterInfo.Context, &s3.DeleteBucketPolicyInput{Bucket: &p.bucketName})
+				if err != nil {
+					return err
+				}
+			} else {
+				_, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
+				if err != nil {
+					return err
+				}
 			}
 			log.NamedInfo(nsName, logger, "principal %q ejected from bucket %q policy", p.cephUserName, p.bucketName)
 		}
@@ -948,7 +966,13 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 }
 
 func (p *Provisioner) setS3Agent() error {
+	return p.setS3AgentWithCreds(p.accessKeyID, p.secretAccessKey)
+}
+
+// setS3AgentWithCreds sets the provisioner's S3 agent using the given
+// credentials instead of the ones stored on the receiver.
+func (p *Provisioner) setS3AgentWithCreds(accessKeyID, secretAccessKey string) error {
 	var err error
-	p.s3Agent, err = object.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert, p.insecureTLS, nil)
+	p.s3Agent, err = object.NewS3Agent(accessKeyID, secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert, p.insecureTLS, nil)
 	return err
 }
