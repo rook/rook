@@ -305,6 +305,9 @@ function remove_cluster_prerequisites() {
 }
 
 function deploy_manifest_with_local_build() {
+  if [[ "$1" == "deploy/examples/operator.yaml" || "$1" == "operator.yaml" ]]; then
+     sed -i "s|replicas: 2|replicas: 1|g" $1
+  fi
   if [[ "$USE_LOCAL_BUILD" != "false" ]]; then
     sed -i "s|image: docker.io/rook/ceph:.*|image: docker.io/rook/ceph:local-build|g" $1
   fi
