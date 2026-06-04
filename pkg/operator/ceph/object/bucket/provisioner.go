@@ -223,7 +223,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 
 	// generate the bucket policy if it isn't managed by the user
 
-	// if the policy does not exist, we'll create a new and append the statement to it
+	// fetch the existing policy so statements for other users are preserved; a new policy is created if none exists
 	policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
 	if err != nil {
 		var apiErr smithy.APIError
@@ -241,11 +241,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		ForSubResources(p.bucketName).
 		Allows().
 		Actions(object.AllowedActions...)
-	if policy == nil {
-		policy = object.NewBucketPolicy(*statement)
-	} else {
-		policy = policy.ModifyBucketPolicy(*statement)
-	}
+	policy = replaceUserStatement(policy, statement)
 	out, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
 
 	log.NamedInfo(nsName, logger, "PutBucketPolicy output: %v", out)
@@ -343,11 +339,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 				ForSubResources(p.bucketName).
 				Denies().
 				Actions(object.AllowedActions...)
-			if policy == nil {
-				policy = object.NewBucketPolicy(*statement)
-			} else {
-				policy = policy.ModifyBucketPolicy(*statement)
-			}
+			policy = replaceUserStatement(policy, statement)
 			out, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
 			log.NamedInfo(nsName, logger, "PutBucketPolicy output: %v", out)
 			if err != nil {
@@ -375,6 +367,17 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 	}
 
 	return nil
+}
+
+// replaceUserStatement returns the bucket policy with the given statement
+// replacing any existing statement with the same SID. Statements for other
+// principals (e.g. other OBCs sharing a brownfield bucket) are preserved.
+func replaceUserStatement(policy *object.BucketPolicy, statement *object.PolicyStatement) *object.BucketPolicy {
+	if policy == nil {
+		return object.NewBucketPolicy(*statement)
+	}
+	policy = policy.DropPolicyStatements(statement.Sid)
+	return policy.ModifyBucketPolicy(append(policy.Statement, *statement)...)
 }
 
 // Return the OB struct with minimal fields filled in.

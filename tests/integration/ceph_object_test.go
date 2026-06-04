@@ -1005,6 +1005,125 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		})
 	})
 
+	t.Run("two obcs sharing a brownfield bucket keep both user policy statements", func(t *testing.T) {
+		seedBucket := "brownfield-policy-test"
+		seedObcName := "brownfield-seed"
+		brownfieldSC := bucketStorageClassName + "-brownfield"
+		var s3client *rgw.S3Agent
+
+		waitOBCBound := func(name string) {
+			bound := utils.Retry(20, 2*time.Second, "OBC is Bound", func() bool {
+				liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return liveObc.Status.Phase == v1alpha1.ObjectBucketClaimStatusPhaseBound
+			})
+			assert.True(t, bound)
+		}
+		waitOBCAbsent := func(name string) {
+			absent := utils.Retry(20, 2*time.Second, "OBC is absent", func() bool {
+				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, name, metav1.GetOptions{})
+				return err != nil
+			})
+			assert.True(t, absent)
+		}
+		// cephUserForOBC returns the ceph user backing an OBC, which is also the SID of its policy statement.
+		cephUserForOBC := func(name string) string {
+			obc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, name, metav1.GetOptions{})
+			assert.Nil(t, err)
+			ob, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obc.Spec.ObjectBucketName, metav1.GetOptions{})
+			assert.Nil(t, err)
+			return ob.Spec.AdditionalState["cephUser"]
+		}
+		policySIDs := func() []string {
+			policy, err := s3client.GetBucketPolicy(seedBucket)
+			require.NoError(t, err)
+			sids := make([]string, 0, len(policy.Statement))
+			for _, stmt := range policy.Statement {
+				sids = append(sids, stmt.Sid)
+			}
+			return sids
+		}
+		createBrownfieldOBC := func(name string) {
+			newObc := v1alpha1.ObjectBucketClaim{
+				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+				Spec: v1alpha1.ObjectBucketClaimSpec{
+					BucketName:       seedBucket,
+					StorageClassName: brownfieldSC,
+				},
+			}
+			_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Create(ctx, &newObc, metav1.CreateOptions{})
+			assert.Nil(t, err)
+			waitOBCBound(name)
+		}
+
+		t.Run("seed the shared bucket and brownfield storage class", func(t *testing.T) {
+			seedObc := v1alpha1.ObjectBucketClaim{
+				ObjectMeta: metav1.ObjectMeta{Name: seedObcName, Namespace: namespace},
+				Spec: v1alpha1.ObjectBucketClaimSpec{
+					BucketName:       seedBucket,
+					StorageClassName: bucketStorageClassName,
+				},
+			}
+			_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Create(ctx, &seedObc, metav1.CreateOptions{})
+			assert.Nil(t, err)
+			waitOBCBound(seedObcName)
+
+			cobErr := helper.BucketClient.CreateBucketStorageClassBrownfield(namespace, storeName, brownfieldSC, "Delete", seedBucket)
+			assert.Nil(t, cobErr)
+
+			// the seed user owns the bucket, so its creds can read the bucket policy
+			secret, err := k8sh.Clientset.CoreV1().Secrets(namespace).Get(ctx, seedObcName, metav1.GetOptions{})
+			assert.Nil(t, err)
+			labelSelector := "rgw=" + storeName
+			services, err := k8sh.Clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+			assert.Nil(t, err)
+			assert.Equal(t, 1, len(services.Items))
+			s3endpoint := services.Items[0].Spec.ClusterIP + ":80"
+			s3client, err = rgw.NewS3Agent(string(secret.Data["AWS_ACCESS_KEY_ID"]), string(secret.Data["AWS_SECRET_ACCESS_KEY"]), s3endpoint, true, nil, objectStore.Spec.IsTLSEnabled(), nil)
+			assert.Nil(t, err)
+		})
+
+		var cephUserA, cephUserB string
+		t.Run("first obc adds its statement", func(t *testing.T) {
+			createBrownfieldOBC("brownfield-obc-a")
+			cephUserA = cephUserForOBC("brownfield-obc-a")
+			assert.Contains(t, policySIDs(), cephUserA)
+		})
+
+		t.Run("second obc preserves the first obc statement", func(t *testing.T) {
+			createBrownfieldOBC("brownfield-obc-b")
+			cephUserB = cephUserForOBC("brownfield-obc-b")
+			sids := policySIDs()
+			assert.Contains(t, sids, cephUserA)
+			assert.Contains(t, sids, cephUserB)
+			assert.Len(t, sids, 2)
+		})
+
+		t.Run("revoking the second obc keeps the first obc statement", func(t *testing.T) {
+			err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Delete(ctx, "brownfield-obc-b", metav1.DeleteOptions{})
+			assert.Nil(t, err)
+			waitOBCAbsent("brownfield-obc-b")
+			sids := policySIDs()
+			assert.Contains(t, sids, cephUserA)
+			assert.NotContains(t, sids, cephUserB)
+		})
+
+		t.Run("cleanup", func(t *testing.T) {
+			err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Delete(ctx, "brownfield-obc-a", metav1.DeleteOptions{})
+			assert.Nil(t, err)
+			waitOBCAbsent("brownfield-obc-a")
+
+			dscErr := helper.BucketClient.DeleteBucketStorageClassBrownfield(namespace, storeName, brownfieldSC, "Delete", seedBucket)
+			assert.Nil(t, dscErr)
+
+			err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Delete(ctx, seedObcName, metav1.DeleteOptions{})
+			assert.Nil(t, err)
+			waitOBCAbsent(seedObcName)
+		})
+	})
+
 	t.Run("Regression check: OBC does not revert to Pending phase", func(t *testing.T) {
 		// A bug exists in older versions of lib-bucket-provisioner that will revert a bucket and claim
 		// back to "Pending" phase after being created and initially "Bound" by looping infinitely in

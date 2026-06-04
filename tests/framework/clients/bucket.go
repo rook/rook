@@ -48,6 +48,15 @@ func (b *BucketOperation) DeleteBucketStorageClass(namespace string, storeName s
 	return err
 }
 
+func (b *BucketOperation) CreateBucketStorageClassBrownfield(namespace string, storeName string, storageClassName string, reclaimPolicy string, bucketName string) error {
+	return b.k8sh.ResourceOperation("create", b.manifests.GetBucketStorageClassBrownfield(storeName, storageClassName, reclaimPolicy, bucketName))
+}
+
+func (b *BucketOperation) DeleteBucketStorageClassBrownfield(namespace string, storeName string, storageClassName string, reclaimPolicy string, bucketName string) error {
+	err := b.k8sh.ResourceOperation("delete", b.manifests.GetBucketStorageClassBrownfield(storeName, storageClassName, reclaimPolicy, bucketName))
+	return err
+}
+
 func (b *BucketOperation) CreateObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
 	return b.k8sh.ResourceOperation("create", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
 }

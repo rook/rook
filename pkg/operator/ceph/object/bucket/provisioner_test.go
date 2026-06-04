@@ -617,3 +617,29 @@ func numberOfCallsWithValue(substr string, strs []string) int {
 	}
 	return count
 }
+
+func TestReplaceUserStatement(t *testing.T) {
+	t.Run("nil policy creates a new policy with the statement", func(t *testing.T) {
+		statement := object.NewPolicyStatement().WithSID("user-a").ForPrincipals("user-a").ForResources("bkt").ForSubResources("bkt").Allows().Actions(object.AllowedActions...)
+		policy := replaceUserStatement(nil, statement)
+		assert.Equal(t, []object.PolicyStatement{*statement}, policy.Statement)
+	})
+
+	t.Run("preserves statements for other users", func(t *testing.T) {
+		stmtA := object.NewPolicyStatement().WithSID("user-a").ForPrincipals("user-a").ForResources("bkt").ForSubResources("bkt").Allows().Actions(object.AllowedActions...)
+		stmtB := object.NewPolicyStatement().WithSID("user-b").ForPrincipals("user-b").ForResources("bkt").ForSubResources("bkt").Allows().Actions(object.AllowedActions...)
+		stmtC := object.NewPolicyStatement().WithSID("user-c").ForPrincipals("user-c").ForResources("bkt").ForSubResources("bkt").Allows().Actions(object.AllowedActions...)
+		policy := object.NewBucketPolicy(*stmtA, *stmtB)
+		policy = replaceUserStatement(policy, stmtC)
+		assert.Equal(t, []object.PolicyStatement{*stmtA, *stmtB, *stmtC}, policy.Statement)
+	})
+
+	t.Run("replaces an existing statement with the same SID", func(t *testing.T) {
+		stmtAOld := object.NewPolicyStatement().WithSID("user-a").ForPrincipals("user-a").ForResources("bkt").ForSubResources("bkt").Allows().Actions(object.AllowedActions...)
+		stmtB := object.NewPolicyStatement().WithSID("user-b").ForPrincipals("user-b").ForResources("bkt").ForSubResources("bkt").Allows().Actions(object.AllowedActions...)
+		stmtANew := object.NewPolicyStatement().WithSID("user-a").ForPrincipals("user-a").ForResources("bkt").ForSubResources("bkt").Denies().Actions(object.AllowedActions...)
+		policy := object.NewBucketPolicy(*stmtAOld, *stmtB)
+		policy = replaceUserStatement(policy, stmtANew)
+		assert.Equal(t, []object.PolicyStatement{*stmtB, *stmtANew}, policy.Statement)
+	})
+}
