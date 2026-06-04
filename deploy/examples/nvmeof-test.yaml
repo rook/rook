@@ -6,7 +6,7 @@ metadata:
   name: nvmeof
   namespace: rook-ceph # namespace:cluster
 spec:
-  image: quay.io/ceph/nvmeof:1.5
+  image: quay.io/ceph/nvmeof:1.5.27
   pool: nvmeof
   group: group-a
   instances: 1
