@@ -50,6 +50,7 @@ type CephManifests interface {
 	GetObjectStore(name string, replicaCount, port int, tlsEnable bool, swiftAndKeystone bool) string
 	GetObjectStoreUser(name, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) string
 	GetBucketStorageClass(storeName, storageClassName, reclaimPolicy string) string
+	GetBucketStorageClassBrownfield(storeName, storageClassName, reclaimPolicy, bucketName string) string
 	GetOBC(obcName, storageClassName, bucketName string, maxObject string, createBucket bool) string
 	GetBucketTopic(topicName string, storeName string, httpEndpointService string) string
 	GetClient(name string, caps map[string]string) string
@@ -564,6 +565,21 @@ reclaimPolicy: ` + reclaimPolicy + `
 parameters:
     objectStoreName: ` + storeName + `
     objectStoreNamespace: ` + m.settings.Namespace
+}
+
+// GetBucketStorageClassBrownfield returns the manifest to create a storage class that
+// grants OBCs access to an existing (brownfield) bucket via the bucketName parameter.
+func (m *CephManifestsMaster) GetBucketStorageClassBrownfield(storeName, storageClassName, reclaimPolicy, bucketName string) string {
+	return `apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: ` + storageClassName + `
+provisioner: ` + m.settings.Namespace + `.ceph.rook.io/bucket
+reclaimPolicy: ` + reclaimPolicy + `
+parameters:
+    objectStoreName: ` + storeName + `
+    objectStoreNamespace: ` + m.settings.Namespace + `
+    bucketName: ` + bucketName
 }
 
 // GetOBC returns the manifest to create object bucket claim

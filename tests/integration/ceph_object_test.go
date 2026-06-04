@@ -1007,6 +1007,136 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		})
 	})
 
+	t.Run("two obcs sharing a brownfield bucket keep both user policy statements", func(t *testing.T) {
+		seedBucket := "brownfield-policy-test"
+		seedObcName := "brownfield-seed"
+		brownfieldSC := bucketStorageClassName + "-brownfield"
+		var s3client *rgw.S3Agent
+
+		// the helpers take the subtest's own *testing.T so a failure aborts just
+		// that subtest instead of failing the parent from a child goroutine
+		waitOBCBound := func(t *testing.T, name string) {
+			bound := utils.Retry(20, 2*time.Second, "OBC is Bound", func() bool {
+				liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return liveObc.Status.Phase == v1alpha1.ObjectBucketClaimStatusPhaseBound
+			})
+			require.True(t, bound)
+		}
+		waitOBCAbsent := func(t *testing.T, name string) {
+			absent := utils.Retry(20, 2*time.Second, "OBC is absent", func() bool {
+				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, name, metav1.GetOptions{})
+				return k8serrors.IsNotFound(err)
+			})
+			require.True(t, absent)
+		}
+		// cephUserForOBC returns the ceph user backing an OBC, which is also the SID of its policy statement.
+		cephUserForOBC := func(t *testing.T, name string) string {
+			obc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, name, metav1.GetOptions{})
+			require.NoError(t, err)
+			ob, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obc.Spec.ObjectBucketName, metav1.GetOptions{})
+			require.NoError(t, err)
+			return ob.Spec.AdditionalState["cephUser"]
+		}
+		policySIDs := func(t *testing.T) []string {
+			require.NotNil(t, s3client, "s3 client is not initialized; did the seed subtest fail?")
+			policy, err := s3client.GetBucketPolicy(ctx, seedBucket)
+			require.NoError(t, err)
+			sids := make([]string, 0, len(policy.Statement))
+			for _, stmt := range policy.Statement {
+				sids = append(sids, stmt.Sid)
+			}
+			return sids
+		}
+		createBrownfieldOBC := func(t *testing.T, name string) {
+			newObc := v1alpha1.ObjectBucketClaim{
+				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+				Spec: v1alpha1.ObjectBucketClaimSpec{
+					BucketName:       seedBucket,
+					StorageClassName: brownfieldSC,
+				},
+			}
+			_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Create(ctx, &newObc, metav1.CreateOptions{})
+			require.NoError(t, err)
+			waitOBCBound(t, name)
+		}
+
+		t.Run("seed the shared bucket and brownfield storage class", func(t *testing.T) {
+			seedObc := v1alpha1.ObjectBucketClaim{
+				ObjectMeta: metav1.ObjectMeta{Name: seedObcName, Namespace: namespace},
+				Spec: v1alpha1.ObjectBucketClaimSpec{
+					BucketName:       seedBucket,
+					StorageClassName: bucketStorageClassName,
+				},
+			}
+			_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Create(ctx, &seedObc, metav1.CreateOptions{})
+			require.NoError(t, err)
+			waitOBCBound(t, seedObcName)
+
+			cobErr := helper.BucketClient.CreateBucketStorageClassBrownfield(namespace, storeName, brownfieldSC, "Delete", seedBucket)
+			require.NoError(t, cobErr)
+
+			// the seed user owns the bucket, so its creds can read the bucket policy
+			secret, err := k8sh.Clientset.CoreV1().Secrets(namespace).Get(ctx, seedObcName, metav1.GetOptions{})
+			require.NoError(t, err)
+			labelSelector := "rgw=" + storeName
+			services, err := k8sh.Clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+			require.NoError(t, err)
+			require.Len(t, services.Items, 1)
+			s3endpoint := services.Items[0].Spec.ClusterIP + ":80"
+			s3client, err = rgw.NewS3Agent(string(secret.Data["AWS_ACCESS_KEY_ID"]), string(secret.Data["AWS_SECRET_ACCESS_KEY"]), s3endpoint, true, nil, objectStore.Spec.IsTLSEnabled(), nil)
+			require.NoError(t, err)
+		})
+
+		var cephUserA, cephUserB string
+		t.Run("first obc adds its statement", func(t *testing.T) {
+			createBrownfieldOBC(t, "brownfield-obc-a")
+			cephUserA = cephUserForOBC(t, "brownfield-obc-a")
+			assert.Contains(t, policySIDs(t), cephUserA)
+		})
+
+		t.Run("second obc preserves the first obc statement", func(t *testing.T) {
+			require.NotEmpty(t, cephUserA, "the first obc subtest did not complete")
+			createBrownfieldOBC(t, "brownfield-obc-b")
+			cephUserB = cephUserForOBC(t, "brownfield-obc-b")
+			sids := policySIDs(t)
+			assert.Contains(t, sids, cephUserA)
+			assert.Contains(t, sids, cephUserB)
+			assert.Len(t, sids, 2)
+		})
+
+		t.Run("revoking the second obc keeps the first obc statement", func(t *testing.T) {
+			require.NotEmpty(t, cephUserB, "the second obc subtest did not complete")
+			err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Delete(ctx, "brownfield-obc-b", metav1.DeleteOptions{})
+			require.NoError(t, err)
+			waitOBCAbsent(t, "brownfield-obc-b")
+			sids := policySIDs(t)
+			assert.Contains(t, sids, cephUserA)
+			assert.NotContains(t, sids, cephUserB)
+		})
+
+		t.Run("cleanup", func(t *testing.T) {
+			// tolerate OBCs missing here so that an earlier subtest failure does
+			// not cascade into misleading cleanup errors
+			err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Delete(ctx, "brownfield-obc-a", metav1.DeleteOptions{})
+			if !k8serrors.IsNotFound(err) {
+				assert.NoError(t, err)
+			}
+			waitOBCAbsent(t, "brownfield-obc-a")
+
+			dscErr := helper.BucketClient.DeleteBucketStorageClassBrownfield(namespace, storeName, brownfieldSC, "Delete", seedBucket)
+			assert.NoError(t, dscErr)
+
+			err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Delete(ctx, seedObcName, metav1.DeleteOptions{})
+			if !k8serrors.IsNotFound(err) {
+				assert.NoError(t, err)
+			}
+			waitOBCAbsent(t, seedObcName)
+		})
+	})
+
 	t.Run("Regression check: OBC does not revert to Pending phase", func(t *testing.T) {
 		// A bug exists in older versions of lib-bucket-provisioner that will revert a bucket and claim
 		// back to "Pending" phase after being created and initially "Bound" by looping infinitely in
