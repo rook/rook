@@ -173,9 +173,8 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 
 	// options to pass to the controllers
 	controllerOpts := &controllerconfig.Context{
-		ClusterdContext:   o.context,
-		ReconcileCanaries: &controllerconfig.LockingBool{},
-		OpManagerContext:  context,
+		ClusterdContext:  o.context,
+		OpManagerContext: context,
 	}
 
 	// Add the registered controllers to the manager (entrypoint for controllers)
