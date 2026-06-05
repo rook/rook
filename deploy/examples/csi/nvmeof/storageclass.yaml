@@ -2,6 +2,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ceph-nvmeof
+provisioner: rook-ceph.nvmeof.csi.ceph.com # csi-provisioner-name
 parameters:
   clusterID: rook-ceph
   pool: nvmeof
@@ -27,7 +28,6 @@ parameters:
   csi.storage.k8s.io/node-expand-secret-namespace: rook-ceph
   imageFormat: "2"
   imageFeatures: layering,deep-flatten,exclusive-lock,object-map,fast-diff
-provisioner: rook-ceph.nvmeof.csi.ceph.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
