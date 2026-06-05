@@ -130,7 +130,7 @@ spec:
     enableMetadata: true
     generateOMapInfo: false
     fsGroupPolicy: File
-    deployCsiAddons: true
+    deployCsiAddons: false
     cephFsClientType: kernel
     nodePlugin:
       priorityClassName: "system-node-critical"
