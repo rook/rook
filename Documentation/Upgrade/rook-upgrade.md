@@ -119,10 +119,14 @@ See the default settings applied by Rook in [values.yaml](https://github.com/roo
 Install or upgrade the [`ceph-csi-drivers`](../Helm-Charts/csi-drivers-chart.md) chart,
 to configure the CSI driver.
 
-!!! important
-    In previous releases, CSI settings were customized in the `rook-ceph` chart. Now, settings
-    must be customized in the [CSI Drivers Chart config](https://github.com/ceph/ceph-csi-operator/blob/main/docs/helm-charts/drivers-chart.md#configuration).
+**Important points** to ensure CSI mounts continue working after upgrades:
 
+1. This `ceph-csi-drivers` chart must be installed, otherwise the CSI driver will be in a
+    failed state due to missing service accounts.
+2. A recommended `values.yaml` is provided for Rook-compatible defaults in the drivers chart doc linked above.
+    This is critical for setting the proper driver names with the rook operator namespace as a prefix.
+3. In previous releases, CSI settings were customized in the `rook-ceph` chart.
+    Now see the [CSI Drivers Chart config](https://github.com/ceph/ceph-csi-operator/blob/main/docs/helm-charts/drivers-chart.md#configuration) for customization.
 
 ### `rook-ceph-cluster` Chart
 

@@ -16,9 +16,13 @@ The `helm install` command deploys the drivers in the default configuration from
 
 Ceph-CSI publishes the drivers chart from the `ceph-csi-operator` Helm repository.
 
+!!! important
+    Install this chart with the recommended values.yaml. The drivers will fail if only configured with the chart defaults.
+
 ```console
 helm repo add ceph-csi-operator https://ceph.github.io/ceph-csi-operator
-helm install ceph-csi-drivers --namespace rook-ceph ceph-csi-operator/ceph-csi-drivers
+helm install ceph-csi-drivers --namespace rook-ceph ceph-csi-operator/ceph-csi-drivers \
+  -f https://raw.githubusercontent.com/rook/rook/master/deploy/charts/rook-ceph/ceph-csi-drivers/values.yaml
 ```
 
 ## Custom settings
