@@ -50,4 +50,7 @@ $SED -e "s/rook-version=$FROM_TAG_UPGRADE/rook-version=$TO_TAG/g" \
     -e "s/when Rook $FROM_TAG_UPGRADE/when Rook $TO_TAG/g" \
   Documentation/Upgrade/rook-upgrade.md
 
+$SED -e "s|raw.githubusercontent.com/rook/rook/${FROM_TAG}/deploy/charts/ceph-csi-drivers/values.yaml|raw.githubusercontent.com/rook/rook/${TO_TAG}/deploy/charts/ceph-csi-drivers/values.yaml|g" \
+  Documentation/Helm-Charts/csi-drivers-chart.md
+
 echo "Done! Now you can open a PR with these changes."
