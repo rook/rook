@@ -80,6 +80,10 @@ const (
 	deviceType                     = "device-type"
 	encrypted                      = "encrypted"
 
+	// NodeDeviceClassLabelKey is the node label the operator reads to assign a device class
+	// to all OSDs provisioned on that node.
+	NodeDeviceClassLabelKey = "osd.rook.io/device-class"
+
 	// CephxStatus is applied to each OSD deployment as value of this annotation key
 	cephxStatusAnnotationKey = "cephx-status"
 )
@@ -590,6 +594,11 @@ func (c *Cluster) getOSDPropsForNode(nodeName, deviceClass string) (osdPropertie
 
 	storeConfig := osdconfig.ToStoreConfig(n.Config)
 	metadataDevice := osdconfig.MetadataDevice(n.Config)
+	deviceClass, err := c.resolveDeviceClass(storeConfig.DeviceClass, n.Name)
+	if err != nil {
+		return osdProperties{}, err
+	}
+	storeConfig.DeviceClass = deviceClass
 	osdProps := osdProperties{
 		crushHostname:  n.Name,
 		devices:        n.Devices,
@@ -987,10 +996,13 @@ func getNode(ctx context.Context, clientset kubernetes.Interface, nodeName strin
 	// try to find by the node by matching the provided nodeName
 	node, err = clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if kerrors.IsNotFound(err) {
-		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%q=%q", k8sutil.LabelHostname(), nodeName)}
+		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.LabelHostname(), nodeName)}
 		nodeList, err := clientset.CoreV1().Nodes().List(ctx, listOpts)
-		if err != nil || len(nodeList.Items) < 1 {
-			return nil, errors.Wrapf(err, "could not find node %q hostname label", nodeName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "could not find node %q by hostname label", nodeName)
+		}
+		if len(nodeList.Items) != 1 {
+			return nil, errors.Errorf("could not find node %q by hostname label", nodeName)
 		}
 		return &nodeList.Items[0], nil
 	} else if err != nil {
@@ -998,6 +1010,29 @@ func getNode(ctx context.Context, clientset kubernetes.Interface, nodeName strin
 	}
 
 	return node, nil
+}
+
+// resolveDeviceClass determines the device class for a node by checking the CR config
+// and the osd.rook.io/device-class node label. If both are set, it returns an error
+// to avoid ambiguity — the user must choose one or the other.
+func (c *Cluster) resolveDeviceClass(crDeviceClass, nodeName string) (string, error) {
+	node, err := getNode(c.clusterInfo.Context, c.context.Clientset, nodeName)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get node %q to read device class label", nodeName)
+	}
+	labelClass := node.Labels[NodeDeviceClassLabelKey]
+	if crDeviceClass != "" && labelClass != "" {
+		return "", errors.Errorf("node %q has both CR device class %q and node label %q set; remove one to resolve the conflict", nodeName, crDeviceClass, labelClass)
+	}
+	if crDeviceClass != "" {
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "using device class %q from CR config for node %q", crDeviceClass, nodeName)
+		return crDeviceClass, nil
+	}
+	if labelClass != "" {
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "using device class %q from node label for node %q", labelClass, nodeName)
+		return labelClass, nil
+	}
+	return "", nil
 }
 
 func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) string {
