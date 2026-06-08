@@ -786,6 +786,15 @@ func (p *Provisioner) setBucketPolicy(bucket *bucket) error {
 	additionalConfig := bucket.additionalConfig
 	ctx := context.TODO()
 
+	// When the OBC does not define an explicit bucket policy, policy management
+	// is left to Grant/Revoke: each OBC owns the statement keyed by its ceph user
+	// (the statement SID) and preserves statements that belong to other OBCs
+	// sharing the bucket. Deleting the whole policy here would clobber those
+	// statements, so there is nothing for setBucketPolicy to do in that case.
+	if additionalConfig.bucketPolicy == nil {
+		return nil
+	}
+
 	svc := p.s3Agent.Client
 	var livePolicy *string
 
@@ -810,21 +819,12 @@ func (p *Provisioner) setBucketPolicy(bucket *bucket) error {
 	}
 
 	log.NamedDebug(nsName, logger, "Policy for bucket %q has changed. diff:%s", p.bucketName, diff)
-	if additionalConfig.bucketPolicy == nil {
-		_, err = svc.DeleteBucketPolicy(ctx, &s3.DeleteBucketPolicyInput{
-			Bucket: &p.bucketName,
-		})
-		if err != nil {
-			return errors.Wrapf(err, "failed to delete policy for bucket %q", p.bucketName)
-		}
-	} else {
-		_, err = svc.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
-			Bucket: &p.bucketName,
-			Policy: additionalConfig.bucketPolicy,
-		})
-		if err != nil {
-			return errors.Wrapf(err, "failed to set policy for bucket %q", p.bucketName)
-		}
+	_, err = svc.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
+		Bucket: &p.bucketName,
+		Policy: additionalConfig.bucketPolicy,
+	})
+	if err != nil {
+		return errors.Wrapf(err, "failed to set policy for bucket %q", p.bucketName)
 	}
 
 	return nil
