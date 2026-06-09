@@ -104,7 +104,6 @@ var AllowedActions = []action{
 	PutBucketTagging,
 	PutBucketVersioning,
 	PutBucketWebsite,
-	PutBucketVersioning,
 	PutLifecycleConfiguration,
 	PutObject,
 	PutObjectAcl,
@@ -214,15 +213,6 @@ func (bp *BucketPolicy) DropPolicyStatements(sid ...string) *BucketPolicy {
 	return bp
 }
 
-func (bp *BucketPolicy) EjectPrincipals(users ...string) *BucketPolicy {
-	statements := bp.Statement
-	for _, s := range statements {
-		s.EjectPrincipals(users...)
-	}
-	bp.Statement = statements
-	return bp
-}
-
 // NewPolicyStatement generates a new PolicyStatement. PolicyStatement methods are designed to
 // be chain called with dot notation to allow for easy configuration at creation.  This is preferable
 // to a long parameter list.
@@ -297,18 +287,6 @@ func (ps *PolicyStatement) Denies() *PolicyStatement {
 func (ps *PolicyStatement) Actions(actions ...action) *PolicyStatement {
 	ps.Action = actions
 	return ps
-}
-
-func (ps *PolicyStatement) EjectPrincipals(users ...string) {
-	principals := ps.Principal[awsPrinciple]
-	for _, u := range users {
-		for j, v := range principals {
-			if u == v {
-				principals = append(principals[:j], principals[:j+1]...)
-			}
-		}
-	}
-	ps.Principal[awsPrinciple] = principals
 }
 
 // //////////////
