@@ -580,17 +580,6 @@ func (c *Cluster) EnableServiceMonitor() error {
 	return nil
 }
 
-// IsModuleInSpec returns whether a module is present in the CephCluster manager spec
-func IsModuleInSpec(modules []cephv1.Module, moduleName string) bool {
-	for _, v := range modules {
-		if v.Name == moduleName {
-			return true
-		}
-	}
-
-	return false
-}
-
 // ApplyMonitoringLabels function adds the name of the resource that manages
 // cephcluster, as a label on the ceph metrics
 func applyMonitoringLabels(c *Cluster, serviceMonitor *monitoringv1.ServiceMonitor) {
