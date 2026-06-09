@@ -210,10 +210,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "v1.35.5"
 
-      - name: TestCephObjectSuite
+      - name: TestCephObjectSuite (without TLS)
         run: |
           export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -failfast -run CephObjectSuite/TestWithoutTLS github.com/rook/rook/tests/integration
 
       - name: collect common logs
         if: always()
@@ -228,6 +228,46 @@ jobs:
         if: failure()
         with:
           name: ceph-object-suite-main-artifact
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+  object-suite-tls-ceph-main:
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: consider tmate debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: "v1.35.5"
+
+      - name: TestCephObjectSuiteTLS
+        run: |
+          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -failfast -run CephObjectSuite/TestWithTLS github.com/rook/rook/tests/integration
+
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="object-ns"
+          export OPERATOR_NAMESPACE="object-ns-system"
+          tests/scripts/collect-logs.sh
+
+      - name: Artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: ceph-object-suite-tls-main-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   upgrade-from-squid-stable-to-squid-devel:
