@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pkg/errors"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rook/rook/pkg/clusterd"
@@ -103,26 +102,4 @@ func CreateOrUpdateServiceMonitor(context *clusterd.Context, ctx context.Context
 		return nil, fmt.Errorf("failed to update servicemonitor. %v", err)
 	}
 	return sm, nil
-}
-
-// DeleteServiceMonitor deletes a ServiceMonitor and returns the error if any
-func DeleteServiceMonitor(context *clusterd.Context, ctx context.Context, ns string, name string) error {
-	client, err := getMonitoringClient(context)
-	if err != nil {
-		return fmt.Errorf("failed to get monitoring client. %v", err)
-	}
-	_, err = client.MonitoringV1().ServiceMonitors(ns).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		// Either the service monitor does not exist or there are no privileges to detect it
-		// so we ignore any errors
-		return nil
-	}
-	err = client.MonitoringV1().ServiceMonitors(ns).Delete(ctx, name, metav1.DeleteOptions{})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			return nil
-		}
-		return errors.Wrapf(err, "failed to delete service monitor %q", name)
-	}
-	return nil
 }
