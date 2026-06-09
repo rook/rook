@@ -17,29 +17,14 @@ limitations under the License.
 package util
 
 import (
-	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "util")
-
-func WriteFile(filePath string, contentBuffer bytes.Buffer) error {
-	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0o744); err != nil {
-		return fmt.Errorf("failed to create config file directory at %s: %+v", dir, err)
-	}
-	if err := os.WriteFile(filePath, contentBuffer.Bytes(), 0o600); err != nil {
-		return fmt.Errorf("failed to write config file to %s: %+v", filePath, err)
-	}
-
-	return nil
-}
 
 func WriteFileToLog(logger *capnslog.PackageLogger, path string) {
 	contents, err := os.ReadFile(filepath.Clean(path))
@@ -49,16 +34,6 @@ func WriteFileToLog(logger *capnslog.PackageLogger, path string) {
 	}
 
 	logger.Infof("Config file %s:\n%s", path, string(contents))
-}
-
-// PathToProjectRoot returns the path to the root of the rook repo on the current host.
-// This is primarily useful for tests.
-func PathToProjectRoot() string {
-	_, path, _, _ := runtime.Caller(0) // get path to current file (<root>/pkg/util/file.go)
-	util := filepath.Dir(path)         // <root>/pkg/util
-	pkg := filepath.Dir(util)          // <root>/pkg
-	root := filepath.Dir(pkg)          // <root>
-	return root
 }
 
 // CreateTempFile creates a temporary file with content passed as an argument
