@@ -30,8 +30,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"k8s.io/apimachinery/pkg/util/version"
-	"k8s.io/client-go/kubernetes"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
@@ -59,23 +57,6 @@ const (
 	// DefaultServiceAccount is a  service-account used for components that do not specify a dedicated service-account.
 	DefaultServiceAccount = "rook-ceph-default"
 )
-
-// GetK8SVersion gets the version of the running K8S cluster
-func GetK8SVersion(clientset kubernetes.Interface) (*version.Version, error) {
-	serverVersion, err := clientset.Discovery().ServerVersion()
-	if err != nil {
-		return nil, fmt.Errorf("error getting server version: %v", err)
-	}
-
-	// make sure the kubernetes version is parseable
-	index := strings.Index(serverVersion.GitVersion, "+")
-	if index != -1 {
-		newVersion := serverVersion.GitVersion[:index]
-		logger.Debugf("returning version %s instead of %s", newVersion, serverVersion.GitVersion)
-		serverVersion.GitVersion = newVersion
-	}
-	return version.MustParseSemantic(serverVersion.GitVersion), nil
-}
 
 // Hash stableName computes a stable pseudorandom string suitable for inclusion in a Kubernetes object name from the given seed string.
 // Do **NOT** edit this function in a way that would change its output as it needs to

@@ -25,7 +25,6 @@ import (
 	batch "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -56,32 +55,6 @@ func RunReplaceableJob(ctx context.Context, clientset kubernetes.Interface, job 
 
 	_, err = clientset.BatchV1().Jobs(job.Namespace).Create(ctx, job, metav1.CreateOptions{})
 	return err
-}
-
-// WaitForJobCompletion waits for a job to reach the completed state.
-// Assumes that only one pod needs to complete.
-func WaitForJobCompletion(ctx context.Context, clientset kubernetes.Interface, job *batch.Job, timeout time.Duration) error {
-	logger.Infof("waiting for job %s to complete...", job.Name)
-	return wait.PollUntilContextTimeout(ctx, 5*time.Second, timeout, true, func(context context.Context) (bool, error) {
-		job, err := clientset.BatchV1().Jobs(job.Namespace).Get(ctx, job.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, fmt.Errorf("failed to detect job %s. %+v", job.Name, err)
-		}
-
-		// if the job is still running, allow it to continue to completion
-		if job.Status.Active > 0 {
-			logger.Debugf("job is still running. Status=%+v", job.Status)
-			return false, nil
-		}
-		if job.Status.Failed > 0 {
-			return false, fmt.Errorf("job %s failed", job.Name)
-		}
-		if job.Status.Succeeded > 0 {
-			return true, nil
-		}
-		logger.Debugf("job is still initializing")
-		return false, nil
-	})
 }
 
 // DeleteBatchJob deletes a Kubernetes job.
