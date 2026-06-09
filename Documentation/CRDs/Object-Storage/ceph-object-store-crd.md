@@ -357,6 +357,8 @@ When TLS is enabled on the gateway, Rook configures the Ceph RGW beast frontend 
 * `cipherSuites`: Cipher strings for `ssl_ciphersuites` (TLS v1.3).To restrict the gateway to TLS 1.3 only, set `tlsv1_2`, `tlsv1_1`, and `tlsv1_0` to `false` in `sslOptions`.
 * `tlsGroups`: Colon-separated TLS group names for `tls_groups`
 
+**Note** Support for tls v1.3 and hybrid key will be in upcoming Ceph squid and tantacle. For for details check https://tracker.ceph.com/issues/76578.
+
 Example for TLS 1.2 cipher control:
 
 ```yaml
