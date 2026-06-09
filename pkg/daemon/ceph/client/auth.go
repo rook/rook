@@ -34,21 +34,6 @@ type AuthListEntry struct {
 	Entity string `json:"entity"`
 }
 
-// AuthGetOrCreate will either get or create a user with the given capabilities.  The keyring for the
-// user will be written to the given keyring path.
-func AuthGetOrCreate(context *clusterd.Context, clusterInfo *ClusterInfo, name, keyringPath string, caps []string) error {
-	logger.Infof("getting or creating ceph auth %q", name)
-	args := append([]string{"auth", "get-or-create", name, "-o", keyringPath}, caps...)
-	cmd := NewCephCommand(context, clusterInfo, args)
-	cmd.JsonOutput = false
-	_, err := cmd.Run()
-	if err != nil {
-		return errors.Wrapf(err, "failed to auth get-or-create for %s", name)
-	}
-
-	return nil
-}
-
 // AuthGetKey gets the key for the given user.
 func AuthGetKey(context *clusterd.Context, clusterInfo *ClusterInfo, name string) (string, error) {
 	logger.Infof("getting ceph auth key %q", name)
