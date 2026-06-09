@@ -639,6 +639,225 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 	})
 }
 
+func Test_startProvisioningOverNodes_deviceClassNodeLabel(t *testing.T) {
+	namespace := "rook-ceph"
+	dataDirHostPath := "/var/lib/mycluster"
+	useAllDevices := true
+
+	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   namespace,
+		CephVersion: cephver.Squid,
+	}
+	clusterInfo.SetName("mycluster")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+	clusterInfo.Context = context.TODO()
+
+	getDeviceClassEnvFromJobs := func(clientset *fake.Clientset) map[string]string {
+		jobs, err := clientset.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{})
+		assert.NoError(t, err)
+		result := map[string]string{}
+		for _, job := range jobs.Items {
+			for _, container := range job.Spec.Template.Spec.Containers {
+				for _, env := range container.Env {
+					if env.Name == CrushDeviceClassVarName {
+						nodeName := strings.TrimPrefix(job.Name, "rook-ceph-osd-prepare-")
+						result[nodeName] = env.Value
+					}
+				}
+			}
+		}
+		return result
+	}
+
+	t.Run("node label sets device class when CR has none", func(t *testing.T) {
+		clientset := fake.NewClientset()
+		// Create a node with the deviceclass label
+		node := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node0",
+				Labels: map[string]string{
+					corev1.LabelHostname:    "node0",
+					NodeDeviceClassLabelKey: "ssd",
+				},
+			},
+			Status: corev1.NodeStatus{
+				Conditions: []corev1.NodeCondition{
+					{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+				},
+			},
+		}
+		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		spec := cephv1.ClusterSpec{
+			Storage: cephv1.StorageScopeSpec{
+				UseAllNodes: false,
+				Nodes:       []cephv1.Node{{Name: "node0"}},
+				Selection:   cephv1.Selection{UseAllDevices: &useAllDevices},
+			},
+			DataDirHostPath: dataDirHostPath,
+		}
+		ctx := &clusterd.Context{Clientset: clientset}
+		c := New(ctx, clusterInfo, spec, "rook/rook:master")
+		config := c.newProvisionConfig()
+		errs := newProvisionErrors()
+
+		prepareJobsRun, err := c.startProvisioningOverNodes(config, errs)
+		assert.NoError(t, err)
+		assert.Zero(t, errs.len())
+		assert.Equal(t, 1, prepareJobsRun.Len())
+
+		deviceClasses := getDeviceClassEnvFromJobs(clientset)
+		assert.Equal(t, "ssd", deviceClasses["node0"])
+	})
+
+	t.Run("conflict between CR and node label skips the node", func(t *testing.T) {
+		clientset := fake.NewClientset()
+		node := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node0",
+				Labels: map[string]string{
+					corev1.LabelHostname:    "node0",
+					NodeDeviceClassLabelKey: "ssd",
+				},
+			},
+			Status: corev1.NodeStatus{
+				Conditions: []corev1.NodeCondition{
+					{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+				},
+			},
+		}
+		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		spec := cephv1.ClusterSpec{
+			Storage: cephv1.StorageScopeSpec{
+				UseAllNodes: false,
+				Nodes: []cephv1.Node{{
+					Name:   "node0",
+					Config: map[string]string{"deviceClass": "hdd"},
+				}},
+				Selection: cephv1.Selection{UseAllDevices: &useAllDevices},
+			},
+			DataDirHostPath: dataDirHostPath,
+		}
+		ctx := &clusterd.Context{Clientset: clientset}
+		c := New(ctx, clusterInfo, spec, "rook/rook:master")
+		config := c.newProvisionConfig()
+		errs := newProvisionErrors()
+
+		prepareJobsRun, err := c.startProvisioningOverNodes(config, errs)
+		assert.NoError(t, err)
+		assert.Zero(t, errs.len())
+		assert.Zero(t, prepareJobsRun.Len())
+	})
+
+	t.Run("no label and no CR config results in empty device class", func(t *testing.T) {
+		clientset := fake.NewClientset()
+		node := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node0",
+				Labels: map[string]string{
+					corev1.LabelHostname: "node0",
+				},
+			},
+			Status: corev1.NodeStatus{
+				Conditions: []corev1.NodeCondition{
+					{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+				},
+			},
+		}
+		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		spec := cephv1.ClusterSpec{
+			Storage: cephv1.StorageScopeSpec{
+				UseAllNodes: false,
+				Nodes:       []cephv1.Node{{Name: "node0"}},
+				Selection:   cephv1.Selection{UseAllDevices: &useAllDevices},
+			},
+			DataDirHostPath: dataDirHostPath,
+		}
+		ctx := &clusterd.Context{Clientset: clientset}
+		c := New(ctx, clusterInfo, spec, "rook/rook:master")
+		config := c.newProvisionConfig()
+		errs := newProvisionErrors()
+
+		prepareJobsRun, err := c.startProvisioningOverNodes(config, errs)
+		assert.NoError(t, err)
+		assert.Zero(t, errs.len())
+		assert.Equal(t, 1, prepareJobsRun.Len())
+
+		deviceClasses := getDeviceClassEnvFromJobs(clientset)
+		assert.Equal(t, "", deviceClasses["node0"])
+	})
+
+	t.Run("conflict skips one node but other nodes still provision", func(t *testing.T) {
+		clientset := fake.NewClientset()
+		// node0 has both CR config and label (conflict)
+		node0 := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node0",
+				Labels: map[string]string{
+					corev1.LabelHostname:    "node0",
+					NodeDeviceClassLabelKey: "ssd",
+				},
+			},
+			Status: corev1.NodeStatus{
+				Conditions: []corev1.NodeCondition{
+					{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+				},
+			},
+		}
+		// node1 has only label (no conflict)
+		node1 := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node1",
+				Labels: map[string]string{
+					corev1.LabelHostname:    "node1",
+					NodeDeviceClassLabelKey: "fast",
+				},
+			},
+			Status: corev1.NodeStatus{
+				Conditions: []corev1.NodeCondition{
+					{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+				},
+			},
+		}
+		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node0, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		_, err = clientset.CoreV1().Nodes().Create(context.TODO(), node1, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		spec := cephv1.ClusterSpec{
+			Storage: cephv1.StorageScopeSpec{
+				UseAllNodes: false,
+				Nodes: []cephv1.Node{
+					{Name: "node0", Config: map[string]string{"deviceClass": "hdd"}},
+					{Name: "node1"},
+				},
+				Selection: cephv1.Selection{UseAllDevices: &useAllDevices},
+			},
+			DataDirHostPath: dataDirHostPath,
+		}
+		ctx := &clusterd.Context{Clientset: clientset}
+		c := New(ctx, clusterInfo, spec, "rook/rook:master")
+		config := c.newProvisionConfig()
+		errs := newProvisionErrors()
+
+		prepareJobsRun, err := c.startProvisioningOverNodes(config, errs)
+		assert.NoError(t, err)
+		assert.Zero(t, errs.len())
+		// Only node1 should have a prepare job (node0 skipped due to conflict)
+		assert.Equal(t, 1, prepareJobsRun.Len())
+
+		deviceClasses := getDeviceClassEnvFromJobs(clientset)
+		assert.Equal(t, "fast", deviceClasses["node1"])
+		_, node0HasJob := deviceClasses["node0"]
+		assert.False(t, node0HasJob)
+	})
+}
+
 func newDummyPVC(name, namespace string, capacity string, storageClassName string) cephv1.VolumeClaimTemplate {
 	volMode := corev1.PersistentVolumeBlock
 	return cephv1.VolumeClaimTemplate{
