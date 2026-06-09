@@ -249,15 +249,6 @@ func (c *CephToolCommand) RunWithTimeout(timeout time.Duration) ([]byte, error) 
 	return c.run()
 }
 
-// ExecuteRBDCommandWithTimeout executes the 'rbd' command with a timeout of 1
-// minute. This method is left as a special case in which the caller has fully
-// configured its arguments. It is future work to integrate this case into the
-// generalization.
-func ExecuteRBDCommandWithTimeout(context *clusterd.Context, args []string) (string, error) {
-	output, err := context.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, RBDTool, args...)
-	return output, err
-}
-
 func ExecuteCephCommandWithRetry(
 	cmd func() (string, []byte, error),
 	retries int,
