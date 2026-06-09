@@ -329,6 +329,12 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 		// create the job that prepares osds on the node
 		storeConfig := osdconfig.ToStoreConfig(n.Config)
 		metadataDevice := osdconfig.MetadataDevice(n.Config)
+		deviceClass, err := c.resolveDeviceClass(storeConfig.DeviceClass, n.Name)
+		if err != nil {
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "%v", err)
+			continue
+		}
+		storeConfig.DeviceClass = deviceClass
 		osdProps := osdProperties{
 			crushHostname:  n.Name,
 			devices:        n.Devices,

@@ -546,6 +546,79 @@ func Test_updateExistingOSDs(t *testing.T) {
 		assert.Equal(t, 1, osdIDUpdated)
 		updateConfig.osdsToSkipReconcile.Delete("0")
 	})
+
+	t.Run("conflict between CR and node label skips conflicting OSD but updates others", func(t *testing.T) {
+		clientset = fake.NewClientset()
+
+		// node0 has no label (no conflict)
+		node0 := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "node0",
+				Labels: map[string]string{corev1.LabelHostname: "node0"},
+			},
+		}
+		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node0, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		// node1 has BOTH label and CR config (conflict)
+		node1 := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "node1",
+				Labels: map[string]string{corev1.LabelHostname: "node1", NodeDeviceClassLabelKey: "ssd"},
+			},
+		}
+		_, err = clientset.CoreV1().Nodes().Create(context.TODO(), node1, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		updateQueue = newUpdateQueueWithIDs(0, 1)
+		existingDeployments = newExistenceListWithIDs(0, 1)
+
+		ctx = &clusterd.Context{
+			Clientset: clientset,
+			Executor:  executor,
+		}
+		clusterInfo := &cephclient.ClusterInfo{
+			Namespace:   namespace,
+			CephVersion: cephver.Squid,
+			Context:     context.TODO(),
+		}
+		clusterInfo.SetName("mycluster")
+		clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+		spec := cephv1.ClusterSpec{
+			ContinueUpgradeAfterChecksEvenIfNotHealthy: forceUpgradeIfUnhealthy,
+			UpgradeOSDRequiresHealthyPGs:               requiresHealthyPGs,
+			Storage: cephv1.StorageScopeSpec{
+				Nodes: []cephv1.Node{
+					{Name: "node0"},
+					{Name: "node1", Config: map[string]string{"deviceClass": "hdd"}},
+				},
+			},
+		}
+		c = New(ctx, clusterInfo, spec, "rook/rook:master")
+		c.ValidStorage.Nodes = spec.Storage.Nodes
+		config := c.newProvisionConfig()
+		updateConfig = c.newUpdateConfig(config, updateQueue, existingDeployments, sets.New[string]())
+
+		addDeploymentOnNode("node0", 0)
+		// Create node1's deployment manually since getDummyDeploymentOnNode would panic on conflict.
+		// In production, this deployment would have been created before the label was added.
+		d1 := getDummyDeploymentOnNode(clientset, c, "node0", 1) // use node0 to avoid panic
+		d1.Name = "rook-ceph-osd-1"
+		d1.Spec.Template.Spec.NodeSelector = map[string]string{corev1.LabelHostname: "node1"}
+		_, err = clientset.AppsV1().Deployments(namespace).Create(context.TODO(), d1, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		osdToBeQueried = 0
+		returnOkToStopIDs = []int{0, 1}
+		deploymentsUpdated = []string{}
+		errs = newProvisionErrors()
+
+		updateConfig.updateExistingOSDs(errs)
+		// OSD 1 on node1 should fail due to conflict
+		assert.Equal(t, 1, errs.len())
+		// OSD 0 on node0 should have been updated successfully
+		assert.Contains(t, deploymentsUpdated, "rook-ceph-osd-0")
+	})
 }
 
 func Test_getOSDUpdateInfo(t *testing.T) {

@@ -1495,3 +1495,90 @@ func TestPerDeviceClassForOSD(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveDeviceClass(t *testing.T) {
+	namespace := "rook-ceph"
+	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   namespace,
+		CephVersion: cephver.Squid,
+		Context:     context.TODO(),
+	}
+	clusterInfo.SetName("mycluster")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+
+	createNode := func(clientset *fake.Clientset, name string, labels map[string]string) {
+		node := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   name,
+				Labels: labels,
+			},
+		}
+		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+		assert.NoError(t, err)
+	}
+
+	t.Run("only node label set", func(t *testing.T) {
+		clientset := fake.NewClientset()
+		createNode(clientset, "node0", map[string]string{
+			corev1.LabelHostname:    "node0",
+			NodeDeviceClassLabelKey: "ssd",
+		})
+		ctx := &clusterd.Context{Clientset: clientset}
+		c := New(ctx, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+
+		result, err := c.resolveDeviceClass("", "node0")
+		assert.NoError(t, err)
+		assert.Equal(t, "ssd", result)
+	})
+
+	t.Run("only CR device class set", func(t *testing.T) {
+		clientset := fake.NewClientset()
+		createNode(clientset, "node0", map[string]string{
+			corev1.LabelHostname: "node0",
+		})
+		ctx := &clusterd.Context{Clientset: clientset}
+		c := New(ctx, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+
+		result, err := c.resolveDeviceClass("hdd", "node0")
+		assert.NoError(t, err)
+		assert.Equal(t, "hdd", result)
+	})
+
+	t.Run("both set returns conflict error", func(t *testing.T) {
+		clientset := fake.NewClientset()
+		createNode(clientset, "node0", map[string]string{
+			corev1.LabelHostname:    "node0",
+			NodeDeviceClassLabelKey: "ssd",
+		})
+		ctx := &clusterd.Context{Clientset: clientset}
+		c := New(ctx, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+
+		result, err := c.resolveDeviceClass("hdd", "node0")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "conflict")
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("neither set returns empty", func(t *testing.T) {
+		clientset := fake.NewClientset()
+		createNode(clientset, "node0", map[string]string{
+			corev1.LabelHostname: "node0",
+		})
+		ctx := &clusterd.Context{Clientset: clientset}
+		c := New(ctx, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+
+		result, err := c.resolveDeviceClass("", "node0")
+		assert.NoError(t, err)
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("node not found returns error", func(t *testing.T) {
+		clientset := fake.NewClientset()
+		ctx := &clusterd.Context{Clientset: clientset}
+		c := New(ctx, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+
+		result, err := c.resolveDeviceClass("", "nonexistent")
+		assert.Error(t, err)
+		assert.Equal(t, "", result)
+	})
+}
