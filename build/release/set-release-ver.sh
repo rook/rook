@@ -17,6 +17,8 @@ SED="${scriptdir}/../sed-in-place"
 FILES_DOCS=(
  Documentation/Getting-Started/quickstart.md
  Documentation/Storage-Configuration/Monitoring/ceph-monitoring.md
+ Documentation/CRDs/Cluster/external-cluster/consumer-import.md
+ Documentation/Helm-Charts/csi-drivers-chart.md
 )
 FILES_CHARTS=(
  deploy/charts/rook-ceph/values.yaml
