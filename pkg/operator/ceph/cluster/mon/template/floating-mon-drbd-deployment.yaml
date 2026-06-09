@@ -116,15 +116,18 @@ spec:
           hostPath:
             path: {{ .DRBD_DIR_PATH }}
             type: Directory
-        - name: host-root
-          hostPath:
-            path: /
       initContainers:
         - name: drbd-init
           image: {{ .DRBD_UTILS_IMAGE }}
           imagePullPolicy: {{ .IMAGE_PULL_POLICY }}
           securityContext:
             privileged: true
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
           command:
             - sh
             - -c
@@ -134,11 +137,10 @@ spec:
                 echo "Unmounting stale mount at {{ .CONTAINER_DATA_DIR }}..."
                 umount {{ .CONTAINER_DATA_DIR }}
               fi
-              REAL_HOSTNAME=$(cat /host/etc/hostname)
-              echo "Setting hostname to: $REAL_HOSTNAME"
-              echo "$REAL_HOSTNAME" > /proc/sys/kernel/hostname
-              echo "Hostname after change:"
-              uname -n
+              echo "Current hostname: $(uname -n)"
+              echo "Setting hostname to $HOSTNAME"
+              echo "$HOSTNAME" > /proc/sys/kernel/hostname
+              echo "New hostname: $(uname -n)"
               echo "Promoting DRBD resource to Primary..."
               drbdadm primary {{ .DRBD_RESOURCE_NAME }} --config-file {{ .DRBD_CONF_PATH }}
               echo "DRBD init steps completed"
@@ -149,9 +151,6 @@ spec:
               mountPath: {{ .DRBD_CONF_PATH }}
             - name: drbd-dir
               mountPath: {{ .DRBD_DIR_PATH }}
-            - name: host-root
-              mountPath: /host
-              readOnly: true
         - name: chown-container-data-dir
           image: {{ .CEPH_IMAGE }}
           imagePullPolicy: {{ .IMAGE_PULL_POLICY }}
@@ -543,15 +542,20 @@ spec:
           imagePullPolicy: {{ .IMAGE_PULL_POLICY }}
           securityContext:
             privileged: true
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
           command:
             - sh
             - -c
             - |
-              REAL_HOSTNAME=$(cat /host/etc/hostname)
-              echo "Setting hostname to: $REAL_HOSTNAME"
-              echo "$REAL_HOSTNAME" > /proc/sys/kernel/hostname
-              echo "Hostname after change:"
-              uname -n
+              echo "Current hostname: $(uname -n)"
+              echo "Setting hostname to $HOSTNAME"
+              echo "$HOSTNAME" > /proc/sys/kernel/hostname
+              echo "New hostname: $(uname -n)"
               sleep infinity
           volumeMounts:
             - name: dev
@@ -560,9 +564,6 @@ spec:
               mountPath: {{ .DRBD_CONF_PATH }}
             - name: drbd-dir
               mountPath: {{ .DRBD_DIR_PATH }}
-            - name: host-root
-              mountPath: /host
-              readOnly: true
           lifecycle:
             preStop:
               exec:
