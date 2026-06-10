@@ -129,33 +129,35 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 		assert.Nil(t, err)
 		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
 
+		putTime := time.Now()
 		t.Run("put object", func(t *testing.T) {
 			_, err := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey1, contentType)
 			assert.Nil(t, err)
 		})
 
 		t.Run("check for put bucket notification", func(t *testing.T) {
-			notificationReceived, err := helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, putEvent, ObjectKey1)
+			notificationReceived, err := helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, putEvent, ObjectKey1, putTime)
 			assert.True(t, notificationReceived)
 			assert.Nil(t, err)
 			// negative test case to confirm didn't receive any delete event notification
-			notificationReceived, err = helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, deleteEvent, ObjectKey1)
-			assert.False(t, notificationReceived)
+			notificationAbsent, err := helper.NotificationClient.CheckNotificationAbsentFromHTTPEndPoint(appLabel, deleteEvent, ObjectKey1, putTime)
+			assert.True(t, notificationAbsent)
 			assert.Nil(t, err)
 		})
 
+		deleteTime := time.Now()
 		t.Run("delete objects", func(t *testing.T) {
 			_, err := s3client.DeleteObjectInBucket(bucketname, ObjectKey1)
 			assert.Nil(t, err)
 		})
 
 		t.Run("check for delete bucket notification", func(t *testing.T) {
-			notificationReceived, err := helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, deleteEvent, ObjectKey1)
+			notificationReceived, err := helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, deleteEvent, ObjectKey1, deleteTime)
 			assert.True(t, notificationReceived)
 			assert.Nil(t, err)
 			// negative test case to confirm didn't receive any put event notification
-			notificationReceived, err = helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, putEvent, ObjectKey1)
-			assert.False(t, notificationReceived)
+			notificationAbsent, err := helper.NotificationClient.CheckNotificationAbsentFromHTTPEndPoint(appLabel, putEvent, ObjectKey1, deleteTime)
+			assert.True(t, notificationAbsent)
 			assert.Nil(t, err)
 		})
 	})
@@ -229,25 +231,27 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 		assert.Nil(t, err)
 		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
 
+		putTime := time.Now()
 		t.Run("put object", func(t *testing.T) {
 			_, err := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey2, contentType)
 			assert.Nil(t, err)
 		})
 
 		t.Run("check for put bucket notification", func(t *testing.T) {
-			notificationReceived, err := helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, putEvent, ObjectKey2)
-			assert.False(t, notificationReceived)
+			notificationAbsent, err := helper.NotificationClient.CheckNotificationAbsentFromHTTPEndPoint(appLabel, putEvent, ObjectKey2, putTime)
+			assert.True(t, notificationAbsent)
 			assert.Nil(t, err)
 		})
 
+		deleteTime := time.Now()
 		t.Run("delete objects", func(t *testing.T) {
 			_, err := s3client.DeleteObjectInBucket(bucketname, ObjectKey1)
 			assert.Nil(t, err)
 		})
 
 		t.Run("check for delete bucket notification", func(t *testing.T) {
-			notificationReceived, err := helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, deleteEvent, ObjectKey2)
-			assert.False(t, notificationReceived)
+			notificationAbsent, err := helper.NotificationClient.CheckNotificationAbsentFromHTTPEndPoint(appLabel, deleteEvent, ObjectKey2, deleteTime)
+			assert.True(t, notificationAbsent)
 			assert.Nil(t, err)
 		})
 	})
