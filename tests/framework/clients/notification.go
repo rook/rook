@@ -60,16 +60,84 @@ func (t *NotificationOperation) CheckNotificationCR(notificationName string) boo
 	return true
 }
 
-func (t *NotificationOperation) CheckNotificationFromHTTPEndPoint(appLabel, eventName, fileName string) (bool, error) {
-	// wait for the notification to reach http-server
-	time.Sleep(5 * time.Second)
-	selectorName := "--selector=" + appLabel
-	l, err := t.k8sh.Kubectl("logs", selectorName, "--tail", "5")
+const (
+	notificationWaitAttempts = 12
+	notificationWaitInterval = 5 * time.Second
+)
+
+// notificationRecords returns the http server log lines emitted strictly
+// after since. The endpoint pod is shared by every scenario in the suite
+// (including the other TLS pass), so an unbounded sample can match stale
+// records; --timestamps gives per-line runtime stamps for a precise client
+// side boundary, while --since-time only prefilters at second granularity.
+func (t *NotificationOperation) notificationRecords(appLabel string, since time.Time) ([]string, error) {
+	l, err := t.k8sh.Kubectl("logs",
+		"--selector="+appLabel,
+		"--timestamps",
+		"--since-time="+since.Add(-2*time.Second).UTC().Format(time.RFC3339))
+	if err != nil {
+		return nil, err
+	}
+
+	var records []string
+	for _, line := range strings.Split(l, "\n") {
+		stamp, record, found := strings.Cut(line, " ")
+		if !found {
+			continue
+		}
+		when, err := time.Parse(time.RFC3339Nano, stamp)
+		if err != nil {
+			continue
+		}
+		if when.After(since) {
+			records = append(records, record)
+		}
+	}
+	return records, nil
+}
+
+// recordMatches reports whether a single record line carries both eventName
+// and fileName. Records are single-line JSON; matching the concatenated log
+// would let two unrelated records satisfy the substrings independently.
+func recordMatches(records []string, eventName, fileName string) bool {
+	for _, record := range records {
+		if strings.Contains(record, eventName) && strings.Contains(record, fileName) {
+			return true
+		}
+	}
+	return false
+}
+
+// CheckNotificationFromHTTPEndPoint polls the http endpoint logs for an
+// eventName/fileName record emitted after since, for up to a minute —
+// delivery lags well past a single fixed sleep on loaded CI runners.
+func (t *NotificationOperation) CheckNotificationFromHTTPEndPoint(appLabel, eventName, fileName string, since time.Time) (bool, error) {
+	var lastErr error
+	for i := 0; i < notificationWaitAttempts; i++ {
+		// wait for the notification to reach http-server
+		time.Sleep(notificationWaitInterval)
+		records, err := t.notificationRecords(appLabel, since)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		lastErr = nil
+		if recordMatches(records, eventName, fileName) {
+			return true, nil
+		}
+	}
+	return false, lastErr
+}
+
+// CheckNotificationAbsentFromHTTPEndPoint reports whether no eventName/
+// fileName record was emitted after since: one settle interval, then a
+// single sample. Callers pair it with a positive check that already proved
+// delivery works, so polling longer would only slow the suite down.
+func (t *NotificationOperation) CheckNotificationAbsentFromHTTPEndPoint(appLabel, eventName, fileName string, since time.Time) (bool, error) {
+	time.Sleep(notificationWaitInterval)
+	records, err := t.notificationRecords(appLabel, since)
 	if err != nil {
 		return false, err
 	}
-	if strings.Contains(l, eventName) && strings.Contains(l, fileName) {
-		return true, nil
-	}
-	return false, nil
+	return !recordMatches(records, eventName, fileName), nil
 }
