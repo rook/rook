@@ -32,8 +32,6 @@ jobs:
     strategy:
       fail-fast: true
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    env:
-      NUMBER_OF_COMPUTE_NODES: 5
     steps:
       - name: checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -61,7 +59,9 @@ jobs:
         run: ./tests/scripts/multus/setup-multus.sh
 
       - name: Set up multus prerequisite host routing
-        run: kubectl create -f tests/scripts/multus/host-cfg-ds.yaml
+        run: |
+          kubectl create -f tests/scripts/multus/host-cfg-ds.yaml
+          kubectl rollout status daemonset/host-net-config --timeout=120s
 
       - name: Install public and cluster NADs in default namespace
         run: kubectl create -f tests/scripts/multus/default-public-cluster-nads.yaml
@@ -111,6 +111,15 @@ jobs:
         # independent from other tests as long as nodes are tainted and labeled
         if: steps.taint.outcome == 'success' && !cancelled()
         run: ./tests/scripts/multus/test-240-stretch-cluster-only.sh
+
+      - name: dump cluster state on failure
+        if: failure()
+        run: |
+          kubectl get nodes -o wide || true
+          kubectl get pods -A -o wide || true
+          kubectl -n kube-system describe daemonset kube-multus-ds install-cni-plugins whereabouts || true
+          kubectl get events -A --sort-by=.lastTimestamp | tail -60 || true
+          kubectl -n kube-system logs -l name=multus --all-containers --tail=30 || true
 
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
