@@ -92,6 +92,13 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 				}
 				panic(fmt.Sprintf("unhandled command %s %v", command, args))
 			},
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
+				logger.Infof("mock execute with timeout: %s %v", command, arg)
+				if command == "ceph" && arg[0] == "config" && arg[1] == "get" {
+					return "quay.io/ceph/nvmeof:1.5", nil
+				}
+				return "", nil
+			},
 		}
 	}
 
@@ -502,6 +509,12 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 				if args[0] == "nvme-gw" && args[1] == "show" {
 					return "", nil
 				}
+			}
+			return "", nil
+		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
+			if command == "ceph" && arg[0] == "config" && arg[1] == "get" {
+				return "quay.io/ceph/nvmeof:1.5", nil
 			}
 			return "", nil
 		},
