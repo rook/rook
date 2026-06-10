@@ -19,6 +19,7 @@ package realm
 
 import (
 	"context"
+	"regexp"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -301,6 +303,30 @@ func TestReconcileObjectRealm_createRealmKeys(t *testing.T) {
 				assert.Contains(t, secret.Data, "access-key")
 				assert.Contains(t, secret.Data, "secret-key")
 			})
+		}
+	})
+
+	t.Run("generated keys are URL-safe", func(t *testing.T) {
+		// the access key is embedded in the '/'-delimited SigV4 credential scope, so a '/'
+		// anywhere in it makes "radosgw-admin realm pull" fail with "(22) Invalid argument"
+		urlSafe := regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+		for i := 0; i < 100; i++ {
+			r := ReconcileObjectRealm{
+				context: &clusterd.Context{
+					Clientset: k8sfake.NewClientset(),
+				},
+				scheme:   scheme,
+				recorder: events.NewFakeRecorder(50),
+			}
+
+			res, err := r.createRealmKeys(realm)
+			require.NoError(t, err)
+			assert.True(t, res.IsZero())
+
+			secret, err := r.context.Clientset.CoreV1().Secrets(ns).Get(ctx, realmName+"-keys", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Regexp(t, urlSafe, string(secret.Data["access-key"]))
+			assert.Regexp(t, urlSafe, string(secret.Data["secret-key"]))
 		}
 	})
 
