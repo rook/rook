@@ -41,7 +41,6 @@ const (
 	nvmeofGatewayPort   = 5500
 	nvmeofMonitorPort   = 5499
 	nvmeofDiscoveryPort = 8009
-	defaultNVMeOFImage  = "quay.io/ceph/nvmeof:1.5"
 	configKey           = "config"
 	serviceAccountName  = "rook-ceph-nvmeof"
 )
@@ -182,7 +181,10 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 	gatewayConfigVol, gatewayConfigMount := gatewayConfigVolumeAndMount(configMapName)
 
 	initContainer := r.createCephConfigInitContainer(nvmeof, daemonID, gatewayConfigMount)
-	daemonContainer := r.daemonContainer(nvmeof, cephConfigMount)
+	daemonContainer, err := r.daemonContainer(nvmeof, cephConfigMount)
+	if err != nil {
+		return nil, err
+	}
 
 	gatewayName := instanceName(nvmeof, daemonID)
 	podSpec := v1.PodSpec{
@@ -352,7 +354,12 @@ func (r *ReconcileCephNVMeOFGateway) createCephConfigInitContainer(nvmeof *cephv
 	return container
 }
 
-func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGateway, cephConfigMount v1.VolumeMount) v1.Container {
+func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGateway, cephConfigMount v1.VolumeMount) (v1.Container, error) {
+	image, err := r.getNVMeOFImage(nvmeof)
+	if err != nil {
+		return v1.Container{}, err
+	}
+
 	privileged := true
 	container := v1.Container{
 		Name: "nvmeof-gateway",
@@ -361,7 +368,7 @@ func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGa
 			"/etc/ceph/nvmeof.conf",
 		},
 
-		Image:           getNVMeOFImage(nvmeof),
+		Image:           image,
 		ImagePullPolicy: v1.PullIfNotPresent,
 		VolumeMounts: []v1.VolumeMount{
 			cephConfigMount,
@@ -423,7 +430,7 @@ func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGa
 		container.LivenessProbe = r.defaultLivenessProbe(nvmeof)
 	}
 	result := cephconfig.ConfigureLivenessProbe(container, nvmeof.Spec.LivenessProbe)
-	return result
+	return result, nil
 }
 
 func (r *ReconcileCephNVMeOFGateway) defaultLivenessProbe(nvmeof *cephv1.CephNVMeOFGateway) *v1.Probe {
@@ -443,12 +450,25 @@ func instanceName(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) string {
 }
 
 // getNVMeOFImage returns the image to use for the NVMe-oF gateway.
-// If the image is specified in the spec, it is used; otherwise, the default image is returned.
-func getNVMeOFImage(nvmeof *cephv1.CephNVMeOFGateway) string {
+// Priority: CR spec.image > ceph config (mgr/cephadm/container_image_nvmeof).
+// If neither source provides an image, an error is returned to fail the reconcile.
+func (r *ReconcileCephNVMeOFGateway) getNVMeOFImage(nvmeof *cephv1.CephNVMeOFGateway) (string, error) {
 	if nvmeof.Spec.Image != "" {
-		return nvmeof.Spec.Image
+		logger.Infof("using NVMe-oF gateway image from CR spec: %s", nvmeof.Spec.Image)
+		return nvmeof.Spec.Image, nil
 	}
-	return defaultNVMeOFImage
+
+	monStore := cephconfig.GetMonStore(r.context, r.clusterInfo)
+	image, err := monStore.Get("mgr", "mgr/cephadm/container_image_nvmeof")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get NVMe-oF image from ceph config (mgr/cephadm/container_image_nvmeof)")
+	}
+	if image == "" {
+		return "", errors.New("NVMe-oF gateway image not specified in the CR and ceph config key mgr/cephadm/container_image_nvmeof is empty")
+	}
+
+	logger.Infof("using NVMe-oF gateway image from ceph config: %s", image)
+	return image, nil
 }
 
 func gatewayConfigVolumeAndMount(configConfigMap string) (v1.Volume, v1.VolumeMount) {
