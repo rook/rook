@@ -313,11 +313,6 @@ func (q *updateQueue) Exists(osdID int) bool {
 	return false
 }
 
-// Clear deletes all entries inside the queue
-func (q *updateQueue) Clear() {
-	q.q = q.q[:0]
-}
-
 // Remove removes the items from the queue if they exist.
 func (q *updateQueue) Remove(osdIDs []int) {
 	shouldRemove := func(rid int) bool {
