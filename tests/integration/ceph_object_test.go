@@ -311,7 +311,10 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			_, poErr := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey2, contentType)
 			assert.Nil(t, poErr)
 			logger.Infof("Testing the max object limit")
-			quotaEnforced := utils.Retry(30, 2*time.Second, "user quota enforced", func() bool {
+			// rgw enforces user quotas from cached stats that sync on
+			// rgw_user_quota_bucket_sync_interval (default 180s), so the wait
+			// must exceed that interval or this check flakes on slow runners
+			quotaEnforced := utils.Retry(120, 2*time.Second, "user quota enforced", func() bool {
 				_, err := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey3, contentType)
 				if err != nil {
 					return true
@@ -333,7 +336,8 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			logger.Infof("Testing the updated object limit")
 			_, poErr = s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey3, contentType)
 			assert.NoError(t, poErr)
-			quotaEnforced := utils.Retry(30, 2*time.Second, "updated user quota enforced", func() bool {
+			// see the sync-interval comment on "user quota enforced" above
+			quotaEnforced := utils.Retry(120, 2*time.Second, "updated user quota enforced", func() bool {
 				_, putErr := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey4, contentType)
 				if putErr != nil {
 					return true
