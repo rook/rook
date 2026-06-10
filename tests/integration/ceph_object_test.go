@@ -163,7 +163,12 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	}
 
 	logger.Infof("Running on Rook Cluster %s", namespace)
-	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, storeName, 3, tlsEnable, swiftAndKeystone)
+	// a single gateway makes quota enforcement deterministic: rgw quota checks
+	// run against per-instance cached stats, and with multiple gateways an
+	// instance can be blind to writes served by its peers for up to
+	// rgw_user_quota_bucket_sync_interval; multi-instance deployment is still
+	// covered by the keystone suite
+	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, storeName, 1, tlsEnable, swiftAndKeystone)
 
 	// Canary test: verify all *_pool fields in zone.json are covered by Rook's zonePoolNSSuffix map.
 	// This catches new RGW pool fields added in newer Ceph versions that Rook doesn't yet handle,
