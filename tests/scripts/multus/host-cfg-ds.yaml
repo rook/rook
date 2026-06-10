@@ -29,7 +29,9 @@ spec:
       terminationGracePeriodSeconds: 0 # allow updating/deleting immediately
       containers:
         - name: test
-          image: jonlabelle/network-tools
+          # tag sha-6257a44 == the image's 'latest' as of 2026-06-10, pinned
+          # so the moving tag cannot break or slow CI
+          image: jonlabelle/network-tools:sha-6257a44
           env:
             - name: IFACE_NAME
               value: eth0 # IFACE_NAME
