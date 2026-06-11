@@ -199,7 +199,9 @@ func (h *CephInstaller) InstallCephCsiDriversViaHelm() error {
 	if err := h.k8shelper.CreateSnapshotController("create"); err != nil {
 		return errors.Wrap(err, "failed to install snapshot controller")
 	}
-	if err := h.k8shelper.WaitForSnapshotController(30); err != nil {
+	// the snapshot controller is installed while the cluster is busy rolling daemons during
+	// upgrade tests, and its image pull plus rollout regularly exceeds 150s in CI
+	if err := h.k8shelper.WaitForSnapshotController(90); err != nil {
 		return errors.Wrap(err, "snapshot controller is not ready")
 	}
 	op := h.settings.OperatorNamespace
