@@ -1,3 +1,6 @@
+# StorageClass for in-cluster NVMe-oF consumption.
+# Pods inside the Kubernetes cluster consume volumes via the NVMe-oF CSI driver.
+# The CSI node plugin on each worker connects to gateways using the "listeners" list.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -16,6 +19,9 @@ parameters:
     [
       {
         "hostname": "rook-ceph-nvmeof-nvmeof-a"
+      },
+      {
+        "hostname": "rook-ceph-nvmeof-nvmeof-b"
       }
     ]
   csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
@@ -24,6 +30,8 @@ parameters:
   csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
   csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
   csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+  csi.storage.k8s.io/controller-modify-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-modify-secret-namespace: rook-ceph
   csi.storage.k8s.io/node-expand-secret-name: rook-csi-rbd-node
   csi.storage.k8s.io/node-expand-secret-namespace: rook-ceph
   imageFormat: "2"

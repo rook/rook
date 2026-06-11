@@ -1,0 +1,46 @@
+# StorageClass for external NVMe-oF consumption.
+# External clients outside the Kubernetes cluster access volumes via standard
+# NVMe-oF initiators (nvme-cli). The CSI driver provisions the RBD image and
+# NVMe namespace on the gateway; external clients then discover and connect
+# through LoadBalancer services (see nvmeof-lb.yaml).
+#
+# The "listeners" list tells the CSI driver which gateway pods should create
+# NVMe-oF listeners. External clients connect to these gateways via
+# LoadBalancer services.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ceph-nvmeof-external
+provisioner: rook-ceph.nvmeof.csi.ceph.com # csi-provisioner-name
+parameters:
+  clusterID: rook-ceph
+  pool: nvmeof
+  # Management API - talks to gateway to create subsystems/namespaces
+  nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-a.rook-ceph.svc.cluster.local"
+  nvmeofGatewayPort: "5500"
+  # List ALL gateway pods so the CSI driver creates listeners on each gateway.
+  # External clients connect to these gateways via LoadBalancer services.
+  listeners: |
+    [
+      {
+        "hostname": "rook-ceph-nvmeof-nvmeof-a"
+      },
+      {
+        "hostname": "rook-ceph-nvmeof-nvmeof-b"
+      }
+    ]
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+  csi.storage.k8s.io/controller-modify-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-modify-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-expand-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-expand-secret-namespace: rook-ceph
+  imageFormat: "2"
+  imageFeatures: layering,deep-flatten,exclusive-lock,object-map,fast-diff
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
