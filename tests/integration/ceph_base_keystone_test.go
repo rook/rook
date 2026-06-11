@@ -19,6 +19,7 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -114,27 +115,27 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) er
 		return err
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneApiClusterIssuer(namespace)); err != nil {
+	if err := applyWithWebhookRetry(shelper, keystoneApiClusterIssuer(namespace), "ClusterIssuer"); err != nil {
 		logger.Errorf("Could not apply ClusterIssuer in namespace %s: %s", namespace, err)
 		return err
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneApiCaCertificate(namespace)); err != nil {
+	if err := applyWithWebhookRetry(shelper, keystoneApiCaCertificate(namespace), "CA Certificate"); err != nil {
 		logger.Errorf("Could not apply ClusterIssuer CA Certificate in namespace %s: %s", namespace, err)
 		return err
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneApiCaIssuer(namespace)); err != nil {
+	if err := applyWithWebhookRetry(shelper, keystoneApiCaIssuer(namespace), "CA Issuer"); err != nil {
 		logger.Errorf("Could not install CA Issuer in namespace %s: %s", namespace, err)
 		return err
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneApiCertificate(namespace)); err != nil {
+	if err := applyWithWebhookRetry(shelper, keystoneApiCertificate(namespace), "Certificate"); err != nil {
 		logger.Errorf("Could not create Certificate (request) in namespace %s", namespace)
 		return err
 	}
 
-	if err := shelper.ResourceOperation("apply", trustManagerBundle(namespace)); err != nil {
+	if err := applyWithWebhookRetry(shelper, trustManagerBundle(namespace), "trust-manager Bundle"); err != nil {
 		logger.Errorf("Could not create CA Certificate Bundle in namespace %s", namespace)
 		return err
 	}
@@ -317,6 +318,23 @@ func installHelmChart(helmHelper *utils.HelmHelper, namespace string, chartName 
 	}
 
 	return nil
+}
+
+// applyWithWebhookRetry retries a kubectl apply of a resource that is
+// validated by the cert-manager or trust-manager webhook. helm --wait returns
+// once the webhook deployments report ready, but the webhook service
+// endpoints may not be reachable from the apiserver yet, failing the apply
+// with "failed calling webhook ... connection refused".
+func applyWithWebhookRetry(shelper *utils.K8sHelper, manifest, description string) error {
+	var err error
+	// nolint:gosec // G115 no overflow in test
+	if utils.Retry(uint16(utils.RetryLoop), utils.RetryInterval*time.Second, "apply "+description, func() bool {
+		err = shelper.ResourceOperation("apply", manifest)
+		return err == nil
+	}) {
+		return nil
+	}
+	return err
 }
 
 func keystoneApiCaIssuer(namespace string) string {
