@@ -1,0 +1,44 @@
+# LoadBalancer services to expose NVMe-oF gateways to external clients.
+# One service per gateway instance to provide a dedicated external
+# endpoint for each gateway.
+apiVersion: v1
+kind: Service
+metadata:
+  name: nvmeof-lb-a
+  namespace: rook-ceph # namespace:cluster
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app: rook-ceph-nvmeof
+    ceph_daemon_id: nvmeof-a
+  ports:
+    - name: io
+      port: 4420
+      targetPort: 4420
+      protocol: TCP
+    - name: discovery
+      port: 8009
+      targetPort: 8009
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nvmeof-lb-b
+  namespace: rook-ceph # namespace:cluster
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app: rook-ceph-nvmeof
+    ceph_daemon_id: nvmeof-b
+  ports:
+    - name: io
+      port: 4420
+      targetPort: 4420
+      protocol: TCP
+    - name: discovery
+      port: 8009
+      targetPort: 8009
+      protocol: TCP
