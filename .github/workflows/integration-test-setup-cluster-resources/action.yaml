@@ -88,3 +88,20 @@ runs:
     - name: build rook
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh build_rook
+
+    - name: load rook image into minikube
+      if: ${{ inputs.minikube-driver == 'docker' }}
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        docker images
+        MINIKUBE_PROFILE=minikube minikube image ls
+
+        # Load the locally built rook image into the minikube cluster.
+        # Adjust the image name if build_rook produces a different tag.
+        minikube image load docker.io/rook/ceph:local-build
+
+    - name: verify rook image is available
+      if: ${{ inputs.minikube-driver == 'docker' }}
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        minikube image ls | grep -q 'docker.io/rook/ceph:local-build'
