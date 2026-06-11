@@ -1,7 +1,9 @@
+# PVC for in-cluster NVMe-oF consumption.
+# A pod in the cluster mounts this volume via the NVMe-oF CSI driver.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nvmeof-external-volume
+  name: nvmeof-volume
   namespace: default
 spec:
   storageClassName: ceph-nvmeof
@@ -9,4 +11,4 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 128Mi
+      storage: 1Gi
