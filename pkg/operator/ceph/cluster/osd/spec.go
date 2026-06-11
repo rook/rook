@@ -205,7 +205,18 @@ sys.exit('no disk found with OSD ID $OSD_ID')
 	cat "$OSD_LIST"
 
 	if ! find_device < "$OSD_LIST"; then
-		ceph-volume raw list > "$OSD_LIST"
+		# The disk may have been renamed, so scan disks to find the right one. Build the
+		# scan list explicitly instead of letting a bare 'ceph-volume raw list' scan every
+		# block device: opening an rbd device can block in uninterruptible sleep while this
+		# OSD is down (the same deadlock the lvm filter above prevents for lvm-mode OSDs).
+		# Skip rbd, nbd, and drbd (network-backed devices that can hang when their backing
+		# storage is unavailable) and zram (volatile RAM); Rook never provisions OSDs on any
+		# of these. loop devices are intentionally kept, since OSDs on loop devices are
+		# supported for CI and local testing.
+		SCAN_DEVICES="$(lsblk --noheadings --paths --list --output NAME,TYPE | awk '$2 == "disk" || $2 == "part" {print $1}' | grep -vE '^/dev/(rbd|nbd|zram|drbd)' || true)"
+		[[ -z "$SCAN_DEVICES" ]] && { echo "no devices to scan for OSD $OSD_ID" ; exit 1 ; }
+		# shellcheck disable=SC2086 # word splitting of the device list is intended
+		ceph-volume raw list $SCAN_DEVICES > "$OSD_LIST"
 		cat "$OSD_LIST"
 
 		DEVICE="$(find_device < "$OSD_LIST")"
