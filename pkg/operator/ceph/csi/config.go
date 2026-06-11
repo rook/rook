@@ -36,7 +36,6 @@ import (
 
 var (
 	CephFSDriverName string
-	NFSDriverName    string
 	RBDDriverName    string
 
 	ConfigName = "rook-ceph-csi-config"
@@ -50,7 +49,6 @@ const (
 
 	rbdDriverSuffix    = "rbd.csi.ceph.com"
 	cephFSDriverSuffix = "cephfs.csi.ceph.com"
-	nfsDriverSuffix    = "nfs.csi.ceph.com"
 )
 
 func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephBlockPoolRadosNamespaceName, clusterID string) error {
