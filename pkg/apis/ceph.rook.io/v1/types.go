@@ -4212,8 +4212,12 @@ type CephNVMeOFGatewayList struct {
 type NVMeOFGatewaySpec struct {
 	// Image is the container image to use for the NVMe-oF gateway daemon.
 	// For example, quay.io/ceph/nvmeof:1.5
+	// If not specified, the image is fetched from the Ceph mon config store
+	// (mgr/cephadm/container_image_nvmeof).
+	// +optional
 	// +kubebuilder:validation:MinLength=1
-	Image string `json:"image"`
+	// +kubebuilder:validation:MaxLength=1024
+	Image string `json:"image,omitempty"`
 
 	// The number of active gateway instances
 	// +kubebuilder:validation:Minimum=1
