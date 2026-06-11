@@ -4,6 +4,14 @@ inputs:
   kubernetes-version:
     description: kubernetes version to use for the workflow
     required: true
+  minikube-driver:
+    description: minikube driver to use
+    required: false
+    default: none
+  minikube-container-runtime:
+    description: minikube container runtime to use
+    required: false
+    default: docker
 
 runs:
   using: "composite"
@@ -39,8 +47,8 @@ runs:
         # longer supports older k8s version we lock to
         minikube-version: "1.38.0"
         kubernetes-version: ${{ inputs.kubernetes-version }}
-        driver: none
-        container-runtime: docker
+        driver: ${{ inputs.minikube-driver }}
+        container-runtime: ${{ inputs.minikube-container-runtime }}
         memory: 6g
         cpus: 2
         addons: ingress
@@ -55,6 +63,14 @@ runs:
         # --wait-timeout: minikube's default 6m node-ready wait expires on slow runners
         # (GUEST_START, exit code 80).
         start-args: --force --wait-timeout=15m
+
+    - name: debug minikube config
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        minikube profile list
+        minikube config view || true
+        kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.containerRuntimeVersion}{"\n"}'
+
 
     - name: install deps
       shell: bash --noprofile --norc -eo pipefail -x {0}
