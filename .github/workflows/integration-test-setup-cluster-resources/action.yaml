@@ -26,7 +26,9 @@ runs:
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         ARCH=$(go env GOARCH)
-        curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
+        # --fail so an HTTP error page is not saved as the .deb (dpkg then fails on the
+        # corrupt archive), and retry transient download errors
+        curl -fLO --retry 5 --retry-all-errors --retry-delay 10 https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
         sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
         rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
 
@@ -43,6 +45,16 @@ runs:
         cpus: 2
         addons: ingress
         cni: calico
+        # --force: when the requested kubernetes version is missing from minikube's compiled-in
+        # version list (any version released after the pinned minikube), 'minikube start'
+        # verifies the version with an anonymous GitHub API request, which is regularly
+        # rate-limited on shared runner IPs and fails the job (K8S_FAIL_CONNECT, exit code 40).
+        # The versions used here are pinned constants already validated by the PRs that bump
+        # them, so that check adds nothing in CI; an invalid version would still fail fast at
+        # the kubeadm/kubelet download.
+        # --wait-timeout: minikube's default 6m node-ready wait expires on slow runners
+        # (GUEST_START, exit code 80).
+        start-args: --force --wait-timeout=15m
 
     - name: install deps
       shell: bash --noprofile --norc -eo pipefail -x {0}
