@@ -36,11 +36,24 @@ const (
 	cephCsiHelmDriversReleaseName = "ceph-csi-drivers"
 )
 
-func setHelmLabels(objMeta *metav1.ObjectMeta, clusterMeta metav1.ObjectMeta, releaseName, releaseNamespace string) {
-	// Skip helm annotations/labels if the cluster is not managed by Helm.
-	if _, ok := clusterMeta.Annotations["meta.helm.sh/release-name"]; !ok {
+func (r *ReconcileCSI) setHelmLabels(objMeta *metav1.ObjectMeta, clusterMeta metav1.ObjectMeta, releaseName, releaseNamespace string) {
+	deployment, err := r.context.Clientset.AppsV1().Deployments(r.opConfig.OperatorNamespace).Get(r.opManagerContext, "rook-ceph-operator", metav1.GetOptions{})
+	if err != nil {
+		logger.Warningf("failed to get rook-ceph-operator deployment. %v", err)
+	}
+
+	rookHelmReleaseName := false
+	if deployment != nil {
+		_, rookHelmReleaseName = deployment.Annotations["meta.helm.sh/release-name"]
+	}
+
+	_, clusterHelmReleaseName := clusterMeta.Annotations["meta.helm.sh/release-name"]
+
+	// Skip helm annotations/labels if the cluster or rook-ceph-operator is not managed by Helm.
+	if !rookHelmReleaseName && !clusterHelmReleaseName {
 		return
 	}
+
 	if objMeta.Labels == nil {
 		objMeta.Labels = map[string]string{}
 	}
@@ -70,7 +83,7 @@ func (r *ReconcileCSI) createOrUpdateOperatorConfig(cluster cephv1.CephCluster) 
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			opConfig.Spec = spec
-			setHelmLabels(&opConfig.ObjectMeta, cluster.ObjectMeta, cephCsiHelmDriversReleaseName, r.opConfig.OperatorNamespace)
+			r.setHelmLabels(&opConfig.ObjectMeta, cluster.ObjectMeta, cephCsiHelmDriversReleaseName, r.opConfig.OperatorNamespace)
 			err = r.client.Create(r.opManagerContext, opConfig)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create ceph-CSI operator operator config CR %q", opConfig.Name)
@@ -83,7 +96,7 @@ func (r *ReconcileCSI) createOrUpdateOperatorConfig(cluster cephv1.CephCluster) 
 	}
 
 	opConfig.Spec = spec
-	setHelmLabels(&opConfig.ObjectMeta, cluster.ObjectMeta, cephCsiHelmDriversReleaseName, r.opConfig.OperatorNamespace)
+	r.setHelmLabels(&opConfig.ObjectMeta, cluster.ObjectMeta, cephCsiHelmDriversReleaseName, r.opConfig.OperatorNamespace)
 	err = r.client.Update(r.opManagerContext, opConfig)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update ceph-CSI operator operator config CR %q", opConfig.Name)
@@ -179,7 +192,7 @@ func (r *ReconcileCSI) createImageSetConfigmap(clusterMeta metav1.ObjectMeta) (s
 	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: cm.Name, Namespace: r.opConfig.OperatorNamespace}, cm)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			setHelmLabels(&cm.ObjectMeta, clusterMeta, operatorHelmReleaseName, r.opConfig.OperatorNamespace)
+			r.setHelmLabels(&cm.ObjectMeta, clusterMeta, operatorHelmReleaseName, r.opConfig.OperatorNamespace)
 			err = r.client.Create(r.opManagerContext, cm)
 			if err != nil {
 				return "", errors.Wrapf(err, "failed to create imageSet cm  %q for ceph-CSI operator-config CR %q", cm.Name, opConfigCRName)
@@ -192,7 +205,7 @@ func (r *ReconcileCSI) createImageSetConfigmap(clusterMeta metav1.ObjectMeta) (s
 	}
 
 	cm.Data = data
-	setHelmLabels(&cm.ObjectMeta, clusterMeta, operatorHelmReleaseName, r.opConfig.OperatorNamespace)
+	r.setHelmLabels(&cm.ObjectMeta, clusterMeta, operatorHelmReleaseName, r.opConfig.OperatorNamespace)
 	err = r.client.Update(r.opManagerContext, cm)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to updated imageSet cm  %q ceph-CSI operator-config CR %q", cm.Name, opConfigCRName)
