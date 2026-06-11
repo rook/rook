@@ -32,7 +32,12 @@ fi
 #############
 # FUNCTIONS #
 #############
-EXEC_COMMAND="kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}') -- ceph --connect-timeout 10"
+# Wait for the toolbox to be ready before the per-daemon wait budgets start, and exec through
+# the deployment so every call resolves a currently-ready pod instead of a name captured once
+# (a pod whose container is still creating, or that has been replaced, fails every exec with
+# "container not found").
+kubectl -n rook-ceph rollout status deploy/rook-ceph-tools --timeout=120s
+EXEC_COMMAND="kubectl -n rook-ceph exec deploy/rook-ceph-tools -- ceph --connect-timeout 10"
 
 function wait_for_daemon() {
   timeout=90
@@ -51,21 +56,15 @@ function wait_for_daemon() {
 }
 
 function test_demo_mon {
-  # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq quorum")
+  wait_for_daemon "$EXEC_COMMAND -s | grep -sq quorum"
 }
 
 function test_demo_mgr {
-  # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'mgr:'")
+  wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'mgr:'"
 }
 
 function test_demo_osd {
-  # shellcheck disable=SC2046
-  ret_val=$(wait_for_daemon "$EXEC_COMMAND -s | grep -sq \"$OSD_COUNT osds: $OSD_COUNT up.*, $OSD_COUNT in.*\"")
-  # debug info for an intermittent failure
-  echo "Return value = $ret_val"
-  return $ret_val
+  wait_for_daemon "$EXEC_COMMAND -s | grep -sq \"$OSD_COUNT osds: $OSD_COUNT up.*, $OSD_COUNT in.*\""
 }
 
 function test_demo_rgw {
@@ -82,23 +81,19 @@ function test_demo_mds {
   # NOTE: metadata server always takes up to 5 sec to run
   # so we first check if the pools exit, from that we assume that
   # the process will start. We stop waiting after 10 seconds.
-  # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND osd dump | grep -sq cephfs && $EXEC_COMMAND -s | grep -sq up")
+  wait_for_daemon "$EXEC_COMMAND osd dump | grep -sq cephfs && $EXEC_COMMAND -s | grep -sq up"
 }
 
 function test_demo_rbd_mirror {
-  # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'rbd-mirror:'")
+  wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'rbd-mirror:'"
 }
 
 function test_demo_fs_mirror {
-  # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'cephfs-mirror:'")
+  wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'cephfs-mirror:'"
 }
 
 function test_demo_pool {
-  # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq '11 pools'")
+  wait_for_daemon "$EXEC_COMMAND -s | grep -sq '11 pools'"
 }
 
 function test_csi {
