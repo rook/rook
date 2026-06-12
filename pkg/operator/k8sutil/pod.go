@@ -20,11 +20,9 @@ package k8sutil
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -52,18 +50,6 @@ const (
 	overrideFilename                     = "override.conf"
 	ObservedGenerationNotAvailable int64 = -1
 )
-
-// ConfigOverrideMount is an override mount
-func ConfigOverrideMount() v1.VolumeMount {
-	return v1.VolumeMount{Name: ConfigOverrideName, MountPath: configMountDir}
-}
-
-// ConfigOverrideVolume is an override volume
-func ConfigOverrideVolume() v1.Volume {
-	cmSource := &v1.ConfigMapVolumeSource{Items: []v1.KeyToPath{{Key: ConfigOverrideVal, Path: overrideFilename}}}
-	cmSource.Name = ConfigOverrideName
-	return v1.Volume{Name: ConfigOverrideName, VolumeSource: v1.VolumeSource{ConfigMap: cmSource}}
-}
 
 // ConfigOverrideEnvVar config override env var
 func ConfigOverrideEnvVar() v1.EnvVar {
@@ -231,35 +217,6 @@ func GetPodPhaseMap(pods *v1.PodList) map[v1.PodPhase][]string {
 	}
 
 	return podPhaseMap
-}
-
-// GetJobLog gets the logs for the pod. If there is more than one pod with the label selector, the logs from
-// the first pod will be returned.
-func GetPodLog(ctx context.Context, clientset kubernetes.Interface, namespace string, labelSelector string) (string, error) {
-	opts := metav1.ListOptions{
-		LabelSelector: labelSelector,
-	}
-	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, opts)
-	if err != nil {
-		return "", fmt.Errorf("failed to get version pod. %+v", err)
-	}
-	for _, pod := range pods.Items {
-		req := clientset.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{})
-		readCloser, err := req.Stream(ctx)
-		if err != nil {
-			return "", fmt.Errorf("failed to read from stream. %+v", err)
-		}
-
-		builder := &strings.Builder{}
-		defer readCloser.Close()
-		_, err = io.Copy(builder, readCloser)
-		if err != nil {
-			return "", errors.Wrapf(err, "error copying file from %s to %s", builder, readCloser)
-		}
-		return builder.String(), err //nolint // no else statement needed
-	}
-
-	return "", fmt.Errorf("did not find any pods with label %s", labelSelector)
 }
 
 // ClusterDaemonEnvVars Environment variables used by storage cluster daemon
