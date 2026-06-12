@@ -144,7 +144,8 @@ func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *
 		require.NoError(s.T(), err)
 	}()
 	logger.Infof("check snapshot controller is running")
-	err = k8sh.WaitForSnapshotController(15)
+	// the snapshot-controller image pull can take a few minutes in CI
+	err = k8sh.WaitForSnapshotController(90)
 	require.NoError(s.T(), err)
 	// create snapshot class
 	snapshotDeletePolicy := "Delete"
@@ -533,16 +534,28 @@ func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s *
 // periodically checking if block image count has changed to expected value
 // When creating pvc in k8s platform, it may take some time for the block Image to be bounded
 func retryBlockImageCountCheck(helper *clients.TestClient, clusterInfo *client.ClusterInfo, expectedImageCount int) error {
-	for i := 0; i < utils.RetryLoop; i++ {
+	// Allow twice the usual retry budget: if the first provisioning attempt fails
+	// (e.g. the pool is not created yet), the external-provisioner sidecar backs
+	// off exponentially and its next attempt can be several minutes out.
+	var lastErr error
+	for i := 0; i < 2*utils.RetryLoop; i++ {
 		blockImages, err := helper.BlockClient.ListAllImages(clusterInfo)
 		if err != nil {
-			return err
+			// Listing images can fail transiently while the pool is still being
+			// created, so keep retrying instead of aborting the check.
+			logger.Warningf("failed to list block images, will retry. %v", err)
+			lastErr = err
+		} else {
+			if expectedImageCount == len(blockImages) {
+				return nil
+			}
+			logger.Infof("Waiting for block image count to reach %d. current=%d. %+v", expectedImageCount, len(blockImages), blockImages)
+			lastErr = nil
 		}
-		if expectedImageCount == len(blockImages) {
-			return nil
-		}
-		logger.Infof("Waiting for block image count to reach %d. current=%d. %+v", expectedImageCount, len(blockImages), blockImages)
 		time.Sleep(time.Second * utils.RetryInterval)
+	}
+	if lastErr != nil {
+		return fmt.Errorf("timed out waiting for image count to reach %d. last error: %v", expectedImageCount, lastErr)
 	}
 	return fmt.Errorf("timed out waiting for image count to reach %d", expectedImageCount)
 }
