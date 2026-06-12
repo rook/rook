@@ -278,16 +278,6 @@ func activeRanksSuccess(upCount, desiredRanks int, moreIsOkay bool) bool {
 	return upCount == desiredRanks
 }
 
-// MarkFilesystemAsDown marks a Ceph filesystem as down.
-func MarkFilesystemAsDown(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) error {
-	args := []string{"fs", "set", fsName, "cluster_down", "true"}
-	_, err := NewCephCommand(context, clusterInfo, args).Run()
-	if err != nil {
-		return errors.Wrapf(err, "failed to set file system %s to cluster_down", fsName)
-	}
-	return nil
-}
-
 // failMDS instructs Ceph to fail an mds daemon.
 func failMDS(context *clusterd.Context, clusterInfo *ClusterInfo, gid int) error {
 	args := []string{"mds", "fail", strconv.Itoa(gid)}

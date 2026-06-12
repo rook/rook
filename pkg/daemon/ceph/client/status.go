@@ -200,21 +200,6 @@ func IsClusterClean(context *clusterd.Context, clusterInfo *ClusterInfo, pgHealt
 	return msg, true, nil
 }
 
-// IsClusterCleanError returns an error indicating if the cluster is fully clean yet (i.e., all placement
-// groups are in the active+clean state). It returns nil if the cluster is clean.
-// Using IsClusterClean is recommended if you want to differentiate between a failure of the status query and
-// an unclean cluster.
-func IsClusterCleanError(context *clusterd.Context, clusterInfo *ClusterInfo, pgHealthyRegex string) error {
-	msg, clean, err := IsClusterClean(context, clusterInfo, pgHealthyRegex)
-	if err != nil {
-		return err
-	}
-	if !clean {
-		return errors.New(msg)
-	}
-	return nil
-}
-
 func isClusterClean(status CephStatus, pgHealthyRegex *regexp.Regexp) (string, bool) {
 	if status.PgMap.NumPgs == 0 {
 		// there are no PGs yet, that still counts as clean

@@ -50,16 +50,6 @@ type OSDNodeUsage struct {
 	Pgs         json.Number `json:"pgs"`
 }
 
-type OSDPerfStats struct {
-	PerfInfo []struct {
-		ID    json.Number `json:"id"`
-		Stats struct {
-			CommitLatency json.Number `json:"commit_latency_ms"`
-			ApplyLatency  json.Number `json:"apply_latency_ms"`
-		} `json:"perf_stats"`
-	} `json:"osd_perf_infos"`
-}
-
 type OSDDump struct {
 	OSDs []struct {
 		OSD json.Number `json:"osd"`
