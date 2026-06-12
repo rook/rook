@@ -1432,10 +1432,12 @@ class RadosJSON:
         request_url = base_url + urlencode(params)
 
         try:
+            # requests.get without a timeout could hang forever on an unresponsive endpoint
             r = requests.get(
                 request_url,
                 auth=S3Auth(access_key, secret_key, rgw_endpoint),
                 verify=verify,
+                timeout=30,
             )
         except requests.exceptions.Timeout:
             sys.stderr.write(
