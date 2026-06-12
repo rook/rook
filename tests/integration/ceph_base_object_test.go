@@ -199,7 +199,9 @@ func deleteObjectStore(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName
 func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName string) {
 	store := &cephv1.CephObjectStore{}
 	i := 0
-	retry := 10
+	// The operator may take a while to set the deletion condition when the
+	// reconcile queue is busy with the other resources the suite created.
+	retry := utils.RetryLoop
 	sleepTime := 3 * time.Second
 	for i = 0; i < retry; i++ {
 		storeStr, err := k8sh.GetResource("-n", namespace, "CephObjectStore", storeName, "-o", "json")
@@ -229,10 +231,14 @@ func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, s
 		logger.Infof("waiting 3 more seconds for CephObjectStore %q to be unblocked by dependents", storeName)
 		time.Sleep(sleepTime)
 	}
-	assert.NotEqual(t, retry, i)
+	// require, not assert: if the deletion condition never showed up, the
+	// condition lookups below would dereference a nil condition and panic,
+	// aborting the whole suite without teardown.
+	require.NotEqual(t, retry, i, "timed out waiting for CephObjectStore %q deletion condition", storeName)
 	assert.Equal(t, cephv1.ConditionDeleting, store.Status.Phase) // phase == "Deleting"
 	// verify deletion is NOT blocked b/c object has dependents
 	cond := cephv1.FindStatusCondition(store.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
+	require.NotNil(t, cond)
 	assert.Equal(t, v1.ConditionFalse, cond.Status)
 	assert.Equal(t, cephv1.ObjectHasNoDependentsReason, cond.Reason)
 
