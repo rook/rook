@@ -300,6 +300,28 @@ func (h *CephInstaller) waitForCluster() error {
 		}
 	}
 
+	// The CSI operator creates the driver deployments asynchronously, so they
+	// may still be pulling images when the ceph daemons are already up. If a
+	// PVC is created before the provisioner is ready, the first provisioning
+	// attempt fails and the external-provisioner sidecar backs off
+	// exponentially, delaying the volume creation by several minutes.
+	drivers := []string{"rbd", "cephfs"}
+	if h.settings.TestNFSCSI {
+		drivers = append(drivers, "nfs")
+	}
+	for _, driver := range drivers {
+		// Look up the deployment by name: the csi-operator does not set labels
+		// on the deployment object itself, only on its pod template. Wait for a
+		// single ready replica: the ctrlplugin runs two replicas with pod
+		// anti-affinity, so only one can be scheduled on a single-node CI
+		// cluster, and the provisioner sidecars use leader election so one
+		// ready replica is enough to provision volumes.
+		name := fmt.Sprintf("%s.%s.csi.ceph.com-ctrlplugin", h.settings.OperatorNamespace, driver)
+		if err := h.k8shelper.WaitForDeploymentReadyReplicas(name, h.settings.OperatorNamespace, 1, 2*utils.RetryLoop); err != nil {
+			return err
+		}
+	}
+
 	logger.Infof("Rook Cluster started")
 	if !h.settings.SkipOSDCreation {
 		return h.k8shelper.WaitForLabeledPodsToRun("app=rook-ceph-osd", h.settings.Namespace)
