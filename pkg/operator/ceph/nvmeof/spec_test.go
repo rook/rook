@@ -17,9 +17,11 @@ limitations under the License.
 package nvmeof
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -72,6 +74,7 @@ func newDeploymentSpecTest(t *testing.T) (*ReconcileCephNVMeOFGateway, string) {
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
 			CephVersion: cephver.Squid,
+			Context:     context.TODO(),
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
@@ -423,14 +426,13 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.True(t, *daemonCont.SecurityContext.Privileged)
 	})
 
-	t.Run("daemon container uses default image when not specified", func(t *testing.T) {
+	t.Run("daemon container uses image from ceph config when not in CR", func(t *testing.T) {
 		nvmeof := &cephv1.CephNVMeOFGateway{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "my-nvmeof",
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
-				// Image not specified - should use default
 				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
@@ -438,6 +440,12 @@ func TestDeploymentSpec(t *testing.T) {
 		}
 
 		r, configHash := newDeploymentSpecTest(t)
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
+				return "quay.io/ceph/nvmeof:1.5", nil
+			},
+		}
+		r.context.Executor = executor
 
 		configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
 		d, err := r.makeDeployment(nvmeof, "0", configMapName, configHash)
@@ -447,6 +455,33 @@ func TestDeploymentSpec(t *testing.T) {
 		daemonCont := d.Spec.Template.Spec.Containers[0]
 		assert.Equal(t, "nvmeof-gateway", daemonCont.Name)
 		assert.Equal(t, "quay.io/ceph/nvmeof:1.5", daemonCont.Image)
+	})
+
+	t.Run("daemon container fails when image not in CR and ceph config is empty", func(t *testing.T) {
+		nvmeof := &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				Pool:      "nvmeof",
+				Group:     "group-a",
+				Instances: 1,
+			},
+		}
+
+		r, configHash := newDeploymentSpecTest(t)
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
+				return "", nil
+			},
+		}
+		r.context.Executor = executor
+
+		configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
+		_, err := r.makeDeployment(nvmeof, "0", configMapName, configHash)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "NVMe-oF gateway image not specified")
 	})
 
 	t.Run("hostname set when instance name is valid", func(t *testing.T) {

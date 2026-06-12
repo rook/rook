@@ -11695,6 +11695,9 @@ spec:
                   description: |-
                     Image is the container image to use for the NVMe-oF gateway daemon.
                     For example, quay.io/ceph/nvmeof:1.5
+                    If not specified, the image is fetched from the Ceph mon config store
+                    (mgr/cephadm/container_image_nvmeof).
+                  maxLength: 1024
                   minLength: 1
                   type: string
                 instances:
@@ -12467,7 +12470,6 @@ spec:
                   type: object
               required:
                 - group
-                - image
                 - instances
                 - pool
               type: object

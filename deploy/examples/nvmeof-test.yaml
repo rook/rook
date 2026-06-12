@@ -6,7 +6,10 @@ metadata:
   name: nvmeof
   namespace: rook-ceph # namespace:cluster
 spec:
-  image: quay.io/ceph/nvmeof:1.5
+  # image is optional. If not specified, the image is fetched from the Ceph config store
+  # (ceph config get mgr mgr/cephadm/container_image_nvmeof).
+  # Set the image property to override the default:
+  # image: quay.io/ceph/nvmeof:<version>
   pool: nvmeof
   group: group-a
   instances: 1
