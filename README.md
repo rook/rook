@@ -2,6 +2,7 @@
 
 [![CNCF Status](https://img.shields.io/badge/cncf%20status-graduated-blue.svg)](https://www.cncf.io/projects)
 [![GitHub release](https://img.shields.io/github/release/rook/rook/all.svg)](https://github.com/rook/rook/releases)
+[![License](https://img.shields.io/github/license/rook/rook?color=blue)](LICENSE)
 [![Docker Pulls](https://img.shields.io/docker/pulls/rook/ceph)](https://hub.docker.com/u/rook)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rook/rook)](https://goreportcard.com/report/github.com/rook/rook)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/rook/rook/badge)](https://scorecard.dev/viewer/?uri=github.com/rook/rook)
