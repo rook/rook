@@ -1,7 +1,7 @@
 #################################################################################################################
 # If Rook is not managing any existing cluster in the 'rook-ceph' namespace do:
-#   kubectl create -f ../../examples/crds.yaml -f ../../examples/common.yaml -f ../../examples/operator.yaml
-#   kubectl create -f common-external.yaml -f cluster-external.yaml
+#   kubectl create -f ../../examples/crds.yaml -f ../../examples/common.yaml -f ../../examples/csi-operator.yaml
+#   kubectl create -f ../../examples/operator.yaml -f common-external.yaml -f cluster-external.yaml
 #
 # If there is already a cluster managed by Rook in 'rook-ceph' then do:
 #   kubectl create -f common-external.yaml

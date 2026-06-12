@@ -17,15 +17,23 @@ helm repo add rook-release https://charts.rook.io/release
 helm install --create-namespace --namespace $clusterNamespace rook-ceph rook-release/rook-ceph -f values.yaml
 helm install --create-namespace --namespace $clusterNamespace rook-ceph-cluster \
 --set operatorNamespace=$operatorNamespace rook-release/rook-ceph-cluster -f values-external.yaml
+helm repo add ceph-csi-operator https://ceph.github.io/ceph-csi-operator
+helm install ceph-csi-drivers --namespace rook-ceph ceph-csi-operator/ceph-csi-drivers \
+  -f https://raw.githubusercontent.com/rook/rook/master/deploy/charts/ceph-csi-drivers/values.yaml
 ```
 
 ### Manifest Installation
 
 If not installing with Helm, here are the steps to install with manifests.
 
-1. Deploy Rook, create [common.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common.yaml), [crds.yaml](https://github.com/rook/rook/blob/master/deploy/examples/crds.yaml), [csi-operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/csi-operator.yaml) and [operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml) manifests.
+Deploy Rook:
 
-2. Create [common-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/external/common-external.yaml) and [cluster-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/external/cluster-external.yaml)
+```console
+$ git clone --single-branch --branch master https://github.com/rook/rook.git
+cd rook/deploy/examples
+kubectl create -f crds.yaml -f common.yaml -f csi-operator.yaml
+kubectl create -f operator.yaml -f common-external.yaml -f cluster-external.yaml
+```
 
 ## Import the Provider Data
 
