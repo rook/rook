@@ -124,11 +124,6 @@ func (k8sh *K8sHelper) GetK8sServerVersion() string {
 	return versionInfo.GitVersion
 }
 
-func VersionAtLeast(actualVersion, minVersion string) bool {
-	v := version.MustParseSemantic(actualVersion)
-	return v.AtLeast(version.MustParseSemantic(minVersion))
-}
-
 func (k8sh *K8sHelper) VersionAtLeast(minVersion string) bool {
 	v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
 	return v.AtLeast(version.MustParseSemantic(minVersion))
@@ -1518,10 +1513,6 @@ func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
 
 		time.Sleep(RetryInterval * time.Second)
 	}
-}
-
-func IsKubectlErrorNotFound(output string, err error) bool {
-	return err != nil && strings.Contains(output, "Error from server (NotFound)")
 }
 
 // WaitForDeploymentCount waits until the desired number of deployments with the label exist. The
