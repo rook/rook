@@ -239,10 +239,6 @@ func (c *ValidationTestConfig) Validate() error {
 	return nil
 }
 
-func NewSharedStorageAndWorkerNodesValidationTestConfig() *ValidationTestConfig {
-	return NewDefaultValidationTestConfig()
-}
-
 const (
 	DedicatedStorageNodeType = "storage-nodes"
 	DedicatedWorkerNodeType  = "worker-nodes"
