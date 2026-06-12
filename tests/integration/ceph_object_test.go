@@ -55,6 +55,11 @@ import (
 const (
 	objectStoreServicePrefixUniq = "rook-ceph-rgw-"
 	objectStoreTLSName           = "tls-test-store"
+
+	// burnInQuotaOnly trims the suite to the user-quota path (store create ->
+	// OBC -> quota subtests) on a minimal cluster, for burn-in sampling of the
+	// quota flake rate. Do-not-merge instrumentation; see the PR description.
+	burnInQuotaOnly = true
 )
 
 var objectStoreServicePrefix = "rook-ceph-rgw-"
@@ -98,7 +103,7 @@ func (s *ObjectSuite) SetupSuite() {
 		StorageClassName:        installer.StorageClassName(),
 		UseHelm:                 false,
 		UsePVC:                  installer.UsePVC(),
-		Mons:                    3,
+		Mons:                    1, // burn-in: minimal cluster, see burnInQuotaOnly
 		SkipOSDCreation:         false,
 		UseCrashPruner:          true,
 		EnableVolumeReplication: false,
@@ -193,16 +198,22 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	})
 
 	// test that a second object store can be created (and deleted) while the first exists
-	s.T().Run("run a second object store", func(t *testing.T) {
-		otherStoreName := "other-" + storeName
-		// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
-		// and then deletes it.
-		deleteStore := true
-		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, swiftAndKeystone)
-	})
+	if !burnInQuotaOnly {
+		s.T().Run("run a second object store", func(t *testing.T) {
+			otherStoreName := "other-" + storeName
+			// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
+			// and then deletes it.
+			deleteStore := true
+			runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, swiftAndKeystone)
+		})
+	}
 
 	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
+
+	if burnInQuotaOnly {
+		return
+	}
 
 	// The namespaced test packages below all skip when TLS is enabled, so only set up the
 	// shared store when it will actually be used.
@@ -359,6 +370,10 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			logger.Info("Objects deleted on bucket successfully")
 		})
 	})
+
+	if burnInQuotaOnly {
+		return
+	}
 
 	// this test deviates from the others in this package in that it does not
 	// rely on kubectl and uses the k8s api directly

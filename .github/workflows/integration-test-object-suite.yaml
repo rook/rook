@@ -35,6 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         kubernetes-version: ["v1.31.14"]  # test only on oldest supported k8s version
+        iteration: [1, 2, 3]  # burn-in: parallel samples of the same job
     steps:
       - name: checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -70,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: ceph-object-suite-artifact-${{ matrix.kubernetes-version }}
+          name: ceph-object-suite-artifact-${{ matrix.kubernetes-version }}-${{ matrix.iteration }}
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
       - name: consider (post-job) debugging
@@ -85,6 +86,7 @@ jobs:
       fail-fast: false
       matrix:
         kubernetes-version: ["v1.35.5"]  # test only on latest supported k8s version
+        iteration: [1, 2, 3]  # burn-in: parallel samples of the same job
     steps:
       - name: checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -120,7 +122,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: ceph-object-suite-tls-artifact-${{ matrix.kubernetes-version }}
+          name: ceph-object-suite-tls-artifact-${{ matrix.kubernetes-version }}-${{ matrix.iteration }}
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
       - name: consider (post-job) debugging
