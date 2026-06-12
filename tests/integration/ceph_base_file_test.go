@@ -151,7 +151,8 @@ func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper
 		require.NoError(s.T(), err)
 	}()
 	logger.Infof("check snapshot controller is running")
-	err = k8sh.WaitForSnapshotController(15)
+	// the snapshot-controller image pull can take a few minutes in CI
+	err = k8sh.WaitForSnapshotController(90)
 	require.NoError(s.T(), err)
 	// create snapshot class
 	snapshotDeletePolicy := "Delete"

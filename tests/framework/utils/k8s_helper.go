@@ -186,6 +186,25 @@ func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, e
 }
 
 func getManifestFromURL(url string) (string, error) {
+	var lastErr error
+	// retry the download since fetches from raw.githubusercontent.com fail
+	// transiently in CI
+	for i := 0; i < 5; i++ {
+		if i > 0 {
+			time.Sleep(5 * time.Second)
+		}
+		manifest, err := downloadManifest(url)
+		if err != nil {
+			logger.Warningf("failed to get manifest, will retry. %v", err)
+			lastErr = err
+			continue
+		}
+		return manifest, nil
+	}
+	return "", lastErr
+}
+
+func downloadManifest(url string) (string, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
@@ -195,6 +214,9 @@ func getManifestFromURL(url string) (string, error) {
 		return "", errors.Wrapf(err, "failed to get manifest from url %s", url)
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return "", errors.Errorf("failed to get manifest from url %s. status: %s", url, res.Status)
+	}
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to read manifest from url %s", url)
