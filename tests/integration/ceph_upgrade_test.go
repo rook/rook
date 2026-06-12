@@ -90,7 +90,6 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialRookVersion string, initia
 		SkipClusterCleanup:          true,
 		RookVersion:                 initialRookVersion,
 		CephVersion:                 initialCephVersion,
-		EnableCsiOperator:           true,
 	}
 
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
