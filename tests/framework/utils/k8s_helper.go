@@ -1571,6 +1571,23 @@ func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReady(label, namespace strin
 	return k8sh.WaitForLabeledDeploymentsToBeReadyWithRetries(label, namespace, RetryLoop)
 }
 
+// WaitForDeploymentReadyReplicas waits for the named deployment to have at least minReady ready
+// replicas. Retry the number of times given.
+func (k8sh *K8sHelper) WaitForDeploymentReadyReplicas(name, namespace string, minReady int32, retries int) error {
+	ctx := context.TODO()
+	for i := 0; i < retries; i++ {
+		d, err := k8sh.Clientset.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err == nil && d.Status.ReadyReplicas >= minReady {
+			logger.Infof("deployment %q in namespace %q has %d ready replicas", name, namespace, d.Status.ReadyReplicas)
+			return nil
+		}
+		logger.Infof("waiting for deployment %q in namespace %q to have %d ready replicas. ready=%d/%d, err=%v",
+			name, namespace, minReady, d.Status.ReadyReplicas, d.Status.Replicas, err)
+		time.Sleep(RetryInterval * time.Second)
+	}
+	return fmt.Errorf("giving up waiting for deployment %q in namespace %q to have %d ready replicas", name, namespace, minReady)
+}
+
 // WaitForLabeledDeploymentsToBeReadyWithRetries waits for all deployments matching the given label
 // selector to be fully ready. Retry the number of times given.
 func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReadyWithRetries(label, namespace string, retries int) error {
