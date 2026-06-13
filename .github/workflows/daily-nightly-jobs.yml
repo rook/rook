@@ -87,7 +87,6 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "v1.35.5"
 
       - name: TestCephSmokeSuite
@@ -127,7 +126,6 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "v1.35.5"
 
       - name: TestCephSmokeSuite
@@ -167,7 +165,6 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "v1.35.5"
 
       - name: TestCephSmokeSuite
@@ -207,7 +204,6 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "v1.35.5"
 
       - name: TestCephObjectSuite (without TLS)
@@ -247,7 +243,6 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "v1.35.5"
 
       - name: TestCephObjectSuiteTLS
@@ -287,7 +282,6 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "v1.35.5"
 
       - name: TestCephUpgradeSuite
@@ -327,7 +321,6 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "v1.35.5"
 
       - name: TestCephUpgradeSuite
