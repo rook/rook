@@ -1,5 +1,13 @@
 {{- $root := . -}}
-{{- range $blockpool := .Values.cephBlockPools }}
+{{- $pools := list }}
+{{- if kindIs "map" .Values.cephBlockPools }}
+  {{- if .Values.cephBlockPools.enabled }}
+    {{- $pools = .Values.cephBlockPools.pools }}
+  {{- end }}
+{{- else }}
+  {{- $pools = .Values.cephBlockPools }}
+{{- end }}
+{{- range $blockpool := $pools }}
 ---
 kind: CephBlockPool
 apiVersion: ceph.rook.io/v1

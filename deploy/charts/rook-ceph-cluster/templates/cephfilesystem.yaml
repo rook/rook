@@ -1,5 +1,13 @@
 {{- $root := . -}}
-{{- range $filesystem := .Values.cephFileSystems }}
+{{- $filesystems := list }}
+{{- if kindIs "map" .Values.cephFileSystems }}
+  {{- if .Values.cephFileSystems.enabled }}
+    {{- $filesystems = .Values.cephFileSystems.filesystems }}
+  {{- end }}
+{{- else }}
+  {{- $filesystems = .Values.cephFileSystems }}
+{{- end }}
+{{- range $filesystem := $filesystems }}
 ---
 kind: CephFilesystemSubVolumeGroup
 apiVersion: ceph.rook.io/v1

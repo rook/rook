@@ -1,4 +1,12 @@
-{{- range .Values.cephObjectStores -}}
+{{- $objectstores := list }}
+{{- if kindIs "map" .Values.cephObjectStores }}
+  {{- if .Values.cephObjectStores.enabled }}
+    {{- $objectstores = .Values.cephObjectStores.objectstores }}
+  {{- end }}
+{{- else }}
+  {{- $objectstores = .Values.cephObjectStores }}
+{{- end }}
+{{- range $objectstores -}}
 {{- if (. | dig "route" "enabled" false) }}
 ---
 kind: HTTPRoute
