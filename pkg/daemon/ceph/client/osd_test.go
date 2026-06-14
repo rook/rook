@@ -113,6 +113,38 @@ func TestOsdListNum(t *testing.T) {
 	assert.Equal(t, 0, len(list))
 }
 
+func TestGetOSDDumpHandlesSpecialFloatTokens(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		switch {
+		case args[0] == "osd" && args[1] == "dump":
+			return `{
+				"osds": [{"osd": 0, "up": 1, "in": 1}],
+				"flags": "",
+				"crush_node_flags": {},
+				"full_ratio": 0.95,
+				"backfillfull_ratio": 0.90,
+				"nearfull_ratio": 0.85,
+				"pools": [{
+					"pool": 1,
+					"pool_name": "replicapool",
+					"read_balance": {
+						"score_acting": inf,
+						"score_stable": -inf,
+						"score_primary": nan
+					}
+				}]
+			}`, nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	dump, err := GetOSDDump(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"))
+	assert.NoError(t, err)
+	assert.Len(t, dump.OSDs, 1)
+	assert.Equal(t, "0", dump.OSDs[0].OSD.String())
+}
+
 func TestOSDDeviceClasses(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
