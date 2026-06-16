@@ -76,6 +76,12 @@ runcmd:
 - [ "vgchange", "-ay" ]
 ```
 
+## udev
+
+A running udev daemon is required on all storage nodes. Rook mounts `/run/udev` from the host into OSD pods and `ceph-volume` depends on udev data for device identification.
+
+Most Linux distributions already have a udev daemon running by default. If not, install and start one before deploying Rook.
+
 ## Kernel
 
 ### RBD
