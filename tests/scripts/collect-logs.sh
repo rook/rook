@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 
 set -x
+if ! ensure_kubectl_can_reach_k8s; then
+	echo "WARNING: kubectl cannot reach a cluster; skipping Kubernetes log collection"
+	# returning success here so log collection is considered optiopnal for green CI.
+	# it is only invoked upon test failure anyway.
+	exit 0
+fi
 
 # User parameters
 : "${CLUSTER_NAMESPACE:="rook-ceph"}"
@@ -11,12 +17,54 @@ set -x
 LOG_DIR="${LOG_DIR%/}" # remove trailing slash if necessary
 mkdir -p "${LOG_DIR}"
 
-CEPH_CMD="kubectl -n ${CLUSTER_NAMESPACE} exec deploy/rook-ceph-tools -- ceph --connect-timeout 10"
 
-$CEPH_CMD -s >"${LOG_DIR}"/ceph-status.txt
-$CEPH_CMD osd dump >"${LOG_DIR}"/ceph-osd-dump.txt
-$CEPH_CMD report >"${LOG_DIR}"/ceph-report.txt
-$CEPH_CMD auth ls >"${LOG_DIR}"/ceph-auth-ls.txt
+KUBECTL_CMD="kubectl -n ${CLUSTER_NAMESPACE}"
+
+TOOLS_POD="$(${KUBECTL_CMD} get pod -l app=rook-ceph-tools -o jsonpath='{.items[0].metadata.name}')"
+if [[ -z "${TOOLS_POD}" ]]; then
+	echo "WARNING: rook-ceph-tools pod not found; skipping ceph log collection"
+	exit 0
+fi
+
+
+# function to test if kubectl can reach the k8s cluster.
+ensure_kubectl_can_reach_k8s() {
+	echo "== kubectl diagnostics =="
+	echo "KUBECONFIG=${KUBECONFIG:-<unset>}"
+	kubectl config current-context 2>&1 || true
+	kubectl config get-contexts 2>&1 || true
+	kubectl config view --minify 2>&1 || true
+	if ! kubectl version --request-timeout=10s >/dev/null 2>&1; then
+		return 1
+	fi
+	return 0
+}
+
+# wrapper for running a ceph command in the toolbox pod with kubectl exec
+ceph_exec() {
+	kubectl -n "${CLUSTER_NAMESPACE}" exec "${TOOLS_POD}" -- ceph --connect-timeout 10 "$@"
+}
+
+# a retry wrapper intended for running ceph commands
+# in the toolbox via kubectl exec
+retry_exec() {
+	local retries="${1:-5}"
+	shift
+	local i
+	# shellcheck disable=SC2034 # i is not referenced: only used to loop.
+	for i in $(seq 1 "$retries"); do
+	if "$@"; then
+		return 0
+	fi
+	sleep 5
+	done
+	return 1
+}
+
+retry_exec 5 ceph_exec -s >"${LOG_DIR}"/ceph-status.txt
+retry_exec 5 ceph_exec osd dump >"${LOG_DIR}"/ceph-osd-dump.txt
+retry_exec 5 ceph_exec report >"${LOG_DIR}"/ceph-report.txt
+retry_exec 5 ceph_exec auth ls >"${LOG_DIR}"/ceph-auth-ls.txt
 
 NAMESPACES=("$CLUSTER_NAMESPACE")
 if [[ "$OPERATOR_NAMESPACE" != "$CLUSTER_NAMESPACE" ]]; then
