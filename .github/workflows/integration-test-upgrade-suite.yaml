@@ -26,6 +26,10 @@ env:
   # the ceph_preview build tag. Can be removed when go-ceph promotes
   # the account API out of preview.
   GOFLAGS: "-tags=ceph_preview"
+  # Double the test framework's default wait budget (55 retries x 5s = 275s);
+  # CI runners regularly need longer, e.g. for PVC binding while the CSI
+  # pods are still starting during the initial cluster deploy.
+  RETRY_MAX: "110"
 
 jobs:
   TestCephUpgradeSuite:
@@ -56,7 +60,7 @@ jobs:
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
           export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          go test -v -timeout 2400s -failfast -run CephUpgradeSuite/TestUpgradeRook github.com/rook/rook/tests/integration
+          go test -v -timeout 3600s -failfast -run CephUpgradeSuite/TestUpgradeRook github.com/rook/rook/tests/integration
 
       - name: collect common logs
         if: always()
@@ -112,7 +116,7 @@ jobs:
 
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
           export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          go test -v -timeout 1800s -failfast -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration
+          go test -v -timeout 2700s -failfast -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration
 
       - name: collect common logs
         if: always()
