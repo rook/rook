@@ -152,6 +152,16 @@ function use_local_disk_for_integration_test() {
   : "$(block_dev)"
   sudo lsblk
 
+  # Stop udev from watching the OSD disk, on every kind of runner. Without this, every
+  # close-after-write on the device retriggers a udev probe of the device, and the resulting
+  # re-probe storm during OSD restarts has been seen to wedge ceph-volume activate in
+  # uninterruptible sleep on the block device lock on runners using the iSCSI fallback disk.
+  # See https://github.com/rook/rook/issues/8975 and https://access.redhat.com/solutions/1465913
+  echo "ACTION==\"add|change\", KERNEL==\"$(block_dev_basename)\", OPTIONS:=\"nowatch\"" | sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules
+  sudo udevadm control --reload-rules || true
+  sudo udevadm trigger || true
+  time sudo udevadm settle || true
+
   unset pipefail
   mountpoint -q /mnt || return 0
   set pipefail
@@ -166,8 +176,6 @@ function use_local_disk_for_integration_test() {
   # we have observed that some runners keep detaching/re-attaching the additional disk overriding the permissions to the default root:disk
   # for more details see: https://github.com/rook/rook/issues/7405
   echo "SUBSYSTEM==\"block\", ATTR{size}==\"29356032\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 $PARTITION\"" | sudo tee -a /etc/udev/rules.d/01-rook.rules
-  # for below, see: https://access.redhat.com/solutions/1465913
-  echo "ACTION==\"add|change\", KERNEL==\"$(block_dev_basename)\", OPTIONS:=\"nowatch\"" | sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules
   # The partition is still getting reloaded occasionally during operation. See https://github.com/rook/rook/issues/8975
   # Try issuing some disk-inspection commands to jog the system so it won't reload the partitions
   # during OSD provisioning.

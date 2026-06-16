@@ -151,10 +151,23 @@ func (h *HelmHelper) InstallOrUpgradeHelmRepoChart(namespace, release, repoURL, 
 		"--version", version,
 		"--namespace", namespace,
 	}
-	if err := h.installChart(cmdArgs, values); err != nil {
-		return fmt.Errorf("helm upgrade --install %q in namespace %q: %w", release, namespace, err)
+	// retry: helm fetches the chart tarball from the repo's download URL (e.g. GitHub release
+	// assets), and transient fetch errors (504s) have failed CI runs
+	var lastErr error
+	maxRetries := 5
+	for i := 0; i < maxRetries; i++ {
+		err := h.installChart(cmdArgs, values)
+		if err != nil {
+			lastErr = fmt.Errorf("helm upgrade --install %q in namespace %q: %w", release, namespace, err)
+			logger.Error(lastErr)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		logger.Infof("helm chart %q installed successfully after %d attempt(s)", release, i+1)
+		return nil
 	}
-	return nil
+	logger.Errorf("failed to install helm chart %s after %d attempts", release, maxRetries)
+	return lastErr
 }
 
 func (h *HelmHelper) UninstallHelmReleaseIfExists(namespace, release string) error {

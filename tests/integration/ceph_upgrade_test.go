@@ -362,26 +362,31 @@ func (s *UpgradeSuite) verifyRookUpgrade(numOSDs int) {
 }
 
 func (s *UpgradeSuite) waitForUpgradedDaemons(previousVersion, versionLabel string, numOSDs int, waitForMDS bool) {
+	// extend the timeout for all the daemon checks: pulling ceph-ci images can take 6+ minutes,
+	// and the operator updates the daemons sequentially (mons, mgr, osds, mds, rgw, with PG
+	// health gates between OSDs), so the wait for each later daemon also absorbs the time spent
+	// on every daemon before it. The rgw wait, being last, timed out most often in CI.
+	upgradeRetries := utils.RetryLoop + 120
+
 	// wait for the mon(s) to be updated
 	monsNotOldVersion := fmt.Sprintf("app=rook-ceph-mon,%s!=%s", versionLabel, previousVersion)
-	// extend the timeout for this check because it can take 6+ minutes to pull ceph-ci images
-	err := s.k8sh.WaitForDeploymentCountWithRetries(monsNotOldVersion, s.namespace, s.settings.Mons, utils.RetryLoop+120)
+	err := s.k8sh.WaitForDeploymentCountWithRetries(monsNotOldVersion, s.namespace, s.settings.Mons, upgradeRetries)
 	require.NoError(s.T(), err, "mon(s) didn't update")
-	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(monsNotOldVersion, s.namespace)
+	err = s.k8sh.WaitForLabeledDeploymentsToBeReadyWithRetries(monsNotOldVersion, s.namespace, upgradeRetries)
 	require.NoError(s.T(), err)
 
 	// wait for the mgr to be updated
 	mgrNotOldVersion := fmt.Sprintf("app=rook-ceph-mgr,%s!=%s", versionLabel, previousVersion)
-	err = s.k8sh.WaitForDeploymentCount(mgrNotOldVersion, s.namespace, 1)
+	err = s.k8sh.WaitForDeploymentCountWithRetries(mgrNotOldVersion, s.namespace, 1, upgradeRetries)
 	require.NoError(s.T(), err, "mgr didn't update")
-	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(mgrNotOldVersion, s.namespace)
+	err = s.k8sh.WaitForLabeledDeploymentsToBeReadyWithRetries(mgrNotOldVersion, s.namespace, upgradeRetries)
 	require.NoError(s.T(), err)
 
 	// wait for the osd pods to be updated
 	osdsNotOldVersion := fmt.Sprintf("app=rook-ceph-osd,%s!=%s", versionLabel, previousVersion)
-	err = s.k8sh.WaitForDeploymentCount(osdsNotOldVersion, s.namespace, numOSDs)
+	err = s.k8sh.WaitForDeploymentCountWithRetries(osdsNotOldVersion, s.namespace, numOSDs, upgradeRetries)
 	require.NoError(s.T(), err, "osd(s) didn't update")
-	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(osdsNotOldVersion, s.namespace)
+	err = s.k8sh.WaitForLabeledDeploymentsToBeReadyWithRetries(osdsNotOldVersion, s.namespace, upgradeRetries)
 	require.NoError(s.T(), err)
 
 	// wait for the mds pods to be updated
@@ -389,16 +394,16 @@ func (s *UpgradeSuite) waitForUpgradedDaemons(previousVersion, versionLabel stri
 	// the check for MDS upgrade in case it's just a ceph upgrade (no operator restart)
 	if waitForMDS {
 		mdsesNotOldVersion := fmt.Sprintf("app=rook-ceph-mds,%s!=%s", versionLabel, previousVersion)
-		err = s.k8sh.WaitForDeploymentCount(mdsesNotOldVersion, s.namespace, 2 /* always expect 2 mdses */)
+		err = s.k8sh.WaitForDeploymentCountWithRetries(mdsesNotOldVersion, s.namespace, 2 /* always expect 2 mdses */, upgradeRetries)
 		require.NoError(s.T(), err)
-		err = s.k8sh.WaitForLabeledDeploymentsToBeReady(mdsesNotOldVersion, s.namespace)
+		err = s.k8sh.WaitForLabeledDeploymentsToBeReadyWithRetries(mdsesNotOldVersion, s.namespace, upgradeRetries)
 		require.NoError(s.T(), err)
 	}
 
 	rgwsNotOldVersion := fmt.Sprintf("app=rook-ceph-rgw,%s!=%s", versionLabel, previousVersion)
-	err = s.k8sh.WaitForDeploymentCount(rgwsNotOldVersion, s.namespace, 1 /* always expect 1 rgw */)
+	err = s.k8sh.WaitForDeploymentCountWithRetries(rgwsNotOldVersion, s.namespace, 1 /* always expect 1 rgw */, upgradeRetries)
 	require.NoError(s.T(), err)
-	err = s.k8sh.WaitForLabeledDeploymentsToBeReady(rgwsNotOldVersion, s.namespace)
+	err = s.k8sh.WaitForLabeledDeploymentsToBeReadyWithRetries(rgwsNotOldVersion, s.namespace, upgradeRetries)
 	require.NoError(s.T(), err)
 
 	// Give a few seconds for the daemons to settle down after the upgrade
