@@ -52,7 +52,6 @@ type TestCephSettings struct {
 	RookVersion                 string
 	CephVersion                 cephv1.CephVersionSpec
 	KubernetesVersion           string
-	EnableCsiOperator           bool
 	ClusterConcurrency          int
 }
 
