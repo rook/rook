@@ -291,18 +291,22 @@ func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (r
 		return reconcile.Result{}, nil
 	}
 
-	// the realm's secret key and access key are randomly generated and then encoded to base64
+	// The realm's secret key and access key are randomly generated and then encoded to base64.
+	// The encoded values are used verbatim as the S3 keys of the realm's system user, so the
+	// encoding alphabet must be URL-safe: an access key containing '/' breaks AWS SigV4
+	// credential scope parsing ("<access-key>/<date>/<region>/...") and makes
+	// "radosgw-admin realm pull" against this realm fail with "(22) Invalid argument".
 	accessKey, err := mgr.GeneratePassword(accessKeyLength, mgr.AccessKey)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "access key failed to generate")
 	}
-	accessKey = base64.StdEncoding.EncodeToString([]byte(accessKey))
+	accessKey = base64.RawURLEncoding.EncodeToString([]byte(accessKey))
 
 	secretKey, err := mgr.GeneratePassword(secretKeyLength, mgr.DefaultKey)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to generate secret key")
 	}
-	secretKey = base64.StdEncoding.EncodeToString([]byte(secretKey))
+	secretKey = base64.RawURLEncoding.EncodeToString([]byte(secretKey))
 
 	log.NamedDebug(nsName, logger, "creating secrets for new realm %q", realm.Name)
 
