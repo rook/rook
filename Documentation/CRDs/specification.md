@@ -1036,6 +1036,20 @@ CephClusterHealthCheckSpec
 </tr>
 <tr>
 <td>
+<code>muteHealthWarning</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MuteHealthWarningSpec">
+MuteHealthWarningSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MuteHealthWarning configures muting of Ceph health warnings.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>security</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.ClusterSecuritySpec">
@@ -6009,6 +6023,20 @@ CephClusterHealthCheckSpec
 </tr>
 <tr>
 <td>
+<code>muteHealthWarning</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MuteHealthWarningSpec">
+MuteHealthWarningSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MuteHealthWarning configures muting of Ceph health warnings.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>security</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.ClusterSecuritySpec">
@@ -10564,6 +10592,23 @@ services. For example: <clusterid>.<svc>.<ns>.svc.clusterset.local</p>
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.MuteHealthWarningSpec">MuteHealthWarningSpec
+(<code>map[string]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.MuteHealthWarningValue</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterSpec">ClusterSpec</a>)
+</p>
+<div>
+<p>MuteHealthWarningSpec configures muting of Ceph health warnings.
+Keys are Ceph health check codes (e.g. AUTH_INSECURE_CLIENT_KEY_TYPE).
+Values control the mute duration: a duration (e.g. 3h, 5d, 7w),
+&ldquo;sticky&rdquo; for a permanent mute, or &ldquo;unmute&rdquo; to remove an existing mute.</p>
+</div>
+<h3 id="ceph.rook.io/v1.MuteHealthWarningValue">MuteHealthWarningValue
+(<code>string</code> alias)</h3>
+<div>
+<p>MuteHealthWarningValue controls the mute duration for a Ceph health warning.
+A duration (e.g. 3h, 5d, 7w), &ldquo;sticky&rdquo; for a permanent mute, or &ldquo;unmute&rdquo; to remove an existing mute.</p>
+</div>
 <h3 id="ceph.rook.io/v1.NFSGaneshaSpec">NFSGaneshaSpec
 </h3>
 <p>
