@@ -2110,7 +2110,9 @@ jobs:
         run: ./tests/scripts/multus/setup-multus.sh
 
       - name: Set up multus prerequisite host routing
-        run: kubectl create -f tests/scripts/multus/host-cfg-ds.yaml
+        run: |
+          kubectl create -f tests/scripts/multus/host-cfg-ds.yaml
+          kubectl rollout status daemonset/host-net-config --timeout=120s
 
       - name: create cluster prerequisites
         run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
