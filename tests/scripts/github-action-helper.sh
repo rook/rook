@@ -648,10 +648,108 @@ function retry() {
   exit 1
 }
 
+function retry_for() {
+  local timeout_seconds=${1?timeout in seconds is required}
+  shift
+  local deadline=$((SECONDS + timeout_seconds))
+  while true; do
+    if "$@"; then return 0; fi
+    if [[ $SECONDS -ge $deadline ]]; then
+      echo "$* failed after retrying for ${timeout_seconds}s"
+      return 1
+    fi
+    echo "$* failed, retrying in 5s..."
+    sleep 5
+  done
+}
+
+function wait_for_rgw_http() {
+  local endpoint_ip=${1?rgw endpoint ip is required}
+  local timeout_seconds=${2:-300}
+
+  # Require a few consecutive successes: RGWs pause their HTTP frontends while reloading the
+  # realm after RGW configuration period changes, so a single success can land between pauses.
+  local want_consecutive=3
+  local consecutive=0
+  local deadline=$((SECONDS + timeout_seconds))
+  local code
+  while [[ $SECONDS -lt $deadline ]]; do
+    code=$(curl --silent --output /dev/null --max-time 5 --write-out '%{http_code}' "http://${endpoint_ip}:80/") || code="000"
+    if [[ "$code" == "200" ]]; then
+      consecutive=$((consecutive + 1))
+      if [[ $consecutive -ge $want_consecutive ]]; then
+        echo "RGW at ${endpoint_ip} answered ${consecutive} consecutive requests"
+        return 0
+      fi
+    else
+      echo "RGW at ${endpoint_ip} is not serving yet (HTTP code ${code})"
+      consecutive=0
+    fi
+    sleep 2
+  done
+  echo "timed out after ${timeout_seconds}s waiting for RGW at ${endpoint_ip} to serve HTTP"
+  return 1
+}
+
+function wait_for_sync_status() {
+  local ns=${1?namespace is required}
+  local zone=${2?zone name is required}
+  local want=${3?expected sync status line is required}
+  local timeout_seconds=${4:-600}
+
+  local deadline=$((SECONDS + timeout_seconds))
+  local status=""
+  while [[ $SECONDS -lt $deadline ]]; do
+    status=$(kubectl -n "$ns" exec deploy/rook-ceph-tools -- \
+      radosgw-admin sync status --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone="$zone") || status=""
+    if grep -q "$want" <<<"$status"; then
+      echo "zone ${zone} reports \"${want}\""
+      return 0
+    fi
+    echo "waiting for zone ${zone} to report \"${want}\""
+    sleep 10
+  done
+  echo "timed out after ${timeout_seconds}s waiting for zone ${zone} to report \"${want}\"; last sync status:"
+  echo "$status"
+  return 1
+}
+
+function wait_for_multisite_sync_established() {
+  # Wait until both zones report multisite sync fully established before exercising
+  # replication, mirroring the checkpoints ceph's own multisite QA performs before asserting
+  # anything. This also rides out the RGW frontend pauses caused by the configuration period
+  # changes that follow the second zone joining the zonegroup.
+  wait_for_sync_status rook-ceph-secondary zone-b "metadata is caught up with master" 600
+  wait_for_sync_status rook-ceph-secondary zone-b "data is caught up with source" 600
+  wait_for_sync_status rook-ceph zone-a "data is caught up with source" 600
+}
+
+function dump_multisite_diagnostics() {
+  set +e
+  local ns
+  for ns in rook-ceph rook-ceph-secondary; do
+    echo "===== ${ns}: pods"
+    kubectl -n "$ns" get pods -o wide
+    echo "===== ${ns}: rgw pod details"
+    kubectl -n "$ns" describe pods -l app=rook-ceph-rgw
+    echo "===== ${ns}: rgw pod logs"
+    kubectl -n "$ns" logs -l app=rook-ceph-rgw --all-containers --tail=100
+    echo "===== ${ns}: sync status"
+    kubectl -n "$ns" exec deploy/rook-ceph-tools -- radosgw-admin sync status
+    echo "===== ${ns}: period"
+    kubectl -n "$ns" exec deploy/rook-ceph-tools -- radosgw-admin period get
+  done
+  set -e
+  return 0
+}
+
 function write_object_read_from_replica_cluster() {
   local write_cluster_ip=${1?ip address of cluster to write to is required}
   local read_cluster_ip=${2?ip address of cluster to read from is required}
   local test_bucket_name=${3?name of the test bucket is required}
+  local write_zone=${4?name of the zone being written to is required}
+  local read_zone=${5?name of the zone being read from is required}
+  local read_cluster_ns=${6?namespace of the cluster being read from is required}
 
   local test_object_name="${test_bucket_name}-1mib-test.dat"
   fallocate -l 1M "$test_object_name"
@@ -659,29 +757,22 @@ function write_object_read_from_replica_cluster() {
   # ensure that test file has unique data
   echo "$test_object_name" >>"$test_object_name"
 
-  retry 3 s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"
-  retry 3 s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"
+  # RGWs pause their HTTP frontends to reload the realm whenever the RGW configuration period
+  # changes, and period changes keep happening for a while after the second zone joins the
+  # zonegroup. While a frontend is paused, connections are refused, so give the writes a time
+  # budget rather than a fixed number of quick retries.
+  retry_for 120 s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"
+  retry_for 120 s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"
 
-  # Schedule a signal for 60s into the future as a timeout on retrying s3cmd.
-  # This voodoo is to avoid running everything under a new shell started by
-  # `timeout`, as there would be no way to pass functions to as it wouldn't be
-  # a direct sub-shell.
-  S3CMD_ERROR=0
-  (
-    sleep 300
-    kill -s SIGUSR1 $$
-  ) 2>/dev/null &
-  trap "{ S3CMD_ERROR=1; break; }" SIGUSR1
+  # Wait until the reading zone's sync position for the bucket catches up with the source
+  # zone's position, the same marker-based barrier ceph's own multisite QA uses. The bucket
+  # metadata has to arrive on the reading zone via metadata sync before the checkpoint can
+  # resolve the bucket at all, hence the outer retry.
+  retry_for 120 kubectl -n "$read_cluster_ns" exec deploy/rook-ceph-tools -- \
+    radosgw-admin bucket sync checkpoint --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone="$read_zone" \
+    --bucket="$test_bucket_name" --source-zone="$write_zone" --retry-delay-ms=5000 --timeout-sec=300
 
-  until s3cmd --host="${read_cluster_ip}" get "s3://${test_bucket_name}/${test_object_name}" "${test_object_name}.get" --force; do
-    echo "waiting for object to be replicated"
-    sleep 5
-  done
-
-  if [[ $S3CMD_ERROR != 0 ]]; then
-    echo "s3cmd failed"
-    exit $S3CMD_ERROR
-  fi
+  retry_for 60 s3cmd --host="${read_cluster_ip}" get "s3://${test_bucket_name}/${test_object_name}" "${test_object_name}.get" --force
 
   diff "$test_object_name" "${test_object_name}.get"
 }
@@ -704,8 +795,12 @@ function test_multisite_object_replication() {
 	use_https = False
 	EOF
 
-  write_object_read_from_replica_cluster "$cluster_1_ip" "$cluster_2_ip" test1
-  write_object_read_from_replica_cluster "$cluster_2_ip" "$cluster_1_ip" test2
+  # both RGWs must be reliably serving before anything is written
+  wait_for_rgw_http "$cluster_1_ip"
+  wait_for_rgw_http "$cluster_2_ip"
+
+  write_object_read_from_replica_cluster "$cluster_1_ip" "$cluster_2_ip" test1 zone-a zone-b rook-ceph-secondary
+  write_object_read_from_replica_cluster "$cluster_2_ip" "$cluster_1_ip" test2 zone-b zone-a rook-ceph
 }
 
 function create_helm_tag() {
