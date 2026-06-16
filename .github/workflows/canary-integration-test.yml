@@ -1937,9 +1937,15 @@ jobs:
         run: |
           tests/scripts/github-action-helper.sh wait_for cephcluster my-cluster rook-ceph
           tests/scripts/github-action-helper.sh wait_for cephcluster my-cluster rook-ceph-secondary
-          # wait for the RGW deployments to be ready to serve traffic
-          kubectl -n rook-ceph wait --for=condition=available deployment/rook-ceph-rgw-multisite-store-a --timeout=300s
-          kubectl -n rook-ceph-secondary wait --for=condition=available deployment/rook-ceph-rgw-zone-b-multisite-store-a --timeout=300s
+          # Wait for the RGW pods to be ready. With a single replica and maxUnavailable=1, the
+          # RGW deployments count as "available" even with zero ready pods, so wait on the pods.
+          kubectl -n rook-ceph wait --for=condition=Ready pod -l rook_object_store=multisite-store --timeout=300s
+          kubectl -n rook-ceph-secondary wait --for=condition=Ready pod -l rook_object_store=zone-b-multisite-store --timeout=300s
+
+      - name: wait for multisite sync to be established
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: |
+          tests/scripts/github-action-helper.sh wait_for_multisite_sync_established
 
       - name: write an object to one cluster, read from the other
         shell: bash --noprofile --norc -eo pipefail -x {0}
@@ -1961,6 +1967,12 @@ jobs:
           not_committed_msg="there are no changes to commit for RGW configuration period for CephObjectStore"
           tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_primary_object_zone}" 600
           tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_secondary_object_zone}" 600
+
+      - name: dump multisite diagnostics on failure
+        if: failure()
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: |
+          tests/scripts/github-action-helper.sh dump_multisite_diagnostics
 
       - name: collect common logs
         if: always()
