@@ -3065,6 +3065,21 @@ spec:
                       minimum: 0
                       type: integer
                   type: object
+                muteHealthWarning:
+                  additionalProperties:
+                    description: |-
+                      MuteHealthWarningValue controls the mute duration for a Ceph health warning.
+                      A duration (e.g. 3h, 5d, 7w), "sticky" for a permanent mute, or "unmute" to remove an existing mute.
+                    maxLength: 8
+                    pattern: ^(sticky|unmute|[0-9]+[wdhm])$
+                    type: string
+                  description: MuteHealthWarning configures muting of Ceph health warnings.
+                  maxProperties: 10
+                  minProperties: 0
+                  type: object
+                  x-kubernetes-validations:
+                    - message: keys must be valid Ceph health check codes
+                      rule: self.all(k, k.matches('^[A-Z]+(_[A-Z]+)+$'))
                 network:
                   description: Network related configuration
                   nullable: true
