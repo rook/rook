@@ -29,7 +29,6 @@ runs:
       uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
       with:
         go-version: "1.26"
-
     - name: Install cri-dockerd
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
@@ -70,7 +69,20 @@ runs:
         minikube profile list
         minikube config view || true
         kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.containerRuntimeVersion}{"\n"}'
+    - name: debug node runtime and kubectl exec
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        kubectl get nodes -o wide
+        kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{" => "}{.status.nodeInfo.containerRuntimeVersion}{" | kubelet="}{.status.nodeInfo.kubeletVersion}{"\n"}{end}'
+        minikube profile list
+        minikube status
+        docker ps -a || true
 
+        kubectl create ns exec-smoke || true
+        kubectl -n exec-smoke run exec-smoke --image=busybox:1.36 --restart=Never --command -- sh -c 'sleep 3600'
+        kubectl -n exec-smoke wait --for=condition=Ready pod/exec-smoke --timeout=180s
+        kubectl -n exec-smoke exec exec-smoke -- true
+        kubectl -n exec-smoke exec exec-smoke -- sh -c 'echo exec-works'
 
     - name: install deps
       shell: bash --noprofile --norc -eo pipefail -x {0}
