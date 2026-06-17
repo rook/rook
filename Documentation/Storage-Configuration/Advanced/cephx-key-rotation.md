@@ -70,7 +70,7 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v20.2.1
+    image: quay.io/ceph/ceph:v20.2.2
   security:
     cephx:
       daemon:
