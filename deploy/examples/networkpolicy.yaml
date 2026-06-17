@@ -1,0 +1,361 @@
+#################################################################################################################
+# NetworkPolicy definitions for the Rook-Ceph operator and operand pods.
+# These policies control egress (and where applicable, ingress) traffic for each Ceph daemon type.
+#
+# Egress-only rationale: CSI node plugins use hostNetwork, so their traffic arrives from node IPs
+# which cannot be matched by namespaceSelector/podSelector ingress rules. Restricting ingress would
+# require ipBlock CIDRs that are cluster-specific and fragile, so we only enforce egress on most
+# Ceph daemon pods.
+#################################################################################################################
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rook-ceph-mon
+  namespace: rook-ceph # namespace:cluster
+spec:
+  podSelector:
+    matchLabels:
+      app: rook-ceph-mon
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system # namespace:dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-mon
+      ports:
+        - protocol: TCP
+          port: 3300
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rook-ceph-osd
+  namespace: rook-ceph # namespace:cluster
+spec:
+  podSelector:
+    matchLabels:
+      app: rook-ceph-osd
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system # namespace:dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-mon
+      ports:
+        - protocol: TCP
+          port: 3300
+        - protocol: TCP
+          port: 6789
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-mgr
+      ports:
+        - protocol: TCP
+          port: 6800
+          endPort: 7300
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-osd
+      ports:
+        - protocol: TCP
+          port: 6800
+          endPort: 7300
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rook-ceph-mgr
+  namespace: rook-ceph # namespace:cluster
+spec:
+  podSelector:
+    matchLabels:
+      app: rook-ceph-mgr
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system # namespace:dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-mon
+      ports:
+        - protocol: TCP
+          port: 3300
+        - protocol: TCP
+          port: 6789
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - rook-ceph-mds
+                  - rook-ceph-osd
+      ports:
+        - protocol: TCP
+          port: 6800
+          endPort: 7300
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rook-ceph-mds
+  namespace: rook-ceph # namespace:cluster
+spec:
+  podSelector:
+    matchLabels:
+      app: rook-ceph-mds
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system # namespace:dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-mon
+      ports:
+        - protocol: TCP
+          port: 3300
+        - protocol: TCP
+          port: 6789
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - rook-ceph-osd
+                  - rook-ceph-mds
+      ports:
+        - protocol: TCP
+          port: 6800
+          endPort: 7300
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rook-ceph-exporter
+  namespace: rook-ceph # namespace:cluster
+spec:
+  podSelector:
+    matchLabels:
+      app: rook-ceph-exporter
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring # namespace:monitoring
+      ports:
+        - protocol: TCP
+          port: 9926
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system # namespace:dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-mon
+      ports:
+        - protocol: TCP
+          port: 3300
+---
+# The OSD prepare job needs node topology labels via the K8s API.
+# The API server is host-networked so it cannot be targeted by a pod/namespace
+# selector; therefore egress is unrestricted.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rook-ceph-osd-prepare
+  namespace: rook-ceph # namespace:cluster
+spec:
+  podSelector:
+    matchLabels:
+      app: rook-ceph-osd-prepare
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rook-ceph-crashcollector
+  namespace: rook-ceph # namespace:cluster
+spec:
+  podSelector:
+    matchLabels:
+      app: rook-ceph-crashcollector
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system # namespace:dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-mon
+      ports:
+        - protocol: TCP
+          port: 3300
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rook-ceph-tools
+  namespace: rook-ceph # namespace:cluster
+spec:
+  podSelector:
+    matchLabels:
+      app: rook-ceph-tools
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system # namespace:dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-mon
+      ports:
+        - protocol: TCP
+          port: 3300
+        - protocol: TCP
+          port: 6789
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-mgr
+      ports:
+        - protocol: TCP
+          port: 6800
+          endPort: 7300
+        - protocol: TCP
+          port: 9283
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-osd
+      ports:
+        - protocol: TCP
+          port: 6800
+          endPort: 7300
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-rgw
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443

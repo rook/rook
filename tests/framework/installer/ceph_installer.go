@@ -129,6 +129,13 @@ func (h *CephInstaller) CreateCephOperator() (err error) {
 		return errors.Errorf("Failed to create rook-operator pod: %v ", err)
 	}
 
+	if networkPolicy := h.Manifests.GetNetworkPolicy(); networkPolicy != "" {
+		logger.Info("Creating NetworkPolicies")
+		if _, err = h.k8shelper.KubectlWithStdin(networkPolicy, createFromStdinArgs...); err != nil {
+			return errors.Wrap(err, "failed to create network policies")
+		}
+	}
+
 	if err := h.CreateVolumeReplicationCRDs(); err != nil {
 		return errors.Wrap(err, "failed to create volume replication CRDs")
 	}
