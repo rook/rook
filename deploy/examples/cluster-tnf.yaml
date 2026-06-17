@@ -21,7 +21,7 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: quay.io/ceph/ceph:v20.2.1
+    image: quay.io/ceph/ceph:v20.2.2
     allowUnsupported: false
   # The path on the host where configuration files will be persisted
   # IMPORTANT: Disable host networking for floating monitor

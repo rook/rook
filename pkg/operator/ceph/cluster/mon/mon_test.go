@@ -1081,7 +1081,7 @@ func TestCheckIfArbiterReady(t *testing.T) {
 	assert.False(t, ready)
 	assert.NoError(t, err)
 
-	// Still rejected on tentacle v20.2.1 (pre-backport)
+	// Still rejected on tentacle v20.2.2 (pre-backport)
 	c.ClusterInfo.CephVersion = cephver.CephVersion{Major: 20, Minor: 2, Extra: 1}
 	ready, err = c.readyToConfigureArbiter(false)
 	assert.False(t, ready)
