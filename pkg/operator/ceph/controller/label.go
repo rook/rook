@@ -64,18 +64,6 @@ func AddCephVersionLabelToDeployment(cephVersion version.CephVersion, d *apps.De
 	addCephVersionLabel(cephVersion, d.Labels)
 }
 
-// AddCephVersionLabelToDaemonSet adds a label reporting the Ceph version which Rook has detected is
-// running in the DaemonSet's pods.
-func AddCephVersionLabelToDaemonSet(cephVersion version.CephVersion, d *apps.DaemonSet) {
-	if d == nil {
-		return
-	}
-	if d.Labels == nil {
-		d.Labels = map[string]string{}
-	}
-	addCephVersionLabel(cephVersion, d.Labels)
-}
-
 // AddCephVersionLabelToJob adds a label reporting the Ceph version which Rook has detected is
 // running in the Job's pods.
 func AddCephVersionLabelToJob(cephVersion version.CephVersion, j *batch.Job) {

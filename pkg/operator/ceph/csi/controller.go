@@ -164,7 +164,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	driverPrefix := fmt.Sprintf("%s.", r.opConfig.OperatorNamespace)
 	CephFSDriverName = driverPrefix + cephFSDriverSuffix
 	RBDDriverName = driverPrefix + rbdDriverSuffix
-	NFSDriverName = driverPrefix + nfsDriverSuffix
 
 	// See if there is a CephCluster
 	cephClusters := &cephv1.CephClusterList{}
