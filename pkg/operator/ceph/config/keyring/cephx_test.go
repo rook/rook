@@ -102,7 +102,7 @@ func Test_parseCephVersionFromStatusVersion(t *testing.T) {
 		wantErr bool
 	}{
 		{"20.2.1-5", version.CephVersion{Major: 20, Minor: 2, Extra: 1, Build: 5}, false},
-		{"v20.2.1-5", version.CephVersion{}, true},
+		{"v20.2.2-5", version.CephVersion{}, true},
 		{"20.2.1", version.CephVersion{}, true},
 		{"20.2", version.CephVersion{}, true},
 		{"20", version.CephVersion{}, true},
