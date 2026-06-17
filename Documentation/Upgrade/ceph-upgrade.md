@@ -31,7 +31,7 @@ The following Ceph versions are supported in this release of Rook:
 * Ceph Tentacle v20.2.0: Not recommended
     * IMPORTANT: **There is a known data corruption issue in v20.2.0**, if the "read affinity" feature is enabled.
     Read affinity is disabled by default, and is enabled by the CephCluster setting `csi.readAffinity.enabled: true`.
-    If read affinity is enabled in your cluster, upgrade to v20.2.1+.
+    If read affinity is enabled in your cluster, upgrade to v20.2.2+.
     If read affinity is enabled with v20.2.0, Rook automatically disables read affinity internally to help avoid this corruption.
     After the upgrade, existing applications must be restarted to fully disable the read affinity in existing volumes.
     See [this issue](https://github.com/rook/rook/issues/16839) for more details.
@@ -46,7 +46,7 @@ Official Ceph container images can be found on [Quay](https://quay.io/repository
 
 These images are tagged in a few ways:
 
-* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v20.2.1-20260402`).
+* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v20.2.2-20260616`).
     These tags are recommended for production clusters, as there is no possibility for the cluster to
     be heterogeneous with respect to the version of Ceph running in containers.
 * Ceph major version tags (e.g., `v20`) are useful for development and test clusters so that the
@@ -63,7 +63,7 @@ CephCluster CRD (`spec.cephVersion.image`).
 
 ```console
 ROOK_CLUSTER_NAMESPACE=rook-ceph
-NEW_CEPH_IMAGE='quay.io/ceph/ceph:v20.2.1-20260402'
+NEW_CEPH_IMAGE='quay.io/ceph/ceph:v20.2.2-20260616'
 kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $ROOK_CLUSTER_NAMESPACE --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
 
@@ -75,7 +75,7 @@ employed by the new Rook operator release. Employing an outdated Ceph version wi
 in unexpected behaviour.
 
 ```console
-kubectl -n rook-ceph set image deploy/rook-ceph-tools rook-ceph-tools=quay.io/ceph/ceph:v20.2.1-20260402
+kubectl -n rook-ceph set image deploy/rook-ceph-tools rook-ceph-tools=quay.io/ceph/ceph:v20.2.2-20260616
 ```
 
 #### **3. Wait for the pod updates**
@@ -93,9 +93,9 @@ Confirm the upgrade is completed when the versions are all on the desired Ceph v
 kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"ceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
     ceph-version=v19.2.3-0
-    ceph-version=v20.2.1-0
+    ceph-version=v20.2.2-0
 This cluster is finished:
-    ceph-version=v20.2.1-0
+    ceph-version=v20.2.2-0
 ```
 
 #### **4. Verify cluster health**
