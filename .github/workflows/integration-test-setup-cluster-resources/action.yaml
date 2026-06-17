@@ -7,11 +7,11 @@ inputs:
   minikube-driver:
     description: minikube driver to use
     required: false
-    default: none
+    default: docker
   minikube-container-runtime:
     description: minikube container runtime to use
     required: false
-    default: docker
+    default: containerd
 
 runs:
   using: "composite"
@@ -30,6 +30,7 @@ runs:
       with:
         go-version: "1.26"
     - name: Install cri-dockerd
+      if: ${{ inputs.minikube-container-runtime == 'docker' }}
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         ARCH=$(go env GOARCH)
