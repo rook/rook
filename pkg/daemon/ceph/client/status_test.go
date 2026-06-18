@@ -20,6 +20,9 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/clusterd"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -150,4 +153,69 @@ func TestIsCephHealthy(t *testing.T) {
 	statusFake.Health.Status = "HEALTH_ERR"
 	s = isCephHealthy(statusFake)
 	assert.False(t, s)
+}
+
+func TestMuteHealthWarning(t *testing.T) {
+	tests := []struct {
+		name           string
+		warning        string
+		value          string
+		expectedArgs   []string
+		mockError      error
+		expectsWarning bool
+	}{
+		{
+			name:           "mute via MuteHealthWarning",
+			warning:        "MON_NETSPLIT",
+			value:          "mute",
+			expectedArgs:   []string{"health", "mute", "MON_NETSPLIT", "--sticky"},
+			mockError:      nil,
+			expectsWarning: false,
+		},
+		{
+			name:           "unmute",
+			warning:        "AUTH_INSECURE_GLOBAL_ID_RECLAIM",
+			value:          "unmute",
+			expectedArgs:   []string{"health", "unmute", "AUTH_INSECURE_GLOBAL_ID_RECLAIM"},
+			mockError:      nil,
+			expectsWarning: false,
+		},
+		{
+			name:           "command failure logs warning",
+			warning:        "MON_NETSPLIT",
+			value:          "mute",
+			expectedArgs:   []string{"health", "mute", "MON_NETSPLIT", "--sticky"},
+			mockError:      errors.New("command execution failed"),
+			expectsWarning: true,
+		},
+		{
+			name:           "unknown value returns error",
+			warning:        "MON_NETSPLIT",
+			value:          "invalid",
+			expectedArgs:   nil,
+			mockError:      nil,
+			expectsWarning: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			executor := &exectest.MockExecutor{}
+			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+				assert.Equal(t, "ceph", command)
+				assert.Equal(t, tt.expectedArgs, args[:len(tt.expectedArgs)])
+				return "", tt.mockError
+			}
+
+			context := &clusterd.Context{Executor: executor}
+			clusterInfo := AdminTestClusterInfo("mycluster")
+
+			err := MuteHealthWarning(context, clusterInfo, tt.warning, tt.value)
+			if tt.expectedArgs == nil {
+				assert.Error(t, err)
+				return
+			}
+			assert.Equal(t, tt.mockError, err)
+		})
+	}
 }

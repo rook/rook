@@ -20,13 +20,13 @@ package cluster
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sort"
 	"testing"
 	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	optest "github.com/rook/rook/pkg/operator/test"
@@ -142,40 +142,50 @@ func TestNewCephStatusChecker(t *testing.T) {
 		clusterSpec *cephv1.ClusterSpec
 	}
 	tests := []struct {
-		name string
-		args args
-		want *cephStatusChecker
+		name       string
+		args       args
+		interval   time.Duration
+		isExternal bool
 	}{
-		{"default-interval", args{c, clusterInfo, &cephv1.ClusterSpec{}}, &cephStatusChecker{c, clusterInfo, &defaultStatusCheckInterval, c.Client, false}},
-		{"10s-interval", args{c, clusterInfo, &cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Status: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}}, &cephStatusChecker{c, clusterInfo, &time10s, c.Client, false}},
-		{"10s-interval-external", args{c, clusterInfo, &cephv1.ClusterSpec{External: cephv1.ExternalSpec{Enable: true}, HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Status: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}}, &cephStatusChecker{c, clusterInfo, &time10s, c.Client, true}},
+		{"default-interval", args{c, clusterInfo, &cephv1.ClusterSpec{}}, defaultStatusCheckInterval, false},
+		{"10s-interval", args{c, clusterInfo, &cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Status: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}}, time10s, false},
+		{"10s-interval-external", args{c, clusterInfo, &cephv1.ClusterSpec{External: cephv1.ExternalSpec{Enable: true}, HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Status: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}}, time10s, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := newCephStatusChecker(tt.args.context, tt.args.clusterInfo, tt.args.clusterSpec); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newCephStatusChecker() = %v, want %v", got, tt.want)
-			}
+			got := newCephStatusChecker(tt.args.context, tt.args.clusterInfo, tt.args.clusterSpec)
+			assert.Equal(t, tt.args.context, got.context)
+			assert.Equal(t, tt.args.clusterInfo, got.clusterInfo)
+			assert.Equal(t, tt.interval, *got.interval)
+			assert.Equal(t, tt.args.context.Client, got.client)
+			assert.Equal(t, tt.isExternal, got.isExternal)
 		})
 	}
 }
 
 func TestConfigureHealthSettings(t *testing.T) {
-	c := &cephStatusChecker{
-		context:     &clusterd.Context{},
-		clusterInfo: cephclient.AdminTestClusterInfo("ns"),
-	}
+	clusterInfo := cephclient.AdminTestClusterInfo("ns")
 	setGlobalIDReclaim := false
-	c.context.Executor = &exectest.MockExecutor{
-		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
-			logger.Infof("Command: %s %v", command, args)
-			if args[0] == "config" && args[3] == "auth_allow_insecure_global_id_reclaim" {
-				if args[1] == "set" {
-					setGlobalIDReclaim = true
-					return "", nil
-				}
-			}
-			return "", errors.New("mock error to simulate failure of mon store config")
+	c := &cephStatusChecker{
+		context: &clusterd.Context{
+			RookClientset: rookclient.NewSimpleClientset(&cephv1.CephCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      clusterInfo.NamespacedName().Name,
+					Namespace: clusterInfo.Namespace,
+				},
+			}),
+			Executor: &exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+					logger.Infof("Command: %s %v", command, args)
+					if args[0] == "health" && args[1] == "mute" && args[2] == "AUTH_INSECURE_GLOBAL_ID_RECLAIM" {
+						setGlobalIDReclaim = true
+						return "", nil
+					}
+					return "", errors.New("mock error to simulate failure of health mute")
+				},
+			},
 		},
+		clusterInfo: clusterInfo,
 	}
 	noActionOneWarningStatus := cephclient.CephStatus{
 		Health: cephclient.HealthStatus{
