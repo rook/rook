@@ -1036,20 +1036,6 @@ CephClusterHealthCheckSpec
 </tr>
 <tr>
 <td>
-<code>muteHealthWarning</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.MuteHealthWarningSpec">
-MuteHealthWarningSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>MuteHealthWarning configures muting of Ceph health warnings.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>security</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.ClusterSecuritySpec">
@@ -3964,6 +3950,20 @@ map[github.com/rook/rook/pkg/apis/ceph.rook.io/v1.KeyType]*github.com/rook/rook/
 <p>StartupProbe allows changing the startupProbe configuration for a given daemon</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>muteHealthWarning</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MuteHealthWarningSpec">
+map[string]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.MuteHealthWarningSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MuteHealthWarning configures muting of Ceph health warnings.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CephDaemonsVersions">CephDaemonsVersions
@@ -6019,20 +6019,6 @@ CephClusterHealthCheckSpec
 <td>
 <em>(Optional)</em>
 <p>Internal daemon healthchecks and liveness probe</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>muteHealthWarning</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.MuteHealthWarningSpec">
-MuteHealthWarningSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>MuteHealthWarning configures muting of Ceph health warnings.</p>
 </td>
 </tr>
 <tr>
@@ -10593,22 +10579,34 @@ services. For example: <clusterid>.<svc>.<ns>.svc.clusterset.local</p>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.MuteHealthWarningSpec">MuteHealthWarningSpec
-(<code>map[string]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.MuteHealthWarningValue</code> alias)</h3>
+</h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterSpec">ClusterSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephClusterHealthCheckSpec">CephClusterHealthCheckSpec</a>)
 </p>
 <div>
-<p>MuteHealthWarningSpec configures muting of Ceph health warnings.
-Keys are Ceph health check codes (e.g. AUTH_INSECURE_CLIENT_KEY_TYPE).
-Values control the mute duration: a duration (e.g. 3h, 5d, 7w),
-&ldquo;sticky&rdquo; for a permanent mute, or &ldquo;unmute&rdquo; to remove an existing mute.</p>
+<p>MuteHealthWarningSpec configures muting of a Ceph health warning.</p>
 </div>
-<h3 id="ceph.rook.io/v1.MuteHealthWarningValue">MuteHealthWarningValue
-(<code>string</code> alias)</h3>
-<div>
-<p>MuteHealthWarningValue controls the mute duration for a Ceph health warning.
-A duration (e.g. 3h, 5d, 7w), &ldquo;sticky&rdquo; for a permanent mute, or &ldquo;unmute&rdquo; to remove an existing mute.</p>
-</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>policy</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Policy controls whether to mute or unmute a Ceph health warning.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.NFSGaneshaSpec">NFSGaneshaSpec
 </h3>
 <p>

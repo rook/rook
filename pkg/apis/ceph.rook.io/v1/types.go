@@ -69,6 +69,13 @@ type CephClusterHealthCheckSpec struct {
 	// StartupProbe allows changing the startupProbe configuration for a given daemon
 	// +optional
 	StartupProbe map[KeyType]*ProbeSpec `json:"startupProbe,omitempty"`
+
+	// MuteHealthWarning configures muting of Ceph health warnings.
+	// +optional
+	// +kubebuilder:validation:MinProperties=0
+	// +kubebuilder:validation:MaxProperties=10
+	// +kubebuilder:validation:XValidation:rule="self.all(k, k.matches('^[A-Z]+(_[A-Z]+)+$'))",message="keys must be valid Ceph health check codes"
+	MuteHealthWarning map[string]MuteHealthWarningSpec `json:"muteHealthWarning,omitempty"` //nolint:kubeapilinter // Map keys are the Ceph health check codes
 }
 
 // DaemonHealthSpec is a daemon health check
@@ -87,20 +94,13 @@ type DaemonHealthSpec struct {
 	ObjectStorageDaemon HealthCheckSpec `json:"osd,omitempty"`
 }
 
-// MuteHealthWarningValue controls the mute duration for a Ceph health warning.
-// A duration (e.g. 3h, 5d, 7w), "sticky" for a permanent mute, or "unmute" to remove an existing mute.
-// +kubebuilder:validation:MaxLength=8
-// +kubebuilder:validation:Pattern=`^(sticky|unmute|[0-9]+[wdhm])$`
-type MuteHealthWarningValue string
-
-// MuteHealthWarningSpec configures muting of Ceph health warnings.
-// Keys are Ceph health check codes (e.g. AUTH_INSECURE_CLIENT_KEY_TYPE).
-// Values control the mute duration: a duration (e.g. 3h, 5d, 7w),
-// "sticky" for a permanent mute, or "unmute" to remove an existing mute.
-// +kubebuilder:validation:MinProperties=0
-// +kubebuilder:validation:MaxProperties=10
-// +kubebuilder:validation:XValidation:rule="self.all(k, k.matches('^[A-Z]+(_[A-Z]+)+$'))",message="keys must be valid Ceph health check codes"
-type MuteHealthWarningSpec map[string]MuteHealthWarningValue
+// MuteHealthWarningSpec configures muting of a Ceph health warning.
+type MuteHealthWarningSpec struct {
+	// Policy controls whether to mute or unmute a Ceph health warning.
+	// +kubebuilder:validation:Enum=mute;unmute
+	// +required
+	Policy string `json:"policy,omitempty"`
+}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -236,10 +236,6 @@ type ClusterSpec struct {
 	// +optional
 	// +nullable
 	HealthCheck CephClusterHealthCheckSpec `json:"healthCheck,omitempty"`
-
-	// MuteHealthWarning configures muting of Ceph health warnings.
-	// +optional
-	MuteHealthWarning MuteHealthWarningSpec `json:"muteHealthWarning,omitempty"`
 
 	// Security represents security settings
 	// +optional
