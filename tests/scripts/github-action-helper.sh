@@ -358,6 +358,7 @@ function replace_ceph_image() {
 function deploy_cluster() {
   cd "${REPO_DIR}/deploy/examples"
 
+  kubectl create -f networkpolicy.yaml
   deploy_manifest_with_local_build operator.yaml
 
   if [ $# == 0 ]; then
