@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/log"
 )
 
 const (
@@ -289,10 +290,23 @@ func isCephHealthy(status CephStatus) bool {
 	return false
 }
 
-func MuteHealthWarning(context *clusterd.Context, clusterInfo *ClusterInfo, warning string) {
-	args := []string{"health", "mute", warning, "--sticky"}
+// MuteHealthWarning mutes or unmutes a Ceph health warning.
+func MuteHealthWarning(context *clusterd.Context, clusterInfo *ClusterInfo, warning, value string) error {
+	var args []string
+	switch value {
+	case "unmute":
+		args = []string{"health", "unmute", warning}
+	case "mute":
+		args = []string{"health", "mute", warning, "--sticky"}
+	default:
+		return fmt.Errorf("unknown health warning mute value %q for warning %q", value, warning)
+	}
+
 	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		logger.Warningf("failed to mute health warning %q: %v", warning, err)
+		logger.Warningf("failed to configure health warning mute %q=%q: %v", warning, value, err)
+		return err
 	}
+	log.NamespacedInfo(clusterInfo.Namespace, logger, "successfully configured health warning mute %q=%q", warning, value)
+	return nil
 }
