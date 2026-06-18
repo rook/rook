@@ -2,7 +2,7 @@
 
 ## Installation types
 
-Install Rook in the the consumer cluster, either with [Helm](#helm-installation)
+Install Rook in the consumer cluster, either with [Helm](#helm-installation)
 or the [manifests](#manifest-installation).
 
 ### Helm Installation
