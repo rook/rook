@@ -1894,7 +1894,7 @@ func (c *Cluster) RotateMonCephxKeys(clusterObj *cephv1.CephCluster) (bool, erro
 
 	// daemon key type always takes the default from setDefaultCephxKeyType()
 	shouldRotateMonKeys, err := keyring.ShouldRotateCephxKeys(
-		clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, clusterObj.Status.Cephx.Mon, true)
+		clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, clusterObj.Status.Cephx.Mon, true, c.ClusterInfo.Namespace)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to check if mon daemon keys should be rotated in the namespace %q", c.ClusterInfo.Namespace)
 	}

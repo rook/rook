@@ -310,7 +310,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	// Determine if we should rotate CephX keys for NFS daemons
 	// daemon key type always takes the default from setDefaultCephxKeyType()
 	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion,
-		*desiredCephVersion, cephNFS.Status.Cephx.Daemon, true)
+		*desiredCephVersion, cephNFS.Status.Cephx.Daemon, true, r.clusterInfo.Namespace)
 	if err != nil {
 		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to determine if cephx keys should be rotated")
 	}

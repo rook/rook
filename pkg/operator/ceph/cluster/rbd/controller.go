@@ -266,7 +266,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	// check if cephRBDMirror daemon keys should be rotated or not (
 	// daemon key type always takes the default from setDefaultCephxKeyType()
 	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(
-		cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion, *runningCephVersion, cephRBDMirror.Status.Cephx.Daemon, true)
+		cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion, *runningCephVersion, cephRBDMirror.Status.Cephx.Daemon, true, r.clusterInfo.Namespace)
 	if err != nil {
 		return reconcile.Result{}, *cephRBDMirror, errors.Wrapf(err, "failed to determine if cephx keys should be rotated for the cephRBDMirror %q", request.NamespacedName)
 	}

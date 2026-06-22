@@ -462,7 +462,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 		// daemon key type always takes the default from setDefaultCephxKeyType()
 		shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(
-			cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion, *desiredCephVersion, cephObjectStore.Status.Cephx.Daemon, true)
+			cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion, *desiredCephVersion, cephObjectStore.Status.Cephx.Daemon, true, r.clusterInfo.Namespace)
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStore, errors.Wrap(err, "failed to determine if cephx keys should be rotated")
 		}
