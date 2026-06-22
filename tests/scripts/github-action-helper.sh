@@ -149,46 +149,90 @@ function use_local_disk_for_integration_test() {
   sudo swapoff --all --verbose
 
   # Create an extra disk if doesn't exist.
-  : "$(block_dev)"
+  # Detect if we're using docker driver and use LVM accordingly
+  local minikube_driver
+  minikube_driver=$(minikube profile list 2>/dev/null | grep -oP 'driver:\s*\K\w+' || echo "none")
+
+  if [[ "$minikube_driver" == "docker" ]]; then
+    # For docker driver: use LVM which works better with containerized K8s
+    echo "Docker driver detected - using LVM-based devices for docker driver"
+    # Create LVM volume group from available space
+    dd if=/dev/zero of=~/lvm-disk.img bs=1M seek=20480 count=0
+    local loop_dev
+    loop_dev=$(sudo losetup --find --show ~/lvm-disk.img)
+    # Create LVM VG/LV instead of raw partitions
+    sudo vgcreate rook-vg "$loop_dev" 2>/dev/null || sudo vgcreate -f rook-vg "$loop_dev"
+    sudo lvcreate -L 20G -n rook-lv rook-vg
+    # Set the block device to point to the LVM device
+    DEFAULT_BLOCK_DEV="/dev/mapper/rook-vg-rook_lv"
+    echo "LVM device ready at ${DEFAULT_BLOCK_DEV}"
+  else
+    # For other drivers: use local non-lvm devices.
+
+
+    : "$(block_dev)"
+    sudo lsblk
+
+    # Stop udev from watching the OSD disk, on every kind of runner. Without this, every
+    # close-after-write on the device retriggers a udev probe of the device, and the resulting
+    # re-probe storm during OSD restarts has been seen to wedge ceph-volume activate in
+    # uninterruptible sleep on the block device lock on runners using the iSCSI fallback disk.
+    # See https://github.com/rook/rook/issues/8975 and https://access.redhat.com/solutions/1465913
+    echo "ACTION==\"add|change\", KERNEL==\"$(block_dev_basename)\", OPTIONS:=\"nowatch\"" | sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules
+    sudo udevadm control --reload-rules || true
+    sudo udevadm trigger || true
+    time sudo udevadm settle || true
+    unset pipefail
+    mountpoint -q /mnt || return 0
+    set pipefail
+    sudo umount /mnt
+    sudo sed -i.bak '/\/mnt/d' /etc/fstab
+    # search for the device since it keeps changing between sda and sdb
+    PARTITION="$(block_dev)1"
+    sudo wipefs --all --force "$PARTITION"
+    sudo dd if=/dev/zero of="${PARTITION}" bs=1M count=1
+    sudo lsblk --bytes
+    # add a udev rule to force the disk partitions to ceph
+    # we have observed that some runners keep detaching/re-attaching the additional disk overriding the permissions to the default root:disk
+    # for more details see: https://github.com/rook/rook/issues/7405
+    echo "SUBSYSTEM==\"block\", ATTR{size}==\"29356032\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 $PARTITION\"" | sudo tee -a /etc/udev/rules.d/01-rook.rules
+    # The partition is still getting reloaded occasionally during operation. See https://github.com/rook/rook/issues/8975
+    # Try issuing some disk-inspection commands to jog the system so it won't reload the partitions
+    # during OSD provisioning.
+    sudo udevadm control --reload-rules || true
+    sudo udevadm trigger || true
+    time sudo udevadm settle || true
+    sudo partprobe || true
+    sudo lsblk --noheadings --pairs "$(block_dev)" || true
+    sudo sgdisk --print "$(block_dev)" || true
+    sudo udevadm info --query=property "$(block_dev)" || true
+    sudo lsblk --noheadings --pairs "${PARTITION}" || true
+    journalctl -o short-precise --dmesg | tail -40 || true
+    cat /etc/fstab || true
+  fi
+}
+
+function create_partitions_for_osds() {
+  tests/scripts/create-bluestore-partitions.sh --disk "$(block_dev)" --osd-count 2
+  sudo lsblk
+    : "$(block_dev)"
   sudo lsblk
 
-  # Stop udev from watching the OSD disk, on every kind of runner. Without this, every
-  # close-after-write on the device retriggers a udev probe of the device, and the resulting
-  # re-probe storm during OSD restarts has been seen to wedge ceph-volume activate in
-  # uninterruptible sleep on the block device lock on runners using the iSCSI fallback disk.
-  # See https://github.com/rook/rook/issues/8975 and https://access.redhat.com/solutions/1465913
+  # Stop udev from watching the OSD disk...
   echo "ACTION==\"add|change\", KERNEL==\"$(block_dev_basename)\", OPTIONS:=\"nowatch\"" | sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules
-  sudo udevadm control --reload-rules || true
-  sudo udevadm trigger || true
-  time sudo udevadm settle || true
+  # ... etc
+}
 
-  unset pipefail
-  mountpoint -q /mnt || return 0
-  set pipefail
-  sudo umount /mnt
-  sudo sed -i.bak '/\/mnt/d' /etc/fstab
-  # search for the device since it keeps changing between sda and sdb
-  PARTITION="$(block_dev)1"
-  sudo wipefs --all --force "$PARTITION"
-  sudo dd if=/dev/zero of="${PARTITION}" bs=1M count=1
-  sudo lsblk --bytes
-  # add a udev rule to force the disk partitions to ceph
-  # we have observed that some runners keep detaching/re-attaching the additional disk overriding the permissions to the default root:disk
-  # for more details see: https://github.com/rook/rook/issues/7405
-  echo "SUBSYSTEM==\"block\", ATTR{size}==\"29356032\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 $PARTITION\"" | sudo tee -a /etc/udev/rules.d/01-rook.rules
-  # The partition is still getting reloaded occasionally during operation. See https://github.com/rook/rook/issues/8975
-  # Try issuing some disk-inspection commands to jog the system so it won't reload the partitions
-  # during OSD provisioning.
-  sudo udevadm control --reload-rules || true
-  sudo udevadm trigger || true
-  time sudo udevadm settle || true
-  sudo partprobe || true
-  sudo lsblk --noheadings --pairs "$(block_dev)" || true
-  sudo sgdisk --print "$(block_dev)" || true
-  sudo udevadm info --query=property "$(block_dev)" || true
-  sudo lsblk --noheadings --pairs "${PARTITION}" || true
-  journalctl -o short-precise --dmesg | tail -40 || true
-  cat /etc/fstab || true
+function create_partitions_for_osds() {
+  tests/scripts/create-bluestore-partitions.sh --disk "$(block_dev)" --osd-count 2
+  sudo lsblk
+}
+
+function create_bluestore_partitions_and_pvcs() {
+  BLOCK_PART="$(block_dev)2"
+  DB_PART="$(block_dev)1"
+  tests/scripts/create-bluestore-partitions.sh --disk "$(block_dev)" --bluestore-type block.db --osd-count 1
+  tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
 }
 
 function create_partitions_for_osds() {
