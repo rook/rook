@@ -1893,12 +1893,10 @@ jobs:
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
 
       - name: install additional deps for object testing
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
           sudo apt-get install -y s3cmd
 
       - name: use local disk into two partitions
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
           export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           tests/scripts/github-action-helper.sh use_local_disk
@@ -1906,7 +1904,6 @@ jobs:
           sudo lsblk
 
       - name: deploy first cluster rook
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
           tests/scripts/github-action-helper.sh deploy_first_rook_cluster
           kubectl create -f deploy/examples/object-multisite-test.yaml
@@ -1914,7 +1911,6 @@ jobs:
           tests/scripts/github-action-helper.sh wait_for cephobjectstore multisite-store rook-ceph 600
 
       - name: prep second cluster pull realm config
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
           cd deploy/examples/
           IP_ADDR=$(kubectl -n rook-ceph get svc rook-ceph-rgw-multisite-store -o jsonpath="{.spec.clusterIP}")
@@ -1925,7 +1921,6 @@ jobs:
           sed -i 's/WVY1MFIxeExkbG84U3pKdlRseEZXVGR3T3k1U1dUSS9KaTFoUVE9PQ==/'"$BASE64_SECRET_KEY"'/g' object-multisite-pull-realm-test.yaml
 
       - name: deploy second cluster rook
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
           tests/scripts/github-action-helper.sh deploy_second_rook_cluster
           kubectl create -f deploy/examples/object-multisite-pull-realm-test.yaml
@@ -1933,7 +1928,6 @@ jobs:
           tests/scripts/github-action-helper.sh wait_for cephobjectstore zone-b-multisite-store rook-ceph-secondary 600
 
       - name: wait for both ceph clusters to be ready
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
           tests/scripts/github-action-helper.sh wait_for cephcluster my-cluster rook-ceph
           tests/scripts/github-action-helper.sh wait_for cephcluster my-cluster rook-ceph-secondary
@@ -1943,18 +1937,15 @@ jobs:
           kubectl -n rook-ceph-secondary wait --for=condition=Ready pod -l rook_object_store=zone-b-multisite-store --timeout=300s
 
       - name: wait for multisite sync to be established
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
           tests/scripts/github-action-helper.sh wait_for_multisite_sync_established
 
       - name: write an object to one cluster, read from the other
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
           tests/scripts/github-action-helper.sh test_multisite_object_replication
 
       # if this test fails, it could mean the RGW `period get` or `period update` output has changed
       - name: RGW configuration period should be committed on first reconcile and not be committed on second reconcile
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
           ns_name_primary_object_store='"rook-ceph/multisite-store"' # double quotes intended
           ns_name_secondary_object_store='"rook-ceph-secondary/zone-b-multisite-store"' # double quotes intended
@@ -1970,7 +1961,6 @@ jobs:
 
       - name: dump multisite diagnostics on failure
         if: failure()
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
           tests/scripts/github-action-helper.sh dump_multisite_diagnostics
 
@@ -2222,7 +2212,6 @@ jobs:
           tests/scripts/github-action-helper.sh wait_for cephcluster my-cluster rook-ceph 240
 
       - name: create CephBlockPool(s), CephObjectZone, and CephObjectStore(s)
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
           kubectl create -f deploy/examples/object-separate-pools-test.yaml
           kubectl create -f deploy/examples/two-object-one-zone-test.yaml
