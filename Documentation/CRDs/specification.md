@@ -2248,6 +2248,36 @@ When set, the user is created as an account user with no default permissions,
 and resources created by this user are owned by the account.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>tenant</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Tenant is the RGW tenant this user belongs to.
+Users in different tenants can have buckets with the same name without conflict.
+When set, the effective user ID in RGW becomes &ldquo;<tenant>$<name>&rdquo;.
+This field is immutable after creation.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>placement,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectStoreUserPlacementSpec">
+ObjectStoreUserPlacementSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Placement controls the user&rsquo;s default bucket placement target and storage class tags.
+May be set independently of tenant.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -12501,6 +12531,50 @@ string
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.ObjectStoreUserPlacementSpec">ObjectStoreUserPlacementSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreUserSpec">ObjectStoreUserSpec</a>)
+</p>
+<div>
+<p>ObjectStoreUserPlacementSpec sets the user&rsquo;s default placement target and storage class tags.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>id</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ID names the placement target for new buckets created by this user.
+Must match one of the entries in the referenced CephObjectStore&rsquo;s
+spec.sharedPools.poolPlacements[].name.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tags</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Tags is a list of storage class tags to associate with this user&rsquo;s default placement.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ObjectStoreUserSpec">ObjectStoreUserSpec
 </h3>
 <p>
@@ -12623,6 +12697,36 @@ ObjectStoreUserAccountRef
 The referenced account must be in the same namespace as the user.
 When set, the user is created as an account user with no default permissions,
 and resources created by this user are owned by the account.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tenant</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Tenant is the RGW tenant this user belongs to.
+Users in different tenants can have buckets with the same name without conflict.
+When set, the effective user ID in RGW becomes &ldquo;<tenant>$<name>&rdquo;.
+This field is immutable after creation.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>placement,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectStoreUserPlacementSpec">
+ObjectStoreUserPlacementSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Placement controls the user&rsquo;s default bucket placement target and storage class tags.
+May be set independently of tenant.</p>
 </td>
 </tr>
 </tbody>
