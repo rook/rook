@@ -93,6 +93,7 @@ func createCrashCollectorKeyring(s *keyring.SecretStore, context *clusterd.Conte
 		clusterInfo.CephVersion, clusterInfo.CephVersion,
 		clusterObj.Status.Cephx.CrashCollector,
 		true, // daemon key type always takes the default from setDefaultCephxKeyType()
+		clusterInfo.Namespace,
 	)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to check if cephx keys should be rotated for crash collector %q", crashCollectorKeyringUsername)
@@ -212,6 +213,7 @@ func createExporterKeyring(s *keyring.SecretStore, context *clusterd.Context, cl
 		clusterInfo.CephVersion, clusterInfo.CephVersion,
 		clusterObj.Status.Cephx.CephExporter,
 		true, // daemon key type always takes the default from setDefaultCephxKeyType()
+		clusterInfo.Namespace,
 	)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to check if cephx keys should be rotated for ceph exporter %q", exporterKeyringUsername)

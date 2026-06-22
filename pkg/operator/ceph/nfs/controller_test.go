@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
@@ -528,6 +529,7 @@ func TestNFSKeyRotation(t *testing.T) {
 	)
 	// Set DEBUG logging
 	t.Setenv("ROOK_LOG_LEVEL", "DEBUG")
+	keyring.SetAllowCephxKeyRotationForCluster(namespace, true)
 
 	// Mock version to avoid deployment updates (filesystem mirror pattern)
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *cephclient.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {

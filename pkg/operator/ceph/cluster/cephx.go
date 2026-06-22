@@ -157,8 +157,7 @@ func setRotatingServiceKeyType(clusterdCtx *clusterd.Context, clusterInfo *cephc
 
 	// This would be a good location for `ceph auth wipe-rotating-service-keys`, but don't do so.
 	// Older clients don't know how to reconnect after their service key is wiped and hang. Instead,
-	// users will need to wait 2-3 hours for daemons to naturally switch to AES256K keys. Health
-	// warning AUTH_INSECURE_ROTATING_SERVICE_KEY_TYPE will persist for the 2-3 hour period.
+	// users will need to wait 2-3 hours for daemons to naturally switch to AES256K keys.
 
 	return nil
 }
@@ -201,7 +200,7 @@ func rotateAdminCephxKey(
 	desiredCephVersion := clusterInfo.CephVersion // TODO: update this when/if WithCephVersionUpdate is implemented
 	// ignore key type daemon keys
 	shouldRotate, err := keyring.ShouldRotateCephxKeys(
-		cephCluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, desiredCephVersion, cephCluster.Status.Cephx.Admin, true)
+		cephCluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, desiredCephVersion, cephCluster.Status.Cephx.Admin, true, clusterInfo.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "failed to determine if admin cephx key should be rotated")
 	}

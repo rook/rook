@@ -91,6 +91,7 @@ func createCSIKeyring(
 		clusterInfo.CephVersion, clusterInfo.CephVersion,
 		interpretedCephxStatus.CephxStatus,
 		false, // do not ignore key type for non-daemon csi keys
+		clusterInfo.Namespace,
 	)
 	if err != nil {
 		return "", "", 0, shouldRotate, errors.Wrap(err, "failed to call `shouldRotateCephxKeys` during CSI key rotation")

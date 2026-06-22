@@ -1177,6 +1177,8 @@ func TestRotateMonCephxKeys(t *testing.T) {
 	assert.NoError(t, err)
 	c := newCluster(context, namespace, true, v1.ResourceRequirements{})
 
+	keyring.SetAllowCephxKeyRotationForCluster(namespace, true)
+
 	uninitializedStatus := keyring.UninitializedCephxStatus()
 	cluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{

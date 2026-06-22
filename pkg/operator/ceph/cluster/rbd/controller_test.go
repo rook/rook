@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
@@ -252,6 +253,7 @@ func TestMirrorKeyRotation(t *testing.T) {
 	)
 	// Set DEBUG logging
 	t.Setenv("ROOK_LOG_LEVEL", "DEBUG")
+	keyring.SetAllowCephxKeyRotationForCluster(namespace, true)
 
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
 		rotationSupportedVer := version.CephVersion{Major: 20, Minor: 2, Extra: 0}

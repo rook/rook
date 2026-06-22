@@ -252,7 +252,7 @@ func shouldRotateMirrorPeerKeys(c *clusterd.Context, clusterInfo *cephclient.Clu
 
 	// do not ignore key type for non-daemon rbd mirror peer key
 	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(
-		cephObj.Spec.Security.CephX.RBDMirrorPeer, runningCephVersion, desiredCephVersion, cephObj.Status.Cephx.RBDMirrorPeer, false)
+		cephObj.Spec.Security.CephX.RBDMirrorPeer, runningCephVersion, desiredCephVersion, cephObj.Status.Cephx.RBDMirrorPeer, false, clusterInfo.Namespace)
 	if err != nil {
 		return false, "", errors.Wrap(err, "failed to check if mirror peer keys should be rotated or not")
 	}
