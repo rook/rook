@@ -237,6 +237,26 @@ func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) error {
 	return fmt.Errorf("could Not create resource in args : %v -- %v", args, err)
 }
 
+// applyRetryTimeout bounds ApplyWithRetry. A webhook backend (cert-manager,
+// trust-manager, ...) is typically reachable within seconds of its deployment
+// reporting ready; two minutes sits comfortably above that without hanging a
+// genuinely broken setup for long.
+const applyRetryTimeout = 2 * time.Minute
+
+// ApplyWithRetry retries "kubectl apply" of manifest until it succeeds or
+// applyRetryTimeout elapses. It exists for resources guarded by an admission
+// webhook whose backing service may not be reachable the instant its
+// deployment reports ready (e.g. cert-manager / trust-manager): "helm --wait"
+// returns once the webhook deployment is ready, but the first apply can still
+// fail with "failed calling webhook ... connection refused". description names
+// the resource in the retry log lines. See Eventually for polling semantics.
+func (k8sh *K8sHelper) ApplyWithRetry(ctx context.Context, manifest, description string) error {
+	return Eventually(ctx, k8sh.T(), applyRetryTimeout, "apply "+description,
+		func(context.Context) error {
+			return k8sh.ResourceOperation("apply", manifest)
+		})
+}
+
 // DeletePod performs a kubectl delete pod on the given pod
 func (k8sh *K8sHelper) DeletePod(namespace, name string) error {
 	args := append([]string{"--grace-period=0", "pod"}, name)

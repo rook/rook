@@ -114,27 +114,27 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) er
 		return err
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneApiClusterIssuer(namespace)); err != nil {
+	if err := shelper.ApplyWithRetry(ctx, keystoneApiClusterIssuer(namespace), "ClusterIssuer"); err != nil {
 		logger.Errorf("Could not apply ClusterIssuer in namespace %s: %s", namespace, err)
 		return err
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneApiCaCertificate(namespace)); err != nil {
+	if err := shelper.ApplyWithRetry(ctx, keystoneApiCaCertificate(namespace), "CA Certificate"); err != nil {
 		logger.Errorf("Could not apply ClusterIssuer CA Certificate in namespace %s: %s", namespace, err)
 		return err
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneApiCaIssuer(namespace)); err != nil {
+	if err := shelper.ApplyWithRetry(ctx, keystoneApiCaIssuer(namespace), "CA Issuer"); err != nil {
 		logger.Errorf("Could not install CA Issuer in namespace %s: %s", namespace, err)
 		return err
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneApiCertificate(namespace)); err != nil {
+	if err := shelper.ApplyWithRetry(ctx, keystoneApiCertificate(namespace), "Certificate"); err != nil {
 		logger.Errorf("Could not create Certificate (request) in namespace %s", namespace)
 		return err
 	}
 
-	if err := shelper.ResourceOperation("apply", trustManagerBundle(namespace)); err != nil {
+	if err := shelper.ApplyWithRetry(ctx, trustManagerBundle(namespace), "trust-manager Bundle"); err != nil {
 		logger.Errorf("Could not create CA Certificate Bundle in namespace %s", namespace)
 		return err
 	}
