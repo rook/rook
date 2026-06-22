@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -39,6 +40,48 @@ var CephAuthRotateSupportedVersion = version.CephVersion{Major: 19, Minor: 2, Ex
 //nolint:gosec // G101: this is not hardcoded credentials
 const CephxKeyIdentifierAnnotation = "cephx-key-identifier"
 
+var (
+	// Ensure multiple CephCluster reconciles don't run into threading issues with the map.
+	cephxKeyRotationAllowedMutex      = sync.Mutex{}
+	cephxKeyRotationAllowedForCluster = map[string]bool{}
+)
+
+// SetAllowCephxKeyRotationForCluster sets a global config indicating whether CephX key rotation is
+// allowed or disallowed for a particular CephCluster. This is needed to work around a Ceph bug
+// where OSDs cannot communicate between pre-AES256K-support OSDs and post-AES256K-support OSDs when
+// the Ceph version is being upgraded at the same time as CephX key rotation. This global config
+// allows the CephCluster reconcile to prevent all key rotations across all Rook components when
+// this common corner case is identified.
+//
+// Note: CurrentAndDesiredCephVersion() output passed as runningCephVersion/desiredCephVersion in
+// ShouldRotateCephxKeys() is not sufficient because it compares the image version to the
+// lowest-versioned Ceph mon. To work around this Ceph bug, the lowest-versioned Ceph OSD must be
+// used as the comparison, not mons.
+func SetAllowCephxKeyRotationForCluster(namespace string, allow bool) {
+	cephxKeyRotationAllowedMutex.Lock()
+	defer cephxKeyRotationAllowedMutex.Unlock()
+	cephxKeyRotationAllowedForCluster[namespace] = allow
+}
+
+func unsetAllowCephxKeyRotationForCluster(namespace string) {
+	cephxKeyRotationAllowedMutex.Lock()
+	defer cephxKeyRotationAllowedMutex.Unlock()
+	delete(cephxKeyRotationAllowedForCluster, namespace)
+}
+
+// GetAllowCephxKeyRotationForCluster returns the value set by SetAllowCephxKeyRotationForCluster
+// as `rotationAllowed`. Also returns whether rotation-allowance is defined via `isDefined`,
+// equivalent to the `ok` term for Go maps.
+func GetAllowCephxKeyRotationForCluster(namespace string) (rotationAllowed bool, isDefined bool) {
+	cephxKeyRotationAllowedMutex.Lock()
+	defer cephxKeyRotationAllowedMutex.Unlock()
+	allowed, ok := cephxKeyRotationAllowedForCluster[namespace]
+	if !ok {
+		return false, false
+	}
+	return allowed, true
+}
+
 // ShouldRotateCephxKeys determines whether CephX keys should be rotated based on the CephX key
 // rotation config, the version of Ceph present in the image being deployed (desiredCephVersion),
 // and the last-reconciled CephX key status.
@@ -46,9 +89,23 @@ const CephxKeyIdentifierAnnotation = "cephx-key-identifier"
 // Intended to use running/desired ceph version from CurrentAndDesiredCephVersion().
 // ignoreKeyType can be used by callers to ignore the key type in rotation calculation - intended
 // for daemon keys that (except for admin and mon) don't allow type overrides.
-func ShouldRotateCephxKeys(cfg v1.CephxConfig, runningCephVersion, desiredCephVersion version.CephVersion, status v1.CephxStatus, ignoreKeyType bool) (bool, error) {
+func ShouldRotateCephxKeys(cfg v1.CephxConfig, runningCephVersion, desiredCephVersion version.CephVersion, status v1.CephxStatus, ignoreKeyType bool, clusterNamespace string) (bool, error) {
 	// note: the default return at the end of the function is false. only return false during
 	// ShouldRotate checking if further true returns should be invalidated
+
+	allowRotation, ok := GetAllowCephxKeyRotationForCluster(clusterNamespace)
+	if ok && !allowRotation {
+		logger.Debugf("cephx key rotation is temporarily disabled for cluster in namespace %q", clusterNamespace)
+		return false, nil
+	}
+	// When allowRotationUndefined==true, return the below error any time this func would return true.
+	// Ensures that any reconciles relying on this will error and keep retrying until the
+	// CephCluster reconcile establishes a definitive allow/disallow decision. Otherwise, child
+	// reconciles (e.g. CephFilesystem) might not rotate cephx keys when they should in corner cases
+	// and could accidentally wait 10 hours until next controller-runtime resync event. It also
+	// ensures we don't return an error here unnecessarily, blocking callers without reason.
+	allowRotationUndefined := !ok
+	rotationUndefinedErr := fmt.Errorf("cephx key rotation is indicated but must wait for CephCluster in namespace %q to process", clusterNamespace)
 
 	if !(runningCephVersion.IsAtLeast(CephAuthRotateSupportedVersion) || cephclient.Aes256kKeysSupported(runningCephVersion)) {
 		logger.Debugf("should not rotate cephx keys using unsupported ceph version %#v", runningCephVersion)
@@ -74,6 +131,9 @@ func ShouldRotateCephxKeys(cfg v1.CephxConfig, runningCephVersion, desiredCephVe
 		return false, nil // if policy is disabled (default), do not rotate no matter what
 	case v1.KeyGenerationCephxKeyRotationPolicy:
 		if cfg.KeyGeneration > status.KeyGeneration {
+			if allowRotationUndefined {
+				return false, rotationUndefinedErr
+			}
 			return true, nil
 		}
 	case "WithCephVersionUpdate": // TODO: use types.go value when allowed by user input
@@ -84,6 +144,9 @@ func ShouldRotateCephxKeys(cfg v1.CephxConfig, runningCephVersion, desiredCephVe
 			return false, err
 		}
 		if shouldRotate {
+			if allowRotationUndefined {
+				return false, rotationUndefinedErr
+			}
 			return true, nil
 		}
 	default:
@@ -92,6 +155,9 @@ func ShouldRotateCephxKeys(cfg v1.CephxConfig, runningCephVersion, desiredCephVe
 
 	// does key type (if set) indicate rotation?
 	if !ignoreKeyType && cfg.KeyType != "" && cfg.KeyType != status.KeyType {
+		if allowRotationUndefined {
+			return false, rotationUndefinedErr
+		}
 		return true, nil
 	}
 

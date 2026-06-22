@@ -255,7 +255,7 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 
 	// daemon key type always takes the default from setDefaultCephxKeyType()
 	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion,
-		*desiredCephVersion, cephNVMeOFGateway.Status.Cephx.Daemon, true)
+		*desiredCephVersion, cephNVMeOFGateway.Status.Cephx.Daemon, true, r.clusterInfo.Namespace)
 	if err != nil {
 		return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to determine if cephx keys should be rotated")
 	}

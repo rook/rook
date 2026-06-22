@@ -406,7 +406,7 @@ func (c *Cluster) rotateCephxKey(osdInfo OSDInfo) (cephv1.CephxStatus, error) {
 	runningCephVersion := c.clusterInfo.CephVersion
 	desiredCephVersion := c.clusterInfo.CephVersion
 	shouldRotate, err := keyring.ShouldRotateCephxKeys(c.spec.Security.CephX.Daemon,
-		runningCephVersion, desiredCephVersion, osdInfo.CephxStatus, true) // daemon key type always takes the default from setDefaultCephxKeyType()
+		runningCephVersion, desiredCephVersion, osdInfo.CephxStatus, true, c.clusterInfo.Namespace) // daemon key type always takes the default from setDefaultCephxKeyType()
 	if err != nil {
 		return osdInfo.CephxStatus, errors.Wrapf(err, "failed to determine if cephx key for OSD %d needs rotated", osdInfo.ID)
 	}

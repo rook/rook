@@ -249,7 +249,7 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	// check if cephRBDMirror daemon keys should be rotated or not
 	// daemon key type always takes the default from setDefaultCephxKeyType()
 	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(
-		cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion, *runningCephVersion, filesystemMirror.Status.Cephx.Daemon, true)
+		cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion, *runningCephVersion, filesystemMirror.Status.Cephx.Daemon, true, r.clusterInfo.Namespace)
 	if err != nil {
 		return reconcile.Result{}, *filesystemMirror, errors.Wrapf(err, "failed to determine if cephx keys should be rotated for the cephFileSystemMirror %q", request.NamespacedName)
 	}

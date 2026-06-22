@@ -612,7 +612,7 @@ func shouldRotateMgrKeys(c *clusterd.Context, clusterInfo *cephclient.ClusterInf
 
 	// daemon key type always takes the default from setDefaultCephxKeyType()
 	shouldRotateKeys, err := keyring.ShouldRotateCephxKeys(
-		clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, clusterObj.Status.Cephx.Mgr, true)
+		clusterObj.Spec.Security.CephX.Daemon, runningCephVersion, desiredCephVersion, clusterObj.Status.Cephx.Mgr, true, clusterInfo.Namespace)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to check if mgr daemon keys should be rotated or not")
 	}

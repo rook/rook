@@ -251,7 +251,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 
 	// do not ignore key type for non-daemon cephclient key
 	shouldRotateCephxKeys, err := keyring.ShouldRotateCephxKeys(
-		cephClient.Spec.Security.CephX, runningCephVersion, runningCephVersion, cephClient.Status.Cephx, false)
+		cephClient.Spec.Security.CephX, runningCephVersion, runningCephVersion, cephClient.Status.Cephx, false, r.clusterInfo.Namespace)
 	if err != nil {
 		return reconcile.Result{}, *cephClient, errors.Wrap(err, "failed to determine if cephx keys should be rotated")
 	}
