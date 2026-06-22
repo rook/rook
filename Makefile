@@ -94,6 +94,7 @@ SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook
 TEST_PACKAGES = $(GO_PROJECT)/tests/integration
 
 CHECKMAKE=go run github.com/checkmake/checkmake/cmd/checkmake@v0.3.2
+ACTIONLINT := go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 
 # the root go project
 GO_PROJECT=github.com/rook/rook
@@ -233,6 +234,12 @@ lint.make: ## lint the Makefile
 .PHONY: lint.shell
 lint.shell: | $(SHELLCHECK) ## lint shell scripts
 	$(SHELLCHECK) --severity=warning --format=gcc --shell=bash $(shell find $(ROOT_DIR) -type f -name '*.sh') build/reset build/sed-in-place
+
+.PHONY: lint.workflows
+lint.workflows: ## lint the GitHub workflow files
+	@echo "linting GitHub workflows..."
+	@$(ACTIONLINT) -color
+	@echo "workflows are good."
 
 .PHONY: gen.codegen
 gen.codegen: codegen
