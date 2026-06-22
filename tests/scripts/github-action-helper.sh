@@ -703,7 +703,8 @@ function wait_for_sync_status() {
   while [[ $SECONDS -lt $deadline ]]; do
     status=$(kubectl -n "$ns" exec deploy/rook-ceph-tools -- \
       radosgw-admin sync status --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone="$zone") || status=""
-    if grep -q "$want" <<<"$status"; then
+    # require a non-empty status so a failed exec can't match a stale/empty buffer
+    if [[ -n "$status" ]] && grep -q "$want" <<<"$status"; then
       echo "zone ${zone} reports \"${want}\""
       return 0
     fi
@@ -715,30 +716,67 @@ function wait_for_sync_status() {
   return 1
 }
 
+# nudge_multisite_secondary forces the secondary zone to converge on the latest period when it
+# has wedged. The master pushes each new period to the secondary's RGW, but that push is
+# rejected (HTTP 403) until the realm system user is resolvable locally on the secondary; when
+# it starts out unresolvable the master keeps re-pushing identically and the secondary never
+# recovers, so its metadata sync never leaves the "failed to read sync status" state. Pulling
+# the period directly (outbound auth, which works) and restarting the RGW so it re-runs metadata
+# sync init against the now-ready master breaks the wedge. This mirrors ceph's own multisite QA,
+# which restarts zone gateways after the period is committed.
+function nudge_multisite_secondary() {
+  echo "nudging the secondary zone to converge: pulling the latest period and restarting its RGW"
+  kubectl -n rook-ceph-secondary exec deploy/rook-ceph-tools -- \
+    radosgw-admin period pull --rgw-realm=realm-a || true
+  kubectl -n rook-ceph-secondary rollout restart deploy/rook-ceph-rgw-zone-b-multisite-store-a
+  kubectl -n rook-ceph-secondary rollout status deploy/rook-ceph-rgw-zone-b-multisite-store-a --timeout=120s
+}
+
 function wait_for_multisite_sync_established() {
   # Wait until both zones report multisite sync fully established before exercising
   # replication, mirroring the checkpoints ceph's own multisite QA performs before asserting
   # anything. This also rides out the RGW frontend pauses caused by the configuration period
   # changes that follow the second zone joining the zonegroup.
-  wait_for_sync_status rook-ceph-secondary zone-b "metadata is caught up with master" 600
-  wait_for_sync_status rook-ceph-secondary zone-b "data is caught up with source" 600
-  wait_for_sync_status rook-ceph zone-a "data is caught up with source" 600
+  #
+  # The secondary's metadata sync can wedge on a fresh setup (see nudge_multisite_secondary); if
+  # it has not initialized within a couple of minutes, nudge it to converge rather than waiting
+  # out a doomed timeout, then retry. Healthy setups pass the first attempt in seconds, so the
+  # nudge only ever runs when the sync is genuinely stuck.
+  local attempt
+  for attempt in 1 2 3; do
+    if wait_for_sync_status rook-ceph-secondary zone-b "metadata is caught up with master" 120; then
+      break
+    fi
+    if [[ $attempt -ge 3 ]]; then
+      echo "zone-b metadata sync never established after ${attempt} attempts"
+      return 1
+    fi
+    nudge_multisite_secondary
+  done
+  # Data sync legitimately reports caught up at 0/0 shards before any objects are written, so the
+  # meaningful precondition is that metadata sync (above) has actually initialized.
+  wait_for_sync_status rook-ceph-secondary zone-b "data is caught up with source" 300
+  wait_for_sync_status rook-ceph zone-a "data is caught up with source" 300
 }
 
 function dump_multisite_diagnostics() {
   set +e
-  local ns
+  local ns zone
   for ns in rook-ceph rook-ceph-secondary; do
+    # sync status without an explicit zone falls back to the unrelated "default" zone, so name
+    # the realm/zonegroup/zone for each cluster.
+    if [[ "$ns" == "rook-ceph" ]]; then zone="zone-a"; else zone="zone-b"; fi
     echo "===== ${ns}: pods"
     kubectl -n "$ns" get pods -o wide
     echo "===== ${ns}: rgw pod details"
     kubectl -n "$ns" describe pods -l app=rook-ceph-rgw
     echo "===== ${ns}: rgw pod logs"
     kubectl -n "$ns" logs -l app=rook-ceph-rgw --all-containers --tail=100
-    echo "===== ${ns}: sync status"
-    kubectl -n "$ns" exec deploy/rook-ceph-tools -- radosgw-admin sync status
+    echo "===== ${ns}: sync status (${zone})"
+    kubectl -n "$ns" exec deploy/rook-ceph-tools -- \
+      radosgw-admin sync status --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone="$zone"
     echo "===== ${ns}: period"
-    kubectl -n "$ns" exec deploy/rook-ceph-tools -- radosgw-admin period get
+    kubectl -n "$ns" exec deploy/rook-ceph-tools -- radosgw-admin period get --rgw-realm=realm-a
   done
   set -e
   return 0
