@@ -31,11 +31,12 @@ Rook currently has no mechanism to place a `CephObjectStoreUser` in an RGW tenan
 
 ## Goals
 
-- Add `spec.tenant` to `CephObjectStoreUser` to pass `--tenant` to radosgw-admin at user creation.
-- Add `spec.defaultPlacement` to `CephObjectStoreUser` to pass `--placement-id` / set `default_placement` on modify.
+- Add `spec.tenant` to `CephObjectStoreUser` to set the `Tenant` field on the RGW Admin Ops API `User` struct at user creation.
+- Add `spec.defaultPlacement` to `CephObjectStoreUser` to set `DefaultPlacement` on the user via `CreateUser`/`ModifyUser` in the RGW Admin Ops API.
 - Validate `defaultPlacement` against the named placements defined in the referenced `CephObjectStore`.
 - Treat `tenant` as immutable (changing tenant requires user deletion and recreation in RGW).
 - Treat `defaultPlacement` as mutable (can be updated via `ModifyUser`).
+- Both fields are independent of each other: `defaultPlacement` may be set without `tenant`, and vice versa.
 - Preserve backward compatibility: both fields are optional, existing resources are unaffected.
 
 
@@ -89,15 +90,33 @@ type ObjectStoreUserSpec struct {
     // +kubebuilder:validation:MaxLength=255
     Tenant string `json:"tenant,omitempty"`
 
-    // DefaultPlacement names the placement target for new buckets created by this user.
+    // Placement controls the user's default bucket placement target and storage class tags.
+    // May be set independently of tenant.
+    // +optional
+    // +nullable
+    Placement *ObjectStoreUserPlacementSpec `json:"placement,omitempty"`
+}
+
+// ObjectStoreUserPlacementSpec sets the user's default placement target and storage class tags.
+type ObjectStoreUserPlacementSpec struct {
+    // ID names the placement target for new buckets created by this user.
     // Must match one of the entries in the referenced CephObjectStore's
     // spec.sharedPools.poolPlacements[].name.
     // +optional
     // +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._/-]+$`
     // +kubebuilder:validation:MaxLength=255
-    DefaultPlacement string `json:"defaultPlacement,omitempty"`
+    ID string `json:"id,omitempty"`
+
+    // Tags is a list of storage class tags to associate with this user's default placement.
+    // +optional
+    // +listType=atomic
+    Tags []string `json:"tags,omitempty"`
 }
 ```
+
+Maps to `go-ceph` `admin.User` fields:
+- `Placement.ID` → `DefaultPlacement` (URL param `default-placement`)
+- `Placement.Tags` → `PlacementTags` (JSON `placement_tags`)
 
 ### Example CR
 
@@ -111,8 +130,28 @@ spec:
   store: my-store
   displayName: "Tenant A User 1"
   tenant: tenantA
-  defaultPlacement: hot-tier
+  placement:
+    id: hot-tier
+    tags:
+      - tenant_a_tag
 ```
+
+## S3 Client Configuration for Tenanted Users
+
+RGW exposes tenanted users to S3 clients through their access key / secret key pair — the S3 client itself requires no special modification. Credentials stored in the Rook-managed Kubernetes Secret are functionally identical regardless of whether the user belongs to a tenant.
+
+```yaml
+# AWS CLI profile for a tenanted user — identical to a non-tenanted user
+[profile tenantA-user1]
+aws_access_key_id     = <AccessKey from rook-ceph-object-user-my-store-user1>
+aws_secret_access_key = <SecretKey from rook-ceph-object-user-my-store-user1>
+```
+
+Bucket names, however, are only unique within a tenant namespace. Two users in different tenants may each own a bucket named `photos` without conflict. From the client's perspective, each accesses their own `photos` bucket using their respective credentials; RGW routes requests to the correct tenant namespace internally.
+
+Cross-tenant access to another tenant's bucket is not possible via standard S3 path/virtual-host addressing — RGW resolves the bucket to the owner's tenant based on the credentials used. Bucket policies and ACLs apply within the same tenant; cross-tenant sharing is out of scope for this feature.
+
+No changes to existing user documentation are required for the S3 endpoint or credential format.
 
 ## Immutability
 
