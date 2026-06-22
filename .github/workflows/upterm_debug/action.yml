@@ -13,7 +13,7 @@ runs:
       run: |
         # Enable upterm only in the main Rook repo, where the USE_TMATE secret is set in the repo, or if the action is re-run
         if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
-          echo ENABLE_UPTERM=1 >> $GITHUB_ENV
+          echo ENABLE_UPTERM=1 >> "$GITHUB_ENV"
         fi
 
     - name: set up upterm session

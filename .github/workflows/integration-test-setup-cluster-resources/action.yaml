@@ -28,9 +28,9 @@ runs:
         ARCH=$(go env GOARCH)
         # --fail so an HTTP error page is not saved as the .deb (dpkg then fails on the
         # corrupt archive), and retry transient download errors
-        curl -fLO --retry 5 --retry-all-errors --retry-delay 10 https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
-        sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
-        rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
+        curl -fLO --retry 5 --retry-all-errors --retry-delay 10 https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
+        sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
+        rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
 
     - name: Setup Minikube
       uses: medyagh/setup-minikube@latest
