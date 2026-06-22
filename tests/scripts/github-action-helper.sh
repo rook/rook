@@ -38,38 +38,88 @@ fi
 # FUNCTIONS #
 #############
 
+# Create one or more real block devices via a local iSCSI (LIO) target so that
+# tests have access to genuine SCSI disks (/dev/sd*). The argument is the number
+# of disks to create (default 1). All disks share a single target/TPG and are
+# exposed as separate LUNs, so a single initiator login attaches them all.
 function create_extra_disk() {
+  local count="${1:-1}"
   sudo apt install -y targetcli-fb open-iscsi
-  truncate -s 75G ~/iscsi-disk.img
-  sudo targetcli /backstores/fileio create disk1 ~/iscsi-disk.img 75G
-  local target_iqn=iqn.2026-02.target.local:disk1
-  sudo targetcli /iscsi create ${target_iqn}
-  sudo targetcli /iscsi/${target_iqn}/tpg1/luns create /backstores/fileio/disk1
   local init_iqn=iqn.2026-02.initiator.local
+  local target_iqn=iqn.2026-02.target.local:disk1
   echo "InitiatorName=${init_iqn}" | sudo tee /etc/iscsi/initiatorname.iscsi >/dev/null
-  sudo targetcli /iscsi/${target_iqn}/tpg1/acls create ${init_iqn}
-  sudo targetcli /iscsi/${target_iqn}/tpg1/acls/${init_iqn} create tpg_lun_or_backstore=lun0 mapped_lun=0
+  # The target and its initiator ACL are shared by all disks; create them once.
+  # "|| true" keeps re-invocation (to append more disks) idempotent.
+  sudo targetcli /iscsi create ${target_iqn} 2>/dev/null || true
+  sudo targetcli /iscsi/${target_iqn}/tpg1/acls create ${init_iqn} 2>/dev/null || true
+  # Count disks that already exist so additional disks append rather than
+  # clobber lun0 (LIO auto-assigns LUN numbers sequentially in creation order).
+  local existing=0 f
+  for f in ~/iscsi-disk*.img; do
+    if [ -e "$f" ]; then
+      existing=$((existing + 1))
+    fi
+  done
+  local j i lun
+  for j in $(seq 1 "$count"); do
+    i=$((existing + j))
+    lun=$((i - 1))
+    truncate -s 75G ~/iscsi-disk${i}.img
+    sudo targetcli /backstores/fileio create disk${i} ~/iscsi-disk${i}.img 75G
+    # "luns create" auto-maps the new LUN into the existing ACL as
+    # lun${lun} -> mapped_lun${lun}, so the explicit mapping below is a fallback
+    # for targetcli versions that do not auto-map; "|| true" tolerates the
+    # "already exists" error once it has been auto-mapped.
+    sudo targetcli /iscsi/${target_iqn}/tpg1/luns create /backstores/fileio/disk${i}
+    sudo targetcli /iscsi/${target_iqn}/tpg1/acls/${init_iqn} create tpg_lun_or_backstore=lun${lun} mapped_lun=${lun} 2>/dev/null || true
+  done
   sudo iscsiadm -m discovery -t sendtargets -p 127.0.0.1
-  sudo iscsiadm -m node --login
+  sudo iscsiadm -m node --login 2>/dev/null || true
+  sudo iscsiadm -m node -R 2>/dev/null || true # rescan to pick up newly-added LUNs
+  sudo udevadm settle 2>/dev/null || true      # wait for the new /dev/sd* to appear
 }
 
+# Print the basename of the first non-boot/loop/nbd whole disk, provisioning an
+# iSCSI disk if none exist. Thin wrapper over find_extra_block_devs(); kept as a
+# convenience for its many callers that expect a single basename.
 function find_extra_block_dev() {
+  find_extra_block_devs 1 | head -1
+}
+
+# find_extra_block_devs [min_count]
+# Print ALL non-boot/loop/nbd whole-disk basenames, one per line, in stable
+# lsblk order, provisioning additional iSCSI disks if fewer than min_count exist.
+# This is the single source of truth for disk discovery; find_extra_block_dev()
+# returns the first and find_second_block_dev() the second. Debug goes to stderr
+# so stdout stays clean.
+function find_extra_block_devs() {
+  local min_count="${1:-1}"
   # shellcheck disable=SC2005 # redirect doesn't work with sudo, so use echo
-  echo "$(sudo lsblk)" >/dev/stderr # print lsblk output to stderr for debugging in case of future errors
+  echo "$(sudo lsblk)" >/dev/stderr # print lsblk output to stderr for debugging
   # relevant lsblk --pairs example: (MOUNTPOINT identifies boot partition)(PKNAME is Parent dev ID)
   # NAME="sda15" SIZE="106M" TYPE="part" MOUNTPOINT="/boot/efi" PKNAME="sda"
   # NAME="sdb"   SIZE="75G"  TYPE="disk" MOUNTPOINT=""          PKNAME=""
   # NAME="sdb1"  SIZE="75G"  TYPE="part" MOUNTPOINT="/mnt"      PKNAME="sdb"
   boot_dev="$(sudo lsblk --noheading --list --output MOUNTPOINT,PKNAME | grep boot | awk '{print $2}')"
-  echo "  == find_extra_block_dev(): boot_dev='$boot_dev'" >/dev/stderr # debug in case of future errors
+  local devs count
   # --nodeps ignores partitions
-  extra_dev="$(sudo lsblk --noheading --list --nodeps --output KNAME | egrep -v "($boot_dev|loop|nbd)" | head -1)"
-  if [ -z "$extra_dev" ]; then
-    create_extra_disk >/dev/stderr
-    extra_dev="$(sudo lsblk --noheading --list --nodeps --output KNAME | egrep -v "($boot_dev|loop|nbd)" | head -1)"
+  devs="$(sudo lsblk --noheading --list --nodeps --output KNAME | egrep -v "($boot_dev|loop|nbd)")"
+  count="$(echo "$devs" | grep -c . || true)"
+  if [ "$count" -lt "$min_count" ]; then
+    create_extra_disk "$((min_count - count))" >/dev/stderr
+    devs="$(sudo lsblk --noheading --list --nodeps --output KNAME | egrep -v "($boot_dev|loop|nbd)")"
   fi
-  echo "  == find_extra_block_dev(): extra_dev='$extra_dev'" >/dev/stderr # debug in case of future errors
-  echo "$extra_dev"                                                       # output of function
+  echo "  == find_extra_block_devs(): wanted>=${min_count} devs='$(echo "$devs" | tr '\n' ' ')'" >/dev/stderr
+  echo "$devs" # output of function
+}
+
+# Print the basename of a second whole disk, distinct from the primary disk
+# returned by find_extra_block_dev(). Ensures at least two disks exist first
+# (provisioning an iSCSI disk if needed). Debug goes to stderr; stdout is clean.
+function find_second_block_dev() {
+  local devs
+  mapfile -t devs < <(find_extra_block_devs 2)
+  echo "${devs[1]}" # the second disk; find_extra_block_dev() returns the first
 }
 
 function block_dev() {
@@ -106,23 +156,6 @@ function install_nvme_initiator_prerequisites() {
 function print_k8s_cluster_status() {
   kubectl cluster-info
   kubectl get pods -n kube-system
-}
-
-function prepare_loop_devices() {
-  if [ $# -ne 1 ]; then
-    echo "usage: $0 loop_deivce_count"
-    exit 1
-  fi
-  OSD_COUNT=$1
-  if [ $OSD_COUNT -le 0 ]; then
-    echo "Invalid OSD_COUNT $OSD_COUNT. OSD_COUNT must be larger than 0."
-    exit 1
-  fi
-  for i in $(seq 1 $OSD_COUNT); do
-    sudo dd if=/dev/zero of=~/data${i}.img bs=1M seek=6144 count=0
-    sudo losetup /dev/loop${i} ~/data${i}.img
-  done
-  sudo lsblk
 }
 
 function use_local_disk() {
@@ -320,9 +353,6 @@ function deploy_manifest_with_local_build() {
   if [[ "$USE_LOCAL_BUILD" != "false" ]]; then
     sed -i "s|image: docker.io/rook/ceph:.*|image: docker.io/rook/ceph:local-build|g" $1
   fi
-  if [[ "$ALLOW_LOOP_DEVICES" = "true" ]]; then
-    sed -i "s|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"false\"|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"true\"|g" $1
-  fi
   sed -i "s|ROOK_LOG_LEVEL:.*|ROOK_LOG_LEVEL: DEBUG|g" "$1"
   kubectl create -f $1
 }
@@ -374,9 +404,12 @@ function deploy_cluster() {
     sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
   elif [ "$1" = "lvm" ]; then
     sed -i "s|#deviceFilter:|devices:\n      - name: \"/dev/test-rook-vg/test-rook-lv\"|g" cluster-test.yaml
-  elif [ "$1" = "loop" ]; then
-    # add both /dev/sdX1 and loop device to test them at the same time
-    sed -i "s|#deviceFilter:|devices:\n      - name: \"$(block_dev_basename)\"\n      - name: \"/dev/loop1\"|g" cluster-test.yaml
+  elif [ "$1" = "two_raw_disks" ]; then
+    # use two real disks as raw OSDs; ROOK_DATA_DEV and ROOK_EXTRA_DEV are
+    # basenames (e.g. sdb, sdc) exported by the job. An explicit devices list
+    # plus useAllDevices=false pins the OSD count regardless of any stray disk.
+    sed -i "s|#deviceFilter:|devices:\n      - name: \"${ROOK_DATA_DEV}\"\n      - name: \"${ROOK_EXTRA_DEV}\"|g" cluster-test.yaml
+    yq w -i -d0 cluster-test.yaml spec.storage.useAllDevices false
   else
     echo "invalid argument: $*" >&2
     exit 1
