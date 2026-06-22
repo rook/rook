@@ -2386,6 +2386,38 @@ type ObjectStoreUserSpec struct {
 	// +optional
 	// +kubebuilder:validation:XValidation:message="accountRef is immutable",rule="self == oldSelf"
 	AccountRef ObjectStoreUserAccountRef `json:"accountRef,omitzero"`
+
+	// Tenant is the RGW tenant this user belongs to.
+	// Users in different tenants can have buckets with the same name without conflict.
+	// When set, the effective user ID in RGW becomes "<tenant>$<name>".
+	// This field is immutable after creation.
+	// +optional
+	// +kubebuilder:validation:XValidation:message="tenant is immutable",rule="self == oldSelf"
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._-]+$`
+	// +kubebuilder:validation:MaxLength=255
+	Tenant string `json:"tenant,omitempty"`
+
+	// Placement controls the user's default bucket placement target and storage class tags.
+	// May be set independently of tenant.
+	// +optional
+	// +nullable
+	Placement *ObjectStoreUserPlacementSpec `json:"placement,omitempty"`
+}
+
+// ObjectStoreUserPlacementSpec sets the user's default placement target and storage class tags.
+type ObjectStoreUserPlacementSpec struct {
+	// ID names the placement target for new buckets created by this user.
+	// Must match one of the entries in the referenced CephObjectStore's
+	// spec.sharedPools.poolPlacements[].name.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._/-]+$`
+	// +kubebuilder:validation:MaxLength=255
+	ID string `json:"id,omitempty"`
+
+	// Tags is a list of storage class tags to associate with this user's default placement.
+	// +optional
+	// +listType=atomic
+	Tags []string `json:"tags,omitempty"`
 }
 
 // ObjectStoreUserAccountRef is a reference to a CephObjectStoreAccount

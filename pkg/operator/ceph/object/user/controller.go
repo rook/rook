@@ -419,8 +419,8 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	log.NamedInfo(nsName, logger, "creating ceph object user")
 
 	logCreateOrUpdate := fmt.Sprintf("retrieved existing ceph object user %q", u.Name)
-	// lookup user by name only and not by access key
-	liveUser, err := r.objContext.AdminOpsClient.GetUser(r.opManagerContext, admin.User{ID: u.Name})
+	// lookup user by name (and tenant if set) but not by access key
+	liveUser, err := r.objContext.AdminOpsClient.GetUser(r.opManagerContext, admin.User{ID: u.Name, Tenant: u.Spec.Tenant})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			liveUser, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, *targetUser)
@@ -501,7 +501,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		log.NamedDebug(nsName, logger, "reducing user %q keypairs to %v", u.Name, targetUser.Keys)
 	}
 
-	if err := r.reconcileUserKeys(nsName, targetUser.Keys); err != nil {
+	if err := r.reconcileUserKeys(nsName, u.Spec.Tenant, targetUser.Keys); err != nil {
 		return errors.Wrapf(err, "failed to reconcile keys for user %q", u.Name)
 	}
 	log.NamedInfo(nsName, logger, "%s", logCreateOrUpdate)
@@ -649,6 +649,23 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 
 	userConfig.OpMask = opMask
 
+	if user.Spec.Tenant != "" {
+		userConfig.Tenant = user.Spec.Tenant
+	}
+
+	if user.Spec.Placement != nil {
+		if user.Spec.Placement.ID != "" {
+			userConfig.DefaultPlacement = user.Spec.Placement.ID
+		}
+		if len(user.Spec.Placement.Tags) > 0 {
+			tags := make([]interface{}, len(user.Spec.Placement.Tags))
+			for i, t := range user.Spec.Placement.Tags {
+				tags[i] = t
+			}
+			userConfig.PlacementTags = tags
+		}
+	}
+
 	return userConfig, nil
 }
 
@@ -741,7 +758,7 @@ func clusterStoreNamespace(user *cephv1.CephObjectStoreUser) string {
 // Delete the user
 func (r *ReconcileObjectStoreUser) deleteUser(u *cephv1.CephObjectStoreUser) error {
 	nsName := opcontroller.NsName(u.Namespace, u.Name)
-	err := r.objContext.AdminOpsClient.RemoveUser(r.opManagerContext, admin.User{ID: u.Name})
+	err := r.objContext.AdminOpsClient.RemoveUser(r.opManagerContext, admin.User{ID: u.Name, Tenant: u.Spec.Tenant})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			log.NamedWarning(nsName, logger, "user does not exist, nothing to remove")
@@ -913,13 +930,13 @@ func (r *ReconcileObjectStoreUser) getSecretValue(selector *corev1.SecretKeySele
 }
 
 // reconcileUserKeys ensures the user's RGW keys match exactly the targetKeys slice.  Any keys set on the user but not present in targetKeys are purged.
-func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName, targetKeys []admin.UserKeySpec) error {
+func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName, tenant string, targetKeys []admin.UserKeySpec) error {
 	ctx := r.opManagerContext
 	client := r.objContext.AdminOpsClient
 	userID := nsName.Name
 
 	// fetch the current user keys
-	userInfo, err := client.GetUser(ctx, admin.User{ID: userID})
+	userInfo, err := client.GetUser(ctx, admin.User{ID: userID, Tenant: tenant})
 	if err != nil {
 		return errors.Wrapf(err, "failed to get user %q", userID)
 	}
@@ -1034,5 +1051,25 @@ func isUserSync(targetUser, liveUser *admin.User) bool {
 		return false
 	}
 
+	if targetUser.DefaultPlacement != liveUser.DefaultPlacement {
+		return false
+	}
+
+	if !placementTagsEqual(targetUser.PlacementTags, liveUser.PlacementTags) {
+		return false
+	}
+
+	return true
+}
+
+func placementTagsEqual(a, b []interface{}) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if fmt.Sprintf("%v", a[i]) != fmt.Sprintf("%v", b[i]) {
+			return false
+		}
+	}
 	return true
 }
