@@ -53,7 +53,7 @@ jobs:
         run: |
           make generate-docs-crds
           DIFF_ON_DOCS=$(git diff --ignore-matching-lines='on git commit')
-          if [ ! -z "$DIFF_ON_DOCS" ]; then
+          if [ -n "$DIFF_ON_DOCS" ]; then
           echo "Please run 'make generate-docs-crds' locally, commit the updated crds docs, and push the change"
           fi
           git diff --ignore-matching-lines='on git commit' --exit-code
