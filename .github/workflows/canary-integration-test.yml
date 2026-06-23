@@ -452,7 +452,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -539,7 +539,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -599,7 +599,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -660,7 +660,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -727,7 +727,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -788,7 +788,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -855,7 +855,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -971,7 +971,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -1031,7 +1031,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -1103,7 +1103,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -1211,7 +1211,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -1273,7 +1273,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -1345,7 +1345,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -1443,7 +1443,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -1521,7 +1521,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -1587,7 +1587,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -1896,7 +1896,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
           additional-namespace: rook-ceph-secondary
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
@@ -2007,7 +2007,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
           additional-namespace: rook-ceph-secondary
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
@@ -2078,7 +2078,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
         with:
@@ -2111,7 +2111,7 @@ jobs:
         with:
           ibm-instance-id: ${{ secrets.IBM_INSTANCE_ID }}
           ibm-service-api-key: ${{ secrets.IBM_SERVICE_API_KEY }}
-          artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}
+          artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
 
@@ -2205,7 +2205,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
           additional-namespace: kube-system
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
@@ -2271,7 +2271,7 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
