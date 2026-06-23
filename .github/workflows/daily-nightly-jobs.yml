@@ -91,7 +91,8 @@ jobs:
 
       - name: TestCephSmokeSuite
         run: |
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="squid-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -130,7 +131,8 @@ jobs:
 
       - name: TestCephSmokeSuite
         run: |
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="tentacle-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -169,7 +171,8 @@ jobs:
 
       - name: TestCephSmokeSuite
         run: |
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -208,7 +211,8 @@ jobs:
 
       - name: TestCephObjectSuite (without TLS)
         run: |
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -failfast -run CephObjectSuite/TestWithoutTLS github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -247,7 +251,8 @@ jobs:
 
       - name: TestCephObjectSuiteTLS
         run: |
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -failfast -run CephObjectSuite/TestWithTLS github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -286,7 +291,8 @@ jobs:
 
       - name: TestCephUpgradeSuite
         run: |
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToSquidDevel github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -325,7 +331,8 @@ jobs:
 
       - name: TestCephUpgradeSuite
         run: |
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToTentacleDevel github.com/rook/rook/tests/integration
 
       - name: collect common logs

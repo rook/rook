@@ -1,0 +1,10 @@
+# actionlint configuration.
+# https://github.com/rhysd/actionlint/blob/main/docs/config.md
+paths:
+  # Composite actions live under .github/workflows/<name>/action.{yml,yaml}.
+  # actionlint only understands workflow files, so it mis-parses these as
+  # workflows ("jobs"/"on" section missing, unexpected "runs"/"inputs" keys).
+  # It cannot lint composite action definitions, so ignore them entirely.
+  "**/action.{yml,yaml}":
+    ignore:
+      - ".*"
