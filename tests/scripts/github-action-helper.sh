@@ -811,7 +811,10 @@ function write_object_read_from_replica_cluster() {
     radosgw-admin bucket sync checkpoint --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone="$read_zone" \
     --bucket="$test_bucket_name" --source-zone="$write_zone" --retry-delay-ms=5000 --timeout-sec=300
 
-  retry_for 60 s3cmd --host="${read_cluster_ip}" get "s3://${test_bucket_name}/${test_object_name}" "${test_object_name}.get" --force
+  # The checkpoint confirms the bucket's data sync markers are caught up at the RADOS level, but
+  # the reading RGW can still briefly serve 404 for the freshly synced object until it refreshes,
+  # so give the read a generous budget rather than asserting it is immediately available.
+  retry_for 180 s3cmd --host="${read_cluster_ip}" get "s3://${test_bucket_name}/${test_object_name}" "${test_object_name}.get" --force
 
   diff "$test_object_name" "${test_object_name}.get"
 }
