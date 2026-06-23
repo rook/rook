@@ -416,25 +416,6 @@ function deploy_all_additional_resources_on_cluster() {
   kubectl create -f subvolumegroup.yaml
 }
 
-function deploy_csi_hostnetwork_disabled_cluster() {
-  create_cluster_prerequisites
-  cd "${REPO_DIR}/deploy/examples"
-  sed -i 's/.*CSI_ENABLE_HOST_NETWORK:.*/  CSI_ENABLE_HOST_NETWORK: \"false\"/g' operator.yaml
-  deploy_manifest_with_local_build operator.yaml
-  deploy_manifest_with_local_build csi/nfs/driver.yaml
-  if [ $# == 0 ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)|g" cluster-test.yaml
-  elif [ "$1" = "two_osds_in_device" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
-  elif [ "$1" = "osd_with_metadata_device" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
-  fi
-  kubectl create -f nfs-test.yaml
-  kubectl create -f cluster-test.yaml
-  kubectl create -f filesystem-test.yaml
-  deploy_toolbox
-}
-
 function wait_for_prepare_pod() {
   # wait for a mon to be created
   # most of this time is likely waiting for the detect version job to pull the ceph image
@@ -825,27 +806,6 @@ function create_operator_toolbox() {
   cd "${REPO_DIR}/deploy/examples"
   sed -i "s|image: docker.io/rook/ceph:.*|image: docker.io/rook/ceph:local-build|g" toolbox-operator-image.yaml
   kubectl create -f toolbox-operator-image.yaml
-}
-
-function wait_for_ceph_csi_configmap_to_be_updated {
-  timeout 60 bash <<EOF
-until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].rbd.netNamespaceFilePath) != "null" ]]; do
-  echo "waiting for ceph csi configmap to be updated with rbd.netNamespaceFilePath"
-  sleep 5
-done
-EOF
-  timeout 60 bash <<EOF
-until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].cephFS.netNamespaceFilePath) != "null" ]]; do
-  echo "waiting for ceph csi configmap to be updated with cephFS.netNamespaceFilePath"
-  sleep 5
-done
-EOF
-  timeout 60 bash <<EOF
-until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].nfs.netNamespaceFilePath) != "null" ]]; do
-  echo "waiting for ceph csi configmap to be updated with nfs.netNamespaceFilePath"
-  sleep 5
-done
-EOF
 }
 
 function test_csi_rbd_workload {
