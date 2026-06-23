@@ -1950,7 +1950,7 @@ func (c *Cluster) UpdateMonCephxStatus(didRotate bool) error {
 		keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
 		updatedStatus := keyring.UpdatedCephxStatus(didRotate, cluster.Spec.Security.CephX.Daemon, c.ClusterInfo.CephVersion, cluster.Status.Cephx.Mon, keyType)
 		cluster.Status.Cephx.Mon = updatedStatus
-		log.NamespacedDebug(c.Namespace, logger, "updating mon daemon cephx status to %+v", cluster.Status.Cephx.Mgr)
+		log.NamespacedDebug(c.Namespace, logger, "updating mon daemon cephx status to %+v", cluster.Status.Cephx.Mon)
 		if err := reporting.UpdateStatus(c.context.Client, cluster); err != nil {
 			return errors.Wrapf(err, "failed to update cluster cephx status for mon daemon in the namespace %q", c.ClusterInfo.Namespace)
 		}
