@@ -65,7 +65,11 @@ spec:
         - effect: NoExecute
           key: node.kubernetes.io/not-ready
           operator: Exists
-          tolerationSeconds: 120
+          tolerationSeconds: 5
+        - effect: NoExecute
+          key: node.kubernetes.io/unreachable
+          operator: Exists
+          tolerationSeconds: 5
       {{ if .PRIORITY_CLASS_NAME }}
       priorityClassName: {{ .PRIORITY_CLASS_NAME }}
       {{ end }}
