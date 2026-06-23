@@ -71,8 +71,8 @@ jobs:
       # creating custom env var
       - name: set env
         run: |
-          echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
-          echo "GITHUB_REF"=${GITHUB_REF} >> $GITHUB_ENV
+          echo "BRANCH_NAME=${GITHUB_REF##*/}" >> "$GITHUB_ENV"
+          echo "GITHUB_REF=${GITHUB_REF}" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:

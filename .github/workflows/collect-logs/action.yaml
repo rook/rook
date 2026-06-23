@@ -21,7 +21,7 @@ runs:
         no_slash="${no_colon////-}"
         # echo to $GITHUB_OUTPUT doesn't work in composite steps:
         # https://github.com/actions/runner/issues/2009#issuecomment-1793565031
-        echo "ARTIFACT_NAME=${no_slash}" >> $GITHUB_ENV
+        echo "ARTIFACT_NAME=${no_slash}" >> "$GITHUB_ENV"
 
     - name: collect common logs
       shell: bash --noprofile --norc -eo pipefail -x {0}

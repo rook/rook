@@ -1,4 +1,4 @@
-name: Mod check
+name: actionlint
 on:
   push:
     tags:
@@ -10,26 +10,25 @@ on:
     branches:
       - master
       - release-*
+    paths:
+      - ".github/workflows/**"
+      - ".github/actionlint.yaml"
+      - "Makefile"
 
 # cancel the in-progress workflow when PR is refreshed.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
   cancel-in-progress: true
 
-defaults:
-  run:
-    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
-    shell: bash --noprofile --norc -eo pipefail -x {0}
-
 permissions:
   contents: read
 
 jobs:
-  modcheck:
-    runs-on: ubuntu-22.04
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
     steps:
-      - name: checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
 
@@ -37,8 +36,5 @@ jobs:
         with:
           go-version: "1.26"
 
-      - name: run mod check
-        run: GOPATH=$(go env GOPATH) make -j"$(nproc)" mod.check
-
-      - name: validate modcheck
-        run: tests/scripts/validate_modified_files.sh modcheck
+      - name: run actionlint
+        run: make lint.workflows

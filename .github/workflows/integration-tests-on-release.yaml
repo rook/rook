@@ -43,7 +43,8 @@ jobs:
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
           tests/scripts/github-action-helper.sh create_helm_tag
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           SKIP_TEST_CLEANUP=false SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephHelmSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -122,7 +123,8 @@ jobs:
       - name: TestCephSmokeSuite
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -160,7 +162,8 @@ jobs:
       - name: TestCephUpgradeSuite
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           go test -v -timeout 2400s -run CephUpgradeSuite/TestUpgradeRook github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -199,7 +202,8 @@ jobs:
         run: |
           tests/scripts/github-action-helper.sh create_helm_tag
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           go test -v -timeout 1800s -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -237,7 +241,8 @@ jobs:
       - name: TestCephObjectSuite (without TLS)
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           SKIP_CLEANUP_POLICY=false go test -v -timeout 2400s -failfast -run CephObjectSuite/TestWithoutTLS github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -275,7 +280,8 @@ jobs:
       - name: TestCephObjectSuiteTLS
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
           SKIP_CLEANUP_POLICY=false go test -v -timeout 2400s -failfast -run CephObjectSuite/TestWithTLS github.com/rook/rook/tests/integration
 
       - name: collect common logs
