@@ -25,12 +25,33 @@ runs:
     - name: Install cri-dockerd
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
-        ARCH=$(go env GOARCH)
+       ARCH="$(dpkg --print-architecture)"   # amd64 / arm64
+        case "${ARCH}" in
+         amd64|arm64)
+           ;;
+         *)
+           echo "Unsupported arch: $ARCH"
+           exit 1
+           ;;
+        esac
+
+        TAG=v0.4.3
+        DEB_VERSION=0.4.3.3
+        PKG="cri-dockerd_${DEB_VERSION}-0.ubuntu-focal_${ARCH}.deb"
+        TMPDIR="$(mktemp -d)"
+        TMP_DEB="${TMPDIR}/${PKG}"
+        URL="https://github.com/Mirantis/cri-dockerd/releases/download/${TAG}/${PKG}"
         # --fail so an HTTP error page is not saved as the .deb (dpkg then fails on the
         # corrupt archive), and retry transient download errors
-        curl -fLO --retry 5 --retry-all-errors --retry-delay 10 https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
-        sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
-        rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
+        curl -fLO --retry 5 --retry-all-errors --retry-delay 10 -o "${TMP_DEB}" "${URL}"
+        # fail early with explicit diagnostics
+        ls -l "${TMPDIR}"
+        test -s "${TMP_DEB}" || { echo "Downloaded file missing/empty: ${TMP_DEB}"; exit 1; }
+        file "${TMP_DEB}" || true
+        dpkg-deb --info "${TMP_DEB}" >/dev/null
+        ls -lh "${TMP_DEB}"
+        sudo dpkg -i "${TMP_DEB}"
+        rm -f "${TMP_DEB}"
 
     - name: Setup Minikube
       uses: medyagh/setup-minikube@e9e035a86bbc3caea26a450bd4dbf9d0c453682e # v0.0.21
