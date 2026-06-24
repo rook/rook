@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -368,12 +369,7 @@ func ListDevicesInUse(ctx context.Context, clusterdContext *clusterd.Context, na
 
 func matchDeviceFullPath(devLinks, fullpath string) bool {
 	dlsArr := strings.Split(devLinks, " ")
-	for i := range dlsArr {
-		if dlsArr[i] == fullpath {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(dlsArr, fullpath)
 }
 
 // GetAvailableDevices conducts outer join using input filters with free devices that a node has. It marks the devices from join result as in-use.

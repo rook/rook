@@ -881,10 +881,8 @@ func findDeviceClass(devices []DesiredDevice, blockPath, kernelName, devLinks st
 		}
 		// match by fullname (udev DEVLINKS):
 		if strings.HasPrefix(d.Name, "/dev/") && devLinks != "" {
-			for _, link := range strings.Fields(devLinks) {
-				if link == d.Name {
-					return d.DeviceClass
-				}
+			if slices.Contains(strings.Fields(devLinks), d.Name) {
+				return d.DeviceClass
 			}
 		}
 	}

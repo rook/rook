@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -119,9 +120,9 @@ func TestCephNFSController(t *testing.T) {
 						return "", nil
 					}
 					assert.Condition(t, func() bool {
-						return stringInSlice("conf-nfs.my-nfs", args) ||
-							stringInSlice("conf-nfs.nfs2", args) ||
-							stringInSlice("kerberos", args)
+						return slices.Contains(args, "conf-nfs.my-nfs") ||
+							slices.Contains(args, "conf-nfs.nfs2") ||
+							slices.Contains(args, "kerberos")
 					})
 					return "", nil
 				}
@@ -768,13 +769,4 @@ func TestGetGaneshaConfigObject(t *testing.T) {
 	res := getGaneshaConfigObject(cephNFS)
 	logger.Infof("Config Object is %s", res)
 	assert.Equal(t, expectedName, res)
-}
-
-func stringInSlice(str string, slice []string) bool {
-	for _, s := range slice {
-		if s == str {
-			return true
-		}
-	}
-	return false
 }

@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1862,13 +1863,7 @@ func monFoundInQuorum(name string, monQuorumStatusResp cephclient.MonStatusRespo
 
 	// using the current initial monitor's mon map entry, check to see if it's in the quorum list
 	// (a list of monitor rank values)
-	for _, q := range monQuorumStatusResp.Quorum {
-		if monMapEntry.Rank == q {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(monQuorumStatusResp.Quorum, monMapEntry.Rank)
 }
 
 func requiredDuringScheduling(spec *cephv1.ClusterSpec) bool {

@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -253,7 +254,7 @@ func nodeSelectorRequirementsAsSelector(nsm []v1.NodeSelectorRequirement) (label
 // for more information.
 func NodeIsTolerable(node v1.Node, tolerations []v1.Toleration, ignoreWellKnownTaints bool) bool {
 	for _, taint := range node.Spec.Taints {
-		if ignoreWellKnownTaints && TaintIsWellKnown(taint) {
+		if ignoreWellKnownTaints && slices.Contains(WellKnownTaints, taint.Key) {
 			continue
 		}
 		isTolerated := false

@@ -18,8 +18,7 @@ package clients
 
 import (
 	"fmt"
-
-	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"slices"
 )
 
 // IsClusterHealthy determines if the Rook cluster is currently healthy or not.
@@ -35,7 +34,7 @@ func IsClusterHealthy(testClient *TestClient, namespace string) (bool, error) {
 		return false, fmt.Errorf("too few monitors: %+v", status)
 	}
 	for _, mon := range status.MonMap.Mons {
-		if !monInQuorum(mon, status.Quorum) {
+		if !slices.Contains(status.Quorum, mon.Rank) {
 			return false, fmt.Errorf("mon %s not in quorum: %v", mon.Name, status.Quorum)
 		}
 	}
@@ -71,13 +70,4 @@ func IsClusterHealthy(testClient *TestClient, namespace string) (bool, error) {
 
 	// cluster passed all the basic health checks, seems healthy
 	return true, nil
-}
-
-func monInQuorum(mon client.MonMapEntry, quorum []int) bool {
-	for _, entry := range quorum {
-		if entry == mon.Rank {
-			return true
-		}
-	}
-	return false
 }

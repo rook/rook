@@ -39,14 +39,3 @@ var WellKnownTaints = []string{
 	cloudproviderapi.TaintExternalCloudProvider,
 	cloudproviderapi.TaintNodeShutdown,
 }
-
-// TaintIsWellKnown returns true if the taint's key is in the WellKnownTaints list. False otherwise.
-// See WellKnownTaints for more information.
-func TaintIsWellKnown(t v1.Taint) bool {
-	for _, w := range WellKnownTaints {
-		if t.Key == w {
-			return true
-		}
-	}
-	return false
-}
