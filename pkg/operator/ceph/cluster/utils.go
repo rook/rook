@@ -19,6 +19,7 @@ package cluster
 
 import (
 	"context"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -87,6 +88,14 @@ func populateConfigOverrideConfigMap(clusterdContext *clusterd.Context, namespac
 			log.NamespacedWarning(namespace, logger, "failed to add recommended labels and annotations to configmap %q. %v", existingCM.Name, err)
 		} else {
 			log.NamespacedInfo(namespace, logger, "added expected labels and annotations to configmap %q", existingCM.Name)
+		}
+	}
+	// Ensure the config string has a trailing newline.
+	if existingCM.Data != nil {
+		if configVal, ok := existingCM.Data[k8sutil.ConfigOverrideVal]; ok && configVal != "" {
+			if !strings.HasSuffix(configVal, "\n") {
+				return errors.Errorf("invalid configmap %q: config data must end with a trailing newline", k8sutil.ConfigOverrideName)
+			}
 		}
 	}
 	return nil

@@ -44,6 +44,7 @@ EOF
     echo "$DATE merging config override from ${CONFIG_OVERRIDE}"
     echo "" >> ${CEPH_CONFIG}
     cat ${CONFIG_OVERRIDE} >> ${CEPH_CONFIG}
+    echo "" >> ${CEPH_CONFIG}
   fi
 }
 
