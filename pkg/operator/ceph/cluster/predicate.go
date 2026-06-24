@@ -68,7 +68,10 @@ func predicateForNodeWatcher[T *corev1.Node](ctx context.Context, client client.
 	return predicate.TypedFuncs[T]{
 		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
 			obj := (*corev1.Node)(e.Object)
-
+			if e.IsInInitialList {
+				// Skip node handling while the controller runtime is initializing the cache.
+				return false
+			}
 			clientCluster := newClientCluster(client, obj.GetNamespace(), context)
 			return clientCluster.onK8sNode(ctx, obj, opNamespace)
 		},
