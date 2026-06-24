@@ -303,11 +303,76 @@ function build_rook() {
   docker images
   if [[ "$build_type" == "build" ]]; then
     docker tag "$(docker images | awk '/build-/ {print $1}')" docker.io/rook/ceph:local-build
+    load_image_into_cluster docker.io/rook/ceph:local-build
   fi
 }
 
 function build_rook_all() {
   build_rook build.all
+}
+
+function load_image_into_cluster() {
+  # Under kind, a locally built image lives only in the host docker daemon and must be
+  # explicitly imported into each cluster node's containerd before any pod can run it. (Under
+  # the old minikube driver:none setup the host docker daemon doubled as the cluster runtime,
+  # so this was implicit.) Guard on a kind cluster being present so these build helpers still
+  # work when run outside CI.
+  #
+  # Import through the node's own ctr rather than `kind load docker-image`: kind's loader parses
+  # the node's containerd config, and the kind version bundled with helm/kind-action cannot read
+  # the config version shipped by current kindest/node images ("unknown containerd config
+  # version: 4"). Piping `docker save` into the node's ctr sidesteps that version mismatch.
+  local image="${1?image is required}"
+  local cluster="${KIND_CLUSTER_NAME:-kind}"
+  command -v kind >/dev/null 2>&1 || return 0
+  kind get clusters 2>/dev/null | grep -qx "$cluster" || return 0
+  local node
+  for node in $(kind get nodes --name "$cluster"); do
+    docker save "$image" | docker exec -i "$node" ctr --namespace=k8s.io images import -
+  done
+}
+
+function add_host_routes_to_cluster() {
+  # minikube driver:none shared the runner's network, so host-side tests (the `go test` process
+  # runs on the runner) could reach Service ClusterIPs directly. kind runs the cluster inside a
+  # docker network, so route the Service and pod CIDRs to the kind node, letting host-side tests
+  # (e.g. an S3 PutObject to the RGW ClusterIP) reach in-cluster services. Best-effort.
+  command -v kind >/dev/null 2>&1 || return 0
+  local cluster="${KIND_CLUSTER_NAME:-kind}"
+  local node ip
+  node=$(kind get nodes --name "$cluster" 2>/dev/null | grep control-plane | head -1)
+  [ -n "$node" ] || return 0
+  ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$node" 2>/dev/null)
+  [ -n "$ip" ] || return 0
+  # kind defaults: service subnet 10.96.0.0/16, pod subnet 10.244.0.0/16
+  sudo ip route replace 10.96.0.0/16 via "$ip" || true
+  sudo ip route replace 10.244.0.0/16 via "$ip" || true
+  ip route show | grep -E '10\.(96|244)\.' || true
+}
+
+function prepare_kind_node() {
+  # Prepare each kind node for the host-level operations rook normally performs against the
+  # underlying host (under minikube driver:none that "host" was the runner itself). Best-effort:
+  # a failure here must not break the raw-device OSD jobs that need none of it.
+  command -v kind >/dev/null 2>&1 || return 0
+  local cluster="${KIND_CLUSTER_NAME:-kind}"
+  local node
+  for node in $(kind get nodes --name "$cluster" 2>/dev/null); do
+    # kind mounts the node's /sys read-only, so CSI's `rbd map --device-type krbd` fails with
+    # "rbd: sysfs write failed ... Read-only file system" writing /sys/bus/rbd/add. The node is
+    # privileged, so remount /sys read-write to let kernel RBD mapping work.
+    docker exec "$node" mount -o remount,rw /sys ||
+      echo "WARNING: could not remount /sys rw in kind node $node" >&2
+    # Rook provisions LVM- and encryption-backed OSDs by running lvm/cryptsetup in the node's
+    # mount namespace; kindest/node images don't ship those tools, so install them.
+    for _ in 1 2 3; do
+      if docker exec "$node" sh -c "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y lvm2 cryptsetup"; then
+        break
+      fi
+      echo "WARNING: could not install lvm2/cryptsetup into kind node $node; retrying" >&2
+      sleep 5
+    done
+  done
 }
 
 function validate_yaml() {
@@ -494,13 +559,18 @@ function wait_for_prepare_pod() {
 }
 
 function wait_for_cleanup_pod() {
+  # rook names the disk-cleanup job per node: cluster-cleanup-job-<node>. Resolve the actual k8s
+  # node name rather than assuming it equals the runner hostname ($(uname -n)) — under kind the
+  # node is "kind-control-plane", not the runner host (under minikube driver:none they matched).
+  local node
+  node="$(kubectl get nodes -o name | head -1 | cut -d/ -f2)"
   timeout 180 bash <<EOF
-until kubectl --namespace rook-ceph logs job/cluster-cleanup-job-$(uname -n); do
+until kubectl --namespace rook-ceph logs job/cluster-cleanup-job-${node}; do
   echo "waiting for cleanup up pod to be present"
   sleep 1
 done
 EOF
-  kubectl --namespace rook-ceph logs --follow job/cluster-cleanup-job-"$(uname -n)"
+  kubectl --namespace rook-ceph logs --follow job/cluster-cleanup-job-"${node}"
 }
 
 function wait_for_ceph_to_be_ready() {
@@ -863,6 +933,7 @@ function create_helm_tag() {
   helm_tag="$(cat _output/version)"
   build_image="$(docker images | awk '/build-/ {print $1}')"
   docker tag "${build_image}" "rook/ceph:${helm_tag}"
+  load_image_into_cluster "rook/ceph:${helm_tag}"
 }
 
 function test_multus_connections() {

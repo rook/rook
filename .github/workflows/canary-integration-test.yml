@@ -277,15 +277,15 @@ jobs:
           kubectl wait --for='jsonpath={.status.phase}=Ready' Cephblockpool/replica1c -nrook-ceph
 
           # pass correct flags
-          kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools replica1a,replica1b,replica1c --topology-failure-domain-label hostname --topology-failure-domain-values minikube,minikube-m02,minikube-m03
+          kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools replica1a,replica1b,replica1c --topology-failure-domain-label hostname --topology-failure-domain-values kind-control-plane,kind-worker,kind-worker2
           # pass the pool which is not exists
-          if output=$(kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools ab,cd,ef --topology-failure-domain-label hostname --topology-failure-domain-values minikube,minikube-m02,minikube-m03); then
+          if output=$(kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools ab,cd,ef --topology-failure-domain-label hostname --topology-failure-domain-values kind-control-plane,kind-worker,kind-worker2); then
             echo "script run completed with stderr error after passing the wrong pools: $output"
           else
             echo "script failed because wrong pools doesn't exist"
           fi
           # dont pass all topology flags
-          if output=$(kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools replica1a,replica1b,replica1c --topology-failure-domain-values minikube,minikube-m02,minikube-m03); then
+          if output=$(kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools replica1a,replica1b,replica1c --topology-failure-domain-values kind-control-plane,kind-worker,kind-worker2); then
             echo "script run completed with stderr error after passing the wrong flags: $output"
           else
             echo "script failed because topology-failure-domain-label is missing"
@@ -1828,7 +1828,7 @@ jobs:
           timeout 45 sh -c 'until [ "$(kubectl -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ls -1 /var/run/ceph/|grep -c asok)" -gt 3 ]; do echo "waiting for connection to peer" && sleep 1; done'
           sockets=$(kubectl -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ls -1 /var/run/ceph/)
           # shellcheck disable=SC2086 # word splitting of $sockets into separate socket paths is intentional
-          status=$(for socket in $sockets; do minikube kubectl -- -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ceph --admin-daemon "/var/run/ceph/$socket" help|awk -F ":" '/get filesystem mirror status/ {print $1}'; done)
+          status=$(for socket in $sockets; do kubectl -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ceph --admin-daemon "/var/run/ceph/$socket" help|awk -F ":" '/get filesystem mirror status/ {print $1}'; done)
           if [ "${#status}" -lt 1 ]; then echo "peer addition failed" && exit 1; fi
 
       - name: display cephfilesystem and fs mirror daemon status
