@@ -62,6 +62,21 @@ func (k8sh *K8sHelper) CheckSnapshotISReadyToUse(name, namespace string, retries
 	return false, fmt.Errorf("giving up waiting for %q snapshot in namespace %q", name, namespace)
 }
 
+// kubectlWithURLRetry runs kubectl with a manifest URL argument, retrying on
+// failure since fetching manifests from raw.githubusercontent.com fails
+// transiently in CI.
+func (k8sh *K8sHelper) kubectlWithURLRetry(args ...string) error {
+	var err error
+	for i := 0; i < 5; i++ {
+		if _, err = k8sh.Kubectl(args...); err == nil {
+			return nil
+		}
+		logger.Warningf("failed to run kubectl %v, will retry. %v", args, err)
+		time.Sleep(5 * time.Second)
+	}
+	return err
+}
+
 // snapshotController creates/applies or deletes the snapshotcontroller and required RBAC
 func (k8sh *K8sHelper) snapshotController(action string) error {
 	controllerURL := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, controllerPath)
@@ -78,11 +93,7 @@ func (k8sh *K8sHelper) snapshotController(action string) error {
 	}
 
 	rbac := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, rbacPath)
-	_, err = k8sh.Kubectl(action, "-f", rbac)
-	if err != nil {
-		return err
-	}
-	return nil
+	return k8sh.kubectlWithURLRetry(action, "-f", rbac)
 }
 
 // WaitForSnapshotController check snapshotcontroller is ready within given
@@ -130,39 +141,19 @@ func (k8sh *K8sHelper) snapshotCRD(action string) error {
 		}
 		return a
 	}
-	snapshotClassCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, snapshotClassCRDPath)
-	_, err := k8sh.Kubectl(args(snapshotClassCRD)...)
-	if err != nil {
-		return err
+	crdPaths := []string{
+		snapshotClassCRDPath,
+		volumeSnapshotContentsCRDPath,
+		volumeSnapshotCRDPath,
+		volumeGroupSnapshotClassCRDPath,
+		volumeGroupSnapshotContentsCRDPath,
+		volumeGroupSnapshotCRDPath,
 	}
-
-	snapshotContentsCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, volumeSnapshotContentsCRDPath)
-	_, err = k8sh.Kubectl(args(snapshotContentsCRD)...)
-	if err != nil {
-		return err
-	}
-
-	snapshotCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, volumeSnapshotCRDPath)
-	_, err = k8sh.Kubectl(args(snapshotCRD)...)
-	if err != nil {
-		return err
-	}
-	vgsClassCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, volumeGroupSnapshotClassCRDPath)
-	_, err = k8sh.Kubectl(args(vgsClassCRD)...)
-	if err != nil {
-		return err
-	}
-
-	vgsContentsCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, volumeGroupSnapshotContentsCRDPath)
-	_, err = k8sh.Kubectl(args(vgsContentsCRD)...)
-	if err != nil {
-		return err
-	}
-
-	vgsCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, volumeGroupSnapshotCRDPath)
-	_, err = k8sh.Kubectl(args(vgsCRD)...)
-	if err != nil {
-		return err
+	for _, crdPath := range crdPaths {
+		crdURL := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, crdPath)
+		if err := k8sh.kubectlWithURLRetry(args(crdURL)...); err != nil {
+			return err
+		}
 	}
 
 	return nil
