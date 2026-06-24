@@ -92,10 +92,6 @@ function test_demo_fs_mirror {
   wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'cephfs-mirror:'"
 }
 
-function test_demo_pool {
-  wait_for_daemon "$EXEC_COMMAND -s | grep -sq '11 pools'"
-}
-
 function test_csi {
   csi_pod_min_count="${CSI_POD_MIN_COUNT:-7}"
   timeout 360 bash -x <<EOF
