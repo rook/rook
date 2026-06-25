@@ -122,7 +122,7 @@ ifeq ($(origin HELM_CHART_VERSION), undefined)
 # this changes the third '.' to a '-':
 #   example v1.16.0.371.g4aec70601 -> v1.16.0-371.g4aec70601
 # as helm has strict rules on allowable versions to comply with SemVer2
-HELM_CHART_VERSION := $(shell echo "$(VERSION)" | sed 's/\./-/3' )
+HELM_CHART_VERSION := $(shell echo "$(VERSION)" | sed 's/^v//' | sed 's/\./-/3'  )
 endif
 export HELM_CHART_VERSION
 
