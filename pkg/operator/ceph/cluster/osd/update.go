@@ -18,6 +18,7 @@ package osd
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -305,23 +306,13 @@ func (q *updateQueue) Pop() (osdID int, ok bool) {
 
 // Exists returns true if the item exists in the queue.
 func (q *updateQueue) Exists(osdID int) bool {
-	for _, id := range q.q {
-		if id == osdID {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(q.q, osdID)
 }
 
 // Remove removes the items from the queue if they exist.
 func (q *updateQueue) Remove(osdIDs []int) {
 	shouldRemove := func(rid int) bool {
-		for _, id := range osdIDs {
-			if id == rid {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(osdIDs, rid)
 	}
 
 	lastIdx := 0

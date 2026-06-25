@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -494,10 +495,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 
 func contains(src, dest []string) bool {
 	for _, s := range src {
-		for _, d := range dest {
-			if s == d {
-				return true
-			}
+		if slices.Contains(dest, s) {
+			return true
 		}
 	}
 

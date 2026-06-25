@@ -27,12 +27,7 @@ import (
 )
 
 func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
-	for _, rank := range quorum {
-		if rank == monitor.Rank {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(quorum, monitor.Rank)
 }
 
 func getMonByID(monID string, monMap client.MonStatusResponse) (info client.MonMapEntry, inQuorum bool) {

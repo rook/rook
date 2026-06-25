@@ -19,6 +19,7 @@ package version
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
@@ -139,22 +140,12 @@ func ExtractCephVersion(src string) (*CephVersion, error) {
 
 // Supported checks if a given release is supported
 func (v *CephVersion) Supported() bool {
-	for _, sv := range supportedVersions {
-		if v.isRelease(sv) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(supportedVersions, v.isRelease)
 }
 
 // Unsupported checks if a given release is supported
 func (v *CephVersion) Unsupported() bool {
-	for _, sv := range unsupportedVersions {
-		if v.isExactly(sv) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(unsupportedVersions, v.isExactly)
 }
 
 func (v *CephVersion) isRelease(other CephVersion) bool {

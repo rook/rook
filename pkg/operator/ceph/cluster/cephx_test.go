@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
@@ -120,7 +121,7 @@ func Test_admin_key_rotation(t *testing.T) {
 			}
 			if len(currentExpect.withArgs) > 0 {
 				for _, arg := range currentExpect.withArgs {
-					if !hasArg(cargs, arg) {
+					if !slices.Contains(cargs, arg) {
 						e := fmt.Errorf("execution iteration=%d: expected arg %q missing in called %v", numCalls, arg, cargs)
 						t.Error(e)
 						return "", e
@@ -960,15 +961,6 @@ func isCommand(cargs []string, lookFor ...string) bool {
 		}
 	}
 	return true
-}
-
-func hasArg(args []string, lookFor string) bool {
-	for _, arg := range args {
-		if arg == lookFor {
-			return true
-		}
-	}
-	return false
 }
 
 const (

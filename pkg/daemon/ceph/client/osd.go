@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -67,10 +68,8 @@ type OSDDump struct {
 func (dump *OSDDump) IsFlagSetOnCrushUnit(checkFlag, crushUnit string) bool {
 	for unit, list := range dump.CrushNodeFlags {
 		if crushUnit == unit {
-			for _, flag := range list {
-				if flag == checkFlag {
-					return true
-				}
+			if slices.Contains(list, checkFlag) {
+				return true
 			}
 		}
 	}
