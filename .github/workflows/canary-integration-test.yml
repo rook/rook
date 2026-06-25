@@ -9,7 +9,7 @@ on:
         type: string
       kubernetes-version:
         description: kubernetes version to use for the workflow
-        default: '["v1.35.5"]'
+        default: '["v1.36.1"]'
         type: string
 
 defaults:
