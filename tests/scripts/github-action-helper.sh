@@ -122,6 +122,83 @@ function find_second_block_dev() {
   echo "${devs[1]}" # the second disk; find_extra_block_dev() returns the first
 }
 
+# prepare_worker_disks_and_config <kind-config-out-path> [worker-count]
+# Provision one empty iSCSI disk per worker and write a kind config with <count> worker nodes
+# (plus one control-plane), each worker bind-mounting its own disk. With the integration
+# framework's useAllNodes+useAllDevices, each worker's single empty disk becomes exactly one OSD,
+# and the control-plane (no disk, and NoSchedule-tainted in a multi-node kind cluster) runs none.
+function prepare_worker_disks_and_config() {
+  local out="${1:?kind-config output path required}"
+  local count="${2:-3}"
+  sudo apt purge snapd -y || true
+  sudo swapoff --all --verbose || true
+  # free the ephemeral /mnt disk so it can serve as one of the per-worker OSD disks (and so the
+  # wipe below doesn't run against a still-mounted disk)
+  if mountpoint -q /mnt; then
+    sudo umount /mnt || true
+    sudo sed -i.bak '/\/mnt/d' /etc/fstab || true
+  fi
+
+  # Provision exactly <count> iSCSI disks up front. find_extra_block_devs auto-provisions, but
+  # aborts under `set -e` when the runner starts with no extra disk at all (its `egrep -v` matches
+  # nothing and exits 1), so create the disks explicitly and then just discover them.
+  create_extra_disk "$count"
+  local devs
+  mapfile -t devs < <(find_extra_block_devs "$count")
+  if [ "${#devs[@]}" -lt "$count" ]; then
+    echo "expected >= $count extra disks, found ${#devs[@]}: ${devs[*]}" >&2
+    exit 1
+  fi
+  devs=("${devs[@]:0:count}") # exactly one disk per worker
+
+  local d
+  for d in "${devs[@]}"; do
+    # empty the disk so ceph-volume (useAllDevices) treats it as a fresh OSD target
+    sudo wipefs --all --force "/dev/$d" || true
+    sudo sgdisk --zap-all -- "/dev/$d" || true
+    sudo dd if=/dev/zero of="/dev/$d" bs=1M count=10 oflag=direct,dsync || true
+    # stop udev re-probe storms on the OSD disk (see use_local_disk_for_integration_test)
+    echo "ACTION==\"add|change\", KERNEL==\"$d\", OPTIONS:=\"nowatch\"" |
+      sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules >/dev/null
+  done
+  sudo udevadm control --reload-rules || true
+  sudo udevadm trigger || true
+  sudo udevadm settle || true
+  sudo lsblk
+
+  # 1 control-plane (no disk -> no OSD, stays NoSchedule) + one worker per disk. Each worker
+  # mounts the WHOLE host /dev so kernel-created devices (/dev/rbd*, /dev/dm*) are visible to the
+  # CSI plugin, plus /run/udev for ceph-volume disk inventory.
+  {
+    printf 'kind: Cluster\n'
+    printf 'apiVersion: kind.x-k8s.io/v1alpha4\n'
+    printf 'nodes:\n'
+    printf '  - role: control-plane\n'
+    for _ in "${devs[@]}"; do
+      printf '  - role: worker\n    extraMounts:\n'
+      printf '      - hostPath: /dev\n        containerPath: /dev\n        propagation: HostToContainer\n'
+      printf '      - hostPath: /run/udev\n        containerPath: /run/udev\n        propagation: HostToContainer\n'
+    done
+  } >"$out"
+  echo "== generated kind config ($out):" >&2
+  cat "$out" >&2
+
+  # Every worker sees every disk through the whole-/dev mount, so pin each worker to exactly one
+  # disk via the CephCluster storage.nodes spec rather than useAllDevices (which would race). kind
+  # names workers kind-worker, kind-worker2, ...; pair worker i with disk i and hand the mapping to
+  # the integration framework through the job environment.
+  local i wname mapping=""
+  for i in "${!devs[@]}"; do
+    if [ "$i" -eq 0 ]; then wname="kind-worker"; else wname="kind-worker$((i + 1))"; fi
+    mapping="$mapping $wname:${devs[$i]}"
+  done
+  mapping="${mapping# }"
+  echo "== per-node OSD assignment: $mapping" >&2
+  if [ -n "${GITHUB_ENV:-}" ]; then
+    echo "ROOK_TEST_STORAGE_NODES=$mapping" >>"$GITHUB_ENV"
+  fi
+}
+
 function block_dev() {
   declare -g DEFAULT_BLOCK_DEV
   : "${DEFAULT_BLOCK_DEV:=/dev/$(block_dev_basename)}"

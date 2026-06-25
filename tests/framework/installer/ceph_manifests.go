@@ -237,14 +237,31 @@ spec:
             - ReadWriteOnce
 `
 	} else {
+		osdSelection := `
+    useAllNodes: ` + strconv.FormatBool(!m.settings.SkipOSDCreation) + `
+    useAllDevices: ` + strconv.FormatBool(!m.settings.SkipOSDCreation) + `
+    deviceFilter:  ` + getDeviceFilter()
+		if nodes := getStorageNodes(); nodes != "" {
+			// Explicit per-node device assignment: give each listed node exactly one disk. Used by
+			// the multi-node kind CI, where every worker sees every disk via the host /dev mount,
+			// so useAllDevices would race for the shared disks.
+			osdSelection = `
+    useAllNodes: false
+    useAllDevices: false
+    nodes:`
+			for _, pair := range strings.Fields(nodes) {
+				parts := strings.SplitN(pair, ":", 2)
+				osdSelection += `
+      - name: "` + parts[0] + `"
+        devices:
+          - name: "` + parts[1] + `"`
+			}
+		}
 		clusterSpec += `
   mon:
     count: ` + strconv.Itoa(m.settings.Mons) + `
     allowMultiplePerNode: true
-  storage:
-    useAllNodes: ` + strconv.FormatBool(!m.settings.SkipOSDCreation) + `
-    useAllDevices: ` + strconv.FormatBool(!m.settings.SkipOSDCreation) + `
-    deviceFilter:  ` + getDeviceFilter() + `
+  storage:` + osdSelection + `
     config:
       databaseSizeMB: "1024"
     fullRatio: 0.96

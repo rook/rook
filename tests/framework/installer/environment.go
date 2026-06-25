@@ -70,6 +70,14 @@ func getDeviceFilter() string {
 	return getEnvVarWithDefault("DEVICE_FILTER", `""`)
 }
 
+// getStorageNodes returns an optional explicit OSD device-per-node assignment as space-separated
+// "<node>:<device>" pairs (e.g. "kind-worker:sdb kind-worker2:sdc"). When set, the CephCluster
+// uses storage.nodes instead of useAllDevices -- for multi-node CI where every node sees every
+// disk through the host /dev mount, so useAllDevices would race for the shared disks.
+func getStorageNodes() string {
+	return getEnvVarWithDefault("ROOK_TEST_STORAGE_NODES", "")
+}
+
 func getEnvVarWithDefault(env, defaultValue string) string {
 	val := os.Getenv(env)
 	if val == "" {
