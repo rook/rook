@@ -2,6 +2,11 @@
 title: Quickstart
 ---
 
+[first broken link](https://rook.obnox.de)
+
+[second broken link](https://rook.io/obnox)
+[another broken link][(https://ceph.io/obnox)
+
 Welcome to Rook! We hope you have a great experience installing the Rook **cloud-native storage orchestrator** platform to enable highly available, durable Ceph storage in Kubernetes clusters.
 
 Don't hesitate to ask questions in our [Slack channel](https://rook-io.slack.com). Sign up for the Rook Slack [here](https://slack.rook.io).
