@@ -269,7 +269,10 @@ function build_rook() {
   fi
   GOPATH=$(go env GOPATH) make clean
   for _ in $(seq 1 3); do
-    if ! o=$(make -j"$(nproc)" "$build_type"); then
+    # capture stderr too: go/make write network errors (the strings
+    # matched below) to stderr, so without 2>&1 $o never contains them
+    # and a transient failure skips the retry and is treated as fatal.
+    if ! o=$(make -j"$(nproc)" "$build_type" 2>&1); then
       case "$o" in
       *"$NETWORK_ERROR"*)
         echo "network failure occurred, retrying..."
