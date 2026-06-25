@@ -19,26 +19,28 @@ set -ex
 #############
 # VARIABLES #
 #############
-osd_count=$1
+# The argument is a device path (/dev/...); create a single volumeMode: Block PV
+# backed by that whole device, for use as an extra OSD by a PVC-based cluster.
+device=$1
 sudo lsblk
 
 #############
 # FUNCTIONS #
 #############
 
-function add_loop_dev_pvc() {
-  local osd_count=$1
+# add_block_dev_pvc <device-path> <name-suffix>
+# Create one volumeMode: Block PersistentVolume backed by the given device.
+function add_block_dev_pvc() {
+  local path=$1
+  local name=$2
   local storage=6Gi
 
-  for osd in $(seq 1 "$osd_count"); do
-    path=/dev/loop${osd}
-
-    cat <<eof | kubectl apply -f -
+  cat <<eof | kubectl apply -f -
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: local-vol-loop-dev$osd
+  name: local-vol-$name
   labels:
     type: local
 spec:
@@ -60,12 +62,11 @@ spec:
                 values:
                 - "true"
 eof
-  done
 }
 
 ########
 # MAIN #
 ########
-add_loop_dev_pvc "$osd_count"
+add_block_dev_pvc "$device" "$(basename "$device")"
 
 kubectl get pv -o wide
