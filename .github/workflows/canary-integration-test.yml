@@ -488,21 +488,23 @@ jobs:
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
 
-      - name: use local disk as OSD
+      - name: set up the first and second disks as OSDs
         run: |
+          # find_second_block_dev provisions a second iSCSI disk if the runner
+          # has only one
           tests/scripts/github-action-helper.sh use_local_disk
           BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           export BLOCK
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
-
-      - name: prepare loop devices for osds
-        run: |
-          tests/scripts/github-action-helper.sh prepare_loop_devices 1
+          EXTRA_DEV="$(tests/scripts/github-action-helper.sh find_second_block_dev)"
+          sudo sgdisk --zap-all "/dev/$EXTRA_DEV" || true
 
       - name: deploy cluster
         run: |
-          export ALLOW_LOOP_DEVICES=true
-          tests/scripts/github-action-helper.sh deploy_cluster loop
+          ROOK_DATA_DEV="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          ROOK_EXTRA_DEV="$(tests/scripts/github-action-helper.sh find_second_block_dev)"
+          export ROOK_DATA_DEV ROOK_EXTRA_DEV
+          tests/scripts/github-action-helper.sh deploy_cluster two_raw_disks
           tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
           tests/scripts/github-action-helper.sh create_operator_toolbox
 
@@ -696,18 +698,18 @@ jobs:
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
 
-      - name: use local disk as OSD
+      - name: set up the first disk
         run: |
           BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           export BLOCK
           tests/scripts/github-action-helper.sh use_local_disk
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
-      - name: create LV on disk
+      - name: create the metadata LV on the second disk
         run: |
-          dd if=/dev/zero of=test-rook.img bs=1 count=0 seek=10G
-          # If we use metadata device, both data devices and metadata devices should be logical volumes or raw devices
-          tests/scripts/github-action-helper.sh create_LV_on_disk "$(sudo losetup --find --show test-rook.img)"
+          # both data and metadata devices must be logical volumes or raw devices
+          EXTRA_DEV="$(tests/scripts/github-action-helper.sh find_second_block_dev)"
+          tests/scripts/github-action-helper.sh create_LV_on_disk "/dev/$EXTRA_DEV"
 
       - name: deploy cluster
         run: |
@@ -888,26 +890,25 @@ jobs:
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ matrix.ceph-image }}"
 
-      - name: use local disk and create partitions for osds
+      - name: partition the first disk for OSDs
         run: |
+          # the first disk is split into two partitions (one OSD each); the
+          # second disk (provisioned by find_second_block_dev) is used whole as
+          # the 3rd OSD
           tests/scripts/github-action-helper.sh use_local_disk
           tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-      - name: prepare loop devices for osds
-        run: |
-          tests/scripts/github-action-helper.sh prepare_loop_devices 1
 
       - name: create cluster prerequisites
         run: |
           BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           export BLOCK
+          EXTRA_DEV="$(tests/scripts/github-action-helper.sh find_second_block_dev)"
           tests/scripts/localPathPV.sh "$BLOCK"
-          tests/scripts/loopDevicePV.sh 1
+          tests/scripts/blockDevicePV.sh "/dev/$EXTRA_DEV"
           tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
       - name: deploy cluster
         run: |
-          yq write -i deploy/examples/operator.yaml "data.ROOK_CEPH_ALLOW_LOOP_DEVICES" --style=double "true"
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 3
@@ -930,16 +931,18 @@ jobs:
           lsblk
           BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           export BLOCK
+          EXTRA_DEV="$(tests/scripts/github-action-helper.sh find_second_block_dev)"
           sudo head --bytes=60 "${BLOCK}1"
           sudo head --bytes=60 "${BLOCK}2"
-          sudo head --bytes=60 /dev/loop1
+          sudo head --bytes=60 "/dev/$EXTRA_DEV"
 
       - name: recreate cluster prerequisites
         run: |
           BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           export BLOCK
+          EXTRA_DEV="$(tests/scripts/github-action-helper.sh find_second_block_dev)"
           tests/scripts/localPathPV.sh "$BLOCK"
-          tests/scripts/loopDevicePV.sh 1
+          tests/scripts/blockDevicePV.sh "/dev/$EXTRA_DEV"
           tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
       - name: redeploy cluster
@@ -963,9 +966,10 @@ jobs:
           lsblk
           BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           export BLOCK
+          EXTRA_DEV="$(tests/scripts/github-action-helper.sh find_second_block_dev)"
           sudo head --bytes=60 "${BLOCK}1"
           sudo head --bytes=60 "${BLOCK}2"
-          sudo head --bytes=60 /dev/loop1
+          sudo head --bytes=60 "/dev/$EXTRA_DEV"
 
       - name: collect common logs
         if: always()
