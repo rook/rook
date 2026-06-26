@@ -146,7 +146,7 @@ func validateObjectStoreSecurity(spec *ObjectStoreSpec) error {
 	return nil
 }
 
-// isTLS12OrBelowEnabled check if TLS v1.2 or below is enabled
+// isTLSv1_2orBelowEnabled check if TLS v1.2 or below is enabled
 func isTLSv1_2orBelowEnabled(opts *SslOptionsSpec) bool {
 	if opts == nil {
 		return true

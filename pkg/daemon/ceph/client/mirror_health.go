@@ -41,7 +41,7 @@ type mirrorChecker struct {
 	objectType     client.Object
 }
 
-// newMirrorChecker creates a new HealthChecker object
+// NewMirrorChecker creates a new HealthChecker object
 func NewMirrorChecker(context *clusterd.Context, client client.Client, clusterInfo *ClusterInfo, namespacedName types.NamespacedName, monitoringSpec *cephv1.NamedPoolSpec, object client.Object) *mirrorChecker {
 	c := &mirrorChecker{
 		context:        context,
@@ -63,7 +63,7 @@ func NewMirrorChecker(context *clusterd.Context, client client.Client, clusterIn
 	return c
 }
 
-// checkMirroring periodically checks the health of the cluster
+// CheckMirroring periodically checks the health of the cluster
 func (c *mirrorChecker) CheckMirroring(context context.Context) {
 	// check the mirroring health immediately before starting the loop
 	err := c.CheckMirroringHealth()
@@ -119,7 +119,7 @@ func (c *mirrorChecker) CheckMirroringHealth() error {
 	return nil
 }
 
-// updateStatusBucket updates an object with a given status
+// UpdateStatusMirroring updates an object with a given status
 func (c *mirrorChecker) UpdateStatusMirroring(mirrorStatus *cephv1.MirroringStatusSummarySpec, mirrorInfo *cephv1.MirroringInfo, snapSchedStatus []cephv1.SnapshotSchedulesSpec, details string) {
 	switch c.objectType.(type) {
 	case *cephv1.CephBlockPool:

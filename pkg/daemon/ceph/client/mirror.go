@@ -164,7 +164,7 @@ func enablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, po
 	return nil
 }
 
-// disablePoolMirroring turns off mirroring on a pool
+// DisablePoolMirroring turns off mirroring on a pool
 func DisablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) error {
 	logger.Infof("disabling mirroring for pool %q", poolName)
 

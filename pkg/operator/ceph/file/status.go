@@ -71,7 +71,7 @@ func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespa
 	return fs, nil
 }
 
-// updateStatusBucket updates an object with a given status
+// updateStatusMirroring updates an object with a given status
 func (c *mirrorChecker) updateStatusMirroring(mirrorStatus []cephv1.FilesystemMirroringInfo, snapSchedStatus []cephv1.FilesystemSnapshotSchedulesSpec, details string) {
 	fs := &cephv1.CephFilesystem{}
 	if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, fs); err != nil {

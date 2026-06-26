@@ -410,7 +410,7 @@ func BuildDNSEndpoint(domainName string, port int32, secure bool) string {
 	return fmt.Sprintf("%s://%s:%d", httpPrefix, domainName, port)
 }
 
-// GetTLSCACert fetch cacert for internal RGW requests
+// GetTlsCaCert fetch cacert for internal RGW requests
 func GetTlsCaCert(objContext *Context, objectStoreSpec *cephv1.ObjectStoreSpec) ([]byte, bool, error) {
 	var insecureTLS, ok bool
 	ctx := objContext.clusterInfo.Context
