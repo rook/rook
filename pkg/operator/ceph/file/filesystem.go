@@ -345,7 +345,7 @@ func GenerateMetaDataPoolName(fsName string) string {
 	return generateMetaDataPoolName(fsName, nil)
 }
 
-// GenerateMetaDataPoolName generates MetaDataPool name as specified in FilesystemSpec
+// generateMetaDataPoolName generates MetaDataPool name as specified in FilesystemSpec
 func generateMetaDataPoolName(fsName string, spec *cephv1.FilesystemSpec) string {
 	poolName := ""
 

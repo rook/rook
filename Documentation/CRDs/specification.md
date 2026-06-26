@@ -2941,7 +2941,7 @@ KeystoneSpec
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.BucketNotificationSpec">BucketNotificationSpec</a>)
 </p>
 <div>
-<p>BucketNotificationSpec represent the event type of the bucket notification
+<p>BucketNotificationEvent represent the event type of the bucket notification
 See: <a href="https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types">https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types</a></p>
 </div>
 <h3 id="ceph.rook.io/v1.BucketNotificationSpec">BucketNotificationSpec
@@ -5325,7 +5325,7 @@ was reinstalled but OSD disk still contains the metadata from previous ceph clus
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.ClientSpec">ClientSpec</a>)
 </p>
 <div>
-<p>ClinetSecuritySpec represents security settings for a Ceph Client</p>
+<p>ClientSecuritySpec represents security settings for a Ceph Client</p>
 </div>
 <table>
 <thead>
@@ -7400,7 +7400,7 @@ PeerStatSpec
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemMirroringInfoSpec">FilesystemMirroringInfoSpec</a>)
 </p>
 <div>
-<p>FilesystemMirrorInfoSpec is the filesystem mirror status of a given filesystem</p>
+<p>FilesystemMirroringInfo is the filesystem mirror status of a given filesystem</p>
 </div>
 <table>
 <thead>
@@ -7444,7 +7444,7 @@ int
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus</a>)
 </p>
 <div>
-<p>FilesystemMirroringInfo is the status of the pool mirroring</p>
+<p>FilesystemMirroringInfoSpec is the status of the pool mirroring</p>
 </div>
 <table>
 <thead>

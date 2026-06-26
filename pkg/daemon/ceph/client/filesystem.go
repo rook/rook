@@ -476,7 +476,7 @@ type SubVolumeSnapshot struct {
 // SubVolumeSnapshots is the list of snapshots in a CephFS subvolume
 type SubVolumeSnapshots []SubVolumeSnapshot
 
-// ListSubVolumeSnaphots lists all the subvolume snapshots present in the subvolume in the given filesystem's subvolume group.
+// ListSubVolumeSnapshots lists all the subvolume snapshots present in the subvolume in the given filesystem's subvolume group.
 var ListSubVolumeSnapshots = listSubVolumeSnapshots
 
 func listSubVolumeSnapshots(context *clusterd.Context, clusterInfo *ClusterInfo, fsName, subVolumeName, groupName string) (SubVolumeSnapshots, error) {

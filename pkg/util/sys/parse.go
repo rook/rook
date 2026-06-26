@@ -20,7 +20,7 @@ import (
 	"strings"
 )
 
-// grep finds the *first* line that matches, rather than multiple lines
+// Grep finds the *first* line that matches, rather than multiple lines
 func Grep(input, searchFor string) string {
 	if input == "" || searchFor == "" {
 		return ""

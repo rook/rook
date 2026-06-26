@@ -394,7 +394,7 @@ func (h *CephInstaller) CreateRookExternalCluster(externalManifests CephManifest
 	return errors.Errorf("failed to start external cluster, state: %v", clusterStatus)
 }
 
-// InjectRookExternalClusterInfo inject connection information for an external cluster
+// injectRookExternalClusterInfo inject connection information for an external cluster
 func (h *CephInstaller) injectRookExternalClusterInfo(externalSettings *TestCephSettings) error {
 	ctx := context.TODO()
 	// get config map
