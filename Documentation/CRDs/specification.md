@@ -876,7 +876,7 @@ time.Duration
 <p>WaitTimeoutForHealthyOSDInMinutes defines the time the operator would wait before an OSD can be stopped for upgrade or restart.
 If the timeout exceeds and OSD is not ok to stop, then the operator would skip upgrade for the current OSD and proceed with the next one
 if <code>continueUpgradeAfterChecksEvenIfNotHealthy</code> is <code>false</code>. If <code>continueUpgradeAfterChecksEvenIfNotHealthy</code> is <code>true</code>, then operator would
-continue with the upgrade of an OSD even if its not ok to stop after the timeout. This timeout won&rsquo;t be applied if <code>skipUpgradeChecks</code> is <code>true</code>.
+continue with the upgrade of an OSD even if it&rsquo;s not ok to stop after the timeout. This timeout won&rsquo;t be applied if <code>skipUpgradeChecks</code> is <code>true</code>.
 The default wait timeout is 10 minutes.</p>
 </td>
 </tr>
@@ -5570,7 +5570,7 @@ CephxStatus
 </em>
 </td>
 <td>
-<p>OSD shows the CephX key status of of OSDs</p>
+<p>OSD shows the CephX key status of OSDs</p>
 </td>
 </tr>
 <tr>
@@ -5863,7 +5863,7 @@ time.Duration
 <p>WaitTimeoutForHealthyOSDInMinutes defines the time the operator would wait before an OSD can be stopped for upgrade or restart.
 If the timeout exceeds and OSD is not ok to stop, then the operator would skip upgrade for the current OSD and proceed with the next one
 if <code>continueUpgradeAfterChecksEvenIfNotHealthy</code> is <code>false</code>. If <code>continueUpgradeAfterChecksEvenIfNotHealthy</code> is <code>true</code>, then operator would
-continue with the upgrade of an OSD even if its not ok to stop after the timeout. This timeout won&rsquo;t be applied if <code>skipUpgradeChecks</code> is <code>true</code>.
+continue with the upgrade of an OSD even if it&rsquo;s not ok to stop after the timeout. This timeout won&rsquo;t be applied if <code>skipUpgradeChecks</code> is <code>true</code>.
 The default wait timeout is 10 minutes.</p>
 </td>
 </tr>
@@ -7491,7 +7491,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastChecked is the last time time the status was checked</p>
+<p>LastChecked is the last time the status was checked</p>
 </td>
 </tr>
 <tr>
@@ -7503,7 +7503,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastChanged is the last time time the status last changed</p>
+<p>LastChanged is the last time the status last changed</p>
 </td>
 </tr>
 <tr>
@@ -7759,7 +7759,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastChecked is the last time time the status was checked</p>
+<p>LastChecked is the last time the status was checked</p>
 </td>
 </tr>
 <tr>
@@ -7771,7 +7771,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastChanged is the last time time the status last changed</p>
+<p>LastChanged is the last time the status last changed</p>
 </td>
 </tr>
 <tr>
@@ -10022,7 +10022,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastChecked is the last time time the status was checked</p>
+<p>LastChecked is the last time the status was checked</p>
 </td>
 </tr>
 <tr>
@@ -10034,7 +10034,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastChanged is the last time time the status last changed</p>
+<p>LastChanged is the last time the status last changed</p>
 </td>
 </tr>
 <tr>
@@ -15154,7 +15154,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastChecked is the last time time the status was checked</p>
+<p>LastChecked is the last time the status was checked</p>
 </td>
 </tr>
 <tr>
@@ -15166,7 +15166,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastChanged is the last time time the status last changed</p>
+<p>LastChanged is the last time the status last changed</p>
 </td>
 </tr>
 <tr>

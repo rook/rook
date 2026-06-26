@@ -45,7 +45,7 @@ type CommandOut struct {
 	Err      error
 }
 
-// ExecuteCommand executes a os command with stdin and returns output
+// ExecuteCommand executes an OS command with stdin and returns output
 func ExecuteCommand(cmdStruct CommandArgs) CommandOut {
 	logger.Infof("Running %s %v", cmdStruct.Command, cmdStruct.CmdArgs)
 
