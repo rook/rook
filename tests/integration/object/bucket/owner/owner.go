@@ -17,79 +17,34 @@ limitations under the License.
 package owner
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
-	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/tests/framework/installer"
-	"github.com/rook/rook/tests/framework/utils"
-	utiladmin "github.com/rook/rook/tests/integration/object/util/admin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/tests/framework/utils"
+	"github.com/rook/rook/tests/integration/object/util/fixture"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
+	"github.com/rook/rook/tests/integration/object/util/wait4"
 )
 
-func WaitForPodLogContainingText(k8sh *utils.K8sHelper, namespace string, selector *labels.Selector, text string, timeout time.Duration) error {
-	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(
-		context.Background(),
-		metav1.ListOptions{
-			LabelSelector: (*selector).String(),
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to list pods: %v", err)
-	}
+const Namespace = "test-bucketowner"
 
-	if len(pods.Items) == 0 {
-		return fmt.Errorf("no pods found with labels %v in namespace %q", selector, namespace)
-	}
-
-	// if there are multiple pods, just pick the first one
-	selectedPod := pods.Items[0]
-	log.Printf("Found pod %q (first match) with labels %v\n", selectedPod.Name, *selector)
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	req := k8sh.Clientset.CoreV1().Pods(namespace).GetLogs(selectedPod.Name, &corev1.PodLogOptions{})
-
-	logStream, err := req.Stream(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to stream logs from pod %q: %v", selectedPod.Name, err)
-	}
-	defer logStream.Close()
-
-	scanner := bufio.NewScanner(logStream)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, text) {
-			break
-		}
-	}
-	// Check for scanner error (could be context timeout, etc.)
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading log stream: %v", err)
-	}
-
-	return nil
-}
-
-func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, objectStore *cephv1.CephObjectStore) {
+func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, store *sharedstore.Sharedstore) {
 	var (
-		defaultName = "test-bucketowner"
+		defaultName = Namespace
+		objectStore = store.ObjectStore()
+		adminClient = store.AdminClient()
 
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -97,16 +52,7 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 			},
 		}
 
-		storageClass = &storagev1.StorageClass{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: defaultName,
-			},
-			Provisioner: objectStore.Namespace + ".ceph.rook.io/bucket",
-			Parameters: map[string]string{
-				"objectStoreName":      objectStore.Name,
-				"objectStoreNamespace": objectStore.Namespace,
-			},
-		}
+		storageClass = fixture.StorageClass(defaultName, objectStore)
 
 		// test user without any quotas set
 		osu1 = cephv1.CephObjectStoreUser{
@@ -178,100 +124,46 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 				},
 			},
 		}
+
+		osuClient = k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name)
+		obcClient = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name)
+		obClient  = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets()
 	)
 	t.Run("OBC bucketOwner", func(t *testing.T) {
-		if tlsEnable {
-			// There is lots of coverage of rgw working with tls enabled; skipping to save time.
-			// If tls is to be enabled, cert generation needs to be added and a
-			// different CephObjectStore name needs to be set for with/without tls as
-			// CephObjectStore does not currently cleanup the rgw realm.
-			t.Skip("skipping test for TLS enabled clusters")
-		}
+		ctx := t.Context()
 
-		var adminClient *admin.API
-		ctx := context.TODO()
-
-		t.Run(fmt.Sprintf("create ns %q", ns.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create sc %q", storageClass.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
+		fixture.RequireNamespace(t, k8sh, ns)
+		fixture.RequireStorageClass(t, k8sh, storageClass)
 
 		// since this is an obc specific subtest we assume that CephObjectStoreUser
 		// is working and the rgw service state does not need to be inspected to
 		// confirm user creation.
 		t.Run(fmt.Sprintf("create CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			_, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Create(ctx, &osu1, metav1.CreateOptions{})
-			require.NoError(t, err)
-
 			// user creation may be slow right after rgw start up
-			osuReady := utils.Retry(120, time.Second, "CephObjectStoreUser is Ready", func() bool {
-				liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				if liveOsu.Status == nil {
-					return false
-				}
-
-				return liveOsu.Status.Phase == "Ready"
-			})
-			require.True(t, osuReady)
+			wait4.RequireCreate(ctx, t, osuClient, &osu1, wait4.ObjectStoreUser, wait4.TimeoutLong)
 		})
 
 		t.Run(fmt.Sprintf("create obc %q with bucketOwner %q", obc1.Name, obc1.Spec.AdditionalConfig["bucketOwner"]), func(t *testing.T) {
-			_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Create(ctx, &obc1, metav1.CreateOptions{})
+			_, err := obcClient.Create(ctx, &obc1, metav1.CreateOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("obc %q has bucketOwner %q set", obc1.Name, obc1.Spec.AdditionalConfig["bucketOwner"]), func(t *testing.T) {
-			var liveObc *bktv1alpha1.ObjectBucketClaim
-			obcBound := utils.Retry(40, time.Second, "OBC is Bound", func() bool {
-				var err error
-				liveObc, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveObc.Status.Phase == bktv1alpha1.ObjectBucketClaimStatusPhaseBound
-			})
-			require.True(t, obcBound)
+			liveObc := wait4.RequireCondition(ctx, t, obcClient, obc1.Name, wait4.OBCBound, wait4.TimeoutShort)
 
 			// verify that bucketOwner is set on the live obc
 			assert.Equal(t, obc1.Spec.AdditionalConfig["bucketOwner"], liveObc.Spec.AdditionalConfig["bucketOwner"])
 		})
 
 		t.Run(fmt.Sprintf("ob for obc %q has bucketOwner %q set", obc1.Name, obc1.Spec.AdditionalConfig["bucketOwner"]), func(t *testing.T) {
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			obName := liveObc.Spec.ObjectBucketName
 
-			var liveOb *bktv1alpha1.ObjectBucket
-			obBound := utils.Retry(40, time.Second, "OB is Bound", func() bool {
-				var err error
-				liveOb, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveOb.Status.Phase == bktv1alpha1.ObjectBucketStatusPhaseBound
-			})
-			require.True(t, obBound)
+			liveOb := wait4.RequireCondition(ctx, t, obClient, obName, wait4.OBBound, wait4.TimeoutShort)
 
 			// verify that bucketOwner is set on the live ob
 			assert.Equal(t, obc1.Spec.AdditionalConfig["bucketOwner"], liveOb.Spec.Connection.AdditionalState["bucketOwner"])
-		})
-
-		// the rgw admin api is used to verify bucket ownership
-		t.Run("setup rgw admin api client", func(t *testing.T) {
-			var err error
-			adminClient, err = utiladmin.NewAdminClient(objectStore, installer, k8sh, tlsEnable)
-			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("bucket created with owner %q", obc1.Spec.AdditionalConfig["bucketOwner"]), func(t *testing.T) {
@@ -294,38 +186,23 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 
 		t.Run(fmt.Sprintf("create CephObjectStoreUser %q", osu2.Name), func(t *testing.T) {
 			// create user2
-			_, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Create(ctx, &osu2, metav1.CreateOptions{})
-			require.NoError(t, err)
-
-			osuReady := utils.Retry(40, time.Second, "CephObjectStoreUser is Ready", func() bool {
-				liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu2.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				if liveOsu.Status == nil {
-					return false
-				}
-
-				return liveOsu.Status.Phase == "Ready"
-			})
-			require.True(t, osuReady)
+			wait4.RequireCreate(ctx, t, osuClient, &osu2, wait4.ObjectStoreUser, wait4.TimeoutLong)
 		})
 
 		t.Run(fmt.Sprintf("update obc %q to bucketOwner %q", obc1.Name, osu2.Name), func(t *testing.T) {
 			// update obc bucketOwner
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			liveObc.Spec.AdditionalConfig["bucketOwner"] = osu2.Name
 
-			_, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Update(ctx, liveObc, metav1.UpdateOptions{})
+			_, err = obcClient.Update(ctx, liveObc, metav1.UpdateOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("obc %q has bucketOwner %q set", obc1.Name, osu2.Name), func(t *testing.T) {
 			// obc .Status.Phase does not appear to change when updating the obc
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			// verify that bucketOwner is set on the live obc
@@ -334,39 +211,32 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 
 		t.Run(fmt.Sprintf("ob for obc %q has bucketOwner %q set", obc1.Name, osu2.Name), func(t *testing.T) {
 			// ob .Status.Phase does not appear to change when updating the obc
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			obName := liveObc.Spec.ObjectBucketName
 
-			var liveOb *bktv1alpha1.ObjectBucket
-			inSync := utils.Retry(40, time.Second, "OB is Bound", func() bool {
-				var err error
-				liveOb, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return osu2.Name == liveOb.Spec.Connection.AdditionalState["bucketOwner"]
-			})
-			require.True(t, inSync)
+			liveOb := wait4.RequireCondition(ctx, t, obClient, obName,
+				func(ob *bktv1alpha1.ObjectBucket) bool {
+					return ob.Spec.Connection.AdditionalState["bucketOwner"] == osu2.Name
+				},
+				wait4.TimeoutShort)
 
 			// verify that bucketOwner is set on the live ob
 			assert.Equal(t, osu2.Name, liveOb.Spec.Connection.AdditionalState["bucketOwner"])
 		})
 
 		t.Run(fmt.Sprintf("bucket owner changed to %q", osu2.Name), func(t *testing.T) {
-			var bucket admin.Bucket
-			ownerSync := utils.Retry(40, time.Second, "bucket owner in sync", func() bool {
-				var err error
-				bucket, err = adminClient.GetBucketInfo(ctx, admin.Bucket{Bucket: obc1.Name})
+			wait4.AssertEventually(ctx, t, wait4.TimeoutShort, fmt.Sprintf("bucket %q owner is %q", obc1.Name, osu2.Name), func(ctx context.Context) error {
+				bucket, err := adminClient.GetBucketInfo(ctx, admin.Bucket{Bucket: obc1.Name})
 				if err != nil {
-					return false
+					return err
 				}
 
-				return bucket.Owner == osu2.Name
+				if bucket.Owner != osu2.Name {
+					return fmt.Errorf("bucket owner is %q, want %q", bucket.Owner, osu2.Name)
+				}
+				return nil
 			})
-			assert.True(t, ownerSync)
-			assert.Equal(t, osu2.Name, bucket.Owner)
 		})
 
 		// obc should not modify pre-existing users
@@ -382,78 +252,68 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 
 		t.Run(fmt.Sprintf("remove obc %q bucketOwner", obc1.Name), func(t *testing.T) {
 			// update/remove obc bucketOwner
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			liveObc.Spec.AdditionalConfig = map[string]string{}
 
-			_, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Update(ctx, liveObc, metav1.UpdateOptions{})
+			_, err = obcClient.Update(ctx, liveObc, metav1.UpdateOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("obc %q has no bucketOwner", obc1.Name), func(t *testing.T) {
 			// verify that bucketOwner is unset on the live obc
-			notSet := utils.Retry(40, time.Second, "bucketOwner not set", func() bool {
-				liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				_, ok := liveObc.Spec.AdditionalConfig["bucketOwner"]
-				return !ok
-			})
-			assert.True(t, notSet)
+			wait4.AssertCondition(ctx, t, obcClient, obc1.Name,
+				func(obc *bktv1alpha1.ObjectBucketClaim) bool {
+					_, ok := obc.Spec.AdditionalConfig["bucketOwner"]
+					return !ok
+				},
+				wait4.TimeoutShort)
 		})
 
 		t.Run(fmt.Sprintf("ob for obc %q has no bucketOwner", obc1.Name), func(t *testing.T) {
-			// ob .Status.Phase does not appear to change when updating the obc
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			obName := liveObc.Spec.ObjectBucketName
 
-			notSet := utils.Retry(40, time.Second, "bucketOwner not set", func() bool {
-				liveOb, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				_, ok := liveOb.Spec.Connection.AdditionalState["bucketOwner"]
-				return !ok
-			})
-			assert.True(t, notSet)
+			wait4.AssertCondition(ctx, t, obClient, obName,
+				func(ob *bktv1alpha1.ObjectBucket) bool {
+					_, ok := ob.Spec.Connection.AdditionalState["bucketOwner"]
+					return !ok
+				},
+				wait4.TimeoutShort)
 		})
 
 		// the ob should retain the existing owner and not revert to a generated user
 		t.Run(fmt.Sprintf("bucket owner is still %q", osu2.Name), func(t *testing.T) {
-			var bucket admin.Bucket
-			ownerSync := utils.Retry(40, time.Second, "bucket owner in sync", func() bool {
-				var err error
-				bucket, err = adminClient.GetBucketInfo(ctx, admin.Bucket{Bucket: obc1.Name})
+			wait4.AssertEventually(ctx, t, wait4.TimeoutShort, fmt.Sprintf("bucket %q owner is still %q", obc1.Name, osu2.Name), func(ctx context.Context) error {
+				bucket, err := adminClient.GetBucketInfo(ctx, admin.Bucket{Bucket: obc1.Name})
 				if err != nil {
-					return false
+					return err
 				}
 
-				return bucket.Owner == osu2.Name
+				if bucket.Owner != osu2.Name {
+					return fmt.Errorf("bucket owner is %q, want %q", bucket.Owner, osu2.Name)
+				}
+				return nil
 			})
-			assert.True(t, ownerSync)
-			assert.Equal(t, osu2.Name, bucket.Owner)
 		})
 
 		// this covers setting bucketOwner on an obc initially created without an explicit owner
 		t.Run(fmt.Sprintf("update obc %q to bucketOwner %q", obc1.Name, osu1.Name), func(t *testing.T) {
 			// update obc bucketOwner
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			liveObc.Spec.AdditionalConfig = map[string]string{"bucketOwner": osu1.Name}
 
-			_, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Update(ctx, liveObc, metav1.UpdateOptions{})
+			_, err = obcClient.Update(ctx, liveObc, metav1.UpdateOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("obc %q has bucketOwner %q set", obc1.Name, osu1.Name), func(t *testing.T) {
 			// obc .Status.Phase does not appear to change when updating the obc
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			// verify that bucketOwner is set on the live obc
@@ -462,94 +322,52 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 
 		t.Run(fmt.Sprintf("ob for obc %q has bucketOwner %q set", obc1.Name, osu1.Name), func(t *testing.T) {
 			// ob .Status.Phase does not appear to change when updating the obc
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			obName := liveObc.Spec.ObjectBucketName
 
-			var liveOb *bktv1alpha1.ObjectBucket
-			inSync := utils.Retry(40, time.Second, "OB is Bound", func() bool {
-				var err error
-				liveOb, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return osu1.Name == liveOb.Spec.Connection.AdditionalState["bucketOwner"]
-			})
-			require.True(t, inSync)
+			liveOb := wait4.RequireCondition(ctx, t, obClient, obName,
+				func(ob *bktv1alpha1.ObjectBucket) bool {
+					return ob.Spec.Connection.AdditionalState["bucketOwner"] == osu1.Name
+				},
+				wait4.TimeoutShort)
 
 			// verify that bucketOwner is set on the live ob
 			assert.Equal(t, osu1.Name, liveOb.Spec.Connection.AdditionalState["bucketOwner"])
 		})
 
 		t.Run(fmt.Sprintf("bucket owner changed to %q", osu1.Name), func(t *testing.T) {
-			var bucket admin.Bucket
-			ownerSync := utils.Retry(40, time.Second, "bucket owner in sync", func() bool {
-				var err error
-				bucket, err = adminClient.GetBucketInfo(ctx, admin.Bucket{Bucket: obc1.Name})
+			wait4.AssertEventually(ctx, t, wait4.TimeoutShort, fmt.Sprintf("bucket %q owner is %q", obc1.Name, osu1.Name), func(ctx context.Context) error {
+				bucket, err := adminClient.GetBucketInfo(ctx, admin.Bucket{Bucket: obc1.Name})
 				if err != nil {
-					return false
+					return err
 				}
 
-				return bucket.Owner == osu1.Name
-			})
-			assert.True(t, ownerSync)
-			assert.Equal(t, osu1.Name, bucket.Owner)
-		})
-
-		t.Run(fmt.Sprintf("bucket owner changed to %q", osu1.Name), func(t *testing.T) {
-			var bucket admin.Bucket
-			ownerSync := utils.Retry(40, time.Second, "bucket owner in sync", func() bool {
-				var err error
-				bucket, err = adminClient.GetBucketInfo(ctx, admin.Bucket{Bucket: obc1.Name})
-				if err != nil {
-					return false
+				if bucket.Owner != osu1.Name {
+					return fmt.Errorf("bucket owner is %q, want %q", bucket.Owner, osu1.Name)
 				}
-
-				return bucket.Owner == osu1.Name
+				return nil
 			})
-			assert.True(t, ownerSync)
-			assert.Equal(t, osu1.Name, bucket.Owner)
 		})
 
 		t.Run(fmt.Sprintf("create obc %q with bucketOwner %q", obc2.Name, obc2.Spec.AdditionalConfig["bucketOwner"]), func(t *testing.T) {
-			_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Create(ctx, &obc2, metav1.CreateOptions{})
+			_, err := obcClient.Create(ctx, &obc2, metav1.CreateOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("obc %q has bucketOwner %q set", obc2.Name, obc2.Spec.AdditionalConfig["bucketOwner"]), func(t *testing.T) {
-			var liveObc *bktv1alpha1.ObjectBucketClaim
-			obcBound := utils.Retry(40, time.Second, "OBC is Bound", func() bool {
-				var err error
-				liveObc, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc2.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveObc.Status.Phase == bktv1alpha1.ObjectBucketClaimStatusPhaseBound
-			})
-			require.True(t, obcBound)
+			liveObc := wait4.RequireCondition(ctx, t, obcClient, obc2.Name, wait4.OBCBound, wait4.TimeoutShort)
 
 			// verify that bucketOwner is set on the live obc
 			assert.Equal(t, obc2.Spec.AdditionalConfig["bucketOwner"], liveObc.Spec.AdditionalConfig["bucketOwner"])
 		})
 
 		t.Run(fmt.Sprintf("ob for obc %q has bucketOwner %q set", obc2.Name, obc2.Spec.AdditionalConfig["bucketOwner"]), func(t *testing.T) {
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc2.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc2.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			obName := liveObc.Spec.ObjectBucketName
 
-			var liveOb *bktv1alpha1.ObjectBucket
-			obBound := utils.Retry(40, time.Second, "OB is Bound", func() bool {
-				var err error
-				liveOb, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveOb.Status.Phase == bktv1alpha1.ObjectBucketStatusPhaseBound
-			})
-			require.True(t, obBound)
+			liveOb := wait4.RequireCondition(ctx, t, obClient, obName, wait4.OBBound, wait4.TimeoutShort)
 
 			// verify that bucketOwner is set on the live ob
 			assert.Equal(t, obc2.Spec.AdditionalConfig["bucketOwner"], liveOb.Spec.Connection.AdditionalState["bucketOwner"])
@@ -568,48 +386,26 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 
 		t.Run(fmt.Sprintf("delete obc %q", obc1.Name), func(t *testing.T) {
 			// lookup ob name
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			obName := liveObc.Spec.ObjectBucketName
 
-			// delete obc
-			err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Delete(ctx, obc1.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
+			// delete obc; the backing ob is garbage-collected by the provisioner
+			wait4.AssertDelete(ctx, t, obcClient, obc1.Name, wait4.TimeoutShort)
 
-			absent := utils.Retry(40, time.Second, "OBC is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc1.Name, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
-
-			absent = utils.Retry(40, time.Second, "OB is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
+			wait4.AssertAbsent(ctx, t, obClient, obName, wait4.TimeoutShort)
 		})
 
 		t.Run(fmt.Sprintf("delete obc %q", obc2.Name), func(t *testing.T) {
 			// lookup ob name
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc2.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc2.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			obName := liveObc.Spec.ObjectBucketName
 
-			// delete obc
-			err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Delete(ctx, obc2.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
+			// delete obc; the backing ob is garbage-collected by the provisioner
+			wait4.AssertDelete(ctx, t, obcClient, obc2.Name, wait4.TimeoutShort)
 
-			absent := utils.Retry(40, time.Second, "OBC is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obc2.Name, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
-
-			absent = utils.Retry(40, time.Second, "OB is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
+			wait4.AssertAbsent(ctx, t, obClient, obName, wait4.TimeoutShort)
 		})
 
 		t.Run(fmt.Sprintf("user %q was not deleted by obc %q", osu1.Name, obc1.Name), func(t *testing.T) {
@@ -629,7 +425,7 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 		// test obc creation with bucketOwner set to a non-existent user, which should fail
 		// "failure" means the obc remains in Pending state
 		t.Run(fmt.Sprintf("create obc %q with non-existent bucketOwner %q", obcBogusOwner.Name, obcBogusOwner.Spec.AdditionalConfig["bucketOwner"]), func(t *testing.T) {
-			_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Create(ctx, &obcBogusOwner, metav1.CreateOptions{})
+			_, err := obcClient.Create(ctx, &obcBogusOwner, metav1.CreateOptions{})
 			require.NoError(t, err)
 		})
 
@@ -637,14 +433,17 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 			selector := labels.SelectorFromSet(labels.Set{
 				"app": "rook-ceph-operator",
 			})
-			text := `error provisioning bucket: unable to get user \"test-bucket-owner-bogus-user\" creds: Ceph object user \"test-bucket-owner-bogus-user\" not found: NoSuchUser`
-
-			err := WaitForPodLogContainingText(k8sh, "object-ns-system", &selector, text, 10*time.Second)
-			require.NoError(t, err)
+			// match on the operator's "unable to get user ... creds" error
+			// mentioning the bogus owner rather than a hardcoded full log line,
+			// so the logger's quote encoding cannot break the match
+			bogusOwner := obcBogusOwner.Spec.AdditionalConfig["bucketOwner"]
+			wait4.RequirePodLog(ctx, t, k8sh, "object-ns-system", selector, wait4.TimeoutShort, func(line string) bool {
+				return strings.Contains(line, "unable to get user") && strings.Contains(line, bogusOwner)
+			})
 		})
 
 		t.Run(fmt.Sprintf("obc %q stays Pending", obcBogusOwner.Name), func(t *testing.T) {
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(obcBogusOwner.Namespace).Get(ctx, obcBogusOwner.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obcBogusOwner.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			assert.True(t, bktv1alpha1.ObjectBucketClaimStatusPhasePending == liveObc.Status.Phase)
@@ -657,57 +456,22 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, insta
 
 		t.Run(fmt.Sprintf("delete obc %q", obcBogusOwner.Name), func(t *testing.T) {
 			// lookup ob name
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obcBogusOwner.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obcBogusOwner.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			obName := liveObc.Spec.ObjectBucketName
 
-			// delete obc
-			err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Delete(ctx, obcBogusOwner.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
+			// delete obc; the backing ob is garbage-collected by the provisioner
+			wait4.AssertDelete(ctx, t, obcClient, obcBogusOwner.Name, wait4.TimeoutShort)
 
-			absent := utils.Retry(40, time.Second, "OBC is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).Get(ctx, obcBogusOwner.Name, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
-
-			absent = utils.Retry(40, time.Second, "OB is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
+			wait4.AssertAbsent(ctx, t, obClient, obName, wait4.TimeoutShort)
 		})
 
 		t.Run(fmt.Sprintf("delete CephObjectStoreUser %q", osu2.Name), func(t *testing.T) {
-			err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Delete(ctx, osu2.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-
-			absent := utils.Retry(40, time.Second, "CephObjectStoreUser is absent", func() bool {
-				_, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu2.Name, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
+			wait4.AssertDelete(ctx, t, osuClient, osu2.Name, wait4.TimeoutShort)
 		})
 
 		t.Run(fmt.Sprintf("delete CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Delete(ctx, osu1.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-
-			absent := utils.Retry(40, time.Second, "CephObjectStoreUser is absent", func() bool {
-				_, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
-		})
-
-		t.Run(fmt.Sprintf("delete sc %q", storageClass.Name), func(t *testing.T) {
-			err := k8sh.Clientset.StorageV1().StorageClasses().Delete(ctx, storageClass.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("delete ns %q", ns.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Namespaces().Delete(ctx, ns.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
+			wait4.AssertDelete(ctx, t, osuClient, osu1.Name, wait4.TimeoutShort)
 		})
 	})
 }

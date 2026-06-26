@@ -20,24 +20,58 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
-	"github.com/coreos/pkg/capnslog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	utiladmin "github.com/rook/rook/tests/integration/object/util/admin"
+	"github.com/rook/rook/tests/integration/object/util/fixture"
+	"github.com/rook/rook/tests/integration/object/util/secrets"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
+	"github.com/rook/rook/tests/integration/object/util/wait4"
 )
 
 // generate the secret name the operator is expected to generate for the CephObjectStoreUser
 func generateObjectStoreUserSecretName(osu cephv1.CephObjectStoreUser) string {
 	return "rook-ceph-object-user-" + osu.Spec.Store + "-" + osu.Name
+}
+
+// awsKeySecret returns a Secret holding an s3 access/secret key pair under the
+// conventional AWS env var names.
+func awsKeySecret(ns, name, accessKey, secretKey string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+		},
+		Data: map[string][]byte{
+			"AWS_ACCESS_KEY_ID":     []byte(accessKey),
+			"AWS_SECRET_ACCESS_KEY": []byte(secretKey),
+		},
+	}
+}
+
+// objectUserKey returns an ObjectUserKey referencing the access/secret key
+// pair stored in the named awsKeySecret secret.
+func objectUserKey(secretName string) cephv1.ObjectUserKey {
+	return cephv1.ObjectUserKey{
+		AccessKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: secretName,
+			},
+			Key: "AWS_ACCESS_KEY_ID",
+		},
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: secretName,
+			},
+			Key: "AWS_SECRET_ACCESS_KEY",
+		},
+	}
 }
 
 // find a UserKeySpec by AccessKey value
@@ -50,71 +84,63 @@ func findUserKeySpec(keys []admin.UserKeySpec, accessKey string) (admin.UserKeyS
 	return admin.UserKeySpec{}, fmt.Errorf("UserKeySpec with AccessKey %q not found", accessKey)
 }
 
-func checkStatusKeys(t *testing.T, k8sh *utils.K8sHelper, osu cephv1.CephObjectStoreUser, expectedSecrets []*corev1.Secret) {
-	t.Run(fmt.Sprintf("cephObjectStoreUser %q has .status.keys set", osu.Name), func(t *testing.T) {
-		ctx := context.TODO()
-
-		liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(osu.Namespace).Get(ctx, osu.Name, metav1.GetOptions{})
-		require.NoError(t, err)
-
-		require.NotNil(t, liveOsu.Status)
-		assert.Len(t, liveOsu.Status.Keys, len(expectedSecrets))
-
-		for _, secret := range expectedSecrets {
-			secretRef, err := func(secretName string, keys []cephv1.SecretReference) (cephv1.SecretReference, error) {
-				for _, secretRef := range keys {
-					if secretRef.Name == secretName {
-						return secretRef, nil
-					}
-				}
-				return cephv1.SecretReference{}, fmt.Errorf("secretReference for secret %q not found in CephObjectStoreUser.status.keys", secret.Name)
-			}(secret.Name, liveOsu.Status.Keys)
-			require.NoError(t, err)
-
-			// fetch the live secret for UID and ResourceVersion
-			liveSecret, err := k8sh.Clientset.CoreV1().Secrets(osu.Namespace).Get(ctx, secret.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-
-			assert.Equal(t, liveSecret.Name, secretRef.Name)
-			assert.Equal(t, liveSecret.Namespace, secretRef.Namespace)
-			assert.Equal(t, liveSecret.UID, secretRef.UID)
-			assert.Equal(t, liveSecret.ResourceVersion, secretRef.ResourceVersion)
-		}
-	})
+func checkStatusKeys(t *testing.T, k8sh *utils.K8sHelper, osu cephv1.CephObjectStoreUser, expected ...*corev1.Secret) {
+	secrets.RequireStatusRefs(t, k8sh,
+		k8sh.RookClientset.CephV1().CephObjectStoreUsers(osu.Namespace), osu.Name,
+		fmt.Sprintf("cephObjectStoreUser %q has .status.keys set", osu.Name),
+		func(u *cephv1.CephObjectStoreUser) []cephv1.SecretReference {
+			if u.Status == nil {
+				return nil
+			}
+			return u.Status.Keys
+		},
+		expected...)
 }
 
-func checkRgwUserKeys(t *testing.T, adminClient *admin.API, osu cephv1.CephObjectStoreUser, expectedSecrets []*corev1.Secret, accessKeyName, secretKeyName string) {
-	t.Run(fmt.Sprintf("rgw user %q has keys set", osu.Name), func(t *testing.T) {
-		ctx := context.TODO()
+// requireRgwUserKeys verifies every expected key on the rgw user — reporting
+// all divergences rather than stopping at the first — and then aborts the
+// caller if any check failed: the steps that follow assume the keys are in
+// sync, so continuing would only cascade noise.
+func requireRgwUserKeys(t *testing.T, adminClient *admin.API, osu cephv1.CephObjectStoreUser, accessKeyName, secretKeyName string, expected ...*corev1.Secret) {
+	t.Helper()
 
-		for _, secret := range expectedSecrets {
-			var keySpec admin.UserKeySpec
+	if !t.Run(fmt.Sprintf("rgw user %q has keys set", osu.Name), func(t *testing.T) {
+		ctx := t.Context()
 
+		for _, secret := range expected {
 			// assume that the .Phase doesn't change when updating keys
-			inSync := utils.Retry(40, time.Second, fmt.Sprintf("CephObjectStoreUser has key in sync with secret %q ", secret.Name), func() bool {
+			wait4.AssertEventually(ctx, t, wait4.TimeoutShort, fmt.Sprintf("rgw user key in sync with secret %q", secret.Name), func(ctx context.Context) error {
 				liveUser, err := adminClient.GetUser(ctx, admin.User{ID: osu.Name})
 				if err != nil {
-					return false
+					return err
 				}
-				keySpec, err = findUserKeySpec(liveUser.Keys, string(secret.Data[accessKeyName]))
-				return err == nil
+				keySpec, err := findUserKeySpec(liveUser.Keys, string(secret.Data[accessKeyName]))
+				if err != nil {
+					return err
+				}
+				if keySpec.SecretKey != string(secret.Data[secretKeyName]) {
+					return fmt.Errorf("secret key for %q not yet in sync", secret.Name)
+				}
+				return nil
 			})
-			require.True(t, inSync)
-
-			assert.Equal(t, string(secret.Data[accessKeyName]), keySpec.AccessKey)
-			assert.Equal(t, string(secret.Data[secretKeyName]), keySpec.SecretKey)
 		}
 
 		// check that no extra keys are present
 		liveUser, err := adminClient.GetUser(ctx, admin.User{ID: osu.Name})
 		require.NoError(t, err)
-		assert.Equal(t, len(expectedSecrets), len(liveUser.Keys))
-	})
+		assert.Equal(t, len(expected), len(liveUser.Keys))
+	}) {
+		t.FailNow()
+	}
 }
 
-func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, objectStore *cephv1.CephObjectStore) {
+const Namespace = "test-userkeys"
+
+func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, store *sharedstore.Sharedstore) {
 	var (
-		defaultName = "test-userkeys"
+		defaultName = Namespace
+		objectStore = store.ObjectStore()
+		adminClient = store.AdminClient()
 
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -122,60 +148,11 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 			},
 		}
 
-		secret1 = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaultName + "-secret1",
-				Namespace: ns.Name,
-			},
-			Data: map[string][]byte{
-				"AWS_ACCESS_KEY_ID":     []byte("P1ANF2BP4K2LPGOR5SBB"),
-				"AWS_SECRET_ACCESS_KEY": []byte("yfCHPhhOed0vJkqZsGEODyJrdKqHD09OMTWCnwjX"),
-			},
-		}
-
-		secret2 = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaultName + "-secret2",
-				Namespace: ns.Name,
-			},
-			Data: map[string][]byte{
-				"AWS_ACCESS_KEY_ID":     []byte("2I6RPUTQFMNCSYEXZ6VM"),
-				"AWS_SECRET_ACCESS_KEY": []byte("uY066SWPfaOVlDeYc7GJyOTfkDejyDdXrqehS6wx"),
-			},
-		}
-
-		secret3 = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaultName + "-secret3",
-				Namespace: ns.Name,
-			},
-			Data: map[string][]byte{
-				"AWS_ACCESS_KEY_ID":     []byte("J4D0P20F3EDR51OSND7Y"),
-				"AWS_SECRET_ACCESS_KEY": []byte("jn89OpkXNoDlIHVVQ23mE2DZgPmuDK3WVH5ExOvQ"),
-			},
-		}
-
-		secret4 = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaultName + "-secret4",
-				Namespace: ns.Name,
-			},
-			Data: map[string][]byte{
-				"AWS_ACCESS_KEY_ID":     []byte("MPZX7DG5WJWQ6VPCSLYT"),
-				"AWS_SECRET_ACCESS_KEY": []byte("phh7DIxnLPeSD2V6FUouhmnWrKlKRD5dBykyXozX"),
-			},
-		}
-
-		secret5 = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaultName + "-secret5",
-				Namespace: ns.Name,
-			},
-			Data: map[string][]byte{
-				"AWS_ACCESS_KEY_ID":     []byte("7TNSSANCO5KXK23IPT91"),
-				"AWS_SECRET_ACCESS_KEY": []byte("HksEDf0hEh3PtTvl7s9x6CyXfkWuY8eAMYAcvH5l"),
-			},
-		}
+		secret1 = awsKeySecret(ns.Name, defaultName+"-secret1", "P1ANF2BP4K2LPGOR5SBB", "yfCHPhhOed0vJkqZsGEODyJrdKqHD09OMTWCnwjX")
+		secret2 = awsKeySecret(ns.Name, defaultName+"-secret2", "2I6RPUTQFMNCSYEXZ6VM", "uY066SWPfaOVlDeYc7GJyOTfkDejyDdXrqehS6wx")
+		secret3 = awsKeySecret(ns.Name, defaultName+"-secret3", "J4D0P20F3EDR51OSND7Y", "jn89OpkXNoDlIHVVQ23mE2DZgPmuDK3WVH5ExOvQ")
+		secret4 = awsKeySecret(ns.Name, defaultName+"-secret4", "MPZX7DG5WJWQ6VPCSLYT", "phh7DIxnLPeSD2V6FUouhmnWrKlKRD5dBykyXozX")
+		secret5 = awsKeySecret(ns.Name, defaultName+"-secret5", "7TNSSANCO5KXK23IPT91", "HksEDf0hEh3PtTvl7s9x6CyXfkWuY8eAMYAcvH5l")
 
 		osu1 = cephv1.CephObjectStoreUser{
 			ObjectMeta: metav1.ObjectMeta{
@@ -186,208 +163,85 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 				Store:            objectStore.Name,
 				ClusterNamespace: objectStore.Namespace,
 				Keys: []cephv1.ObjectUserKey{
-					{
-						AccessKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: secret1.Name,
-							},
-							Key: "AWS_ACCESS_KEY_ID",
-						},
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: secret1.Name,
-							},
-							Key: "AWS_SECRET_ACCESS_KEY",
-						},
-					},
-					{
-						AccessKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: secret2.Name,
-							},
-							Key: "AWS_ACCESS_KEY_ID",
-						},
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: secret2.Name,
-							},
-							Key: "AWS_SECRET_ACCESS_KEY",
-						},
-					},
-					{
-						AccessKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: secret3.Name,
-							},
-							Key: "AWS_ACCESS_KEY_ID",
-						},
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: secret3.Name,
-							},
-							Key: "AWS_SECRET_ACCESS_KEY",
-						},
-					},
+					objectUserKey(secret1.Name),
+					objectUserKey(secret2.Name),
+					objectUserKey(secret3.Name),
 				},
 			},
 		}
+
+		osuClient    = k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name)
+		secretClient = k8sh.Clientset.CoreV1().Secrets(ns.Name)
 	)
 	t.Run("ObjectStoreUser keys", func(t *testing.T) {
-		if tlsEnable {
-			// Skip testing with and without TLS to reduce test time
-			t.Skip("skipping test for TLS enabled clusters")
+		ctx := t.Context()
+
+		fixture.RequireNamespace(t, k8sh, ns)
+
+		for _, secret := range []*corev1.Secret{secret1, secret2, secret3, secret4, secret5} {
+			t.Run(fmt.Sprintf("create secret %q", secret.Name), func(t *testing.T) {
+				_, err := secretClient.Create(ctx, secret, metav1.CreateOptions{})
+				require.NoError(t, err)
+			})
 		}
-
-		var adminClient *admin.API
-		ctx := context.TODO()
-
-		t.Run(fmt.Sprintf("create ns %q", ns.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create secret %q", secret1.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Create(ctx, secret1, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create secret %q", secret2.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Create(ctx, secret2, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create secret %q", secret3.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Create(ctx, secret3, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create secret %q", secret4.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Create(ctx, secret4, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create secret %q", secret5.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Create(ctx, secret5, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
 
 		t.Run(fmt.Sprintf("create CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			_, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Create(ctx, &osu1, metav1.CreateOptions{})
-			require.NoError(t, err)
-
 			// user creation may be slow right after rgw start up
-			osuReady := utils.Retry(120, time.Second, "CephObjectStoreUser is Ready", func() bool {
-				liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				if liveOsu.Status == nil {
-					return false
-				}
-
-				return liveOsu.Status.Phase == string(cephv1.ConditionReady)
-			})
-			require.True(t, osuReady)
+			wait4.RequireCreate(ctx, t, osuClient, &osu1, wait4.ObjectStoreUser, wait4.TimeoutLong)
 		})
 
-		t.Run("setup rgw admin api client", func(t *testing.T) {
-			var err error
-			adminClient, err = utiladmin.NewAdminClient(objectStore, installer, k8sh, tlsEnable)
-			require.NoError(t, err)
-		})
-
-		{
-			secrets := []*corev1.Secret{secret1, secret2, secret3}
-
-			checkRgwUserKeys(t, adminClient, osu1, secrets, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")
-			checkStatusKeys(t, k8sh, osu1, secrets)
-		}
+		requireRgwUserKeys(t, adminClient, osu1, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", secret1, secret2, secret3)
+		checkStatusKeys(t, k8sh, osu1, secret1, secret2, secret3)
 
 		t.Run(fmt.Sprintf("update keys on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
+			liveOsu, err := osuClient.Get(ctx, osu1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			liveOsu.Spec.Keys = []cephv1.ObjectUserKey{
-				{
-					AccessKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret4.Name,
-						},
-						Key: "AWS_ACCESS_KEY_ID",
-					},
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret4.Name,
-						},
-						Key: "AWS_SECRET_ACCESS_KEY",
-					},
-				},
-				{
-					AccessKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret5.Name,
-						},
-						Key: "AWS_ACCESS_KEY_ID",
-					},
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret5.Name,
-						},
-						Key: "AWS_SECRET_ACCESS_KEY",
-					},
-				},
+				objectUserKey(secret4.Name),
+				objectUserKey(secret5.Name),
 			}
 
-			_, err = k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Update(ctx, liveOsu, metav1.UpdateOptions{})
+			_, err = osuClient.Update(ctx, liveOsu, metav1.UpdateOptions{})
 			require.NoError(t, err)
 		})
 
-		{
-			secrets := []*corev1.Secret{secret4, secret5}
-
-			checkRgwUserKeys(t, adminClient, osu1, secrets, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")
-			checkStatusKeys(t, k8sh, osu1, secrets)
-		}
+		requireRgwUserKeys(t, adminClient, osu1, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", secret4, secret5)
+		checkStatusKeys(t, k8sh, osu1, secret4, secret5)
 
 		// test transition from explicit keys -> automatic secret creation
 
 		// when all explicit keys are removed from CephObjectStoreUser, one should
 		// be left in place and the operator should [still] create a k8s secret for it
 		t.Run(fmt.Sprintf("remove all keys set on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
+			liveOsu, err := osuClient.Get(ctx, osu1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			liveOsu.Spec.Keys = nil
 
-			_, err = k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Update(ctx, liveOsu, metav1.UpdateOptions{})
+			_, err = osuClient.Update(ctx, liveOsu, metav1.UpdateOptions{})
 			require.NoError(t, err)
 
-			// wait for the number of keys to drop to 1
-			inSync := utils.Retry(40, time.Second, "CephObjectStoreUser has 1 key", func() bool {
+			wait4.RequireEventually(ctx, t, wait4.TimeoutShort, "rgw user has exactly 1 key", func(ctx context.Context) error {
 				liveUser, err := adminClient.GetUser(ctx, admin.User{ID: osu1.Name})
 				if err != nil {
-					return false
+					return err
 				}
-				return len(liveUser.Keys) == 1
+				if len(liveUser.Keys) != 1 {
+					return fmt.Errorf("rgw user has %d keys, want 1", len(liveUser.Keys))
+				}
+				return nil
 			})
-			require.True(t, inSync)
 		})
 
-		// keys updated on user
-		{
-			// fetch automatic secret as it should be the only key set on the rgw user
-			secretName := generateObjectStoreUserSecretName(osu1)
-			liveSecret, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Get(ctx, secretName, metav1.GetOptions{})
-			require.NoError(t, err)
+		// fetch the automatic secret; it should hold the only key set on the rgw user
+		autoSecret, err := secretClient.Get(ctx, generateObjectStoreUserSecretName(osu1), metav1.GetOptions{})
+		require.NoError(t, err)
 
-			secrets := []*corev1.Secret{liveSecret}
-
-			checkRgwUserKeys(t, adminClient, osu1, secrets, "AccessKey", "SecretKey")
-		}
+		requireRgwUserKeys(t, adminClient, osu1, "AccessKey", "SecretKey", autoSecret)
 
 		t.Run(fmt.Sprintf("cephObjectStoreUser %q .status.keys is unset", osu1.Name), func(t *testing.T) {
-			liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
+			liveOsu, err := osuClient.Get(ctx, osu1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			require.NotNil(t, liveOsu.Status)
@@ -396,96 +250,27 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 
 		// test transition automatic secret creation -> explicit keys
 		t.Run(fmt.Sprintf("add keys to CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
+			liveOsu, err := osuClient.Get(ctx, osu1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			liveOsu.Spec.Keys = []cephv1.ObjectUserKey{
-				{
-					AccessKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret1.Name,
-						},
-						Key: "AWS_ACCESS_KEY_ID",
-					},
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret1.Name,
-						},
-						Key: "AWS_SECRET_ACCESS_KEY",
-					},
-				},
-				{
-					AccessKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret2.Name,
-						},
-						Key: "AWS_ACCESS_KEY_ID",
-					},
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret2.Name,
-						},
-						Key: "AWS_SECRET_ACCESS_KEY",
-					},
-				},
-				{
-					AccessKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret3.Name,
-						},
-						Key: "AWS_ACCESS_KEY_ID",
-					},
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret3.Name,
-						},
-						Key: "AWS_SECRET_ACCESS_KEY",
-					},
-				},
-				{
-					AccessKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret4.Name,
-						},
-						Key: "AWS_ACCESS_KEY_ID",
-					},
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret4.Name,
-						},
-						Key: "AWS_SECRET_ACCESS_KEY",
-					},
-				},
-				{
-					AccessKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret5.Name,
-						},
-						Key: "AWS_ACCESS_KEY_ID",
-					},
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secret5.Name,
-						},
-						Key: "AWS_SECRET_ACCESS_KEY",
-					},
-				},
+				objectUserKey(secret1.Name),
+				objectUserKey(secret2.Name),
+				objectUserKey(secret3.Name),
+				objectUserKey(secret4.Name),
+				objectUserKey(secret5.Name),
 			}
 
-			_, err = k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Update(ctx, liveOsu, metav1.UpdateOptions{})
+			_, err = osuClient.Update(ctx, liveOsu, metav1.UpdateOptions{})
 			require.NoError(t, err)
 		})
 
-		{
-			secrets := []*corev1.Secret{secret1, secret2, secret3, secret4, secret5}
-
-			checkRgwUserKeys(t, adminClient, osu1, secrets, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")
-			checkStatusKeys(t, k8sh, osu1, secrets)
-		}
+		requireRgwUserKeys(t, adminClient, osu1, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", secret1, secret2, secret3, secret4, secret5)
+		checkStatusKeys(t, k8sh, osu1, secret1, secret2, secret3, secret4, secret5)
 
 		// updating a secret already referenced by a CephObjectStoreUser should trigger a reconcile
 		t.Run(fmt.Sprintf("update secret %q data", secret1.Name), func(t *testing.T) {
-			liveSecret, err := k8sh.Clientset.CoreV1().Secrets(secret1.Namespace).Get(ctx, secret1.Name, metav1.GetOptions{})
+			liveSecret, err := secretClient.Get(ctx, secret1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			liveSecret.Data = map[string][]byte{
@@ -493,59 +278,34 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 				"AWS_SECRET_ACCESS_KEY": []byte("bar"),
 			}
 
-			_, err = k8sh.Clientset.CoreV1().Secrets(secret1.Namespace).Update(ctx, liveSecret, metav1.UpdateOptions{})
+			_, err = secretClient.Update(ctx, liveSecret, metav1.UpdateOptions{})
 			require.NoError(t, err)
 		})
 
-		{
-			// fetch secret that we modified
-			liveSecret, err := k8sh.Clientset.CoreV1().Secrets(secret1.Namespace).Get(ctx, secret1.Name, metav1.GetOptions{})
-			require.NoError(t, err)
+		updatedSecret1, err := secretClient.Get(ctx, secret1.Name, metav1.GetOptions{})
+		require.NoError(t, err)
 
-			secrets := []*corev1.Secret{liveSecret, secret2, secret3, secret4, secret5}
-
-			checkRgwUserKeys(t, adminClient, osu1, secrets, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")
-			checkStatusKeys(t, k8sh, osu1, secrets)
-		}
+		requireRgwUserKeys(t, adminClient, osu1, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", updatedSecret1, secret2, secret3, secret4, secret5)
+		checkStatusKeys(t, k8sh, osu1, updatedSecret1, secret2, secret3, secret4, secret5)
 
 		// deleting a secret referenced by a CephObjectStoreUser should trigger a reconcile (which fails)
 		t.Run(fmt.Sprintf("delete secret %q", secret1.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Delete(ctx, secret1.Name, metav1.DeleteOptions{})
+			err := secretClient.Delete(ctx, secret1.Name, metav1.DeleteOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("CephObjectStoreUser %q has phase ReconcileFailed", osu1.Name), func(t *testing.T) {
-			// user creation may be slow right after rgw start up
-			osuReady := utils.Retry(40, time.Second, "CephObjectStoreUser is ReconcileFailed", func() bool {
-				liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				if liveOsu.Status == nil {
-					return false
-				}
-
-				return liveOsu.Status.Phase == string(cephv1.ReconcileFailed)
-			})
-			require.True(t, osuReady)
+			wait4.RequireCondition(ctx, t, osuClient, osu1.Name, wait4.ObjectStoreUserPhase(string(cephv1.ReconcileFailed)), wait4.TimeoutShort)
 		})
 
 		t.Run("missing referenced secret should not block CephObjectStoreUser deletion", func(t *testing.T) {
 			t.Run(fmt.Sprintf("delete CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-				err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Delete(ctx, osu1.Name, metav1.DeleteOptions{})
-				require.NoError(t, err)
-
-				absent := utils.Retry(40, time.Second, "CephObjectStoreUser is absent", func() bool {
-					_, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
-					return err != nil
-				})
-				assert.True(t, absent)
+				wait4.AssertDelete(ctx, t, osuClient, osu1.Name, wait4.TimeoutShort)
 			})
 		})
 
 		t.Run(fmt.Sprintf("no CephObjectStoreUsers in ns %q", ns.Name), func(t *testing.T) {
-			osus, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).List(ctx, metav1.ListOptions{})
+			osus, err := osuClient.List(ctx, metav1.ListOptions{})
 			require.NoError(t, err)
 
 			assert.Len(t, osus.Items, 0)
@@ -558,39 +318,25 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 
 		// check that CephObjectStoreUser removal did not delete any secret resources
 
-		{
-			secrets := []*corev1.Secret{
-				// secret1 was deleted in a previous step
-				secret2,
-				secret3,
-				secret4,
-				secret5,
-			}
+		// secret1 was deleted in a previous step
+		for _, secret := range []*corev1.Secret{secret2, secret3, secret4, secret5} {
+			t.Run(fmt.Sprintf("secret %q still exists", secret.Name), func(t *testing.T) {
+				_, err := secretClient.Get(ctx, secret.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+			})
 
-			for _, secret := range secrets {
-				t.Run(fmt.Sprintf("secret %q still exists", secret.Name), func(t *testing.T) {
-					_, err := k8sh.Clientset.CoreV1().Secrets(secret.Namespace).Get(ctx, secret.Name, metav1.GetOptions{})
-					require.NoError(t, err)
-				})
-
-				// cleanup the secrets created for the test
-				t.Run(fmt.Sprintf("delete secret %q", secret.Name), func(t *testing.T) {
-					err := k8sh.Clientset.CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{})
-					require.NoError(t, err)
-				})
-			}
+			// cleanup the secrets created for the test
+			t.Run(fmt.Sprintf("delete secret %q", secret.Name), func(t *testing.T) {
+				err := secretClient.Delete(ctx, secret.Name, metav1.DeleteOptions{})
+				require.NoError(t, err)
+			})
 		}
 
 		t.Run(fmt.Sprintf("no secrets in ns %q", ns.Name), func(t *testing.T) {
-			secrets, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).List(ctx, metav1.ListOptions{})
+			secrets, err := secretClient.List(ctx, metav1.ListOptions{})
 			require.NoError(t, err)
 
 			assert.Len(t, secrets.Items, 0)
-		})
-
-		t.Run(fmt.Sprintf("delete ns %q", ns.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Namespaces().Delete(ctx, ns.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
 		})
 	})
 }
