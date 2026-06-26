@@ -152,6 +152,11 @@ func (m *CephManifestsPreviousVersion) GetBucketStorageClass(storeName, storageC
 	return m.latest.GetBucketStorageClass(storeName, storageClassName, reclaimPolicy)
 }
 
+// GetBucketStorageClassBrownfield returns the manifest to create a brownfield bucket storage class
+func (m *CephManifestsPreviousVersion) GetBucketStorageClassBrownfield(storeName, storageClassName, reclaimPolicy, bucketName string) string {
+	return m.latest.GetBucketStorageClassBrownfield(storeName, storageClassName, reclaimPolicy, bucketName)
+}
+
 // GetOBC returns the manifest to create object bucket claim
 func (m *CephManifestsPreviousVersion) GetOBC(claimName, storageClassName, objectBucketName, maxObject string, varBucketName bool) string {
 	return m.latest.GetOBC(claimName, storageClassName, objectBucketName, maxObject, varBucketName)
