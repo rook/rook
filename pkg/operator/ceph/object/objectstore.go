@@ -1100,7 +1100,7 @@ func GetObjectBucketProvisioner(namespace string) (string, error) {
 	return provName, nil
 }
 
-// CheckDashboardUser returns true if the dashboard user exists and has the same credentials as the given user, else return false
+// checkDashboardUser returns true if the dashboard user exists and has the same credentials as the given user, else return false
 func checkDashboardUser(context *Context, user ObjectUser) (bool, error) {
 	dUser, errId, err := GetUser(context, DashboardUser)
 

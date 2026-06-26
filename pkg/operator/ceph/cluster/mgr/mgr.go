@@ -569,7 +569,7 @@ func (c *Cluster) EnableServiceMonitor() error {
 	return nil
 }
 
-// ApplyMonitoringLabels function adds the name of the resource that manages
+// applyMonitoringLabels function adds the name of the resource that manages
 // cephcluster, as a label on the ceph metrics
 func applyMonitoringLabels(c *Cluster, serviceMonitor *monitoringv1.ServiceMonitor) {
 	if c.spec.Labels != nil {
