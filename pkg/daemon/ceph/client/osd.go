@@ -266,11 +266,102 @@ func GetOSDDump(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDDump, 
 	}
 
 	var osdDump OSDDump
-	if err := json.Unmarshal(buf, &osdDump); err != nil {
+	if err := json.Unmarshal(sanitizeJSONSpecialFloats(buf), &osdDump); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal osd dump response")
 	}
 
 	return &osdDump, nil
+}
+
+func sanitizeJSONSpecialFloats(buf []byte) []byte {
+	out := make([]byte, 0, len(buf))
+	inString := false
+	escaped := false
+
+	for i := 0; i < len(buf); {
+		b := buf[i]
+
+		if inString {
+			out = append(out, b)
+			if escaped {
+				escaped = false
+			} else if b == '\\' {
+				escaped = true
+			} else if b == '"' {
+				inString = false
+			}
+			i++
+			continue
+		}
+
+		if b == '"' {
+			inString = true
+			out = append(out, b)
+			i++
+			continue
+		}
+
+		replacement, consumed, ok := matchJSONSpecialFloat(buf[i:])
+		if ok && specialFloatIsValueToken(out, buf[i+consumed:]) {
+			out = append(out, replacement...)
+			i += consumed
+			continue
+		}
+
+		out = append(out, b)
+		i++
+	}
+
+	return out
+}
+
+func matchJSONSpecialFloat(buf []byte) ([]byte, int, bool) {
+	switch {
+	case len(buf) >= 4 && string(buf[:4]) == "-inf":
+		return []byte("null"), 4, true
+	case len(buf) >= 3 && string(buf[:3]) == "inf":
+		return []byte("null"), 3, true
+	case len(buf) >= 3 && string(buf[:3]) == "nan":
+		return []byte("null"), 3, true
+	default:
+		return nil, 0, false
+	}
+}
+
+func specialFloatIsValueToken(prefix, suffix []byte) bool {
+	prev := lastNonSpace(prefix)
+	next := firstNonSpace(suffix)
+	if prev == 0 || next == 0 {
+		return false
+	}
+
+	prevOK := prev == ':' || prev == '[' || prev == ','
+	nextOK := next == ',' || next == '}' || next == ']'
+	return prevOK && nextOK
+}
+
+func lastNonSpace(buf []byte) byte {
+	for i := len(buf) - 1; i >= 0; i-- {
+		switch buf[i] {
+		case ' ', '\n', '\r', '\t':
+			continue
+		default:
+			return buf[i]
+		}
+	}
+	return 0
+}
+
+func firstNonSpace(buf []byte) byte {
+	for i := 0; i < len(buf); i++ {
+		switch buf[i] {
+		case ' ', '\n', '\r', '\t':
+			continue
+		default:
+			return buf[i]
+		}
+	}
+	return 0
 }
 
 func OsdSafeToDestroy(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) (bool, error) {
