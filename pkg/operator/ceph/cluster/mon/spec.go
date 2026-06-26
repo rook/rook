@@ -397,6 +397,8 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		container.Args = append(container.Args, config.NewFlag("public-bind-addr", bindaddr))
 	}
 
+	controller.WrapContainerForIPFamily(&container, &c.spec)
+
 	return container
 }
 

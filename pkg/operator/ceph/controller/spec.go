@@ -415,6 +415,56 @@ func ContainerEnvVarReference(envVarName string) string {
 	return fmt.Sprintf("$(%s)", envVarName)
 }
 
+// NeedsIPFamilySelection returns true when the container needs runtime IP selection
+// to pick the correct pod IP matching the configured IP family. This is needed on
+// dualstack Kubernetes clusters where status.podIP might not match the desired family.
+func NeedsIPFamilySelection(network cephv1.NetworkSpec) bool {
+	return network.IPFamily != "" && !network.DualStack && !network.IsHost()
+}
+
+// ipSelectionScript returns a POSIX shell snippet that selects the pod IP
+// matching the given IP family from the comma-separated ROOK_POD_IPS list.
+//
+// Example for IPv6 with ROOK_POD_IPS="10.0.0.1,fd00::1":
+//   - Iterates over each IP, matches *:* (contains colon → IPv6)
+//   - Skips 10.0.0.1, selects fd00::1
+//   - Exports ROOK_POD_IP=fd00::1
+//
+// Example for IPv4 with ROOK_POD_IPS="fd00::1,10.0.0.1":
+//   - Iterates over each IP, matches *.* (contains dot → IPv4)
+//   - Skips fd00::1, selects 10.0.0.1
+//   - Exports ROOK_POD_IP=10.0.0.1
+//
+// If no match is found, ROOK_POD_IP retains its original value from status.podIP.
+func ipSelectionScript(family cephv1.IPFamilyType) string {
+	pattern := "*.*" // IPv4
+	if family == cephv1.IPv6 {
+		pattern = "*:*"
+	}
+	return fmt.Sprintf(`IFS=,; for ip in $ROOK_POD_IPS; do case "$ip" in %s) ROOK_POD_IP="$ip"; break;; esac; done
+unset IFS; export ROOK_POD_IP
+`, pattern)
+}
+
+// WrapContainerForIPFamily wraps a container's command in a shell script that selects
+// the correct pod IP based on the configured IP family before exec-ing the daemon.
+// This is a no-op when IP family selection is not needed.
+func WrapContainerForIPFamily(container *v1.Container, spec *cephv1.ClusterSpec) {
+	if !NeedsIPFamilySelection(spec.Network) {
+		return
+	}
+
+	container.Env = append(container.Env,
+		k8sutil.PodIPsEnvVar("ROOK_POD_IPS"),
+	)
+
+	shellScript := ipSelectionScript(spec.Network.IPFamily) +
+		"exec " + strings.Join(container.Command, " ") + " " + strings.Join(container.Args, " ")
+	shellScript = strings.ReplaceAll(shellScript, "$(ROOK_POD_IP)", "$ROOK_POD_IP")
+	container.Command = []string{"/bin/sh", "-c"}
+	container.Args = []string{shellScript}
+}
+
 // DaemonEnvVars returns the container environment variables used by all Ceph daemons.
 func DaemonEnvVars(cephClusterSpec *cephv1.ClusterSpec) []v1.EnvVar {
 	networkEnv := ApplyNetworkEnv(cephClusterSpec)

@@ -229,6 +229,12 @@ func TestPodSpecPlacement(t *testing.T) {
 	testPodSpecPlacement(t, false, 1, 2, &p)
 }
 
+func TestPodIPsEnvVar(t *testing.T) {
+	env := PodIPsEnvVar("ROOK_POD_IPS")
+	assert.Equal(t, "ROOK_POD_IPS", env.Name)
+	assert.Equal(t, "status.podIPs", env.ValueFrom.FieldRef.FieldPath)
+}
+
 func TestIsMonScheduled(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 1)
