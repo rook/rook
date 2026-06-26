@@ -1,5 +1,13 @@
 {{- $root := . -}}
-{{- range $objectstore := .Values.cephObjectStores }}
+{{- $objectstores := list }}
+{{- if kindIs "map" .Values.cephObjectStores }}
+  {{- if .Values.cephObjectStores.enabled }}
+    {{- $objectstores = .Values.cephObjectStores.objectstores }}
+  {{- end }}
+{{- else }}
+  {{- $objectstores = .Values.cephObjectStores }}
+{{- end }}
+{{- range $objectstore := $objectstores }}
 ---
 kind: CephObjectStore
 apiVersion: ceph.rook.io/v1

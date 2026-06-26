@@ -62,16 +62,22 @@ The following table lists the configurable parameters of the rook-operator chart
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `cephBlockPools` | A list of CephBlockPool configurations to deploy | See [below](#ceph-block-pools) |
+| `cephBlockPools.enabled` | Whether to create CephBlockPools | `true` |
+| `cephBlockPools.pools` | List of CephBlockPool configurations | See [below](#ceph-block-pools) |
 | `cephBlockPoolsVolumeSnapshotClass` | Settings for the block pool snapshot class | See [RBD Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#rbd-snapshots) |
 | `cephClusterMetadata.annotations` |  | `{}` |
 | `cephClusterMetadata.labels` |  | `{}` |
 | `cephClusterSpec` | Cluster configuration. | See [below](#ceph-cluster-spec) |
 | `cephFileSystemVolumeSnapshotClass` | Settings for the filesystem snapshot class | See [CephFS Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#cephfs-snapshots) |
 | `cephFileSystems` | A list of CephFileSystem configurations to deploy | See [below](#ceph-file-systems) |
+| `cephFileSystems.enabled` | Whether to create CephFileSystems | `true` |
+| `cephFileSystems.filesystems` | List of CephFileSystem configurations | See [below](#ceph-file-systems) |
 | `cephImage.allowUnsupported` |  | `false` |
 | `cephImage.repository` |  | `"quay.io/ceph/ceph"` |
 | `cephImage.tag` |  | `"v20.2.2"` |
 | `cephObjectStores` | A list of CephObjectStore configurations to deploy | See [below](#ceph-object-stores) |
+| `cephObjectStores.enabled` | Whether to create CephObjectStores | `true` |
+| `cephObjectStores.objectstores` | List of CephObjectStore configurations | See [below](#ceph-object-stores) |
 | `clusterName` | The metadata.name of the CephCluster CR | The same as the namespace |
 | `configOverride` | Cluster ceph.conf override | `nil` |
 | `csiDriverNamePrefix` | CSI driver name prefix for cephfs, rbd and nfs. | `namespace name where rook-ceph operator is deployed` |
