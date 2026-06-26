@@ -73,10 +73,25 @@ jobs:
           npm install -g markdown-link-check
           set -e
           EXIT_CODE=0
+          FAILED_FILES=()
           while IFS= read -r -d '' file; do
             echo "Checking $file"
             if ! markdown-link-check "$file" --config mlc_config.json -v; then
               EXIT_CODE=1
+              FAILED_FILES+=("$file")
             fi
           done < <(find Documentation -name '*.md' -print0)
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "================================"
+            echo "❌ BROKEN LINKS DETECTED"
+            echo "================================"
+            echo "The following files contain broken links:"
+            for file in "${FAILED_FILES[@]}"; do
+              echo "  - $file"
+            done
+            echo "================================"
+          fi
+          
           exit $EXIT_CODE
