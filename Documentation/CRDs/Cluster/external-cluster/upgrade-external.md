@@ -33,7 +33,7 @@ To re-run the import steps with new options, the python script should be re-run 
 
 Starting with Rook v1.15, the script stores the configuration in the external-cluster-user-command configmap for easy future reference.
 
-* arg: Exact arguments that were used for for processing the script.
+* arg: Exact arguments that were used for processing the script.
 Argument that are decided using the Priority: command-line-args has more priority than config.ini file values, and config.ini file values have more priority than default values.
 
 ### Example `external-cluster-user-command` ConfigMap:

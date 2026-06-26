@@ -73,7 +73,7 @@ This allows the NFS-Ganesha server cluster to be scalable and highly available.
              will mount the file into the SSSD sidecar.
           2. The file mode must be 0600.
         - Users only need one SSSD conf Volume per CephNFS that has this option path enabled.
-      - Users must be able to provide additional files that are referenced in the the SSSD config file
+      - Users must be able to provide additional files that are referenced in the SSSD config file
 
 #### Example
 Below is an example NFS-Ganesha CRD, `nfs-ganesha.yaml`
@@ -282,7 +282,7 @@ NFS_KRB5
 }
 ```
 
-Add the following line to to the config object (`conf-nfs.${nfs-name}`) to reference the new
+Add the following line to the config object (`conf-nfs.${nfs-name}`) to reference the new
 `kerberos` RADOS object. Remove this line from the config object if Kerberos is disabled.
 ```
 %url "rados://.nfs/${nfs-name}/kerberos"

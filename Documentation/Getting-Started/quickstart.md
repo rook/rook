@@ -22,7 +22,7 @@ Architectures released are `amd64 / x86_64` and `arm64`.
 
 To check if a Kubernetes cluster is ready for `Rook`, see the [prerequisites](Prerequisites/prerequisites.md).
 
-To configure the Ceph storage cluster, at least one of these local storage options are required:
+To configure the Ceph storage cluster, at least one of these local storage options is required:
 
 * Raw devices (no partitions or formatted filesystem)
 * Raw partitions (no formatted filesystem)
