@@ -336,7 +336,7 @@ func (c *Cluster) startMons(targetCount int) error {
 	return nil
 }
 
-// isFloatingMon returns true if the given mon name is the floating mon defined
+// IsFloatingMon returns true if the given mon name is the floating mon defined
 // in the CephCluster spec.
 func IsFloatingMon(c *Cluster, name string) bool {
 	return c.spec.Mon.FloatingMon.Name != "" && name == c.spec.Mon.FloatingMon.Name
