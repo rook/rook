@@ -47,7 +47,7 @@ func (n *NotificationOperation) UpdateNotification(notificationName string, topi
 	return n.k8sh.ResourceOperation("apply", n.manifests.GetBucketNotification(notificationName, topicName))
 }
 
-// CheckNotification if notification was set
+// CheckNotificationCR if notification was set
 func (t *NotificationOperation) CheckNotificationCR(notificationName string) bool {
 	// TODO: return result based on reconcile status of the CR
 	const resourceName = "cephbucketnotification"

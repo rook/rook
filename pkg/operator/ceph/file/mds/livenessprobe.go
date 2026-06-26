@@ -55,7 +55,7 @@ func renderProbe(mdsLivenessProbeConfigValue mdsLivenessProbeConfig) (string, er
 	return writer.String(), nil
 }
 
-// GenerateMDSLivenessProbeExecDaemon generates a liveness probe that makes sure mds daemon is present in fs map,
+// generateMDSLivenessProbeExecDaemon generates a liveness probe that makes sure mds daemon is present in fs map,
 // that it can be called, and that it returns 0
 func generateMDSLivenessProbeExecDaemon(daemonID, filesystemName, keyring string) *v1.Probe {
 	mdsLivenessProbeConfigValue := mdsLivenessProbeConfig{

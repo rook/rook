@@ -1637,7 +1637,7 @@ type CephFilesystemStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
-// FilesystemMirroringInfo is the status of the pool mirroring
+// FilesystemMirroringInfoSpec is the status of the pool mirroring
 type FilesystemMirroringInfoSpec struct {
 	// PoolMirroringStatus is the mirroring status of a filesystem
 	// +nullable
@@ -1718,7 +1718,7 @@ type FilesystemSnapshotScheduleStatusRetention struct {
 	Active bool `json:"active,omitempty"`
 }
 
-// FilesystemMirrorInfoSpec is the filesystem mirror status of a given filesystem
+// FilesystemMirroringInfo is the filesystem mirror status of a given filesystem
 type FilesystemMirroringInfo struct {
 	// DaemonID is the cephfs-mirror name
 	// +optional
@@ -2811,7 +2811,7 @@ type CephBucketNotificationList struct {
 	Items           []CephBucketNotification `json:"items"`
 }
 
-// BucketNotificationSpec represent the event type of the bucket notification
+// BucketNotificationEvent represent the event type of the bucket notification
 // See: https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types
 // +kubebuilder:validation:Enum="s3:ObjectCreated:*";"s3:ObjectCreated:Put";"s3:ObjectCreated:Post";"s3:ObjectCreated:Copy";"s3:ObjectCreated:CompleteMultipartUpload";"s3:ObjectRemoved:*";"s3:ObjectRemoved:Delete";"s3:ObjectRemoved:DeleteMarkerCreated";"s3:ObjectLifecycle:Expiration:Current";"s3:ObjectLifecycle:Expiration:NonCurrent";"s3:ObjectLifecycle:Expiration:DeleteMarker";"s3:ObjectLifecycle:Expiration:AbortMultipartUpload";"s3:ObjectLifecycle:Transition:Current";"s3:ObjectLifecycle:Transition:NonCurrent";"s3:LifecycleExpiration:*";"s3:LifecycleExpiration:Delete";"s3:LifecycleExpiration:DeleteMarkerCreated";"s3:LifecycleTransition";"s3:ObjectSynced:*";"s3:ObjectSynced:Create";"s3:ObjectSynced:Delete";"s3:ObjectSynced:DeletionMarkerCreated";"s3:Replication:*";"s3:Replication:Create";"s3:Replication:Delete";"s3:Replication:DeletionMarkerCreated";"s3:ObjectRestore:*";"s3:ObjectRestore:Post";"s3:ObjectRestore:Completed";"s3:ObjectRestore:Delete"
 type BucketNotificationEvent string
@@ -3475,7 +3475,7 @@ type ClientSpec struct {
 	Security ClientSecuritySpec `json:"security,omitempty"`
 }
 
-// ClinetSecuritySpec represents security settings for a Ceph Client
+// ClientSecuritySpec represents security settings for a Ceph Client
 type ClientSecuritySpec struct {
 	// CephX configures CephX key settings. More: https://docs.ceph.com/en/latest/dev/cephx/
 	// +optional
@@ -3932,7 +3932,7 @@ type CephFilesystemSubVolumeGroup struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// CephFilesystemSubVolumeGroup represents a list of Ceph Clients
+// CephFilesystemSubVolumeGroupList represents a list of Ceph filesystem subvolume groups
 type CephFilesystemSubVolumeGroupList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
