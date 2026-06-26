@@ -28,10 +28,6 @@ import (
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/tests/framework/installer"
-	"github.com/rook/rook/tests/framework/utils"
-	utiladmin "github.com/rook/rook/tests/integration/object/util/admin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +35,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/tests/framework/installer"
+	"github.com/rook/rook/tests/framework/utils"
+	utiladmin "github.com/rook/rook/tests/integration/object/util/admin"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 )
 
 func WaitForPodLogContainingText(k8sh *utils.K8sHelper, namespace string, selector *labels.Selector, text string, timeout time.Duration) error {
@@ -87,9 +89,10 @@ func WaitForPodLogContainingText(k8sh *utils.K8sHelper, namespace string, select
 	return nil
 }
 
-func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, objectStore *cephv1.CephObjectStore) {
+func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, store *sharedstore.Sharedstore) {
 	var (
 		defaultName = "test-bucketowner"
+		objectStore = store.ObjectStore()
 
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{

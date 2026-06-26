@@ -36,6 +36,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 	utilsns "github.com/rook/rook/tests/integration/object/util/sns"
 )
 
@@ -130,9 +131,10 @@ func cephBucketTopicReady(t *testing.T, k8sh *utils.K8sHelper, bt *cephv1.CephBu
 	return liveBt
 }
 
-func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, objectStore *cephv1.CephObjectStore) {
+func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, store *sharedstore.Sharedstore) {
 	var (
 		defaultName = "test-topickafka"
+		objectStore = store.ObjectStore()
 
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{

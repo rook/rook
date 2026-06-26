@@ -211,11 +211,9 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 
 	// The namespaced test packages below all skip when TLS is enabled, so only set up the
 	// shared store when it will actually be used.
-	var sharedObjectStore *cephv1.CephObjectStore
 	if !tlsEnable {
-		var teardownSharedStore func()
-		sharedObjectStore, teardownSharedStore = sharedstore.Setup(s.T(), k8sh)
-		defer teardownSharedStore()
+		sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer)
+		defer sharedObjectStore.Destroy()
 
 		bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
 		userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
