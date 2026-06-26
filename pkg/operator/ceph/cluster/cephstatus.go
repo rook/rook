@@ -30,7 +30,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -153,13 +152,42 @@ func (c *cephStatusChecker) configureHealthSettings(status cephclient.CephStatus
 		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "Health: %q, code: %q, message: %q", check.Severity, healthCode, check.Summary.Message)
 	}
 
+	clusterName := c.clusterInfo.NamespacedName()
+	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(clusterName.Namespace).Get(c.clusterInfo.Context, clusterName.Name, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			log.NamespacedDebug(c.clusterInfo.Namespace, logger, "CephCluster resource not found. Ignoring since object must be deleted.")
+			return
+		}
+		log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to retrieve ceph cluster %q to reconcile health warning mutes: %v", clusterName.Name, err)
+		return
+	}
+
+	muteHealthWarnings := make(map[string]string, len(cephCluster.Spec.HealthCheck.MuteHealthWarning))
+	for warning, spec := range cephCluster.Spec.HealthCheck.MuteHealthWarning {
+		muteHealthWarnings[warning] = spec.Policy
+	}
+
 	// disable the insecure global id if there are no old clients
 	if _, ok := status.Health.Checks["AUTH_INSECURE_GLOBAL_ID_RECLAIM_ALLOWED"]; ok {
 		if _, ok := status.Health.Checks["AUTH_INSECURE_GLOBAL_ID_RECLAIM"]; !ok {
-			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "Disabling the insecure global ID as no legacy clients are currently connected. If you still require the insecure connections, see the CVE to suppress the health warning and re-enable the insecure connections. https://docs.ceph.com/en/latest/security/CVE-2021-20288/")
-			config.DisableInsecureGlobalID(c.context, c.clusterInfo)
+			policy, userConfigured := muteHealthWarnings["AUTH_INSECURE_GLOBAL_ID_RECLAIM"]
+			if userConfigured && policy == "unmute" {
+				log.NamespacedDebug(c.clusterInfo.Namespace, logger, "not muting AUTH_INSECURE_GLOBAL_ID_RECLAIM because user has overridden it in healthCheck.muteHealthWarning configs")
+			} else {
+				log.NamespacedDebug(c.clusterInfo.Namespace, logger, "Disabling the insecure global ID as no legacy clients are currently connected. If you still require the insecure connections, see the CVE to suppress the health warning and re-enable the insecure connections. https://docs.ceph.com/en/latest/security/CVE-2021-20288/")
+				muteHealthWarnings["AUTH_INSECURE_GLOBAL_ID_RECLAIM"] = "mute"
+			}
 		} else {
 			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "insecure clients are connected to the cluster, to resolve the AUTH_INSECURE_GLOBAL_ID_RECLAIM health warning please refer to the upgrade guide to ensure all Ceph daemons are updated.")
+		}
+	}
+
+	for warning, value := range muteHealthWarnings {
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "configuring health warning mute %q=%q", warning, string(value))
+		err := cephclient.MuteHealthWarning(c.context, c.clusterInfo, warning, string(value))
+		if err != nil {
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to configure health warning mute %q=%q: %v", warning, string(value), err)
 		}
 	}
 }

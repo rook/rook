@@ -536,8 +536,11 @@ func (c *cluster) postMonStartupActions() error {
 	// Mute the MON_NETSPLIT health warning in stretch clusters since ceph raises it incorrectly.
 	// This can be removed once ceph fixes the health warning: https://tracker.ceph.com/issues/71344
 	if c.Spec.IsStretchCluster() {
-		logger.Debugf("stretch cluster detected, muting MON_NETSPLIT health warning")
-		client.MuteHealthWarning(c.context, c.ClusterInfo, "MON_NETSPLIT")
+		log.NamespacedDebug(c.Namespace, logger, "stretch cluster detected, muting MON_NETSPLIT health warning")
+		err := client.MuteHealthWarning(c.context, c.ClusterInfo, "MON_NETSPLIT", "mute")
+		if err != nil {
+			log.NamespacedError(c.Namespace, logger, "failed to mute MON_NETSPLIT health warning: %v", err)
+		}
 	}
 
 	crushRoot := client.GetCrushRootFromSpec(c.Spec)
