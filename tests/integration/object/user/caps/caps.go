@@ -20,10 +20,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
-	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,14 +29,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	utiladmin "github.com/rook/rook/tests/integration/object/util/admin"
+	"github.com/rook/rook/tests/integration/object/util/fixture"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
+	"github.com/rook/rook/tests/integration/object/util/wait4"
 )
 
-func TestObjectStoreUserCaps(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, objectStore *cephv1.CephObjectStore) {
+const Namespace = "test-usercaps"
+
+func TestObjectStoreUserCaps(t *testing.T, k8sh *utils.K8sHelper, store *sharedstore.Sharedstore) {
 	var (
-		defaultName = "test-usercaps"
+		defaultName = Namespace
+		objectStore = store.ObjectStore()
+		adminClient = store.AdminClient()
 
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -56,47 +59,18 @@ func TestObjectStoreUserCaps(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 				ClusterNamespace: objectStore.Namespace,
 			},
 		}
+
+		osuClient = k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name)
 	)
 
 	t.Run("ObjectStoreUser caps", func(t *testing.T) {
-		if tlsEnable {
-			// Skip testing with and without TLS to reduce test time
-			t.Skip("skipping test for TLS enabled clusters")
-		}
+		ctx := t.Context()
 
-		var adminClient *admin.API
-		ctx := context.TODO()
-
-		t.Run(fmt.Sprintf("create ns %q", ns.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
+		fixture.RequireNamespace(t, k8sh, ns)
 
 		t.Run(fmt.Sprintf("create CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			_, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Create(ctx, &osu1, metav1.CreateOptions{})
-			require.NoError(t, err)
-
 			// user creation may be slow right after rgw start up
-			osuReady := utils.Retry(120, time.Second, "CephObjectStoreUser is Ready", func() bool {
-				liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				if liveOsu.Status == nil {
-					return false
-				}
-
-				return liveOsu.Status.Phase == string(cephv1.ConditionReady)
-			})
-			require.True(t, osuReady)
-		})
-
-		// wait for cosu user to be ready so we know rgw admin api is ready
-		t.Run("setup rgw admin api client", func(t *testing.T) {
-			var err error
-			adminClient, err = utiladmin.NewAdminClient(objectStore, installer, k8sh, tlsEnable)
-			require.NoError(t, err)
+			wait4.RequireCreate(ctx, t, osuClient, &osu1, wait4.ObjectStoreUser, wait4.TimeoutLong)
 		})
 
 		t.Run(fmt.Sprintf("verify caps on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
@@ -106,7 +80,7 @@ func TestObjectStoreUserCaps(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 		})
 
 		t.Run(fmt.Sprintf("update caps on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
+			liveOsu, err := osuClient.Get(ctx, osu1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			liveOsu.Spec.Capabilities = &cephv1.ObjectUserCapSpec{
@@ -114,18 +88,18 @@ func TestObjectStoreUserCaps(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 				Usage:   "read",
 			}
 
-			_, err = k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Update(ctx, liveOsu, metav1.UpdateOptions{})
+			_, err = osuClient.Update(ctx, liveOsu, metav1.UpdateOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("verify caps on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			converged := utils.Retry(30, time.Second, "caps updated", func() bool {
+			wait4.AssertEventually(ctx, t, wait4.TimeoutShort, "rgw user caps match spec", func(ctx context.Context) error {
 				liveUser, err := adminClient.GetUser(ctx, admin.User{ID: osu1.Name})
 				if err != nil {
-					return false
+					return err
 				}
 
-				return cmp.Equal(liveUser.Caps, []admin.UserCapSpec{
+				if !cmp.Equal(liveUser.Caps, []admin.UserCapSpec{
 					{
 						Type: "buckets",
 						Perm: "*",
@@ -134,56 +108,46 @@ func TestObjectStoreUserCaps(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 						Type: "usage",
 						Perm: "read",
 					},
-				})
+				}) {
+					return fmt.Errorf("caps not yet in sync: %+v", liveUser.Caps)
+				}
+				return nil
 			})
-
-			assert.True(t, converged)
 		})
 
 		t.Run(fmt.Sprintf("remove caps on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
+			liveOsu, err := osuClient.Get(ctx, osu1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			liveOsu.Spec.Capabilities = nil
 
-			_, err = k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Update(ctx, liveOsu, metav1.UpdateOptions{})
+			_, err = osuClient.Update(ctx, liveOsu, metav1.UpdateOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("verify caps on CephObjectStoreUser %q returns to default", osu1.Name), func(t *testing.T) {
-			converged := utils.Retry(30, time.Second, "caps updated", func() bool {
+			wait4.AssertEventually(ctx, t, wait4.TimeoutShort, "rgw user caps are empty", func(ctx context.Context) error {
 				liveUser, err := adminClient.GetUser(ctx, admin.User{ID: osu1.Name})
 				if err != nil {
-					return false
+					return err
 				}
 
-				return len(liveUser.Caps) == 0
+				if len(liveUser.Caps) != 0 {
+					return fmt.Errorf("caps not yet empty: %+v", liveUser.Caps)
+				}
+				return nil
 			})
-
-			assert.True(t, converged)
 		})
 
 		t.Run(fmt.Sprintf("delete CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Delete(ctx, osu1.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-
-			absent := utils.Retry(40, time.Second, "CephObjectStoreUser is absent", func() bool {
-				_, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
+			wait4.AssertDelete(ctx, t, osuClient, osu1.Name, wait4.TimeoutShort)
 		})
 
 		t.Run(fmt.Sprintf("no CephObjectStoreUsers in ns %q", ns.Name), func(t *testing.T) {
-			osus, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).List(ctx, metav1.ListOptions{})
+			osus, err := osuClient.List(ctx, metav1.ListOptions{})
 			require.NoError(t, err)
 
 			assert.Len(t, osus.Items, 0)
-		})
-
-		t.Run(fmt.Sprintf("delete ns %q", ns.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Namespaces().Delete(ctx, ns.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
 		})
 	})
 }
