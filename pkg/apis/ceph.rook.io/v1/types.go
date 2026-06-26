@@ -825,7 +825,7 @@ type ClusterCephxStatus struct {
 	Mon CephxStatus `json:"mon,omitempty"`
 	// Mgr represents the cephx key rotation status of the ceph manager daemon
 	Mgr CephxStatus `json:"mgr,omitempty"`
-	// OSD shows the CephX key status of of OSDs
+	// OSD shows the CephX key status of OSDs
 	OSD CephxStatus `json:"osd,omitempty"`
 	// CSI shows the CephX key status for Ceph-CSI components.
 	CSI CephxStatusWithKeyCount `json:"csi,omitempty"`
