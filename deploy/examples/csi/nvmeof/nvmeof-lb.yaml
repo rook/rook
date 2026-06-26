@@ -1,0 +1,16 @@
+# LoadBalancer service to expose NVMe-oF gateway to external clients
+# Exposes the I/O port (4420)
+apiVersion: v1
+kind: Service
+metadata:
+  name: nvmeof-lb
+  namespace: rook-ceph # namespace:cluster
+spec:
+  type: LoadBalancer
+  selector:
+    app: rook-ceph-nvmeof
+    ceph_daemon_id: nvmeof-a
+  ports:
+    - name: io
+      port: 4420
+      targetPort: 4420
