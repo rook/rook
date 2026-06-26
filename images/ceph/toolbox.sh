@@ -14,73 +14,132 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-CEPH_CONFIG="/etc/ceph/ceph.conf"
-MON_CONFIG="/etc/rook/mon-endpoints"
-KEYRING_FILE="/etc/ceph/keyring"
-CONFIG_OVERRIDE="/etc/rook-config-override/config"
+# inputs
+ENDPOINT_MOUNT="/etc/rook/mon-endpoints"
+KEYRING_MOUNT="/var/lib/rook-ceph-mon/secret.keyring"
+CONFIG_OVERRIDE_MOUNT="/etc/rook-config-override/config"
 
-# create a ceph config file in its default location so ceph/rados tools can be used
+# outputs
+CEPH_CONFIG="/etc/ceph/ceph.conf"
+KEYRING_FILE="/etc/ceph/keyring"
+
+config_override_exists() {
+  [ -f "${CONFIG_OVERRIDE_MOUNT}" ] && [ -s "${CONFIG_OVERRIDE_MOUNT}" ]
+}
+
+# create/update the ceph keyring file
+write_keyring() {
+  DATE=$(date)
+
+  # read the secret from an env var (for backward compatibility), or from the secret file
+  ceph_secret=${ROOK_CEPH_SECRET}
+  if [[ "$ceph_secret" == "" ]]; then
+    ceph_secret=$(cat ${KEYRING_MOUNT})
+  fi
+
+  echo "$DATE writing keyring to ${KEYRING_FILE}"
+  cat <<EOF > ${KEYRING_FILE}
+[${ROOK_CEPH_USERNAME}]
+key = ${ceph_secret}
+EOF
+
+} # write_keyring()
+
+# create/update the ceph config file in its default location so ceph/rados tools can be used
 # without specifying any arguments
-write_endpoints() {
-  endpoints=$(cat ${MON_CONFIG})
+write_conf() {
+  DATE=$(date)
 
   # filter out the mon names
   # external cluster can have numbers or hyphens in mon names, handling them in regex
   # shellcheck disable=SC2001
-  mon_endpoints=$(echo "${endpoints}"| sed 's/[a-z0-9_-]\+=//g')
+  mon_endpoints=$(cat ${ENDPOINT_MOUNT}| sed 's/[a-z0-9_-]\+=//g')
 
-  DATE=$(date)
-  echo "$DATE writing mon endpoints to ${CEPH_CONFIG}: ${endpoints}"
-    cat <<EOF > ${CEPH_CONFIG}
+  config_override=""
+  if config_override_exists; then
+    echo "$DATE merging config override from ${CONFIG_OVERRIDE_MOUNT}"
+    config_override=$(cat "${CONFIG_OVERRIDE_MOUNT}")
+  fi
+
+  echo "$DATE writing mon endpoints to ${CEPH_CONFIG}: ${mon_endpoints}"
+  cat << EOF > ${CEPH_CONFIG}
 [global]
 mon_host = ${mon_endpoints}
 
 [client.admin]
 keyring = ${KEYRING_FILE}
+
+${config_override}
 EOF
 
-  # Merge the config override if it exists and is not empty
-  if [ -f "${CONFIG_OVERRIDE}" ] && [ -s "${CONFIG_OVERRIDE}" ]; then
-    echo "$DATE merging config override from ${CONFIG_OVERRIDE}"
-    echo "" >> ${CEPH_CONFIG}
-    cat ${CONFIG_OVERRIDE} >> ${CEPH_CONFIG}
+} # write_conf()
+
+# watch the ceph config directory and update if the mon endpoints or keyring change
+watch_etc_ceph() {
+  # get the timestamp for the targets of the soft links
+  keyring_mount_path=$(realpath "${KEYRING_MOUNT}")
+  keyring_init_time=$(stat -c %Z "${keyring_mount_path}")
+
+  endpoint_mount_path=$(realpath "${ENDPOINT_MOUNT}")
+  endpoint_init_time=$(stat -c %Z "${endpoint_mount_path}")
+
+  override_mount_path=""
+  override_init_time=""
+  if config_override_exists; then
+    override_mount_path=$(realpath "${CONFIG_OVERRIDE_MOUNT}")
+    override_init_time=$(stat -c %Z "${override_mount_path}")
   fi
-}
 
-# watch the endpoints config file and update if the mon endpoints ever change
-watch_endpoints() {
-  # get the timestamp for the target of the soft link
-  real_path=$(realpath ${MON_CONFIG})
-  initial_time=$(stat -c %Z "${real_path}")
   while true; do
-    real_path=$(realpath ${MON_CONFIG})
-    latest_time=$(stat -c %Z "${real_path}")
+    sleep 10
+    DATE=$(date)
 
-    if [[ "${latest_time}" != "${initial_time}" ]]; then
-      write_endpoints
-      initial_time=${latest_time}
+    # keyring file
+    keyring_mount_path=$(realpath "${KEYRING_MOUNT}")
+    keyring_latest_time="$(stat -c %Z "${keyring_mount_path}")"
+
+    if [ "${keyring_latest_time}" != "${keyring_init_time}" ]; then
+      echo "$DATE keyring changed"
+      write_keyring
+      keyring_init_time="${keyring_latest_time}"
     fi
 
-    sleep 10
+    # ceph.conf file / config override
+    endpoint_mount_path=$(realpath "${ENDPOINT_MOUNT}")
+    endpoint_latest_time=$(stat -c %Z "${endpoint_mount_path}")
+
+    override_mount_path=""
+    override_latest_time=""
+    if config_override_exists; then
+      override_mount_path=$(realpath "${CONFIG_OVERRIDE_MOUNT}")
+      override_latest_time=$(stat -c %Z "${override_mount_path}")
+    fi
+
+    need_conf_update=false
+
+    if [ "${endpoint_latest_time}" != "${endpoint_init_time}" ]; then
+      echo "$DATE mon endpoints changed"
+      need_conf_update=true
+    fi
+
+    if [ "${override_latest_time}" != "${override_init_time}" ]; then
+      echo "$DATE config override changed"
+      need_conf_update=true
+    fi
+
+    if $need_conf_update; then
+      write_conf
+      endpoint_init_time="${endpoint_latest_time}"
+      override_init_time="${override_latest_time}"
+    fi
   done
 }
 
-# read the secret from an env var (for backward compatibility), or from the secret file
-ceph_secret=${ROOK_CEPH_SECRET}
-if [[ "$ceph_secret" == "" ]]; then
-  ceph_secret=$(cat /var/lib/rook-ceph-mon/secret.keyring)
-fi
+# write the initial config files
+write_keyring
+write_conf
 
-# create the keyring file
-cat <<EOF > ${KEYRING_FILE}
-[${ROOK_CEPH_USERNAME}]
-key = ${ceph_secret}
-EOF
-
-# write the initial config file
-write_endpoints
-
-# continuously update the mon endpoints if they fail over
+# continuously update the config files for mon failover and/or cephx key rotation
 if [ "$1" != "--skip-watch" ]; then
-  watch_endpoints
+  watch_etc_ceph
 fi
