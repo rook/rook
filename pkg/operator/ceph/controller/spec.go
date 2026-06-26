@@ -909,9 +909,8 @@ func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec ceph
 		return nil
 	}
 
-	// Get active mgr
-	var activeMgrAddr string
 	// We use mgr dump and not stat because we want the IP address
+	var activeMgrAddr string
 	mgrMap, err := client.CephMgrMap(ctx, clusterInfo)
 	if err != nil {
 		logger.Errorf("failed to get mgr map. %v", err)
@@ -920,11 +919,46 @@ func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec ceph
 	}
 	logger.Debugf("active mgr addr %q", activeMgrAddr)
 
-	// If the active manager is different than the one in the spec we override it
-	// This happens when a standby manager becomes active
-	if activeMgrAddr != monitoringSpec.ExternalMgrEndpoints[0].IP {
-		monitoringSpec.ExternalMgrEndpoints[0].IP = activeMgrAddr
+	activeMgrIndex := -1
+	if activeMgrAddr != "" {
+		for i, ep := range monitoringSpec.ExternalMgrEndpoints {
+			if ep.IP == activeMgrAddr {
+				activeMgrIndex = i
+				break
+			}
+		}
 	}
+
+	// Build a deduplicated endpoint list with the active MGR at position [0].
+	// Allocate a new slice to avoid mutating the caller's backing array.
+	deduped := make([]v1.EndpointAddress, 0, len(monitoringSpec.ExternalMgrEndpoints))
+	seen := sets.New[string]()
+
+	// activeMgrIsNew means the active MGR IP is known but not in the current list
+	activeMgrIsNew := activeMgrAddr != "" && activeMgrIndex < 0
+
+	if activeMgrIndex >= 0 {
+		deduped = append(deduped, monitoringSpec.ExternalMgrEndpoints[activeMgrIndex])
+		seen.Insert(activeMgrAddr)
+	} else if activeMgrIsNew {
+		deduped = append(deduped, v1.EndpointAddress{IP: activeMgrAddr})
+		seen.Insert(activeMgrAddr)
+	}
+
+	// Append remaining unique endpoints, skipping the active mgr and old [0] if it was replaced.
+	for i, ep := range monitoringSpec.ExternalMgrEndpoints {
+		if i == activeMgrIndex {
+			continue
+		}
+		if activeMgrIsNew && i == 0 {
+			continue
+		}
+		if !seen.Has(ep.IP) {
+			seen.Insert(ep.IP)
+			deduped = append(deduped, ep)
+		}
+	}
+	monitoringSpec.ExternalMgrEndpoints = deduped
 
 	// Create external monitoring Endpoints
 	endpoint, err := createExternalMetricsEndpoints(clusterInfo.Namespace, monitoringSpec, ownerInfo)
