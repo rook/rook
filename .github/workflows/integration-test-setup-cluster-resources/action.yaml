@@ -22,39 +22,41 @@ runs:
       with:
         go-version: "1.26"
 
-    - name: Install cri-dockerd
+    # 1 control-plane + 3 workers, each worker bind-mounting one empty disk so the integration
+    # framework's useAllNodes+useAllDevices yields exactly one OSD per worker (none on the
+    # control-plane). The config is generated at runtime because the per-worker disk device names
+    # are not known ahead of time.
+    - name: provision worker disks and generate kind config
       shell: bash --noprofile --norc -eo pipefail -x {0}
-      run: |
-        ARCH=$(go env GOARCH)
-        # --fail so an HTTP error page is not saved as the .deb (dpkg then fails on the
-        # corrupt archive), and retry transient download errors
-        curl -fLO --retry 5 --retry-all-errors --retry-delay 10 https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
-        sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
-        rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
+      run: tests/scripts/github-action-helper.sh prepare_worker_disks_and_config "$RUNNER_TEMP/kind-config.yaml" 3
 
-    - name: Setup Minikube
-      uses: medyagh/setup-minikube@e9e035a86bbc3caea26a450bd4dbf9d0c453682e # v0.0.21
+    - name: create kind cluster
+      uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
       with:
-        # lock minikube version to ensure release branch CI doesn't fail when latest minikube no
-        # longer supports older k8s version we lock to
-        minikube-version: "1.38.0"
-        kubernetes-version: ${{ inputs.kubernetes-version }}
-        driver: none
-        container-runtime: docker
-        memory: 6g
-        cpus: 2
-        addons: ingress
-        cni: calico
-        # --force: when the requested kubernetes version is missing from minikube's compiled-in
-        # version list (any version released after the pinned minikube), 'minikube start'
-        # verifies the version with an anonymous GitHub API request, which is regularly
-        # rate-limited on shared runner IPs and fails the job (K8S_FAIL_CONNECT, exit code 40).
-        # The versions used here are pinned constants already validated by the PRs that bump
-        # them, so that check adds nothing in CI; an invalid version would still fail fast at
-        # the kubeadm/kubelet download.
-        # --wait-timeout: minikube's default 6m node-ready wait expires on slow runners
-        # (GUEST_START, exit code 80).
-        start-args: --force --wait-timeout=15m
+        # Pin the kind version instead of relying on helm/kind-action's default, so the
+        # cluster (and which kindest/node images are available) stays reproducible.
+        version: v0.32.0
+        # The kubernetes version is selected by the node image tag. kindest/node images are
+        # published per kind release, so each kubernetes-version used by the matrices must have
+        # a matching kindest/node:<version> image (the analogue of minikube's kubernetes-version).
+        node_image: kindest/node:${{ inputs.kubernetes-version }}
+        # The kind config is produced by the previous step (one worker per disk); it lives in the
+        # runner temp dir because the per-worker disk paths are only known at runtime.
+        config: ${{ runner.temp }}/kind-config.yaml
+        cluster_name: kind
+        wait: 300s
+        # The runner is ephemeral, so a failed post-job `kind delete` is harmless. Some jobs
+        # (nvmeof, multus) leave the node container holding devices via the /dev bind-mount, so
+        # `docker rm` of the node can fail at teardown; don't let that fail an otherwise-green job.
+        ignore_failed_clean: "true"
+
+    - name: prepare the kind node
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh prepare_kind_node
+
+    - name: route host to cluster services
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh add_host_routes_to_cluster
 
     - name: install deps
       shell: bash --noprofile --norc -eo pipefail -x {0}
@@ -63,11 +65,6 @@ runs:
     - name: print k8s cluster status
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-    # This step is required for all the integration tests except the canary tests
-    - name: use local disk
-      shell: bash --noprofile --norc -eo pipefail -x {0}
-      run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
 
     - name: build rook
       shell: bash --noprofile --norc -eo pipefail -x {0}

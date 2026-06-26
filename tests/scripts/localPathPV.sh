@@ -35,10 +35,20 @@ sudo test ! -b "${test_scratch_device}" && echo "invalid scratch device, not a b
 #############
 
 function prepare_node() {
-  sudo rm -rf /var/lib/rook/rook-integration-test
-  sudo mkdir -p /var/lib/rook/rook-integration-test/mon1 /var/lib/rook/rook-integration-test/mon2 /var/lib/rook/rook-integration-test/mon3
-  node_name=$(kubectl get nodes -o jsonpath='{.items[*].metadata.name}')
-  kubectl label nodes "${node_name}" rook.io/has-disk=true
+  # The local mon/OSD PVs bind by the rook.io/has-disk node affinity. Label every node and create
+  # the mon data directories inside every node so the PVs bind wherever rook schedules: on a
+  # single-node kind cluster that is the control-plane; on a multi-node cluster the control-plane
+  # is NoSchedule-tainted, so they land on the workers. kind node containers are named after the
+  # node, so "docker exec <node>" reaches each and keeps each node's mon dirs local (no shared
+  # dataDirHostPath across nodes).
+  local node
+  for node in $(kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'); do
+    docker exec "$node" mkdir -p \
+      /var/lib/rook/rook-integration-test/mon1 \
+      /var/lib/rook/rook-integration-test/mon2 \
+      /var/lib/rook/rook-integration-test/mon3
+    kubectl label node "$node" rook.io/has-disk=true --overwrite
+  done
   kubectl delete pv -l type=local
 }
 
