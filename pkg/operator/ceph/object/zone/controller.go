@@ -434,7 +434,7 @@ func (r *ReconcileObjectZone) setFailedStatus(observedGeneration int64, cephObje
 	return reconcile.Result{}, *cephObjectZone, errors.Wrapf(err, "%s", errMessage)
 }
 
-// updateStatus updates an zone with a given status
+// updateStatus updates a zone with a given status
 func (r *ReconcileObjectZone) updateStatus(observedGeneration int64, name types.NamespacedName, status string) {
 	objectZone := &cephv1.CephObjectZone{}
 	if err := r.client.Get(r.opManagerContext, name, objectZone); err != nil {

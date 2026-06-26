@@ -78,7 +78,7 @@ func getCmd() string {
 	return cmd
 }
 
-// CreateK8sHelper creates a instance of k8sHelper
+// CreateK8sHelper creates an instance of k8sHelper
 func CreateK8sHelper(t func() *testing.T) (*K8sHelper, error) {
 	executor := &exec.CommandExecutor{}
 	config, err := config.GetConfig()
@@ -987,7 +987,7 @@ func (k8sh *K8sHelper) IsDefaultStorageClassPresent() (bool, error) {
 	return false, nil
 }
 
-// CheckPvcCount returns True if expected number pvs for a app are found
+// CheckPvcCount returns True if expected number of pvs for an app are found
 func (k8sh *K8sHelper) CheckPvcCountAndStatus(podName string, namespace string, expectedPvcCount int, expectedStatus string) bool {
 	logger.Infof("wait until %d pvc for app=%s are present", expectedPvcCount, podName)
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podName}

@@ -352,7 +352,7 @@ func (r *ReconcileObjectRealm) setFailedStatus(observedGeneration int64, cephObj
 	return reconcile.Result{}, *cephObjectRealm, errors.Wrapf(err, "%s", errMessage)
 }
 
-// updateStatus updates an realm with a given status
+// updateStatus updates a realm with a given status
 func (r *ReconcileObjectRealm) updateStatus(observedGeneration int64, name types.NamespacedName, status string) {
 	objectRealm := &cephv1.CephObjectRealm{}
 	if err := r.client.Get(r.opManagerContext, name, objectRealm); err != nil {
