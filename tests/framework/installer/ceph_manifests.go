@@ -253,19 +253,20 @@ spec:
 `
 	}
 
+	msMode := "prefer-crc"
 	if m.settings.ConnectionsEncrypted {
-		clusterSpec += `
+		msMode = "secure"
+	}
+	clusterSpec += `
   csi:
     cephfs:
-      kernelMountOptions: ms_mode=secure
-  `
-	}
-	return clusterSpec + `
+      kernelMountOptions: ms_mode=` + msMode + `
   priorityClassNames:
     mon: system-node-critical
     osd: system-node-critical
     mgr: system-cluster-critical
 `
+	return clusterSpec
 }
 
 func (m *CephManifestsMaster) GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string {
