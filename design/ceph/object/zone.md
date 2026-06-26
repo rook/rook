@@ -8,7 +8,7 @@ A Rook Ceph cluster. Ideally a ceph-object-realm and a ceph-object-zone-group re
 
 The resource described in this design document represents the zone in the [Ceph Multisite data model](/design/ceph/object/ceph-multisite-overview.md).
 
-### Creating an Ceph Object Zone
+### Creating a Ceph Object Zone
 
 #### Config
 
@@ -18,7 +18,7 @@ In the config, the admin must configure the zone group the zone is in, and pools
 
 The first zone created in a zone group is designated as the master zone in the Ceph cluster.
 
-If endpoint(s) are not specified the endpoint will be set to the Kubernetes service DNS address and port used for the CephObjectStore. To override this, a user can specify custom endpoint(s). The endpoint(s) specified will be become the sole source of endpoints for the zone, replacing any service endpoints added by CephObjectStores.
+If endpoint(s) are not specified the endpoint will be set to the Kubernetes service DNS address and port used for the CephObjectStore. To override this, a user can specify custom endpoint(s). The endpoint(s) specified will become the sole source of endpoints for the zone, replacing any service endpoints added by CephObjectStores.
 
 This example `ceph-object-zone.yaml`, names a zone `my-zone`.
 ```yaml
@@ -54,28 +54,28 @@ kubectl create -f ceph-object-zone.yaml
 
 2. After these steps the admin should start up:
     - A [ceph-object-store](/design/ceph/object/ceph-object-store.md) referring to the newly started up ceph-object-zone resource.
-    - A [ceph-object-zone-group](/design/ceph/object/ceph-object-zone-group.md), with the same name as the `zoneGroup` field, if it has not already been started up already.
-    - A [ceph-object-realm](/design/ceph/object/ceph-object-realm.md), with the same name as the `realm` field in the ceph-object-zone-group config, if it has not already been started up already.
+    - A [ceph-object-zone-group](/design/ceph/object/ceph-object-zone-group.md), with the same name as the `zoneGroup` field, if it has not already been started up.
+    - A [ceph-object-realm](/design/ceph/object/ceph-object-realm.md), with the same name as the `realm` field in the ceph-object-zone-group config, if it has not already been started up.
 
 The order in which these resources are created is not important.
 
-3. Once the all of the resources in #2 are started up, the operator will create a zone on the Rook Ceph cluster and the ceph-object-zone resource will be running.
+3. Once all of the resources in #2 are started up, the operator will create a zone on the Rook Ceph cluster and the ceph-object-zone resource will be running.
 
 #### Notes
 
 1. The zone group named in the `zoneGroup` section must be the same as the ceph-object-zone-group resource the zone is a part of.
-2. When resource is deleted, zone are not deleted from the cluster. zone deletion must be done through toolboxes.
+2. When a resource is deleted, zones are not deleted from the cluster. Zone deletion must be done through toolboxes.
 3. Any number of ceph-object-stores can be part of a ceph-object-zone.
 
-### Creating an ceph-object-zone when syncing from another Ceph Cluster
+### Creating a ceph-object-zone when syncing from another Ceph Cluster
 
-When the storage admin is ready to sync data from another Ceph cluster with multisite set up (primary cluster) to a Rook Ceph cluster (pulling cluster), the pulling cluster will have a newly created in the zone group from the primary cluster.
+When the storage admin is ready to sync data from another Ceph cluster with multisite set up (primary cluster) to a Rook Ceph cluster (pulling cluster), the pulling cluster will have a newly created zone in the zone group from the primary cluster.
 
 A [ceph-object-pull-realm](/design/ceph/object/ceph-object-pull-realm.md) resource must be created to pull the realm information from the primary cluster to the pulling cluster.
 
 Once the ceph-object-pull-realm is configured a ceph-object-zone must be created.
 
-After an ceph-object-store is configured to be in this ceph-object-zone, the all Ceph multisite resources will be running and data between the two clusters will start syncing.
+After a ceph-object-store is configured to be in this ceph-object-zone, all Ceph multisite resources will be running and data between the two clusters will start syncing.
 
 ## Deleting and Reconfiguring the Ceph Object Zone
 
