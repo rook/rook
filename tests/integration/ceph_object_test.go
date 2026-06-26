@@ -485,7 +485,7 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			// first ~3KiB Object should succeed
 			_, err := s3client.PutObjectInBucket(bucketName, strings.Repeat("1", 3072), ObjectKey1, contentType)
 			assert.Nil(t, err)
-			// second ~2KiB Object should fail as bucket quota is is 4KiB
+			// second ~2KiB Object should fail as bucket quota is 4KiB
 			_, err = s3client.PutObjectInBucket(bucketName, strings.Repeat("2", 2048), ObjectKey2, contentType)
 			assert.Error(t, err)
 			// cleanup bucket

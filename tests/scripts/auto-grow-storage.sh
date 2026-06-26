@@ -73,7 +73,7 @@ function growVertically() {
       if [ "1" = $? ]
       then
          newSize=${maxSize}
-         echo "Disk has reached it's MAX capacity ${maxSize}, add a new disk to it"
+         echo "Disk has reached its MAX capacity ${maxSize}, add a new disk to it"
          result=$(kubectl patch pvc "${pvc}" -n "${ns}" --type json --patch  "[{ op: replace, path: /spec/resources/requests/storage, value: ${newSize} }]")
       else
          result=$(kubectl patch pvc "${pvc}" -n "${ns}" --type json --patch  "[{ op: replace, path: /spec/resources/requests/storage, value: ${newSize}${unitSize} }]")

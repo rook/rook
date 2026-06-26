@@ -160,7 +160,7 @@ type ClusterSpec struct {
 	// WaitTimeoutForHealthyOSDInMinutes defines the time the operator would wait before an OSD can be stopped for upgrade or restart.
 	// If the timeout exceeds and OSD is not ok to stop, then the operator would skip upgrade for the current OSD and proceed with the next one
 	// if `continueUpgradeAfterChecksEvenIfNotHealthy` is `false`. If `continueUpgradeAfterChecksEvenIfNotHealthy` is `true`, then operator would
-	// continue with the upgrade of an OSD even if its not ok to stop after the timeout. This timeout won't be applied if `skipUpgradeChecks` is `true`.
+	// continue with the upgrade of an OSD even if it's not ok to stop after the timeout. This timeout won't be applied if `skipUpgradeChecks` is `true`.
 	// The default wait timeout is 10 minutes.
 	// +optional
 	WaitTimeoutForHealthyOSDInMinutes time.Duration `json:"waitTimeoutForHealthyOSDInMinutes,omitempty"`
@@ -825,7 +825,7 @@ type ClusterCephxStatus struct {
 	Mon CephxStatus `json:"mon,omitempty"`
 	// Mgr represents the cephx key rotation status of the ceph manager daemon
 	Mgr CephxStatus `json:"mgr,omitempty"`
-	// OSD shows the CephX key status of of OSDs
+	// OSD shows the CephX key status of OSDs
 	OSD CephxStatus `json:"osd,omitempty"`
 	// CSI shows the CephX key status for Ceph-CSI components.
 	CSI CephxStatusWithKeyCount `json:"csi,omitempty"`
@@ -1152,10 +1152,10 @@ type MirroringStatusSpec struct {
 	// MirroringStatus is the mirroring status of a pool/radosNamespace
 	// +optional
 	MirroringStatus `json:",inline"`
-	// LastChecked is the last time time the status was checked
+	// LastChecked is the last time the status was checked
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
-	// LastChanged is the last time time the status last changed
+	// LastChanged is the last time the status last changed
 	// +optional
 	LastChanged string `json:"lastChanged,omitempty"`
 	// Details contains potential status errors
@@ -1274,10 +1274,10 @@ type SnapshotScheduleStatusSpec struct {
 	// +nullable
 	// +optional
 	SnapshotSchedules []SnapshotSchedulesSpec `json:"snapshotSchedules,omitempty"`
-	// LastChecked is the last time time the status was checked
+	// LastChecked is the last time the status was checked
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
-	// LastChanged is the last time time the status last changed
+	// LastChanged is the last time the status last changed
 	// +optional
 	LastChanged string `json:"lastChanged,omitempty"`
 	// Details contains potential status errors
@@ -1628,10 +1628,10 @@ type FilesystemMirroringInfoSpec struct {
 	// +nullable
 	// +optional
 	FilesystemMirroringAllInfo []FilesystemMirroringInfo `json:"daemonsStatus,omitempty"`
-	// LastChecked is the last time time the status was checked
+	// LastChecked is the last time the status was checked
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
-	// LastChanged is the last time time the status last changed
+	// LastChanged is the last time the status last changed
 	// +optional
 	LastChanged string `json:"lastChanged,omitempty"`
 	// Details contains potential status errors
@@ -1645,10 +1645,10 @@ type FilesystemSnapshotScheduleStatusSpec struct {
 	// +nullable
 	// +optional
 	SnapshotSchedules []FilesystemSnapshotSchedulesSpec `json:"snapshotSchedules,omitempty"`
-	// LastChecked is the last time time the status was checked
+	// LastChecked is the last time the status was checked
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
-	// LastChanged is the last time time the status last changed
+	// LastChanged is the last time the status last changed
 	// +optional
 	LastChanged string `json:"lastChanged,omitempty"`
 	// Details contains potential status errors
