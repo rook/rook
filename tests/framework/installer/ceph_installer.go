@@ -62,6 +62,9 @@ bluefs_buffered_io = false
 mon_data_avail_warn = 10
 [mon]
 mon compact on start = true
+[client.rgw]
+rgw_user_quota_sync_interval = 30
+rgw_user_quota_bucket_sync_interval = 30
 `
 	volumeReplicationVersion = "v0.5.0"
 )

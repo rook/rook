@@ -28,8 +28,13 @@ function setup_csiaddons() {
   kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/rbac.yaml
   kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/setup-controller.yaml
 
-  echo "enabling csi-addons"
-  kubectl patch cm rook-ceph-operator-config -n rook-ceph --type merge -p '{"data":{"CSI_ENABLE_CSIADDONS":"true"}}'
+  # The canary CI runs on a single-node cluster, but the new csi.ceph.io/v1
+  # OperatorConfig defaults the controller plugin to replicas=2 with a hard
+  # pod anti-affinity, so the second replica stays Pending forever. Pin to 1
+  # replica for the CI environment. This affects only the test cluster.
+  echo "scaling csi controller plugin to 1 replica for single-node CI"
+  kubectl patch operatorconfig ceph-csi-operator-config -n rook-ceph --type=merge \
+    -p '{"spec":{"driverSpecDefaults":{"controllerPlugin":{"replicas":1}}}}'
 
   echo "Successfully created CSI-Addons"
 }

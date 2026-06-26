@@ -207,7 +207,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	})
 
 	// now test operation of the first object store
-	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
+	testObjectStoreOperations(s, helper, k8sh, installer, settings, storeName, swiftAndKeystone)
 
 	// The namespaced test packages below all skip when TLS is enabled, so only set up the
 	// shared store when it will actually be used.
@@ -236,7 +236,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	}
 }
 
-func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, settings *installer.TestCephSettings, storeName string, swiftAndKeystone bool) {
+func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, settings *installer.TestCephSettings, storeName string, swiftAndKeystone bool) {
 	ctx := context.TODO()
 	namespace := settings.Namespace
 	clusterInfo := client.AdminTestClusterInfo(namespace)
@@ -347,6 +347,23 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 				s3client.DeleteObjectInBucket(bucketname, ObjectKey4) //nolint:errcheck
 				return false
 			})
+
+			// TODO(diagnostic): REMOVE THIS BLOCK — temporary diagnostics for flaky quota enforcement
+			bucketStats, bsErr := installer.Execute("radosgw-admin",
+				[]string{"bucket", "stats", "--bucket=" + bucketname, fmt.Sprintf("--rgw-realm=%s", storeName)}, namespace)
+			if bsErr == nil {
+				logger.Infof("DIAG bucket stats after quota retry: %s", bucketStats)
+			}
+			if !quotaEnforced {
+				userInfo, _ := installer.Execute("radosgw-admin",
+					[]string{"user", "info", "--access-key=" + s3AccessKey, fmt.Sprintf("--rgw-realm=%s", storeName)}, namespace)
+				logger.Infof("DIAG user info (quota config): %s", userInfo)
+				userStats, _ := installer.Execute("radosgw-admin",
+					[]string{"user", "stats", "--access-key=" + s3AccessKey, "--sync-stats", fmt.Sprintf("--rgw-realm=%s", storeName)}, namespace)
+				logger.Infof("DIAG user stats after --sync-stats: %s", userStats)
+			}
+			// END TODO(diagnostic)
+
 			assert.True(t, quotaEnforced)
 		})
 
