@@ -36,7 +36,7 @@ type HelmHelper struct {
 	HelmPath string
 }
 
-// NewHelmHelper creates a instance of HelmHelper
+// NewHelmHelper creates an instance of HelmHelper
 func NewHelmHelper(helmPath string) *HelmHelper {
 	executor := &exec.CommandExecutor{}
 	return &HelmHelper{executor: executor, HelmPath: helmPath}

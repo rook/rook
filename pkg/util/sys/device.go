@@ -198,8 +198,8 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 // GetDeviceProperties gets device properties
 func GetDeviceProperties(device string, executor exec.Executor) (map[string]string, error) {
 	// As we are mounting the block mode PVs on /mnt we use the entire path,
-	// e.g., if the device path is /mnt/example-pvc then its taken completely
-	// else if its just vdb then the following is used
+	// e.g., if the device path is /mnt/example-pvc then it's taken completely
+	// else if it's just vdb then the following is used
 	devicePath := strings.Split(device, "/")
 	if len(devicePath) == 1 {
 		device = fmt.Sprintf("/dev/%s", device)
