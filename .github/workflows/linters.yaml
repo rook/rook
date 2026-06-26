@@ -10,6 +10,7 @@ on:
     branches:
       - master
       - release-*
+    paths:
 
 # cancel the in-progress workflow when PR is refreshed.
 concurrency:
@@ -54,3 +55,37 @@ jobs:
 
       - name: Setup black for py
         uses: psf/black@87928e6d6761a4a6d22250e1fee5601b3998086e # stable
+
+  check-markdown-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check markdown links
+        run: |
+          npm install -g markdown-link-check
+          set -e
+          EXIT_CODE=0
+          FAILED_FILES=()
+          while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            if ! markdown-link-check "$file" --config mlc_config.json -v; then
+              EXIT_CODE=1
+              FAILED_FILES+=("$file")
+            fi
+          done < <(find Documentation -name '*.md' -print0)
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "================================"
+            echo "❌ BROKEN LINKS DETECTED"
+            echo "================================"
+            echo "The following files contain broken links:"
+            for file in "${FAILED_FILES[@]}"; do
+              echo "  - $file"
+            done
+            echo "================================"
+          fi
+          
+          exit $EXIT_CODE
