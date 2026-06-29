@@ -313,7 +313,7 @@ func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace, name string, che
 	return fmt.Errorf("timed out waiting for deletion of custom resource %q", name)
 }
 
-// DeleteResource performs a kubectl delete on give args.
+// DeleteResourceAndWait performs a kubectl delete on give args.
 // If wait is false, a flag will be passed to indicate the delete should return immediately
 func (k8sh *K8sHelper) DeleteResourceAndWait(wait bool, args ...string) error {
 	if !wait {
@@ -987,7 +987,7 @@ func (k8sh *K8sHelper) IsDefaultStorageClassPresent() (bool, error) {
 	return false, nil
 }
 
-// CheckPvcCount returns True if expected number pvs for a app are found
+// CheckPvcCountAndStatus returns True if expected number pvs for a app are found
 func (k8sh *K8sHelper) CheckPvcCountAndStatus(podName string, namespace string, expectedPvcCount int, expectedStatus string) bool {
 	logger.Infof("wait until %d pvc for app=%s are present", expectedPvcCount, podName)
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podName}

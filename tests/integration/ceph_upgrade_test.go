@@ -439,7 +439,7 @@ func (s *UpgradeSuite) verifyFilesAfterUpgrade(newFileToWrite string, rbdFilesTo
 	assert.NoError(s.T(), s.k8sh.ReadFromPodRetry(s.namespace, filePodName, newFileToWrite, simpleTestMessage, retryCount))
 }
 
-// UpgradeToMaster performs the steps necessary to upgrade a Rook v1.4 cluster to master. It does not
+// upgradeToMaster performs the steps necessary to upgrade a Rook v1.4 cluster to master. It does not
 // verify the upgrade but merely starts the upgrade process.
 func (s *UpgradeSuite) upgradeToMaster() {
 	// Apply the CRDs for the latest master

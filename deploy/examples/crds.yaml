@@ -949,7 +949,7 @@ spec:
                   description: List of events that should trigger the notification
                   items:
                     description: |-
-                      BucketNotificationSpec represent the event type of the bucket notification
+                      BucketNotificationEvent represent the event type of the bucket notification
                       See: https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types
                     enum:
                       - s3:ObjectCreated:*
@@ -9206,7 +9206,7 @@ spec:
                     daemonsStatus:
                       description: PoolMirroringStatus is the mirroring status of a filesystem
                       items:
-                        description: FilesystemMirrorInfoSpec is the filesystem mirror status of a given filesystem
+                        description: FilesystemMirroringInfo is the filesystem mirror status of a given filesystem
                         properties:
                           daemon_id:
                             description: DaemonID is the cephfs-mirror name

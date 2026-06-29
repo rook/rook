@@ -89,7 +89,7 @@ func kubernetesTopologyLabelToCRUSHLabel(label string) string {
 	return crushLabel[len(crushLabel)-1]
 }
 
-// ExtractTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
+// extractTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
 func extractTopologyFromLabels(labels map[string]string) (map[string]string, string) {
 	topology := make(map[string]string)
 

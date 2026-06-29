@@ -41,7 +41,7 @@ const (
 
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
-// Start begins the process of running filesystem mirroring daemons.
+// start begins the process of running filesystem mirroring daemons.
 func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesystemMirror) error {
 	nsName := controller.NsName(filesystemMirror.Namespace, filesystemMirror.Name)
 	// Validate pod's memory if specified
