@@ -45,6 +45,7 @@ import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	bucketowner "github.com/rook/rook/tests/integration/object/bucket/owner"
+	"github.com/rook/rook/tests/integration/object/cosi"
 	topickafka "github.com/rook/rook/tests/integration/object/topic/kafka"
 	usercaps "github.com/rook/rook/tests/integration/object/user/caps"
 	userkeys "github.com/rook/rook/tests/integration/object/user/keys"
@@ -210,7 +211,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
 
 	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, tlsEnable,
-		bucketowner.Namespace, userkeys.Namespace, topickafka.Namespace, useropmask.Namespace, usercaps.Namespace)
+		bucketowner.Namespace,
+		userkeys.Namespace,
+		topickafka.Namespace,
+		useropmask.Namespace,
+		usercaps.Namespace,
+		cosi.Namespace,
+	)
 	defer sharedObjectStore.Destroy()
 
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, sharedObjectStore)
@@ -218,17 +225,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	topickafka.TestBucketTopicKafka(s.T(), k8sh, sharedObjectStore)
 	useropmask.TestObjectStoreUserOpMask(s.T(), k8sh, sharedObjectStore)
 	usercaps.TestObjectStoreUserCaps(s.T(), k8sh, sharedObjectStore)
+	// the ceph-cosi driver cannot reach a TLS object store endpoint, so this
+	// suite skips itself in the TLS pass
+	cosi.TestCephCOSIDriver(s.T(), k8sh, sharedObjectStore)
 
 	bucketNotificationTestStoreName := "bucket-notification-" + storeName
 	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, swiftAndKeystone)
 	testBucketNotifications(s, helper, k8sh, namespace, bucketNotificationTestStoreName)
-	if !tlsEnable {
-		// TODO : need to fix COSI driver to support TLS
-		logger.Info("Testing COSI driver")
-		testCOSIDriver(s, helper, k8sh, installer, namespace)
-	} else {
-		logger.Info("Skipping COSI driver test as TLS is enabled")
-	}
 }
 
 func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, settings *installer.TestCephSettings, storeName string, swiftAndKeystone bool) {

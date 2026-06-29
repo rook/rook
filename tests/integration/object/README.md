@@ -2,7 +2,7 @@
 
 This tree holds the new-style integration tests for rook's object storage
 features. It is the model for converting the remaining old-style object tests
-(`testObjectStoreOperations`, store lifecycle, bucket notifications, COSI);
+(`testObjectStoreOperations`, store lifecycle, bucket notifications);
 follow the conventions here exactly so the conversion happens once.
 
 ## Execution model
@@ -33,11 +33,12 @@ must not collide with std-lib package names (no `io`, no `http`).
 | test package | operator package | covers |
 |---|---|---|
 | `bucket/owner` | `object/bucket` | OBC `bucketOwner` handling |
+| `cosi` | `object/cosi` | CephCOSIDriver + COSI bucket provisioning |
 | `topic/kafka` | `object/topic` | CephBucketTopic kafka endpoints |
 | `user/caps` | `object/user` | user capabilities |
 | `user/keys` | `object/user` | explicit S3 key management |
 | `user/opmask` | `object/user` | user op_mask |
-| reserved: `bucket/rw`, `bucket/quota`, `bucket/policy`, `bucket/lifecycle`, `tests/integration/object/lifecycle`, `tests/integration/object/dependents`, `notification/*`, `cosi` | | future conversions |
+| reserved: `bucket/rw`, `bucket/quota`, `bucket/policy`, `bucket/lifecycle`, `tests/integration/object/lifecycle`, `tests/integration/object/dependents`, `notification/*` | | future conversions |
 
 Shared utilities live under `util/`:
 
@@ -211,5 +212,4 @@ verification; wire the dispatcher; delete the old code; retire
 | `testObjectStoreOperations` deletion-blocked-by-dependents | `tests/integration/object/dependents` | private-store fixture, store condition predicates in `ready` |
 | `createCephObjectStore`/`runObjectE2ETestLite`/deletion asserts + zone.json canary | `tests/integration/object/lifecycle` | store create/health/delete helpers, `Sharedstore.Installer()` accessor |
 | `testBucketNotifications` | `notification/*` | HTTP endpoint fixture, per-OBC S3 client (the pod-log waiter is now `wait4.Assert/RequirePodLog`) |
-| `testCOSIDriver` | `cosi` | `kubectl -k` install fixture, COSI readiness waits |
 | upgrade-suite object usage | stays in upgrade suite | switch to typed clients + `wait4`/`ready` |

@@ -45,6 +45,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	cosiclient "sigs.k8s.io/container-object-storage-interface/client/clientset/versioned"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
@@ -55,6 +56,7 @@ type K8sHelper struct {
 	Clientset        *kubernetes.Clientset
 	RookClientset    *rookclient.Clientset
 	BucketClientset  *bktclient.Clientset
+	COSIClientset    *cosiclient.Clientset
 	RunningInCluster bool
 	T                func() *testing.T
 }
@@ -97,13 +99,17 @@ func CreateK8sHelper(t func() *testing.T) (*K8sHelper, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get lib-bucket-provisioner clientset. %+v", err)
 	}
+	cosiClientset, err := cosiclient.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get COSI clientset. %+v", err)
+	}
 
 	remoteExecutor := &exec.RemotePodCommandExecutor{
 		ClientSet:  clientset,
 		RestClient: config,
 	}
 
-	h := &K8sHelper{executor: executor, Clientset: clientset, RookClientset: rookClientset, BucketClientset: bucketClientset, T: t, remoteExecutor: remoteExecutor}
+	h := &K8sHelper{executor: executor, Clientset: clientset, RookClientset: rookClientset, BucketClientset: bucketClientset, COSIClientset: cosiClientset, T: t, remoteExecutor: remoteExecutor}
 	if strings.Contains(config.Host, "//10.") {
 		h.RunningInCluster = true
 	}

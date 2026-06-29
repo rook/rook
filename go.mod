@@ -55,6 +55,7 @@ require (
 	k8s.io/client-go v0.36.2
 	k8s.io/cloud-provider v0.36.2
 	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2
+	sigs.k8s.io/container-object-storage-interface/client v0.2.2
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/mcs-api v0.5.0
 	sigs.k8s.io/yaml v1.6.0

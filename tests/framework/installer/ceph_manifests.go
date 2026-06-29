@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rook/rook/pkg/operator/ceph/object/cosi"
 	"github.com/rook/rook/tests/framework/utils"
 )
 
@@ -57,9 +56,6 @@ type CephManifests interface {
 	GetBucketTopic(topicName string, storeName string, httpEndpointService string) string
 	GetClient(name string, caps map[string]string) string
 	GetFilesystemSubvolumeGroup(fsName, groupName string) string
-	GetCOSIDriver() string
-	GetBucketClass(name, objectstoreUserName, deletionPolicy string) string
-	GetBucketClaim(claimName, className string) string
 }
 
 // CephManifestsMaster wraps rook yaml definitions
@@ -688,40 +684,4 @@ spec:
   filesystemName: ` + fsName + `
   quota: 10G
   dataPoolName: ` + fsName + "-data0"
-}
-
-func (m *CephManifestsMaster) GetCOSIDriver() string {
-	// TODO: use the official image once it is available
-	return `apiVersion: ceph.rook.io/v1
-kind: CephCOSIDriver
-metadata:
-  name: ` + cosi.CephCOSIDriverName + `
-  namespace: ` + m.settings.OperatorNamespace + `
-spec:
-  deploymentStrategy: Auto `
-}
-
-func (m *CephManifestsMaster) GetBucketClass(name, objectStoreUserSecretName, deletionPolicy string) string {
-	return `apiVersion: objectstorage.k8s.io/v1alpha1
-kind: BucketClass
-metadata:
-  name: ` + name + `
-  namespace: ` + m.settings.OperatorNamespace + `
-driverName: ` + cosi.CephCOSIDriverPrefix + `.ceph.objectstorage.k8s.io
-deletionPolicy: ` + deletionPolicy + `
-parameters:
-  objectStoreUserSecretName:  ` + objectStoreUserSecretName + `
-  objectStoreUserSecretNamespace: ` + m.settings.Namespace
-}
-
-func (m *CephManifestsMaster) GetBucketClaim(name, bucketClassName string) string {
-	return `apiVersion: objectstorage.k8s.io/v1alpha1
-kind: BucketClaim
-metadata:
-  name: ` + name + `
-  namespace: ` + m.settings.OperatorNamespace + `
-spec:
-  bucketClassName: ` + bucketClassName + `
-  protocols:
-    - s3 `
 }
