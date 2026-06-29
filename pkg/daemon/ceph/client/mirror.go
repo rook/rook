@@ -82,7 +82,7 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 	defer func() error {
 		err := os.Remove(tokenFilePath.Name())
 		return err
-	}() //nolint // we don't want to return here
+	}() //nolint:errcheck // best-effort cleanup; the deferred error is intentionally not propagated
 
 	if clusterInfo.NetworkSpec.IsMultus() {
 		err = context.RemoteExecutor.CopyLocalFileToContainer(clusterInfo.Context, ProxyAppLabel, CommandProxyInitContainerName, clusterInfo.Namespace, tokenFilePath.Name(), tokenFilePath.Name())
