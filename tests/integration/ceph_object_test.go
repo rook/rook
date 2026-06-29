@@ -46,6 +46,7 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 	bucketowner "github.com/rook/rook/tests/integration/object/bucket/owner"
 	"github.com/rook/rook/tests/integration/object/cosi"
+	"github.com/rook/rook/tests/integration/object/notification"
 	topickafka "github.com/rook/rook/tests/integration/object/topic/kafka"
 	usercaps "github.com/rook/rook/tests/integration/object/user/caps"
 	userkeys "github.com/rook/rook/tests/integration/object/user/keys"
@@ -217,6 +218,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 		useropmask.Namespace,
 		usercaps.Namespace,
 		cosi.Namespace,
+		notification.Namespace,
 	)
 	defer sharedObjectStore.Destroy()
 
@@ -228,10 +230,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	// the ceph-cosi driver cannot reach a TLS object store endpoint, so this
 	// suite skips itself in the TLS pass
 	cosi.TestCephCOSIDriver(s.T(), k8sh, sharedObjectStore)
-
-	bucketNotificationTestStoreName := "bucket-notification-" + storeName
-	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, swiftAndKeystone)
-	testBucketNotifications(s, helper, k8sh, namespace, bucketNotificationTestStoreName)
+	notification.TestBucketNotification(s.T(), k8sh, sharedObjectStore)
 }
 
 func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, settings *installer.TestCephSettings, storeName string, swiftAndKeystone bool) {
