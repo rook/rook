@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package sns
+package client
 
 import (
 	"context"
@@ -29,7 +29,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	utils3 "github.com/rook/rook/tests/integration/object/util/s3"
 )
 
 // based on the s3 endpoint example in the official docs:
@@ -48,16 +47,15 @@ func (r *snsResolverV2) ResolveEndpoint(ctx context.Context, params sns.Endpoint
 	}, nil
 }
 
-func NewClient(objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool) (*sns.Client, error) {
+func NewSNSClient(objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool) (*sns.Client, error) {
 	ctx := context.TODO()
 
-	accessKey, secretKey, err := utils3.GetS3Credentials(objectStore, installer)
+	accessKey, secretKey, err := GetS3Credentials(objectStore, installer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get s3 credentials")
 	}
 
-	cfg, err := config.LoadDefaultConfig(
-		ctx,
+	loadOpts := []func(*config.LoadOptions) error{
 		config.WithRegion("us-east-1"),
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(
@@ -66,12 +64,17 @@ func NewClient(objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, insta
 				"",
 			),
 		),
-	)
+	}
+	if tlsEnable {
+		loadOpts = append(loadOpts, config.WithHTTPClient(InsecureHTTPClient()))
+	}
+
+	cfg, err := config.LoadDefaultConfig(ctx, loadOpts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load default aws config")
 	}
 
-	endpoint, err := utils3.GetS3Endpoint(objectStore, k8sh, tlsEnable)
+	endpoint, err := GetS3Endpoint(objectStore, k8sh, tlsEnable)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get sns endpoint")
 	}

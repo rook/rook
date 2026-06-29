@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package s3
+package client
 
 import (
 	"context"
@@ -64,12 +64,12 @@ func GetS3Endpoint(objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, t
 		return "", errors.Wrap(err, "failed to get objectstore svc")
 	}
 
-	schema := "http://"
+	schema, port := "http://", "80"
 	if tlsEnable {
-		schema = "https://"
+		schema, port = "https://", "443"
 	}
 
-	endpoint := schema + svc.Spec.ClusterIP + ":80"
+	endpoint := schema + svc.Spec.ClusterIP + ":" + port
 
 	return endpoint, nil
 }
