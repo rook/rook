@@ -209,20 +209,15 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
 
-	// The namespaced test packages below all skip when TLS is enabled, so only set up the
-	// shared store when it will actually be used.
-	var sharedObjectStore *cephv1.CephObjectStore
-	if !tlsEnable {
-		var teardownSharedStore func()
-		sharedObjectStore, teardownSharedStore = sharedstore.Setup(s.T(), k8sh)
-		defer teardownSharedStore()
+	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, tlsEnable,
+		bucketowner.Namespace, userkeys.Namespace, topickafka.Namespace, useropmask.Namespace, usercaps.Namespace)
+	defer sharedObjectStore.Destroy()
 
-		bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
-		userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
-		topickafka.TestBucketTopicKafka(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
-		useropmask.TestObjectStoreUserOpMask(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
-		usercaps.TestObjectStoreUserCaps(s.T(), k8sh, installer, logger, tlsEnable, sharedObjectStore)
-	}
+	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, sharedObjectStore)
+	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, sharedObjectStore)
+	topickafka.TestBucketTopicKafka(s.T(), k8sh, sharedObjectStore)
+	useropmask.TestObjectStoreUserOpMask(s.T(), k8sh, sharedObjectStore)
+	usercaps.TestObjectStoreUserCaps(s.T(), k8sh, sharedObjectStore)
 
 	bucketNotificationTestStoreName := "bucket-notification-" + storeName
 	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, swiftAndKeystone)

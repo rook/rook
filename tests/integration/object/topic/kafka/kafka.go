@@ -22,117 +22,109 @@ import (
 	"fmt"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sns"
-	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	utilsns "github.com/rook/rook/tests/integration/object/util/sns"
+	"github.com/rook/rook/tests/integration/object/util/fixture"
+	"github.com/rook/rook/tests/integration/object/util/secrets"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
+	"github.com/rook/rook/tests/integration/object/util/wait4"
 )
 
-func checkStatusSecrets(t *testing.T, k8sh *utils.K8sHelper, bt *cephv1.CephBucketTopic, expectedSecrets []*corev1.Secret) {
-	t.Run(fmt.Sprintf("cephBucketTopic %q has .status.secrets set", bt.Name), func(t *testing.T) {
-		ctx := context.TODO()
-
-		liveBt, err := k8sh.RookClientset.CephV1().CephBucketTopics(bt.Namespace).Get(ctx, bt.Name, metav1.GetOptions{})
-		require.NoError(t, err)
-
-		require.NotNil(t, liveBt.Status)
-		assert.Len(t, liveBt.Status.Secrets, len(expectedSecrets))
-
-		for _, secret := range expectedSecrets {
-			secretRef, err := func(secretName string, keys []cephv1.SecretReference) (cephv1.SecretReference, error) {
-				for _, secretRef := range keys {
-					if secretRef.Name == secretName {
-						return secretRef, nil
-					}
-				}
-				return cephv1.SecretReference{}, fmt.Errorf("secretReference for secret %q not found in CephObjectStoreUser.status.keys", secret.Name)
-			}(secret.Name, liveBt.Status.Secrets)
-			require.NoError(t, err)
-
-			// fetch the live secret for UID and ResourceVersion
-			liveSecret, err := k8sh.Clientset.CoreV1().Secrets(secret.Namespace).Get(ctx, secret.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-
-			assert.Equal(t, liveSecret.Name, secretRef.Name)
-			assert.Equal(t, liveSecret.Namespace, secretRef.Namespace)
-			assert.Equal(t, liveSecret.UID, secretRef.UID)
-			assert.Equal(t, liveSecret.ResourceVersion, secretRef.ResourceVersion)
-		}
-	})
+func checkStatusSecrets(t *testing.T, k8sh *utils.K8sHelper, bt *cephv1.CephBucketTopic, expected ...*corev1.Secret) {
+	secrets.RequireStatusRefs(t, k8sh,
+		k8sh.RookClientset.CephV1().CephBucketTopics(bt.Namespace), bt.Name,
+		fmt.Sprintf("cephBucketTopic %q has .status.secrets set", bt.Name),
+		func(topic *cephv1.CephBucketTopic) []cephv1.SecretReference {
+			if topic.Status == nil {
+				return nil
+			}
+			return topic.Status.Secrets
+		},
+		expected...)
 }
 
 func checkRgwTopicEndpoint(t *testing.T, snsClient *sns.Client, arn, user, pass string) {
 	t.Run(fmt.Sprintf("rgw topic arn %q has basic auth set", arn), func(t *testing.T) {
-		ctx := context.TODO()
+		ctx := t.Context()
 
 		var uri *url.URL
 
-		inSync := utils.Retry(40, time.Second, "rgw topic basic auth in sync", func() bool {
+		wait4.RequireEventually(ctx, t, wait4.TimeoutShort, "rgw topic basic auth in sync", func(ctx context.Context) error {
 			topicAttrs, err := snsClient.GetTopicAttributes(ctx, &sns.GetTopicAttributesInput{
 				TopicArn: &arn,
 			})
-			require.NoError(t, err)
+			if err != nil {
+				return err
+			}
 
 			// the sns endpoint attributes are returned as JSON
 			var endpointJSON map[string]interface{}
-			err = json.Unmarshal([]byte(topicAttrs.Attributes["EndPoint"]), &endpointJSON)
-			require.NoError(t, err)
+			if err := json.Unmarshal([]byte(topicAttrs.Attributes["EndPoint"]), &endpointJSON); err != nil {
+				return err
+			}
 
-			uri, err = url.Parse(string(endpointJSON["EndpointAddress"].(string)))
-			require.NoError(t, err)
+			addr, ok := endpointJSON["EndpointAddress"].(string)
+			if !ok {
+				return fmt.Errorf("topic endpoint has no EndpointAddress string: %v", endpointJSON["EndpointAddress"])
+			}
 
-			uriPassword, _ := uri.User.Password()
+			parsed, err := url.Parse(addr)
+			if err != nil {
+				return err
+			}
 
-			return user == uri.User.Username() && pass == uriPassword
+			uriPassword, _ := parsed.User.Password()
+			if user != parsed.User.Username() || pass != uriPassword {
+				return fmt.Errorf("topic basic auth not yet in sync for user %q", parsed.User.Username())
+			}
+
+			// capture the matching sample for the post-wait assertions
+			uri = parsed
+			return nil
 		})
-		require.True(t, inSync)
 
 		assert.Equal(t, "kafka", uri.Scheme)
 		assert.Equal(t, "kafka.example.com:9094", uri.Host)
-		assert.Equal(t, user, uri.User.Username())
-		uriPassword, _ := uri.User.Password()
-		assert.Equal(t, pass, uriPassword)
 	})
 }
 
-// Note that .status.ARN is nil while .status.phase == Reconciling
-func cephBucketTopicReady(t *testing.T, k8sh *utils.K8sHelper, bt *cephv1.CephBucketTopic) *cephv1.CephBucketTopic {
-	ctx := context.TODO()
-
-	var liveBt *cephv1.CephBucketTopic
-	btReady := utils.Retry(60, time.Second, fmt.Sprintf("CephBucketTopic %q is Ready", bt.Name), func() bool {
-		var err error
-		liveBt, err = k8sh.RookClientset.CephV1().CephBucketTopics(bt.Namespace).Get(ctx, bt.Name, metav1.GetOptions{})
-		if err != nil {
-			return false
-		}
-
-		if liveBt.Status == nil {
-			return false
-		}
-
-		return liveBt.Status.Phase == string(cephv1.ConditionReady)
-	})
-	require.True(t, btReady)
-	require.NotNil(t, liveBt.Status.ARN)
-
-	return liveBt
+// kvSecret returns a Secret holding a single key/value pair.
+func kvSecret(ns, name, key, value string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+		},
+		Data: map[string][]byte{
+			key: []byte(value),
+		},
+	}
 }
 
-func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, logger *capnslog.PackageLogger, tlsEnable bool, objectStore *cephv1.CephObjectStore) {
+// secretKeySelector returns a selector for key within the named secret.
+func secretKeySelector(name, key string) *corev1.SecretKeySelector {
+	return &corev1.SecretKeySelector{
+		LocalObjectReference: corev1.LocalObjectReference{
+			Name: name,
+		},
+		Key: key,
+	}
+}
+
+const Namespace = "test-topickafka"
+
+func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, store *sharedstore.Sharedstore) {
 	var (
-		defaultName = "test-topickafka"
+		defaultName = Namespace
+		objectStore = store.ObjectStore()
 
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -140,56 +132,12 @@ func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *instal
 			},
 		}
 
-		secret1 = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaultName + "-secret1",
-				Namespace: ns.Name,
-			},
-			Data: map[string][]byte{
-				"user-name": []byte("kafka-user1"),
-			},
-		}
+		secret1 = kvSecret(ns.Name, defaultName+"-secret1", "user-name", "kafka-user1")
+		secret2 = kvSecret(ns.Name, defaultName+"-secret2", "password", "kafka-pass2")
+		secret3 = kvSecret(ns.Name, defaultName+"-secret3", "user-name", "kafka-user3")
+		secret4 = kvSecret(ns.Name, defaultName+"-secret4", "password", "kafka-pass4")
 
-		secret2 = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaultName + "-secret2",
-				Namespace: ns.Name,
-			},
-			Data: map[string][]byte{
-				"password": []byte("kafka-pass2"),
-			},
-		}
-
-		secret3 = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaultName + "-secret3",
-				Namespace: ns.Name,
-			},
-			Data: map[string][]byte{
-				"user-name": []byte("kafka-user3"),
-			},
-		}
-
-		secret4 = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaultName + "-secret4",
-				Namespace: ns.Name,
-			},
-			Data: map[string][]byte{
-				"password": []byte("kafka-pass4"),
-			},
-		}
-
-		storageClass = &storagev1.StorageClass{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: defaultName,
-			},
-			Provisioner: objectStore.Namespace + ".ceph.rook.io/bucket",
-			Parameters: map[string]string{
-				"objectStoreName":      objectStore.Name,
-				"objectStoreNamespace": objectStore.Namespace,
-			},
-		}
+		storageClass = fixture.StorageClass(defaultName, objectStore)
 
 		bt1 = &cephv1.CephBucketTopic{
 			ObjectMeta: metav1.ObjectMeta{
@@ -202,21 +150,11 @@ func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *instal
 				Persistent:           false,
 				Endpoint: cephv1.TopicEndpointSpec{
 					Kafka: &cephv1.KafkaEndpointSpec{
-						URI:      "kafka://kafka.example.com:9094",
-						AckLevel: "broker",
-						UseSSL:   false,
-						UserSecretRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: secret1.Name,
-							},
-							Key: "user-name",
-						},
-						PasswordSecretRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: secret2.Name,
-							},
-							Key: "password",
-						},
+						URI:               "kafka://kafka.example.com:9094",
+						AckLevel:          "broker",
+						UseSSL:            false,
+						UserSecretRef:     secretKeySelector(secret1.Name, "user-name"),
+						PasswordSecretRef: secretKeySelector(secret2.Name, "password"),
 					},
 				},
 			},
@@ -249,275 +187,172 @@ func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *instal
 			},
 		}
 
-		ctx       = context.TODO()
-		snsClient *sns.Client
+		snsClient = store.SnsClient()
+
+		btClient     = k8sh.RookClientset.CephV1().CephBucketTopics(ns.Name)
+		bnClient     = k8sh.RookClientset.CephV1().CephBucketNotifications(ns.Name)
+		obcClient    = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name)
+		obClient     = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets()
+		secretClient = k8sh.Clientset.CoreV1().Secrets(ns.Name)
 	)
 
 	t.Run("CephBucketTopic kafka", func(t *testing.T) {
-		if tlsEnable {
-			// Skip testing with and without TLS to reduce test time
-			t.Skip("skipping test for TLS enabled clusters")
+		ctx := t.Context()
+
+		fixture.RequireNamespace(t, k8sh, ns)
+
+		for _, secret := range []*corev1.Secret{secret1, secret2, secret3, secret4} {
+			t.Run(fmt.Sprintf("create secret %q", secret.Name), func(t *testing.T) {
+				_, err := secretClient.Create(ctx, secret, metav1.CreateOptions{})
+				require.NoError(t, err)
+			})
 		}
 
-		t.Run(fmt.Sprintf("create ns %q", ns.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create secret %q", secret1.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(secret1.Namespace).Create(ctx, secret1, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create secret %q", secret2.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(secret2.Namespace).Create(ctx, secret2, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create secret %q", secret3.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(secret3.Namespace).Create(ctx, secret3, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
-		t.Run(fmt.Sprintf("create secret %q", secret4.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.CoreV1().Secrets(secret4.Namespace).Create(ctx, secret4, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
-
 		// the sc, obc, and CephBucketNotification are essentially unused for testing but are created for completeness
-		t.Run(fmt.Sprintf("create sc %q", storageClass.Name), func(t *testing.T) {
-			_, err := k8sh.Clientset.StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{})
-			require.NoError(t, err)
-		})
+		fixture.RequireStorageClass(t, k8sh, storageClass)
 
 		t.Run(fmt.Sprintf("create obc %q", obc1.Name), func(t *testing.T) {
-			_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(obc1.Namespace).Create(ctx, obc1, metav1.CreateOptions{})
+			_, err := obcClient.Create(ctx, obc1, metav1.CreateOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("create CephBucketTopic %q", bt1.Name), func(t *testing.T) {
-			_, err := k8sh.RookClientset.CephV1().CephBucketTopics(bt1.Namespace).Create(ctx, bt1, metav1.CreateOptions{})
-			require.NoError(t, err)
-
-			// user creation may be slow right after rgw start up
-			cephBucketTopicReady(t, k8sh, bt1)
+			// topic creation may be slow right after rgw start up
+			wait4.RequireCreate(ctx, t, btClient, bt1, wait4.BucketTopic, wait4.TimeoutMedium)
 		})
 
 		t.Run(fmt.Sprintf("create CephBucketNotification %q", bn1.Name), func(t *testing.T) {
-			_, err := k8sh.RookClientset.CephV1().CephBucketNotifications(bn1.Namespace).Create(ctx, bn1, metav1.CreateOptions{})
+			_, err := bnClient.Create(ctx, bn1, metav1.CreateOptions{})
 			require.NoError(t, err)
 		})
 
-		t.Run("setup sns client", func(t *testing.T) {
-			var err error
-			snsClient, err = utilsns.NewClient(objectStore, k8sh, installer, tlsEnable)
-			require.NoError(t, err)
-		})
-
-		{
-			liveBt := cephBucketTopicReady(t, k8sh, bt1)
-
-			checkRgwTopicEndpoint(t, snsClient, *liveBt.Status.ARN, string(secret1.Data["user-name"]), string(secret2.Data["password"]))
-
-			secrets := []*corev1.Secret{secret1, secret2}
-
-			checkStatusSecrets(t, k8sh, bt1, secrets)
-		}
+		liveBt := wait4.RequireCondition(ctx, t, btClient, bt1.Name, wait4.BucketTopic, wait4.TimeoutMedium)
+		checkRgwTopicEndpoint(t, snsClient, *liveBt.Status.ARN, string(secret1.Data["user-name"]), string(secret2.Data["password"]))
+		checkStatusSecrets(t, k8sh, bt1, secret1, secret2)
 
 		t.Run("updating referenced secrets reconciles rgw topic", func(t *testing.T) {
 			t.Run(fmt.Sprintf("update kafka auth on CephBucketTopic %q", bt1.Name), func(t *testing.T) {
-				liveBt, err := k8sh.RookClientset.CephV1().CephBucketTopics(bt1.Namespace).Get(ctx, bt1.Name, metav1.GetOptions{})
+				liveBt, err := btClient.Get(ctx, bt1.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 
-				liveBt.Spec.Endpoint.Kafka.UserSecretRef = &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: secret3.Name,
-					},
-					Key: "user-name",
-				}
+				liveBt.Spec.Endpoint.Kafka.UserSecretRef = secretKeySelector(secret3.Name, "user-name")
+				liveBt.Spec.Endpoint.Kafka.PasswordSecretRef = secretKeySelector(secret4.Name, "password")
 
-				liveBt.Spec.Endpoint.Kafka.PasswordSecretRef = &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: secret4.Name,
-					},
-					Key: "password",
-				}
-
-				_, err = k8sh.RookClientset.CephV1().CephBucketTopics(liveBt.Namespace).Update(ctx, liveBt, metav1.UpdateOptions{})
+				_, err = btClient.Update(ctx, liveBt, metav1.UpdateOptions{})
 				require.NoError(t, err)
 			})
 
-			{
-				liveBt := cephBucketTopicReady(t, k8sh, bt1)
-
-				checkRgwTopicEndpoint(t, snsClient, *liveBt.Status.ARN, string(secret3.Data["user-name"]), string(secret4.Data["password"]))
-
-				secrets := []*corev1.Secret{secret3, secret4}
-
-				checkStatusSecrets(t, k8sh, bt1, secrets)
-			}
+			liveBt := wait4.RequireCondition(ctx, t, btClient, bt1.Name, wait4.BucketTopic, wait4.TimeoutMedium)
+			checkRgwTopicEndpoint(t, snsClient, *liveBt.Status.ARN, string(secret3.Data["user-name"]), string(secret4.Data["password"]))
+			checkStatusSecrets(t, k8sh, bt1, secret3, secret4)
 		})
 
 		t.Run("removing referenced secrets reconciles rgw topic", func(t *testing.T) {
 			t.Run(fmt.Sprintf("delete kafka auth on CephBucketTopic %q", bt1.Name), func(t *testing.T) {
-				liveBt, err := k8sh.RookClientset.CephV1().CephBucketTopics(bt1.Namespace).Get(ctx, bt1.Name, metav1.GetOptions{})
+				liveBt, err := btClient.Get(ctx, bt1.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 
 				liveBt.Spec.Endpoint.Kafka.UserSecretRef = nil
 				liveBt.Spec.Endpoint.Kafka.PasswordSecretRef = nil
 
-				_, err = k8sh.RookClientset.CephV1().CephBucketTopics(liveBt.Namespace).Update(ctx, liveBt, metav1.UpdateOptions{})
+				_, err = btClient.Update(ctx, liveBt, metav1.UpdateOptions{})
 				require.NoError(t, err)
 			})
 
-			{
-				liveBt := cephBucketTopicReady(t, k8sh, bt1)
-
-				checkRgwTopicEndpoint(t, snsClient, *liveBt.Status.ARN, "", "")
-
-				secrets := []*corev1.Secret{}
-
-				checkStatusSecrets(t, k8sh, bt1, secrets)
-			}
+			liveBt := wait4.RequireCondition(ctx, t, btClient, bt1.Name, wait4.BucketTopic, wait4.TimeoutMedium)
+			checkRgwTopicEndpoint(t, snsClient, *liveBt.Status.ARN, "", "")
+			checkStatusSecrets(t, k8sh, bt1)
 		})
 
 		t.Run("adding new referenced secrets reconciles rgw topic", func(t *testing.T) {
 			t.Run(fmt.Sprintf("add kafka auth on CephBucketTopic %q", bt1.Name), func(t *testing.T) {
-				liveBt, err := k8sh.RookClientset.CephV1().CephBucketTopics(bt1.Namespace).Get(ctx, bt1.Name, metav1.GetOptions{})
+				liveBt, err := btClient.Get(ctx, bt1.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 
-				liveBt.Spec.Endpoint.Kafka.UserSecretRef = &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: secret3.Name,
-					},
-					Key: "user-name",
-				}
+				liveBt.Spec.Endpoint.Kafka.UserSecretRef = secretKeySelector(secret3.Name, "user-name")
+				liveBt.Spec.Endpoint.Kafka.PasswordSecretRef = secretKeySelector(secret4.Name, "password")
 
-				liveBt.Spec.Endpoint.Kafka.PasswordSecretRef = &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: secret4.Name,
-					},
-					Key: "password",
-				}
-
-				_, err = k8sh.RookClientset.CephV1().CephBucketTopics(liveBt.Namespace).Update(ctx, liveBt, metav1.UpdateOptions{})
+				_, err = btClient.Update(ctx, liveBt, metav1.UpdateOptions{})
 				require.NoError(t, err)
 			})
 
-			{
-				liveBt := cephBucketTopicReady(t, k8sh, bt1)
-
-				checkRgwTopicEndpoint(t, snsClient, *liveBt.Status.ARN, string(secret3.Data["user-name"]), string(secret4.Data["password"]))
-
-				secrets := []*corev1.Secret{secret3, secret4}
-
-				checkStatusSecrets(t, k8sh, bt1, secrets)
-			}
+			liveBt := wait4.RequireCondition(ctx, t, btClient, bt1.Name, wait4.BucketTopic, wait4.TimeoutMedium)
+			checkRgwTopicEndpoint(t, snsClient, *liveBt.Status.ARN, string(secret3.Data["user-name"]), string(secret4.Data["password"]))
+			checkStatusSecrets(t, k8sh, bt1, secret3, secret4)
 		})
 
 		t.Run("updating secrets reconciles rgw topic", func(t *testing.T) {
 			t.Run(fmt.Sprintf("update secret %q data", secret3.Name), func(t *testing.T) {
-				liveSecret, err := k8sh.Clientset.CoreV1().Secrets(secret3.Namespace).Get(ctx, secret3.Name, metav1.GetOptions{})
+				liveSecret, err := secretClient.Get(ctx, secret3.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 
 				liveSecret.Data = map[string][]byte{
 					"user-name": []byte("kafka-user3-updated"),
 				}
 
-				_, err = k8sh.Clientset.CoreV1().Secrets(secret3.Namespace).Update(ctx, liveSecret, metav1.UpdateOptions{})
+				_, err = secretClient.Update(ctx, liveSecret, metav1.UpdateOptions{})
 				require.NoError(t, err)
 			})
 
 			t.Run(fmt.Sprintf("update secret %q data", secret4.Name), func(t *testing.T) {
-				liveSecret, err := k8sh.Clientset.CoreV1().Secrets(secret3.Namespace).Get(ctx, secret4.Name, metav1.GetOptions{})
+				liveSecret, err := secretClient.Get(ctx, secret4.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 
 				liveSecret.Data = map[string][]byte{
 					"password": []byte("kafka-pass4-updated"),
 				}
 
-				_, err = k8sh.Clientset.CoreV1().Secrets(secret4.Namespace).Update(ctx, liveSecret, metav1.UpdateOptions{})
+				_, err = secretClient.Update(ctx, liveSecret, metav1.UpdateOptions{})
 				require.NoError(t, err)
 			})
 
-			{
-				liveBt := cephBucketTopicReady(t, k8sh, bt1)
+			liveBt := wait4.RequireCondition(ctx, t, btClient, bt1.Name, wait4.BucketTopic, wait4.TimeoutMedium)
 
-				liveSecret3, err := k8sh.Clientset.CoreV1().Secrets(secret3.Namespace).Get(ctx, secret3.Name, metav1.GetOptions{})
-				require.NoError(t, err)
+			liveSecret3, err := secretClient.Get(ctx, secret3.Name, metav1.GetOptions{})
+			require.NoError(t, err)
 
-				liveSecret4, err := k8sh.Clientset.CoreV1().Secrets(secret4.Namespace).Get(ctx, secret4.Name, metav1.GetOptions{})
-				require.NoError(t, err)
+			liveSecret4, err := secretClient.Get(ctx, secret4.Name, metav1.GetOptions{})
+			require.NoError(t, err)
 
-				checkRgwTopicEndpoint(t, snsClient, *liveBt.Status.ARN, string(liveSecret3.Data["user-name"]), string(liveSecret4.Data["password"]))
-
-				secrets := []*corev1.Secret{liveSecret3, liveSecret4}
-
-				checkStatusSecrets(t, k8sh, bt1, secrets)
-			}
+			checkRgwTopicEndpoint(t, snsClient, *liveBt.Status.ARN, string(liveSecret3.Data["user-name"]), string(liveSecret4.Data["password"]))
+			checkStatusSecrets(t, k8sh, bt1, liveSecret3, liveSecret4)
 		})
 
 		t.Run("deleting a referenced secret triggers a reconcile, which fails", func(t *testing.T) {
 			t.Run(fmt.Sprintf("delete secret %q", secret4.Name), func(t *testing.T) {
-				err := k8sh.Clientset.CoreV1().Secrets(secret4.Namespace).Delete(ctx, secret4.Name, metav1.DeleteOptions{})
+				err := secretClient.Delete(ctx, secret4.Name, metav1.DeleteOptions{})
 				require.NoError(t, err)
 			})
 
 			t.Run(fmt.Sprintf("CephBucketTopic %q has phase ReconcileFailed", bt1.Name), func(t *testing.T) {
-				btReady := utils.Retry(40, time.Second, "CephBucketTopic is ReconcileFailed", func() bool {
-					liveBt, err := k8sh.RookClientset.CephV1().CephBucketTopics(bt1.Namespace).Get(ctx, bt1.Name, metav1.GetOptions{})
-					if err != nil {
-						return false
-					}
-
-					if liveBt.Status == nil {
-						return false
-					}
-
-					return liveBt.Status.Phase == string(cephv1.ReconcileFailed)
-				})
-				require.True(t, btReady)
+				wait4.RequireCondition(ctx, t, btClient, bt1.Name, wait4.BucketTopicPhase(string(cephv1.ReconcileFailed)), wait4.TimeoutShort)
 			})
 
 			t.Run(fmt.Sprintf("create secret %q", secret4.Name), func(t *testing.T) {
-				_, err := k8sh.Clientset.CoreV1().Secrets(secret4.Namespace).Create(ctx, secret4, metav1.CreateOptions{})
+				_, err := secretClient.Create(ctx, secret4, metav1.CreateOptions{})
 				require.NoError(t, err)
 			})
 
-			cephBucketTopicReady(t, k8sh, bt1)
+			wait4.RequireCondition(ctx, t, btClient, bt1.Name, wait4.BucketTopic, wait4.TimeoutMedium)
 		})
 
 		t.Run(fmt.Sprintf("delete CephBucketNotification %q", bn1.Name), func(t *testing.T) {
-			err := k8sh.RookClientset.CephV1().CephBucketNotifications(bn1.Namespace).Delete(ctx, bn1.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-
-			absent := utils.Retry(40, time.Second, "CephBucketNotification is absent", func() bool {
-				_, err := k8sh.RookClientset.CephV1().CephBucketNotifications(bt1.Namespace).Get(ctx, bt1.Name, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
+			wait4.AssertDelete(ctx, t, bnClient, bn1.Name, wait4.TimeoutShort)
 		})
 
 		t.Run(fmt.Sprintf("no CephBucketNotification(s) in ns %q", ns.Name), func(t *testing.T) {
-			list, err := k8sh.RookClientset.CephV1().CephBucketNotifications(ns.Name).List(ctx, metav1.ListOptions{})
+			list, err := bnClient.List(ctx, metav1.ListOptions{})
 			require.NoError(t, err)
 
 			assert.Len(t, list.Items, 0)
 		})
 
 		t.Run(fmt.Sprintf("delete CephBucketTopic %q", bt1.Name), func(t *testing.T) {
-			err := k8sh.RookClientset.CephV1().CephBucketTopics(bt1.Namespace).Delete(ctx, bt1.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-
-			absent := utils.Retry(40, time.Second, "CephBucketTopic is absent", func() bool {
-				_, err := k8sh.RookClientset.CephV1().CephBucketTopics(bt1.Namespace).Get(ctx, bt1.Name, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
+			wait4.AssertDelete(ctx, t, btClient, bt1.Name, wait4.TimeoutShort)
 		})
 
 		t.Run(fmt.Sprintf("no CephBucketTopic(s) in ns %q", ns.Name), func(t *testing.T) {
-			list, err := k8sh.RookClientset.CephV1().CephBucketTopics(ns.Name).List(ctx, metav1.ListOptions{})
+			list, err := btClient.List(ctx, metav1.ListOptions{})
 			require.NoError(t, err)
 
 			assert.Len(t, list.Items, 0)
@@ -525,29 +360,17 @@ func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *instal
 
 		t.Run(fmt.Sprintf("delete obc %q", obc1.Name), func(t *testing.T) {
 			// lookup ob name
-			liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(obc1.Namespace).Get(ctx, obc1.Name, metav1.GetOptions{})
+			liveObc, err := obcClient.Get(ctx, obc1.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			obName := liveObc.Spec.ObjectBucketName
 
-			// delete obc
-			err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(obc1.Namespace).Delete(ctx, obc1.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-
-			absent := utils.Retry(40, time.Second, "OBC is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(obc1.Namespace).Get(ctx, obc1.Name, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
-
-			absent = utils.Retry(40, time.Second, "OB is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
+			// delete obc; the backing ob is garbage-collected by the provisioner
+			wait4.AssertDelete(ctx, t, obcClient, obc1.Name, wait4.TimeoutShort)
+			wait4.AssertAbsent(ctx, t, obClient, obName, wait4.TimeoutShort)
 		})
 
 		t.Run(fmt.Sprintf("no obc(s) in ns %q", ns.Name), func(t *testing.T) {
-			list, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(ns.Name).List(ctx, metav1.ListOptions{})
+			list, err := obcClient.List(ctx, metav1.ListOptions{})
 			require.NoError(t, err)
 
 			assert.Len(t, list.Items, 0)
@@ -555,61 +378,51 @@ func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, installer *instal
 
 		t.Run("CephBucketTopic deletion did not remove any secrets", func(t *testing.T) {
 			t.Run(fmt.Sprintf("secret %q still exists", secret1.Name), func(t *testing.T) {
-				_, err := k8sh.Clientset.CoreV1().Secrets(secret1.Namespace).Get(ctx, secret1.Name, metav1.GetOptions{})
+				_, err := secretClient.Get(ctx, secret1.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 			})
 
 			t.Run(fmt.Sprintf("secret %q still exists", secret2.Name), func(t *testing.T) {
-				_, err := k8sh.Clientset.CoreV1().Secrets(secret2.Namespace).Get(ctx, secret2.Name, metav1.GetOptions{})
+				_, err := secretClient.Get(ctx, secret2.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 			})
 
 			t.Run(fmt.Sprintf("secret %q still exists", secret3.Name), func(t *testing.T) {
-				_, err := k8sh.Clientset.CoreV1().Secrets(secret3.Namespace).Get(ctx, secret3.Name, metav1.GetOptions{})
+				_, err := secretClient.Get(ctx, secret3.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 			})
 
 			t.Run(fmt.Sprintf("secret %q still exists", secret4.Name), func(t *testing.T) {
-				_, err := k8sh.Clientset.CoreV1().Secrets(secret4.Namespace).Get(ctx, secret4.Name, metav1.GetOptions{})
+				_, err := secretClient.Get(ctx, secret4.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 			})
 		})
 
-		t.Run(fmt.Sprintf("delete sc %q", storageClass.Name), func(t *testing.T) {
-			err := k8sh.Clientset.StorageV1().StorageClasses().Delete(ctx, storageClass.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
-		})
-
 		t.Run(fmt.Sprintf("delete secret %q", secret4.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Secrets(secret4.Namespace).Delete(ctx, secret4.Name, metav1.DeleteOptions{})
+			err := secretClient.Delete(ctx, secret4.Name, metav1.DeleteOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("delete secret %q", secret3.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Secrets(secret3.Namespace).Delete(ctx, secret3.Name, metav1.DeleteOptions{})
+			err := secretClient.Delete(ctx, secret3.Name, metav1.DeleteOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("delete secret %q", secret2.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Secrets(secret3.Namespace).Delete(ctx, secret2.Name, metav1.DeleteOptions{})
+			err := secretClient.Delete(ctx, secret2.Name, metav1.DeleteOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("delete secret %q", secret1.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Secrets(secret1.Namespace).Delete(ctx, secret1.Name, metav1.DeleteOptions{})
+			err := secretClient.Delete(ctx, secret1.Name, metav1.DeleteOptions{})
 			require.NoError(t, err)
 		})
 
 		t.Run(fmt.Sprintf("no secrets in ns %q", ns.Name), func(t *testing.T) {
-			secrets, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).List(ctx, metav1.ListOptions{})
+			secrets, err := secretClient.List(ctx, metav1.ListOptions{})
 			require.NoError(t, err)
 
 			assert.Len(t, secrets.Items, 0)
-		})
-
-		t.Run(fmt.Sprintf("delete ns %q", ns.Name), func(t *testing.T) {
-			err := k8sh.Clientset.CoreV1().Namespaces().Delete(ctx, ns.Name, metav1.DeleteOptions{})
-			require.NoError(t, err)
 		})
 	})
 }
