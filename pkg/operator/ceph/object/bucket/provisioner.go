@@ -555,7 +555,7 @@ func (p *Provisioner) setObjectContext() error {
 	return nil
 }
 
-// setObjectStoreDomainName sets the provisioner.storeDomainName and provisioner.port
+// setObjectStoreDomainNameAndPort sets the provisioner.storeDomainName and provisioner.port
 // must be called after setObjectStoreName and setObjectStoreNamespace
 func (p *Provisioner) setObjectStoreDomainNameAndPort(sc *storagev1.StorageClass) error {
 	// make sure the object store actually exists

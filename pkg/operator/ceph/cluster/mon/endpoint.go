@@ -23,7 +23,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
-// FlattenMonEndpoints returns a comma-delimited string of all mons and endpoints in the form
+// flattenMonEndpoints returns a comma-delimited string of all mons and endpoints in the form
 // <mon-name>=<mon-endpoint>
 func flattenMonEndpoints(mons map[string]*cephclient.MonInfo) string {
 	endpoints := []string{}
