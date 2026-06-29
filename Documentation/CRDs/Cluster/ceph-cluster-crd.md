@@ -51,7 +51,7 @@ If this value is empty, each pod will get an ephemeral directory to store their 
     * `externalMgrEndpoints`: external cluster manager endpoints
     * `externalMgrPrometheusPort`: external prometheus manager module port. See [external cluster configuration](./external-cluster/external-cluster.md) for more details.
     * `port`: The internal prometheus manager module port where the prometheus mgr module listens. The port may need to be configured when host networking is enabled.
-    * `interval`: The interval for the prometheus module to to scrape targets.
+    * `interval`: The interval for the prometheus module to scrape targets.
     * `exporter`: Ceph exporter metrics config.
         * `perfCountersPrioLimit`: Specifies which performance counters are exported. Corresponds to `--prio-limit` Ceph exporter flag. `0` - all counters are exported, default is `5`.
         * `statsPeriodSeconds`: Time to wait before sending requests again to exporter server (seconds). Corresponds to `--stats-period` Ceph exporter flag. Default is `5`.

@@ -76,7 +76,7 @@ rbd unmap /dev/rbd0
 ## Shared Filesystem Tools
 
 After you have created a filesystem as described in the [Shared Filesystem](../Storage-Configuration/Shared-Filesystem-CephFS/filesystem-storage.md) topic, you can mount the filesystem from multiple pods.
-The the other topic you may have mounted the filesystem already in the registry pod. Now we will mount the same filesystem in the Direct Mount pod.
+The other topic you may have mounted the filesystem already in the registry pod. Now we will mount the same filesystem in the Direct Mount pod.
 This is just a simple way to validate the Ceph filesystem and is not recommended for production Kubernetes pods.
 
 Follow [Direct Mount Pod](direct-tools.md#Start-the-Direct-Mount-Pod) to start a pod with the necessary mounts and then proceed with the following commands after connecting to the pod.

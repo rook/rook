@@ -47,7 +47,7 @@ If any of the controllers in either phase reject the request, the entire request
 
 ![Dev_AC_Image](./ac_dev_design.png)
 
-We can use self-signed certificates approved by the Kubernetes Certificate Authority for development purposes.This can be done by following the steps given below.
+We can use self-signed certificates approved by the Kubernetes Certificate Authority for development purposes. This can be done by following the steps given below.
 
 * Creating the private key and certs using openssl.
 
