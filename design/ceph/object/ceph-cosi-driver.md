@@ -16,7 +16,7 @@ The Ceph COSI driver is deployed as a deployment with a [COSI sidecar container]
 
 ## Integration plan with Rook
 
-The aim to support the v1alpha1 version of COSI in Rook v1.12. It will be extended to beta and release versions as appropriate. There will be one COSI Driver support from Rook. The driver will be started automatically with default settings when first Object Store gets created. The driver will be deleted when Rook Operator is uninstalled. The driver will be deployed in the same namespace as Rook operator. The user can provide additional setting via new `CephCOSIDriver` CRD which is owned by Rook.
+The aim is to support the v1alpha1 version of COSI in Rook v1.12. It will be extended to beta and release versions as appropriate. There will be one COSI Driver support from Rook. The driver will be started automatically with default settings when first Object Store gets created. The driver will be deleted when Rook Operator is uninstalled. The driver will be deployed in the same namespace as Rook operator. The user can provide additional settings via new `CephCOSIDriver` CRD which is owned by Rook.
 
 ### Pre-requisites
 

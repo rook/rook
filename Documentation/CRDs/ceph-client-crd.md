@@ -121,7 +121,7 @@ First, on your workload ensure that you have the appropriate packages installed 
 
 Without the appropriate package (or a from-scratch build of SQLite), you will be unable to load `libcephsqlite.so`.
 
-After creating a `CephClient` similar to [`deploy/examples/sqlitevfs-client.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/sqlitevfs-client.yaml) and retrieving it's credentials, you may set the following ENV variables:
+After creating a `CephClient` similar to [`deploy/examples/sqlitevfs-client.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/sqlitevfs-client.yaml) and retrieving its credentials, you may set the following ENV variables:
 
 ```console
 export CEPH_CONF=/libsqliteceph/ceph.conf;
