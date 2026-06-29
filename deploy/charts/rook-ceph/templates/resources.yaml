@@ -1975,6 +1975,26 @@ spec:
                         type: object
                       description: LivenessProbe allows changing the livenessProbe configuration for a given daemon
                       type: object
+                    muteHealthWarning:
+                      additionalProperties:
+                        description: MuteHealthWarningSpec configures muting of a Ceph health warning.
+                        properties:
+                          policy:
+                            description: Policy controls whether to mute or unmute a Ceph health warning.
+                            enum:
+                              - mute
+                              - unmute
+                            type: string
+                        required:
+                          - policy
+                        type: object
+                      description: MuteHealthWarning configures muting of Ceph health warnings.
+                      maxProperties: 10
+                      minProperties: 0
+                      type: object
+                      x-kubernetes-validations:
+                        - message: keys must be valid Ceph health check codes
+                          rule: self.all(k, k.matches('^[A-Z]+(_[A-Z]+)+$'))
                     startupProbe:
                       additionalProperties:
                         description: ProbeSpec is a wrapper around Probe so it can be enabled or disabled for a Ceph daemon
