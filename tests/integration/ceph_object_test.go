@@ -49,6 +49,7 @@ import (
 	usercaps "github.com/rook/rook/tests/integration/object/user/caps"
 	userkeys "github.com/rook/rook/tests/integration/object/user/keys"
 	useropmask "github.com/rook/rook/tests/integration/object/user/opmask"
+	userplacement "github.com/rook/rook/tests/integration/object/user/placement"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 )
 
@@ -210,7 +211,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
 
 	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, tlsEnable,
-		bucketowner.Namespace, userkeys.Namespace, topickafka.Namespace, useropmask.Namespace, usercaps.Namespace)
+		bucketowner.Namespace,
+		userkeys.Namespace,
+		topickafka.Namespace,
+		useropmask.Namespace,
+		usercaps.Namespace,
+		userplacement.Namespace,
+	)
 	defer sharedObjectStore.Destroy()
 
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, sharedObjectStore)
@@ -218,6 +225,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	topickafka.TestBucketTopicKafka(s.T(), k8sh, sharedObjectStore)
 	useropmask.TestObjectStoreUserOpMask(s.T(), k8sh, sharedObjectStore)
 	usercaps.TestObjectStoreUserCaps(s.T(), k8sh, sharedObjectStore)
+	userplacement.TestObjectStoreUserDefaultPlacement(s.T(), k8sh, sharedObjectStore)
 
 	bucketNotificationTestStoreName := "bucket-notification-" + storeName
 	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, swiftAndKeystone)
