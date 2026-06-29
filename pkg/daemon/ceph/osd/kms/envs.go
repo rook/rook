@@ -34,7 +34,7 @@ var (
 	knownKMSPrefix = []string{"VAULT_", "IBM_", kmipKMSPrefix, "AZURE_"}
 )
 
-// VaultTokenEnvVarFromSecret returns the kms token secret value as an env var
+// vaultTokenEnvVarFromSecret returns the kms token secret value as an env var
 func vaultTokenEnvVarFromSecret(tokenSecretName string) v1.EnvVar {
 	return v1.EnvVar{
 		Name: api.EnvVaultToken,

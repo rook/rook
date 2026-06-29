@@ -101,7 +101,7 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Conte
 // controller)
 // var AddToManagerOpFunc = []func(manager.Manager, *clusterd.Context, opcontroller.OperatorConfig) error{}
 
-// AddToManager adds all the registered controllers to the passed manager.
+// addToManager adds all the registered controllers to the passed manager.
 // each controller package will have an Add method listed in AddToManagerFuncs
 // which will setup all the necessary watch
 func (o *Operator) addToManager(m manager.Manager, c *controllerconfig.Context, opManagerContext context.Context, opconfig opcontroller.OperatorConfig) error {

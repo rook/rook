@@ -855,7 +855,7 @@ func RgwOpsLogSidecarContainer(opsLogFile, ns string, c cephv1.ClusterSpec, env 
 	}
 }
 
-// CreateExternalMetricsEndpoints creates external metric endpoint
+// createExternalMetricsEndpoints creates external metric endpoint
 func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.MonitoringSpec, ownerInfo *k8sutil.OwnerInfo) (*discoveryv1.EndpointSlice, error) {
 	labels := AppLabels("rook-ceph-mgr", namespace)
 	labels[discoveryv1.LabelServiceName] = ExternalMgrAppName

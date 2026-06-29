@@ -822,7 +822,7 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	return d, nil
 }
 
-// GetMonPlacement returns the placement for the MON service
+// getMonPlacement returns the placement for the MON service
 func (c *Cluster) getMonPlacement(zone string) cephv1.Placement {
 	// If the mon is the arbiter in a stretch cluster and its placement is specified, return it
 	// without merging with the "all" placement so it can be handled separately from all other daemons
