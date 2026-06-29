@@ -55,7 +55,7 @@ The OSDs are spread across multiple nodes
 because the [`failureDomain`](ceph-block-pool-crd.md#spec) is set to `host`.
 Setting the `failureDomain` to `osd` is **not** a good idea for production data.
 The `erasureCoded` chunk settings require at least six OSDs of the specified
-deviceClass: four `dataChunks` + two `codingChunks`).
+deviceClass: four `dataChunks` + two `codingChunks`.
 
 
 ```yaml
@@ -89,7 +89,7 @@ replicated pools and at least four when using erasure coding.  Specifically, an
 erasure-coded pool should specify `failureDomain: host` and the cluster should comprise at
 least `dataChunks+1` hosts.  There are certain operational flexibility advantages to
 provisioning at least `dataChunks + codingChunks +1` hosts, including being able
-to full use the aggregate raw capacity when the failure domains are not
+to fully use the aggregate raw capacity when the failure domains are not
 all equal in CRUSH weight.
 
 A very small cluster that cannot provision at least six nodes, at least at first, may

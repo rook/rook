@@ -20,7 +20,7 @@
 ## Non-Goals/Deferred Features:
 
 Migration of OSDs with following configurations is deferred for now and will
-considered in the future:
+be considered in the future:
 - Hybrid OSDs where metadata (RocksDB+WAL) is placed on faster storage media
   and application data on slower media.
 - Setups with multiple OSDs per drive, though with recent Ceph releases the
@@ -116,11 +116,11 @@ OSD replacement steps:
 1. If all PGs are `active+clean` but a previous OSD migration is not completed, do not proceed.
 1. If all PGs are `active+clean` and no migration is in progress, then select an OSD to be migrated.
 1. Delete the OSD deployment.
-1. Create an OSD prepare job with an environment variable indictating the OSD ID to be replaced.
+1. Create an OSD prepare job with an environment variable indicating the OSD ID to be replaced.
 1. The OSD prepare pod will destroy the OSD (`ceph osd destroy {id} --yes-i-really-mean-it`) and prepare it again using the same OSD ID. Refer [Destroy OSD](#destroy-osd) for details.
 1. Once the destroyed OSD pod is recreated, delete the configmap.
 1. If there is any error during the OSD migration, then preserve the OSD ID being replaced in the configmap for next reconcile.
-1. Reconcile the operator and perform as same steps until all the OSDs have migrated to the new backend.
+1. Reconcile the operator and perform the same steps until all the OSDs have migrated to the new backend.
 
 
 ## Risks

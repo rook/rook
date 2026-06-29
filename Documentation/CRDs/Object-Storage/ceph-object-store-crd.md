@@ -202,7 +202,7 @@ The gateway settings correspond to the RGW daemon settings.
 
 * `caBundleRef`: If specified, this is the name of the Kubernetes secret (type `opaque`) that
     contains additional custom ca-bundle to use. The secret must be in the same namespace as the Rook
-    cluster. Rook will look in the secret provided at the `cabundle` key name. This bundle is used used by RGW to verify
+    cluster. Rook will look in the secret provided at the `cabundle` key name. This bundle is used by RGW to verify
     external applications that RGW connects to. For example: LDAP servers, or a different RGW realm for multisite connections.
     This bundle is **not** used by the rook operator when connecting to the RGW. See the notes on `sslCertificateRef` on
     how to load the entire certificate chain into `cert` for use by the operator instead.
