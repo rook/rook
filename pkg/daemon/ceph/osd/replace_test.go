@@ -18,6 +18,7 @@ package osd
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -316,4 +317,163 @@ func TestBuildReplacementPrepareArgs(t *testing.T) {
 			assert.Equal(t, tc.expected, args)
 		})
 	}
+}
+
+func TestEncryptedDMNamesForOSD(t *testing.T) {
+	// JSON shape mirrors a real `ceph-volume lvm list <id>` for a shared-metadata encrypted OSD: the
+	// dm-crypt mapping name is the LV's lv_uuid (verified on a live cluster), and only entries tagged
+	// ceph.encrypted=1 carry a mapping to close.
+	const encryptedOut = `{
+		"5": [
+			{"type": "block", "lv_uuid": "BLOCK-UUID", "vg_name": "ceph-bvg", "lv_name": "osd-block-x", "path": "/dev/ceph-bvg/osd-block-x", "tags": {"ceph.encrypted": "1", "ceph.osd_id": "5"}},
+			{"type": "db", "lv_uuid": "DB-UUID", "vg_name": "ceph-dvg", "lv_name": "osd-db-y", "path": "/dev/ceph-dvg/osd-db-y", "tags": {"ceph.encrypted": "1", "ceph.osd_id": "5"}}
+		]
+	}`
+
+	t.Run("encrypted shared-metadata returns block and db dm names", func(t *testing.T) {
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				assert.Contains(t, args, "list")
+				assert.Contains(t, args, "5")
+				return encryptedOut, nil
+			},
+		}
+		names, err := encryptedDMNamesForOSD(&clusterd.Context{Executor: executor}, 5)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"BLOCK-UUID", "DB-UUID"}, names)
+	})
+
+	t.Run("non-encrypted OSD returns nothing", func(t *testing.T) {
+		out := `{"5": [{"type": "block", "lv_uuid": "BLOCK-UUID", "tags": {"ceph.encrypted": "0", "ceph.osd_id": "5"}}]}`
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return out, nil
+			},
+		}
+		names, err := encryptedDMNamesForOSD(&clusterd.Context{Executor: executor}, 5)
+		assert.NoError(t, err)
+		assert.Empty(t, names)
+	})
+
+	t.Run("id absent from list returns nothing", func(t *testing.T) {
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return `{}`, nil
+			},
+		}
+		names, err := encryptedDMNamesForOSD(&clusterd.Context{Executor: executor}, 5)
+		assert.NoError(t, err)
+		assert.Empty(t, names)
+	})
+
+	t.Run("wal LV is also returned", func(t *testing.T) {
+		out := `{
+			"5": [
+				{"type": "block", "lv_uuid": "BLOCK-UUID", "tags": {"ceph.encrypted": "1"}},
+				{"type": "db", "lv_uuid": "DB-UUID", "tags": {"ceph.encrypted": "1"}},
+				{"type": "wal", "lv_uuid": "WAL-UUID", "tags": {"ceph.encrypted": "1"}}
+			]
+		}`
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return out, nil
+			},
+		}
+		names, err := encryptedDMNamesForOSD(&clusterd.Context{Executor: executor}, 5)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"BLOCK-UUID", "DB-UUID", "WAL-UUID"}, names)
+	})
+
+	t.Run("encrypted entry with no lv_uuid is skipped", func(t *testing.T) {
+		out := `{
+			"5": [
+				{"type": "block", "lv_uuid": "", "tags": {"ceph.encrypted": "1"}},
+				{"type": "db", "lv_uuid": "DB-UUID", "tags": {"ceph.encrypted": "1"}}
+			]
+		}`
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return out, nil
+			},
+		}
+		names, err := encryptedDMNamesForOSD(&clusterd.Context{Executor: executor}, 5)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"DB-UUID"}, names)
+	})
+}
+
+func TestCloseEncryptedDevicesForOSD(t *testing.T) {
+	const encryptedOut = `{
+		"5": [
+			{"type": "block", "lv_uuid": "BLOCK-UUID", "tags": {"ceph.encrypted": "1", "ceph.osd_id": "5"}},
+			{"type": "db", "lv_uuid": "DB-UUID", "tags": {"ceph.encrypted": "1", "ceph.osd_id": "5"}}
+		]
+	}`
+
+	t.Run("closes each encrypted mapping with luksClose", func(t *testing.T) {
+		closed := []string{}
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return encryptedOut, nil
+			},
+			MockExecuteCommandWithCombinedOutput: func(command string, args ...string) (string, error) {
+				require.Equal(t, "cryptsetup", command)
+				assert.Equal(t, []string{"--verbose", "luksClose", args[2]}, args)
+				closed = append(closed, args[2])
+				return "", nil
+			},
+		}
+		err := CloseEncryptedDevicesForOSD(&clusterd.Context{Executor: executor}, 5)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"BLOCK-UUID", "DB-UUID"}, closed)
+	})
+
+	t.Run("already-closed mapping (exit status 4) is treated as success", func(t *testing.T) {
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return encryptedOut, nil
+			},
+			MockExecuteCommandWithCombinedOutput: func(command string, args ...string) (string, error) {
+				return "Device is not active.", errors.New("exit status 4")
+			},
+		}
+		err := CloseEncryptedDevicesForOSD(&clusterd.Context{Executor: executor}, 5)
+		assert.NoError(t, err)
+	})
+
+	t.Run("real close failure is returned", func(t *testing.T) {
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return encryptedOut, nil
+			},
+			MockExecuteCommandWithCombinedOutput: func(command string, args ...string) (string, error) {
+				return "boom", errors.New("exit status 1")
+			},
+		}
+		err := CloseEncryptedDevicesForOSD(&clusterd.Context{Executor: executor}, 5)
+		assert.Error(t, err)
+	})
+
+	t.Run("non-encrypted OSD is a no-op", func(t *testing.T) {
+		called := false
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return `{"5": [{"type": "block", "lv_uuid": "X", "tags": {"ceph.encrypted": "0"}}]}`, nil
+			},
+			MockExecuteCommandWithCombinedOutput: func(command string, args ...string) (string, error) {
+				called = true
+				return "", nil
+			},
+		}
+		err := CloseEncryptedDevicesForOSD(&clusterd.Context{Executor: executor}, 5)
+		assert.NoError(t, err)
+		assert.False(t, called)
+	})
+}
+
+func TestIsCryptsetupNotActive(t *testing.T) {
+	assert.True(t, isCryptsetupNotActive(errors.New("exit status 4")))
+	assert.True(t, isCryptsetupNotActive(errors.New("Device foo is not active.")))
+	assert.False(t, isCryptsetupNotActive(errors.New("exit status 1")))
+	assert.False(t, isCryptsetupNotActive(nil))
 }
