@@ -309,6 +309,17 @@ func HostTree(context *clusterd.Context, clusterInfo *ClusterInfo) (OsdTree, err
 	return output, nil
 }
 
+// GetDestroyedIDs returns the ids of osd nodes whose status is "destroyed".
+func (tree OsdTree) GetDestroyedIDs() []int {
+	destroyed := []int{}
+	for _, node := range tree.Nodes {
+		if node.Status == "destroyed" {
+			destroyed = append(destroyed, node.ID)
+		}
+	}
+	return destroyed
+}
+
 // OsdListNum returns the list of OSDs
 func OsdListNum(context *clusterd.Context, clusterInfo *ClusterInfo) (OsdList, error) {
 	var output OsdList
