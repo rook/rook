@@ -218,6 +218,12 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 		return errors.Wrap(err, "failed to get available devices")
 	}
 
+	// Reclaim any destroyed slot on this node onto a freshly-swapped blank device, removing each
+	// consumed device from the available set; this no-ops when there is nothing to replace.
+	if err := agent.preProvisionReplacedOSDs(context, devices, crushLocation); err != nil {
+		return errors.Wrap(err, "failed to provision replacement OSDs")
+	}
+
 	// orchestration is about to start, update the status
 	status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating, PvcBackedOSD: agent.pvcBacked}
 	oposd.UpdateNodeOrPVCStatus(agent.clusterInfo.Context, agent.kv, agent.nodeName, status)

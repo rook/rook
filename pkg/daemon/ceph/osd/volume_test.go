@@ -579,6 +579,9 @@ func TestConfigureCVDevices(t *testing.T) {
 			if command == "sgdisk" {
 				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
 			}
+			if args[0] == "osd" && args[1] == "tree" {
+				return `{"nodes":[],"stray":[]}`, nil
+			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 		deviceClassSet := false
@@ -598,6 +601,9 @@ func TestConfigureCVDevices(t *testing.T) {
 			}
 			if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == "/tmp/ceph-log" {
 				return `{}`, nil
+			}
+			if args[0] == "osd" && args[1] == "tree" {
+				return `{"nodes":[],"stray":[]}`, nil
 			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
@@ -641,6 +647,9 @@ func TestConfigureCVDevices(t *testing.T) {
 			}
 			if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == "/tmp/ceph-log" {
 				return `{}`, nil
+			}
+			if args[0] == "osd" && args[1] == "tree" {
+				return `{"nodes":[],"stray":[]}`, nil
 			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
