@@ -1,0 +1,319 @@
+/*
+Copyright 2026 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package osd
+
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/util/sys"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestCrushHostFromLocation(t *testing.T) {
+	assert.Equal(t, "node-1", crushHostFromLocation("root=default host=node-1"))
+	assert.Equal(t, "node-1", crushHostFromLocation("root=default host=node-1 region=r1 zone=z1"))
+	assert.Equal(t, "", crushHostFromLocation("root=default"))
+	assert.Equal(t, "", crushHostFromLocation(""))
+}
+
+func TestAvailableDataDevices(t *testing.T) {
+	t.Run("picks a blank data device", func(t *testing.T) {
+		available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{
+			"sdb": {Data: unassignedOSDID, DeviceInfo: &sys.LocalDisk{Name: "sdb"}},
+		}}
+		assert.Equal(t, []string{"sdb"}, availableDataDevices(available))
+	})
+
+	t.Run("skips metadata device entries", func(t *testing.T) {
+		available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{
+			"nvme0n1": {Data: unassignedOSDID, Metadata: []int{}, DeviceInfo: &sys.LocalDisk{Name: "nvme0n1"}},
+		}}
+		assert.Empty(t, availableDataDevices(available))
+	})
+
+	t.Run("skips already-assigned data devices", func(t *testing.T) {
+		available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{
+			"sdb": {Data: 5, DeviceInfo: &sys.LocalDisk{Name: "sdb"}},
+		}}
+		assert.Empty(t, availableDataDevices(available))
+	})
+
+	t.Run("empty mapping", func(t *testing.T) {
+		assert.Empty(t, availableDataDevices(&DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}))
+	})
+
+	t.Run("multiple blank candidates sorted deterministically", func(t *testing.T) {
+		available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{
+			"sdc": {Data: unassignedOSDID, DeviceInfo: &sys.LocalDisk{Name: "sdc"}},
+			"sdb": {Data: unassignedOSDID, DeviceInfo: &sys.LocalDisk{Name: "sdb"}},
+		}}
+		// Map iteration order is random; the sorted result must always be ["sdb", "sdc"].
+		for i := 0; i < 20; i++ {
+			assert.Equal(t, []string{"sdb", "sdc"}, availableDataDevices(available))
+		}
+	})
+}
+
+func TestFilterDestroyedOSDIdsForNode(t *testing.T) {
+	treeJSON := `{
+		"nodes": [
+			{"id": -1, "name": "default", "type": "root", "type_id": 10, "children": [-3, -4]},
+			{"id": -3, "name": "node1", "type": "host", "type_id": 1, "children": [0, 1]},
+			{"id": -4, "name": "node2", "type": "host", "type_id": 1, "children": [2, 3]},
+			{"id": 0, "name": "osd.0", "type": "osd", "type_id": 0, "exists": 1, "status": "up"},
+			{"id": 1, "name": "osd.1", "type": "osd", "type_id": 0, "exists": 1, "status": "destroyed"},
+			{"id": 2, "name": "osd.2", "type": "osd", "type_id": 0, "exists": 1, "status": "destroyed"},
+			{"id": 3, "name": "osd.3", "type": "osd", "type_id": 0, "exists": 1, "status": "up"}
+		],
+		"stray": []
+	}`
+	var tree cephclient.OsdTree
+	require.NoError(t, json.Unmarshal([]byte(treeJSON), &tree))
+
+	// GetDestroyedIDs picks up only "destroyed" slots cluster-wide.
+	destroyed := tree.GetDestroyedIDs()
+	assert.ElementsMatch(t, []int{1, 2}, destroyed)
+
+	// destroyed ids cluster-wide are [1, 2]; only osd.1 belongs to node1.
+	ids, err := filterDestroyedOSDIdsForNode(tree, destroyed, "root=default host=node1")
+	assert.NoError(t, err)
+	assert.Equal(t, []int{1}, ids)
+
+	// node2 owns osd.2 only.
+	ids, err = filterDestroyedOSDIdsForNode(tree, destroyed, "root=default host=node2")
+	assert.NoError(t, err)
+	assert.Equal(t, []int{2}, ids)
+
+	// a node with no destroyed slots returns empty.
+	ids, err = filterDestroyedOSDIdsForNode(tree, destroyed, "root=default host=node-unknown")
+	assert.NoError(t, err)
+	assert.Empty(t, ids)
+
+	// missing host token is an error.
+	_, err = filterDestroyedOSDIdsForNode(tree, destroyed, "root=default")
+	assert.Error(t, err)
+}
+
+func TestFilterDestroyedOSDIdsForNodeDeepHierarchy(t *testing.T) {
+	// Realistic multi-level CRUSH tree as seen in mid-to-large clusters, where rack-level failure
+	// domains are typical and racks/datacenters sit ABOVE the host bucket:
+	//
+	//   root(default) -> datacenter -> rack -> host -> osd
+	//
+	// type_id values are the Ceph defaults (osd=0, host=1, chassis=2, rack=3, datacenter=8,
+	// root=11), per src/osd/OSDMap.cc OSDMap::build_simple_crush_map_from_conf
+	// (crush.set_type_name(0,"osd")..(11,"root")) and doc/rados/operations/crush-map-edits.rst
+	// ("type 0 osd" .. "type 11 root"). The per-node JSON fields (id/name/type/type_id/children for
+	// buckets; id/name/type/type_id/crush_weight/depth/exists/status/reweight/primary_affinity for
+	// osd leaves) match the `ceph osd tree --format json` shape emitted by
+	// CrushTreeDumper::dump_item_fields + OSDTreeFormattingDumper::dump_item_fields, with status one
+	// of "up"/"down"/"destroyed".
+	//
+	// Layout:
+	//   dc1
+	//     rack-a1 -> host node-a1  : osd.0 (up),        osd.1 (destroyed)
+	//     rack-a2 -> host node-a2  : osd.2 (up),        osd.3 (up)
+	//   dc2
+	//     rack-b1 -> host node-b1  : osd.4 (destroyed), osd.5 (up)
+	//     rack-b1 -> host node-b2  : chassis -> osd.6 (destroyed), osd.7 (up)
+	//
+	// The node-b2 host has a non-standard intermediate `chassis` bucket BELOW the host (standard
+	// CRUSH puts chassis ABOVE the host). It is included only to exercise the recursive descent in
+	// collectOSDsUnderBucket: osd.6 sits one level deeper than a host's direct children, so it is
+	// only returned if the walk recurses through the chassis.
+	treeJSON := `{
+		"nodes": [
+			{"id": -1, "name": "default", "type": "root", "type_id": 11, "children": [-2, -3]},
+
+			{"id": -2, "name": "dc1", "type": "datacenter", "type_id": 8, "children": [-10, -11]},
+			{"id": -10, "name": "rack-a1", "type": "rack", "type_id": 3, "children": [-100]},
+			{"id": -11, "name": "rack-a2", "type": "rack", "type_id": 3, "children": [-101]},
+			{"id": -100, "name": "node-a1", "type": "host", "type_id": 1, "children": [0, 1]},
+			{"id": -101, "name": "node-a2", "type": "host", "type_id": 1, "children": [2, 3]},
+
+			{"id": -3, "name": "dc2", "type": "datacenter", "type_id": 8, "children": [-20]},
+			{"id": -20, "name": "rack-b1", "type": "rack", "type_id": 3, "children": [-200, -201]},
+			{"id": -200, "name": "node-b1", "type": "host", "type_id": 1, "children": [4, 5]},
+			{"id": -201, "name": "node-b2", "type": "host", "type_id": 1, "children": [-300]},
+			{"id": -300, "name": "node-b2-chassis", "type": "chassis", "type_id": 2, "children": [6, 7]},
+
+			{"id": 0, "name": "osd.0", "type": "osd", "type_id": 0, "crush_weight": 1.0, "depth": 4, "exists": 1, "status": "up", "reweight": 1.0, "primary_affinity": 1.0},
+			{"id": 1, "name": "osd.1", "type": "osd", "type_id": 0, "crush_weight": 1.0, "depth": 4, "exists": 1, "status": "destroyed", "reweight": 0.0, "primary_affinity": 1.0},
+			{"id": 2, "name": "osd.2", "type": "osd", "type_id": 0, "crush_weight": 1.0, "depth": 4, "exists": 1, "status": "up", "reweight": 1.0, "primary_affinity": 1.0},
+			{"id": 3, "name": "osd.3", "type": "osd", "type_id": 0, "crush_weight": 1.0, "depth": 4, "exists": 1, "status": "up", "reweight": 1.0, "primary_affinity": 1.0},
+			{"id": 4, "name": "osd.4", "type": "osd", "type_id": 0, "crush_weight": 1.0, "depth": 4, "exists": 1, "status": "destroyed", "reweight": 0.0, "primary_affinity": 1.0},
+			{"id": 5, "name": "osd.5", "type": "osd", "type_id": 0, "crush_weight": 1.0, "depth": 4, "exists": 1, "status": "up", "reweight": 1.0, "primary_affinity": 1.0},
+			{"id": 6, "name": "osd.6", "type": "osd", "type_id": 0, "crush_weight": 1.0, "depth": 5, "exists": 1, "status": "destroyed", "reweight": 0.0, "primary_affinity": 1.0},
+			{"id": 7, "name": "osd.7", "type": "osd", "type_id": 0, "crush_weight": 1.0, "depth": 5, "exists": 1, "status": "up", "reweight": 1.0, "primary_affinity": 1.0}
+		],
+		"stray": []
+	}`
+	var tree cephclient.OsdTree
+	require.NoError(t, json.Unmarshal([]byte(treeJSON), &tree))
+
+	// Cluster-wide destroyed slots span multiple racks/datacenters: osd.1 (dc1), osd.4 and osd.6 (dc2).
+	destroyed := tree.GetDestroyedIDs()
+	assert.ElementsMatch(t, []int{1, 4, 6}, destroyed)
+
+	t.Run("returns only the destroyed osd under the target host, deep in the tree", func(t *testing.T) {
+		// node-a1 sits at root->dc1->rack-a1->host; only its own destroyed osd.1 must come back,
+		// not osd.4/osd.6 destroyed under other hosts/racks/datacenters.
+		ids, err := filterDestroyedOSDIdsForNode(tree, destroyed, "root=default datacenter=dc1 rack=rack-a1 host=node-a1")
+		assert.NoError(t, err)
+		assert.Equal(t, []int{1}, ids)
+	})
+
+	t.Run("host in a different datacenter returns only its own destroyed osd", func(t *testing.T) {
+		ids, err := filterDestroyedOSDIdsForNode(tree, destroyed, "root=default datacenter=dc2 rack=rack-b1 host=node-b1")
+		assert.NoError(t, err)
+		assert.Equal(t, []int{4}, ids)
+	})
+
+	t.Run("host with no destroyed osds returns empty", func(t *testing.T) {
+		// node-a2 (osd.2, osd.3) has no destroyed slots even though its datacenter dc1 does (osd.1).
+		ids, err := filterDestroyedOSDIdsForNode(tree, destroyed, "root=default datacenter=dc1 rack=rack-a2 host=node-a2")
+		assert.NoError(t, err)
+		assert.Empty(t, ids)
+	})
+
+	t.Run("osds nested below the host bucket are not matched", func(t *testing.T) {
+		// node-b2's children are a chassis bucket, not osds directly; osd.6 is one level deeper.
+		// Rook always makes OSDs direct children of the host bucket, so we only read the host's
+		// direct children: an osd nested under an intermediate bucket below the host is not matched.
+		ids, err := filterDestroyedOSDIdsForNode(tree, destroyed, "root=default datacenter=dc2 rack=rack-b1 host=node-b2")
+		assert.NoError(t, err)
+		assert.Empty(t, ids)
+	})
+}
+
+func TestRecoverDBLV(t *testing.T) {
+	a := &OsdAgent{}
+
+	t.Run("shared metadata: db lv is recovered as vg/lv", func(t *testing.T) {
+		out := `{
+			"3": [
+				{"type": "block", "vg_name": "ceph-block-vg", "lv_name": "osd-block-x", "path": "/dev/ceph-block-vg/osd-block-x"},
+				{"type": "db", "vg_name": "ceph-db-vg", "lv_name": "osd-db-y", "path": "/dev/ceph-db-vg/osd-db-y"}
+			]
+		}`
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return out, nil
+			},
+		}
+		dbLV, err := a.recoverDBLVForOSDFromHost(&clusterd.Context{Executor: executor}, 3)
+		assert.NoError(t, err)
+		assert.Equal(t, "ceph-db-vg/osd-db-y", dbLV)
+	})
+
+	t.Run("single-disk lvm: no db lv", func(t *testing.T) {
+		out := `{"3": [{"type": "block", "vg_name": "ceph-block-vg", "lv_name": "osd-block-x", "path": "/dev/ceph-block-vg/osd-block-x"}]}`
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return out, nil
+			},
+		}
+		dbLV, err := a.recoverDBLVForOSDFromHost(&clusterd.Context{Executor: executor}, 3)
+		assert.NoError(t, err)
+		assert.Equal(t, "", dbLV)
+	})
+
+	t.Run("single-disk raw: empty list", func(t *testing.T) {
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return `{}`, nil
+			},
+		}
+		dbLV, err := a.recoverDBLVForOSDFromHost(&clusterd.Context{Executor: executor}, 3)
+		assert.NoError(t, err)
+		assert.Equal(t, "", dbLV)
+	})
+}
+
+func TestBuildReplacementPrepareArgs(t *testing.T) {
+	const logPath = "/tmp/ceph-log"
+	entry := &DeviceOsdIDEntry{
+		Data:       unassignedOSDID,
+		Config:     DesiredDevice{Name: "vdb", DeviceClass: "hdd"},
+		DeviceInfo: &sys.LocalDisk{Name: "vdb"},
+	}
+
+	tests := []struct {
+		name     string
+		store    config.StoreConfig
+		dbLV     string
+		useRaw   bool
+		expected []string
+	}{
+		{
+			name:   "raw single-disk",
+			store:  config.StoreConfig{StoreType: "bluestore"},
+			dbLV:   "",
+			useRaw: true,
+			expected: []string{
+				"-oL", "ceph-volume", "--log-path", logPath, "raw", "prepare", "--bluestore",
+				"--osd-id", "0", "--data", "/dev/vdb", "--crush-device-class", "hdd",
+			},
+		},
+		{
+			name:   "lvm single-disk (no --block.db)",
+			store:  config.StoreConfig{StoreType: "bluestore"},
+			dbLV:   "",
+			useRaw: false,
+			expected: []string{
+				"-oL", "ceph-volume", "--log-path", logPath, "lvm", "prepare", "--bluestore",
+				"--osd-id", "0", "--data", "/dev/vdb", "--crush-device-class", "hdd",
+			},
+		},
+		{
+			name:   "lvm shared-metadata plain",
+			store:  config.StoreConfig{StoreType: "bluestore"},
+			dbLV:   "ceph-db-vg/osd-db-y",
+			useRaw: false,
+			expected: []string{
+				"-oL", "ceph-volume", "--log-path", logPath, "lvm", "prepare", "--bluestore",
+				"--osd-id", "0", "--data", "/dev/vdb", "--block.db", "ceph-db-vg/osd-db-y",
+				"--crush-device-class", "hdd",
+			},
+		},
+		{
+			name:   "lvm shared-metadata encrypted",
+			store:  config.StoreConfig{StoreType: "bluestore", EncryptedDevice: true},
+			dbLV:   "ceph-db-vg/osd-db-y",
+			useRaw: false,
+			expected: []string{
+				"-oL", "ceph-volume", "--log-path", logPath, "lvm", "prepare", "--bluestore",
+				"--osd-id", "0", "--data", "/dev/vdb", "--block.db", "ceph-db-vg/osd-db-y",
+				"--dmcrypt", "--crush-device-class", "hdd",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			a := &OsdAgent{storeConfig: tc.store}
+			args := a.buildReplacementPrepareArgs(0, "/dev/vdb", tc.dbLV, entry, tc.useRaw, logPath)
+			assert.Equal(t, tc.expected, args)
+		})
+	}
+}
