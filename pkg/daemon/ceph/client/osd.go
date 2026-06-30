@@ -320,6 +320,42 @@ func (tree OsdTree) GetDestroyedIDs() []int {
 	return destroyed
 }
 
+func OSDOut(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) error {
+	args := []string{"osd", "out", strconv.Itoa(osdID)}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	if _, err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "failed to mark osd.%d out", osdID)
+	}
+	return nil
+}
+
+func OSDIn(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) error {
+	args := []string{"osd", "in", strconv.Itoa(osdID)}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	if _, err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "failed to mark osd.%d in", osdID)
+	}
+	return nil
+}
+
+func OSDDown(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) error {
+	args := []string{"osd", "down", strconv.Itoa(osdID)}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	if _, err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "failed to mark osd.%d down", osdID)
+	}
+	return nil
+}
+
+func OSDDestroy(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) error {
+	args := []string{"osd", "destroy", fmt.Sprintf("osd.%d", osdID), confirmFlag}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	if _, err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "failed to destroy osd.%d", osdID)
+	}
+	return nil
+}
+
 // OsdListNum returns the list of OSDs
 func OsdListNum(context *clusterd.Context, clusterInfo *ClusterInfo) (OsdList, error) {
 	var output OsdList
