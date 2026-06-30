@@ -4510,6 +4510,11 @@ func (in *ObjectStoreSpec) DeepCopyInto(out *ObjectStoreSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.AllowAdminCapsInNamespaces != nil {
+		in, out := &in.AllowAdminCapsInNamespaces, &out.AllowAdminCapsInNamespaces
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.Hosting != nil {
 		in, out := &in.Hosting, &out.Hosting
 		*out = new(ObjectStoreHostingSpec)

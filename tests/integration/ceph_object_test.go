@@ -211,15 +211,22 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
 
-	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, tlsEnable,
-		bucketowner.Namespace,
-		userkeys.Namespace,
-		topickafka.Namespace,
-		useropmask.Namespace,
-		usercaps.Namespace,
-		cosi.Namespace,
-		notification.Namespace,
-	)
+	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, sharedstore.Config{
+		TLSEnable: tlsEnable,
+		AllowUsersInNamespaces: []string{
+			bucketowner.Namespace,
+			userkeys.Namespace,
+			topickafka.Namespace,
+			useropmask.Namespace,
+			usercaps.Namespace,
+			cosi.Namespace,
+			notification.Namespace,
+		},
+		// only the COSI driver namespace may be granted admin capabilities;
+		// usercaps.Namespace is intentionally excluded so the caps test can
+		// assert that admin caps in another namespace are rejected
+		AllowAdminCapsInNamespaces: []string{cosi.Namespace},
+	})
 	defer sharedObjectStore.Destroy()
 
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, sharedObjectStore)
