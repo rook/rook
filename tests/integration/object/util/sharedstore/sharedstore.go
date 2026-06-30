@@ -68,17 +68,17 @@ func (s *Sharedstore) Destroy() {
 	s.destroy()
 }
 
-// Setup creates a shared CephObjectStore and its NodePort Service in
-// ObjectStoreNamespace, waits for the store to become Ready, and returns a
-// teardown function that deletes both resources. The teardown function should
-// be deferred by the caller.
-func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool, allowedNamespaces ...string) *Sharedstore {
+// Create creates a CephObjectStore named storeName in namespace (with its
+// realm, zone, shared pools, and NodePort Service), waits for it to become
+// Ready, and returns a Sharedstore whose Destroy method tears it all down;
+// Destroy should be deferred by the caller. instances sets the RGW gateway
+// count and allowedNamespaces is propagated to AllowUsersInNamespaces.
+func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool, namespace, storeName string, instances int32, allowedNamespaces ...string) *Sharedstore {
 	t.Helper()
 
 	s := &Sharedstore{tlsEnable: tlsEnable}
 	ctx := context.TODO()
-	ns := "object-ns"
-	storeName := "sharedstore"
+	ns := namespace
 
 	// securePort is the in-container RGW TLS listener port. The NodePort Service
 	// below exposes the conventional 443 externally and forwards to it.
@@ -154,7 +154,7 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 			},
 			Gateway: cephv1.GatewaySpec{
 				Port:      80,
-				Instances: 1,
+				Instances: instances,
 			},
 			AllowUsersInNamespaces: allowedNamespaces,
 		},
@@ -166,7 +166,7 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 		objectStore.Spec.Gateway = cephv1.GatewaySpec{
 			SecurePort:        securePort,
 			SSLCertificateRef: certSecretName,
-			Instances:         1,
+			Instances:         instances,
 		}
 	}
 
