@@ -95,6 +95,10 @@ spec:
           port: 6800
           endPort: 7300
 ---
+# The MGR watch-active sidecar needs the K8s API to read configmaps and
+# monitor active-standby state. The API server is host-networked so it
+# cannot be targeted by a pod/namespace selector; therefore egress is
+# unrestricted.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -107,42 +111,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system # namespace:dns
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
-          podSelector:
-            matchLabels:
-              app: rook-ceph-mon
-      ports:
-        - protocol: TCP
-          port: 3300
-        - protocol: TCP
-          port: 6789
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
-          podSelector:
-            matchExpressions:
-              - key: app
-                operator: In
-                values:
-                  - rook-ceph-mds
-                  - rook-ceph-osd
-      ports:
-        - protocol: TCP
-          port: 6800
-          endPort: 7300
+    - {}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -177,6 +146,17 @@ spec:
           port: 3300
         - protocol: TCP
           port: 6789
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
+          podSelector:
+            matchLabels:
+              app: rook-ceph-mgr
+      ports:
+        - protocol: TCP
+          port: 6800
+          endPort: 7300
     - to:
         - namespaceSelector:
             matchLabels:
