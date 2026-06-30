@@ -288,12 +288,12 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				deviceArg,
 			}...)
 
-			if a.replaceOSD != nil {
-				replaceOSDID := a.GetReplaceOSDId(device.DeviceInfo.RealPath)
-				if replaceOSDID != -1 {
+			if a.migrateOSD != nil {
+				migrateOSDID := a.getMigrateOSDId(device.DeviceInfo.RealPath)
+				if migrateOSDID != -1 {
 					immediateExecuteArgs = append(immediateExecuteArgs, []string{
 						"--osd-id",
-						fmt.Sprintf("%d", replaceOSDID),
+						fmt.Sprintf("%d", migrateOSDID),
 					}...)
 				}
 			}
@@ -548,8 +548,8 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 				deviceArg,
 			}...)
 
-			if a.replaceOSD != nil {
-				restoreOSDID := a.GetReplaceOSDId(deviceArg)
+			if a.migrateOSD != nil {
+				restoreOSDID := a.getMigrateOSDId(deviceArg)
 				if restoreOSDID != -1 {
 					immediateExecuteArgs = append(immediateExecuteArgs, []string{
 						"--osd-id",
