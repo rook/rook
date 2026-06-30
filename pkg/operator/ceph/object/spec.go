@@ -1170,7 +1170,7 @@ func buildRGWEnableAPIsConfigVal(protocolSpec cephv1.ProtocolSpec) []string {
 	}
 
 	// if enabledAPIs not set, check if S3 should be disabled
-	if protocolSpec.S3 != nil && protocolSpec.S3.Enabled != nil && !*protocolSpec.S3.Enabled { //nolint // disable deprecation check
+	if protocolSpec.S3 != nil && protocolSpec.S3.Enabled != nil && !*protocolSpec.S3.Enabled { //nolint:staticcheck // S3.Enabled is deprecated but still honored for backward compatibility
 		return rgwAPIwithoutS3
 	}
 	// see also https://docs.ceph.com/en/octopus/radosgw/config-ref/#swift-settings on disabling s3

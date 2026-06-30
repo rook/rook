@@ -708,8 +708,7 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 		if name == "" {
 			return "", errors.Errorf("node name not found on the osd pod %q", pod.Name)
 		}
-		//nolint SA4004 (go-staticcheck)
-		return name, nil
+		return name, nil //nolint:staticcheck // SA4004: intentionally returns the first pod's node name
 	}
 
 	return "", errors.Errorf("node selector not found on deployment for osd with pvc %q", pvcName)
