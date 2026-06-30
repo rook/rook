@@ -103,7 +103,7 @@ function find_extra_block_devs() {
   boot_dev="$(sudo lsblk --noheading --list --output MOUNTPOINT,PKNAME | grep boot | awk '{print $2}')"
   local devs count
   # --nodeps ignores partitions
-  devs="$(sudo lsblk --noheading --list --nodeps --output KNAME | egrep -v "($boot_dev|loop|nbd)")"
+  devs="$(sudo lsblk --noheading --list --nodeps --output KNAME | egrep -v "($boot_dev|loop|nbd)" || true)"
   count="$(echo "$devs" | grep -c . || true)"
   if [ "$count" -lt "$min_count" ]; then
     create_extra_disk "$((min_count - count))" >/dev/stderr
