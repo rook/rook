@@ -291,10 +291,9 @@ This cluster is finished:
 
 At this point, the Rook operator should be running version `rook/ceph:v1.20.0`.
 
-Verify the ceph-csi-operator and CSI drivers:
+Verify the CSI drivers:
 
 ```console
-kubectl -n $ROOK_OPERATOR_NAMESPACE get deploy -l app.kubernetes.io/name=ceph-csi-operator
 kubectl -n $ROOK_OPERATOR_NAMESPACE get operatorconfig,driver
 ```
 
