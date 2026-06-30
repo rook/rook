@@ -1,0 +1,33 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^https://my-object-store\\.my-domain\\.net"
+    },
+    {
+      "pattern": "^http://host:port"
+    },
+    {
+      "pattern": "^#ceph\\.rook\\.io"
+    },
+    {
+      "pattern": "^https://pkgs\\.alpinelinux\\.org/package/"
+    },
+    {
+      "pattern": "^https://pkgs\\.org/search/"
+    },
+    {
+      "pattern": "^https://cbs\\.centos\\.org/koji/"
+    },
+    {
+      "pattern": "^quickstart\\.md$"
+    },
+    {
+      "pattern": "^storage-architecture\\.md$"
+    }
+  ],
+  "aliveStatusCodes": [200, 206],
+  "timeout": "10s",
+  "retryOn429": true,
+  "retryDelay": "5s",
+  "retryCount": 3
+}
