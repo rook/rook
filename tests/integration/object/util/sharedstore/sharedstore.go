@@ -127,6 +127,12 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 							},
 						},
 					},
+					{
+						// a second, non-default target for placement-override tests
+						Name:             "bar",
+						MetadataPoolName: storeName + ".rgw.buckets.index",
+						DataPoolName:     storeName + ".rgw.buckets.data.bar",
+					},
 				},
 			},
 		},
@@ -141,6 +147,7 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 		storeName + ".rgw.buckets.index":    "",
 		storeName + ".rgw.buckets.data":     "",
 		storeName + ".rgw.buckets.data.foo": "",
+		storeName + ".rgw.buckets.data.bar": "",
 	}
 
 	objectStore := &cephv1.CephObjectStore{
