@@ -26,6 +26,17 @@ import (
 const (
 	// SkipReconcileLabelKey is a label indicating that the pod should not be reconciled
 	SkipReconcileLabelKey = "ceph.rook.io/do-not-reconcile"
+
+	// ReplaceOSDAnnotationKey is set by a user on an OSD Deployment to trigger its replacement.
+	ReplaceOSDAnnotationKey = "osd.rook.io/replace"
+
+	// ReplaceOSDAnnotationValueFmt is the required value of ReplaceOSDAnnotationKey, where %d is the
+	// OSD id (must match the Deployment's id, as a confirmation guard). E.g. "yes-really-replace-osd-3".
+	ReplaceOSDAnnotationValueFmt = "yes-really-replace-osd-%d"
+
+	// ReadyForSwapOSDAnnotationKey is set by Rook on the OSD Deployment once the OSD is destroyed and
+	// the disk may be physically swapped. E.g. "osd.rook.io/replace-ready-for-swap": "true".
+	ReadyForSwapOSDAnnotationKey = "osd.rook.io/replace-ready-for-swap"
 )
 
 // LabelsSpec is the main spec label for all daemons
