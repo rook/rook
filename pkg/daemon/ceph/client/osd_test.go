@@ -124,6 +124,53 @@ func TestGetDestroyedIDs(t *testing.T) {
 	assert.Empty(t, tree.GetDestroyedIDs())
 }
 
+func TestOSDLifecycleHelpers(t *testing.T) {
+	var gotArgs []string
+	failNext := false
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			gotArgs = args
+			if failNext {
+				return "", errors.New("boom")
+			}
+			return "", nil
+		},
+	}
+	ctx := &clusterd.Context{Executor: executor}
+	info := AdminTestClusterInfo("mycluster")
+	// the ceph command appends global flags (--cluster, --conf, ...); assert only the leading args.
+	hasPrefix := func(prefix ...string) bool {
+		if len(gotArgs) < len(prefix) {
+			return false
+		}
+		for i, p := range prefix {
+			if gotArgs[i] != p {
+				return false
+			}
+		}
+		return true
+	}
+
+	assert.NoError(t, OSDOut(ctx, info, 5))
+	assert.True(t, hasPrefix("osd", "out", "5"), "got %v", gotArgs)
+
+	assert.NoError(t, OSDIn(ctx, info, 5))
+	assert.True(t, hasPrefix("osd", "in", "5"), "got %v", gotArgs)
+
+	assert.NoError(t, OSDDown(ctx, info, 5))
+	assert.True(t, hasPrefix("osd", "down", "5"), "got %v", gotArgs)
+
+	assert.NoError(t, OSDDestroy(ctx, info, 5))
+	assert.True(t, hasPrefix("osd", "destroy", "osd.5", "--yes-i-really-mean-it"), "got %v", gotArgs)
+
+	// error propagation
+	failNext = true
+	assert.Error(t, OSDOut(ctx, info, 5))
+	assert.Error(t, OSDIn(ctx, info, 5))
+	assert.Error(t, OSDDown(ctx, info, 5))
+	assert.Error(t, OSDDestroy(ctx, info, 5))
+}
+
 func TestOsdListNum(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	emptyOsdListNumResult := false
