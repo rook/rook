@@ -314,12 +314,12 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		// Compare pvc claim name in case of OSDs on PVC
 		if osdProps.onPVC() {
 			if strings.Contains(c.migrateOSD.PVCName, osdProps.pvc.ClaimName) {
-				envVars = append(envVars, replaceOSDIDEnvVar(fmt.Sprint(c.migrateOSD.ID)))
+				envVars = append(envVars, migrateOSDIDEnvVar(fmt.Sprint(c.migrateOSD.ID)))
 			}
 		} else {
 			// Compare the node name in case of OSDs on disk
 			if c.migrateOSD.NodeName == osdProps.crushHostname {
-				envVars = append(envVars, replaceOSDIDEnvVar(fmt.Sprint(c.migrateOSD.ID)))
+				envVars = append(envVars, migrateOSDIDEnvVar(fmt.Sprint(c.migrateOSD.ID)))
 			}
 		}
 	}
