@@ -40,6 +40,77 @@ type cvLVMListEntry struct {
 	Tags   osdTags `json:"tags"`    // ceph.* tags, including ceph.encrypted
 }
 
+// CloseEncryptedDevicesForOSD closes the host dm-crypt mappings backing the encrypted OSD with the
+// given id. Mappings already closed are treated as success.
+func CloseEncryptedDevicesForOSD(context *clusterd.Context, osdID int) error {
+	dmNames, err := encryptedDMNamesForOSD(context, osdID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to resolve dm-crypt mappings for osd.%d", osdID)
+	}
+
+	if len(dmNames) == 0 {
+		logger.Infof("no dm-crypt mappings found for osd.%d, nothing to close", osdID)
+		return nil
+	}
+
+	for _, dmName := range dmNames {
+		logger.Infof("closing dm-crypt mapping %q for osd.%d", dmName, osdID)
+		if err := CloseEncryptedDevice(context, dmName); err != nil {
+			if isCryptsetupNotActive(err) {
+				logger.Infof("dm-crypt mapping %q for osd.%d is already closed", dmName, osdID)
+				continue
+			}
+			return errors.Wrapf(err, "failed to close dm-crypt mapping %q for osd.%d", dmName, osdID)
+		}
+	}
+
+	return nil
+}
+
+// encryptedDMNamesForOSD returns the host dm-crypt mapping names for the OSD with the given id,
+// resolved from `ceph-volume lvm list <id>`. In lvm mode the mapping name is the LV's lv_uuid.
+func encryptedDMNamesForOSD(context *clusterd.Context, osdID int) ([]string, error) {
+	result, err := callCephVolume(context, "lvm", "list", strconv.Itoa(osdID), "--format", "json")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to list lvm volumes for osd.%d", osdID)
+	}
+
+	var listResult map[string][]cvLVMListEntry
+	if err := json.Unmarshal([]byte(result), &listResult); err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal ceph-volume lvm list result for osd.%d. %s", osdID, result)
+	}
+
+	dmNames := []string{}
+	entries, ok := listResult[strconv.Itoa(osdID)]
+	if !ok {
+		return dmNames, nil
+	}
+
+	for _, entry := range entries {
+		if entry.Tags.Encrypted != "1" {
+			continue
+		}
+		if entry.LVUUID == "" {
+			logger.Warningf("ceph-volume lvm list returned an encrypted %q entry for osd.%d with no lv_uuid; skipping", entry.Type, osdID)
+			continue
+		}
+		dmNames = append(dmNames, entry.LVUUID)
+	}
+
+	return dmNames, nil
+}
+
+// isCryptsetupNotActive reports whether err is cryptsetup's "already closed" failure (exit code 4),
+// which is treated as success so closing is idempotent. The message substring is a locale-dependent
+// fallback to the exit code.
+func isCryptsetupNotActive(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "exit status 4") || strings.Contains(msg, "is not active")
+}
+
 // preProvisionReplacedOSDs pairs each destroyed slot belonging to this node with a freshly-swapped
 // blank device and re-provisions it into the same slot via `ceph-volume ... prepare --osd-id <id>`,
 // reusing the surviving DB LV in place when present. Devices consumed here are removed from
