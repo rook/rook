@@ -21,6 +21,7 @@ package topology
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -63,8 +64,7 @@ func ExtractOSDTopologyFromLabels(labels map[string]string) (map[string]string, 
 
 func rookTopologyLabelsOrdered() []string {
 	topologyLabelsOrdered := []string{}
-	for i := len(CRUSHTopologyLabels) - 1; i >= 0; i-- {
-		label := CRUSHTopologyLabels[i]
+	for _, label := range slices.Backward(CRUSHTopologyLabels) {
 		topologyLabelsOrdered = append(topologyLabelsOrdered, topologyLabelPrefix+label)
 	}
 	return topologyLabelsOrdered
@@ -113,8 +113,7 @@ func extractTopologyFromLabels(labels map[string]string) (map[string]string, str
 	// iterate in lowest to highest order as the lowest level should be sustained and higher level duplicate
 	// should be removed
 	duplicateTopology := make(map[string][]string)
-	for i := len(allKubernetesTopologyLabels) - 1; i >= 0; i-- {
-		topologyLabel := allKubernetesTopologyLabels[i]
+	for _, topologyLabel := range slices.Backward(allKubernetesTopologyLabels) {
 		if value, ok := labels[topologyLabel]; ok {
 			if _, ok := duplicateTopology[value]; ok {
 				delete(topology, kubernetesTopologyLabelToCRUSHLabel(topologyLabel))
