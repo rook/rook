@@ -47,15 +47,19 @@ type OSDHealthMonitor struct {
 	removeOSDsIfOUTAndSafeToRemove bool
 	interval                       *time.Duration
 	lastRequireOSDRelease          string
+	// cluster snapshots the cluster spec and rook image at the time the monitor is created (via
+	// NewOSDHealthMonitor); these are not refreshed until the operator restarts.
+	cluster *Cluster
 }
 
 // NewOSDHealthMonitor instantiates OSD monitoring
-func NewOSDHealthMonitor(context *clusterd.Context, clusterInfo *client.ClusterInfo, removeOSDsIfOUTAndSafeToRemove bool, healthCheck cephv1.CephClusterHealthCheckSpec) *OSDHealthMonitor {
+func NewOSDHealthMonitor(context *clusterd.Context, clusterInfo *client.ClusterInfo, removeOSDsIfOUTAndSafeToRemove bool, healthCheck cephv1.CephClusterHealthCheckSpec, spec cephv1.ClusterSpec, rookImage string) *OSDHealthMonitor {
 	h := &OSDHealthMonitor{
 		context:                        context,
 		clusterInfo:                    clusterInfo,
 		removeOSDsIfOUTAndSafeToRemove: removeOSDsIfOUTAndSafeToRemove,
 		interval:                       &defaultHealthCheckInterval,
+		cluster:                        New(context, clusterInfo, spec, rookImage),
 	}
 
 	// allow overriding the check interval
@@ -99,8 +103,13 @@ func (m *OSDHealthMonitor) Update(removeOSDsIfOUTAndSafeToRemove bool) {
 
 // checkOSDHealth takes action when needed if the OSDs are not healthy
 func (m *OSDHealthMonitor) checkOSDHealth() {
-	err := m.checkOSDDump()
+	// Drive the OSD-replacement destroy flow for marked OSDs; exclude the returned OSDs from normal health monitoring.
+	osdsUnderReplacement, err := m.processOSDsDestroyForReplacement()
 	if err != nil {
+		log.NamespacedWarning(m.clusterInfo.Namespace, logger, "failed to process OSD replacements. %v", err)
+	}
+
+	if err := m.checkOSDDump(osdsUnderReplacement); err != nil {
 		log.NamespacedDebug(m.clusterInfo.Namespace, logger, "failed to check OSD Dump. %v", err)
 	}
 	m.checkRequireOSDRelease()
@@ -143,7 +152,8 @@ func (m *OSDHealthMonitor) checkRequireOSDRelease() {
 	}
 }
 
-func (m *OSDHealthMonitor) checkOSDDump() error {
+// osdsUnderReplacement are owned by the OSD-replacement destroy flow and skipped here.
+func (m *OSDHealthMonitor) checkOSDDump(osdsUnderReplacement map[int]struct{}) error {
 	osdDump, err := client.GetOSDDump(m.context, m.clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get osd dump")
@@ -155,6 +165,11 @@ func (m *OSDHealthMonitor) checkOSDDump() error {
 			continue
 		}
 		id := int(id64)
+
+		if _, replacing := osdsUnderReplacement[id]; replacing {
+			log.NamespacedDebug(m.clusterInfo.Namespace, logger, "skipping normal health processing for osd.%d under replacement", id)
+			continue
+		}
 
 		log.NamespacedDebug(m.clusterInfo.Namespace, logger, "validating status of osd.%d", id)
 
