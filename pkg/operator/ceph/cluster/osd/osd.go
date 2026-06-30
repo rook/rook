@@ -283,6 +283,12 @@ func (c *Cluster) Start() error {
 	}
 	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "wait timeout for healthy OSDs during upgrade or restart is %q", c.clusterInfo.OsdUpgradeTimeout)
 
+	// Entry point for OSD replacement. Must run before GetDaemonsToSkipReconcile below so an OSD
+	// labeled in this reconcile is included in the skip-reconcile snapshot.
+	if err := c.validateAndStartOSDReplacement(); err != nil {
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to process OSD replacement requests. %v", err)
+	}
+
 	osdsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.clusterInfo.Context, c.context, c.clusterInfo.Namespace, OsdIdLabelKey, AppName)
 	if err != nil {
 		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to get osds to skip reconcile. %v", err)
