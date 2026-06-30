@@ -37,7 +37,6 @@ type TestClient struct {
 	RBDMirrorClient    *RBDMirrorOperation
 	TopicClient        *TopicOperation
 	NotificationClient *NotificationOperation
-	COSIClient         *COSIOperation
 	k8sh               *utils.K8sHelper
 }
 
@@ -55,7 +54,6 @@ func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManife
 		CreateRBDMirrorOperation(k8sHelper, manifests),
 		CreateTopicOperation(k8sHelper, manifests),
 		CreateNotificationOperation(k8sHelper, manifests),
-		CreateCOSIOperation(k8sHelper, manifests),
 		k8sHelper,
 	}
 }
