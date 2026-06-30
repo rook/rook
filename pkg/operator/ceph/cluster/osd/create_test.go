@@ -18,6 +18,7 @@ package osd
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -28,7 +29,10 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -169,6 +173,42 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		assert.Equal(t, 4, awaitingStatusConfigMaps.Len())
 		assert.Equal(t, 1, createConfig.finishedStatusConfigMaps.Len())
 		assert.True(t, createConfig.finishedStatusConfigMaps.Has(statusNameNode0))
+	})
+
+	t.Run("node: finished replacement marker is deleted and OSD recreated", func(t *testing.T) {
+		// OSD 6 already has a deployment (in the existence list). Make it a finished-replacement
+		// marker: scaled to zero, carrying the replace-ready-for-swap annotation. The create path
+		// must delete the marker and recreate the OSD from the reprovisioned status.
+		zeroReplicas := int32(0)
+		marker := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        fmt.Sprintf(osdAppNameFmt, 6),
+				Namespace:   namespace,
+				Annotations: map[string]string{cephv1.ReadyForSwapOSDAnnotationKey: ""},
+			},
+			Spec: appsv1.DeploymentSpec{Replicas: &zeroReplicas},
+		}
+		_, err := clientset.AppsV1().Deployments(namespace).Create(context.TODO(), marker, metav1.CreateOptions{})
+		require.NoError(t, err)
+		defer func() {
+			_ = clientset.AppsV1().Deployments(namespace).Delete(context.TODO(), marker.Name, metav1.DeleteOptions{})
+		}()
+
+		doSetup()
+		status = &OrchestrationStatus{
+			OSDs: []OSDInfo{
+				{ID: 3}, // exists, not a replacement -> skipped
+				{ID: 6}, // finished replacement -> marker deleted, recreated
+			},
+			PvcBackedOSD: false,
+		}
+		createConfig.createNewOSDsFromStatus(status, "node0", errs)
+		assert.Zero(t, errs.len())
+		// OSD 6 is recreated; OSD 3 is left to the updater
+		assert.ElementsMatch(t, createCallsOnNode, []int{6})
+		// the marker deployment was deleted
+		_, err = clientset.AppsV1().Deployments(namespace).Get(context.TODO(), marker.Name, metav1.GetOptions{})
+		assert.True(t, kerrors.IsNotFound(err))
 	})
 
 	t.Run("node: skip creating OSDs for status configmaps that weren't created for this reconcile", func(t *testing.T) {
