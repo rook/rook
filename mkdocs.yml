@@ -73,6 +73,7 @@ plugins:
   - redirects:
       redirect_maps:
         README.md: Getting-Started/intro.md
+        Getting-Started/release-cycle.md: Getting-Started/maintenance-and-support.md
   - mike:
       # these fields are all optional; the defaults are as below...
       version_selector: true # set to false to leave out the version selector
