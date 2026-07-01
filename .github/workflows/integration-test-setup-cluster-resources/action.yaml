@@ -22,39 +22,27 @@ runs:
       with:
         go-version: "1.26"
 
-    - name: Install cri-dockerd
-      shell: bash --noprofile --norc -eo pipefail -x {0}
-      run: |
-        ARCH=$(go env GOARCH)
-        # --fail so an HTTP error page is not saved as the .deb (dpkg then fails on the
-        # corrupt archive), and retry transient download errors
-        curl -fLO --retry 5 --retry-all-errors --retry-delay 10 https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
-        sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
-        rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_"${ARCH}".deb
-
-    - name: Setup Minikube
-      uses: medyagh/setup-minikube@latest
+    - name: create kind cluster
+      uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
       with:
-        # lock minikube version to ensure release branch CI doesn't fail when latest minikube no
-        # longer supports older k8s version we lock to
-        minikube-version: "1.38.0"
-        kubernetes-version: ${{ inputs.kubernetes-version }}
-        driver: none
-        container-runtime: docker
-        memory: 6g
-        cpus: 2
-        addons: ingress
-        cni: calico
-        # --force: when the requested kubernetes version is missing from minikube's compiled-in
-        # version list (any version released after the pinned minikube), 'minikube start'
-        # verifies the version with an anonymous GitHub API request, which is regularly
-        # rate-limited on shared runner IPs and fails the job (K8S_FAIL_CONNECT, exit code 40).
-        # The versions used here are pinned constants already validated by the PRs that bump
-        # them, so that check adds nothing in CI; an invalid version would still fail fast at
-        # the kubeadm/kubelet download.
-        # --wait-timeout: minikube's default 6m node-ready wait expires on slow runners
-        # (GUEST_START, exit code 80).
-        start-args: --force --wait-timeout=15m
+        # Pin kind; its release sets which kindest/node image versions are available.
+        version: v0.32.0
+        # Each matrix kubernetes-version needs a published kindest/node:<version> image.
+        node_image: kindest/node:${{ inputs.kubernetes-version }}
+        # See the config; it bind-mounts the host paths the disk-prep helpers need.
+        config: tests/config/kind-config.yaml
+        cluster_name: kind
+        wait: 300s
+        # Runner is ephemeral; some jobs hold node devices via the /dev mount, wedging teardown.
+        ignore_failed_clean: "true"
+
+    - name: prepare the kind node
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh prepare_kind_node
+
+    - name: route host to cluster services
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh add_host_routes_to_cluster
 
     - name: install deps
       shell: bash --noprofile --norc -eo pipefail -x {0}

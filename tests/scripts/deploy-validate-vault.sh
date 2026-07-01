@@ -233,8 +233,12 @@ EOF
   # Set SA_CA_CRT to the PEM encoded CA cert used to talk to Kubernetes API
   SA_CA_CRT=$(kubectl -n "$ROOK_NAMESPACE" get secret "$VAULT_SA_SECRET_NAME" -o jsonpath="{.data['ca\.crt']}" | base64 --decode)
 
-  # get kubernetes endpoint
-  K8S_HOST=$(kubectl config view --minify --flatten -o jsonpath="{.clusters[0].cluster.server}")
+  # get kubernetes endpoint. Vault runs in-cluster, so it must reach the API server via the
+  # in-cluster service endpoint, not the kubeconfig's external server URL: under kind that URL is
+  # https://127.0.0.1:<host-port>, which from inside the vault pod is its own localhost, so the
+  # TokenReview call fails. The kubernetes.default service is reachable from any pod, is covered by
+  # the API server cert SANs, and matches the issuer below.
+  K8S_HOST="https://kubernetes.default.svc.cluster.local:443"
 
   # enable kubernetes auth
   kubectl exec -ti vault-0 -- vault auth enable kubernetes
