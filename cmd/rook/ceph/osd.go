@@ -265,7 +265,9 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "failed to generate ceph config")
 	}
 
-	// destroy the OSD using the OSD ID
+	// The --replace-osd flag drives the OSD *migration* feature: reprovision an OSD in place on a
+	// config change (e.g. enabling encryption) by destroying and zapping it here, then reprovisioning
+	// the same id in this prepare job. This is distinct from the disk-swap OSD-replacement flow.
 	var replaceOSD *oposd.OSDInfo
 	if replaceOSDID != -1 {
 		logger.Infof("destroying osd.%d and cleaning its backing device", replaceOSDID)
