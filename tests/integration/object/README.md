@@ -33,13 +33,14 @@ must not collide with std-lib package names (no `io`, no `http`).
 | test package | operator package | covers |
 |---|---|---|
 | `bucket/owner` | `object/bucket` | OBC `bucketOwner` handling |
+| `bucket/rw` | `object/bucket` | OBC S3 read/write/delete + OBC-stays-Bound |
 | `cosi` | `object/cosi` | CephCOSIDriver + COSI bucket provisioning |
 | `notification` | `object/notification` | CephBucketNotification HTTP endpoint delivery |
 | `topic/kafka` | `object/topic` | CephBucketTopic kafka endpoints |
 | `user/caps` | `object/user` | user capabilities |
 | `user/keys` | `object/user` | explicit S3 key management |
 | `user/opmask` | `object/user` | user op_mask |
-| reserved: `bucket/rw`, `bucket/quota`, `bucket/policy`, `bucket/lifecycle`, `tests/integration/object/lifecycle`, `tests/integration/object/dependents` | | future conversions |
+| reserved: `bucket/quota`, `bucket/policy`, `bucket/lifecycle`, `tests/integration/object/lifecycle`, `tests/integration/object/dependents` | | future conversions |
 
 Shared utilities live under `util/`:
 
@@ -51,13 +52,14 @@ Shared utilities live under `util/`:
   `BucketTopic`, `OBCBound`, ...).
 - `fixture` — create-with-`t.Cleanup` helpers for pure-cleanup resources
   (namespaces, StorageClasses).
-- `obc` — pure constructors for the resources ObjectBucketClaim tests build
-  (the provisioner `StorageClass`; OBCs and per-OBC S3 clients as `bucket/*`
-  is converted).
+- `obc` — ObjectBucketClaim helpers: the provisioner `StorageClass`
+  constructor, the create/bound and delete/absent lifecycle waiters, and a
+  per-OBC S3 client.
 - `secrets` — verification helpers for the Secret references object CRDs
   publish in their status, shared by more than one package.
 - `sharedstore` — the shared CephObjectStore fixture.
-- `admin`, `sns`, `s3`, `tls` — client builders and TLS cert generation.
+- `admin`, `sns`, `s3`, `tls` — client builders (rgw admin, SNS, and a generic
+  S3 agent) and TLS cert generation.
 
 ## Anatomy of a package
 
@@ -206,10 +208,9 @@ verification; wire the dispatcher; delete the old code; retire
 
 | old test | target package(s) | still needs (build in that PR) |
 |---|---|---|
-| `testObjectStoreOperations` S3 I/O + OBC-stays-Bound | `bucket/rw` | per-OBC S3 client (TLS-aware, from OBC secret) |
-| `testObjectStoreOperations` user/bucket quotas | `bucket/quota` | per-OBC S3 client |
-| `testObjectStoreOperations` bucket policy | `bucket/policy` | per-OBC S3 client |
-| `testObjectStoreOperations` bucket lifecycle | `bucket/lifecycle` | per-OBC S3 client, move `lifecycleCmpOpts` out of the dispatcher |
+| `testObjectStoreOperations` user/bucket quotas | `bucket/quota` | — |
+| `testObjectStoreOperations` bucket policy | `bucket/policy` | — |
+| `testObjectStoreOperations` bucket lifecycle | `bucket/lifecycle` | move `lifecycleCmpOpts` out of the dispatcher |
 | `testObjectStoreOperations` deletion-blocked-by-dependents | `tests/integration/object/dependents` | private-store fixture, store condition predicates in `ready` |
 | `createCephObjectStore`/`runObjectE2ETestLite`/deletion asserts + zone.json canary | `tests/integration/object/lifecycle` | store create/health/delete helpers, `Sharedstore.Installer()` accessor |
 | upgrade-suite object usage | stays in upgrade suite | switch to typed clients + `wait4`/`ready` |
