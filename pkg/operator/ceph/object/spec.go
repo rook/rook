@@ -109,7 +109,7 @@ var (
 	}
 	// Filename to store RGW ops log per pod.
 	// Relies on the on environment variables to get the pod name and namespace.
-	// podNameEnvVars have to be passed to to log collector container.
+	// podNameEnvVars have to be passed to log collector container.
 	opsLogFilename    = "ops-log.$(POD_NS).$(POD_NAME).log"
 	opsLogAbsFilename = path.Join(cephconfig.VarLogCephDir, opsLogFilename)
 )
