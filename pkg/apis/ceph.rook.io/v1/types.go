@@ -2368,6 +2368,7 @@ type CephObjectStoreUserList struct {
 }
 
 // ObjectStoreUserSpec represent the spec of an Objectstoreuser
+// +kubebuilder:validation:XValidation:message="defaultStorageClass requires defaultPlacement",rule="!has(self.defaultStorageClass) || has(self.defaultPlacement)"
 type ObjectStoreUserSpec struct {
 	// The store the user will be created in
 	// +optional
@@ -2401,6 +2402,16 @@ type ObjectStoreUserSpec struct {
 	// +optional
 	// +kubebuilder:validation:XValidation:message="accountRef is immutable",rule="self == oldSelf"
 	AccountRef ObjectStoreUserAccountRef `json:"accountRef,omitzero"`
+	// Override the default pool placement for buckets created by this user. If not provided, the default pool placement from the zone group will be used.
+	// +optional
+	// +kubebuilder:validation:MinLength=0
+	// +kubebuilder:validation:MaxLength=2048
+	DefaultPlacement *string `json:"defaultPlacement,omitempty"`
+	// Override the default storage class for objects created by this user. Requires defaultPlacement to be set. If not provided, the default `STANDARD` storage class will be used.
+	// +optional
+	// +kubebuilder:validation:MinLength=0
+	// +kubebuilder:validation:MaxLength=2048
+	DefaultStorageClass *string `json:"defaultStorageClass,omitempty"`
 }
 
 // ObjectStoreUserAccountRef is a reference to a CephObjectStoreAccount

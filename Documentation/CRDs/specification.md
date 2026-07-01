@@ -2248,6 +2248,30 @@ When set, the user is created as an account user with no default permissions,
 and resources created by this user are owned by the account.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>defaultPlacement</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Override the default pool placement for buckets created by this user. If not provided, the default pool placement from the zone group will be used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultStorageClass</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Override the default storage class for objects created by this user. Requires defaultPlacement to be set. If not provided, the default <code>STANDARD</code> storage class will be used.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -12666,6 +12690,30 @@ ObjectStoreUserAccountRef
 The referenced account must be in the same namespace as the user.
 When set, the user is created as an account user with no default permissions,
 and resources created by this user are owned by the account.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultPlacement</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Override the default pool placement for buckets created by this user. If not provided, the default pool placement from the zone group will be used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultStorageClass</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Override the default storage class for objects created by this user. Requires defaultPlacement to be set. If not provided, the default <code>STANDARD</code> storage class will be used.</p>
 </td>
 </tr>
 </tbody>
