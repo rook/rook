@@ -931,6 +931,12 @@ function test_csi_nvmeof_workload {
 
   local old_gateway_pod
 
+  # Ensure CephCluster is fully ready before proceeding with NVMe-oF setup.
+  # The ceph-csi-operator needs a valid CephConnection (populated from cluster info)
+  # to bring the NVMe-oF controller plugin deployment to Available.
+  kubectl -n rook-ceph wait --for=jsonpath='{.status.state}'=Created \
+    cephcluster/my-cluster --timeout=600s
+
   sed -i 's/failureDomain: .*/failureDomain: osd/' nvmeof-pool.yaml
   sed -i 's/size: .*/size: 1/' nvmeof-pool.yaml
   kubectl create -f nvmeof-pool.yaml
@@ -954,8 +960,20 @@ until kubectl -n rook-ceph get deployment --no-headers 2>/dev/null | grep -q "nv
 done
 EOF
 
-  kubectl -n rook-ceph wait --for=condition=available \
-    deployment/rook-ceph.nvmeof.csi.ceph.com-ctrlplugin --timeout=300s
+  # TODO: remove this diagnostic block once we confirm the root cause of the
+  # NVMe-oF controller plugin timeout (see canary-integration-suite CI failure).
+  if ! kubectl -n rook-ceph wait --for=condition=available \
+    deployment/rook-ceph.nvmeof.csi.ceph.com-ctrlplugin --timeout=600s; then
+    echo "=== NVMe-oF ctrlplugin deployment did not become available — collecting diagnostics ==="
+    kubectl -n rook-ceph describe deployment/rook-ceph.nvmeof.csi.ceph.com-ctrlplugin || true
+    kubectl -n rook-ceph get pods -l app=rook-ceph.nvmeof.csi.ceph.com-ctrlplugin -o wide || true
+    kubectl -n rook-ceph describe pods -l app=rook-ceph.nvmeof.csi.ceph.com-ctrlplugin || true
+    kubectl -n rook-ceph logs deploy/ceph-csi-controller-manager --tail=200 || true
+    kubectl -n rook-ceph get cephconnection -o yaml || true
+    kubectl -n rook-ceph get events --sort-by=.metadata.creationTimestamp | tail -80 || true
+    kubectl -n rook-ceph get cephcluster -o yaml || true
+    return 1
+  fi
 
   timeout 300 bash <<EOF
 until kubectl -n rook-ceph get daemonset --no-headers 2>/dev/null | grep -q "nvmeof"; do
@@ -965,7 +983,7 @@ done
 EOF
 
   kubectl -n rook-ceph rollout status \
-    daemonset/rook-ceph.nvmeof.csi.ceph.com-nodeplugin --timeout=300s
+    daemonset/rook-ceph.nvmeof.csi.ceph.com-nodeplugin --timeout=600s
 
   lsmod | grep -E 'nvme(_|-)(tcp|fabrics)' || true
   if [[ ! -d /sys/module/nvme_tcp ]]; then
