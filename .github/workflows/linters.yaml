@@ -54,3 +54,14 @@ jobs:
 
       - name: Setup black for py
         uses: psf/black@87928e6d6761a4a6d22250e1fee5601b3998086e # stable
+
+  check-markdown-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check markdown links
+        run: |
+          npm install -g markdown-link-check
+          make lint.markdown-links
