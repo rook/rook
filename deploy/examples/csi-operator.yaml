@@ -7660,6 +7660,13 @@ rules:
       - update
       - watch
   - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - list
+      - watch
+  - apiGroups:
       - apps
     resources:
       - daemonsets
@@ -8753,7 +8760,7 @@ spec:
               value: "ceph-csi-"
             - name: WATCH_NAMESPACE
               value: ""
-          image: quay.io/cephcsi/ceph-csi-operator:v1.0.1
+          image: quay.io/cephcsi/ceph-csi-operator:v1.0.4
           livenessProbe:
             httpGet:
               path: /healthz
