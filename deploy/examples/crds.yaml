@@ -15394,6 +15394,24 @@ spec:
                   minItems: 0
                   type: array
                   x-kubernetes-list-type: set
+                placement:
+                  minProperties: 1
+                  properties:
+                    id:
+                      maxLength: 255
+                      minLength: 1
+                      pattern: ^[a-zA-Z0-9._/-]+$
+                      type: string
+                    tags:
+                      items:
+                        maxLength: 255
+                        minLength: 1
+                        type: string
+                      maxItems: 64
+                      minItems: 1
+                      type: array
+                      x-kubernetes-list-type: atomic
+                  type: object
                 quotas:
                   description: ObjectUserQuotaSpec can be used to set quotas for the object store user to limit their usage. See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/?#quota-management) for more
                   nullable: true
@@ -15421,6 +15439,19 @@ spec:
                 store:
                   description: The store the user will be created in
                   type: string
+                tenant:
+                  description: |-
+                    Tenant is the RGW tenant this user belongs to.
+                    Users in different tenants can have buckets with the same name without conflict.
+                    When set, the effective user ID in RGW becomes "<tenant>$<name>".
+                    This field is immutable after creation.
+                  maxLength: 255
+                  minLength: 1
+                  pattern: ^[a-zA-Z0-9._-]+$
+                  type: string
+                  x-kubernetes-validations:
+                    - message: tenant is immutable
+                      rule: self == oldSelf
               type: object
             status:
               description: ObjectStoreUserStatus represents the status Ceph Object Store Gateway User
