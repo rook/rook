@@ -73,6 +73,11 @@ necessary, and we immediately release `...-beta.0`
 Create a PR to the new release branch that updates the documentation and example manifests with a
 beta tag (e.g. `v1.13.0-beta.0`). For example: https://github.com/rook/rook/pull/13308
 
+As part of that documentation update, add a row for the new release series to the support matrix in
+`Documentation/Getting-Started/maintenance-and-support.md`, using the Kubernetes range from
+`Documentation/Getting-Started/Prerequisites/prerequisites.md` and the Ceph versions from
+`Documentation/Upgrade/ceph-upgrade.md`.
+
 After the PR is merged, you can tag the release with the beta tag (`v1.13.0-beta.0`) following the
 [Tagging a New Release](#tagging-a-new-release) process below.
 
