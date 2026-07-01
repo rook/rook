@@ -138,7 +138,6 @@ spec:
       enableSeLinuxHostMount: false
     controllerPlugin:
       priorityClassName: "system-cluster-critical"
-      replicas: 2
       deploymentStrategy:
         type: Recreate
 ---

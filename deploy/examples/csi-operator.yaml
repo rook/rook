@@ -747,6 +747,7 @@ spec:
                     privileged:
                       type: boolean
                     replicas:
+                      default: 2
                       format: int32
                       minimum: 1
                       type: integer
@@ -4035,6 +4036,7 @@ spec:
                         privileged:
                           type: boolean
                         replicas:
+                          default: 2
                           format: int32
                           minimum: 1
                           type: integer
@@ -7660,6 +7662,13 @@ rules:
       - update
       - watch
   - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - list
+      - watch
+  - apiGroups:
       - apps
     resources:
       - daemonsets
@@ -8753,7 +8762,7 @@ spec:
               value: "ceph-csi-"
             - name: WATCH_NAMESPACE
               value: ""
-          image: quay.io/cephcsi/ceph-csi-operator:v1.0.1
+          image: quay.io/cephcsi/ceph-csi-operator:v1.0.3
           livenessProbe:
             httpGet:
               path: /healthz
