@@ -45,6 +45,7 @@ import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	bucketowner "github.com/rook/rook/tests/integration/object/bucket/owner"
+	bucketrw "github.com/rook/rook/tests/integration/object/bucket/rw"
 	"github.com/rook/rook/tests/integration/object/cosi"
 	"github.com/rook/rook/tests/integration/object/notification"
 	topickafka "github.com/rook/rook/tests/integration/object/topic/kafka"
@@ -213,6 +214,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 
 	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, tlsEnable,
 		bucketowner.Namespace,
+		bucketrw.Namespace,
 		userkeys.Namespace,
 		topickafka.Namespace,
 		useropmask.Namespace,
@@ -223,6 +225,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	defer sharedObjectStore.Destroy()
 
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, sharedObjectStore)
+	bucketrw.TestObjectBucketClaimReadWrite(s.T(), k8sh, sharedObjectStore)
 	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, sharedObjectStore)
 	topickafka.TestBucketTopicKafka(s.T(), k8sh, sharedObjectStore)
 	useropmask.TestObjectStoreUserOpMask(s.T(), k8sh, sharedObjectStore)

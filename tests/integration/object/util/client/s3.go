@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 )
@@ -72,4 +73,19 @@ func GetS3Endpoint(objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, t
 	endpoint := schema + svc.Spec.ClusterIP + ":" + port
 
 	return endpoint, nil
+}
+
+// NewS3Agent builds an S3 client for objectStore using the given credentials.
+func NewS3Agent(objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, tlsEnable bool, accessKey, secretKey string) (*rgw.S3Agent, error) {
+	endpoint, err := GetS3Endpoint(objectStore, k8sh, tlsEnable)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get s3 endpoint")
+	}
+
+	agent, err := rgw.NewS3Agent(accessKey, secretKey, endpoint, true, nil, tlsEnable, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create s3 agent")
+	}
+
+	return agent, nil
 }

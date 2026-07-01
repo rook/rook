@@ -33,6 +33,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/rook/rook/tests/integration/object/util/fixture"
+	"github.com/rook/rook/tests/integration/object/util/obc"
 	"github.com/rook/rook/tests/integration/object/util/secrets"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 	"github.com/rook/rook/tests/integration/object/util/wait4"
@@ -137,7 +138,7 @@ func TestBucketTopicKafka(t *testing.T, k8sh *utils.K8sHelper, store *sharedstor
 		secret3 = kvSecret(ns.Name, defaultName+"-secret3", "user-name", "kafka-user3")
 		secret4 = kvSecret(ns.Name, defaultName+"-secret4", "password", "kafka-pass4")
 
-		storageClass = fixture.StorageClass(defaultName, objectStore)
+		storageClass = obc.StorageClass(defaultName, objectStore)
 
 		bt1 = &cephv1.CephBucketTopic{
 			ObjectMeta: metav1.ObjectMeta{
