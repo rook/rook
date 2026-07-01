@@ -505,7 +505,7 @@ func TestHasNodeDrained(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, expected)
 
-	// Expecting node drain because OSD pod is assigned to a non existent node
+	// Expecting node drain because OSD pod is assigned to a non-existent node
 	osdDeployment = fakeOSDDeployment(3, 0)
 	r = getFakeReconciler(t, osdDeployment.DeepCopy(), &corev1.ConfigMap{})
 	expected, err = hasOSDNodeDrained(ctx, r.client, "node-3")

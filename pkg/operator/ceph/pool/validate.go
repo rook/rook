@@ -202,7 +202,7 @@ func validateDeviceClasses(context *clusterd.Context, clusterInfo *cephclient.Cl
 	return nil
 }
 
-// validateDeviceClassOSDs validates that the device class should have atleast one OSD
+// validateDeviceClassOSDs validates that the device class should have at least one OSD
 func validateDeviceClassOSDs(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, deviceClassName string) error {
 	deviceClassOSDs, err := cephclient.GetDeviceClassOSDs(context, clusterInfo, deviceClassName)
 	if err != nil {
