@@ -15340,6 +15340,11 @@ spec:
                   maxLength: 2048
                   minLength: 0
                   type: string
+                defaultStorageClass:
+                  description: Override the default storage class for objects created by this user. Requires defaultPlacement to be set. If not provided, the default `STANDARD` storage class will be used.
+                  maxLength: 2048
+                  minLength: 0
+                  type: string
                 displayName:
                   description: The display name for the ceph user.
                   type: string
@@ -15439,6 +15444,9 @@ spec:
                   description: The store the user will be created in
                   type: string
               type: object
+              x-kubernetes-validations:
+                - message: defaultStorageClass requires defaultPlacement
+                  rule: '!has(self.defaultStorageClass) || has(self.defaultPlacement)'
             status:
               description: ObjectStoreUserStatus represents the status Ceph Object Store Gateway User
               properties:
