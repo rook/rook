@@ -2368,6 +2368,7 @@ type CephObjectStoreUserList struct {
 }
 
 // ObjectStoreUserSpec represent the spec of an Objectstoreuser
+// +kubebuilder:validation:XValidation:message="defaultStorageClass requires defaultPlacement",rule="!has(self.defaultStorageClass) || has(self.defaultPlacement)"
 type ObjectStoreUserSpec struct {
 	// The store the user will be created in
 	// +optional
@@ -2406,6 +2407,11 @@ type ObjectStoreUserSpec struct {
 	// +kubebuilder:validation:MinLength=0
 	// +kubebuilder:validation:MaxLength=2048
 	DefaultPlacement *string `json:"defaultPlacement,omitempty"`
+	// Override the default storage class for objects created by this user. Requires defaultPlacement to be set. If not provided, the default `STANDARD` storage class will be used.
+	// +optional
+	// +kubebuilder:validation:MinLength=0
+	// +kubebuilder:validation:MaxLength=2048
+	DefaultStorageClass *string `json:"defaultStorageClass,omitempty"`
 }
 
 // ObjectStoreUserAccountRef is a reference to a CephObjectStoreAccount
