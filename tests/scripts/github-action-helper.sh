@@ -83,7 +83,9 @@ function create_extra_disk() {
 # iSCSI disk if none exist. Thin wrapper over find_extra_block_devs(); kept as a
 # convenience for its many callers that expect a single basename.
 function find_extra_block_dev() {
-  find_extra_block_devs 1 | head -1
+  local devs
+  mapfile -t devs < <(find_extra_block_devs 1)
+  echo "${devs[0]}" # the first disk
 }
 
 # find_extra_block_devs [min_count]
