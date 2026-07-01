@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -125,10 +126,8 @@ func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
 	if utils.IsPlatformOpenShift() {
 		s.T().Skip("object store tests skipped on openshift")
 	}
-	storeName := "lite-store"
-	deleteStore := true
-	tls := false
-	runObjectE2ETestLite(s.T(), s.helper, s.k8sh, s.installer, s.settings.Namespace, storeName, 2, deleteStore, tls, false)
+	store := sharedstore.Create(s.T(), s.k8sh, s.installer, false, s.settings.Namespace, "lite-store", 2)
+	defer store.Destroy()
 }
 
 // Test to make sure all rook components are installed and Running
