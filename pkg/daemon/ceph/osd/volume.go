@@ -28,6 +28,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -177,6 +178,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	}
 
 	// Check if the PVC is an LVM block device (certain StorageClass do this)
+	var preparedRawDevices []string
 	if a.pvcBacked {
 		for _, device := range devices.Entries {
 			dev := device.Config.Name
@@ -190,7 +192,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 			return nil, errors.Wrap(err, "failed to initialize devices on PVC")
 		}
 	} else {
-		err = a.initializeDevices(context, devices)
+		preparedRawDevices, err = a.initializeDevices(context, devices)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to initialize osd")
 		}
@@ -216,9 +218,81 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume raw")
 	}
+
+	// "ceph-volume raw list" without a device argument can miss freshly prepared OSDs
+	// (transiently right after mkfs, or persistently on Ceph versions where the listing of all
+	// devices is broken while listing a specific device still works). Without this check the
+	// prepare job would silently report fewer OSDs than it just prepared and the operator would
+	// never create the missing OSD deployments.
+	if !isEncrypted {
+		rawOsds, err = ensurePreparedDevicesListed(context, a.clusterInfo, rawOsds, preparedRawDevices, a.devices)
+		if err != nil {
+			return nil, err
+		}
+	}
 	osds = appendOSDInfo(osds, rawOsds)
 
 	return osds, err
+}
+
+// Number of attempts and delay between them when a freshly prepared device is missing from the
+// "ceph-volume raw list" results. The interval is a variable so unit tests can shorten it.
+const rawListMissingDeviceRetries = 5
+
+var rawListMissingDeviceRetryInterval = 3 * time.Second
+
+// ensurePreparedDevicesListed verifies that every device that was just prepared in raw mode is
+// represented in the OSD list reported by "ceph-volume raw list". Any prepared device missing
+// from the results is listed individually ("ceph-volume raw list <device>"), with retries to
+// ride out udev settling right after the OSD was created. If a prepared device still yields no
+// OSD, an error is returned so the prepare job fails loudly instead of silently under-reporting
+// the OSDs on the node.
+func ensurePreparedDevicesListed(context *clusterd.Context, clusterInfo *client.ClusterInfo, osds []oposd.OSDInfo, preparedDevices []string, devices []DesiredDevice) ([]oposd.OSDInfo, error) {
+	for _, device := range preparedDevices {
+		if deviceInOSDInfoList(device, osds) {
+			continue
+		}
+
+		recovered := false
+		for attempt := 1; attempt <= rawListMissingDeviceRetries; attempt++ {
+			logger.Warningf("prepared device %q is missing from the ceph-volume raw list results, listing the device individually (attempt %d/%d)", device, attempt, rawListMissingDeviceRetries)
+			deviceOsds, err := GetCephVolumeRawOSDs(context, clusterInfo, clusterInfo.FSID, device, "", "", false, false, devices)
+			if err != nil {
+				logger.Warningf("failed to list raw OSD on device %q. %v", device, err)
+			} else if len(deviceOsds) > 0 {
+				osds = appendOSDInfo(osds, deviceOsds)
+				recovered = true
+				break
+			}
+			time.Sleep(rawListMissingDeviceRetryInterval)
+		}
+		if !recovered {
+			return nil, errors.Errorf("an OSD was prepared on device %q, but ceph-volume does not report it after %d attempts", device, rawListMissingDeviceRetries)
+		}
+	}
+
+	return osds, nil
+}
+
+// deviceInOSDInfoList returns true if the given device path is the block path of one of the
+// given OSDs. Paths are compared after symlink resolution since ceph-volume may report a device
+// through a different alias (e.g. /dev/sdb1 configured as /dev/disk/by-id/...-part1).
+func deviceInOSDInfoList(device string, osds []oposd.OSDInfo) bool {
+	resolve := func(path string) string {
+		if resolved, err := filepath.EvalSymlinks(path); err == nil {
+			return resolved
+		}
+		return path
+	}
+
+	resolvedDevice := resolve(device)
+	for _, osd := range osds {
+		if osd.BlockPath == device || resolve(osd.BlockPath) == resolvedDevice {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *DeviceOsdMapping, lvBackedPV bool) (string, string, string, error) {
@@ -475,18 +549,20 @@ func lvmModeAllowed(device *DeviceOsdIDEntry, storeConfig *config.StoreConfig) b
 	return true
 }
 
-func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping) error {
+// initializeDevices prepares the given devices with ceph-volume and returns the paths of the
+// devices that were newly prepared in raw mode.
+func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]string, error) {
 	// Should we allow ceph-volume raw mode?
 	allowRawMode, err := a.allowRawMode(context)
 	if err != nil {
-		return errors.Wrap(err, "failed to determine which ceph-volume mode to use")
+		return nil, errors.Wrap(err, "failed to determine which ceph-volume mode to use")
 	}
 
 	// If not raw mode we must execute a few LVM prerequisites
 	if !allowRawMode {
 		err = lvmPreReq(context)
 		if err != nil {
-			return errors.Wrap(err, "failed to run lvm prerequisites")
+			return nil, errors.Wrap(err, "failed to run lvm prerequisites")
 		}
 	}
 
@@ -518,26 +594,29 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		}
 	}
 
-	err = a.initializeDevicesRawMode(context, rawDevices)
+	preparedRawDevices, err := a.initializeDevicesRawMode(context, rawDevices)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = a.initializeDevicesLVMMode(context, lvmDevices)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return preparedRawDevices, nil
 }
 
-func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *DeviceOsdMapping) error {
+// initializeDevicesRawMode prepares the given devices with "ceph-volume raw prepare" and returns
+// the paths of the devices that were newly prepared.
+func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *DeviceOsdMapping) ([]string, error) {
 	baseCommand := "stdbuf"
 	cephVolumeMode := "raw"
 	storeFlag := a.storeConfig.GetStoreFlag()
 
 	baseArgs := []string{"-oL", cephVolumeCmd, cephVolumeMode, "prepare", storeFlag}
 
+	var preparedDevices []string
 	for name, device := range devices.Entries {
 		deviceArg := path.Join("/dev", name)
 		if device.Data == -1 {
@@ -573,15 +652,16 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 				}
 
 				// Return failure
-				return errors.Wrapf(err, "failed to run ceph-volume raw command. %s", op) // fail return here as validation provided by ceph-volume
+				return nil, errors.Wrapf(err, "failed to run ceph-volume raw command. %s", op) // fail return here as validation provided by ceph-volume
 			}
 			logger.Infof("%v", op)
+			preparedDevices = append(preparedDevices, deviceArg)
 		} else {
 			logger.Infof("skipping device %q with osd %d already configured", deviceArg, device.Data)
 		}
 	}
 
-	return nil
+	return preparedDevices, nil
 }
 
 func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *DeviceOsdMapping) error {
