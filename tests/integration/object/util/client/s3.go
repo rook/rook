@@ -21,6 +21,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -72,4 +76,42 @@ func GetS3Endpoint(objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, t
 	endpoint := schema + svc.Spec.ClusterIP + ":" + port
 
 	return endpoint, nil
+}
+
+// NewS3Client builds an S3 client for the given access/secret key pair against
+// the object store's endpoint. Unlike NewAdminClient/NewSNSClient it does not
+// derive credentials, so callers can act as a specific CephObjectStoreUser.
+func NewS3Client(objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, tlsEnable bool, accessKey, secretKey string) (*s3.Client, error) {
+	ctx := context.TODO()
+
+	loadOpts := []func(*config.LoadOptions) error{
+		config.WithRegion("us-east-1"),
+		config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(
+				accessKey,
+				secretKey,
+				"",
+			),
+		),
+	}
+	if tlsEnable {
+		loadOpts = append(loadOpts, config.WithHTTPClient(InsecureHTTPClient()))
+	}
+
+	cfg, err := config.LoadDefaultConfig(ctx, loadOpts...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load default aws config")
+	}
+
+	endpoint, err := GetS3Endpoint(objectStore, k8sh, tlsEnable)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get s3 endpoint")
+	}
+
+	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(endpoint)
+		o.UsePathStyle = true
+	})
+
+	return s3Client, nil
 }
