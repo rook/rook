@@ -160,7 +160,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		}
 	}
 
-	// Watch Secrets secrets annotated for the object store
+	// Watch secrets annotated for the object store
 	err = c.Watch(
 		source.Kind(
 			mgr.GetCache(),

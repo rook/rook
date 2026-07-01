@@ -116,7 +116,7 @@ func init() {
 		subCommand.Flags().VarPF(t, "timeout-minutes", "", /* no shorthand */
 			"The time to wait for resources to change to the expected state. For example, for the "+
 				"test web server to start, for test clients to become ready, or for test resources to be deleted. "+
-				"At longest, this may need to reflect the time it takes for client pods to to pull images, "+
+				"At longest, this may need to reflect the time it takes for client pods to pull images, "+
 				"get address assignments, and then for each client to determine that its network connection is stable. "+
 				"Minimum: 1 minute. Recommended: 2 minutes or more.")
 	}

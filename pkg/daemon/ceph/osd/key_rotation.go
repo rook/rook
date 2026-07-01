@@ -78,7 +78,7 @@ func RotateKeyEncryptionKey(context *clusterd.Context, kms *kms.Config, secretNa
 	}
 
 	logger.Info("fetching the key from the KMS to verify it.")
-	// Fetch key to verify its the new key.
+	// Fetch key to verify it's the new key.
 	keyInKMS, err := kms.GetSecret(secretName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get secret %q", secretName)

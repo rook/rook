@@ -39,7 +39,7 @@ func CreateObjectOperation(k8sh *utils.K8sHelper, manifests installer.CephManife
 	return &ObjectOperation{k8sh, manifests}
 }
 
-// ObjectCreate Function to create a object store in rook
+// ObjectCreate Function to create an object store in rook
 func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32, tlsEnable bool, swiftAndKeystone bool) error {
 	logger.Info("creating the object store via CRD")
 

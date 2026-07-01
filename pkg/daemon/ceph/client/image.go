@@ -92,7 +92,7 @@ func ListSnapshotsInRadosNamespace(context *clusterd.Context, clusterInfo *Clust
 	return snapshots, nil
 }
 
-// DeleteSnapshotInRadosNamespace deletes a image snapshot created in block pool in a given rados namespace
+// DeleteSnapshotInRadosNamespace deletes an image snapshot created in block pool in a given rados namespace
 func DeleteSnapshotInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, imageName, snapshot, namespace string) error {
 	args := []string{"snap", "rm", getImageSnapshotSpec(poolName, imageName, snapshot)}
 	if namespace != "" {
