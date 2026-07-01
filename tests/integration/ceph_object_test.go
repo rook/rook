@@ -45,6 +45,7 @@ import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	bucketowner "github.com/rook/rook/tests/integration/object/bucket/owner"
+	bucketrw "github.com/rook/rook/tests/integration/object/bucket/rw"
 	"github.com/rook/rook/tests/integration/object/cosi"
 	"github.com/rook/rook/tests/integration/object/notification"
 	topickafka "github.com/rook/rook/tests/integration/object/topic/kafka"
@@ -213,6 +214,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 
 	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, tlsEnable,
 		bucketowner.Namespace,
+		bucketrw.Namespace,
 		userkeys.Namespace,
 		topickafka.Namespace,
 		useropmask.Namespace,
@@ -223,6 +225,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	defer sharedObjectStore.Destroy()
 
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, sharedObjectStore)
+	bucketrw.TestObjectBucketClaimReadWrite(s.T(), k8sh, sharedObjectStore)
 	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, sharedObjectStore)
 	topickafka.TestBucketTopicKafka(s.T(), k8sh, sharedObjectStore)
 	useropmask.TestObjectStoreUserOpMask(s.T(), k8sh, sharedObjectStore)
@@ -298,19 +301,10 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		assert.Nil(t, err)
 		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
 
-		t.Run("put object", func(t *testing.T) {
+		t.Run("user quota enforcement", func(t *testing.T) {
 			_, poErr := s3client.PutObjectInBucket(ctx, bucketname, ObjBody, ObjectKey1, contentType)
 			assert.Nil(t, poErr)
-		})
-
-		t.Run("get object", func(t *testing.T) {
-			read, err := s3client.GetObjectInBucket(ctx, bucketname, ObjectKey1)
-			assert.Nil(t, err)
-			assert.Equal(t, ObjBody, read)
-		})
-
-		t.Run("user quota enforcement", func(t *testing.T) {
-			_, poErr := s3client.PutObjectInBucket(ctx, bucketname, ObjBody, ObjectKey2, contentType)
+			_, poErr = s3client.PutObjectInBucket(ctx, bucketname, ObjBody, ObjectKey2, contentType)
 			assert.Nil(t, poErr)
 			logger.Infof("Testing the max object limit")
 			quotaEnforced := utils.Retry(30, 2*time.Second, "user quota enforced", func() bool {
@@ -1005,18 +999,6 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			})
 			assert.True(t, absent)
 		})
-	})
-
-	t.Run("Regression check: OBC does not revert to Pending phase", func(t *testing.T) {
-		// A bug exists in older versions of lib-bucket-provisioner that will revert a bucket and claim
-		// back to "Pending" phase after being created and initially "Bound" by looping infinitely in
-		// the bucket provision/creation loop. Verify that the OBC is "Bound" and stays that way.
-		// The OBC reconcile loop runs again immediately b/c the OBC is modified to refer to its OB.
-		// Wait a short amount of time before checking just to be safe.
-		created := utils.Retry(15, 2*time.Second, "OBC is created", func() bool {
-			return helper.BucketClient.CheckOBC(obcName, "bound")
-		})
-		assert.True(t, created)
 	})
 
 	t.Run("delete CephObjectStore should be blocked by OBC bucket and CephObjectStoreUser", func(t *testing.T) {
