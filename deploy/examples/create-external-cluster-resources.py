@@ -2030,6 +2030,21 @@ class RadosJSON:
                 }
             )
 
+        # if 'SUBVOLUME_GROUP' is set, emit it as a separate CephFilesystemSubVolumeGroup
+        # entity rather than a StorageClass parameter. This mirrors the
+        # CephBlockPoolRadosNamespace pattern above: the consumer creates the CR and derives
+        # the CephFS clusterID from it. A 'subvolumeGroup' key on the StorageClass would be a
+        # no-op, since the CSI driver does not read it from StorageClass parameters.
+        if self.out_map["CEPHFS_FS_NAME"] and self.out_map["SUBVOLUME_GROUP"]:
+            json_out.append(
+                {
+                    "name": self.out_map["SUBVOLUME_GROUP"],
+                    "kind": "CephFilesystemSubVolumeGroup",
+                    "data": {
+                        "filesystemName": self.out_map["CEPHFS_FS_NAME"],
+                    },
+                }
+            )
         # if 'CEPHFS_FS_NAME' exists, then only add 'cephfs' StorageClass
         if self.out_map["CEPHFS_FS_NAME"]:
             json_out.append(
