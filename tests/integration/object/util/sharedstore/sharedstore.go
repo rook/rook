@@ -68,13 +68,21 @@ func (s *Sharedstore) Destroy() {
 	s.destroy()
 }
 
+// Config holds the tunable settings for the shared CephObjectStore.
+type Config struct {
+	TLSEnable                  bool
+	AllowUsersInNamespaces     []string
+	AllowAdminCapsInNamespaces []string
+}
+
 // Setup creates a shared CephObjectStore and its NodePort Service in
 // ObjectStoreNamespace, waits for the store to become Ready, and returns a
 // teardown function that deletes both resources. The teardown function should
 // be deferred by the caller.
-func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool, allowedNamespaces ...string) *Sharedstore {
+func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, cfg Config) *Sharedstore {
 	t.Helper()
 
+	tlsEnable := cfg.TLSEnable
 	s := &Sharedstore{tlsEnable: tlsEnable}
 	ctx := context.TODO()
 	ns := "object-ns"
@@ -156,7 +164,8 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 				Port:      80,
 				Instances: 1,
 			},
-			AllowUsersInNamespaces: allowedNamespaces,
+			AllowUsersInNamespaces:     cfg.AllowUsersInNamespaces,
+			AllowAdminCapsInNamespaces: cfg.AllowAdminCapsInNamespaces,
 		},
 	}
 

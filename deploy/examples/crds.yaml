@@ -12837,6 +12837,22 @@ spec:
             spec:
               description: ObjectStoreSpec represent the spec of a pool
               properties:
+                allowAdminCapsInNamespaces:
+                  description: |-
+                    The list of namespaces (in addition to the object store namespace) where
+                    object store users may be granted admin capabilities (spec.capabilities).
+                    These capabilities are store-wide, so by default a user created in another
+                    namespace (via allowUsersInNamespaces) may not hold them. Specify "*" to
+                    allow all namespaces, otherwise list individual namespaces. The COSI driver
+                    requires its namespace to be listed here. The default is empty.
+                  items:
+                    maxLength: 63
+                    minLength: 1
+                    type: string
+                  maxItems: 1000
+                  minItems: 0
+                  type: array
+                  x-kubernetes-list-type: set
                 allowUsersInNamespaces:
                   description: |-
                     The list of allowed namespaces in addition to the object store namespace

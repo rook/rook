@@ -523,6 +523,17 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 				u.Spec.Store,
 				u.Namespace)
 		}
+		// RGW admin capabilities are store-wide, so a user in another namespace
+		// may carry them only if the object store lists its namespace in
+		// allowAdminCapsInNamespaces. Skipped on delete so an existing user is
+		// still cleaned up.
+		if u.DeletionTimestamp.IsZero() && hasAnyCapability(u.Spec.Capabilities) &&
+			!userInNamespaceAllowed(u.Namespace, store.Spec.AllowAdminCapsInNamespaces) {
+			return fmt.Errorf(
+				"object store %q does not allow admin capabilities for users in namespace %q, the namespace must first be added to allowAdminCapsInNamespaces",
+				u.Spec.Store,
+				u.Namespace)
+		}
 	}
 
 	advertiseEndpoint, err := store.GetAdvertiseEndpointUrl()
@@ -540,6 +551,22 @@ func userInNamespaceAllowed(requestedNamespace string, allowedNamespaces []strin
 	for _, allowedNamespace := range allowedNamespaces {
 		if allowedNamespace == "*" || allowedNamespace == requestedNamespace {
 			log.NamespacedDebug(requestedNamespace, logger, "allow creating object user in namespace")
+			return true
+		}
+	}
+	return false
+}
+
+// hasAnyCapability reports whether any RGW admin capability is requested. Every
+// field of ObjectUserCapSpec is an admin-ops capability (a normal S3 user has
+// none), so any non-empty field means administrative access to the store.
+func hasAnyCapability(caps *cephv1.ObjectUserCapSpec) bool {
+	if caps == nil {
+		return false
+	}
+	v := reflect.ValueOf(*caps)
+	for i := 0; i < v.NumField(); i++ {
+		if f := v.Field(i); f.Kind() == reflect.String && f.String() != "" {
 			return true
 		}
 	}

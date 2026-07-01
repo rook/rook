@@ -98,6 +98,11 @@ When the `zone` section is set pools with the object stores name will not be cre
     the namespace must be added to this list of allowed namespaces, or specify "*" to allow all namespaces.
     This is useful for applications that need object store credentials to be created in their own namespace,
     where neither OBCs nor COSI is being used to create buckets. The default is empty.
+* `allowAdminCapsInNamespaces`: The list of namespaces (in addition to the object store namespace) where object
+    store users may be granted admin capabilities (`spec.capabilities`). These capabilities are store-wide, so by
+    default a user created in another namespace (via `allowUsersInNamespaces`) may not hold them. Add the namespace
+    to this list, or specify "*" to allow all namespaces. The COSI driver requires its namespace to be listed here.
+    The default is empty.
 
 ### Realm
 

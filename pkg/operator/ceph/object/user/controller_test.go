@@ -660,6 +660,14 @@ func TestValidateUser(t *testing.T) {
 	})
 }
 
+func TestHasAnyCapability(t *testing.T) {
+	assert.False(t, hasAnyCapability(nil))
+	assert.False(t, hasAnyCapability(&cephv1.ObjectUserCapSpec{}))
+	assert.True(t, hasAnyCapability(&cephv1.ObjectUserCapSpec{Users: "*"}))
+	assert.True(t, hasAnyCapability(&cephv1.ObjectUserCapSpec{MetaData: "read"}))
+	assert.True(t, hasAnyCapability(&cephv1.ObjectUserCapSpec{Bucket: "read, write"}))
+}
+
 func TestResolveAccountRef(t *testing.T) {
 	ctx := context.TODO()
 	s := scheme.Scheme

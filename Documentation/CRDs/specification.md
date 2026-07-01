@@ -2037,6 +2037,23 @@ is being used to create buckets. The default is empty.</p>
 </tr>
 <tr>
 <td>
+<code>allowAdminCapsInNamespaces</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The list of namespaces (in addition to the object store namespace) where
+object store users may be granted admin capabilities (spec.capabilities).
+These capabilities are store-wide, so by default a user created in another
+namespace (via allowUsersInNamespaces) may not hold them. Specify &ldquo;*&rdquo; to
+allow all namespaces, otherwise list individual namespaces. The COSI driver
+requires its namespace to be listed here. The default is empty.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>hosting</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.ObjectStoreHostingSpec">
@@ -12356,6 +12373,23 @@ namespaces, otherwise list individual namespaces that are to be allowed.
 This is useful for applications that need object store credentials
 to be created in their own namespace, where neither OBCs nor COSI
 is being used to create buckets. The default is empty.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>allowAdminCapsInNamespaces</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The list of namespaces (in addition to the object store namespace) where
+object store users may be granted admin capabilities (spec.capabilities).
+These capabilities are store-wide, so by default a user created in another
+namespace (via allowUsersInNamespaces) may not hold them. Specify &ldquo;*&rdquo; to
+allow all namespaces, otherwise list individual namespaces. The COSI driver
+requires its namespace to be listed here. The default is empty.</p>
 </td>
 </tr>
 <tr>
