@@ -130,7 +130,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		// if bucket already exists, this returns error: TooManyBuckets because we set the quota
 		// below. If it already exists, assume we are good to go
 		log.NamedDebug(nsName, logger, "creating bucket %q owned by user %q", p.bucketName, p.cephUserName)
-		err = p.s3Agent.CreateBucket(p.bucketName)
+		err = p.s3Agent.CreateBucket(p.clusterInfo.Context, p.bucketName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error creating bucket %q", p.bucketName)
 		}
@@ -224,7 +224,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	// generate the bucket policy if it isn't managed by the user
 
 	// if the policy does not exist, we'll create a new and append the statement to it
-	policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
+	policy, err := p.s3Agent.GetBucketPolicy(p.clusterInfo.Context, p.bucketName)
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) {
@@ -246,7 +246,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	} else {
 		policy = policy.ModifyBucketPolicy(*statement)
 	}
-	out, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
+	out, err := p.s3Agent.PutBucketPolicy(p.clusterInfo.Context, p.bucketName, *policy)
 
 	log.NamedInfo(nsName, logger, "PutBucketPolicy output: %v", out)
 	if err != nil {
@@ -322,7 +322,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 
 		// Ignore cases where there is no bucket policy. This may have occurred if an error ended a Grant()
 		// call before the policy was attached to the bucket
-		policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
+		policy, err := p.s3Agent.GetBucketPolicy(p.clusterInfo.Context, p.bucketName)
 		if err != nil {
 			var apiErr smithy.APIError
 			if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchBucketPolicy" {
@@ -348,7 +348,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			} else {
 				policy = policy.ModifyBucketPolicy(*statement)
 			}
-			out, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
+			out, err := p.s3Agent.PutBucketPolicy(p.clusterInfo.Context, p.bucketName, *policy)
 			log.NamedInfo(nsName, logger, "PutBucketPolicy output: %v", out)
 			if err != nil {
 				return errors.Wrap(err, "failed to update policy")
@@ -360,7 +360,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		// drop policy if present
 		if policy != nil {
 			policy = policy.DropPolicyStatements(p.cephUserName)
-			_, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
+			_, err := p.s3Agent.PutBucketPolicy(p.clusterInfo.Context, p.bucketName, *policy)
 			if err != nil {
 				return err
 			}

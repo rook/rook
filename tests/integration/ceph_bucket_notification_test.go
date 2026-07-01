@@ -130,7 +130,7 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
 
 		t.Run("put object", func(t *testing.T) {
-			_, err := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey1, contentType)
+			_, err := s3client.PutObjectInBucket(ctx, bucketname, ObjBody, ObjectKey1, contentType)
 			assert.Nil(t, err)
 		})
 
@@ -145,7 +145,7 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 		})
 
 		t.Run("delete objects", func(t *testing.T) {
-			_, err := s3client.DeleteObjectInBucket(bucketname, ObjectKey1)
+			_, err := s3client.DeleteObjectInBucket(ctx, bucketname, ObjectKey1)
 			assert.Nil(t, err)
 		})
 
@@ -230,7 +230,7 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
 
 		t.Run("put object", func(t *testing.T) {
-			_, err := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey2, contentType)
+			_, err := s3client.PutObjectInBucket(ctx, bucketname, ObjBody, ObjectKey2, contentType)
 			assert.Nil(t, err)
 		})
 
@@ -241,7 +241,7 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 		})
 
 		t.Run("delete objects", func(t *testing.T) {
-			_, err := s3client.DeleteObjectInBucket(bucketname, ObjectKey1)
+			_, err := s3client.DeleteObjectInBucket(ctx, bucketname, ObjectKey1)
 			assert.Nil(t, err)
 		})
 

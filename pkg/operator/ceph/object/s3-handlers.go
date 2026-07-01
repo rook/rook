@@ -96,11 +96,11 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 }
 
 // CreateBucket creates a bucket with the given name
-func (s *S3Agent) CreateBucket(name string) error {
-	return s.createBucket(name, true)
+func (s *S3Agent) CreateBucket(ctx context.Context, name string) error {
+	return s.createBucket(ctx, name, true)
 }
 
-func (s *S3Agent) createBucket(name string, infoLogging bool) error {
+func (s *S3Agent) createBucket(ctx context.Context, name string, infoLogging bool) error {
 	if infoLogging {
 		logger.Infof("creating bucket %q", name)
 	} else {
@@ -111,7 +111,7 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 		Bucket: &name,
 	}
 
-	_, err := s.Client.CreateBucket(context.TODO(), input)
+	_, err := s.Client.CreateBucket(ctx, input)
 	if err != nil {
 		var alreadyExists *s3types.BucketAlreadyExists
 		var alreadyOwned *s3types.BucketAlreadyOwnedByYou
@@ -131,10 +131,10 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 }
 
 // PutObjectInBucket function puts an object in a bucket using s3 client
-func (s *S3Agent) PutObjectInBucket(bucketname string, body string, key string,
+func (s *S3Agent) PutObjectInBucket(ctx context.Context, bucketname string, body string, key string,
 	contentType string,
 ) (bool, error) {
-	_, err := s.Client.PutObject(context.TODO(), &s3.PutObjectInput{
+	_, err := s.Client.PutObject(ctx, &s3.PutObjectInput{
 		Body:        strings.NewReader(body),
 		Bucket:      &bucketname,
 		Key:         &key,
@@ -148,8 +148,8 @@ func (s *S3Agent) PutObjectInBucket(bucketname string, body string, key string,
 }
 
 // GetObjectInBucket function retrieves an object from a bucket using s3 client
-func (s *S3Agent) GetObjectInBucket(bucketname string, key string) (string, error) {
-	result, err := s.Client.GetObject(context.TODO(), &s3.GetObjectInput{
+func (s *S3Agent) GetObjectInBucket(ctx context.Context, bucketname string, key string) (string, error) {
+	result, err := s.Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: &bucketname,
 		Key:    &key,
 	})
@@ -167,8 +167,8 @@ func (s *S3Agent) GetObjectInBucket(bucketname string, key string) (string, erro
 }
 
 // DeleteObjectInBucket function deletes given bucket using s3 client
-func (s *S3Agent) DeleteObjectInBucket(bucketname string, key string) (bool, error) {
-	_, err := s.Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+func (s *S3Agent) DeleteObjectInBucket(ctx context.Context, bucketname string, key string) (bool, error) {
+	_, err := s.Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &bucketname,
 		Key:    &key,
 	})
