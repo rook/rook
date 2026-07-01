@@ -1,0 +1,14 @@
+# VolumeAttributesClass for NVMe-oF volumes
+# This example demonstrates optional mutable parameters for NVMe-oF
+apiVersion: storage.k8s.io/v1
+kind: VolumeAttributesClass
+metadata:
+  name: nvmeof-attributes
+driverName: rook-ceph.nvmeof.csi.ceph.com # csi-provisioner-name
+parameters:
+  # Host access control: YAML list of host NQNs allowed to access this volume.
+  # The host NQN can be found on each client node by running:
+  #   cat /etc/nvme/hostnqn
+  # If the file does not exist, generate one with: nvme gen-hostnqn
+  allowHostNQNs: |
+    - nqn.2014-08.org.nvmexpress:uuid:<your-host-uuid>
