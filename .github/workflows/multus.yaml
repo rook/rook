@@ -46,7 +46,7 @@ jobs:
       - name: Create KinD Cluster
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
         with:
-          config: tests/scripts/multus/kind-config.yaml
+          config: tests/config/multus/kind-config.yaml
           cluster_name: kind
 
       - name: consider (pre-job) debugging

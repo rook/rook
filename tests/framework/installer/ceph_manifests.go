@@ -362,7 +362,7 @@ parameters:
 `
 	if m.settings.ConnectionsEncrypted {
 		// Encryption with kernel version <= 5.11 requires 'mounter: fuse'. For kernel version >= 5.12, it requires 'mounter: kernel'.
-		// Since the Github action Minikube has kernel version > 5.12, the setting is set to 'mounter: kernel'.
+		// Since the GitHub action runner has kernel version > 5.12, the setting is set to 'mounter: kernel'.
 		sc += "  mounter: kernel"
 	}
 	return sc
