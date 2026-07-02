@@ -1,0 +1,6 @@
+{"id":"e3a02b95-9c16-45cf-8ee5-57e95fe66629","ts":"2026-07-03T14:43:54.662Z","path":"/Users/obnox/go/src/github.com/rook/rook/Documentation/README.md","version":"1.0.0","taskID":"ac6f2729-3445-4ae2-852c-338a2e22b960"}
+
+{"id":"5b5d6b24-801f-4729-b4b0-2f43a882b540","ts":"2026-07-03T14:13:47.394Z","path":"/Users/obnox/go/src/github.com/rook/rook/Documentation/CRDs/Object-Storage/ceph-object-store-crd.md","version":"1.0.0","taskID":"ac6f2729-3445-4ae2-852c-338a2e22b960"}
+{"id":"b2025294-690e-4841-bbab-c92b799b237f","ts":"2026-07-03T14:17:20.761Z","path":"/Users/obnox/go/src/github.com/rook/rook/Documentation/CRDs/Object-Storage/ceph-object-store-crd.md","version":"1.0.0","taskID":"ac6f2729-3445-4ae2-852c-338a2e22b960"}
+{"id":"9329925c-9f52-4f83-ab12-2544d9b6444c","ts":"2026-07-03T14:19:18.754Z","path":"/Users/obnox/go/src/github.com/rook/rook/Documentation/CRDs/Object-Storage/ceph-object-store-crd.md","version":"1.0.0","taskID":"ac6f2729-3445-4ae2-852c-338a2e22b960"}
+{"id":"34b11b4b-436b-40ed-916d-671264e25763","ts":"2026-07-03T14:21:49.319Z","path":"/Users/obnox/go/src/github.com/rook/rook/Documentation/CRDs/Object-Storage/ceph-object-store-crd.md","version":"1.0.0","taskID":"ac6f2729-3445-4ae2-852c-338a2e22b960"}
