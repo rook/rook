@@ -657,11 +657,7 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 		userConfig.DefaultPlacement = user.Spec.Placement.ID
 	}
 	if len(user.Spec.Placement.Tags) > 0 {
-		tags := make([]interface{}, len(user.Spec.Placement.Tags))
-		for i, t := range user.Spec.Placement.Tags {
-			tags[i] = t
-		}
-		userConfig.PlacementTags = tags
+		userConfig.PlacementTags = user.Spec.Placement.Tags
 	}
 
 	return userConfig, nil
@@ -1060,12 +1056,12 @@ func isUserSync(targetUser, liveUser *admin.User) bool {
 	return true
 }
 
-func placementTagsEqual(a, b []interface{}) bool {
+func placementTagsEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for i := range a {
-		if fmt.Sprintf("%v", a[i]) != fmt.Sprintf("%v", b[i]) {
+		if a[i] != b[i] {
 			return false
 		}
 	}

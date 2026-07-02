@@ -859,4 +859,26 @@ func TestIsUserSync(t *testing.T) {
 
 		assert.False(t, isUserSync(&a, &b))
 	})
+
+	t.Run("PlacementTags same", func(t *testing.T) {
+		a := admin.User{
+			PlacementTags: []string{"fast", "ssd"},
+		}
+		b := admin.User{
+			PlacementTags: []string{"fast", "ssd"},
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("PlacementTags different", func(t *testing.T) {
+		a := admin.User{
+			PlacementTags: []string{"fast", "ssd"},
+		}
+		b := admin.User{
+			PlacementTags: []string{"slow", "hdd"},
+		}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
 }

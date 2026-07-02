@@ -3,6 +3,7 @@ module github.com/rook/rook
 go 1.25.0
 
 replace (
+	github.com/ceph/go-ceph => github.com/ideepika/go-ceph v0.40.1-0.20260702081420-17d704c56edd
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
 	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3
 
