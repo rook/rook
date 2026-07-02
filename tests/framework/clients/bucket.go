@@ -17,9 +17,6 @@ limitations under the License.
 package clients
 
 import (
-	b64 "encoding/base64"
-	"fmt"
-
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -51,10 +48,6 @@ func (b *BucketOperation) CreateObc(obcName string, storageClassName string, buc
 
 func (b *BucketOperation) DeleteObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
 	return b.k8sh.ResourceOperation("delete", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
-}
-
-func (b *BucketOperation) UpdateObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
-	return b.k8sh.ResourceOperation("apply", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
 }
 
 // CheckOBC, returns true if the obc, secret and configmap are all in the "check" state,
@@ -105,32 +98,4 @@ func (b *BucketOperation) CheckOBC(obcName, check string) bool {
 	}
 
 	return true
-}
-
-// Fetch SecretKey, AccessKey for s3 client.
-func (b *BucketOperation) GetAccessKey(obcName string) (string, error) {
-	args := []string{"get", "secret", obcName, "-o", "jsonpath={@.data.AWS_ACCESS_KEY_ID}"}
-	AccessKey, err := b.k8sh.Kubectl(args...)
-	if err != nil {
-		return "", fmt.Errorf("unable to find access key -- %s", err)
-	}
-	decode, _ := b64.StdEncoding.DecodeString(AccessKey)
-	return string(decode), nil
-}
-
-func (b *BucketOperation) GetSecretKey(obcName string) (string, error) {
-	args := []string{"get", "secret", obcName, "-o", "jsonpath={@.data.AWS_SECRET_ACCESS_KEY}"}
-	SecretKey, err := b.k8sh.Kubectl(args...)
-	if err != nil {
-		return "", fmt.Errorf("unable to find secret key-- %s", err)
-	}
-	decode, _ := b64.StdEncoding.DecodeString(SecretKey)
-	return string(decode), nil
-}
-
-// Checks whether MaxObject is updated for ob
-func (b *BucketOperation) CheckOBMaxObject(obcName, maxobject string) bool {
-	obName, _ := b.k8sh.GetResource("obc", obcName, "--output", "jsonpath={.spec.objectBucketName}")
-	fetchMaxObject, _ := b.k8sh.GetResource("ob", obName, "--output", "jsonpath={.spec.endpoint.additionalConfig.maxObjects}")
-	return maxobject == fetchMaxObject
 }
