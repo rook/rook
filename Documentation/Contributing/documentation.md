@@ -24,7 +24,7 @@ To locally preview the documentation, you can run the following command (in the 
 make docs-preview
 ```
 
-When previewing, now you can navigate your browser to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) to open the preview of the documentation.
+When previewing, now you can navigate your browser to `http://127.0.0.1:8000/` to open the preview of the documentation.
 
 !!! hint
     Should you encounter a `command not found` error while trying to preview the docs for the first

@@ -195,7 +195,7 @@ The general rules for deciding how many PGs your pool(s) should contain is:
 
 If you have more than 50 OSDs, you need to understand the tradeoffs and how to
 calculate the pg_num value by yourself. For calculating pg_num yourself please
-make use of [the pgcalc tool](https://old.ceph.com/pgcalc/).
+make use of [the pgcalc tool](https://docs.ceph.com/en/latest/rados/operations/pgcalc/).
 
 ### Setting PG Count
 
