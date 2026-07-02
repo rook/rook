@@ -3,7 +3,7 @@ title: Ceph Cluster Helm Chart
 ---
 {{ template "generatedDocsWarning" . }}
 
-Creates Rook resources to configure a [Ceph](https://ceph.io/) cluster using the [Helm](https://helm.sh) package manager.
+Creates Rook resources to configure a [Ceph](https://ceph.io/en/) cluster using the [Helm](https://helm.sh) package manager.
 This chart is a simple packaging of templates that will optionally create Rook resources such as:
 
 * CephCluster, CephFilesystem, and CephObjectStore CRs

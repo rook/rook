@@ -351,7 +351,7 @@ Different methods are available in Azure to authenticate a client. Rook supports
 * [Create Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/quick-create-portal)
     * `AZURE_VAULT_URL` can be retrieved at this step
 
-* [Create Service Principal](https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal)
+* [Create Service Principal](https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal)
     * `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` can be obtained after creating the service principal
     * Ensure that the service principal is authenticated with a certificate and not with a client secret.
 

@@ -51,7 +51,7 @@ docker tag rook/ceph:local-build rook/ceph:master
 ## Run integration tests
 
 Some settings are available to run the tests under different environments. The settings are all configured with environment variables.
-See [environment.go](/tests/framework/installer/environment.go) for the available environment variables.
+See [environment.go](https://github.com/rook/rook/blob/master/tests/framework/installer/environment.go) for the available environment variables.
 
 Set the following variables:
 

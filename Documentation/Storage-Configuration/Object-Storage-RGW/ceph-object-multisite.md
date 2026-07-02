@@ -38,7 +38,7 @@ kubectl create -f object-multisite.yaml
 
 The first zone group created in a realm is the master zone group. The first zone created in a zone group is the master zone.
 
-When a non-master zone or non-master zone group is created, the zone group or zone is not in the Ceph Radosgw Multisite [Period](https://docs.ceph.com/docs/en/latest/radosgw/multisite/) until an object-store is created in that zone (and zone group).
+When a non-master zone or non-master zone group is created, the zone group or zone is not in the Ceph Radosgw Multisite [Period](https://docs.ceph.com/en/latest/radosgw/multisite/#setting-a-zonegroup-procedure) until an object-store is created in that zone (and zone group).
 
 The zone will create the pools for the object-store(s) that are in the zone to use.
 
