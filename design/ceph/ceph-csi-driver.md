@@ -35,8 +35,8 @@ There is also upstream Kubernetes work to [include these drivers for e2e tests](
 Starting Kubernetes CSI driver brings up an [external-provisioner](https://github.com/kubernetes-csi/external-provisioner), an [external-attacher](https://github.com/kubernetes-csi/external-attacher), DaemonSet that runs the driver on the nodes, and optionally an [external-snapshotter](https://github.com/kubernetes-csi/external-snapshotter).
 
 For example, deploying a CephFS CSI driver consists of the following steps:
-1. Creating a [RBAC for external provisioner](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-provisioner-rbac.yaml) and the [provisioner itself](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-cephfsplugin-provisioner.yaml).
-2. Creating [RBAC for CSI driver](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-nodeplugin-rbac.yaml) and [driver DaemonSet](https://github.com/ceph/ceph-csi/blob/master/deploy/cephfs/kubernetes/csi-cephfsplugin.yaml)
+1. Creating a [RBAC for external provisioner](https://github.com/ceph/ceph-csi/blob/devel/deploy/cephfs/kubernetes/csi-provisioner-rbac.yaml) and the [provisioner itself](https://github.com/ceph/ceph-csi/blob/devel/deploy/cephfs/kubernetes/csi-cephfsplugin-provisioner.yaml).
+2. Creating [RBAC for CSI driver](https://github.com/ceph/ceph-csi/blob/devel/deploy/cephfs/kubernetes/csi-nodeplugin-rbac.yaml) and [driver DaemonSet](https://github.com/ceph/ceph-csi/blob/devel/deploy/cephfs/kubernetes/csi-cephfsplugin.yaml)
 3. Creating Storage Classes for CSI provisioners.
 
 ## Integration Plan
