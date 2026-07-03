@@ -35,6 +35,7 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	cephobject "github.com/rook/rook/pkg/operator/ceph/object"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -94,7 +95,8 @@ const (
 	"type": "rgw",
 	"mfa_ids": []
 }`
-	userCapsJSON = `[{"type":"users","perm":"read"}]`
+	userCapsJSON        = `[{"type":"users","perm":"read"}]`
+	cephMonVersionsJSON = `{"mon":{"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696) squid (stable)":1}}`
 )
 
 var (
@@ -134,6 +136,9 @@ func TestCephObjectStoreUserController(t *testing.T) {
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "versions" {
+				return cephMonVersionsJSON, nil
+			}
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
@@ -222,6 +227,9 @@ func TestCephObjectStoreUserController(t *testing.T) {
 
 		executor = &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "versions" {
+					return cephMonVersionsJSON, nil
+				}
 				if args[0] == "status" {
 					return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 				}
@@ -516,7 +524,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 
 	t.Run("user without any Quotas or Capabilities", func(t *testing.T) {
 		objectUser.Name = name
-		userConfig, err := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
@@ -524,7 +532,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 
 	t.Run("setting MaxBuckets for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket}
-		userConfig, err := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
@@ -538,7 +546,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 			Roles:  "*",
 			Info:   "read, write",
 		}
-		userConfig, err := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
@@ -548,35 +556,35 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 	t.Run("setting MaxObjects for the user", func(t *testing.T) {
 		objectUser.Spec.Capabilities = nil
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxObjects: &maxobject}
-		userConfig, err := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("setting MaxSize for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxSize: &maxsize}
-		userConfig, err := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("resetting MaxSize and MaxObjects for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = nil
-		userConfig, err := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("setting both MaxSize and MaxObjects for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxObjects: &maxobject, MaxSize: &maxsize}
-		userConfig, err := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("resetting MaxSize and MaxObjects again for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = nil
-		userConfig, err := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
@@ -590,10 +598,55 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 			Info:   "read, write",
 		}
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket, MaxObjects: &maxobject, MaxSize: &maxsize}
-		userConfig, err := generateUserConfig(objectUser)
+		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
 		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
+	})
+}
+
+func TestGenerateUserConfigCephVersionChecks(t *testing.T) {
+	objectUser := &cephv1.CephObjectStoreUser{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-user", Namespace: namespace},
+		Spec: cephv1.ObjectStoreUserSpec{
+			Store: store,
+		},
+	}
+
+	t.Run("user-info-without-keys skipped on Ceph older than v19.2.0", func(t *testing.T) {
+		objectUser.Spec.Capabilities = &cephv1.ObjectUserCapSpec{
+			UserInfoWithoutKeys: "read",
+		}
+		userConfig, err := generateUserConfig(objectUser, cephver.CephVersion{Major: 19, Minor: 1, Extra: 0})
+		assert.NoError(t, err)
+		assert.NotContains(t, userConfig.UserCaps, "user-info-without-keys=read;")
+	})
+
+	t.Run("user-info-without-keys allowed on Ceph v19.2.0", func(t *testing.T) {
+		objectUser.Spec.Capabilities = &cephv1.ObjectUserCapSpec{
+			UserInfoWithoutKeys: "write",
+		}
+		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
+		assert.NoError(t, err)
+		assert.Contains(t, userConfig.UserCaps, "user-info-without-keys=write;")
+	})
+
+	t.Run("accounts skipped on Ceph older than v19.2.3", func(t *testing.T) {
+		objectUser.Spec.Capabilities = &cephv1.ObjectUserCapSpec{
+			Accounts: "*",
+		}
+		userConfig, err := generateUserConfig(objectUser, cephver.CephVersion{Major: 19, Minor: 2, Extra: 2})
+		assert.NoError(t, err)
+		assert.NotContains(t, userConfig.UserCaps, "accounts=*;")
+	})
+
+	t.Run("accounts allowed on Ceph v19.2.3", func(t *testing.T) {
+		objectUser.Spec.Capabilities = &cephv1.ObjectUserCapSpec{
+			Accounts: "*",
+		}
+		userConfig, err := generateUserConfig(objectUser, accountsMinCephVersion)
+		assert.NoError(t, err)
+		assert.Contains(t, userConfig.UserCaps, "accounts=*;")
 	})
 }
 

@@ -15203,6 +15203,16 @@ spec:
                   description: Additional admin-level capabilities for the Ceph object store user
                   nullable: true
                   properties:
+                    accounts:
+                      description: |-
+                        Add capabilities for user to manage accounts. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                        Note: Only supported from Ceph Squid (v19.2.3) onwards
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
                     amz-cache:
                       description: Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api
                       enum:
@@ -15309,6 +15319,16 @@ spec:
                       type: string
                     user-policy:
                       description: Add capabilities for user to change user policies. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
+                    userInfoWithoutKeys:
+                      description: |-
+                        Add capabilities for user to fetch user info without keys. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                        Note: Only supported from Ceph Squid (v19.2.0) onwards
                       enum:
                         - '*'
                         - read

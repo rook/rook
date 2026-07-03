@@ -49,10 +49,12 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	opmask "github.com/rook/rook/pkg/operator/ceph/object/user/opmask"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
 )
@@ -65,6 +67,11 @@ const (
 // iamDisplayNamePattern is the pattern that must match for account users.
 // Account users are referenced by display name in IAM policy ARNs, so the name must be IAM-compatible.
 var iamDisplayNamePattern = regexp.MustCompile(`^[\w+=,.@-]+$`)
+
+var (
+	userInfoWithoutKeysMinCephVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0}
+	accountsMinCephVersion            = cephver.CephVersion{Major: 19, Minor: 2, Extra: 3}
+)
 
 // newMultisiteAdminOpsCtxFunc help us mocking the admin ops API client in unit test
 var newMultisiteAdminOpsCtxFunc = object.NewMultisiteAdminOpsContext
@@ -298,6 +305,12 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to populate cluster info")
 	}
 
+	runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
+	if err != nil {
+		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
+	}
+	r.clusterInfo.CephVersion = runningCephVersion
+
 	// Validate the object store has been initialized
 	err = r.initializeObjectStoreContext(cephObjectStoreUser)
 	if err != nil {
@@ -341,7 +354,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// CR is not deleted, continue reconciling
 
 	// Generate user config
-	userConfig, err := generateUserConfig(cephObjectStoreUser)
+	userConfig, err := generateUserConfig(cephObjectStoreUser, r.clusterInfo.CephVersion)
 	if err != nil {
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to generate user config for %q", cephObjectStoreUser.Name)
 	}
@@ -554,7 +567,7 @@ func generateUserCaps(user *admin.User) string {
 	return caps
 }
 
-func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
+func generateUserConfig(user *cephv1.CephObjectStoreUser, cephVersion cephver.CephVersion) (*admin.User, error) {
 	// Set DisplayName to match Name if DisplayName is not set
 	displayName := user.Spec.DisplayName
 	if len(displayName) == 0 {
@@ -622,6 +635,24 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 		}
 		if user.Spec.Capabilities.RateLimit != "" {
 			userConfig.UserCaps += fmt.Sprintf("ratelimit=%s;", user.Spec.Capabilities.RateLimit)
+		}
+		if user.Spec.Capabilities.UserInfoWithoutKeys != "" {
+			if !cephVersion.IsAtLeast(userInfoWithoutKeysMinCephVersion) {
+				log.NamedWarning(opcontroller.NsName(user.Namespace, user.Name), logger,
+					"capability user-info-without-keys requires Ceph %s or higher, but cluster is running %s",
+					userInfoWithoutKeysMinCephVersion.String(), cephVersion.String())
+			} else {
+				userConfig.UserCaps += fmt.Sprintf("user-info-without-keys=%s;", user.Spec.Capabilities.UserInfoWithoutKeys)
+			}
+		}
+		if user.Spec.Capabilities.Accounts != "" {
+			if !cephVersion.IsAtLeast(accountsMinCephVersion) {
+				log.NamedWarning(opcontroller.NsName(user.Namespace, user.Name), logger,
+					"capability accounts requires Ceph %s or higher, but cluster is running %s",
+					accountsMinCephVersion.String(), cephVersion.String())
+			} else {
+				userConfig.UserCaps += fmt.Sprintf("accounts=%s;", user.Spec.Capabilities.Accounts)
+			}
 		}
 	}
 
