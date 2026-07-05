@@ -222,7 +222,7 @@ func archiveCrash(clusterdContext *clusterd.Context, clusterInfo *client.Cluster
 		logger.Errorf("failed to list ceph crash. %v", err)
 		return
 	}
-	if crash != nil {
+	if len(crash) == 0 {
 		logger.Info("no ceph crash to silence")
 		return
 	}

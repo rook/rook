@@ -21,11 +21,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	testexec "github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -160,4 +162,54 @@ func testVolumeClaim(name string) cephv1.VolumeClaimTemplate {
 	}}
 	claim.Name = name
 	return claim
+}
+
+func TestArchiveCrash(t *testing.T) {
+	t.Run("archives the crash for the removed osd", func(t *testing.T) {
+		crashList := `[
+			{
+				"crash_id": "2020-11-09_13:58:08.230130Z_ca918f58-c078-444d-a91a-bd972c14c155",
+				"entity_name": "osd.1"
+			},
+			{
+				"crash_id": "2020-11-09_13:58:08.230130Z_bd972c14-c155-444d-a91a-ca918f58c078",
+				"entity_name": "osd.0"
+			}
+		]`
+		archivedCrashID := ""
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if args[0] == "crash" && args[1] == "ls" {
+				return crashList, nil
+			}
+			if args[0] == "crash" && args[1] == "archive" {
+				archivedCrashID = args[2]
+				return "", nil
+			}
+			return "", errors.Errorf("unexpected ceph command %q", args)
+		}
+		context := &clusterd.Context{Executor: executor}
+
+		archiveCrash(context, client.AdminTestClusterInfo("mycluster"), 0)
+		assert.Equal(t, "2020-11-09_13:58:08.230130Z_bd972c14-c155-444d-a91a-ca918f58c078", archivedCrashID)
+	})
+
+	t.Run("does not archive when there is no crash", func(t *testing.T) {
+		archiveCalled := false
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if args[0] == "crash" && args[1] == "ls" {
+				return "[]", nil
+			}
+			if args[0] == "crash" && args[1] == "archive" {
+				archiveCalled = true
+				return "", nil
+			}
+			return "", errors.Errorf("unexpected ceph command %q", args)
+		}
+		context := &clusterd.Context{Executor: executor}
+
+		archiveCrash(context, client.AdminTestClusterInfo("mycluster"), 0)
+		assert.False(t, archiveCalled)
+	})
 }
