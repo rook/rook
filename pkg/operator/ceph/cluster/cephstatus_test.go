@@ -119,7 +119,9 @@ func TestCephStatus(t *testing.T) {
 
 	// Test for storage capacity of the ceph cluster when initially there is a disk of size
 	// 1024 bytes attached and then the disk is removed or newStatus.PgMap.TotalBytes is 0.
+	lastCapacityUpdate := formatTime(time.Now().Add(-time.Minute).UTC())
 	currentStatus.CephStatus.Capacity.TotalBytes = 1024
+	currentStatus.CephStatus.Capacity.LastUpdated = lastCapacityUpdate
 	newStatus = &cephclient.CephStatus{
 		PgMap: cephclient.PgMap{TotalBytes: 0},
 	}
@@ -127,7 +129,7 @@ func TestCephStatus(t *testing.T) {
 	aggregateStatus = toCustomResourceStatus(currentStatus, newStatus)
 	// nolint:gosec // G115 no overflow expected in the test
 	assert.Equal(t, 1024, int(aggregateStatus.Capacity.TotalBytes))
-	assert.Equal(t, formatTime(time.Now().Add(-time.Minute).UTC()), formatTime(time.Now().Add(-time.Minute).UTC()))
+	assert.Equal(t, lastCapacityUpdate, aggregateStatus.Capacity.LastUpdated)
 }
 
 func TestNewCephStatusChecker(t *testing.T) {
