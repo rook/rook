@@ -507,7 +507,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		// use the keys already set on the user & remove all but one key
 		if len(liveUser.Keys) == 0 {
 			// something is wrong, there should be at least one key
-			return errors.Wrapf(err, "no keys set for user %q", u.Name)
+			return errors.Errorf("no keys set for user %q", u.Name)
 		}
 
 		targetUser.Keys = []admin.UserKeySpec{liveUser.Keys[0]}
