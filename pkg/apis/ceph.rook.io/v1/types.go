@@ -3584,7 +3584,7 @@ type RBDMirroringSpec struct {
 	// +optional
 	Peers MirroringPeerSpec `json:"peers,omitempty"`
 
-	// The affinity to place the rgw pods (default is to place on any available node)
+	// The affinity to place the rbd mirror pods (default is to place on any available node)
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
@@ -3654,7 +3654,7 @@ type CephFilesystemMirrorList struct {
 
 // FilesystemMirroringSpec is the filesystem mirroring specification
 type FilesystemMirroringSpec struct {
-	// The affinity to place the rgw pods (default is to place on any available node)
+	// The affinity to place the cephfs-mirror pods (default is to place on any available node)
 	// +nullable
 	// +optional
 	Placement Placement `json:"placement,omitempty"`
