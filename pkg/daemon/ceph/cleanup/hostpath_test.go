@@ -41,7 +41,7 @@ func Test_cleanCSIDirs(t *testing.T) {
 	_, err = os.Stat(rbdDriverDir)
 	assert.True(t, os.IsNotExist(err))
 
-	_, err = os.Stat(rbdDriverDir)
+	_, err = os.Stat(cephFSDriverDir)
 	assert.True(t, os.IsNotExist(err))
 }
 
