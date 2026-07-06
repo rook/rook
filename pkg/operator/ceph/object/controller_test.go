@@ -21,6 +21,7 @@ import (
 	"context"
 	"os"
 	"reflect"
+	"syscall"
 	"testing"
 	"time"
 
@@ -46,6 +47,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
+	kexec "k8s.io/client-go/util/exec"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -975,6 +977,62 @@ func TestCephObjectStoreControllerZoneNotReady(t *testing.T) {
 			assert.True(t, res.RequeueAfter > 0, "expected requeue while waiting for zone Ready")
 		})
 	}
+}
+
+func TestRetrieveMultisiteZone(t *testing.T) {
+	// When "radosgw-admin zone get" fails with ENOENT the Ceph zone does not exist
+	// yet (the CephObjectZone is configured asynchronously by its own controller).
+	// retrieveMultisiteZone must return a non-nil error so the caller requeues and
+	// waits for the zone, instead of proceeding to reconcile the object store
+	// against a zone that is not there.
+	zoneName := "zone-a"
+	zoneGroupName := "zonegroup-a"
+	realmName := "realm-a"
+
+	objectStore := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store,
+			Namespace: namespace,
+		},
+	}
+	objectStore.Spec.Zone.Name = zoneName
+
+	newReconciler := func(zoneGetErr error) *ReconcileCephObjectStore {
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				if args[0] == "zone" && args[1] == "get" {
+					return "", zoneGetErr
+				}
+				return "", nil
+			},
+		}
+		return &ReconcileCephObjectStore{
+			context:     &clusterd.Context{Executor: executor},
+			clusterInfo: client.AdminTestClusterInfo(namespace),
+		}
+	}
+
+	t.Run("zone not found returns an error and requeues", func(t *testing.T) {
+		enoentErr := kexec.CodeExitError{Err: errors.New("exit status 2"), Code: int(syscall.ENOENT)}
+		r := newReconciler(enoentErr)
+
+		res, err := r.retrieveMultisiteZone(objectStore, zoneGroupName, realmName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+		assert.NotContains(t, err.Error(), "failed with code")
+		assert.True(t, res.RequeueAfter > 0, "expected requeue while waiting for the zone to be created")
+	})
+
+	t.Run("other zone get failure returns an error and requeues", func(t *testing.T) {
+		otherErr := kexec.CodeExitError{Err: errors.New("exit status 13"), Code: int(syscall.EACCES)}
+		r := newReconciler(otherErr)
+
+		res, err := r.retrieveMultisiteZone(objectStore, zoneGroupName, realmName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed with code")
+		assert.NotContains(t, err.Error(), "not found")
+		assert.True(t, res.RequeueAfter > 0, "expected requeue on a zone get failure")
+	})
 }
 
 func TestCephObjectExternalStoreController(t *testing.T) {
