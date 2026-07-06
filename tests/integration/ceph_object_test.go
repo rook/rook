@@ -19,18 +19,11 @@ package integration
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	smithy "github.com/aws/smithy-go"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -44,6 +37,7 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	bucketlifecycle "github.com/rook/rook/tests/integration/object/bucket/lifecycle"
 	bucketowner "github.com/rook/rook/tests/integration/object/bucket/owner"
 	bucketpolicy "github.com/rook/rook/tests/integration/object/bucket/policy"
 	bucketquota "github.com/rook/rook/tests/integration/object/bucket/quota"
@@ -63,20 +57,6 @@ const (
 )
 
 var objectStoreServicePrefix = "rook-ceph-rgw-"
-
-var lifecycleCmpOpts = cmp.Options{
-	cmpopts.IgnoreUnexported(
-		s3types.LifecycleRule{},
-		s3types.LifecycleExpiration{},
-		s3types.LifecycleRuleFilter{},
-		s3types.LifecycleRuleAndOperator{},
-		s3types.AbortIncompleteMultipartUpload{},
-		s3types.NoncurrentVersionExpiration{},
-		s3types.NoncurrentVersionTransition{},
-		s3types.Transition{},
-		s3types.Tag{},
-	),
-}
 
 func TestCephObjectSuite(t *testing.T) {
 	s := new(ObjectSuite)
@@ -215,6 +195,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
 
 	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, tlsEnable, settings.Namespace, "sharedstore", 1,
+		bucketlifecycle.Namespace,
 		bucketowner.Namespace,
 		bucketpolicy.Namespace,
 		bucketquota.Namespace,
@@ -228,6 +209,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	)
 	defer sharedObjectStore.Destroy()
 
+	bucketlifecycle.TestObjectBucketClaimLifecycle(s.T(), k8sh, sharedObjectStore)
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, sharedObjectStore)
 	bucketpolicy.TestObjectBucketClaimPolicy(s.T(), k8sh, sharedObjectStore)
 	bucketquota.TestObjectBucketClaimQuota(s.T(), k8sh, sharedObjectStore)
@@ -294,261 +276,6 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		assert.NotEqual(t, 4, i)
 		assert.Equal(t, bucketname, bkt.Name)
 		logger.Info("OBC, Secret and ConfigMap created")
-	})
-
-	t.Run("OBC bucket lifecycle management", func(t *testing.T) {
-		bucketName := "bucket-lifecycle-test"
-		var obName string
-		var s3client *rgw.S3Agent
-		bucketLifecycle1 := `
-{
-  "Rules":[
-    {
-      "ID": "AbortIncompleteMultipartUploads",
-      "Status": "Enabled",
-      "Prefix": "",
-      "AbortIncompleteMultipartUpload": {
-        "DaysAfterInitiation": 1
-      }
-    }
-  ]
-}
-		`
-
-		// rules must be sorted by ID to be idempotent
-		bucketLifecycle2 := `
-{
-  "Rules": [
-    {
-      "ID": "AbortIncompleteMultipartUploads",
-      "Status": "Enabled",
-      "Prefix": "",
-      "AbortIncompleteMultipartUpload": {
-        "DaysAfterInitiation": 1
-      }
-    },
-    {
-      "ID": "ExpireAfter30Days",
-      "Status": "Enabled",
-      "Prefix": "",
-      "Expiration": {
-        "Days": 30
-      }
-    }
-  ]
-}
-		`
-
-		t.Run("create obc with bucketLifecycle", func(t *testing.T) {
-			newObc := v1alpha1.ObjectBucketClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      bucketName,
-					Namespace: namespace,
-				},
-				Spec: v1alpha1.ObjectBucketClaimSpec{
-					BucketName:       bucketName,
-					StorageClassName: bucketStorageClassName,
-					AdditionalConfig: map[string]string{
-						"bucketLifecycle": bucketLifecycle1,
-					},
-				},
-			}
-			_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Create(ctx, &newObc, metav1.CreateOptions{})
-			assert.Nil(t, err)
-			obcBound := utils.Retry(20, 2*time.Second, "OBC is Bound", func() bool {
-				liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveObc.Status.Phase == v1alpha1.ObjectBucketClaimStatusPhaseBound
-			})
-			assert.True(t, obcBound)
-
-			// wait until obc is Bound to lookup the ob name
-			obc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-			assert.Nil(t, err)
-			obName = obc.Spec.ObjectBucketName
-
-			obBound := utils.Retry(20, 2*time.Second, "OB is Bound", func() bool {
-				liveOb, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveOb.Status.Phase == v1alpha1.ObjectBucketStatusPhaseBound
-			})
-			assert.True(t, obBound)
-
-			// verify that bucketLifecycle is set
-			assert.Equal(t, bucketLifecycle1, obc.Spec.AdditionalConfig["bucketLifecycle"])
-
-			// as the tests are running external to k8s, the internal svc can't be used
-			labelSelector := "rgw=" + storeName
-			services, err := k8sh.Clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-			assert.Nil(t, err)
-			assert.Equal(t, 1, len(services.Items))
-			s3endpoint := services.Items[0].Spec.ClusterIP + ":80"
-
-			secret, err := k8sh.Clientset.CoreV1().Secrets(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-			assert.Nil(t, err)
-			s3AccessKey := string(secret.Data["AWS_ACCESS_KEY_ID"])
-			s3SecretKey := string(secret.Data["AWS_SECRET_ACCESS_KEY"])
-
-			insecure := objectStore.Spec.IsTLSEnabled()
-			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil, insecure, nil)
-			assert.Nil(t, err)
-			logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
-		})
-
-		t.Run("lifecycle was applied verbatim to bucket", func(t *testing.T) {
-			liveLc, err := s3client.Client.GetBucketLifecycleConfiguration(ctx, &s3.GetBucketLifecycleConfigurationInput{
-				Bucket: &bucketName,
-			})
-			require.NoError(t, err)
-
-			confLc := &s3types.BucketLifecycleConfiguration{}
-			err = json.Unmarshal([]byte(bucketLifecycle1), confLc)
-			require.NoError(t, err)
-
-			assert.True(t, cmp.Equal(confLc.Rules, liveLc.Rules, lifecycleCmpOpts...), cmp.Diff(confLc.Rules, liveLc.Rules, lifecycleCmpOpts...))
-		})
-
-		t.Run("update obc bucketLifecycle", func(t *testing.T) {
-			obc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-			assert.Nil(t, err)
-
-			obc.Spec.AdditionalConfig["bucketLifecycle"] = bucketLifecycle2
-
-			_, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Update(ctx, obc, metav1.UpdateOptions{})
-			assert.Nil(t, err)
-			obcBound := utils.Retry(20, time.Second, "OBC is Bound", func() bool {
-				liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveObc.Status.Phase == v1alpha1.ObjectBucketClaimStatusPhaseBound
-			})
-			assert.True(t, obcBound)
-
-			// wait until obc is Bound to lookup the ob name
-			obc, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-			assert.Nil(t, err)
-			obName = obc.Spec.ObjectBucketName
-
-			obBound := utils.Retry(20, time.Second, "OB is Bound", func() bool {
-				liveOb, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveOb.Status.Phase == v1alpha1.ObjectBucketStatusPhaseBound
-			})
-			assert.True(t, obBound)
-
-			// verify that updated bucketLifecycle is set
-			assert.Equal(t, bucketLifecycle2, obc.Spec.AdditionalConfig["bucketLifecycle"])
-		})
-
-		t.Run("lifecycle update applied verbatim to bucket", func(t *testing.T) {
-			var liveLc *s3.GetBucketLifecycleConfigurationOutput
-
-			confLc := &s3types.BucketLifecycleConfiguration{}
-			err = json.Unmarshal([]byte(bucketLifecycle2), confLc)
-			require.NoError(t, err)
-
-			utils.Retry(20, time.Second, "lifecycle changed", func() bool {
-				liveLc, err = s3client.Client.GetBucketLifecycleConfiguration(ctx, &s3.GetBucketLifecycleConfigurationInput{
-					Bucket: &bucketName,
-				})
-				if err != nil {
-					return false
-				}
-
-				return cmp.Equal(confLc.Rules, liveLc.Rules, lifecycleCmpOpts...)
-			})
-			assert.True(t, cmp.Equal(confLc.Rules, liveLc.Rules, lifecycleCmpOpts...), cmp.Diff(confLc.Rules, liveLc.Rules, lifecycleCmpOpts...))
-		})
-
-		t.Run("remove obc bucketLifecycle", func(t *testing.T) {
-			obc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-			assert.Nil(t, err)
-
-			obc.Spec.AdditionalConfig = map[string]string{}
-
-			_, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Update(ctx, obc, metav1.UpdateOptions{})
-			assert.Nil(t, err)
-			obcBound := utils.Retry(20, time.Second, "OBC is Bound", func() bool {
-				liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveObc.Status.Phase == v1alpha1.ObjectBucketClaimStatusPhaseBound
-			})
-			assert.True(t, obcBound)
-
-			// wait until obc is Bound to lookup the ob name
-			obc, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-			assert.Nil(t, err)
-			obName = obc.Spec.ObjectBucketName
-
-			obBound := utils.Retry(20, time.Second, "OB is Bound", func() bool {
-				liveOb, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveOb.Status.Phase == v1alpha1.ObjectBucketStatusPhaseBound
-			})
-			assert.True(t, obBound)
-
-			// verify that bucketLifecycle is unset
-			assert.NotContains(t, obc.Spec.AdditionalConfig, "bucketLifecycle")
-		})
-
-		t.Run("lifecycle was removed from bucket", func(t *testing.T) {
-			cephcluster, err := k8sh.RookClientset.CephV1().CephClusters(namespace).Get(ctx, settings.ClusterName, metav1.GetOptions{})
-			if err != nil {
-				t.Fatalf("failed to get CephCluster: %v", err)
-			}
-			logger.Infof("CephCluster version: %s", cephcluster.Status.CephVersion.Version)
-			if strings.HasPrefix(cephcluster.Status.CephVersion.Version, "19.2.3") {
-				t.Skip("Waiting for rgw fix from regression in v19.2.3")
-			}
-			utils.Retry(20, time.Second, "lifecycle is gone", func() bool {
-				_, err = s3client.Client.GetBucketLifecycleConfiguration(ctx, &s3.GetBucketLifecycleConfigurationInput{
-					Bucket: &bucketName,
-				})
-				var apiErr smithy.APIError
-				if errors.As(err, &apiErr) {
-					return apiErr.ErrorCode() == "NoSuchLifecycleConfiguration"
-				}
-				return false
-			})
-			require.Error(t, err)
-			var apiErr smithy.APIError
-			require.True(t, errors.As(err, &apiErr))
-			assert.Equal(t, "NoSuchLifecycleConfiguration", apiErr.ErrorCode())
-		})
-
-		t.Run("delete bucket", func(t *testing.T) {
-			err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Delete(ctx, bucketName, metav1.DeleteOptions{})
-			assert.Nil(t, err)
-
-			absent := utils.Retry(20, time.Second, "OBC is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
-
-			absent = utils.Retry(20, time.Second, "OB is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
-		})
 	})
 
 	t.Run("delete CephObjectStore should be blocked by OBC bucket and CephObjectStoreUser", func(t *testing.T) {

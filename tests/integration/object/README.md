@@ -32,6 +32,7 @@ must not collide with std-lib package names (no `io`, no `http`).
 
 | test package | operator package | covers |
 |---|---|---|
+| `bucket/lifecycle` | `object/bucket` | OBC bucketLifecycle management |
 | `bucket/owner` | `object/bucket` | OBC `bucketOwner` handling |
 | `bucket/policy` | `object/bucket` | OBC bucketPolicy management |
 | `bucket/quota` | `object/bucket` | OBC maxObjects user quota + bucketMaxObjects/bucketMaxSize bucket quota |
@@ -42,7 +43,7 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `user/caps` | `object/user` | user capabilities |
 | `user/keys` | `object/user` | explicit S3 key management |
 | `user/opmask` | `object/user` | user op_mask |
-| reserved: `bucket/lifecycle`, `tests/integration/object/lifecycle`, `tests/integration/object/dependents` | | future conversions |
+| reserved: `tests/integration/object/lifecycle`, `tests/integration/object/dependents` | | future conversions |
 
 Shared utilities live under `util/`:
 
@@ -208,7 +209,6 @@ verification; wire the dispatcher; delete the old code; retire
 
 | old test | target package(s) | still needs (build in that PR) |
 |---|---|---|
-| `testObjectStoreOperations` bucket lifecycle | `bucket/lifecycle` | move `lifecycleCmpOpts` out of the dispatcher |
 | `testObjectStoreOperations` deletion-blocked-by-dependents | `tests/integration/object/dependents` | private-store fixture, store condition predicates in `wait4` |
 | `createCephObjectStore`/`runObjectE2ETestLite`/deletion asserts + zone.json canary | `tests/integration/object/lifecycle` | store create/health/delete helpers, `Sharedstore.Installer()` accessor |
 | upgrade-suite object usage | stays in upgrade suite | switch to typed clients + `wait4` |
