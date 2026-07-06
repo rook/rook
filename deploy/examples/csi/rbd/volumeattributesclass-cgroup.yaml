@@ -1,0 +1,27 @@
+#################################################################################################################
+# Create a VolumeAttributesClass for RBD QoS using cgroup v2 io.max limits.
+# This approach works with the default krbd (kernel RBD) mounter.
+#
+# IMPORTANT:
+#   - Requires Kubernetes >= v1.34 (VolumeAttributesClass is GA)
+#   - Requires Linux kernel >= 5.8
+#   - Requires cgroup v2 enabled on the nodes
+#   - Uses Linux kernel cgroup v2 io.max for enforcement
+#
+#  kubectl create -f volumeattributesclass-cgroup.yaml
+#################################################################################################################
+
+apiVersion: storage.k8s.io/v1
+kind: VolumeAttributesClass
+metadata:
+  name: rook-ceph-rbd-cgroup-qos
+driverName: rook-ceph.rbd.csi.ceph.com # csi-provisioner-name
+parameters:
+  # Maximum read IOPS limit enforced via cgroup v2 io.max
+  maxReadIops: "1000"
+  # Maximum write IOPS limit enforced via cgroup v2 io.max
+  maxWriteIops: "2000"
+  # Maximum read bandwidth in bytes per second (104857600 = 100 MiB/s)
+  maxReadBps: "104857600"
+  # Maximum write bandwidth in bytes per second (209715200 = 200 MiB/s)
+  maxWriteBps: "209715200"
