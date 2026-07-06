@@ -175,6 +175,18 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.Equal(t, 1025, int(svc.Spec.Ports[0].Port))
 	assert.Equal(t, 1025, int(svc.Spec.Ports[0].TargetPort.IntVal))
 
+	// Set the port to exactly 1024 (the lowest non-privileged port) and confirm the port and targetPort are the same
+	c.spec.Dashboard.Enabled = true
+	c.spec.Dashboard.Port = 1024
+	err = c.configureDashboardService()
+	assert.Nil(t, err)
+
+	svc, err = c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, svc)
+	assert.Equal(t, 1024, int(svc.Spec.Ports[0].Port))
+	assert.Equal(t, 1024, int(svc.Spec.Ports[0].TargetPort.IntVal))
+
 	// Fall back to the default port
 	c.spec.Dashboard.Enabled = true
 	c.spec.Dashboard.Port = 0
