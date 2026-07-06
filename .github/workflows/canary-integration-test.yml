@@ -617,6 +617,14 @@ jobs:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
         kubernetes-version: ${{ fromJson(inputs.kubernetes-version) }}
+        # ceph-volume in Ceph v20+ records no block.db tags for a raw
+        # partition, leaving the OSD unable to start (rook issue 17901,
+        # https://github.com/ceph/ceph/pull/69506); skip those images until
+        # the upstream fix ships
+        exclude:
+          - ceph-image: quay.io/ceph/ceph:v20
+          - ceph-image: quay.ceph.io/ceph-ci/ceph:main
+          - ceph-image: quay.ceph.io/ceph-ci/ceph:tentacle
     steps:
       - name: checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
