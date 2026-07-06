@@ -49,6 +49,7 @@ spec:
     * `maxObjects`: Maximum number of objects across all the user's buckets.
 * `capabilities`: Ceph allows users to be given additional permissions. Due to missing APIs in go-ceph for updating the user capabilities, this setting can currently only be used during the creation of the object store user. If a user's capabilities need modified, the user must be deleted and re-created.
     See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/#add-remove-admin-capabilities) for more info.
+    Because these are **store-wide** admin capabilities (access to every user and bucket via the admin-ops API), Rook rejects them on a user whose `clusterNamespace` differs from its own namespace unless that namespace is listed in the CephObjectStore's `allowAdminCapsInNamespaces`. Users created in the object store's own namespace are unaffected.
     Rook supports adding `read`, `write`, `read, write`, or `*` permissions for the following resources:
     * `user`
     * `buckets`

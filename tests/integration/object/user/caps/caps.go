@@ -35,79 +35,64 @@ import (
 	"github.com/rook/rook/tests/integration/object/util/wait4"
 )
 
-const Namespace = "test-usercaps"
+const Namespace = "test-usercaps" // a namespace other than the object store's
 
 func TestObjectStoreUserCaps(t *testing.T, k8sh *utils.K8sHelper, store *sharedstore.Sharedstore) {
 	var (
-		defaultName = Namespace
 		objectStore = store.ObjectStore()
 		adminClient = store.AdminClient()
+		storeNS     = objectStore.Namespace
 
-		ns = &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: defaultName,
-			},
+		otherNS = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: Namespace}}
+
+		// A user in the object store's own namespace; capabilities are always
+		// permitted, so this exercises capability propagation to RGW
+		// independent of the namespaced-caps setting.
+		sameNSUser = cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-usercaps-samens", Namespace: storeNS},
+			Spec:       cephv1.ObjectStoreUserSpec{Store: objectStore.Name},
 		}
+		sameNSUserClient = k8sh.RookClientset.CephV1().CephObjectStoreUsers(storeNS)
 
-		osu1 = cephv1.CephObjectStoreUser{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaultName + "-user1",
-				Namespace: ns.Name,
-			},
-			Spec: cephv1.ObjectStoreUserSpec{
-				Store:            objectStore.Name,
-				ClusterNamespace: objectStore.Namespace,
-			},
+		// A user in another namespace, created via allowUsersInNamespaces.
+		otherNSUser = cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-usercaps-otherns", Namespace: Namespace},
+			Spec:       cephv1.ObjectStoreUserSpec{Store: objectStore.Name, ClusterNamespace: storeNS},
 		}
-
-		osuClient = k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name)
+		otherNSUserClient = k8sh.RookClientset.CephV1().CephObjectStoreUsers(Namespace)
 	)
 
 	t.Run("ObjectStoreUser caps", func(t *testing.T) {
 		ctx := t.Context()
 
-		fixture.RequireNamespace(t, k8sh, ns)
-
-		t.Run(fmt.Sprintf("create CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			// user creation may be slow right after rgw start up
-			wait4.RequireCreate(ctx, t, osuClient, &osu1, wait4.ObjectStoreUser, wait4.TimeoutLong)
+		// capability propagation works for a user in the store's own namespace
+		t.Run("create user in store namespace", func(t *testing.T) {
+			wait4.RequireCreate(ctx, t, sameNSUserClient, &sameNSUser, wait4.ObjectStoreUser, wait4.TimeoutLong)
 		})
 
-		t.Run(fmt.Sprintf("verify caps on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			liveUser, err := adminClient.GetUser(ctx, admin.User{ID: osu1.Name})
+		t.Run("store-namespace user caps default to empty", func(t *testing.T) {
+			liveUser, err := adminClient.GetUser(ctx, admin.User{ID: sameNSUser.Name})
 			require.NoError(t, err)
-			assert.Empty(t, liveUser.Caps) // caps should default to `[]`
+			assert.Empty(t, liveUser.Caps)
 		})
 
-		t.Run(fmt.Sprintf("update caps on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			liveOsu, err := osuClient.Get(ctx, osu1.Name, metav1.GetOptions{})
+		t.Run("grant caps to store-namespace user", func(t *testing.T) {
+			live, err := sameNSUserClient.Get(ctx, sameNSUser.Name, metav1.GetOptions{})
 			require.NoError(t, err)
-
-			liveOsu.Spec.Capabilities = &cephv1.ObjectUserCapSpec{
-				Buckets: "*",
-				Usage:   "read",
-			}
-
-			_, err = osuClient.Update(ctx, liveOsu, metav1.UpdateOptions{})
+			live.Spec.Capabilities = &cephv1.ObjectUserCapSpec{Buckets: "*", Usage: "read"}
+			_, err = sameNSUserClient.Update(ctx, live, metav1.UpdateOptions{})
 			require.NoError(t, err)
 		})
 
-		t.Run(fmt.Sprintf("verify caps on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
+		t.Run("store-namespace user caps sync to rgw", func(t *testing.T) {
 			wait4.AssertEventually(ctx, t, wait4.TimeoutShort, "rgw user caps match spec", func(ctx context.Context) error {
-				liveUser, err := adminClient.GetUser(ctx, admin.User{ID: osu1.Name})
+				liveUser, err := adminClient.GetUser(ctx, admin.User{ID: sameNSUser.Name})
 				if err != nil {
 					return err
 				}
-
 				if !cmp.Equal(liveUser.Caps, []admin.UserCapSpec{
-					{
-						Type: "buckets",
-						Perm: "*",
-					},
-					{
-						Type: "usage",
-						Perm: "read",
-					},
+					{Type: "buckets", Perm: "*"},
+					{Type: "usage", Perm: "read"},
 				}) {
 					return fmt.Errorf("caps not yet in sync: %+v", liveUser.Caps)
 				}
@@ -115,39 +100,37 @@ func TestObjectStoreUserCaps(t *testing.T, k8sh *utils.K8sHelper, store *shareds
 			})
 		})
 
-		t.Run(fmt.Sprintf("remove caps on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			liveOsu, err := osuClient.Get(ctx, osu1.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-
-			liveOsu.Spec.Capabilities = nil
-
-			_, err = osuClient.Update(ctx, liveOsu, metav1.UpdateOptions{})
-			require.NoError(t, err)
+		t.Run("delete store-namespace user", func(t *testing.T) {
+			wait4.AssertDelete(ctx, t, sameNSUserClient, sameNSUser.Name, wait4.TimeoutShort)
 		})
 
-		t.Run(fmt.Sprintf("verify caps on CephObjectStoreUser %q returns to default", osu1.Name), func(t *testing.T) {
-			wait4.AssertEventually(ctx, t, wait4.TimeoutShort, "rgw user caps are empty", func(ctx context.Context) error {
-				liveUser, err := adminClient.GetUser(ctx, admin.User{ID: osu1.Name})
-				if err != nil {
-					return err
-				}
+		// a user in another namespace must not be granted store-wide admin caps
+		// by default
+		fixture.RequireNamespace(t, k8sh, otherNS)
 
-				if len(liveUser.Caps) != 0 {
-					return fmt.Errorf("caps not yet empty: %+v", liveUser.Caps)
-				}
-				return nil
-			})
+		t.Run("create user in another namespace without caps", func(t *testing.T) {
+			wait4.RequireCreate(ctx, t, otherNSUserClient, &otherNSUser, wait4.ObjectStoreUser, wait4.TimeoutLong)
 		})
 
-		t.Run(fmt.Sprintf("delete CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			wait4.AssertDelete(ctx, t, osuClient, osu1.Name, wait4.TimeoutShort)
-		})
-
-		t.Run(fmt.Sprintf("no CephObjectStoreUsers in ns %q", ns.Name), func(t *testing.T) {
-			osus, err := osuClient.List(ctx, metav1.ListOptions{})
+		t.Run("granting admin caps to a user in another namespace is rejected", func(t *testing.T) {
+			live, err := otherNSUserClient.Get(ctx, otherNSUser.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			live.Spec.Capabilities = &cephv1.ObjectUserCapSpec{Users: "*"}
+			_, err = otherNSUserClient.Update(ctx, live, metav1.UpdateOptions{})
 			require.NoError(t, err)
 
-			assert.Len(t, osus.Items, 0)
+			// the operator refuses the spec; the CR reports ReconcileFailed
+			wait4.RequireCondition(ctx, t, otherNSUserClient, otherNSUser.Name,
+				wait4.ObjectStoreUserPhase(string(cephv1.ReconcileFailed)), wait4.TimeoutShort)
+
+			// and the caps are never applied to the live rgw user
+			liveUser, err := adminClient.GetUser(ctx, admin.User{ID: otherNSUser.Name})
+			require.NoError(t, err)
+			assert.Empty(t, liveUser.Caps)
+		})
+
+		t.Run("delete user in another namespace", func(t *testing.T) {
+			wait4.AssertDelete(ctx, t, otherNSUserClient, otherNSUser.Name, wait4.TimeoutShort)
 		})
 	})
 }

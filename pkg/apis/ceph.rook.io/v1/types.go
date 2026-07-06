@@ -1867,6 +1867,20 @@ type ObjectStoreSpec struct {
 	// +optional
 	AllowUsersInNamespaces []string `json:"allowUsersInNamespaces,omitempty"`
 
+	// The list of namespaces (in addition to the object store namespace) where
+	// object store users may be granted admin capabilities (spec.capabilities).
+	// These capabilities are store-wide, so by default a user created in another
+	// namespace (via allowUsersInNamespaces) may not hold them. Specify "*" to
+	// allow all namespaces, otherwise list individual namespaces. The COSI driver
+	// requires its namespace to be listed here. The default is empty.
+	// +kubebuilder:validation:MinItems=0
+	// +kubebuilder:validation:MaxItems=1000
+	// +kubebuilder:validation:items:MinLength=1
+	// +kubebuilder:validation:items:MaxLength=63
+	// +listType=set
+	// +optional
+	AllowAdminCapsInNamespaces []string `json:"allowAdminCapsInNamespaces,omitempty"`
+
 	// Hosting settings for the object store.
 	// A common use case for hosting configuration is to inform Rook of endpoints that support DNS
 	// wildcards, which in turn allows virtual host-style bucket addressing.
