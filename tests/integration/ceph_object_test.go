@@ -17,19 +17,10 @@ limitations under the License.
 package integration
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -40,6 +31,7 @@ import (
 	bucketrw "github.com/rook/rook/tests/integration/object/bucket/rw"
 	"github.com/rook/rook/tests/integration/object/cosi"
 	"github.com/rook/rook/tests/integration/object/dependents"
+	storelifecycle "github.com/rook/rook/tests/integration/object/lifecycle"
 	"github.com/rook/rook/tests/integration/object/notification"
 	topickafka "github.com/rook/rook/tests/integration/object/topic/kafka"
 	usercaps "github.com/rook/rook/tests/integration/object/user/caps"
@@ -48,10 +40,7 @@ import (
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 )
 
-const (
-	objectStoreServicePrefixUniq = "rook-ceph-rgw-"
-	objectStoreTLSName           = "tls-test-store"
-)
+const objectStoreServicePrefixUniq = "rook-ceph-rgw-"
 
 var objectStoreServicePrefix = "rook-ceph-rgw-"
 
@@ -105,21 +94,7 @@ func (s *ObjectSuite) TestWithTLS() {
 		s.T().Skip("object store tests skipped on openshift")
 	}
 
-	tls := true
-	swiftAndKeystone := false
-	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings, tls, swiftAndKeystone)
-	cleanUpTLS(s)
-}
-
-func cleanUpTLS(s *ObjectSuite) {
-	err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
-	if err != nil {
-		if !k8serrors.IsNotFound(err) {
-			logger.Fatal("failed to deleted store TLS secret")
-		}
-	}
-	logger.Info("successfully deleted store TLS secret")
+	runObjectE2ETest(s.k8sh, s.installer, &s.Suite, true)
 }
 
 func (s *ObjectSuite) TestWithoutTLS() {
@@ -127,74 +102,10 @@ func (s *ObjectSuite) TestWithoutTLS() {
 		s.T().Skip("object store tests skipped on openshift")
 	}
 
-	tls := false
-	swiftAndKeystone := false
-	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings, tls, swiftAndKeystone)
+	runObjectE2ETest(s.k8sh, s.installer, &s.Suite, false)
 }
 
-// Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
-// Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,
-// Check issues in MGRs, Delete Bucket and Delete user
-// Test for ObjectStore with and without TLS enabled
-func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, s *suite.Suite, settings *installer.TestCephSettings, tlsEnable bool, swiftAndKeystone bool) {
-	namespace := settings.Namespace
-	storeName := "test-store"
-	if tlsEnable {
-		storeName = objectStoreTLSName
-	}
-
-	logger.Infof("Running on Rook Cluster %s", namespace)
-	// a single gateway makes quota enforcement deterministic: rgw quota checks
-	// run against per-instance cached stats, and with multiple gateways an
-	// instance can be blind to writes served by its peers for up to
-	// rgw_user_quota_bucket_sync_interval; multi-instance deployment is still
-	// covered by the keystone suite
-	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, storeName, 1, tlsEnable, swiftAndKeystone)
-
-	// Canary test: verify all *_pool fields in zone.json are covered by Rook's zonePoolNSSuffix map.
-	// This catches new RGW pool fields added in newer Ceph versions that Rook doesn't yet handle,
-	// which would cause ghost default pools when shared pools are configured.
-	// Run right after store creation when the zone is fresh and definitely accessible.
-	s.T().Run("all zone.json pool fields are covered by Rook shared pool mapping", func(t *testing.T) {
-		output, err := installer.Execute("radosgw-admin",
-			[]string{"zone", "get", fmt.Sprintf("--rgw-zone=%s", storeName), fmt.Sprintf("--rgw-realm=%s", storeName)}, namespace)
-		require.NoError(t, err, "failed to get zone config; output: %s", output)
-		require.NotEmpty(t, output, "zone config is empty")
-
-		var zoneConfig map[string]interface{}
-		err = json.Unmarshal([]byte(output), &zoneConfig)
-		require.NoError(t, err, "failed to parse zone config JSON; output: %s", output)
-
-		knownPools := rgw.ZoneJsonPoolKeys()
-		for field, val := range zoneConfig {
-			if _, ok := val.(string); !ok {
-				continue
-			}
-			if !strings.HasSuffix(field, "_pool") {
-				continue
-			}
-			assert.Contains(t, knownPools, field,
-				"RGW zone.json contains unknown pool field %q — add it to zonePoolNSSuffix in pkg/operator/ceph/object/objectstore.go", field)
-		}
-	})
-
-	// test that a second object store can be created (and deleted) while the first exists
-	s.T().Run("run a second object store", func(t *testing.T) {
-		otherStoreName := "other-" + storeName
-		// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
-		// and then deletes it.
-		deleteStore := true
-		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, swiftAndKeystone)
-	})
-
-	// the deletion checks that consumed this store live in the dependents
-	// package now; delete it so it cannot block cluster teardown
-	s.T().Run("delete the suite object store", func(t *testing.T) {
-		deleteObjectStore(t, k8sh, namespace, storeName)
-		assertObjectStoreDeletion(t, k8sh, namespace, storeName)
-	})
-
+func runObjectE2ETest(k8sh *utils.K8sHelper, installer *installer.CephInstaller, s *suite.Suite, tlsEnable bool) {
 	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, tlsEnable,
 		bucketlifecycle.Namespace,
 		bucketowner.Namespace,
@@ -225,4 +136,5 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	cosi.TestCephCOSIDriver(s.T(), k8sh, sharedObjectStore)
 	dependents.TestCephObjectStoreDependents(s.T(), k8sh, sharedObjectStore)
 	notification.TestBucketNotification(s.T(), k8sh, sharedObjectStore)
+	storelifecycle.TestCephObjectStoreLifecycle(s.T(), k8sh, sharedObjectStore)
 }
