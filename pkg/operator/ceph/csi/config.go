@@ -143,6 +143,10 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 			Name:      CsiRBDProvisionerSecret,
 			Namespace: clusterInfo.Namespace,
 		},
+		NodePublishSecret: v1.SecretReference{
+			Name:      CsiRBDNodeSecret,
+			Namespace: clusterInfo.Namespace,
+		},
 	}
 
 	return createUpdateClientProfile(c, clusterInfo, csiOpClientProfile)
