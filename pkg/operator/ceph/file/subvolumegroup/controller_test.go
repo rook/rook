@@ -105,7 +105,7 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephClient{}, &cephv1.CephClusterList{})
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephClient{}, &cephv1.CephClusterList{}, &v1.SecretList{})
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
@@ -142,7 +142,7 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 			},
 		},
 	}
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &v1.SecretList{})
 
 	cephFilesystem := &cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
@@ -223,7 +223,7 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 		}
 		c.Executor = executor
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{}, &v1.SecretList{})
 		// Create a ReconcileCephFilesystemSubVolumeGroup object with the scheme and fake client.
 		r = &ReconcileCephFilesystemSubVolumeGroup{
 			client:           cl,
@@ -259,7 +259,7 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 		cephCluster.Spec.External.Enable = true
 		csiOpClientProfile := &csiopv1.ClientProfile{}
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{}, &v1.SecretList{})
 		objects := []runtime.Object{
 			cephFilesystemSubVolumeGroup,
 			cephCluster,
@@ -311,7 +311,7 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
 		c.Client = cl
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &v1.ConfigMap{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &v1.ConfigMap{}, &v1.SecretList{})
 		// Create a ReconcileCephFilesystemSubVolumeGroup object with the scheme and fake client.
 		r = &ReconcileCephFilesystemSubVolumeGroup{
 			client:           cl,

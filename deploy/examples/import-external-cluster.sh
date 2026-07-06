@@ -243,6 +243,7 @@ function importCsiRBDProvisionerSecret() {
       "rook-$CSI_RBD_PROVISIONER_SECRET_NAME" \
       -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_RBD_PROVISIONER_SECRET\"}}"
   fi
+  $KUBECTL -n "$NAMESPACE" annotate secret "rook-$CSI_RBD_PROVISIONER_SECRET_NAME" --overwrite csi.rook.io/RBDProvisionerSecret="true"
 }
 
 function importCsiCephFSNodeSecret() {
@@ -285,6 +286,7 @@ function importCsiCephFSProvisionerSecret() {
       "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
       -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_CEPHFS_PROVISIONER_SECRET\"}}"
   fi
+  $KUBECTL -n "$NAMESPACE" annotate secret "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME" --overwrite csi.rook.io/CephFSProvisionerSecret="true"
 }
 
 function importRGWAdminOpsUser() {

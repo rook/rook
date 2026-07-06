@@ -27,6 +27,8 @@ import (
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -57,10 +59,11 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 	cephSubVolGrpNamespacedName := types.NamespacedName{Namespace: ns, Name: "cephSubVolumeGroupNames"}
 	cephSubVolGrpRadosNamespaceNamespacedName := types.NamespacedName{Namespace: ns, Name: "radosNamespaceName"}
 	csiOpClientProfile := &csiopv1.ClientProfile{}
+	secretsList := &v1.SecretList{}
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, csiOpClientProfile)
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, csiOpClientProfile, secretsList)
 	object := []runtime.Object{
 		csiOpClientProfile,
 	}
@@ -82,6 +85,94 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 	assert.Equal(t, csiOpClientProfile.Spec.CephFs.SubVolumeGroup, cephSubVolGrpNamespacedName.Name)
 	assert.Equal(t, csiOpClientProfile.Spec.CephFs.KernelMountOptions["ms_mode"], kernelMountKeyVal[1])
 	assert.Equal(t, *csiOpClientProfile.Spec.CephFs.RadosNamespace, cephSubVolGrpRadosNamespaceNamespacedName.Name)
+}
+
+func TestGetSecretNameByAnnotation(t *testing.T) {
+	ns := "test-ns"
+	annotationKey := "csi.rook.io/RBDProvisionerSecret"
+	defaultName := "rook-csi-rbd-provisioner"
+
+	t.Run("return matching secret name when annotation value is true", func(t *testing.T) {
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "custom-rbd-secret",
+				Namespace: ns,
+				Annotations: map[string]string{
+					annotationKey: "true",
+				},
+			},
+		}
+		cl := fake.NewClientBuilder().WithObjects(secret).Build()
+
+		name, err := getSecretNameByAnnotation(cl, context.TODO(), ns, annotationKey, defaultName)
+		assert.NoError(t, err)
+		assert.Equal(t, "custom-rbd-secret", name)
+	})
+
+	t.Run("return default name when no secret has the annotation", func(t *testing.T) {
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "unrelated-secret",
+				Namespace: ns,
+			},
+		}
+		cl := fake.NewClientBuilder().WithObjects(secret).Build()
+
+		name, err := getSecretNameByAnnotation(cl, context.TODO(), ns, annotationKey, defaultName)
+		assert.NoError(t, err)
+		assert.Equal(t, defaultName, name)
+	})
+
+	t.Run("return default name when annotation value is not true", func(t *testing.T) {
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "some-secret",
+				Namespace: ns,
+				Annotations: map[string]string{
+					annotationKey: "false",
+				},
+			},
+		}
+		cl := fake.NewClientBuilder().WithObjects(secret).Build()
+
+		name, err := getSecretNameByAnnotation(cl, context.TODO(), ns, annotationKey, defaultName)
+		assert.NoError(t, err)
+		assert.Equal(t, defaultName, name)
+	})
+
+	t.Run("return default name when no secrets exist", func(t *testing.T) {
+		cl := fake.NewClientBuilder().Build()
+
+		name, err := getSecretNameByAnnotation(cl, context.TODO(), ns, annotationKey, defaultName)
+		assert.NoError(t, err)
+		assert.Equal(t, defaultName, name)
+	})
+
+	t.Run("return first matching secret when multiple match", func(t *testing.T) {
+		secret1 := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "first-secret",
+				Namespace: ns,
+				Annotations: map[string]string{
+					annotationKey: "true",
+				},
+			},
+		}
+		secret2 := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "second-secret",
+				Namespace: ns,
+				Annotations: map[string]string{
+					annotationKey: "true",
+				},
+			},
+		}
+		cl := fake.NewClientBuilder().WithObjects(secret1, secret2).Build()
+
+		name, err := getSecretNameByAnnotation(cl, context.TODO(), ns, annotationKey, defaultName)
+		assert.NoError(t, err)
+		assert.Contains(t, []string{"first-secret", "second-secret"}, name)
+	})
 }
 
 func TestParseMountOptions(t *testing.T) {
