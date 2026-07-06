@@ -34,6 +34,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/rook/rook/tests/integration/object/util/fixture"
+	"github.com/rook/rook/tests/integration/object/util/obc"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 	"github.com/rook/rook/tests/integration/object/util/wait4"
 )
@@ -52,7 +53,7 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, store
 			},
 		}
 
-		storageClass = fixture.StorageClass(defaultName, objectStore)
+		storageClass = obc.StorageClass(defaultName, objectStore)
 
 		// test user without any quotas set
 		osu1 = cephv1.CephObjectStoreUser{
@@ -264,8 +265,8 @@ func TestObjectBucketClaimBucketOwner(t *testing.T, k8sh *utils.K8sHelper, store
 		t.Run(fmt.Sprintf("obc %q has no bucketOwner", obc1.Name), func(t *testing.T) {
 			// verify that bucketOwner is unset on the live obc
 			wait4.AssertCondition(ctx, t, obcClient, obc1.Name,
-				func(obc *bktv1alpha1.ObjectBucketClaim) bool {
-					_, ok := obc.Spec.AdditionalConfig["bucketOwner"]
+				func(liveObc *bktv1alpha1.ObjectBucketClaim) bool {
+					_, ok := liveObc.Spec.AdditionalConfig["bucketOwner"]
 					return !ok
 				},
 				wait4.TimeoutShort)

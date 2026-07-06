@@ -37,8 +37,8 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/rook/rook/tests/integration/object/util/client"
 	"github.com/rook/rook/tests/integration/object/util/fixture"
+	"github.com/rook/rook/tests/integration/object/util/obc"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 	"github.com/rook/rook/tests/integration/object/util/wait4"
 )
@@ -110,11 +110,11 @@ func TestBucketNotification(t *testing.T, k8sh *utils.K8sHelper, store *sharedst
 		sinkSel  = labels.SelectorFromSet(labels.Set{"app": sinkName})
 		sinkURI  = fmt.Sprintf("http://%s.%s:%d", sinkName, ns.Name, sinkPort)
 
-		storageClass = fixture.StorageClass(defaultName, objectStore)
+		storageClass = obc.StorageClass(defaultName, objectStore)
 
 		topic        = httpTopic(defaultName+"-topic", ns.Name, objectStore, sinkURI)
 		notification = bucketNotification(defaultName+"-notification", ns.Name, topic.Name)
-		obc          = notificationOBC(defaultName+"-obc", ns.Name, storageClass.Name, notification.Name)
+		obc1         = notificationOBC(defaultName+"-obc", ns.Name, storageClass.Name, notification.Name)
 
 		body        = "test bucket notification payload"
 		contentType = "text/plain"
@@ -145,14 +145,15 @@ func TestBucketNotification(t *testing.T, k8sh *utils.K8sHelper, store *sharedst
 			require.NoError(t, err)
 		})
 
-		s3agent := requireBoundOBC(ctx, t, k8sh, store, obc)
+		obc.RequireBound(ctx, t, k8sh, obc1)
+		s3agent := obc.NewS3Agent(ctx, t, k8sh, store, ns.Name, obc1.Name)
 
-		t.Run(fmt.Sprintf("notification %q is configured on bucket %q", notification.Name, obc.Spec.BucketName), func(t *testing.T) {
-			requireBucketNotification(ctx, t, s3agent, obc.Spec.BucketName, notification.Name, true)
+		t.Run(fmt.Sprintf("notification %q is configured on bucket %q", notification.Name, obc1.Spec.BucketName), func(t *testing.T) {
+			requireBucketNotification(ctx, t, s3agent, obc1.Spec.BucketName, notification.Name, true)
 		})
 
 		t.Run(fmt.Sprintf("put object %q delivers a notification", key1), func(t *testing.T) {
-			_, err := s3agent.PutObjectInBucket(ctx, obc.Spec.BucketName, body, key1, contentType)
+			_, err := s3agent.PutObjectInBucket(ctx, obc1.Spec.BucketName, body, key1, contentType)
 			require.NoError(t, err)
 
 			requireNotificationReceived(ctx, t, k8sh, ns.Name, sinkSel, putEvent, key1)
@@ -160,7 +161,7 @@ func TestBucketNotification(t *testing.T, k8sh *utils.K8sHelper, store *sharedst
 		})
 
 		t.Run(fmt.Sprintf("delete object %q delivers a notification", key1), func(t *testing.T) {
-			_, err := s3agent.DeleteObjectInBucket(ctx, obc.Spec.BucketName, key1)
+			_, err := s3agent.DeleteObjectInBucket(ctx, obc1.Spec.BucketName, key1)
 			require.NoError(t, err)
 
 			requireNotificationReceived(ctx, t, k8sh, ns.Name, sinkSel, deleteEvent, key1)
@@ -168,43 +169,43 @@ func TestBucketNotification(t *testing.T, k8sh *utils.K8sHelper, store *sharedst
 		})
 
 		t.Run("an unrelated OBC label change leaves the notification configured", func(t *testing.T) {
-			t.Run(fmt.Sprintf("add a non-notification label to obc %q", obc.Name), func(t *testing.T) {
-				updateOBCLabels(ctx, t, k8sh, ns.Name, obc.Name, func(l map[string]string) {
+			t.Run(fmt.Sprintf("add a non-notification label to obc %q", obc1.Name), func(t *testing.T) {
+				updateOBCLabels(ctx, t, k8sh, ns.Name, obc1.Name, func(l map[string]string) {
 					l["test-label"] = "test-value"
 				})
 			})
 
-			requireBucketNotification(ctx, t, s3agent, obc.Spec.BucketName, notification.Name, true)
+			requireBucketNotification(ctx, t, s3agent, obc1.Spec.BucketName, notification.Name, true)
 
-			t.Run(fmt.Sprintf("remove the non-notification label from obc %q", obc.Name), func(t *testing.T) {
-				updateOBCLabels(ctx, t, k8sh, ns.Name, obc.Name, func(l map[string]string) {
+			t.Run(fmt.Sprintf("remove the non-notification label from obc %q", obc1.Name), func(t *testing.T) {
+				updateOBCLabels(ctx, t, k8sh, ns.Name, obc1.Name, func(l map[string]string) {
 					delete(l, "test-label")
 				})
 			})
 
-			requireBucketNotification(ctx, t, s3agent, obc.Spec.BucketName, notification.Name, true)
+			requireBucketNotification(ctx, t, s3agent, obc1.Spec.BucketName, notification.Name, true)
 		})
 
 		t.Run("removing the notification label removes the notification from the bucket", func(t *testing.T) {
-			t.Run(fmt.Sprintf("remove the notification label from obc %q", obc.Name), func(t *testing.T) {
-				updateOBCLabels(ctx, t, k8sh, ns.Name, obc.Name, func(l map[string]string) {
+			t.Run(fmt.Sprintf("remove the notification label from obc %q", obc1.Name), func(t *testing.T) {
+				updateOBCLabels(ctx, t, k8sh, ns.Name, obc1.Name, func(l map[string]string) {
 					delete(l, notificationLabel(notification.Name))
 				})
 			})
 
-			requireBucketNotification(ctx, t, s3agent, obc.Spec.BucketName, notification.Name, false)
+			requireBucketNotification(ctx, t, s3agent, obc1.Spec.BucketName, notification.Name, false)
 		})
 
 		t.Run("an unsubscribed bucket delivers no notifications", func(t *testing.T) {
 			t.Run(fmt.Sprintf("put object %q", key2), func(t *testing.T) {
-				_, err := s3agent.PutObjectInBucket(ctx, obc.Spec.BucketName, body, key2, contentType)
+				_, err := s3agent.PutObjectInBucket(ctx, obc1.Spec.BucketName, body, key2, contentType)
 				require.NoError(t, err)
 
 				assertNotificationNotReceived(ctx, t, k8sh, ns.Name, sinkSel, putEvent, key2)
 			})
 
 			t.Run(fmt.Sprintf("delete object %q", key2), func(t *testing.T) {
-				_, err := s3agent.DeleteObjectInBucket(ctx, obc.Spec.BucketName, key2)
+				_, err := s3agent.DeleteObjectInBucket(ctx, obc1.Spec.BucketName, key2)
 				require.NoError(t, err)
 
 				assertNotificationNotReceived(ctx, t, k8sh, ns.Name, sinkSel, deleteEvent, key2)
@@ -224,13 +225,13 @@ func TestBucketNotification(t *testing.T, k8sh *utils.K8sHelper, store *sharedst
 				require.NoError(t, err)
 			})
 
-			t.Run(fmt.Sprintf("add the notification label for %q to obc %q", addNotification.Name, obc.Name), func(t *testing.T) {
-				updateOBCLabels(ctx, t, k8sh, ns.Name, obc.Name, func(l map[string]string) {
+			t.Run(fmt.Sprintf("add the notification label for %q to obc %q", addNotification.Name, obc1.Name), func(t *testing.T) {
+				updateOBCLabels(ctx, t, k8sh, ns.Name, obc1.Name, func(l map[string]string) {
 					l[notificationLabel(addNotification.Name)] = addNotification.Name
 				})
 			})
 
-			requireBucketNotification(ctx, t, s3agent, obc.Spec.BucketName, addNotification.Name, true)
+			requireBucketNotification(ctx, t, s3agent, obc1.Spec.BucketName, addNotification.Name, true)
 
 			t.Run(fmt.Sprintf("delete CephBucketNotification %q", addNotification.Name), func(t *testing.T) {
 				wait4.AssertDelete(ctx, t, bnClient, addNotification.Name, wait4.TimeoutShort)
@@ -244,9 +245,10 @@ func TestBucketNotification(t *testing.T, k8sh *utils.K8sHelper, store *sharedst
 		t.Run("a notification created before its topic is configured once the topic exists", func(t *testing.T) {
 			revTopic := httpTopic(defaultName+"-topic-rev", ns.Name, objectStore, sinkURI)
 			revNotification := bucketNotification(defaultName+"-notification-rev", ns.Name, revTopic.Name)
-			revOBC := notificationOBC(defaultName+"-obc-rev", ns.Name, storageClass.Name, revNotification.Name)
+			obcRev := notificationOBC(defaultName+"-obc-rev", ns.Name, storageClass.Name, revNotification.Name)
 
-			revS3 := requireBoundOBC(ctx, t, k8sh, store, revOBC)
+			obc.RequireBound(ctx, t, k8sh, obcRev)
+			revS3 := obc.NewS3Agent(ctx, t, k8sh, store, ns.Name, obcRev.Name)
 
 			t.Run(fmt.Sprintf("create CephBucketNotification %q before its topic", revNotification.Name), func(t *testing.T) {
 				_, err := bnClient.Create(ctx, revNotification, metav1.CreateOptions{})
@@ -257,8 +259,8 @@ func TestBucketNotification(t *testing.T, k8sh *utils.K8sHelper, store *sharedst
 				wait4.RequireCreate(ctx, t, btClient, revTopic, wait4.BucketTopic, wait4.TimeoutMedium)
 			})
 
-			t.Run(fmt.Sprintf("notification %q is configured on bucket %q once its topic exists", revNotification.Name, revOBC.Spec.BucketName), func(t *testing.T) {
-				requireBucketNotification(ctx, t, revS3, revOBC.Spec.BucketName, revNotification.Name, true)
+			t.Run(fmt.Sprintf("notification %q is configured on bucket %q once its topic exists", revNotification.Name, obcRev.Spec.BucketName), func(t *testing.T) {
+				requireBucketNotification(ctx, t, revS3, obcRev.Spec.BucketName, revNotification.Name, true)
 			})
 
 			t.Run(fmt.Sprintf("delete CephBucketNotification %q", revNotification.Name), func(t *testing.T) {
@@ -269,13 +271,13 @@ func TestBucketNotification(t *testing.T, k8sh *utils.K8sHelper, store *sharedst
 				wait4.AssertDelete(ctx, t, btClient, revTopic.Name, wait4.TimeoutShort)
 			})
 
-			t.Run(fmt.Sprintf("delete obc %q", revOBC.Name), func(t *testing.T) {
-				deleteOBCAndBucket(ctx, t, k8sh, ns.Name, revOBC.Name)
+			t.Run(fmt.Sprintf("delete obc %q", obcRev.Name), func(t *testing.T) {
+				obc.DeleteAndWait(ctx, t, k8sh, ns.Name, obcRev.Name)
 			})
 		})
 
-		t.Run(fmt.Sprintf("delete obc %q", obc.Name), func(t *testing.T) {
-			deleteOBCAndBucket(ctx, t, k8sh, ns.Name, obc.Name)
+		t.Run(fmt.Sprintf("delete obc %q", obc1.Name), func(t *testing.T) {
+			obc.DeleteAndWait(ctx, t, k8sh, ns.Name, obc1.Name)
 		})
 
 		t.Run(fmt.Sprintf("delete CephBucketNotification %q", notification.Name), func(t *testing.T) {
@@ -304,40 +306,6 @@ func TestBucketNotification(t *testing.T, k8sh *utils.K8sHelper, store *sharedst
 			assert.Len(t, list.Items, 0)
 		})
 	})
-}
-
-// requireBoundOBC creates obc, waits for it and its backing ObjectBucket to bind,
-// and returns an S3 client for the provisioned bucket.
-func requireBoundOBC(ctx context.Context, t *testing.T, k8sh *utils.K8sHelper, store *sharedstore.Sharedstore, obc *bktv1alpha1.ObjectBucketClaim) *rgw.S3Agent {
-	t.Helper()
-
-	obcClient := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(obc.Namespace)
-	obClient := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets()
-
-	var agent *rgw.S3Agent
-	t.Run(fmt.Sprintf("create obc %q", obc.Name), func(t *testing.T) {
-		liveOBC := wait4.RequireCreate(ctx, t, obcClient, obc, wait4.OBCBound, wait4.TimeoutLong)
-		wait4.RequireCondition(ctx, t, obClient, liveOBC.Spec.ObjectBucketName, wait4.OBBound, wait4.TimeoutShort)
-
-		agent = obcS3Agent(ctx, t, k8sh, store, obc.Namespace, obc.Name)
-	})
-	return agent
-}
-
-// deleteOBCAndBucket deletes the OBC and waits for its backing ObjectBucket (and
-// thus the rgw bucket) to be garbage-collected by the provisioner.
-func deleteOBCAndBucket(ctx context.Context, t *testing.T, k8sh *utils.K8sHelper, namespace, name string) {
-	t.Helper()
-
-	obcClient := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace)
-	obClient := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets()
-
-	liveOBC, err := obcClient.Get(ctx, name, metav1.GetOptions{})
-	require.NoError(t, err)
-	obName := liveOBC.Spec.ObjectBucketName
-
-	wait4.AssertDelete(ctx, t, obcClient, name, wait4.TimeoutShort)
-	wait4.AssertAbsent(ctx, t, obClient, obName, wait4.TimeoutShort)
 }
 
 // updateOBCLabels applies mutate to a live OBC's labels and updates it.
@@ -400,26 +368,6 @@ func requireHTTPSink(ctx context.Context, t *testing.T, k8sh *utils.K8sHelper, n
 			func(d *appsv1.Deployment) bool { return d.Status.ReadyReplicas >= 1 }, wait4.TimeoutLong)
 		wait4.RequireCreate(ctx, t, k8sh.Clientset.CoreV1().Services(namespace), service, nil, wait4.TimeoutShort)
 	})
-}
-
-// obcS3Agent builds an S3 client for the bucket provisioned by obcName, using the
-// credentials in the OBC's secret and the shared store's endpoint.
-func obcS3Agent(ctx context.Context, t *testing.T, k8sh *utils.K8sHelper, store *sharedstore.Sharedstore, namespace, obcName string) *rgw.S3Agent {
-	t.Helper()
-
-	secret, err := k8sh.Clientset.CoreV1().Secrets(namespace).Get(ctx, obcName, metav1.GetOptions{})
-	require.NoError(t, err)
-
-	endpoint, err := client.GetS3Endpoint(store.ObjectStore(), k8sh, store.TLSEnabled())
-	require.NoError(t, err)
-
-	agent, err := rgw.NewS3Agent(
-		string(secret.Data["AWS_ACCESS_KEY_ID"]),
-		string(secret.Data["AWS_SECRET_ACCESS_KEY"]),
-		endpoint, true, nil, store.TLSEnabled(), nil)
-	require.NoError(t, err)
-
-	return agent
 }
 
 // requireBucketNotification waits until notificationName is (want=true) or is not

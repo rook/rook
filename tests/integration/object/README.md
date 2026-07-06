@@ -33,31 +33,31 @@ must not collide with std-lib package names (no `io`, no `http`).
 | test package | operator package | covers |
 |---|---|---|
 | `bucket/owner` | `object/bucket` | OBC `bucketOwner` handling |
+| `bucket/rw` | `object/bucket` | OBC S3 read/write/delete + OBC-stays-Bound |
 | `cosi` | `object/cosi` | CephCOSIDriver + COSI bucket provisioning |
 | `notification` | `object/notification` | CephBucketNotification HTTP endpoint delivery |
 | `topic/kafka` | `object/topic` | CephBucketTopic kafka endpoints |
 | `user/caps` | `object/user` | user capabilities |
 | `user/keys` | `object/user` | explicit S3 key management |
 | `user/opmask` | `object/user` | user op_mask |
-| reserved: `bucket/rw`, `bucket/quota`, `bucket/policy`, `bucket/lifecycle`, `tests/integration/object/lifecycle`, `tests/integration/object/dependents` | | future conversions |
+| reserved: `bucket/quota`, `bucket/policy`, `bucket/lifecycle`, `tests/integration/object/lifecycle`, `tests/integration/object/dependents` | | future conversions |
 
 Shared utilities live under `util/`:
 
 - `wait4` — waits for object-test state: watch-based `Assert/Require` ×
   `Create/Delete/Condition/Absent` for k8s resources, `Assert/RequireEventually`
   polling for non-k8s state, `Assert/RequirePodLog` for a matching line in a
-  pod's log stream, and the shared timeout tiers.
-- `ready` — readiness predicates for the wait4 helpers (`ObjectStoreUser`,
-  `BucketTopic`, `OBCBound`, ...).
+  pod's log stream, the readiness predicates (`ObjectStoreUser`, `BucketTopic`,
+  `OBCBound`, ...), and the shared timeout tiers.
 - `fixture` — create-with-`t.Cleanup` helpers for pure-cleanup resources
   (namespaces, StorageClasses).
-- `obc` — pure constructors for the resources ObjectBucketClaim tests build
-  (the provisioner `StorageClass`; OBCs and per-OBC S3 clients as `bucket/*`
-  is converted).
+- `obc` — ObjectBucketClaim helpers: the provisioner `StorageClass`
+  constructor, the create/bound and delete/absent lifecycle waiters, and a
+  per-OBC S3 client.
 - `secrets` — verification helpers for the Secret references object CRDs
   publish in their status, shared by more than one package.
 - `sharedstore` — the shared CephObjectStore fixture.
-- `admin`, `sns`, `s3`, `tls` — client builders and TLS cert generation.
+- `client` — rgw admin, SNS, and S3 client builders and TLS cert generation.
 
 ## Anatomy of a package
 
@@ -83,7 +83,7 @@ func TestObjectStoreUserCaps(t *testing.T, k8sh *utils.K8sHelper, store *shareds
 		fixture.RequireNamespace(t, k8sh, ns)
 
 		t.Run(fmt.Sprintf("create CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
-			wait4.RequireCreate(ctx, t, osuClient, &osu1, ready.ObjectStoreUser, wait4.TimeoutLong)
+			wait4.RequireCreate(ctx, t, osuClient, &osu1, wait4.ObjectStoreUser, wait4.TimeoutLong)
 		})
 
 		// ... ordered subtests: act, verify, act, verify ...
@@ -121,7 +121,7 @@ Rules encoded in that shape:
   `RequireCreate` (create + wait ready), `AssertDelete`/`RequireDelete`
   (delete + wait gone), `RequireCondition`/`AssertCondition` (wait for a
   predicate on an existing resource), `AssertAbsent`/`RequireAbsent` (wait
-  for cascade deletion you did not issue). Predicates come from `util/ready`
+  for cascade deletion you did not issue). Predicates come from `wait4`
   or are inlined when test-specific.
 - State NOT visible to the Kubernetes API (rgw admin ops, S3, SNS) uses
   `wait4.AssertEventually`/`RequireEventually`, the assert/require-flavored
@@ -206,10 +206,9 @@ verification; wire the dispatcher; delete the old code; retire
 
 | old test | target package(s) | still needs (build in that PR) |
 |---|---|---|
-| `testObjectStoreOperations` S3 I/O + OBC-stays-Bound | `bucket/rw` | per-OBC S3 client (TLS-aware, from OBC secret) |
-| `testObjectStoreOperations` user/bucket quotas | `bucket/quota` | per-OBC S3 client |
-| `testObjectStoreOperations` bucket policy | `bucket/policy` | per-OBC S3 client |
-| `testObjectStoreOperations` bucket lifecycle | `bucket/lifecycle` | per-OBC S3 client, move `lifecycleCmpOpts` out of the dispatcher |
-| `testObjectStoreOperations` deletion-blocked-by-dependents | `tests/integration/object/dependents` | private-store fixture, store condition predicates in `ready` |
+| `testObjectStoreOperations` user/bucket quotas | `bucket/quota` | — |
+| `testObjectStoreOperations` bucket policy | `bucket/policy` | — |
+| `testObjectStoreOperations` bucket lifecycle | `bucket/lifecycle` | move `lifecycleCmpOpts` out of the dispatcher |
+| `testObjectStoreOperations` deletion-blocked-by-dependents | `tests/integration/object/dependents` | private-store fixture, store condition predicates in `wait4` |
 | `createCephObjectStore`/`runObjectE2ETestLite`/deletion asserts + zone.json canary | `tests/integration/object/lifecycle` | store create/health/delete helpers, `Sharedstore.Installer()` accessor |
-| upgrade-suite object usage | stays in upgrade suite | switch to typed clients + `wait4`/`ready` |
+| upgrade-suite object usage | stays in upgrade suite | switch to typed clients + `wait4` |
