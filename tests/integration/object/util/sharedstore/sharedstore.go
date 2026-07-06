@@ -44,12 +44,19 @@ type Sharedstore struct {
 	adminClient *admin.API
 	snsClient   *sns.Client
 	objectStore *cephv1.CephObjectStore
+	installer   *installer.CephInstaller
 	tlsEnable   bool
 	destroy     func()
 }
 
 func (s *Sharedstore) AdminClient() *admin.API {
 	return s.adminClient
+}
+
+// Installer returns the suite installer, for tests that must run commands
+// (e.g. radosgw-admin) inside the cluster.
+func (s *Sharedstore) Installer() *installer.CephInstaller {
+	return s.installer
 }
 
 func (s *Sharedstore) SnsClient() *sns.Client {
@@ -75,7 +82,7 @@ func (s *Sharedstore) Destroy() {
 func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool, allowedNamespaces ...string) *Sharedstore {
 	t.Helper()
 
-	s := &Sharedstore{tlsEnable: tlsEnable}
+	s := &Sharedstore{tlsEnable: tlsEnable, installer: installer}
 	ctx := context.TODO()
 	ns := "object-ns"
 	storeName := "sharedstore"
