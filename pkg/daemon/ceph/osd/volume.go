@@ -620,7 +620,7 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 				// `ceph-volume lvm prepare` needs the VG/LV path (e.g. `/dev/vg/lv`), not
 				// the kernel dm name (e.g. `/dev/dm-0`). Find it from the device links.
 				deviceArg = path.Join("/dev", name)
-				for _, link := range strings.Split(device.DeviceInfo.DevLinks, " ") {
+				for link := range strings.SplitSeq(device.DeviceInfo.DevLinks, " ") {
 					if strings.HasPrefix(link, "/dev/") && !strings.HasPrefix(link, "/dev/disk/") && !strings.HasPrefix(link, "/dev/mapper/") {
 						deviceArg = link
 						break
@@ -660,7 +660,7 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 				}
 				if metadataDevice.Type == sys.LVMType {
 					// Find the /dev/<vg>/<lv> path from DevLinks for ceph-volume compatibility
-					for _, link := range strings.Split(metadataDevice.DevLinks, " ") {
+					for link := range strings.SplitSeq(metadataDevice.DevLinks, " ") {
 						if strings.HasPrefix(link, "/dev/") && !strings.HasPrefix(link, "/dev/disk/") && !strings.HasPrefix(link, "/dev/mapper/") {
 							md = link
 							break
