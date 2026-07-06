@@ -30,6 +30,7 @@ import (
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -47,6 +48,7 @@ type Sharedstore struct {
 	installer   *installer.CephInstaller
 	tlsEnable   bool
 	destroy     func()
+	teardown    func(*testing.T)
 }
 
 func (s *Sharedstore) AdminClient() *admin.API {
@@ -75,12 +77,21 @@ func (s *Sharedstore) Destroy() {
 	s.destroy()
 }
 
+// Teardown deletes the store's resources the same way Destroy does but without
+// the enclosing t.Run subtest, so — unlike Destroy — it is safe to call from a
+// t.Cleanup, where t.Run panics. Failures are reported against t.
+func (s *Sharedstore) Teardown(t *testing.T) {
+	s.teardown(t)
+}
+
 // Create creates a CephObjectStore named storeName in namespace (with its
 // realm, zone, shared pools, and NodePort Service), waits for it to become
 // Ready, and returns a Sharedstore whose Destroy method tears it all down;
 // Destroy should be deferred by the caller. instances sets the RGW gateway
-// count and allowedNamespaces is propagated to AllowUsersInNamespaces.
-func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool, namespace, storeName string, instances int32, allowedNamespaces ...string) *Sharedstore {
+// count, defaultRealm marks the store's realm as the cluster default (exactly
+// one coexisting store may hold it), and allowedNamespaces is propagated to
+// AllowUsersInNamespaces.
+func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool, namespace, storeName string, instances int32, defaultRealm bool, allowedNamespaces ...string) *Sharedstore {
 	t.Helper()
 
 	s := &Sharedstore{tlsEnable: tlsEnable, installer: installer}
@@ -99,7 +110,7 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 			Namespace: ns,
 		},
 		Spec: cephv1.ObjectRealmSpec{
-			DefaultRealm: true,
+			DefaultRealm: defaultRealm,
 		},
 	}
 
@@ -279,6 +290,11 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 
 	for _, p := range pools {
 		_, err := ceph.CephBlockPools(ns).Create(ctx, p, metav1.CreateOptions{})
+		// .rgw.root is cluster-global; a coexisting store in the same cluster
+		// finds it already created, which is fine — it is shared, not owned.
+		if p.Spec.Name == ".rgw.root" && k8serrors.IsAlreadyExists(err) {
+			continue
+		}
 		require.NoError(t, err)
 	}
 
@@ -315,29 +331,35 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 
 	s.objectStore = objectStore
 
+	s.teardown = func(t *testing.T) {
+		wait4.AssertDelete(ctx, t, k8sh.Clientset.CoreV1().Services(ns), svc.Name, 30*time.Second)
+		wait4.AssertDelete(ctx, t, ceph.CephObjectStores(ns), objectStore.Name, 5*time.Minute)
+
+		// The multisite CRs must be deleted before the pools. Their deletion
+		// finalizers run radosgw-admin, which reads the realm/zonegroup/zone
+		// metadata stored in the .rgw.root pool. Deleting the pools first
+		// removes that metadata, causing radosgw-admin to fail (exit status 2)
+		// and the zone controller to loop forever, so the CephObjectZone CR
+		// never finishes deleting.
+		wait4.AssertDelete(ctx, t, ceph.CephObjectZones(ns), zone.Name, 2*time.Minute)
+		wait4.AssertDelete(ctx, t, ceph.CephObjectZoneGroups(ns), zoneGroup.Name, time.Minute)
+		wait4.AssertDelete(ctx, t, ceph.CephObjectRealms(ns), realm.Name, time.Minute)
+
+		for _, p := range pools {
+			// never delete the cluster-global .rgw.root out from under a
+			// coexisting store; it is reclaimed at cluster teardown.
+			if p.Spec.Name == ".rgw.root" {
+				continue
+			}
+			wait4.AssertDelete(ctx, t, ceph.CephBlockPools(ns), p.Name, time.Minute)
+		}
+
+		if tlsEnable {
+			wait4.AssertDelete(ctx, t, k8sh.Clientset.CoreV1().Secrets(ns), certSecretName, 30*time.Second)
+		}
+	}
 	s.destroy = func() {
-		t.Run(fmt.Sprintf("destroy CephObjectStore %s", objectStore.Name), func(t *testing.T) {
-			wait4.AssertDelete(ctx, t, k8sh.Clientset.CoreV1().Services(ns), svc.Name, 30*time.Second)
-			wait4.AssertDelete(ctx, t, ceph.CephObjectStores(ns), objectStore.Name, 5*time.Minute)
-
-			// The multisite CRs must be deleted before the pools. Their deletion
-			// finalizers run radosgw-admin, which reads the realm/zonegroup/zone
-			// metadata stored in the .rgw.root pool. Deleting the pools first
-			// removes that metadata, causing radosgw-admin to fail (exit status 2)
-			// and the zone controller to loop forever, so the CephObjectZone CR
-			// never finishes deleting.
-			wait4.AssertDelete(ctx, t, ceph.CephObjectZones(ns), zone.Name, 2*time.Minute)
-			wait4.AssertDelete(ctx, t, ceph.CephObjectZoneGroups(ns), zoneGroup.Name, time.Minute)
-			wait4.AssertDelete(ctx, t, ceph.CephObjectRealms(ns), realm.Name, time.Minute)
-
-			for _, p := range pools {
-				wait4.AssertDelete(ctx, t, ceph.CephBlockPools(ns), p.Name, time.Minute)
-			}
-
-			if tlsEnable {
-				wait4.AssertDelete(ctx, t, k8sh.Clientset.CoreV1().Secrets(ns), certSecretName, 30*time.Second)
-			}
-		})
+		t.Run(fmt.Sprintf("destroy CephObjectStore %s", objectStore.Name), s.teardown)
 	}
 
 	return s
