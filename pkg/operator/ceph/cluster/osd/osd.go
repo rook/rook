@@ -393,7 +393,7 @@ func (c *Cluster) startOSDMigration() (*migrationConfig, error) {
 	}
 
 	if !pgsHealhty {
-		return nil, errors.Wrapf(err, "failed to start migration due to unhealthy PGs")
+		return nil, errors.New("failed to start migration due to unhealthy PGs")
 	}
 
 	// skip migration if previously migrated OSD is not up yet.
@@ -403,7 +403,7 @@ func (c *Cluster) startOSDMigration() (*migrationConfig, error) {
 	}
 
 	if !migrationComplete {
-		return nil, errors.Wrapf(err, "migration of the last OSD is not complete")
+		return nil, errors.New("migration of the last OSD is not complete")
 	}
 
 	migrationConfig, err := c.newMigrationConfig()

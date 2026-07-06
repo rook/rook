@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -221,5 +222,43 @@ func TestIsLastOSDMigrationComplete(t *testing.T) {
 		result, err := isLastOSDMigrationComplete(c)
 		assert.NoError(t, err)
 		assert.Equal(t, true, result)
+	})
+}
+
+func TestStartOSDMigration(t *testing.T) {
+	namespace := "rook-ceph"
+	clientset := fake.NewClientset()
+	// PGs report as clean so migration is not blocked on PG health.
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "status" {
+				return "{}", nil
+			}
+			return "", nil
+		},
+	}
+	ctx := &clusterd.Context{
+		Clientset: clientset,
+		Executor:  executor,
+	}
+	clusterInfo := &cephclient.ClusterInfo{
+		Namespace: namespace,
+		Context:   context.TODO(),
+	}
+	clusterInfo.SetName("mycluster")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+
+	c := New(ctx, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+	c.spec.Storage.Migration.Confirmation = OSDMigrationConfirmation
+
+	t.Run("error is returned when the previous OSD migration is not complete", func(t *testing.T) {
+		// osd.1 was migrated but its deployment has not been recreated yet, so the
+		// migration is still in progress and startOSDMigration must bail out with an
+		// error instead of returning a nil config with a nil error.
+		err := createMigrationConfigmap("1", namespace, clientset)
+		assert.NoError(t, err)
+		migrationConfig, err := c.startOSDMigration()
+		assert.Error(t, err)
+		assert.Nil(t, migrationConfig)
 	})
 }
