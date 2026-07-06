@@ -47,6 +47,8 @@ type Sharedstore struct {
 	installer   *installer.CephInstaller
 	tlsEnable   bool
 	destroy     func()
+	teardown    func(*testing.T)
+	tornDown    bool
 }
 
 func (s *Sharedstore) AdminClient() *admin.API {
@@ -75,17 +77,73 @@ func (s *Sharedstore) Destroy() {
 	s.destroy()
 }
 
-// Create creates a CephObjectStore named storeName in namespace (with its
-// realm, zone, shared pools, and NodePort Service), waits for it to become
+// Teardown deletes the store's resources the same way Destroy does but without
+// the enclosing t.Run subtest, so — unlike Destroy — it is safe to call from a
+// t.Cleanup, where t.Run panics. It is a no-op once the store has been torn
+// down, so a caller that tears down explicitly can still call it unconditionally
+// from a cleanup. Failures are reported against t.
+func (s *Sharedstore) Teardown(t *testing.T) {
+	if s.tornDown {
+		return
+	}
+	s.teardown(t)
+}
+
+// StoreKind selects the shape of the CephObjectStore a Config describes.
+type StoreKind int
+
+const (
+	// Zoned is a multisite store. It owns CephObjectRealm, CephObjectZoneGroup
+	// and CephObjectZone CRs, and its pools are CephBlockPool CRs the zone
+	// references as shared pool placements.
+	Zoned StoreKind = iota
+
+	// Classic is a non-multisite store. Its pools are declared in the store
+	// spec for the operator to provision, so it owns no zone or pool CRs of its
+	// own. The operator only looks for user and bucket dependents on a store of
+	// this shape (or on a multisite store whose zone is its zonegroup's
+	// master), so a test of deletion being blocked by dependents needs it.
+	Classic
+)
+
+// Config describes the CephObjectStore for Create to build. Its zero value is
+// a Zoned store, so a caller sets only what it needs.
+type Config struct {
+	// Namespace is the cluster namespace holding the store.
+	Namespace string
+
+	// StoreName names the CephObjectStore and everything derived from it.
+	StoreName string
+
+	// Instances is the RGW gateway count.
+	Instances int32
+
+	// TLSEnable serves the store over https with a generated certificate
+	// instead of plain http.
+	TLSEnable bool
+
+	// Kind selects a Zoned (default) or Classic store.
+	Kind StoreKind
+
+	// AllowUsersInNamespaces is propagated to the store field of the same name,
+	// which gates CephObjectStoreUsers that name this store from another
+	// namespace.
+	AllowUsersInNamespaces []string
+}
+
+// Create creates the CephObjectStore cfg describes, along with its Service and
+// — for a Zoned store — its realm, zone, and pools, waits for it to become
 // Ready, and returns a Sharedstore whose Destroy method tears it all down;
-// Destroy should be deferred by the caller. instances sets the RGW gateway
-// count and allowedNamespaces is propagated to AllowUsersInNamespaces.
-func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool, namespace, storeName string, instances int32, allowedNamespaces ...string) *Sharedstore {
+// Destroy should be deferred by the caller.
+func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, cfg Config) *Sharedstore {
 	t.Helper()
 
-	s := &Sharedstore{tlsEnable: tlsEnable, installer: installer}
+	s := &Sharedstore{tlsEnable: cfg.TLSEnable, installer: installer}
 	ctx := context.TODO()
-	ns := namespace
+	ns := cfg.Namespace
+	storeName := cfg.StoreName
+	classic := cfg.Kind == Classic
+	tlsEnable := cfg.TLSEnable
 
 	// securePort is the in-container RGW TLS listener port. The NodePort Service
 	// below exposes the conventional 443 externally and forwards to it.
@@ -161,10 +219,23 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 			},
 			Gateway: cephv1.GatewaySpec{
 				Port:      80,
-				Instances: instances,
+				Instances: cfg.Instances,
 			},
-			AllowUsersInNamespaces: allowedNamespaces,
+			AllowUsersInNamespaces: cfg.AllowUsersInNamespaces,
 		},
+	}
+
+	if classic {
+		// Zone must stay empty: it is what ObjectStoreSpec.IsMultisite keys on.
+		// The operator creates these pools itself, so the store owns no pool CRs.
+		objectStore.Spec.Zone = cephv1.ZoneSpec{}
+		objectStore.Spec.MetadataPool = cephv1.PoolSpec{
+			Replicated:      cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false},
+			CompressionMode: "passive",
+		}
+		objectStore.Spec.DataPool = cephv1.PoolSpec{
+			Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false},
+		}
 	}
 
 	if tlsEnable {
@@ -173,7 +244,7 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 		objectStore.Spec.Gateway = cephv1.GatewaySpec{
 			SecurePort:        securePort,
 			SSLCertificateRef: certSecretName,
-			Instances:         instances,
+			Instances:         cfg.Instances,
 		}
 	}
 
@@ -262,24 +333,26 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 
 	ceph := k8sh.RookClientset.CephV1()
 
-	{
-		_, err := ceph.CephObjectRealms(ns).Create(ctx, realm, metav1.CreateOptions{})
-		require.NoError(t, err)
-	}
+	if !classic {
+		{
+			_, err := ceph.CephObjectRealms(ns).Create(ctx, realm, metav1.CreateOptions{})
+			require.NoError(t, err)
+		}
 
-	{
-		_, err := ceph.CephObjectZoneGroups(ns).Create(ctx, zoneGroup, metav1.CreateOptions{})
-		require.NoError(t, err)
-	}
+		{
+			_, err := ceph.CephObjectZoneGroups(ns).Create(ctx, zoneGroup, metav1.CreateOptions{})
+			require.NoError(t, err)
+		}
 
-	{
-		_, err := ceph.CephObjectZones(ns).Create(ctx, zone, metav1.CreateOptions{})
-		require.NoError(t, err)
-	}
+		{
+			_, err := ceph.CephObjectZones(ns).Create(ctx, zone, metav1.CreateOptions{})
+			require.NoError(t, err)
+		}
 
-	for _, p := range pools {
-		_, err := ceph.CephBlockPools(ns).Create(ctx, p, metav1.CreateOptions{})
-		require.NoError(t, err)
+		for _, p := range pools {
+			_, err := ceph.CephBlockPools(ns).Create(ctx, p, metav1.CreateOptions{})
+			require.NoError(t, err)
+		}
 	}
 
 	// the cert secret must exist before the store is created so the operator can
@@ -315,11 +388,13 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 
 	s.objectStore = objectStore
 
-	s.destroy = func() {
-		t.Run(fmt.Sprintf("destroy CephObjectStore %s", objectStore.Name), func(t *testing.T) {
-			wait4.AssertDelete(ctx, t, k8sh.Clientset.CoreV1().Services(ns), svc.Name, 30*time.Second)
-			wait4.AssertDelete(ctx, t, ceph.CephObjectStores(ns), objectStore.Name, 5*time.Minute)
+	s.teardown = func(t *testing.T) {
+		s.tornDown = true
 
+		wait4.AssertDelete(ctx, t, k8sh.Clientset.CoreV1().Services(ns), svc.Name, 30*time.Second)
+		wait4.AssertDelete(ctx, t, ceph.CephObjectStores(ns), objectStore.Name, 5*time.Minute)
+
+		if !classic {
 			// The multisite CRs must be deleted before the pools. Their deletion
 			// finalizers run radosgw-admin, which reads the realm/zonegroup/zone
 			// metadata stored in the .rgw.root pool. Deleting the pools first
@@ -333,11 +408,14 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 			for _, p := range pools {
 				wait4.AssertDelete(ctx, t, ceph.CephBlockPools(ns), p.Name, time.Minute)
 			}
+		}
 
-			if tlsEnable {
-				wait4.AssertDelete(ctx, t, k8sh.Clientset.CoreV1().Secrets(ns), certSecretName, 30*time.Second)
-			}
-		})
+		if tlsEnable {
+			wait4.AssertDelete(ctx, t, k8sh.Clientset.CoreV1().Secrets(ns), certSecretName, 30*time.Second)
+		}
+	}
+	s.destroy = func() {
+		t.Run(fmt.Sprintf("destroy CephObjectStore %s", objectStore.Name), s.teardown)
 	}
 
 	return s
