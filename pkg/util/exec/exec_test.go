@@ -202,3 +202,21 @@ func TestExecuteCommandWithTimeout(t *testing.T) {
 		})
 	}
 }
+
+// TestExecuteCommandWithTimeoutKillPath exercises the timeout branch where the
+// command ignores the interrupt signal and must be killed, while it keeps
+// writing to stdout. The output buffer must only be read after cmd.Wait()
+// returns; otherwise the read races with the goroutines that copy the command's
+// output into the buffer. Run with `-race` to catch a regression.
+func TestExecuteCommandWithTimeoutKillPath(t *testing.T) {
+	// The child ignores SIGINT and continuously writes to stdout, so the
+	// interrupt is sent first and the kill path is taken while writers are active.
+	stdin := ""
+	_, err := executeCommandWithTimeout(
+		50*time.Millisecond,
+		"sh", &stdin,
+		"-c", "trap '' INT; while true; do echo x; done",
+	)
+	assert.Error(t, err)
+	assert.True(t, IsTimeout(err))
+}

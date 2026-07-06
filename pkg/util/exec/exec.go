@@ -127,6 +127,11 @@ func executeCommandWithTimeout(timeout time.Duration, command string, stdin *str
 					logger.Errorf("Failed to kill process %s: %v", command, err)
 					e = fmt.Errorf("%s the command %s to return after interrupt signal was sent. Tried to kill the process but that failed: %v", TimeoutWaitingForMessage, command, err)
 				} else {
+					// Wait for cmd.Wait() to return before reading the output buffer.
+					// Kill() only signals the process; it does not wait for the internal
+					// goroutines that copy the command's output into b to finish. Reading b
+					// before Wait() returns would race with those writers.
+					<-done
 					e = fmt.Errorf("%s the command %s to return", TimeoutWaitingForMessage, command)
 				}
 				return strings.TrimSpace(b.String()), e
