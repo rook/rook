@@ -35,6 +35,10 @@ DOCKERCMD=$(shell podman version >/dev/null 2>&1 && echo podman)
 endif
 endif
 
+.PHONY: check.container.runtime
+check.container.runtime:
+	$(if $(shell $(DOCKERCMD) version >/dev/null 2>&1 && echo available),,$(error no usable container runtime found. Install docker or podman, or set DOCKERCMD to a working command.))
+
 MARKDOWNLINT := $(DOCKERCMD) run --rm -v $$PWD:/workdir davidanson/markdownlint-cli2:$(MARKDOWNLINT_IMAGE_VERSION)
 
 ifneq ($(strip $(YAMLLINT_IMAGE_SHA)),)
