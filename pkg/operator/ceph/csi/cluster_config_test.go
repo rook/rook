@@ -54,7 +54,7 @@ func compareJSON(t *testing.T, exceptedJSON, actualJSON string) {
 	if err != nil {
 		t.Error(err)
 	}
-	actual, err = unmarshal(exceptedJSON)
+	actual, err = unmarshal(actualJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -436,7 +436,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		clusterInfo.Namespace = "rook-ceph-1"
 		s, err = updateCsiClusterConfig("[]", "rook-ceph-1", clusterInfo, &csiClusterConfigEntryMultus)
 		assert.NoError(t, err)
-		compareJSON(t, `[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"rbd":{"netNamespaceFilePath":"/var/run/netns/rook-ceph-1","radosNamespace":"rook-ceph-1"},"namespace":"rook-ceph-1"}]`, s)
+		compareJSON(t, `[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"rbd":{"radosNamespace":"rook-ceph-1"},"namespace":"rook-ceph-1"}]`, s)
 	})
 
 	t.Run("test crush location labels are set", func(t *testing.T) {
