@@ -62,7 +62,10 @@ jobs:
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2
+        # rbd-mirror crashes on arm64 with Ceph v20 (rook issue 17568,
+        # https://tracker.ceph.com/issues/76967); validate every other daemon
+        # until the upstream fix lands
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd,mds,rgw,fs_mirror,nfs 2
 
       - name: collect common logs
         if: always()
