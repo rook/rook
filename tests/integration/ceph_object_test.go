@@ -45,6 +45,7 @@ import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	bucketowner "github.com/rook/rook/tests/integration/object/bucket/owner"
+	bucketquota "github.com/rook/rook/tests/integration/object/bucket/quota"
 	bucketrw "github.com/rook/rook/tests/integration/object/bucket/rw"
 	"github.com/rook/rook/tests/integration/object/cosi"
 	"github.com/rook/rook/tests/integration/object/notification"
@@ -214,6 +215,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 
 	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, tlsEnable,
 		bucketowner.Namespace,
+		bucketquota.Namespace,
 		bucketrw.Namespace,
 		userkeys.Namespace,
 		topickafka.Namespace,
@@ -225,6 +227,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	defer sharedObjectStore.Destroy()
 
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, sharedObjectStore)
+	bucketquota.TestObjectBucketClaimQuota(s.T(), k8sh, sharedObjectStore)
 	bucketrw.TestObjectBucketClaimReadWrite(s.T(), k8sh, sharedObjectStore)
 	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, sharedObjectStore)
 	topickafka.TestBucketTopicKafka(s.T(), k8sh, sharedObjectStore)
@@ -288,220 +291,6 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		assert.NotEqual(t, 4, i)
 		assert.Equal(t, bucketname, bkt.Name)
 		logger.Info("OBC, Secret and ConfigMap created")
-	})
-
-	t.Run("S3 access to OBC bucket", func(t *testing.T) {
-		var s3client *rgw.S3Agent
-		s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
-		s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
-		s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
-		insecure := objectStore.Spec.IsTLSEnabled()
-		s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil, insecure, nil)
-
-		assert.Nil(t, err)
-		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
-
-		t.Run("user quota enforcement", func(t *testing.T) {
-			_, poErr := s3client.PutObjectInBucket(ctx, bucketname, ObjBody, ObjectKey1, contentType)
-			assert.Nil(t, poErr)
-			_, poErr = s3client.PutObjectInBucket(ctx, bucketname, ObjBody, ObjectKey2, contentType)
-			assert.Nil(t, poErr)
-			logger.Infof("Testing the max object limit")
-			quotaEnforced := utils.Retry(30, 2*time.Second, "user quota enforced", func() bool {
-				_, err := s3client.PutObjectInBucket(ctx, bucketname, ObjBody, ObjectKey3, contentType)
-				if err != nil {
-					return true
-				}
-				// delete so next attempt creates a new object rather than overwriting
-				s3client.DeleteObjectInBucket(ctx, bucketname, ObjectKey3) //nolint:errcheck
-				return false
-			})
-			assert.True(t, quotaEnforced)
-		})
-
-		t.Run("update user quota limits", func(t *testing.T) {
-			poErr := helper.BucketClient.UpdateObc(obcName, bucketStorageClassName, bucketname, newMaxObject, true)
-			assert.Nil(t, poErr)
-			updated := utils.Retry(20, 2*time.Second, "OBC is updated", func() bool {
-				return helper.BucketClient.CheckOBMaxObject(obcName, newMaxObject)
-			})
-			assert.True(t, updated)
-			logger.Infof("Testing the updated object limit")
-			_, poErr = s3client.PutObjectInBucket(ctx, bucketname, ObjBody, ObjectKey3, contentType)
-			assert.NoError(t, poErr)
-			quotaEnforced := utils.Retry(30, 2*time.Second, "updated user quota enforced", func() bool {
-				_, putErr := s3client.PutObjectInBucket(ctx, bucketname, ObjBody, ObjectKey4, contentType)
-				if putErr != nil {
-					return true
-				}
-				// delete so next attempt creates a new object rather than overwriting
-				s3client.DeleteObjectInBucket(ctx, bucketname, ObjectKey4) //nolint:errcheck
-				return false
-			})
-			assert.True(t, quotaEnforced)
-		})
-
-		t.Run("delete objects", func(t *testing.T) {
-			_, delobjErr := s3client.DeleteObjectInBucket(ctx, bucketname, ObjectKey1)
-			assert.Nil(t, delobjErr)
-			_, delobjErr = s3client.DeleteObjectInBucket(ctx, bucketname, ObjectKey2)
-			assert.Nil(t, delobjErr)
-			_, delobjErr = s3client.DeleteObjectInBucket(ctx, bucketname, ObjectKey3)
-			assert.Nil(t, delobjErr)
-			logger.Info("Objects deleted on bucket successfully")
-		})
-	})
-
-	// this test deviates from the others in this package in that it does not
-	// rely on kubectl and uses the k8s api directly
-	t.Run("OBC bucket quota enforcement", func(t *testing.T) {
-		bucketName := "bucket-quota-test"
-		var obName string
-		var s3client *rgw.S3Agent
-
-		t.Run("create obc with bucketMaxObjects", func(t *testing.T) {
-			newObc := v1alpha1.ObjectBucketClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      bucketName,
-					Namespace: namespace,
-				},
-				Spec: v1alpha1.ObjectBucketClaimSpec{
-					BucketName:       bucketName,
-					StorageClassName: bucketStorageClassName,
-					AdditionalConfig: map[string]string{
-						"bucketMaxObjects": "1",
-					},
-				},
-			}
-			_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Create(ctx, &newObc, metav1.CreateOptions{})
-			assert.Nil(t, err)
-			obcBound := utils.Retry(20, 2*time.Second, "OBC is Bound", func() bool {
-				liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveObc.Status.Phase == v1alpha1.ObjectBucketClaimStatusPhaseBound
-			})
-			assert.True(t, obcBound)
-
-			// wait until obc is Bound to lookup the ob name
-			obc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-			assert.Nil(t, err)
-			obName = obc.Spec.ObjectBucketName
-
-			obBound := utils.Retry(20, 2*time.Second, "OB is Bound", func() bool {
-				liveOb, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveOb.Status.Phase == v1alpha1.ObjectBucketStatusPhaseBound
-			})
-			assert.True(t, obBound)
-
-			// verify that bucketMaxObjects is set
-			assert.True(t, obc.Spec.AdditionalConfig["bucketMaxObjects"] == "1")
-
-			// as the tests are running external to k8s, the internal svc can't be used
-			labelSelector := "rgw=" + storeName
-			services, err := k8sh.Clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-			assert.Nil(t, err)
-			assert.Equal(t, 1, len(services.Items))
-			s3endpoint := services.Items[0].Spec.ClusterIP + ":80"
-
-			secret, err := k8sh.Clientset.CoreV1().Secrets(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-			assert.Nil(t, err)
-			s3AccessKey := string(secret.Data["AWS_ACCESS_KEY_ID"])
-			s3SecretKey := string(secret.Data["AWS_SECRET_ACCESS_KEY"])
-
-			insecure := objectStore.Spec.IsTLSEnabled()
-			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil, insecure, nil)
-			assert.Nil(t, err)
-			logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
-		})
-
-		t.Run("bucketMaxObjects quota is enforced", func(t *testing.T) {
-			// first object should succeed
-			_, err := s3client.PutObjectInBucket(ctx, bucketName, ObjBody, ObjectKey1, contentType)
-			assert.Nil(t, err)
-			// second object should fail as bucket quota is 1
-			_, err = s3client.PutObjectInBucket(ctx, bucketName, ObjBody, ObjectKey2, contentType)
-			assert.Error(t, err)
-			// cleanup bucket
-			_, err = s3client.DeleteObjectInBucket(ctx, bucketName, ObjectKey1)
-			assert.Nil(t, err)
-			_, err = s3client.DeleteObjectInBucket(ctx, bucketName, ObjectKey2)
-			assert.Nil(t, err)
-		})
-
-		t.Run("change quota to bucketMaxSize", func(t *testing.T) {
-			obc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-			assert.Nil(t, err)
-
-			obc.Spec.AdditionalConfig = map[string]string{"bucketMaxSize": "4Ki"}
-
-			_, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Update(ctx, obc, metav1.UpdateOptions{})
-			assert.Nil(t, err)
-			obcBound := utils.Retry(20, 2*time.Second, "OBC is Bound", func() bool {
-				liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveObc.Status.Phase == v1alpha1.ObjectBucketClaimStatusPhaseBound
-			})
-			assert.True(t, obcBound)
-
-			// wait until obc is Bound to lookup the ob name
-			obc, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-			assert.Nil(t, err)
-			obName = obc.Spec.ObjectBucketName
-
-			obBound := utils.Retry(20, 2*time.Second, "OB is Bound", func() bool {
-				liveOb, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-
-				return liveOb.Status.Phase == v1alpha1.ObjectBucketStatusPhaseBound
-			})
-			assert.True(t, obBound)
-
-			// verify that bucketMaxSize is set
-			assert.True(t, obc.Spec.AdditionalConfig["bucketMaxSize"] == "4Ki")
-		})
-
-		t.Run("bucketMaxSize quota is enforced", func(t *testing.T) {
-			// first ~3KiB Object should succeed
-			_, err := s3client.PutObjectInBucket(ctx, bucketName, strings.Repeat("1", 3072), ObjectKey1, contentType)
-			assert.Nil(t, err)
-			// second ~2KiB Object should fail as bucket quota is 4KiB
-			_, err = s3client.PutObjectInBucket(ctx, bucketName, strings.Repeat("2", 2048), ObjectKey2, contentType)
-			assert.Error(t, err)
-			// cleanup bucket
-			_, err = s3client.DeleteObjectInBucket(ctx, bucketName, ObjectKey1)
-			assert.Nil(t, err)
-			_, err = s3client.DeleteObjectInBucket(ctx, bucketName, ObjectKey2)
-			assert.Nil(t, err)
-		})
-
-		t.Run("delete bucket", func(t *testing.T) {
-			err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Delete(ctx, bucketName, metav1.DeleteOptions{})
-			assert.Nil(t, err)
-
-			absent := utils.Retry(20, 2*time.Second, "OBC is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
-
-			absent = utils.Retry(20, 2*time.Second, "OB is absent", func() bool {
-				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
-				return err != nil
-			})
-			assert.True(t, absent)
-		})
 	})
 
 	t.Run("OBC bucket policy management", func(t *testing.T) {

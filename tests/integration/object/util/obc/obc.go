@@ -87,6 +87,21 @@ func NewS3Agent(ctx context.Context, t *testing.T, k8sh *utils.K8sHelper, store 
 	return agent
 }
 
+// Update applies mutate to the live OBC and updates it.
+func Update(ctx context.Context, t *testing.T, k8sh *utils.K8sHelper, namespace, name string, mutate func(*bktv1alpha1.ObjectBucketClaim)) {
+	t.Helper()
+
+	obcClient := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace)
+
+	live, err := obcClient.Get(ctx, name, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	mutate(live)
+
+	_, err = obcClient.Update(ctx, live, metav1.UpdateOptions{})
+	require.NoError(t, err)
+}
+
 // DeleteAndWait deletes the OBC and waits for its backing ObjectBucket (and thus
 // the rgw bucket) to be garbage-collected by the provisioner.
 func DeleteAndWait(ctx context.Context, t *testing.T, k8sh *utils.K8sHelper, namespace, name string) {

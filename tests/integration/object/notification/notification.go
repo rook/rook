@@ -312,18 +312,12 @@ func TestBucketNotification(t *testing.T, k8sh *utils.K8sHelper, store *sharedst
 func updateOBCLabels(ctx context.Context, t *testing.T, k8sh *utils.K8sHelper, namespace, name string, mutate func(map[string]string)) {
 	t.Helper()
 
-	obcClient := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace)
-
-	liveOBC, err := obcClient.Get(ctx, name, metav1.GetOptions{})
-	require.NoError(t, err)
-
-	if liveOBC.Labels == nil {
-		liveOBC.Labels = map[string]string{}
-	}
-	mutate(liveOBC.Labels)
-
-	_, err = obcClient.Update(ctx, liveOBC, metav1.UpdateOptions{})
-	require.NoError(t, err)
+	obc.Update(ctx, t, k8sh, namespace, name, func(live *bktv1alpha1.ObjectBucketClaim) {
+		if live.Labels == nil {
+			live.Labels = map[string]string{}
+		}
+		mutate(live.Labels)
+	})
 }
 
 // requireHTTPSink deploys a sample HTTP server that records the bucket
