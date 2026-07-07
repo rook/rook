@@ -54,7 +54,7 @@ kubectl apply -f operator.yaml -f cluster.yaml # add other files as desired for 
 ```
 
 Also see the CSI driver
-[documentation](../Ceph-CSI/ceph-csi-drivers.md#Configure-CSI-Drivers-in-non-default-namespace)
+[documentation](../Ceph-CSI/ceph-csi-drivers.md#configure-csi-drivers-in-non-default-namespace)
 to update the csi provisioner names in the storageclass and volumesnapshotclass.
 
 ## Deploying a second cluster
@@ -406,7 +406,7 @@ ceph osd primary-affinity osd.0 0
 !!! tip
     This documentation is left for historical purposes. It is still valid, but Rook offers native
     support for this feature via the
-    [CephCluster network configuration](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-public-and-cluster-networks).
+[CephCluster network configuration](../../CRDs/Cluster/ceph-cluster-crd.md#network-configuration-settings).
 
 It is possible to configure ceph to leverage a dedicated network for the OSDs to
 communicate across. A useful overview is the [Ceph Networks](http://docs.ceph.com/docs/master/rados/configuration/network-config-ref/#ceph-networks)
@@ -420,7 +420,7 @@ Two changes are necessary to the configuration to enable this capability:
 
 ### Use hostNetwork in the cluster configuration
 
-Enable the `hostNetwork` setting in the [Ceph Cluster CRD configuration](../../CRDs/Cluster/ceph-cluster-crd.md#samples).
+Enable the `hostNetwork` setting in the [Ceph Cluster CRD configuration](../../CRDs/Cluster/ceph-cluster-crd.md).
 For example,
 
 ```yaml
@@ -496,7 +496,7 @@ ceph osd tree
 
 ### Prerequisites for Auto Expansion of OSDs
 
-1) A [PVC-based cluster](../../CRDs/Cluster/ceph-cluster-crd.md#pvc-based-cluster) deployed in dynamic provisioning environment with a `storageClassDeviceSet`.
+1) A [PVC-based cluster](../../CRDs/Cluster/pvc-cluster.md) deployed in dynamic provisioning environment with a `storageClassDeviceSet`.
 
 2) Create the Rook [Toolbox](../../Troubleshooting/ceph-toolbox.md).
 

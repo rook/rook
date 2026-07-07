@@ -72,7 +72,7 @@ drivers:
 
 **Note** The prefix `rook-ceph` should always be the rook operator namespace.
 
-See: [Driver name / provisioner prefix](../Storage-Configuration/Ceph-CSI/csi-configuration.md#driver-name--provisioner-prefix)
+See: [Driver name / provisioner prefix](../Storage-Configuration/Ceph-CSI/csi-configuration.md#driver-name-prefix)
 
 ### NFS CSI driver
 

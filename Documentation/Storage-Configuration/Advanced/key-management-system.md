@@ -34,7 +34,7 @@ Supported KMS providers:
 - [IBM Key Protect](#ibm-key-protect)
     - [Configuration](#configuration)
 - [Key Management Interoperability Protocol](#key-management-interoperability-protocol)
-    - [Configuration](#configuration-1)
+    - [Configuration](#configuration_1)
 - [Azure Key Vault](#azure-key-vault)
     - [Client Authentication](#client-authentication)
 

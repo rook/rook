@@ -41,4 +41,4 @@ If any setting is unspecified, a suitable default will be used automatically.
 
 ## Configuring mirroring peers
 
-In order to configure mirroring peers, please refer to the [CephFilesystem documentation](ceph-filesystem-crd.md#mirroring).
+In order to configure mirroring peers, please refer to the [CephFilesystem documentation](ceph-filesystem-crd.md#metadata-server-settings).

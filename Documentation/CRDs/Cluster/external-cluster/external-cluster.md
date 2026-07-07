@@ -37,6 +37,6 @@ Create the desired types of storage in the provider Ceph cluster:
 
 ## Upgrades
 
-* [Upgrade external cluster](upgrade-external.md#upgrade-external-cluster)
+* [Upgrade external cluster](upgrade-external.md#upgrade-the-cluster-to-consume-latest-ceph-user-caps-mandatory)
 
-* [Utilize new features in upgrade](upgrade-external.md#upgrade-cluster-to-utilize-new-feature)
+* [Utilize new features in upgrade](upgrade-external.md#upgrade-cluster-to-utilize-a-new-feature-optional)
