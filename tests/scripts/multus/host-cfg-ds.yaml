@@ -1,5 +1,5 @@
 ####################################################################################################
-# this daemonset configures each minikube or KinD node to route to the multus public net
+# this daemonset configures each KinD node to route to the multus public net
 # it is not suitable for production
 ####################################################################################################
 apiVersion: apps/v1
