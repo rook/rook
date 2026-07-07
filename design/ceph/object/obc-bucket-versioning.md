@@ -1,6 +1,6 @@
 ---
 title: Bucket versioning support for ObjectBucketClaims
-target-version: release-1.18
+target-version: release-1.21
 ---
 
 # Bucket versioning support for ObjectBucketClaims
