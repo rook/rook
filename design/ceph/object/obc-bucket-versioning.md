@@ -51,7 +51,9 @@ values:
 
 Any other value is a validation error, and the OBC will fail to reconcile with
 an error event, consistent with how invalid `maxSize`/`maxObjects` values are
-handled.
+handled. Validation is case-sensitive: only the exact strings `Enabled` and
+`Suspended` (matching the S3 `VersioningConfiguration.Status` wire values) are
+accepted. Variants such as `enabled`, `ENABLED`, or `suspended` are rejected.
 
 ### Why "key not present" means "unmanaged" instead of "delete"
 
@@ -128,25 +130,25 @@ pairing `bucketVersioning` with a `bucketLifecycle` rule using
 
 ### Provisioner behavior
 
-A new `bucketVersioning *string` field is added to the internal
-`additionalConfigSpec` struct
-(`pkg/operator/ceph/object/bucket/provisioner.go`), parsed and validated in
-`additionalConfigSpecFromMap()` (`pkg/operator/ceph/object/bucket/util.go`)
-with the same allow-list check used by the other gated fields.
+When `bucketVersioning` is set in the OBC `additionalConfig`, the provisioner
+manages the bucket's versioning state during both Provision (greenfield) and
+Grant (brownfield) paths. It follows the same read-compare-write pattern as
+`bucketPolicy` and `bucketLifecycle`:
 
-A new `setBucketVersioning()` step is appended to `setAdditionalSettings()`,
-which runs on OBC Provision, Grant, and update reconciles. It follows the
-established read-compare-write pattern of `setBucketPolicy()` /
-`setBucketLifecycle()`:
-
-1. `GetBucketVersioning` on the bucket via the S3 SDK (using the bucket
-   owner's credentials, so this works with `bucketOwner` as well).
-2. If `bucketVersioning` is unset, return without action (unmanaged).
-3. Compare the live status against the desired status. A live empty status
-   (unversioned bucket) is only ever different from the desired state, since
-   `Enabled`/`Suspended` are the only accepted values.
+1. Read the current versioning configuration from the bucket via
+   `GetBucketVersioning` (using the bucket owner's credentials, so this
+   composes with `bucketOwner`).
+2. If `bucketVersioning` is unset, take no action — the live state is left
+   as-is (unmanaged).
+3. Compare the live status against the desired status. An unversioned bucket
+   (empty live status) is treated as different from the desired
+   `Enabled`/`Suspended` value.
 4. On difference, call `PutBucketVersioning` with the desired
    `VersioningConfiguration.Status` and log the change.
+
+Versioning is applied **before** lifecycle configuration, so that a
+`bucketLifecycle` rule targeting noncurrent versions (e.g.
+`NoncurrentVersionExpiration`) has versioned objects to act on.
 
 The operation is idempotent and level-triggered: repeated reconciles converge
 and drift introduced by direct S3 API calls is corrected on the next
