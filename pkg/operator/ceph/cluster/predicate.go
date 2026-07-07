@@ -19,12 +19,14 @@ package cluster
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
@@ -63,6 +65,27 @@ func shouldReconcileChangedNode(objOld, objNew *corev1.Node) bool {
 	return true
 }
 
+// topologyLabels is the set of node labels Rook uses to build the OSD CRUSH map
+// topology (the hostname, the Kubernetes region/zone labels, and the
+// topology.rook.io/* labels). Only changes to one of these labels are relevant
+// to Rook; other label or annotation changes on a node must not trigger a
+// reconcile.
+var topologyLabels = strings.Split(topology.GetDefaultTopologyLabels(), ",")
+
+// nodeTopologyLabelsChanged returns true if the value of any of the OSD topology
+// labels Rook cares about differs between the old and new node. This detects a
+// topology label being added, removed, or changed.
+func nodeTopologyLabelsChanged(objOld, objNew *corev1.Node) bool {
+	oldLabels := objOld.GetLabels()
+	newLabels := objNew.GetLabels()
+	for _, label := range topologyLabels {
+		if oldLabels[label] != newLabels[label] {
+			return true
+		}
+	}
+	return false
+}
+
 // predicateForNodeWatcher is the predicate function to trigger reconcile on Node events
 func predicateForNodeWatcher[T *corev1.Node](ctx context.Context, client client.Client, context *clusterd.Context, opNamespace string) predicate.TypedFuncs[T] {
 	return predicate.TypedFuncs[T]{
@@ -79,6 +102,15 @@ func predicateForNodeWatcher[T *corev1.Node](ctx context.Context, client client.
 		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
 			objOld := (*corev1.Node)(e.ObjectOld)
 			objNew := (*corev1.Node)(e.ObjectNew)
+
+			// When one of the OSD topology labels Rook cares about (for example
+			// the topology.rook.io/* labels) changes, trigger a reconcile
+			// directly. Otherwise onK8sNode() would return false for a node that
+			// is already an OSD host and the relabel would never be propagated to
+			// the CRUSH map.
+			if nodeTopologyLabelsChanged(objOld, objNew) {
+				return true
+			}
 
 			if !shouldReconcileChangedNode(objOld, objNew) {
 				return false

@@ -17,12 +17,15 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
 func TestIsHotPlugCM(t *testing.T) {
@@ -61,4 +64,130 @@ func TestCompareNodes(t *testing.T) {
 			assert.Equal(t, tt.reconcile, shouldReconcileChangedNode(&tt.oldobj, &tt.newobj))
 		})
 	}
+}
+
+func TestNodeTopologyLabelsChanged(t *testing.T) {
+	tests := []struct {
+		name    string
+		oldobj  corev1.Node
+		newobj  corev1.Node
+		changed bool
+	}{
+		{"if no labels", corev1.Node{}, corev1.Node{}, false},
+		{
+			"if a topology label is added",
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"kubernetes.io/hostname": "node1"}}},
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"kubernetes.io/hostname": "node1", "topology.rook.io/rack": "rack1"}}},
+			true,
+		},
+		{
+			"if a topology label value is changed",
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"topology.rook.io/rack": "rack1"}}},
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"topology.rook.io/rack": "rack2"}}},
+			true,
+		},
+		{
+			"if a topology label is removed",
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"kubernetes.io/hostname": "node1", "topology.rook.io/rack": "rack1"}}},
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"kubernetes.io/hostname": "node1"}}},
+			true,
+		},
+		{
+			"if a kubernetes topology label is changed",
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"topology.kubernetes.io/zone": "zone1"}}},
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"topology.kubernetes.io/zone": "zone2"}}},
+			true,
+		},
+		{
+			"if a non-topology label is changed",
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"topology.rook.io/rack": "rack1", "example.com/foo": "bar"}}},
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"topology.rook.io/rack": "rack1", "example.com/foo": "baz"}}},
+			false,
+		},
+		{
+			"if an annotation is changed",
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "bar"}}},
+			corev1.Node{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "baz"}}},
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			//#nosec G601 -- since nothing is modifying the tests slice
+			assert.Equal(t, tt.changed, nodeTopologyLabelsChanged(&tt.oldobj, &tt.newobj))
+		})
+	}
+}
+
+func TestPredicateForNodeWatcherUpdate(t *testing.T) {
+	ns := "rook-ceph"
+	opns := "operator"
+	nodeName := "node-already-osd-host"
+
+	// Simulate a node that onK8sNode() would short-circuit to false for (for
+	// example because it is already an OSD host), so the only way a label change
+	// triggers a reconcile is the topology label check in UpdateFunc.
+	nodesCheckedForReconcile.Insert(nodeName)
+	defer nodesCheckedForReconcile.Delete(nodeName)
+
+	client := getFakeClient(fakeCluster(ns))
+	p := predicateForNodeWatcher[*corev1.Node](context.TODO(), client, &clusterd.Context{}, opns)
+
+	baseNode := func() *corev1.Node {
+		return &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   nodeName,
+				Labels: map[string]string{"kubernetes.io/hostname": nodeName},
+			},
+		}
+	}
+
+	t.Run("topology label change triggers reconcile even when onK8sNode returns false", func(t *testing.T) {
+		objOld := baseNode()
+		objNew := baseNode()
+		objNew.Labels["topology.rook.io/rack"] = "rack1"
+
+		reconcile := p.Update(event.TypedUpdateEvent[*corev1.Node]{ObjectOld: objOld, ObjectNew: objNew})
+		assert.True(t, reconcile)
+	})
+
+	t.Run("non-topology label change does not trigger reconcile", func(t *testing.T) {
+		objOld := baseNode()
+		objNew := baseNode()
+		objNew.Labels["example.com/foo"] = "bar"
+
+		reconcile := p.Update(event.TypedUpdateEvent[*corev1.Node]{ObjectOld: objOld, ObjectNew: objNew})
+		assert.False(t, reconcile)
+	})
+
+	t.Run("annotation change does not trigger reconcile", func(t *testing.T) {
+		objOld := baseNode()
+		objNew := baseNode()
+		objNew.Annotations = map[string]string{"foo": "bar"}
+
+		reconcile := p.Update(event.TypedUpdateEvent[*corev1.Node]{ObjectOld: objOld, ObjectNew: objNew})
+		assert.False(t, reconcile)
+	})
+
+	t.Run("resourceVersion-only change does not trigger reconcile", func(t *testing.T) {
+		objOld := baseNode()
+		objNew := baseNode()
+		objOld.ResourceVersion = "1"
+		objNew.ResourceVersion = "2"
+
+		reconcile := p.Update(event.TypedUpdateEvent[*corev1.Node]{ObjectOld: objOld, ObjectNew: objNew})
+		assert.False(t, reconcile)
+	})
+
+	t.Run("non-label spec change defers to onK8sNode", func(t *testing.T) {
+		objOld := baseNode()
+		objNew := baseNode()
+		objNew.Spec.PodCIDR = "10.0.0.0/24"
+
+		// onK8sNode short-circuits to false because the node is already in
+		// nodesCheckedForReconcile, so a pure spec change is not forced to true.
+		reconcile := p.Update(event.TypedUpdateEvent[*corev1.Node]{ObjectOld: objOld, ObjectNew: objNew})
+		assert.False(t, reconcile)
+	})
 }
