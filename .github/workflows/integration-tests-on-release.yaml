@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.33.12", "1.35.5"]
+        kubernetes-version: ["v1.31.14", "v1.32.11", "v1.34.8", "v1.36.1"]
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -67,7 +67,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.33.12", "1.35.5"]
+        kubernetes-version: ["v1.31.14", "v1.32.11", "v1.34.8", "v1.36.1"]
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -108,7 +108,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.33.12", "1.35.5"]
+        kubernetes-version: ["v1.31.14", "v1.32.11", "v1.34.8", "v1.36.1"]
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -147,7 +147,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.33.12", "1.35.5"]
+        kubernetes-version: ["v1.31.14", "v1.32.11", "v1.34.8", "v1.36.1"]
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -186,7 +186,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.31.14", "v1.32.13", "v1.33.12", "1.35.5"]
+        kubernetes-version: ["v1.31.14", "v1.32.11", "v1.34.8", "v1.36.1"]
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -226,7 +226,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.31.14"]  # test only on oldest supported k8s version
+        kubernetes-version: ["v1.31.14"] # test only on oldest supported k8s version
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -265,7 +265,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.35.5"]  # test only on latest supported k8s version
+        kubernetes-version: ["v1.35.5"] # test only on latest supported k8s version
     steps:
       - name: checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
