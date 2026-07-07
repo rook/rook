@@ -710,7 +710,7 @@ the discover daemonset is not created, even though `ROOK_ENABLE_DISCOVERY_DAEMON
 ### Investigation
 
 Inspect the `rook-ceph-operator-config` ConfigMap for conflicting settings. The ConfigMap takes
-precedence over the environment. The ConfigMap [must exist](../Storage-Configuration/Advanced/ceph-configuration.md#configuration-using-environment-variables),
+precedence over the environment. The ConfigMap [must exist](../Storage-Configuration/Advanced/ceph-configuration.md#custom-cephconf-settings),
 even if all actual configuration is supplied through the environment.
 
 Look for lines with the `op-k8sutil` prefix in the operator logs.

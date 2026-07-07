@@ -215,7 +215,7 @@ The gateway settings correspond to the RGW daemon settings.
 * `instances`: The number of pods that will be started to load balance this object store.
 * `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways
     (works with external mode). This setting will be ignored if the `CephCluster` does not have
-    `external` spec enabled. Refer to the [external cluster section](../Cluster/ceph-cluster-crd.md#external-cluster)
+`external` spec enabled. Refer to the [external cluster section](../Cluster/external-cluster/external-cluster.md)
     for more details. Multiple endpoints can be given, but for stability of ObjectBucketClaims, we
     highly recommend that users give only a single external RGW endpoint that is a load balancer that
     sends requests to the multiple RGWs.

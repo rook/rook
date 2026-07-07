@@ -27,7 +27,7 @@ $ kubectl -n rook-ceph exec -it <pod> -- bash
 After you have created a pool as described in the [Block Storage](../Storage-Configuration/Block-Storage-RBD/block-storage.md) topic, you can create a block image and mount it directly in a pod.
 This example will show how the Ceph rbd volume can be mounted in the direct mount pod.
 
-Create the [Direct Mount Pod](direct-tools.md#Start-the-Direct-Mount-Pod).
+Create the [Direct Mount Pod](direct-tools.md#start-the-direct-mount-pod).
 
 Create a volume image (10MB):
 
@@ -79,7 +79,7 @@ After you have created a filesystem as described in the [Shared Filesystem](../S
 The other topic you may have mounted the filesystem already in the registry pod. Now we will mount the same filesystem in the Direct Mount pod.
 This is just a simple way to validate the Ceph filesystem and is not recommended for production Kubernetes pods.
 
-Follow [Direct Mount Pod](direct-tools.md#Start-the-Direct-Mount-Pod) to start a pod with the necessary mounts and then proceed with the following commands after connecting to the pod.
+Follow [Direct Mount Pod](direct-tools.md#start-the-direct-mount-pod) to start a pod with the necessary mounts and then proceed with the following commands after connecting to the pod.
 
 ```console
 # Create the directory
