@@ -57,11 +57,11 @@ With this upgrade guide, there are a few notes to consider:
 
 Unless otherwise noted due to extenuating requirements, upgrades from one patch release of Rook to
 another are as simple as updating the common resources and the image of the Rook operator. For
-example, when Rook v1.20.1 is released, the process of updating from v1.20.0 is as simple as running
+example, when Rook v1.20.2 is released, the process of updating from v1.20.0 is as simple as running
 the following:
 
 ```console
-git clone --single-branch --depth=1 --branch v1.20.1 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.20.2 https://github.com/rook/rook.git
 cd rook/deploy/examples
 ```
 
@@ -74,7 +74,7 @@ Operator image.
 
 ```console
 kubectl apply -f common.yaml -f crds.yaml -f csi-operator.yaml
-kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.20.1
+kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.20.2
 ```
 
 A good practice is to update Rook common resources from the example
@@ -144,7 +144,7 @@ In order to successfully upgrade a Rook cluster, the following prerequisites mus
 ## Rook Operator Upgrade
 
 The examples given in this guide upgrade a live Rook cluster running `v1.19.7` to
-the version `v1.20.1`. This upgrade should work from any official patch release of Rook v1.19 to any
+the version `v1.20.2`. This upgrade should work from any official patch release of Rook v1.19 to any
 official patch release of v1.20.
 
 Let's get started!
@@ -195,7 +195,7 @@ by the Operator. Also update the Custom Resource Definitions (CRDs).
 Get the latest common resources manifests that contain the latest changes.
 
 ```console
-git clone --single-branch --depth=1 --branch v1.20.1 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.20.2 https://github.com/rook/rook.git
 cd rook/deploy/examples
 ```
 
@@ -237,7 +237,7 @@ The largest portion of the upgrade is triggered when the operator's image is upd
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```console
-kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.20.1
+kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.20.2
 ```
 
 ### **4. Update Ceph CSI Custom Images**
@@ -261,16 +261,16 @@ watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=
 ```
 
 As an example, this cluster is midway through updating the OSDs. When all deployments report `1/1/1`
-availability and `rook-version=v1.20.1`, the Ceph cluster's core components are fully updated.
+availability and `rook-version=v1.20.2`, the Ceph cluster's core components are fully updated.
 
 ```console
 Every 2.0s: kubectl -n rook-ceph get deployment -o j...
 
-rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.20.1
-rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.20.1
-rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.20.1
-rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.20.1
-rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.20.1
+rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.20.2
+rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.20.2
+rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.20.2
+rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.20.2
+rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.20.2
 rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.19.7
 rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.19.7
 ```
@@ -282,14 +282,14 @@ An easy check to see if the upgrade is totally finished is to check that there i
 # kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
   rook-version=v1.19.7
-  rook-version=v1.20.1
+  rook-version=v1.20.2
 This cluster is finished:
-  rook-version=v1.20.1
+  rook-version=v1.20.2
 ```
 
 ### **6. Verify the updated cluster**
 
-At this point, the Rook operator should be running version `rook/ceph:v1.20.1`.
+At this point, the Rook operator should be running version `rook/ceph:v1.20.2`.
 
 Verify the CSI drivers:
 
