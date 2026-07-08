@@ -53,6 +53,12 @@ type TestCephSettings struct {
 	CephVersion                 cephv1.CephVersionSpec
 	KubernetesVersion           string
 	ClusterConcurrency          int
+
+	// UseMultisiteObjectStore configures the Helm chart's object store as an RGW
+	// multisite zone (realm/zone group/zone/shared pools) instead of a plain
+	// store. Only valid for local-chart installs, which carry the multisite
+	// templates, so it must stay off for the upgrade suite's older base chart.
+	UseMultisiteObjectStore bool
 }
 
 func (s *TestCephSettings) ApplyEnvVars() {
