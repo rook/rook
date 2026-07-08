@@ -45,7 +45,7 @@ values:
 
 | `bucketVersioning` value | Meaning |
 | ------------------------ | ------- |
-| _key not present_        | Rook does not manage versioning. The bucket's current versioning state, whatever it is, is left untouched. |
+| _key not present_        | When `bucketVersioning` is in `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS`, Rook reconciles the bucket's versioning status to `Suspended` — the deterministic default. When the field is **not** in the allow-list, Rook does not manage versioning and the bucket's current state is left untouched. |
 | `Enabled`                | Rook reconciles the bucket's versioning status to `Enabled`. |
 | `Suspended`              | Rook reconciles the bucket's versioning status to `Suspended`. |
 
@@ -55,7 +55,7 @@ handled. Validation is case-sensitive: only the exact strings `Enabled` and
 `Suspended` (matching the S3 `VersioningConfiguration.Status` wire values) are
 accepted. Variants such as `enabled`, `ENABLED`, or `suspended` are rejected.
 
-### Why "key not present" means "unmanaged" instead of "delete"
+### Why "key not present" means "Suspended" (deterministic default) when the field is managed
 
 For `bucketPolicy` and `bucketLifecycle`, removing the key from
 `additionalConfig` causes the provisioner to delete the live policy/lifecycle
@@ -63,20 +63,35 @@ configuration. Versioning cannot follow that convention because there is no
 "delete" operation for versioning state — an S3 bucket that has ever been
 versioned cannot go back to unversioned.
 
-The two candidate semantics for a removed `bucketVersioning` key are:
+The two candidate semantics for a removed `bucketVersioning` key (when the
+field is in `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS`) are:
 
-1. **Unmanaged** (proposed): leave the live state as-is.
-2. **Suspend**: reconcile the bucket to `Suspended`.
+1. **Unmanaged**: leave the live state as-is.
+2. **Suspend** (preferred): reconcile the bucket to `Suspended` — the
+   deterministic default.
 
-Option 2 is rejected because it makes key-removal a destructive state change
-(new object writes silently stop being versioned), which is surprising and
-inconsistent with the general principle that removing a config key returns
-control to the user rather than forcing a specific state. Option 1 also
-matches what `Suspended` is for: users who explicitly want versioning off
-can say so.
+**Option 2 is preferred.** The maintainers (see discussion on PR #17886)
+chose it because it makes the bucket's state deterministic from the OBC
+spec alone, irrespective of the resource's history: removing
+`bucketVersioning` from the OBC reliably sets versioning off, rather than
+leaving the bucket in whatever state a prior edit or out-of-band change left
+it in. This matches the usual Kubernetes expectation that the observed state
+converges to a known value derived from the spec. The "unmanaged" behavior is
+treated as a side-effect of the legacy removal handling rather than an intent
+to preserve unknown history. Users who want versioning on the bucket can
+explicitly set `Enabled`; users who want versioning off can either omit the key
+(or set `Suspended`) and get `Suspended`.
 
-This asymmetry with `bucketPolicy`/`bucketLifecycle` removal semantics will be
-called out in the user-facing documentation.
+This asymmetric behavior with `bucketPolicy`/`bucketLifecycle` removal
+semantics will be called out in the user-facing documentation, along with the
+important caveat that `Suspended` is **one-way-reachable only from the
+unversioned state** — once a bucket has been `Enabled`, `Suspended` retains
+all existing object versions and simply stops creating new ones.
+
+This deterministic-default behavior only applies when `bucketVersioning` is
+listed in `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS`. When it is **not** in the
+allow-list (the default), Rook does not manage versioning at all, preserving
+existing installs and avoiding surprising behavior on upgrade.
 
 ### `Suspended` on a never-versioned bucket
 
@@ -128,6 +143,12 @@ and justifies keeping the field opt-in. The documentation will recommend
 pairing `bucketVersioning` with a `bucketLifecycle` rule using
 `NoncurrentVersionExpiration`.
 
+When `bucketVersioning` is in `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS`, an OBC
+that does **not** set the key gets the field reconciled to `Suspended` by
+default (the deterministic-default behavior adopted for PR #17886), so the
+observed state always converges to a known value. When the field is **not** in
+the allow-list (the default), Rook does not manage versioning at all.
+
 ### Provisioner behavior
 
 When `bucketVersioning` is set in the OBC `additionalConfig`, the provisioner
@@ -138,11 +159,14 @@ Grant (brownfield) paths. It follows the same read-compare-write pattern as
 1. Read the current versioning configuration from the bucket via
    `GetBucketVersioning` (using the bucket owner's credentials, so this
    composes with `bucketOwner`).
-2. If `bucketVersioning` is unset, take no action — the live state is left
-   as-is (unmanaged).
+2. If `bucketVersioning` is unset but the field **is** in
+   `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS`, Rook reconciles the bucket to
+   `Suspended` — the deterministic default when the field is managed. If the
+   field is **not** in the allow-list, Rook takes no action and the live
+   versioning state is left untouched (preserving existing installs).
 3. Compare the live status against the desired status. An unversioned bucket
-   (empty live status) is treated as different from the desired
-   `Enabled`/`Suspended` value.
+   (empty live status) is treated as different from a desired `Enabled` value,
+   and as matching a desired `Suspended` value.
 4. On difference, call `PutBucketVersioning` with the desired
    `VersioningConfiguration.Status` and log the change.
 
@@ -160,8 +184,10 @@ reconcile, consistent with the other `additionalConfig` fields.
   creation and quota setup.
 - **Grant** (brownfield, pre-existing bucket): versioning is reconciled on the
   existing bucket the same way quotas are today. If the existing bucket is
-  already versioned and the OBC does not set `bucketVersioning`, the live
-  state is preserved.
+  already versioned and the OBC does not set `bucketVersioning`, the outcome
+  depends on gating: when `bucketVersioning` is **not** in the allow-list the
+  live state is preserved; when it **is** in the allow-list, Rook reconciles
+  the bucket to `Suspended` (the deterministic default).
 
 ### Out of scope (and how this design leaves room for it)
 
@@ -187,7 +213,9 @@ reconcile, consistent with the other `additionalConfig` fields.
   values (`true`, `enabled`, arbitrary strings), and allow-list gating.
 - Unit tests for `setBucketVersioning()` using the existing mocked S3/admin
   API test fixtures in `provisioner_test.go`: enable on unversioned bucket,
-  no-op when in sync, suspend transition, unmanaged when key absent.
+  no-op when in sync, suspend transition, and the key-absent deterministic
+  default (`Suspended` when the field is in the allow-list, unmanaged when it
+  is not).
 - CI integration: extend the object bucket e2e suite
   (`tests/integration`) with an OBC that sets `bucketVersioning: Enabled`,
   asserts `GetBucketVersioning` returns `Enabled`, flips to `Suspended`, and
@@ -197,7 +225,9 @@ reconcile, consistent with the other `additionalConfig` fields.
 
 - `Documentation/Storage-Configuration/Object-Storage-RGW/ceph-object-bucket-claim.md`:
   document the new key, its three-state semantics, the one-way nature of
-  enabling versioning, the unmanaged-when-absent behavior, and the
-  recommendation to pair with a noncurrent-version lifecycle rule.
+  enabling versioning, the deterministic-default behavior when the key is
+  absent (`Suspended` when the field is in the allow-list, unmanaged when it
+  is not), and the recommendation to pair with a noncurrent-version lifecycle
+  rule.
 - `deploy/examples/object-bucket-claim-versioning.yaml` (or extend the
   existing OBC example): commented example manifest.
