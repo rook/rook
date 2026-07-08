@@ -1,0 +1,13 @@
+{{- $root := . -}}
+{{- range $realm := .Values.cephObjectRealms }}
+---
+kind: CephObjectRealm
+apiVersion: ceph.rook.io/v1
+metadata:
+  name: {{ $realm.name }}
+  namespace: {{ $root.Release.Namespace }} # namespace:cluster
+{{- with $realm.spec }}
+spec:
+  {{- . | toYaml | nindent 2 }}
+{{- end }}
+{{- end }}

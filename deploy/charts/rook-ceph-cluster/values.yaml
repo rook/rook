@@ -698,6 +698,43 @@ cephObjectStores:
       #   - name: internal
       #     namespace: kube-system
       #     sectionName: https
+## CephObjectRealm, CephObjectZoneGroup, and CephObjectZone configure RGW multisite. They are
+## disabled by default; remove the comments and set desired values to enable them. See
+## https://rook.io/docs/rook/latest/Storage-Configuration/Object-Storage-RGW/ceph-object-multisite/
+## The example below creates a new realm on this (primary) cluster. On a secondary cluster that
+## syncs from another realm, add a `spec.pull.endpoint` to the realm instead (see the realm CRD docs).
+#cephObjectRealms:
+#  - name: realm-a
+#    # spec is only required to pull a realm from another cluster; omit it to create a new realm
+#    # spec:
+#    #   pull:
+#    #     endpoint: http://<master-zone-endpoint>
+#cephObjectZoneGroups:
+#  - name: zonegroup-a
+#    spec:
+#      realm: realm-a
+#cephObjectZones:
+#  - name: zone-a
+#    spec:
+#      zoneGroup: zonegroup-a
+#      metadataPool:
+#        failureDomain: host
+#        replicated:
+#          size: 3
+#          requireSafeReplicaSize: true
+#      dataPool:
+#        failureDomain: host
+#        replicated:
+#          size: 3
+#          requireSafeReplicaSize: true
+#        parameters:
+#          compression_mode: none
+#          bulk: "true"
+#      # recommended to set this value if ingress used for exposing rgw endpoints
+#      # customEndpoints:
+#      #   - "http://rgw-a.fqdn"
+#      # if the pools need to be removed from backend enable following setting
+#      # preservePoolsOnDelete: false
 ## cephECBlockPools are disabled by default, please remove the comments and set desired values to enable it
 ## For erasure coded a replicated metadata pool is required.
 ## https://rook.io/docs/rook/latest/CRDs/Shared-Filesystem/ceph-filesystem-crd/#erasure-coded
