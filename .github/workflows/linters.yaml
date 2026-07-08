@@ -58,8 +58,12 @@ jobs:
   check-markdown-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Check markdown links
-        run: make lint.markdown-links
+        uses: jhoblitt/markdown-linkerator-action@39023847fd23f279072ee7902702c991f125f9d3 # v1.0.0
+        with:
+          config: tests/scripts/mlc_config.json
+          paths: Documentation
+          rate: "5"
+          retry-count: "2"
+          cache: "true"

@@ -202,7 +202,7 @@ lint.markdown: ## Check formatting of documentation sources
 
 .PHONY: lint.markdown-links
 lint.markdown-links:
-	@$(DOCKERCMD) run --rm -v "$$PWD:/workspace" --entrypoint "/workspace/tests/scripts/check-markdown-links-internal.sh" ghcr.io/tcort/markdown-link-check:stable
+	@$(DOCKERCMD) run --rm -v "$$PWD:/workspace" -w /workspace -e GITHUB_TOKEN ghcr.io/jhoblitt/markdown-linkerator:v1 --config tests/scripts/mlc_config.json --rate 5 --retry-count 2 Documentation
 
 .PHONY: fix.markdown
 fix.markdown: ## Check and fix formatting of documentation sources
