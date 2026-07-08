@@ -35,7 +35,7 @@ cluster to the secondary cluster:
 
 * Scale down all the application pods which are using the
     mirrored PVC on the Primary Cluster.
-* [Take a backup](rbd-mirroring.md#backup-restore) of PVC and PV object from the primary cluster.
+* [Take a backup](rbd-mirroring.md#backup--restore) of PVC and PV object from the primary cluster.
     This can be done using some backup tools like
     [velero](https://velero.io/docs/main/).
 * [Update VolumeReplication CR](rbd-mirroring.md#create-a-volumereplication-cr) to set `replicationState` to `secondary` at the Primary Site.
@@ -65,7 +65,7 @@ cluster to the secondary cluster:
 
 !!! note
     To effectively resume operations after a failover/relocation,
-backup of the kubernetes artifacts like deployment, PVC, PV, etc need to be created beforehand by the admin; so that the application can be restored on the peer cluster. For more information, see [backup and restore](rbd-mirroring.md#backup-restore).
+backup of the kubernetes artifacts like deployment, PVC, PV, etc need to be created beforehand by the admin; so that the application can be restored on the peer cluster. For more information, see [backup and restore](rbd-mirroring.md#backup--restore).
 
 ### Failover (abrupt shutdown)
 
