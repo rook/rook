@@ -32,9 +32,9 @@ Supported KMS providers:
     - [General Vault configuration](#general-vault-configuration)
     - [TLS configuration](#tls-configuration)
 - [IBM Key Protect](#ibm-key-protect)
-    - [Configuration](#configuration)
+    - [IBM Key Protect Configuration](#ibm-key-protect-configuration)
 - [Key Management Interoperability Protocol](#key-management-interoperability-protocol)
-    - [Configuration](#configuration_1)
+    - [KMIP Configuration](#kmip-configuration)
 - [Azure Key Vault](#azure-key-vault)
     - [Client Authentication](#client-authentication)
 
@@ -253,7 +253,7 @@ keys as [Standard Keys](https://cloud.ibm.com/docs/key-protect?topic=key-protect
 Key](https://cloud.ibm.com/docs/key-protect?topic=key-protect-importing-keys) (BYOK) method. This
 means that the Key Protect instance policy must have Standard Imported Key enabled.
 
-### Configuration
+### IBM Key Protect Configuration
 
 First, you need to [provision the Key Protect service](https://cloud.ibm.com/docs/key-protect?topic=key-protect-provision) on the IBM Cloud. Once
 completed, [retrieve the instance ID](https://cloud.ibm.com/docs/key-protect?topic=key-protect-retrieve-instance-ID&interface=ui).
@@ -305,7 +305,7 @@ keys using the [Register](https://docs.oasis-open.org/kmip/kmip-spec/v2.0/os/kmi
 Key is fetched and deleted using [Get](https://docs.oasis-open.org/kmip/kmip-spec/v2.0/os/kmip-spec-v2.0-os.html#_Toc6497545)
 and [Destroy](https://docs.oasis-open.org/kmip/kmip-spec/v2.0/os/kmip-spec-v2.0-os.html#_Toc6497541) operations respectively.
 
-### Configuration
+### KMIP Configuration
 
 The Secret with credentials for the KMIP KMS is expected to contain the following.
 
