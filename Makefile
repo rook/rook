@@ -200,6 +200,10 @@ lint.go: lint.fmt lint.vet golangci-lint ## run various go linters
 lint.markdown: ## Check formatting of documentation sources
 	@$(MARKDOWNLINT) "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs
 
+.PHONY: lint.markdown-links
+lint.markdown-links:
+	@$(DOCKERCMD) run --rm -v "$$PWD:/workspace" --entrypoint "/workspace/tests/scripts/check-markdown-links-internal.sh" ghcr.io/tcort/markdown-link-check:stable
+
 .PHONY: fix.markdown
 fix.markdown: ## Check and fix formatting of documentation sources
 	@$(MARKDOWNLINT) "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --fix --config .markdownlint-cli2.cjs

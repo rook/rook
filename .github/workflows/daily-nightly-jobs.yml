@@ -356,3 +356,12 @@ jobs:
     with:
       ceph_images: '["quay.io/ceph/ceph:v19", "quay.io/ceph/ceph:v20", "quay.ceph.io/ceph-ci/ceph:main", "quay.ceph.io/ceph-ci/ceph:squid", "quay.ceph.io/ceph-ci/ceph:tentacle"]'
     secrets: inherit
+
+  check-markdown-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check markdown links
+        run: make lint.markdown-links

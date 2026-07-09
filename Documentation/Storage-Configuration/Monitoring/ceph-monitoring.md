@@ -125,7 +125,7 @@ Below the `Execute` button, ensure the `Graph` tab is selected and you should no
 
 ## Prometheus Consoles
 
-You can find Prometheus Consoles for and from Ceph here: [GitHub ceph/cephmetrics - dashboards/current directory](https://github.com/ceph/cephmetrics/tree/master/dashboards/current).
+You can find Prometheus Consoles for and from Ceph here: [GitHub ceph/cephmetrics - dashboards/](https://github.com/ceph/cephmetrics/tree/master/dashboards/).
 
 A guide to how you can write your own Prometheus consoles can be found on the official Prometheus site here: [Prometheus.io Documentation - Console Templates](https://prometheus.io/docs/visualization/consoles/).
 
@@ -337,4 +337,4 @@ spec:
 ```
 
 !!! warning
-    During reconciliation of a `CephObjectStore`, the Rook Operator will reset the replica count for RGW which was set by horizontal pod scaler. The horizontal pod autoscaler will change the again once it re-evaluates the rule. This can result in a performance hiccup of several seconds after a reconciliation. This is briefly discussed (here)[https://github.com/rook/rook/issues/10001]
+    During reconciliation of a `CephObjectStore`, the Rook Operator will reset the replica count for RGW which was set by horizontal pod scaler. The horizontal pod autoscaler will change the again once it re-evaluates the rule. This can result in a performance hiccup of several seconds after a reconciliation. This is briefly discussed [here](https://github.com/rook/rook/issues/10001)

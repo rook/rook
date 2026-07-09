@@ -696,7 +696,7 @@ Virtual host-style addressing requires 2 things:
 Wildcard addressing can be configured in myriad ways. Some options:
 
 - Kubernetes [ingress loadbalancer](https://kubernetes.io/docs/concepts/services-networking/ingress/#hostname-wildcards)
-- Openshift [DNS operator](https://docs.openshift.com/container-platform/latest/networking/dns-operator.html)
+- Openshift [DNS operator](https://docs.okd.io/latest/networking/networking_operators/dns-operator.html)
 
 The minimum recommended `hosting` configuration is exemplified below. It is important to ensure that
 Rook advertises the wildcard-addressable endpoint as a priority over the default. TLS is also
