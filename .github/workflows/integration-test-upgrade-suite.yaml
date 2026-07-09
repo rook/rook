@@ -49,12 +49,26 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+          debug-ci: true # DO NOT MERGE
+
+      # - name: TESTONLY SLEEP # DO NOT MERGE
+      #   run: sleep 15m # DO NOT MERGE
+      - name: disk space
+        run: df -h
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+
+      - name: disk space
+        run: df -h
+
+      - name: apt clean
+        run: |
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          df -h
 
       - name: TestCephUpgradeSuite
         run: |

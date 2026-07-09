@@ -20,10 +20,10 @@ nodes:
     extraMounts:
       - hostPath: /dev
         containerPath: /dev
-        propagation: HostToContainer
+        propagation: Bidirectional
       - hostPath: /var/lib/rook
         containerPath: /var/lib/rook
-        propagation: HostToContainer
+        propagation: Bidirectional
       - hostPath: /run/udev
         containerPath: /run/udev
-        propagation: HostToContainer
+        propagation: Bidirectional
