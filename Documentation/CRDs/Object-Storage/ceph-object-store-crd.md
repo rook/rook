@@ -215,7 +215,7 @@ The gateway settings correspond to the RGW daemon settings.
 * `instances`: The number of pods that will be started to load balance this object store.
 * `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways
     (works with external mode). This setting will be ignored if the `CephCluster` does not have
-    `external` spec enabled. Refer to the [external cluster section](../Cluster/ceph-cluster-crd.md#external-cluster)
+`external` spec enabled. Refer to the [external cluster section](../Cluster/external-cluster/external-cluster.md)
     for more details. Multiple endpoints can be given, but for stability of ObjectBucketClaims, we
     highly recommend that users give only a single external RGW endpoint that is a load balancer that
     sends requests to the multiple RGWs.
@@ -240,7 +240,7 @@ The gateway settings correspond to the RGW daemon settings.
     subdirectory where that volumes files will be mounted. Rook supports several standard Kubernetes
     volume types. Example: for an additional mount at subPath `ldap`, mounted from a secret that has
     key `bindpass.secret`, the file would reside at `/var/rgw/ldap/bindpass.secret`.
-* `service`: The annotations to set on to the Kubernetes Service of RGW. The [service serving cert](https://docs.openshift.com/container-platform/4.6/security/certificates/service-serving-certificate.html) feature supported in Openshift is enabled by the following example:
+* `service`: The annotations to set on to the Kubernetes Service of RGW. The [service serving cert](https://docs.okd.io/latest/security/certificates/service-serving-certificate.html) feature supported in Openshift is enabled by the following example:
 
     ```yaml
     gateway:
