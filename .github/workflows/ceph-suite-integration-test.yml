@@ -1,0 +1,160 @@
+name: Reusable Ceph suite integration tests
+on:
+  # ONLY on.workflow_call ; call this from other files if needed
+  workflow_call:
+    inputs:
+      ceph_suite_versions:
+        description: "JSON list of Ceph suite versions such as squid-devel, tentacle-devel, umbrella-devel, main"
+        required: true
+        type: string
+      upgrade_suite_tests:
+        description: "JSON list of upgrade suite subtests such as TestUpgradeCephToSquidDevel, TestUpgradeCephToTentacleDevel"
+        default: '["TestUpgradeCephToSquidDevel", "TestUpgradeCephToTentacleDevel"]'
+        type: string
+      object_suite_tests:
+        description: "JSON list of object suite subtests such as TestWithoutTLS, TestWithTLS"
+        default: '["TestWithoutTLS", "TestWithTLS"]'
+        type: string
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+permissions:
+  contents: read
+
+env:
+  # Required for go-ceph rgw/admin account APIs.
+  GOFLAGS: "-tags=ceph_preview"
+
+jobs:
+  smoke-suite:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ceph-suite-version: ${{ fromJson(inputs.ceph_suite_versions) }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: consider tmate debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
+        with:
+          kubernetes-version: "v1.36.2"
+
+      - name: TestCephSmokeSuite
+        run: |
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="${{ matrix.ceph-suite-version }}" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
+
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="smoke-ns"
+          export OPERATOR_NAMESPACE="smoke-ns-system"
+          tests/scripts/collect-logs.sh
+
+      - name: Artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: ceph-smoke-suite-${{ matrix.ceph-suite-version }}-artifact
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+  upgrade-suite:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        upgrade-test: ${{ fromJson(inputs.upgrade_suite_tests) }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: consider tmate debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
+        with:
+          kubernetes-version: "v1.36.2"
+
+      - name: TestCephUpgradeSuite
+        run: |
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
+          go test -v -timeout 1800s -failfast -run "TestCephUpgradeSuite/${{ matrix.upgrade-test }}" github.com/rook/rook/tests/integration
+
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="upgrade"
+          export OPERATOR_NAMESPACE="upgrade-system"
+          tests/scripts/collect-logs.sh
+
+      - name: Artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: ceph-upgrade-suite-${{ matrix.upgrade-test }}-artifact
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+  object-suite:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ceph-suite-version: ${{ fromJson(inputs.ceph_suite_versions) }}
+        object-test: ${{ fromJson(inputs.object_suite_tests) }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: consider tmate debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup-cluster-resources
+        with:
+          kubernetes-version: "v1.36.2"
+
+      - name: TestCephObjectSuite
+        run: |
+          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+          export DEVICE_FILTER
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="${{ matrix.ceph-suite-version }}" go test -v -timeout 1800s -failfast -run "CephObjectSuite/${{ matrix.object-test }}" github.com/rook/rook/tests/integration
+
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="object-ns"
+          export OPERATOR_NAMESPACE="object-ns-system"
+          tests/scripts/collect-logs.sh
+
+      - name: Artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: ceph-object-suite-${{ matrix.ceph-suite-version }}-${{ matrix.object-test }}-artifact
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/

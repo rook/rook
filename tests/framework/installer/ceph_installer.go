@@ -48,6 +48,7 @@ const (
 	// test with the current development versions
 	squidDevelTestImage    = "quay.ceph.io/ceph-ci/ceph:squid"
 	tentacleDevelTestImage = "quay.ceph.io/ceph-ci/ceph:tentacle"
+	umbrellaDevelTestImage = "quay.ceph.io/ceph-ci/ceph:umbrella"
 	// test with the latest Ceph main image
 	mainTestImage      = "quay.ceph.io/ceph-ci/ceph:main"
 	cephOperatorLabel  = "app=rook-ceph-operator"
@@ -71,6 +72,7 @@ var (
 	SquidDevelVersion            = cephv1.CephVersionSpec{Image: squidDevelTestImage}
 	TentacleVersion              = cephv1.CephVersionSpec{Image: tentacleTestImage}
 	TentacleDevelVersion         = cephv1.CephVersionSpec{Image: tentacleDevelTestImage, AllowUnsupported: true}
+	UmbrellaDevelVersion         = cephv1.CephVersionSpec{Image: umbrellaDevelTestImage, AllowUnsupported: true}
 	MainVersion                  = cephv1.CephVersionSpec{Image: mainTestImage, AllowUnsupported: true}
 	volumeReplicationBaseURL     = fmt.Sprintf("https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/%s/config/crd/bases/", volumeReplicationVersion)
 	volumeReplicationCRDURL      = volumeReplicationBaseURL + "replication.storage.openshift.io_volumereplications.yaml"
@@ -97,6 +99,8 @@ func ReturnCephVersion() cephv1.CephVersionSpec {
 		return SquidDevelVersion
 	case "tentacle-devel":
 		return TentacleDevelVersion
+	case "umbrella-devel":
+		return UmbrellaDevelVersion
 	default:
 		// Default to the latest stable version
 		return SquidVersion
