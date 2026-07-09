@@ -240,7 +240,7 @@ The gateway settings correspond to the RGW daemon settings.
     subdirectory where that volumes files will be mounted. Rook supports several standard Kubernetes
     volume types. Example: for an additional mount at subPath `ldap`, mounted from a secret that has
     key `bindpass.secret`, the file would reside at `/var/rgw/ldap/bindpass.secret`.
-* `service`: The annotations to set on to the Kubernetes Service of RGW. The [service serving cert](https://docs.openshift.com/container-platform/4.6/security/certificates/service-serving-certificate.html) feature supported in Openshift is enabled by the following example:
+* `service`: The annotations to set on to the Kubernetes Service of RGW. The [service serving cert](https://docs.okd.io/latest/security/certificates/service-serving-certificate.html) feature supported in Openshift is enabled by the following example:
 
     ```yaml
     gateway:
