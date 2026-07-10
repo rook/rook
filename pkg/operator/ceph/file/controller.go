@@ -375,9 +375,9 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	log.NamedDebug(request.NamespacedName, logger, "reconciling ceph filesystem store deployments")
 	reconcileResponse, err = r.reconcileCreateFilesystem(cephFilesystem)
 	if err != nil {
-		_, err := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil, nil)
-		if err != nil {
-			return reconcile.Result{}, *cephFilesystem, errors.Wrapf(err, "failed to set failure status on cephFileSystem %q when file system creation failed", request.NamespacedName)
+		_, statusErr := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil, nil)
+		if statusErr != nil {
+			return reconcile.Result{}, *cephFilesystem, errors.Wrapf(statusErr, "failed to set failure status on cephFileSystem %q after filesystem creation error: %q", request.NamespacedName, err)
 		}
 		return reconcileResponse, *cephFilesystem, err
 	}
@@ -411,9 +411,9 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 			log.NamedInfo(request.NamespacedName, logger, "reconciling create cephfs-mirror peer configuration")
 			reconcileResponse, err = opcontroller.CreateBootstrapPeerSecret(r.context, r.clusterInfo, cephFilesystem, k8sutil.NewOwnerInfo(cephFilesystem, r.scheme))
 			if err != nil {
-				_, err := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil, nil)
-				if err != nil {
-					return reconcile.Result{}, *cephFilesystem, errors.Wrapf(err, "failed to set failure status on cephFileSystem %q when peer secret bootstrap failed", request.NamespacedName)
+				_, statusErr := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil, nil)
+				if statusErr != nil {
+					return reconcile.Result{}, *cephFilesystem, errors.Wrapf(statusErr, "failed to set failure status on cephFileSystem %q after peer secret bootstrap error: %q", request.NamespacedName, err)
 				}
 				return reconcileResponse, *cephFilesystem,
 					errors.Wrapf(err, "failed to create cephfs-mirror bootstrap peer for filesystem %q.", cephFilesystem.Name)
