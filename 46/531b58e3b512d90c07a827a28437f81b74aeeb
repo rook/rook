@@ -1,3 +1,6 @@
 {"id":"b53c3e5d-bad7-4d15-a902-77d9de991694","ts":"2026-07-10T14:59:59.675Z","path":"/Users/obnox/go/src/github.com/rook/rook/build/release/Makefile","version":"1.0.0","taskID":"ce4332d2-3e7a-457d-afd1-668b0e4e5902"}
 {"id":"878900e8-47e0-4a00-b8d3-cf840f66a7d7","ts":"2026-07-10T15:00:12.119Z","path":"/Users/obnox/go/src/github.com/rook/rook/build/makelib/common.mk","version":"1.0.0","taskID":"ce4332d2-3e7a-457d-afd1-668b0e4e5902"}
 {"id":"dc5be91b-e373-4d6d-8981-d0bef7d9e8c5","ts":"2026-07-10T15:00:27.517Z","path":"/Users/obnox/go/src/github.com/rook/rook/build/makelib/common.mk","version":"1.0.0","taskID":"ce4332d2-3e7a-457d-afd1-668b0e4e5902"}
+
+{"id":"dae668d4-2390-4fce-bdd8-08247880323a","ts":"2026-07-10T14:20:41.715Z","path":"/Users/obnox/go/src/github.com/rook/rook/images/image.mk","version":"1.0.0","taskID":"48ba327d-ae1c-40b6-887b-8cce5befc00f"}
+{"id":"4c2f104f-b251-4441-b330-6cd9af3693b3","ts":"2026-07-10T14:21:12.250Z","path":"/Users/obnox/go/src/github.com/rook/rook/images/ceph/Makefile","version":"1.0.0","taskID":"48ba327d-ae1c-40b6-887b-8cce5befc00f"}
