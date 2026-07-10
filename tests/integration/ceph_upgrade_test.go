@@ -275,9 +275,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preF
 
 	if !s.settings.UseHelm {
 		logger.Infof("Initializing object before the upgrade")
-		deleteStore := false
-		tls := false
-		runObjectE2ETestLite(s.T(), s.helper, s.k8sh, s.installer, s.settings.Namespace, installer.ObjectStoreName, 1, deleteStore, tls, false)
+		s.createObjectStore()
 	}
 
 	logger.Infof("Initializing object user before the upgrade")
@@ -313,6 +311,38 @@ func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preF
 	require.NotEqual(s.T(), 0, numOSDs)
 
 	return numOSDs, rbdFilesToRead, cephfsFilesToRead
+}
+
+func (s *UpgradeSuite) createObjectStore() {
+	store := &v1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      installer.ObjectStoreName,
+			Namespace: s.namespace,
+		},
+		Spec: v1.ObjectStoreSpec{
+			MetadataPool: v1.PoolSpec{
+				Replicated: v1.ReplicatedSpec{
+					Size:                   1,
+					RequireSafeReplicaSize: false,
+				},
+				CompressionMode: "passive",
+			},
+			DataPool: v1.PoolSpec{
+				Replicated: v1.ReplicatedSpec{
+					Size:                   1,
+					RequireSafeReplicaSize: false,
+				},
+			},
+			Gateway: v1.GatewaySpec{
+				Port:      80,
+				Instances: 1,
+			},
+		},
+	}
+	live := wait4.RequireCreate(context.TODO(), s.T(),
+		s.k8sh.RookClientset.CephV1().CephObjectStores(s.namespace),
+		store, wait4.ObjectStore, 5*time.Minute)
+	assert.NotEmpty(s.T(), live.Status.Info["endpoint"])
 }
 
 func (s *UpgradeSuite) createObjectUser(userID string) {
