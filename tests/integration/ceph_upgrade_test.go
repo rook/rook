@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 	"github.com/rook/rook/tests/integration/object/util/wait4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,11 +69,12 @@ func TestCephUpgradeSuite(t *testing.T) {
 
 type UpgradeSuite struct {
 	suite.Suite
-	helper    *clients.TestClient
-	k8sh      *utils.K8sHelper
-	settings  *installer.TestCephSettings
-	installer *installer.CephInstaller
-	namespace string
+	helper      *clients.TestClient
+	k8sh        *utils.K8sHelper
+	settings    *installer.TestCephSettings
+	installer   *installer.CephInstaller
+	namespace   string
+	objectStore *sharedstore.Sharedstore
 }
 
 func (s *UpgradeSuite) SetupSuite() {
@@ -85,6 +87,9 @@ func (s *UpgradeSuite) TearDownSuite() {
 
 func (s *UpgradeSuite) baseSetup(useHelm bool, initialRookVersion string, initialCephVersion v1.CephVersionSpec) {
 	s.namespace = "upgrade"
+	// the suite instance is shared across test methods; a fixture left over
+	// from a previous method must not leak into this one's cleanup routing
+	s.objectStore = nil
 	s.settings = &installer.TestCephSettings{
 		ClusterName:                 s.namespace,
 		Namespace:                   s.namespace,
@@ -275,9 +280,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preF
 
 	if !s.settings.UseHelm {
 		logger.Infof("Initializing object before the upgrade")
-		deleteStore := false
-		tls := false
-		runObjectE2ETestLite(s.T(), s.helper, s.k8sh, s.installer, s.settings.Namespace, installer.ObjectStoreName, 1, deleteStore, tls, false)
+		s.objectStore = sharedstore.Create(s.T(), s.k8sh, s.installer, false, s.settings.Namespace, installer.ObjectStoreName, 1)
 	}
 
 	logger.Infof("Initializing object user before the upgrade")
@@ -364,6 +367,11 @@ func (s *UpgradeSuite) checkObjectUser(userID string) {
 }
 
 func (s *UpgradeSuite) cleanUpObjectStore() {
+	if s.objectStore != nil {
+		s.objectStore.Destroy()
+		return
+	}
+	// the helm variant's store comes from the chart's retained default CRs
 	wait4.AssertDelete(context.TODO(), s.T(),
 		s.k8sh.RookClientset.CephV1().CephObjectStores(s.settings.Namespace),
 		installer.ObjectStoreName, 5*time.Minute)
