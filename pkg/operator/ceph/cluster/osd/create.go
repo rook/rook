@@ -197,7 +197,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 		// Allow updating OSD prepare pod if the OSD needs migration
 		if c.migrateOSD != nil {
 			if strings.Contains(c.migrateOSD.BlockPath, dataSource.ClaimName) {
-				log.NamespacedInfo(c.clusterInfo.Namespace, logger, "updating OSD prepare pod to replace OSD.%d", c.migrateOSD.ID)
+				log.NamespacedInfo(c.clusterInfo.Namespace, logger, "updating OSD prepare pod to migrate OSD.%d", c.migrateOSD.ID)
 				skipPreparePod = false
 			}
 		}
