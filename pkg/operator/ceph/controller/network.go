@@ -426,7 +426,7 @@ func cidrForIp(infos []k8sutil.LinuxIpAddrInfo, ip string) (string, error) {
 	}
 
 	// <ip>/<range> works but isn't reduced. the CIDR must be reduced so that it doesn't change
-	// every tme the operator reconciles and the net canary gets a new IP
+	// every time the operator reconciles and the net canary gets a new IP
 	naiveCIDR := fmt.Sprintf("%s/%d", info.Local, info.PrefixLen)
 
 	_, reduced, err := net.ParseCIDR(naiveCIDR)

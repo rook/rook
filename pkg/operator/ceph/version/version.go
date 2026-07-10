@@ -143,7 +143,7 @@ func (v *CephVersion) Supported() bool {
 	return slices.ContainsFunc(supportedVersions, v.isRelease)
 }
 
-// Unsupported checks if a given release is supported
+// Unsupported checks if a given release is not supported
 func (v *CephVersion) Unsupported() bool {
 	return slices.ContainsFunc(unsupportedVersions, v.isExactly)
 }
