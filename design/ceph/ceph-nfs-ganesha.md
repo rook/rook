@@ -10,7 +10,7 @@ as highly available and  scalable NFS gateway pods to the Ceph filesystem and
 Object Store. This will allow NFS client applications to use the Ceph filesystem
 and object store setup by rook.
 
-This feature mainly differs from the feature to add NFS as an another
+This feature mainly differs from the feature to add NFS as another
 storage backend for rook (the general NFS solution) in the following ways:
 
 * It will use the rook's Ceph operator and not a separate NFS operator to
