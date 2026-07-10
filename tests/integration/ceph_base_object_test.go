@@ -22,19 +22,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,15 +42,6 @@ const (
 	rgwPrefix = "rook-ceph-rgw"
 	//nolint:gosec // since this is not leaking any hardcoded credentials, it's just the secret name
 	objectTLSSecretName = rgwPrefix + "-tls-test-store-csr"
-)
-
-var (
-	userdisplayname = "A rook RGW user"
-	obcName         = "smoke-delete-bucket"
-	maxObject       = "2"
-	maxBucket       = 1
-	maxSize         = "100000"
-	userCap         = "*"
 )
 
 // Test Object StoreCreation on Rook that was installed via helm
@@ -234,50 +222,6 @@ func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, s
 
 	err := k8sh.WaitUntilResourceIsDeleted("CephObjectStore", namespace, storeName)
 	assert.NoError(t, err)
-}
-
-func createCephObjectUser(
-	s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
-	namespace, storeName, userID string, checkQuotaAndCaps bool,
-) {
-	maxObjectInt, err := strconv.Atoi(maxObject)
-	assert.Nil(s.T(), err)
-	logger.Infof("creating CephObjectStore user %q for store %q in namespace %q", userID, storeName, namespace)
-	cosuErr := helper.ObjectUserClient.Create(userID, userdisplayname, storeName, userCap, maxSize, maxBucket, maxObjectInt)
-	assert.Nil(s.T(), cosuErr)
-	logger.Infof("Waiting 5 seconds for the object user %q to be created", userID)
-	time.Sleep(5 * time.Second)
-	logger.Infof("Checking to see if user %q secret has been created", userID)
-	for i := 0; i < 6 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userID) == false; i++ {
-		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
-		time.Sleep(5 * time.Second)
-	}
-
-	checkCephObjectUser(s, helper, k8sh, namespace, storeName, userID, checkQuotaAndCaps)
-}
-
-func checkCephObjectUser(
-	s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
-	namespace, storeName, userID string, checkQuotaAndCaps bool,
-) {
-	logger.Infof("checking object store \"%s/%s\" user %q", namespace, storeName, userID)
-	require.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userID), "user secret not found for %q", userID)
-
-	userInfo, err := helper.ObjectUserClient.GetUser(namespace, storeName, userID)
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), userID, userInfo.UserID)
-	assert.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
-
-	phase, err := k8sh.GetResource("--namespace", namespace, "cephobjectstoreuser", userID, "--output", "jsonpath={.status.phase}")
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), k8sutil.ReadyStatus, phase)
-}
-
-func objectStoreCleanUp(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
-	logger.Infof("Delete Object Store (will fail if users and buckets still exist)")
-	err := helper.ObjectClient.Delete(namespace, storeName)
-	assert.Nil(s.T(), err)
-	logger.Infof("Done deleting object store")
 }
 
 func generateRgwTlsCertSecret(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName, rgwServiceName string) {
