@@ -214,7 +214,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, settings, storeName, swiftAndKeystone)
 
-	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, tlsEnable,
+	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, tlsEnable, settings.Namespace, "sharedstore", 1,
 		bucketowner.Namespace,
 		bucketpolicy.Namespace,
 		bucketquota.Namespace,
