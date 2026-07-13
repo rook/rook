@@ -117,7 +117,7 @@ func (h *CephInstaller) CreateCephOperator() (err error) {
 	}
 
 	if h.changeHostnames {
-		// give nodes a hostname that is different from its k8s node name to confirm that all the daemons will be initialized properly
+		// give nodes a hostname that is different from their k8s node name to confirm that all the daemons will be initialized properly
 		err = h.k8shelper.ChangeHostnames()
 		assert.NoError(h.T(), err)
 	}
@@ -398,7 +398,7 @@ func (h *CephInstaller) CreateRookExternalCluster(externalManifests CephManifest
 	return errors.Errorf("failed to start external cluster, state: %v", clusterStatus)
 }
 
-// injectRookExternalClusterInfo inject connection information for an external cluster
+// injectRookExternalClusterInfo injects connection information for an external cluster
 func (h *CephInstaller) injectRookExternalClusterInfo(externalSettings *TestCephSettings) error {
 	ctx := context.TODO()
 	// get config map
@@ -853,7 +853,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 		assert.NoError(h.T(), err)
 	}
 
-	// wait a bit longer for the system namespace to be cleaned up after their deletion
+	// wait a bit longer for the system namespace to be cleaned up after its deletion
 	for i := 0; i < 15; i++ {
 		_, err := h.k8shelper.Clientset.CoreV1().Namespaces().Get(ctx, h.settings.OperatorNamespace, metav1.GetOptions{})
 		if err != nil && kerrors.IsNotFound(err) {

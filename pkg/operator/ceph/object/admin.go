@@ -79,7 +79,7 @@ type debugHTTPClient struct {
 	logger *capnslog.PackageLogger
 }
 
-// NewDebugHTTPClient helps us mutating the HTTP client to debug the request/response
+// NewDebugHTTPClient helps us mutate the HTTP client to debug the request/response
 func NewDebugHTTPClient(client admin.HTTPClient, logger *capnslog.PackageLogger) *debugHTTPClient {
 	return &debugHTTPClient{client, logger}
 }

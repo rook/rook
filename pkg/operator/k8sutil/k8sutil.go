@@ -66,8 +66,8 @@ func Hash(s string) string {
 	return hex.EncodeToString(h[:16])
 }
 
-// TruncateNodeNameForJob hashes the nodeName in case it would case the name to be longer than 63 characters
-// and avoids for a K8s 1.22 bug in the job pod name generation. If the job name contains a . or - in a certain
+// TruncateNodeNameForJob hashes the nodeName in case it would cause the name to be longer than 63 characters
+// and avoids a K8s 1.22 bug in the job pod name generation. If the job name contains a . or - in a certain
 // position, the pod will fail to create.
 func TruncateNodeNameForJob(format, nodeName string) string {
 	// In k8s 1.22, the job name is truncated an additional 10 characters which can cause an issue
@@ -77,7 +77,7 @@ func TruncateNodeNameForJob(format, nodeName string) string {
 	return truncateNodeName(format, nodeName, validation.DNS1035LabelMaxLength-jobNameShortenLength)
 }
 
-// TruncateNodeName hashes the nodeName in case it would case the name to be longer than 63 characters
+// TruncateNodeName hashes the nodeName in case it would cause the name to be longer than 63 characters
 // WARNING If your format and nodeName as a hash, are longer than 63 chars it won't be truncated!
 // Your format alone should only be 31 chars at max because of MD5 hash being 32 chars.
 // For more information, see the following resources:

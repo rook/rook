@@ -372,7 +372,7 @@ func matchDeviceFullPath(devLinks, fullpath string) bool {
 	return slices.Contains(dlsArr, fullpath)
 }
 
-// GetAvailableDevices conducts outer join using input filters with free devices that a node has. It marks the devices from join result as in-use.
+// GetAvailableDevices conducts outer join using input filters with free devices that a node has. It marks the devices from the join result as in-use.
 func GetAvailableDevices(ctx context.Context, clusterdContext *clusterd.Context, nodeName, clusterName string, devices []cephv1.Device, filter string, useAllDevices bool) ([]cephv1.Device, error) {
 	results := []cephv1.Device{}
 	if len(devices) == 0 && len(filter) == 0 && !useAllDevices {

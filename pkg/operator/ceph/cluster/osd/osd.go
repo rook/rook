@@ -988,7 +988,7 @@ func GetLocationWithNode(ctx context.Context, clientset kubernetes.Interface, no
 }
 
 // getNode will try to get the node object for the provided nodeName
-// it will try using the node's name it's hostname label
+// it will try using the node's name or its hostname label
 func getNode(ctx context.Context, clientset kubernetes.Interface, nodeName string) (*corev1.Node, error) {
 	var node *corev1.Node
 	var err error

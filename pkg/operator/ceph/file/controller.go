@@ -160,7 +160,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 		return err
 	}
 
-	// Watch for ConfigMap "rook-ceph-mon-endpoints" update and reconcile, which will reconcile update the bootstrap peer token
+	// Watch for ConfigMap "rook-ceph-mon-endpoints" update and reconcile, which will reconcile and update the bootstrap peer token
 	err = c.Watch(
 		source.Kind(
 			mgr.GetCache(),

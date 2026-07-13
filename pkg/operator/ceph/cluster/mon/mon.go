@@ -148,7 +148,7 @@ type Cluster struct {
 type monConfig struct {
 	// ResourceName is the name given to the mon's Kubernetes resources in metadata
 	ResourceName string
-	// DaemonName is the name given the mon daemon ("a", "b", "c,", etc.)
+	// DaemonName is the name given to the mon daemon ("a", "b", "c,", etc.)
 	DaemonName string
 	// PublicIP is the IP of the mon's service that the mon will receive connections on
 	PublicIP string

@@ -35,7 +35,7 @@ var (
 	isRBD          = regexp.MustCompile("^rbd[0-9]+p?[0-9]{0,}$")
 	listAllDevices = "all"
 
-	// We need to allow dm- devices (Kubernetes mountpoints) because dm- devices name are used as names for meta device
+	// We need to allow dm- devices (Kubernetes mountpoints) because dm- device names are used as names for meta device
 	allowDeviceNamePattern = regexp.MustCompile("dm-")
 )
 
@@ -94,7 +94,7 @@ func DiscoverDevicesWithFilter(executor exec.Executor, deviceFilter, metaDevice 
 			logger.Warningf("failed to get udev info for device %q. %v", d, err)
 		}
 
-		// Test if device has child, if so we skip it and only consider the partitions
+		// Test if device has a child, if so we skip it and only consider the partitions
 		// which will come in later iterations of the loop
 		// We only test if the type is 'disk', this is a property reported by lsblk
 		// and means it's a parent block device

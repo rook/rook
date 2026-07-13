@@ -94,7 +94,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 	if pvcBackedOSD && !lvBackedPV {
 		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
 			// Let's just report the error and not fail as a best-effort since some drivers will force detach anyway
-			// Failing to release the device does not means the detach will fail so let's proceed
+			// Failing to release the device does not mean the detach will fail so let's proceed
 			logger.Errorf("failed to release device from lvm. %v", err)
 			return nil
 		}
@@ -191,7 +191,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 	} else {
 		// We still need to use 'lsblk' as the underlying way to discover devices
 		// Ideally, we would use the "ceph-volume inventory" command instead
-		// However, it suffers from some limitation such as exposing available partitions and LVs
+		// However, it suffers from some limitations such as exposing available partitions and LVs
 		// See: https://tracker.ceph.com/issues/43579
 		rawDevices, err = clusterd.DiscoverDevicesWithFilter(context.Executor, deviceFilter, metaDevice)
 		if err != nil {
@@ -250,7 +250,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 	logger.Infof("devices = %+v", deviceOSDs)
 
 	// Since we are done configuring the PVC we need to release it from LVM
-	// If we don't do this, the device will remain hold by LVM and we won't be able to detach it
+	// If we don't do this, the device will remain held by LVM and we won't be able to detach it
 	// When running on PVC, the device is:
 	//  * attached on the prepare pod
 	//  * osd is mkfs
@@ -463,7 +463,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			var matchedDevice DesiredDevice
 			for _, desiredDevice := range desiredDevices {
 				if desiredDevice.IsFilter {
-					// the desired devices is a regular expression
+					// the desired device is a regular expression
 					if device.Type == sys.LVMType {
 						logger.Infof("logical volume %q is not picked by `deviceFilter`. please specify the exact device name (e.g. /dev/vg/lv) in `devices` field instead", device.Name)
 						continue
@@ -557,7 +557,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			// When running on PVC, we typically have a single device only
 			// So it's fine to name the first entry of the map "data" instead of the PVC name
 			// It is particularly useful when a metadata PVC is used because we need to identify it in the map
-			// So the entry must be named "metadata" so it can accessed later
+			// So the entry must be named "metadata" so it can be accessed later
 			if agent.pvcBacked {
 				switch device.Type {
 				case pvcDataTypeDevice:

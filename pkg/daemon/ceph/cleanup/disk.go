@@ -36,7 +36,7 @@ const (
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cleanup")
 
-// DiskSanitizer is simple struct to old the context to execute the commands
+// DiskSanitizer is a simple struct to hold the context to execute the commands
 type DiskSanitizer struct {
 	context           *clusterd.Context
 	clusterInfo       *client.ClusterInfo
@@ -49,7 +49,7 @@ type ShredCommand struct {
 	args    []string
 }
 
-// NewDiskSanitizer is function that returns a full filled DiskSanitizer object
+// NewDiskSanitizer is a function that returns a fully filled DiskSanitizer object
 func NewDiskSanitizer(context *clusterd.Context, clusterInfo *client.ClusterInfo, sanitizeDisksSpec *cephv1.SanitizeDisksSpec) *DiskSanitizer {
 	return &DiskSanitizer{
 		context:           context,
@@ -80,7 +80,7 @@ func (s *DiskSanitizer) StartSanitizeDisks() {
 }
 
 func (s *DiskSanitizer) SanitizeRawDisk(osdRawList []oposd.OSDInfo) {
-	// Initialize work group to wait for completion of all the go routine
+	// Initialize work group to wait for completion of all the go routines
 	var wg sync.WaitGroup
 
 	for _, osd := range osdRawList {
@@ -97,7 +97,7 @@ func (s *DiskSanitizer) SanitizeRawDisk(osdRawList []oposd.OSDInfo) {
 }
 
 func (s *DiskSanitizer) SanitizeLVMDisk(osdLVMList []oposd.OSDInfo) {
-	// Initialize work group to wait for completion of all the go routine
+	// Initialize work group to wait for completion of all the go routines
 	var wg sync.WaitGroup
 	pvs := []string{}
 

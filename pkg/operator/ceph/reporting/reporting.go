@@ -131,7 +131,7 @@ func ReportReconcileResult(
 	// had an empty object, (b)) the api server didn't give the object, or (c)the reconciler
 	// returned nil accidentally. The object needs full metadata in order to have an event
 	// associated with it, but even with an empty object we can at least create an event that
-	// references the namespaced name of the object, even if event won't show up in the output of
+	// references the namespaced name of the object, even if the event won't show up in the output of
 	// `kubectl describe object`.
 	if objCopy != nil && objCopy.GetName() == "" {
 		objCopy.SetName(reconcileRequest.Name)

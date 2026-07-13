@@ -70,7 +70,7 @@ const (
 )
 
 var (
-	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
+	// ImmediateRetryResult Return this for an immediate retry of the reconciliation loop with the same request object.
 	ImmediateRetryResult = reconcile.Result{Requeue: true}
 
 	// WaitForRequeueIfCephClusterNotReady waits for the CephCluster to be ready

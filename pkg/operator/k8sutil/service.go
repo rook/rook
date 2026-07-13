@@ -140,7 +140,7 @@ func ExportService(ctx context.Context, c *clusterd.Context, service *v1.Service
 	return exportedIP, nil
 }
 
-// verifies if the ServiceExport status conditions to determine if the service was exported correctly
+// verifies the ServiceExport status conditions to determine if the service was exported correctly
 func verifyExportedService(ctx context.Context, client *mcsv1Client.Clientset, name, namespace string) error {
 	exportedService, err := client.MulticlusterV1alpha1().ServiceExports(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {

@@ -25,7 +25,7 @@ import (
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-ceph-util")
 
-// GetIPFromEndpoint return the IP from an endpoint string (192.168.0.1:6789)
+// GetIPFromEndpoint returns the IP from an endpoint string (192.168.0.1:6789)
 func GetIPFromEndpoint(endpoint string) string {
 	host, _, err := net.SplitHostPort(endpoint)
 	if err != nil {
@@ -34,7 +34,7 @@ func GetIPFromEndpoint(endpoint string) string {
 	return host
 }
 
-// GetPortFromEndpoint return the port from an endpoint string (192.168.0.1:6789)
+// GetPortFromEndpoint returns the port from an endpoint string (192.168.0.1:6789)
 func GetPortFromEndpoint(endpoint string) int32 {
 	var port int64
 	_, portString, err := net.SplitHostPort(endpoint)

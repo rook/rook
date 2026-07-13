@@ -89,7 +89,7 @@ func HandlePanics(r interface{}, uninstaller func(), t func() *testing.T) {
 	}
 }
 
-// StartTestCluster creates new instance of TestCephSettings struct
+// StartTestCluster creates a new instance of TestCephSettings struct
 func StartTestCluster(t func() *testing.T, settings *installer.TestCephSettings) (*installer.CephInstaller, *utils.K8sHelper) {
 	k8shelper, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)

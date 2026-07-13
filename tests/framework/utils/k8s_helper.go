@@ -153,7 +153,7 @@ func (k8sh *K8sHelper) SetDeploymentVersion(namespace, deploymentName, container
 	return err
 }
 
-// KubectlWithTimeout is wrapper for executing kubectl commands
+// KubectlWithTimeout is a wrapper for executing kubectl commands
 func (k8sh *K8sHelper) KubectlWithTimeout(timeout time.Duration, args ...string) (string, error) {
 	result, err := k8sh.executor.ExecuteCommandWithTimeout(timeout*time.Second, "kubectl", args...)
 	if err != nil {
@@ -167,12 +167,12 @@ func (k8sh *K8sHelper) KubectlWithTimeout(timeout time.Duration, args ...string)
 	return result, nil
 }
 
-// Kubectl is wrapper for executing kubectl commands and a timeout of 15 seconds
+// Kubectl is a wrapper for executing kubectl commands and a timeout of 15 seconds
 func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 	return k8sh.KubectlWithTimeout(15, args...)
 }
 
-// KubectlWithStdin is wrapper for executing kubectl commands in stdin
+// KubectlWithStdin is a wrapper for executing kubectl commands in stdin
 func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, error) {
 	cmdStruct := CommandArgs{Command: cmd, PipeToStdIn: stdin, CmdArgs: args}
 	cmdOut := ExecuteCommand(cmdStruct)
@@ -319,7 +319,7 @@ func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace, name string, che
 	return fmt.Errorf("timed out waiting for deletion of custom resource %q", name)
 }
 
-// DeleteResourceAndWait performs a kubectl delete on give args.
+// DeleteResourceAndWait performs a kubectl delete on given args.
 // If wait is false, a flag will be passed to indicate the delete should return immediately
 func (k8sh *K8sHelper) DeleteResourceAndWait(wait bool, args ...string) error {
 	if !wait {
@@ -333,7 +333,7 @@ func (k8sh *K8sHelper) DeleteResourceAndWait(wait bool, args ...string) error {
 	return fmt.Errorf("could Not delete resource in k8s -- %v", err)
 }
 
-// GetResource performs a kubectl get on give args
+// GetResource performs a kubectl get on given args
 func (k8sh *K8sHelper) GetResource(args ...string) (string, error) {
 	args = append([]string{"get"}, args...)
 	result, err := k8sh.Kubectl(args...)
@@ -367,7 +367,7 @@ func (k8sh *K8sHelper) CountPodsWithLabel(label string, namespace string) (int, 
 	return len(pods.Items), nil
 }
 
-// WaitForPodCount waits until the desired number of pods with the label are started
+// WaitForPodCount waits until the desired number of pods with the label is started
 func (k8sh *K8sHelper) WaitForPodCount(label, namespace string, count int) error {
 	options := metav1.ListOptions{LabelSelector: label}
 	ctx := context.TODO()
@@ -413,7 +413,7 @@ func (k8sh *K8sHelper) WaitForStatusPhase(namespace, kind, name, desiredPhase st
 	return nil
 }
 
-// IsPodWithLabelPresent return true if there is at least one Pod with the label is present.
+// IsPodWithLabelPresent returns true if there is at least one Pod with the label is present.
 func (k8sh *K8sHelper) IsPodWithLabelPresent(label string, namespace string) bool {
 	count, err := k8sh.CountPodsWithLabel(label, namespace)
 	if err != nil {
@@ -427,7 +427,7 @@ func (k8sh *K8sHelper) WaitForLabeledPodsToRun(label, namespace string) error {
 	return k8sh.WaitForLabeledPodsToRunWithRetries(label, namespace, RetryLoop)
 }
 
-// WaitForLabeledPodsToRunWithRetries returns true if a Pod is running status or goes to Running status within 90s else returns false
+// WaitForLabeledPodsToRunWithRetries returns true if a Pod is in running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) WaitForLabeledPodsToRunWithRetries(label string, namespace string, retries int) error {
 	options := metav1.ListOptions{LabelSelector: label}
 	ctx := context.TODO()
@@ -485,7 +485,7 @@ func (k8sh *K8sHelper) WaitUntilPodWithLabelDeleted(label string, namespace stri
 	return false
 }
 
-// PrintPodStatus log out the status phase of a pod
+// PrintPodStatus logs out the status phase of a pod
 func (k8sh *K8sHelper) PrintPodStatus(namespace string) {
 	ctx := context.TODO()
 	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
@@ -592,7 +592,7 @@ func (k8sh *K8sHelper) getPodDescribe(namespace string, args ...string) string {
 	return description
 }
 
-// IsPodRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
+// IsPodRunning returns true if a Pod is in running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
 	ctx := context.TODO()
 	getOpts := metav1.GetOptions{}
@@ -617,7 +617,7 @@ func (k8sh *K8sHelper) IsPodTerminated(name string, namespace string) bool {
 	return k8sh.IsPodTerminatedWithOpts(name, namespace, metav1.GetOptions{})
 }
 
-// IsPodTerminatedWithOpts returns true if a Pod is terminated status or goes to Terminated status
+// IsPodTerminatedWithOpts returns true if a Pod is in terminated status or goes to Terminated status
 // within 90s else returns false\
 func (k8sh *K8sHelper) IsPodTerminatedWithOpts(name string, namespace string, getOpts metav1.GetOptions) bool {
 	ctx := context.TODO()
@@ -954,7 +954,7 @@ func (k8sh *K8sHelper) GetPodHostIP(podNamePattern string, namespace string) (st
 	return podList.Items[0].Status.HostIP, nil
 }
 
-// GetServiceNodePort returns nodeProt of service
+// GetServiceNodePort returns nodePort of service
 func (k8sh *K8sHelper) GetServiceNodePort(serviceName string, namespace string) (string, error) {
 	ctx := context.TODO()
 	getOpts := metav1.GetOptions{}
@@ -993,7 +993,7 @@ func (k8sh *K8sHelper) IsDefaultStorageClassPresent() (bool, error) {
 	return false, nil
 }
 
-// CheckPvcCountAndStatus returns True if expected number of pvs for an app are found
+// CheckPvcCountAndStatus returns True if expected number of pvs for an app is found
 func (k8sh *K8sHelper) CheckPvcCountAndStatus(podName string, namespace string, expectedPvcCount int, expectedStatus string) bool {
 	logger.Infof("wait until %d pvc for app=%s are present", expectedPvcCount, podName)
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podName}
@@ -1089,7 +1089,7 @@ func (k8sh *K8sHelper) GetPV(name string) (*v1.PersistentVolume, error) {
 	return pv, nil
 }
 
-// IsPodInExpectedState waits for 90s for a pod to be an expected state
+// IsPodInExpectedState waits for 90s for a pod to be in an expected state
 // If the pod is in expected state within 90s true is returned,  if not false
 func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace string, state string) bool {
 	return k8sh.IsPodInExpectedStateWithLabel("app="+podNamePattern, namespace, state)
@@ -1211,7 +1211,7 @@ func (k8sh *K8sHelper) WaitUntilPVCIsBound(namespace string, pvcname string) boo
 	return false
 }
 
-// WaitUntilPVCIsExpanded waits for a PVC to be resized for specified value
+// WaitUntilPVCIsExpanded waits for a PVC to be resized for a specified value
 func (k8sh *K8sHelper) WaitUntilPVCIsExpanded(namespace, pvcname, size string) bool {
 	getOpts := metav1.GetOptions{}
 	ctx := context.TODO()
@@ -1419,7 +1419,7 @@ func (k8sh *K8sHelper) RestoreHostnames() ([]string, error) {
 	return nil, nil
 }
 
-// IsRookInstalled returns true is rook-ceph-mgr service is running(indicating rook is installed)
+// IsRookInstalled returns true if rook-ceph-mgr service is running(indicating rook is installed)
 func (k8sh *K8sHelper) IsRookInstalled(namespace string) bool {
 	ctx := context.TODO()
 	opts := metav1.GetOptions{}
@@ -1563,14 +1563,14 @@ func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
 	}
 }
 
-// WaitForDeploymentCount waits until the desired number of deployments with the label exist. The
+// WaitForDeploymentCount waits until the desired number of deployments with the label exists. The
 // deployments are not guaranteed to be running, only existing.
 func (k8sh *K8sHelper) WaitForDeploymentCount(label, namespace string, count int) error {
 	return k8sh.WaitForDeploymentCountWithRetries(label, namespace, count, RetryLoop)
 }
 
 // WaitForDeploymentCountWithRetries waits until the desired number of deployments with the label
-// exist, retrying the specified number of times. The deployments are not guaranteed to be running,
+// exists, retrying the specified number of times. The deployments are not guaranteed to be running,
 // only existing.
 func (k8sh *K8sHelper) WaitForDeploymentCountWithRetries(label, namespace string, count, retries int) error {
 	ctx := context.TODO()

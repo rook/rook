@@ -57,7 +57,7 @@ func (c *CommandExecutor) ExecuteCommand(command string, arg ...string) error {
 	return c.ExecuteCommandWithEnv([]string{}, command, arg...)
 }
 
-// ExecuteCommandWithStdin starts a process, provides stdin and wait for its completion  with timeout.
+// ExecuteCommandWithStdin starts a process, provides stdin and waits for its completion  with timeout.
 func (c *CommandExecutor) ExecuteCommandWithStdin(timeout time.Duration, command string, stdin *string, arg ...string) error {
 	output, err := executeCommandWithTimeout(timeout, command, stdin, arg...)
 	logger.Infof("Command %q output: %q", command, output)
@@ -93,7 +93,7 @@ func (*CommandExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command
 	return executeCommandWithTimeout(timeout, command, nil, arg...)
 }
 
-// executeCommandWithTimeout starts a process, provides stdin and wait for its completion with timeout.
+// executeCommandWithTimeout starts a process, provides stdin and waits for its completion with timeout.
 func executeCommandWithTimeout(timeout time.Duration, command string, stdin *string, arg ...string) (string, error) {
 	logCommand(command, arg...)
 	//nolint:gosec // Rook controls the input to the exec arguments

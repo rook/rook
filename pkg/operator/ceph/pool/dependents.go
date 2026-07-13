@@ -39,7 +39,7 @@ func cephBlockPoolDependents(clusterdCtx *clusterd.Context, clusterInfo *client.
 
 	deps := dependents.NewDependentList()
 
-	// CepbBlockPoolNamespaces
+	// CephBlockPoolNamespaces
 	namespaces, err := clusterdCtx.RookClientset.CephV1().CephBlockPoolRadosNamespaces(blockpool.Namespace).List(clusterInfo.Context, metav1.ListOptions{})
 	if err != nil {
 		return deps, errors.Wrapf(err, "%s. failed to list CephBlockPoolRadosNamespace for CephBlockPool %q", baseErrMsg, nsName)

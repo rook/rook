@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package notification to manage a rook bucket notifications.
+// Package notification to manage rook bucket notifications.
 package notification
 
 import (
@@ -53,7 +53,7 @@ const (
 	bucketProvisionerLabelVal = "ceph.rook.io-bucket"
 )
 
-// ReconcileOBCLabels reconciles a ObjectBucketClaim labels
+// ReconcileOBCLabels reconciles an ObjectBucketClaim labels
 type ReconcileOBCLabels struct {
 	client           client.Client
 	context          *clusterd.Context
@@ -127,7 +127,7 @@ func addOBCLabelReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a ObjectBucketClaim object and makes changes based on the state read
+// Reconcile reads that state of the cluster for an ObjectBucketClaim object and makes changes based on the state read
 // and the ObjectBucketClaim labels
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.

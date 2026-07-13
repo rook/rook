@@ -77,7 +77,7 @@ func (ne *NSEnter) checkIfBinaryExistsOnHost() error {
 		if err != nil {
 			logger.Debugf("failed to call nsenter. %v", err)
 			// If nsenter failed, let's try with the rootfs directly but only lookup the binary and do not execute it
-			// This avoids mismatch libraries between the container and the host while executing
+			// This avoids mismatched libraries between the container and the host while executing
 			rootFSBinPath := filepath.Join(rootFSPath, binPath)
 			_, err := os.Stat(rootFSBinPath)
 			if err != nil {

@@ -148,8 +148,8 @@ func OkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, d
 	}
 
 	// we don't implement any checks for mon, rgw and rbdmirror since:
-	//  - mon: the is done in the monitor code since it ensures all the mons are always in quorum before continuing
-	//  - rgw: the pod spec has a liveness probe so if the pod successfully start
+	//  - mon: this is done in the monitor code since it ensures all the mons are always in quorum before continuing
+	//  - rgw: the pod spec has a liveness probe so if the pod successfully starts
 	//  - rbdmirror: you can chain as many as you want like mdss but there is no ok-to-stop logic yet
 	err = util.Retry(okToStopRetries, okToStopDelay, func() error {
 		return okToStopDaemon(context, clusterInfo, deployment, daemonType, daemonName)
@@ -186,7 +186,7 @@ func okToStopDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, deploym
 		logger.Debugf("deployment %s is ok to be updated. %s", deployment, output)
 	}
 
-	// At this point, we can't tell if the daemon is unknown or if
+	// At this point, we can't tell if the daemon is unknown or not,
 	// but it's not a problem since perhaps it has no "ok-to-stop" call
 	// It's fine to return nil here
 	logger.Debugf("deployment %s is ok to be updated.", deployment)
@@ -357,7 +357,7 @@ func OSDUpdateShouldCheckOkToStop(context *clusterd.Context, clusterInfo *Cluste
 
 // osdDoNothing determines whether we should perform upgrade pre-check and post-checks for the OSD daemon
 // it checks for various cluster info like number of OSD and their placement
-// it returns 'true' if we need to do nothing and false and we should pre-check/post-check
+// it returns 'true' if we need to do nothing and false if we should pre-check/post-check
 func osdDoNothing(context *clusterd.Context, clusterInfo *ClusterInfo) bool {
 	osds, err := OsdListNum(context, clusterInfo)
 	if err != nil {

@@ -116,7 +116,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	}
 
 	// If host network is defined on Spec.Server.HostNetwork, use it.
-	// elsedefault to whatever the cluster has defined
+	// else default to whatever the cluster has defined
 	hostNetwork := nfs.IsHostNetwork(r.cephClusterSpec)
 
 	k8sutil.AddRookVersionLabelToDeployment(deployment)

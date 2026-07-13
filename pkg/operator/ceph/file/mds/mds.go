@@ -187,7 +187,7 @@ func (c *Cluster) startDeployment(ctx context.Context, daemonLetterID string) (s
 	// Set the mds config flags
 	// Previously we were checking if the deployment was present, if not we would set the config flags
 	// Which means that we would only set the flag on newly created CephFilesystem CR
-	// Unfortunately, on upgrade we would not set the flags which is not ideal for old clusters where we were no setting those flags
+	// Unfortunately, on upgrade we would not set the flags which is not ideal for old clusters where we were not setting those flags
 	// The KV supports setting those flags even if the MDS is running
 	log.NamedInfo(nsName, logger, "setting mds config flags")
 	err = c.setDefaultFlagsMonConfigStore(mdsConfig.DaemonID)
@@ -242,7 +242,7 @@ func (c *Cluster) startDeployment(ctx context.Context, daemonLetterID string) (s
 	return d.GetName(), nil
 }
 
-// isCephUpgrade determine if mds version inferior than image
+// isCephUpgrade determines if mds version inferior than image
 func (c *Cluster) isCephUpgrade() (bool, error) {
 	nsName := controller.NsName(c.fs.Namespace, c.fs.Name)
 	allVersions, err := cephclient.GetAllCephDaemonVersions(c.context, c.clusterInfo)
@@ -354,7 +354,7 @@ func (c *Cluster) scaleDownDeployments(replicas int32, activeCount int32, desire
 					c.fs.Name,
 					desiredDeployments,
 					err)
-				break // stop trying to delete daemons, but continue to reporting any errors below
+				break // stop trying to delete daemons, but continue reporting any errors below
 			}
 
 			localdeployment := d

@@ -81,7 +81,7 @@ type stepSpec struct {
 	Type      string `json:"type"`
 }
 
-// CrushFindResult is go representation of the Ceph osd find command output
+// CrushFindResult is a go representation of the Ceph osd find command output
 type CrushFindResult struct {
 	ID       int               `json:"osd"`
 	IP       string            `json:"ip"`

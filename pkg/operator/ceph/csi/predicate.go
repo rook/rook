@@ -37,7 +37,7 @@ func cmPredicate[T *corev1.ConfigMap]() predicate.TypedFuncs[T] {
 		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
 			cm := (*corev1.ConfigMap)(e.Object)
 
-			// We don't want to use cm.Generation here, it case the operator was stopped and the
+			// We don't want to use cm.Generation here, in case the operator was stopped and the
 			// ConfigMap was created
 			return cm.Name == opcontroller.OperatorSettingConfigMapName
 		},

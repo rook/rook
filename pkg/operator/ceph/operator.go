@@ -38,7 +38,7 @@ import (
 var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "operator")
 
-	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
+	// ImmediateRetryResult Return this for an immediate retry of the reconciliation loop with the same request object.
 	ImmediateRetryResult = reconcile.Result{Requeue: true}
 
 	// ShutdownSignals signals to watch for to terminate the operator gracefully

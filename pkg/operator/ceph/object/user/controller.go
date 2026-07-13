@@ -66,7 +66,7 @@ const (
 // Account users are referenced by display name in IAM policy ARNs, so the name must be IAM-compatible.
 var iamDisplayNamePattern = regexp.MustCompile(`^[\w+=,.@-]+$`)
 
-// newMultisiteAdminOpsCtxFunc help us mocking the admin ops API client in unit test
+// newMultisiteAdminOpsCtxFunc helps us mocking the admin ops API client in unit test
 var newMultisiteAdminOpsCtxFunc = object.NewMultisiteAdminOpsContext
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "object-user-controller")
@@ -77,7 +77,7 @@ var controllerTypeMeta = metav1.TypeMeta{
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
-// ReconcileObjectStoreUser reconciles a ObjectStoreUser object
+// ReconcileObjectStoreUser reconciles an ObjectStoreUser object
 type ReconcileObjectStoreUser struct {
 	client            client.Client
 	scheme            *runtime.Scheme

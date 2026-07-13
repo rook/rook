@@ -76,7 +76,7 @@ var controllerTypeMeta = metav1.TypeMeta{
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
-// ReconcileObjectZone reconciles a ObjectZone object
+// ReconcileObjectZone reconciles an ObjectZone object
 type ReconcileObjectZone struct {
 	client           client.Client
 	scheme           *runtime.Scheme
@@ -362,7 +362,7 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 		args = append(args, "--master")
 	}
 	if len(zone.Spec.CustomEndpoints) > 0 {
-		// If custom endpoint list defined set those values
+		// If custom endpoint list is defined, set those values
 		zoneEndpoints := strings.Join(zone.Spec.CustomEndpoints, ",")
 		args = append(args, fmt.Sprintf("--endpoints=%s", zoneEndpoints))
 	}

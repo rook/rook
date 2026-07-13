@@ -39,7 +39,7 @@ func TestValidateSpec(t *testing.T) {
 	err = validateSpec(r)
 	assert.NoError(t, err)
 
-	// Multiple pools mirroring are supported with the same peer is supported
+	// Multiple pools mirroring are supported with the same peer
 	r.Peers.SecretNames = append(r.Peers.SecretNames, "bar")
 	err = validateSpec(r)
 	assert.NoError(t, err)

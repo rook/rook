@@ -24,7 +24,7 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 )
 
-// AuthListOutput contains list of ceph user details contains entries, keys.
+// AuthListOutput contains a list of ceph user details, entries, keys.
 type AuthListOutput struct {
 	AuthDump []AuthListEntry `json:"auth_dump"`
 }
@@ -111,7 +111,7 @@ func AuthRotate(context *clusterd.Context, clusterInfo *ClusterInfo, name string
 			// `ceph auth rotate` is not yet present in all ceph versions. as long as the command
 			// invocation is correct, EINVAL means the ceph version doesn't have the rotate
 			// subcommand added in: https://github.com/ceph/ceph/pull/58121
-			// all version of ceph v20 (tentacle) and higher should have the command present
+			// all versions of ceph v20 (tentacle) and higher should have the command present
 			return "", errors.Wrapf(err, "failed auth rotate %s. operator or cluster ceph version does not support ceph auth rotate", name)
 		}
 		return "", errors.Wrapf(err, "failed auth rotate %s", name)

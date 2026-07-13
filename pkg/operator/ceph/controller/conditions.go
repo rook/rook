@@ -33,7 +33,7 @@ import (
 
 // UpdateCondition function will export each condition into the cluster custom resource
 func UpdateCondition(ctx context.Context, c *clusterd.Context, namespaceName types.NamespacedName, observedGeneration int64, conditionType cephv1.ConditionType, status v1.ConditionStatus, reason cephv1.ConditionReason, message string) {
-	// use client.Client unit test this more easily with updating statuses which must use the client
+	// use client.Client to unit test this more easily with updating statuses which must use the client
 	cluster := &cephv1.CephCluster{}
 	if err := c.Client.Get(ctx, namespaceName, cluster); err != nil {
 		log.NamedError(namespaceName, logger, "failed to get cluster %v to update the conditions. %v", namespaceName, err)
@@ -110,7 +110,7 @@ func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, na
 	}
 }
 
-// translatePhasetoState convert the Phases to corresponding State
+// translatePhasetoState converts the Phases to corresponding State
 // 1. We still need to set the State in case someone is still using it
 // instead of Phase. If we stopped setting the State it would be a
 // breaking change.

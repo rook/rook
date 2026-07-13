@@ -135,7 +135,7 @@ func (s *SmokeSuite) TestARookClusterInstallation_SmokeTest() {
 	checkIfRookClusterIsInstalled(&s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 3)
 }
 
-// Smoke Test for Mon failover - Test check the following operations for the Mon failover in order
+// Smoke Test for Mon failover - Test checks the following operations for the Mon failover in order
 // Delete mon pod, Wait for new mon pod
 func (s *SmokeSuite) TestMonFailover() {
 	ctx := context.TODO()

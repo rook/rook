@@ -44,7 +44,7 @@ func (t *TopicOperation) UpdateTopic(topicName string, storeName string, httpEnd
 	return t.k8sh.ResourceOperation("apply", t.manifests.GetBucketTopic(topicName, storeName, httpEndpointService))
 }
 
-// CheckTopic if topic has an ARN set in its status
+// CheckTopic checks if topic has an ARN set in its status
 func (t *TopicOperation) CheckTopic(topicName string) bool {
 	const resourceName = "cephbuckettopic"
 	_, err := t.k8sh.GetResource(resourceName, topicName)

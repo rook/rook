@@ -103,7 +103,7 @@ func InitVault(ctx context.Context, context *clusterd.Context, namespace string,
 	return v, nil
 }
 
-// configTLS returns a map of TLS config that map physical files for the TLS library to load
+// configTLS returns a map of TLS config that maps physical files for the TLS library to load
 // Also it returns a function to remove the temporary files (certs, keys)
 // The signature has named result parameters to help building 'defer' statements especially for the
 // content of removeCertFiles which needs to be populated by the files to remove if no errors and be

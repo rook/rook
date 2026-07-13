@@ -133,7 +133,7 @@ func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *
 	err = k8sh.CreateSnapshotController("apply")
 	require.NoError(s.T(), err)
 	// cleanup the CRD and controller in defer to make sure the CRD and
-	// controller are removed as filesystem test also install CRD and controller.
+	// controller are removed as filesystem test also installs CRD and controller.
 	defer func() {
 		logger.Infof("delete snapshot-controller")
 		err = k8sh.DeleteSnapshotController()
@@ -263,7 +263,7 @@ func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *
 	require.NoError(s.T(), err)
 }
 
-// Smoke Test for Block Storage - Test check the following operations on Block Storage in order
+// Smoke Test for Block Storage - Test checks the following operations on Block Storage in order
 // Create,Mount,Write,Read,Expand,Unmount and Delete.
 func runBlockCSITest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, namespace string) {
 	podName := "block-test"

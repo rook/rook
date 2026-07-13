@@ -137,7 +137,7 @@ func buildTwoStepCrushSteps(pool cephv1.PoolSpec) []stepSpec {
 	}
 	steps = append(steps, *stepTakeDefault)
 
-	// Steps two
+	// Step two
 	stepTakeFailureDomain := &stepSpec{
 		Operation: "chooseleaf_firstn",
 		Number:    0,

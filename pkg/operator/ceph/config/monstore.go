@@ -161,7 +161,7 @@ func (m *MonStore) GetDaemon(who string) ([]Option, error) {
 	return daemonOptions, nil
 }
 
-// DeleteDaemon delete all configs for a specific daemon in the centralized mon configuration database.
+// DeleteDaemon deletes all configs for a specific daemon in the centralized mon configuration database.
 func (m *MonStore) DeleteDaemon(who string) error {
 	configOptions, err := m.GetDaemon(who)
 	if err != nil {

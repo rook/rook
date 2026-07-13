@@ -984,8 +984,8 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 	}
 
 	if len(existingOSDs) == 0 {
-		// ceph-volume raw list didn't return any existing OSDs. Its possible that /dev/mapper entry of the encrypted disks were removed.
-		// Check for cephFSID in the luks header of the disk and clean the disk if does not match the cephFSID of the current cluster.
+		// ceph-volume raw list didn't return any existing OSDs. It's possible that /dev/mapper entries of the encrypted disks were removed.
+		// Check for cephFSID in the luks header of the disk and clean the disk if it does not match the cephFSID of the current cluster.
 		logger.Infof("ceph-volume didn't return any existing OSDs. Checking for cephFSID of a different cluster in the luks header of the disk")
 		err := wipeEncryptedDevicesFromOtherClusters(context, a.clusterInfo.FSID)
 		if err != nil {
@@ -1121,7 +1121,7 @@ func sanitizeOSDsPerDevice(count int) string {
 	return strconv.Itoa(count)
 }
 
-// GetCephVolumeLVMOSDs list OSD prepared with lvm mode
+// GetCephVolumeLVMOSDs lists OSD prepared with lvm mode
 func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, cephfsid, lv string, skipLVRelease, lvBackedPV bool) ([]oposd.OSDInfo, error) {
 	// lv can be a block device if raw mode is used
 	cvMode := "lvm"
@@ -1217,8 +1217,8 @@ func readCVLogContent(cvLogFilePath string) string {
 	return string(b)
 }
 
-// GetCephVolumeRawOSDs list OSD prepared with raw mode.
-// Sometimes this function called against a device, sometimes it's not. For instance, in the cleanup
+// GetCephVolumeRawOSDs lists OSD prepared with raw mode.
+// Sometimes this function is called against a device, sometimes it's not. For instance, in the cleanup
 // scenario, we don't pass any block because we are looking for all the OSDs present on the machine.
 // On the other hand, the PVC scenario always uses the PVC block as a block to check whether the
 // disk is an OSD or not.

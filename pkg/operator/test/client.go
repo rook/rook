@@ -78,7 +78,7 @@ func AddReadyNode(t *testing.T, clientset *fake.Clientset, name, ip string) {
 	}
 }
 
-// AddSomeReadyNodes create a number of new, ready Nodes.
+// AddSomeReadyNodes creates a number of new, ready Nodes.
 //   - name from 0 to count-1
 //   - ip from 0.0.0.0 to <count-1>.<count-1>.<count-1>.<count-1>
 func AddSomeReadyNodes(t *testing.T, clientset *fake.Clientset, count int) {

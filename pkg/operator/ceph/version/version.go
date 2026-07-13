@@ -53,7 +53,7 @@ var (
 	// supportedVersions are production-ready versions that rook supports
 	supportedVersions = []CephVersion{Squid, Tentacle}
 
-	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
+	// unsupportedVersions are possibly Ceph pin-point releases that introduced breaking changes and not recommended
 	unsupportedVersions []CephVersion
 
 	// for parsing the output of `ceph --version`
@@ -211,7 +211,7 @@ func IsIdentical(a, b CephVersion) bool {
 	return false
 }
 
-// IsSuperior checks if a given version if superior to another one
+// IsSuperior checks if a given version is superior to another one
 func IsSuperior(a, b CephVersion) bool {
 	if a.Major > b.Major {
 		return true
@@ -244,7 +244,7 @@ func IsSuperior(a, b CephVersion) bool {
 	return false
 }
 
-// IsInferior checks if a given version if inferior to another one
+// IsInferior checks if a given version is inferior to another one
 func IsInferior(a, b CephVersion) bool {
 	if a.Major < b.Major {
 		return true

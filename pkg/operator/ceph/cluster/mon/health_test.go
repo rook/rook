@@ -177,13 +177,13 @@ func TestRemoveExtraMon(t *testing.T) {
 		"c": {Name: "node3"},
 		"d": {Name: "node1"},
 	}
-	// Remove mon an extra mon on the same node
+	// Remove an extra mon on the same node
 	removedMon := c.determineExtraMonToRemove()
 	if removedMon != "a" && removedMon != "d" {
 		assert.Fail(t, fmt.Sprintf("removed mon %q instead of a or d", removedMon))
 	}
 
-	// Remove an arbitrary mon that are all on different nodes
+	// Remove an arbitrary mon when they are all on different nodes
 	c.mapping.Schedule["d"].Name = "node4"
 	removedMon = c.determineExtraMonToRemove()
 	assert.NotEqual(t, "", removedMon)
@@ -347,7 +347,7 @@ func TestEvictMonOnSameNode(t *testing.T) {
 	// Create a second mon on a different node
 	createTestMonPod(t, clientset, c, "b", "node2")
 
-	// Nothing to evict with where mons are on different nodes
+	// Nothing to evict where mons are on different nodes
 	err = c.evictMonIfMultipleOnSameNode()
 	assert.NoError(t, err)
 

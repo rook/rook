@@ -134,7 +134,7 @@ func SetOrRemoveDefaultConfigs(
 	}
 
 	// This section will remove any previously configured option(s) from the mon centralized store
-	// This is useful for scenarios where options are not needed anymore and we just want to reset to internal's default
+	// This is useful for scenarios where options are not needed anymore and we just want to reset to the internal default
 	// On upgrade, the flag will be removed
 	if err := monStore.DeleteAll(LegacyConfigs()...); err != nil {
 		return errors.Wrap(err, "failed to remove legacy options")

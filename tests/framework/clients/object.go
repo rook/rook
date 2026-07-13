@@ -28,13 +28,13 @@ const rgwPort = 80
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook/tests", "clients")
 
-// ObjectOperation is wrapper for k8s rook object operations
+// ObjectOperation is a wrapper for k8s rook object operations
 type ObjectOperation struct {
 	k8sh      *utils.K8sHelper
 	manifests installer.CephManifests
 }
 
-// CreateObjectOperation creates new rook object client
+// CreateObjectOperation creates a new rook object client
 func CreateObjectOperation(k8sh *utils.K8sHelper, manifests installer.CephManifests) *ObjectOperation {
 	return &ObjectOperation{k8sh, manifests}
 }

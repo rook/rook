@@ -272,7 +272,7 @@ func (c *Cluster) SetMgrRoleLabel(daemonNameToUpdate string, isActive bool) erro
 	})
 	if err != nil {
 		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "cannot get pod for mgr daemon %s", daemonNameToUpdate)
-		return err // force mrg_role update in the next call
+		return err // force mgr_role update in the next call
 	}
 
 	newMgrRole := standbyMgrStatus

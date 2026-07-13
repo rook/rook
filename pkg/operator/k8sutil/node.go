@@ -175,7 +175,7 @@ func GetNodeSchedulable(node v1.Node, scheduleAlways bool) bool {
 
 // NodeMeetsPlacementTerms returns true if the Rook placement allows the node to have resources scheduled
 // on it. A node is placeable if it (1) meets any affinity terms that may be set in the placement,
-// and (2) its taints are tolerated by the placements tolerations.
+// and (2) its taints are tolerated by the placement's tolerations.
 // There is the option to ignore well known taints defined in WellKnownTaints. See WellKnownTaints
 // for more information.
 func NodeMeetsPlacementTerms(node v1.Node, placement cephv1.Placement, ignoreWellKnownTaints bool) (bool, error) {

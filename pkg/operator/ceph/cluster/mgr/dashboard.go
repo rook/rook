@@ -113,7 +113,7 @@ func (c *Cluster) configureDashboardModules() error {
 }
 
 // Delete the manager per-daemon configuration. Returns true
-// if all the configuration entries have been delete successfully.
+// if all the configuration entries have been deleted successfully.
 func (c *Cluster) deleteManagerDaemonConfiguration() bool {
 	mgrKeysToDelete := []string{
 		"mgr/dashboard/url_prefix",

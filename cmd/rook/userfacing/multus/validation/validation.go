@@ -36,7 +36,7 @@ var (
 		Logger: capnslog.NewPackageLogger("github.com/rook/rook", "multus-validation"),
 	}
 
-	// keep special var for `--daemons-per-node` that needs put into node config for validation run
+	// keep special var for `--daemons-per-node` that needs to be put into node config for validation run
 	flagDaemonsPerNode = -1
 
 	// keep special var for --host-check-only flag that can override what is from config file

@@ -875,7 +875,7 @@ func (c *cluster) fetchSecretValue(selector v1.SecretKeySelector) (string, error
 	return string(val), nil
 }
 
-// initClusterCephxStatus set `Uninitialized` cephx status for new clusters.
+// initClusterCephxStatus sets `Uninitialized` cephx status for new clusters.
 // this should not be run for external mode clusters
 func initClusterCephxStatus(c *cluster) error {
 	initErr := c.ClusterInfo.IsInitialized()

@@ -107,7 +107,7 @@ func generateOSDEncryptedKeySecret(pvcName, key string, clusterInfo *cephclient.
 	return s, nil
 }
 
-// GenerateOSDEncryptionSecretName generate the Kubernetes Secret name of the encrypted key
+// GenerateOSDEncryptionSecretName generates the Kubernetes Secret name of the encrypted key
 func GenerateOSDEncryptionSecretName(pvcName string) string {
 	return fmt.Sprintf("%s-%s", osdEncryptionSecretNamePrefix, pvcName)
 }
