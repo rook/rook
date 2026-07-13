@@ -61,7 +61,7 @@ var (
 	radosNamespaceMirroringMinimumVersion = cephver.CephVersion{Major: 20, Minor: 0, Extra: 0}
 )
 
-// ImportRBDMirrorBootstrapPeer add a mirror peer in the rbd-mirror configuration
+// ImportRBDMirrorBootstrapPeer adds a mirror peer in the rbd-mirror configuration
 func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string, direction string, token []byte) error {
 	logger.Infof("add rbd-mirror bootstrap peer token for pool %q", poolName)
 
@@ -115,7 +115,7 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 	return nil
 }
 
-// CreateRBDMirrorBootstrapPeer add a mirror peer in the rbd-mirror configuration
+// CreateRBDMirrorBootstrapPeer creates a bootstrap peer token for the rbd-mirror configuration
 func CreateRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) ([]byte, error) {
 	logger.Infof("create rbd-mirror bootstrap peer token for pool %q", poolName)
 
@@ -219,7 +219,7 @@ func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo,
 
 	if poolMirroringStatus.Summary != nil {
 		// for backward compatibility, we need to set the states field
-		// so to avoid breaking changes in the CRD that rook user might be using
+		// so to avoid breaking changes in the CRD that rook users might be using
 		if poolMirroringStatus.Summary.ImageStates != nil {
 			poolMirroringStatus.Summary.States = *poolMirroringStatus.Summary.ImageStates
 		}
@@ -251,7 +251,7 @@ func GetMirroredPoolImages(context *clusterd.Context, clusterInfo *ClusterInfo, 
 	return &mirroredImages, nil
 }
 
-// GetPoolMirroringInfo  prints the pool mirroring information
+// GetPoolMirroringInfo prints the pool mirroring information
 // `poolName` is the name of the pool or the pool/radosNamespace
 func GetPoolMirroringInfo(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.MirroringInfo, error) {
 	logger.Debugf("retrieving mirroring pool %q info", poolName)
@@ -276,7 +276,7 @@ func GetPoolMirroringInfo(context *clusterd.Context, clusterInfo *ClusterInfo, p
 	return &poolMirroringInfo, nil
 }
 
-// enableSnapshotSchedule configures the snapshots schedule on a mirrored pool
+// enableSnapshotSchedule configures the snapshot schedule on a mirrored pool
 func enableSnapshotSchedule(context *clusterd.Context, clusterInfo *ClusterInfo, snapSpec cephv1.SnapshotScheduleSpec, poolName string) error {
 	logger.Infof("enabling snapshot schedule for pool %q", poolName)
 
@@ -299,7 +299,7 @@ func enableSnapshotSchedule(context *clusterd.Context, clusterInfo *ClusterInfo,
 	return nil
 }
 
-// removeSnapshotSchedule removes the snapshots schedule on a mirrored pool
+// removeSnapshotSchedule removes the snapshot schedule on a mirrored pool
 func removeSnapshotSchedule(context *clusterd.Context, clusterInfo *ClusterInfo, snapScheduleResponse cephv1.SnapshotSchedule, poolName string) error {
 	logger.Debugf("removing snapshot schedule for pool %q (before adding new ones)", poolName)
 
@@ -344,7 +344,7 @@ func EnableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo
 
 // removeSnapshotSchedules removes all the existing snapshot schedules
 func removeSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, pool string) error {
-	// Get the list of existing snapshot schedule
+	// Get the list of existing snapshot schedules
 	existingSnapshotSchedules, err := listSnapshotSchedules(context, clusterInfo, pool)
 	if err != nil {
 		return errors.Wrap(err, "failed to list snapshot schedule(s)")
@@ -361,7 +361,7 @@ func removeSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo
 	return nil
 }
 
-// listSnapshotSchedules configures the snapshots schedule on a mirrored pool
+// listSnapshotSchedules lists the snapshot schedules on a mirrored pool
 func listSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) ([]cephv1.SnapshotSchedule, error) {
 	// Build command
 	args := []string{"mirror", "snapshot", "schedule", "ls", "--pool", poolName}
@@ -384,7 +384,7 @@ func listSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, 
 	return snapshotSchedules, nil
 }
 
-// ListSnapshotSchedulesRecursively configures the snapshots schedule on a mirrored pool
+// ListSnapshotSchedulesRecursively recursively lists the snapshot schedules on a mirrored pool
 func ListSnapshotSchedulesRecursively(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) ([]cephv1.SnapshotSchedulesSpec, error) {
 	// Build command
 	args := []string{"mirror", "snapshot", "schedule", "ls", "--pool", poolName, "--recursive"}

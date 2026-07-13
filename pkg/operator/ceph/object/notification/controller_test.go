@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package notification to manage a rook bucket notifications.
+// Package notification to manage rook bucket notifications.
 package notification
 
 import (

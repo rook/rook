@@ -352,7 +352,7 @@ func removeOSDs(cmd *cobra.Command, args []string) error {
 	// flag values: --force-osd-removal=true, --help=false, --log-level=DEBUG, --operator-image=,
 	// --osd-ids=1, --preserve-pvc=true, --service-account=
 	//
-	// Bools are false but they are interpreted true by the flag package.
+	// Bools are false but they are interpreted as true by the flag package.
 
 	forceOSDRemovalBool, err := strconv.ParseBool(forceOSDRemoval)
 	if err != nil {

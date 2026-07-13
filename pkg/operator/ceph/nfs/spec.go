@@ -112,7 +112,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	}
 
 	// If host network is defined on Spec.Server.HostNetwork, use it.
-	// elsedefault to whatever the cluster has defined
+	// else default to whatever the cluster has defined
 	hostNetwork := nfs.IsHostNetwork(r.cephClusterSpec)
 
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
@@ -284,7 +284,7 @@ func (r *ReconcileCephNFS) dbusContainer(nfs *cephv1.CephNFS) v1.Container {
 			"--nofork",    // run in foreground
 			"--system",    // use system config file (uses /run/dbus/system_bus_socket)
 			"--nopidfile", // don't write a pid file
-			// some dbus-daemon versions have flag --nosyslog to send logs to sterr; not ceph upstream image
+			// some dbus-daemon versions have a flag --nosyslog to send logs to stderr; not ceph upstream image
 		},
 		Image:           r.GetNFSImage(nfs),
 		ImagePullPolicy: r.GetNFSImagePullPolicy(nfs),

@@ -57,12 +57,12 @@ type Executor interface {
 // CommandExecutor is the type of the Executor
 type CommandExecutor struct{}
 
-// ExecuteCommand starts a process and wait for its completion
+// ExecuteCommand starts a process and waits for its completion
 func (c *CommandExecutor) ExecuteCommand(command string, arg ...string) error {
 	return c.ExecuteCommandWithEnv([]string{}, command, arg...)
 }
 
-// ExecuteCommandWithStdin starts a process, provides stdin and wait for its completion  with timeout.
+// ExecuteCommandWithStdin starts a process, provides stdin and waits for its completion with timeout.
 func (c *CommandExecutor) ExecuteCommandWithStdin(timeout time.Duration, command string, stdin *string, arg ...string) error {
 	output, err := executeCommandWithTimeout(timeout, command, stdin, arg...)
 	logger.Infof("Command %q output: %q", command, output)
@@ -70,7 +70,7 @@ func (c *CommandExecutor) ExecuteCommandWithStdin(timeout time.Duration, command
 	return err
 }
 
-// ExecuteCommandWithEnv starts a process with env variables and wait for its completion
+// ExecuteCommandWithEnv starts a process with env variables and waits for its completion
 func (*CommandExecutor) ExecuteCommandWithEnv(env []string, command string, arg ...string) error {
 	cmd, stdout, stderr, err := startCommand(env, command, arg...)
 	if err != nil {
@@ -93,12 +93,12 @@ func IsTimeout(err error) bool {
 	return strings.Contains(err.Error(), TimeoutWaitingForMessage)
 }
 
-// ExecuteCommandWithTimeout starts a process and wait for its completion with timeout.
+// ExecuteCommandWithTimeout starts a process and waits for its completion with timeout.
 func (*CommandExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command string, arg ...string) (string, error) {
 	return executeCommandWithTimeout(timeout, command, nil, arg...)
 }
 
-// executeCommandWithTimeout starts a process, provides stdin and wait for its completion with timeout.
+// executeCommandWithTimeout starts a process, provides stdin and waits for its completion with timeout.
 func executeCommandWithTimeout(timeout time.Duration, command string, stdin *string, arg ...string) (string, error) {
 	logCommand(command, arg...)
 	//nolint:gosec // Rook controls the input to the exec arguments

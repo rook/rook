@@ -55,7 +55,7 @@ var ignoredDependentSubvolumeGroups = []string{"_nogroup", "_index", "_legacy", 
 // groups with no subvolumes don't block deletion.
 var CephFilesystemDependents = cephFilesystemDependents
 
-// check filesystem whether it exists
+// check whether the filesystem exists
 func filesystemExists(clusterdCtx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, name string, nsName types.NamespacedName) (bool, error) {
 	_, err := cephclient.GetFilesystem(clusterdCtx, clusterInfo, name)
 	if err != nil {

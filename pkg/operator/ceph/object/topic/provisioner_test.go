@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package topic to manage a rook bucket topics.
+// Package topic to manage rook bucket topics.
 package topic
 
 import (

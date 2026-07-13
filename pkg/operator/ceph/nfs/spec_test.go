@@ -92,7 +92,7 @@ func newDeploymentSpecTest(t *testing.T) (*ReconcileCephNFS, daemonConfig) {
 		DataPathMap: &config.DataPathMap{
 			HostDataDir:        "",                          // nfs daemon does not store data on host, ...
 			ContainerDataDir:   cephclient.DefaultConfigDir, // does share data in containers using emptyDir, ...
-			HostLogAndCrashDir: "",                          // and does not log to /var/log/ceph dir nor creates crash dumps
+			HostLogAndCrashDir: "",                          // and does not log to /var/log/ceph dir nor create crash dumps
 		},
 	}
 
@@ -444,7 +444,7 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, d.Spec.Template.Annotations)
 
-		// Expects valid settings to default livness-probe
+		// Expects valid settings to default liveness-probe
 		var ganeshaCont *v1.Container = nil
 		for i := range d.Spec.Template.Spec.Containers {
 			if d.Spec.Template.Spec.Containers[i].Name == "nfs-ganesha" {

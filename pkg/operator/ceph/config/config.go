@@ -81,7 +81,7 @@ var (
 
 // normalizeKey converts a key in any format to a key with underscores.
 //
-// The internal representation of Ceph config keys uses underscores only, where Ceph supports both
+// The internal representation of Ceph config keys uses underscores only, where Ceph supports
 // spaces, underscores, and hyphens. This is so that Rook can properly match and override keys even
 // when they are specified as "some config key" in one section, "some_config_key" in another
 // section, and "some-config-key" in yet another section.
@@ -134,7 +134,7 @@ func SetOrRemoveDefaultConfigs(
 	}
 
 	// This section will remove any previously configured option(s) from the mon centralized store
-	// This is useful for scenarios where options are not needed anymore and we just want to reset to internal's default
+	// This is useful for scenarios where options are not needed anymore and we just want to reset to the internal default
 	// On upgrade, the flag will be removed
 	if err := monStore.DeleteAll(LegacyConfigs()...); err != nil {
 		return errors.Wrap(err, "failed to remove legacy options")

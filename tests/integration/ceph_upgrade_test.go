@@ -88,7 +88,7 @@ func (s *UpgradeSuite) TearDownSuite() {
 func (s *UpgradeSuite) baseSetup(useHelm bool, initialRookVersion string, initialCephVersion v1.CephVersionSpec) {
 	s.namespace = "upgrade"
 	// the suite instance is shared across test methods; a fixture left over
-	// from a previous method must not leak into this one's cleanup routing
+	// from a previous method must not leak into this one's cleanup routine
 	s.objectStore = nil
 	s.settings = &installer.TestCephSettings{
 		ClusterName:                 s.namespace,

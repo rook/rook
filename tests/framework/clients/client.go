@@ -28,13 +28,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ClientOperation is a wrapper for k8s rook file operations
+// ClientOperation is a wrapper for k8s rook CephClient operations
 type ClientOperation struct {
 	k8sh      *utils.K8sHelper
 	manifests installer.CephManifests
 }
 
-// CreateClientOperation Constructor to create ClientOperation - client to perform rook file system operations on k8s
+// CreateClientOperation Constructor to create ClientOperation - client to perform rook CephClient operations on k8s
 func CreateClientOperation(k8sh *utils.K8sHelper, manifests installer.CephManifests) *ClientOperation {
 	return &ClientOperation{k8sh, manifests}
 }
@@ -62,7 +62,7 @@ func (c *ClientOperation) Delete(name, namespace string) error {
 	return nil
 }
 
-// Get shows user created in Rook
+// Get returns the key of a client created in Rook
 func (c *ClientOperation) Get(clusterInfo *client.ClusterInfo, clientName string) (key string, error error) {
 	context := c.k8sh.MakeContext()
 	key, err := client.AuthGetKey(context, clusterInfo, clientName)

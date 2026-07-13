@@ -154,7 +154,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 		// Set the rgw config flags
 		// Previously we were checking if the deployment was present, if not we would set the config flags
 		// Which means that we would only set the flag on newly created CephObjectStore CR
-		// Unfortunately, on upgrade we would not set the flags which is not ideal for old clusters where we were no setting those flags
+		// Unfortunately, on upgrade we would not set the flags which is not ideal for old clusters where we were not setting those flags
 		// The KV supports setting those flags even if the RGW is running
 		log.NamedInfo(nsName, logger, "setting rgw config flags")
 		err = c.setFlagsMonConfigStore(rgwConfig)
@@ -385,7 +385,7 @@ func getAllDNSEndpoints(s *cephv1.CephObjectStore, port int32, secure bool) []st
 	return endpoints
 }
 
-// ParseDomainName parse the name and namespace from the dns name
+// ParseDomainName parses the name and namespace from the dns name
 func ParseDomainName(domainName string) (types.NamespacedName, error) {
 	parsedDomain := strings.Split(domainName, ".")
 	if len(parsedDomain) != 3 ||
@@ -401,7 +401,7 @@ func ParseDomainName(domainName string) (types.NamespacedName, error) {
 	return types.NamespacedName{Name: name, Namespace: parsedDomain[1]}, nil
 }
 
-// BuildDNSEndpoint build the dns name to reach out the service endpoint
+// BuildDNSEndpoint builds the dns name to reach the service endpoint
 func BuildDNSEndpoint(domainName string, port int32, secure bool) string {
 	httpPrefix := "http"
 	if secure {
@@ -410,7 +410,7 @@ func BuildDNSEndpoint(domainName string, port int32, secure bool) string {
 	return fmt.Sprintf("%s://%s:%d", httpPrefix, domainName, port)
 }
 
-// GetTlsCaCert fetch cacert for internal RGW requests
+// GetTlsCaCert fetches the CA cert for internal RGW requests
 func GetTlsCaCert(objContext *Context, objectStoreSpec *cephv1.ObjectStoreSpec) ([]byte, bool, error) {
 	var insecureTLS, ok bool
 	ctx := objContext.clusterInfo.Context

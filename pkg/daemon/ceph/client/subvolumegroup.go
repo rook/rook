@@ -30,7 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// CreateCephFSSubVolumeGroup create a CephFS subvolume group.
+// CreateCephFSSubVolumeGroup creates a CephFS subvolume group.
 // volName is the name of the Ceph FS volume, the same as the CephFilesystem CR name.
 func CreateCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterInfo, volName, groupName string, svgSpec *cephv1.CephFilesystemSubVolumeGroupSpec) error {
 	logger.Infof("creating cephfs %q subvolume group %q", volName, groupName)
@@ -38,7 +38,7 @@ func CreateCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterI
 	args := []string{"fs", "subvolumegroup", "create", volName, groupName}
 	if svgSpec != nil {
 		if svgSpec.Quota != nil {
-			// convert the size to bytes as ceph expect the size in bytes
+			// convert the size to bytes as ceph expects the size in bytes
 			args = append(args, fmt.Sprintf("--size=%d", svgSpec.Quota.Value()))
 		}
 		if svgSpec.DataPoolName != "" {
@@ -73,7 +73,7 @@ func CreateCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterI
 	return nil
 }
 
-// resizeCephFSSubVolumeGroup resize a CephFS subvolume group.
+// resizeCephFSSubVolumeGroup resizes a CephFS subvolume group.
 // volName is the name of the Ceph FS volume, the same as the CephFilesystem CR name.
 func resizeCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterInfo, volName, groupName string, svgSpec *cephv1.CephFilesystemSubVolumeGroupSpec) error {
 	logger.Infof("resizing cephfs %q subvolume group %q", volName, groupName)
@@ -128,7 +128,7 @@ func (s *subvolumeGroupInfo) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(aux.BytesQuota, &s.BytesQuota)
 }
 
-// getCephFSSubVolumeGroupInfo get subvolumegroup info of the group name.
+// getCephFSSubVolumeGroupInfo gets subvolumegroup info of the group name.
 // volName is the name of the Ceph FS volume, the same as the CephFilesystem CR name.
 func getCephFSSubVolumeGroupInfo(context *clusterd.Context, clusterInfo *ClusterInfo, volName, groupName string) (*subvolumeGroupInfo, error) {
 	args := []string{"fs", "subvolumegroup", "info", volName, groupName}
@@ -147,7 +147,7 @@ func getCephFSSubVolumeGroupInfo(context *clusterd.Context, clusterInfo *Cluster
 	return &svgInfo, nil
 }
 
-// DeleteCephFSSubVolumeGroup delete a CephFS subvolume group.
+// DeleteCephFSSubVolumeGroup deletes a CephFS subvolume group.
 func DeleteCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterInfo, volName, groupName string) error {
 	logger.Infof("deleting cephfs %q subvolume group %q", volName, groupName)
 	args := []string{"fs", "subvolumegroup", "rm", volName, groupName}
@@ -164,7 +164,7 @@ func DeleteCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterI
 	return nil
 }
 
-// PinCephFSSubVolumeGroup pin the cephfs subvolume group
+// PinCephFSSubVolumeGroup pins the cephfs subvolume group
 func PinCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterInfo, volName string, cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup, cephFilesystemSubVolumeGroupName string) error {
 	// namespace is the namespace of the svg CR, name is the svg name spec otherwise svg CR name
 	namespaceName := types.NamespacedName{Namespace: cephFilesystemSubVolumeGroup.Namespace, Name: cephFilesystemSubVolumeGroupName}
@@ -186,7 +186,7 @@ func PinCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterInfo
 		setting := strconv.FormatFloat(*cephFilesystemSubVolumeGroup.Spec.Pinning.Random, 'f', -1, 64)
 		args = append(args, "random", setting)
 	} else {
-		// set by default value
+		// set the default value
 		args = append(args, "distributed", "1")
 	}
 	logger.Infof("subvolume group pinning args %v", args)
@@ -202,9 +202,9 @@ func PinCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterInfo
 	return nil
 }
 
-// validateConfiguration validates the provided pinning configuration.
+// validatePinningValues validates the provided pinning configuration.
 // despite CRD validation, this ensures no duplicate values are set programmatically
-// and to safeguard against potential internal changes of the configuration.
+// and safeguards against potential internal changes to the configuration.
 func validatePinningValues(pinning cephv1.CephFilesystemSubVolumeGroupSpecPinning) error {
 	numNils := 0
 	var err error

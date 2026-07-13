@@ -106,12 +106,12 @@ func (*VolumeMountBuilder) AdminKeyringFilePath() string {
 	return path.Join(adminKeyringDir, keyringFileName)
 }
 
-// CrashCollectorKeyringFilePath returns the full path to the admin keyring file within a container.
+// CrashCollectorKeyringFilePath returns the full path to the crash collector keyring file within a container.
 func (*VolumeMountBuilder) CrashCollectorKeyringFilePath() string {
 	return path.Join(crashCollectorKeyringDir, keyringFileName)
 }
 
-// ExporterKeyringFilePath returns the full path to the admin keyring file within a container.
+// ExporterKeyringFilePath returns the full path to the exporter keyring file within a container.
 func (*VolumeMountBuilder) ExporterKeyringFilePath() string {
 	return path.Join(exporterKeyringDir, keyringFileName)
 }

@@ -72,7 +72,7 @@ func New(clientset kubernetes.Interface) *Discover {
 	}
 }
 
-// Start the discover
+// Start creates the discover daemonset
 func (d *Discover) Start(ctx context.Context, namespace, discoverImage, securityAccount string, useCephVolume bool) error {
 	err := d.createDiscoverDaemonSet(ctx, namespace, discoverImage, securityAccount, useCephVolume)
 	if err != nil {
@@ -269,7 +269,7 @@ func getLabels() map[string]string {
 
 // ListDevices lists all devices discovered on all nodes or specific node if node name is provided.
 func ListDevices(ctx context.Context, clusterdContext *clusterd.Context, namespace, nodeName string) (map[string][]sys.LocalDisk, error) {
-	// convert the host name label to the k8s node name to look up the configmap  with the devices
+	// convert the host name label to the k8s node name to look up the configmap with the devices
 	if len(nodeName) > 0 {
 		var err error
 		nodeName, err = k8sutil.GetNodeNameFromHostname(ctx, clusterdContext.Clientset, nodeName)
@@ -372,7 +372,7 @@ func matchDeviceFullPath(devLinks, fullpath string) bool {
 	return slices.Contains(dlsArr, fullpath)
 }
 
-// GetAvailableDevices conducts outer join using input filters with free devices that a node has. It marks the devices from join result as in-use.
+// GetAvailableDevices conducts an outer join using input filters with free devices that a node has. It marks the devices from the join result as in-use.
 func GetAvailableDevices(ctx context.Context, clusterdContext *clusterd.Context, nodeName, clusterName string, devices []cephv1.Device, filter string, useAllDevices bool) ([]cephv1.Device, error) {
 	results := []cephv1.Device{}
 	if len(devices) == 0 && len(filter) == 0 && !useAllDevices {
@@ -479,7 +479,7 @@ func GetAvailableDevices(ctx context.Context, clusterdContext *clusterd.Context,
 	return results, nil
 }
 
-// Stop the discover
+// Stop deletes the discover daemonset
 func (d *Discover) Stop(ctx context.Context, namespace string) error {
 	err := d.clientset.AppsV1().DaemonSets(namespace).Delete(ctx, discoverDaemonsetName, metav1.DeleteOptions{})
 	if err != nil && !k8serrors.IsNotFound(err) {

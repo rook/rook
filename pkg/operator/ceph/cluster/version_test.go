@@ -97,7 +97,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, m)
 
-	// 5 test - spec version and running cluster versions are identical --> we upgrade
+	// 5 test - spec version and running cluster versions are identical --> we do not upgrade
 	fakeImageVersion = cephver.CephVersion{
 		Major: 19, Minor: 2, Extra: 0,
 		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc",

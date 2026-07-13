@@ -170,7 +170,7 @@ func TestSortCsiClientName(t *testing.T) {
 			want: []string{},
 		},
 		{
-			// JFYI, // We'll not have list of mixed client name as argument to `sortCsiClientName`
+			// JFYI, we'll not have a list of mixed client names as an argument to `sortCsiClientName`
 			args: []string{"client.csi-cephfs-node.1", "client.csi-cephfs-node.2", "client.csi-rbd-node.1", "client.csi-cephfs-node", "client.csi-rbd-node"},
 			want: []string{"client.csi-cephfs-node", "client.csi-rbd-node", "client.csi-cephfs-node.1", "client.csi-rbd-node.1", "client.csi-cephfs-node.2"},
 		},
@@ -497,7 +497,7 @@ func Test_getMatchingClient(t *testing.T) {
 		assert.Equal(t, []string{}, got)
 	})
 
-	// When no matching key found in `authList` means key is created for first time
+	// When no matching key is found in `authList`, it means the key is created for the first time
 	t.Run("auth list doesn't contain match", func(t *testing.T) {
 		authList := client.AuthListOutput{
 			AuthDump: []client.AuthListEntry{

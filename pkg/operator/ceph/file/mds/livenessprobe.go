@@ -24,7 +24,7 @@ const (
 	// this should also prevent unnecessary MDS restarts when Rook is initially creating
 	// the filesystem and waiting for MDSes to join for the first time
 	mdsFailureThreshold int32 = 5
-	//  we have strong certainty of success, and a low value keeps from restarting the MDS pod too often in flaky systems
+	//  we have strong certainty of success, and a low value keeps the MDS pod from restarting too often in flaky systems
 	mdsSuccessThreshold int32 = 1
 )
 

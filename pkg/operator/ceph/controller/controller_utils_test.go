@@ -318,7 +318,7 @@ func TestObcAllowAdditionalConfigFields(t *testing.T) {
 			[]string{"maxObjects", "maxSize", "bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner"},
 			[]string{"random"},
 		},
-		// this mechanism doesn't do any field checking - that isn't it's job - it merely handles
+		// this mechanism doesn't do any field checking - that isn't its job - it merely handles
 		// allow-listing essentially arbitrary config keys
 		{
 			"all fields including unknown", "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner,random",

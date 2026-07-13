@@ -35,7 +35,7 @@ import (
 	"github.com/rook/rook/tests/integration/object/util/wait4"
 )
 
-// generate the secret name the operator is expected to generate for the CephObjectStoreUser
+// generateObjectStoreUserSecretName returns the secret name the operator is expected to generate for the CephObjectStoreUser
 func generateObjectStoreUserSecretName(osu cephv1.CephObjectStoreUser) string {
 	return "rook-ceph-object-user-" + osu.Spec.Store + "-" + osu.Name
 }
@@ -74,7 +74,7 @@ func objectUserKey(secretName string) cephv1.ObjectUserKey {
 	}
 }
 
-// find a UserKeySpec by AccessKey value
+// findUserKeySpec finds a UserKeySpec by AccessKey value
 func findUserKeySpec(keys []admin.UserKeySpec, accessKey string) (admin.UserKeySpec, error) {
 	for _, k := range keys {
 		if k.AccessKey == accessKey {

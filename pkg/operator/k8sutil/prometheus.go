@@ -37,7 +37,7 @@ func getMonitoringClient(context *clusterd.Context) (*monitoringclient.Clientset
 	return client, nil
 }
 
-// GetServiceMonitor creates serviceMonitor object template
+// GetServiceMonitor creates a serviceMonitor object template
 func GetServiceMonitor(name string, namespace string, portName string) *monitoringv1.ServiceMonitor {
 	return &monitoringv1.ServiceMonitor{
 		ObjectMeta: metav1.ObjectMeta{
@@ -75,7 +75,7 @@ func GetServiceMonitor(name string, namespace string, portName string) *monitori
 	}
 }
 
-// CreateOrUpdateServiceMonitor creates serviceMonitor object or an error
+// CreateOrUpdateServiceMonitor creates or updates a serviceMonitor object and returns it or an error
 func CreateOrUpdateServiceMonitor(context *clusterd.Context, ctx context.Context, serviceMonitorDefinition *monitoringv1.ServiceMonitor) (*monitoringv1.ServiceMonitor, error) {
 	name := serviceMonitorDefinition.GetName()
 	namespace := serviceMonitorDefinition.GetNamespace()

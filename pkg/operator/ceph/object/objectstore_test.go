@@ -326,7 +326,7 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, zoneGetCalled)
 		assert.True(t, zoneSetCalled)
-		assert.False(t, placementModifyCalled) // mock returns applied namespases, no workaround needed
+		assert.False(t, placementModifyCalled) // mock returns applied namespaces, no workaround needed
 		assert.True(t, zoneGroupGetCalled)
 		assert.False(t, zoneGroupSetCalled) // zone group is set only if extra pool placements specified
 	})
@@ -345,7 +345,7 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, zoneGetCalled)
 		assert.True(t, zoneSetCalled)
-		assert.False(t, placementModifyCalled) // mock returns applied namespases, no workaround needed
+		assert.False(t, placementModifyCalled) // mock returns applied namespaces, no workaround needed
 		assert.True(t, zoneGroupGetCalled)
 		assert.True(t, zoneGroupSetCalled)
 	})
@@ -364,7 +364,7 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 		err := ConfigureSharedPoolsForZone(context, sharedPools)
 		assert.True(t, zoneGetCalled)
 		assert.False(t, zoneSetCalled)
-		assert.False(t, placementModifyCalled) // mock returns applied namespases, no workaround needed
+		assert.False(t, placementModifyCalled) // mock returns applied namespaces, no workaround needed
 		assert.NoError(t, err)
 		assert.True(t, zoneGroupGetCalled)
 		assert.False(t, zoneGroupSetCalled)
@@ -389,7 +389,7 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, zoneGetCalled)
 		assert.True(t, zoneSetCalled)
-		assert.False(t, placementModifyCalled) // mock returns applied namespases, no workaround needed
+		assert.False(t, placementModifyCalled) // mock returns applied namespaces, no workaround needed
 		assert.True(t, zoneGroupGetCalled)
 		assert.True(t, zoneGroupSetCalled)
 	})

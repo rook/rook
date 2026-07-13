@@ -122,7 +122,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a CephCOSIDriver object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a CephCOSIDriver object and makes changes based on the state read
 // and what is in the CephCOSIDriver.Spec
 func (r *ReconcileCephCOSIDriver) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	defer opcontroller.RecoverAndLogException()
@@ -134,7 +134,7 @@ func (r *ReconcileCephCOSIDriver) Reconcile(context context.Context, request rec
 func (r *ReconcileCephCOSIDriver) reconcile(request reconcile.Request) (reconcile.Result, cephv1.CephCOSIDriver, error) {
 	cephCOSIDriver := &cephv1.CephCOSIDriver{}
 
-	// Check No of instances of CephCOSIDriver
+	// Check the number of instances of CephCOSIDriver
 	cephCOSIDriverList := &cephv1.CephCOSIDriverList{}
 	err := r.client.List(r.opManagerContext, cephCOSIDriverList)
 	if err != nil && client.IgnoreNotFound(err) != nil {
@@ -179,7 +179,7 @@ func (r *ReconcileCephCOSIDriver) reconcile(request reconcile.Request) (reconcil
 		cephCOSIDriver.Name = CephCOSIDriverName
 	}
 
-	// The ceph-cosi-driver CRD should be same namespace as the operator
+	// The ceph-cosi-driver CRD should be in the same namespace as the operator
 	if cephCOSIDriver.Namespace != os.Getenv(k8sutil.PodNamespaceEnvVar) {
 		return reconcile.Result{}, *cephCOSIDriver, errors.New("Ceph COSI Driver namespace must be same as operator")
 	}

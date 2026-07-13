@@ -156,7 +156,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a cephRBDMirror object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a cephRBDMirror object and makes changes based on the state read
 // and what is in the cephRBDMirror.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -203,7 +203,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	}
 	// update observedGeneration local variable with current generation value,
 	// because generation can be changed before reconcile got completed
-	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	// CR status will be updated at end of reconcile, so it reflects that the reconcile has finished
 	observedGeneration := cephRBDMirror.ObjectMeta.Generation
 
 	// validate the pool settings
@@ -263,7 +263,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 		return opcontroller.ImmediateRetryResult, *cephRBDMirror, errors.Wrap(err, "failed to add ceph rbd mirror peer")
 	}
 
-	// check if cephRBDMirror daemon keys should be rotated or not (
+	// check if cephRBDMirror daemon keys should be rotated or not
 	// daemon key type always takes the default from setDefaultCephxKeyType()
 	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(
 		cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion, *runningCephVersion, cephRBDMirror.Status.Cephx.Daemon, true, r.clusterInfo.Namespace)

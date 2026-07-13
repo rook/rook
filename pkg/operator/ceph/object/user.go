@@ -84,7 +84,7 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 }
 
 // GetUser returns the user with the given ID.
-// The function is used **ONCE** only to provision so the RGW Admin Ops User
+// The function is used **ONCE** only to provision the RGW Admin Ops User
 // Subsequent interaction with the API will be done with the created user
 func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 	log.NamedDebug(c.NsName(), logger, "getting s3 user %q", id)
@@ -104,7 +104,7 @@ func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 }
 
 // CreateUser creates a new user with the information given.
-// The function is used **ONCE** only to provision so the RGW Admin Ops User
+// The function is used **ONCE** only to provision the RGW Admin Ops User
 // Subsequent interaction with the API will be done with the created user
 func CreateUser(c *Context, user ObjectUser, force bool) (*ObjectUser, int, error) {
 	log.NamedDebug(c.NsName(), logger, "creating s3 user %q", user.UserID)

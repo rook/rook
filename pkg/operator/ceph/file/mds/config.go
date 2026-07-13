@@ -44,7 +44,6 @@ func (c *Cluster) generateKeyring(m *mdsConfig) (string, error) {
 	user := fmt.Sprintf("mds.%s", m.DaemonID)
 	access := []string{"osd", "allow *", "mds", "allow", "mon", "allow profile mds"}
 
-	// At present
 	s := keyring.GetSecretStore(c.context, c.clusterInfo, c.ownerInfo)
 
 	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
@@ -101,7 +100,7 @@ func (c *Cluster) setDefaultFlagsMonConfigStore(mdsID string) error {
 		configOptions["mds_cache_memory_limit"] = strconv.Itoa(int(mdsCacheMemoryRequest))
 	}
 
-	// Set mds_join_fs flag to force mds daemon to join a specific fs
+	// Set the mds_join_fs flag to force the mds daemon to join a specific fs
 	configOptions["mds_join_fs"] = c.fs.Name
 
 	for flag, val := range configOptions {

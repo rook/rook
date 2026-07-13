@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// VersionCmd is the command for printing version of rook.
+// VersionCmd is the command for printing the version of rook.
 var VersionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number of rook",

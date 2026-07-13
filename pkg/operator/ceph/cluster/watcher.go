@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// clientCluster struct contains a client to interact with Kubernetes object
+// clientCluster struct contains a client to interact with Kubernetes objects
 // as well as the NamespacedName (used in requests)
 type clientCluster struct {
 	client    client.Client
@@ -133,7 +133,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object, op
 	return false
 }
 
-// onDeviceCMUpdate is trigger when the hot plug config map is updated
+// onDeviceCMUpdate is triggered when the hot plug config map is updated
 func (c *clientCluster) onDeviceCMUpdate(oldObj, newObj runtime.Object) bool {
 	oldCm, ok := oldObj.(*corev1.ConfigMap)
 	if !ok {

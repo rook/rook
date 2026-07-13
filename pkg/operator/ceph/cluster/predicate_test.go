@@ -60,7 +60,7 @@ func TestCompareNodes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			//#nosec G601 -- since nothing is modifying the tests slic
+			//#nosec G601 -- since nothing is modifying the tests slice
 			assert.Equal(t, tt.reconcile, shouldReconcileChangedNode(&tt.oldobj, &tt.newobj))
 		})
 	}

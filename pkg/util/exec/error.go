@@ -25,7 +25,7 @@ import (
 	kexec "k8s.io/client-go/util/exec"
 )
 
-// CephCLIError is Ceph CLI Error type
+// CephCLIError is the Ceph CLI error type
 type CephCLIError struct {
 	err    error
 	output string

@@ -51,9 +51,9 @@ func NewOwnerReferenceMatcher(owner runtime.Object, scheme *runtime.Scheme) (*Ow
 
 // Match checks whether a given object matches the parent controller owner reference
 // It is used in the predicate functions for non-CRD objects to ensure we only watch resources
-// that have the parent Kind in its owner reference AND the same UID
+// that have the parent Kind in their owner reference AND the same UID
 //
-// So we won't reconcile other object is we have multiple CRs
+// So we won't reconcile other objects if we have multiple CRs
 //
 // For example, for CephObjectStore we will only watch "secrets" that have an owner reference
 // referencing the 'CephObjectStore' Kind

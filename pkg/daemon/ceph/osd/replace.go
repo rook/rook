@@ -174,7 +174,7 @@ func (a *OsdAgent) preProvisionReplacedOSDs(context *clusterd.Context, available
 	blankDevices := availableDataDevices(available)
 	blankDeviceClasses := getBlankDeviceClasses(available, blankDevices)
 
-	// sorts destroyedOSDIds and blankDevices to match by their devices classes
+	// sorts destroyedOSDIds and blankDevices to match by their device classes
 	matchBlankAndDestroyedByDeviceClasses(destroyedOSDIds, destroyedDeviceClasses, blankDevices, blankDeviceClasses)
 
 	for i, destroyedID := range destroyedOSDIds {
@@ -252,7 +252,7 @@ func matchBlankAndDestroyedByDeviceClasses(destroyedOSDIds []int, destroyedDevic
 	matchIdx := 0 // represents current slot for matching device. After sort done, equal to total num of matched devices
 	minLen := min(len(destroyedOSDIds), len(blankDevices))
 
-	// this loop sorts destroyed and blank slices inplace to have the same matching Device classes on the first n slots if exists
+	// this loop sorts destroyed and blank slices in place to have the same matching device classes on the first n slots if any exist
 	for matchIdx < minLen {
 		match := false
 		for i := matchIdx; i < len(destroyedOSDIds); i++ {

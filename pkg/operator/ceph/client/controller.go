@@ -132,7 +132,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a CephClient object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a CephClient object and makes changes based on the state read
 // and what is in the CephClient.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -396,7 +396,7 @@ func (r *ReconcileCephClient) deleteClient(cephClient *cephv1.CephClient) error 
 	return nil
 }
 
-// ValidateClient the client arguments
+// ValidateClient validates the client arguments
 func ValidateClient(context *clusterd.Context, cephClient *cephv1.CephClient) error {
 	reservedNames := regexp.MustCompile("^admin$|^rgw.*$|^rbd-mirror$|^osd.[0-9]*$|^bootstrap-(mds|mgr|mon|osd|rgw|rbd-mirror)$|^rbd-mirror-peer$")
 	clientName := getClientName(cephClient)

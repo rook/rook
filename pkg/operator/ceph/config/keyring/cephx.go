@@ -258,7 +258,7 @@ func UpdatedCephxStatus(didRotate bool, cfg v1.CephxConfig, runningCephVersion v
 	// status, and send that from calling functions.
 	newStatus.KeyType = keyType
 
-	// uninitialized key ceph version indicates that the key was newly been created
+	// uninitialized key ceph version indicates that the key was newly created
 	// this is true regardless of whether the key was rotated or not
 	if status.KeyCephVersion == v1.UninitializedCephxKeyCephVersion {
 		newStatus.KeyCephVersion = CephVersionToCephxStatusVersion(runningCephVersion)

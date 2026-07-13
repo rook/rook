@@ -132,7 +132,7 @@ func TestAddPoolIDMapping(t *testing.T) {
 	m.addClusterIDMapping(clusterMap1)
 	assert.Equal(t, 1, len(*m))
 
-	// Add two Pool ID mapping
+	// Add two Pool ID mappings
 	poolIDMap1 := map[string]string{"1": "2"}
 	poolIDMap2 := map[string]string{"2": "3"}
 

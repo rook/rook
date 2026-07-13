@@ -127,7 +127,7 @@ func podIsReady(pod core.Pod) bool {
 func networkNamespacedName(netName, podNamespace string) (types.NamespacedName, error) {
 	nsName := types.NamespacedName{}
 	// what we really want is the result of parsePodNetworkObjectText(), a private method.
-	// because the network name is in the same format as network annotations, we can at
+	// because the network name is in the same format as network annotations, we can
 	// at least use ParseNetworkAnnotation() to parse the network name
 	netSelections, err := nadutils.ParseNetworkAnnotation(netName, podNamespace)
 	if err != nil {

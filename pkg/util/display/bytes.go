@@ -36,7 +36,7 @@ const (
 	EiB uint64 = PiB * 1024
 )
 
-// BytesToString converts bytes to strings
+// BytesToString converts bytes to a string
 func BytesToString(b uint64) string {
 	if b < KiB {
 		return fmt.Sprintf("%d B", b)

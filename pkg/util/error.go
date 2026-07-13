@@ -22,7 +22,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// AggregateErrors takes a list of errors formats them into a pretty, user-readable list headed by
+// AggregateErrors takes a list of errors and formats them into a pretty, user-readable list headed by
 // the text "errors:". All errors in the list will lose any context besides their error string.
 // If the errs list is empty, AggregateErrors returns nil.
 // Example:

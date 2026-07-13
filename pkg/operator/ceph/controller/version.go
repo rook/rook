@@ -35,7 +35,7 @@ import (
 const detectCephVersionTimeout = 15 * time.Minute
 
 // ValidateCephVersionsBetweenLocalAndExternalClusters makes sure an external cluster can be connected
-// by checking the external ceph versions available and comparing it with the local image provided
+// by checking the external ceph version available and comparing it with the local image provided
 func ValidateCephVersionsBetweenLocalAndExternalClusters(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo) (cephver.CephVersion, error) {
 	// health check should tell us if the external cluster has been upgraded and display a message
 	externalVersion, err := cephclient.GetCephMonVersion(context, clusterInfo)

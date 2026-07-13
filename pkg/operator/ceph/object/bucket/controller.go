@@ -109,7 +109,7 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler) error
 	return nil
 }
 
-// Reconcile reads that state of the operator config map and makes changes based on the state read
+// Reconcile reads the state of the operator config map and makes changes based on the state read
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileBucket) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {

@@ -143,7 +143,7 @@ func GetNodeHostNameLabel(node *v1.Node) (string, error) {
 	return hostname, nil
 }
 
-// GetNodeHostNames returns the name of the node resource mapped to their hostname label.
+// GetNodeHostNames returns the names of the node resources mapped to their hostname label.
 // Typically these will be the same name, but sometimes they are not such as when nodes have a longer
 // dns name, but the hostname is short.
 func GetNodeHostNames(ctx context.Context, clientset kubernetes.Interface) (map[string]string, error) {
@@ -159,7 +159,7 @@ func GetNodeHostNames(ctx context.Context, clientset kubernetes.Interface) (map[
 	return nodeMap, nil
 }
 
-// GetNodeSchedulable returns a boolean if the node is tainted as Schedulable or not
+// GetNodeSchedulable returns a boolean indicating whether the node is schedulable
 // true -> Node is schedulable
 // false -> Node is unschedulable
 func GetNodeSchedulable(node v1.Node, scheduleAlways bool) bool {
@@ -175,7 +175,7 @@ func GetNodeSchedulable(node v1.Node, scheduleAlways bool) bool {
 
 // NodeMeetsPlacementTerms returns true if the Rook placement allows the node to have resources scheduled
 // on it. A node is placeable if it (1) meets any affinity terms that may be set in the placement,
-// and (2) its taints are tolerated by the placements tolerations.
+// and (2) its taints are tolerated by the placement's tolerations.
 // There is the option to ignore well known taints defined in WellKnownTaints. See WellKnownTaints
 // for more information.
 func NodeMeetsPlacementTerms(node v1.Node, placement cephv1.Placement, ignoreWellKnownTaints bool) (bool, error) {
@@ -351,7 +351,7 @@ func RookNodesMatchingKubernetesNodes(rookStorage cephv1.StorageScopeSpec, kuber
 	return nodes
 }
 
-// GenerateNodeAffinity will return v1.NodeAffinity or error
+// GenerateNodeAffinity will return a *v1.NodeAffinity or an error
 func GenerateNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
 	affinity, err := evaluateJSONOrYAMLInput(nodeAffinity)
 	if err == nil {

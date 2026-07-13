@@ -25,7 +25,7 @@ import (
 	"github.com/rook/rook/pkg/util/log"
 )
 
-// validatePool Validate the pool arguments
+// validatePool validates the pool arguments
 func validatePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, p *cephv1.CephBlockPool) error {
 	if p.Name == "" {
 		return errors.New("missing name")

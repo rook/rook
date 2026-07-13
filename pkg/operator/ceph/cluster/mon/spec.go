@@ -324,7 +324,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 			// If the mon is already in the monmap, when the port is left off of --public-addr,
 			// it will still advertise on the previous port b/c monmap is saved to mon database.
 			config.NewFlag("public-addr", monConfig.PublicIP),
-			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
+			// Set '--setuser-match-path' so that an existing directory owned by root won't affect the daemon startup.
 			// For existing data store owned by root, the daemon will continue to run as root
 			//
 			// We use 'store.db' here because during an upgrade the init container will set 'ceph:ceph' to monConfig.DataPathMap.ContainerDataDir
@@ -461,7 +461,7 @@ func (c *Cluster) makeFloatingMonDeployment(monConfig *monConfig) (*apps.Deploym
 	return d, nil
 }
 
-// buildFloatingMonTemplateParams create template for floating mon spec.
+// buildFloatingMonTemplateParams builds the template parameters for the floating mon spec.
 func (c *Cluster) buildFloatingMonTemplateParams(
 	floating cephv1.FloatingMonSpec,
 	monConfig *monConfig,

@@ -103,7 +103,7 @@ func (m *OSDHealthMonitor) processOSDsDestroyForReplacement() (map[int]struct{},
 }
 
 // processOSDReplacementDestroy advances one replacement-marked OSD's destroy flow from durable markers on every
-// OSD heath tick
+// OSD health tick
 func (m *OSDHealthMonitor) processOSDReplacementDestroy(d *appsv1.Deployment, osdID int, osdTree *cephclient.OsdTree, osdDump *cephclient.OSDDump) error {
 	_, isReplaceRequested := d.Annotations[cephv1.ReplaceOSDAnnotationKey]
 	isDestroyed := isOSDDestroyedInTree(osdTree, osdID)

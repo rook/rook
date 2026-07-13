@@ -69,7 +69,7 @@ func DeleteSecretIfOwnedBy(ctx context.Context, clientset kubernetes.Interface, 
 		logger.Debugf("secret %q is already owned by %s %q, skipping deletion", secret.Namespace+"/"+secret.Name, secretOwner.Kind, secretOwner.Name)
 		return nil
 	}
-	// secret is owned by this ceph client remove it
+	// secret is owned by this ceph client, remove it
 	err = clientset.CoreV1().
 		Secrets(secret.Namespace).
 		Delete(ctx, secret.Name, metav1.DeleteOptions{})

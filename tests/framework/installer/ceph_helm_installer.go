@@ -49,7 +49,7 @@ const (
 	ObjectStoreSCName = "ceph-bucket-test-sc"
 )
 
-// CreateRookOperatorViaHelm creates rook operator via Helm chart named local/rook present in local repo
+// CreateRookOperatorViaHelm creates the rook operator via the Helm chart named local/rook present in the local repo
 func (h *CephInstaller) CreateRookOperatorViaHelm() error {
 	return h.configureRookOperatorViaHelm(false)
 }
@@ -364,7 +364,7 @@ func (h *CephInstaller) ConfirmHelmClusterInstalledCorrectly() error {
 	return nil
 }
 
-// CreateBlockPoolConfiguration creates a block store configuration
+// CreateBlockPoolConfiguration creates a block pool configuration
 func (h *CephInstaller) CreateBlockPoolConfiguration(values map[string]interface{}, name, scName string) error {
 	testBlockPoolBytes := []byte(h.Manifests.GetBlockPool("testPool", "1"))
 	var testBlockPoolCRD map[string]interface{}

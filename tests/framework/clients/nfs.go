@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// NFSOperation is a wrapper for k8s rook file operations
+// NFSOperation is a wrapper for k8s rook NFS operations
 type NFSOperation struct {
 	k8sh      *utils.K8sHelper
 	manifests installer.CephManifests
@@ -38,7 +38,7 @@ func CreateNFSOperation(k8sh *utils.K8sHelper, manifests installer.CephManifests
 	return &NFSOperation{k8sh, manifests}
 }
 
-// Create creates a filesystem in Rook
+// Create creates the NFS pool and an NFS server in Rook
 func (n *NFSOperation) Create(namespace, name string, daemonCount int) error {
 	logger.Infof("creating the NFS pool")
 	if err := n.k8sh.ResourceOperation("apply", n.manifests.GetNFSPool()); err != nil {
@@ -60,7 +60,7 @@ func (n *NFSOperation) Create(namespace, name string, daemonCount int) error {
 	return nil
 }
 
-// Delete deletes a filesystem in Rook
+// Delete deletes an NFS server and its pool in Rook
 func (n *NFSOperation) Delete(namespace, name string) error {
 	ctx := context.TODO()
 	options := &metav1.DeleteOptions{}

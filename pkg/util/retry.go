@@ -45,7 +45,7 @@ func Retry(maxRetries int, delay time.Duration, f func() error) error {
 }
 
 // RetryFunc is a function that returns true when it is done and it should be retried no longer.
-// It should return error if there has been an error. The error will be logged if done==false
+// It should return an error if there has been an error. The error will be logged if done==false
 // (should keep retrying). The error will be returned by the calling function if done==true (should
 // stop retrying).
 type RetryFunc func() (done bool, err error)

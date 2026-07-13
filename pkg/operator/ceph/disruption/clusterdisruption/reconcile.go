@@ -175,13 +175,13 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	return r.reconcilePDBsForOSDs(clusterInfo, request, pdbStateMap, poolFailureDomain, allFailureDomains, osdDownFailureDomains, nodeDrainFailureDomains, downOSDs, pgHealthyRegex)
 }
 
-// ClusterMap maintains the association between namespace and clusername
+// ClusterMap maintains the association between namespace and cluster name
 type ClusterMap struct {
 	clusterMap map[string]*cephv1.CephCluster
 	mux        sync.Mutex
 }
 
-// UpdateClusterMap to populate the clusterName for the namespace
+// UpdateClusterMap populates the clusterName for the namespace
 func (c *ClusterMap) UpdateClusterMap(namespace string, cluster *cephv1.CephCluster) {
 	defer c.mux.Unlock()
 	c.mux.Lock()

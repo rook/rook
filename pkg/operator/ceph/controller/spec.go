@@ -137,15 +137,15 @@ func configOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	dir := opconfig.EtcCephDir
 	file := "ceph.conf"
 	// TL;DR: mount the configmap's "config" to a file called "ceph.conf" with 0444 permissions
-	// security: allow to be read by everyone since now ceph processes run as 'ceph' and not 'root' user
+	// security: allow it to be read by everyone since now ceph processes run as 'ceph' and not 'root' user
 	// Further investigation needs to be done to copy the ceph.conf and change its ownership
-	// since configuring a owner of a ConfigMap secret is currently impossible
+	// since configuring an owner of a ConfigMap secret is currently impossible
 	// This also works around the following issue: https://tracker.ceph.com/issues/38606
 	//
 	// This design choice avoids the crash/restart situation in Rook
 	// If we don't set 0444 to the ceph.conf configuration file during its respawn (with exec) the ceph-mgr
 	// won't be able to read the ceph.conf and the container will die, the "restart" count will increase in k8s
-	// This will mislead users thinking something won't wrong but that a false positive
+	// This will mislead users into thinking something went wrong, but it's a false positive
 	mode := int32(0o444)
 	projectionConfigMap := &v1.ConfigMapProjection{Items: []v1.KeyToPath{{Key: k8sutil.ConfigOverrideVal, Path: file, Mode: &mode}}}
 	projectionConfigMap.Name = name
@@ -173,7 +173,7 @@ func configOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	return v, m
 }
 
-// ConfGeneratedInPodVolumeAndMount generate an empty dir of /etc/ceph
+// ConfGeneratedInPodVolumeAndMount generates an empty dir of /etc/ceph
 func ConfGeneratedInPodVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	name := "ceph-conf-emptydir"
 	dir := opconfig.EtcCephDir
@@ -366,7 +366,7 @@ func DaemonFlags(cluster *client.ClusterInfo, spec *cephv1.ClusterSpec, daemonID
 		opconfig.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath()),
 		opconfig.NewFlag("id", daemonID),
 		// Ceph daemons in Rook will run as 'ceph' instead of 'root'
-		// If we run on a version of Ceph does not these flags it will simply ignore them
+		// If we run on a version of Ceph that does not support these flags it will simply ignore them
 		// run ceph daemon process under the 'ceph' user
 		opconfig.NewFlag("setuser", "ceph"),
 		// run ceph daemon process under the 'ceph' group
@@ -480,7 +480,7 @@ func CephDaemonAppLabels(appName, namespace, daemonType, daemonID, parentName, r
 	return labels
 }
 
-// CheckPodMemory verify pod's memory limit is valid
+// CheckPodMemory verifies pod's memory limit is valid
 func CheckPodMemory(name string, resources v1.ResourceRequirements, cephPodMinimumMemory uint64) error {
 	// Ceph related PR: https://github.com/ceph/ceph/pull/26856
 	podMemoryLimit := resources.Limits.Memory()
@@ -659,7 +659,7 @@ func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 				// Example:
 				// env -i sh -c "ceph --admin-daemon /run/ceph/ceph-osd.0.asok status"
 				//
-				// Ceph gives pretty un-diagnostic error message when `ceph status` or `ceph mon_status` command fails.
+				// Ceph gives a pretty un-diagnostic error message when `ceph status` or `ceph mon_status` command fails.
 				// Add a clear message after Ceph's to help.
 				// ref: https://github.com/rook/rook/issues/9846
 				Command: []string{
@@ -743,7 +743,7 @@ func DefaultContainerSecurityContext() *v1.SecurityContext {
 	}
 }
 
-// PodSecurityContext detects if the pod needs privileges to run
+// CephSecurityContext returns the default container security context, adjusted to run as the 'ceph' user
 func CephSecurityContext() *v1.SecurityContext {
 	context := DefaultContainerSecurityContext()
 	cephUserID := CephUserID
@@ -799,7 +799,7 @@ func GetLogRotateConfig(c cephv1.ClusterSpec) (resource.Quantity, string) {
 	return maxLogSize, periodicity
 }
 
-// LogCollectorContainer rotate logs
+// LogCollectorContainer rotates logs
 func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, env []v1.EnvVar, additionalLogFiles ...string) *v1.Container {
 	maxLogSize, periodicity := GetLogRotateConfig(c)
 	rotation := "7"
@@ -1007,7 +1007,7 @@ func GetContainerImagePullPolicy(containerImagePullPolicy v1.PullPolicy) v1.Pull
 }
 
 // GenerateLivenessProbeTcpPort generates a liveness probe that makes sure a daemon has
-// TCP a socket binded to specific port, and may create new connection.
+// a TCP socket bound to a specific port, and may create a new connection.
 func GenerateLivenessProbeTcpPort(port, failureThreshold int32) *v1.Probe {
 	return &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
@@ -1022,8 +1022,8 @@ func GenerateLivenessProbeTcpPort(port, failureThreshold int32) *v1.Probe {
 }
 
 // GenerateLivenessProbeViaRpcinfo creates a liveness probe using 'rpcinfo' shell
-// command which checks that the local NFS daemon has TCP a socket binded to
-// specific port, and it has valid reply to NULL RPC request.
+// command which checks that the local NFS daemon has a TCP socket bound to
+// a specific port, and it has a valid reply to a NULL RPC request.
 func GenerateLivenessProbeViaRpcinfo(port uint16, failureThreshold int32) *v1.Probe {
 	bb := make([]byte, 2)
 	binary.BigEndian.PutUint16(bb, port) // port-num in network-order

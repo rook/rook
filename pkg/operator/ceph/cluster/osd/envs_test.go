@@ -71,7 +71,7 @@ func TestGetTcmallocMaxTotalThreadCacheBytes(t *testing.T) {
 	v := getTcmallocMaxTotalThreadCacheBytes("")
 	assert.Equal(t, "", v.Value)
 
-	// File and arg are empty so we can an empty value
+	// File and arg are empty so we get an empty value
 	file, err := os.CreateTemp("", "")
 	assert.NoError(t, err)
 	defer os.Remove(file.Name())

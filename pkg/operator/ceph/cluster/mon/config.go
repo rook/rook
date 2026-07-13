@@ -67,7 +67,7 @@ func dataDirRelativeHostPath(monName string) string {
 	return path.Join(monHostDir, "data")
 }
 
-// WriteConnectionConfig save monitor connection config to disk
+// WriteConnectionConfig saves monitor connection config to disk
 func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo) error {
 	// write the latest config to the config dir
 	if _, err := cephclient.GenerateConnectionConfig(context, clusterInfo); err != nil {

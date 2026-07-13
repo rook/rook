@@ -212,10 +212,10 @@ func getDefaultMetadataPool(spec cephv1.ObjectSharedPoolsSpec) string {
 	return spec.MetadataPoolName
 }
 
-// toZonePlacementPools converts pool placement CRD definition to zone config json format structures
+// toZonePlacementPools converts the pool placement CRD definition to zone config json format structures
 func toZonePlacementPools(spec cephv1.ObjectSharedPoolsSpec, ns string) map[string]ZonePlacementPool {
 	res := make(map[string]ZonePlacementPool, len(spec.PoolPlacements)+1)
-	// map sharedPools if presented:
+	// map sharedPools if present:
 	if spec.DataPoolName != "" && spec.MetadataPoolName != "" {
 		res[defaultPlacementCephConfigName] = ZonePlacementPool{
 			Key: defaultPlacementCephConfigName,

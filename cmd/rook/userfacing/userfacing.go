@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// contains user facing commands, separated to a subdir for convenience
+// contains user-facing commands, separated to a subdir for convenience
 package userfacing
 
 import (

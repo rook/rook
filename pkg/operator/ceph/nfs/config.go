@@ -166,7 +166,7 @@ func ganeshaKrbConfigBlock(kerberosSpec *cephv1.KerberosSpec) string {
 }
 
 func ganeshaConfigIncludeKrbBlock(nfs *cephv1.CephNFS, radosObjectName string) string {
-	// don't use sprintf b/c %u on front makes compiler confused
+	// don't use sprintf b/c %u on front makes the compiler confused
 	return `%url "rados://` + nfs.Spec.RADOS.Pool + `/` + nfs.Spec.RADOS.Namespace + `/` + radosObjectName + `"` + "\n\n"
 }
 

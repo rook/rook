@@ -34,7 +34,7 @@ var (
 	// interval between discovering devices
 	discoverDevicesInterval time.Duration
 
-	// Uses ceph-volume inventory to extend devices information
+	// Uses ceph-volume inventory to extend device information
 	usesCVInventory bool
 )
 

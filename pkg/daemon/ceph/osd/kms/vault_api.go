@@ -38,7 +38,7 @@ const (
 var vaultClient = newVaultClient
 
 // newVaultClient returns a vault client, there is no need for any secretConfig validation
-// Since this is called after an already validated call InitVault()
+// Since this is called after an already validated call to InitVault()
 func newVaultClient(ctx context.Context, clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (*api.Client, error) {
 	// DefaultConfig uses the environment variables if present.
 	config := api.DefaultConfig()

@@ -1217,7 +1217,7 @@ func Test_updateCephOsdStorageStatus_cephx(t *testing.T) {
 	// Initializing an OSD monitoring
 	c := New(context, clusterInfo, cephCluster.Spec, "myversion")
 
-	// Tests are not independent and rely on prior tests's changes
+	// Tests are not independent and rely on prior tests' changes
 
 	t.Run("no osd deployments, no cephcluster status", func(t *testing.T) {
 		err := c.updateCephOsdStorageStatus()

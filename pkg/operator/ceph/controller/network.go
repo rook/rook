@@ -390,7 +390,7 @@ func containerWaitForNetworkStatus(clusterSpec *cephv1.ClusterSpec, rookImage st
 }
 
 // for every IP reported in the network status annotation, find the network info reported by
-// 'ip --json address show' inside the pod, and for the result into a list of reduced net CIDRs
+// 'ip --json address show' inside the pod, and format the result into a list of reduced net CIDRs
 func crossReferenceNetworkStatusAndIpResult(
 	netStatus nadv1.NetworkStatus,
 	ifaceInfo k8sutil.LinuxIpAddrResult,
@@ -426,7 +426,7 @@ func cidrForIp(infos []k8sutil.LinuxIpAddrInfo, ip string) (string, error) {
 	}
 
 	// <ip>/<range> works but isn't reduced. the CIDR must be reduced so that it doesn't change
-	// every tme the operator reconciles and the net canary gets a new IP
+	// every time the operator reconciles and the net canary gets a new IP
 	naiveCIDR := fmt.Sprintf("%s/%d", info.Local, info.PrefixLen)
 
 	_, reduced, err := net.ParseCIDR(naiveCIDR)

@@ -166,7 +166,7 @@ func generateSssdSidecarResources(nfs *cephv1.CephNFS, sidecarCfg *cephv1.SSSDSi
 	sssdMounts = append(sssdMounts, genericMounts...)
 
 	// The volumes for krb5.conf and krb5.keytab are created separately
-	// for the nfs-ganesha container. We reuse it here.
+	// for the nfs-ganesha container. We reuse them here.
 	if nfs.Spec.Security.Kerberos != nil {
 		krb5ConfVolName := "krb5-conf-d"
 		generatedKrbConfVolName := "generated-krb5-conf"

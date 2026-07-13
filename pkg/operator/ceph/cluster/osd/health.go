@@ -98,7 +98,7 @@ func (m *OSDHealthMonitor) Start(monitoringRoutines *sync.Map, daemon string) {
 	}
 }
 
-// Update updates the removeOSDsIfOUTAndSafeToRemove
+// Update updates the removeOSDsIfOUTAndSafeToRemove field
 func (m *OSDHealthMonitor) Update(removeOSDsIfOUTAndSafeToRemove bool) {
 	m.removeOSDsIfOUTAndSafeToRemove = removeOSDsIfOUTAndSafeToRemove
 }

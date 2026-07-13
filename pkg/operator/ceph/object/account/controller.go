@@ -56,7 +56,7 @@ const (
 	rgwAccountNameMaxLength = 64
 )
 
-// newMultisiteAdminOpsCtxFunc helps us mocking the admin ops API client in unit test
+// newMultisiteAdminOpsCtxFunc helps us mock the admin ops API client in unit tests
 var newMultisiteAdminOpsCtxFunc = object.NewMultisiteAdminOpsContext
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
@@ -123,7 +123,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a CephObjectStoreAccount object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a CephObjectStoreAccount object and makes changes based on the state read
 // and what is in the CephObjectStoreAccount.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.

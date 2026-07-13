@@ -242,7 +242,7 @@ func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (stri
 	return configMap.Name, k8sutil.Hash(fmt.Sprintf("%v", configMap.Data)), nil
 }
 
-// Down scale the ganesha server
+// Scale down the ganesha server
 func (r *ReconcileCephNFS) downCephNFS(n *cephv1.CephNFS, nfsServerListNum int) error {
 	for i := nfsServerListNum - 1; i >= n.Spec.Server.Active; i-- {
 		idToRemove := i

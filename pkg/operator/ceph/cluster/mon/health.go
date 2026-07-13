@@ -282,7 +282,7 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 			return errors.Wrapf(err, "failed to track out of quorum mon %q", mon.Name)
 		}
 
-		// if the time out is set to 0 this indicate that we don't want to trigger mon failover
+		// if the timeout is set to 0 this indicates that we don't want to trigger mon failover
 		if MonOutTimeout == timeZero {
 			log.NamespacedWarning(c.Namespace, logger, "mon %q NOT found in quorum and health timeout is 0, mon will never fail over", mon.Name)
 			continue
@@ -433,7 +433,7 @@ func (c *Cluster) shouldFailoverMonImmediately(ctx context.Context, monName stri
 	return false
 }
 
-// reconcileExternalMons handling external monitors defined in CephCluster.spec.mon.externalMonIDs when Rook managing local cluster.
+// reconcileExternalMons handles external monitors defined in CephCluster.spec.mon.externalMonIDs when Rook is managing local cluster.
 func (c *Cluster) reconcileExternalMons(ctx context.Context, quorumStatus cephclient.MonStatusResponse) (cephclient.MonStatusResponse, error) {
 	if len(c.spec.Mon.ExternalMonIDs) != 0 {
 		if c.spec.External.Enable {
@@ -457,7 +457,7 @@ func (c *Cluster) reconcileExternalMons(ctx context.Context, quorumStatus cephcl
 			continue
 		}
 		// existing external mon was removed from Cluster CRD spec:
-		// remove it from CLusterInfo
+		// remove it from ClusterInfo
 		log.NamespacedDebug(c.Namespace, logger, "existing external mon %q was removed from spec: removing it", extID)
 		delete(c.ClusterInfo.ExternalMons, extID)
 		extMonsChanged = true
@@ -573,10 +573,10 @@ func (c *Cluster) trackMonInOrOutOfQuorum(monName string, inQuorum bool) (bool, 
 }
 
 // determineExtraMonToRemove assumes all mons are in quorum and that there are more mons
-// that required for desired state. One mon will be picked for removal in this priority:
+// than required for desired state. One mon will be picked for removal in this priority:
 // 1. If a stretch cluster, remove the extra mon according to the stretch topology
 // 2. If more than one mon on a node, remove one of them
-// 3. If no criteria require for 1 or 2, pick an arbitrary mon
+// 3. If no criteria are met for 1 or 2, pick an arbitrary mon
 func (c *Cluster) determineExtraMonToRemove() string {
 	mons := c.clusterInfoToMonConfig()
 	if c.spec.IsStretchCluster() {
@@ -1023,7 +1023,7 @@ func (c *Cluster) addOrRemoveExternalMonitor(status cephclient.MonStatusResponse
 		}
 	}
 	// compare old clusterInfo with new ClusterInfo
-	// if length differ -> the are different
+	// if lengths differ -> they are different
 	// then check if all elements are the same
 	if len(oldClusterInfoMonitors) != len(c.ClusterInfo.InternalMonitors) {
 		changed = true

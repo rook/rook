@@ -88,8 +88,7 @@ func add(ctx context.Context, context *clusterd.Context, mgr manager.Manager, r 
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a CephClient object and makes changes based on the state read
-// and what is in the CephClient.Spec
+// Reconcile reads the state of the operator config map and makes changes based on the state read
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileConfig) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -111,7 +110,7 @@ func (r *ReconcileConfig) reconcile(request reconcile.Request) (reconcile.Result
 			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get operator setting configmap")
 		}
 	}
-	// Reconcile Ceph CLI timeout, since the clusterd context is passed to by pointer to all CRD
+	// Reconcile Ceph CLI timeout, since the clusterd context is passed by pointer to all CRD
 	// controllers they will receive the update
 	opcontroller.SetCephCommandsTimeout()
 

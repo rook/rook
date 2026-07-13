@@ -28,13 +28,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ObjectUserOperation is wrapper for k8s rook object user operations
+// ObjectUserOperation is a wrapper for k8s rook object user operations
 type ObjectUserOperation struct {
 	k8sh      *utils.K8sHelper
 	manifests installer.CephManifests
 }
 
-// CreateObjectUserOperation creates new rook object user client
+// CreateObjectUserOperation creates a new rook object user client
 func CreateObjectUserOperation(k8sh *utils.K8sHelper, manifests installer.CephManifests) *ObjectUserOperation {
 	return &ObjectUserOperation{k8sh, manifests}
 }
@@ -62,7 +62,7 @@ func (o *ObjectUserOperation) GetUser(namespace string, store string, userid str
 func (o *ObjectUserOperation) UserSecretExists(namespace string, store string, userid string) bool {
 	message, err := o.k8sh.GetResource("-n", namespace, "secrets", "-l", "rook_object_store="+store, "-l", "user="+userid)
 	// GetResource(blah) returns success if blah is or is not found.
-	// err = success and found_sec not "No resources found." means it was found
+	// err = success and found_sec does not contain "No resources found." means it was found
 	// err = success and found_sec contains "No resources found." means it was not found
 	// err != success is another error
 	if err == nil && !strings.Contains(message, "No resources found") {

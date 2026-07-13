@@ -136,7 +136,7 @@ func setBalancerMode(context *clusterd.Context, clusterInfo *ClusterInfo, mode s
 	return nil
 }
 
-// setMinCompatClient set the minimum compatibility for clients
+// setMinCompatClient sets the minimum compatibility for clients
 func setMinCompatClient(context *clusterd.Context, clusterInfo *ClusterInfo, version string) error {
 	args := []string{"osd", "set-require-min-compat-client", version, "--yes-i-really-mean-it"}
 	_, err := NewCephCommand(context, clusterInfo, args).Run()

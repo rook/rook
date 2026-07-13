@@ -66,7 +66,7 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 	timeout := strconv.Itoa(int(exec.CephCommandsTimeout.Seconds()))
 	cephConfPath := CephConfFilePath(configDir, clusterInfo.Namespace)
 
-	// some tools not support the '--connect-timeout' option
+	// some tools do not support the '--connect-timeout' option
 	// so we only use it for the 'ceph' command
 	switch command {
 	case RBDTool, CrushTool, RadosTool, "radosgw-admin":
@@ -197,7 +197,7 @@ func (c *CephToolCommand) run() ([]byte, error) {
 	if c.JsonOutput {
 		args = append(args, "--format", "json")
 	} else {
-		// the `rbd` tool doesn't use special flag for plain format
+		// the `rbd` tool doesn't use a special flag for plain format
 		switch c.tool {
 		case RBDTool, RadosTool, GaneshaRadosGraceTool:
 			// do not add format option

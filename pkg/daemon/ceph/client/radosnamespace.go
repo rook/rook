@@ -25,7 +25,7 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 )
 
-// CreateRadosNamespace create a rados namespace in a pool.
+// CreateRadosNamespace creates a rados namespace in a pool.
 // poolName is the name of the ceph block pool, the same as the CephBlockPool CR name.
 func CreateRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, namespaceName string) error {
 	logger.Infof("creating rados namespace %s/%s in k8s namespace %q", poolName, namespaceName, clusterInfo.Namespace)
@@ -85,7 +85,7 @@ func checkForImagesInRadosNamespace(context *clusterd.Context, clusterInfo *Clus
 	return true, errors.Errorf("pool %s/%s contains %d images and %d snapshots", poolName, namespaceName, stats.Images.Count, stats.Images.SnapCount)
 }
 
-// DeleteRadosNamespace delete a rados namespace.
+// DeleteRadosNamespace deletes a rados namespace.
 func DeleteRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, namespaceName string) (bool, error) {
 	containsImages, err := checkForImagesInRadosNamespace(context, clusterInfo, poolName, namespaceName)
 	if err != nil {

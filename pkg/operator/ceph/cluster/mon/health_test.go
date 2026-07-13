@@ -177,13 +177,13 @@ func TestRemoveExtraMon(t *testing.T) {
 		"c": {Name: "node3"},
 		"d": {Name: "node1"},
 	}
-	// Remove mon an extra mon on the same node
+	// Remove an extra mon on the same node
 	removedMon := c.determineExtraMonToRemove()
 	if removedMon != "a" && removedMon != "d" {
 		assert.Fail(t, fmt.Sprintf("removed mon %q instead of a or d", removedMon))
 	}
 
-	// Remove an arbitrary mon that are all on different nodes
+	// Remove an arbitrary mon when they are all on different nodes
 	c.mapping.Schedule["d"].Name = "node4"
 	removedMon = c.determineExtraMonToRemove()
 	assert.NotEqual(t, "", removedMon)
@@ -347,7 +347,7 @@ func TestEvictMonOnSameNode(t *testing.T) {
 	// Create a second mon on a different node
 	createTestMonPod(t, clientset, c, "b", "node2")
 
-	// Nothing to evict with where mons are on different nodes
+	// Nothing to evict where mons are on different nodes
 	err = c.evictMonIfMultipleOnSameNode()
 	assert.NoError(t, err)
 
@@ -928,7 +928,7 @@ func TestExternalMons_notInSpec_InQuorum(t *testing.T) {
 	mons["ext-mon-id"] = &cephclient.MonInfo{Name: "ext-mon-id", Endpoint: "0.0.0.0:6789"}
 	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(mons)
 
-	// internal mons and deployments has not changed
+	// internal mons and deployments have not changed
 	// and unknown mon was removed from quorum
 	err = c.checkHealth(ctx)
 	assert.Nil(t, err)
@@ -1208,7 +1208,7 @@ func TestExternalMons_inSpec_inQuorum(t *testing.T) {
 	mons["ext-mon-id"] = &cephclient.MonInfo{Name: "ext-mon-id", Endpoint: "0.0.0.0:6789"}
 	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(mons)
 
-	// internal mons and deployments has not changed
+	// internal mons and deployments have not changed
 	err = c.checkHealth(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(c.ClusterInfo.InternalMonitors))

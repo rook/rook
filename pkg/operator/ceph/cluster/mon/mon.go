@@ -148,7 +148,7 @@ type Cluster struct {
 type monConfig struct {
 	// ResourceName is the name given to the mon's Kubernetes resources in metadata
 	ResourceName string
-	// DaemonName is the name given the mon daemon ("a", "b", "c,", etc.)
+	// DaemonName is the name given to the mon daemon ("a", "b", "c", etc.)
 	DaemonName string
 	// PublicIP is the IP of the mon's service that the mon will receive connections on
 	PublicIP string
@@ -923,7 +923,7 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 }
 
 // Delete mon canary deployments (and associated PVCs) using deployment labels
-// to select this kind of temporary deployments
+// to select this kind of temporary deployment
 func (c *Cluster) removeCanaryDeployments(labelSelector string) {
 	canaryDeployments, err := k8sutil.GetDeployments(c.ClusterInfo.Context, c.context.Clientset, c.Namespace, labelSelector)
 	if err != nil {
@@ -1144,7 +1144,7 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool, m
 		}
 
 		// For the initial deployment (first creation) it's expected to not have all the monitors in quorum
-		// However, in an event of an update, it's crucial to proceed monitors by monitors
+		// However, in the event of an update, it's crucial to proceed monitor by monitor
 		// At the end of the method we perform one last check where all the monitors must be in quorum
 		if !onlyCheckQuorumOnce || (onlyCheckQuorumOnce && i == len(mons)-1) {
 			requireAllInQuorum := false
@@ -1158,7 +1158,7 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool, m
 	log.NamespacedInfo(c.Namespace, logger, "mons created: %d", len(mons))
 	// Final verification that **all** mons are in quorum
 	// Do not proceed if one monitor is still syncing
-	// Only do this when monitors versions are different so we don't block the orchestration if a mon is down.
+	// Only do this when the monitor versions are different so we don't block the orchestration if a mon is down.
 	versions, err := cephclient.GetAllCephDaemonVersions(c.context, c.ClusterInfo)
 	if err != nil {
 		log.NamespacedWarning(c.Namespace, logger, "failed to get ceph daemons versions; this likely means there is no cluster yet. %v", err)
@@ -1852,7 +1852,7 @@ func logQuorumMembers(namespace string, monQuorumStatusResp cephclient.MonStatus
 }
 
 func monFoundInQuorum(name string, monQuorumStatusResp cephclient.MonStatusResponse) bool {
-	// first get the initial monitors corresponding mon map entry
+	// first get the initial monitor's corresponding mon map entry
 	var monMapEntry *cephclient.MonMapEntry
 	for i := range monQuorumStatusResp.MonMap.Mons {
 		if name == monQuorumStatusResp.MonMap.Mons[i].Name {

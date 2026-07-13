@@ -301,7 +301,7 @@ func TestForceDeleteStuckRookPodsOnNotReadyNodes(t *testing.T) {
 	err = c.forceDeleteStuckRookPodsOnNotReadyNodes(ctx)
 	assert.NoError(t, err)
 
-	// The pod should still exist since its not deleted.
+	// The pod should still exist since it's not deleted.
 	p, err := context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, p)
@@ -377,12 +377,12 @@ func TestGetRookPodsOnNode(t *testing.T) {
 
 	pods, err := c.getRookPodsOnNode("node0")
 	assert.NoError(t, err)
-	// A pod is having two matching labels and its returned only once
+	// A pod having two matching labels is returned only once
 	assert.Equal(t, 14, len(pods))
 
 	podNames := []string{}
 	for _, pod := range pods {
-		// Check if the pods has labels
+		// Check if the pod has labels
 		assert.NotEmpty(t, pod.Labels)
 		podNames = append(podNames, pod.Name)
 	}

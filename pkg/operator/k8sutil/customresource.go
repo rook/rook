@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package kit for Kubernetes operators
+// Package k8sutil for Kubernetes operators
 package k8sutil
 
 // CustomResource is for creating a Kubernetes TPR/CRD
@@ -22,7 +22,7 @@ type CustomResource struct {
 	// Name of the custom resource
 	Name string
 
-	// Plural of the custom resource in plural
+	// Plural of the custom resource
 	Plural string
 
 	// Group the custom resource belongs to

@@ -146,7 +146,7 @@ func (c *createConfig) doneWithStatus(nodeOrPVCName string) {
 // Creation of prepare jobs is most directly related to creating new OSDs. And we want to keep all
 // usage of awaitingStatusConfigMaps in this file.
 func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provisionErrors) (sets.Set[string], error) {
-	// Parsing storageClassDeviceSets and parsing it to volume sources
+	// Parsing storageClassDeviceSets and converting them to volume sources
 	c.prepareStorageClassDeviceSets(errs)
 
 	// no valid VolumeSource is ready to run an osd

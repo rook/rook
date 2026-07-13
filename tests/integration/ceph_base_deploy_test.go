@@ -89,7 +89,7 @@ func HandlePanics(r interface{}, uninstaller func(), t func() *testing.T) {
 	}
 }
 
-// StartTestCluster creates new instance of TestCephSettings struct
+// StartTestCluster installs Rook with the given settings and returns the installer and the k8s helper
 func StartTestCluster(t func() *testing.T, settings *installer.TestCephSettings) (*installer.CephInstaller, *utils.K8sHelper) {
 	k8shelper, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)

@@ -79,7 +79,7 @@ type debugHTTPClient struct {
 	logger *capnslog.PackageLogger
 }
 
-// NewDebugHTTPClient helps us mutating the HTTP client to debug the request/response
+// NewDebugHTTPClient helps us mutate the HTTP client to debug the request/response
 func NewDebugHTTPClient(client admin.HTTPClient, logger *capnslog.PackageLogger) *debugHTTPClient {
 	return &debugHTTPClient{client, logger}
 }
@@ -231,7 +231,7 @@ func extractJSON(output string) (string, error) {
 
 // RunAdminCommandNoMultisite is for running radosgw-admin commands in scenarios where an object-store has not been created yet or for commands on the realm or zonegroup (ex: radosgw-admin zonegroup get)
 // This function times out after a fixed interval if no response is received.
-// The function will return a Kubernetes error "NotFound" when exec fails when the pod does not exist
+// The function will return a Kubernetes error "NotFound" when exec fails because the pod does not exist
 func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (string, error) {
 	return RunAdminCommandNoMultisiteWithTimeout(c, expectJSON, exec.CephCommandsTimeout, args...)
 }
@@ -298,7 +298,7 @@ func runAdminCommandWithTimeout(c *Context, expectJSON bool, timeout time.Durati
 	// This means we are pointing to an external cluster so these commands are not needed
 	// simply because the external cluster mode does not support that yet
 	//
-	// The following conditions tries to determine if the cluster is external
+	// The following conditions try to determine if the cluster is external
 	// When connecting to an external cluster, the Ceph user is different than client.admin
 	// This is not perfect though since "client.admin" is somehow supported...
 	if c.Name != "" && c.clusterInfo.CephCred.Username == cephclient.AdminUsername {

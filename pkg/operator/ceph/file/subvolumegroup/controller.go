@@ -193,13 +193,13 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	return nil
 }
 
-// check on for cephfs secrets
+// check for cephfs secrets
 func isCSICephFSSecret(name string) bool {
 	return strings.HasPrefix(name, csi.CsiCephFSProvisionerSecret) ||
 		strings.HasPrefix(name, csi.CsiCephFSNodeSecret)
 }
 
-// Reconcile reads that state of the cluster for a CephFilesystemSubVolumeGroup object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a CephFilesystemSubVolumeGroup object and makes changes based on the state read
 // and what is in the CephFilesystemSubVolumeGroup.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -357,7 +357,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 
 	// If the CephFilesystem is not ready to accept commands, we should wait for it to be ready
 	if cephFilesystem.Status == nil || cephFilesystem.Status.Phase != cephv1.ConditionReady {
-		// We know the CR is present so it should a matter of second for it to become ready
+		// We know the CR is present so it should be a matter of seconds for it to become ready
 		return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, errors.Wrapf(err, "failed to fetch ceph filesystem %q, cannot create subvolume group %q", cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name)
 	}
 
@@ -418,7 +418,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesys
 	log.NamedInfo(nsName, logger, "deleting ceph filesystem subvolume group object")
 	if err := cephclient.DeleteCephFSSubVolumeGroup(r.context, r.clusterInfo, cephFilesystemSubVolumeGroup.Spec.FilesystemName, getSubvolumeGroupName(cephFilesystemSubVolumeGroup)); err != nil {
 		code, ok := exec.ExitStatus(err)
-		// If the subvolume group does not exit, we should not return an error
+		// If the subvolume group does not exist, we should not return an error
 		if ok && code == int(syscall.ENOENT) {
 			log.NamedDebug(nsName, logger, "ceph filesystem subvolume group does not exist")
 			return nil
