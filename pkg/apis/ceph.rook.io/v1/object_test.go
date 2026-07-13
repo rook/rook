@@ -39,7 +39,7 @@ func TestValidateObjectStoreSpec(t *testing.T) {
 	err := ValidateObjectSpec(o)
 	assert.NoError(t, err)
 
-	// when both port and securePort are o
+	// when both port and securePort are 0
 	o.Spec.Gateway.Port = 0
 	err = ValidateObjectSpec(o)
 	assert.Error(t, err)
@@ -202,7 +202,7 @@ func TestIsTLSEnabled(t *testing.T) {
 	IsTLS = objStore.Spec.IsTLSEnabled()
 	assert.True(t, IsTLS)
 
-	// when cert are set but securePort unset
+	// when certs are set but securePort unset
 	objStore.Spec.Gateway.SecurePort = 0
 	IsTLS = objStore.Spec.IsTLSEnabled()
 	assert.False(t, IsTLS)
