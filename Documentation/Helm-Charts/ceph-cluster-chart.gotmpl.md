@@ -126,6 +126,22 @@ The `cephObjectStores` array in the values file will define a list of CephObject
 | `ingress.tls` | Ingress tls | `/` |
 | `ingress.ingressClassName` | Ingress tls | `""` |
 
+### **Ceph Object Multisite**
+
+The `cephObjectRealms`, `cephObjectZoneGroups`, and `cephObjectZones` arrays in the values file define
+[RGW multisite](../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) resources. They are
+commented out by default; uncomment and adjust them to deploy a multisite configuration, then point a
+`cephObjectStores` entry at the zone via its `spec.zone.name`.
+
+| Parameter | Description | Default |
+| --------- | ----------- | ------- |
+| `cephObjectRealms[].name` | The name of the CephObjectRealm | `realm-a` |
+| `cephObjectRealms[].spec` | The CephObjectRealm spec, see the [CephObjectRealm CRD](../CRDs/Object-Storage/ceph-object-realm-crd.md) documentation. Omit to create a new realm; set `pull.endpoint` to sync a realm from another cluster. | not set |
+| `cephObjectZoneGroups[].name` | The name of the CephObjectZoneGroup | `zonegroup-a` |
+| `cephObjectZoneGroups[].spec` | The CephObjectZoneGroup spec, see the [CephObjectZoneGroup CRD](../CRDs/Object-Storage/ceph-object-zonegroup-crd.md) documentation. | see values.yaml |
+| `cephObjectZones[].name` | The name of the CephObjectZone | `zone-a` |
+| `cephObjectZones[].spec` | The CephObjectZone spec, see the [CephObjectZone CRD](../CRDs/Object-Storage/ceph-object-zone-crd.md) documentation. | see values.yaml |
+
 ### **Existing Clusters**
 
 If you have an existing CephCluster CR that was created without the helm chart and you want the helm

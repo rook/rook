@@ -1,0 +1,11 @@
+{{- $root := . -}}
+{{- range $zone := .Values.cephObjectZones }}
+---
+kind: CephObjectZone
+apiVersion: ceph.rook.io/v1
+metadata:
+  name: {{ $zone.name }}
+  namespace: {{ $root.Release.Namespace }} # namespace:cluster
+spec:
+  {{- $zone.spec | toYaml | nindent 2 }}
+{{- end }}

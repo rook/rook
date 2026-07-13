@@ -285,6 +285,49 @@ func (h *CephInstaller) removeCephClusterHelmResources() {
 	if !h.k8shelper.WaitUntilPodWithLabelDeleted(fmt.Sprintf("rook_object_store=%s", ObjectStoreName), h.settings.Namespace) {
 		assert.Fail(h.T(), "rgw did not stop via helm uninstall")
 	}
+
+	if h.settings.UseMultisiteObjectStore {
+		h.removeMultisiteHelmResources(ObjectStoreName)
+	}
+}
+
+// removeMultisiteHelmResources tears down the CephObjectRealm, CephObjectZoneGroup,
+// CephObjectZone, and shared rgw pools that CreateObjectStoreConfiguration added
+// to the chart. They are not part of the chart's default storage CRs, so they
+// must be removed explicitly or they orphan and trip the teardown pool check.
+// Order matters: the zone's deletion finalizer runs radosgw-admin against realm
+// metadata stored in the .rgw.root pool, so the store (already deleted above),
+// zone, zone group, and realm must all be gone before their pools are removed.
+func (h *CephInstaller) removeMultisiteHelmResources(name string) {
+	ctx := context.TODO()
+	ceph := h.k8shelper.RookClientset.CephV1()
+	ns := h.settings.Namespace
+
+	deleteAndWait := func(kind, crName string, del func() error, get func() error) {
+		if err := del(); err != nil {
+			assert.True(h.T(), kerrors.IsNotFound(err), "unexpected error deleting %s %q", kind, crName)
+			return
+		}
+		if err := h.k8shelper.WaitForCustomResourceDeletion(ns, crName, get); err != nil {
+			assert.NoError(h.T(), err, "failed waiting for %s %q deletion", kind, crName)
+		}
+	}
+
+	deleteAndWait("CephObjectZone", name,
+		func() error { return ceph.CephObjectZones(ns).Delete(ctx, name, v1.DeleteOptions{}) },
+		func() error { _, err := ceph.CephObjectZones(ns).Get(ctx, name, v1.GetOptions{}); return err })
+	deleteAndWait("CephObjectZoneGroup", name,
+		func() error { return ceph.CephObjectZoneGroups(ns).Delete(ctx, name, v1.DeleteOptions{}) },
+		func() error { _, err := ceph.CephObjectZoneGroups(ns).Get(ctx, name, v1.GetOptions{}); return err })
+	deleteAndWait("CephObjectRealm", name,
+		func() error { return ceph.CephObjectRealms(ns).Delete(ctx, name, v1.DeleteOptions{}) },
+		func() error { _, err := ceph.CephObjectRealms(ns).Get(ctx, name, v1.GetOptions{}); return err })
+
+	for poolName := range rgwSharedPools(name) {
+		deleteAndWait("CephBlockPool", poolName,
+			func() error { return ceph.CephBlockPools(ns).Delete(ctx, poolName, v1.DeleteOptions{}) },
+			func() error { _, err := ceph.CephBlockPools(ns).Get(ctx, poolName, v1.GetOptions{}); return err })
+	}
 }
 
 // ConfirmHelmClusterInstalledCorrectly runs some validation to check whether the helm chart installed correctly.
@@ -381,8 +424,32 @@ func (h *CephInstaller) CreateFileSystemConfiguration(values map[string]interfac
 	return nil
 }
 
-// CreateObjectStoreConfiguration creates an object store configuration
+// rgwSharedPools maps the CephBlockPool CR name to its rados pool name (empty
+// means the operator derives the pool name from the CR name) for the multisite
+// object store configured by CreateObjectStoreConfiguration. .rgw.root is the
+// realm-global metadata pool; the operator sets pg_num_min=8 on it, so it must
+// be created with pg_num>=8 or the zone reconcile fails.
+func rgwSharedPools(name string) map[string]string {
+	return map[string]string{
+		"rgw.root":                     ".rgw.root",
+		name + ".rgw.control":          "",
+		name + ".rgw.meta":             "",
+		name + ".rgw.log":              "",
+		name + ".rgw.otp":              "",
+		name + ".rgw.buckets.index":    "",
+		name + ".rgw.buckets.data":     "",
+		name + ".rgw.buckets.data.foo": "",
+	}
+}
+
+// CreateObjectStoreConfiguration adds the chart's object store and its bucket
+// storage class to the Helm values. When UseMultisiteObjectStore is set it
+// configures an RGW multisite zone; otherwise it configures a plain store.
 func (h *CephInstaller) CreateObjectStoreConfiguration(values map[string]interface{}, name, scName string) error {
+	if h.settings.UseMultisiteObjectStore {
+		return h.createMultisiteObjectStoreConfiguration(values, name, scName)
+	}
+
 	testObjectStoreBytes := []byte(h.Manifests.GetObjectStore(name, 2, 8080, false, false))
 	var testObjectStoreCRD map[string]interface{}
 	if err := yaml.Unmarshal(testObjectStoreBytes, &testObjectStoreCRD); err != nil {
@@ -399,6 +466,115 @@ func (h *CephInstaller) CreateObjectStoreConfiguration(values map[string]interfa
 		{
 			"name": name,
 			"spec": testObjectStoreCRD["spec"],
+			"storageClass": map[string]interface{}{
+				"enabled":       true,
+				"name":          scName,
+				"parameters":    testObjectStoreSC["parameters"],
+				"reclaimPolicy": "Delete",
+			},
+		},
+	}
+	return nil
+}
+
+// createMultisiteObjectStoreConfiguration configures the object store as an RGW
+// multisite zone, exercising the chart's CephObjectRealm, CephObjectZoneGroup,
+// and CephObjectZone templates on install. The realm/zone group/zone/shared-pools
+// layout mirrors the fixture in tests/integration/object/util/sharedstore.
+func (h *CephInstaller) createMultisiteObjectStoreConfiguration(values map[string]interface{}, name, scName string) error {
+	poolNames := rgwSharedPools(name)
+	rgwPools := make([]map[string]interface{}, 0, len(poolNames))
+	for poolName, radosName := range poolNames {
+		pgNum := "1"
+		if radosName == ".rgw.root" {
+			pgNum = "8"
+		}
+		spec := map[string]interface{}{
+			"replicated": map[string]interface{}{
+				"size":                   1,
+				"requireSafeReplicaSize": false,
+			},
+			"parameters": map[string]interface{}{
+				"pg_autoscale_mode": "off",
+				"pg_num":            pgNum,
+			},
+		}
+		// spec.name is enum-validated (.rgw.root/.nfs/.mgr) and must be omitted
+		// rather than set to "" when the pool name matches the CR name.
+		if radosName != "" {
+			spec["name"] = radosName
+		}
+		rgwPools = append(rgwPools, map[string]interface{}{
+			"name": poolName,
+			"spec": spec,
+			"storageClass": map[string]interface{}{
+				"enabled": false,
+			},
+		})
+	}
+
+	// Append the rgw pools to the block pools already configured for CSI so both
+	// sets land in the chart's cephBlockPools list.
+	existingPools, _ := values["cephBlockPools"].([]map[string]interface{})
+	values["cephBlockPools"] = append(existingPools, rgwPools...)
+
+	values["cephObjectRealms"] = []map[string]interface{}{
+		{
+			"name": name,
+		},
+	}
+	values["cephObjectZoneGroups"] = []map[string]interface{}{
+		{
+			"name": name,
+			"spec": map[string]interface{}{
+				"realm": name,
+			},
+		},
+	}
+	values["cephObjectZones"] = []map[string]interface{}{
+		{
+			"name": name,
+			"spec": map[string]interface{}{
+				"zoneGroup": name,
+				"sharedPools": map[string]interface{}{
+					"poolPlacements": []map[string]interface{}{
+						{
+							"name":             "default",
+							"default":          true,
+							"metadataPoolName": name + ".rgw.buckets.index",
+							"dataPoolName":     name + ".rgw.buckets.data",
+							"storageClasses": []map[string]interface{}{
+								{
+									"name":         "FOO",
+									"dataPoolName": name + ".rgw.buckets.data.foo",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	storageClassBytes := []byte(h.Manifests.GetBucketStorageClass(name, scName, "Delete"))
+	var testObjectStoreSC map[string]interface{}
+	if err := yaml.Unmarshal(storageClassBytes, &testObjectStoreSC); err != nil {
+		return err
+	}
+
+	values["cephObjectStores"] = []map[string]interface{}{
+		{
+			"name": name,
+			"spec": map[string]interface{}{
+				"zone": map[string]interface{}{
+					"name": name,
+				},
+				"gateway": map[string]interface{}{
+					"port":      8080,
+					"instances": 2,
+					"resources": nil,
+				},
+			},
 			"storageClass": map[string]interface{}{
 				"enabled":       true,
 				"name":          scName,
