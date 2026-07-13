@@ -299,7 +299,6 @@ func (r *ReconcileCephNVMeOFGateway) createCephConfigInitContainer(nvmeof *cephv
 	script := connectionConfigScript
 
 	gatewayName := instanceName(nvmeof, daemonID)
-	poolName := nvmeof.Spec.Pool
 	anaGroup := nvmeof.Spec.Group
 
 	// Build environment variables using Rook's helper functions
@@ -312,7 +311,7 @@ func (r *ReconcileCephNVMeOFGateway) createCephConfigInitContainer(nvmeof *cephv
 		},
 		v1.EnvVar{
 			Name:  "POOL_NAME",
-			Value: poolName,
+			Value: nvmeofPoolName,
 		},
 		v1.EnvVar{
 			Name:  "ANA_GROUP",
