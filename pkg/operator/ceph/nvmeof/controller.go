@@ -55,6 +55,10 @@ import (
 const (
 	packageName    = "ceph-nvmeof-gateway"
 	controllerName = packageName + "-controller"
+
+	// nvmeofPoolName is the required Ceph pool for NVMe-oF gateway state.
+	// This matches the pool that Ceph NVMe-oF creates automatically.
+	nvmeofPoolName = ".nvmeof"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", packageName)
@@ -473,14 +477,13 @@ func getNVMeOFGatewayConfig(poolName, podName, podIP, anaGroup string, userConfi
 }
 
 func (r *ReconcileCephNVMeOFGateway) generateConfigMap(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) (*v1.ConfigMap, error) {
-	poolName := nvmeof.Spec.Pool
 	anaGroup := nvmeof.Spec.Group
 	podName := instanceName(nvmeof, daemonID)
 	// Use placeholder that will be replaced at runtime with actual pod IP
 	// The init container will replace @@POD_IP@@ with the actual pod IP
 	podIP := "@@POD_IP@@"
 
-	configContent, err := getNVMeOFGatewayConfig(poolName, podName, podIP, anaGroup, nvmeof.Spec.NVMeOFConfig)
+	configContent, err := getNVMeOFGatewayConfig(nvmeofPoolName, podName, podIP, anaGroup, nvmeof.Spec.NVMeOFConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate nvmeof config")
 	}
@@ -538,10 +541,6 @@ func validateGateway(g *cephv1.CephNVMeOFGateway) error {
 
 	if g.Spec.Group == "" {
 		return errors.New("gateway group name is required")
-	}
-
-	if g.Spec.Pool == "" {
-		return errors.New("pool name is required")
 	}
 
 	return nil

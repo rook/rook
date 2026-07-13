@@ -237,7 +237,7 @@ flags are present on RBD volumes.
 * `name`: The name of the Ceph pool is based on the `metadata.name` of the CephBlockPool CR. Some built-in Ceph pools
     require names that are incompatible with K8s resource names. These special pools can be configured
     by setting this `name` to override the name of the Ceph pool that is created instead of using the `metadata.name` for the pool.
-    Overriding only the following pool names is supported: `.nfs`, `.mgr`, and `.rgw.root`. See the example
+    Overriding only the following pool names is supported: `.nfs`, `.mgr`, `.nvmeof`, and `.rgw.root`. See the example
     [builtin mgr pool](https://github.com/rook/rook/blob/master/deploy/examples/pool-builtin-mgr.yaml).
 * `application`: The type of application set on the pool. By default, Ceph pools for CephBlockPools will be `rbd`,
     CephObjectStore pools will be `rgw`, and CephFilesystem pools will be `cephfs`.
