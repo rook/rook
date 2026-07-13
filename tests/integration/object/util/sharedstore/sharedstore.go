@@ -240,6 +240,10 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 			Spec: cephv1.NamedBlockPoolSpec{
 				Name: v,
 				PoolSpec: cephv1.PoolSpec{
+					// These are rgw backing pools. Without an explicit application
+					// the operator defaults a CephBlockPool to "rbd" and runs
+					// `rbd pool init` on it, which misrepresents the store's pools.
+					Application: "rgw",
 					Replicated: cephv1.ReplicatedSpec{
 						Size:                   1,
 						RequireSafeReplicaSize: false,
