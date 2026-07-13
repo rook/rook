@@ -96,6 +96,15 @@ metric for tracking whether the CSI plugin is alive and running.
 Check the [monitoring documentation](../Monitoring/ceph-monitoring.md) to see how to integrate CSI
 liveness and GRPC metrics into Ceph monitoring.
 
+## RBD QoS (Quality of Service)
+
+Ceph CSI supports setting IOPS and bandwidth limits on RBD volumes to prevent noisy-neighbor
+issues in multi-tenant clusters. QoS is configured through VolumeAttributesClass, allowing
+dynamic modification on existing volumes without recreation.
+
+For detailed configuration instructions, QoS parameter reference, and upgrade guidance, see the
+[RBD QoS documentation](../Block-Storage-RBD/rbd-qos.md).
+
 ## Dynamically Expand Volume
 
 ### Prerequisites

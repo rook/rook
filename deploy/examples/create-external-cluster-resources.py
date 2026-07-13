@@ -1972,6 +1972,8 @@ class RadosJSON:
                         "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
                         "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
                         "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                        "csi.storage.k8s.io/controller-modify-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
+                        "csi.storage.k8s.io/node-publish-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
                     },
                 }
             )
@@ -1987,6 +1989,8 @@ class RadosJSON:
                             "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
                             "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
                             "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                            "csi.storage.k8s.io/controller-modify-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
+                            "csi.storage.k8s.io/node-publish-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
                         },
                     }
                 )
@@ -2000,6 +2004,8 @@ class RadosJSON:
                             "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
                             "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
                             "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                            "csi.storage.k8s.io/controller-modify-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
+                            "csi.storage.k8s.io/node-publish-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
                         },
                     }
                 )
@@ -2026,6 +2032,8 @@ class RadosJSON:
                         "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
                         "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
                         "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                        "csi.storage.k8s.io/controller-modify-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
+                        "csi.storage.k8s.io/node-publish-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
                     },
                 }
             )

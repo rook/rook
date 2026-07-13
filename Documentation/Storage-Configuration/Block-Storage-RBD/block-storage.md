@@ -81,6 +81,12 @@ parameters:
     csi.storage.k8s.io/controller-publish-secret-namespace: rook-ceph # namespace:cluster
     csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
     csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+    # Needed for VolumeAttributesClass (dynamic QoS modification on existing volumes).
+    csi.storage.k8s.io/controller-modify-secret-name: rook-csi-rbd-provisioner
+    csi.storage.k8s.io/controller-modify-secret-namespace: rook-ceph # namespace:cluster
+    # Needed for krbd QoS enforcement.
+    csi.storage.k8s.io/node-publish-secret-name: rook-csi-rbd-node
+    csi.storage.k8s.io/node-publish-secret-namespace: rook-ceph # namespace:cluster
 
     # Specify the filesystem type of the volume. If not specified, csi-provisioner
     # will set default as `ext4`. Note that `xfs` is not recommended due to potential deadlock
@@ -156,6 +162,11 @@ echo http://$(minikube ip):$(kubectl get service wordpress -o jsonpath='{.spec.p
 
 !!! note
     When running in a vagrant environment, there will be no external IP address to reach wordpress with.  You will only be able to reach wordpress via the `CLUSTER-IP` from inside the Kubernetes cluster.
+
+## RBD QoS (Quality of Service)
+
+To set IOPS and bandwidth limits on RBD volumes, see the [RBD QoS documentation](rbd-qos.md).
+QoS limits can be applied dynamically via VolumeAttributesClass.
 
 ## Consume the storage: Toolbox
 

@@ -322,6 +322,10 @@ parameters:
   csi.storage.k8s.io/controller-expand-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/node-stage-secret-name: "rook-$CSI_RBD_NODE_SECRET_NAME"
   csi.storage.k8s.io/node-stage-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/controller-modify-secret-name: "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
+  csi.storage.k8s.io/controller-modify-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/node-publish-secret-name: "rook-$CSI_RBD_NODE_SECRET_NAME"
+  csi.storage.k8s.io/node-publish-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/fstype: ext4
 allowVolumeExpansion: true
 reclaimPolicy: Delete
@@ -352,6 +356,10 @@ parameters:
   csi.storage.k8s.io/controller-publish-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/node-stage-secret-name: "rook-$CSI_RBD_NODE_SECRET_NAME"
   csi.storage.k8s.io/node-stage-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/controller-modify-secret-name: "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
+  csi.storage.k8s.io/controller-modify-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/node-publish-secret-name: "rook-$CSI_RBD_NODE_SECRET_NAME"
+  csi.storage.k8s.io/node-publish-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/fstype: ext4
 allowVolumeExpansion: true
 reclaimPolicy: Delete
@@ -409,6 +417,10 @@ parameters:
   csi.storage.k8s.io/controller-publish-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/node-stage-secret-name: "rook-$CSI_RBD_NODE_SECRET_NAME"
   csi.storage.k8s.io/node-stage-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/controller-modify-secret-name: "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
+  csi.storage.k8s.io/controller-modify-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/node-publish-secret-name: "rook-$CSI_RBD_NODE_SECRET_NAME"
+  csi.storage.k8s.io/node-publish-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/fstype: ext4
 allowVolumeExpansion: true
 reclaimPolicy: Delete

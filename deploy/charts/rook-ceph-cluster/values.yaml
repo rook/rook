@@ -537,6 +537,12 @@ cephBlockPools:
         csi.storage.k8s.io/controller-publish-secret-namespace: "{{ .Release.Namespace }}"
         csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
         csi.storage.k8s.io/node-stage-secret-namespace: "{{ .Release.Namespace }}"
+        # Needed for VolumeAttributesClass (dynamic QoS modification on existing volumes).
+        csi.storage.k8s.io/controller-modify-secret-name: rook-csi-rbd-provisioner
+        csi.storage.k8s.io/controller-modify-secret-namespace: "{{ .Release.Namespace }}"
+        # Needed for krbd QoS enforcement.
+        csi.storage.k8s.io/node-publish-secret-name: rook-csi-rbd-node
+        csi.storage.k8s.io/node-publish-secret-namespace: "{{ .Release.Namespace }}"
         # Specify the filesystem type of the volume. If not specified, csi-provisioner
         # will set default as `ext4`. Note that `xfs` is not recommended due to potential deadlock
         # in hyperconverged settings where the volume is mounted on the same node as the osds.
