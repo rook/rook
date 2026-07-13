@@ -136,7 +136,7 @@ func (s *StorageScopeSpec) NodeWithNameExists(name string) bool {
 	return false
 }
 
-// GetUseAllDevices return if all devices should be used.
+// GetUseAllDevices returns whether all devices should be used.
 func (s *Selection) GetUseAllDevices() bool {
 	return s.UseAllDevices != nil && *(s.UseAllDevices)
 }
