@@ -94,7 +94,7 @@ spec:
                         description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
                         properties:
                           interval:
-                            description: Interval represent the periodicity of the snapshot.
+                            description: Interval represents the periodicity of the snapshot.
                             type: string
                           path:
                             description: Path is the path to snapshot, only valid for CephFS
@@ -137,7 +137,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -293,7 +293,7 @@ spec:
                       type: object
                   type: object
                 phase:
-                  description: ConditionType represent a resource's status
+                  description: ConditionType represents a resource's status
                   type: string
                 snapshotScheduleStatus:
                   description: SnapshotScheduleStatusSpec is the status of the snapshot schedule
@@ -526,7 +526,7 @@ spec:
                         description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
                         properties:
                           interval:
-                            description: Interval represent the periodicity of the snapshot.
+                            description: Interval represents the periodicity of the snapshot.
                             type: string
                           path:
                             description: Path is the path to snapshot, only valid for CephFS
@@ -675,7 +675,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -835,7 +835,7 @@ spec:
                   format: int64
                   type: integer
                 phase:
-                  description: ConditionType represent a resource's status
+                  description: ConditionType represents a resource's status
                   type: string
                 poolID:
                   description: optional
@@ -942,13 +942,13 @@ spec:
             metadata:
               type: object
             spec:
-              description: BucketNotificationSpec represent the spec of a Bucket Notification
+              description: BucketNotificationSpec represents the spec of a Bucket Notification
               properties:
                 events:
                   description: List of events that should trigger the notification
                   items:
                     description: |-
-                      BucketNotificationEvent represent the event type of the bucket notification
+                      BucketNotificationEvent represents the event type of the bucket notification
                       See: https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types
                     enum:
                       - s3:ObjectCreated:*
@@ -989,7 +989,7 @@ spec:
                     keyFilters:
                       description: Filters based on the object's key
                       items:
-                        description: NotificationKeyFilterRule represent a single key rule in the Notification Filter spec
+                        description: NotificationKeyFilterRule represents a single key rule in the Notification Filter spec
                         properties:
                           name:
                             description: Name of the filter - prefix/suffix/regex
@@ -1009,7 +1009,7 @@ spec:
                     metadataFilters:
                       description: Filters based on the object's metadata
                       items:
-                        description: NotificationFilterRule represent a single rule in the Notification Filter spec
+                        description: NotificationFilterRule represents a single rule in the Notification Filter spec
                         properties:
                           name:
                             description: Name of the metadata or tag
@@ -1026,7 +1026,7 @@ spec:
                     tagFilters:
                       description: Filters based on the object's tags
                       items:
-                        description: NotificationFilterRule represent a single rule in the Notification Filter spec
+                        description: NotificationFilterRule represents a single rule in the Notification Filter spec
                         properties:
                           name:
                             description: Name of the metadata or tag
@@ -1069,7 +1069,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -1138,7 +1138,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: BucketTopicSpec represent the spec of a Bucket Topic
+              description: BucketTopicSpec represents the spec of a Bucket Topic
               properties:
                 endpoint:
                   description: Contains the endpoint spec of the topic
@@ -1465,7 +1465,7 @@ spec:
                   format: int64
                   type: integer
                 phase:
-                  description: ConditionType represent a resource's status
+                  description: ConditionType represents a resource's status
                   type: string
               type: object
               x-kubernetes-preserve-unknown-fields: true
@@ -2155,7 +2155,7 @@ spec:
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
                 logCollector:
-                  description: Logging represents loggings settings
+                  description: Logging represents logging settings
                   nullable: true
                   properties:
                     enabled:
@@ -6036,7 +6036,7 @@ spec:
                     previousHealth:
                       type: string
                     versions:
-                      description: CephDaemonsVersions show the current ceph version for different ceph daemons
+                      description: CephDaemonsVersions shows the current ceph version for different ceph daemons
                       properties:
                         cephfs-mirror:
                           additionalProperties:
@@ -6281,7 +6281,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -6292,7 +6292,7 @@ spec:
                   format: int64
                   type: integer
                 phase:
-                  description: ConditionType represent a resource's status
+                  description: ConditionType represents a resource's status
                   type: string
                 state:
                   description: ClusterState represents the state of a Ceph Cluster
@@ -7663,7 +7663,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -7848,7 +7848,7 @@ spec:
                               description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
                               properties:
                                 interval:
-                                  description: Interval represent the periodicity of the snapshot.
+                                  description: Interval represents the periodicity of the snapshot.
                                   type: string
                                 path:
                                   description: Path is the path to snapshot, only valid for CephFS
@@ -8058,7 +8058,7 @@ spec:
                             description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
                             properties:
                               interval:
-                                description: Interval represent the periodicity of the snapshot.
+                                description: Interval represents the periodicity of the snapshot.
                                 type: string
                               path:
                                 description: Path is the path to snapshot, only valid for CephFS
@@ -9107,7 +9107,7 @@ spec:
                         description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
                         properties:
                           interval:
-                            description: Interval represent the periodicity of the snapshot.
+                            description: Interval represents the periodicity of the snapshot.
                             type: string
                           path:
                             description: Path is the path to snapshot, only valid for CephFS
@@ -9195,7 +9195,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -9236,7 +9236,7 @@ spec:
                                     description: FilesystemMirrorInfoPeerSpec is the specification of a filesystem peer mirror
                                     properties:
                                       remote:
-                                        description: Remote are the remote cluster information
+                                        description: Remote is the remote cluster information
                                         properties:
                                           client_name:
                                             description: ClientName is cephx name
@@ -9249,7 +9249,7 @@ spec:
                                             type: string
                                         type: object
                                       stats:
-                                        description: Stats are the stat a peer mirror
+                                        description: Stats are the stat of a peer mirror
                                         properties:
                                           failure_count:
                                             description: FailureCount is the number of mirroring failure
@@ -9283,7 +9283,7 @@ spec:
                   format: int64
                   type: integer
                 phase:
-                  description: ConditionType represent a resource's status
+                  description: ConditionType represents a resource's status
                   type: string
                 snapshotScheduleStatus:
                   description: FilesystemSnapshotScheduleStatusSpec is the status of the snapshot schedule
@@ -9509,7 +9509,7 @@ spec:
                   format: int64
                   type: integer
                 phase:
-                  description: ConditionType represent a resource's status
+                  description: ConditionType represents a resource's status
                   type: string
               type: object
               x-kubernetes-preserve-unknown-fields: true
@@ -11001,7 +11001,7 @@ spec:
                           type: object
                       type: object
                     logLevel:
-                      description: LogLevel set logging level
+                      description: LogLevel sets logging level
                       type: string
                     placement:
                       nullable: true
@@ -11630,7 +11630,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -12547,7 +12547,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -12615,7 +12615,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: ObjectRealmSpec represent the spec of an ObjectRealm
+              description: ObjectRealmSpec represents the spec of an ObjectRealm
               nullable: true
               properties:
                 defaultRealm:
@@ -12650,7 +12650,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -12716,7 +12716,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: ObjectStoreAccountSpec represent the spec of a RGW Account
+              description: ObjectStoreAccountSpec represents the spec of an RGW Account
               properties:
                 accountID:
                   description: |-
@@ -12846,7 +12846,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: ObjectStoreSpec represent the spec of a pool
+              description: ObjectStoreSpec represents the spec of a pool
               properties:
                 allowUsersInNamespaces:
                   description: |-
@@ -13004,7 +13004,7 @@ spec:
                             description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
                             properties:
                               interval:
-                                description: Interval represent the periodicity of the snapshot.
+                                description: Interval represents the periodicity of the snapshot.
                                 type: string
                               path:
                                 description: Path is the path to snapshot, only valid for CephFS
@@ -14661,7 +14661,7 @@ spec:
                             description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
                             properties:
                               interval:
-                                description: Interval represent the periodicity of the snapshot.
+                                description: Interval represents the periodicity of the snapshot.
                                 type: string
                               path:
                                 description: Path is the path to snapshot, only valid for CephFS
@@ -15077,7 +15077,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -15106,7 +15106,7 @@ spec:
                   format: int64
                   type: integer
                 phase:
-                  description: ConditionType represent a resource's status
+                  description: ConditionType represents a resource's status
                   type: string
                 replicas:
                   format: int32
@@ -15178,7 +15178,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: ObjectStoreUserSpec represent the spec of an Objectstoreuser
+              description: ObjectStoreUserSpec represents the spec of an Objectstoreuser
               properties:
                 accountRef:
                   description: |-
@@ -15396,7 +15396,7 @@ spec:
                 opMask:
                   description: The op-mask of the user.
                   items:
-                    description: 'Internally, RGW labels "operations" on persistent state as `RGW_OP_TYPE_READ` (`read`), `RGW_OP_TYPE_WRITE` (`write`), or `RGW_OP_TYPE_DELETE` (`delete`). All RGW users have an "operation mask", which does not function as mask or filter as is typically implied by the word "mask", but as a set of allowed or permissible "operation" types the user is able to perform. The "operation mask" is applied regardless of the bucket or IAM policy. For example, in order for an RGW user to be able to read an object from a bucket, that user must have **both** the `read` "op mask" bit and an IAM/bucket policy that allows `s3:GetObject`. The default operations allowed are `read`, `write`, and `delete`. Setting the value to `[]` (an empty YAML sequence) causes all "operations" in the mask to be removed, meaning that the user will not be able to perform any operations. These operation masks are supported: `read`, `write`, `delete`'
+                    description: 'Internally, RGW labels "operations" on persistent state as `RGW_OP_TYPE_READ` (`read`), `RGW_OP_TYPE_WRITE` (`write`), or `RGW_OP_TYPE_DELETE` (`delete`). All RGW users have an "operation mask", which does not function as a mask or filter as is typically implied by the word "mask", but as a set of allowed or permissible "operation" types the user is able to perform. The "operation mask" is applied regardless of the bucket or IAM policy. For example, in order for an RGW user to be able to read an object from a bucket, that user must have **both** the `read` "op mask" bit and an IAM/bucket policy that allows `s3:GetObject`. The default operations allowed are `read`, `write`, and `delete`. Setting the value to `[]` (an empty YAML sequence) causes all "operations" in the mask to be removed, meaning that the user will not be able to perform any operations. These operation masks are supported: `read`, `write`, `delete`'
                     enum:
                       - read
                       - write
@@ -15528,7 +15528,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: ObjectZoneGroupSpec represent the spec of an ObjectZoneGroup
+              description: ObjectZoneGroupSpec represents the spec of an ObjectZoneGroup
               properties:
                 realm:
                   description: The name of the realm the zone group is a member of.
@@ -15557,7 +15557,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -15626,7 +15626,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: ObjectZoneSpec represent the spec of an ObjectZone
+              description: ObjectZoneSpec represents the spec of an ObjectZone
               properties:
                 customEndpoints:
                   description: |-
@@ -15754,7 +15754,7 @@ spec:
                             description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
                             properties:
                               interval:
-                                description: Interval represent the periodicity of the snapshot.
+                                description: Interval represents the periodicity of the snapshot.
                                 type: string
                               path:
                                 description: Path is the path to snapshot, only valid for CephFS
@@ -15959,7 +15959,7 @@ spec:
                             description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
                             properties:
                               interval:
-                                description: Interval represent the periodicity of the snapshot.
+                                description: Interval represents the periodicity of the snapshot.
                                 type: string
                               path:
                                 description: Path is the path to snapshot, only valid for CephFS
@@ -16181,7 +16181,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array
@@ -16904,7 +16904,7 @@ spec:
                       status:
                         type: string
                       type:
-                        description: ConditionType represent a resource's status
+                        description: ConditionType represents a resource's status
                         type: string
                     type: object
                   type: array

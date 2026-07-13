@@ -49,7 +49,7 @@ func validatePoolSpec(ps NamedPoolSpec) error {
 	if ps.ErasureCoded.CodingChunks <= 0 && ps.ErasureCoded.DataChunks <= 0 && ps.Replicated.TargetSizeRatio <= 0 && ps.Replicated.Size <= 0 {
 		return errors.New("invalid pool spec: either of erasurecoded or replicated fields should be set")
 	}
-	// Check if any of the ErasureCoded fields are populated. Then check if replicated is populated. Both can't be populated at same time.
+	// Check if any of the ErasureCoded fields are populated. Then check if replicated is populated. Both can't be populated at the same time.
 	if ps.ErasureCoded.CodingChunks > 0 || ps.ErasureCoded.DataChunks > 0 || ps.ErasureCoded.Algorithm != "" {
 		if ps.Replicated.Size > 0 || ps.Replicated.TargetSizeRatio > 0 {
 			return errors.New("invalid pool spec: both erasurecoded and replicated fields cannot be set at the same time")

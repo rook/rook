@@ -57,7 +57,7 @@ type CephCluster struct {
 	Status ClusterStatus `json:"status,omitempty"`
 }
 
-// CephClusterHealthCheckSpec represent the healthcheck for Ceph daemons
+// CephClusterHealthCheckSpec represents the healthcheck for Ceph daemons
 type CephClusterHealthCheckSpec struct {
 	// DaemonHealth is the health check for a given daemon
 	// +optional
@@ -242,7 +242,7 @@ type ClusterSpec struct {
 	// +nullable
 	Security ClusterSecuritySpec `json:"security,omitempty"`
 
-	// Logging represents loggings settings
+	// Logging represents logging settings
 	// +optional
 	// +nullable
 	LogCollector LogCollectorSpec `json:"logCollector,omitempty"`
@@ -476,7 +476,7 @@ type SslOptionsSpec struct {
 	SingleDiffieHellmanUse *bool `json:"singleDiffieHellmanUse,omitempty"`
 }
 
-// KeyManagementServiceSpec represent various details of the KMS server
+// KeyManagementServiceSpec represents various details of the KMS server
 type KeyManagementServiceSpec struct {
 	// ConnectionDetails contains the KMS connection details (address, port etc)
 	// +optional
@@ -615,7 +615,7 @@ type ClusterStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
-// CephDaemonsVersions show the current ceph version for different ceph daemons
+// CephDaemonsVersions shows the current ceph version for different ceph daemons
 type CephDaemonsVersions struct {
 	// Mon shows Mon Ceph version
 	// +optional
@@ -755,7 +755,7 @@ const (
 	RadosNamespaceEmptyReason ConditionReason = "RadosNamespaceEmpty"
 )
 
-// ConditionType represent a resource's status
+// ConditionType represents a resource's status
 type ConditionType string
 
 const (
@@ -1214,7 +1214,7 @@ type MirroringStatusSummarySpec struct {
 	GroupStates StatesSpec `json:"group_states,omitempty"`
 }
 
-// StatesSpec are rbd images mirroring state
+// StatesSpec is rbd images mirroring state
 type StatesSpec struct {
 	// StartingReplay is when the replay of the mirroring journal starts
 	// +optional
@@ -1407,7 +1407,7 @@ type SnapshotScheduleSpec struct {
 	// +optional
 	Path string `json:"path,omitempty"`
 
-	// Interval represent the periodicity of the snapshot.
+	// Interval represents the periodicity of the snapshot.
 	// +optional
 	Interval string `json:"interval,omitempty"`
 
@@ -1749,10 +1749,10 @@ type FilesystemMirrorInfoPeerSpec struct {
 	// UUID is the peer unique identifier
 	// +optional
 	UUID string `json:"uuid,omitempty"`
-	// Remote are the remote cluster information
+	// Remote is the remote cluster information
 	// +optional
 	Remote *PeerRemoteSpec `json:"remote,omitempty"`
-	// Stats are the stat a peer mirror
+	// Stats are the stat of a peer mirror
 	// +optional
 	Stats *PeerStatSpec `json:"stats,omitempty"`
 }
@@ -1769,7 +1769,7 @@ type PeerRemoteSpec struct {
 	FsName string `json:"fs_name,omitempty"`
 }
 
-// PeerStatSpec are the mirror stat with a given peer
+// PeerStatSpec is the mirror stat with a given peer
 type PeerStatSpec struct {
 	// FailureCount is the number of mirroring failure
 	// +optional
@@ -1808,7 +1808,7 @@ type CephObjectStoreList struct {
 	Items           []CephObjectStore `json:"items"`
 }
 
-// ObjectStoreSpec represent the spec of a pool
+// ObjectStoreSpec represents the spec of a pool
 // +kubebuilder:validation:XValidation:rule="!(has(self.defaultRealm) && self.defaultRealm == true && has(self.zone) && size(self.zone.name) > 0)",message="defaultRealm must not be true when zone.name is set (multisite configuration)"
 type ObjectStoreSpec struct {
 	// The metadata pool settings
@@ -2367,7 +2367,7 @@ type CephObjectStoreUserList struct {
 	Items           []CephObjectStoreUser `json:"items"`
 }
 
-// ObjectStoreUserSpec represent the spec of an Objectstoreuser
+// ObjectStoreUserSpec represents the spec of an Objectstoreuser
 type ObjectStoreUserSpec struct {
 	// The store the user will be created in
 	// +optional
@@ -2413,7 +2413,7 @@ type ObjectStoreUserAccountRef struct {
 	Name string `json:"name,omitempty"`
 }
 
-// Internally, RGW labels "operations" on persistent state as `RGW_OP_TYPE_READ` (`read`), `RGW_OP_TYPE_WRITE` (`write`), or `RGW_OP_TYPE_DELETE` (`delete`). All RGW users have an "operation mask", which does not function as mask or filter as is typically implied by the word "mask", but as a set of allowed or permissible "operation" types the user is able to perform. The "operation mask" is applied regardless of the bucket or IAM policy. For example, in order for an RGW user to be able to read an object from a bucket, that user must have **both** the `read` "op mask" bit and an IAM/bucket policy that allows `s3:GetObject`. The default operations allowed are `read`, `write`, and `delete`. Setting the value to `[]` (an empty YAML sequence) causes all "operations" in the mask to be removed, meaning that the user will not be able to perform any operations. These operation masks are supported: `read`, `write`, `delete`
+// Internally, RGW labels "operations" on persistent state as `RGW_OP_TYPE_READ` (`read`), `RGW_OP_TYPE_WRITE` (`write`), or `RGW_OP_TYPE_DELETE` (`delete`). All RGW users have an "operation mask", which does not function as a mask or filter as is typically implied by the word "mask", but as a set of allowed or permissible "operation" types the user is able to perform. The "operation mask" is applied regardless of the bucket or IAM policy. For example, in order for an RGW user to be able to read an object from a bucket, that user must have **both** the `read` "op mask" bit and an IAM/bucket policy that allows `s3:GetObject`. The default operations allowed are `read`, `write`, and `delete`. Setting the value to `[]` (an empty YAML sequence) causes all "operations" in the mask to be removed, meaning that the user will not be able to perform any operations. These operation masks are supported: `read`, `write`, `delete`
 // +enum
 // +kubebuilder:validation:Enum=read;write;delete
 type ObjectUserOpMask string
@@ -2540,7 +2540,7 @@ type CephObjectRealmList struct {
 	Items           []CephObjectRealm `json:"items"`
 }
 
-// ObjectRealmSpec represent the spec of an ObjectRealm
+// ObjectRealmSpec represents the spec of an ObjectRealm
 type ObjectRealmSpec struct {
 	Pull PullSpec `json:"pull,omitempty"`
 
@@ -2581,7 +2581,7 @@ type CephObjectZoneGroupList struct {
 	Items           []CephObjectZoneGroup `json:"items"`
 }
 
-// ObjectZoneGroupSpec represent the spec of an ObjectZoneGroup
+// ObjectZoneGroupSpec represents the spec of an ObjectZoneGroup
 type ObjectZoneGroupSpec struct {
 	// The name of the realm the zone group is a member of.
 	Realm string `json:"realm"`
@@ -2613,7 +2613,7 @@ type CephObjectZoneList struct {
 	Items           []CephObjectZone `json:"items"`
 }
 
-// ObjectZoneSpec represent the spec of an ObjectZone
+// ObjectZoneSpec represents the spec of an ObjectZone
 type ObjectZoneSpec struct {
 	// The name of the zone group the zone is a member of.
 	ZoneGroup string `json:"zoneGroup"`
@@ -2694,7 +2694,7 @@ type CephBucketTopicList struct {
 	Items           []CephBucketTopic `json:"items"`
 }
 
-// BucketTopicSpec represent the spec of a Bucket Topic
+// BucketTopicSpec represents the spec of a Bucket Topic
 type BucketTopicSpec struct {
 	// The name of the object store on which to define the topic
 	// +kubebuilder:validation:MinLength=1
@@ -2725,7 +2725,7 @@ type TopicEndpointSpec struct {
 	Kafka *KafkaEndpointSpec `json:"kafka,omitempty"`
 }
 
-// HTTPEndpointSpec represent the spec of an HTTP endpoint of a Bucket Topic
+// HTTPEndpointSpec represents the spec of an HTTP endpoint of a Bucket Topic
 type HTTPEndpointSpec struct {
 	// The URI of the HTTP endpoint to push notification to
 	// +kubebuilder:validation:MinLength=1
@@ -2738,7 +2738,7 @@ type HTTPEndpointSpec struct {
 	SendCloudEvents bool `json:"sendCloudEvents,omitempty"`
 }
 
-// AMQPEndpointSpec represent the spec of an AMQP endpoint of a Bucket Topic
+// AMQPEndpointSpec represents the spec of an AMQP endpoint of a Bucket Topic
 type AMQPEndpointSpec struct {
 	// The URI of the AMQP endpoint to push notification to
 	// +kubebuilder:validation:MinLength=1
@@ -2756,7 +2756,7 @@ type AMQPEndpointSpec struct {
 	AckLevel string `json:"ackLevel,omitempty"`
 }
 
-// KafkaEndpointSpec represent the spec of a Kafka endpoint of a Bucket Topic
+// KafkaEndpointSpec represents the spec of a Kafka endpoint of a Bucket Topic
 type KafkaEndpointSpec struct {
 	// The URI of the Kafka endpoint to push notification to
 	// +kubebuilder:validation:MinLength=1
@@ -2811,12 +2811,12 @@ type CephBucketNotificationList struct {
 	Items           []CephBucketNotification `json:"items"`
 }
 
-// BucketNotificationEvent represent the event type of the bucket notification
+// BucketNotificationEvent represents the event type of the bucket notification
 // See: https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types
 // +kubebuilder:validation:Enum="s3:ObjectCreated:*";"s3:ObjectCreated:Put";"s3:ObjectCreated:Post";"s3:ObjectCreated:Copy";"s3:ObjectCreated:CompleteMultipartUpload";"s3:ObjectRemoved:*";"s3:ObjectRemoved:Delete";"s3:ObjectRemoved:DeleteMarkerCreated";"s3:ObjectLifecycle:Expiration:Current";"s3:ObjectLifecycle:Expiration:NonCurrent";"s3:ObjectLifecycle:Expiration:DeleteMarker";"s3:ObjectLifecycle:Expiration:AbortMultipartUpload";"s3:ObjectLifecycle:Transition:Current";"s3:ObjectLifecycle:Transition:NonCurrent";"s3:LifecycleExpiration:*";"s3:LifecycleExpiration:Delete";"s3:LifecycleExpiration:DeleteMarkerCreated";"s3:LifecycleTransition";"s3:ObjectSynced:*";"s3:ObjectSynced:Create";"s3:ObjectSynced:Delete";"s3:ObjectSynced:DeletionMarkerCreated";"s3:Replication:*";"s3:Replication:Create";"s3:Replication:Delete";"s3:Replication:DeletionMarkerCreated";"s3:ObjectRestore:*";"s3:ObjectRestore:Post";"s3:ObjectRestore:Completed";"s3:ObjectRestore:Delete"
 type BucketNotificationEvent string
 
-// BucketNotificationSpec represent the spec of a Bucket Notification
+// BucketNotificationSpec represents the spec of a Bucket Notification
 type BucketNotificationSpec struct {
 	// The name of the topic associated with this notification
 	// +kubebuilder:validation:MinLength=1
@@ -2829,7 +2829,7 @@ type BucketNotificationSpec struct {
 	Filter *NotificationFilterSpec `json:"filter,omitempty"`
 }
 
-// NotificationFilterRule represent a single rule in the Notification Filter spec
+// NotificationFilterRule represents a single rule in the Notification Filter spec
 type NotificationFilterRule struct {
 	// Name of the metadata or tag
 	// +kubebuilder:validation:MinLength=1
@@ -2838,7 +2838,7 @@ type NotificationFilterRule struct {
 	Value string `json:"value"`
 }
 
-// NotificationKeyFilterRule represent a single key rule in the Notification Filter spec
+// NotificationKeyFilterRule represents a single key rule in the Notification Filter spec
 type NotificationKeyFilterRule struct {
 	// Name of the filter - prefix/suffix/regex
 	// +kubebuilder:validation:Enum=prefix;suffix;regex
@@ -2847,7 +2847,7 @@ type NotificationKeyFilterRule struct {
 	Value string `json:"value"`
 }
 
-// NotificationFilterSpec represent the spec of a Bucket Notification filter
+// NotificationFilterSpec represents the spec of a Bucket Notification filter
 type NotificationFilterSpec struct {
 	// Filters based on the object's key
 	// +optional
@@ -2860,7 +2860,7 @@ type NotificationFilterSpec struct {
 	TagFilters []NotificationFilterRule `json:"tagFilters,omitempty"`
 }
 
-// RGWServiceSpec represent the spec for RGW service
+// RGWServiceSpec represents the spec for RGW service
 type RGWServiceSpec struct {
 	// The annotations-related configuration to add/set on each rgw service.
 	// nullable
@@ -2888,7 +2888,7 @@ type CephObjectStoreAccount struct {
 	Status *ObjectStoreAccountStatus `json:"status,omitzero"` //nolint:kubeapilinter // MinProperties cannot be applied to a struct pointer field
 }
 
-// ObjectStoreAccountSpec represent the spec of a RGW Account
+// ObjectStoreAccountSpec represents the spec of an RGW Account
 type ObjectStoreAccountSpec struct {
 	// Store is the CephObjectStore the account will be associated with
 	// +required
@@ -3051,7 +3051,7 @@ type GaneshaServerSpec struct {
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 
-	// LogLevel set logging level
+	// LogLevel sets logging level
 	// +optional
 	LogLevel string `json:"logLevel,omitempty"`
 

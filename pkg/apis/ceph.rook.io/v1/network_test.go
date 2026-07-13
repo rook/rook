@@ -244,7 +244,7 @@ func TestAddressRangesSpec_Validate(t *testing.T) {
 	}
 }
 
-// these two functions are should almost always used together and can be unit tested together more
+// these two functions are almost always used together and can be unit tested together more
 // easily than apart
 func TestNetworkSpec_GetNetworkSelection_NetworkSelectionsToAnnotationValue(t *testing.T) {
 	// inputs are the same definition expressed in json format or non-json format
