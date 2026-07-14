@@ -236,7 +236,8 @@ $(CONTROLLER_GEN): | $(TOOLS_HOST_DIR)
 	}
 
 
-export CODE_GENERATOR_VERSION=0.34.2
-export CODE_GENERATOR=$(TOOLS_HOST_DIR)/code-generator-$(CODE_GENERATOR_VERSION)
+# fetch the code generator tag from the kubernetes version used in the repo
+export KUBE_CODEGEN_TAG := $(shell cd $(ROOT_DIR) && $(GO) list -m -f '{{.Version}}' k8s.io/apimachinery)
+export CODE_GENERATOR=$(TOOLS_HOST_DIR)/code-generator-$(patsubst v%,%,$(KUBE_CODEGEN_TAG))
 $(CODE_GENERATOR): | $(TOOLS_HOST_DIR)
-	curl -sL https://github.com/kubernetes/code-generator/archive/refs/tags/v${CODE_GENERATOR_VERSION}.tar.gz | tar -xz -C $(TOOLS_HOST_DIR)
+	curl -sL https://github.com/kubernetes/code-generator/archive/refs/tags/$(KUBE_CODEGEN_TAG).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)
