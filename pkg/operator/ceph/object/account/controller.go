@@ -205,6 +205,14 @@ func (r *ReconcileObjectStoreAccount) reconcile(request reconcile.Request) (reco
 	opsCtx, objectStore, err := object.InitializeObjectStoreContext(r.context, r.clusterInfo, r.client, r.opManagerContext, cephObjectStoreAccount.Spec.Store, newMultisiteAdminOpsCtxFunc)
 	if err != nil {
 		if !cephObjectStoreAccount.GetDeletionTimestamp().IsZero() {
+			log.NamedDebug(request.NamespacedName, logger, "deleting object store account")
+			r.recorder.Eventf(cephObjectStoreAccount, nil, corev1.EventTypeNormal, string(cephv1.ReconcileStarted), string(cephv1.ReconcileStarted), "deleting CephObjectStoreAccount %q", cephObjectStoreAccount.Name)
+
+			err := r.deleteAccount(cephObjectStoreAccount)
+			if err != nil {
+				return reconcile.Result{}, *cephObjectStoreAccount, errors.Wrapf(err, "failed to delete ceph object store account %q", cephObjectStoreAccount.Name)
+			}
+
 			// Remove finalizer
 			err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStoreAccount)
 			if err != nil {
