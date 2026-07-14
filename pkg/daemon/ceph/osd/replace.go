@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 // cvLVMListEntry is one entry in the output of `ceph-volume lvm list <id>`.
@@ -104,15 +105,23 @@ func encryptedDMNamesForOSD(context *clusterd.Context, osdID int) ([]string, err
 	return dmNames, nil
 }
 
+// cryptsetupExitCodeNotActive is the exit code cryptsetup returns when the target mapping is already
+// closed ("Device is not active"); it is treated as success so closing is idempotent.
+const cryptsetupExitCodeNotActive = 4
+
 // isCryptsetupNotActive reports whether err is cryptsetup's "already closed" failure (exit code 4),
-// which is treated as success so closing is idempotent. The message substring is a locale-dependent
-// fallback to the exit code.
+// which is treated as success so closing is idempotent. The "is not active" message is a
+// locale-dependent fallback used only when the exit code cannot be recovered from err.
 func isCryptsetupNotActive(err error) bool {
 	if err == nil {
 		return false
 	}
-	msg := err.Error()
-	return strings.Contains(msg, "exit status 4") || strings.Contains(msg, "is not active")
+	// errors.Cause unwraps the pkg/errors wrapping added by CloseEncryptedDevice so ExtractExitCode
+	// can inspect the underlying typed exec error.
+	if code, extractErr := exec.ExtractExitCode(errors.Cause(err)); extractErr == nil {
+		return code == cryptsetupExitCodeNotActive
+	}
+	return strings.Contains(err.Error(), "is not active")
 }
 
 // preProvisionReplacedOSDs pairs each destroyed slot belonging to this node with a freshly-swapped
@@ -158,10 +167,11 @@ func (a *OsdAgent) preProvisionReplacedOSDs(context *clusterd.Context, available
 	// A device is only offered once it is empty, so an available blank device is the signal that the
 	// disk has been swapped.
 	blankDevices := availableDataDevices(available)
-	for _, osdID := range destroyedOSDIds {
+	for i, osdID := range destroyedOSDIds {
 		if len(blankDevices) == 0 {
-			logger.Infof("no blank device available yet to replace destroyed osd.%d, waiting for the disk to be swapped", osdID)
-			continue
+			// blankDevices only shrinks, so once it is empty the remaining destroyed slots stay unpaired.
+			logger.Infof("no blank device available yet, waiting for the disk(s) to be swapped to replace destroyed osd(s) %v", destroyedOSDIds[i:])
+			break
 		}
 		// select the first blank device from the list:
 		deviceName := blankDevices[0]

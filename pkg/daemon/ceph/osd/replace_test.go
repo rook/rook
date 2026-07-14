@@ -18,9 +18,9 @@ package osd
 
 import (
 	"encoding/json"
-	"errors"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	kexec "k8s.io/utils/exec"
 )
 
 func TestCrushHostFromLocation(t *testing.T) {
@@ -472,8 +473,10 @@ func TestCloseEncryptedDevicesForOSD(t *testing.T) {
 }
 
 func TestIsCryptsetupNotActive(t *testing.T) {
-	assert.True(t, isCryptsetupNotActive(errors.New("exit status 4")))
+	assert.True(t, isCryptsetupNotActive(&kexec.CodeExitError{Err: errors.New("exit status 4"), Code: 4}))
+	assert.True(t, isCryptsetupNotActive(errors.Wrap(&kexec.CodeExitError{Err: errors.New("exit status 4"), Code: 4}, "failed to close encrypted device")))
 	assert.True(t, isCryptsetupNotActive(errors.New("Device foo is not active.")))
+	assert.False(t, isCryptsetupNotActive(&kexec.CodeExitError{Err: errors.New("exit status 1"), Code: 1}))
 	assert.False(t, isCryptsetupNotActive(errors.New("exit status 1")))
 	assert.False(t, isCryptsetupNotActive(nil))
 }
