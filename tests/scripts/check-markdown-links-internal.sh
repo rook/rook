@@ -17,7 +17,9 @@ fi
 MLC="${MLC_BASE_CMD} --config ${script_dir}/mlc_config.json --quiet"
 
 EXIT_CODE=0
-FILES=$(cd "$base_dir" && find Documentation/ -name '*.md')
+# AGENTS.md consists almost entirely of links into Documentation/. A stale link there silently
+# misdirects the reader, so check it alongside the documentation it points at.
+FILES=$(cd "$base_dir" && find Documentation/ -name '*.md' && echo AGENTS.md)
 BAD_FILES=""
 NUM_CHECKED_FILES=0
 NUM_BAD_FILES=0
