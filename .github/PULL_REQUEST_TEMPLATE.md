@@ -19,6 +19,7 @@ Resolves #
 - [ ] Reviewed [AI guidelines](https://rook.io/docs/rook/latest/Contributing/ai-guidelines), if AI assisted with the PR.
 - [ ] [Pending release notes](https://github.com/rook/rook/blob/master/PendingReleaseNotes.md) updated with breaking and/or notable changes for the next minor release.
   - Overwriting Ceph's configurations should be marked as breaking changes.
-- [ ] Documentation has been updated, if necessary.
-- [ ] Unit tests have been added, if necessary.
-- [ ] Integration tests have been added, if necessary.
+- [ ] Documentation has been updated, if necessary (under the `Documentation` folder).
+- [ ] Unit tests have been added, if necessary (`_test.go` files under the `cmd` and `pkg` folders).
+- [ ] Integration tests have been added, if necessary (in the `tests/integration` folder).
+
