@@ -49,7 +49,7 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          kubernetes-version: "v1.36.2"
+          kubernetes-version: "v1.36.1"
 
       - name: TestCephSmokeSuite
         run: |
@@ -92,7 +92,7 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          kubernetes-version: "v1.36.2"
+          kubernetes-version: "v1.36.1"
 
       - name: TestCephUpgradeSuite
         run: |
@@ -136,7 +136,7 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          kubernetes-version: "v1.36.2"
+          kubernetes-version: "v1.36.1"
 
       - name: TestCephObjectSuite
         run: |
