@@ -469,10 +469,13 @@ eof
 ########
 checkEnvVars
 createClusterNamespace
-importClusterID
 importSecret
 importConfigMap
 createInputCommadConfigMap
+# the order of creating the svg and rns is important,
+# the svg and rns controller is dependent on the ceph health,
+# so first we should create the mon secret to get the cephcluster `health ok`
+importClusterID
 if [ -n "$CSI_RBD_NODE_SECRET_NAME" ] && [ -n "$CSI_RBD_NODE_SECRET" ]; then
   importCsiRBDNodeSecret
 fi
