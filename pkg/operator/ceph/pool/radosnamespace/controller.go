@@ -38,6 +38,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,8 +47,10 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -97,7 +100,7 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 	}); err != nil {
 		return fmt.Errorf("failed to index CephRadosNamespaceName by %s: %v", cephRNSNameIndex, err)
 	}
-	return add(mgr, newReconciler(mgr, context, opManagerContext, opConfig))
+	return add(opManagerContext, mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -113,7 +116,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 	}
 }
 
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
+func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -139,7 +142,71 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// Build handler to map events to CephBlockPoolRadosNamespace reconcile requests
+	clientProfileHandler, err := opcontroller.ObjectToCRMapper[*cephv1.CephBlockPoolRadosNamespaceList, *csiopv1.ClientProfile](
+		opManagerContext,
+		mgr.GetClient(),
+		&cephv1.CephBlockPoolRadosNamespaceList{},
+		mgr.GetScheme(),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Watch for ClientProfile changes
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&csiopv1.ClientProfile{TypeMeta: metav1.TypeMeta{Kind: "ClientProfile", APIVersion: fmt.Sprintf("%s/%s", csiopv1.GroupVersion.Group, csiopv1.GroupVersion.Version)}},
+			handler.TypedEnqueueRequestsFromMapFunc(clientProfileHandler),
+			opcontroller.WatchControllerPredicate[*csiopv1.ClientProfile](mgr.GetScheme()),
+		),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Build handler to map Secret events to CephBlockPoolRadosNamespace reconcile requests
+	secretHandler, err := opcontroller.ObjectToCRMapper[*cephv1.CephBlockPoolRadosNamespaceList, *corev1.Secret](
+		opManagerContext,
+		mgr.GetClient(),
+		&cephv1.CephBlockPoolRadosNamespaceList{},
+		mgr.GetScheme(),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Watch for CSI secret changes (rbd provisioner/node secrets)
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
+			handler.TypedEnqueueRequestsFromMapFunc(secretHandler),
+			predicate.TypedFuncs[*corev1.Secret]{
+				CreateFunc: func(e event.TypedCreateEvent[*corev1.Secret]) bool {
+					return isCSIRBDSecret(e.Object.GetName())
+				},
+				UpdateFunc: func(e event.TypedUpdateEvent[*corev1.Secret]) bool {
+					return isCSIRBDSecret(e.ObjectNew.GetName())
+				},
+				DeleteFunc: func(e event.TypedDeleteEvent[*corev1.Secret]) bool {
+					return isCSIRBDSecret(e.Object.GetName())
+				},
+			},
+		),
+	)
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// check on for rbd secrets
+func isCSIRBDSecret(name string) bool {
+	return strings.HasPrefix(name, csi.CsiRBDProvisionerSecret) ||
+		strings.HasPrefix(name, csi.CsiRBDNodeSecret)
 }
 
 // Reconcile reads that state of the cluster for a CephBlockPoolRadosNamespace

@@ -708,3 +708,26 @@ func TestGetRadosNamespaceName(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCSIRBDSecret(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"rbd provisioner secret exact", csi.CsiRBDProvisionerSecret, true},
+		{"rbd node secret exact", csi.CsiRBDNodeSecret, true},
+		{"rbd provisioner secret with suffix", csi.CsiRBDProvisionerSecret + "-cluster1", true},
+		{"rbd node secret with suffix", csi.CsiRBDNodeSecret + "-cluster1", true},
+		{"cephfs node secret", csi.CsiCephFSNodeSecret, false},
+		{"cephfs provisioner secret", csi.CsiCephFSProvisionerSecret, false},
+		{"unrelated secret", "my-app-secret", false},
+		{"empty string", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isCSIRBDSecret(tt.input))
+		})
+	}
+}
