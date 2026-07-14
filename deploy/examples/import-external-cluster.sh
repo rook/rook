@@ -320,6 +320,8 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/controller-expand-secret-name:  "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
   csi.storage.k8s.io/controller-expand-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/controller-publish-secret-name: "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
+  csi.storage.k8s.io/controller-publish-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/node-stage-secret-name: "rook-$CSI_RBD_NODE_SECRET_NAME"
   csi.storage.k8s.io/node-stage-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/controller-modify-secret-name: "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
