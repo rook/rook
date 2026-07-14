@@ -89,6 +89,29 @@ go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integra
 !!! info
     Only the golang test suites are documented to run locally. Canary and other tests have only ever been supported in the CI.
 
+## Assertions
+
+The tests use [testify](https://github.com/stretchr/testify), which offers two families of checks.
+`require` stops the current test immediately on failure. `assert` records the failure and keeps
+going. Which one to reach for depends on what the check is doing:
+
+* Use `require` for anything the rest of the test cannot proceed without: creating a resource,
+    fetching the object that is about to be inspected, decoding a response, waiting for setup to
+    finish. Continuing past one of these failures produces a nil dereference or a cascade of
+    confusing errors that hide the original one.
+* Use `assert` for the properties the test exists to verify, so that a single run reports every
+    property that is wrong rather than only the first. Use it for cleanup as well, so one failed
+    deletion does not strand the deletions after it.
+
+Never call `assert` or `require` inside the closure of a poll or retry helper. A failed assertion
+there defeats the retry, and testify's `Eventually` runs the closure on another goroutine, where
+`require` cannot safely stop the test. Have the closure return false while the condition is unmet,
+capture the value once it is met, and assert on it after the wait returns.
+
+!!! note
+    `FailNow`, and therefore `require`, only aborts the test goroutine it is called on. A `require`
+    inside a `t.Run` closure stops that subtest, not its siblings or its parent.
+
 ## Running tests on OpenShift
 
 1. Setup OpenShift environment and export KUBECONFIG
