@@ -108,6 +108,36 @@ func TestMonStore_Delete(t *testing.T) {
 	assert.Contains(t, execedCmd, " config rm mon.* unknown_setting ")
 }
 
+func TestMonStore_SetKeyValue(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	ctx := &clusterd.Context{
+		Clientset: testop.New(t, 1),
+		Executor:  executor,
+	}
+
+	execedCmd := ""
+	stdinValue := ""
+	execInjectErr := false
+	executor.MockExecuteCommandWithStdin = func(timeout time.Duration, command string, stdin *string, args ...string) error {
+		execedCmd = command + " " + strings.Join(args, " ")
+		stdinValue = *stdin
+		if execInjectErr {
+			return errors.New("mocked error")
+		}
+		return nil
+	}
+
+	monStore := GetMonStore(ctx, client.AdminTestClusterInfo("mycluster"))
+	err := monStore.SetKeyValue("rook/test-key", "line1\nline2\n")
+	assert.NoError(t, err)
+	assert.Contains(t, execedCmd, "config-key set rook/test-key -i -")
+	assert.Equal(t, "line1\nline2\n", stdinValue)
+
+	execInjectErr = true
+	err = monStore.SetKeyValue("rook/test-key", "value")
+	assert.Error(t, err)
+}
+
 func TestMonStore_GetDaemon(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	clientset := testop.New(t, 1)
