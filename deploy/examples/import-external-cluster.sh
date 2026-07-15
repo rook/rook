@@ -222,6 +222,7 @@ function importCsiRBDNodeSecret() {
       "rook-$CSI_RBD_NODE_SECRET_NAME" \
       -p "{\"stringData\":{\"userID\":\"$userID\",\"userKey\":\"$CSI_RBD_NODE_SECRET\"}}"
   fi
+  $KUBECTL -n "$NAMESPACE" annotate secret "rook-$CSI_RBD_NODE_SECRET_NAME" --overwrite csi.rook.io/RBDNodeSecret="true"
 }
 
 function importCsiRBDProvisionerSecret() {
