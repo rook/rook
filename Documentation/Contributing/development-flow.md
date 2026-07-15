@@ -207,6 +207,13 @@ Before opening the PR:
 * If there are code changes, add unit tests and verify that all unit tests are passing. See [Unit Tests](#unit-tests) below on running unit tests.
 * Rebase on the latest upstream changes
 
+### Limit concurrent pull requests
+
+Contributors without write access should keep no more than three pull requests open at the same
+time, so that maintainer review — the project's limiting resource — is not spread too thin. The
+repository enforces this: with three open, merge or close one before opening the next. If you have a
+genuine need to exceed it, raise it with a maintainer first.
+
 ### Regression Testing
 
 All pull requests must pass all continuous integration (CI) tests before they can be merged. These tests
