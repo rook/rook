@@ -190,6 +190,15 @@ golangci-lint: $(YQ)
 markdownlint: ## Check formatting of documentation sources
 	@$(MARKDOWNLINT) "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs
 
+# The base ref that lint.commits checks against; every commit reachable from HEAD but not from it
+# is linted. It defaults to the remote-tracking release branch so a stale local branch does not drag
+# already-merged upstream commits into the range. Override when the upstream is a different remote,
+# e.g. lint.commits COMMITLINT_BASE=upstream/release-1.20.
+COMMITLINT_BASE ?= origin/release-1.20
+.PHONY: lint.commits
+lint.commits: ## Check this branch's commit messages with commitlint (requires npx).
+	@npx --yes -p @commitlint/cli -p @commitlint/config-conventional commitlint --config .commitlintrc.json --from $(COMMITLINT_BASE) --to HEAD
+
 .PHONY: markdownlint.fix
 markdownlint.fix: ## Check and fix formatting of documentation sources
 	@$(MARKDOWNLINT) "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --fix --config .markdownlint-cli2.cjs
