@@ -23,7 +23,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 )
 
-// CrashList is go representation of the "ceph crash ls" command output
+// CrashList is a go representation of the "ceph crash ls" command output
 type CrashList struct {
 	ID               string   `json:"crash_id"`
 	Entity           string   `json:"entity_name"`

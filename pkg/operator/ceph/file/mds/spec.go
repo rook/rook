@@ -155,7 +155,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig, fsName string) v1
 		Env:             append(controller.DaemonEnvVars(c.clusterSpec), k8sutil.PodIPEnvVar(podIPEnvVar)),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
 		SecurityContext: controller.DefaultContainerSecurityContext(),
-		// StartupProbe time for MDS is covered liveness probe
+		// StartupProbe time for MDS is covered by liveness probe
 		LivenessProbe: generateMDSLivenessProbeExecDaemon(mdsConfig.DaemonID, fsName, keyring.VolumeMount().KeyringFilePath()),
 		WorkingDir:    cephconfig.VarLogCephDir,
 	}

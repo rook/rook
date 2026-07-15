@@ -71,7 +71,7 @@ func setKEKinEnv(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo)
 	clusterSpec := &v1.ClusterSpec{Security: v1.ClusterSecuritySpec{KeyManagementService: v1.KeyManagementServiceSpec{ConnectionDetails: kms.ConfigEnvsToMapString()}}}
 
 	// The ibm key protect library does not read any environment variables, so we must set the
-	// service api key (coming from the secret mounted as environment variable) in the KMS
+	// service api key (coming from the secret mounted as an environment variable) in the KMS
 	// connection details. These details are used to build the client connection
 	if clusterSpec.Security.KeyManagementService.IsIBMKeyProtectKMS() {
 		ibmServiceApiKey := os.Getenv(kms.IbmKeyProtectServiceApiKey)
@@ -166,7 +166,7 @@ func openEncryptedDevice(context *clusterd.Context, disk, target, passphrase str
 }
 
 // removeEncryptionKeySlot removes the given key slot from the target disk.
-// This function ignores error indicating that the given key slot is not active.
+// This function ignores an error indicating that the given key slot is not active.
 func removeEncryptionKeySlot(context *clusterd.Context, disk, passphrase, slot string) error {
 	passphraseFile, err := util.CreateTempFile(passphrase)
 	if err != nil {
@@ -194,7 +194,7 @@ func removeEncryptionKeySlot(context *clusterd.Context, disk, passphrase, slot s
 
 // ensureEncryptionKey ensures the given key is in the given slot of the target disk.
 // If the error, received from lukChangeKey cmd, shows that the key did not match,
-// the function will return false and no error signify that the given key is not in the slot.
+// the function will return false and no error will signify that the given key is not in the slot.
 func ensureEncryptionKey(context *clusterd.Context, disk, passphrase, slot string) (bool, error) {
 	passphraseFile, err := util.CreateTempFile(passphrase)
 	if err != nil {
@@ -228,7 +228,7 @@ func ensureEncryptionKey(context *clusterd.Context, disk, passphrase, slot strin
 
 // addEncryptionKey adds a new key to the given slot of the target disk.
 // If the given slot is filled:
-// - a check is done to see if the key in the give slot is the same as the new key
+// - a check is done to see if the key in the given slot is the same as the new key
 //   - if the key is the same, nothing is done.
 //   - else, the slot is wiped and the new key is added.
 func addEncryptionKey(context *clusterd.Context, disk, passphrase, newPassphrase, slot string) error {

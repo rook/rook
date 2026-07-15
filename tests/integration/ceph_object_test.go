@@ -156,7 +156,7 @@ func (s *ObjectSuite) TestWithoutTLS() {
 	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings, tls, swiftAndKeystone)
 }
 
-// Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
+// Smoke Test for ObjectStore - Test checks the following operations on ObjectStore in order
 // Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,
 // Check issues in MGRs, Delete Bucket and Delete user
 // Test for ObjectStore with and without TLS enabled

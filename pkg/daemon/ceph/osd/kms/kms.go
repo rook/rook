@@ -107,7 +107,7 @@ func (c *Config) PutSecret(secretName, secretValue string) error {
 			return errors.Wrap(err, "failed to init ibm key protect")
 		}
 
-		// Create the key is not present
+		// Create the key if not present
 		keyAlias := []string{secretName}
 		_, err = kpClient.CreateImportedKeyWithAliases(c.ClusterInfo.Context, secretName, nil, secretValue, "", "", true, keyAlias)
 		if err != nil {
@@ -300,7 +300,7 @@ func (c *Config) DeleteSecret(secretName string) error {
 			return errors.Wrap(err, "failed to get secret in ibm key protect")
 		}
 
-		// DeleteKey does not support deleting secret with the alias name so we must use the ID
+		// DeleteKey does not support deleting a secret with the alias name so we must use the ID
 		// After you delete a key, the key transitions to the Destroyed state. Any data encrypted by
 		// keys in this state is no longer accessible. Metadata that is associated with the key,
 		// such as the key's deletion date, is kept in the Key Protect database. Destroyed keys can

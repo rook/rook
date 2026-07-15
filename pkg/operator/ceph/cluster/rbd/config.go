@@ -77,7 +77,7 @@ func fullDaemonName(daemonID string) string {
 }
 
 func (r *ReconcileCephRBDMirror) reconcileAddBootstrapPeer(cephRBDMirror *cephv1.CephRBDMirror, namespacedName types.NamespacedName) (reconcile.Result, error) {
-	// List all the peers secret, we can have more than one peer we might want to configure
+	// List all the peer secrets, we can have more than one peer we might want to configure
 	// For each, get the Kubernetes Secret and import the "peer token" so that we can configure the mirroring
 
 	log.NamespacedWarning(cephRBDMirror.Namespace, logger, "(DEPRECATED) use of peer secret names in CephRBDMirror is deprecated. Please use CephBlockPool CR to configure peer secret names and import peers.")

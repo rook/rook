@@ -216,7 +216,7 @@ func ResizeOsdCrushWeight(actualOSD OSDNodeUsage, ctx *clusterd.Context, cluster
 		return false, errors.Wrapf(err, "failed to convert KiB to TiB for osd.%d crush weight %q", actualOSD.ID, actualOSD.KB.String())
 	}
 
-	// do not reweight if the calculated crush weight is 0 or less than equal to actualCrushWeight or there percentage resize is less than 1 percent
+	// do not reweight if the calculated crush weight is 0 or less than or equal to actualCrushWeight or their percentage resize is less than 1 percent
 	if calculatedCrushWeight == float64(0) {
 		logger.Debugf("osd size is 0 for osd.%d, not resizing the crush weights", actualOSD.ID)
 		return false, nil

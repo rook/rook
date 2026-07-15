@@ -84,7 +84,7 @@ func WatchControllerPredicate[T client.Object](scheme *runtime.Scheme) predicate
 
 			logger.Debugf("update event for %q: %q", kind, nsName)
 
-			// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+			// If the label "do_not_reconcile" is set on the object, let's not reconcile that request
 			IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
 			if IsDoNotReconcile {
 				logger.Debugf("resource %q: %q had update event but %q label is set, doing nothing", kind, nsName, DoNotReconcileLabelName)
@@ -218,7 +218,7 @@ func WatchPredicateForNonCRDObject[T client.Object](owner runtime.Object, scheme
 			}
 			objectName := object.GetName()
 			if match {
-				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				// If the label "do_not_reconcile" is set on the object, let's not reconcile that request
 				IsDoNotReconcile := IsDoNotReconcile(object.GetLabels())
 				if IsDoNotReconcile {
 					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objectName)

@@ -34,7 +34,7 @@ func getNodeInfoFromNode(n v1.Node) (*opcontroller.MonScheduleInfo, error) {
 	}
 
 	// If the host networking is setup such that a different IP should be used
-	// than the one that is to the K8s node.
+	// than the one that is assigned to the K8s node.
 	if customIP, ok := n.Annotations[monIPAnnotation]; ok {
 		logger.Infof("found %s annotation on node %q --> %q", monIPAnnotation, n.Name, customIP)
 		nr.Address = customIP

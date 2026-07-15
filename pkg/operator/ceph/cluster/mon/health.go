@@ -433,7 +433,7 @@ func (c *Cluster) shouldFailoverMonImmediately(ctx context.Context, monName stri
 	return false
 }
 
-// reconcileExternalMons handling external monitors defined in CephCluster.spec.mon.externalMonIDs when Rook managing local cluster.
+// reconcileExternalMons handles external monitors defined in CephCluster.spec.mon.externalMonIDs when Rook is managing local cluster.
 func (c *Cluster) reconcileExternalMons(ctx context.Context, quorumStatus cephclient.MonStatusResponse) (cephclient.MonStatusResponse, error) {
 	if len(c.spec.Mon.ExternalMonIDs) != 0 {
 		if c.spec.External.Enable {

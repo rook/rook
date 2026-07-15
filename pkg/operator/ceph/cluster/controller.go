@@ -65,7 +65,7 @@ const (
 
 var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cluster-controller")
-	// disallowedHostDirectories directories which are not allowed to be used
+	// disallowedHostDirectories lists directories which are not allowed to be used
 	disallowedHostDirectories = []string{"/etc/ceph", "/rook", "/var/log/ceph"}
 )
 
@@ -211,7 +211,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 		return err
 	}
 
-	// Watch for nodes additions and updates
+	// Watch for node additions and updates
 	err = c.Watch(
 		source.Kind(
 			mgr.GetCache(),
@@ -305,7 +305,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a CephCluster object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a CephCluster object and makes changes based on the state read
 // and what is in the cephCluster.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -446,7 +446,7 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 	return reconcile.Result{}, *cephCluster, nil
 }
 
-// NewClusterController create controller for watching cluster custom resources created
+// NewClusterController creates controller for watching cluster custom resources created
 func NewClusterController(context *clusterd.Context, rookImage string) *ClusterController {
 	return &ClusterController{
 		context:   context,
@@ -637,7 +637,7 @@ func (r *ReconcileCephCluster) removeFinalizer(client client.Client, name types.
 }
 
 func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1.CephCluster) error {
-	// At the point, the CephCluster has been deleted and the context cancelled, so we need to use a
+	// At this point, the CephCluster has been deleted and the context cancelled, so we need to use a
 	// new context here
 	// So do NOT use another context
 	ctx := context.TODO()
@@ -670,7 +670,7 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 	// We need to fetch the IBM_KP_SERVICE_API_KEY value and KMIP kms related values too.
 	if currentCluster.Spec.Security.KeyManagementService.IsIBMKeyProtectKMS() || currentCluster.Spec.Security.KeyManagementService.IsKMIPKMS() {
 		// This will validate the connection details again and will add the IBM_KP_SERVICE_API_KEY to the spec and
-		// token details required for KMIP kms is added too.
+		// token details required for KMIP kms are added too.
 		err = kms.ValidateConnectionDetails(ctx, c.context, &currentCluster.Spec.Security.KeyManagementService, currentCluster.Namespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate kms connection details to delete the secret")

@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// BlockOperation is wrapper for k8s rook block operations
+// BlockOperation is a wrapper for k8s rook block operations
 type BlockOperation struct {
 	k8sClient *utils.K8sHelper
 	manifests installer.CephManifests
@@ -49,7 +49,7 @@ func CreateBlockOperation(k8shelp *utils.K8sHelper, manifests installer.CephMani
 // BlockCreate Function to create a Block using Rook
 // Input parameters -
 // manifest - pod definition that creates a PVC in k8s - YAML should describe the name and size of the PVC being created
-// size - not user for k8s implementation since it is described in the PVC YAML definition
+// size - not used for k8s implementation since it is described in the PVC YAML definition
 // Output - k8s create PVC operation output and/or error
 func (b *BlockOperation) Create(manifest string, size int) (string, error) {
 	args := []string{"apply", "-f", "-"}

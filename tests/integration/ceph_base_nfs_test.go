@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// Smoke Test for File System Storage for CephNFS - Test check the following operations on Filesystem Storage in order
+// Smoke Test for File System Storage for CephNFS - Test checks the following operations on Filesystem Storage in order
 // Create,Mount,Write,Read,Unmount and Delete.
 func runNFSFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, settings *installer.TestCephSettings, filesystemName string) {
 	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, settings.Namespace, filesystemName)

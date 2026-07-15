@@ -207,7 +207,7 @@ func TestDeletePool(t *testing.T) {
 	assert.Nil(t, err)
 	assert.False(t, deletedPools["otherpool"])
 
-	// fail if images/snapshosts exist in the pool
+	// fail if images/snapshots exist in the pool
 	failOnDelete = true
 	deletedPools["mypool"] = false
 	p = &cephv1.NamedPoolSpec{Name: "mypool"}

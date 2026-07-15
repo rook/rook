@@ -378,7 +378,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		cc, err = parseCsiClusterConfig(s)
 		assert.NoError(t, err)
 		assert.Equal(t, 6, len(cc), cc)
-		// check mon entries of 1st cluster amd mon overlapping with 2nd cluster
+		// check mon entries of 1st cluster and mon overlapping with 2nd cluster
 		for i := 0; i < 3; i++ {
 			assert.Equal(t, 2, len(cc[i].Monitors))
 			assert.False(t, contains(cc[i].Monitors, cluster2Mons))
@@ -402,7 +402,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 			assert.Equal(t, 2, len(i.Monitors))
 		}
 		// check for overlapping
-		// check mon entries of 1st cluster amd mon overlapping with 2nd cluster
+		// check mon entries of 1st cluster and mon overlapping with 2nd cluster
 		for i := 0; i < 3; i++ {
 			assert.False(t, contains(cc[i].Monitors, cluster2Mons))
 		}
@@ -420,7 +420,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 6, len(cc), cc)
 		// check for overlapping
-		// check mon entries of 1st cluster amd mon overlapping with 2nd cluster
+		// check mon entries of 1st cluster and mon overlapping with 2nd cluster
 		for i := 0; i < 3; i++ {
 			assert.False(t, contains(cc[i].Monitors, cluster2Mons))
 			assert.Equal(t, 2, len(cc[i].Monitors))

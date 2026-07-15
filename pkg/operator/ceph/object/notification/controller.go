@@ -177,7 +177,7 @@ func (r *ReconcileNotifications) reconcile(request reconcile.Request) (reconcile
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, *notification, errors.New("cluster is not ready")
 	}
 
-	// fetch all OBCs that has a label matching this CephBucketNotification
+	// fetch all OBCs that have a label matching this CephBucketNotification
 	namespaceListOpt := client.InNamespace(notification.Namespace)
 	labelListOpt := client.MatchingLabels{
 		notificationLabelPrefix + notification.Name: notification.Name,
@@ -246,7 +246,7 @@ func validateObjectStoreName(topic *cephv1.CephBucketTopic, bucketStoreName type
 	return nil
 }
 
-// getReadyCluster get cluster info and spec if the cluster is ready
+// getReadyCluster gets cluster info and spec if the cluster is ready
 func getReadyCluster(client client.Client, opManagerContext context.Context, context clusterd.Context, objectStoreNamespace string) (*cephclient.ClusterInfo, *cephv1.ClusterSpec, error) {
 	// find the namespace for the ceph cluster (may be different than the namespace of the notification CR)
 	// Make sure a CephCluster is present otherwise do nothing

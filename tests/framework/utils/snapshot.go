@@ -96,7 +96,7 @@ func (k8sh *K8sHelper) snapshotController(action string) error {
 	return k8sh.kubectlWithURLRetry(action, "-f", rbac)
 }
 
-// WaitForSnapshotController check snapshotcontroller is ready within given
+// WaitForSnapshotController checks snapshotcontroller is ready within given
 // retries count.
 func (k8sh *K8sHelper) WaitForSnapshotController(retries int) error {
 	namespace := "kube-system"
@@ -121,12 +121,12 @@ func (k8sh *K8sHelper) CreateSnapshotController(action string) error {
 	return k8sh.snapshotController(action)
 }
 
-// DeleteSnapshotController delete the snapshotcontroller and required RBAC
+// DeleteSnapshotController deletes the snapshotcontroller and required RBAC
 func (k8sh *K8sHelper) DeleteSnapshotController() error {
 	return k8sh.snapshotController("delete")
 }
 
-// snapshotCRD can be used for creating, applying or deleting the snapshot CRD's
+// snapshotCRD can be used for creating, applying or deleting the snapshot CRDs
 func (k8sh *K8sHelper) snapshotCRD(action string) error {
 	// setting validate=false to skip CRD validation during create/apply to
 	// support lower Kubernetes versions.

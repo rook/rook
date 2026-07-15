@@ -44,7 +44,7 @@ func getObjProperty[T string | map[string]interface{} | []interface{}](obj map[s
 }
 
 // updateObjProperty - helper function to manipulate JSON Objects.
-// sets new value to json object nested field only if it is already exists in json and returns previous value.
+// sets new value to json object nested field only if it already exists in json and returns previous value.
 func updateObjProperty[T string | []string | map[string]interface{} | []interface{}](obj map[string]interface{}, val T, path ...string) (T, error) {
 	var prev T
 	if len(path) == 0 {

@@ -39,7 +39,7 @@ type TestClient struct {
 	k8sh             *utils.K8sHelper
 }
 
-// CreateTestClient creates new instance of test client for a platform
+// CreateTestClient creates a new instance of test client for a platform
 func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManifests) *TestClient {
 	return &TestClient{
 		CreateBlockOperation(k8sHelper, manifests),

@@ -127,7 +127,7 @@ func (k *SecretStore) Delete(resourceName string) error {
 	return nil
 }
 
-// CreateSecret creates or update a kubernetes secret.
+// CreateSecret creates or updates a kubernetes secret.
 // Returns the resource version of the secret.
 func (k *SecretStore) CreateSecret(secret *v1.Secret) (string, error) {
 	secretName := secret.ObjectMeta.Name

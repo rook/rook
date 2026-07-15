@@ -73,7 +73,7 @@ func ApplyClusterMetadataToSecret(c *cephclient.ClusterInfo, secretName string, 
 	if err != nil {
 		return errors.Wrapf(err, "failed to get %s secrets", secretName)
 	}
-	// We would need to reset the annotations back to empty, then reapply the annotations this is because the in some rook-ceph-mon secret is retrieved
+	// We would need to reset the annotations back to empty, then reapply the annotations this is because in some cases the rook-ceph-mon secret is retrieved
 	// and then updated, instead of a new secret being generated.
 	secret.Annotations = map[string]string{}
 	v1.GetClusterMetadataAnnotations(annotation).ApplyToObjectMeta(&secret.ObjectMeta)

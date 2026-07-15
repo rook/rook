@@ -145,7 +145,7 @@ func configOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	// This design choice avoids the crash/restart situation in Rook
 	// If we don't set 0444 to the ceph.conf configuration file during its respawn (with exec) the ceph-mgr
 	// won't be able to read the ceph.conf and the container will die, the "restart" count will increase in k8s
-	// This will mislead users thinking something won't wrong but that a false positive
+	// This will mislead users thinking something went wrong but that it's a false positive
 	mode := int32(0o444)
 	projectionConfigMap := &v1.ConfigMapProjection{Items: []v1.KeyToPath{{Key: k8sutil.ConfigOverrideVal, Path: file, Mode: &mode}}}
 	projectionConfigMap.Name = name
@@ -480,7 +480,7 @@ func CephDaemonAppLabels(appName, namespace, daemonType, daemonID, parentName, r
 	return labels
 }
 
-// CheckPodMemory verify pod's memory limit is valid
+// CheckPodMemory verifies pod's memory limit is valid
 func CheckPodMemory(name string, resources v1.ResourceRequirements, cephPodMinimumMemory uint64) error {
 	// Ceph related PR: https://github.com/ceph/ceph/pull/26856
 	podMemoryLimit := resources.Limits.Memory()
@@ -973,7 +973,7 @@ func GetContainerImagePullPolicy(containerImagePullPolicy v1.PullPolicy) v1.Pull
 }
 
 // GenerateLivenessProbeTcpPort generates a liveness probe that makes sure a daemon has
-// TCP a socket binded to specific port, and may create new connection.
+// a TCP socket bound to a specific port, and may create a new connection.
 func GenerateLivenessProbeTcpPort(port, failureThreshold int32) *v1.Probe {
 	return &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
@@ -988,8 +988,8 @@ func GenerateLivenessProbeTcpPort(port, failureThreshold int32) *v1.Probe {
 }
 
 // GenerateLivenessProbeViaRpcinfo creates a liveness probe using 'rpcinfo' shell
-// command which checks that the local NFS daemon has TCP a socket binded to
-// specific port, and it has valid reply to NULL RPC request.
+// command which checks that the local NFS daemon has a TCP socket bound to
+// a specific port, and it has a valid reply to NULL RPC request.
 func GenerateLivenessProbeViaRpcinfo(port uint16, failureThreshold int32) *v1.Probe {
 	bb := make([]byte, 2)
 	binary.BigEndian.PutUint16(bb, port) // port-num in network-order

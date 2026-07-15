@@ -46,12 +46,12 @@ const (
 	CephBlockPoolRadosNamespaceEnv = "RADOS_NAMESPACE"
 )
 
-// ResourceCleanup defines an rook ceph resource to be cleaned up
+// ResourceCleanup defines a rook ceph resource to be cleaned up
 type ResourceCleanup struct {
 	resource  k8sClient.Object
 	cluster   *cephv1.CephCluster
 	rookImage string
-	// config defines the attributes of the custom resource to passed in as environment variables in the clean up job
+	// config defines the attributes of the custom resource to be passed in as environment variables in the clean up job
 	config map[string]string
 }
 

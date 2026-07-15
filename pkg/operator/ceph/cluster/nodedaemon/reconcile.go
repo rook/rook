@@ -303,7 +303,7 @@ func (r *ReconcileNode) deleteNodeDaemon(appName, namespace string) {
 	deploymentList := &appsv1.DeploymentList{}
 	namespaceListOpts := client.InNamespace(namespace)
 
-	// Try to fetch the list of existing deployment and remove them
+	// Try to fetch the list of existing deployments and remove them
 	err := r.client.List(r.opManagerContext, deploymentList, client.MatchingLabels{k8sutil.AppAttr: appName}, namespaceListOpts)
 	if err != nil {
 		log.NamespacedError(namespace, logger, "failed to list deployments in namespace %q, delete it/them manually. %v", namespace, err)

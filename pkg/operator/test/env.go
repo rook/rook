@@ -22,7 +22,7 @@ import (
 	"k8s.io/api/core/v1"
 )
 
-// GetEnv finds returns the env var with the given name from a list of env vars.
+// GetEnv finds and returns the env var with the given name from a list of env vars.
 func GetEnv(name string, envs []v1.EnvVar) (*v1.EnvVar, error) {
 	for _, e := range envs {
 		if e.Name == name {

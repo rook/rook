@@ -140,7 +140,7 @@ func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper
 	err = k8sh.CreateSnapshotController("apply")
 	require.NoError(s.T(), err)
 	// cleanup the CRD and controller in defer to make sure the CRD and
-	// controller are removed as block test also install CRD and controller.
+	// controller are removed as block test also installs CRD and controller.
 	defer func() {
 		logger.Infof("delete snapshot-controller")
 		err = k8sh.DeleteSnapshotController()
@@ -278,7 +278,7 @@ func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper
 	logger.Infof("delete snapshot-controller")
 }
 
-// Smoke Test for File System Storage - Test check the following operations on Filesystem Storage in order
+// Smoke Test for File System Storage - Test checks the following operations on Filesystem Storage in order
 // Create,Mount,Write,Read,Unmount and Delete.
 func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, settings *installer.TestCephSettings, filesystemName string, preserveFilesystemOnDelete bool) {
 	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, settings.Namespace, filesystemName)

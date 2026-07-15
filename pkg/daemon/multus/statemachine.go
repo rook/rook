@@ -72,7 +72,7 @@ func (vsm *validationStateMachine) Run(ctx context.Context) (*ValidationTestResu
 			// run the state
 			suggestions, err := vsm.state.Run(ctx, vsm)
 
-			// if the context was canceled, the error message won't be as useful as gathered from
+			// if the context was canceled, the error message won't be as useful as one gathered from
 			// the last context, so exit before updating the latest suggestions and error
 			if ctx.Err() != nil {
 				return vsm.exitContextCanceled(ctx)

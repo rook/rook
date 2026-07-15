@@ -159,7 +159,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		}
 
 		// backward compatibility for old deployments
-		// Checking DeviceClass with None too, because ceph-volume lvm list return crush device class as None
+		// Checking DeviceClass with None too, because ceph-volume lvm list returns crush device class as None
 		// Tracker https://tracker.ceph.com/issues/53425
 		if osdInfo.DeviceClass == "" || osdInfo.DeviceClass == "None" {
 			deviceClassInfo, err := cephclient.OSDDeviceClasses(c.cluster.context, c.cluster.clusterInfo, []string{strconv.Itoa(osdID)})
@@ -232,7 +232,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 	c.queue.Remove(osdIDs)
 }
 
-// getOSDUpdateInfo returns an update queue of OSDs which need updated and an existence list of OSD
+// getOSDUpdateInfo returns an update queue of OSDs which need to be updated and an existence list of OSD
 // Deployments which already exist.
 func (c *Cluster) getOSDUpdateInfo(errs *provisionErrors) (*updateQueue, *existenceList, error) {
 	namespace := c.clusterInfo.Namespace
@@ -264,7 +264,7 @@ func (c *Cluster) getOSDUpdateInfo(errs *provisionErrors) (*updateQueue, *existe
 	return updateQueue, existenceList, nil
 }
 
-// An updateQueue keeps track of OSDs which need updated.
+// An updateQueue keeps track of OSDs which need to be updated.
 type updateQueue struct {
 	q []int // just a list of OSD IDs
 }

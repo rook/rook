@@ -133,7 +133,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object, op
 	return false
 }
 
-// onDeviceCMUpdate is trigger when the hot plug config map is updated
+// onDeviceCMUpdate is triggered when the hot plug config map is updated
 func (c *clientCluster) onDeviceCMUpdate(oldObj, newObj runtime.Object) bool {
 	oldCm, ok := oldObj.(*corev1.ConfigMap)
 	if !ok {

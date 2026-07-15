@@ -51,7 +51,7 @@ type mgrConfig struct {
 // If the port is greater than 1024, for backward compatibility the port and
 // targetPort should be the same value. If the port is less than 1024,
 // the internal port must use a higher port number. In that case, the internal
-// port will be the default port numbers and only the public port will be
+// port will be the default port number and only the public port will be
 // the desired port in the cluster CR.
 func (c *Cluster) dashboardInternalPort() int {
 	port := c.dashboardPublicPort()

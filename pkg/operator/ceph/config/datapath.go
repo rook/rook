@@ -34,10 +34,10 @@ type DataPathMap struct {
 
 	// ContainerDataDir should be set to the path in the container where the specific daemon's data
 	// is stored. If this is empty, the daemon does not store data at all, even in the container,
-	// and data is not shared between container in a pod via empty dir.
+	// and data is not shared between containers in a pod via empty dir.
 	ContainerDataDir string
 
-	// HostLogAndCrashDir dir represents Ceph's logging and crash dump dir on the host.
+	// HostLogAndCrashDir represents Ceph's logging and crash dump dir on the host.
 	// Logs are stored in the "log" subdir and crash dumps in the "crash" subdir of this directory.
 	// If this is empty logs are not persisted to the host.
 	// The log dir is always /var/log/ceph. If logs are not persisted to the

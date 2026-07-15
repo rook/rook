@@ -111,7 +111,7 @@ func (r *ReconcileConfig) reconcile(request reconcile.Request) (reconcile.Result
 			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get operator setting configmap")
 		}
 	}
-	// Reconcile Ceph CLI timeout, since the clusterd context is passed to by pointer to all CRD
+	// Reconcile Ceph CLI timeout, since the clusterd context is passed by pointer to all CRD
 	// controllers they will receive the update
 	opcontroller.SetCephCommandsTimeout()
 

@@ -32,7 +32,7 @@ var CephAuthRotateSupportedVersion = version.CephVersion{Major: 19, Minor: 2, Ex
 
 // CephAuthMonRotateSupportedVersion identifies the first ceph release in which `ceph auth rotate`
 // can be used to rotate the monitor CephX key.
-var CephAuthMonRotateSupportedVersion = version.CephVersion{Major: 20, Minor: 3, Extra: 0} // v20.3.0 is unreleased tentacle vers
+var CephAuthMonRotateSupportedVersion = version.CephVersion{Major: 20, Minor: 3, Extra: 0} // v20.3.0 is unreleased tentacle version
 
 // CephxKeyIdentifierAnnotation is the annotation that should be applied to pod specs to
 // ensure that pods restart after keys are rotated (and not restarted when keys are not rotated).

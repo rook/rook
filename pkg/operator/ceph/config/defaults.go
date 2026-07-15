@@ -62,7 +62,7 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) map[string]strin
 	return overrides
 }
 
-// LegacyConfigs represents old configuration that were applied to a cluster and not needed anymore
+// LegacyConfigs represents old configurations that were applied to a cluster and not needed anymore
 func LegacyConfigs() []Option {
 	return []Option{
 		{Who: "global", Option: "log file"},

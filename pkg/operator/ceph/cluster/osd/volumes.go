@@ -96,7 +96,7 @@ func getDataBridgeVolumeSource(claimName, configDir, namespace string, inProvisi
 	} else {
 		// We need to use hostPath to prevent multiple OSD pods from launching the same OSD and causing corruption.
 		// Ceph avoids this problem by locking fsid file and block device file under the data bridge volume directory.
-		// These locks are released by kernel once the process is gone, so until the ceph-osd daemon alives, the other
+		// These locks are released by the kernel once the process is gone, so until the ceph-osd daemon is alive, the other
 		// pods (same OSD) will not be able to acquire them and will continue to be restarted.
 		// If we use emptyDir, this exclusive control doesn't work because the lock files aren't shared between OSD pods.
 		hostPathType := v1.HostPathDirectoryOrCreate

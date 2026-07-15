@@ -33,7 +33,7 @@ import (
 const (
 	// DiskType is a disk type
 	DiskType = "disk"
-	// SSDType is an sdd type
+	// SSDType is an ssd type
 	SSDType = "ssd"
 	// PartType is a partition type
 	PartType = "part"
@@ -78,7 +78,7 @@ type LocalDisk struct {
 	Name string `json:"name"`
 	// Parent is the device parent's name
 	Parent string `json:"parent"`
-	// HasChildren is whether the device has a children device
+	// HasChildren is whether the device has a child device
 	HasChildren bool `json:"hasChildren"`
 	// DevLinks is the persistent device path on the host
 	DevLinks string `json:"devLinks"`
@@ -98,7 +98,7 @@ type LocalDisk struct {
 	Partitions []Partition
 	// Filesystem is the filesystem currently on the device
 	Filesystem string `json:"filesystem"`
-	// Mountpoint is the mountpoint of the filesystem's on the device
+	// Mountpoint is the mountpoint of the filesystem on the device
 	Mountpoint string `json:"mountpoint"`
 	// Vendor is the device vendor
 	Vendor string `json:"vendor"`
@@ -120,7 +120,7 @@ type LocalDisk struct {
 	Encrypted bool `json:"encrypted,omitempty"`
 }
 
-// ListDevices list all devices available on a machine
+// ListDevices lists all devices available on a machine
 func ListDevices(executor exec.Executor) ([]string, error) {
 	devices, err := executor.ExecuteCommandWithOutput("lsblk", "--all", "--noheadings", "--list", "--output", "KNAME")
 	if err != nil {
@@ -244,7 +244,7 @@ func GetUdevInfo(device string, executor exec.Executor) (map[string]string, erro
 	return parseUdevInfo(output), nil
 }
 
-// GetDeviceFilesystems get the file systems available
+// GetDeviceFilesystems gets the file systems available
 func GetDeviceFilesystems(device string, executor exec.Executor) (string, error) {
 	devicePath := strings.Split(device, "/")
 	if len(devicePath) == 1 {
@@ -258,7 +258,7 @@ func GetDeviceFilesystems(device string, executor exec.Executor) (string, error)
 	return parseFS(output), nil
 }
 
-// GetDiskUUID look up the UUID for a disk.
+// GetDiskUUID looks up the UUID for a disk.
 func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 	if _, err := osexec.LookPath(sgdiskCmd); err != nil {
 		return "", errors.Wrap(err, "sgdisk not found")
@@ -466,7 +466,7 @@ func lvmList(executor exec.Executor, lv string) (CephVolumeLVMList, error) {
 	return cvLVMList, nil
 }
 
-// ListDevicesChild list all child available on a device
+// ListDevicesChild lists all children available on a device
 // For an encrypted device, it will return the encrypted device like so:
 // lsblk --noheadings --output NAME --path --list /dev/sdd
 // /dev/sdd

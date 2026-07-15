@@ -406,7 +406,7 @@ func adminRotationTmpDir(clusterdCtx *clusterd.Context, clusterInfo *cephclient.
 }
 
 // make a minimal copy of the clusterInfo that tells called cephclient functions to use the given
-// username and keyring path instead the defaults
+// username and keyring path instead of the defaults
 func minimalCopyClusterInfo(clusterInfo *cephclient.ClusterInfo, username, keyringFilePath string) *cephclient.ClusterInfo {
 	c := &cephclient.ClusterInfo{
 		Context:   clusterInfo.Context,

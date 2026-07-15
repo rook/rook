@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package topic to manage a rook bucket topics.
+// Package topic to manage rook bucket topics.
 package topic
 
 import (
@@ -288,7 +288,7 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, errors.Wrapf(err, "topic creation failed for CephBucketTopic %q", request.NamespacedName)
 	}
 
-	// update ObservedGeneration in status a the end of reconcile
+	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
 	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus, topicARN, referencedSecrets)
 

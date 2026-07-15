@@ -43,7 +43,7 @@ import (
 )
 
 const (
-	// osdPDBAppName is that app label value for pdbs targeting osds
+	// osdPDBAppName is the app label value for pdbs targeting osds
 	osdPDBAppName = "rook-ceph-osd"
 	// osdPDBOsdIdLabel is the label on osd pods for pdbs targeting specific osd ids
 	osdPDBOsdIdLabel                 = "osd"
@@ -542,7 +542,7 @@ func resetPDBConfig(pdbStateMap *corev1.ConfigMap) {
 
 // setPDBConfig updates the OSD PDB config map. If there are unschedulable nodes (that is, a node drain event)
 // then those failureDomains are given higher precedence than the failureDomains where OSDs might be down
-// due to some reason but node is schedulable. `Noout` is set only if nodes are unscheduleable.
+// due to some reason but node is schedulable. `Noout` is set only if nodes are unschedulable.
 func setPDBConfig(pdbStateMap *corev1.ConfigMap, osdDownFailureDomains, nodeDrainFailureDomains []string) {
 	if len(pdbStateMap.Data[drainingFailureDomainKey]) == 0 {
 		if len(nodeDrainFailureDomains) > 0 {

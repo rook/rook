@@ -1226,7 +1226,7 @@ func TestDiffVersions(t *testing.T) {
 
 func Test_mapSecretToCR(t *testing.T) {
 	t.Run("secret not referenced", func(t *testing.T) {
-		// create fake k8s cliend and add CephObjectStore objects
+		// create fake k8s client and add CephObjectStore objects
 		var objects []runtime.Object
 		o := simpleStore()
 		o.Namespace = "ns"
@@ -1246,7 +1246,7 @@ func Test_mapSecretToCR(t *testing.T) {
 		assert.Empty(t, got, "expected empty list")
 	})
 	t.Run("secret referenced in rgw config", func(t *testing.T) {
-		// create fake k8s cliend and add CephObjectStore objects
+		// create fake k8s client and add CephObjectStore objects
 		var objects []runtime.Object
 		otherStore := simpleStore()
 		otherStore.Namespace = "ns"
@@ -1289,7 +1289,7 @@ func Test_mapSecretToCR(t *testing.T) {
 		assert.Empty(t, got, "empty: wrong secret ns")
 	})
 	t.Run("secret referenced in keystone config", func(t *testing.T) {
-		// create fake k8s cliend and add CephObjectStore objects
+		// create fake k8s client and add CephObjectStore objects
 		var objects []runtime.Object
 		otherStore := simpleStore()
 		otherStore.Namespace = "ns"

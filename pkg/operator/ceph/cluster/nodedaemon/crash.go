@@ -95,7 +95,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 			controller.AddCephVersionLabelToDeployment(*cephVersion, deploy)
 		}
 
-		//  make a copy labels for pod to avoid rook version gets added to pod spec
+		//  make a copy of labels for pod to avoid rook version getting added to pod spec
 		podLabels := map[string]string{}
 		for key, value := range deploymentLabels {
 			podLabels[key] = value

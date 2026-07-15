@@ -100,12 +100,12 @@ func init() {
 	// log.SetLogger(logr.New(log.NullLogSink{}))
 }
 
-// SetLogLevel set log level based on provided log option.
+// SetLogLevel sets log level based on provided log option.
 func SetLogLevel() {
 	util.SetGlobalLogLevel(logLevelRaw, logger)
 }
 
-// LogStartupInfo log the version number, arguments, and all final flag values (environment variable overrides have already been taken into account)
+// LogStartupInfo logs the version number, arguments, and all final flag values (environment variable overrides have already been taken into account)
 func LogStartupInfo(cmdFlags *pflag.FlagSet) {
 	flagValues := flags.GetFlagsAndValues(cmdFlags, "secret|keyring")
 	logger.Infof("starting Rook %s with arguments '%s'", version.Version, strings.Join(os.Args, " "))

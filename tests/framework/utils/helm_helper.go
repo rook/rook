@@ -30,7 +30,7 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 )
 
-// HelmHelper is wrapper for running helm commands
+// HelmHelper is a wrapper for running helm commands
 type HelmHelper struct {
 	executor *exec.CommandExecutor
 	HelmPath string
@@ -42,7 +42,7 @@ func NewHelmHelper(helmPath string) *HelmHelper {
 	return &HelmHelper{executor: executor, HelmPath: helmPath}
 }
 
-// Execute is wrapper for executing helm commands
+// Execute is a wrapper for executing helm commands
 func (h *HelmHelper) Execute(args ...string) (string, error) {
 	result, err := h.executor.ExecuteCommandWithOutput(h.HelmPath, args...)
 	if err != nil {
@@ -81,7 +81,7 @@ func createValuesFile(path string, values map[string]interface{}) error {
 	return nil
 }
 
-// InstallLocalHelmChart installs a give helm chart
+// InstallLocalHelmChart installs a given helm chart
 func (h *HelmHelper) InstallLocalHelmChart(upgrade bool, namespace, chart string, values map[string]interface{}) error {
 	rootDir, err := FindRookRoot()
 	if err != nil {
@@ -203,7 +203,7 @@ func (h *HelmHelper) installChart(cmdArgs []string, values map[string]interface{
 	return nil
 }
 
-// DeleteLocalRookHelmChart uninstalls a give helm deploy
+// DeleteLocalRookHelmChart uninstalls a given helm deploy
 func (h *HelmHelper) DeleteLocalRookHelmChart(namespace, deployName string) error {
 	cmdArgs := []string{"delete", "-n", namespace, deployName}
 	_, err := h.Execute(cmdArgs...)

@@ -101,14 +101,14 @@ func GetSpecContainerImage(spec v1.PodSpec, name string, initContainer bool) (st
 }
 
 // Replaces the pod default toleration of 300s used when the node controller
-// detect a not ready node (node.kubernetes.io/unreachable)
+// detects a not ready node (node.kubernetes.io/unreachable)
 func AddUnreachableNodeToleration(podSpec *v1.PodSpec) {
 	// The amount of time for this pod toleration can be modified by users
 	// changing the value of <ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS> Rook operator
 	// variable.
-	// Node controller will wait 40 seconds by default before mark a node as
+	// Node controller will wait 40 seconds by default before marking a node as
 	// unreachable. After 40s + ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS the pod
-	// will be scheduled in other node
+	// will be scheduled in another node
 	// Only one <toleration> to <unreachable> nodes can be added
 	var tolerationSeconds int64 = 5
 	urTolerationSeconds := os.Getenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS")
@@ -231,7 +231,7 @@ func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 		// If a user sets 0, all available memory on the host will be used
 		{Name: "POD_MEMORY_LIMIT", ValueFrom: &v1.EnvVarSource{ResourceFieldRef: &v1.ResourceFieldSelector{Resource: "limits.memory"}}}, // Bytes
 
-		// If requests.memory is not set in the pod definition, Kubernetes will use the formula "requests.memory = limits.memory" during pods's scheduling
+		// If requests.memory is not set in the pod definition, Kubernetes will use the formula "requests.memory = limits.memory" during pod's scheduling
 		// Kubernetes will set this variable to 0 or equal to limits.memory if set
 		{Name: "POD_MEMORY_REQUEST", ValueFrom: &v1.EnvVarSource{ResourceFieldRef: &v1.ResourceFieldSelector{Resource: "requests.memory"}}}, // Bytes
 
@@ -239,7 +239,7 @@ func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 		// If a user sets 0, all CPUs will be used
 		{Name: "POD_CPU_LIMIT", ValueFrom: &v1.EnvVarSource{ResourceFieldRef: &v1.ResourceFieldSelector{Resource: "limits.cpu", Divisor: resource.MustParse("1")}}},
 
-		// If request.cpu is not set in the pod definition, Kubernetes will use the formula "requests.cpu = limits.cpu" during pods's scheduling
+		// If request.cpu is not set in the pod definition, Kubernetes will use the formula "requests.cpu = limits.cpu" during pod's scheduling
 		// Kubernetes will set this variable to 0 or equal to limits.cpu if set
 		{Name: "POD_CPU_REQUEST", ValueFrom: &v1.EnvVarSource{ResourceFieldRef: &v1.ResourceFieldSelector{Resource: "requests.cpu"}}},
 

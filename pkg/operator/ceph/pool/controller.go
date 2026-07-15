@@ -242,7 +242,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		//
 		// Also, only remove the finalizer if the CephCluster is gone
 		// If not, we should wait for it to be ready
-		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
+		// This handles the case where the operator is not ready to accept Ceph commands but the cluster exists
 		if !cephBlockPool.GetDeletionTimestamp().IsZero() && !cephClusterExists {
 			// don't leak the health checker routine if we are force-deleting
 			r.cancelMirrorMonitoring(cephBlockPool)
