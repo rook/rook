@@ -933,7 +933,7 @@ func adjustZoneDefaultPools(objContext *Context, zone map[string]interface{}, sp
 		// default pool is not presented in shared pool spec
 		return zone, nil
 	}
-	// add zone namespace to metadata pool to safely share accorss rgw instances or zones.
+	// add zone namespace to metadata pool to safely share across rgw instances or zones.
 	// in non-multisite case zone name equals to rgw instance name
 	defaultMetaPool = defaultMetaPool + ":" + name
 	for pool, nsSuffix := range zonePoolNSSuffix {
