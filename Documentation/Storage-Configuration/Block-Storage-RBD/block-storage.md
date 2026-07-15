@@ -209,9 +209,12 @@ The erasure coded pool must be set as the `dataPool` parameter in
 
 If a node goes down where a pod is running where a volume is mounted, the volume cannot automatically be mounted on another node. The node must be guaranteed to be offline before the volume can be mounted on another node.
 
+Network fencing is designed to prevent a failed node from accessing the volume before it is remounted elsewhere. The feature is **not enabled by default**. For step-by-step configuration examples to enable automatic network fencing and unfencing, see:
+
+* The [`Network Fencing`](../Ceph-CSI/csi-configuration.md#network-fencing) section in the CSI configuration documentation for manifest-based examples using the RBD `Driver` CR.
+* The [`Network Fencing`](../../Helm-Charts/csi-drivers-chart.md#network-fencing) section in the Ceph-CSI driver Helm chart documentation for Helm-based examples.
 
 ### Handling Node Loss
-
 
 When a node is confirmed to be down, add the following taints to the node:
 
@@ -220,11 +223,20 @@ kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:N
 kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoSchedule
 ```
 
-After the taint is added to the node, the CephCSI driver will automatically handle the network fencing to prevent connections to Ceph from the volume on that node.
+After the taint is added to the node and the fencing feature is properly configured:
+
+* The CSI driver will retrieve the stored client address from the RBD image metadata
+* If the node has the `out-of-service` taint, the driver will add the client address to the Ceph blocklist to prevent connections to Ceph from the volume on that node
+* The blocklist entry has an extended duration (approximately 3 years) to ensure the protection persists until the node undergoes a complete power cycle.
+
+!!! warning
+    When a node becomes out of service, its mounts and device mappings will persist until the node undergoes a complete power lifecycle (includes shutdown and startup). To prevent data inconsistency or corruption, administrators **MUST NOT** remove the `node.kubernetes.io/out-of-service` taint until the node has successfully completed a full power cycle. Removing the taint prematurely may leave stale device states, active client sessions, or lingering mounts, which can lead to serious data integrity issues.
 
 ### Node Recovery
 
-If the node comes back online, the CephCSI driver will automatically handle the network unfencing when the node taints are removed:
+If the node comes back online and the fencing feature is properly configured, workloads can be rescheduled onto the recovered node once the `out-of-service` taints are removed. If the 5-minute cool-down period has passed, the CSI-Addons controller will automatically remove the client address from the blocklist.
+
+To manually remove the taints after the node has completed a full power cycle:
 
 ```console
 kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoExecute-

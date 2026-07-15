@@ -52,6 +52,28 @@ spec:
     deployCsiAddons: true
 ```
 
+## Network Fencing
+
+Network fencing requires:
+
+1. Enable the [CSI-Addons controller](ceph-csi-drivers.md#csi-addons-controller).
+2. Enable the CSI-Addons sidecar by setting `deployCsiAddons: true` on the RBD `Driver`.
+3. Set `enableFencing` to `true` on the RBD `Driver`.
+
+Here is an example of RBD `Driver`:
+
+```yaml
+# Driver CR (manifest)
+apiVersion: csi.ceph.io/v1
+kind: Driver
+metadata:
+  name: rook-ceph.rbd.csi.ceph.com
+  namespace: rook-ceph
+spec:
+  deployCsiAddons: true
+  enableFencing: true
+```
+
 ## Custom container images
 
 Previously: `CSI_*_IMAGE` keys in `rook-ceph-operator-config`. Now use the `ImageSet` ConfigMap referenced by `OperatorConfig`.

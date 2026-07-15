@@ -41,6 +41,23 @@ operatorConfig:
 
 See: [CSI-Addons sidecar](../Storage-Configuration/Ceph-CSI/csi-configuration.md#csi-addons-sidecar)
 
+### Network Fencing
+
+The example below is scoped to the RBD driver only.
+
+```yaml
+drivers:
+  rbd:
+    deployCsiAddons: true
+    enableFencing: true
+```
+
+!!! important
+    The Network Fencing feature requires the CSI-Addons controller to be deployed separately for auto-unfencing. See
+    [Deploying the controller](../Storage-Configuration/Ceph-CSI/ceph-csi-drivers.md#deploying-the-controller).
+
+See: [Network Fencing](../Storage-Configuration/Ceph-CSI/csi-configuration.md#network-fencing)
+
 ### Controller plugin replicas
 
 ```yaml
