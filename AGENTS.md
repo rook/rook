@@ -32,6 +32,9 @@ API, because those comments become the CRD descriptions.
     Human sign-off is the mechanism Rook uses.
 * Open pull requests against `master`, from a branch in a fork. Rebase onto upstream; never merge
     upstream into a branch.
+* If you do not have write access, keep no more than three pull requests open at once; the
+    repository enforces this. It does not apply to contributors with write access. Ask a maintainer
+    if you have a genuine need to exceed it.
 * Opening a pull request non-interactively, such as by passing a body to `gh pr create`, skips the
     template that GitHub would otherwise supply. Read
     [the template](.github/PULL_REQUEST_TEMPLATE.md) and fill in its checklist regardless.
