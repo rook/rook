@@ -18,7 +18,10 @@ limitations under the License.
 package osd
 
 import (
+	"bytes"
 	"context"
+	"os/exec"
+	"strings"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -38,6 +41,41 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+func TestRawOSDActivationFindDevice(t *testing.T) {
+	const fixture = `{
+		"bluefs-db": {
+			"device_db": "/dev/mapper/cephmeta-meta--0_rimage_1",
+			"osd_uuid": "bluefs-db"
+		},
+		"osd": {
+			"device": "/dev/sdb",
+			"osd_id": 3,
+			"osd_uuid": "osd"
+		}
+	}`
+
+	const commandPrefix = "python3 -c \""
+	start := strings.Index(activateOSDOnNodeCode, commandPrefix)
+	if !assert.NotEqual(t, -1, start, "find_device Python command not found") {
+		return
+	}
+
+	script := activateOSDOnNodeCode[start+len(commandPrefix):]
+	end := strings.Index(script, "\n\"")
+	if !assert.NotEqual(t, -1, end, "find_device Python command terminator not found") {
+		return
+	}
+	script = strings.ReplaceAll(script[:end], "$OSD_ID", "3")
+
+	cmd := exec.Command("python3", "-c", script) //nolint:gosec // the script is generated entirely by Rook
+	cmd.Stdin = strings.NewReader(fixture)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+	assert.NoError(t, err, stderr.String())
+	assert.Equal(t, "/dev/sdb", string(output))
+}
 
 func TestPodContainer(t *testing.T) {
 	cluster := &Cluster{rookVersion: "23", clusterInfo: cephclient.AdminTestClusterInfo("myosd")}
