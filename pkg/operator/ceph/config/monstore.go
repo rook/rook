@@ -21,6 +21,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"syscall"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
@@ -204,13 +205,44 @@ func (m *MonStore) DeleteAll(options ...Option) error {
 func (m *MonStore) SetKeyValue(key, value string) error {
 	logger.Debugf("setting %q option in the mon config-key store", key)
 	logger.Tracef("setting %q=%q option in the mon config-key store", key, value)
-	args := []string{"config-key", "set", key, value}
+	// Pass values on stdin so multiline content like PEM certificates is preserved as a single value.
+	args := []string{"config-key", "set", key, "-i", "-"}
+	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
+	if err := cephCmd.RunWithStdin(exec.CephCommandsTimeout, value); err != nil {
+		return errors.Wrapf(err, "failed to set %q in the mon config-key store", key)
+	}
+	return nil
+}
+
+// GetKeyValue gets an arbitrary key/value pair from Ceph's general purpose key/value store.
+// See SetKeyValue for more details.
+func (m *MonStore) GetKeyValue(key string) (string, error) {
+	args := []string{"config-key", "get", key}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
 	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
 	if err != nil {
-		return errors.Wrapf(err, "failed to set %q in the mon config-key store. output: %s", key, string(out))
+		return "", errors.Wrapf(err, "failed to get %q from the mon config-key store. output: %s", key, string(out))
+	}
+	return string(out), nil
+}
+
+// RmKeyValue removes an arbitrary key/value pair from Ceph's general purpose key/value store.
+// See SetKeyValue for more details.
+func (m *MonStore) RmKeyValue(key string) error {
+	logger.Debugf("removing %q option from the mon config-key store", key)
+	args := []string{"config-key", "rm", key}
+	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
+	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove %q from the mon config-key store. output: %s", key, string(out))
 	}
 	return nil
+}
+
+// IsKeyValueNotFound reports whether an error from a config-key operation means the key does not exist.
+func IsKeyValueNotFound(err error) bool {
+	code, ok := exec.ExitStatus(errors.Cause(err))
+	return ok && code == int(syscall.ENOENT)
 }
 
 func (m *MonStore) SetAllMultiple(settings map[string]map[string]string) error {
