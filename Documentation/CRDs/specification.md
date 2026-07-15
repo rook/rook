@@ -12943,6 +12943,32 @@ string
 <p>Add capabilities for user to set rate limiter for user and bucket. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
 </td>
 </tr>
+<tr>
+<td>
+<code>userInfoWithoutKeys</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Add capabilities for user to fetch user info without keys. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a>
+Note: Only supported from Ceph Squid (v19.2.0) onwards</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>accounts</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Add capabilities for user to manage accounts. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a>
+Note: Only supported from Ceph Squid (v19.2.3) onwards</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectUserKey">ObjectUserKey
