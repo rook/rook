@@ -20,6 +20,8 @@ package mgr
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"strconv"
@@ -48,6 +50,7 @@ const (
 	passwordLength        = 20
 	passwordKeyName       = "password"
 	invalidArgErrorCode   = int(syscall.EINVAL)
+	dashboardTLSRefKey    = "rook/dashboard/sslCertificateRef"
 )
 
 var (
@@ -215,9 +218,9 @@ func (c *Cluster) initializeSecureDashboard() (bool, error) {
 	}
 
 	if c.spec.Dashboard.SSL {
-		alreadyCreated, err := c.createSelfSignedCert()
+		alreadyCreated, err := c.configureSSLCertificate()
 		if err != nil {
-			return restartNeeded, errors.Wrap(err, "failed to create a self signed cert for the ceph dashboard")
+			return restartNeeded, errors.Wrap(err, "failed to configure ssl certificate for the ceph dashboard")
 		}
 		if !alreadyCreated {
 			restartNeeded = true
@@ -231,11 +234,147 @@ func (c *Cluster) initializeSecureDashboard() (bool, error) {
 	return restartNeeded, nil
 }
 
-func (c *Cluster) createSelfSignedCert() (bool, error) {
+func (c *Cluster) configureSSLCertificate() (bool, error) {
+	if c.spec.Dashboard.SSLCertificateRef != "" {
+		return c.configureCustomSSLCertificate()
+	}
+	previousRef, err := c.getDashboardTLSRef()
+	if err != nil {
+		return false, err
+	}
+	if previousRef != "" {
+		created, err := c.createSelfSignedCert(true)
+		if err != nil {
+			return false, err
+		}
+		if err := c.removeDashboardTLSRef(); err != nil {
+			return false, err
+		}
+		return created, nil
+	}
+	return c.createSelfSignedCert(false)
+}
+
+func (c *Cluster) configureCustomSSLCertificate() (bool, error) {
+	secretName := c.spec.Dashboard.SSLCertificateRef
+	secret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, secretName, metav1.GetOptions{})
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to get dashboard TLS secret %q", secretName)
+	}
+	if secret.Type != v1.SecretTypeTLS {
+		return false, errors.Errorf("dashboard TLS secret %q must be of type %q, not %q", secretName, v1.SecretTypeTLS, secret.Type)
+	}
+
+	cert, ok := secret.Data[v1.TLSCertKey]
+	if !ok {
+		return false, errors.Errorf("dashboard TLS secret %q is missing key %q", secretName, v1.TLSCertKey)
+	}
+	key, ok := secret.Data[v1.TLSPrivateKeyKey]
+	if !ok {
+		return false, errors.Errorf("dashboard TLS secret %q is missing key %q", secretName, v1.TLSPrivateKeyKey)
+	}
+	if err := validateDashboardTLSKey(secretName, cert, key); err != nil {
+		return false, err
+	}
+
+	certCreated, err := c.dashboardConfigKeyMatches("mgr/dashboard/crt", cert)
+	if err != nil {
+		return false, err
+	}
+	keyCreated, err := c.dashboardConfigKeyMatches("mgr/dashboard/key", key)
+	if err != nil {
+		return false, err
+	}
+	previousRef, err := c.getDashboardTLSRef()
+	if err != nil {
+		return false, err
+	}
+	if certCreated && keyCreated {
+		if previousRef != secretName {
+			if err := c.setDashboardTLSRef(secretName); err != nil {
+				return false, err
+			}
+		}
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard is already initialized with the referenced TLS certificate")
+		return true, nil
+	}
+
+	if err := c.setDashboardCertificate("set-ssl-certificate", cert); err != nil {
+		return false, errors.Wrap(err, "failed to set dashboard TLS certificate")
+	}
+	if err := c.setDashboardCertificate("set-ssl-certificate-key", key); err != nil {
+		return false, errors.Wrap(err, "failed to set dashboard TLS certificate key")
+	}
+	if err := c.setDashboardTLSRef(secretName); err != nil {
+		return false, err
+	}
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard TLS certificate configured from secret %q", secretName)
+	return false, nil
+}
+
+func validateDashboardTLSKey(secretName string, cert, key []byte) error {
+	keyPair, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse dashboard TLS secret %q", secretName)
+	}
+	if _, ok := keyPair.PrivateKey.(*rsa.PrivateKey); !ok {
+		return errors.Errorf("dashboard TLS secret %q contains unsupported private key type %T; Ceph dashboard only supports RSA private keys", secretName, keyPair.PrivateKey)
+	}
+	return nil
+}
+
+func (c *Cluster) dashboardConfigKeyMatches(configKey string, expected []byte) (bool, error) {
+	args := []string{"config-key", "get", configKey}
+	output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "dashboard config key %q does not appear to exist. err=%v", configKey, err)
+		return false, nil
+	}
+	return string(output) == string(expected), nil
+}
+
+func (c *Cluster) setDashboardCertificate(command string, content []byte) error {
+	file, err := util.CreateTempFile(string(content))
+	if err != nil {
+		return errors.Wrap(err, "failed to create a temporary dashboard certificate file")
+	}
+	defer func() {
+		if err := os.Remove(file.Name()); err != nil {
+			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to clean up dashboard certificate file %q. %v", file.Name(), err)
+		}
+	}()
+
+	args := []string{"dashboard", command, "-i", file.Name()}
+	_, err = client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
+	return err
+}
+
+func (c *Cluster) getDashboardTLSRef() (string, error) {
+	args := []string{"config-key", "get", dashboardTLSRefKey}
+	output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "dashboard TLS secret reference does not appear to exist. err=%v", err)
+		return "", nil
+	}
+	return string(output), nil
+}
+
+func (c *Cluster) setDashboardTLSRef(secretName string) error {
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
+	return monStore.SetKeyValue(dashboardTLSRefKey, secretName)
+}
+
+func (c *Cluster) removeDashboardTLSRef() error {
+	args := []string{"config-key", "rm", dashboardTLSRefKey}
+	_, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
+	return err
+}
+
+func (c *Cluster) createSelfSignedCert(force bool) (bool, error) {
 	// Check if the cert already exists
 	args := []string{"config-key", "get", "mgr/dashboard/crt"}
 	output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
-	if err == nil && len(output) > 0 {
+	if !force && err == nil && len(output) > 0 {
 		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard is already initialized with a cert")
 		return true, nil
 	}

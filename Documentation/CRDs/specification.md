@@ -6859,6 +6859,18 @@ bool
 </tr>
 <tr>
 <td>
+<code>sslCertificateRef</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SSLCertificateRef references a Kubernetes secret of type kubernetes.io/tls in the CephCluster namespace. If set, Rook will configure the dashboard with this certificate instead of creating a self-signed certificate. The secret must contain an RSA private key because the Ceph dashboard does not support ECDSA/EC private keys.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>prometheusEndpoint</code><br/>
 <em>
 string
