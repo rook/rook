@@ -57,6 +57,7 @@ spec:
     urlPrefix: /ceph-dashboard
     port: 8443
     ssl: true
+    sslCertificateRef: rook-ceph-dashboard-tls
 ```
 
 * `urlPrefix` If you are accessing the dashboard via a reverse proxy, you may
@@ -68,6 +69,9 @@ spec:
 * `ssl` The dashboard may be served without SSL (useful for when you deploy the
     dashboard behind a proxy already served using SSL) by setting the `ssl` option
     to be false.
+* `sslCertificateRef` The dashboard may use a certificate from a Kubernetes Secret
+    of `type: kubernetes.io/tls` in the same namespace as the CephCluster. The Secret
+    must contain `tls.crt` and `tls.key`. If unset, Rook creates a self-signed certificate.
 
 ## Visualization of 'Physical Disks' section in the dashboard
 
