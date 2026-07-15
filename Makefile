@@ -197,19 +197,19 @@ lint.go: lint.fmt lint.vet golangci-lint ## run various go linters
 
 
 .PHONY: lint.markdown
-lint.markdown: ## Check formatting of documentation sources
+lint.markdown: check.container.runtime ## Check formatting of documentation sources
 	@$(MARKDOWNLINT) "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs
 
 .PHONY: lint.markdown-links
-lint.markdown-links:
+lint.markdown-links: check.container.runtime
 	@$(DOCKERCMD) run --rm -v "$$PWD:/workspace" --entrypoint "/workspace/tests/scripts/check-markdown-links-internal.sh" ghcr.io/tcort/markdown-link-check:stable
 
 .PHONY: fix.markdown
-fix.markdown: ## Check and fix formatting of documentation sources
+fix.markdown: check.container.runtime ## Check and fix formatting of documentation sources
 	@$(MARKDOWNLINT) "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --fix --config .markdownlint-cli2.cjs
 
 .PHONY: lint.yaml
-lint.yaml: ## lint yaml files
+lint.yaml: check.container.runtime ## lint yaml files
 	$(YAMLLINT) -c .yamllint deploy/examples/ --no-warnings
 
 .PHONY: lint.helm

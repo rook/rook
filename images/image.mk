@@ -75,9 +75,16 @@ BUILD_BASE_ARGS += $(BUILD_ARGS)
 all: build
 
 build: do.build ## Build images for the host platform.
-	@$(MAKE) cache.images
+	@if [ "$(BUILD_CONTAINER_IMAGE)" != "false" ] && $(DOCKERCMD) version >/dev/null 2>&1; then \
+		$(MAKE) cache.images; \
+	fi
 
-clean: clean.build ## Remove all images created from the current build.
+clean: ## Remove all images created from the current build.
+	@if $(DOCKERCMD) version >/dev/null 2>&1; then \
+		$(MAKE) clean.build; \
+	else \
+		echo "=== skipping image cleanup because no usable container runtime was found"; \
+	fi
 
 prune: cache.prune ## Prunes orphaned and cached images at the host level.
 
