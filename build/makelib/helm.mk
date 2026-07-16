@@ -51,7 +51,11 @@ $(HELM): | $(TOOLS_HOST_DIR)
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
 define helm.chart
-$(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz: $(HELM) $(HELM_OUTPUT_DIR) helm.dependency.update.$(1) $(shell find $(HELM_CHARTS_DIR)/$(1) -type f)
+# Exclude dependency archives (charts/*.tgz) from the prerequisites: the
+# helm.dependency.update recipe deletes and re-fetches them mid-build, so a
+# stale archive captured at parse time would leave make failing on a missing
+# prerequisite.
+$(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz: $(HELM) $(HELM_OUTPUT_DIR) helm.dependency.update.$(1) $(shell find $(HELM_CHARTS_DIR)/$(1) -type f ! -name '*.tgz')
 	@echo === helm package $(1)
 	@rm -rf $(OUTPUT_DIR)/$(1)
 	@cp -aL $(HELM_CHARTS_DIR)/$(1) $(OUTPUT_DIR)
