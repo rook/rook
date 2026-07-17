@@ -174,11 +174,25 @@ aws_access_key_id     = <AccessKey from rook-ceph-object-user-my-store-user1>
 aws_secret_access_key = <SecretKey from rook-ceph-object-user-my-store-user1>
 ```
 
-Bucket names, however, are only unique within a tenant namespace. Two users in different tenants may each own a bucket named `photos` without conflict. From the client's perspective, each accesses their own `photos` bucket using their respective credentials; RGW routes requests to the correct tenant namespace internally.
+### Intra-tenant access (primary use case)
 
-Cross-tenant access to another tenant's bucket is not possible via standard S3 path/virtual-host addressing — RGW resolves the bucket to the owner's tenant based on the credentials used. Bucket policies and ACLs apply within the same tenant; cross-tenant sharing is out of scope for this feature.
+Users within the same tenant access their buckets using standard S3 virtual-host-style URLs with no changes:
 
-No changes to existing user documentation are required for the S3 endpoint or credential format.
+```
+my-bucket.s3.ceph.io   ← works normally for same-tenant users
+```
+
+RGW resolves the bucket to the correct tenant namespace based on the credentials used. No DNS changes or special endpoint configuration are required for this feature's primary use case.
+
+### Cross-tenant access (out of scope, deprecated upstream)
+
+Cross-tenant bucket access via path-style requests using the `tenant:bucket` notation (e.g. `s3.ceph.io/tenantA:my-bucket/`) is a Ceph extension to the S3 protocol. As noted in the Ceph Tentacle release notes, this feature is deprecated and scheduled for removal no sooner than the V release:
+
+> S3 API support for cross-tenant names such as `Bucket='tenant:bucketname'`
+
+Virtual-host-style cross-tenant access (`tenantA:my-bucket.s3.ceph.io`) is not possible because `:` is not valid in DNS names.
+
+**Cross-tenant bucket sharing is explicitly out of scope for this feature.** Users who need to share buckets across tenant boundaries should be placed in the same tenant namespace. This aligns with Ceph's upstream direction of removing cross-tenant path-style access.
 
 ## Immutability
 
