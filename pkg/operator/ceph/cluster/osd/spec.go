@@ -219,7 +219,7 @@ sys.exit('no disk found with OSD ID $OSD_ID')
 		ceph-volume raw list $SCAN_DEVICES > "$OSD_LIST"
 		cat "$OSD_LIST"
 
-		if ! find_device < "$OSD_LIST" > /dev/null; then
+		if ! find_device < "$OSD_LIST" > /dev/null 2>&1; then
 			# On Ceph v20.2.2, 'ceph-volume raw list' has been observed to return no
 			# results at all when a node's partitioned OS disk is scanned together with
 			# other whole disks (see https://github.com/rook/rook/issues/17992). Retry
