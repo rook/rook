@@ -54,7 +54,12 @@ const (
 func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephBlockPoolRadosNamespaceName, clusterID string) error {
 	logger.Info("creating ceph-csi clientProfile CR for rados namespace")
 
-	rbdSecretName, err := getSecretNameByAnnotation(c, ctx, clusterInfo.Namespace, "csi.rook.io/RBDProvisionerSecret", CsiRBDProvisionerSecret)
+	rbdProvisionerSecretName, err := getSecretNameByAnnotation(c, ctx, clusterInfo.Namespace, "csi.rook.io/RBDProvisionerSecret", CsiRBDProvisionerSecret)
+	if err != nil {
+		return err
+	}
+
+	rbdNodeSecretName, err := getSecretNameByAnnotation(c, ctx, clusterInfo.Namespace, "csi.rook.io/RBDNodeSecret", CsiRBDNodeSecret)
 	if err != nil {
 		return err
 	}
@@ -70,7 +75,11 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 			RadosNamespace: cephBlockPoolRadosNamespaceName,
 			CephCsiSecrets: &csiopv1.CephCsiSecretsSpec{
 				ControllerPublishSecret: v1.SecretReference{
-					Name:      rbdSecretName,
+					Name:      rbdProvisionerSecretName,
+					Namespace: clusterInfo.Namespace,
+				},
+				NodePublishSecret: v1.SecretReference{
+					Name:      rbdNodeSecretName,
 					Namespace: clusterInfo.Namespace,
 				},
 			},
