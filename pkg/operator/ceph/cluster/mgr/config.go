@@ -55,7 +55,7 @@ type mgrConfig struct {
 // the desired port in the cluster CR.
 func (c *Cluster) dashboardInternalPort() int {
 	port := c.dashboardPublicPort()
-	if port <= minPortWithoutPrivileges {
+	if port < minPortWithoutPrivileges {
 		// If the port is less than the allowed range, set it back to the default
 		return c.dashboardDefaultPort()
 	}
