@@ -318,7 +318,7 @@ func removeSnapshotSchedule(context *clusterd.Context, clusterInfo *ClusterInfo,
 		return errors.Wrapf(err, "failed to remove snapshot schedule on pool %q. %s", poolName, string(buf))
 	}
 
-	logger.Infof("successfully removed snapshot schedule %q for pool %q", poolName, snapScheduleResponse.Interval)
+	logger.Infof("successfully removed snapshot schedule %q for pool %q", snapScheduleResponse.Interval, poolName)
 	return nil
 }
 
