@@ -182,17 +182,19 @@ go.validate: go.vet go.fmt
 go.mod.update:
 	@echo === updating modules
 	@$(GOHOST) get -u ./...
+	@echo === updating APIs modules
+	@(cd pkg/apis/; $(GOHOST) get -u ./...)
+	@echo === syncing workspace modules
+	@$(GOHOST) work sync
 
 .PHONY: go.mod.check
 go.mod.check:
-	@echo === syncing root modules with APIs modules
-	@cp -a go.sum pkg/apis/go.sum
-	@cat go.mod | sed -e 's|^module github.com/rook/rook|module github.com/rook/rook/pkg/apis|' \
-	                  -e '\:[[:space:]]*github.com/rook/rook/pkg/apis => ./pkg/apis:d' > pkg/apis/go.mod
 	@echo === ensuring APIs modules are tidied
 	@(cd pkg/apis/; $(GOHOST) mod tidy -compat=$(GO_VERSION))
 	@echo === ensuring root modules are tidied
 	@$(GOHOST) mod tidy -compat=$(GO_VERSION)
+	@echo === syncing workspace modules
+	@$(GOHOST) work sync
 
 .PHONY: go.mod.clean
 go.mod.clean:
