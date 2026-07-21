@@ -194,21 +194,10 @@ func (s *S3Agent) GetBucketPolicy(bucket string) (*BucketPolicy, error) {
 	return policy, nil
 }
 
-// ModifyBucketPolicy new and old statement SIDs and overwrites on a match.
-// This allows users to Get, modify, and Replace existing statements as well as
-// add new ones.
+// ModifyBucketPolicy replaces the policy's statements with the given ones,
+// rather than merging them into the existing statements by SID.
 func (bp *BucketPolicy) ModifyBucketPolicy(ps ...PolicyStatement) *BucketPolicy {
-	for _, newP := range ps {
-		var match bool
-		for j, oldP := range bp.Statement {
-			if newP.Sid == oldP.Sid {
-				bp.Statement[j] = newP
-			}
-		}
-		if !match {
-			bp.Statement = append(bp.Statement, newP)
-		}
-	}
+	bp.Statement = append([]PolicyStatement{}, ps...)
 	return bp
 }
 
