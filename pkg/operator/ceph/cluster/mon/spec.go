@@ -279,7 +279,7 @@ func (c *Cluster) makeChownInitContainer(monConfig *monConfig) corev1.Container 
 		controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		cephv1.GetMonResources(c.spec.Resources),
-		controller.DefaultContainerSecurityContext(),
+		controller.RootContainerSecurityContext(),
 		"",
 	)
 }
