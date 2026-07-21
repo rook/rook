@@ -1000,14 +1000,18 @@ func (c *Cluster) assignMons(mons []*monConfig, monsToSkipReconcile sets.Set[str
 			result, err := waitForMonitorScheduling(c, deployment)
 			if err != nil {
 				log.NamespacedError(c.Namespace, logger, "failed to schedule mon %q. %v", mon.DaemonName, err)
+				resultLock.Lock()
 				failedMonSchedule = true
+				resultLock.Unlock()
 				return
 			}
 
 			nodeChoice := result.Node
 			if nodeChoice == nil {
 				log.NamespacedError(c.Namespace, logger, "failed to schedule monitor %q", mon.DaemonName)
+				resultLock.Lock()
 				failedMonSchedule = true
+				resultLock.Unlock()
 				return
 			}
 
@@ -1020,7 +1024,9 @@ func (c *Cluster) assignMons(mons []*monConfig, monsToSkipReconcile sets.Set[str
 				schedule, err = getNodeInfoFromNode(*nodeChoice)
 				if err != nil {
 					log.NamespacedError(c.Namespace, logger, "failed to get node info for node %q. %v", nodeChoice.Name, err)
+					resultLock.Lock()
 					failedMonSchedule = true
+					resultLock.Unlock()
 					return
 				}
 			} else {
