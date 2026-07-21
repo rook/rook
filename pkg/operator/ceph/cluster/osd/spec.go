@@ -81,6 +81,9 @@ var keyUpdateScript string
 //go:embed blockdevmapper.sh
 var blockDevMapper string
 
+//go:embed open-encrypted-block.sh
+var openEncryptedBlock string
+
 const (
 	activateOSDOnNodeCode = `
 set -o errexit
@@ -217,55 +220,6 @@ sys.exit('no disk found with OSD ID $OSD_ID')
 
 	# ceph-volume raw mode only supports bluestore so we don't need to pass a store flag
 	ceph-volume raw activate --device "$DEVICE" --no-systemd --no-tmpfs
-fi
-`
-
-	openEncryptedBlock = `
-set -xe
-
-CEPH_FSID=%s
-PVC_NAME=%s
-KEY_FILE_PATH=%s
-BLOCK_PATH=%s
-DM_NAME=%s
-DM_PATH=%s
-
-# Helps debugging
-dmsetup version
-
-function open_encrypted_block {
-	echo "Opening encrypted device $BLOCK_PATH at $DM_PATH"
-	cryptsetup luksOpen --verbose --disable-keyring --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
-}
-
-# This is done for upgraded clusters that did not have the subsystem and label set by the prepare job
-function set_luks_subsystem_and_label {
-	echo "setting LUKS label and subsystem"
-	cryptsetup config $BLOCK_PATH --subsystem ceph_fsid="$CEPH_FSID" --label pvc_name="$PVC_NAME"
-}
-
-if [ -b "$DM_PATH" ]; then
-	echo "Encrypted device $BLOCK_PATH already opened at $DM_PATH"
-	for field in $(dmsetup table "$DM_NAME"); do
-		if [[ "$field" =~ ^[0-9]+\:[0-9]+ ]]; then
-			underlaying_block="/sys/dev/block/$field"
-			if [ ! -d "$underlaying_block" ]; then
-				echo "Underlying block device $underlaying_block of crypt $DM_NAME disappeared!"
-				echo "Removing stale dm device $DM_NAME"
-				dmsetup remove --force "$DM_NAME"
-				open_encrypted_block
-			fi
-		fi
-	done
-else
-	open_encrypted_block
-fi
-
-# Setting label and subsystem on LUKS1 is not supported and the command will fail
-if cryptsetup luksDump $BLOCK_PATH|grep -qEs "Version:.*2"; then
-	set_luks_subsystem_and_label
-else
-	echo "LUKS version is not 2 so not setting label and subsystem"
 fi
 `
 
@@ -1088,7 +1042,15 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(openEncryptedBlock, c.clusterInfo.FSID, pvcName, encryptionKeyPath(), encryptionBlockDestinationCopy(mountPath, blockType), EncryptionDMName(pvcName, cryptBlockType), EncryptionDMPath(pvcName, cryptBlockType)),
+			openEncryptedBlock,
+		},
+		Env: []v1.EnvVar{
+			{Name: "ROOK_CEPH_FSID", Value: c.clusterInfo.FSID},
+			{Name: "ROOK_PVC_NAME", Value: pvcName},
+			{Name: "ROOK_ENCRYPTION_KEY_FILE_PATH", Value: encryptionKeyPath()},
+			{Name: "ROOK_ENCRYPTION_BLOCK_PATH", Value: encryptionBlockDestinationCopy(mountPath, blockType)},
+			{Name: "ROOK_ENCRYPTION_DM_NAME", Value: EncryptionDMName(pvcName, cryptBlockType)},
+			{Name: "ROOK_ENCRYPTION_DM_PATH", Value: EncryptionDMPath(pvcName, cryptBlockType)},
 		},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName), getDeviceMapperMount()},
 		SecurityContext: controller.PrivilegedContext(true),
