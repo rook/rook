@@ -65,6 +65,11 @@ var osdRemoveCmd = &cobra.Command{
 	Short: "Removes a set of OSDs from the cluster",
 }
 
+var osdActivateCmd = &cobra.Command{
+	Use:   "activate",
+	Short: "Activates an OSD on a node so the osd daemon can start", // OSDs that were provisioned by ceph-volume
+}
+
 var (
 	osdDataDeviceFilter          string
 	osdDataDevicePathFilter      string
@@ -73,6 +78,9 @@ var (
 	osdID                        int
 	migrateOSDID                 int
 	osdStoreType                 string
+	osdStoreFlag                 string
+	osdCVMode                    string
+	osdEncryptedDevice           bool
 	osdStringID                  string
 	osdUUID                      string
 	osdIsDevice                  bool
@@ -121,11 +129,20 @@ func addOSDFlags(command *cobra.Command) {
 	osdRemoveCmd.Flags().StringVar(&preservePVC, "preserve-pvc", "false", "Whether PVCs for OSDs will be deleted")
 	osdRemoveCmd.Flags().StringVar(&forceOSDRemoval, "force-osd-removal", "false", "Whether to force remove the OSD")
 
+	// flags for activating OSDs on a node
+	osdActivateCmd.Flags().StringVar(&osdStringID, "osd-id", "", "the osd ID")
+	osdActivateCmd.Flags().StringVar(&osdUUID, "osd-uuid", "", "the osd UUID")
+	osdActivateCmd.Flags().StringVar(&osdStoreFlag, "osd-store-flag", "", "the ceph-volume store flag such as --bluestore")
+	osdActivateCmd.Flags().StringVar(&osdCVMode, "cv-mode", "", "the ceph-volume mode the OSD was prepared with, lvm or raw")
+	osdActivateCmd.Flags().StringVar(&blockPath, "block-path", "", "block path for the OSD created by ceph-volume")
+	osdActivateCmd.Flags().BoolVar(&osdEncryptedDevice, "encrypted-device", false, "whether the OSD is encrypted with dmcrypt")
+
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd,
 		provisionCmd,
 		osdStartCmd,
-		osdRemoveCmd)
+		osdRemoveCmd,
+		osdActivateCmd)
 }
 
 func addOSDConfigFlags(command *cobra.Command) {
@@ -152,11 +169,39 @@ func init() {
 	flags.SetFlagsFromEnv(provisionCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(osdStartCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(osdRemoveCmd.Flags(), rook.RookEnvVarPrefix)
+	flags.SetFlagsFromEnv(osdActivateCmd.Flags(), rook.RookEnvVarPrefix)
 
 	osdConfigCmd.RunE = writeOSDConfig
 	provisionCmd.RunE = prepareOSD
 	osdStartCmd.RunE = startOSD
 	osdRemoveCmd.RunE = removeOSDs
+	osdActivateCmd.RunE = activateOSD
+}
+
+// Activate an OSD on a node before the osd daemon container starts
+func activateOSD(cmd *cobra.Command, args []string) error {
+	required := []string{"osd-id", "osd-uuid", "cv-mode"}
+	if err := flags.VerifyRequiredFlags(osdActivateCmd, required); err != nil {
+		return err
+	}
+
+	rook.SetLogLevel()
+	rook.LogStartupInfo(osdActivateCmd.Flags())
+
+	context := createContext()
+
+	err := osddaemon.ActivateOSD(context, osddaemon.ActivateOSDArgs{
+		ID:        osdStringID,
+		UUID:      osdUUID,
+		StoreFlag: osdStoreFlag,
+		CVMode:    osdCVMode,
+		BlockPath: blockPath,
+		Encrypted: osdEncryptedDevice,
+	})
+	if err != nil {
+		rook.TerminateFatal(err)
+	}
+	return nil
 }
 
 // Start the osd daemon if provisioned by ceph-volume
