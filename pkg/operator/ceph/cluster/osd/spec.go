@@ -75,6 +75,9 @@ const (
 //go:embed cephosd-start.sh
 var cephOSDStart string
 
+//go:embed keyring-update.sh
+var keyUpdateScript string
+
 const (
 	activateOSDOnNodeCode = `
 set -o errexit
@@ -1502,30 +1505,6 @@ func (c *Cluster) getCephxKeyUpdateInitContainer(osdID string, osdProps osdPrope
 		)
 	}
 
-	keyUpdateScript := `
-set -o errexit
-set -o nounset
-set -o pipefail
-set -o xtrace
-
-OSD_ID="` + osdID + `"
-KEYRING_FILE=/var/lib/ceph/osd/ceph-"${OSD_ID}"/keyring
-
-# If this fails, it still writes to redirected file, so use temp file
-if ! ceph --name client.admin auth get-or-create osd."${OSD_ID}" \
-		mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' \
-		--keyring /etc/ceph/admin-keyring-store/keyring > /tmp/keyring; then
-	echo "failed to get latest cephx key for OSD. continuing OSD startup using on-disk key" >/dev/stderr
-	exit 0
-fi
-
-echo "got latest cephx key for OSD successfully. updating on-disk key" >/dev/stderr
-mv /tmp/keyring "$KEYRING_FILE"
-`
-	// ^ (above) Continue on failure here. Getting latest key can fail due to system issues that
-	// blocking here could make worse. Key rotation is rare, so on-disk key is likely good. If not,
-	// allow main OSD process to fail with auth issue.
-
 	envVars := []v1.EnvVar{
 		{
 			Name: "ROOK_CEPH_MON_HOST",
@@ -1539,6 +1518,7 @@ mv /tmp/keyring "$KEYRING_FILE"
 			},
 		},
 		{Name: "CEPH_ARGS", Value: "--mon-host=$(ROOK_CEPH_MON_HOST)"},
+		{Name: "ROOK_OSD_ID", Value: osdID},
 	}
 
 	container := v1.Container{
