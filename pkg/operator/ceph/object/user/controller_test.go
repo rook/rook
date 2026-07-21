@@ -650,6 +650,79 @@ func TestGenerateUserConfigCephVersionChecks(t *testing.T) {
 	})
 }
 
+func TestCreateOrUpdateCephUserNoKeys(t *testing.T) {
+	// Set DEBUG logging
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+
+	objectUser := &cephv1.CephObjectStoreUser{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: cephv1.ObjectStoreUserSpec{
+			Store: store,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephObjectStoreUser",
+		},
+	}
+
+	// A live RGW user the API returned with no access keys. The user spec also
+	// carries no explicit keys, so createOrUpdateCephUser falls back to the live
+	// user's keys and must surface an error since there are none.
+	//nolint:gosec // only test values, not a real secret
+	userNoKeysJSON := `{
+	"user_id": "my-user",
+	"display_name": "my-user",
+	"max_buckets": 1000,
+	"keys": [],
+	"swift_keys": [],
+	"caps": [],
+	"op_mask": "read, write, delete",
+	"bucket_quota": {"enabled": false, "max_size": -1, "max_objects": -1},
+	"user_quota": {"enabled": false, "max_size": -1, "max_objects": -1},
+	"type": "rgw"
+}`
+
+	mockClient := &cephobject.MockClient{
+		MockDo: func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path != "rook-ceph-rgw-my-store.mycluster.svc/admin/user" {
+				return nil, fmt.Errorf("unexpected url path %q", req.URL.Path)
+			}
+
+			if req.Method == http.MethodGet && req.URL.RawQuery == "format=json&uid=my-user" {
+				return &http.Response{
+					StatusCode: 200,
+					Body:       io.NopCloser(bytes.NewReader([]byte(userNoKeysJSON))),
+				}, nil
+			}
+
+			if req.Method == http.MethodPut && req.URL.RawQuery == "enabled=false&format=json&max-objects=-1&max-size=-1&quota=&quota-type=user&uid=my-user" {
+				return &http.Response{
+					StatusCode: 200,
+					Body:       io.NopCloser(bytes.NewReader([]byte(userNoKeysJSON))),
+				}, nil
+			}
+
+			return nil, fmt.Errorf("unexpected request: %q. method %q. path %q", req.URL.RawQuery, req.Method, req.URL.Path)
+		},
+	}
+	adminClient, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient)
+	assert.NoError(t, err)
+	r := &ReconcileObjectStoreUser{
+		objContext: &cephobject.AdminOpsContext{
+			AdminOpsClient: adminClient,
+		},
+		opManagerContext: context.TODO(),
+	}
+
+	userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
+	require.NoError(t, err)
+	err = r.createOrUpdateCephUser(objectUser, userConfig)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no keys set for user")
+}
+
 func TestValidateUser(t *testing.T) {
 	r := &ReconcileObjectStoreUser{}
 
