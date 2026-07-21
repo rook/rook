@@ -190,10 +190,13 @@ func testPodSpecPlacement(t *testing.T, requiredDuringScheduling bool, req, pref
 	placement.ApplyToPodSpec(&spec)
 	SetNodeAntiAffinityForPod(&spec, requiredDuringScheduling, v1.LabelHostname, map[string]string{"app": "mon"}, nil)
 
-	// should have a required anti-affinity and no preferred anti-affinity
+	// should have the expected number of required and preferred anti-affinity terms
 	assert.Equal(t,
 		req,
 		len(spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
+	assert.Equal(t,
+		pref,
+		len(spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution))
 }
 
 func makePlacement() cephv1.Placement {
@@ -220,7 +223,6 @@ func TestPodSpecPlacement(t *testing.T) {
 	p := cephv1.Placement{}
 	testPodSpecPlacement(t, true, 1, 0, &p)
 	testPodSpecPlacement(t, false, 0, 1, &p)
-	testPodSpecPlacement(t, false, 0, 0, &p)
 
 	// crd has other preferred and required anti-affinity setting
 	p = makePlacement()
