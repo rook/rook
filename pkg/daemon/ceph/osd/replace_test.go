@@ -76,6 +76,217 @@ func TestAvailableDataDevices(t *testing.T) {
 	})
 }
 
+func TestBlankDeviceClasses(t *testing.T) {
+	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{
+		"sda":     {DeviceInfo: &sys.LocalDisk{Name: "sda", Rotational: true}},
+		"sdb":     {DeviceInfo: &sys.LocalDisk{Name: "sdb", Rotational: false}},
+		"nvme0n1": {DeviceInfo: &sys.LocalDisk{Name: "nvme0n1", Rotational: false, RealPath: "/dev/nvme0n1"}},
+	}}
+	classes := getBlankDeviceClasses(available, []string{"sda", "sdb", "nvme0n1"})
+	assert.Equal(t, map[string]string{"sda": "hdd", "sdb": "ssd", "nvme0n1": "nvme"}, classes)
+}
+
+// expectedLeadingMatches returns the optimal number of same-class pairs a correct
+// matchBlankAndDestroyedByDeviceClasses must line up at the front of both slices: for each
+// non-empty device class, the smaller of (destroyed slots of that class, blank devices of that
+// class). Empty/unknown classes never match, matching isDeviceClassMatch, which is false when
+// either side is empty.
+func expectedLeadingMatches(ids []int, slotClass map[int]string, devices []string, devClass map[string]string) int {
+	dCount := map[string]int{}
+	for _, id := range ids {
+		if c := slotClass[id]; c != "" {
+			dCount[c]++
+		}
+	}
+	bCount := map[string]int{}
+	for _, d := range devices {
+		if c := devClass[d]; c != "" {
+			bCount[c]++
+		}
+	}
+	total := 0
+	for c, dc := range dCount {
+		total += min(dc, bCount[c])
+	}
+	return total
+}
+
+func TestMatchBlankAndDestroyedByDeviceClasses(t *testing.T) {
+	tests := []struct {
+		name        string
+		ids         []int
+		slotClass   map[int]string
+		devices     []string
+		devClass    map[string]string
+		wantMatches int // optimal same-class pairs that must be packed to the front
+	}{
+		{
+			name:        "empty inputs",
+			ids:         nil,
+			slotClass:   map[int]string{},
+			devices:     nil,
+			devClass:    map[string]string{},
+			wantMatches: 0,
+		},
+		{
+			name:        "no destroyed slots",
+			ids:         nil,
+			slotClass:   map[int]string{},
+			devices:     []string{"sda"},
+			devClass:    map[string]string{"sda": "hdd"},
+			wantMatches: 0,
+		},
+		{
+			name:        "no blank devices",
+			ids:         []int{0},
+			slotClass:   map[int]string{0: "hdd"},
+			devices:     nil,
+			devClass:    map[string]string{},
+			wantMatches: 0,
+		},
+		{
+			name:        "all hdd exact match",
+			ids:         []int{0, 1, 2},
+			slotClass:   map[int]string{0: "hdd", 1: "hdd", 2: "hdd"},
+			devices:     []string{"sda", "sdb", "sdc"},
+			devClass:    map[string]string{"sda": "hdd", "sdb": "hdd", "sdc": "hdd"},
+			wantMatches: 3,
+		},
+		{
+			name:      "mixed hdd/ssd/nvme, given cross-ordered, must fully align",
+			ids:       []int{0, 1, 2},
+			slotClass: map[int]string{0: "hdd", 1: "ssd", 2: "nvme"},
+			devices:   []string{"sda", "sdb", "sdc"},
+			// devices in a different class order than the slots: only a reorder aligns them.
+			devClass:    map[string]string{"sda": "nvme", "sdb": "hdd", "sdc": "ssd"},
+			wantMatches: 3,
+		},
+		{
+			name:        "more destroyed than blank of a class (imbalance, best-effort)",
+			ids:         []int{0, 1},
+			slotClass:   map[int]string{0: "hdd", 1: "hdd"},
+			devices:     []string{"sda", "sdb"},
+			devClass:    map[string]string{"sda": "hdd", "sdb": "ssd"},
+			wantMatches: 1, // one hdd/hdd pair; the second hdd slot spills onto the ssd device
+		},
+		{
+			name:        "more blank than destroyed, match sits past the slot count",
+			ids:         []int{0},
+			slotClass:   map[int]string{0: "ssd"},
+			devices:     []string{"sda", "sdb"},
+			devClass:    map[string]string{"sda": "hdd", "sdb": "ssd"},
+			wantMatches: 1, // ssd slot must pair with sdb(ssd), not the leading sda(hdd)
+		},
+		{
+			name:        "unknown/empty slot class never matches",
+			ids:         []int{0},
+			slotClass:   map[int]string{}, // osd.0 has no recorded class
+			devices:     []string{"sda"},
+			devClass:    map[string]string{"sda": "nvme"},
+			wantMatches: 0,
+		},
+		{
+			name:        "unknown/empty device class never matches",
+			ids:         []int{0},
+			slotClass:   map[int]string{0: "ssd"},
+			devices:     []string{"sda"},
+			devClass:    map[string]string{"sda": ""},
+			wantMatches: 0,
+		},
+		{
+			name:        "nvme vs ssd is a mismatch",
+			ids:         []int{0},
+			slotClass:   map[int]string{0: "ssd"},
+			devices:     []string{"sda"},
+			devClass:    map[string]string{"sda": "nvme"},
+			wantMatches: 0,
+		},
+		{
+			name:        "all different classes, no match",
+			ids:         []int{0, 1},
+			slotClass:   map[int]string{0: "hdd", 1: "ssd"},
+			devices:     []string{"sda", "sdb"},
+			devClass:    map[string]string{"sda": "nvme", "sdb": "nvme"},
+			wantMatches: 0,
+		},
+		{
+			name:      "duplicate classes needing reorder",
+			ids:       []int{0, 1, 2, 3},
+			slotClass: map[int]string{0: "ssd", 1: "hdd", 2: "ssd", 3: "hdd"},
+			devices:   []string{"sda", "sdb", "sdc", "sdd"},
+			// sda,sdd = ssd ; sdb,sdc = hdd -> two ssd + two hdd on each side, all four align.
+			devClass:    map[string]string{"sda": "ssd", "sdb": "hdd", "sdc": "hdd", "sdd": "ssd"},
+			wantMatches: 4,
+		},
+		{
+			name:      "partial class overlap, best-effort maximizes matches",
+			ids:       []int{0, 1, 2},
+			slotClass: map[int]string{0: "hdd", 1: "ssd", 2: "nvme"},
+			devices:   []string{"sda", "sdb", "sdc"},
+			// one hdd, two ssd devices, no nvme device: only hdd and one ssd can align (2 matches).
+			devClass:    map[string]string{"sda": "hdd", "sdb": "ssd", "sdc": "ssd"},
+			wantMatches: 2,
+		},
+	}
+
+	// clone helpers so each run starts from the caller's original input order.
+	cloneInts := func(s []int) []int {
+		if s == nil {
+			return nil
+		}
+		return append([]int(nil), s...)
+	}
+	cloneStrs := func(s []string) []string {
+		if s == nil {
+			return nil
+		}
+		return append([]string(nil), s...)
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// sanity: the table's wantMatches agrees with the class multisets.
+			require.Equal(t, tc.wantMatches, expectedLeadingMatches(tc.ids, tc.slotClass, tc.devices, tc.devClass),
+				"wantMatches in the table is inconsistent with the class maps")
+
+			ids := cloneInts(tc.ids)
+			devices := cloneStrs(tc.devices)
+			matchBlankAndDestroyedByDeviceClasses(ids, tc.slotClass, devices, tc.devClass)
+
+			// The function only reorders in place: the result must be a permutation of the inputs.
+			assert.ElementsMatch(t, tc.ids, ids, "destroyed ids must be preserved as a permutation")
+			assert.ElementsMatch(t, tc.devices, devices, "blank devices must be preserved as a permutation")
+
+			// Same-class pairs must be packed contiguously at the front, exactly wantMatches of them,
+			// and every position past that boundary must be a genuine cross-class (best-effort) pair.
+			n := min(len(ids), len(devices))
+			matched := 0
+			for i := 0; i < n; i++ {
+				if isDeviceClassMatch(tc.slotClass[ids[i]], tc.devClass[devices[i]]) {
+					matched++
+				}
+			}
+			assert.Equal(t, tc.wantMatches, matched, "wrong number of same-class pairs aligned")
+			for i := 0; i < n; i++ {
+				isMatch := isDeviceClassMatch(tc.slotClass[ids[i]], tc.devClass[devices[i]])
+				if i < tc.wantMatches {
+					assert.Truef(t, isMatch, "position %d expected a same-class pair (osd.%d vs %q)", i, ids[i], devices[i])
+				} else {
+					assert.Falsef(t, isMatch, "position %d expected a cross-class spillover pair (osd.%d vs %q)", i, ids[i], devices[i])
+				}
+			}
+
+			// Determinism: a second run from the same starting order yields the identical arrangement,
+			// so the slot<->device pairing is stable across reconciles.
+			ids2 := cloneInts(tc.ids)
+			devices2 := cloneStrs(tc.devices)
+			matchBlankAndDestroyedByDeviceClasses(ids2, tc.slotClass, devices2, tc.devClass)
+			assert.Equal(t, ids, ids2, "reordering of destroyed ids must be deterministic")
+			assert.Equal(t, devices, devices2, "reordering of blank devices must be deterministic")
+		})
+	}
+}
+
 func TestFilterDestroyedOSDIdsForNode(t *testing.T) {
 	treeJSON := `{
 		"nodes": [
