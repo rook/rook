@@ -160,7 +160,7 @@ func (c *Cluster) makeChownInitContainer(mgrConfig *mgrConfig) v1.Container {
 		controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName, c.spec.DataDirHostPath),
 		cephv1.GetMgrResources(c.spec.Resources),
-		controller.DefaultContainerSecurityContext(),
+		controller.RootContainerSecurityContext(),
 		"",
 	)
 }
