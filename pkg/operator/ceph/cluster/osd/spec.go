@@ -78,160 +78,23 @@ var cephOSDStart string
 //go:embed keyring-update.sh
 var keyUpdateScript string
 
+// If the disk identifier changes (different major and minor) we must force copy
+// --remove-destination will remove each existing destination file before attempting to open it
+// We **MUST** do this otherwise in environment where PVCs are dynamic, restarting the deployment will cause conflicts
+// When restarting the OSD, the PVC block might end up with a different Kernel disk allocation
+// For instance, prior to restart the block was mapped to 8:32 and when re-attached it was on 8:16
+// The previous "block" is still 8:32 so if we don't override it we will try to initialize on a disk that is not an OSD or worse another OSD
+// This is mainly because in https://github.com/rook/rook/commit/ae8dcf7cc3b51cf8ca7da22f48b7a58887536c4f we switched to use HostPath to store the OSD data
+// Since HostPath is not ephemeral, the block file must be re-hydrated each time the deployment starts
+//
 //go:embed blockdevmapper.sh
 var blockDevMapper string
 
 //go:embed open-encrypted-block.sh
 var openEncryptedBlock string
 
-const (
-	activateOSDOnNodeCode = `
-set -o errexit
-set -o pipefail
-set -o nounset # fail if variables are unset
-set -o xtrace
-
-OSD_ID="$ROOK_OSD_ID"
-OSD_UUID=%s
-OSD_STORE_FLAG="%s"
-OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
-KEYRING_FILE="$OSD_DATA_DIR"/keyring
-CV_MODE=%s
-DEVICE="$%s"
-ENCRYPTED="%t"
-
-# copy the latest lockbox keys to the keyring file as they might have been rotated
-if [ "$ENCRYPTED" == "true" ] ; then
-	LOCKBOX_KEYRING_FILE="$OSD_DATA_DIR"/lockbox.keyring
-	LOCKBOX_USER=client.osd-lockbox."$OSD_UUID"
-
-	if ! ceph --name client.admin auth get-or-create "$LOCKBOX_USER" \
-			mon 'allow command "config-key get" with key="dm-crypt/osd/'$OSD_UUID'/luks"' \
-			--keyring /etc/ceph/admin-keyring-store/keyring > /tmp/lockbox.keyring; then
-		echo "failed to get latest cephx lockbox key for OSD. continuing OSD startup using on-disk key" >/dev/stderr
-		# allowing OSD to attempt to start could avoid full OSD outage due to mon/system issues
-	else
-		echo "got latest cephx lockbox key for OSD successfully. updating on-disk key" >/dev/stderr
-		mv /tmp/lockbox.keyring "$LOCKBOX_KEYRING_FILE"
-	fi
-fi
-
-# active the osd with ceph-volume
-if [[ "$CV_MODE" == "lvm" ]]; then
-	TMP_DIR=$(mktemp -d)
-
-	# prevent LVM from trying to scan RBD volumes that may be unable to serve reads without this OSD up
-	echo 'devices { filter = ["r|/dev/rbd.*|"] }' >> /etc/lvm/lvm.conf
-
-	# activate osd
-	ceph-volume lvm activate --no-systemd "$OSD_STORE_FLAG" "$OSD_ID" "$OSD_UUID"
-
-	# For encrypted LVM OSDs, resize the full stack: PV → LV → LUKS.
-	# All operations are no-ops if the underlying device hasn't grown.
-	if [ "$ENCRYPTED" == "true" ]; then
-		VG_NAME=$(dirname "$DEVICE" | xargs basename)
-		pvresize "$(pvs --noheadings -o pv_name -S vg_name="$VG_NAME" 2>/dev/null | tr -d ' ')"
-		# With osd_per_device > 1, multiple LVs share the same VG. Absolute target
-		# (total/count) divides space equally and is a no-op on restarts.
-		OSD_COUNT=$(vgs --noheadings --nosuffix -o lv_count "$VG_NAME" 2>/dev/null | tr -d ' ')
-		TOTAL_EXTENTS=$(vgs --noheadings --nosuffix -o vg_extent_count "$VG_NAME" 2>/dev/null | tr -d ' ')
-		lvextend -l "$((TOTAL_EXTENTS / OSD_COUNT))" "$DEVICE" || true
-
-		DM_NAME=$(basename "$(readlink "$OSD_DATA_DIR/block")")
-		KEY_FILE=$(mktemp /tmp/.luks_key.XXXXXX)
-		trap "rm -f '$KEY_FILE'" EXIT
-		ceph --cluster ceph --name "$LOCKBOX_USER" \
-			--keyring "$LOCKBOX_KEYRING_FILE" \
-			config-key get "dm-crypt/osd/$OSD_UUID/luks" > "$KEY_FILE"
-		cryptsetup --verbose resize "$DM_NAME" --key-file "$KEY_FILE"
-	fi
-
-	# copy the tmpfs directory to a temporary directory
-	# this is needed because when the init container exits, the tmpfs goes away and its content with it
-	# this will result in the emptydir to be empty when accessed by the main osd container
-	cp --verbose --no-dereference "$OSD_DATA_DIR"/* "$TMP_DIR"/
-
-	# unmount the tmpfs since we don't need it anymore
-	umount "$OSD_DATA_DIR"
-
-	# copy back the content of the tmpfs into the original osd directory
-	cp --verbose --no-dereference "$TMP_DIR"/* "$OSD_DATA_DIR"
-
-	# retain ownership of files to the ceph user/group
-	chown --verbose --recursive ceph:ceph "$OSD_DATA_DIR"
-
-	# remove the temporary directory
-	rm --recursive --force "$TMP_DIR"
-else
-	# 'ceph-volume raw list' (which the osd-prepare job uses to report OSDs on nodes)
-	#  returns user-friendly device names which can change when systems reboot. To
-	# keep OSD pods from crashing repeatedly after a reboot, we need to check if the
-	# block device we have is still correct, and if it isn't correct, we need to
-	# scan all the disks to find the right one.
-	OSD_LIST="$(mktemp)"
-
-	function find_device() {
-		# jq would be preferable, but might be removed for hardened Ceph images
-		# python3 should exist in all containers having Ceph
-		python3 -c "
-import sys, json
-for _, info in json.load(sys.stdin).items():
-	if info['osd_id'] == $OSD_ID:
-		print(info['device'], end='')
-		print('found device: ' + info['device'], file=sys.stderr) # log the disk we found to stderr
-		sys.exit(0)  # don't keep processing once the disk is found
-sys.exit('no disk found with OSD ID $OSD_ID')
-"
-	}
-
-	if ! ceph-volume raw list "$DEVICE" > "$OSD_LIST"; then
-		# if the command fails, the disk may be renamed
-		echo '' > "$OSD_LIST"
-	fi
-	cat "$OSD_LIST"
-
-	if ! find_device < "$OSD_LIST"; then
-		# The disk may have been renamed, so scan disks to find the right one. Build the
-		# scan list explicitly instead of letting a bare 'ceph-volume raw list' scan every
-		# block device: opening an rbd device can block in uninterruptible sleep while this
-		# OSD is down (the same deadlock the lvm filter above prevents for lvm-mode OSDs).
-		# Skip rbd, nbd, and drbd (network-backed devices that can hang when their backing
-		# storage is unavailable) and zram (volatile RAM); Rook never provisions OSDs on any
-		# of these. loop devices are intentionally kept, since OSDs on loop devices are
-		# supported for CI and local testing.
-		SCAN_DEVICES="$(lsblk --noheadings --paths --list --output NAME,TYPE | awk '$2 == "disk" || $2 == "part" {print $1}' | grep -vE '^/dev/(rbd|nbd|zram|drbd)' || true)"
-		[[ -z "$SCAN_DEVICES" ]] && { echo "no devices to scan for OSD $OSD_ID" ; exit 1 ; }
-		# shellcheck disable=SC2086 # word splitting of the device list is intended
-		ceph-volume raw list $SCAN_DEVICES > "$OSD_LIST"
-		cat "$OSD_LIST"
-
-		DEVICE="$(find_device < "$OSD_LIST")"
-	fi
-	[[ -z "$DEVICE" ]] && { echo "no device" ; exit 1 ; }
-
-	# If a kernel device name change happens and a block device file
-	# in the OSD directory becomes missing, this OSD fails to start
-	# continuously. This problem can be resolved by confirming
-	# the validity of the device file and recreating it if necessary.
-	OSD_BLOCK_PATH=/var/lib/ceph/osd/ceph-$OSD_ID/block
-	if [ -L $OSD_BLOCK_PATH -a "$(readlink $OSD_BLOCK_PATH)" != $DEVICE ] ; then
-		rm $OSD_BLOCK_PATH
-	fi
-
-	# ceph-volume raw mode only supports bluestore so we don't need to pass a store flag
-	ceph-volume raw activate --device "$DEVICE" --no-systemd --no-tmpfs
-fi
-`
-
-	// If the disk identifier changes (different major and minor) we must force copy
-	// --remove-destination will remove each existing destination file before attempting to open it
-	// We **MUST** do this otherwise in environment where PVCs are dynamic, restarting the deployment will cause conflicts
-	// When restarting the OSD, the PVC block might end up with a different Kernel disk allocation
-	// For instance, prior to restart the block was mapped to 8:32 and when re-attached it was on 8:16
-	// The previous "block" is still 8:32 so if we don't override it we will try to initialize on a disk that is not an OSD or worse another OSD
-	// This is mainly because in https://github.com/rook/rook/commit/ae8dcf7cc3b51cf8ca7da22f48b7a58887536c4f we switched to use HostPath to store the OSD data
-	// Since HostPath is not ephemeral, the block file must be re-hydrated each time the deployment starts
-)
+//go:embed activate-osd.sh
+var activateOSDOnNodeCode string
 
 // OSDs on PVC using a certain fast storage class need to do some tuning
 var defaultTuneFastSettings = []string{
@@ -901,12 +764,17 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		},
 	}
 
+	osdStoreFlag := c.spec.Storage.GetOSDStoreFlag()
 	envVars := append(
 		osdActivateEnvVar(),
 		blockPathEnvVariable(osdInfo.BlockPath),
 		metadataDeviceEnvVar(osdInfo.MetadataPath),
 		walDeviceEnvVar(osdInfo.WalPath),
 		v1.EnvVar{Name: "ROOK_OSD_ID", Value: osdID},
+		v1.EnvVar{Name: "ROOK_OSD_UUID", Value: osdInfo.UUID},
+		v1.EnvVar{Name: "ROOK_OSD_STORE_FLAG", Value: osdStoreFlag},
+		cvModeEnvVariable(osdInfo.CVMode),
+		encryptedDeviceEnvVar(osdProps.storeConfig.EncryptedDevice),
 	)
 
 	// Build empty dir osd path to something like "/var/lib/ceph/osd/ceph-0"
@@ -928,13 +796,11 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		volMounts = append(volMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
 	}
 
-	osdStoreFlag := c.spec.Storage.GetOSDStoreFlag()
-
 	container := &v1.Container{
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(activateOSDOnNodeCode, osdInfo.UUID, osdStoreFlag, osdInfo.CVMode, blockPathVarName, osdProps.storeConfig.EncryptedDevice),
+			activateOSDOnNodeCode,
 		},
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,
