@@ -43,8 +43,16 @@ import (
 
 func newDeploymentSpecTest(t *testing.T) (*ReconcileCephNVMeOFGateway, string) {
 	clientset := optest.New(t, 1)
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
+			if command == "ceph" && arg[0] == "config" && arg[1] == "get" {
+				return "quay.io/ceph/nvmeof:1.5", nil
+			}
+			return "", nil
+		},
+	}
 	c := &clusterd.Context{
-		Executor:      &exectest.MockExecutor{},
+		Executor:      executor,
 		RookClientset: rookclient.NewSimpleClientset(),
 		Clientset:     clientset,
 	}
@@ -59,7 +67,6 @@ func newDeploymentSpecTest(t *testing.T) (*ReconcileCephNVMeOFGateway, string) {
 			TypeMeta: controllerTypeMeta,
 			Spec: cephv1.NVMeOFGatewaySpec{
 				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
 			},
@@ -97,7 +104,6 @@ func TestDeploymentSpec(t *testing.T) {
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
 				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 3,
 				Resources: v1.ResourceRequirements{
@@ -149,8 +155,6 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
-				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 3,
 				Resources: v1.ResourceRequirements{
@@ -198,7 +202,6 @@ func TestDeploymentSpec(t *testing.T) {
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
 				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 3,
 			},
@@ -228,7 +231,6 @@ func TestDeploymentSpec(t *testing.T) {
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
 				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 3,
 				Placement: cephv1.Placement{
@@ -271,7 +273,6 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.Empty(t, d.Spec.Template.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
 		assert.Equal(t, "topology.kubernetes.io/zone", d.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey)
 		assert.Equal(t, map[string]string{"app": "custom-app"}, d.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchLabels)
-
 		assert.Len(t, d.Spec.Template.Spec.TopologySpreadConstraints, 1)
 		assert.Equal(t, int32(2), d.Spec.Template.Spec.TopologySpreadConstraints[0].MaxSkew)
 		assert.Equal(t, "topology.kubernetes.io/zone", d.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey)
@@ -287,7 +288,6 @@ func TestDeploymentSpec(t *testing.T) {
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
 				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
 			},
@@ -316,7 +316,6 @@ func TestDeploymentSpec(t *testing.T) {
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
 				Image:        "quay.io/ceph/nvmeof:1.5",
-				Pool:         "nvmeof",
 				Group:        "group-a",
 				Instances:    1,
 				ConfigMapRef: "custom-configmap",
@@ -350,7 +349,6 @@ func TestDeploymentSpec(t *testing.T) {
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
 				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
 			},
@@ -370,7 +368,7 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.Contains(t, initCont.Args, "--keyring=/etc/ceph/keyring")
 
 		assertEnvVar(t, initCont.Env, "GATEWAY_NAME", instanceName(nvmeof, "0"))
-		assertEnvVar(t, initCont.Env, "POOL_NAME", nvmeof.Spec.Pool)
+		assertEnvVar(t, initCont.Env, "POOL_NAME", nvmeofPoolName)
 		assertEnvVar(t, initCont.Env, "ANA_GROUP", nvmeof.Spec.Group)
 		assertEnvVarPresent(t, initCont.Env, "POD_IP")
 
@@ -391,7 +389,6 @@ func TestDeploymentSpec(t *testing.T) {
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
 				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
 			},
@@ -433,19 +430,12 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
 			},
 		}
 
 		r, configHash := newDeploymentSpecTest(t)
-		executor := &exectest.MockExecutor{
-			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
-				return "quay.io/ceph/nvmeof:1.5", nil
-			},
-		}
-		r.context.Executor = executor
 
 		configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
 		d, err := r.makeDeployment(nvmeof, "0", configMapName, configHash)
@@ -464,7 +454,6 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
 			},
@@ -492,7 +481,6 @@ func TestDeploymentSpec(t *testing.T) {
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
 				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
 			},
@@ -513,7 +501,6 @@ func TestDeploymentSpec(t *testing.T) {
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
 				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
 			},
@@ -533,8 +520,6 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
-				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
 			},
@@ -582,8 +567,6 @@ func TestDeploymentSpec(t *testing.T) {
 				Namespace: "rook-ceph-test-ns",
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
-				Image:     "quay.io/ceph/nvmeof:1.5",
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
 				Ports: &cephv1.NVMeOFGatewayPorts{

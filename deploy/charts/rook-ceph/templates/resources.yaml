@@ -543,6 +543,7 @@ spec:
                     - .rgw.root
                     - .nfs
                     - .mgr
+                    - .nvmeof
                   type: string
                 parameters:
                   additionalProperties:
@@ -12402,10 +12403,6 @@ spec:
                         type: object
                       type: array
                   type: object
-                pool:
-                  description: Pool is the RADOS pool where NVMe-oF configuration is stored
-                  minLength: 1
-                  type: string
                 ports:
                   description: Ports configuration for the NVMe-oF gateway
                   properties:
@@ -12499,7 +12496,6 @@ spec:
               required:
                 - group
                 - instances
-                - pool
               type: object
             status:
               description: NVMeOFGatewayStatus represents the status of Ceph NVMe-oF Gateway

@@ -4571,17 +4571,6 @@ int
 </tr>
 <tr>
 <td>
-<code>pool</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Pool is the RADOS pool where NVMe-oF configuration is stored</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>group</code><br/>
 <em>
 string
@@ -10865,17 +10854,6 @@ int
 </td>
 <td>
 <p>The number of active gateway instances</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>pool</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Pool is the RADOS pool where NVMe-oF configuration is stored</p>
 </td>
 </tr>
 <tr>
