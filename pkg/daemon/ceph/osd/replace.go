@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/sys"
 )
 
 // cvLVMListEntry is one entry in the output of `ceph-volume lvm list <id>`.
@@ -154,6 +155,10 @@ func (a *OsdAgent) preProvisionReplacedOSDs(context *clusterd.Context, available
 		logger.Debug("no destroyed osd slots belong to this node, skipping replacement provisioning")
 		return nil
 	}
+	destroyedDeviceClasses, err := getDestroyedOSDDeviceClasses(context, a.clusterInfo, destroyedOSDIds)
+	if err != nil {
+		return errors.Wrap(err, "failed to get device classes for destroyed osds")
+	}
 	// Sort so the slot<->device pairing is reproducible across reconciles and operator restarts.
 	sort.Ints(destroyedOSDIds)
 	logger.Infof("destroyed osd slots on this node eligible for replacement: %v", destroyedOSDIds)
@@ -167,33 +172,115 @@ func (a *OsdAgent) preProvisionReplacedOSDs(context *clusterd.Context, available
 	// A device is only offered once it is empty, so an available blank device is the signal that the
 	// disk has been swapped.
 	blankDevices := availableDataDevices(available)
-	for i, osdID := range destroyedOSDIds {
+	blankDeviceClasses := getBlankDeviceClasses(available, blankDevices)
+
+	// sorts destroyedOSDIds and blankDevices to match by their devices classes
+	matchBlankAndDestroyedByDeviceClasses(destroyedOSDIds, destroyedDeviceClasses, blankDevices, blankDeviceClasses)
+
+	for i, destroyedID := range destroyedOSDIds {
 		if len(blankDevices) == 0 {
 			// blankDevices only shrinks, so once it is empty the remaining destroyed slots stay unpaired.
 			logger.Infof("no blank device available yet, waiting for the disk(s) to be swapped to replace destroyed osd(s) %v", destroyedOSDIds[i:])
 			break
 		}
 		// select the first blank device from the list:
-		deviceName := blankDevices[0]
+		blankDevice := blankDevices[0]
 		blankDevices = blankDevices[1:]
+
+		destroyedDC, blankDC := destroyedDeviceClasses[destroyedID], blankDeviceClasses[blankDevice]
+		// device class matching is best-effort. Otherwise log and force destroyed OSD device class
+		if destroyedDC != "" && blankDC != "" && !isDeviceClassMatch(destroyedDC, blankDC) {
+			logger.Warningf("replace osd: changing blank device %q device class %q to destroyed OSD device class %q for osd.%d", blankDevice, blankDC, destroyedDC, destroyedID)
+		}
 
 		// Consume the device up front so the normal provisioning path never claims it as a brand-new
 		// OSD, whether or not this slot succeeds.
-		entry := available.Entries[deviceName]
-		delete(available.Entries, deviceName)
+		entry := available.Entries[blankDevice]
+		delete(available.Entries, blankDevice)
 
 		// provision selected blank device into destroyed osdID slot:
-		if err := a.provisionReplacedOSD(context, osdID, entry); err != nil {
+		if err := a.provisionReplacedOSD(context, destroyedID, entry); err != nil {
 			// Skip this slot on failure so one bad slot does not block the other slots or the normal
 			// provisioning that runs after this. The destroyed slot stays destroyed and is retried on
 			// the next reconcile.
-			logger.Errorf("failed to provision replacement for destroyed osd.%d on device %q, skipping. %v", osdID, deviceName, err)
+			logger.Errorf("failed to provision replacement for destroyed osd.%d on device %q, skipping. %v", destroyedID, blankDevice, err)
 			continue
 		}
-		logger.Infof("provisioned replacement osd.%d on device %q", osdID, deviceName)
+		logger.Infof("provisioned replacement osd.%d on device %q", destroyedID, blankDevice)
 	}
 
 	return nil
+}
+
+// getDestroyedOSDDeviceClasses returns each destroyed slot's preserved CRUSH device class keyed by osd
+// id, fetched in a single `ceph osd crush get-device-class` call.
+func getDestroyedOSDDeviceClasses(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdIDs []int) (map[int]string, error) {
+	if len(osdIDs) == 0 {
+		return map[int]string{}, nil
+	}
+	ids := make([]string, len(osdIDs))
+	for i, id := range osdIDs {
+		ids[i] = strconv.Itoa(id)
+	}
+	deviceClasses, err := client.OSDDeviceClasses(context, clusterInfo, ids)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[int]string, len(deviceClasses))
+	for _, dc := range deviceClasses {
+		byID[dc.ID] = dc.DeviceClass
+	}
+	return byID, nil
+}
+
+// getBlankDeviceClasses maps each blank device name to the CRUSH device class implied by its disk type
+// (hdd/ssd/nvme), used to pair a replacement device with a destroyed slot's preserved class.
+func getBlankDeviceClasses(available *DeviceOsdMapping, blankDevices []string) map[string]string {
+	classes := make(map[string]string, len(blankDevices))
+	for _, name := range blankDevices {
+		classes[name] = sys.GetDiskDeviceType(available.Entries[name].DeviceInfo)
+	}
+	return classes
+}
+
+func matchBlankAndDestroyedByDeviceClasses(destroyedOSDIds []int, destroyedDeviceClasses map[int]string, blankDevices []string, blankDeviceClasses map[string]string) {
+	matchIdx := 0 // represents current slot for matching device. After sort done, equal to total num of matched devices
+	minLen := min(len(destroyedOSDIds), len(blankDevices))
+
+	// this loop sorts destroyed and blank slices inplace to have the same matching Device classes on the first n slots if exists
+	for matchIdx < minLen {
+		match := false
+		for i := matchIdx; i < len(destroyedOSDIds); i++ {
+			destroyedID := destroyedOSDIds[i]
+			destroyedDC := destroyedDeviceClasses[destroyedID]
+
+			for j := matchIdx; j < len(blankDevices); j++ {
+				blankDevice := blankDevices[j]
+				blankDC := blankDeviceClasses[blankDevice]
+
+				match = isDeviceClassMatch(destroyedDC, blankDC)
+				if !match {
+					continue
+				}
+				// found matching DC. Swap in both slices to the next available index and increment:
+				blankDevices[matchIdx], blankDevices[j] = blankDevices[j], blankDevices[matchIdx]
+				destroyedOSDIds[matchIdx], destroyedOSDIds[i] = destroyedOSDIds[i], destroyedOSDIds[matchIdx]
+				matchIdx++
+				break
+			}
+			if match {
+				break
+			}
+		}
+		if !match {
+			// no more matching devices, stop
+			break
+		}
+	}
+}
+
+func isDeviceClassMatch(a, b string) bool {
+	return a != "" && b != "" && a == b
 }
 
 // availableDataDevices returns the names of blank, unassigned data devices, sorted so the
