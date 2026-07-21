@@ -1362,7 +1362,7 @@ Placement
 </td>
 <td>
 <em>(Optional)</em>
-<p>The affinity to place the rgw pods (default is to place on any available node)</p>
+<p>The affinity to place the cephfs-mirror pods (default is to place on any available node)</p>
 </td>
 </tr>
 <tr>
@@ -2605,7 +2605,7 @@ Placement
 </td>
 <td>
 <em>(Optional)</em>
-<p>The affinity to place the rgw pods (default is to place on any available node)</p>
+<p>The affinity to place the rbd mirror pods (default is to place on any available node)</p>
 </td>
 </tr>
 <tr>
@@ -7547,7 +7547,7 @@ Placement
 </td>
 <td>
 <em>(Optional)</em>
-<p>The affinity to place the rgw pods (default is to place on any available node)</p>
+<p>The affinity to place the cephfs-mirror pods (default is to place on any available node)</p>
 </td>
 </tr>
 <tr>
@@ -14133,7 +14133,7 @@ Placement
 </td>
 <td>
 <em>(Optional)</em>
-<p>The affinity to place the rgw pods (default is to place on any available node)</p>
+<p>The affinity to place the rbd mirror pods (default is to place on any available node)</p>
 </td>
 </tr>
 <tr>
