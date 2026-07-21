@@ -44,7 +44,7 @@ import (
 const (
 	// test with the latest releases
 	squidTestImage    = "quay.io/ceph/ceph:v19"
-	tentacleTestImage = "quay.io/ceph/ceph:v20"
+	tentacleTestImage = "eninkaduk658/ceph:default-user"
 	umbrellaTestImage = "quay.io/ceph/ceph:v21"
 	// test with the current development versions
 	squidDevelTestImage    = "quay.ceph.io/ceph-ci/ceph:squid"
