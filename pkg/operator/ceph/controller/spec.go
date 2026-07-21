@@ -743,6 +743,15 @@ func DefaultContainerSecurityContext() *v1.SecurityContext {
 	}
 }
 
+// RootContainerSecurityContext explicitly sets the user as root for init containers operation
+func RootContainerSecurityContext() *v1.SecurityContext {
+	context := DefaultContainerSecurityContext()
+	rootUser := int64(0)
+	context.RunAsUser = &rootUser
+	context.RunAsGroup = &rootUser
+	return context
+}
+
 // PodSecurityContext detects if the pod needs privileges to run
 func CephSecurityContext() *v1.SecurityContext {
 	context := DefaultContainerSecurityContext()
@@ -763,6 +772,7 @@ func PrivilegedContext(runAsRoot bool) *v1.SecurityContext {
 
 	if runAsRoot {
 		sec.RunAsUser = &rootUser
+		sec.RunAsGroup = &rootUser
 	}
 
 	sec.Capabilities = &v1.Capabilities{

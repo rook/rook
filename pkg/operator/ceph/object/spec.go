@@ -358,7 +358,7 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    volumeMounts,
 		Resources:       c.store.Spec.Gateway.Resources,
-		SecurityContext: controller.DefaultContainerSecurityContext(),
+		SecurityContext: controller.RootContainerSecurityContext(),
 	}
 }
 
@@ -395,7 +395,7 @@ func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig, kmsEnabled
 		VolumeMounts: append(
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), vaultVolMounts...),
 		Resources:       c.store.Spec.Gateway.Resources,
-		SecurityContext: controller.DefaultContainerSecurityContext(),
+		SecurityContext: controller.RootContainerSecurityContext(),
 	}
 }
 
@@ -406,7 +406,7 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 		controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 		c.store.Spec.Gateway.Resources,
-		controller.DefaultContainerSecurityContext(),
+		controller.RootContainerSecurityContext(),
 		"",
 	)
 }
