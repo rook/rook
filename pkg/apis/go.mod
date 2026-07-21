@@ -1,6 +1,6 @@
 module github.com/rook/rook/pkg/apis
 
-go 1.26.0
+go 1.26.4
 
 replace (
 	// TODO: remove this replace once https://github.com/libopenstorage/secrets/pull/83 is merged
