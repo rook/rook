@@ -96,6 +96,38 @@ type subvolumeGroupInfo struct {
 	DataPool   string `json:"data_pool"`
 }
 
+// UnmarshalJSON handles the bytes_quota field, which Ceph reports as the JSON
+// string "infinite" when no quota is set (see Ceph's Group.info) and as a
+// number otherwise. The "infinite" sentinel is mapped to 0 (unlimited).
+func (s *subvolumeGroupInfo) UnmarshalJSON(data []byte) error {
+	type subvolumeGroupInfoAlias subvolumeGroupInfo
+	aux := &struct {
+		BytesQuota json.RawMessage `json:"bytes_quota"`
+		*subvolumeGroupInfoAlias
+	}{
+		subvolumeGroupInfoAlias: (*subvolumeGroupInfoAlias)(s),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+
+	if len(aux.BytesQuota) == 0 || string(aux.BytesQuota) == "null" {
+		s.BytesQuota = 0
+		return nil
+	}
+
+	var quotaStr string
+	if err := json.Unmarshal(aux.BytesQuota, &quotaStr); err == nil {
+		if quotaStr == "infinite" {
+			s.BytesQuota = 0
+			return nil
+		}
+		return errors.Errorf("unexpected bytes_quota value %q", quotaStr)
+	}
+
+	return json.Unmarshal(aux.BytesQuota, &s.BytesQuota)
+}
+
 // getCephFSSubVolumeGroupInfo get subvolumegroup info of the group name.
 // volName is the name of the Ceph FS volume, the same as the CephFilesystem CR name.
 func getCephFSSubVolumeGroupInfo(context *clusterd.Context, clusterInfo *ClusterInfo, volName, groupName string) (*subvolumeGroupInfo, error) {
