@@ -222,22 +222,24 @@ func archiveCrash(clusterdContext *clusterd.Context, clusterInfo *client.Cluster
 		logger.Errorf("failed to list ceph crash. %v", err)
 		return
 	}
-	if crash != nil {
+	if len(crash) == 0 {
 		logger.Info("no ceph crash to silence")
 		return
 	}
 
-	var crashID string
+	osdEntity := fmt.Sprintf("osd.%d", osdID)
+	matched := false
 	for _, c := range crash {
-		if c.Entity == fmt.Sprintf("osd.%d", osdID) {
-			crashID = c.ID
-			break
+		if c.Entity != osdEntity {
+			continue
+		}
+		matched = true
+		if err := client.ArchiveCrash(clusterdContext, clusterInfo, c.ID); err != nil {
+			logger.Errorf("failed to archive the crash %q. %v", c.ID, err)
 		}
 	}
-
-	err = client.ArchiveCrash(clusterdContext, clusterInfo, crashID)
-	if err != nil {
-		logger.Errorf("failed to archive the crash %q. %v", crashID, err)
+	if !matched {
+		logger.Infof("no ceph crash for osd.%d to silence", osdID)
 	}
 }
 
