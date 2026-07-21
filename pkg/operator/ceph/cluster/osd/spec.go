@@ -78,6 +78,9 @@ var cephOSDStart string
 //go:embed keyring-update.sh
 var keyUpdateScript string
 
+//go:embed blockdevmapper.sh
+var blockDevMapper string
+
 const (
 	activateOSDOnNodeCode = `
 set -o errexit
@@ -274,27 +277,6 @@ fi
 	// The previous "block" is still 8:32 so if we don't override it we will try to initialize on a disk that is not an OSD or worse another OSD
 	// This is mainly because in https://github.com/rook/rook/commit/ae8dcf7cc3b51cf8ca7da22f48b7a58887536c4f we switched to use HostPath to store the OSD data
 	// Since HostPath is not ephemeral, the block file must be re-hydrated each time the deployment starts
-	blockDevMapper = `
-set -xe
-
-PVC_SOURCE=%s
-PVC_DEST=%s
-CP_ARGS=(--archive --dereference --verbose)
-
-if [ -b "$PVC_DEST" ]; then
-	PVC_SOURCE_MAJ_MIN=$(stat --format '%%t%%T' $PVC_SOURCE)
-	PVC_DEST_MAJ_MIN=$(stat --format '%%t%%T' $PVC_DEST)
-	if [[ "$PVC_SOURCE_MAJ_MIN" == "$PVC_DEST_MAJ_MIN" ]]; then
-		echo "PVC $PVC_DEST already exists and has the same major and minor as $PVC_SOURCE: "$PVC_SOURCE_MAJ_MIN""
-		exit 0
-	else
-		echo "PVC's source major/minor numbers changed"
-		CP_ARGS+=(--remove-destination)
-	fi
-fi
-
-cp "${CP_ARGS[@]}" "$PVC_SOURCE" "$PVC_DEST"
-`
 )
 
 // OSDs on PVC using a certain fast storage class need to do some tuning
@@ -1043,7 +1025,10 @@ func (c *Cluster) getPVCInitContainer(osdProps osdProperties) v1.Container {
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.pvc.ClaimName), fmt.Sprintf("/mnt/%s", osdProps.pvc.ClaimName)),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.pvc.ClaimName),
+			fmt.Sprintf("/mnt/%s", osdProps.pvc.ClaimName),
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -1076,7 +1061,10 @@ func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProp
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.pvc.ClaimName), cpDestinationName),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.pvc.ClaimName),
+			cpDestinationName,
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -1187,7 +1175,10 @@ func (c *Cluster) generateEncryptionCopyBlockContainer(resources v1.ResourceRequ
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, EncryptionDMPath(pvcName, blockType), path.Join(mountPath, blockName)),
+			blockDevMapper,
+			"--",
+			EncryptionDMPath(pvcName, blockType),
+			path.Join(mountPath, blockName),
 		},
 		// volumeMountPVCName is crucial, especially when the block we copy is the metadata block
 		// its value must be the name of the block PV so that all init containers use the same bridge (the emptyDir shared by all the init containers)
@@ -1226,7 +1217,10 @@ func (c *Cluster) getPVCMetadataInitContainer(mountPath string, osdProps osdProp
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName), fmt.Sprintf("/srv/%s", osdProps.metadataPVC.ClaimName)),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName),
+			fmt.Sprintf("/srv/%s", osdProps.metadataPVC.ClaimName),
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -1264,7 +1258,10 @@ func (c *Cluster) getPVCMetadataInitContainerActivate(mountPath string, osdProps
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName), cpDestinationName),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName),
+			cpDestinationName,
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -1288,7 +1285,10 @@ func (c *Cluster) getPVCWalInitContainer(mountPath string, osdProps osdPropertie
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.walPVC.ClaimName), fmt.Sprintf("/wal/%s", osdProps.walPVC.ClaimName)),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.walPVC.ClaimName),
+			fmt.Sprintf("/wal/%s", osdProps.walPVC.ClaimName),
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -1326,7 +1326,10 @@ func (c *Cluster) getPVCWalInitContainerActivate(mountPath string, osdProps osdP
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.walPVC.ClaimName), cpDestinationName),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.walPVC.ClaimName),
+			cpDestinationName,
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
