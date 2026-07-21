@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1597,4 +1598,51 @@ func TestFloatingMonLabelsAndSchedulingSkip(t *testing.T) {
 	assert.Contains(t, scheduled, "a")
 	assert.Contains(t, scheduled, "b")
 	assert.NotContains(t, scheduled, "c")
+}
+
+// TestAssignMonsConcurrentSchedulingFailure ensures assignMons does not race on
+// the shared failedMonSchedule flag when multiple mons fail to schedule at the
+// same time. Each mon is scheduled in its own goroutine, so several goroutines
+// can set failedMonSchedule concurrently. Run with -race to catch the write-write
+// data race.
+func TestAssignMonsConcurrentSchedulingFailure(t *testing.T) {
+	namespace := "ns"
+	c := newFloatingMonTestCluster(t, namespace)
+
+	origWaitForMonitorScheduling := waitForMonitorScheduling
+	defer func() { waitForMonitorScheduling = origWaitForMonitorScheduling }()
+
+	mons := []*monConfig{
+		{
+			ResourceName: "rook-ceph-mon-a", DaemonName: "a", Port: DefaultMsgr1Port,
+			DataPathMap: config.NewStatefulDaemonDataPathMap("/var/lib/rook", dataDirRelativeHostPath("a"), config.MonType, "a", namespace),
+		},
+		{
+			ResourceName: "rook-ceph-mon-b", DaemonName: "b", Port: DefaultMsgr1Port,
+			DataPathMap: config.NewStatefulDaemonDataPathMap("/var/lib/rook", dataDirRelativeHostPath("b"), config.MonType, "b", namespace),
+		},
+		{
+			ResourceName: "rook-ceph-mon-d", DaemonName: "d", Port: DefaultMsgr1Port,
+			DataPathMap: config.NewStatefulDaemonDataPathMap("/var/lib/rook", dataDirRelativeHostPath("d"), config.MonType, "d", namespace),
+		},
+	}
+
+	// release all scheduling goroutines at the same time so their concurrent
+	// writes to failedMonSchedule overlap, making the data race detectable
+	var ready sync.WaitGroup
+	ready.Add(len(mons))
+	start := make(chan struct{})
+	waitForMonitorScheduling = func(c *Cluster, d *apps.Deployment) (SchedulingResult, error) {
+		ready.Done()
+		<-start
+		return SchedulingResult{}, errors.New("mock scheduling failure")
+	}
+	go func() {
+		ready.Wait()
+		close(start)
+	}()
+
+	err := c.assignMons(mons, sets.New[string]())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to schedule mons")
 }
