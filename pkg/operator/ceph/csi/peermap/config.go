@@ -348,7 +348,10 @@ func decodePeerToken(token string) (*cephclient.PeerToken, error) {
 		return nil, errors.Wrap(err, "failed to unmarshal decoded token")
 	}
 
-	logger.Debugf("peer cluster info %+v", decodedTokenToGo)
+	// Log only the non-sensitive fields; the token embeds the peer cluster's
+	// cephx auth key (decodedTokenToGo.Key), which must never be logged.
+	logger.Debugf("decoded peer cluster info fsid=%q clientID=%q monHost=%q namespace=%q",
+		decodedTokenToGo.ClusterFSID, decodedTokenToGo.ClientID, decodedTokenToGo.MonHost, decodedTokenToGo.Namespace)
 
 	return &decodedTokenToGo, nil
 }
