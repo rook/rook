@@ -17,6 +17,7 @@ limitations under the License.
 package peermap
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -26,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
@@ -404,6 +406,23 @@ func TestDecodePeerToken(t *testing.T) {
 	// Invalid token
 	_, err = decodePeerToken("invalidToken")
 	assert.Error(t, err)
+}
+
+func TestDecodePeerTokenDoesNotLogSecret(t *testing.T) {
+	// The peer token embeds the peer cluster's cephx auth key, which must never
+	// be written to the operator logs, even at debug level.
+	logBuf := bytes.NewBuffer([]byte{})
+	capnslog.SetFormatter(capnslog.NewLogFormatter(logBuf, "", 0))
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+
+	decodedToken, err := decodePeerToken(fakeTokenPeer1)
+	assert.NoError(t, err)
+
+	logOutput := logBuf.String()
+	assert.NotEmpty(t, decodedToken.Key)
+	assert.NotContains(t, logOutput, decodedToken.Key)
+	// The non-sensitive fields are still useful for diagnostics.
+	assert.Contains(t, logOutput, decodedToken.Namespace)
 }
 
 func TestCreateOrUpdateConfig(t *testing.T) {
