@@ -82,7 +82,7 @@ jobs:
     if: github.repository == 'rook/rook'
     uses: ./.github/workflows/canary-integration-test.yml
     with:
-      ceph_images: '["quay.io/ceph/ceph:v19", "quay.io/ceph/ceph:v20", "quay.ceph.io/ceph-ci/ceph:main", "quay.ceph.io/ceph-ci/ceph:squid", "quay.ceph.io/ceph-ci/ceph:tentacle", "quay.ceph.io/ceph-ci/ceph:umbrella"]'
+      ceph_images: '["quay.io/ceph/ceph:v19", "quay.io/ceph/ceph:v20", "quay.io/ceph/ceph:v21", "quay.ceph.io/ceph-ci/ceph:main", "quay.ceph.io/ceph-ci/ceph:squid", "quay.ceph.io/ceph-ci/ceph:tentacle", "quay.ceph.io/ceph-ci/ceph:umbrella"]'
     secrets: inherit
 
   check-markdown-links:
