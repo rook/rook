@@ -7188,6 +7188,34 @@ k8s.io/apimachinery/pkg/api/resource.Quantity
 Value must be a multiple of 4096 (4Ki).</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>crushNumFailureDomains</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Number of failure domains to use for erasure coded chunk placement.
+When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+that distributes chunks across this many failure domains.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>crushOSDsPerFailureDomain</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Number of OSDs allowed per failure domain for erasure coded chunk placement.
+When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+that allows up to this many chunks on OSDs within each failure domain.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ExternalSpec">ExternalSpec
