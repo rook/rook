@@ -38,14 +38,14 @@ type OsdAgent struct {
 	storeConfig                  config.StoreConfig
 	kv                           *k8sutil.ConfigMapKVStore
 	pvcBacked                    bool
-	replaceOSD                   *oposd.OSDInfo
+	migrateOSD                   *oposd.OSDInfo
 	wipeDevicesFromOtherClusters bool
 }
 
 // NewAgent is the instantiation of the OSD agent
 func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice string, forceFormat bool,
 	storeConfig config.StoreConfig, clusterInfo *cephclient.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore,
-	replaceOSD *oposd.OSDInfo, pvcBacked, wipDevicesFromOtherClusters bool,
+	migrateOSD *oposd.OSDInfo, pvcBacked, wipDevicesFromOtherClusters bool,
 ) *OsdAgent {
 	return &OsdAgent{
 		devices:                      devices,
@@ -56,7 +56,7 @@ func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice
 		nodeName:                     nodeName,
 		kv:                           kv,
 		pvcBacked:                    pvcBacked,
-		replaceOSD:                   replaceOSD,
+		migrateOSD:                   migrateOSD,
 		wipeDevicesFromOtherClusters: wipDevicesFromOtherClusters,
 	}
 }
@@ -71,10 +71,10 @@ func getDeviceLVPath(context *clusterd.Context, deviceName string) string {
 	return output
 }
 
-// GetReplaceOSDId returns the OSD ID based on the device name
-func (a *OsdAgent) GetReplaceOSDId(device string) int {
-	if device == a.replaceOSD.BlockPath {
-		return a.replaceOSD.ID
+// getMigrateOSDId returns the OSD ID based on the device name
+func (a *OsdAgent) getMigrateOSDId(device string) int {
+	if device == a.migrateOSD.BlockPath {
+		return a.migrateOSD.ID
 	}
 
 	return -1

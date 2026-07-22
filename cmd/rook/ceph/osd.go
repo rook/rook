@@ -71,7 +71,7 @@ var (
 	ownerRefID                   string
 	clusterName                  string
 	osdID                        int
-	replaceOSDID                 int
+	migrateOSDID                 int
 	osdStoreType                 string
 	osdStringID                  string
 	osdUUID                      string
@@ -95,7 +95,7 @@ func addOSDFlags(command *cobra.Command) {
 	addOSDConfigFlags(provisionCmd)
 
 	// flags specific to provisioning
-	provisionCmd.Flags().IntVar(&replaceOSDID, "replace-osd", -1, "osd to be destroyed")
+	provisionCmd.Flags().IntVar(&migrateOSDID, "migrate-osd", -1, "osd to migrate in place")
 	provisionCmd.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
 	provisionCmd.Flags().StringVar(&osdDataDeviceFilter, "data-device-filter", "", "a regex filter for the device names to use, or \"all\"")
 	provisionCmd.Flags().StringVar(&osdDataDevicePathFilter, "data-device-path-filter", "", "a regex filter for the device path names to use")
@@ -265,18 +265,20 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "failed to generate ceph config")
 	}
 
-	// destroy the OSD using the OSD ID
-	var replaceOSD *oposd.OSDInfo
-	if replaceOSDID != -1 {
-		logger.Infof("destroying osd.%d and cleaning its backing device", replaceOSDID)
-		replaceOSD, err = osddaemon.DestroyOSD(context, &clusterInfo, replaceOSDID, cfg.pvcBacked)
+	// The --migrate-osd flag drives the OSD *migration* feature: reprovision an OSD in place on a
+	// config change (e.g. enabling encryption) by destroying and zapping it here, then reprovisioning
+	// the same id in this prepare job. This is distinct from the disk-swap OSD-replacement flow.
+	var migrateOSD *oposd.OSDInfo
+	if migrateOSDID != -1 {
+		logger.Infof("destroying osd.%d and cleaning its backing device", migrateOSDID)
+		migrateOSD, err = osddaemon.DestroyOSD(context, &clusterInfo, migrateOSDID, cfg.pvcBacked)
 		if err != nil {
-			rook.TerminateFatal(errors.Wrapf(err, "failed to destroy OSD %d.", replaceOSDID))
+			rook.TerminateFatal(errors.Wrapf(err, "failed to destroy OSD %d.", migrateOSDID))
 		}
 	}
 
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, forceFormat,
-		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, replaceOSD, cfg.pvcBacked, wipeDevicesFromOtherClusters)
+		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, migrateOSD, cfg.pvcBacked, wipeDevicesFromOtherClusters)
 
 	if cfg.metadataDevice != "" {
 		metaDevice = cfg.metadataDevice
