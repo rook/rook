@@ -179,17 +179,9 @@ To use the features provided by the CSI-Addons, the `csi-addons`
 containers need to be deployed in the RBD provisioner and nodeplugin pods,
 which are not enabled by default.
 
-Execute the following to enable the CSI-Addons sidecars:
+To enable the CSI-Addons sidecars, please set `deployCsiAddons` to `true` on `OperatorConfig` or `Driver`. After applying the setting, a new sidecar container named `csi-addons` will start automatically in the RBD CSI provisioner and nodeplugin pods.
 
-* Update the `rook-ceph-operator-config` configmap and patch the
-    following configuration:
-
-    ```console
-    kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_CSIADDONS": "true"'
-    ```
-
-* After enabling `CSI_ENABLE_CSIADDONS` in the configmap, a new sidecar container named `csi-addons`
-    will start automatically in the RBD CSI provisioner and nodeplugin pods.
+For details and examples, see [CSI-Addons sidecar](csi-configuration.md#csi-addons-sidecar).
 
 ### CSI-Addons Operations
 
@@ -212,6 +204,18 @@ CSI-Addons supports the following operations:
     * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.14.0/docs/encryptionkeyrotation.md#annotating-persistentvolumeclaims)
     * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.14.0/docs/encryptionkeyrotation.md#annotating-namespace)
     * [Annotating StorageClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.14.0/docs/encryptionkeyrotation.md#annotating-storageclass)
+
+## Network Fencing
+
+Network fencing automatically blocklists a Ceph client when its node has the
+`node.kubernetes.io/out-of-service` taint, and removes the blocklist entry once
+the taint is cleared and the cool-down period has passed. This protects
+against data corruption when a volume is rescheduled from a node that is
+assumed to be down but may still have active mounts.
+
+Currently, network fencing feature is supported in CephFS and RBD.
+
+For RBD, see the [Network Fencing](csi-configuration.md#network-fencing) section for configuration examples and the [Node Loss](../Block-Storage-RBD/block-storage.md#node-loss) section for the complete operational flow.
 
 ## Enable RBD and CephFS Encryption Support
 
