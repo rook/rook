@@ -3070,6 +3070,13 @@ type GaneshaServerSpec struct {
 	// +optional
 	HostNetwork *bool `json:"hostNetwork,omitempty"`
 
+	// The port the NFS server (NFS-Ganesha) will listen on for NFS clients. Defaults to 2049.
+	// Useful when host networking is enabled and the default NFS port is already in use.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port int32 `json:"port,omitempty"`
+
 	// A liveness-probe to verify that Ganesha server has valid run-time state.
 	// If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.
 	// +optional

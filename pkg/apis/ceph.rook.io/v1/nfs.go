@@ -49,6 +49,17 @@ func (n *CephNFS) IsHostNetwork(c *ClusterSpec) bool {
 	return c.Network.IsHost()
 }
 
+// DefaultNFSPort is the default port NFS-Ganesha listens on for NFS clients.
+const DefaultNFSPort int32 = 2049
+
+// GetPort returns the NFS listen port, or the default (2049) if unset.
+func (n *CephNFS) GetPort() int32 {
+	if n.Spec.Server.Port != 0 {
+		return n.Spec.Server.Port
+	}
+	return DefaultNFSPort
+}
+
 func (sec *NFSSecuritySpec) Validate() error {
 	if sec == nil {
 		return nil
