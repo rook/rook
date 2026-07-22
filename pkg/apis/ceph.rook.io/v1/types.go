@@ -1434,6 +1434,7 @@ type QuotaSpec struct {
 }
 
 // ErasureCodedSpec represents the spec for erasure code in a pool
+// +kubebuilder:validation:XValidation:message="crushNumFailureDomains and crushOSDsPerFailureDomain must be specified together",rule="(self.crushNumFailureDomains > 0 && self.crushOSDsPerFailureDomain > 0) || (self.crushNumFailureDomains == 0 && self.crushOSDsPerFailureDomain == 0)"
 type ErasureCodedSpec struct {
 	// Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
 	// This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
@@ -1457,6 +1458,22 @@ type ErasureCodedSpec struct {
 	// +kubebuilder:validation:Enum={"4Ki","16Ki","64Ki","256Ki","1Mi"}
 	// +optional
 	StripeUnit *resource.Quantity `json:"stripeUnit,omitempty"`
+
+	// Number of failure domains to use for erasure coded chunk placement.
+	// When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+	// that distributes chunks across this many failure domains.
+	// +kubebuilder:validation:XValidation:message="crushNumFailureDomains is immutable",rule="self == oldSelf"
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	CrushNumFailureDomains int32 `json:"crushNumFailureDomains,omitempty"`
+
+	// Number of OSDs allowed per failure domain for erasure coded chunk placement.
+	// When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+	// that allows up to this many chunks on OSDs within each failure domain.
+	// +kubebuilder:validation:XValidation:message="crushOSDsPerFailureDomain is immutable",rule="self == oldSelf"
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	CrushOSDsPerFailureDomain int32 `json:"crushOSDsPerFailureDomain,omitempty"`
 }
 
 // +genclient

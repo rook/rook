@@ -470,6 +470,28 @@ spec:
                         This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                       minimum: 0
                       type: integer
+                    crushNumFailureDomains:
+                      description: |-
+                        Number of failure domains to use for erasure coded chunk placement.
+                        When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                        that distributes chunks across this many failure domains.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                      x-kubernetes-validations:
+                        - message: crushNumFailureDomains is immutable
+                          rule: self == oldSelf
+                    crushOSDsPerFailureDomain:
+                      description: |-
+                        Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                        When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                        that allows up to this many chunks on OSDs within each failure domain.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                      x-kubernetes-validations:
+                        - message: crushOSDsPerFailureDomain is immutable
+                          rule: self == oldSelf
                     dataChunks:
                       description: |-
                         Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -496,6 +518,9 @@ spec:
                     - codingChunks
                     - dataChunks
                   type: object
+                  x-kubernetes-validations:
+                    - message: crushNumFailureDomains and crushOSDsPerFailureDomain must be specified together
+                      rule: (self.crushNumFailureDomains > 0 && self.crushOSDsPerFailureDomain > 0) || (self.crushNumFailureDomains == 0 && self.crushOSDsPerFailureDomain == 0)
                 failureDomain:
                   description: 'The failure domain: osd/host/(region or zone if available) - technically also any type in the crush map'
                   type: string
@@ -7786,6 +7811,28 @@ spec:
                               This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                             minimum: 0
                             type: integer
+                          crushNumFailureDomains:
+                            description: |-
+                              Number of failure domains to use for erasure coded chunk placement.
+                              When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                              that distributes chunks across this many failure domains.
+                            format: int32
+                            minimum: 1
+                            type: integer
+                            x-kubernetes-validations:
+                              - message: crushNumFailureDomains is immutable
+                                rule: self == oldSelf
+                          crushOSDsPerFailureDomain:
+                            description: |-
+                              Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                              When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                              that allows up to this many chunks on OSDs within each failure domain.
+                            format: int32
+                            minimum: 1
+                            type: integer
+                            x-kubernetes-validations:
+                              - message: crushOSDsPerFailureDomain is immutable
+                                rule: self == oldSelf
                           dataChunks:
                             description: |-
                               Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -7812,6 +7859,9 @@ spec:
                           - codingChunks
                           - dataChunks
                         type: object
+                        x-kubernetes-validations:
+                          - message: crushNumFailureDomains and crushOSDsPerFailureDomain must be specified together
+                            rule: (self.crushNumFailureDomains > 0 && self.crushOSDsPerFailureDomain > 0) || (self.crushNumFailureDomains == 0 && self.crushOSDsPerFailureDomain == 0)
                       failureDomain:
                         description: 'The failure domain: osd/host/(region or zone if available) - technically also any type in the crush map'
                         type: string
@@ -7996,6 +8046,28 @@ spec:
                             This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
+                        crushNumFailureDomains:
+                          description: |-
+                            Number of failure domains to use for erasure coded chunk placement.
+                            When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                            that distributes chunks across this many failure domains.
+                          format: int32
+                          minimum: 1
+                          type: integer
+                          x-kubernetes-validations:
+                            - message: crushNumFailureDomains is immutable
+                              rule: self == oldSelf
+                        crushOSDsPerFailureDomain:
+                          description: |-
+                            Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                            When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                            that allows up to this many chunks on OSDs within each failure domain.
+                          format: int32
+                          minimum: 1
+                          type: integer
+                          x-kubernetes-validations:
+                            - message: crushOSDsPerFailureDomain is immutable
+                              rule: self == oldSelf
                         dataChunks:
                           description: |-
                             Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -8022,6 +8094,9 @@ spec:
                         - codingChunks
                         - dataChunks
                       type: object
+                      x-kubernetes-validations:
+                        - message: crushNumFailureDomains and crushOSDsPerFailureDomain must be specified together
+                          rule: (self.crushNumFailureDomains > 0 && self.crushOSDsPerFailureDomain > 0) || (self.crushNumFailureDomains == 0 && self.crushOSDsPerFailureDomain == 0)
                     failureDomain:
                       description: 'The failure domain: osd/host/(region or zone if available) - technically also any type in the crush map'
                       type: string
@@ -12931,6 +13006,28 @@ spec:
                             This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
+                        crushNumFailureDomains:
+                          description: |-
+                            Number of failure domains to use for erasure coded chunk placement.
+                            When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                            that distributes chunks across this many failure domains.
+                          format: int32
+                          minimum: 1
+                          type: integer
+                          x-kubernetes-validations:
+                            - message: crushNumFailureDomains is immutable
+                              rule: self == oldSelf
+                        crushOSDsPerFailureDomain:
+                          description: |-
+                            Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                            When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                            that allows up to this many chunks on OSDs within each failure domain.
+                          format: int32
+                          minimum: 1
+                          type: integer
+                          x-kubernetes-validations:
+                            - message: crushOSDsPerFailureDomain is immutable
+                              rule: self == oldSelf
                         dataChunks:
                           description: |-
                             Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -12957,6 +13054,9 @@ spec:
                         - codingChunks
                         - dataChunks
                       type: object
+                      x-kubernetes-validations:
+                        - message: crushNumFailureDomains and crushOSDsPerFailureDomain must be specified together
+                          rule: (self.crushNumFailureDomains > 0 && self.crushOSDsPerFailureDomain > 0) || (self.crushNumFailureDomains == 0 && self.crushOSDsPerFailureDomain == 0)
                     failureDomain:
                       description: 'The failure domain: osd/host/(region or zone if available) - technically also any type in the crush map'
                       type: string
@@ -14588,6 +14688,28 @@ spec:
                             This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
+                        crushNumFailureDomains:
+                          description: |-
+                            Number of failure domains to use for erasure coded chunk placement.
+                            When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                            that distributes chunks across this many failure domains.
+                          format: int32
+                          minimum: 1
+                          type: integer
+                          x-kubernetes-validations:
+                            - message: crushNumFailureDomains is immutable
+                              rule: self == oldSelf
+                        crushOSDsPerFailureDomain:
+                          description: |-
+                            Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                            When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                            that allows up to this many chunks on OSDs within each failure domain.
+                          format: int32
+                          minimum: 1
+                          type: integer
+                          x-kubernetes-validations:
+                            - message: crushOSDsPerFailureDomain is immutable
+                              rule: self == oldSelf
                         dataChunks:
                           description: |-
                             Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -14614,6 +14736,9 @@ spec:
                         - codingChunks
                         - dataChunks
                       type: object
+                      x-kubernetes-validations:
+                        - message: crushNumFailureDomains and crushOSDsPerFailureDomain must be specified together
+                          rule: (self.crushNumFailureDomains > 0 && self.crushOSDsPerFailureDomain > 0) || (self.crushNumFailureDomains == 0 && self.crushOSDsPerFailureDomain == 0)
                     failureDomain:
                       description: 'The failure domain: osd/host/(region or zone if available) - technically also any type in the crush map'
                       type: string
@@ -15698,6 +15823,28 @@ spec:
                             This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
+                        crushNumFailureDomains:
+                          description: |-
+                            Number of failure domains to use for erasure coded chunk placement.
+                            When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                            that distributes chunks across this many failure domains.
+                          format: int32
+                          minimum: 1
+                          type: integer
+                          x-kubernetes-validations:
+                            - message: crushNumFailureDomains is immutable
+                              rule: self == oldSelf
+                        crushOSDsPerFailureDomain:
+                          description: |-
+                            Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                            When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                            that allows up to this many chunks on OSDs within each failure domain.
+                          format: int32
+                          minimum: 1
+                          type: integer
+                          x-kubernetes-validations:
+                            - message: crushOSDsPerFailureDomain is immutable
+                              rule: self == oldSelf
                         dataChunks:
                           description: |-
                             Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -15724,6 +15871,9 @@ spec:
                         - codingChunks
                         - dataChunks
                       type: object
+                      x-kubernetes-validations:
+                        - message: crushNumFailureDomains and crushOSDsPerFailureDomain must be specified together
+                          rule: (self.crushNumFailureDomains > 0 && self.crushOSDsPerFailureDomain > 0) || (self.crushNumFailureDomains == 0 && self.crushOSDsPerFailureDomain == 0)
                     failureDomain:
                       description: 'The failure domain: osd/host/(region or zone if available) - technically also any type in the crush map'
                       type: string
@@ -15903,6 +16053,28 @@ spec:
                             This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
+                        crushNumFailureDomains:
+                          description: |-
+                            Number of failure domains to use for erasure coded chunk placement.
+                            When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                            that distributes chunks across this many failure domains.
+                          format: int32
+                          minimum: 1
+                          type: integer
+                          x-kubernetes-validations:
+                            - message: crushNumFailureDomains is immutable
+                              rule: self == oldSelf
+                        crushOSDsPerFailureDomain:
+                          description: |-
+                            Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                            When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                            that allows up to this many chunks on OSDs within each failure domain.
+                          format: int32
+                          minimum: 1
+                          type: integer
+                          x-kubernetes-validations:
+                            - message: crushOSDsPerFailureDomain is immutable
+                              rule: self == oldSelf
                         dataChunks:
                           description: |-
                             Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -15929,6 +16101,9 @@ spec:
                         - codingChunks
                         - dataChunks
                       type: object
+                      x-kubernetes-validations:
+                        - message: crushNumFailureDomains and crushOSDsPerFailureDomain must be specified together
+                          rule: (self.crushNumFailureDomains > 0 && self.crushOSDsPerFailureDomain > 0) || (self.crushNumFailureDomains == 0 && self.crushOSDsPerFailureDomain == 0)
                     failureDomain:
                       description: 'The failure domain: osd/host/(region or zone if available) - technically also any type in the crush map'
                       type: string

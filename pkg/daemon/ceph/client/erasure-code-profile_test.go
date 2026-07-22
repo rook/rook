@@ -29,27 +29,33 @@ import (
 )
 
 func TestCreateProfile(t *testing.T) {
-	testCreateProfile(t, "", "myroot", "")
+	testCreateProfile(t, "", "myroot", "", 0, 0)
 }
 
 func TestCreateProfileWithFailureDomain(t *testing.T) {
-	testCreateProfile(t, "osd", "", "")
+	testCreateProfile(t, "osd", "", "", 0, 0)
 }
 
 func TestCreateProfileWithDeviceClass(t *testing.T) {
-	testCreateProfile(t, "osd", "", "hdd")
+	testCreateProfile(t, "osd", "", "hdd", 0, 0)
 }
 
-func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass string) {
+func TestCreateProfileWithMSR(t *testing.T) {
+	testCreateProfile(t, "host", "", "", 5, 3)
+}
+
+func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass string, failureDomains, osdsPerDomain int32) {
 	stripeUnit := resource.MustParse("4Ki")
 	spec := cephv1.PoolSpec{
 		FailureDomain: failureDomain,
 		CrushRoot:     crushRoot,
 		DeviceClass:   deviceClass,
 		ErasureCoded: cephv1.ErasureCodedSpec{
-			DataChunks:   2,
-			CodingChunks: 3,
-			StripeUnit:   &stripeUnit,
+			DataChunks:                2,
+			CodingChunks:              3,
+			StripeUnit:                &stripeUnit,
+			CrushNumFailureDomains:    failureDomains,
+			CrushOSDsPerFailureDomain: osdsPerDomain,
 		},
 	}
 
@@ -80,6 +86,14 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 				}
 				if deviceClass != "" {
 					assert.Equal(t, fmt.Sprintf("crush-device-class=%s", deviceClass), args[nextArg])
+					nextArg++
+				}
+				if failureDomains > 0 {
+					assert.Equal(t, fmt.Sprintf("crush-num-failure-domains=%d", failureDomains), args[nextArg])
+					nextArg++
+				}
+				if osdsPerDomain > 0 {
+					assert.Equal(t, fmt.Sprintf("crush-osds-per-failure-domain=%d", osdsPerDomain), args[nextArg])
 					nextArg++
 				}
 				if spec.ErasureCoded.StripeUnit != nil && !spec.ErasureCoded.StripeUnit.IsZero() {
