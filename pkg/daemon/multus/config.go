@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v3"
 	corev1 "k8s.io/api/core/v1"
 	metavalidation "k8s.io/apimachinery/pkg/util/validation"
 )

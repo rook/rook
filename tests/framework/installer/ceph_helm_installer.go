@@ -23,7 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v3"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
