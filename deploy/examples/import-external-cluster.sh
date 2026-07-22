@@ -469,10 +469,8 @@ eof
 ########
 checkEnvVars
 createClusterNamespace
-importClusterID
-importSecret
-importConfigMap
-createInputCommadConfigMap
+# create the csi secret before creating the mon cm
+# as the cluster controller will look for the csi secrets for creating client profile
 if [ -n "$CSI_RBD_NODE_SECRET_NAME" ] && [ -n "$CSI_RBD_NODE_SECRET" ]; then
   importCsiRBDNodeSecret
 fi
@@ -488,6 +486,13 @@ fi
 if [ -n "$CSI_CEPHFS_PROVISIONER_SECRET_NAME" ] && [ -n "$CSI_CEPHFS_PROVISIONER_SECRET" ]; then
   importCsiCephFSProvisionerSecret
 fi
+importSecret
+importConfigMap
+createInputCommadConfigMap
+# the order of creating the svg and rns is important,
+# the svg and rns controller is dependent on the ceph health,
+# so first we should create the mon secret to get the cephcluster `health ok`
+importClusterID
 if [ -n "$RBD_POOL_NAME" ]; then
   if [ -n "$RBD_METADATA_EC_POOL_NAME" ]; then
     createECRBDStorageClass
