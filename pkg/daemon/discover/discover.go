@@ -281,8 +281,9 @@ func checkDeviceListsEqual(oldDevs, newDevs []sys.LocalDisk) bool {
 			// device has been removed
 			return false
 		}
-		if !oldDev.Empty && match.Empty {
-			// device has changed from non-empty to empty
+		if oldDev.Empty != match.Empty {
+			// device changed between empty and in-use (either direction)
+			// from empty to in-usesed triggers discovery for osd replacement flow
 			return false
 		}
 		if oldDev.Partitions != nil && match.Partitions == nil {

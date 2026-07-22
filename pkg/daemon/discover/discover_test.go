@@ -350,9 +350,10 @@ func TestDeviceListsEqual(t *testing.T) {
 	))
 
 	// devices are the same, but transition from empty to non-empty (e.g. the
-	// dev is now in use). in this case we consider the lists to be equal (i.e.
-	// no interesting change).
-	assert.True(t, checkDeviceListsEqual(
+	// dev is now in use). this is of interest too: recording the in-use state
+	// is what lets a later in-use->empty transition (e.g. a disk swap during
+	// OSD replacement) be detected against a correct baseline.
+	assert.False(t, checkDeviceListsEqual(
 		[]sys.LocalDisk{
 			{
 				UUID:  "uuid",
