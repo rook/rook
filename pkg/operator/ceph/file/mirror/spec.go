@@ -104,7 +104,7 @@ func (r *ReconcileFilesystemMirror) makeChownInitContainer(daemonConfig *daemonC
 		controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 		fsMirror.Spec.Resources,
-		controller.DefaultContainerSecurityContext(),
+		controller.RootContainerSecurityContext(),
 		"",
 	)
 }
