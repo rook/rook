@@ -173,6 +173,9 @@ cephClusterSpec:
     # Serve the dashboard using SSL (if using ingress to expose the dashboard and `ssl: true` you need to set
     # the corresponding "backend protocol" annotation(s) for your ingress controller of choice)
     ssl: true
+    # The Kubernetes secret name in the current namespace to use as the dashboard SSL certificate, if the secret
+    # type is kubernetes.io/tls and the private key is RSA. If not set, a self-signed certificate is created.
+    # sslCertificateRef: rook-ceph-dashboard-tls
 
   # Network configuration, see: https://github.com/rook/rook/blob/master/Documentation/CRDs/Cluster/ceph-cluster-crd.md#network-configuration-settings
   network:

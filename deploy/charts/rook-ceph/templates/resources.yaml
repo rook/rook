@@ -1731,6 +1731,12 @@ spec:
                     ssl:
                       description: SSL determines whether SSL should be used
                       type: boolean
+                    sslCertificateRef:
+                      description: SSLCertificateRef references a Kubernetes secret of type kubernetes.io/tls in the CephCluster namespace. If set, Rook will configure the dashboard with this certificate instead of creating a self-signed certificate. The secret must contain an RSA private key because the Ceph dashboard does not support ECDSA/EC private keys.
+                      maxLength: 253
+                      minLength: 1
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                      type: string
                     urlPrefix:
                       description: URLPrefix is a prefix for all URLs to use the dashboard with a reverse proxy
                       type: string

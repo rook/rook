@@ -533,6 +533,12 @@ type DashboardSpec struct {
 	// SSL determines whether SSL should be used
 	// +optional
 	SSL bool `json:"ssl,omitempty"`
+	// SSLCertificateRef references a Kubernetes secret of type kubernetes.io/tls in the CephCluster namespace. If set, Rook will configure the dashboard with this certificate instead of creating a self-signed certificate. The secret must contain an RSA private key because the Ceph dashboard does not support ECDSA/EC private keys.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	// +optional
+	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
 	// Endpoint for the Prometheus host
 	// +optional
 	PrometheusEndpoint string `json:"prometheusEndpoint,omitempty"`
