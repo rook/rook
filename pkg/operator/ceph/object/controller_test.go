@@ -20,7 +20,9 @@ package object
 import (
 	"context"
 	"os"
+	osexec "os/exec"
 	"reflect"
+	"syscall"
 	"testing"
 	"time"
 
@@ -39,6 +41,7 @@ import (
 	"github.com/rook/rook/pkg/util/dependents"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -46,6 +49,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
+	kexec "k8s.io/client-go/util/exec"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -975,6 +979,89 @@ func TestCephObjectStoreControllerZoneNotReady(t *testing.T) {
 			assert.True(t, res.RequeueAfter > 0, "expected requeue while waiting for zone Ready")
 		})
 	}
+}
+
+func TestRetrieveMultisiteZone(t *testing.T) {
+	// When "radosgw-admin zone get" fails with ENOENT the Ceph zone does not exist
+	// yet (the CephObjectZone is configured asynchronously by its own controller).
+	// retrieveMultisiteZone must return a non-nil error so the caller requeues and
+	// waits for the zone, instead of proceeding to reconcile the object store
+	// against a zone that is not there.
+	zoneName := "zone-a"
+	zoneGroupName := "zonegroup-a"
+	realmName := "realm-a"
+
+	objectStore := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store,
+			Namespace: namespace,
+		},
+	}
+	objectStore.Spec.Zone.Name = zoneName
+
+	newReconciler := func(zoneGetErr error) *ReconcileCephObjectStore {
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				if args[0] == "zone" && args[1] == "get" {
+					return "", zoneGetErr
+				}
+				return "", nil
+			},
+		}
+		return &ReconcileCephObjectStore{
+			context:     &clusterd.Context{Executor: executor},
+			clusterInfo: client.AdminTestClusterInfo(namespace),
+		}
+	}
+
+	t.Run("zone not found returns an error and requeues", func(t *testing.T) {
+		enoentErr := kexec.CodeExitError{Err: errors.New("exit status 2"), Code: int(syscall.ENOENT)}
+		r := newReconciler(enoentErr)
+
+		res, err := r.retrieveMultisiteZone(objectStore, zoneGroupName, realmName)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+		assert.NotContains(t, err.Error(), "failed with code")
+		assert.True(t, res.RequeueAfter > 0, "expected requeue while waiting for the zone to be created")
+	})
+
+	t.Run("other zone get failure returns an error and requeues", func(t *testing.T) {
+		otherErr := kexec.CodeExitError{Err: errors.New("exit status 13"), Code: int(syscall.EACCES)}
+		r := newReconciler(otherErr)
+
+		res, err := r.retrieveMultisiteZone(objectStore, zoneGroupName, realmName)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed with code")
+		assert.NotContains(t, err.Error(), "not found")
+		assert.True(t, res.RequeueAfter > 0, "expected requeue on a zone get failure")
+	})
+
+	t.Run("os/exec ExitError from the non-multus path is handled", func(t *testing.T) {
+		// The non-multus path returns *exec.ExitError (os/exec), not the
+		// kexec.CodeExitError the multus proxy path returns. Use a real one so
+		// ExitStatus is exercised on the type that occurs without Multus; the
+		// ENOENT branch itself is covered by the kexec subtest above.
+		realErr := osexec.Command("false").Run() // genuine *exec.ExitError, exit code 1
+		require.IsType(t, &osexec.ExitError{}, realErr)
+		r := newReconciler(realErr)
+
+		res, err := r.retrieveMultisiteZone(objectStore, zoneGroupName, realmName)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed with code")
+		assert.True(t, res.RequeueAfter > 0, "expected requeue on a zone get failure")
+	})
+
+	t.Run("error ExitStatus cannot classify still requeues", func(t *testing.T) {
+		// An error that is neither *exec.ExitError nor kexec.CodeExitError makes
+		// ExitStatus return (0, false); the fix must still surface a non-nil
+		// error so the caller requeues rather than proceeding.
+		r := newReconciler(errors.New("connection refused"))
+
+		res, err := r.retrieveMultisiteZone(objectStore, zoneGroupName, realmName)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed with code")
+		assert.True(t, res.RequeueAfter > 0, "expected requeue on a zone get failure")
+	})
 }
 
 func TestCephObjectExternalStoreController(t *testing.T) {
