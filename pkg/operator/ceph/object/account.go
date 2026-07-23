@@ -18,9 +18,14 @@ package object
 
 import (
 	"context"
+	"fmt"
+	"syscall"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/log"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // GetAccount retrieves account information from RGW using the admin ops API.
@@ -67,14 +72,44 @@ func ModifyAccount(ctx context.Context, adminOpsContext *AdminOpsContext, accoun
 }
 
 // DeleteAccount removes an RGW account using the admin ops API.
-func DeleteAccount(ctx context.Context, adminOpsContext *AdminOpsContext, accountID string) error {
+func DeleteAccount(nsName types.NamespacedName, ctx context.Context, adminOpsContext *AdminOpsContext, accountID string) error {
 	if accountID == "" {
 		return errors.New("account ID cannot be empty")
 	}
 
 	err := adminOpsContext.AdminOpsClient.DeleteAccount(ctx, accountID)
 	if err != nil {
+		// If account doesn't exist, consider it successful (idempotent)
+		if errors.Is(err, admin.ErrNoSuchKey) {
+			log.NamedInfo(nsName, logger, "account %q not found, considering deletion successful", accountID)
+			return nil
+		}
 		return errors.Wrapf(err, "failed to delete account %q", accountID)
+	}
+
+	return nil
+}
+
+// ForceDeleteAccount removes an RGW account, even if it has associated users or buckets.
+func ForceDeleteAccount(nsName types.NamespacedName, adminOpsContext *AdminOpsContext, accountID string) error {
+	if accountID == "" {
+		return errors.New("account ID cannot be empty")
+	}
+
+	// run the cli cmd using --purge-data flag
+	if adminOpsContext == nil {
+		return errors.New("adminOpsContext cannot be nil")
+	}
+	// Rook should use admin ops API for this, but `--purge-data` isn't integrated yet. Swap this implementation when it is.
+	account := fmt.Sprintf("--account-id=%s", accountID)
+	_, err := runAdminCommand(&adminOpsContext.Context, false, "account", "rm", "--purge-data", account)
+	if err != nil {
+		// If account doesn't exist, consider it successful (idempotent)
+		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+			log.NamedInfo(nsName, logger, "account %q not found, considering force-deletion successful", accountID)
+			return nil
+		}
+		return errors.Wrapf(err, "failed to force delete account %q using CLI", accountID)
 	}
 
 	return nil

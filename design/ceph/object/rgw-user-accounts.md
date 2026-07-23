@@ -93,6 +93,7 @@ When a CephObjectStoreAccount resource is updated, the controller will:
 - If the root user was created (i.e., `spec.rootUser.skipCreate` is not `true`), the controller will first delete the root user via the admin ops API.
 - Then delete the account itself via the admin ops API.
 - Customer should ensure that all the additional users and buckets associated with the account are deleted before the deletion of the account or else the account deletion will fail.
+- If `rook.io/force-deletion: true` annotation is added to the `CephObjectStoreAccount` account CR, then it will force delete the account and its associated buckets and users.
 
 ## Root Account Users
 
