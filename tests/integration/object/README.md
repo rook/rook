@@ -38,12 +38,14 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `bucket/quota` | `object/bucket` | OBC maxObjects user quota + bucketMaxObjects/bucketMaxSize bucket quota |
 | `bucket/rw` | `object/bucket` | OBC S3 read/write/delete + OBC-stays-Bound |
 | `cosi` | `object/cosi` | CephCOSIDriver + COSI bucket provisioning |
+| `dependents` | `object` | CephObjectStore deletion blocked by dependents |
 | `notification` | `object/notification` | CephBucketNotification HTTP endpoint delivery |
 | `topic/kafka` | `object/topic` | CephBucketTopic kafka endpoints |
 | `user/caps` | `object/user` | user capabilities |
 | `user/keys` | `object/user` | explicit S3 key management |
 | `user/opmask` | `object/user` | user op_mask |
-| reserved: `tests/integration/object/lifecycle`, `tests/integration/object/dependents` | | future conversions |
+| `zonepools` | `object` | zone.json pool fields covered by Rook's shared-pool mapping |
+| reserved: `tests/integration/object/lifecycle` | | future conversions |
 
 Shared utilities live under `util/`:
 
@@ -209,6 +211,5 @@ verification; wire the dispatcher; delete the old code; retire
 
 | old test | target package(s) | still needs (build in that PR) |
 |---|---|---|
-| `testObjectStoreOperations` deletion-blocked-by-dependents | `tests/integration/object/dependents` | private-store fixture, store condition predicates in `wait4` |
-| `createCephObjectStore`/`runObjectE2ETestLite`/deletion asserts + zone.json canary | `tests/integration/object/lifecycle` | store create/health/delete helpers, `Sharedstore.Installer()` accessor |
+| `createCephObjectStore`/`runObjectE2ETestLite`/deletion asserts | `tests/integration/object/lifecycle` | store create/health/delete helpers |
 | upgrade-suite object usage | stays in upgrade suite | switch to typed clients + `wait4` |

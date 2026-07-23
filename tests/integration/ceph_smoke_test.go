@@ -126,7 +126,7 @@ func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
 	if utils.IsPlatformOpenShift() {
 		s.T().Skip("object store tests skipped on openshift")
 	}
-	store := sharedstore.Create(s.T(), s.k8sh, s.installer, false, s.settings.Namespace, "lite-store", 2)
+	store := sharedstore.Create(s.T(), s.k8sh, s.installer, false, s.settings.Namespace, "lite-store", 2, true)
 	store.Destroy()
 }
 
