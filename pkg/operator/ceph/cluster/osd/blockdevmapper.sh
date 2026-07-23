@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -xe
 
+if [ "$#" -ne 2 ]; then
+	echo "a source and a destination device path argument are required" >&2
+	exit 1
+fi
+
 PVC_SOURCE="$1"
 PVC_DEST="$2"
 CP_ARGS=(--archive --dereference --verbose)

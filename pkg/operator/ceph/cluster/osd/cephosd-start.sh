@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 set -o nounset # fail if variables are unset
+
+if [ -z "${ROOK_OSD_RESTART_INTERVAL:-}" ]; then
+	echo "required environment variable ROOK_OSD_RESTART_INTERVAL is not set" >&2
+	exit 1
+fi
+
 child_pid=""
 sigterm_received=false
 function sigterm() {
