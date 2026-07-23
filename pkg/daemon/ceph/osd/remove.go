@@ -85,8 +85,16 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 	}
 
 	// Check if we can safely remove the OSD
-	// Loop forever until the osd is safe-to-destroy
+	// Loop until the osd is safe-to-destroy or context is cancelled
 	for {
+		// Check if context has been cancelled
+		select {
+		case <-clusterInfo.Context.Done():
+			logger.Infof("context cancelled while waiting for osd.%d to be safe to destroy", osdID)
+			return
+		default:
+		}
+
 		isSafeToDestroy, err := client.OsdSafeToDestroy(clusterdContext, clusterInfo, osdID)
 		if err != nil {
 			// If we want to force remove the OSD and there was an error let's break outside of
@@ -96,8 +104,13 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 				break
 			} else {
 				logger.Errorf("failed to check if osd %d is safe to destroy, retrying in 1m. %v", osdID, err)
-				time.Sleep(1 * time.Minute)
-				continue
+				select {
+				case <-time.After(1 * time.Minute):
+					continue
+				case <-clusterInfo.Context.Done():
+					logger.Infof("context cancelled while waiting for osd.%d to be safe to destroy", osdID)
+					return
+				}
 			}
 		}
 
@@ -113,7 +126,13 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 			}
 			// Else we wait until the OSD can be removed
 			logger.Warningf("osd.%d is NOT ok to destroy, retrying in 15s until success", osdID)
-			time.Sleep(15 * time.Second)
+			select {
+			case <-time.After(15 * time.Second):
+				continue
+			case <-clusterInfo.Context.Done():
+				logger.Infof("context cancelled while waiting for osd.%d to be safe to destroy", osdID)
+				return
+			}
 		}
 	}
 
