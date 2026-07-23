@@ -985,4 +985,69 @@ func TestIsUserSync(t *testing.T) {
 
 		assert.False(t, isUserSync(&a, &b))
 	})
+
+	t.Run("DefaultPlacement same", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "HDD-EC",
+		}
+		b := admin.User{
+			DefaultPlacement: "HDD-EC",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultPlacement different", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "HDD-EC",
+		}
+		b := admin.User{}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass same", func(t *testing.T) {
+		a := admin.User{
+			DefaultStorageClass: "STANDARD_IA",
+		}
+		b := admin.User{
+			DefaultStorageClass: "STANDARD_IA",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass different", func(t *testing.T) {
+		a := admin.User{
+			DefaultStorageClass: "STANDARD_IA",
+		}
+		b := admin.User{}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass embedded in placement matches split form", func(t *testing.T) {
+		// the controller writes "<placement>/<class>" while rgw reports it back split
+		a := admin.User{
+			DefaultPlacement: "default/STANDARD_IA",
+		}
+		b := admin.User{
+			DefaultPlacement:    "default",
+			DefaultStorageClass: "STANDARD_IA",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass embedded in placement different from split form", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "default/STANDARD_IA",
+		}
+		b := admin.User{
+			DefaultPlacement:    "default",
+			DefaultStorageClass: "COLD",
+		}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
 }
