@@ -80,6 +80,25 @@ func DeleteAccount(ctx context.Context, adminOpsContext *AdminOpsContext, accoun
 	return nil
 }
 
+// ForceDeleteAccount removes an RGW account, even if it has associated users or buckets.
+func ForceDeleteAccount(adminOpsContext *AdminOpsContext, accountID string) error {
+	if accountID == "" {
+		return errors.New("account ID cannot be empty")
+	}
+
+	// run the cli cmd using --purge-data flag
+	if adminOpsContext == nil {
+		return errors.New("adminOpsContext cannot be nil")
+	}
+	// Rook should use admin ops API for this, but `--purge-data` isn't integrated yet. Swap this implementation when it is.
+	_, err := runAdminCommand(&adminOpsContext.Context, false, "account", "rm", "--purge-data", "--account", accountID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to force delete account %q using CLI", accountID)
+	}
+
+	return nil
+}
+
 // CreateAccountRootUser creates a root user for the given RGW account using the admin ops API.
 func CreateAccountRootUser(ctx context.Context, adminOpsContext *AdminOpsContext, user admin.User) (admin.User, error) {
 	if user.ID == "" {
