@@ -991,43 +991,79 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 		if err != nil {
 			return errors.Wrapf(err, "failed to clean up encrypted disks from other clusters")
 		}
-		return nil
-	}
-
-	for _, existingOSD := range existingOSDs {
-		// Wipe the devices that will be used for preparing OSD but already have OSD metadata from another ceph cluster
-		if existingOSD.CephFsid != a.clusterInfo.FSID {
-			osdID := existingOSD.OsdID
-			deviceToWipe := existingOSD.Device
-			osdDisk, encryptedBlock, err := getOSDDiskToBeWiped(context, existingOSD.Device)
-			if err != nil {
-				return errors.Wrapf(err, "failed to get the actual device path to be wiped for existing OSD %d with path %q", osdID, osdDisk.RealPath)
-			}
-			if osdDisk != nil {
-				deviceToWipe := osdDisk.RealPath
-				if encryptedBlock != "" {
-					err = RemoveEncryptedDevice(context, encryptedBlock)
-					if err != nil {
-						logger.Warningf("failed to remove stale dm device %q: %q", encryptedBlock, err)
-						continue
+	} else {
+		for _, existingOSD := range existingOSDs {
+			// Wipe the devices that will be used for preparing OSD but already have OSD metadata from another ceph cluster
+			if existingOSD.CephFsid != a.clusterInfo.FSID {
+				osdID := existingOSD.OsdID
+				deviceToWipe := existingOSD.Device
+				osdDisk, encryptedBlock, err := getOSDDiskToBeWiped(context, existingOSD.Device)
+				if err != nil {
+					return errors.Wrapf(err, "failed to get the actual device path to be wiped for existing OSD %d with path %q", osdID, osdDisk.RealPath)
+				}
+				if osdDisk != nil {
+					deviceToWipe := osdDisk.RealPath
+					if encryptedBlock != "" {
+						err = RemoveEncryptedDevice(context, encryptedBlock)
+						if err != nil {
+							logger.Warningf("failed to remove stale dm device %q: %q", encryptedBlock, err)
+							continue
+						}
 					}
+					logger.Infof("begin wiping OSD %d device %q belonging to a different ceph cluster %q ", osdID, deviceToWipe, existingOSD.CephFsid)
+					logger.Infof("zap OSD.%d on device path %q", osdID, deviceToWipe)
+					if err := ZapDevice(context, deviceToWipe); err != nil {
+						return errors.Wrapf(err, "failed to zap osd.%d path %q", osdID, deviceToWipe)
+					}
+					logger.Infof("successfully zapped osd.%d path %q", osdID, deviceToWipe)
+					logger.Infof("completed wiping OSD %d device %q belonging to a different ceph cluster", osdID, deviceToWipe)
+					// Since the device is wiped clean, clear the stale filesystem reference on the disk so that the wiped disk is not filtered out for filesystem check.
+					osdDisk.Filesystem = ""
+				} else {
+					logger.Infof("skip wiping OSD %d device %q belonging to a different ceph cluster %q since not a desired device", osdID, deviceToWipe, existingOSD.CephFsid)
 				}
-				logger.Infof("begin wiping OSD %d device %q belonging to a different ceph cluster %q ", osdID, deviceToWipe, existingOSD.CephFsid)
-				logger.Infof("zap OSD.%d on device path %q", osdID, deviceToWipe)
-				if err := ZapDevice(context, deviceToWipe); err != nil {
-					return errors.Wrapf(err, "failed to zap osd.%d path %q", osdID, deviceToWipe)
-				}
-				logger.Infof("successfully zapped osd.%d path %q", osdID, deviceToWipe)
-				logger.Infof("completed wiping OSD %d device %q belonging to a different ceph cluster", osdID, deviceToWipe)
-				// Since the device is wiped clean, clear the stale filesystem reference on the disk so that the wiped disk is not filtered out for filesystem check.
-				osdDisk.Filesystem = ""
-			} else {
-				logger.Infof("skip wiping OSD %d device %q belonging to a different ceph cluster %q since not a desired device", osdID, deviceToWipe, existingOSD.CephFsid)
 			}
 		}
 	}
 
+	if err := wipePartiallyProvisionedDevices(context, existingOSDs); err != nil {
+		return errors.Wrap(err, "failed to wipe partially provisioned devices")
+	}
+
 	return nil
+}
+
+// wipePartiallyProvisionedDevices zaps devices that have a ceph_bluestore filesystem signature
+// (from lsblk) but are not reported by ceph-volume raw list. This happens when a node reboots
+// mid-OSD-prepare, leaving the disk with an incomplete bluestore signature that cannot be
+// used to start an OSD and would otherwise block future provisioning.
+func wipePartiallyProvisionedDevices(context *clusterd.Context, existingOSDs map[string]osdInfoBlock) error {
+	for _, device := range context.Devices {
+		if device.Filesystem != "ceph_bluestore" {
+			continue
+		}
+		if deviceHasOSDData(device, existingOSDs) {
+			continue
+		}
+		logger.Infof("device %q has ceph_bluestore filesystem but is not reported by ceph-volume raw list, wiping as partially provisioned", device.RealPath)
+		if err := ZapDevice(context, device.RealPath); err != nil {
+			return errors.Wrapf(err, "failed to zap partially provisioned device %q", device.RealPath)
+		}
+		logger.Infof("successfully wiped partially provisioned device %q", device.RealPath)
+		device.Filesystem = ""
+	}
+	return nil
+}
+
+// deviceHasOSDData checks whether a device appears in the ceph-volume raw list output,
+// meaning it has valid OSD metadata and should not be wiped.
+func deviceHasOSDData(device *sys.LocalDisk, existingOSDs map[string]osdInfoBlock) bool {
+	for _, osd := range existingOSDs {
+		if device.RealPath == osd.Device || slices.Contains(strings.Split(device.DevLinks, " "), osd.Device) {
+			return true
+		}
+	}
+	return false
 }
 
 func wipeEncryptedDevicesFromOtherClusters(context *clusterd.Context, currentClusterFSID string) error {

@@ -2330,6 +2330,83 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	context.Executor = executor
 	err = agent.WipeDevicesFromOtherClusters(context)
 	assert.NoError(t, err)
+
+	// `ceph-volume raw list` returns empty but the device has ceph_bluestore filesystem
+	// from an interrupted OSD prepare. The device should be zapped as partially provisioned.
+	zappedPartial := false
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		if slices.Contains(args, "raw") && slices.Contains(args, "list") {
+			return `{}`, nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		devicePath := "/dev/vdb"
+		if command == cryptsetupBinary && args[0] == "luksDump" {
+			return luksDump, nil
+		}
+		if command == "stdbuf" {
+			if !slices.Contains(args, "zap") || !slices.Contains(args, devicePath) {
+				return "", errors.Errorf("expected device %s to be zapped but got %v", devicePath, args)
+			}
+			zappedPartial = true
+			return "", nil
+		}
+		if command == "umount" {
+			return "not mounted", errors.New("not mounted")
+		}
+		if command == "wipefs" {
+			if args[1] != devicePath {
+				return "", errors.Errorf("expected device %s to be zapped but got %v", devicePath, args)
+			}
+			return "", nil
+		}
+		if command == "ceph-bluestore-tool" {
+			return "", nil
+		}
+		if command == "dd" {
+			return "", nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	partialDevice := &sys.LocalDisk{RealPath: "/dev/vdb", Filesystem: "ceph_bluestore"}
+	context = &clusterd.Context{
+		Devices: []*sys.LocalDisk{partialDevice},
+	}
+	context.Executor = executor
+	err = agent.WipeDevicesFromOtherClusters(context)
+	assert.NoError(t, err)
+	assert.True(t, zappedPartial, "partially provisioned device should have been zapped")
+	assert.Equal(t, "", partialDevice.Filesystem, "filesystem should be cleared after zap")
+
+	// `ceph-volume raw list` returns a valid OSD on /dev/vdb with ceph_bluestore.
+	// The device should NOT be zapped since it has valid OSD data.
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		if slices.Contains(args, "raw") && slices.Contains(args, "list") {
+			return `{
+				"0": {
+					"ceph_fsid": "c03d7353-96e5-4a41-98de-830dfff97d06",
+					"device": "/dev/vdb",
+					"osd_id": 0,
+					"osd_uuid": "abcd1234-0000-0000-0000-000000000000",
+					"type": "bluestore"
+				}
+			}`, nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		return "", errors.Errorf("ZapDevice should not be called for a device with valid OSD data: %s %v", command, args)
+	}
+	context = &clusterd.Context{
+		Devices: []*sys.LocalDisk{{RealPath: "/dev/vdb", Filesystem: "ceph_bluestore"}},
+	}
+	context.Executor = executor
+	err = agent.WipeDevicesFromOtherClusters(context)
+	assert.NoError(t, err)
 }
 
 func TestFindDeviceClass(t *testing.T) {
