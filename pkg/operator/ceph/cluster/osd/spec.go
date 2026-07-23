@@ -18,6 +18,7 @@ limitations under the License.
 package osd
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -71,251 +72,29 @@ const (
 	osdPortv2             = 6800
 )
 
-const (
-	cephOSDStart = `
-set -o nounset # fail if variables are unset
-child_pid=""
-sigterm_received=false
-function sigterm() {
-	echo "SIGTERM received"
-	sigterm_received=true
-	kill -TERM "$child_pid"
-}
-trap sigterm SIGTERM
-"${@}" &
-# un-fixable race condition: if receive sigterm here, it won't be sent to child process
-child_pid="$!"
-wait "$child_pid" # wait returns the same return code of child process when called with argument
-wait "$child_pid" # first wait returns immediately upon SIGTERM, so wait again for child to actually stop; this is a noop if child exited normally
-ceph_osd_rc=$?
-if [ $ceph_osd_rc -eq 0 ] && ! $sigterm_received; then
-	touch /tmp/osd-sleep
-	echo "OSD daemon exited with code 0, possibly due to OSD flapping. The OSD pod will sleep for $ROOK_OSD_RESTART_INTERVAL hours. Restart the pod manually once the flapping issue is fixed"
-	sleep "$ROOK_OSD_RESTART_INTERVAL"h &
-	child_pid="$!"
-	wait "$child_pid"
-	wait "$child_pid" # wait again for sleep to stop
-fi
-exit $ceph_osd_rc
-`
+//go:embed cephosd-start.sh
+var cephOSDStart string
 
-	activateOSDOnNodeCode = `
-set -o errexit
-set -o pipefail
-set -o nounset # fail if variables are unset
-set -o xtrace
+//go:embed keyring-update.sh
+var keyUpdateScript string
 
-OSD_ID="$ROOK_OSD_ID"
-OSD_UUID=%s
-OSD_STORE_FLAG="%s"
-OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
-KEYRING_FILE="$OSD_DATA_DIR"/keyring
-CV_MODE=%s
-DEVICE="$%s"
-ENCRYPTED="%t"
+// If the disk identifier changes (different major and minor) we must force copy
+// --remove-destination will remove each existing destination file before attempting to open it
+// We **MUST** do this otherwise in environment where PVCs are dynamic, restarting the deployment will cause conflicts
+// When restarting the OSD, the PVC block might end up with a different Kernel disk allocation
+// For instance, prior to restart the block was mapped to 8:32 and when re-attached it was on 8:16
+// The previous "block" is still 8:32 so if we don't override it we will try to initialize on a disk that is not an OSD or worse another OSD
+// This is mainly because in https://github.com/rook/rook/commit/ae8dcf7cc3b51cf8ca7da22f48b7a58887536c4f we switched to use HostPath to store the OSD data
+// Since HostPath is not ephemeral, the block file must be re-hydrated each time the deployment starts
+//
+//go:embed blockdevmapper.sh
+var blockDevMapper string
 
-# copy the latest lockbox keys to the keyring file as they might have been rotated
-if [ "$ENCRYPTED" == "true" ] ; then
-	LOCKBOX_KEYRING_FILE="$OSD_DATA_DIR"/lockbox.keyring
-	LOCKBOX_USER=client.osd-lockbox."$OSD_UUID"
+//go:embed open-encrypted-block.sh
+var openEncryptedBlock string
 
-	if ! ceph --name client.admin auth get-or-create "$LOCKBOX_USER" \
-			mon 'allow command "config-key get" with key="dm-crypt/osd/'$OSD_UUID'/luks"' \
-			--keyring /etc/ceph/admin-keyring-store/keyring > /tmp/lockbox.keyring; then
-		echo "failed to get latest cephx lockbox key for OSD. continuing OSD startup using on-disk key" >/dev/stderr
-		# allowing OSD to attempt to start could avoid full OSD outage due to mon/system issues
-	else
-		echo "got latest cephx lockbox key for OSD successfully. updating on-disk key" >/dev/stderr
-		mv /tmp/lockbox.keyring "$LOCKBOX_KEYRING_FILE"
-	fi
-fi
-
-# active the osd with ceph-volume
-if [[ "$CV_MODE" == "lvm" ]]; then
-	TMP_DIR=$(mktemp -d)
-
-	# prevent LVM from trying to scan RBD volumes that may be unable to serve reads without this OSD up
-	echo 'devices { filter = ["r|/dev/rbd.*|"] }' >> /etc/lvm/lvm.conf
-
-	# activate osd
-	ceph-volume lvm activate --no-systemd "$OSD_STORE_FLAG" "$OSD_ID" "$OSD_UUID"
-
-	# For encrypted LVM OSDs, resize the full stack: PV → LV → LUKS.
-	# All operations are no-ops if the underlying device hasn't grown.
-	if [ "$ENCRYPTED" == "true" ]; then
-		VG_NAME=$(dirname "$DEVICE" | xargs basename)
-		pvresize "$(pvs --noheadings -o pv_name -S vg_name="$VG_NAME" 2>/dev/null | tr -d ' ')"
-		# With osd_per_device > 1, multiple LVs share the same VG. Absolute target
-		# (total/count) divides space equally and is a no-op on restarts.
-		OSD_COUNT=$(vgs --noheadings --nosuffix -o lv_count "$VG_NAME" 2>/dev/null | tr -d ' ')
-		TOTAL_EXTENTS=$(vgs --noheadings --nosuffix -o vg_extent_count "$VG_NAME" 2>/dev/null | tr -d ' ')
-		lvextend -l "$((TOTAL_EXTENTS / OSD_COUNT))" "$DEVICE" || true
-
-		DM_NAME=$(basename "$(readlink "$OSD_DATA_DIR/block")")
-		KEY_FILE=$(mktemp /tmp/.luks_key.XXXXXX)
-		trap "rm -f '$KEY_FILE'" EXIT
-		ceph --cluster ceph --name "$LOCKBOX_USER" \
-			--keyring "$LOCKBOX_KEYRING_FILE" \
-			config-key get "dm-crypt/osd/$OSD_UUID/luks" > "$KEY_FILE"
-		cryptsetup --verbose resize "$DM_NAME" --key-file "$KEY_FILE"
-	fi
-
-	# copy the tmpfs directory to a temporary directory
-	# this is needed because when the init container exits, the tmpfs goes away and its content with it
-	# this will result in the emptydir to be empty when accessed by the main osd container
-	cp --verbose --no-dereference "$OSD_DATA_DIR"/* "$TMP_DIR"/
-
-	# unmount the tmpfs since we don't need it anymore
-	umount "$OSD_DATA_DIR"
-
-	# copy back the content of the tmpfs into the original osd directory
-	cp --verbose --no-dereference "$TMP_DIR"/* "$OSD_DATA_DIR"
-
-	# retain ownership of files to the ceph user/group
-	chown --verbose --recursive ceph:ceph "$OSD_DATA_DIR"
-
-	# remove the temporary directory
-	rm --recursive --force "$TMP_DIR"
-else
-	# 'ceph-volume raw list' (which the osd-prepare job uses to report OSDs on nodes)
-	#  returns user-friendly device names which can change when systems reboot. To
-	# keep OSD pods from crashing repeatedly after a reboot, we need to check if the
-	# block device we have is still correct, and if it isn't correct, we need to
-	# scan all the disks to find the right one.
-	OSD_LIST="$(mktemp)"
-
-	function find_device() {
-		# jq would be preferable, but might be removed for hardened Ceph images
-		# python3 should exist in all containers having Ceph
-		python3 -c "
-import sys, json
-for _, info in json.load(sys.stdin).items():
-	if info['osd_id'] == $OSD_ID:
-		print(info['device'], end='')
-		print('found device: ' + info['device'], file=sys.stderr) # log the disk we found to stderr
-		sys.exit(0)  # don't keep processing once the disk is found
-sys.exit('no disk found with OSD ID $OSD_ID')
-"
-	}
-
-	if ! ceph-volume raw list "$DEVICE" > "$OSD_LIST"; then
-		# if the command fails, the disk may be renamed
-		echo '' > "$OSD_LIST"
-	fi
-	cat "$OSD_LIST"
-
-	if ! find_device < "$OSD_LIST"; then
-		# The disk may have been renamed, so scan disks to find the right one. Build the
-		# scan list explicitly instead of letting a bare 'ceph-volume raw list' scan every
-		# block device: opening an rbd device can block in uninterruptible sleep while this
-		# OSD is down (the same deadlock the lvm filter above prevents for lvm-mode OSDs).
-		# Skip rbd, nbd, and drbd (network-backed devices that can hang when their backing
-		# storage is unavailable) and zram (volatile RAM); Rook never provisions OSDs on any
-		# of these. loop devices are intentionally kept, since OSDs on loop devices are
-		# supported for CI and local testing.
-		SCAN_DEVICES="$(lsblk --noheadings --paths --list --output NAME,TYPE | awk '$2 == "disk" || $2 == "part" {print $1}' | grep -vE '^/dev/(rbd|nbd|zram|drbd)' || true)"
-		[[ -z "$SCAN_DEVICES" ]] && { echo "no devices to scan for OSD $OSD_ID" ; exit 1 ; }
-		# shellcheck disable=SC2086 # word splitting of the device list is intended
-		ceph-volume raw list $SCAN_DEVICES > "$OSD_LIST"
-		cat "$OSD_LIST"
-
-		DEVICE="$(find_device < "$OSD_LIST")"
-	fi
-	[[ -z "$DEVICE" ]] && { echo "no device" ; exit 1 ; }
-
-	# If a kernel device name change happens and a block device file
-	# in the OSD directory becomes missing, this OSD fails to start
-	# continuously. This problem can be resolved by confirming
-	# the validity of the device file and recreating it if necessary.
-	OSD_BLOCK_PATH=/var/lib/ceph/osd/ceph-$OSD_ID/block
-	if [ -L $OSD_BLOCK_PATH -a "$(readlink $OSD_BLOCK_PATH)" != $DEVICE ] ; then
-		rm $OSD_BLOCK_PATH
-	fi
-
-	# ceph-volume raw mode only supports bluestore so we don't need to pass a store flag
-	ceph-volume raw activate --device "$DEVICE" --no-systemd --no-tmpfs
-fi
-`
-
-	openEncryptedBlock = `
-set -xe
-
-CEPH_FSID=%s
-PVC_NAME=%s
-KEY_FILE_PATH=%s
-BLOCK_PATH=%s
-DM_NAME=%s
-DM_PATH=%s
-
-# Helps debugging
-dmsetup version
-
-function open_encrypted_block {
-	echo "Opening encrypted device $BLOCK_PATH at $DM_PATH"
-	cryptsetup luksOpen --verbose --disable-keyring --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
-}
-
-# This is done for upgraded clusters that did not have the subsystem and label set by the prepare job
-function set_luks_subsystem_and_label {
-	echo "setting LUKS label and subsystem"
-	cryptsetup config $BLOCK_PATH --subsystem ceph_fsid="$CEPH_FSID" --label pvc_name="$PVC_NAME"
-}
-
-if [ -b "$DM_PATH" ]; then
-	echo "Encrypted device $BLOCK_PATH already opened at $DM_PATH"
-	for field in $(dmsetup table "$DM_NAME"); do
-		if [[ "$field" =~ ^[0-9]+\:[0-9]+ ]]; then
-			underlaying_block="/sys/dev/block/$field"
-			if [ ! -d "$underlaying_block" ]; then
-				echo "Underlying block device $underlaying_block of crypt $DM_NAME disappeared!"
-				echo "Removing stale dm device $DM_NAME"
-				dmsetup remove --force "$DM_NAME"
-				open_encrypted_block
-			fi
-		fi
-	done
-else
-	open_encrypted_block
-fi
-
-# Setting label and subsystem on LUKS1 is not supported and the command will fail
-if cryptsetup luksDump $BLOCK_PATH|grep -qEs "Version:.*2"; then
-	set_luks_subsystem_and_label
-else
-	echo "LUKS version is not 2 so not setting label and subsystem"
-fi
-`
-
-	// If the disk identifier changes (different major and minor) we must force copy
-	// --remove-destination will remove each existing destination file before attempting to open it
-	// We **MUST** do this otherwise in environment where PVCs are dynamic, restarting the deployment will cause conflicts
-	// When restarting the OSD, the PVC block might end up with a different Kernel disk allocation
-	// For instance, prior to restart the block was mapped to 8:32 and when re-attached it was on 8:16
-	// The previous "block" is still 8:32 so if we don't override it we will try to initialize on a disk that is not an OSD or worse another OSD
-	// This is mainly because in https://github.com/rook/rook/commit/ae8dcf7cc3b51cf8ca7da22f48b7a58887536c4f we switched to use HostPath to store the OSD data
-	// Since HostPath is not ephemeral, the block file must be re-hydrated each time the deployment starts
-	blockDevMapper = `
-set -xe
-
-PVC_SOURCE=%s
-PVC_DEST=%s
-CP_ARGS=(--archive --dereference --verbose)
-
-if [ -b "$PVC_DEST" ]; then
-	PVC_SOURCE_MAJ_MIN=$(stat --format '%%t%%T' $PVC_SOURCE)
-	PVC_DEST_MAJ_MIN=$(stat --format '%%t%%T' $PVC_DEST)
-	if [[ "$PVC_SOURCE_MAJ_MIN" == "$PVC_DEST_MAJ_MIN" ]]; then
-		echo "PVC $PVC_DEST already exists and has the same major and minor as $PVC_SOURCE: "$PVC_SOURCE_MAJ_MIN""
-		exit 0
-	else
-		echo "PVC's source major/minor numbers changed"
-		CP_ARGS+=(--remove-destination)
-	fi
-fi
-
-cp "${CP_ARGS[@]}" "$PVC_SOURCE" "$PVC_DEST"
-`
-)
+//go:embed activate-osd.sh
+var activateOSDOnNodeCode string
 
 // OSDs on PVC using a certain fast storage class need to do some tuning
 var defaultTuneFastSettings = []string{
@@ -985,12 +764,17 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		},
 	}
 
+	osdStoreFlag := c.spec.Storage.GetOSDStoreFlag()
 	envVars := append(
 		osdActivateEnvVar(),
 		blockPathEnvVariable(osdInfo.BlockPath),
 		metadataDeviceEnvVar(osdInfo.MetadataPath),
 		walDeviceEnvVar(osdInfo.WalPath),
 		v1.EnvVar{Name: "ROOK_OSD_ID", Value: osdID},
+		v1.EnvVar{Name: "ROOK_OSD_UUID", Value: osdInfo.UUID},
+		v1.EnvVar{Name: "ROOK_OSD_STORE_FLAG", Value: osdStoreFlag},
+		cvModeEnvVariable(osdInfo.CVMode),
+		encryptedDeviceEnvVar(osdProps.storeConfig.EncryptedDevice),
 	)
 
 	// Build empty dir osd path to something like "/var/lib/ceph/osd/ceph-0"
@@ -1012,13 +796,11 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		volMounts = append(volMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
 	}
 
-	osdStoreFlag := c.spec.Storage.GetOSDStoreFlag()
-
 	container := &v1.Container{
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(activateOSDOnNodeCode, osdInfo.UUID, osdStoreFlag, osdInfo.CVMode, blockPathVarName, osdProps.storeConfig.EncryptedDevice),
+			activateOSDOnNodeCode,
 		},
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,
@@ -1063,7 +845,10 @@ func (c *Cluster) getPVCInitContainer(osdProps osdProperties) v1.Container {
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.pvc.ClaimName), fmt.Sprintf("/mnt/%s", osdProps.pvc.ClaimName)),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.pvc.ClaimName),
+			fmt.Sprintf("/mnt/%s", osdProps.pvc.ClaimName),
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -1096,7 +881,10 @@ func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProp
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.pvc.ClaimName), cpDestinationName),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.pvc.ClaimName),
+			cpDestinationName,
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -1120,7 +908,15 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(openEncryptedBlock, c.clusterInfo.FSID, pvcName, encryptionKeyPath(), encryptionBlockDestinationCopy(mountPath, blockType), EncryptionDMName(pvcName, cryptBlockType), EncryptionDMPath(pvcName, cryptBlockType)),
+			openEncryptedBlock,
+		},
+		Env: []v1.EnvVar{
+			{Name: "ROOK_CEPH_FSID", Value: c.clusterInfo.FSID},
+			{Name: "ROOK_PVC_NAME", Value: pvcName},
+			{Name: "ROOK_ENCRYPTION_KEY_FILE_PATH", Value: encryptionKeyPath()},
+			{Name: "ROOK_ENCRYPTION_BLOCK_PATH", Value: encryptionBlockDestinationCopy(mountPath, blockType)},
+			{Name: "ROOK_ENCRYPTION_DM_NAME", Value: EncryptionDMName(pvcName, cryptBlockType)},
+			{Name: "ROOK_ENCRYPTION_DM_PATH", Value: EncryptionDMPath(pvcName, cryptBlockType)},
 		},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName), getDeviceMapperMount()},
 		SecurityContext: controller.PrivilegedContext(true),
@@ -1207,7 +1003,10 @@ func (c *Cluster) generateEncryptionCopyBlockContainer(resources v1.ResourceRequ
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, EncryptionDMPath(pvcName, blockType), path.Join(mountPath, blockName)),
+			blockDevMapper,
+			"--",
+			EncryptionDMPath(pvcName, blockType),
+			path.Join(mountPath, blockName),
 		},
 		// volumeMountPVCName is crucial, especially when the block we copy is the metadata block
 		// its value must be the name of the block PV so that all init containers use the same bridge (the emptyDir shared by all the init containers)
@@ -1246,7 +1045,10 @@ func (c *Cluster) getPVCMetadataInitContainer(mountPath string, osdProps osdProp
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName), fmt.Sprintf("/srv/%s", osdProps.metadataPVC.ClaimName)),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName),
+			fmt.Sprintf("/srv/%s", osdProps.metadataPVC.ClaimName),
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -1284,7 +1086,10 @@ func (c *Cluster) getPVCMetadataInitContainerActivate(mountPath string, osdProps
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName), cpDestinationName),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName),
+			cpDestinationName,
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -1308,7 +1113,10 @@ func (c *Cluster) getPVCWalInitContainer(mountPath string, osdProps osdPropertie
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.walPVC.ClaimName), fmt.Sprintf("/wal/%s", osdProps.walPVC.ClaimName)),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.walPVC.ClaimName),
+			fmt.Sprintf("/wal/%s", osdProps.walPVC.ClaimName),
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -1346,7 +1154,10 @@ func (c *Cluster) getPVCWalInitContainerActivate(mountPath string, osdProps osdP
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, fmt.Sprintf("/%s", osdProps.walPVC.ClaimName), cpDestinationName),
+			blockDevMapper,
+			"--",
+			fmt.Sprintf("/%s", osdProps.walPVC.ClaimName),
+			cpDestinationName,
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -1519,34 +1330,11 @@ func (c *Cluster) getCephxKeyUpdateInitContainer(osdID string, osdProps osdPrope
 	} else {
 		// assumption: activate OSD volume will already be added to pod spec for non-PVC OSDs at the
 		// correct location for mounting to /var/lib/ceph/osd/ceph-<id>
-		volMounts = append(volMounts,
+		volMounts = append(
+			volMounts,
 			v1.VolumeMount{Name: activateOSDVolumeName, MountPath: osdConfigMountPath},
 		)
 	}
-
-	keyUpdateScript := `
-set -o errexit
-set -o nounset
-set -o pipefail
-set -o xtrace
-
-OSD_ID="` + osdID + `"
-KEYRING_FILE=/var/lib/ceph/osd/ceph-"${OSD_ID}"/keyring
-
-# If this fails, it still writes to redirected file, so use temp file
-if ! ceph --name client.admin auth get-or-create osd."${OSD_ID}" \
-		mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' \
-		--keyring /etc/ceph/admin-keyring-store/keyring > /tmp/keyring; then
-	echo "failed to get latest cephx key for OSD. continuing OSD startup using on-disk key" >/dev/stderr
-	exit 0
-fi
-
-echo "got latest cephx key for OSD successfully. updating on-disk key" >/dev/stderr
-mv /tmp/keyring "$KEYRING_FILE"
-`
-	// ^ (above) Continue on failure here. Getting latest key can fail due to system issues that
-	// blocking here could make worse. Key rotation is rare, so on-disk key is likely good. If not,
-	// allow main OSD process to fail with auth issue.
 
 	envVars := []v1.EnvVar{
 		{
@@ -1561,6 +1349,7 @@ mv /tmp/keyring "$KEYRING_FILE"
 			},
 		},
 		{Name: "CEPH_ARGS", Value: "--mon-host=$(ROOK_CEPH_MON_HOST)"},
+		{Name: "ROOK_OSD_ID", Value: osdID},
 	}
 
 	container := v1.Container{
