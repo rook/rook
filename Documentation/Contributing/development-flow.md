@@ -207,6 +207,13 @@ Before opening the PR:
 * If there are code changes, add unit tests and verify that all unit tests are passing. See [Unit Tests](#unit-tests) below on running unit tests.
 * Rebase on the latest upstream changes
 
+### Limit concurrent pull requests
+
+Contributors without write access should keep no more than three pull requests open at the same
+time, so that maintainer review — the project's limiting resource — is not spread too thin. The
+repository enforces this: with three open, merge or close one before opening the next. If you have a
+genuine need to exceed it, raise it with a maintainer first.
+
 ### Regression Testing
 
 All pull requests must pass all continuous integration (CI) tests before they can be merged. These tests
@@ -217,6 +224,30 @@ For developers who would like to locally test their changes
 as much as possible before pushing
 (a behavior that is not required but highly encouraged),
 the unit tests and various linters can easily be run locally.
+
+### Checks that gate a pull request
+
+Each of the following checks runs against every PR and must pass before it can be merged.
+Every one of them can be run locally, and doing so before pushing saves a full CI round trip:
+
+| Check | Run it locally | Applies to |
+| ----- | -------------- | ---------- |
+| Unit tests | `make test` | Go changes under `cmd/` and `pkg/` |
+| Go linters | `make golangci-lint` | any Go change |
+| Generated client and deepcopy code | `make codegen` | any change under `pkg/apis` |
+| CRD manifests and reference docs | `make crds` | any change under `pkg/apis` |
+| Commit message format | `make lint.commits` | every commit |
+| Markdown formatting | `make lint.markdown` | any change under `Documentation/` |
+
+!!! tip
+    Build and test through `make` rather than invoking `go` directly. The `make` targets set the
+    build flags and tags that Rook needs, so an ad-hoc `go build` or `go test` may not match what CI
+    runs. Run `make help` to see all targets.
+
+!!! note
+    `make test` only runs the unit tests under `cmd/` and `pkg/` (the `GO_SUBDIRS`). Test files
+    elsewhere, such as under `tests/framework/`, are compiled by the linters but are never run by
+    the unit test CI.
 
 ## Unit Tests
 
@@ -267,6 +298,30 @@ Refer to the respective project website for more installation instructions.
 !!! tip
     Run `make help` to see a list of all possible make targets
 
+## Generated Code and CRDs
+
+Several checked-in files are generated from the API types under `pkg/apis` and must be regenerated
+whenever those types change:
+
+```console
+# Regenerates the deepcopy functions and the typed client under pkg/client
+make codegen
+
+# Regenerates the CRD manifests and the CRD reference documentation
+make crds
+```
+
+Commit the regenerated files together with the change that required them, in the same commit. CI
+fails if regenerating produces any diff.
+
+A change to `pkg/apis` means more than adding or removing a field. Editing the godoc comment on an
+exported type or field also requires regeneration, because those comments are copied verbatim into
+the `description` fields of the CRDs. Reword a comment and the following files change:
+
+* `deploy/examples/crds.yaml`
+* `deploy/charts/rook-ceph/templates/resources.yaml`
+* `Documentation/CRDs/specification.md`
+
 ## Integration Tests
 
 Rook's upstream continuous integration (CI) tests will run integration tests against your changes
@@ -301,6 +356,28 @@ Then I'm explaining how I fixed it.
 
 Signed-off-by: FirstName LastName <email address>
 ```
+
+The commit prefix must be one of the types listed under `rules.type-enum` in
+[`.commitlintrc.json`](https://github.com/rook/rook/blob/master/.commitlintrc.json). Only those
+types are accepted, so pick the closest match rather than inventing one after the package being
+changed.
+
+Separate any trailer from the body with a blank line, or commitlint reports
+`footer-leading-blank`. Note that commitlint decides what a trailer is by looking at the text: a
+line that begins with a word followed by a colon, or one that closes an issue, is treated as a
+trailer even when it was meant as prose. Wrapping a sentence so that a line happens to begin with
+`anywhere:` is enough to trigger this. Rewrap the line to avoid it. Mentioning an issue in the
+middle of a sentence is fine.
+
+Check the commit messages on your branch before pushing:
+
+```console
+make lint.commits
+```
+
+This runs the same commitlint that CI runs, over your branch's commits. It compares against
+`origin/master` by default; if your Rook upstream is a different remote, point it there with
+`make lint.commits COMMITLINT_BASE=upstream/master`.
 
 ### Commit History
 
