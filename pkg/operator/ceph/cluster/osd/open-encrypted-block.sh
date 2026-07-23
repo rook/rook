@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -xe
 
+for var in ROOK_CEPH_FSID ROOK_PVC_NAME ROOK_ENCRYPTION_KEY_FILE_PATH ROOK_ENCRYPTION_BLOCK_PATH ROOK_ENCRYPTION_DM_NAME ROOK_ENCRYPTION_DM_PATH; do
+	if [ -z "${!var:-}" ]; then
+		echo "required environment variable $var is not set" >&2
+		exit 1
+	fi
+done
+
 CEPH_FSID="$ROOK_CEPH_FSID"
 PVC_NAME="$ROOK_PVC_NAME"
 KEY_FILE_PATH="$ROOK_ENCRYPTION_KEY_FILE_PATH"

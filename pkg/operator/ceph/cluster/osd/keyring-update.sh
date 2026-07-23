@@ -4,6 +4,11 @@ set -o nounset
 set -o pipefail
 set -o xtrace
 
+if [ -z "${ROOK_OSD_ID:-}" ]; then
+	echo "required environment variable ROOK_OSD_ID is not set" >&2
+	exit 1
+fi
+
 OSD_ID="$ROOK_OSD_ID"
 KEYRING_FILE=/var/lib/ceph/osd/ceph-"${OSD_ID}"/keyring
 

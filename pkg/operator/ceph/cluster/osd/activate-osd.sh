@@ -4,16 +4,27 @@ set -o pipefail
 set -o nounset # fail if variables are unset
 set -o xtrace
 
+for var in ROOK_OSD_ID ROOK_CV_MODE ROOK_ENCRYPTED_DEVICE; do
+	if [ -z "${!var:-}" ]; then
+		echo "required environment variable $var is not set" >&2
+		exit 1
+	fi
+done
+
 OSD_ID="$ROOK_OSD_ID"
-OSD_UUID="$ROOK_OSD_UUID"
-OSD_STORE_FLAG="$ROOK_OSD_STORE_FLAG"
+OSD_UUID="${ROOK_OSD_UUID:-}"
+OSD_STORE_FLAG="${ROOK_OSD_STORE_FLAG:-}"
 OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
 CV_MODE="$ROOK_CV_MODE"
-DEVICE="$ROOK_BLOCK_PATH"
+DEVICE="${ROOK_BLOCK_PATH:-}"
 ENCRYPTED="$ROOK_ENCRYPTED_DEVICE"
 
 # copy the latest lockbox keys to the keyring file as they might have been rotated
 if [ "$ENCRYPTED" == "true" ] ; then
+	if [ -z "${ROOK_OSD_UUID:-}" ]; then
+		echo "required environment variable ROOK_OSD_UUID is not set" >&2
+		exit 1
+	fi
 	LOCKBOX_KEYRING_FILE="$OSD_DATA_DIR"/lockbox.keyring
 	LOCKBOX_USER=client.osd-lockbox."$OSD_UUID"
 
@@ -30,6 +41,12 @@ fi
 
 # active the osd with ceph-volume
 if [[ "$CV_MODE" == "lvm" ]]; then
+	for var in ROOK_OSD_UUID ROOK_OSD_STORE_FLAG; do
+		if [ -z "${!var:-}" ]; then
+			echo "required environment variable $var is not set" >&2
+			exit 1
+		fi
+	done
 	TMP_DIR=$(mktemp -d)
 
 	# prevent LVM from trying to scan RBD volumes that may be unable to serve reads without this OSD up
@@ -41,6 +58,10 @@ if [[ "$CV_MODE" == "lvm" ]]; then
 	# For encrypted LVM OSDs, resize the full stack: PV → LV → LUKS.
 	# All operations are no-ops if the underlying device hasn't grown.
 	if [ "$ENCRYPTED" == "true" ]; then
+		if [ -z "${ROOK_BLOCK_PATH:-}" ]; then
+			echo "required environment variable ROOK_BLOCK_PATH is not set" >&2
+			exit 1
+		fi
 		VG_NAME=$(dirname "$DEVICE" | xargs basename)
 		pvresize "$(pvs --noheadings -o pv_name -S vg_name="$VG_NAME" 2>/dev/null | tr -d ' ')"
 		# With osd_per_device > 1, multiple LVs share the same VG. Absolute target
