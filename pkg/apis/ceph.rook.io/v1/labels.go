@@ -150,7 +150,7 @@ func (a Labels) Merge(with Labels) Labels {
 //   - Multiple resultant dashes in a row are compressed to a single dash.
 //   - If the starting character is a number, a 'd' is prepended to preserve the number.
 //   - Any non-alphanumeric starting or ending characters are removed.
-//   - If the resultant string is longer than the maximum-allowed 63 characters], characters are
+//   - If the resultant string is longer than the maximum-allowed 63 characters, characters are
 //     removed from the middle and replaced with a double dash ('--') to reduce the string to 63
 //     characters.
 func ToValidDNSLabel(input string) string {

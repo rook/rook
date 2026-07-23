@@ -49,7 +49,7 @@ func ValidateKafkaSpec(s *KafkaEndpointSpec) error {
 	return validateURI(s.URI, []string{"kafka"})
 }
 
-// ValidateTopicSpec validate the bucket notification topic arguments
+// ValidateTopicSpec validates the bucket notification topic arguments
 func (t *CephBucketTopic) ValidateTopicSpec() error {
 	hasEndpoint := false
 	if t.Spec.Endpoint.HTTP != nil {

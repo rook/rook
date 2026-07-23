@@ -26,27 +26,27 @@ import (
 
 var VaultTLSConnectionDetails = []string{api.EnvVaultCACert, api.EnvVaultClientCert, api.EnvVaultClientKey}
 
-// IsEnabled return whether a KMS is configured
+// IsEnabled returns whether a KMS is configured
 func (kms *KeyManagementServiceSpec) IsEnabled() bool {
 	return len(kms.ConnectionDetails) != 0
 }
 
-// IsTokenAuthEnabled return whether KMS token auth is enabled
+// IsTokenAuthEnabled returns whether KMS token auth is enabled
 func (kms *KeyManagementServiceSpec) IsTokenAuthEnabled() bool {
 	return kms.TokenSecretName != ""
 }
 
-// IsK8sAuthEnabled return whether KMS Kubernetes auth is enabled
+// IsK8sAuthEnabled returns whether KMS Kubernetes auth is enabled
 func (kms *KeyManagementServiceSpec) IsK8sAuthEnabled() bool {
 	return getParam(kms.ConnectionDetails, vault.AuthMethod) == vault.AuthMethodKubernetes && kms.TokenSecretName == ""
 }
 
-// IsAgentAuthEnabled return whether Vault Agent auth is enabled
+// IsAgentAuthEnabled returns whether Vault Agent auth is enabled
 func (kms *KeyManagementServiceSpec) IsAgentAuthEnabled() bool {
 	return getParam(kms.ConnectionDetails, vault.AuthMethod) == "agent" && kms.TokenSecretName == ""
 }
 
-// IsVaultKMS return whether Vault KMS is configured
+// IsVaultKMS returns whether Vault KMS is configured
 func (kms *KeyManagementServiceSpec) IsVaultKMS() bool {
 	return getParam(kms.ConnectionDetails, "KMS_PROVIDER") == secrets.TypeVault
 }
@@ -55,17 +55,17 @@ func (kms *KeyManagementServiceSpec) IsAzureMS() bool {
 	return getParam(kms.ConnectionDetails, "KMS_PROVIDER") == secrets.TypeAzure
 }
 
-// IsIBMKeyProtectKMS return whether IBM Key Protect KMS is configured
+// IsIBMKeyProtectKMS returns whether IBM Key Protect KMS is configured
 func (kms *KeyManagementServiceSpec) IsIBMKeyProtectKMS() bool {
 	return getParam(kms.ConnectionDetails, "KMS_PROVIDER") == "ibmkeyprotect"
 }
 
-// IsKMIPKMS return whether KMIP KMS is configured
+// IsKMIPKMS returns whether KMIP KMS is configured
 func (kms *KeyManagementServiceSpec) IsKMIPKMS() bool {
 	return getParam(kms.ConnectionDetails, "KMS_PROVIDER") == "kmip"
 }
 
-// IsTLSEnabled return KMS TLS details are configured
+// IsTLSEnabled returns whether KMS TLS details are configured
 func (kms *KeyManagementServiceSpec) IsTLSEnabled() bool {
 	for _, tlsOption := range VaultTLSConnectionDetails {
 		tlsSecretName := getParam(kms.ConnectionDetails, tlsOption)

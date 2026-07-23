@@ -1059,7 +1059,7 @@ LogCollectorSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Logging represents loggings settings</p>
+<p>Logging represents logging settings</p>
 </td>
 </tr>
 <tr>
@@ -2686,7 +2686,7 @@ RBDMirrorStatus
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.TopicEndpointSpec">TopicEndpointSpec</a>)
 </p>
 <div>
-<p>AMQPEndpointSpec represent the spec of an AMQP endpoint of a Bucket Topic</p>
+<p>AMQPEndpointSpec represents the spec of an AMQP endpoint of a Bucket Topic</p>
 </div>
 <table>
 <thead>
@@ -2941,7 +2941,7 @@ KeystoneSpec
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.BucketNotificationSpec">BucketNotificationSpec</a>)
 </p>
 <div>
-<p>BucketNotificationEvent represent the event type of the bucket notification
+<p>BucketNotificationEvent represents the event type of the bucket notification
 See: <a href="https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types">https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types</a></p>
 </div>
 <h3 id="ceph.rook.io/v1.BucketNotificationSpec">BucketNotificationSpec
@@ -2950,7 +2950,7 @@ See: <a href="https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibil
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>)
 </p>
 <div>
-<p>BucketNotificationSpec represent the spec of a Bucket Notification</p>
+<p>BucketNotificationSpec represents the spec of a Bucket Notification</p>
 </div>
 <table>
 <thead>
@@ -3007,7 +3007,7 @@ NotificationFilterSpec
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBucketTopic">CephBucketTopic</a>)
 </p>
 <div>
-<p>BucketTopicSpec represent the spec of a Bucket Topic</p>
+<p>BucketTopicSpec represents the spec of a Bucket Topic</p>
 </div>
 <table>
 <thead>
@@ -3898,7 +3898,7 @@ CephxStatus
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterSpec">ClusterSpec</a>)
 </p>
 <div>
-<p>CephClusterHealthCheckSpec represent the healthcheck for Ceph daemons</p>
+<p>CephClusterHealthCheckSpec represents the healthcheck for Ceph daemons</p>
 </div>
 <table>
 <thead>
@@ -3972,7 +3972,7 @@ map[string]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.MuteHealthWarningSpec
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephStatus">CephStatus</a>)
 </p>
 <div>
-<p>CephDaemonsVersions show the current ceph version for different ceph daemons</p>
+<p>CephDaemonsVersions shows the current ceph version for different ceph daemons</p>
 </div>
 <table>
 <thead>
@@ -6035,7 +6035,7 @@ LogCollectorSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Logging represents loggings settings</p>
+<p>Logging represents logging settings</p>
 </td>
 </tr>
 <tr>
@@ -6470,7 +6470,7 @@ deletion.</p>
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>, <a href="#ceph.rook.io/v1.CephClientStatus">CephClientStatus</a>, <a href="#ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus</a>, <a href="#ceph.rook.io/v1.CephFilesystemSubVolumeGroupStatus">CephFilesystemSubVolumeGroupStatus</a>, <a href="#ceph.rook.io/v1.ClusterStatus">ClusterStatus</a>, <a href="#ceph.rook.io/v1.Condition">Condition</a>, <a href="#ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus</a>)
 </p>
 <div>
-<p>ConditionType represent a resource&rsquo;s status</p>
+<p>ConditionType represents a resource&rsquo;s status</p>
 </div>
 <table>
 <thead>
@@ -7378,7 +7378,7 @@ PeerRemoteSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Remote are the remote cluster information</p>
+<p>Remote is the remote cluster information</p>
 </td>
 </tr>
 <tr>
@@ -7392,7 +7392,7 @@ PeerStatSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Stats are the stat a peer mirror</p>
+<p>Stats are the stat of a peer mirror</p>
 </td>
 </tr>
 </tbody>
@@ -8242,7 +8242,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LogLevel set logging level</p>
+<p>LogLevel sets logging level</p>
 </td>
 </tr>
 <tr>
@@ -8621,7 +8621,7 @@ Note: Only supported from Ceph Tentacle (v20)</p>
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.TopicEndpointSpec">TopicEndpointSpec</a>)
 </p>
 <div>
-<p>HTTPEndpointSpec represent the spec of an HTTP endpoint of a Bucket Topic</p>
+<p>HTTPEndpointSpec represents the spec of an HTTP endpoint of a Bucket Topic</p>
 </div>
 <table>
 <thead>
@@ -8817,7 +8817,7 @@ string
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.TopicEndpointSpec">TopicEndpointSpec</a>)
 </p>
 <div>
-<p>KafkaEndpointSpec represent the spec of a Kafka endpoint of a Bucket Topic</p>
+<p>KafkaEndpointSpec represents the spec of a Kafka endpoint of a Bucket Topic</p>
 </div>
 <table>
 <thead>
@@ -9081,7 +9081,7 @@ securely add the file via annotations on the CephNFS spec (passed to the NFS ser
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterSecuritySpec">ClusterSecuritySpec</a>, <a href="#ceph.rook.io/v1.ObjectStoreSecuritySpec">ObjectStoreSecuritySpec</a>, <a href="#ceph.rook.io/v1.SecuritySpec">SecuritySpec</a>)
 </p>
 <div>
-<p>KeyManagementServiceSpec represent various details of the KMS server</p>
+<p>KeyManagementServiceSpec represents various details of the KMS server</p>
 </div>
 <table>
 <thead>
@@ -11391,7 +11391,7 @@ Selection
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.NotificationFilterSpec">NotificationFilterSpec</a>)
 </p>
 <div>
-<p>NotificationFilterRule represent a single rule in the Notification Filter spec</p>
+<p>NotificationFilterRule represents a single rule in the Notification Filter spec</p>
 </div>
 <table>
 <thead>
@@ -11431,7 +11431,7 @@ string
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.BucketNotificationSpec">BucketNotificationSpec</a>)
 </p>
 <div>
-<p>NotificationFilterSpec represent the spec of a Bucket Notification filter</p>
+<p>NotificationFilterSpec represents the spec of a Bucket Notification filter</p>
 </div>
 <table>
 <thead>
@@ -11491,7 +11491,7 @@ string
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.NotificationFilterSpec">NotificationFilterSpec</a>)
 </p>
 <div>
-<p>NotificationKeyFilterRule represent a single key rule in the Notification Filter spec</p>
+<p>NotificationKeyFilterRule represents a single key rule in the Notification Filter spec</p>
 </div>
 <table>
 <thead>
@@ -11752,7 +11752,7 @@ ProbeSpec
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephObjectRealm">CephObjectRealm</a>)
 </p>
 <div>
-<p>ObjectRealmSpec represent the spec of an ObjectRealm</p>
+<p>ObjectRealmSpec represents the spec of an ObjectRealm</p>
 </div>
 <table>
 <thead>
@@ -11877,7 +11877,7 @@ If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metad
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephObjectStoreAccount">CephObjectStoreAccount</a>)
 </p>
 <div>
-<p>ObjectStoreAccountSpec represent the spec of a RGW Account</p>
+<p>ObjectStoreAccountSpec represents the spec of an RGW Account</p>
 </div>
 <table>
 <thead>
@@ -12171,7 +12171,7 @@ See <a href="https://docs.openssl.org/master/man3/SSL_CTX_set1_curves/#descripti
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephObjectStore">CephObjectStore</a>)
 </p>
 <div>
-<p>ObjectStoreSpec represent the spec of a pool</p>
+<p>ObjectStoreSpec represents the spec of a pool</p>
 </div>
 <table>
 <thead>
@@ -12528,7 +12528,7 @@ string
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephObjectStoreUser">CephObjectStoreUser</a>)
 </p>
 <div>
-<p>ObjectStoreUserSpec represent the spec of an Objectstoreuser</p>
+<p>ObjectStoreUserSpec represents the spec of an Objectstoreuser</p>
 </div>
 <table>
 <thead>
@@ -12997,7 +12997,7 @@ Kubernetes core/v1.SecretKeySelector
 <h3 id="ceph.rook.io/v1.ObjectUserOpMask">ObjectUserOpMask
 (<code>string</code> alias)</h3>
 <div>
-<p>Internally, RGW labels &ldquo;operations&rdquo; on persistent state as <code>RGW_OP_TYPE_READ</code> (<code>read</code>), <code>RGW_OP_TYPE_WRITE</code> (<code>write</code>), or <code>RGW_OP_TYPE_DELETE</code> (<code>delete</code>). All RGW users have an &ldquo;operation mask&rdquo;, which does not function as mask or filter as is typically implied by the word &ldquo;mask&rdquo;, but as a set of allowed or permissible &ldquo;operation&rdquo; types the user is able to perform. The &ldquo;operation mask&rdquo; is applied regardless of the bucket or IAM policy. For example, in order for an RGW user to be able to read an object from a bucket, that user must have <strong>both</strong> the <code>read</code> &ldquo;op mask&rdquo; bit and an IAM/bucket policy that allows <code>s3:GetObject</code>. The default operations allowed are <code>read</code>, <code>write</code>, and <code>delete</code>. Setting the value to <code>[]</code> (an empty YAML sequence) causes all &ldquo;operations&rdquo; in the mask to be removed, meaning that the user will not be able to perform any operations. These operation masks are supported: <code>read</code>, <code>write</code>, <code>delete</code></p>
+<p>Internally, RGW labels &ldquo;operations&rdquo; on persistent state as <code>RGW_OP_TYPE_READ</code> (<code>read</code>), <code>RGW_OP_TYPE_WRITE</code> (<code>write</code>), or <code>RGW_OP_TYPE_DELETE</code> (<code>delete</code>). All RGW users have an &ldquo;operation mask&rdquo;, which does not function as a mask or filter as is typically implied by the word &ldquo;mask&rdquo;, but as a set of allowed or permissible &ldquo;operation&rdquo; types the user is able to perform. The &ldquo;operation mask&rdquo; is applied regardless of the bucket or IAM policy. For example, in order for an RGW user to be able to read an object from a bucket, that user must have <strong>both</strong> the <code>read</code> &ldquo;op mask&rdquo; bit and an IAM/bucket policy that allows <code>s3:GetObject</code>. The default operations allowed are <code>read</code>, <code>write</code>, and <code>delete</code>. Setting the value to <code>[]</code> (an empty YAML sequence) causes all &ldquo;operations&rdquo; in the mask to be removed, meaning that the user will not be able to perform any operations. These operation masks are supported: <code>read</code>, <code>write</code>, <code>delete</code></p>
 </div>
 <h3 id="ceph.rook.io/v1.ObjectUserQuotaSpec">ObjectUserQuotaSpec
 </h3>
@@ -13060,7 +13060,7 @@ int64
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephObjectZoneGroup">CephObjectZoneGroup</a>)
 </p>
 <div>
-<p>ObjectZoneGroupSpec represent the spec of an ObjectZoneGroup</p>
+<p>ObjectZoneGroupSpec represents the spec of an ObjectZoneGroup</p>
 </div>
 <table>
 <thead>
@@ -13089,7 +13089,7 @@ string
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephObjectZone">CephObjectZone</a>)
 </p>
 <div>
-<p>ObjectZoneSpec represent the spec of an ObjectZone</p>
+<p>ObjectZoneSpec represents the spec of an ObjectZone</p>
 </div>
 <table>
 <thead>
@@ -13277,7 +13277,7 @@ string
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemMirrorInfoPeerSpec">FilesystemMirrorInfoPeerSpec</a>)
 </p>
 <div>
-<p>PeerStatSpec are the mirror stat with a given peer</p>
+<p>PeerStatSpec is the mirror stat with a given peer</p>
 </div>
 <table>
 <thead>
@@ -14202,7 +14202,7 @@ string
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>)
 </p>
 <div>
-<p>RGWServiceSpec represent the spec for RGW service</p>
+<p>RGWServiceSpec represents the spec for RGW service</p>
 </div>
 <table>
 <thead>
@@ -15102,7 +15102,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Interval represent the periodicity of the snapshot.</p>
+<p>Interval represents the periodicity of the snapshot.</p>
 </td>
 </tr>
 <tr>
@@ -15376,7 +15376,7 @@ bool
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringStatusSummarySpec">MirroringStatusSummarySpec</a>)
 </p>
 <div>
-<p>StatesSpec are rbd images mirroring state</p>
+<p>StatesSpec is rbd images mirroring state</p>
 </div>
 <table>
 <thead>
