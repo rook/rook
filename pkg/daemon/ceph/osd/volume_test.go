@@ -579,6 +579,9 @@ func TestConfigureCVDevices(t *testing.T) {
 			if command == "sgdisk" {
 				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
 			}
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
+			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 		deviceClassSet := false
@@ -588,16 +591,6 @@ func TestConfigureCVDevices(t *testing.T) {
 				assert.Equal(t, "myclass", args[8])
 				deviceClassSet = true
 				return "", nil
-			}
-			return "", errors.Errorf("unknown command %s %s", command, args)
-		}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
-			if args[0] == "auth" && args[1] == "get-or-create-key" {
-				return "{\"key\":\"mysecurekey\"}", nil
-			}
-			if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == "/tmp/ceph-log" {
-				return `{}`, nil
 			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
@@ -612,9 +605,10 @@ func TestConfigureCVDevices(t *testing.T) {
 				"vdb1": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/vdb1"}, DeviceInfo: &sys.LocalDisk{Type: sys.PartType}},
 			},
 		}
-		_, err := agent.configureCVDevices(context, devices)
+		deviceOSDs, err := agent.configureCVDevices(context, devices)
 		assert.Nil(t, err)
 		assert.True(t, deviceClassSet)
+		assert.Len(t, deviceOSDs, 1)
 	}
 
 	{
@@ -669,6 +663,103 @@ func TestConfigureCVDevices(t *testing.T) {
 		_, err := agent.configureCVDevices(context, devices)
 		assert.Nil(t, err)
 		assert.True(t, deviceClassSet)
+	}
+
+	{
+		// "ceph-volume raw list" without a device argument can miss freshly prepared OSDs.
+		// The freshly prepared device must be listed individually and the OSD must be returned.
+		t.Log("Test case for a raw mode OSD missing from the ceph-volume raw list results")
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
+			if command == "lsblk" && (args[0] == "/dev/vdb1") {
+				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="part" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
+			}
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
+			}
+			if args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "list" && args[6] == "/dev/vdb1" {
+				// listing the specific device finds the OSD
+				return cephVolumeRawPartitionTestResult, nil
+			}
+			if args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "list" {
+				// listing all devices misses the freshly prepared OSD
+				return `{}`, nil
+			}
+			if args[1] == "ceph-volume" && args[4] == "lvm" && args[5] == "list" {
+				return `{}`, nil
+			}
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("[MockExecuteCommandWithCombinedOutput] %s %v", command, args)
+			if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" {
+				return "", nil
+			}
+			if command == "cryptsetup" && args[0] == "luksDump" {
+				return "", errors.Errorf("%s is not a valid LUKS device", args[1])
+			}
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		clusterInfo := &cephclient.ClusterInfo{
+			FSID:    clusterFSID,
+			Context: context.TODO(),
+		}
+		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
+		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"vdb1": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/vdb1"}, DeviceInfo: &sys.LocalDisk{Type: sys.PartType}},
+			},
+		}
+		deviceOSDs, err := agent.configureCVDevices(context, devices)
+		require.NoError(t, err)
+		require.Len(t, deviceOSDs, 1)
+		assert.Equal(t, "/dev/vdb1", deviceOSDs[0].BlockPath)
+	}
+
+	{
+		// If a freshly prepared device cannot be listed even individually, the prepare job
+		// must fail instead of silently reporting fewer OSDs than were prepared.
+		t.Log("Test case for a raw mode OSD missing from all ceph-volume raw list results")
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
+			}
+			if args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "list" {
+				return `{}`, nil
+			}
+			if args[1] == "ceph-volume" && args[4] == "lvm" && args[5] == "list" {
+				return `{}`, nil
+			}
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("[MockExecuteCommandWithCombinedOutput] %s %v", command, args)
+			if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" {
+				return "", nil
+			}
+			if command == "cryptsetup" && args[0] == "luksDump" {
+				return "", errors.Errorf("%s is not a valid LUKS device", args[1])
+			}
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		clusterInfo := &cephclient.ClusterInfo{
+			FSID:    clusterFSID,
+			Context: context.TODO(),
+		}
+		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
+		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"vdb1": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/vdb1"}, DeviceInfo: &sys.LocalDisk{Type: sys.PartType}},
+			},
+		}
+		_, err := agent.configureCVDevices(context, devices)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "ceph-volume does not report it")
 	}
 }
 
