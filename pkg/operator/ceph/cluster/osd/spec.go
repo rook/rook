@@ -215,11 +215,21 @@ sys.exit('no disk found with OSD ID $OSD_ID')
 		# supported for CI and local testing.
 		SCAN_DEVICES="$(lsblk --noheadings --paths --list --output NAME,TYPE | awk '$2 == "disk" || $2 == "part" {print $1}' | grep -vE '^/dev/(rbd|nbd|zram|drbd)' || true)"
 		[[ -z "$SCAN_DEVICES" ]] && { echo "no devices to scan for OSD $OSD_ID" ; exit 1 ; }
+		# List the devices one at a time: ceph-volume folds the whole scan list into a
+		# single ceph-bluestore-tool call and reports {} for the entire scan when that
+		# one process fails, so a single unreadable device would otherwise hide every
+		# OSD from the scan. On Ceph v20.2.x, sub-4KiB devices (e.g. the 1KiB extended-
+		# partition node of an MBR-partitioned OS disk) crash the batched call exactly
+		# that way (https://tracker.ceph.com/issues/76354).
+		DEVICE=""
 		# shellcheck disable=SC2086 # word splitting of the device list is intended
-		ceph-volume raw list $SCAN_DEVICES > "$OSD_LIST"
-		cat "$OSD_LIST"
-
-		DEVICE="$(find_device < "$OSD_LIST")"
+		for DEV in $SCAN_DEVICES; do
+			ceph-volume raw list "$DEV" > "$OSD_LIST" || continue
+			cat "$OSD_LIST"
+			if DEVICE="$(find_device < "$OSD_LIST")"; then
+				break
+			fi
+		done
 	fi
 	[[ -z "$DEVICE" ]] && { echo "no device" ; exit 1 ; }
 
