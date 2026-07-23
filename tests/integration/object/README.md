@@ -1,9 +1,7 @@
 # Object storage integration tests
 
-This tree holds the new-style integration tests for rook's object storage
-features. It is the model for converting the remaining old-style object tests
-(`testObjectStoreOperations`, store lifecycle);
-follow the conventions here exactly so the conversion happens once.
+This tree holds the integration tests for rook's object storage features;
+follow the conventions here exactly.
 
 ## Execution model
 
@@ -38,12 +36,13 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `bucket/quota` | `object/bucket` | OBC maxObjects user quota + bucketMaxObjects/bucketMaxSize bucket quota |
 | `bucket/rw` | `object/bucket` | OBC S3 read/write/delete + OBC-stays-Bound |
 | `cosi` | `object/cosi` | CephCOSIDriver + COSI bucket provisioning |
+| `dependents` | `object` | CephObjectStore deletion blocked by dependents |
+| `lifecycle` | `object` | CephObjectStore create/health/delete + the zone.json pool canary |
 | `notification` | `object/notification` | CephBucketNotification HTTP endpoint delivery |
 | `topic/kafka` | `object/topic` | CephBucketTopic kafka endpoints |
 | `user/caps` | `object/user` | user capabilities |
 | `user/keys` | `object/user` | explicit S3 key management |
 | `user/opmask` | `object/user` | user op_mask |
-| reserved: `tests/integration/object/lifecycle`, `tests/integration/object/dependents` | | future conversions |
 
 Shared utilities live under `util/`:
 
@@ -209,6 +208,4 @@ verification; wire the dispatcher; delete the old code; retire
 
 | old test | target package(s) | still needs (build in that PR) |
 |---|---|---|
-| `testObjectStoreOperations` deletion-blocked-by-dependents | `tests/integration/object/dependents` | private-store fixture, store condition predicates in `wait4` |
-| `createCephObjectStore`/`runObjectE2ETestLite`/deletion asserts + zone.json canary | `tests/integration/object/lifecycle` | store create/health/delete helpers, `Sharedstore.Installer()` accessor |
 | upgrade-suite object usage | stays in upgrade suite | switch to typed clients + `wait4` |
