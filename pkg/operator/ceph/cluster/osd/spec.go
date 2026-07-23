@@ -190,7 +190,7 @@ else
 		python3 -c "
 import sys, json
 for _, info in json.load(sys.stdin).items():
-	if info['osd_id'] == $OSD_ID:
+	if info.get('osd_id') == $OSD_ID:
 		print(info['device'], end='')
 		print('found device: ' + info['device'], file=sys.stderr) # log the disk we found to stderr
 		sys.exit(0)  # don't keep processing once the disk is found
