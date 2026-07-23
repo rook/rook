@@ -90,10 +90,21 @@ func (c *createConfig) createNewOSDsFromStatus(
 		return
 	}
 
+	nodeOrPVC := "node"
+	if status.PvcBackedOSD {
+		nodeOrPVC = "PVC"
+	}
+
 	for i, osd := range status.OSDs {
 		if c.deployments.Exists(osd.ID) {
-			// This OSD will be handled by the updater
-			log.NamespacedDebug(c.cluster.clusterInfo.Namespace, logger, "not creating deployment for OSD %d which already exists", osd.ID)
+			if existing, ok := c.deployments.Get(osd.ID); ok && existing.UUID != "" && osd.UUID != "" && existing.UUID != osd.UUID {
+				errs.addError("duplicate OSD ID %d detected: the OSD on %s %q has UUID %q, but an existing OSD deployment already uses ID %d with a different UUID %q (on %q). "+
+					"The disk may not have been fully cleaned from a previous install. "+
+					"See https://rook.io/docs/rook/latest-release/Getting-Started/ceph-teardown/#zapping-devices for details on cleaning disks",
+					osd.ID, nodeOrPVC, nodeOrPVCName, osd.UUID, osd.ID, existing.UUID, existing.NodeOrPVCName)
+			} else {
+				log.NamespacedDebug(c.cluster.clusterInfo.Namespace, logger, "not creating deployment for OSD %d which already exists", osd.ID)
+			}
 			continue
 		}
 
