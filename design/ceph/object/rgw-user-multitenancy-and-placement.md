@@ -4,13 +4,24 @@
 
 ## Summary
 
-This document proposes extending the `CephObjectStoreUser` CRD with three new spec fields:
+This document proposes extending the `CephObjectStoreUser` CRD with four new spec fields:
 
 - `tenant` — assigns the RGW user to a named RGW tenant, enabling bucket name isolation across tenants.
 - `defaultPlacement` — sets the user's default bucket placement target, controlling which data/metadata pools newly created buckets land in.
 - `defaultStorageClass` — sets the user's default storage class for objects, applied on top of `defaultPlacement`.
+- `defaultPlacementTags` — sets storage class placement tags associated with the user's default placement.
 
-All three fields already exist in the underlying `admin.User` struct in `go-ceph`; this work wires them into the Rook controller and API.
+All four fields already exist in the underlying `admin.User` struct in `go-ceph`; this work wires them into the Rook controller and API.
+
+### Why tenant and placement are covered in the same document
+
+`tenant`, `defaultPlacement`, `defaultStorageClass`, and `defaultPlacementTags` are unrelated in what they do in RGW, but they're proposed together here because they:
+
+- are all optional additions to the exact same CRD field (`ObjectStoreUserSpec`), reviewed against the same schema and the same immutability/mutability rules,
+- share the same controller entry points (`generateUserConfig`, `isUserSync`, `createOrUpdateCephUser`), so a reviewer needs to see how they compose in that code regardless of which section of the doc they came from,
+- and are shipping in the same PR (rook#17792) resolving the same issue (#17274), which asked for tenant isolation and, in the resulting discussion, placement targeting for tenant root/sub-users.
+
+Splitting placement into its own document would not change the schema or the controller logic — it would only move prose. We've kept them together so the field interactions (e.g. `defaultStorageClass` requiring `defaultPlacement`, all three being independent of `tenant`) are visible in one place instead of cross-referenced across two documents.
 
 ## Motivation
 
@@ -35,12 +46,13 @@ Rook currently has no mechanism to place a `CephObjectStoreUser` in an RGW tenan
 - Add `spec.tenant` to `CephObjectStoreUser` to set the `Tenant` field on the RGW Admin Ops API `User` struct at user creation.
 - Add `spec.defaultPlacement` to `CephObjectStoreUser` to set `DefaultPlacement` on the user via `CreateUser`/`ModifyUser` in the RGW Admin Ops API.
 - Add `spec.defaultStorageClass` to `CephObjectStoreUser` to set `DefaultStorageClass` on the user, embedded into the placement rule sent to RGW (see [Proposed API Changes](#proposed-api-changes)).
+- Add `spec.defaultPlacementTags` to `CephObjectStoreUser` to set `PlacementTags` on the user via `CreateUser`/`ModifyUser`, now that go-ceph supports it upstream (merged in [ceph/go-ceph#1290](https://github.com/ceph/go-ceph/pull/1290)).
 - Validate `defaultPlacement` against the named placements defined in the referenced `CephObjectStore`.
 - Require `defaultPlacement` to be set whenever `defaultStorageClass` is set, since RGW cannot apply a storage class without a placement target.
 - Treat `tenant` as immutable (changing tenant requires user deletion and recreation in RGW).
-- Treat `defaultPlacement` and `defaultStorageClass` as mutable (can be updated via `ModifyUser`).
-- Explicitly reconcile removal of `defaultPlacement`/`defaultStorageClass` back to Ceph's defaults rather than leaving the RGW-side value stale (see [Unset/Removal Behavior](#unsetremoval-behavior)).
-- All three fields are independent of `tenant`: `defaultPlacement`/`defaultStorageClass` may be set without `tenant`, and vice versa.
+- Treat `defaultPlacement`, `defaultStorageClass`, and `defaultPlacementTags` as mutable (can be updated via `ModifyUser`).
+- Explicitly reconcile removal of `defaultPlacement`/`defaultStorageClass`/`defaultPlacementTags` back to Ceph's defaults rather than leaving the RGW-side value stale (see [Unset/Removal Behavior](#unsetremoval-behavior)).
+- All four fields are independent of `tenant`: `defaultPlacement`/`defaultStorageClass`/`defaultPlacementTags` may be set without `tenant`, and vice versa.
 - Preserve backward compatibility: all new fields are optional, existing resources are unaffected.
 - Mirror the flat-field, go-ceph-aligned API shape and controller approach (`generateUserConfig`/`isUserSync`/`effectiveDefaultPlacement`) already established by PR [#17260](https://github.com/rook/rook/pull/17260) (`DefaultStorageClass`), rather than introducing a parallel, differently-shaped design.
 
@@ -66,7 +78,7 @@ type User struct {
     Tenant              string   `url:"tenant"`                                          // ← passed as URL param only, not in JSON response
     DefaultPlacement    string   `json:"default_placement" url:"default-placement"`
     DefaultStorageClass string   `json:"default_storage_class" url:"default-storage-class"`
-    PlacementTags       []string `json:"placement_tags" url:"placement-tags"`
+    PlacementTags       []string `json:"placement_tags" url:"placement-tags"`             // ← support merged upstream in ceph/go-ceph#1290
     // ...
 }
 ```
@@ -117,14 +129,23 @@ type ObjectStoreUserSpec struct {
     // +kubebuilder:validation:MinLength=0
     // +kubebuilder:validation:MaxLength=2048
     DefaultStorageClass *string `json:"defaultStorageClass,omitempty"`
+
+    // DefaultPlacementTags is a list of storage class tags to associate with this
+    // user's default placement.
+    // +optional
+    // +listType=atomic
+    // +kubebuilder:validation:MinItems=1
+    // +kubebuilder:validation:MaxItems=64
+    DefaultPlacementTags []string `json:"defaultPlacementTags,omitempty"`
 }
 ```
 
 Maps to `go-ceph` `admin.User` fields:
 - `DefaultPlacement` → `DefaultPlacement` (URL param `default-placement`, embeds storage class — see below)
 - `DefaultStorageClass` → `DefaultStorageClass` (URL param `default-storage-class`, informational only — see below)
+- `DefaultPlacementTags` → `PlacementTags` (URL param `placement-tags`, JSON `placement_tags`)
 
-**`PlacementTags` is explicitly out of scope for this design.** PR #17260 does not implement it, and adding it here would reintroduce exactly the kind of parallel, inconsistent surface this revision is trying to eliminate; it can be added later as its own flat `DefaultPlacementTags []string` field once a concrete use case and matching go-ceph wiring exist.
+**`PlacementTags` was previously out of scope** because go-ceph did not yet support it and PR #17260 does not implement it. That gap has since closed: [ceph/go-ceph#1290](https://github.com/ceph/go-ceph/pull/1290) added `PlacementTags` support to the admin ops client and merged upstream on 2026-07-09. This design now includes it as a flat `DefaultPlacementTags []string` field, following the same flat, go-ceph-aligned naming as the other fields. Rook's `go.mod` currently points at a fork (`github.com/ideepika/go-ceph`) pending an official tagged go-ceph release that includes this change; that pin must be replaced with a released version before this can merge.
 
 ### `DefaultStorageClass` / `DefaultPlacement` Interaction
 
@@ -144,6 +165,7 @@ Ceph RGW's `ModifyUser` semantics do not treat an absent field as "no change" �
 - If `defaultPlacement` is set and later removed from the spec, the controller must issue a `ModifyUser` call with an explicit empty `default-placement`, which reverts the user to the zone group's default placement target. Simply omitting the field from a subsequent reconcile is not sufficient — go-ceph's `ModifyUser` sends whatever value is present on the `admin.User` struct passed to it, so a removed spec field must be explicitly reconciled by the controller (e.g. by constructing the request with `DefaultPlacement: ""`), not just left unset in Go.
 - Symmetrically, if `defaultStorageClass` is set and later removed while `defaultPlacement` remains set, the controller must send the placement rule without the embedded storage class suffix (i.e. plain `<defaultPlacement>`, not `<defaultPlacement>/<defaultStorageClass>`), which reverts the user to Ceph's `STANDARD` storage class.
 - If both are removed together, the controller reverts to sending an empty `default-placement`, which implicitly also clears any storage class override.
+- If `defaultPlacementTags` is set and later removed, the controller must send an empty `placement-tags` list, clearing the tags on the live RGW user rather than leaving the last-applied tags in place.
 
 This mirrors the enforcement mechanism already used for `tenant`'s immutability: the desired end-state is expressed declaratively in the spec, and the controller is responsible for issuing whatever explicit RGW admin API call is needed to converge live state to it, including reverting fields to their Ceph-side defaults on removal — not merely for what to send when a field is populated.
 
@@ -161,6 +183,8 @@ spec:
   tenant: tenantA
   defaultPlacement: hot-tier
   defaultStorageClass: STANDARD_IA
+  defaultPlacementTags:
+    - tenant-a
 ```
 
 ## S3 Client Configuration for Tenanted Users
@@ -215,8 +239,18 @@ This gives a clear error on any attempted change.
 
 No conflict; `admin.User` has both fields.
 
+## Related Work
+
+Three other rook PRs touch the same `ObjectStoreUserSpec` surface:
+
+- [#17260](https://github.com/rook/rook/pull/17260) (`DefaultStorageClass`, jhoblitt) — unmerged. This design adopts its flat-field naming and its `generateUserConfig`/`isUserSync`/`effectiveDefaultPlacement` controller pattern directly rather than duplicating it, so the two proposals are compatible by construction.
+- [#17261](https://github.com/rook/rook/pull/17261) (`DefaultPlacement`, jhoblitt) — unmerged, narrower scope than this design (placement only, no tenant, no storage class, no tags).
+- [#17792](https://github.com/rook/rook/pull/17792) (this design's implementation, ideepika) — implements `tenant` + `defaultPlacement` + `defaultStorageClass` + `defaultPlacementTags` together.
+
+Since #17792 implements a superset of what #17260 and #17261 each add individually, using the same field names and controller shape, the intent is for #17792 to subsume both once merged, with #17260/#17261 closed in favor of it rather than merged separately. This still needs an explicit decision from jhoblitt, who raised the overlap on #17755 and hasn't yet responded.
+
 ## Upgrade and Backward Compatibility
 
-- All new fields (`tenant`, `defaultPlacement`, `defaultStorageClass`) are `omitempty`; existing `CephObjectStoreUser` resources without these fields continue to work unchanged.
+- All new fields (`tenant`, `defaultPlacement`, `defaultStorageClass`, `defaultPlacementTags`) are `omitempty`; existing `CephObjectStoreUser` resources without these fields continue to work unchanged.
 - No migration of existing RGW users is required or performed.
 - The CRD schema is additive only, and reuses the same flat-field, CEL-validated shape introduced by PR #17260 for `defaultStorageClass`, so the two proposals compose without conflicting field layouts.

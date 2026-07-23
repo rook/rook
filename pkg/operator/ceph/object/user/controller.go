@@ -1067,7 +1067,10 @@ func isUserSync(targetUser, liveUser *admin.User) bool {
 }
 
 // effectiveDefaultPlacement resolves a user's default placement into its
-// placement target and storage class.
+// placement target and storage class. rook writes the storage class embedded in
+// the placement rule ("<placement>/<storage-class>") because RGW only records it
+// that way, while the rgw admin API reports the two back as separate fields — so
+// both representations must resolve to the same pair for isUserSync to converge.
 func effectiveDefaultPlacement(user *admin.User) (placement, storageClass string) {
 	placement, storageClass = user.DefaultPlacement, user.DefaultStorageClass
 	if p, sc, found := strings.Cut(user.DefaultPlacement, "/"); found {
