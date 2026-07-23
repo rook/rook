@@ -23,7 +23,7 @@ jobs:
     if: github.repository == 'rook/rook'
     uses: ./.github/workflows/ceph-arm64-suite-test.yml
     with:
-      ceph_images: '["quay.io/ceph/ceph:v21", "quay.ceph.io/ceph-ci/ceph:main-arm64", "quay.ceph.io/ceph-ci/ceph:squid-release-arm64", "quay.ceph.io/ceph-ci/ceph:tentacle-arm64", "quay.ceph.io/ceph-ci/ceph:umbrella-release-arm64"]'
+      ceph_images: '["quay.io/ceph/ceph:v19", "quay.io/ceph/ceph:v20", "quay.io/ceph/ceph:v21", "quay.ceph.io/ceph-ci/ceph:main-arm64", "quay.ceph.io/ceph-ci/ceph:squid-release-arm64", "quay.ceph.io/ceph-ci/ceph:tentacle-arm64", "quay.ceph.io/ceph-ci/ceph:umbrella-release-arm64"]'
     secrets: inherit
 
   ceph-suite-tests:
