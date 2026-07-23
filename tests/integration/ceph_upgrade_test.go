@@ -29,9 +29,13 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
+	"github.com/rook/rook/tests/integration/object/util/wait4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -40,6 +44,10 @@ const (
 	blockName         = "block-claim-upgrade"
 	bucketPrefix      = "generate-me" // use generated bucket name for this test
 	simpleTestMessage = "my simple message"
+
+	objectUserDisplayName = "A rook RGW user"
+	obcName               = "smoke-delete-bucket"
+	maxObject             = "2"
 )
 
 // ************************************************
@@ -61,11 +69,12 @@ func TestCephUpgradeSuite(t *testing.T) {
 
 type UpgradeSuite struct {
 	suite.Suite
-	helper    *clients.TestClient
-	k8sh      *utils.K8sHelper
-	settings  *installer.TestCephSettings
-	installer *installer.CephInstaller
-	namespace string
+	helper      *clients.TestClient
+	k8sh        *utils.K8sHelper
+	settings    *installer.TestCephSettings
+	installer   *installer.CephInstaller
+	namespace   string
+	objectStore *sharedstore.Sharedstore
 }
 
 func (s *UpgradeSuite) SetupSuite() {
@@ -78,6 +87,9 @@ func (s *UpgradeSuite) TearDownSuite() {
 
 func (s *UpgradeSuite) baseSetup(useHelm bool, initialRookVersion string, initialCephVersion v1.CephVersionSpec) {
 	s.namespace = "upgrade"
+	// the suite instance is shared across test methods; a fixture left over
+	// from a previous method must not leak into this one's cleanup routing
+	s.objectStore = nil
 	s.settings = &installer.TestCephSettings{
 		ClusterName:                 s.namespace,
 		Namespace:                   s.namespace,
@@ -121,7 +133,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
 		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
 		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
-		objectStoreCleanUp(&s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
+		s.cleanUpObjectStore()
 	}()
 
 	// Delete Object-SC before upgrade test (https://github.com/rook/rook/issues/10153)
@@ -145,7 +157,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
 	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
 
-	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false)
+	s.checkObjectUser(objectUserID)
 
 	// should be Bound after upgrade to Rook master
 	// do not need retry b/c the OBC controller runs parallel to Rook-Ceph orchestration
@@ -169,7 +181,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("Verified upgrade from squid to tentacle")
 
-	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false)
+	s.checkObjectUser(objectUserID)
 }
 
 func (s *UpgradeSuite) TestUpgradeCephToSquidDevel() {
@@ -189,7 +201,7 @@ func (s *UpgradeSuite) TestUpgradeCephToSquidDevel() {
 		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
 		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
 		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
-		objectStoreCleanUp(&s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
+		s.cleanUpObjectStore()
 	}()
 
 	//
@@ -203,7 +215,7 @@ func (s *UpgradeSuite) TestUpgradeCephToSquidDevel() {
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("verified upgrade from squid stable to squid devel")
 
-	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false)
+	s.checkObjectUser(objectUserID)
 }
 
 func (s *UpgradeSuite) TestUpgradeCephToTentacleDevel() {
@@ -223,7 +235,7 @@ func (s *UpgradeSuite) TestUpgradeCephToTentacleDevel() {
 		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
 		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
 		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
-		objectStoreCleanUp(&s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
+		s.cleanUpObjectStore()
 	}()
 
 	//
@@ -237,7 +249,7 @@ func (s *UpgradeSuite) TestUpgradeCephToTentacleDevel() {
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("verified upgrade from tentacle stable to tentacle devel")
 
-	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false)
+	s.checkObjectUser(objectUserID)
 }
 
 func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preFilename string) (int, []string, []string) {
@@ -268,13 +280,11 @@ func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preF
 
 	if !s.settings.UseHelm {
 		logger.Infof("Initializing object before the upgrade")
-		deleteStore := false
-		tls := false
-		runObjectE2ETestLite(s.T(), s.helper, s.k8sh, s.installer, s.settings.Namespace, installer.ObjectStoreName, 1, deleteStore, tls, false)
+		s.objectStore = sharedstore.Create(s.T(), s.k8sh, s.installer, false, s.settings.Namespace, installer.ObjectStoreName, 1)
 	}
 
 	logger.Infof("Initializing object user before the upgrade")
-	createCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false)
+	s.createObjectUser(objectUserID)
 
 	logger.Info("Initializing object bucket claim before the upgrade")
 	cobErr := s.helper.BucketClient.CreateBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreName, "Delete")
@@ -306,6 +316,65 @@ func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preF
 	require.NotEqual(s.T(), 0, numOSDs)
 
 	return numOSDs, rbdFilesToRead, cephfsFilesToRead
+}
+
+func (s *UpgradeSuite) createObjectUser(userID string) {
+	maxBuckets := 1
+	maxObjects := int64(2)
+	maxSize := resource.MustParse("100000")
+	user := &v1.CephObjectStoreUser{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      userID,
+			Namespace: s.namespace,
+		},
+		Spec: v1.ObjectStoreUserSpec{
+			Store:       installer.ObjectStoreName,
+			DisplayName: objectUserDisplayName,
+			Capabilities: &v1.ObjectUserCapSpec{
+				User:   "*",
+				Bucket: "*",
+			},
+			Quotas: &v1.ObjectUserQuotaSpec{
+				MaxBuckets: &maxBuckets,
+				MaxObjects: &maxObjects,
+				MaxSize:    &maxSize,
+			},
+		},
+	}
+	wait4.RequireCreate(context.TODO(), s.T(),
+		s.k8sh.RookClientset.CephV1().CephObjectStoreUsers(s.namespace),
+		user, wait4.ObjectStoreUser, wait4.TimeoutLong)
+}
+
+func (s *UpgradeSuite) checkObjectUser(userID string) {
+	wait4.AssertCondition(context.TODO(), s.T(),
+		s.k8sh.RookClientset.CephV1().CephObjectStoreUsers(s.namespace),
+		userID, wait4.ObjectStoreUser, wait4.TimeoutShort)
+
+	// the user's credential Secret is what workloads mount; the Ready phase
+	// alone does not prove it survived an upgrade
+	secrets, err := s.k8sh.Clientset.CoreV1().Secrets(s.namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("rook_object_store=%s,user=%s", installer.ObjectStoreName, userID),
+	})
+	require.NoError(s.T(), err)
+	assert.NotEmpty(s.T(), secrets.Items, "credential secret for user %q not found", userID)
+
+	userInfo, err := s.helper.ObjectUserClient.GetUser(s.namespace, installer.ObjectStoreName, userID)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), userID, userInfo.UserID)
+	require.NotNil(s.T(), userInfo.DisplayName)
+	assert.Equal(s.T(), objectUserDisplayName, *userInfo.DisplayName)
+}
+
+func (s *UpgradeSuite) cleanUpObjectStore() {
+	if s.objectStore != nil {
+		s.objectStore.Destroy()
+		return
+	}
+	// the helm variant's store comes from the chart's retained default CRs
+	wait4.AssertDelete(context.TODO(), s.T(),
+		s.k8sh.RookClientset.CephV1().CephObjectStores(s.settings.Namespace),
+		installer.ObjectStoreName, 5*time.Minute)
 }
 
 func (s *UpgradeSuite) gatherLogs(systemNamespace, testSuffix string) {

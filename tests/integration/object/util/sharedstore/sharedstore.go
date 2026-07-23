@@ -44,12 +44,19 @@ type Sharedstore struct {
 	adminClient *admin.API
 	snsClient   *sns.Client
 	objectStore *cephv1.CephObjectStore
+	installer   *installer.CephInstaller
 	tlsEnable   bool
 	destroy     func()
 }
 
 func (s *Sharedstore) AdminClient() *admin.API {
 	return s.adminClient
+}
+
+// Installer returns the suite installer, for tests that must run commands
+// (e.g. radosgw-admin) inside the cluster.
+func (s *Sharedstore) Installer() *installer.CephInstaller {
+	return s.installer
 }
 
 func (s *Sharedstore) SnsClient() *sns.Client {
@@ -76,7 +83,7 @@ func (s *Sharedstore) Destroy() {
 func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool, namespace, storeName string, instances int32, allowedNamespaces ...string) *Sharedstore {
 	t.Helper()
 
-	s := &Sharedstore{tlsEnable: tlsEnable}
+	s := &Sharedstore{tlsEnable: tlsEnable, installer: installer}
 	ctx := context.TODO()
 	ns := namespace
 
@@ -240,6 +247,10 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 			Spec: cephv1.NamedBlockPoolSpec{
 				Name: v,
 				PoolSpec: cephv1.PoolSpec{
+					// These are rgw backing pools. Without an explicit application
+					// the operator defaults a CephBlockPool to "rbd" and runs
+					// `rbd pool init` on it, which misrepresents the store's pools.
+					Application: "rgw",
 					Replicated: cephv1.ReplicatedSpec{
 						Size:                   1,
 						RequireSafeReplicaSize: false,
