@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
@@ -653,11 +654,18 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 		userConfig.Tenant = user.Spec.Tenant
 	}
 
-	if user.Spec.Placement.ID != "" {
-		userConfig.DefaultPlacement = user.Spec.Placement.ID
+	if user.Spec.DefaultPlacement != nil {
+		userConfig.DefaultPlacement = *user.Spec.DefaultPlacement
+		// Squid's rgw admin user API records a user's default storage class only
+		// when it is embedded in the default placement rule as
+		// "<placement>/<storage-class>"; the separate default-storage-class
+		// parameter is ignored.
+		if user.Spec.DefaultStorageClass != nil {
+			userConfig.DefaultPlacement += "/" + *user.Spec.DefaultStorageClass
+		}
 	}
-	if len(user.Spec.Placement.Tags) > 0 {
-		userConfig.PlacementTags = user.Spec.Placement.Tags
+	if len(user.Spec.DefaultPlacementTags) > 0 {
+		userConfig.PlacementTags = user.Spec.DefaultPlacementTags
 	}
 
 	return userConfig, nil
@@ -1045,7 +1053,9 @@ func isUserSync(targetUser, liveUser *admin.User) bool {
 		return false
 	}
 
-	if targetUser.DefaultPlacement != liveUser.DefaultPlacement {
+	targetPlacement, targetStorageClass := effectiveDefaultPlacement(targetUser)
+	livePlacement, liveStorageClass := effectiveDefaultPlacement(liveUser)
+	if targetPlacement != livePlacement || targetStorageClass != liveStorageClass {
 		return false
 	}
 
@@ -1054,6 +1064,16 @@ func isUserSync(targetUser, liveUser *admin.User) bool {
 	}
 
 	return true
+}
+
+// effectiveDefaultPlacement resolves a user's default placement into its
+// placement target and storage class.
+func effectiveDefaultPlacement(user *admin.User) (placement, storageClass string) {
+	placement, storageClass = user.DefaultPlacement, user.DefaultStorageClass
+	if p, sc, found := strings.Cut(user.DefaultPlacement, "/"); found {
+		placement, storageClass = p, sc
+	}
+	return placement, storageClass
 }
 
 func placementTagsEqual(a, b []string) bool {

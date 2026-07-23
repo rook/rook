@@ -2353,6 +2353,7 @@ type CephObjectStoreUserList struct {
 }
 
 // ObjectStoreUserSpec represent the spec of an Objectstoreuser
+// +kubebuilder:validation:XValidation:message="defaultStorageClass requires defaultPlacement",rule="!has(self.defaultStorageClass) || has(self.defaultPlacement)"
 type ObjectStoreUserSpec struct {
 	// The store the user will be created in
 	// +optional
@@ -2398,32 +2399,32 @@ type ObjectStoreUserSpec struct {
 	// +kubebuilder:validation:MaxLength=255
 	Tenant string `json:"tenant,omitempty"`
 
-	// Placement controls the user's default bucket placement target and storage class tags.
-	// May be set independently of tenant.
-	// +optional
-	Placement ObjectStoreUserPlacementSpec `json:"placement,omitzero"`
-}
-
-// ObjectStoreUserPlacementSpec sets the user's default placement target and storage class tags.
-// +kubebuilder:validation:MinProperties=1
-type ObjectStoreUserPlacementSpec struct {
-	// ID names the placement target for new buckets created by this user.
-	// Must match one of the entries in the referenced CephObjectStore's
-	// spec.sharedPools.poolPlacements[].name.
+	// DefaultPlacement overrides the default pool placement target for buckets
+	// created by this user. Must match one of the entries in the referenced
+	// CephObjectStore's spec.sharedPools.poolPlacements[].name. If not provided,
+	// the zone group's default placement target is used.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._/-]+$`
-	// +kubebuilder:validation:MaxLength=255
-	ID string `json:"id,omitempty"`
+	// +kubebuilder:validation:MaxLength=2048
+	DefaultPlacement *string `json:"defaultPlacement,omitempty"`
 
-	// Tags is a list of storage class tags to associate with this user's default placement.
+	// DefaultStorageClass overrides the default storage class for objects created
+	// by this user. Requires defaultPlacement to be set. If not provided, the
+	// default `STANDARD` storage class is used.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=2048
+	DefaultStorageClass *string `json:"defaultStorageClass,omitempty"`
+
+	// DefaultPlacementTags is a list of storage class tags to associate with this
+	// user's default placement.
 	// +optional
 	// +listType=atomic
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=64
 	// +kubebuilder:validation:items:MinLength=1
 	// +kubebuilder:validation:items:MaxLength=255
-	Tags []string `json:"tags,omitempty"`
+	DefaultPlacementTags []string `json:"defaultPlacementTags,omitempty"`
 }
 
 // ObjectStoreUserAccountRef is a reference to a CephObjectStoreAccount

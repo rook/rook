@@ -881,4 +881,143 @@ func TestIsUserSync(t *testing.T) {
 
 		assert.False(t, isUserSync(&a, &b))
 	})
+
+	t.Run("DefaultPlacement same", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "HDD-EC",
+		}
+		b := admin.User{
+			DefaultPlacement: "HDD-EC",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultPlacement different", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "HDD-EC",
+		}
+		b := admin.User{}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass same", func(t *testing.T) {
+		a := admin.User{
+			DefaultStorageClass: "STANDARD_IA",
+		}
+		b := admin.User{
+			DefaultStorageClass: "STANDARD_IA",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass different", func(t *testing.T) {
+		a := admin.User{
+			DefaultStorageClass: "STANDARD_IA",
+		}
+		b := admin.User{}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass embedded in placement matches split form", func(t *testing.T) {
+		// the controller writes "<placement>/<class>" while rgw reports it back split
+		a := admin.User{
+			DefaultPlacement: "default/STANDARD_IA",
+		}
+		b := admin.User{
+			DefaultPlacement:    "default",
+			DefaultStorageClass: "STANDARD_IA",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass embedded in placement different from split form", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "default/STANDARD_IA",
+		}
+		b := admin.User{
+			DefaultPlacement:    "default",
+			DefaultStorageClass: "COLD",
+		}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
+}
+
+func TestGenerateUserConfigPlacement(t *testing.T) {
+	t.Run("no placement fields set", func(t *testing.T) {
+		user := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1"},
+			Spec:       cephv1.ObjectStoreUserSpec{Store: "my-store"},
+		}
+
+		userConfig, err := generateUserConfig(user)
+		require.NoError(t, err)
+		assert.Empty(t, userConfig.DefaultPlacement)
+		assert.Empty(t, userConfig.PlacementTags)
+	})
+
+	t.Run("defaultPlacement only", func(t *testing.T) {
+		placement := "hot-tier"
+		user := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1"},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:            "my-store",
+				DefaultPlacement: &placement,
+			},
+		}
+
+		userConfig, err := generateUserConfig(user)
+		require.NoError(t, err)
+		assert.Equal(t, "hot-tier", userConfig.DefaultPlacement)
+	})
+
+	t.Run("defaultPlacement with defaultStorageClass embeds the class in the placement rule", func(t *testing.T) {
+		placement := "hot-tier"
+		storageClass := "STANDARD_IA"
+		user := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1"},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:               "my-store",
+				DefaultPlacement:    &placement,
+				DefaultStorageClass: &storageClass,
+			},
+		}
+
+		userConfig, err := generateUserConfig(user)
+		require.NoError(t, err)
+		assert.Equal(t, "hot-tier/STANDARD_IA", userConfig.DefaultPlacement)
+	})
+
+	t.Run("defaultPlacementTags", func(t *testing.T) {
+		user := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1"},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:                "my-store",
+				DefaultPlacementTags: []string{"tenant-a", "fast"},
+			},
+		}
+
+		userConfig, err := generateUserConfig(user)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"tenant-a", "fast"}, userConfig.PlacementTags)
+	})
+
+	t.Run("tenant", func(t *testing.T) {
+		user := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "user1"},
+			Spec: cephv1.ObjectStoreUserSpec{
+				Store:  "my-store",
+				Tenant: "tenantA",
+			},
+		}
+
+		userConfig, err := generateUserConfig(user)
+		require.NoError(t, err)
+		assert.Equal(t, "tenantA", userConfig.Tenant)
+	})
 }

@@ -15315,6 +15315,35 @@ spec:
                 clusterNamespace:
                   description: The namespace where the parent CephCluster and CephObjectStore are found
                   type: string
+                defaultPlacement:
+                  description: |-
+                    DefaultPlacement overrides the default pool placement target for buckets
+                    created by this user. Must match one of the entries in the referenced
+                    CephObjectStore's spec.sharedPools.poolPlacements[].name. If not provided,
+                    the zone group's default placement target is used.
+                  maxLength: 2048
+                  minLength: 1
+                  type: string
+                defaultPlacementTags:
+                  description: |-
+                    DefaultPlacementTags is a list of storage class tags to associate with this
+                    user's default placement.
+                  items:
+                    maxLength: 255
+                    minLength: 1
+                    type: string
+                  maxItems: 64
+                  minItems: 1
+                  type: array
+                  x-kubernetes-list-type: atomic
+                defaultStorageClass:
+                  description: |-
+                    DefaultStorageClass overrides the default storage class for objects created
+                    by this user. Requires defaultPlacement to be set. If not provided, the
+                    default `STANDARD` storage class is used.
+                  maxLength: 2048
+                  minLength: 1
+                  type: string
                 displayName:
                   description: The display name for the ceph user.
                   type: string
@@ -15386,24 +15415,6 @@ spec:
                   minItems: 0
                   type: array
                   x-kubernetes-list-type: set
-                placement:
-                  minProperties: 1
-                  properties:
-                    id:
-                      maxLength: 255
-                      minLength: 1
-                      pattern: ^[a-zA-Z0-9._/-]+$
-                      type: string
-                    tags:
-                      items:
-                        maxLength: 255
-                        minLength: 1
-                        type: string
-                      maxItems: 64
-                      minItems: 1
-                      type: array
-                      x-kubernetes-list-type: atomic
-                  type: object
                 quotas:
                   description: ObjectUserQuotaSpec can be used to set quotas for the object store user to limit their usage. See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/?#quota-management) for more
                   nullable: true
@@ -15445,6 +15456,9 @@ spec:
                     - message: tenant is immutable
                       rule: self == oldSelf
               type: object
+              x-kubernetes-validations:
+                - message: defaultStorageClass requires defaultPlacement
+                  rule: '!has(self.defaultStorageClass) || has(self.defaultPlacement)'
             status:
               description: ObjectStoreUserStatus represents the status Ceph Object Store Gateway User
               properties:

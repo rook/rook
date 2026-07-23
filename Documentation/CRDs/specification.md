@@ -2265,17 +2265,44 @@ This field is immutable after creation.</p>
 </tr>
 <tr>
 <td>
-<code>placement,omitzero</code><br/>
+<code>defaultPlacement</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.ObjectStoreUserPlacementSpec">
-ObjectStoreUserPlacementSpec
-</a>
+string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Placement controls the user&rsquo;s default bucket placement target and storage class tags.
-May be set independently of tenant.</p>
+<p>DefaultPlacement overrides the default pool placement target for buckets
+created by this user. Must match one of the entries in the referenced
+CephObjectStore&rsquo;s spec.sharedPools.poolPlacements[].name. If not provided,
+the zone group&rsquo;s default placement target is used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultStorageClass</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DefaultStorageClass overrides the default storage class for objects created
+by this user. Requires defaultPlacement to be set. If not provided, the
+default <code>STANDARD</code> storage class is used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultPlacementTags</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DefaultPlacementTags is a list of storage class tags to associate with this
+user&rsquo;s default placement.</p>
 </td>
 </tr>
 </table>
@@ -12531,50 +12558,6 @@ string
 </tr>
 </tbody>
 </table>
-<h3 id="ceph.rook.io/v1.ObjectStoreUserPlacementSpec">ObjectStoreUserPlacementSpec
-</h3>
-<p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreUserSpec">ObjectStoreUserSpec</a>)
-</p>
-<div>
-<p>ObjectStoreUserPlacementSpec sets the user&rsquo;s default placement target and storage class tags.</p>
-</div>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>id</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ID names the placement target for new buckets created by this user.
-Must match one of the entries in the referenced CephObjectStore&rsquo;s
-spec.sharedPools.poolPlacements[].name.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>tags</code><br/>
-<em>
-[]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Tags is a list of storage class tags to associate with this user&rsquo;s default placement.</p>
-</td>
-</tr>
-</tbody>
-</table>
 <h3 id="ceph.rook.io/v1.ObjectStoreUserSpec">ObjectStoreUserSpec
 </h3>
 <p>
@@ -12716,17 +12699,44 @@ This field is immutable after creation.</p>
 </tr>
 <tr>
 <td>
-<code>placement,omitzero</code><br/>
+<code>defaultPlacement</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.ObjectStoreUserPlacementSpec">
-ObjectStoreUserPlacementSpec
-</a>
+string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Placement controls the user&rsquo;s default bucket placement target and storage class tags.
-May be set independently of tenant.</p>
+<p>DefaultPlacement overrides the default pool placement target for buckets
+created by this user. Must match one of the entries in the referenced
+CephObjectStore&rsquo;s spec.sharedPools.poolPlacements[].name. If not provided,
+the zone group&rsquo;s default placement target is used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultStorageClass</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DefaultStorageClass overrides the default storage class for objects created
+by this user. Requires defaultPlacement to be set. If not provided, the
+default <code>STANDARD</code> storage class is used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultPlacementTags</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DefaultPlacementTags is a list of storage class tags to associate with this
+user&rsquo;s default placement.</p>
 </td>
 </tr>
 </tbody>
