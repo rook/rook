@@ -19,13 +19,10 @@ package integration
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -49,6 +46,7 @@ import (
 	userkeys "github.com/rook/rook/tests/integration/object/user/keys"
 	useropmask "github.com/rook/rook/tests/integration/object/user/opmask"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
+	"github.com/rook/rook/tests/integration/object/zonepools"
 )
 
 const (
@@ -155,33 +153,6 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	// covered by the keystone suite
 	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, storeName, 1, tlsEnable, swiftAndKeystone)
 
-	// Canary test: verify all *_pool fields in zone.json are covered by Rook's zonePoolNSSuffix map.
-	// This catches new RGW pool fields added in newer Ceph versions that Rook doesn't yet handle,
-	// which would cause ghost default pools when shared pools are configured.
-	// Run right after store creation when the zone is fresh and definitely accessible.
-	s.T().Run("all zone.json pool fields are covered by Rook shared pool mapping", func(t *testing.T) {
-		output, err := installer.Execute("radosgw-admin",
-			[]string{"zone", "get", fmt.Sprintf("--rgw-zone=%s", storeName), fmt.Sprintf("--rgw-realm=%s", storeName)}, namespace)
-		require.NoError(t, err, "failed to get zone config; output: %s", output)
-		require.NotEmpty(t, output, "zone config is empty")
-
-		var zoneConfig map[string]interface{}
-		err = json.Unmarshal([]byte(output), &zoneConfig)
-		require.NoError(t, err, "failed to parse zone config JSON; output: %s", output)
-
-		knownPools := rgw.ZoneJsonPoolKeys()
-		for field, val := range zoneConfig {
-			if _, ok := val.(string); !ok {
-				continue
-			}
-			if !strings.HasSuffix(field, "_pool") {
-				continue
-			}
-			assert.Contains(t, knownPools, field,
-				"RGW zone.json contains unknown pool field %q — add it to zonePoolNSSuffix in pkg/operator/ceph/object/objectstore.go", field)
-		}
-	})
-
 	// test that a second object store can be created (and deleted) while the first exists
 	s.T().Run("run a second object store", func(t *testing.T) {
 		otherStoreName := "other-" + storeName
@@ -209,6 +180,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	)
 	defer sharedObjectStore.Destroy()
 
+	zonepools.TestZonePools(s.T(), k8sh, sharedObjectStore)
 	bucketlifecycle.TestObjectBucketClaimLifecycle(s.T(), k8sh, sharedObjectStore)
 	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, sharedObjectStore)
 	bucketpolicy.TestObjectBucketClaimPolicy(s.T(), k8sh, sharedObjectStore)

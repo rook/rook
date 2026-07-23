@@ -43,6 +43,7 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `user/caps` | `object/user` | user capabilities |
 | `user/keys` | `object/user` | explicit S3 key management |
 | `user/opmask` | `object/user` | user op_mask |
+| `zonepools` | `object` | zone.json pool fields covered by Rook's shared-pool mapping |
 | reserved: `tests/integration/object/lifecycle`, `tests/integration/object/dependents` | | future conversions |
 
 Shared utilities live under `util/`:
@@ -210,5 +211,5 @@ verification; wire the dispatcher; delete the old code; retire
 | old test | target package(s) | still needs (build in that PR) |
 |---|---|---|
 | `testObjectStoreOperations` deletion-blocked-by-dependents | `tests/integration/object/dependents` | private-store fixture, store condition predicates in `wait4` |
-| `createCephObjectStore`/`runObjectE2ETestLite`/deletion asserts + zone.json canary | `tests/integration/object/lifecycle` | store create/health/delete helpers, `Sharedstore.Installer()` accessor |
+| `createCephObjectStore`/`runObjectE2ETestLite`/deletion asserts | `tests/integration/object/lifecycle` | store create/health/delete helpers |
 | upgrade-suite object usage | stays in upgrade suite | switch to typed clients + `wait4` |
