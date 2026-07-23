@@ -175,7 +175,28 @@ allowVolumeExpansion: true
 kubectl create -f deploy/examples/csi/nvmeof/storageclass.yaml
 ```
 
-## Step 5: Create a PersistentVolumeClaim
+## Step 5: Create a VolumeAttributesClass (Optional)
+
+A `VolumeAttributesClass` defines mutable volume parameters such as host access control.
+This is required when external clients need to connect to NVMe-oF volumes, as it specifies
+which host NQNs are allowed to access the volume.
+
+To find the host NQN on each client node, run:
+
+```console
+cat /etc/nvme/hostnqn
+```
+
+If the file does not exist, generate one with `nvme gen-hostnqn`.
+
+Create the `VolumeAttributesClass` with the allowed host NQNs.
+See the [example VolumeAttributesClass](https://github.com/rook/rook/blob/master/deploy/examples/csi/nvmeof/volume-attributes-class.yaml) for reference.
+
+```console
+kubectl create -f deploy/examples/csi/nvmeof/volume-attributes-class.yaml
+```
+
+## Step 6: Create a PersistentVolumeClaim
 
 Create a PVC using the NVMe-oF storage class:
 
@@ -186,16 +207,18 @@ metadata:
   name: nvmeof-external-volume
   namespace: default
 spec:
+  volumeAttributesClassName: nvmeof-attributes
   storageClassName: ceph-nvmeof
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 128Mi
+      storage: 1Gi
 ```
 
 !!! note
-    This PVC is created for CSI driver provisioning. The volume will be accessible via NVMe-oF protocol by both Kubernetes pods within the cluster and external clients outside the cluster using standard NVMe-oF initiators.
+    The `volumeAttributesClassName` field is optional. Include it when you need host access
+    control for external clients (see Step 5). For in-cluster-only use, it can be omitted.
 
 Create the PVC:
 
@@ -213,10 +236,10 @@ kubectl get pvc nvmeof-external-volume
 
 ```console
 NAME                     STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
-nvmeof-external-volume   Bound    pvc-b4108580-5cfa-46d3-beff-320088a5bf3c   128Mi      RWO            ceph-nvmeof    20m
+nvmeof-external-volume   Bound    pvc-b4108580-5cfa-46d3-beff-320088a5bf3c   1Gi        RWO            ceph-nvmeof    20m
 ```
 
-## Step 6: Create a Pod
+## Step 7: Create a Pod
 
 Create a pod that consumes the NVMe-oF volume:
 
@@ -237,65 +260,86 @@ NAME              READY   STATUS    RESTARTS   AGE
 nvmeof-test-pod   1/1     Running   0          60s
 ```
 
-## Step 7: Accessing Volumes via NVMe-oF
+## Step 8: Accessing Volumes from External Clients
 
-Once the PVC is created and bound, the volume is available via
-NVMe-oF. The volume can be accessed by both Kubernetes pods within
-the cluster and external clients outside the cluster.
+Once the PVC is created and bound, the volume can be accessed by
+external clients outside the Kubernetes cluster using standard
+NVMe-oF initiators.
 
-### Access from External Clients
+### Prerequisites for External Clients
 
-External clients outside the Kubernetes cluster can connect to the gateway using standard NVMe-oF procedures.
+- **nvme-cli**: The `nvme` command-line tool must be installed
+- **NVMe-oF/TCP kernel module**: The `nvme-tcp` module must be loaded
+- **Network Access**: The client must be able to reach the gateway LoadBalancer IP
+- **Host NQN**: The client's host NQN must be listed in the `VolumeAttributesClass` (see Step 5)
 
-#### Prerequisites for External Clients
+### Create a LoadBalancer Service
 
-- **NVMe-oF Initiator**: The client must have the `nvme-tcp` kernel module loaded and `nvme-cli` installed
-- **Network Access**: The client must be able to reach the gateway service IP and ports
+External clients need a LoadBalancer service to reach the NVMe-oF gateway from outside the cluster.
+See the [example LoadBalancer service](https://github.com/rook/rook/blob/master/deploy/examples/csi/nvmeof/nvmeof-lb.yaml) for reference.
 
-#### Discover Subsystems
+!!! note
+    The `ceph_daemon_id` selector value follows the pattern `<gateway-name>-<suffix>`.
+    For a gateway named `nvmeof` with the first instance, the suffix is `a`, so
+    the value is `nvmeof-a`.
 
-From the external client, discover available NVMe-oF subsystems:
+Create the service:
 
-```bash
-nvme discover -t tcp -a <gateway-service-ip> -s 5500
+```console
+kubectl create -f deploy/examples/csi/nvmeof/nvmeof-lb.yaml
 ```
 
-Replace `<gateway-service-ip>` with the gateway service ClusterIP or an accessible endpoint.
+Get the external IP:
 
-#### Connect to Subsystem
-
-Connect to the discovered subsystem:
-
-```bash
-nvme connect -t tcp -n <subsystem-nqn> -a <gateway-ip> -s 5500
+```console
+kubectl get service -n rook-ceph nvmeof-lb
 ```
 
-Replace:
+**Example Output**
 
-- `<subsystem-nqn>` with the `subsystemNQN` value from your StorageClass (e.g., `nqn.2016-06.io.spdk:cnode1.rook-ceph`)
-- `<gateway-ip>` with the gateway service IP or pod IP
-
-#### Access the Volume
-
-Once connected, the NVMe namespace will appear as a block device on the client:
-
-```bash
-lsblk | grep nvme
+```console
+NAME        TYPE           CLUSTER-IP      EXTERNAL-IP       PORT(S)                         AGE
+nvmeof-lb   LoadBalancer   10.96.100.50    192.168.1.100     4420:31334/TCP,8009:31235/TCP    60s
 ```
 
-The device will typically appear as `/dev/nvmeXnY` where X is the controller number and Y is the namespace ID.
+### Connect from the External Client
 
-#### Format and Mount (Optional)
-
-If you want to format and mount the device:
+On the external client machine, load the NVMe-oF/TCP kernel module:
 
 ```bash
-# Format the device
-sudo mkfs.ext4 /dev/nvmeXnY
+sudo modprobe nvme-tcp
+```
 
-# Mount the device
-sudo mkdir /mnt/nvmeof
-sudo mount /dev/nvmeXnY /mnt/nvmeof
+Connect to the NVMe-oF subsystem:
+
+```bash
+sudo nvme connect -t tcp -n nqn.2016-06.io.spdk:cnode1.rook-ceph -a <EXTERNAL-IP> -s 4420
+```
+
+Replace `<EXTERNAL-IP>` with the LoadBalancer external IP from the service output above.
+
+!!! note
+    The `nvme connect` command uses the host NQN from `/etc/nvme/hostnqn` by default.
+    Make sure this file exists on the client and that its value is listed in the
+    `VolumeAttributesClass` (see Step 5). If the file does not exist, generate one
+    with `nvme gen-hostnqn | sudo tee /etc/nvme/hostnqn`.
+
+### Format and Mount
+
+```bash
+sudo mkfs.ext4 /dev/nvme1n1
+sudo mkdir -p /mnt/nvmeof
+sudo mount /dev/nvme1n1 /mnt/nvmeof
+sudo chown $(whoami):$(whoami) /mnt/nvmeof
+```
+
+### Disconnect
+
+To disconnect the NVMe-oF volume from the external client:
+
+```bash
+sudo umount /mnt/nvmeof
+sudo nvme disconnect -n nqn.2016-06.io.spdk:cnode1.rook-ceph
 ```
 
 ## High Availability
@@ -361,14 +405,20 @@ To clean up all the artifacts created:
 # Delete the test pod
 kubectl delete -f deploy/examples/csi/nvmeof/pod.yaml
 
+# Delete the VolumeAttributesClass (if created)
+kubectl delete volumeattributesclass nvmeof-attributes
+
 # Delete the PVC
 kubectl delete pvc nvmeof-external-volume
+
+# Delete the LoadBalancer service (if created)
+kubectl delete service -n rook-ceph nvmeof-lb
 
 # Delete the StorageClass
 kubectl delete storageclass ceph-nvmeof
 
-# Delete the NVMe-oF CSI operator resources
-kubectl delete -f deploy/examples/csi/nvmeof/csi-operator-nvmeof.yaml
+# Delete the NVMe-oF CSI driver
+kubectl delete -f deploy/examples/csi/nvmeof/driver.yaml
 
 # Delete the NVMe-oF gateway and its metadata pool
 kubectl delete -f deploy/examples/nvmeof.yaml
