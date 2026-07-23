@@ -93,9 +93,16 @@ build.docs: deps.docs
 
 publish.docs:
 	if ! git remote show docs > /dev/null 2>&1; then git remote add docs $(DOCS_GIT_REPO); fi
-	git fetch -u docs gh-pages
-	# Switch to root of repo and then run the build and deploy of the documentation
-	cd $(ROOT_DIR) && mike deploy --remote docs --push --branch gh-pages --update-aliases --deploy-prefix $(DOCS_PREFIX) $(DOCS_VERSION) $(DOCS_VERSION_ALIAS)
+	# a concurrent build can push gh-pages between our fetch and mike's push,
+	# getting the push rejected as non-fast-forward; reset the local branch to
+	# the remote tip and redeploy when that happens
+	cd $(ROOT_DIR) && for attempt in 1 2 3; do \
+		git fetch --force --update-head-ok docs gh-pages:gh-pages && \
+		mike deploy --remote docs --push --branch gh-pages --update-aliases --deploy-prefix $(DOCS_PREFIX) $(DOCS_VERSION) $(DOCS_VERSION_ALIAS) && \
+		exit 0; \
+		echo "docs deploy attempt $$attempt failed"; \
+		sleep 15; \
+	done; exit 1
 
 # ====================================================================================
 # helm
