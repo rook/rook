@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -221,5 +222,59 @@ func TestIsLastOSDMigrationComplete(t *testing.T) {
 		result, err := isLastOSDMigrationComplete(c)
 		assert.NoError(t, err)
 		assert.Equal(t, true, result)
+	})
+}
+
+func TestStartOSDMigration(t *testing.T) {
+	namespace := "rook-ceph"
+	clientset := fake.NewClientset()
+	// PGs report as clean so migration is not blocked on PG health.
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "status" {
+				return "{}", nil
+			}
+			return "", nil
+		},
+	}
+	ctx := &clusterd.Context{
+		Clientset: clientset,
+		Executor:  executor,
+	}
+	clusterInfo := &cephclient.ClusterInfo{
+		Namespace: namespace,
+		Context:   context.TODO(),
+	}
+	clusterInfo.SetName("mycluster")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+
+	c := New(ctx, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+	c.spec.Storage.Migration.Confirmation = OSDMigrationConfirmation
+	c.spec.Storage.Store.Type = "newStore"
+
+	t.Run("pending OSDs are returned without starting a new migration when the previous one is incomplete", func(t *testing.T) {
+		// osd.2 still runs on the old store, so it is pending migration.
+		d2 := getDummyDeploymentOnNode(clientset, c, "node2", 2)
+		d2.Labels[osdStore] = "oldStore"
+		createDeploymentOrPanic(clientset, d2)
+
+		// osd.1 was already migrated but its deployment has not been recreated yet, so the
+		// previous migration is still in progress.
+		err := createMigrationConfigmap("1", namespace, clientset)
+		assert.NoError(t, err)
+
+		migrationConfig, err := c.startOSDMigration()
+		// The reconcile must keep flowing (no error) so the interrupted OSD can be recreated
+		// downstream, while still returning the pending OSDs so the caller removes them from
+		// the update queue.
+		assert.NoError(t, err)
+		assert.NotNil(t, migrationConfig)
+		assert.Equal(t, []int{2}, migrationConfig.getOSDIds())
+
+		// No new migration must be started while the previous one is incomplete: osd.2's
+		// deployment must still exist and no OSD may be recorded for migration.
+		assert.Nil(t, c.migrateOSD)
+		_, err = clientset.AppsV1().Deployments(namespace).Get(context.TODO(), "rook-ceph-osd-2", metav1.GetOptions{})
+		assert.NoError(t, err)
 	})
 }

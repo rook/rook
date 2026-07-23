@@ -393,22 +393,26 @@ func (c *Cluster) startOSDMigration() (*migrationConfig, error) {
 	}
 
 	if !pgsHealhty {
-		return nil, errors.Wrapf(err, "failed to start migration due to unhealthy PGs")
-	}
-
-	// skip migration if previously migrated OSD is not up yet.
-	migrationComplete, err := isLastOSDMigrationComplete(c)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to check if the last migration was successful or not")
-	}
-
-	if !migrationComplete {
-		return nil, errors.Wrapf(err, "migration of the last OSD is not complete")
+		return nil, errors.New("failed to start migration due to unhealthy PGs")
 	}
 
 	migrationConfig, err := c.newMigrationConfig()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get new OSD migration config")
+	}
+
+	migrationComplete, err := isLastOSDMigrationComplete(c)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to check if the last migration was successful or not")
+	}
+
+	// If the previously migrated OSD's deployment has not been recreated yet, don't start
+	// migrating another OSD. Return the pending set (rather than aborting the reconcile) so the
+	// caller still keeps those OSDs out of the update queue, while the reconcile continues on to
+	// recreate the interrupted OSD so the migration can resume on a later reconcile.
+	if !migrationComplete {
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "previously migrated OSD is not recreated yet, deferring migration of the next OSD")
+		return migrationConfig, nil
 	}
 
 	// delete deployment of the osd that needs migration
