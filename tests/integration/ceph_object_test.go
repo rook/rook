@@ -48,6 +48,7 @@ import (
 	usercaps "github.com/rook/rook/tests/integration/object/user/caps"
 	userkeys "github.com/rook/rook/tests/integration/object/user/keys"
 	useropmask "github.com/rook/rook/tests/integration/object/user/opmask"
+	userplacement "github.com/rook/rook/tests/integration/object/user/placement"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 )
 
@@ -204,6 +205,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 		topickafka.Namespace,
 		useropmask.Namespace,
 		usercaps.Namespace,
+		userplacement.Namespace,
 		cosi.Namespace,
 		notification.Namespace,
 	)
@@ -218,6 +220,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	topickafka.TestBucketTopicKafka(s.T(), k8sh, sharedObjectStore)
 	useropmask.TestObjectStoreUserOpMask(s.T(), k8sh, sharedObjectStore)
 	usercaps.TestObjectStoreUserCaps(s.T(), k8sh, sharedObjectStore)
+	userplacement.TestObjectStoreUserDefaultPlacement(s.T(), k8sh, sharedObjectStore)
 	// the ceph-cosi driver cannot reach a TLS object store endpoint, so this
 	// suite skips itself in the TLS pass
 	cosi.TestCephCOSIDriver(s.T(), k8sh, sharedObjectStore)
