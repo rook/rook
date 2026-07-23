@@ -92,9 +92,22 @@ func (c *createConfig) createNewOSDsFromStatus(
 
 	for i, osd := range status.OSDs {
 		if c.deployments.Exists(osd.ID) {
-			// This OSD will be handled by the updater
-			log.NamespacedDebug(c.cluster.clusterInfo.Namespace, logger, "not creating deployment for OSD %d which already exists", osd.ID)
-			continue
+			// A reprovisioned replacement is held as a scaled-to-zero marker Deployment; delete it here
+			// so the create flow below rebuilds it fresh from the status CM.
+			readyToRecreate, err := c.cluster.replacementReadyForSwap(osd.ID)
+			if err != nil {
+				errs.addError("%v", errors.Wrapf(err, "failed to check if replaced OSD %d is ready to recreate", osd.ID))
+				continue
+			}
+			if !readyToRecreate {
+				log.NamespacedDebug(c.cluster.clusterInfo.Namespace, logger, "not creating deployment for OSD %d which already exists", osd.ID)
+				continue
+			}
+			log.NamespacedInfo(c.cluster.clusterInfo.Namespace, logger, "replaced OSD %d is reprovisioned; deleting the marker deployment to recreate it from the status", osd.ID)
+			if err := c.cluster.deleteOSDDeployment(osd.ID); err != nil {
+				errs.addError("%v", errors.Wrapf(err, "failed to delete the marker deployment for replaced OSD %d", osd.ID))
+				continue
+			}
 		}
 
 		// osd prepare jobs don't generate cephx status info for OSDs. since this is a new OSD

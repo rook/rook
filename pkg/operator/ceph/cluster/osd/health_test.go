@@ -18,7 +18,6 @@ package osd
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -86,10 +85,10 @@ func TestOSDHealthCheck(t *testing.T) {
 	assert.Equal(t, 1, len(dp.Items))
 
 	// Initializing an OSD monitoring
-	osdMon := NewOSDHealthMonitor(context, clusterInfo, true, cephv1.CephClusterHealthCheckSpec{})
+	osdMon := NewOSDHealthMonitor(context, clusterInfo, true, cephv1.CephClusterHealthCheckSpec{}, cephv1.ClusterSpec{}, "rook/ceph:test")
 
 	// Run OSD monitoring routine
-	err := osdMon.checkOSDDump()
+	err := osdMon.checkOSDDump(nil)
 	assert.Nil(t, err)
 	// After creating an OSD, the dump has 1 mocked cmd and safe to destroy has 1 mocked cmd
 	assert.Equal(t, 2, execCount)
@@ -107,7 +106,7 @@ func TestMonitorStart(t *testing.T) {
 		InternalCancel: cancel,
 	})
 
-	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, client.AdminTestClusterInfo("ns"), true, cephv1.CephClusterHealthCheckSpec{})
+	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, client.AdminTestClusterInfo("ns"), true, cephv1.CephClusterHealthCheckSpec{}, cephv1.ClusterSpec{}, "rook/ceph:test")
 	logger.Infof("starting osd monitor")
 	go osdMon.Start(&monitoringRoutines, "osd")
 	cancel()
@@ -123,18 +122,23 @@ func TestNewOSDHealthMonitor(t *testing.T) {
 		healthCheck                    cephv1.CephClusterHealthCheckSpec
 	}
 	tests := []struct {
-		name string
-		args args
-		want *OSDHealthMonitor
+		name         string
+		args         args
+		wantInterval *time.Duration
 	}{
-		{"default-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{}}, &OSDHealthMonitor{c, clusterInfo, false, &defaultHealthCheckInterval, ""}},
-		{"10s-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{ObjectStorageDaemon: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}, &OSDHealthMonitor{c, clusterInfo, false, &time10s, ""}},
+		{"default-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{}}, &defaultHealthCheckInterval},
+		{"10s-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{ObjectStorageDaemon: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}, &time10s},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewOSDHealthMonitor(tt.args.context, clusterInfo, tt.args.removeOSDsIfOUTAndSafeToRemove, tt.args.healthCheck); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewOSDHealthMonitor() = %v, want %v", got, tt.want)
-			}
+			got := NewOSDHealthMonitor(tt.args.context, clusterInfo, tt.args.removeOSDsIfOUTAndSafeToRemove, tt.args.healthCheck, cephv1.ClusterSpec{}, "rook/ceph:test")
+			assert.Equal(t, tt.args.context, got.context)
+			assert.Equal(t, clusterInfo, got.clusterInfo)
+			assert.Equal(t, tt.args.removeOSDsIfOUTAndSafeToRemove, got.removeOSDsIfOUTAndSafeToRemove)
+			assert.Equal(t, tt.wantInterval, got.interval)
+			assert.Equal(t, "", got.lastRequireOSDRelease)
+			// The monitor must build a Cluster so it can drive the replacement state machine.
+			assert.NotNil(t, got.cluster)
 		})
 	}
 }

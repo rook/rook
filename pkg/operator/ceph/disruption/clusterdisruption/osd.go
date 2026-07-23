@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -460,6 +461,17 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 				topologyLocationLabel, deployment.Name)
 		}
 
+		// Skip OSDs being replaced. The marker Deployment sits at replicas=0 during the replacement, so
+		// counting it as down would create blocking PDBs on the other failure domains and freeze
+		// cluster-wide maintenance for the whole (possibly multi-day) replacement.
+		if shouldIgnoreOSD(&deployment) {
+			logger.Debugf("skipping OSD deployment %q from down-detection because it is marked for replacement", deployment.Name)
+			if !allFailureDomains.Has(failureDomainName) {
+				allFailureDomains.Insert(failureDomainName)
+			}
+			continue
+		}
+
 		// Assume node drain if osd deployment ReadyReplicas count is 0 and OSD pod is not scheduled on a node
 		if deployment.Status.ReadyReplicas < 1 {
 			if !osdDownFailureDomains.Has(failureDomainName) {
@@ -506,6 +518,18 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 		}
 	}
 	return sets.List(allFailureDomains), sets.List(nodeDrainFailureDomains), sets.List(osdDownFailureDomains), downOSDs, nil
+}
+
+// shouldIgnoreOSD reports whether an OSD Deployment is part of an in-flight replacement. It keys
+// solely on the fence label SkipReconcileLabelKey=="true": the goroutine scales the OSD to
+// replicas=0 only after the controller has set this label, so the label alone covers the entire
+// window the replacement OSD is down. The replace annotation is deliberately not consulted: a
+// validation-rejected annotation lingers on a NOT-fenced, still-running OSD, and keying on it would
+// wrongly exempt that OSD from PDB down-detection if it later genuinely fails. The value is matched
+// exactly so a generic do-not-reconcile label set for manual maintenance is not mistaken for a
+// replacement.
+func shouldIgnoreOSD(deployment *appsv1.Deployment) bool {
+	return deployment.GetLabels()[cephv1.SkipReconcileLabelKey] == "true"
 }
 
 // hasOSDNodeDrained returns true if OSD pod is not assigned to any node or if the OSD node is not schedulable
