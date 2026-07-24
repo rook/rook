@@ -1,21 +1,23 @@
 #################################################################################################################
-# Example of a user-managed LoadBalancer Service to expose an NFS server outside the cluster.
-# If CephNFS.spec.server.port is set to a custom value, set port (and targetPort if specified) to match.
+# Example of a user-managed NodePort Service to expose an NFS server outside the cluster.
+# If CephNFS.spec.server.port is set to a custom value, set port and targetPort to match.
 #################################################################################################################
 
 apiVersion: v1
 kind: Service
 metadata:
-  name: rook-ceph-nfs-my-nfs-load-balancer
+  name: rook-ceph-nfs-my-nfs-nodeport
   namespace: rook-ceph # namespace:cluster
 spec:
+  type: NodePort
+  externalTrafficPolicy: Local
   ports:
     - name: nfs
       # Must match CephNFS.spec.server.port (default 2049)
       port: 2049
       targetPort: 2049
-  type: LoadBalancer # or NodePort if desired
-  externalTrafficPolicy: Local
+      # Optional: pin the NodePort; omit to let Kubernetes allocate one
+      # nodePort: 32049
   selector:
     app: rook-ceph-nfs
 

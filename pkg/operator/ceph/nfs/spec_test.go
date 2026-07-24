@@ -17,6 +17,7 @@ limitations under the License.
 package nfs
 
 import (
+	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -34,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -456,4 +458,125 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.Equal(t, ganeshaCont.LivenessProbe.FailureThreshold, int32(10))
 		assert.GreaterOrEqual(t, ganeshaCont.LivenessProbe.TimeoutSeconds, int32(5))
 	})
+
+	t.Run("custom nfs port", func(t *testing.T) {
+		customPort := int32(12049)
+		nfs := &cephv1.CephNFS{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nfs",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NFSGaneshaSpec{
+				Server: cephv1.GaneshaServerSpec{
+					Active: 1,
+					Port:   customPort,
+				},
+			},
+		}
+
+		r, cfg := newDeploymentSpecTest(t)
+		d, err := r.makeDeployment(nfs, cfg)
+		assert.NoError(t, err)
+
+		var ganeshaCont *v1.Container
+		for i := range d.Spec.Template.Spec.Containers {
+			if d.Spec.Template.Spec.Containers[i].Name == "nfs-ganesha" {
+				ganeshaCont = &d.Spec.Template.Spec.Containers[i]
+				break
+			}
+		}
+		assert.NotNil(t, ganeshaCont)
+		assert.NotNil(t, ganeshaCont.LivenessProbe)
+		assert.NotNil(t, ganeshaCont.LivenessProbe.Exec)
+		// rpcinfo encodes the port in network byte order as 127.0.0.1.<hi>.<lo>
+		assert.Contains(t, ganeshaCont.LivenessProbe.Exec.Command, "127.0.0.1.47.17")
+		assert.Contains(t, ganeshaCont.Ports, v1.ContainerPort{Name: "nfs", ContainerPort: customPort, Protocol: v1.ProtocolTCP})
+
+		svc := r.generateCephNFSService(nfs, cfg)
+		assert.Equal(t, customPort, svc.Spec.Ports[0].Port)
+		assert.Equal(t, intstr.FromInt(int(customPort)), svc.Spec.Ports[0].TargetPort)
+		assert.Empty(t, svc.Spec.ClusterIP)
+	})
+
+	t.Run("hostNetwork keeps headless service with custom port", func(t *testing.T) {
+		hostNetwork := true
+		customPort := int32(12049)
+		nfs := &cephv1.CephNFS{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nfs",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NFSGaneshaSpec{
+				Server: cephv1.GaneshaServerSpec{
+					Active:      1,
+					Port:        customPort,
+					HostNetwork: &hostNetwork,
+				},
+			},
+		}
+
+		r, cfg := newDeploymentSpecTest(t)
+		svc := r.generateCephNFSService(nfs, cfg)
+		assert.Equal(t, v1.ClusterIPNone, svc.Spec.ClusterIP)
+		assert.Equal(t, customPort, svc.Spec.Ports[0].Port)
+		assert.Equal(t, intstr.FromInt(int(customPort)), svc.Spec.Ports[0].TargetPort)
+	})
+}
+
+func TestCreateOrUpdateCephNFSServicePort(t *testing.T) {
+	nfs := &cephv1.CephNFS{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-nfs",
+			Namespace: "rook-ceph-test-ns",
+		},
+		TypeMeta: controllerTypeMeta,
+		Spec: cephv1.NFSGaneshaSpec{
+			Server: cephv1.GaneshaServerSpec{
+				Active: 1,
+			},
+		},
+	}
+
+	r, cfg := newDeploymentSpecTest(t)
+
+	err := r.createCephNFSService(nfs, cfg)
+	assert.NoError(t, err)
+
+	svc, err := r.context.Clientset.CoreV1().Services(nfs.Namespace).Get(context.TODO(), instanceName(nfs, cfg.ID), metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, cephv1.DefaultNFSPort, svc.Spec.Ports[0].Port)
+
+	nfs.Spec.Server.Port = 12049
+	err = r.createCephNFSService(nfs, cfg)
+	assert.NoError(t, err)
+
+	svc, err = r.context.Clientset.CoreV1().Services(nfs.Namespace).Get(context.TODO(), instanceName(nfs, cfg.ID), metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, int32(12049), svc.Spec.Ports[0].Port)
+	assert.Equal(t, intstr.FromInt(12049), svc.Spec.Ports[0].TargetPort)
+}
+
+func TestGetGaneshaConfigNFSPort(t *testing.T) {
+	nfs := &cephv1.CephNFS{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-nfs",
+			Namespace: "rook-ceph",
+		},
+		Spec: cephv1.NFSGaneshaSpec{
+			RADOS: cephv1.GaneshaRADOSSpec{
+				Pool:      ".nfs",
+				Namespace: "my-nfs",
+			},
+			Server: cephv1.GaneshaServerSpec{
+				Active: 1,
+			},
+		},
+	}
+
+	cfg := getGaneshaConfig(nfs, cephver.Squid, "a")
+	assert.Contains(t, cfg, "NFS_Port = 2049;")
+
+	nfs.Spec.Server.Port = 12049
+	cfg = getGaneshaConfig(nfs, cephver.Squid, "a")
+	assert.Contains(t, cfg, "NFS_Port = 12049;")
 }

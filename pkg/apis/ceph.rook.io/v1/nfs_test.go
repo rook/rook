@@ -23,6 +23,14 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+func TestCephNFS_GetPort(t *testing.T) {
+	nfs := &CephNFS{}
+	assert.Equal(t, DefaultNFSPort, nfs.GetPort())
+
+	nfs.Spec.Server.Port = 12049
+	assert.Equal(t, int32(12049), nfs.GetPort())
+}
+
 func TestNFSSecuritySpec_Validate(t *testing.T) {
 	isFailing := true
 	isOkay := false

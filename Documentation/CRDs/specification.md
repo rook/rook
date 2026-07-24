@@ -8259,6 +8259,19 @@ bool
 </tr>
 <tr>
 <td>
+<code>port</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The port the NFS server (NFS-Ganesha) will listen on for NFS clients. Defaults to 2049.
+Useful when host networking is enabled and the default NFS port is already in use.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>livenessProbe</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.ProbeSpec">

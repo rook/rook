@@ -109,12 +109,14 @@ func getGaneshaConfig(n *cephv1.CephNFS, version cephver.CephVersion, name strin
 	nodeID := getNFSNodeID(n, name)
 	userID := getNFSUserID(nodeID)
 	url := getRadosURL(n)
+	port := n.GetPort()
 	return `
 NFS_CORE_PARAM {
 	Enable_NLM = false;
 	Enable_RQUOTA = false;
 	Protocols = 4;
 	allow_set_io_flusher_fail = true;
+	NFS_Port = ` + fmt.Sprintf("%d", port) + `;
 }
 
 MDCACHE {

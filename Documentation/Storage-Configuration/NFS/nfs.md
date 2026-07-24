@@ -147,14 +147,33 @@ the export path and leaving the directory as just `/`.
 mount -t nfs4 -o proto=tcp <nfs-service-address>:/<export-path> <mount-location>
 ```
 
+!!! note
+    If `spec.server.port` is set to a non-default value, clients must mount using that port 
+    (for example `-o proto=tcp,port=<port>`).
+
 
 ## Exposing the NFS server outside of the Kubernetes cluster
+
+Rook creates a ClusterIP Service for each NFS server instance (headless when host networking is
+enabled). To expose NFS outside the cluster, create your own Service. Rook does not manage
+LoadBalancer or NodePort Services for NFS.
 
 Use a LoadBalancer Service to expose an NFS server (and its exports) outside of the Kubernetes
 cluster. The Service's endpoint can be used as the NFS service address when
 [mounting the export manually](#mounting-exports). We provide an example Service here:
-[`deploy/examples/nfs-load-balancer.yaml`](https://github.com/rook/rook/tree/master/deploy/examples).
+[`deploy/examples/nfs-load-balancer.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/nfs-load-balancer.yaml).
 
+Modify the example for a NodePort service as needed following [Kubernetes documentation](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport).
+
+### Custom NFS port
+
+Set `spec.server.port` on the CephNFS CR when the default port `2049` cannot be used (common with
+host networking if another process already binds that port). The operator configures NFS-Ganesha
+and the operator-created Service to use that port.
+
+Any user-created LoadBalancer or NodePort Service must align its `port` and `targetPort` with
+`spec.server.port`. For NodePort, the high-numbered `nodePort` is independent and chosen by
+Kubernetes (or set explicitly); only `port`/`targetPort` must match the NFS listen port.
 
 ## NFS Security
 Security options for NFS are documented [here](nfs-security.md).

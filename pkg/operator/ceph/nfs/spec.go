@@ -30,7 +30,6 @@ import (
 	"github.com/rook/rook/pkg/util/log"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -41,13 +40,13 @@ const (
 	AppName               = "rook-ceph-nfs"
 	ganeshaContainerName  = "nfs-ganesha"
 	ganeshaConfigVolume   = "ganesha-config"
-	nfsPort               = 2049
 	ganeshaPid            = "/var/run/ganesha/ganesha.pid"
 	nfsGaneshaMetricsPort = 9587
 )
 
 func (r *ReconcileCephNFS) generateCephNFSService(nfs *cephv1.CephNFS, cfg daemonConfig) *v1.Service {
 	labels := getLabels(nfs, cfg.ID, true)
+	nfsPort := nfs.GetPort()
 
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -92,16 +91,13 @@ func (r *ReconcileCephNFS) createCephNFSService(nfs *cephv1.CephNFS, cfg daemonC
 		return errors.Wrapf(err, "failed to set owner reference to ceph nfs %q", s)
 	}
 
-	svc, err := r.context.Clientset.CoreV1().Services(nfs.Namespace).Create(r.opManagerContext, s, metav1.CreateOptions{})
+	// Update the svc if it already exists so a changed spec.server.port takes effect.
+	svc, err := k8sutil.CreateOrUpdateService(r.opManagerContext, r.context.Clientset, nfs.Namespace, s)
 	if err != nil {
-		if !kerrors.IsAlreadyExists(err) {
-			return errors.Wrap(err, "failed to create ganesha service")
-		}
-		log.NamedInfo(nsName, logger, "ceph nfs service already created")
-		return nil
+		return errors.Wrap(err, "failed to create or update ganesha service")
 	}
 
-	log.NamedInfo(nsName, logger, "ceph nfs service running at %s:%d", svc.Spec.ClusterIP, nfsPort)
+	log.NamedInfo(nsName, logger, "ceph nfs service running at %s:%d", svc.Spec.ClusterIP, nfs.GetPort())
 	return nil
 }
 
@@ -233,6 +229,7 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 		logLevel = nfs.Spec.Server.LogLevel
 	}
 
+	nfsPort := nfs.GetPort()
 	container := v1.Container{
 		Name: ganeshaContainerName,
 		Command: []string{
@@ -256,16 +253,22 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 		Resources:       nfs.Spec.Server.Resources,
 		SecurityContext: controller.DefaultContainerSecurityContext(),
 		LivenessProbe:   r.defaultGaneshaLivenessProbe(nfs),
+		Ports: []v1.ContainerPort{
+			{Name: "nfs", ContainerPort: nfsPort, Protocol: v1.ProtocolTCP},
+			{Name: "nfs-metrics", ContainerPort: nfsGaneshaMetricsPort, Protocol: v1.ProtocolTCP},
+		},
 	}
 	return cephconfig.ConfigureLivenessProbe(container, nfs.Spec.Server.LivenessProbe)
 }
 
 func (r *ReconcileCephNFS) defaultGaneshaLivenessProbe(nfs *cephv1.CephNFS) *v1.Probe {
 	failureThreshold := int32(10)
+	nfsPort := nfs.GetPort()
 	cephVersionWithRpcinfo := version.CephVersion{Major: 18, Minor: 2, Extra: 1}
 	if r.clusterInfo.CephVersion.IsAtLeast(cephVersionWithRpcinfo) {
 		// liveness-probe using rpcinfo utility
-		return controller.GenerateLivenessProbeViaRpcinfo(nfsPort, failureThreshold)
+		//nolint:gosec // G115: port is CRD-validated to 1-65535
+		return controller.GenerateLivenessProbeViaRpcinfo(uint16(nfsPort), failureThreshold)
 	}
 	// liveness-probe using K8s builtin TCP-socket action
 	return controller.GenerateLivenessProbeTcpPort(nfsPort, failureThreshold)
