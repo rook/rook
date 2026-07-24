@@ -208,11 +208,6 @@ func (r *ReconcileObjectStoreAccount) reconcile(request reconcile.Request) (reco
 			log.NamedDebug(request.NamespacedName, logger, "deleting object store account")
 			r.recorder.Eventf(cephObjectStoreAccount, nil, corev1.EventTypeNormal, string(cephv1.ReconcileStarted), string(cephv1.ReconcileStarted), "deleting CephObjectStoreAccount %q", cephObjectStoreAccount.Name)
 
-			err := r.deleteAccount(cephObjectStoreAccount)
-			if err != nil {
-				return reconcile.Result{}, *cephObjectStoreAccount, errors.Wrapf(err, "failed to delete ceph object store account %q", cephObjectStoreAccount.Name)
-			}
-
 			// Remove finalizer
 			err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStoreAccount)
 			if err != nil {
@@ -456,14 +451,29 @@ func (r *ReconcileObjectStoreAccount) deleteAccount(cephObjectStoreAccount *ceph
 
 	log.NamedInfo(nsName, logger, "deleting account %q", accountID)
 
-	err = object.DeleteAccount(r.opManagerContext, r.objContext, accountID)
-	if err != nil {
-		// If account doesn't exist, consider it successful (idempotent)
-		if errors.Is(err, admin.ErrNoSuchKey) {
-			log.NamedInfo(nsName, logger, "account %q not found, considering deletion successful", accountID)
-			return nil
+	// if `rook.io/force-deletion` annotation is set to true, we will force delete the account even if it has existing buckets
+	if cephObjectStoreAccount.Annotations != nil && cephObjectStoreAccount.Annotations[opcontroller.RESOURCE_CLEANUP_ANNOTATION] == "true" {
+		log.NamedInfo(nsName, logger, "force-deletion annotation set to true, forcing deletion of account %q", accountID)
+		err = object.ForceDeleteAccount(r.objContext, accountID)
+		if err != nil {
+			// If account doesn't exist, consider it successful (idempotent)
+			if errors.Is(err, admin.ErrNoSuchKey) {
+				log.NamedInfo(nsName, logger, "account %q not found, considering deletion successful", accountID)
+				return nil
+			}
+			return errors.Wrapf(err, "failed to force delete account %q", accountID)
 		}
-		return errors.Wrapf(err, "failed to delete account %q", accountID)
+	} else {
+		log.NamedInfo(nsName, logger, "force-deletion annotation not set for account %q, manual cleanup may be required if the account has existing buckets", accountID)
+		err = object.DeleteAccount(r.opManagerContext, r.objContext, accountID)
+		if err != nil {
+			// If account doesn't exist, consider it successful (idempotent)
+			if errors.Is(err, admin.ErrNoSuchKey) {
+				log.NamedInfo(nsName, logger, "account %q not found, considering deletion successful", accountID)
+				return nil
+			}
+			return errors.Wrapf(err, "failed to delete account %q", accountID)
+		}
 	}
 
 	log.NamedInfo(nsName, logger, "successfully deleted account %q", accountID)
