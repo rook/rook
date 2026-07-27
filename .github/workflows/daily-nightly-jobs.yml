@@ -42,6 +42,7 @@ jobs:
     secrets: inherit
 
   check-markdown-links:
+    if: github.repository == 'rook/rook'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
