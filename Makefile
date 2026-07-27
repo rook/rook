@@ -216,6 +216,10 @@ helm.lint: $(HELM) $(KUSTOMIZE) ## Check the helm charts
 	$(KUSTOMIZE) build >/dev/null
 	rm templated.yaml kustomization.yaml
 
+.PHONY: test.helm
+test.helm: $(HELM_UNITTEST) ## Run the helm chart unit tests
+	$(HELM_UNITTEST) --strict $(addprefix $(HELM_CHARTS_DIR)/,$(HELM_CHARTS))
+
 .PHONY: lint
 lint: yamllint pylint shellcheck checkmake vet markdownlint golangci-lint helm.lint  ## Run various linters
 
