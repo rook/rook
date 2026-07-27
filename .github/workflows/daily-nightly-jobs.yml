@@ -30,7 +30,7 @@ jobs:
     if: github.repository == 'rook/rook'
     uses: ./.github/workflows/ceph-suite-integration-test.yml
     with:
-      ceph_suite_versions: '["squid-devel", "tentacle-devel", "umbrella-devel", "main"]'
+      ceph_suite_versions: '["squid", "squid-devel", "tentacle", "tentacle-devel", "umbrella", "umbrella-devel", "main"]'
       object_suite_tests: '["TestWithoutTLS", "TestWithTLS"]'
     secrets: inherit
 

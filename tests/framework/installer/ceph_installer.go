@@ -45,6 +45,7 @@ const (
 	// test with the latest releases
 	squidTestImage    = "quay.io/ceph/ceph:v19"
 	tentacleTestImage = "quay.io/ceph/ceph:v20"
+	umbrellaTestImage = "quay.io/ceph/ceph:v21"
 	// test with the current development versions
 	squidDevelTestImage    = "quay.ceph.io/ceph-ci/ceph:squid"
 	tentacleDevelTestImage = "quay.ceph.io/ceph-ci/ceph:tentacle"
@@ -71,6 +72,7 @@ var (
 	SquidVersion                 = cephv1.CephVersionSpec{Image: squidTestImage}
 	SquidDevelVersion            = cephv1.CephVersionSpec{Image: squidDevelTestImage}
 	TentacleVersion              = cephv1.CephVersionSpec{Image: tentacleTestImage}
+	UmbrellaVersion              = cephv1.CephVersionSpec{Image: umbrellaTestImage}
 	TentacleDevelVersion         = cephv1.CephVersionSpec{Image: tentacleDevelTestImage, AllowUnsupported: true}
 	UmbrellaDevelVersion         = cephv1.CephVersionSpec{Image: umbrellaDevelTestImage, AllowUnsupported: true}
 	MainVersion                  = cephv1.CephVersionSpec{Image: mainTestImage, AllowUnsupported: true}
@@ -97,13 +99,19 @@ func ReturnCephVersion() cephv1.CephVersionSpec {
 		return MainVersion
 	case "squid-devel":
 		return SquidDevelVersion
+	case "squid":
+		return SquidVersion
 	case "tentacle-devel":
 		return TentacleDevelVersion
+	case "tentacle":
+		return TentacleVersion
 	case "umbrella-devel":
 		return UmbrellaDevelVersion
+	case "umbrella":
+		return UmbrellaVersion
 	default:
 		// Default to the latest stable version
-		return SquidVersion
+		return TentacleVersion
 	}
 }
 
