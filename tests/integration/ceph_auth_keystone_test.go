@@ -93,7 +93,7 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 		ChangeHostName:       true,
 		ConnectionsEncrypted: true,
 		RookVersion:          installer.LocalBuildTag,
-		CephVersion:          installer.SquidVersion,
+		CephVersion:          installer.TentacleVersion,
 		SkipClusterCleanup:   false,
 		SkipCleanupPolicy:    false,
 	}
