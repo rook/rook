@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/tests/framework/clients"
@@ -34,6 +35,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // ************************************************
@@ -194,6 +196,99 @@ func (s *SmokeSuite) TestMonFailover() {
 	require.Fail(s.T(), "giving up waiting for a new monitor")
 }
 
+// Smoke Test for the do-not-reconcile label - Fence an OSD deployment, reconcile the cluster and
+// check that the fenced deployment is left as it was found, then lift the fence and check that the
+// next reconcile rewrites it
+func (s *SmokeSuite) TestDoNotReconcileLabel() {
+	ctx := context.TODO()
+	logger.Infof("Do Not Reconcile Label Smoke Test")
+
+	const (
+		// The operator builds an OSD deployment from scratch whenever it updates one, so a label it
+		// never sets survives exactly as long as the deployment is left alone
+		canaryLabelKey = "smoke-test.rook.io/canary"
+		// Asking for an OSD label through the CephCluster spec is what gives a reconcile real work to
+		// do on the OSD deployments. Left alone they already match what the operator would generate,
+		// and it updates neither the fenced nor the unfenced ones.
+		requestedLabelKey = "smoke-test.rook.io/requested"
+	)
+
+	// Starting from a clean cluster keeps unhealthiness left by an earlier test from being blamed
+	// on this test's deferred health check
+	checkIfRookClusterIsHealthy(&s.Suite, s.helper, s.settings.Namespace)
+
+	deploymentClient := s.k8sh.Clientset.AppsV1().Deployments(s.settings.Namespace)
+	osdDeployments, err := deploymentClient.List(ctx, metav1.ListOptions{LabelSelector: "app=rook-ceph-osd"})
+	require.NoError(s.T(), err)
+	require.NotEmpty(s.T(), osdDeployments.Items)
+
+	fenced := osdDeployments.Items[0]
+	osdID := fenced.Labels["ceph-osd-id"]
+	require.NotEmpty(s.T(), osdID)
+	generation := fenced.Generation
+	replicas := fenced.Spec.Replicas
+	logger.Infof("Fencing OSD %s deployment %q at generation %d", osdID, fenced.Name, generation)
+
+	clusterClient := s.k8sh.RookClientset.CephV1().CephClusters(s.settings.Namespace)
+
+	// Cleanup runs LIFO, so it is registered in reverse of the order it has to happen in: drop the
+	// labels this test put on the deployment, stop asking for the OSD label, and only then wait for
+	// the cluster to settle so the tests that follow do not start against a reconciling cluster.
+	// Each step is registered before the change it undoes, since a request can fail after the
+	// apiserver has already accepted it.
+	defer checkIfRookClusterIsHealthy(&s.Suite, s.helper, s.settings.Namespace)
+	defer func() {
+		dropOSDLabel := []byte(`{"spec":{"labels":{"osd":null}}}`)
+		_, err := clusterClient.Patch(ctx, s.settings.ClusterName, types.MergePatchType, dropOSDLabel, metav1.PatchOptions{})
+		assert.NoError(s.T(), err)
+	}()
+	defer func() {
+		removeLabels := []byte(fmt.Sprintf(`{"metadata":{"labels":{%q:null,%q:null}}}`, cephv1.SkipReconcileLabelKey, canaryLabelKey))
+		_, err := deploymentClient.Patch(ctx, fenced.Name, types.StrategicMergePatchType, removeLabels, metav1.PatchOptions{})
+		assert.NoError(s.T(), err)
+	}()
+
+	addLabels := []byte(fmt.Sprintf(`{"metadata":{"labels":{%q:"true",%q:"true"}}}`, cephv1.SkipReconcileLabelKey, canaryLabelKey))
+	_, err = deploymentClient.Patch(ctx, fenced.Name, types.StrategicMergePatchType, addLabels, metav1.PatchOptions{})
+	require.NoError(s.T(), err)
+
+	s.reconcileCluster(ctx, fmt.Sprintf(`{"spec":{"labels":{"osd":{%q:"fenced"}}}}`, requestedLabelKey))
+
+	current, err := deploymentClient.Get(ctx, fenced.Name, metav1.GetOptions{})
+	require.NoError(s.T(), err)
+	// A canary that is already gone would make the rewrite check at the end of the test vacuous
+	require.Contains(s.T(), current.Labels, canaryLabelKey, "OSD %s lost the canary label while fenced", osdID)
+	assert.Contains(s.T(), current.Labels, cephv1.SkipReconcileLabelKey, "the do-not-reconcile label was removed from OSD %s", osdID)
+	assert.NotContains(s.T(), current.Labels, requestedLabelKey, "the fenced OSD %s was given the label requested through the cluster spec", osdID)
+	// The generation advances whenever the deployment spec is written with different content, so an
+	// unchanged generation means the fenced OSD was left as it was found
+	assert.Equal(s.T(), generation, current.Generation)
+	assert.Equal(s.T(), replicas, current.Spec.Replicas)
+
+	logger.Infof("Lifting the fence on OSD %s deployment %q", osdID, fenced.Name)
+	unfence := []byte(fmt.Sprintf(`{"metadata":{"labels":{%q:null}}}`, cephv1.SkipReconcileLabelKey))
+	_, err = deploymentClient.Patch(ctx, fenced.Name, types.StrategicMergePatchType, unfence, metav1.PatchOptions{})
+	require.NoError(s.T(), err)
+
+	s.reconcileCluster(ctx, fmt.Sprintf(`{"spec":{"labels":{"osd":{%q:"unfenced"}}}}`, requestedLabelKey))
+
+	osdRewritten := false
+	for i := 0; i < utils.RetryLoop; i++ {
+		current, err = deploymentClient.Get(ctx, fenced.Name, metav1.GetOptions{})
+		require.NoError(s.T(), err)
+		if _, ok := current.Labels[canaryLabelKey]; !ok {
+			logger.Infof("The reconcile rewrote the unfenced OSD %s", osdID)
+			osdRewritten = true
+			break
+		}
+
+		logger.Infof("Waiting for the reconcile to rewrite the unfenced OSD %s", osdID)
+		time.Sleep(utils.RetryInterval * time.Second)
+	}
+	require.True(s.T(), osdRewritten, "the unfenced OSD %s kept the canary label", osdID)
+	assert.Contains(s.T(), current.Labels, requestedLabelKey, "the unfenced OSD %s was not given the label requested through the cluster spec", osdID)
+}
+
 // Smoke Test for pool Resizing
 func (s *SmokeSuite) TestPoolResize() {
 	ctx := context.TODO()
@@ -331,6 +426,31 @@ func (s *SmokeSuite) TestCreateRBDMirrorClient() {
 
 	err = s.helper.RBDMirrorClient.Delete(s.settings.Namespace, rbdMirrorName)
 	require.NoError(s.T(), err)
+}
+
+// reconcileCluster patches the CephCluster spec and waits for the operator to finish the
+// orchestration that saw the patch. The patch has to change the spec, since that is what starts an
+// orchestration, and the observed generation is only written once a whole orchestration, OSDs
+// included, has succeeded.
+func (s *SmokeSuite) reconcileCluster(ctx context.Context, specPatch string) {
+	clusterClient := s.k8sh.RookClientset.CephV1().CephClusters(s.settings.Namespace)
+	patched, err := clusterClient.Patch(ctx, s.settings.ClusterName, types.MergePatchType, []byte(specPatch), metav1.PatchOptions{})
+	require.NoError(s.T(), err)
+
+	logger.Infof("Waiting for cluster %q to reconcile generation %d", s.settings.ClusterName, patched.Generation)
+	for i := 0; i < utils.RetryLoop; i++ {
+		cluster, err := clusterClient.Get(ctx, s.settings.ClusterName, metav1.GetOptions{})
+		require.NoError(s.T(), err)
+		if cluster.Status.ObservedGeneration >= patched.Generation {
+			logger.Infof("Cluster %q reconciled generation %d", s.settings.ClusterName, patched.Generation)
+			return
+		}
+
+		logger.Infof("Cluster %q is in phase %q having observed generation %d", s.settings.ClusterName, cluster.Status.Phase, cluster.Status.ObservedGeneration)
+		time.Sleep(utils.RetryInterval * time.Second)
+	}
+
+	require.Failf(s.T(), "giving up waiting for the cluster to reconcile", "generation %d was never observed", patched.Generation)
 }
 
 func (s *SmokeSuite) getNonCanaryMonDeployments() ([]appsv1.Deployment, error) {
