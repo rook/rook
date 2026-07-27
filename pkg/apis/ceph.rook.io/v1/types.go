@@ -372,6 +372,7 @@ type CephXConfigWithPriorCount struct {
 	KeepPriorKeyCountMax uint8 `json:"keepPriorKeyCountMax,omitempty"`
 }
 
+// +kubebuilder:validation:XValidation:message="keyGeneration cannot be removed once set",rule="!has(oldSelf.keyGeneration) || has(self.keyGeneration)"
 type CephxConfig struct {
 	// KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
 	// One of Disabled, or KeyGeneration. Default Disabled.
