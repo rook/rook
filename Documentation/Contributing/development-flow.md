@@ -235,6 +235,15 @@ go test -coverprofile=coverage.out
 go tool cover -html=coverage.out -o coverage.html
 ```
 
+The Helm charts have their own unit tests, which render the chart templates and assert on the result:
+
+```console
+make test.helm
+```
+
+Suites live in `tests/*_test.yaml` under each chart and are written in the
+[helm-unittest](https://github.com/helm-unittest/helm-unittest) YAML format.
+
 ### Writing unit tests
 
 Good unit tests start with easily testable code. Small chunks ("units") of code can be easily tested

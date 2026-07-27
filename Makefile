@@ -222,6 +222,10 @@ lint.helm: $(HELM) $(KUSTOMIZE) ## Check the helm charts
 	$(KUSTOMIZE) build >/dev/null
 	rm templated.yaml kustomization.yaml
 
+.PHONY: test.helm
+test.helm: $(HELM_UNITTEST) ## Run the helm chart unit tests
+	$(HELM_UNITTEST) --strict $(addprefix $(HELM_CHARTS_DIR)/,$(HELM_CHARTS))
+
 .PHONY: lint.quick
 lint.quick: lint.yaml lint.shell lint.make lint.go lint.helm lint.markdown ## run some (faster) linters
 .PHONY: lint
