@@ -19,10 +19,12 @@ package integration
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/tests/framework/clients"
@@ -33,7 +35,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // ************************************************
@@ -190,6 +194,135 @@ func (s *SmokeSuite) TestMonFailover() {
 	require.Fail(s.T(), "giving up waiting for a new monitor")
 }
 
+// Smoke Test for the do-not-reconcile label - Fence an OSD deployment with the label and mark the
+// OSD out, then trigger an orchestration and check that the operator skips the OSD and leaves both
+// the label and the OSD state alone
+func (s *SmokeSuite) TestDoNotReconcileLabel() {
+	ctx := context.TODO()
+	logger.Infof("Do Not Reconcile Label Smoke Test")
+
+	// Taking an OSD out is only meaningful from a clean starting point, and checking here keeps a
+	// cluster left unhealthy by an earlier test from being blamed on this one
+	checkIfRookClusterIsHealthy(&s.Suite, s.helper, s.settings.Namespace)
+
+	deploymentClient := s.k8sh.Clientset.AppsV1().Deployments(s.settings.Namespace)
+	osdDeployments, err := deploymentClient.List(ctx, metav1.ListOptions{LabelSelector: "app=rook-ceph-osd"})
+	require.NoError(s.T(), err)
+	require.NotEmpty(s.T(), osdDeployments.Items)
+
+	fenced := osdDeployments.Items[0]
+	osdID := fenced.Labels["ceph-osd-id"]
+	require.NotEmpty(s.T(), osdID)
+	osdNum, err := strconv.ParseInt(osdID, 10, 64)
+	require.NoError(s.T(), err)
+	generation := fenced.Generation
+	replicas := fenced.Spec.Replicas
+	logger.Infof("Fencing OSD %s deployment %q at generation %d", osdID, fenced.Name, generation)
+
+	clusterClient := s.k8sh.RookClientset.CephV1().CephClusters(s.settings.Namespace)
+	cluster, err := clusterClient.Get(ctx, s.settings.ClusterName, metav1.GetOptions{})
+	require.NoError(s.T(), err)
+
+	// Any change to the CephCluster spec makes the operator run a fresh orchestration. This flag is
+	// only read when the upgrade checks are enabled, so with them skipped the toggle starts an
+	// orchestration without changing anything the orchestration does.
+	require.True(s.T(), cluster.Spec.SkipUpgradeChecks)
+	continueUpgrade := cluster.Spec.ContinueUpgradeAfterChecksEvenIfNotHealthy
+	toggleSpec := []byte(fmt.Sprintf(`{"spec":{"continueUpgradeAfterChecksEvenIfNotHealthy":%t}}`, !continueUpgrade))
+	revertSpec := []byte(fmt.Sprintf(`{"spec":{"continueUpgradeAfterChecksEvenIfNotHealthy":%t}}`, continueUpgrade))
+
+	// Cleanup runs LIFO, so it is registered in reverse of the order it has to happen in: put the OSD
+	// back in, unfence the deployment, revert the spec, and only then wait for the cluster to go
+	// clean again so the tests that follow do not start against a recovering cluster. Each step is
+	// registered before the change it undoes, since a request can fail after the apiserver or the
+	// mon has already accepted it.
+	defer checkIfRookClusterIsHealthy(&s.Suite, s.helper, s.settings.Namespace)
+	defer func() {
+		_, err := clusterClient.Patch(ctx, s.settings.ClusterName, types.MergePatchType, revertSpec, metav1.PatchOptions{})
+		assert.NoError(s.T(), err)
+	}()
+
+	addLabel := []byte(fmt.Sprintf(`{"metadata":{"labels":{%q:"true"}}}`, cephv1.SkipReconcileLabelKey))
+	removeLabel := []byte(fmt.Sprintf(`{"metadata":{"labels":{%q:null}}}`, cephv1.SkipReconcileLabelKey))
+	defer func() {
+		_, err := deploymentClient.Patch(ctx, fenced.Name, types.StrategicMergePatchType, removeLabel, metav1.PatchOptions{})
+		assert.NoError(s.T(), err)
+	}()
+	_, err = deploymentClient.Patch(ctx, fenced.Name, types.StrategicMergePatchType, addLabel, metav1.PatchOptions{})
+	require.NoError(s.T(), err)
+
+	defer func() {
+		logger.Infof("Marking OSD %s back in", osdID)
+		_, err := s.k8sh.ExecToolboxWithRetry(3, s.settings.Namespace, "ceph", []string{"osd", "in", fmt.Sprintf("osd.%s", osdID)})
+		assert.NoError(s.T(), err)
+	}()
+	logger.Infof("Marking OSD %s out", osdID)
+	_, err = s.k8sh.ExecToolboxWithRetry(3, s.settings.Namespace, "ceph", []string{"osd", "out", fmt.Sprintf("osd.%s", osdID)})
+	require.NoError(s.T(), err)
+
+	osdIsOut := false
+	for i := 0; i < utils.RetryLoop; i++ {
+		in, err := s.osdIsIn(osdNum)
+		require.NoError(s.T(), err)
+		if !in {
+			logger.Infof("OSD %s is out", osdID)
+			osdIsOut = true
+			break
+		}
+
+		logger.Infof("Waiting for OSD %s to report out", osdID)
+		time.Sleep(utils.RetryInterval * time.Second)
+	}
+	require.True(s.T(), osdIsOut, "OSD never reported out after being marked out")
+
+	logger.Infof("Triggering an orchestration of cluster %q", s.settings.ClusterName)
+	triggered := time.Now()
+	_, err = clusterClient.Patch(ctx, s.settings.ClusterName, types.MergePatchType, toggleSpec, metav1.PatchOptions{})
+	require.NoError(s.T(), err)
+
+	skipMessage := fmt.Sprintf("Skipping update for OSD %s since labeled with %s", osdID, cephv1.SkipReconcileLabelKey)
+	osdSkipped := false
+	for i := 0; i < utils.RetryLoop; i++ {
+		current, err := deploymentClient.Get(ctx, fenced.Name, metav1.GetOptions{})
+		require.NoError(s.T(), err)
+		// Without the label the operator has no reason to log the skip, so report the missing fence
+		// rather than letting this time out as if the orchestration never ran
+		require.Contains(s.T(), current.Labels, cephv1.SkipReconcileLabelKey, "the do-not-reconcile label was removed from OSD %s", osdID)
+
+		matches, err := s.countOperatorLogMatches(ctx, skipMessage, time.Since(triggered))
+		require.NoError(s.T(), err)
+		if matches > 0 {
+			logger.Infof("Operator skipped the fenced OSD %s", osdID)
+			osdSkipped = true
+			break
+		}
+
+		logger.Infof("Waiting for the operator to skip the fenced OSD %s", osdID)
+		time.Sleep(utils.RetryInterval * time.Second)
+	}
+	require.True(s.T(), osdSkipped, "operator never reported skipping the fenced OSD")
+
+	// The OSD health check runs every 10s in the test cluster, so this window spans several ticks of
+	// anything that might be tempted to unfence the OSD or put it back in behind the operator's back
+	for i := 0; i < 6; i++ {
+		time.Sleep(5 * time.Second)
+		current, err := deploymentClient.Get(ctx, fenced.Name, metav1.GetOptions{})
+		require.NoError(s.T(), err)
+		assert.Contains(s.T(), current.Labels, cephv1.SkipReconcileLabelKey, "the do-not-reconcile label was removed from OSD %s", osdID)
+
+		in, err := s.osdIsIn(osdNum)
+		require.NoError(s.T(), err)
+		assert.False(s.T(), in, "OSD %s was marked back in", osdID)
+	}
+
+	current, err := deploymentClient.Get(ctx, fenced.Name, metav1.GetOptions{})
+	require.NoError(s.T(), err)
+	// The generation advances whenever the deployment spec is written with different content, so an
+	// unchanged generation means the fenced OSD was left as it was found
+	assert.Equal(s.T(), generation, current.Generation)
+	assert.Equal(s.T(), replicas, current.Spec.Replicas)
+}
+
 // Smoke Test for pool Resizing
 func (s *SmokeSuite) TestPoolResize() {
 	ctx := context.TODO()
@@ -327,6 +460,42 @@ func (s *SmokeSuite) TestCreateRBDMirrorClient() {
 
 	err = s.helper.RBDMirrorClient.Delete(s.settings.Namespace, rbdMirrorName)
 	require.NoError(s.T(), err)
+}
+
+func (s *SmokeSuite) osdIsIn(osdID int64) (bool, error) {
+	dump, err := client.GetOSDDump(s.k8sh.MakeContext(), client.AdminTestClusterInfo(s.settings.Namespace))
+	if err != nil {
+		return false, err
+	}
+	_, in, err := dump.StatusByID(osdID)
+	if err != nil {
+		return false, err
+	}
+	return in == 1, nil
+}
+
+func (s *SmokeSuite) countOperatorLogMatches(ctx context.Context, match string, window time.Duration) (int, error) {
+	podClient := s.k8sh.Clientset.CoreV1().Pods(s.settings.OperatorNamespace)
+	pods, err := podClient.List(ctx, metav1.ListOptions{LabelSelector: "app=rook-ceph-operator"})
+	if err != nil {
+		return 0, err
+	}
+	if len(pods.Items) == 0 {
+		return 0, fmt.Errorf("no operator pod found in namespace %q", s.settings.OperatorNamespace)
+	}
+
+	// An elapsed duration keeps the window anchored where the caller wants it even if the node clock
+	// disagrees with the test runner, which an absolute timestamp would not
+	sinceSeconds := int64(window.Seconds()) + 1
+	matches := 0
+	for _, pod := range pods.Items {
+		podLog, err := podClient.GetLogs(pod.Name, &corev1.PodLogOptions{SinceSeconds: &sinceSeconds}).DoRaw(ctx)
+		if err != nil {
+			return 0, err
+		}
+		matches += strings.Count(string(podLog), match)
+	}
+	return matches, nil
 }
 
 func (s *SmokeSuite) getNonCanaryMonDeployments() ([]appsv1.Deployment, error) {
