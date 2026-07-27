@@ -8,21 +8,22 @@ We hope that the items listed below will inspire further engagement from the com
 Any dates listed below and the specific issues that will ship in a given milestone are subject to change but give a general idea of what we are planning.
 See the [GitHub project boards](https://github.com/rook/rook/projects) for the most up-to-date issues and their status.
 
-## Rook Ceph 1.20
+## Rook Ceph 1.21
 
-The following high level features are targeted for Rook v1.20 (May 2026). For more detailed project tracking see the [v1.20 board](https://github.com/orgs/rook/projects/13).
+The following high level features are targeted for Rook v1.21 (September 2026). For more detailed project tracking see the [v1.21 board](https://github.com/orgs/rook/projects/14).
 
-* Disable msgr1 protocol by default [#17081](https://github.com/rook/rook/issues/17081)
-* Support two-node fenced clusters [#17175](https://github.com/rook/rook/pull/17175)
-* Object store
-  * User Account CRD for managing RGW user accounts [#16763](https://github.com/rook/rook/issues/16763)
-  * Migrate to the AWS SDK v2 [#14869](https://github.com/rook/rook/issues/14869)
+* Add support for Ceph Umbrella v21
 * CSI Driver
-  * CSI operator management configured by the user instead of legacy Rook operator settings [#16561](https://github.com/rook/rook/issues/16561)
-  * Integrate Ceph-CSI [v3.17](https://github.com/ceph/ceph-csi/milestones)
+  * Added cgroup v2 QoS support for RBD volumes [#17887](https://github.com/rook/rook/pull/17887)
+  * Integrate Ceph-CSI [v3.18](https://github.com/ceph/ceph-csi/milestones)
+* Object store
+  * Option to update RGW capabilities for an account [#17940](https://github.com/rook/rook/pull/17940)
 * OSDs
   * Replace a single OSD when a metadataDevice is configured with multiple OSDs [#13240](https://github.com/rook/rook/issues/13240)
   * Support creation of Ceph OSDs with Ceph seastore when available in raw mode [#16678](https://github.com/rook/rook/issues/16678)
+* Disable msgr1 protocol by default [#17081](https://github.com/rook/rook/issues/17081)
+* NMVe-oF: Declare GA [#18053](https://github.com/rook/rook/issues/18053)
+* Configure a TLS certificate for the Ceph dashboard [#17984](https://github.com/rook/rook/issues/17984)
 
 ## Kubectl Plugin
 
