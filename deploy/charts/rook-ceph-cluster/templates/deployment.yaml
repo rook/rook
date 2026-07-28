@@ -36,7 +36,13 @@ spec:
       {{- end }}
       containers:
         - name: rook-ceph-tools
-          image: {{ .Values.toolbox.image | default (printf "%s:%s" .Values.cephImage.repository .Values.cephImage.tag) }}
+          {{- if or .Values.toolbox.repository .Values.toolbox.tag }}
+          image: "{{ .Values.toolbox.repository | default .Values.cephImage.repository }}:{{ .Values.toolbox.tag | default .Values.cephImage.tag }}"
+          {{- else if .Values.toolbox.image }}
+          image: {{ .Values.toolbox.image | quote }}
+          {{- else }}
+          image: "{{ .Values.cephImage.repository }}:{{ .Values.cephImage.tag }}"
+          {{- end }}
           command:
             - /bin/bash
             - -c

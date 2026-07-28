@@ -24,7 +24,14 @@ configOverride:
 toolbox:
   # -- Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md)
   enabled: false
-  # -- Toolbox image, defaults to the image used by the Ceph cluster
+  # -- The repository from which to pull the toolbox image
+  # @default -- `.Values.cephImage.repository`
+  repository: #quay.io/ceph/ceph
+  # -- The tag of the toolbox image
+  # @default -- `.Values.cephImage.tag`
+  tag: #v20.2.2
+  # -- Toolbox image, superseded by `toolbox.repository` and `toolbox.tag`
+  # @default -- the image used by the Ceph cluster
   image: #quay.io/ceph/ceph:v20.2.2
   # -- Toolbox tolerations
   tolerations: []
