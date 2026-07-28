@@ -61,7 +61,7 @@ spec:
 
       containers:
         - name: host-cleanup
-          image: docker.io/rook/ceph:v1.20.2
+          image: docker.io/rook/ceph:v1.20.3
           imagePullPolicy: IfNotPresent
           args: ["ceph", "clean", "host"]
 
