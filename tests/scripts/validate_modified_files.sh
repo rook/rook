@@ -5,7 +5,7 @@ set -ex
 # VARIABLES #
 #############
 CODEGEN_ERR="found codegen files! please run 'make codegen' and update your PR"
-MOD_ERR="changes found by mod.check. You may need to run make clean"
+MOD_ERR="changes found by 'make mod.check'. please run 'make mod.check' locally and update your PR"
 CRD_ERR="changes found by 'make crds'. please run 'make crds' locally and update your PR"
 BUILD_ERR="changes found by make build', please commit your go.sum or other changed files"
 HELM_ERR="changes found by 'make gen-rbac'. please run 'make gen-rbac' locally and update your PR"
