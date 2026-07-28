@@ -92,6 +92,12 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterInfo *ClusterInf
 	if pool.DeviceClass != "" {
 		profilePairs = append(profilePairs, fmt.Sprintf("crush-device-class=%s", pool.DeviceClass))
 	}
+	if pool.ErasureCoded.CrushNumFailureDomains > 0 {
+		profilePairs = append(profilePairs, fmt.Sprintf("crush-num-failure-domains=%d", pool.ErasureCoded.CrushNumFailureDomains))
+	}
+	if pool.ErasureCoded.CrushOSDsPerFailureDomain > 0 {
+		profilePairs = append(profilePairs, fmt.Sprintf("crush-osds-per-failure-domain=%d", pool.ErasureCoded.CrushOSDsPerFailureDomain))
+	}
 	if pool.ErasureCoded.StripeUnit != nil && !pool.ErasureCoded.StripeUnit.IsZero() {
 		stripeBytes, ok := pool.ErasureCoded.StripeUnit.AsInt64()
 		if !ok {
