@@ -2332,6 +2332,66 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// TestWipeDevicesFromOtherClusters_MissingCephFSID reproduces
+// https://github.com/rook/rook/issues/18043: a device that was luksFormat'd by Rook but never
+// finished OSD provisioning has no ceph_fsid token in its LUKS header. That must be treated as
+// eligible for wipe, the same as a disk from a genuinely different cluster, instead of being left
+// untouched forever.
+func TestWipeDevicesFromOtherClusters_MissingCephFSID(t *testing.T) {
+	agent := &OsdAgent{
+		clusterInfo: &cephclient.ClusterInfo{
+			FSID: "c03d7353-96e5-4a41-98de-830dfff97d06",
+		},
+	}
+	devicePath := "/dev/nvme5n1"
+
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		if slices.Contains(args, "raw") && slices.Contains(args, "list") {
+			return `{}`, nil // ceph-volume raw list returns no existing OSDs
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+
+		if command == cryptsetupBinary && args[0] == "luksDump" {
+			return luksDumpNoSubsystem, nil
+		}
+		// ZapDevice calls: stdbuf (ceph-volume lvm zap), umount, wipefs, ceph-bluestore-tool, dd
+		if command == "stdbuf" {
+			if !slices.Contains(args, "zap") || !slices.Contains(args, devicePath) {
+				return "", errors.Errorf("device %s should have been zapped, got %v", devicePath, args)
+			}
+			return "", nil
+		}
+		if command == "umount" {
+			return "not mounted", errors.New("not mounted")
+		}
+		if command == "wipefs" {
+			if args[1] != devicePath {
+				return "", errors.Errorf("device %s should have been zapped, got %s", devicePath, args[1])
+			}
+			return "", nil
+		}
+		if command == "ceph-bluestore-tool" {
+			return "", nil
+		}
+		if command == "dd" {
+			return "", nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+
+	context := &clusterd.Context{
+		Devices: []*sys.LocalDisk{{RealPath: devicePath, Filesystem: "crypto_LUKS"}},
+	}
+	context.Executor = executor
+	err := agent.WipeDevicesFromOtherClusters(context)
+	assert.NoError(t, err)
+}
+
 func TestFindDeviceClass(t *testing.T) {
 	tests := []struct {
 		name       string

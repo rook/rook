@@ -1041,8 +1041,19 @@ func wipeEncryptedDevicesFromOtherClusters(context *clusterd.Context, currentClu
 
 			ceph_fsid := luksLabelCephFSID.FindString(metadata)
 			if ceph_fsid == "" {
-				logger.Error("ceph_fsid not found in the LUKS header, the encrypted disk is not from a ceph cluster")
-				return nil
+				// No ceph_fsid token means either this disk was luksFormat'd by Rook but never
+				// finished OSD provisioning (setLUKSLabelAndSubsystem() only writes the token
+				// after a successful prepare), or it isn't a Ceph disk at all. Since this helper
+				// only runs when the caller wants stray/foreign disks cleared for reuse, treat a
+				// missing token the same as a foreign-cluster disk and wipe it so it can be
+				// reprovisioned, instead of leaving it stuck in this state indefinitely.
+				logger.Infof("no ceph_fsid found in the LUKS header of disk %q (%q), wiping it so it can be reprovisioned", disk.Name, disk.RealPath)
+				if err := ZapDevice(context, disk.RealPath); err != nil {
+					return errors.Wrapf(err, "failed to zap encrypted disk %q with no ceph_fsid in its LUKS header", disk.RealPath)
+				}
+				logger.Infof("completed wiping device %q with no ceph_fsid in its LUKS header", disk.RealPath)
+				disk.Filesystem = ""
+				continue
 			}
 
 			// is it an OSD from our cluster?
