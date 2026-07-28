@@ -29,29 +29,28 @@ When ready for a release, pushing the release tag will trigger all the necessary
 
 The tags allow for a progression of pre-releases such as:
 
-* `v1.8.0-alpha.0`: Alpha release
-* `v1.8.0-beta.0`: Beta release
-* `v1.8.0-rc.0`: Release candidate
-* `v1.8.0`: Official release build
+* `v1.20.0-alpha.0`: Alpha release
+* `v1.20.0-beta.0`: Beta release
+* `v1.20.0`: Official release build
 
 The release tags should be agreed on by the release team.
 
 ### Creating the Release Branch
 
 The first time a new release branch is made, the branch is created from `master` with the
-`<release>-alpha.0` tag (e.g., `v1.13.0-alpha.0`). Create the new release branch from master, then
+`<release>-alpha.0` tag (e.g., `v1.20.0-alpha.0`). Create the new release branch from master, then
 tag it, and push the tag upstream.
 
 Example:
 
 ```console
-BRANCH_NAME=release-1.13
-git fetch —all
+BRANCH_NAME=release-1.20
+git fetch --all
 git checkout master
 git reset --hard upstream/master
 git checkout -b $BRANCH_NAME
 git push upstream $BRANCH_NAME
-TAG_NAME=v1.13.0-alpha.0
+TAG_NAME=v1.20.0-alpha.0
 git tag -a $TAG_NAME -m "$TAG_NAME release tag"
 git push upstream $TAG_NAME
 ```
@@ -60,10 +59,10 @@ Verify the change. Both the branch and master should show the new `...-alpha.0` 
 ```console
 git fetch --all
 git describe
-#> v1.13.0-alpha.0
+#> v1.20.0-alpha.0
 git checkout master
 git describe
-#> v1.13.0-alpha.0
+#> v1.20.0-alpha.0
 ```
 
 The alpha tag only serves to mark the creation of the new branch. It isn't suitable for installing.
@@ -71,15 +70,28 @@ Now we need to update docs, manifests, and the tag version. Generally, an alpha 
 necessary, and we immediately release `...-beta.0`
 
 Create a PR to the new release branch that updates the documentation and example manifests with a
-beta tag (e.g. `v1.13.0-beta.0`). For example: https://github.com/rook/rook/pull/13308
+beta tag (e.g. `v1.20.0-beta.0`). For example: [#17370](https://github.com/rook/rook/pull/17370)
 
 As part of that documentation update, add a row for the new release series to the support matrix in
 `Documentation/Getting-Started/maintenance-and-support.md`, using the Kubernetes range from
 `Documentation/Getting-Started/Prerequisites/prerequisites.md` and the Ceph versions from
 `Documentation/Upgrade/ceph-upgrade.md`.
 
-After the PR is merged, you can tag the release with the beta tag (`v1.13.0-beta.0`) following the
+After the PR is merged, you can tag the release with the beta tag (`v1.20.0-beta.0`) following the
 [Tagging a New Release](#tagging-a-new-release) process below.
+
+### After Creating the Release Branch
+
+Several updates are needed on `master` soon after the new release branch is created:
+
+1. Update `.mergify.yml`: add the automerge and `backport-release-1.X` rules for the new branch,
+   and remove the rules for branches that are no longer supported.
+   For example: [#17369](https://github.com/rook/rook/pull/17369)
+2. Update the supported Kubernetes versions for the new release cycle: the range in
+   `Documentation/Getting-Started/Prerequisites/prerequisites.md` and the workflow test matrices
+   (keeping the `.mergify.yml` check names in sync with the matrix versions).
+3. Before tagging the final release, update `Documentation/Upgrade/rook-upgrade.md` to walk
+   through the upgrade from the previous minor release to the new one.
 
 ### Tagging a New Release
 
@@ -90,7 +102,7 @@ It takes the new version as its only argument for invocation.
 
 example:
 ```console
-build/release/set-release-ver.sh v1.17.2
+build/release/set-release-ver.sh v1.20.3
 ```
 
 To publish a new patch release build, follow these steps:
@@ -98,17 +110,17 @@ To publish a new patch release build, follow these steps:
 1. Make sure all needed PRs are merged to the release branch
 2. Check that integration tests are green (except intermittent issues)
 3. Open a PR to update the doc/manifest image tag versions, and merge it
-   For example: https://github.com/rook/rook/pull/13301
+   For example: [#18062](https://github.com/rook/rook/pull/18062)
 4. Tag the branch:
 
     ```console
     # make sure no files are modified locally, then proceed:
-    BRANCH_NAME=<release branch> # e.g., release-1.12
+    BRANCH_NAME=<release branch> # e.g., release-1.20
     git fetch --all
     git checkout $BRANCH_NAME
     git reset --hard upstream/$BRANCH_NAME
     # set to the new release
-    TAG_NAME=<release version> # e.g., v1.12.9
+    TAG_NAME=<release version> # e.g., v1.20.3
     # verify the checkout matches the version being tagged
     build/release/validate-tag.sh "$TAG_NAME"
     git tag -a "$TAG_NAME" -m "$TAG_NAME release tag"
@@ -120,8 +132,10 @@ To publish a new patch release build, follow these steps:
     ```console
     git checkout master
     git fetch --all
-    export FROM_BRANCH=<release version> # e.g., v1.12.9
-    export TO_TAG=<previous release version> # e.g., v1.12.8
+    # The script queries the GitHub API and requires GITHUB_USER and GITHUB_TOKEN to be set.
+    # FROM_BRANCH is the tag of the release being published, TO_TAG is the previous release tag.
+    export FROM_BRANCH=<new release version> # e.g., v1.20.3
+    export TO_TAG=<previous release version> # e.g., v1.20.2
     tests/scripts/gen_release_notes.sh
     ```
 
@@ -130,7 +144,9 @@ To publish a new patch release build, follow these steps:
 
 ### After a Minor Release
 
-1. Go to [Google Search Console](https://search.google.com/search-console/) and request removal of the previous minor release's versioned documentation paths.
+1. Reset [PendingReleaseNotes.md](/PendingReleaseNotes.md) on `master` with empty sections for the
+   next minor release. For example: [#17661](https://github.com/rook/rook/pull/17661)
+2. Go to [Google Search Console](https://search.google.com/search-console/) and request removal of the previous minor release's versioned documentation paths.
 
 ### Authoring Release Notes
 
@@ -147,4 +163,11 @@ Ensure that you only click `Save draft` until the release is complete, after whi
 
 ## Release Artifacts
 
-Images are pushed to docker hub under the [rook/ceph](https://hub.docker.com/r/rook/ceph/tags/) repo.
+The release build publishes the following artifacts:
+
+* Container images: pushed to Docker Hub, Quay, and the GitHub Container Registry under the
+  [rook/ceph](https://hub.docker.com/r/rook/ceph/tags/) repo, and signed with cosign.
+* Helm charts: pushed to https://charts.rook.io/release, and as OCI artifacts (also signed with
+  cosign) to the same registries as the container images.
+* Documentation: the versioned documentation for the release branch is published to the docs
+  site (e.g., the [v1.20 docs](https://rook.io/docs/rook/v1.20/)).
