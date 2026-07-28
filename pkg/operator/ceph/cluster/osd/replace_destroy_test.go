@@ -105,13 +105,25 @@ func getReplaceDep(t *testing.T, m *OSDHealthMonitor, osdID int) *appsv1.Deploym
 	return d
 }
 
-// replaceMarkedDep builds an OSD deployment that carries the replace annotation and the
-// do-not-reconcile label, the normal starting state for the goroutine. It includes the minimal "osd"
-// container so the up-front encryption derivation can read OSD info, mirroring a real deployment.
+// replaceMarkedDep builds an OSD deployment that carries the user's replace annotation plus the
+// in-progress annotation and do-not-reconcile label the controller sets on successful validation, the
+// normal starting state for the goroutine. It includes the minimal "osd" container so the up-front
+// encryption derivation can read OSD info, mirroring a real deployment.
 func replaceMarkedDep(osdID int) *appsv1.Deployment {
 	return withOSDContainer(osdDeployment(osdID,
-		map[string]string{cephv1.ReplaceOSDAnnotationKey: fmt.Sprintf(cephv1.ReplaceOSDAnnotationValueFmt, osdID)},
+		map[string]string{
+			cephv1.ReplaceOSDAnnotationKey:           fmt.Sprintf(cephv1.ReplaceOSDAnnotationValueFmt, osdID),
+			cephv1.ReplaceInProgressOSDAnnotationKey: "true",
+		},
 		map[string]string{cephv1.SkipReconcileLabelKey: "true"}), "node-1", false)
+}
+
+// cancelledDep builds the state a cancellation is detected from: the controller's markers are in
+// place but the user has removed their replace annotation.
+func cancelledDep(osdID int) *appsv1.Deployment {
+	d := replaceMarkedDep(osdID)
+	delete(d.Annotations, cephv1.ReplaceOSDAnnotationKey)
+	return d
 }
 
 // withOSDContainer adds the minimal "osd" container env that getOSDInfo reads, so encryption and
@@ -147,15 +159,31 @@ func advanceFromState(t *testing.T, m *OSDHealthMonitor, st *replaceTestState, d
 
 func TestProcessOSDReplacementDestroy(t *testing.T) {
 	osdID := 5
-	t.Run("not selected without the do-not-reconcile label", func(t *testing.T) {
+	t.Run("not selected without the in-progress annotation", func(t *testing.T) {
 		dep := osdDeployment(osdID, map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-5"}, nil)
 		st := &replaceTestState{tree: map[int]string{osdID: "up"}, inByID: map[int]int{osdID: 1}}
 		m := newReplaceHealthMonitor(t, fake.NewClientset(dep), st)
-		// A deployment without the do-not-reconcile label is not selected by the goroutine at all.
+		// The controller has not validated it yet, so the goroutine does not select it at all.
 		replacing, err := m.processOSDsDestroyForReplacement()
 		require.NoError(t, err)
 		assert.NotContains(t, replacing, osdID)
 		assert.Empty(t, st.cephCmds)
+	})
+
+	t.Run("fenced OSD without the in-progress annotation is left alone", func(t *testing.T) {
+		// An OSD fenced by someone other than the replacement flow: an admin fencing it by hand, or the
+		// kubectl-rook-ceph maintenance plugin, both of which set the same do-not-reconcile label. The
+		// goroutine must not claim it — treating it as a cancelled replacement would mark the OSD back
+		// `in` and strip the fence, scaling the OSD back up under whoever is working on it.
+		dep := osdDeployment(osdID, nil, map[string]string{cephv1.SkipReconcileLabelKey: "true"})
+		st := &replaceTestState{tree: map[int]string{osdID: "up"}, inByID: map[int]int{osdID: 0}}
+		m := newReplaceHealthMonitor(t, fake.NewClientset(dep), st)
+
+		replacing, err := m.processOSDsDestroyForReplacement()
+		require.NoError(t, err)
+		assert.NotContains(t, replacing, osdID)
+		assert.Empty(t, st.cephCmds)
+		assert.Equal(t, "true", getReplaceDep(t, m, osdID).Labels[cephv1.SkipReconcileLabelKey], "the fence must survive")
 	})
 
 	t.Run("in -> osd out, no fall-through to destroy", func(t *testing.T) {
@@ -221,23 +249,23 @@ func TestProcessOSDReplacementDestroy(t *testing.T) {
 		assert.Empty(t, st.cephCmds)
 	})
 
-	t.Run("cancellation before destroy -> osd in + clear do-not-reconcile label", func(t *testing.T) {
-		// do-not-reconcile label set + NO replace annotation, slot not destroyed = cancellation
-		dep := osdDeployment(osdID, nil, map[string]string{cephv1.SkipReconcileLabelKey: "true"})
+	t.Run("cancellation before destroy -> osd in + clear replacement markers", func(t *testing.T) {
+		// markers set + NO replace annotation, slot not destroyed = cancellation
+		dep := cancelledDep(osdID)
 		st := &replaceTestState{tree: map[int]string{osdID: "up"}, inByID: map[int]int{osdID: 0}}
 		m := newReplaceHealthMonitor(t, fake.NewClientset(dep), st)
 		require.NoError(t, advanceFromState(t, m, st, dep, osdID))
 		assert.Contains(t, st.cephCmds, fmt.Sprintf("osd in %d", osdID))
 		got := getReplaceDep(t, m, osdID)
 		assert.NotContains(t, got.Labels, cephv1.SkipReconcileLabelKey)
+		assert.NotContains(t, got.Annotations, cephv1.ReplaceInProgressOSDAnnotationKey)
 	})
 
 	t.Run("cancellation deletes in-flight crypto-close job", func(t *testing.T) {
-		// Encrypted OSD cancelled after its crypto-close Job was created: do-not-reconcile label set +
-		// NO replace annotation, slot not destroyed = cancellation. The lingering Job must be deleted
-		// before the fence label is cleared so its `cryptsetup close` cannot race the daemon scaling
-		// back up.
-		dep := withOSDContainer(osdDeployment(osdID, nil, map[string]string{cephv1.SkipReconcileLabelKey: "true"}), "node-1", true)
+		// Encrypted OSD cancelled after its crypto-close Job was created: markers set + NO replace
+		// annotation, slot not destroyed = cancellation. The lingering Job must be deleted before the
+		// fence label is cleared so its `cryptsetup close` cannot race the daemon scaling back up.
+		dep := withOSDContainer(cancelledDep(osdID), "node-1", true)
 		st := &replaceTestState{tree: map[int]string{osdID: "up"}, inByID: map[int]int{osdID: 0}}
 		m := newReplaceHealthMonitor(t, fake.NewClientset(dep), st)
 		// a crypto-close Job exists from a prior tick before the cancellation.
@@ -257,8 +285,8 @@ func TestProcessOSDReplacementDestroy(t *testing.T) {
 	})
 
 	t.Run("cancellation after destroy is not honored", func(t *testing.T) {
-		// do-not-reconcile label set + NO replace annotation, but slot already destroyed: must NOT mark in.
-		dep := withOSDContainer(osdDeployment(osdID, nil, map[string]string{cephv1.SkipReconcileLabelKey: "true"}), "node-1", false)
+		// markers set + NO replace annotation, but slot already destroyed: must NOT mark in.
+		dep := cancelledDep(osdID)
 		st := &replaceTestState{tree: map[int]string{osdID: "destroyed"}, inByID: map[int]int{osdID: 0}}
 		m := newReplaceHealthMonitor(t, fake.NewClientset(dep), st)
 		require.NoError(t, advanceFromState(t, m, st, dep, osdID))

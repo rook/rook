@@ -477,6 +477,16 @@ func addLabel(key, value string, labels map[string]string) {
 	labels[key] = value
 }
 
+func AddAnnotationToDeployment(key, value string, d *appsv1.Deployment) {
+	if d == nil {
+		return
+	}
+	if d.Annotations == nil {
+		d.Annotations = map[string]string{}
+	}
+	d.Annotations[key] = value
+}
+
 // CreateDeployment creates a deployment with a last applied hash annotation added
 func CreateDeployment(ctx context.Context, clientset kubernetes.Interface, dep *appsv1.Deployment) (*appsv1.Deployment, error) {
 	// Set hash annotation to the newly generated deployment

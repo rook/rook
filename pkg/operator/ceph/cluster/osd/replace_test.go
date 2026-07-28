@@ -102,13 +102,15 @@ func TestValidateAndStartOSDReplacement(t *testing.T) {
 		return d
 	}
 
-	t.Run("valid request gets fenced", func(t *testing.T) {
+	t.Run("valid request gets fenced and marked in progress", func(t *testing.T) {
 		dep := osdDeployment(5, map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-5"}, nil)
 		clientset := fake.NewClientset(dep)
 		c := newReplaceClusterWithTree(clientset, map[int]string{5: "up"})
 
 		require.NoError(t, c.validateAndStartOSDReplacement())
-		assert.Equal(t, "true", getDep(c, 5).Labels[cephv1.SkipReconcileLabelKey])
+		got := getDep(c, 5)
+		assert.Equal(t, "true", got.Labels[cephv1.SkipReconcileLabelKey])
+		assert.Equal(t, "true", got.Annotations[cephv1.ReplaceInProgressOSDAnnotationKey])
 	})
 
 	t.Run("id mismatch is rejected and not fenced", func(t *testing.T) {
@@ -118,7 +120,8 @@ func TestValidateAndStartOSDReplacement(t *testing.T) {
 		c := newReplaceClusterWithTree(clientset, map[int]string{5: "up"})
 
 		require.NoError(t, c.validateAndStartOSDReplacement())
-		assert.NotEqual(t, "true", getDep(c, 5).Labels[cephv1.SkipReconcileLabelKey])
+		assert.NotContains(t, getDep(c, 5).Labels, cephv1.SkipReconcileLabelKey)
+		assert.NotContains(t, getDep(c, 5).Annotations, cephv1.ReplaceInProgressOSDAnnotationKey)
 	})
 
 	t.Run("PVC-backed OSD is rejected and not fenced", func(t *testing.T) {
@@ -128,7 +131,8 @@ func TestValidateAndStartOSDReplacement(t *testing.T) {
 		c := newReplaceClusterWithTree(clientset, map[int]string{5: "up"})
 
 		require.NoError(t, c.validateAndStartOSDReplacement())
-		assert.NotEqual(t, "true", getDep(c, 5).Labels[cephv1.SkipReconcileLabelKey])
+		assert.NotContains(t, getDep(c, 5).Labels, cephv1.SkipReconcileLabelKey)
+		assert.NotContains(t, getDep(c, 5).Annotations, cephv1.ReplaceInProgressOSDAnnotationKey)
 	})
 
 	t.Run("already-destroyed OSD is accepted and fenced", func(t *testing.T) {
@@ -139,7 +143,9 @@ func TestValidateAndStartOSDReplacement(t *testing.T) {
 		c := newReplaceClusterWithTree(clientset, map[int]string{5: "destroyed"})
 
 		require.NoError(t, c.validateAndStartOSDReplacement())
-		assert.Equal(t, "true", getDep(c, 5).Labels[cephv1.SkipReconcileLabelKey])
+		got := getDep(c, 5)
+		assert.Equal(t, "true", got.Labels[cephv1.SkipReconcileLabelKey])
+		assert.Equal(t, "true", got.Annotations[cephv1.ReplaceInProgressOSDAnnotationKey])
 	})
 
 	t.Run("nonexistent OSD is rejected and not fenced", func(t *testing.T) {
@@ -148,7 +154,8 @@ func TestValidateAndStartOSDReplacement(t *testing.T) {
 		c := newReplaceClusterWithTree(clientset, map[int]string{7: "up"})
 
 		require.NoError(t, c.validateAndStartOSDReplacement())
-		assert.NotEqual(t, "true", getDep(c, 5).Labels[cephv1.SkipReconcileLabelKey])
+		assert.NotContains(t, getDep(c, 5).Labels, cephv1.SkipReconcileLabelKey)
+		assert.NotContains(t, getDep(c, 5).Annotations, cephv1.ReplaceInProgressOSDAnnotationKey)
 	})
 
 	t.Run("deployment without the annotation is ignored", func(t *testing.T) {
@@ -160,14 +167,29 @@ func TestValidateAndStartOSDReplacement(t *testing.T) {
 		assert.NotContains(t, getDep(c, 5).Labels, cephv1.SkipReconcileLabelKey)
 	})
 
-	t.Run("already-fenced deployment is left untouched", func(t *testing.T) {
+	t.Run("already-marked deployment is left untouched", func(t *testing.T) {
+		dep := osdDeployment(5, map[string]string{
+			cephv1.ReplaceOSDAnnotationKey:           "yes-really-replace-osd-5",
+			cephv1.ReplaceInProgressOSDAnnotationKey: "true",
+		}, map[string]string{cephv1.SkipReconcileLabelKey: "true"})
+		clientset := fake.NewClientset(dep)
+		c := newTestReplaceCluster(clientset)
+		// no executor: an OSD the goroutine already owns must not trigger an osd tree lookup
+		require.NoError(t, c.validateAndStartOSDReplacement())
+		assert.Equal(t, "true", getDep(c, 5).Labels[cephv1.SkipReconcileLabelKey])
+	})
+
+	t.Run("already-fenced deployment is still validated", func(t *testing.T) {
+		// An OSD an admin (or the maintenance plugin) already fenced carries the same label without having
+		// been validated. The label must not be mistaken for a completed validation, or the goroutine would
+		// take over an unvalidated request.
 		dep := osdDeployment(5, map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-5"},
 			map[string]string{cephv1.SkipReconcileLabelKey: "true"})
 		clientset := fake.NewClientset(dep)
-		c := newTestReplaceCluster(clientset)
-		// no executor: an already-fenced OSD must not trigger an osd tree lookup
+		c := newReplaceClusterWithTree(clientset, map[int]string{5: "up"})
+
 		require.NoError(t, c.validateAndStartOSDReplacement())
-		assert.Equal(t, "true", getDep(c, 5).Labels[cephv1.SkipReconcileLabelKey])
+		assert.Equal(t, "true", getDep(c, 5).Annotations[cephv1.ReplaceInProgressOSDAnnotationKey])
 	})
 }
 

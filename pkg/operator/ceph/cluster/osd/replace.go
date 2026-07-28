@@ -47,8 +47,8 @@ func (c *Cluster) validateAndStartOSDReplacement() error {
 			continue
 		}
 
-		// Already labeled: validated, and the goroutine owns it now.
-		if d.Labels[cephv1.SkipReconcileLabelKey] == "true" {
+		// Already marked: validated, and the goroutine owns it now.
+		if d.Annotations[cephv1.ReplaceInProgressOSDAnnotationKey] == "true" {
 			continue
 		}
 
@@ -69,20 +69,22 @@ func (c *Cluster) validateAndStartOSDReplacement() error {
 			continue
 		}
 
-		// Setting the skip-reconcile label here as a marker of successful validation.
-		// The rest (osd drain and destroy) will be handled by OSD health goroutine.
+		// Hand the OSD over to the health goroutine: the skip-reconcile label fences the updater off the
+		// deployment, and the in-progress annotation records that validation passed. Both are written in
+		// the same update, so the goroutine never sees one without the other.
 		k8sutil.AddLabelToDeployment(cephv1.SkipReconcileLabelKey, "true", d)
+		k8sutil.AddAnnotationToDeployment(cephv1.ReplaceInProgressOSDAnnotationKey, "true", d)
 		_, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Update(c.clusterInfo.Context, d, metav1.UpdateOptions{})
 		if err != nil {
 			log.NamespacedWarning(c.clusterInfo.Namespace, logger,
-				"failed to set %q label on OSD deployment %q for replacement: %v",
-				cephv1.SkipReconcileLabelKey, d.Name, err)
+				"failed to set %q label and %q annotation on OSD deployment %q for replacement: %v",
+				cephv1.SkipReconcileLabelKey, cephv1.ReplaceInProgressOSDAnnotationKey, d.Name, err)
 			continue
 		}
 
 		log.NamespacedInfo(c.clusterInfo.Namespace, logger,
-			"validated OSD replacement request on deployment %q and set the %q label; OSD health monitor will drive teardown",
-			d.Name, cephv1.SkipReconcileLabelKey)
+			"validated OSD replacement request on deployment %q and set the %q label and %q annotation; OSD health monitor will drive teardown",
+			d.Name, cephv1.SkipReconcileLabelKey, cephv1.ReplaceInProgressOSDAnnotationKey)
 	}
 
 	return nil

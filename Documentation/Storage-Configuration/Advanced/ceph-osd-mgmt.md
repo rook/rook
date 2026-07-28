@@ -247,6 +247,14 @@ If the annotation does not appear, either the request failed validation and the 
 kubectl -n rook-ceph logs deploy/rook-ceph-operator | grep -i "replacement"
 ```
 
+To stop a replacement you no longer want, remove the annotation you added in step 1:
+
+```console
+kubectl -n rook-ceph annotate deployment rook-ceph-osd-5 osd.rook.io/replace-
+```
+
+Rook marks the OSD back `in` and brings it up again within a minute, and Ceph backfills the data that migrated away while it was draining. Cancelling is only possible **before** the `osd.rook.io/replace-ready-for-swap` annotation appears. Once it does, the OSD is already destroyed in Ceph, and the way out is to finish the replacement by swapping the disk.
+
 ### Step 3: Swap the disk
 
 !!! important

@@ -76,6 +76,7 @@ The destroy flow does not require the disk to have failed; it works uniformly fo
 The flow is multistep, and its state is carried by the following Ceph and Kubernetes data:
 
 - **`osd.rook.io/replace` annotation on the OSD Deployment.** The caller's intent and a confirmation guard (value `yes-really-replace-osd-<id>`). Present from the trigger until the replacement finishes. The Deployment is kept and scaled to `replicas=0`, not deleted, so the annotation persists on it.
+- **`osd.rook.io/replace-in-progress` annotation.** Set by Rook, together with the `do-not-reconcile` label, once the request passes validation; removed on cancellation. Only Rook ever writes it, which makes it the flow's ownership marker: it is the one marker that means "this OSD is being replaced by Rook", so it is what the goroutine keys on to decide which Deployments it may act on. See [Why the fence label cannot be the ownership marker](#why-the-fence-label-cannot-be-the-ownership-marker).
 - **`osd.rook.io/replace-ready-for-swap` annotation.** Set by Rook once the OSD is destroyed. It signals to the user that the disk may now be physically swapped.
 - **The destroyed slot and the old disk's signature.** `ceph osd destroy` marks the slot `destroyed` in the OSDMap, preserving the OSD id, CRUSH bucket, and weight — that slot is the id the new disk reuses. The destroyed OSD's disk is left untouched, so its Ceph on-disk signature still blocks provisioning onto it; the signature's disappearance after the physical swap is how Rook detects the swap. A disk too broken to read is equally safe — discovery never sees an unreadable device as available.
 
@@ -95,10 +96,10 @@ sequenceDiagram
     User->>Dep: kubectl annotate<br/>osd.rook.io/replace
     Ctrl->>Dep: watch
     Ctrl->>Ctrl: validate annotation OSD id<br/>and device references
-    Ctrl->>Dep: label do-not-reconcile
+    Ctrl->>Dep: label do-not-reconcile<br/>annotate replace-in-progress
     note over Ctrl: From here, OSD deployment<br/>is ignored by controller.<br/>OSD health takes over
     loop OSD health ticks every 60s
-    G->>Dep: list OSDs with<br/>label and annotation
+    G->>Dep: list OSDs annotated<br/>replace-in-progress
     G->>Ceph: osd dump & osd tree --states destroyed
     G->>G: define destroy step<br/>from the state and jump
     G->>Ceph: ceph osd out 5 (idempotent)
@@ -153,19 +154,19 @@ Rook's CephCluster controller predicate ([predicate.go#L252-L255](https://github
 3. **Deployment is host-based.** Label `ceph.rook.io/pvc` must be absent.
 4. **Device references resolve now.** Best-effort check of the OSD's `spec.storage` references, per [Device references may not survive a swap](#device-references-may-not-survive-a-swap).
 
-On the first failed check the controller skips the OSD and emits a Warning event on the CephCluster CR; see [open question 2](#open-questions). On all checks passing, it sets the `ceph.rook.io/do-not-reconcile` label. From here the OSD and its Deployment are ignored by the controller's normal reconcile until the replacement completes or is cancelled, and the OSD health monitor goroutine takes over.
+On the first failed check the controller skips the OSD and emits a Warning event on the CephCluster CR; see [open question 2](#open-questions). On all checks passing, it sets the `ceph.rook.io/do-not-reconcile` label and the `osd.rook.io/replace-in-progress` annotation, both in the same Deployment update so the goroutine never sees one without the other. From here the OSD and its Deployment are ignored by the controller's normal reconcile until the replacement completes or is cancelled, and the OSD health monitor goroutine takes over.
 
 #### 2. Drain
 
-The rest of OSD destroy flow runs in the OSD health monitor goroutine, which the operator starts per CephCluster ([monitoring.go#L94-L96](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/monitoring.go#L94-L96)). When enabled, it calls `ceph osd dump` every 60s to check OSD status; replacement extends this loop. Before the normal status check, the goroutine selects the Deployments carrying the replacement annotation and no-reconcile label, excludes them from normal health processing, and runs the replacement logic on them.
+The rest of OSD destroy flow runs in the OSD health monitor goroutine, which the operator starts per CephCluster ([monitoring.go#L94-L96](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/monitoring.go#L94-L96)). When enabled, it calls `ceph osd dump` every 60s to check OSD status; replacement extends this loop. Before the normal status check, the goroutine selects the Deployments Rook marked `replace-in-progress`, excludes them from normal health processing, and runs the replacement logic on them.
 
 The replacement logic is a state machine. Each tick the goroutine derives each OSD's phase from durable state — the OSDMap, the Deployment's labels and annotations, and the per-OSD cleanup Job — and takes the one action for that phase. It keeps no memory of its own, so an operator restart resumes wherever the state left it, and every action is idempotent.
 
 | Phase | How the goroutine detects it | Action this tick |
 | --- | --- | --- |
-| Not validated | no `do-not-reconcile` label | ignore — the controller has not validated and labelled it yet |
-| Not started | labelled; OSD still `in` | run `ceph osd out <id>` |
-| Draining | labelled; OSD `out`; not yet `safe-to-destroy` | re-check `ceph osd safe-to-destroy <id>`, otherwise exit for retry |
+| Not validated | no `replace-in-progress` annotation | ignore — the controller has not validated and marked it yet |
+| Not started | marked; OSD still `in` | run `ceph osd out <id>` |
+| Draining | marked; OSD `out`; not yet `safe-to-destroy` | re-check `ceph osd safe-to-destroy <id>`, otherwise exit for retry |
 | Ready to destroy | `safe-to-destroy` passes; slot not yet `destroyed` | run the [Destroy](#3-destroy) steps |
 | Destroyed | slot `destroyed`; no `replace-ready-for-swap` annotation | add the `replace-ready-for-swap` annotation |
 | Done | `replace-ready-for-swap` present | ignore — the goroutine's work is finished |
@@ -221,7 +222,7 @@ The replacement is complete once `osd.<id>` is `up` and `in`, at which point the
 
 Cancellation is done by removing the `osd.rook.io/replace` annotation.
 
-- **Before destroy (during validate or drain).** Clean cancel: no Ceph state has been changed that cannot be reversed. On the next tick the goroutine sees the annotation gone, stops the `safe-to-destroy` wait, marks the OSD back `in` with `ceph osd in <id>`, and clears the `do-not-reconcile` label so the updater scales the Deployment back to `replicas=1`. The goroutine may clear the label here even though it must never *set* it (see [Why split the work](#why-split-the-work-between-the-controller-and-the-goroutine)). Clearing is safe in a race: if a reconcile does not see the cleared label, it just skips the OSD for one more tick. Setting is not safe: a reconcile that does not see a newly set label would scale the OSD back up and undo the replacement.
+- **Before destroy (during validate or drain).** Clean cancel: no Ceph state has been changed that cannot be reversed. On the next tick the goroutine sees the annotation gone, stops the `safe-to-destroy` wait, marks the OSD back `in` with `ceph osd in <id>`, deletes any in-flight cleanup Job, and clears the `replace-in-progress` annotation and the `do-not-reconcile` label — both in one update, the reverse of how the controller set them — so the updater scales the Deployment back to `replicas=1`. The Job is deleted before the fence is cleared: a lingering `cryptsetup close` would otherwise race the daemon coming back up. The goroutine may clear the label here even though it must never *set* it (see [Why split the work](#why-split-the-work-between-the-controller-and-the-goroutine)). Clearing is safe in a race: if a reconcile does not see the cleared label, it just skips the OSD for one more tick. Setting is not safe: a reconcile that does not see a newly set label would scale the OSD back up and undo the replacement.
 - **After destroy succeeds.** Not honored. The slot is already `destroyed` in the OSDMap. Recovery is to either let the flow complete (provision a new disk into the same slot) or abandon it manually: `ceph osd purge <id>` to retire the slot, `ceph-volume lvm zap --destroy` the surviving DB LV, and delete the held OSD Deployment.
 
 Retry after a terminal failure (validation rejection): the user removes the `osd.rook.io/replace` annotation and re-adds it. The carve-out fires a fresh reconcile and the controller re-validates.
@@ -267,10 +268,16 @@ This design introduces a new, valid state for an OSD Deployment: kept at `replic
 
 The simplest design would keep everything in one place. Neither end works alone:
 
-- **Not all in the goroutine.** The controller and the goroutine act on the same OSD concurrently, so the goroutine needs a fence that keeps the controller's updater off the Deployment while it works. That fence is the `do-not-reconcile` label ([update.go#L155-L158](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/update.go#L155-L158)), and only the controller can set it safely. Reconciles of one CephCluster are serialized ([controller.go#L166](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/controller.go#L166)), so a label written inside a reconcile is durable. The goroutine runs as a separate thread: if it set the label, a reconcile already in flight — one that read its skip set before the write — would not see the label, regenerate the Deployment, drop it, and scale the OSD back to `replicas=1`, fighting the replacement. So validation and labelling stay in the controller, and the goroutine only acts on OSDs that are already fenced.
+- **Not all in the goroutine.** The controller and the goroutine act on the same OSD concurrently, so the goroutine needs a fence that keeps the controller's updater off the Deployment while it works. That fence is the `do-not-reconcile` label ([update.go#L155-L158](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/update.go#L155-L158)), and only the controller can set it safely. Reconciles of one CephCluster are serialized ([controller.go#L166](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/controller.go#L166)), so a label written inside a reconcile is durable. The goroutine runs as a separate thread: if it set the label, a reconcile already in flight — one that read its skip set before the write — would not see the label, regenerate the Deployment, drop it, and scale the OSD back to `replicas=1`, fighting the replacement. So validation and fencing stay in the controller, and the goroutine only acts on OSDs that are already fenced.
 - **Not all in the controller.** Draining waits on `safe-to-destroy` for hours or days. Running that in the reconcile would tie up the controller and delay its other, more important flows. The goroutine runs on its own 60s loop ([health.go#L70-L91](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/health.go#L70-L91)), independent of the reconcile, so it carries the long teardown without blocking anything and a failure there cannot stall the controller.
 
-The label is the handoff: the controller owns the OSD until it is labelled, the goroutine owns it afterward.
+The pair of markers is the handoff: the controller owns the OSD until it writes them, the goroutine owns it afterward.
+
+### Why the fence label cannot be the ownership marker
+
+The `do-not-reconcile` label is a fence, not a claim, and Rook is not its only writer: cluster admins set it by hand to keep the operator off an OSD, and the `kubectl rook-ceph maintenance start` command clones the OSD Deployment with all of its labels — including this one — to run `ceph-objectstore-tool` against a stopped OSD. Rook itself treats the label that way: `GetDaemonsToSkipReconcile` reads it off *any* `app=rook-ceph-osd` Deployment and skips the matching `ceph-osd-id`, which is exactly how the plugin's clone fences the real OSD.
+
+So a Deployment carrying the label says nothing about who is driving the OSD. A goroutine that claimed OSDs by the label would take over OSDs it does not own — reversing an admin's `ceph osd out`, stripping the fence out from under a running `ceph-objectstore-tool`, or destroying an OSD whose replacement request never passed validation. The `replace-in-progress` annotation is the claim: Rook is its only writer, and it exists only between a successful validation and the end of the replacement.
 
 ## Intersection with existing Rook config
 

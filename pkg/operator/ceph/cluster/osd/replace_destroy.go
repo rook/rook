@@ -50,12 +50,12 @@ func (m *OSDHealthMonitor) processOSDsDestroyForReplacement() (map[int]struct{},
 	}
 
 	// Collect the replacement-marked deployments. Every one (incl. ready-for-swap) goes into the
-	// exclusion set, but only those with work left are processed below: a deployment without the
-	// do-not-reconcile label is not owned by this function, and one already annotated ready-for-swap is done.
+	// exclusion set, but only those with work left are processed below: a deployment the controller has
+	// not marked in-progress is not owned by this function, and one already annotated ready-for-swap is done.
 	var toProcess []*appsv1.Deployment
 	for i := range deployments.Items {
 		d := &deployments.Items[i]
-		if d.Labels[cephv1.SkipReconcileLabelKey] != "true" {
+		if d.Annotations[cephv1.ReplaceInProgressOSDAnnotationKey] != "true" {
 			continue
 		}
 
@@ -293,10 +293,7 @@ func (m *OSDHealthMonitor) annotateReadyForSwap(d *appsv1.Deployment, osdID int)
 	if _, ok := d.Annotations[cephv1.ReadyForSwapOSDAnnotationKey]; ok {
 		return nil
 	}
-	if d.Annotations == nil {
-		d.Annotations = map[string]string{}
-	}
-	d.Annotations[cephv1.ReadyForSwapOSDAnnotationKey] = "true"
+	k8sutil.AddAnnotationToDeployment(cephv1.ReadyForSwapOSDAnnotationKey, "true", d)
 	_, err := m.cluster.context.Clientset.AppsV1().Deployments(m.clusterInfo.Namespace).Update(m.clusterInfo.Context, d, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to annotate osd.%d deployment %q as ready for swap", osdID, d.Name)
@@ -305,12 +302,12 @@ func (m *OSDHealthMonitor) annotateReadyForSwap(d *appsv1.Deployment, osdID int)
 }
 
 // cancelReplaceOSD reverses a drain that was cancelled before the OSD was destroyed: mark the OSD
-// back `in`, delete any in-flight crypto-close Job, and clear the do-not-reconcile label so the
-// updater scales the deployment back to replicas=1. The goroutine only ever clears this label, never
-// sets it. Idempotent across ticks.
+// back `in`, delete any in-flight crypto-close Job, and clear the in-progress annotation and the
+// do-not-reconcile label so the updater scales the deployment back to replicas=1. The goroutine only
+// ever clears this label, never sets it. Idempotent across ticks.
 func (m *OSDHealthMonitor) cancelReplaceOSD(d *appsv1.Deployment, osdID int) error {
 	log.NamespacedInfo(m.clusterInfo.Namespace, logger,
-		"replacement of osd.%d was cancelled before destroy; marking it back in and clearing the do-not-reconcile label", osdID)
+		"replacement of osd.%d was cancelled before destroy; marking it back in and clearing the replacement markers", osdID)
 
 	if err := cephclient.OSDIn(m.context, m.clusterInfo, osdID); err != nil {
 		return errors.Wrapf(err, "failed to mark osd.%d back in on cancellation", osdID)
@@ -324,13 +321,13 @@ func (m *OSDHealthMonitor) cancelReplaceOSD(d *appsv1.Deployment, osdID int) err
 		return errors.Wrapf(err, "failed to delete crypto-close job for osd.%d on cancellation", osdID)
 	}
 
-	if d.Labels[cephv1.SkipReconcileLabelKey] != "true" {
-		return nil // already cleared on a previous tick
-	}
+	// Drop both markers in one update, the reverse of how the controller set them, so the OSD is never
+	// left owned-but-unfenced or fenced-but-unowned.
+	delete(d.Annotations, cephv1.ReplaceInProgressOSDAnnotationKey)
 	delete(d.Labels, cephv1.SkipReconcileLabelKey)
 	_, err := m.cluster.context.Clientset.AppsV1().Deployments(m.clusterInfo.Namespace).Update(m.clusterInfo.Context, d, metav1.UpdateOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "failed to clear the %q label on osd.%d deployment %q", cephv1.SkipReconcileLabelKey, osdID, d.Name)
+		return errors.Wrapf(err, "failed to clear the replacement markers on osd.%d deployment %q", osdID, d.Name)
 	}
 	return nil
 }
