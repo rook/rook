@@ -3,9 +3,10 @@ set -e
 
 function help() {
   print="
-  To run this command,
-  1. verify you are selecting right branch from GitHub UI dropdown menu
-  2. enter the tag you want to create
+  To run this command, set:
+  1. GITHUB_USER and GITHUB_TOKEN for the GitHub API
+  2. FROM_BRANCH to the tag of the release being published (e.g., v1.12.9)
+  3. TO_TAG to the previous release tag (e.g., v1.12.8)
   "
   echo "$print"
   exit 1
@@ -16,6 +17,18 @@ if [ -z "${GITHUB_USER}" ] || [ -z "${GITHUB_TOKEN}" ]; then
   help
 fi
 
+if [ -z "${FROM_BRANCH}" ] || [ -z "${TO_TAG}" ]; then
+  echo "requires both FROM_BRANCH and TO_TAG to be set as env variables"
+  help
+fi
+
+for tag in "${FROM_BRANCH}" "${TO_TAG}"; do
+  if ! git rev-parse --verify --quiet "${tag}^{commit}" >/dev/null; then
+    echo "'${tag}' is not a known git revision"
+    help
+  fi
+done
+
 pr_list=$(git log --pretty="%s" --merges --left-only "${FROM_BRANCH}"..."${TO_TAG}" | grep pull | awk '/Merge pull request/ {print $4}' | cut -c 2-)
 
 # for releases notes
@@ -23,10 +36,6 @@ function release_notes() {
   for pr in $pr_list; do
   # get PR title
   backport_pr=$(curl -s -u "${GITHUB_USER}":"${GITHUB_TOKEN}" "https://api.github.com/repos/rook/rook/pulls/${pr}" | jq '.title')
-  # with upstream/release-1.6 v1.6.8, it was giving extra PR numbers, so removing after PR for changing tag is merged.
-  if [[ "$backport_pr" =~ ./*"build: Update build version to $TO_TAG"* ]]; then
-    break
-  fi
   # check if it is manual backport PR or not, for mergify backport PR it will contain "(backport"
   if [[ "$backport_pr" =~ .*"(backport".* ]]; then
     # find the PR number after the #
