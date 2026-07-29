@@ -382,3 +382,26 @@ func Test_formatPinning(t *testing.T) {
 	pinningStatus = formatPinning(*pinning)
 	assert.Equal(t, "random=0.31", pinningStatus)
 }
+
+func TestIsCSICephFSSecret(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"cephfs provisioner secret exact", csi.CsiCephFSProvisionerSecret, true},
+		{"cephfs node secret exact", csi.CsiCephFSNodeSecret, true},
+		{"cephfs provisioner secret with suffix", csi.CsiCephFSProvisionerSecret + "-cluster1", true},
+		{"cephfs node secret with suffix", csi.CsiCephFSNodeSecret + "-cluster1", true},
+		{"rbd node secret", csi.CsiRBDNodeSecret, false},
+		{"rbd provisioner secret", csi.CsiRBDProvisionerSecret, false},
+		{"unrelated secret", "my-app-secret", false},
+		{"empty string", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isCSICephFSSecret(tt.input))
+		})
+	}
+}
