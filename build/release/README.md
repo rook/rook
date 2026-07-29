@@ -109,6 +109,8 @@ To publish a new patch release build, follow these steps:
     git reset --hard upstream/$BRANCH_NAME
     # set to the new release
     TAG_NAME=<release version> # e.g., v1.12.9
+    # verify the checkout matches the version being tagged
+    build/release/validate-tag.sh "$TAG_NAME"
     git tag -a "$TAG_NAME" -m "$TAG_NAME release tag"
     git push upstream "$TAG_NAME"
     ```
