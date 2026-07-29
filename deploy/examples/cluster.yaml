@@ -26,6 +26,14 @@ spec:
     # Future versions such as Umbrella (v21) would require this to be set to `true`.
     # Do not set to true in production.
     allowUnsupported: false
+  security:
+    cephx:
+      # # Uncomment this block for new installs when Kubernetes nodes run Linux kernel 7.0+.
+      # # Additionally remove any `keyType: aes` configurations below.
+      # allowedCiphers:
+      #   - aes256k
+      csi:
+        keyType: aes # required when Kubernetes nodes don't run Linux kernel 7.0+
   # The path on the host where configuration files will be persisted. Must be specified. If there are multiple clusters, the directory must be unique for each cluster.
   # Important: if you reinstall the cluster, make sure you delete this directory from each host or else the mons will fail to start on the new cluster.
   # In Minikube, the '/data' directory is configured to persist across reboots. Use "/data/rook" in Minikube environment.

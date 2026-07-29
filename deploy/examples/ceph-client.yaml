@@ -6,8 +6,12 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 spec:
   caps:
-    mon: 'profile rbd'
-    osd: 'profile rbd pool=images'
+    mon: "profile rbd"
+    osd: "profile rbd pool=images"
+  security:
+    cephx:
+      keyType: aes256k # use when Ceph client supports AES256K or Linux kernel client is 7.0+
+      # keyType: aes # required when Ceph client does not support AES256K or Linux kernel client is under 7.0
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephClient
@@ -16,5 +20,9 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 spec:
   caps:
-    mon: 'profile rbd'
-    osd: 'profile rbd pool=volumes, profile rbd pool=vms, profile rbd-read-only pool=images'
+    mon: "profile rbd"
+    osd: "profile rbd pool=volumes, profile rbd pool=vms, profile rbd-read-only pool=images"
+  security:
+    cephx:
+      keyType: aes256k # use when Ceph client supports AES256K or Linux kernel client is 7.0+
+      # keyType: aes # required when Ceph client does not support AES256K or Linux kernel client is under 7.0

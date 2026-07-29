@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/log"
@@ -95,11 +96,11 @@ type MonScheduleInfo struct {
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
 func LoadClusterInfo(ctx *clusterd.Context, context context.Context, namespace string, cephClusterSpec *cephv1.ClusterSpec) (*cephclient.ClusterInfo, int, *Mapping, error) {
-	return CreateOrLoadClusterInfo(ctx, context, namespace, nil, cephClusterSpec)
+	return CreateOrLoadClusterInfo(ctx, context, namespace, nil, nil, cephClusterSpec)
 }
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo, cephClusterSpec *cephv1.ClusterSpec) (*cephclient.ClusterInfo, int, *Mapping, error) {
+func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo, cephVersion *version.CephVersion, cephClusterSpec *cephv1.ClusterSpec) (*cephclient.ClusterInfo, int, *Mapping, error) {
 	var clusterInfo *cephclient.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
@@ -115,7 +116,29 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 			return nil, maxMonID, monMapping, ClusterInfoNoClusterNoSecret
 		}
 
-		clusterInfo, err = createNamedClusterInfo(clusterdContext, namespace)
+		if cephVersion == nil {
+			return nil, maxMonID, monMapping, errors.New("cannot create new cluster info with undetected ceph version")
+		}
+		// rook should be built using the latest ceph version that supports the latest key types.
+		// because `ceph-authtool` in the operator container creates the highest-versioned key it
+		// can, Rook needs to configure it to generate lower-version keys for lower-version clusters
+		cephxKeyType := cephv1.CephxKeyTypeUndefined // default assumption: use latest key type
+		if !cephclient.Aes256kKeysSupported(*cephVersion) {
+			cephxKeyType = cephv1.CephxKeyTypeAes
+			logger.Infof("rook has detected that cluster in namespace %q with ceph version %v should use cephx key type %q", namespace, *cephVersion, cephxKeyType)
+		}
+		if cephClusterSpec.Security.CephX.Daemon.KeyType != "" {
+			// allow users to use the cephx daemon key type config to override the key type used for
+			// bootstrapping the admin and mon keys. There is a chance Rook could make the wrong
+			// determination when bootstrapping these keys ceph-authtool, and it might be important
+			// for users to override them as a workaround. daemon key creation/rotation after mons
+			// are running is done by the running mons, so no ability to set overrides after initial
+			// bootstrapping is necessary
+			logger.Infof("user has overridden cephx key type for cluster in namespace %q from %q to %q", namespace, cephxKeyType, cephClusterSpec.Security.CephX.Daemon.KeyType)
+			cephxKeyType = cephClusterSpec.Security.CephX.Daemon.KeyType
+		}
+
+		clusterInfo, err = createNamedClusterInfo(clusterdContext, namespace, cephxKeyType)
 		if err != nil {
 			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to create initial cluster info")
 		}
@@ -209,7 +232,7 @@ func loadCsiSettings(namespace string, cephClusterSpec *cephv1.ClusterSpec) ceph
 }
 
 // create new cluster info (FSID, shared keys)
-func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephclient.ClusterInfo, error) {
+func createNamedClusterInfo(context *clusterd.Context, namespace string, cephxKeyType cephv1.CephxKeyType) (*cephclient.ClusterInfo, error) {
 	fsid, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
@@ -221,7 +244,7 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 	}
 
 	// generate the mon secret
-	monSecret, err := genSecret(context.Executor, dir, MonCephxUser, []string{"--cap", "mon", "'allow *'"})
+	monSecret, err := genSecret(context.Executor, dir, MonCephxUser, cephxKeyType, []string{"--cap", "mon", "'allow *'"})
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +256,7 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 		"--cap", "mgr", "'allow *'",
 		"--cap", "mds", "'allow'",
 	}
-	adminSecret, err := genSecret(context.Executor, dir, cephclient.AdminUsername, args)
+	adminSecret, err := genSecret(context.Executor, dir, cephclient.AdminUsername, cephxKeyType, args)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +272,7 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 	}, nil
 }
 
-func genSecret(executor exec.Executor, configDir, name string, args []string) (string, error) {
+func genSecret(executor exec.Executor, configDir, name string, keyType cephv1.CephxKeyType, args []string) (string, error) {
 	path := path.Join(configDir, fmt.Sprintf("%s.keyring", name))
 	path = strings.Replace(path, "..", ".", 1)
 	base := []string{
@@ -257,6 +280,9 @@ func genSecret(executor exec.Executor, configDir, name string, args []string) (s
 		path,
 		"--gen-key",
 		"-n", name,
+	}
+	if keyType != "" {
+		base = append(base, cephclient.KeyTypeFlag, string(keyType))
 	}
 	args = append(base, args...)
 	_, err := executor.ExecuteCommandWithOutput("ceph-authtool", args...)
@@ -462,7 +488,7 @@ func PopulateExternalClusterInfo(cephClusterSpec *cephv1.ClusterSpec, context *c
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		clusterInfo, _, _, err := CreateOrLoadClusterInfo(context, ctx, namespace, nil, cephClusterSpec)
+		clusterInfo, _, _, err := CreateOrLoadClusterInfo(context, ctx, namespace, nil, nil, cephClusterSpec)
 		if err != nil {
 			log.NamespacedWarning(namespace, logger, "waiting for connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
 			log.NamespacedDebug(namespace, logger, "%v", err)
