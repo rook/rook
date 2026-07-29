@@ -88,6 +88,89 @@ func TestHostTree(t *testing.T) {
 	assert.Equal(t, 0, len(tree.Nodes))
 }
 
+func TestGetDestroyedIDs(t *testing.T) {
+	treeWithDestroyed := `{
+		"nodes": [
+			{"id": -1, "name": "default", "type": "root", "type_id": 10, "children": [-3]},
+			{"id": -3, "name": "node1", "type": "host", "type_id": 1, "children": [0, 1, 2]},
+			{"id": 0, "name": "osd.0", "type": "osd", "type_id": 0, "exists": 1, "status": "up"},
+			{"id": 1, "name": "osd.1", "type": "osd", "type_id": 0, "exists": 1, "status": "destroyed"},
+			{"id": 2, "name": "osd.2", "type": "osd", "type_id": 0, "exists": 1, "status": "down"}
+		],
+		"stray": []
+	}`
+
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if args[0] == "osd" && args[1] == "tree" {
+			return treeWithDestroyed, nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	tree, err := HostTree(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"))
+	assert.NoError(t, err)
+	assert.Equal(t, []int{1}, tree.GetDestroyedIDs())
+
+	// no destroyed slots
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if args[0] == "osd" && args[1] == "tree" {
+			return fakeOsdTree, nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	tree, err = HostTree(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"))
+	assert.NoError(t, err)
+	assert.Empty(t, tree.GetDestroyedIDs())
+}
+
+func TestOSDLifecycleHelpers(t *testing.T) {
+	var gotArgs []string
+	failNext := false
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			gotArgs = args
+			if failNext {
+				return "", errors.New("boom")
+			}
+			return "", nil
+		},
+	}
+	ctx := &clusterd.Context{Executor: executor}
+	info := AdminTestClusterInfo("mycluster")
+	// the ceph command appends global flags (--cluster, --conf, ...); assert only the leading args.
+	hasPrefix := func(prefix ...string) bool {
+		if len(gotArgs) < len(prefix) {
+			return false
+		}
+		for i, p := range prefix {
+			if gotArgs[i] != p {
+				return false
+			}
+		}
+		return true
+	}
+
+	assert.NoError(t, OSDOut(ctx, info, 5))
+	assert.True(t, hasPrefix("osd", "out", "5"), "got %v", gotArgs)
+
+	assert.NoError(t, OSDIn(ctx, info, 5))
+	assert.True(t, hasPrefix("osd", "in", "5"), "got %v", gotArgs)
+
+	assert.NoError(t, OSDDown(ctx, info, 5))
+	assert.True(t, hasPrefix("osd", "down", "5"), "got %v", gotArgs)
+
+	assert.NoError(t, OSDDestroy(ctx, info, 5))
+	assert.True(t, hasPrefix("osd", "destroy", "osd.5", "--yes-i-really-mean-it"), "got %v", gotArgs)
+
+	// error propagation
+	failNext = true
+	assert.Error(t, OSDOut(ctx, info, 5))
+	assert.Error(t, OSDIn(ctx, info, 5))
+	assert.Error(t, OSDDown(ctx, info, 5))
+	assert.Error(t, OSDDestroy(ctx, info, 5))
+}
+
 func TestOsdListNum(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	emptyOsdListNumResult := false

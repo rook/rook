@@ -250,6 +250,12 @@ func WatchPredicateForNonCRDObject[T client.Object](owner runtime.Object, scheme
 					}
 
 				case *appsv1.Deployment:
+					// Deployment updates are otherwise ignored below, so let a new/changed OSD replace
+					// annotation through to the controller.
+					if replaceOSDAnnotationAddedOrChanged(e.ObjectOld, e.ObjectNew) {
+						logger.Infof("reconcile due to added or changed %q annotation on deployment %q", cephv1.ReplaceOSDAnnotationKey, objectName)
+						return true
+					}
 					// If the resource is a deployment we don't reconcile
 					logger.Debug("do not reconcile deployments updates")
 					return false
@@ -420,6 +426,21 @@ func isSecretToIgnoreOnUpdate(secret *corev1.Secret) bool {
 	}
 
 	return false
+}
+
+// replaceOSDAnnotationAddedOrChanged reports whether ReplaceOSDAnnotationKey was newly set or had its
+// value changed. Firing on a value change lets a user correct a typo'd id in place; the operator
+// never writes this annotation, so any change is user-initiated.
+func replaceOSDAnnotationAddedOrChanged(oldObj, newObj client.Object) bool {
+	if oldObj == nil || newObj == nil {
+		return false
+	}
+	oldValue, hadBefore := oldObj.GetAnnotations()[cephv1.ReplaceOSDAnnotationKey]
+	newValue, hasNow := newObj.GetAnnotations()[cephv1.ReplaceOSDAnnotationKey]
+	if !hasNow {
+		return false
+	}
+	return !hadBefore || oldValue != newValue
 }
 
 func IsDoNotReconcile(labels map[string]string) bool {

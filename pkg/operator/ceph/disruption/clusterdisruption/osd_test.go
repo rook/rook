@@ -84,6 +84,71 @@ func fakeOSDDeployment(id, readyReplicas int) appsv1.Deployment {
 	return osd
 }
 
+func TestGetOSDFailureDomainsSkipsReplacementOSD(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if args[0] == "osd" && args[1] == "metadata" {
+			return `[{"id": 1, "hostname": "node-1"}, {"id": 2, "hostname": "node-2"}, {"id": 3, "hostname": "node-3"}]`, nil
+		}
+		return "", errors.Errorf("unexpected ceph command '%v'", args)
+	}
+
+	// osd.1 is being replaced: scaled to 0 (ReadyReplicas=0) and carrying both markers Rook sets on a
+	// validated request. The in-progress marker makes it exempt, so it must not pull its failure domain
+	// into the down/draining sets nor enter downOSDs.
+	replacementOSD := fakeOSDDeployment(1, 0)
+	replacementOSD.Labels[cephv1.SkipReconcileLabelKey] = "true"
+	replacementOSD.Annotations = map[string]string{
+		cephv1.ReplaceOSDAnnotationKey:           "yes-really-replace-osd-1",
+		cephv1.ReplaceInProgressOSDAnnotationKey: "true",
+	}
+
+	// osd.2 carries only the user's replace annotation and neither marker (e.g. a validation-rejected
+	// annotation that lingered on a still-running OSD Rook does not own). It must be treated as a NORMAL
+	// OSD: with replicas=0 and a schedulable node it is genuinely down, so it must enter
+	// down-detection rather than be exempted.
+	annotationOnlyOSD := fakeOSDDeployment(2, 0)
+	annotationOnlyOSD.Annotations = map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-2"}
+
+	// osd.3 is a genuinely down (replicas=0) non-replacement OSD on an unschedulable node that an admin
+	// has fenced with the do-not-reconcile label for manual maintenance, which the kubectl-rook-ceph
+	// maintenance plugin sets the same way. It must STILL be detected as down so it keeps its PDB
+	// protection — exempting it would be the over-match bug.
+	genuinelyDownOSD := fakeOSDDeployment(3, 0)
+	genuinelyDownOSD.Labels[cephv1.SkipReconcileLabelKey] = "true"
+
+	objs := []runtime.Object{
+		cephCluster,
+		&corev1.ConfigMap{},
+		getNodeObject("node-1", false),
+		getNodeObject("node-2", false),
+		getNodeObject("node-3", true),
+		replacementOSD.DeepCopy(),
+		annotationOnlyOSD.DeepCopy(),
+		genuinelyDownOSD.DeepCopy(),
+	}
+
+	r := getFakeReconciler(t, objs...)
+	clusterInfo := getFakeClusterInfo()
+	clusterInfo.Context = context.TODO()
+	r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor}}
+	request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
+
+	allFailureDomains, nodeDrainFailureDomains, osdDownFailureDomains, downOSDs, err := r.getOSDFailureDomains(clusterInfo, request, "zone")
+	assert.NoError(t, err)
+	// all three zones are still reported as present failure domains
+	assert.ElementsMatch(t, []string{"zone-1", "zone-2", "zone-3"}, allFailureDomains)
+	// osd.2 (annotation-only) and osd.3 (fenced by hand) are both detected as down; only osd.1, the one
+	// Rook marked in progress, is exempt.
+	assert.ElementsMatch(t, []string{"zone-2", "zone-3"}, osdDownFailureDomains)
+	// only osd.3 is on an unschedulable node, so only it is a node-drain failure domain.
+	assert.Equal(t, []string{"zone-3"}, nodeDrainFailureDomains)
+	assert.ElementsMatch(t, []int{2, 3}, downOSDs)
+	// the OSD under replacement must NOT appear as down on its failure domain
+	assert.NotContains(t, downOSDs, 1)
+	assert.NotContains(t, osdDownFailureDomains, "zone-1")
+}
+
 func fakePDBConfigMap(drainingFailureDomain string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: pdbStateMapName, Namespace: namespace},

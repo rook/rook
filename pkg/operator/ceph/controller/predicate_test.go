@@ -195,6 +195,45 @@ func TestIsSecretToIgnoreOnUpdate(t *testing.T) {
 	assert.True(t, isSecretToIgnoreOnUpdate(s))
 }
 
+func TestReplaceOSDAnnotationAddedOrChanged(t *testing.T) {
+	dep := func(annotations map[string]string) *appsv1.Deployment {
+		return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-osd-5", Annotations: annotations}}
+	}
+
+	t.Run("annotation newly added triggers", func(t *testing.T) {
+		old := dep(nil)
+		newObj := dep(map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-5"})
+		assert.True(t, replaceOSDAnnotationAddedOrChanged(old, newObj))
+	})
+
+	t.Run("annotation value changed triggers", func(t *testing.T) {
+		// a user correcting a typo'd value in place must be acted upon
+		old := dep(map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-9"})
+		newObj := dep(map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-5"})
+		assert.True(t, replaceOSDAnnotationAddedOrChanged(old, newObj))
+	})
+
+	t.Run("annotation present with unchanged value does not trigger", func(t *testing.T) {
+		old := dep(map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-5"})
+		newObj := dep(map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-5", "other": "x"})
+		assert.False(t, replaceOSDAnnotationAddedOrChanged(old, newObj))
+	})
+
+	t.Run("annotation removed does not trigger", func(t *testing.T) {
+		old := dep(map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-5"})
+		newObj := dep(nil)
+		assert.False(t, replaceOSDAnnotationAddedOrChanged(old, newObj))
+	})
+
+	t.Run("no annotation either way does not trigger", func(t *testing.T) {
+		assert.False(t, replaceOSDAnnotationAddedOrChanged(dep(nil), dep(map[string]string{"unrelated": "y"})))
+	})
+
+	t.Run("nil objects do not trigger", func(t *testing.T) {
+		assert.False(t, replaceOSDAnnotationAddedOrChanged(nil, dep(map[string]string{cephv1.ReplaceOSDAnnotationKey: "x"})))
+	})
+}
+
 func TestIsDoNotReconcile(t *testing.T) {
 	l := map[string]string{
 		"foo": "bar",

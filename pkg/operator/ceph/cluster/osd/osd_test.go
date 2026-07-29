@@ -383,7 +383,7 @@ func TestAddRemoveNode(t *testing.T) {
 	assert.NoError(t, err)
 
 	removeIfOutAndSafeToRemove := true
-	healthMon := NewOSDHealthMonitor(context, cephclient.AdminTestClusterInfo(namespace), removeIfOutAndSafeToRemove, cephv1.CephClusterHealthCheckSpec{})
+	healthMon := NewOSDHealthMonitor(context, cephclient.AdminTestClusterInfo(namespace), removeIfOutAndSafeToRemove, cephv1.CephClusterHealthCheckSpec{}, cephv1.ClusterSpec{}, "rook/ceph:test")
 	healthMon.checkOSDHealth()
 	_, err = clientset.AppsV1().Deployments(namespace).Get(ctx, deploymentName(1), metav1.GetOptions{})
 	assert.True(t, k8serrors.IsNotFound(err))
