@@ -50,6 +50,8 @@ users:
   - system:serviceaccount:rook-ceph:rook-ceph-osd # serviceaccount:namespace:cluster
   - system:serviceaccount:rook-ceph:rook-ceph-rgw # serviceaccount:namespace:cluster
   - system:serviceaccount:rook-ceph:rook-ceph-nvmeof # serviceaccount:namespace:cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-cmd-reporter # serviceaccount:namespace:cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-purge-osd # serviceaccount:namespace:cluster
 ---
 # scc for the CSI driver
 kind: SecurityContextConstraints
