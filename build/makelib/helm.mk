@@ -131,3 +131,21 @@ $(HELM_DOCS): | $(TOOLS_HOST_DIR) ## Installs helm-docs
 	@GOBIN=$(TOOLS_HOST_DIR)/tmp GO111MODULE=on go install $(HELM_DOCS_REPO)@$(HELM_DOCS_VERSION)
 	@mv $(TOOLS_HOST_DIR)/tmp/helm-docs $(HELM_DOCS)
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
+
+# ====================================================================================
+# Makefile helper functions for helm-unittest: https://github.com/helm-unittest/helm-unittest
+#
+
+HELM_UNITTEST_VERSION := v1.1.2
+HELM_UNITTEST := $(TOOLS_HOST_DIR)/helm-unittest-$(HELM_UNITTEST_VERSION)
+# the release artifacts label macOS "macos" where go calls it "darwin"
+HELM_UNITTEST_PLATFORM := $(subst darwin,macos,$(shell go env GOHOSTOS))-$(GOHOSTARCH)
+
+# helm-unittest ships as a helm plugin, but the binary it wraps runs standalone,
+# so it is installed and invoked directly rather than through `helm plugin install`.
+$(HELM_UNITTEST): | $(TOOLS_HOST_DIR) ## Installs helm-unittest
+	@echo === installing helm-unittest
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@curl -fsSL https://github.com/helm-unittest/helm-unittest/releases/download/$(HELM_UNITTEST_VERSION)/helm-unittest-$(HELM_UNITTEST_PLATFORM)-$(patsubst v%,%,$(HELM_UNITTEST_VERSION)).tgz | tar -xz -C $(TOOLS_HOST_DIR)/tmp untt-$(HELM_UNITTEST_PLATFORM)
+	@mv $(TOOLS_HOST_DIR)/tmp/untt-$(HELM_UNITTEST_PLATFORM) $(HELM_UNITTEST)
+	@rm -fr $(TOOLS_HOST_DIR)/tmp
