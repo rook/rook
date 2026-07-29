@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kexec "k8s.io/utils/exec"
@@ -201,4 +202,25 @@ func TestExecuteCommandWithTimeout(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestExecuteCommandWithTimeoutKillPath exercises the timeout branch where the
+// command ignores the interrupt signal and must be killed, while it keeps
+// writing to stdout. The output buffer must only be read after cmd.Wait()
+// returns; otherwise the read races with the goroutines that copy the command's
+// output into the buffer. Run with `-race` to catch a regression.
+func TestExecuteCommandWithTimeoutKillPath(t *testing.T) {
+	// The child ignores SIGINT and continuously writes to stdout, so the
+	// interrupt is sent first and the kill path is taken while writers are active.
+	// The per-phase timeout must be generous enough that sh installs its SIGINT
+	// trap before the interrupt arrives on a loaded runner; otherwise sh dies on
+	// the interrupt and the kill path under test is never exercised.
+	stdin := ""
+	_, err := executeCommandWithTimeout(
+		500*time.Millisecond,
+		"sh", &stdin,
+		"-c", "trap '' INT; while true; do echo x; done",
+	)
+	require.Error(t, err)
+	assert.True(t, IsTimeout(err))
 }
