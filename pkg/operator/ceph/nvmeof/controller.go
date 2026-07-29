@@ -253,8 +253,9 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrapf(err, "invalid configuration")
 	}
 
+	// daemon key type always takes the default from setDefaultCephxKeyType()
 	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion,
-		*desiredCephVersion, cephNVMeOFGateway.Status.Cephx.Daemon)
+		*desiredCephVersion, cephNVMeOFGateway.Status.Cephx.Daemon, true)
 	if err != nil {
 		return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to determine if cephx keys should be rotated")
 	}
@@ -267,7 +268,8 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to create deployments")
 	}
 
-	cephxStatus := keyring.UpdatedCephxStatus(r.shouldRotateCephxKeys, cephCluster.Spec.Security.CephX.Daemon, r.clusterInfo.CephVersion, cephNVMeOFGateway.Status.Cephx.Daemon)
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+	cephxStatus := keyring.UpdatedCephxStatus(r.shouldRotateCephxKeys, cephCluster.Spec.Security.CephX.Daemon, r.clusterInfo.CephVersion, cephNVMeOFGateway.Status.Cephx.Daemon, keyType)
 	err = r.updateStatus(observedGeneration, request.NamespacedName, &cephxStatus, k8sutil.ReadyStatus)
 	if err != nil {
 		logger.Errorf("failed to update status: %v", err)

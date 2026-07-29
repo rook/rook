@@ -476,22 +476,25 @@ So the scenario looks like:
  6. Repeat the steps flipping source and destination to enable
     bi-directional mirroring
 */
-func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterInfo *ClusterInfo, rotateMirrorPeerKey bool) ([]byte, error) {
+func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterInfo *ClusterInfo, keyType string, rotateMirrorPeerKey bool) ([]byte, error) {
 	fullClientName := getQualifiedUser(rbdMirrorPeerKeyringID)
 	logger.Infof("create rbd-mirror bootstrap peer token %q", fullClientName)
-	key, err := AuthGetOrCreateKey(context, clusterInfo, fullClientName, rbdMirrorPeerCaps)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create rbd-mirror peer key %q", fullClientName)
-	}
-	logger.Infof("successfully created rbd-mirror bootstrap peer token for cluster %q", clusterInfo.NamespacedName().Name)
 
-	if rotateMirrorPeerKey {
+	key := ""
+	var err error
+	if !rotateMirrorPeerKey {
+		// when user changes key type, `auth get-or-create` will fail, so only call this when not rotating
+		key, err = AuthGetOrCreateKey(context, clusterInfo, fullClientName, keyType, rbdMirrorPeerCaps)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create rbd-mirror peer key %q", fullClientName)
+		}
+		logger.Infof("successfully created rbd-mirror bootstrap peer token for cluster %q", clusterInfo.NamespacedName().Name)
+	} else {
 		logger.Infof("rotating cephx key for rbd-mirror peer key %q in namespace %q", fullClientName, clusterInfo.Namespace)
-		newKey, err := AuthRotate(context, clusterInfo, fullClientName)
+		key, err = AuthRotate(context, clusterInfo, fullClientName, keyType)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to rotate rbd-mirror peer key for %q", fullClientName)
 		}
-		key = newKey
 	}
 
 	mons := sets.New[string]()

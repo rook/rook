@@ -169,6 +169,12 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 		}
 	}
 
+	// rotating service key type can only be updated after mon, mgr, and osds are upgraded
+	err = setRotatingServiceKeyType(c.context, c.ClusterInfo, &c.ClusterInfo.CephVersion, c.Spec.Security.CephX)
+	if err != nil {
+		return errors.Wrap(err, "failed to set rotating service cephx key type after OSD update")
+	}
+
 	log.NamespacedInfo(c.Namespace, logger, "done reconciling ceph cluster")
 
 	// We should be done updating by now
@@ -488,8 +494,15 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrapf(err, "failed to get cluster %v.", c.ClusterInfo.NamespacedName())
 	}
 
+	// users can specify daemon key type to override Rook's default key type if needed
+	// also allows Rook to ignore daemon.keyType for all daemon key generation/rotation
+	err := setDefaultCephxKeyType(c.context, c.ClusterInfo, &c.ClusterInfo.CephVersion, clusterObj.Spec.Security.CephX)
+	if err != nil {
+		return err
+	}
+
 	// rotate admin key first thing after mons are updated
-	err := rotateAdminCephxKey(c.context, c.ClusterInfo, c.ownerInfo, clusterObj) // TODO: rename?
+	err = rotateAdminCephxKey(c.context, c.ClusterInfo, c.ownerInfo, clusterObj) // TODO: rename?
 	if err != nil {
 		return errors.Wrapf(err, "failed to rotate admin cephx key")
 	}

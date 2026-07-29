@@ -143,6 +143,11 @@ cephClusterSpec:
   # Default is false.
   upgradeOSDRequiresHealthyPGs: false
 
+  security:
+    cephx:
+      csi:
+        keyType: aes # required when Kubernetes nodes don't run Linux kernel 7.0+
+
   mon:
     # Set the number of mons to be started. Generally recommended to be 3.
     # For highest availability, an odd number of mons should be specified.
