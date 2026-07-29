@@ -454,7 +454,7 @@ function replace_ceph_image() {
     exit 1
   fi
 
-  sed -i "s|image: .*ceph/ceph:.*|image: ${ceph_image}|g" "${file}"
+  sed -i "s|image: .*ceph.*:.*|image: ${ceph_image}|g" "${file}"
 }
 
 # Deploy the operator, a CephCluster, and the toolbox. This is intended to be a
