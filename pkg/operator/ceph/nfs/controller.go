@@ -308,8 +308,9 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	}
 
 	// Determine if we should rotate CephX keys for NFS daemons
+	// daemon key type always takes the default from setDefaultCephxKeyType()
 	r.shouldRotateCephxKeys, err = keyring.ShouldRotateCephxKeys(cephCluster.Spec.Security.CephX.Daemon, *runningCephVersion,
-		*desiredCephVersion, cephNFS.Status.Cephx.Daemon)
+		*desiredCephVersion, cephNFS.Status.Cephx.Daemon, true)
 	if err != nil {
 		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to determine if cephx keys should be rotated")
 	}
@@ -331,7 +332,8 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	}
 
 	// update NFS cephx status
-	cephxStatus := keyring.UpdatedCephxStatus(r.shouldRotateCephxKeys, cephCluster.Spec.Security.CephX.Daemon, r.clusterInfo.CephVersion, cephNFS.Status.Cephx.Daemon)
+	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
+	cephxStatus := keyring.UpdatedCephxStatus(r.shouldRotateCephxKeys, cephCluster.Spec.Security.CephX.Daemon, r.clusterInfo.CephVersion, cephNFS.Status.Cephx.Daemon, keyType)
 
 	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling

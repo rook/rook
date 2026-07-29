@@ -400,6 +400,15 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		container.Args = append(container.Args, config.NewFlag("public-bind-addr", bindaddr))
 	}
 
+	if c.spec.Security.CephX.Daemon.KeyType != "" && client.Aes256kKeysSupported(c.ClusterInfo.CephVersion) {
+		// if daemon keyType is set, it may be for a bootstrapping workaround which would require
+		// Rook to tell mons at runtime to accept an old cipher type. Otherwise, Rook prefers to set
+		// auth_allowed_ciphers via CLI commands after mons are running.
+		allowedList := cephv1.KeyTypesListToArgString(cephv1.KnownCephxKeyTypes)
+		logger.Infof("setting mon-auth-emergency-allowed-ciphers=%q on mons for cluster in namespace %q", allowedList, c.Namespace)
+		container.Args = append(container.Args, config.NewFlag("mon-auth-emergency-allowed-ciphers", allowedList))
+	}
+
 	return container
 }
 
