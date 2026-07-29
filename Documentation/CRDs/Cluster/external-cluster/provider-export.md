@@ -45,6 +45,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 * `--config-file`: Path to the configuration file, Priority: command-line-args > config.ini values > default values
 * `--cephx-key-rotate`: Enable cephx key rotation for the users created by this script. This will create a new user with suffix `.{x}` and update the secrets with the new key. Set `--cephx-key-rotation rotate` to initiate rotation. To revert keys to the prior generation, set `--cephx-key-rotation revert`
 Note: If user are reverting to prior generation, then the user should manually delete the prior used user keys from the cluster after reverting.
+* `--cephx-key-type`: When new Ceph client keys are created or when CephX key rotation is enabled (see --cephx-key-rotate), this will request Ceph create a specific type of key. If not specified, Ceph will use its configured preferred key type. If keys already exist, this flag is a no-op. Recommended: use the highest key type supported by the Linux kernel running on Rook cluster nodes. Supported key types: 'aes', 'aes256k' (recommended if supported).
 
 ## 2. Copy the bash output
 
