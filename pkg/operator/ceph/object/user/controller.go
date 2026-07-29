@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
@@ -680,6 +681,17 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser, cephVersion cephver.Ce
 
 	userConfig.OpMask = opMask
 
+	if user.Spec.DefaultPlacement != nil {
+		userConfig.DefaultPlacement = *user.Spec.DefaultPlacement
+		// Squid's rgw admin user API records a user's default storage class only
+		// when it is embedded in the default placement rule as
+		// "<placement>/<storage-class>"; the separate default-storage-class
+		// parameter is ignored.
+		if user.Spec.DefaultStorageClass != nil {
+			userConfig.DefaultPlacement += "/" + *user.Spec.DefaultStorageClass
+		}
+	}
+
 	return userConfig, nil
 }
 
@@ -1065,5 +1077,24 @@ func isUserSync(targetUser, liveUser *admin.User) bool {
 		return false
 	}
 
+	targetPlacement, targetStorageClass := effectiveDefaultPlacement(targetUser)
+	livePlacement, liveStorageClass := effectiveDefaultPlacement(liveUser)
+	if targetPlacement != livePlacement || targetStorageClass != liveStorageClass {
+		return false
+	}
+
 	return true
+}
+
+// effectiveDefaultPlacement resolves a user's default placement into its
+// placement target and storage class. rook writes the storage class embedded in
+// the placement rule ("<placement>/<storage-class>") because RGW only records it
+// that way, while the rgw admin API reports the two back as separate fields — so
+// both representations must resolve to the same pair for isUserSync to converge.
+func effectiveDefaultPlacement(user *admin.User) (placement, storageClass string) {
+	placement, storageClass = user.DefaultPlacement, user.DefaultStorageClass
+	if p, sc, found := strings.Cut(user.DefaultPlacement, "/"); found {
+		placement, storageClass = p, sc
+	}
+	return placement, storageClass
 }
