@@ -491,10 +491,9 @@ function deploy_cluster() {
     exit 1
   fi
 
-  # enable monitoring
-  yq w -i -d0 cluster-test.yaml spec.monitoring.enabled true
-  kubectl create -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.82.0/bundle.yaml
-  kubectl create -f monitoring/rbac.yaml
+  # disable dashboard and monitoring
+  yq w -i -d0 cluster-test.yaml spec.dashboard.enabled false
+  yq w -i -d0 cluster-test.yaml spec.monitoring.enabled false
 
   kubectl create -f cluster-test.yaml
 
