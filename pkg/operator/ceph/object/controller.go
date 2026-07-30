@@ -671,7 +671,7 @@ func (r *ReconcileCephObjectStore) retrieveMultisiteZone(store *cephv1.CephObjec
 	_, err := RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneGroupArg, zoneArg)
 	if err != nil {
 		// ENOENT mean "No such file or directory"
-		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
+		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			return waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "ceph zone %q not found", store.Spec.Zone.Name)
 		} else {
 			return waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "radosgw-admin zone get failed with code %d", code)
