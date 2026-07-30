@@ -6,6 +6,9 @@
 - The OSD prepare job now fails, and is retried by Kubernetes, when a freshly prepared device is
   missing from the `ceph-volume raw list` output, instead of silently reporting fewer OSDs than
   were prepared (which left OSDs registered in the osdmap with no OSD deployment created).
+- Ceph msgrv2 is required by default. Msgrv2 requires the 5.11 kernel. If you have an older kernel, disable the msgrv2 protocol
+  with the CephCluster CR setting `network.connections.requireMsgr2: false`. If using the helm chart, this same value is applied
+  under the `cephClusterSpec` of the values.
 
 ## Features
 
