@@ -210,7 +210,7 @@ Invocation notes:
 
 - **`--osd-id <id>` claims the destroyed slot.** Internally `ceph-volume` calls `ceph osd new <new-fsid> <id>`; the OSD ID, CRUSH bucket, and weight are preserved, only the OSD UUID is new.
 - **Reusing the old DB LV in place is safe.** `ceph-volume` retags and re-mkfs the LV passed via `--block.db`, allocating nothing on the metadata device, so sibling DB LVs are untouched and stale BlueStore or LUKS leftovers are overwritten during prepare. This is why the flow uses `lvm prepare --block.db <vg/lv>` and not `lvm batch`, which always allocates a new DB slot and refuses a surviving sibling LV.
-- **A failed `lvm prepare` can be destructive.** Its rollback runs `ceph osd purge-new`, which removes the destroyed slot and zaps the reused DB LV; recovery is then manual (see [Cancellation and retry](#cancellation-and-retry)). The one known trigger cannot reach prepare, since the availability gate never offers a device pinned by a stale mapping.
+- **A failed `lvm prepare` can be destructive.** See [When provisioning the replacement disk fails](#when-provisioning-the-replacement-disk-fails).
 
 The prepare-job writes the reprovisioned OSD's id and OSDInfo to the per-node status CM `rook-ceph-osd-<node>-status`, exactly as for any OSD it provisions, and never touches the Deployment. That new entry brings the slot back under the controller's create path; nothing in the goroutine runs past `replace-ready-for-swap`.
 
@@ -223,7 +223,7 @@ The replacement is complete once `osd.<id>` is `up` and `in`, at which point the
 Cancellation is done by removing the `osd.rook.io/replace` annotation.
 
 - **Before destroy (during validate or drain).** Clean cancel: no Ceph state has been changed that cannot be reversed. On the next tick the goroutine sees the annotation gone, stops the `safe-to-destroy` wait, marks the OSD back `in` with `ceph osd in <id>`, deletes any in-flight cleanup Job, and clears the `replace-in-progress` annotation and the `do-not-reconcile` label — both in one update, the reverse of how the controller set them — so the updater scales the Deployment back to `replicas=1`. The Job is deleted before the fence is cleared: a lingering `cryptsetup close` would otherwise race the daemon coming back up. The goroutine may clear the label here even though it must never *set* it (see [Why split the work](#why-split-the-work-between-the-controller-and-the-goroutine)). Clearing is safe in a race: if a reconcile does not see the cleared label, it just skips the OSD for one more tick. Setting is not safe: a reconcile that does not see a newly set label would scale the OSD back up and undo the replacement.
-- **After destroy succeeds.** Not honored. The slot is already `destroyed` in the OSDMap. Recovery is to either let the flow complete (provision a new disk into the same slot) or abandon it manually: `ceph osd purge <id>` to retire the slot, `ceph-volume lvm zap --destroy` the surviving DB LV, and delete the held OSD Deployment.
+- **After destroy succeeds.** Not honored. The slot is already `destroyed` in the OSDMap. Recovery is to either let the flow complete (provision a new disk into the same slot) or abandon it manually: `ceph osd purge <id>` to retire the slot and `ceph-volume lvm zap --destroy` the surviving DB LV. The held OSD Deployment does not need deleting by hand: once the purge removes the id from the osdmap, the controller removes it on the next reconcile (see [When provisioning the replacement disk fails](#when-provisioning-the-replacement-disk-fails)).
 
 Retry after a terminal failure (validation rejection): the user removes the `osd.rook.io/replace` annotation and re-adds it. The carve-out fires a fresh reconcile and the controller re-validates.
 
@@ -272,6 +272,23 @@ The simplest design would keep everything in one place. Neither end works alone:
 - **Not all in the controller.** Draining waits on `safe-to-destroy` for hours or days. Running that in the reconcile would tie up the controller and delay its other, more important flows. The goroutine runs on its own 60s loop ([health.go#L70-L91](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/operator/ceph/cluster/osd/health.go#L70-L91)), independent of the reconcile, so it carries the long teardown without blocking anything and a failure there cannot stall the controller.
 
 The pair of markers is the handoff: the controller owns the OSD until it writes them, the goroutine owns it afterward.
+
+### When provisioning the replacement disk fails
+
+`ceph-volume` claims the OSD id with `ceph osd new <fsid> <id>` **before** it touches the disk, and wraps the whole prepare in its own rollback: on any later failure it runs `ceph osd purge-new` plus `ceph-volume lvm zap --destroy --osd-id <id>`. The zap resolves its targets by the `ceph.osd_id` LV tag and deliberately includes `db` and `wal` LVs, so it takes the surviving DB LV this flow deliberately preserved — that LV carries the tag by design. Upstream will not protect it: from `ceph-volume`'s point of view both the id and the LV are leftovers of a failed new OSD.
+
+Consequences, and what is *not* affected:
+
+- **The destroyed slot is spent.** Its CRUSH bucket and weight are purged, so the rebalance this flow exists to avoid has already started — the one cost the flow was built to prevent, but no worse than not having the flow. Reclaiming the id afterwards would buy nothing, so the swapped-in disk is provisioned by the normal path as a new OSD (which may or may not reuse the old id, since Ceph allocates the lowest free one).
+- **The reused DB LV is destroyed**, and its extents return to the metadata VG's free pool. Sibling DB LVs and the VG itself are untouched, since the zap removes only the LV when others remain in the group.
+- **The data device is left blank**: its VG was created for the failed attempt and was the only LV on it, so the group and label are removed. That is why the device is picked up again as a new OSD.
+- **No data is lost.** The OSD was drained past `safe-to-destroy` before it was destroyed.
+- Failures *before* the id claim (bootstrap keyring missing, `--osd-id` rejected, `lvmPreReq`) leave the slot `destroyed` and are genuinely retried on the next reconcile. Only post-claim failures are terminal.
+
+Neither the prepare-job nor the operator can prevent this — by the time control returns to Rook the slot is already purged. The flow therefore handles it rather than guarding against it:
+
+- The prepare-job logs the per-slot failure and continues, so one bad slot neither blocks its siblings nor the normal provisioning that follows.
+- The controller detects the aborted replacement on a later reconcile and deletes the marker Deployment, which would otherwise sit fenced at `replicas=0` forever. The signal is the OSD id being **absent from the osdmap**: while the replacement is pending, the id is present as a `destroyed` slot; once reprovisioned it is present and not destroyed and the create path owns it; absent means the slot was purged. Absence from the per-node status CM is deliberately *not* used — destroyed OSDs are filtered out of that CM for the whole swap window, so it cannot distinguish "waiting" from "gone".
 
 ### Why the fence label cannot be the ownership marker
 

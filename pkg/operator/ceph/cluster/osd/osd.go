@@ -283,9 +283,11 @@ func (c *Cluster) Start() error {
 	}
 	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "wait timeout for healthy OSDs during upgrade or restart is %q", c.clusterInfo.OsdUpgradeTimeout)
 
-	// Entry point for OSD replacement. Must run before GetDaemonsToSkipReconcile below so an OSD
-	// labeled in this reconcile is included in the skip-reconcile snapshot.
-	if err := c.validateAndStartOSDReplacement(); err != nil {
+	// Entry point for OSD replacement. Must run before GetDaemonsToSkipReconcile below, so an OSD
+	// labeled in this reconcile lands in the skip-reconcile snapshot; otherwise the updater is not
+	// fenced off it and scales a mid-replacement OSD back to replicas=1. Must also run before
+	// getOSDUpdateInfo, so a Deployment it deletes is absent from the `deployments` snapshot.
+	if err := c.processOSDReplacements(); err != nil {
 		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to process OSD replacement requests. %v", err)
 	}
 

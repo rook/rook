@@ -29,26 +29,56 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// validateAndStartOSDReplacement acts on annotated OSD deployments for replacements. Validates request and
-// adds do-not-reconcile label to hand over the process to OSD health monitor.
-func (c *Cluster) validateAndStartOSDReplacement() error {
+// processOSDReplacements acts on OSD deployments involved in a replacement: it validates new requests and
+// hands them to the OSD health monitor by labelling them, and it cleans up after a replacement that can no
+// longer complete.
+func (c *Cluster) processOSDReplacements() error {
 	deployments, err := c.getOSDDeployments()
 	if err != nil {
 		return errors.Wrap(err, "failed to list OSD deployments to check for replacement requests")
 	}
 
 	var osdTree *cephclient.OsdTree
+	var osdDump *cephclient.OSDDump
 	for i := range deployments.Items {
 		d := &deployments.Items[i]
 
-		replaceValue, requested := d.Annotations[cephv1.ReplaceOSDAnnotationKey]
-		if !requested {
-			// skip: dont have replace annotation
+		// A deployment waiting for its disk to be swapped needs no validation, but it does need cleaning
+		// up if its OSD is gone from the osdmap
+		if isWaitingForDiskSwap(d) {
+			if osdDump == nil {
+				dump, err := cephclient.GetOSDDump(c.context, c.clusterInfo)
+				if err != nil {
+					// Without the dump the OSD's existence cannot be established. Skip the check rather
+					// than risk deleting the deployment of a replacement still in progress.
+					log.NamespacedWarning(c.clusterInfo.Namespace, logger,
+						"failed to get osd dump to check for aborted replacements; will retry on the next reconcile. %v", err)
+					continue
+				}
+				osdDump = dump
+			}
+			missingFromOSDDump := c.isMissingFromOSDDump(d, osdDump)
+			// deployment is "waiting for swap" AND osd is missing from OSD dump can mean only that replacement has failed and OSD id was deleted during
+			// ceph volume rollback. Cleanup dangling downscaled OSD deployment in this case
+			if missingFromOSDDump {
+				err := k8sutil.DeleteDeployment(c.clusterInfo.Context, c.context.Clientset, d.Namespace, d.Name)
+				if err != nil {
+					log.NamespacedError(c.clusterInfo.Namespace, logger, "cannot cleanup dangling downscaled OSD deployment %q after failed osd-replacement: %v", d.Name, err)
+					continue
+				}
+				log.NamespacedInfo(c.clusterInfo.Namespace, logger, "removed dangling downscaled OSD deployment %q after failed osd-replacement", d.Name)
+			}
 			continue
 		}
 
 		// Already marked: validated, and the goroutine owns it now.
 		if d.Annotations[cephv1.ReplaceInProgressOSDAnnotationKey] == "true" {
+			continue
+		}
+
+		replaceValue, requested := d.Annotations[cephv1.ReplaceOSDAnnotationKey]
+		if !requested {
+			// skip: dont have replace annotation
 			continue
 		}
 
@@ -88,6 +118,28 @@ func (c *Cluster) validateAndStartOSDReplacement() error {
 	}
 
 	return nil
+}
+
+// isWaitingForDiskSwap returns true if the deployment has the cephv1.ReadyForSwapOSDAnnotationKey annotation,
+// meaning that the deployment represents destroyed OSD state awaiting physical disk swap to finish osd-replacement process.
+func isWaitingForDiskSwap(d *appsv1.Deployment) bool {
+	_, readyForSwap := d.Annotations[cephv1.ReadyForSwapOSDAnnotationKey]
+	return readyForSwap
+}
+
+// isMissingFromOSDDump returns true only if osd dump does not contain osd ID from given Deployment.
+// returns false in case of any error or empty OSD Dump
+func (c *Cluster) isMissingFromOSDDump(d *appsv1.Deployment, osdDump *cephclient.OSDDump) bool {
+	osdID, err := GetOSDID(d)
+	if err != nil {
+		log.NamespacedError(c.clusterInfo.Namespace, logger, "unable to get osd ID from Deployment: %v", err)
+		return false
+	}
+
+	if osdDump == nil || len(osdDump.OSDs) == 0 {
+		return false
+	}
+	return !osdDump.Exists(int64(osdID))
 }
 
 // validateReplaceOSD returns an error on the first failed validation check for a replacement request.
