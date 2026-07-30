@@ -32,6 +32,9 @@ spec:
     enabled: true
   crashCollector:
     disable: true
+  network:
+    connections:
+      requireMsgr2: true
   storage:
     useAllNodes: true
     useAllDevices: true

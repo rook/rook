@@ -3,6 +3,9 @@
 ## Breaking Changes
 
 - Helm OCI chart tags no longer include the `v` prefix (e.g., `1.21.0` instead of `v1.21.0`). Update any scripts or tooling that reference the chart by tag.
+- Ceph msgrv2 is required by default. Msgrv2 requires the 5.11 kernel. If you have an older kernel, disable the msgrv2 protocol
+  with the CephCluster CR setting `network.connections.requireMsgr2: true`. If using the helm chart, this same value is applied
+  under the `cephClusterSpec` of the values.
 
 ## Features
 
