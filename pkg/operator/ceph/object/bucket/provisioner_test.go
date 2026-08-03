@@ -47,7 +47,7 @@ const (
 )
 
 func TestPopulateDomainAndPort(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	store := "test-store"
 	namespace := "ns"
 	clusterInfo := client.AdminTestClusterInfo(namespace)

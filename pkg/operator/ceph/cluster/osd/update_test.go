@@ -105,7 +105,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 		clusterInfo := &cephclient.ClusterInfo{
 			Namespace:   namespace,
 			CephVersion: cephver.Squid,
-			Context:     context.TODO(),
+			Context:     t.Context(),
 		}
 		clusterInfo.SetName("mycluster")
 		clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -186,7 +186,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 
 	addDeploymentOnNode := func(nodeName string, osdID int) {
 		d := getDummyDeploymentOnNode(clientset, c, nodeName, osdID)
-		_, err := clientset.AppsV1().Deployments(namespace).Create(context.TODO(), d, metav1.CreateOptions{})
+		_, err := clientset.AppsV1().Deployments(namespace).Create(t.Context(), d, metav1.CreateOptions{})
 		if err != nil {
 			panic(err)
 		}
@@ -194,7 +194,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 
 	addDeploymentOnPVC := func(pvcName string, osdID int) {
 		d := getDummyDeploymentOnPVC(clientset, c, pvcName, osdID)
-		_, err := clientset.AppsV1().Deployments(namespace).Create(context.TODO(), d, metav1.CreateOptions{})
+		_, err := clientset.AppsV1().Deployments(namespace).Create(t.Context(), d, metav1.CreateOptions{})
 		if err != nil {
 			panic(err)
 		}
@@ -473,7 +473,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 		addDeploymentOnPVC("pvc6", 6)
 		// give OSD 6 bad info by removing env vars from primary container
 		deploymentClient := clientset.AppsV1().Deployments(namespace)
-		d, err := deploymentClient.Get(context.TODO(), deploymentName(6), metav1.GetOptions{})
+		d, err := deploymentClient.Get(t.Context(), deploymentName(6), metav1.GetOptions{})
 		if err != nil {
 			panic(err)
 		}
@@ -482,7 +482,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 			panic(err)
 		}
 		container.Env = []corev1.EnvVar{}
-		_, err = deploymentClient.Update(context.TODO(), d, metav1.UpdateOptions{})
+		_, err = deploymentClient.Update(t.Context(), d, metav1.UpdateOptions{})
 		if err != nil {
 			panic(err)
 		}
@@ -557,7 +557,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 				Labels: map[string]string{corev1.LabelHostname: "node0"},
 			},
 		}
-		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node0, metav1.CreateOptions{})
+		_, err := clientset.CoreV1().Nodes().Create(t.Context(), node0, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// node1 has BOTH label and CR config (conflict)
@@ -567,7 +567,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 				Labels: map[string]string{corev1.LabelHostname: "node1", NodeDeviceClassLabelKey: "ssd"},
 			},
 		}
-		_, err = clientset.CoreV1().Nodes().Create(context.TODO(), node1, metav1.CreateOptions{})
+		_, err = clientset.CoreV1().Nodes().Create(t.Context(), node1, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		updateQueue = newUpdateQueueWithIDs(0, 1)
@@ -580,7 +580,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 		clusterInfo := &cephclient.ClusterInfo{
 			Namespace:   namespace,
 			CephVersion: cephver.Squid,
-			Context:     context.TODO(),
+			Context:     t.Context(),
 		}
 		clusterInfo.SetName("mycluster")
 		clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -605,7 +605,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 		d1 := getDummyDeploymentOnNode(clientset, c, "node0", 1) // use node0 to avoid panic
 		d1.Name = "rook-ceph-osd-1"
 		d1.Spec.Template.Spec.NodeSelector = map[string]string{corev1.LabelHostname: "node1"}
-		_, err = clientset.AppsV1().Deployments(namespace).Create(context.TODO(), d1, metav1.CreateOptions{})
+		_, err = clientset.AppsV1().Deployments(namespace).Create(t.Context(), d1, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		osdToBeQueried = 0
@@ -880,7 +880,7 @@ func TestCluster_rotateCephxKey(t *testing.T) {
 			Executor: sharedExecutor,
 		}
 		clusterInfo := cephclient.ClusterInfo{
-			Context:     context.TODO(),
+			Context:     t.Context(),
 			Namespace:   "ns",
 			CephVersion: cephver.CephVersion{Major: 20, Minor: 2},
 		}

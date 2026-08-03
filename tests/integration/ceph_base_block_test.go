@@ -17,7 +17,6 @@ limitations under the License.
 package integration
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -397,7 +396,7 @@ func createPodWithBlock(helper *clients.TestClient, k8sh *utils.K8sHelper, s *su
 }
 
 func restartOSDPods(k8sh *utils.K8sHelper, s *suite.Suite, namespace string) {
-	ctx := context.TODO()
+	ctx := s.T().Context()
 	osdLabel := "app=rook-ceph-osd"
 
 	// Delete the osd pod(s)

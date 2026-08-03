@@ -18,7 +18,6 @@ limitations under the License.
 package discover
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -35,7 +34,7 @@ import (
 )
 
 func TestStartDiscoveryDaemonset(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := test.New(t, 3)
 
 	t.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
@@ -112,7 +111,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 }
 
 func TestGetAvailableDevices(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := test.New(t, 3)
 	pvcBackedOSD := false
 	ns := "rook-system"

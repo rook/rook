@@ -57,7 +57,7 @@ var (
 )
 
 func TestCephNFSController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -523,7 +523,7 @@ func TestCephNFSController(t *testing.T) {
 }
 
 func TestNFSKeyRotation(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	var (
 		name      = "my-nfs"
 		namespace = "rook-ceph"

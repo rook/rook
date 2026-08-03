@@ -16,7 +16,6 @@ limitations under the License.
 package k8sutil
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -232,7 +231,7 @@ func TestPodSpecPlacement(t *testing.T) {
 }
 
 func TestIsMonScheduled(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := test.New(t, 1)
 	pod := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{

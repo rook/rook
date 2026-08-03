@@ -40,7 +40,7 @@ import (
 )
 
 func TestStartRGW(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := test.New(t, 3)
 
 	// Store the configuration options applied to gateways through the MockExecutor
@@ -285,7 +285,7 @@ func TestGetTlsCaCert(t *testing.T) {
 			},
 			Type: "Yolo",
 		}
-		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(t.Context(), s, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
 		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
@@ -293,7 +293,7 @@ func TestGetTlsCaCert(t *testing.T) {
 		assert.EqualError(t, err, "failed to get TLS certificate from secret, unknown secret type \"Yolo\"")
 		assert.False(t, insecure)
 		assert.Nil(t, tlsCert)
-		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
+		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(t.Context(), s.Name, metav1.DeleteOptions{})
 		assert.NoError(t, err)
 	})
 
@@ -305,7 +305,7 @@ func TestGetTlsCaCert(t *testing.T) {
 			},
 			Type: "Opaque",
 		}
-		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(t.Context(), s, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
 		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
@@ -313,7 +313,7 @@ func TestGetTlsCaCert(t *testing.T) {
 		assert.EqualError(t, err, "failed to get TLS certificate from secret, token is \"Opaque\" but key \"cert\" does not exist")
 		assert.False(t, insecure)
 		assert.Nil(t, tlsCert)
-		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
+		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(t.Context(), s.Name, metav1.DeleteOptions{})
 		assert.NoError(t, err)
 	})
 
@@ -334,14 +334,14 @@ BvjQDN6didwQ
 -----END CERTIFICATE-----`)},
 			Type: "Opaque",
 		}
-		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(t.Context(), s, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
 		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
 		assert.NoError(t, err)
 		assert.False(t, insecure)
 		assert.NotNil(t, tlsCert)
-		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
+		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(t.Context(), s.Name, metav1.DeleteOptions{})
 		assert.NoError(t, err)
 	})
 }

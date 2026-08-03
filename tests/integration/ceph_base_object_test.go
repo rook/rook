@@ -94,7 +94,7 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 		logger.Infof("Object store %q created successfully", storeName)
 	})
 
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	// Check object store status
 	t.Run("verify object store status", func(t *testing.T) {
@@ -131,7 +131,7 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 	})
 
 	t.Run("verify RGW liveness probes show healthy", func(t *testing.T) {
-		err := wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 90*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		err := wait.PollUntilContextTimeout(t.Context(), 2*time.Second, 90*time.Second, true, func(ctx context.Context) (done bool, err error) {
 			deployName := RgwServiceName(storeName) + "-a"
 			d, err := k8sh.Clientset.AppsV1().Deployments(namespace).Get(ctx, deployName, metav1.GetOptions{})
 			if err != nil {
@@ -225,7 +225,7 @@ func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, s
 }
 
 func generateRgwTlsCertSecret(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName, rgwServiceName string) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	root, err := utils.FindRookRoot()
 	require.NoError(t, err, "failed to get rook root")
 	tlscertdir := t.TempDir()

@@ -144,7 +144,7 @@ func (s *SmokeSuite) TestARookClusterInstallation_SmokeTest() {
 // Smoke Test for Mon failover - Test checks the following operations for the Mon failover in order
 // Delete mon pod, Wait for new mon pod
 func (s *SmokeSuite) TestMonFailover() {
-	ctx := context.TODO()
+	ctx := s.T().Context()
 	logger.Infof("Mon Failover Smoke Test")
 
 	deployments, err := s.getNonCanaryMonDeployments()
@@ -291,7 +291,7 @@ func (s *SmokeSuite) TestDoNotReconcileLabel() {
 
 // Smoke Test for pool Resizing
 func (s *SmokeSuite) TestPoolResize() {
-	ctx := context.TODO()
+	ctx := s.T().Context()
 	logger.Infof("Pool Resize Smoke Test")
 
 	poolName := "testpool"
@@ -454,7 +454,7 @@ func (s *SmokeSuite) reconcileCluster(ctx context.Context, specPatch string) {
 }
 
 func (s *SmokeSuite) getNonCanaryMonDeployments() ([]appsv1.Deployment, error) {
-	ctx := context.TODO()
+	ctx := s.T().Context()
 	opts := metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"}
 	deployments, err := s.k8sh.Clientset.AppsV1().Deployments(s.settings.Namespace).List(ctx, opts)
 	if err != nil {

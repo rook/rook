@@ -17,7 +17,6 @@ limitations under the License.
 package nodedaemon
 
 import (
-	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -55,7 +54,7 @@ func TestCreateOrUpdateCephCron(t *testing.T) {
 			},
 		},
 	}
-	ctx := context.TODO()
+	ctx := t.Context()
 	context := &clusterd.Context{
 		Clientset:     test.New(t, 1),
 		RookClientset: rookclient.NewSimpleClientset(),

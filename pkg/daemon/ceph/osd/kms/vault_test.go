@@ -17,7 +17,6 @@ limitations under the License.
 package kms
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -56,7 +55,7 @@ func Test_configTLS(t *testing.T) {
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
-	ctx := context.TODO()
+	ctx := t.Context()
 	ns := "rook-ceph"
 	context := &clusterd.Context{Clientset: test.New(t, 3)}
 

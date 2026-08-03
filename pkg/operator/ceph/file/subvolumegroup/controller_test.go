@@ -17,7 +17,6 @@ limitations under the License.
 package subvolumegroup
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -43,7 +42,7 @@ import (
 )
 
 func TestFilesystemSubvolumeGroupController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -165,7 +164,7 @@ func TestFilesystemSubvolumeGroupController(t *testing.T) {
 		// Create a fake client to mock API calls.
 		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 		// Create a ReconcileCephFilesystem object with the scheme and fake client.
-		r = &ReconcileCephFilesystemSubVolumeGroup{client: cl, scheme: s, context: c, opManagerContext: context.TODO()}
+		r = &ReconcileCephFilesystemSubVolumeGroup{client: cl, scheme: s, context: c, opManagerContext: t.Context()}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)

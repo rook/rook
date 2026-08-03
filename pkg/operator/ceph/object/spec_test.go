@@ -17,7 +17,6 @@ limitations under the License.
 package object
 
 import (
-	"context"
 	_ "embed"
 	"fmt"
 	"reflect"
@@ -162,7 +161,7 @@ func TestPodSpecs(t *testing.T) {
 }
 
 func TestSSLPodSpec(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Placeholder
 	context := &clusterd.Context{Clientset: test.New(t, 3)}
 
@@ -509,7 +508,7 @@ func TestDefaultProbes(t *testing.T) {
 }
 
 func TestCheckRGWKMS(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	setupTest := func() *clusterConfig {
 		context := &clusterd.Context{Clientset: test.New(t, 3)}
 		store := simpleStore()
@@ -586,7 +585,7 @@ func TestCheckRGWKMS(t *testing.T) {
 				Namespace: c.store.Namespace,
 			},
 		}
-		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(context.TODO(), tlsSecret, metav1.CreateOptions{})
+		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(t.Context(), tlsSecret, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		b, err := c.CheckRGWKMS()
 		assert.False(t, b)
@@ -606,7 +605,7 @@ func TestCheckRGWKMS(t *testing.T) {
 			},
 		}
 		tlsSecret.Data = map[string][]byte{"cert": []byte("envnrevbnbvsbjkrtn")}
-		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(context.TODO(), tlsSecret, metav1.CreateOptions{})
+		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(t.Context(), tlsSecret, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		b, err := c.CheckRGWKMS()
 		assert.True(t, b)
@@ -615,7 +614,7 @@ func TestCheckRGWKMS(t *testing.T) {
 }
 
 func TestCheckRGWSSES3Enabled(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	setupTest := func() *clusterConfig {
 		context := &clusterd.Context{Clientset: test.New(t, 3)}
 		store := simpleStore()
@@ -696,7 +695,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 				Namespace: c.store.Namespace,
 			},
 		}
-		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(context.TODO(), tlsSecret, metav1.CreateOptions{})
+		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(t.Context(), tlsSecret, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		b, err := c.CheckRGWSSES3Enabled()
 		assert.False(t, b)
@@ -716,7 +715,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 			},
 		}
 		tlsSecret.Data = map[string][]byte{"cert": []byte("envnrevbnbvsbjkrtn")}
-		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(context.TODO(), tlsSecret, metav1.CreateOptions{})
+		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(t.Context(), tlsSecret, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		b, err := c.CheckRGWSSES3Enabled()
 		assert.True(t, b)
@@ -822,7 +821,7 @@ func TestMakeRGWPodSpec(t *testing.T) {
 }
 
 func TestAWSServerSideEncryption(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Placeholder
 	context := &clusterd.Context{Clientset: test.New(t, 3)}
 
@@ -1142,7 +1141,7 @@ func TestAddDNSNamesToRGWPodSpec(t *testing.T) {
 			if len(customEndpoints) > 0 {
 				zone.Spec.CustomEndpoints = customEndpoints
 			}
-			_, err := ctx.RookClientset.CephV1().CephObjectZones(store.Namespace).Create(context.TODO(), zone, metav1.CreateOptions{})
+			_, err := ctx.RookClientset.CephV1().CephObjectZones(store.Namespace).Create(t.Context(), zone, metav1.CreateOptions{})
 			assert.NoError(t, err)
 		}
 		return &clusterConfig{
