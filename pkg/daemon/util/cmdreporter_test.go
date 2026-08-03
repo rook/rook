@@ -17,7 +17,6 @@ limitations under the License.
 package util
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -79,7 +78,7 @@ func TestCommandMarshallingUnmarshalling(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	client := fake.NewClientset
 	type fields struct {
 		clientset     kubernetes.Interface
@@ -130,7 +129,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestRunner_Run(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	origExecCommand := execCommand
 	execCommand = mockExecCommand
 	defer func() { execCommand = origExecCommand }()

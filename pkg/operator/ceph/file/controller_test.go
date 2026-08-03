@@ -157,7 +157,7 @@ var (
 )
 
 func TestCephFilesystemController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -220,7 +220,7 @@ func TestCephFilesystemController(t *testing.T) {
 		scheme:           s,
 		context:          c,
 		fsContexts:       make(map[string]*fsHealth),
-		opManagerContext: context.TODO(),
+		opManagerContext: t.Context(),
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
@@ -268,7 +268,7 @@ func TestCephFilesystemController(t *testing.T) {
 			scheme:           s,
 			context:          c,
 			fsContexts:       make(map[string]*fsHealth),
-			opManagerContext: context.TODO(),
+			opManagerContext: t.Context(),
 		}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -328,13 +328,13 @@ func TestCephFilesystemController(t *testing.T) {
 			scheme:           s,
 			context:          c,
 			fsContexts:       make(map[string]*fsHealth),
-			opManagerContext: context.TODO(),
+			opManagerContext: t.Context(),
 		}
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
-		err = r.client.Get(context.TODO(), req.NamespacedName, fs)
+		err = r.client.Get(t.Context(), req.NamespacedName, fs)
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.ConditionType("Ready"), fs.Status.Phase, fs)
 	})
@@ -415,7 +415,7 @@ func TestCephFilesystemController(t *testing.T) {
 			scheme:           s,
 			context:          c,
 			fsContexts:       make(map[string]*fsHealth),
-			opManagerContext: context.TODO(),
+			opManagerContext: t.Context(),
 		}
 
 		oldCephFSDeps := CephFilesystemDependents
@@ -444,7 +444,7 @@ func TestCephFilesystemController(t *testing.T) {
 }
 
 func TestMdsKeyRotation(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	var deploymentsUpdated *[]*apps.Deployment
 	mds.UpdateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
@@ -531,7 +531,7 @@ func TestMdsKeyRotation(t *testing.T) {
 		scheme:           s,
 		context:          c,
 		fsContexts:       make(map[string]*fsHealth),
-		opManagerContext: context.TODO(),
+		opManagerContext: t.Context(),
 	}
 
 	req := reconcile.Request{

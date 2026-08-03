@@ -17,7 +17,6 @@ limitations under the License.
 package nodedaemon
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -51,7 +50,7 @@ func TestCreateOrUpdateCephCrash(t *testing.T) {
 	cephCluster.Spec.Labels = cephv1.LabelsSpec{}
 	cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
 	cephVersion := &cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}
-	ctx := context.TODO()
+	ctx := t.Context()
 	context := &clusterd.Context{
 		Clientset:     test.New(t, 1),
 		RookClientset: rookclient.NewSimpleClientset(),

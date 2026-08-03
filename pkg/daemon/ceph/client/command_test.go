@@ -156,7 +156,7 @@ func TestNewRBDCommand(t *testing.T) {
 
 	t.Run("context canceled nothing to run", func(t *testing.T) {
 		clusterInfo := AdminTestClusterInfo("rook")
-		ctx, cancel := context.WithCancel(context.TODO())
+		ctx, cancel := context.WithCancel(t.Context())
 		clusterInfo.Context = ctx
 		cancel()
 		executor := &exectest.MockExecutor{}

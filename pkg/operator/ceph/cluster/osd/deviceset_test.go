@@ -16,7 +16,6 @@ limitations under the License.
 package osd
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -40,7 +39,7 @@ func TestPrepareDeviceSets(t *testing.T) {
 }
 
 func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := testexec.New(t, 1)
 	context := &clusterd.Context{
 		Clientset: clientset,
@@ -96,7 +95,7 @@ func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
 }
 
 func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := testexec.New(t, 1)
 	context := &clusterd.Context{
 		Clientset: clientset,
@@ -228,7 +227,7 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 }
 
 func assertPVCExists(t *testing.T, clientset kubernetes.Interface, namespace, name string) {
-	pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(t.Context(), name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, pvc)
 }
@@ -243,7 +242,7 @@ func testVolumeClaim(name string) cephv1.VolumeClaimTemplate {
 }
 
 func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := testexec.New(t, 1)
 	context := &clusterd.Context{
 		Clientset: clientset,
@@ -305,7 +304,7 @@ func TestCreateValidImageVersionLabel(t *testing.T) {
 }
 
 func TestCheckAllPvcResize(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	s := runtime.NewScheme()
 	_ = corev1.AddToScheme(s)
 	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(&corev1.PersistentVolumeClaim{}).WithStatusSubresource(&corev1.PersistentVolumeClaim{}).Build()

@@ -17,7 +17,6 @@ limitations under the License.
 package integration
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -299,7 +298,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preF
 	cephfsFilesToRead := []string{}
 
 	// Get some info about the currently deployed OSDs to determine later if they are all updated
-	osdDepList, err := k8sutil.GetDeployments(context.TODO(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd")
+	osdDepList, err := k8sutil.GetDeployments(s.T().Context(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd")
 	require.NoError(s.T(), err)
 	osdDeps := osdDepList.Items
 	numOSDs := len(osdDeps) // there should be this many upgraded OSDs
@@ -318,7 +317,7 @@ func (s *UpgradeSuite) gatherLogs(systemNamespace, testSuffix string) {
 }
 
 func (s *UpgradeSuite) upgradeCephVersion(newCephImage string, numOSDs int) {
-	osdDepList, err := k8sutil.GetDeployments(context.TODO(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd")
+	osdDepList, err := k8sutil.GetDeployments(s.T().Context(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd")
 	require.NoError(s.T(), err)
 	oldCephVersion := osdDepList.Items[0].Labels["ceph-version"] // upgraded OSDs should not have this version label
 
@@ -333,24 +332,24 @@ func (s *UpgradeSuite) verifyOperatorImage(expectedImage string) {
 	systemNamespace := installer.SystemNamespace(s.namespace)
 
 	// verify that the operator spec is updated
-	version, err := k8sutil.GetDeploymentImage(context.TODO(), s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
+	version, err := k8sutil.GetDeploymentImage(s.T().Context(), s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
 	assert.NoError(s.T(), err)
 	assert.Contains(s.T(), "docker.io/rook/ceph:"+expectedImage, version)
 }
 
 func (s *UpgradeSuite) verifyRookUpgrade(numOSDs int) {
 	// Get some info about the currently deployed mons to determine later if they are all updated
-	monDepList, err := k8sutil.GetDeployments(context.TODO(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon")
+	monDepList, err := k8sutil.GetDeployments(s.T().Context(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon")
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), s.settings.Mons, len(monDepList.Items), monDepList.Items)
 
 	// Get some info about the currently deployed mgr to determine later if it is updated
-	mgrDepList, err := k8sutil.GetDeployments(context.TODO(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-mgr")
+	mgrDepList, err := k8sutil.GetDeployments(s.T().Context(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-mgr")
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 1, len(mgrDepList.Items))
 
 	// Get some info about the currently deployed OSDs to determine later if they are all updated
-	osdDepList, err := k8sutil.GetDeployments(context.TODO(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd")
+	osdDepList, err := k8sutil.GetDeployments(s.T().Context(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd")
 	require.NoError(s.T(), err)
 	require.NotZero(s.T(), len(osdDepList.Items))
 	require.Equal(s.T(), numOSDs, len(osdDepList.Items), osdDepList.Items)

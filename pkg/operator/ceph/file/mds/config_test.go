@@ -17,7 +17,6 @@ limitations under the License.
 package mds
 
 import (
-	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -32,7 +31,7 @@ import (
 
 func TestSetDefaultFlagsMonConfigStore(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
-		Context:   context.TODO(),
+		Context:   t.Context(),
 		Namespace: "ns",
 		FSID:      "myfsid",
 	}

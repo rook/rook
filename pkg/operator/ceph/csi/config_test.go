@@ -17,7 +17,6 @@ limitations under the License.
 package csi
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -70,17 +69,17 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-	err := CreateUpdateClientProfileRadosNamespace(context.TODO(), cl, c, cephBlockPoolRadosNamespacedName.Name, cephBlockPoolRadosNamespacedName.Name)
+	err := CreateUpdateClientProfileRadosNamespace(t.Context(), cl, c, cephBlockPoolRadosNamespacedName.Name, cephBlockPoolRadosNamespacedName.Name)
 	assert.NoError(t, err)
 
-	err = CreateUpdateClientProfileSubVolumeGroup(context.TODO(), cl, c, cephSubVolGrpNamespacedName.Name, cephSubVolGrpNamespacedName.Name, cephSubVolGrpRadosNamespaceNamespacedName.Name)
+	err = CreateUpdateClientProfileSubVolumeGroup(t.Context(), cl, c, cephSubVolGrpNamespacedName.Name, cephSubVolGrpNamespacedName.Name, cephSubVolGrpRadosNamespaceNamespacedName.Name)
 	assert.NoError(t, err)
 
-	err = cl.Get(context.TODO(), cephBlockPoolRadosNamespacedName, csiOpClientProfile)
+	err = cl.Get(t.Context(), cephBlockPoolRadosNamespacedName, csiOpClientProfile)
 	assert.NoError(t, err)
 	assert.Equal(t, csiOpClientProfile.Spec.Rbd.RadosNamespace, cephBlockPoolRadosNamespacedName.Name)
 
-	err = cl.Get(context.TODO(), cephSubVolGrpNamespacedName, csiOpClientProfile)
+	err = cl.Get(t.Context(), cephSubVolGrpNamespacedName, csiOpClientProfile)
 	assert.NoError(t, err)
 	assert.Equal(t, csiOpClientProfile.Spec.CephFs.SubVolumeGroup, cephSubVolGrpNamespacedName.Name)
 	assert.Equal(t, csiOpClientProfile.Spec.CephFs.KernelMountOptions["ms_mode"], kernelMountKeyVal[1])
@@ -104,7 +103,7 @@ func TestGetSecretNameByAnnotation(t *testing.T) {
 		}
 		cl := fake.NewClientBuilder().WithObjects(secret).Build()
 
-		name, err := getSecretNameByAnnotation(cl, context.TODO(), ns, annotationKey, defaultName)
+		name, err := getSecretNameByAnnotation(cl, t.Context(), ns, annotationKey, defaultName)
 		assert.NoError(t, err)
 		assert.Equal(t, "custom-rbd-secret", name)
 	})
@@ -118,7 +117,7 @@ func TestGetSecretNameByAnnotation(t *testing.T) {
 		}
 		cl := fake.NewClientBuilder().WithObjects(secret).Build()
 
-		name, err := getSecretNameByAnnotation(cl, context.TODO(), ns, annotationKey, defaultName)
+		name, err := getSecretNameByAnnotation(cl, t.Context(), ns, annotationKey, defaultName)
 		assert.NoError(t, err)
 		assert.Equal(t, defaultName, name)
 	})
@@ -135,7 +134,7 @@ func TestGetSecretNameByAnnotation(t *testing.T) {
 		}
 		cl := fake.NewClientBuilder().WithObjects(secret).Build()
 
-		name, err := getSecretNameByAnnotation(cl, context.TODO(), ns, annotationKey, defaultName)
+		name, err := getSecretNameByAnnotation(cl, t.Context(), ns, annotationKey, defaultName)
 		assert.NoError(t, err)
 		assert.Equal(t, defaultName, name)
 	})
@@ -143,7 +142,7 @@ func TestGetSecretNameByAnnotation(t *testing.T) {
 	t.Run("return default name when no secrets exist", func(t *testing.T) {
 		cl := fake.NewClientBuilder().Build()
 
-		name, err := getSecretNameByAnnotation(cl, context.TODO(), ns, annotationKey, defaultName)
+		name, err := getSecretNameByAnnotation(cl, t.Context(), ns, annotationKey, defaultName)
 		assert.NoError(t, err)
 		assert.Equal(t, defaultName, name)
 	})
@@ -169,7 +168,7 @@ func TestGetSecretNameByAnnotation(t *testing.T) {
 		}
 		cl := fake.NewClientBuilder().WithObjects(secret1, secret2).Build()
 
-		name, err := getSecretNameByAnnotation(cl, context.TODO(), ns, annotationKey, defaultName)
+		name, err := getSecretNameByAnnotation(cl, t.Context(), ns, annotationKey, defaultName)
 		assert.NoError(t, err)
 		assert.Contains(t, []string{"first-secret", "second-secret"}, name)
 	})

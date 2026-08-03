@@ -18,7 +18,6 @@ limitations under the License.
 package topic
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -65,7 +64,7 @@ var (
 )
 
 func TestCephBucketTopicController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 

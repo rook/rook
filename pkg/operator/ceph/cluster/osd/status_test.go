@@ -36,7 +36,7 @@ import (
 )
 
 func TestOrchestrationStatus(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := fake.NewClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",

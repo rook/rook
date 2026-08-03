@@ -17,7 +17,6 @@ limitations under the License.
 package osd
 
 import (
-	"context"
 	"strconv"
 	"testing"
 
@@ -124,7 +123,7 @@ func TestStartCryptCloseJob(t *testing.T) {
 		err := c.startCryptCloseJob(3, "node-b")
 		require.NoError(t, err)
 
-		job, err := clientset.BatchV1().Jobs("rook-ceph").Get(context.TODO(), "rook-ceph-osd-crypt-close-3", metav1.GetOptions{})
+		job, err := clientset.BatchV1().Jobs("rook-ceph").Get(t.Context(), "rook-ceph-osd-crypt-close-3", metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.Equal(t, "node-b", job.Spec.Template.Spec.NodeSelector[k8sutil.LabelHostname()])
 
@@ -151,7 +150,7 @@ func TestStartCryptCloseJob(t *testing.T) {
 		err := c.startCryptCloseJob(3, "new-node")
 		require.NoError(t, err)
 
-		job, err := clientset.BatchV1().Jobs("rook-ceph").Get(context.TODO(), "rook-ceph-osd-crypt-close-3", metav1.GetOptions{})
+		job, err := clientset.BatchV1().Jobs("rook-ceph").Get(t.Context(), "rook-ceph-osd-crypt-close-3", metav1.GetOptions{})
 		require.NoError(t, err)
 		// the replacement Job is pinned to the new node, proving the active job was replaced
 		assert.Equal(t, "new-node", job.Spec.Template.Spec.NodeSelector[k8sutil.LabelHostname()])

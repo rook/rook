@@ -17,7 +17,6 @@ limitations under the License.
 package integration
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -114,7 +113,7 @@ func (s *ObjectSuite) TestWithTLS() {
 }
 
 func cleanUpTLS(s *ObjectSuite) {
-	err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
+	err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Delete(s.T().Context(), objectTLSSecretName, metav1.DeleteOptions{})
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			logger.Fatal("failed to deleted store TLS secret")
@@ -197,7 +196,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 }
 
 func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, settings *installer.TestCephSettings, storeName string, swiftAndKeystone bool) {
-	ctx := context.TODO()
+	ctx := s.T().Context()
 	namespace := settings.Namespace
 	clusterInfo := client.AdminTestClusterInfo(namespace)
 	t := s.T()

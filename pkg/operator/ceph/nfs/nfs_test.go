@@ -18,7 +18,6 @@ limitations under the License.
 package nfs
 
 import (
-	"context"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -83,12 +82,12 @@ func TestReconcileCephNFS_createConfigMap(t *testing.T) {
 		cmName, hash1, err := r.createConfigMap(nfs, "a")
 		assert.NoError(t, err)
 		assert.Equal(t, "rook-ceph-nfs-my-nfs-a", cmName)
-		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(context.TODO(), cmName, metav1.GetOptions{})
+		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(t.Context(), cmName, metav1.GetOptions{})
 		assert.NoError(t, err)
 
 		_, hash2, err := r.createConfigMap(nfs, "a")
 		assert.NoError(t, err)
-		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(context.TODO(), cmName, metav1.GetOptions{})
+		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(t.Context(), cmName, metav1.GetOptions{})
 		assert.NoError(t, err)
 
 		assert.Equal(t, hash1, hash2)
@@ -98,12 +97,12 @@ func TestReconcileCephNFS_createConfigMap(t *testing.T) {
 		cmName, hash1, err := r.createConfigMap(nfs, "a")
 		assert.NoError(t, err)
 		assert.Equal(t, "rook-ceph-nfs-my-nfs-a", cmName)
-		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(context.TODO(), cmName, metav1.GetOptions{})
+		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(t.Context(), cmName, metav1.GetOptions{})
 		assert.NoError(t, err)
 
 		_, hash2, err := r.createConfigMap(nfs, "b")
 		assert.NoError(t, err)
-		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(context.TODO(), cmName, metav1.GetOptions{})
+		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(t.Context(), cmName, metav1.GetOptions{})
 		assert.NoError(t, err)
 
 		assert.NotEqual(t, hash1, hash2)
@@ -113,14 +112,14 @@ func TestReconcileCephNFS_createConfigMap(t *testing.T) {
 		cmName, hash1, err := r.createConfigMap(nfs, "a")
 		assert.NoError(t, err)
 		assert.Equal(t, "rook-ceph-nfs-my-nfs-a", cmName)
-		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(context.TODO(), cmName, metav1.GetOptions{})
+		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(t.Context(), cmName, metav1.GetOptions{})
 		assert.NoError(t, err)
 
 		nfs2 := nfs.DeepCopy()
 		nfs2.Name = "nfs-two"
 		_, hash2, err := r.createConfigMap(nfs2, "a")
 		assert.NoError(t, err)
-		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(context.TODO(), cmName, metav1.GetOptions{})
+		_, err = r.context.Clientset.CoreV1().ConfigMaps("rook-ceph-test-ns").Get(t.Context(), cmName, metav1.GetOptions{})
 		assert.NoError(t, err)
 
 		assert.NotEqual(t, hash1, hash2)
@@ -160,7 +159,7 @@ func TestReconcileCephNFS_upCephNFS(t *testing.T) {
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
 			CephVersion: cephver.Squid,
-			Context:     context.TODO(),
+			Context:     t.Context(),
 			Namespace:   ns,
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{
@@ -189,7 +188,7 @@ func TestReconcileCephNFS_upCephNFS(t *testing.T) {
 	err := r.upCephNFS(nfs)
 	assert.NoError(t, err)
 
-	deps, err := r.context.Clientset.AppsV1().Deployments(ns).List(context.TODO(), metav1.ListOptions{})
+	deps, err := r.context.Clientset.AppsV1().Deployments(ns).List(t.Context(), metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, deps.Items, 2)
 	names := []string{}
@@ -202,7 +201,7 @@ func TestReconcileCephNFS_upCephNFS(t *testing.T) {
 	assert.ElementsMatch(t, []string{"rook-ceph-nfs-my-nfs-a", "rook-ceph-nfs-my-nfs-b"}, names)
 	assert.NotEqual(t, hashes[0], hashes[1])
 
-	svcs, err := r.context.Clientset.CoreV1().Services(ns).List(context.TODO(), metav1.ListOptions{})
+	svcs, err := r.context.Clientset.CoreV1().Services(ns).List(t.Context(), metav1.ListOptions{})
 	assert.NoError(t, err)
 	// Each NFS server gets a service.
 	assert.Len(t, svcs.Items, 2)
@@ -232,7 +231,7 @@ func TestUpCephNFS_SkipsReconcile(t *testing.T) {
 			},
 		},
 	}
-	_, err := clientset.AppsV1().Deployments(ns).Create(context.TODO(), dep, metav1.CreateOptions{})
+	_, err := clientset.AppsV1().Deployments(ns).Create(t.Context(), dep, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	executor := &exectest.MockExecutor{}
@@ -247,7 +246,7 @@ func TestUpCephNFS_SkipsReconcile(t *testing.T) {
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "fsid-test",
 			CephVersion: cephver.Squid,
-			Context:     context.TODO(),
+			Context:     t.Context(),
 			Namespace:   ns,
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{
@@ -297,7 +296,7 @@ func TestUpCephNFS_SkipReconcileFails(t *testing.T) {
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "fsid-fail",
 			CephVersion: cephver.Squid,
-			Context:     context.TODO(),
+			Context:     t.Context(),
 			Namespace:   ns,
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{

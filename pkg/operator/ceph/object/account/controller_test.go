@@ -18,7 +18,6 @@ package account
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -66,7 +65,7 @@ var (
 )
 
 func TestCephObjectStoreAccountController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 
 	objectAccount := &cephv1.CephObjectStoreAccount{
@@ -536,7 +535,7 @@ func TestGetOrGenerateAccountID(t *testing.T) {
 
 func TestReconcileAccount(t *testing.T) {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	t.Run("create account with UID-derived ID", func(t *testing.T) {
 		uid := types.UID("a675dfa7-a785-40a3-b690-eb1e33c1dbdb")
@@ -1056,7 +1055,7 @@ func TestReconcileAccount(t *testing.T) {
 
 func TestDeleteAccount(t *testing.T) {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	t.Run("delete account and root user successfully", func(t *testing.T) {
 		userDeleteCalled := false
@@ -1310,7 +1309,7 @@ func TestDeleteAccount(t *testing.T) {
 }
 
 func TestUpdateStatus(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 
 	s := scheme.Scheme
@@ -1385,7 +1384,7 @@ func TestUpdateStatus(t *testing.T) {
 }
 
 func TestReconcileObjectStoreAccountNotFound(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 
 	s := scheme.Scheme
@@ -1510,7 +1509,7 @@ func TestGenerateRootUserSecretName(t *testing.T) {
 
 func TestReconcileRootUser(t *testing.T) {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	objectStore := &cephv1.CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{Name: store, Namespace: namespace},

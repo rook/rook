@@ -97,7 +97,7 @@ func osdDeployment(osdID int, annotations, labels map[string]string) *appsv1.Dep
 
 func TestValidateAndStartOSDReplacement(t *testing.T) {
 	getDep := func(c *Cluster, osdID int) *appsv1.Deployment {
-		d, err := c.context.Clientset.AppsV1().Deployments("rook-ceph").Get(context.TODO(), fmt.Sprintf(osdAppNameFmt, osdID), metav1.GetOptions{})
+		d, err := c.context.Clientset.AppsV1().Deployments("rook-ceph").Get(t.Context(), fmt.Sprintf(osdAppNameFmt, osdID), metav1.GetOptions{})
 		require.NoError(t, err)
 		return d
 	}

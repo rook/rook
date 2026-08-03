@@ -17,7 +17,6 @@ limitations under the License.
 package controller
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
@@ -62,7 +61,7 @@ func TestObjectToCRMapper(t *testing.T) {
 		{NamespacedName: client.ObjectKey{Name: "my-pool", Namespace: "rook-ceph"}},
 	}
 
-	handlerFunc, err := ObjectToCRMapper[*cephv1.CephFilesystemList, runtime.Object](context.TODO(), cl, &cephv1.CephFilesystemList{}, s)
+	handlerFunc, err := ObjectToCRMapper[*cephv1.CephFilesystemList, runtime.Object](t.Context(), cl, &cephv1.CephFilesystemList{}, s)
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, fakeRequest, handlerFunc(context.TODO(), fs))
+	assert.ElementsMatch(t, fakeRequest, handlerFunc(t.Context(), fs))
 }

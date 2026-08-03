@@ -55,7 +55,7 @@ const (
 )
 
 func TestCephRBDMirrorController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	var (
 		name           = "my-mirror"
 		namespace      = "rook-ceph"
@@ -206,7 +206,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 		}
 
 		rbdMirror.Spec.Peers.SecretNames = []string{peerSecretName}
-		err = r.client.Update(context.TODO(), rbdMirror)
+		err = r.client.Update(t.Context(), rbdMirror)
 		assert.NoError(t, err)
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -238,14 +238,14 @@ func TestCephRBDMirrorController(t *testing.T) {
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
-		err = r.client.Get(context.TODO(), req.NamespacedName, rbdMirror)
+		err = r.client.Get(t.Context(), req.NamespacedName, rbdMirror)
 		assert.NoError(t, err)
 		assert.Equal(t, "Ready", rbdMirror.Status.Phase, rbdMirror)
 	})
 }
 
 func TestMirrorKeyRotation(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	var (
 		name      = "my-mirror"
 		namespace = "rook-ceph"

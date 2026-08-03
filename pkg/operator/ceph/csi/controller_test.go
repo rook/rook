@@ -17,7 +17,6 @@ limitations under the License.
 package csi
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -40,7 +39,7 @@ import (
 )
 
 func TestCephCSIController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	var (
 		name      = "rook-ceph"
 		namespace = "rook-ceph"
@@ -67,7 +66,7 @@ func TestCephCSIController(t *testing.T) {
 
 		_, err := c.Clientset.CoreV1().Pods(namespace).Create(ctx, test.FakeOperatorPod(namespace), metav1.CreateOptions{})
 		assert.NoError(t, err)
-		_, err = c.Clientset.AppsV1().ReplicaSets(namespace).Create(context.TODO(), test.FakeReplicaSet(namespace), metav1.CreateOptions{})
+		_, err = c.Clientset.AppsV1().ReplicaSets(namespace).Create(t.Context(), test.FakeReplicaSet(namespace), metav1.CreateOptions{})
 		assert.NoError(t, err)
 		s := scheme.Scheme
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &v1.ConfigMap{}, &v1.ConfigMapList{}, &cephv1.CephClusterList{},
@@ -100,7 +99,7 @@ func TestCephCSIController(t *testing.T) {
 		}
 		_, err := c.Clientset.CoreV1().Pods(namespace).Create(ctx, test.FakeOperatorPod(namespace), metav1.CreateOptions{})
 		assert.NoError(t, err)
-		_, err = c.Clientset.AppsV1().ReplicaSets(namespace).Create(context.TODO(), test.FakeReplicaSet(namespace), metav1.CreateOptions{})
+		_, err = c.Clientset.AppsV1().ReplicaSets(namespace).Create(t.Context(), test.FakeReplicaSet(namespace), metav1.CreateOptions{})
 		assert.NoError(t, err)
 		cephCluster := &cephv1.CephCluster{
 			ObjectMeta: metav1.ObjectMeta{

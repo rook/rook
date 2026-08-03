@@ -17,7 +17,6 @@ limitations under the License.
 package operator
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -38,7 +37,7 @@ import (
 )
 
 func TestOperatorController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")

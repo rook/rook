@@ -17,7 +17,6 @@ limitations under the License.
 package client
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -123,7 +122,7 @@ func TestGenerateClient(t *testing.T) {
 }
 
 func TestCephClientController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -307,7 +306,7 @@ func TestCephClientController(t *testing.T) {
 		client:           cl,
 		scheme:           s,
 		context:          c,
-		opManagerContext: context.TODO(),
+		opManagerContext: t.Context(),
 		recorder:         events.NewFakeRecorder(50),
 	}
 
@@ -315,7 +314,7 @@ func TestCephClientController(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 
-	err = r.client.Get(context.TODO(), req.NamespacedName, cephClient)
+	err = r.client.Get(t.Context(), req.NamespacedName, cephClient)
 	assert.NoError(t, err)
 	assert.Equal(t, cephv1.ConditionReady, cephClient.Status.Phase)
 	assert.NotEmpty(t, cephClient.Status.Info["secretName"], cephClient.Status.Info)
@@ -505,7 +504,7 @@ func TestReconcileCephClient_reconcileCephClientSecret(t *testing.T) {
 				},
 				scheme: scheme,
 				clusterInfo: &cephclient.ClusterInfo{
-					Context: context.TODO(),
+					Context: t.Context(),
 				},
 			}
 
@@ -532,7 +531,7 @@ func TestReconcileCephClient_reconcileCephClientSecret(t *testing.T) {
 			}
 
 			if tt.existingSecret != nil {
-				_, err := client.CoreV1().Secrets("rook-ceph").Create(context.TODO(), tt.existingSecret, metav1.CreateOptions{})
+				_, err := client.CoreV1().Secrets("rook-ceph").Create(t.Context(), tt.existingSecret, metav1.CreateOptions{})
 				require.NoError(t, err)
 			}
 
@@ -543,7 +542,7 @@ func TestReconcileCephClient_reconcileCephClientSecret(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			secrets, _ := client.CoreV1().Secrets("rook-ceph").List(context.TODO(), metav1.ListOptions{})
+			secrets, _ := client.CoreV1().Secrets("rook-ceph").List(t.Context(), metav1.ListOptions{})
 			if tt.expectDelete {
 				assert.Empty(t, secrets.Items)
 			}
@@ -560,7 +559,7 @@ func TestReconcileCephClient_reconcileCephClientSecret(t *testing.T) {
 func TestKeyRotation(t *testing.T) {
 	// test key rotation end-to-end
 
-	ctx := context.TODO()
+	ctx := t.Context()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 

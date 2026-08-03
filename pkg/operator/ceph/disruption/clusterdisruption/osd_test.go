@@ -17,7 +17,6 @@ limitations under the License.
 package clusterdisruption
 
 import (
-	"context"
 	"fmt"
 	"slices"
 	"testing"
@@ -130,7 +129,7 @@ func TestGetOSDFailureDomainsSkipsReplacementOSD(t *testing.T) {
 
 	r := getFakeReconciler(t, objs...)
 	clusterInfo := getFakeClusterInfo()
-	clusterInfo.Context = context.TODO()
+	clusterInfo.Context = t.Context()
 	r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor}}
 	request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
 
@@ -301,7 +300,7 @@ func TestGetOSDFailureDomains(t *testing.T) {
 
 			r := getFakeReconciler(t, objs...)
 			clusterInfo := getFakeClusterInfo()
-			clusterInfo.Context = context.TODO()
+			clusterInfo.Context = t.Context()
 			r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor}}
 			request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
 			allfailureDomains, nodeDrainFailureDomains, osdDownFailureDomains, downOSDs, err := r.getOSDFailureDomains(clusterInfo, request, "zone")
@@ -352,7 +351,7 @@ func TestGetOSDFailureDomainsError(t *testing.T) {
 				tc.osds[1].DeepCopy(), tc.osds[2].DeepCopy(), osd)
 			r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor}}
 			clusterInfo := getFakeClusterInfo()
-			clusterInfo.Context = context.TODO()
+			clusterInfo.Context = t.Context()
 			request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
 			allfailureDomains, nodeDrainFailureDomains, osdDownFailureDomains, downOSDs, err := r.getOSDFailureDomains(clusterInfo, request, "zone")
 			assert.Error(t, err)
@@ -473,7 +472,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := getFakeReconciler(t, cephCluster, tc.configMap)
 			clusterInfo := getFakeClusterInfo()
-			clusterInfo.Context = context.TODO()
+			clusterInfo.Context = t.Context()
 			request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
 			executor := &exectest.MockExecutor{}
 			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
@@ -497,7 +496,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 
 			// assert that pdb for osd are created correctly
 			existingPDBsV1 := &policyv1.PodDisruptionBudgetList{}
-			err = r.client.List(context.TODO(), existingPDBsV1)
+			err = r.client.List(t.Context(), existingPDBsV1)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedOSDPDBCount, len(existingPDBsV1.Items))
 			if tc.expectedDrainingFailureDomainName != "" {
@@ -546,7 +545,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 
 			// assert that config map is updated with correct failure domain
 			existingConfigMaps := &corev1.ConfigMapList{}
-			err = r.client.List(context.TODO(), existingConfigMaps)
+			err = r.client.List(t.Context(), existingConfigMaps)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedDrainingFailureDomainName, existingConfigMaps.Items[0].Data[drainingFailureDomainKey])
 			assert.Equal(t, tc.expectedSetNoOutValue, existingConfigMaps.Items[0].Data[setNoOut])
@@ -556,7 +555,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 
 func TestHasNodeDrained(t *testing.T) {
 	osdDeployment := fakeOSDDeployment(1, 1)
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Not expecting node drain because OSD pod is assigned to a schedulable node
 	r := getFakeReconciler(t, getNodeObject("node-1", false), osdDeployment.DeepCopy(), &corev1.ConfigMap{})
 	expected, err := hasOSDNodeDrained(ctx, r.client, "node-1")

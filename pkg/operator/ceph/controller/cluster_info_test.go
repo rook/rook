@@ -17,7 +17,6 @@ limitations under the License.
 package controller
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -34,7 +33,7 @@ import (
 )
 
 func TestCreateClusterSecrets(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := test.New(t, 1)
 	configDir := "ns"
 	err := os.MkdirAll(configDir, 0o755)

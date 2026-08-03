@@ -18,7 +18,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"testing"
@@ -255,7 +254,7 @@ func TestConfigureHealthSettings(t *testing.T) {
 }
 
 func TestForceDeleteStuckRookPodsOnNotReadyNodes(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := optest.New(t, 1)
 	clusterInfo := cephclient.NewClusterInfo("test", "test")
 	clusterName := clusterInfo.NamespacedName()
@@ -326,7 +325,7 @@ func TestForceDeleteStuckRookPodsOnNotReadyNodes(t *testing.T) {
 }
 
 func TestGetRookPodsOnNode(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := optest.New(t, 1)
 	clusterInfo := cephclient.NewClusterInfo("test", "test")
 	clusterName := clusterInfo.NamespacedName()

@@ -17,7 +17,6 @@ limitations under the License.
 package radosnamespace
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -43,7 +42,7 @@ import (
 )
 
 func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -169,7 +168,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
-			client: cl, scheme: s, context: c, opManagerContext: context.TODO(),
+			client: cl, scheme: s, context: c, opManagerContext: t.Context(),
 			recorder: events.NewFakeRecorder(50),
 			opConfig: opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 		}
@@ -247,7 +246,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			client:                 cl,
 			scheme:                 s,
 			context:                c,
-			opManagerContext:       context.TODO(),
+			opManagerContext:       t.Context(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 			recorder:               events.NewFakeRecorder(50),
@@ -257,14 +256,14 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
 		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
-		err = csi.CreateCsiConfigMap(context.TODO(), namespace, c.Clientset, ownerInfo)
+		err = csi.CreateCsiConfigMap(t.Context(), namespace, c.Clientset, ownerInfo)
 		assert.NoError(t, err)
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 
-		err = r.client.Get(context.TODO(), req.NamespacedName, cephBlockPoolRadosNamespace)
+		err = r.client.Get(t.Context(), req.NamespacedName, cephBlockPoolRadosNamespace)
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.ConditionReady, cephBlockPoolRadosNamespace.Status.Phase)
 
@@ -303,7 +302,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
 		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
-		err := csi.CreateCsiConfigMap(context.TODO(), namespace, c.Clientset, ownerInfo)
+		err := csi.CreateCsiConfigMap(t.Context(), namespace, c.Clientset, ownerInfo)
 		assert.NoError(t, err)
 
 		res, err := r.Reconcile(ctx, req)
@@ -356,7 +355,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			client:                 cl,
 			scheme:                 s,
 			context:                c,
-			opManagerContext:       context.TODO(),
+			opManagerContext:       t.Context(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 			recorder:               events.NewFakeRecorder(50),
@@ -406,7 +405,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			client:                 cl,
 			scheme:                 s,
 			context:                c,
-			opManagerContext:       context.TODO(),
+			opManagerContext:       t.Context(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 			recorder:               events.NewFakeRecorder(50),
@@ -460,7 +459,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			client:                 cl,
 			scheme:                 s,
 			context:                c,
-			opManagerContext:       context.TODO(),
+			opManagerContext:       t.Context(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 			recorder:               events.NewFakeRecorder(50),
@@ -514,7 +513,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			client:                 cl,
 			scheme:                 s,
 			context:                c,
-			opManagerContext:       context.TODO(),
+			opManagerContext:       t.Context(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 			recorder:               events.NewFakeRecorder(50),
@@ -570,7 +569,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			client:                 cl,
 			scheme:                 s,
 			context:                c,
-			opManagerContext:       context.TODO(),
+			opManagerContext:       t.Context(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 			recorder:               events.NewFakeRecorder(50),
@@ -630,7 +629,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			client:                 cl,
 			scheme:                 s,
 			context:                c,
-			opManagerContext:       context.TODO(),
+			opManagerContext:       t.Context(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 			recorder:               events.NewFakeRecorder(50),
@@ -640,7 +639,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 
-		err = r.client.Get(context.TODO(), req.NamespacedName, cephBlockPoolRadosNamespace)
+		err = r.client.Get(t.Context(), req.NamespacedName, cephBlockPoolRadosNamespace)
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.ConditionReady, cephBlockPoolRadosNamespace.Status.Phase)
 	})

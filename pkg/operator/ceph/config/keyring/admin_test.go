@@ -17,7 +17,6 @@ limitations under the License.
 package keyring
 
 import (
-	"context"
 	"fmt"
 	"path"
 	"testing"
@@ -33,7 +32,7 @@ import (
 )
 
 func TestAdminKeyringStore(t *testing.T) {
-	ctxt := context.TODO()
+	ctxt := t.Context()
 	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,

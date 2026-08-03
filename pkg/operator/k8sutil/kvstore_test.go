@@ -18,7 +18,6 @@ limitations under the License.
 package k8sutil
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,7 +33,7 @@ func TestGetValueStoreNotExist(t *testing.T) {
 	kv, storeName := newKVStore()
 
 	// try to get a value from a store that does not exist
-	_, err := kv.GetValue(context.TODO(), storeName, "key1")
+	_, err := kv.GetValue(t.Context(), storeName, "key1")
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 }
@@ -45,7 +44,7 @@ func TestGetValueKeyNotExist(t *testing.T) {
 	kv, storeName := newKVStore(cm)
 
 	// try to get a value from a store that does exist but from a key that does not exist
-	_, err := kv.GetValue(context.TODO(), storeName, "key1")
+	_, err := kv.GetValue(t.Context(), storeName, "key1")
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 }
@@ -58,7 +57,7 @@ func TestGetValue(t *testing.T) {
 	cm := &v1.ConfigMap{Data: map[string]string{key: value}}
 	kv, storeName := newKVStore(cm)
 
-	actualValue, err := kv.GetValue(context.TODO(), storeName, key)
+	actualValue, err := kv.GetValue(t.Context(), storeName, key)
 	assert.Nil(t, err)
 	assert.Equal(t, value, actualValue)
 }
@@ -67,7 +66,7 @@ func TestSetValueStoreNotExist(t *testing.T) {
 	key := "key1"
 	value := "value1"
 
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	// start with no stores created at all
 	kv, storeName := newKVStore()
@@ -92,7 +91,7 @@ func TestSetValueUpdate(t *testing.T) {
 	key := "key1"
 	value := "value1"
 
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	// create a configmap (store) that has a key value pair in it
 	cm := &v1.ConfigMap{Data: map[string]string{key: value}}
@@ -112,7 +111,7 @@ func TestSetValueUpdate(t *testing.T) {
 func TestGetStoreNotExist(t *testing.T) {
 	kv, storeName := newKVStore()
 
-	_, err := kv.GetStore(context.TODO(), storeName)
+	_, err := kv.GetStore(t.Context(), storeName)
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 }
@@ -125,7 +124,7 @@ func TestGetStore(t *testing.T) {
 	cm := &v1.ConfigMap{Data: map[string]string{key: value}}
 	kv, storeName := newKVStore(cm)
 
-	actualStore, err := kv.GetStore(context.TODO(), storeName)
+	actualStore, err := kv.GetStore(t.Context(), storeName)
 	assert.Nil(t, err)
 	assert.Equal(t, map[string]string{key: value}, actualStore)
 }
@@ -134,7 +133,7 @@ func TestClearStoreNotExist(t *testing.T) {
 	kv, storeName := newKVStore()
 
 	// clearing a store that does not exist is OK, should be no error
-	err := kv.ClearStore(context.TODO(), storeName)
+	err := kv.ClearStore(t.Context(), storeName)
 	assert.Nil(t, err)
 }
 
@@ -142,7 +141,7 @@ func TestClearStore(t *testing.T) {
 	key := "key1"
 	value := "value1"
 
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	// create a configmap (store) that has a key value pair in it
 	cm := &v1.ConfigMap{Data: map[string]string{key: value}}

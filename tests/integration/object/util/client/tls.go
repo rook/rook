@@ -17,7 +17,6 @@ limitations under the License.
 package client
 
 import (
-	"context"
 	cryptotls "crypto/tls"
 	"fmt"
 	"net/http"
@@ -50,7 +49,7 @@ func InsecureHTTPClient() *http.Client {
 // under the data key "cert", which is the format a CephObjectStore expects when
 // referenced via Gateway.SSLCertificateRef.
 func GenerateRgwTLSCertSecret(t *testing.T, k8sh *utils.K8sHelper, namespace, secretName, rgwServiceName string) {
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	root, err := utils.FindRookRoot()
 	require.NoError(t, err, "failed to get rook root")

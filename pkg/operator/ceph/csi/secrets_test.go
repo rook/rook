@@ -112,7 +112,7 @@ func Test_deleteOwnedCSISecretsByCephCluster(t *testing.T) {
 	}
 
 	// Remove ownerRef from the CsiCephFSNodeSecret to ensure it won't get deleted
-	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), CsiCephFSProvisionerSecret, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(namespace).Get(t.Context(), CsiCephFSProvisionerSecret, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -125,7 +125,7 @@ func Test_deleteOwnedCSISecretsByCephCluster(t *testing.T) {
 			Name:       "test-client",
 		},
 	})
-	_, err = clientset.CoreV1().Secrets(namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
+	_, err = clientset.CoreV1().Secrets(namespace).Update(t.Context(), secret, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -138,13 +138,13 @@ func Test_deleteOwnedCSISecretsByCephCluster(t *testing.T) {
 	// Verify owned secret is deleted
 	secrets := []string{CsiRBDNodeSecret, CsiRBDProvisionerSecret, CsiCephFSNodeSecret}
 	for _, secretName := range secrets {
-		_, err = clientset.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+		_, err = clientset.CoreV1().Secrets(namespace).Get(t.Context(), secretName, metav1.GetOptions{})
 		if err == nil {
 			t.Errorf("expected owned secret %q to be deleted", secretName)
 		}
 	}
 	// Verify unowned secret still exists
-	_, err = clientset.CoreV1().Secrets(namespace).Get(context.TODO(), CsiCephFSProvisionerSecret, metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(namespace).Get(t.Context(), CsiCephFSProvisionerSecret, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
 		t.Errorf("expected unowned secret %q to still exist", CsiCephFSProvisionerSecret)
 	}

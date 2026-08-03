@@ -17,7 +17,6 @@ limitations under the License.
 package osd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path"
@@ -417,7 +416,7 @@ func TestConfigureCVDevices(t *testing.T) {
 		clusterInfo := &cephclient.ClusterInfo{
 			CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},
 			FSID:        clusterFSID,
-			Context:     context.TODO(),
+			Context:     t.Context(),
 		}
 		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
 		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, pvcBacked: true, storeConfig: config.StoreConfig{DeviceClass: "myds", StoreType: "bluestore"}}
@@ -609,7 +608,7 @@ func TestConfigureCVDevices(t *testing.T) {
 		}
 		clusterInfo := &cephclient.ClusterInfo{
 			FSID:    clusterFSID,
-			Context: context.TODO(),
+			Context: t.Context(),
 		}
 		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
 		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, storeConfig: config.StoreConfig{DeviceClass: "myclass", StoreType: "bluestore"}}
@@ -666,7 +665,7 @@ func TestConfigureCVDevices(t *testing.T) {
 
 		clusterInfo := &cephclient.ClusterInfo{
 			FSID:    clusterFSID,
-			Context: context.TODO(),
+			Context: t.Context(),
 		}
 		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
 		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, storeConfig: config.StoreConfig{DeviceClass: "myclass", StoreType: "bluestore"}}

@@ -16,7 +16,6 @@ limitations under the License.
 package object
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -576,7 +575,7 @@ func TestCheckDashboardUser(t *testing.T) {
 	objContext := NewContext(&clusterd.Context{Executor: executor}, &client.ClusterInfo{
 		Namespace:   "mycluster",
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9},
-		Context:     context.TODO(),
+		Context:     t.Context(),
 	},
 		storeName)
 
@@ -678,7 +677,7 @@ func TestDashboard(t *testing.T) {
 	objContext := NewContext(&clusterd.Context{Executor: executor}, &client.ClusterInfo{
 		Namespace:   "mycluster",
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9},
-		Context:     context.TODO(),
+		Context:     t.Context(),
 	},
 		storeName)
 
@@ -715,7 +714,7 @@ func TestDashboard(t *testing.T) {
 	objContext = NewContext(&clusterd.Context{Executor: executor}, &client.ClusterInfo{
 		Namespace:   "mycluster",
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 10},
-		Context:     context.TODO(),
+		Context:     t.Context(),
 	},
 		storeName)
 	err = enableRGWDashboard(objContext)
@@ -1077,7 +1076,7 @@ func Test_createMultisiteConfigurations(t *testing.T) {
 func TestGetRealmKeySecret(t *testing.T) {
 	ns := "my-ns"
 	realmName := "my-realm"
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	t.Run("secret exists", func(t *testing.T) {
 		secret := &v1.Secret{
@@ -1168,7 +1167,7 @@ func TestGetRealmKeyArgsFromSecret(t *testing.T) {
 func TestGetRealmKeyArgs(t *testing.T) {
 	ns := "my-ns"
 	realmName := "my-realm"
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	baseSecret := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{

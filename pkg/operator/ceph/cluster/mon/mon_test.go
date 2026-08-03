@@ -17,7 +17,6 @@ limitations under the License.
 package mon
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path"
@@ -288,7 +287,7 @@ func validateStart(t *testing.T, c *Cluster) {
 func TestPersistMons(t *testing.T) {
 	clientset := test.New(t, 1)
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	c := New(context.TODO(), &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{Annotations: cephv1.AnnotationsSpec{cephv1.KeyClusterMetadata: cephv1.Annotations{"key": "value"}}}, ownerInfo)
+	c := New(t.Context(), &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{Annotations: cephv1.AnnotationsSpec{cephv1.KeyClusterMetadata: cephv1.Annotations{"key": "value"}}}, ownerInfo)
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	expectedPorts := []discoveryv1.EndpointPort{
@@ -302,12 +301,12 @@ func TestPersistMons(t *testing.T) {
 	err = c.persistExpectedMonDaemonsAsEndpointSlice()
 	assert.NoError(t, err)
 
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(t.Context(), EndpointConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "a=1.2.3.1:3300", cm.Data[EndpointDataKey])
 	assert.Equal(t, map[string]string{"key": "value"}, cm.Annotations)
 
-	ep, err := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv4, metav1.GetOptions{})
+	ep, err := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(t.Context(), endpointSliceNameIPv4, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "1.2.3.1", ep.Endpoints[0].Addresses[0])
 	assert.ElementsMatch(t, expectedPorts, ep.Ports)
@@ -321,11 +320,11 @@ func TestPersistMons(t *testing.T) {
 	err = c.persistExpectedMonDaemonsAsEndpointSlice()
 	assert.NoError(t, err)
 
-	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(t.Context(), EndpointConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "b=4.5.6.7:3300", cm.Data[EndpointDataKey])
 
-	ep, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv4, metav1.GetOptions{})
+	ep, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(t.Context(), endpointSliceNameIPv4, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "4.5.6.7", ep.Endpoints[0].Addresses[0])
 	assert.ElementsMatch(t, expectedPorts, ep.Ports)
@@ -337,7 +336,7 @@ func TestCreateEndpointSlices(t *testing.T) {
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 
 	// RequireMsgr2=false
-	c := New(context.TODO(), &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	c := New(t.Context(), &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	expectedPorts := []discoveryv1.EndpointPort{
 		{Name: ptr.To(DefaultMsgr2PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr2Port)},
 		{Name: ptr.To(DefaultMsgr1PortName), Protocol: ptr.To(v1.ProtocolTCP), Port: ptr.To(DefaultMsgr1Port)},
@@ -346,7 +345,7 @@ func TestCreateEndpointSlices(t *testing.T) {
 
 	// RequireMsgr2=true
 	c = New(
-		context.TODO(),
+		t.Context(),
 		&clusterd.Context{Clientset: clientset},
 		"ns",
 		cephv1.ClusterSpec{
@@ -385,14 +384,14 @@ func testCreateEndpointSlicesForCluster(t *testing.T, c *Cluster, expectedPorts 
 	err := c.persistExpectedMonDaemonsAsEndpointSlice()
 	assert.NoError(t, err)
 
-	epSliceIPv4, err := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv4, metav1.GetOptions{})
+	epSliceIPv4, err := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(t.Context(), endpointSliceNameIPv4, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, discoveryv1.AddressTypeIPv4, epSliceIPv4.AddressType)
 	assert.Len(t, epSliceIPv4.Endpoints, 1)
 	assert.ElementsMatch(t, ipv4Addresses, epSliceIPv4.Endpoints[0].Addresses)
 	assert.ElementsMatch(t, expectedPorts, epSliceIPv4.Ports)
 
-	_, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv6, metav1.GetOptions{})
+	_, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(t.Context(), endpointSliceNameIPv6, metav1.GetOptions{})
 	assert.True(t, kerrors.IsNotFound(err))
 
 	// IPv6 test
@@ -404,10 +403,10 @@ func testCreateEndpointSlicesForCluster(t *testing.T, c *Cluster, expectedPorts 
 	err = c.persistExpectedMonDaemonsAsEndpointSlice()
 	assert.NoError(t, err)
 
-	_, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv4, metav1.GetOptions{})
+	_, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(t.Context(), endpointSliceNameIPv4, metav1.GetOptions{})
 	assert.True(t, kerrors.IsNotFound(err))
 
-	epSliceIPv6, err := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv6, metav1.GetOptions{})
+	epSliceIPv6, err := c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(t.Context(), endpointSliceNameIPv6, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, discoveryv1.AddressTypeIPv6, epSliceIPv6.AddressType)
 	assert.Len(t, epSliceIPv6.Endpoints, 1)
@@ -430,14 +429,14 @@ func testCreateEndpointSlicesForCluster(t *testing.T, c *Cluster, expectedPorts 
 	err = c.persistExpectedMonDaemonsAsEndpointSlice()
 	assert.NoError(t, err)
 
-	epSliceIPv4, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv4, metav1.GetOptions{})
+	epSliceIPv4, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(t.Context(), endpointSliceNameIPv4, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, discoveryv1.AddressTypeIPv4, epSliceIPv4.AddressType)
 	assert.Len(t, epSliceIPv4.Endpoints, 1)
 	assert.ElementsMatch(t, ipv4Addresses, epSliceIPv4.Endpoints[0].Addresses)
 	assert.ElementsMatch(t, expectedPorts, epSliceIPv4.Ports)
 
-	epSliceIPv6, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(context.TODO(), endpointSliceNameIPv6, metav1.GetOptions{})
+	epSliceIPv6, err = c.context.Clientset.DiscoveryV1().EndpointSlices(c.Namespace).Get(t.Context(), endpointSliceNameIPv6, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, discoveryv1.AddressTypeIPv6, epSliceIPv6.AddressType)
 	assert.Len(t, epSliceIPv6.Endpoints, 1)
@@ -446,7 +445,7 @@ func testCreateEndpointSlicesForCluster(t *testing.T, c *Cluster, expectedPorts 
 }
 
 func TestSaveMonEndpoints(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
@@ -503,7 +502,7 @@ func TestMaxMonID(t *testing.T) {
 	s := scheme.Scheme
 	assert.NoError(t, csiopv1.AddToScheme(s))
 	cl := fake.NewClientBuilder().WithScheme(s).Build()
-	c := New(context.TODO(), &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Client: cl}, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	c := New(t.Context(), &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Client: cl}, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// when the configmap is not found, the maxMonID is -1
@@ -1136,7 +1135,7 @@ func TestCrushWeightsBalanced(t *testing.T) {
 }
 
 func TestSkipReconcile(t *testing.T) {
-	c := New(context.TODO(), &clusterd.Context{Clientset: test.New(t, 1), ConfigDir: t.TempDir()}, "ns", cephv1.ClusterSpec{}, cephclient.NewMinimumOwnerInfoWithOwnerRef())
+	c := New(t.Context(), &clusterd.Context{Clientset: test.New(t, 1), ConfigDir: t.TempDir()}, "ns", cephv1.ClusterSpec{}, cephclient.NewMinimumOwnerInfoWithOwnerRef())
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	c.ClusterInfo.Namespace = "ns"
 
@@ -1242,7 +1241,7 @@ func TestIsMonIPUpdateRequiredForHostNetwork(t *testing.T) {
 }
 
 func TestRotateMonCephxKeys(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	namespace := "default"
 	context, err := newTestStartCluster(t, namespace)
 	assert.NoError(t, err)
