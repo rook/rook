@@ -176,6 +176,41 @@ NAME="ceph--89fa04fa--b93a--4874--9364--c95be3ec01c6-osd--data--70847bdb--2ec1--
 	assert.Equal(t, 0, len(partitions))
 }
 
+func TestGetUdevInfo(t *testing.T) {
+	// GetUdevInfo is called both with a kernel name ("sdb") and with a full
+	// device path ("/dev/sdb"). Both must reach udevadm as "/dev/sdb"; a full
+	// path must not become "/dev//dev/sdb", which udevadm rejects.
+	// The argument is asserted exactly rather than with Contains, because a
+	// doubled prefix still contains the device name.
+	tests := []struct {
+		name     string
+		device   string
+		expected string
+	}{
+		{"kernel name", "sdb", "/dev/sdb"},
+		{"full path", "/dev/sdb", "/dev/sdb"},
+		{"by-id path", "/dev/disk/by-id/scsi-36001405d27e5d898829468b90ce4ef8c", "/dev/disk/by-id/scsi-36001405d27e5d898829468b90ce4ef8c"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var gotDevice string
+			executor := &exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
+					assert.Equal(t, "udevadm", command)
+					gotDevice = arg[len(arg)-1]
+					return udevOutput, nil
+				},
+			}
+
+			info, err := GetUdevInfo(test.device, executor)
+			assert.NoError(t, err)
+			assert.Equal(t, test.expected, gotDevice)
+			assert.Equal(t, "ext2", info["ID_FS_TYPE"])
+		})
+	}
+}
+
 func TestParseUdevInfo(t *testing.T) {
 	m := parseUdevInfo(udevOutput)
 	assert.Equal(t, m["ID_FS_TYPE"], "ext2")

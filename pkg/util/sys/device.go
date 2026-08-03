@@ -235,7 +235,14 @@ func IsLV(devicePath string, executor exec.Executor) (bool, error) {
 
 // GetUdevInfo gets udev information
 func GetUdevInfo(device string, executor exec.Executor) (map[string]string, error) {
-	output, err := executor.ExecuteCommandWithOutput("udevadm", "info", "--query=property", fmt.Sprintf("/dev/%s", device))
+	// The caller may pass either a kernel name ("sdb") or a full device path
+	// ("/dev/sdb"), so only add the /dev prefix when it is missing. Adding it
+	// unconditionally produces "/dev//dev/sdb", which udevadm rejects.
+	devicePath := strings.Split(device, "/")
+	if len(devicePath) == 1 {
+		device = fmt.Sprintf("/dev/%s", device)
+	}
+	output, err := executor.ExecuteCommandWithOutput("udevadm", "info", "--query=property", device)
 	if err != nil {
 		return nil, err
 	}
