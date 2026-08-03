@@ -17,7 +17,6 @@ limitations under the License.
 package pool
 
 import (
-	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -30,7 +29,7 @@ import (
 )
 
 func Test_cephBlockPoolDependents(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	scheme := runtime.NewScheme()
 	assert.NoError(t, cephv1.AddToScheme(scheme))
 	ns := "test-ceph-blockpool-dependents"

@@ -17,7 +17,6 @@ limitations under the License.
 package kms
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -32,7 +31,7 @@ import (
 )
 
 func TestValidateConnectionDetails(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Placeholder
 	clusterdContext := &clusterd.Context{Clientset: test.New(t, 3)}
 	kms := &cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}
@@ -240,7 +239,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 }
 
 func TestSetTokenToEnvVar(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	context := &clusterd.Context{Clientset: test.New(t, 3)}
 	secretName := "vault-secret"
 	ns := "rook-ceph"

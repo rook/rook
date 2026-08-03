@@ -46,7 +46,7 @@ func TestAddFinalizerIfNotPresent(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	assert.Empty(t, fakeObject.Finalizers)
-	generationUpdated, err := AddFinalizerIfNotPresent(context.TODO(), cl, fakeObject)
+	generationUpdated, err := AddFinalizerIfNotPresent(t.Context(), cl, fakeObject)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, fakeObject.Finalizers)
 	// Adding the finalizer is a metadata-only patch, so the generation is not
@@ -81,7 +81,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	assert.NotEmpty(t, fakeObject.Finalizers)
-	err := RemoveFinalizer(context.TODO(), cl, fakeObject)
+	err := RemoveFinalizer(t.Context(), cl, fakeObject)
 	assert.NoError(t, err)
 	assert.Empty(t, fakeObject.Finalizers)
 }
@@ -108,7 +108,7 @@ func TestRemoveFinalizerWithName(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	assert.NotEmpty(t, fakeObject.Finalizers)
-	err := RemoveFinalizerWithName(context.TODO(), cl, fakeObject, "cephblockpool.ceph.rook.io")
+	err := RemoveFinalizerWithName(t.Context(), cl, fakeObject, "cephblockpool.ceph.rook.io")
 	assert.NoError(t, err)
 	assert.Empty(t, fakeObject.Finalizers)
 }

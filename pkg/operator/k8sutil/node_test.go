@@ -74,7 +74,7 @@ func TestValidNode(t *testing.T) {
 
 	t.Run("test valid node", func(t *testing.T) {
 		var placement cephv1.Placement
-		validNodes := GetValidNodes(context.TODO(), storage, clientset, placement)
+		validNodes := GetValidNodes(t.Context(), storage, clientset, placement)
 		assert.Equal(t, 1, len(validNodes))
 		assert.Equal(t, "nodeA", validNodes[0].Name)
 	})
@@ -82,7 +82,7 @@ func TestValidNode(t *testing.T) {
 	t.Run("test nodes always valid", func(t *testing.T) {
 		var placement cephv1.Placement
 		storage.ScheduleAlways = true
-		validNodes := GetValidNodes(context.TODO(), storage, clientset, placement)
+		validNodes := GetValidNodes(t.Context(), storage, clientset, placement)
 		require.Equal(t, 2, len(validNodes))
 		assert.Equal(t, "nodeA", validNodes[0].Name)
 		assert.Equal(t, "nodeB", validNodes[1].Name)
@@ -109,7 +109,7 @@ func TestValidNode(t *testing.T) {
 				},
 			},
 		}
-		validNodes := GetValidNodes(context.TODO(), storage, clientset, placement)
+		validNodes := GetValidNodes(t.Context(), storage, clientset, placement)
 		assert.Equal(t, len(validNodes), 1)
 		assert.Equal(t, "nodeC", validNodes[0].Name)
 	})
@@ -244,7 +244,7 @@ func TestNodeIsReady(t *testing.T) {
 }
 
 func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := optest.New(t, 3) // create nodes 0, 1, and 2
 	rookNodes := []cephv1.Node{}
 
@@ -292,7 +292,7 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 }
 
 func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := optest.New(t, 3) // create nodes 0, 1, and 2
 
 	getNode := func(name string) v1.Node {
@@ -545,7 +545,7 @@ requiredDuringSchedulingIgnoredDuringExecution:
 }
 
 func TestGetNotReadyKubernetesNodes(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := optest.New(t, 0)
 
 	// when there is no node

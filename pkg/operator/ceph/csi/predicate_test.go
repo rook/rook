@@ -17,7 +17,6 @@ limitations under the License.
 package csi
 
 import (
-	"context"
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
@@ -90,12 +89,12 @@ func Test_cephClusterPredicate(t *testing.T) {
 		client := fake.NewClientBuilder().WithScheme(s).Build()
 
 		cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-operator-config", Namespace: "rook-ceph"}}
-		err := client.Create(context.TODO(), cm)
+		err := client.Create(t.Context(), cm)
 		require.NoError(t, err)
 
 		cluster := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Generation: 1}}
 		e := event.TypedCreateEvent[*cephv1.CephCluster]{Object: cluster}
-		p := cephClusterPredicate(context.TODO(), client, "rook-ceph")
+		p := cephClusterPredicate(t.Context(), client, "rook-ceph")
 		assert.True(t, p.Create(e))
 	})
 
@@ -103,12 +102,12 @@ func Test_cephClusterPredicate(t *testing.T) {
 		client := fake.NewClientBuilder().WithScheme(s).Build()
 
 		cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-operator-config", Namespace: "rook-ceph"}}
-		err := client.Create(context.TODO(), cm)
+		err := client.Create(t.Context(), cm)
 		require.NoError(t, err)
 
 		cluster := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Generation: 2}}
 		e := event.TypedCreateEvent[*cephv1.CephCluster]{Object: cluster}
-		p := cephClusterPredicate(context.TODO(), client, "rook-ceph")
+		p := cephClusterPredicate(t.Context(), client, "rook-ceph")
 		assert.False(t, p.Create(e))
 	})
 
@@ -117,7 +116,7 @@ func Test_cephClusterPredicate(t *testing.T) {
 
 		cluster := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Generation: 2}}
 		e := event.TypedCreateEvent[*cephv1.CephCluster]{Object: cluster}
-		p := cephClusterPredicate(context.TODO(), client, "rook-ceph")
+		p := cephClusterPredicate(t.Context(), client, "rook-ceph")
 		assert.True(t, p.Create(e))
 	})
 
@@ -126,16 +125,16 @@ func Test_cephClusterPredicate(t *testing.T) {
 
 		{
 			cluster := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: "ceph1", Namespace: "rook-ceph", Generation: 2}}
-			err := client.Create(context.TODO(), cluster)
+			err := client.Create(t.Context(), cluster)
 			require.NoError(t, err)
 		}
 
 		cluster := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: "ceph2", Namespace: "rook-ceph"}}
-		err := client.Create(context.TODO(), cluster)
+		err := client.Create(t.Context(), cluster)
 		require.NoError(t, err)
 
 		e := event.TypedCreateEvent[*cephv1.CephCluster]{Object: cluster}
-		p := cephClusterPredicate(context.TODO(), client, "rook-ceph")
+		p := cephClusterPredicate(t.Context(), client, "rook-ceph")
 		assert.False(t, p.Create(e))
 	})
 }

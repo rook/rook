@@ -17,7 +17,6 @@ limitations under the License.
 package nfs
 
 import (
-	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -541,7 +540,7 @@ func TestCreateOrUpdateCephNFSServicePort(t *testing.T) {
 	err := r.createCephNFSService(nfs, cfg)
 	assert.NoError(t, err)
 
-	svc, err := r.context.Clientset.CoreV1().Services(nfs.Namespace).Get(context.TODO(), instanceName(nfs, cfg.ID), metav1.GetOptions{})
+	svc, err := r.context.Clientset.CoreV1().Services(nfs.Namespace).Get(t.Context(), instanceName(nfs, cfg.ID), metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, cephv1.DefaultNFSPort, svc.Spec.Ports[0].Port)
 
@@ -553,7 +552,7 @@ func TestCreateOrUpdateCephNFSServicePort(t *testing.T) {
 	err = r.createCephNFSService(nfs, cfg)
 	assert.NoError(t, err)
 
-	svc, err = r.context.Clientset.CoreV1().Services(nfs.Namespace).Get(context.TODO(), instanceName(nfs, cfg.ID), metav1.GetOptions{})
+	svc, err = r.context.Clientset.CoreV1().Services(nfs.Namespace).Get(t.Context(), instanceName(nfs, cfg.ID), metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, expected.Labels, svc.Labels)
 	assert.Equal(t, expected.Spec, svc.Spec)

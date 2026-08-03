@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"slices"
@@ -151,7 +150,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		expectList = []expect{} // clear expect list
 
 		clusterInfo := &client.ClusterInfo{
-			Context:       context.TODO(),
+			Context:       t.Context(),
 			FSID:          "00000000-0000-0000-0000-000000000000",
 			Namespace:     ns,
 			CephVersion:   version.CephVersion{Major: 20, Minor: 3, Extra: 0},
@@ -203,7 +202,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 
 		clientset := testop.New(t, 3)
-		_, err := clientset.CoreV1().Secrets(ns).Create(context.TODO(), monSecret, metav1.CreateOptions{})
+		_, err := clientset.CoreV1().Secrets(ns).Create(t.Context(), monSecret, metav1.CreateOptions{})
 		if err != nil {
 			panic(err) // test setup failed
 		}
@@ -276,12 +275,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.True(t, reloadManagerCalled)
 
 		cluster := cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(2), cluster.Status.Cephx.Admin.KeyGeneration)   // updated
 		assert.Equal(t, "20.3.0-0", cluster.Status.Cephx.Admin.KeyCephVersion) // updated
 
-		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData := map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -291,7 +290,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 		assert.Equal(t, wantMonSecretData, monSec.Data)
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.ErrorContains(t, err, "not found") // rotator keyring not persisted
 
 		// after successful rotation, recovery should not occur
@@ -299,16 +298,16 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, len(expectList), numCalls) // same number calls from before
 
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(2), cluster.Status.Cephx.Admin.KeyGeneration)   // unchanged
 		assert.Equal(t, "20.3.0-0", cluster.Status.Cephx.Admin.KeyCephVersion) // unchanged
 
-		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, wantMonSecretData, monSec.Data) // unchanged
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.ErrorContains(t, err, "not found") // rotator keyring not persisted
 	})
 
@@ -337,12 +336,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.False(t, reloadManagerCalled)
 
 		cluster := cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(1), cluster.Status.Cephx.Admin.KeyGeneration)   // unchanged
 		assert.Equal(t, "19.2.3-0", cluster.Status.Cephx.Admin.KeyCephVersion) // unchanged
 
-		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData := map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -357,11 +356,11 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, len(expectList), numCalls) // same number calls from before
 
-		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, wantMonSecretData, monSec.Data) // unchanged
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.ErrorContains(t, err, "not found") // rotator keyring not persisted
 	})
 
@@ -389,12 +388,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.False(t, reloadManagerCalled)
 
 		cluster := cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(1), cluster.Status.Cephx.Admin.KeyGeneration)   // unchanged
 		assert.Equal(t, "19.2.3-0", cluster.Status.Cephx.Admin.KeyCephVersion) // unchanged
 
-		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData := map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -404,7 +403,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 		assert.Equal(t, wantMonSecretData, monSec.Data)
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.NoError(t, err) // rotator secret now persisted
 
 		// expect recovery to proceed
@@ -453,12 +452,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.True(t, reloadManagerCalled)
 
 		cluster = cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(2), cluster.Status.Cephx.Admin.KeyGeneration)   // updated
 		assert.Equal(t, "20.3.0-0", cluster.Status.Cephx.Admin.KeyCephVersion) // updated
 
-		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData = map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -468,7 +467,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 		assert.Equal(t, wantMonSecretData, monSec.Data)
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.ErrorContains(t, err, "not found") // rotator keyring not persisted
 
 		t.Run("recovery doesn't reoccur after successful recovery", func(t *testing.T) {
@@ -477,16 +476,16 @@ func Test_admin_key_rotation(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, len(expectList), numCalls) // same number calls from before
 
-			err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+			err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 			assert.NoError(t, err)
 			assert.Equal(t, uint32(2), cluster.Status.Cephx.Admin.KeyGeneration)   // unchanged
 			assert.Equal(t, "20.3.0-0", cluster.Status.Cephx.Admin.KeyCephVersion) // unchanged
 
-			monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+			monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 			assert.NoError(t, err)
 			assert.Equal(t, wantMonSecretData, monSec.Data) // unchanged
 
-			_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+			_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 			assert.ErrorContains(t, err, "not found") // rotator keyring not persisted
 		})
 	})
@@ -522,12 +521,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.False(t, reloadManagerCalled)
 
 		cluster := cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(1), cluster.Status.Cephx.Admin.KeyGeneration)   // unchanged
 		assert.Equal(t, "19.2.3-0", cluster.Status.Cephx.Admin.KeyCephVersion) // unchanged
 
-		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData := map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -537,7 +536,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 		assert.Equal(t, wantMonSecretData, monSec.Data)
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.NoError(t, err) // rotator secret now persisted
 
 		// expect recovery to proceed
@@ -586,12 +585,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.True(t, reloadManagerCalled)
 
 		cluster = cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(2), cluster.Status.Cephx.Admin.KeyGeneration)   // updated
 		assert.Equal(t, "20.3.0-0", cluster.Status.Cephx.Admin.KeyCephVersion) // updated
 
-		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData = map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -601,7 +600,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 		assert.Equal(t, wantMonSecretData, monSec.Data)
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.ErrorContains(t, err, "not found") // rotator keyring not persisted
 	})
 
@@ -643,12 +642,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.False(t, reloadManagerCalled)
 
 		cluster := cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(1), cluster.Status.Cephx.Admin.KeyGeneration)   // unchanged
 		assert.Equal(t, "19.2.3-0", cluster.Status.Cephx.Admin.KeyCephVersion) // unchanged
 
-		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData := map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -658,7 +657,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 		assert.Equal(t, wantMonSecretData, monSec.Data)
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.NoError(t, err) // rotator secret now persisted
 
 		// expect recovery to proceed
@@ -706,12 +705,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.True(t, reloadManagerCalled)
 
 		cluster = cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(2), cluster.Status.Cephx.Admin.KeyGeneration)   // updated
 		assert.Equal(t, "20.3.0-0", cluster.Status.Cephx.Admin.KeyCephVersion) // updated
 
-		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData = map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -721,7 +720,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 		assert.Equal(t, wantMonSecretData, monSec.Data)
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.ErrorContains(t, err, "not found") // rotator keyring not persisted
 	})
 
@@ -770,12 +769,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.False(t, reloadManagerCalled)
 
 		cluster := cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(1), cluster.Status.Cephx.Admin.KeyGeneration)   // unchanged
 		assert.Equal(t, "19.2.3-0", cluster.Status.Cephx.Admin.KeyCephVersion) // unchanged
 
-		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData := map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -785,7 +784,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 		assert.Equal(t, wantMonSecretData, monSec.Data)
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.NoError(t, err) // rotator secret still persisted
 
 		// expect recovery to proceed
@@ -835,12 +834,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.True(t, reloadManagerCalled)
 
 		cluster = cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(2), cluster.Status.Cephx.Admin.KeyGeneration)   // updated
 		assert.Equal(t, "20.3.0-0", cluster.Status.Cephx.Admin.KeyCephVersion) // updated
 
-		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData = map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -850,7 +849,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 		assert.Equal(t, wantMonSecretData, monSec.Data)
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.ErrorContains(t, err, "not found") // rotator keyring not persisted
 	})
 
@@ -899,12 +898,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.False(t, reloadManagerCalled)
 
 		cluster := cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(1), cluster.Status.Cephx.Admin.KeyGeneration)   // unchanged
 		assert.Equal(t, "19.2.3-0", cluster.Status.Cephx.Admin.KeyCephVersion) // unchanged
 
-		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err := clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData := map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -914,7 +913,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 		assert.Equal(t, wantMonSecretData, monSec.Data)
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.NoError(t, err) // rotator secret still persisted
 
 		// expect recovery to proceed
@@ -936,12 +935,12 @@ func Test_admin_key_rotation(t *testing.T) {
 		assert.True(t, reloadManagerCalled)
 
 		cluster = cephv1.CephCluster{}
-		err = clusterdCtx.Client.Get(context.TODO(), clusterInfo.NamespacedName(), &cluster)
+		err = clusterdCtx.Client.Get(t.Context(), clusterInfo.NamespacedName(), &cluster)
 		assert.NoError(t, err)
 		assert.Equal(t, uint32(2), cluster.Status.Cephx.Admin.KeyGeneration)   // updated
 		assert.Equal(t, "20.3.0-0", cluster.Status.Cephx.Admin.KeyCephVersion) // updated
 
-		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-mon", metav1.GetOptions{})
+		monSec, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-mon", metav1.GetOptions{})
 		assert.NoError(t, err)
 		wantMonSecretData = map[string][]byte{
 			"mon-secret":    []byte("MONSECRET/SHOULDNOTCHANGE="),
@@ -951,7 +950,7 @@ func Test_admin_key_rotation(t *testing.T) {
 		}
 		assert.Equal(t, wantMonSecretData, monSec.Data)
 
-		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(context.TODO(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
+		_, err = clusterdCtx.Clientset.CoreV1().Secrets(ns).Get(t.Context(), "rook-ceph-admin-rotator-keyring", metav1.GetOptions{})
 		assert.ErrorContains(t, err, "not found") // rotator keyring not persisted
 	})
 }

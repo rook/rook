@@ -35,7 +35,7 @@ import (
 )
 
 func TestOSDHealthCheck(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := testexec.New(t, 2)
 	clusterInfo := client.AdminTestClusterInfo("fake")
 
@@ -99,7 +99,7 @@ func TestOSDHealthCheck(t *testing.T) {
 }
 
 func TestMonitorStart(t *testing.T) {
-	context, cancel := context.WithCancel(context.TODO())
+	context, cancel := context.WithCancel(t.Context())
 	var monitoringRoutines sync.Map
 	monitoringRoutines.Store("osd", &opcontroller.ClusterHealth{
 		InternalCtx:    context,

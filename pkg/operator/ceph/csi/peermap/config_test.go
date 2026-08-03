@@ -18,7 +18,6 @@ package peermap
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -332,7 +331,7 @@ func TestSinglePeerMappings(t *testing.T) {
 	}
 
 	// create fake secret with "peer1" cluster token
-	_, err := fakeContext.Clientset.CoreV1().Secrets(ns).Create(context.TODO(), &peer1Secret, metav1.CreateOptions{})
+	_, err := fakeContext.Clientset.CoreV1().Secrets(ns).Create(t.Context(), &peer1Secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// expected: &[{ClusterIDMapping:{peer1:rook-ceph-primary}. RBDPoolIDMapping:[{2:1}]}]
@@ -356,15 +355,15 @@ func TestMultiPeerMappings(t *testing.T) {
 	}
 
 	// create fake secret with "peer1" cluster token
-	_, err := fakeContext.Clientset.CoreV1().Secrets(ns).Create(context.TODO(), &peer1Secret, metav1.CreateOptions{})
+	_, err := fakeContext.Clientset.CoreV1().Secrets(ns).Create(t.Context(), &peer1Secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// create fake secret with "peer2" cluster token
-	_, err = fakeContext.Clientset.CoreV1().Secrets(ns).Create(context.TODO(), &peer2Secret, metav1.CreateOptions{})
+	_, err = fakeContext.Clientset.CoreV1().Secrets(ns).Create(t.Context(), &peer2Secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// create fake secret with "peer3" cluster token
-	_, err = fakeContext.Clientset.CoreV1().Secrets(ns).Create(context.TODO(), &peer3Secret, metav1.CreateOptions{})
+	_, err = fakeContext.Clientset.CoreV1().Secrets(ns).Create(t.Context(), &peer3Secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	actualMappings, err := getClusterPoolIDMap(
@@ -446,15 +445,15 @@ func TestCreateOrUpdateConfig(t *testing.T) {
 	}
 
 	// Create fake pod
-	_, err = fakeContext.Clientset.CoreV1().Pods(ns).Create(context.TODO(), test.FakeOperatorPod(ns), metav1.CreateOptions{})
+	_, err = fakeContext.Clientset.CoreV1().Pods(ns).Create(t.Context(), test.FakeOperatorPod(ns), metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// Create fake replicaset
-	_, err = fakeContext.Clientset.AppsV1().ReplicaSets(ns).Create(context.TODO(), test.FakeReplicaSet(ns), metav1.CreateOptions{})
+	_, err = fakeContext.Clientset.AppsV1().ReplicaSets(ns).Create(t.Context(), test.FakeReplicaSet(ns), metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// Create empty ID mapping configMap
-	err = CreateOrUpdateConfig(context.TODO(), fakeContext, &PeerIDMappings{})
+	err = CreateOrUpdateConfig(t.Context(), fakeContext, &PeerIDMappings{})
 	assert.NoError(t, err)
 	validateConfig(t, fakeContext, PeerIDMappings{})
 
@@ -470,7 +469,7 @@ func TestCreateOrUpdateConfig(t *testing.T) {
 		},
 	}
 
-	err = CreateOrUpdateConfig(context.TODO(), fakeContext, actualMappings)
+	err = CreateOrUpdateConfig(t.Context(), fakeContext, actualMappings)
 	assert.NoError(t, err)
 	// validateConfig(t, fakeContext, actualMappings)
 
@@ -485,14 +484,14 @@ func TestCreateOrUpdateConfig(t *testing.T) {
 		},
 	})
 
-	err = CreateOrUpdateConfig(context.TODO(), fakeContext, &mappings)
+	err = CreateOrUpdateConfig(t.Context(), fakeContext, &mappings)
 	assert.NoError(t, err)
 	validateConfig(t, fakeContext, mappings)
 }
 
 func validateConfig(t *testing.T, c *clusterd.Context, mappings PeerIDMappings) {
 	cm := &corev1.ConfigMap{}
-	err := c.Client.Get(context.TODO(), types.NamespacedName{Name: mappingConfigName, Namespace: ns}, cm)
+	err := c.Client.Get(t.Context(), types.NamespacedName{Name: mappingConfigName, Namespace: ns}, cm)
 	assert.NoError(t, err)
 
 	data := cm.Data[mappingConfigkey]
