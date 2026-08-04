@@ -1,0 +1,11 @@
+{{- $root := . -}}
+{{- range $user := .Values.cephObjectStoreUsers }}
+---
+kind: CephObjectStoreUser
+apiVersion: ceph.rook.io/v1
+metadata:
+  name: {{ $user.name }}
+  namespace: {{ $root.Release.Namespace }} # namespace:cluster
+spec:
+  {{- $user.spec | toYaml | nindent 2 }}
+{{- end }}
