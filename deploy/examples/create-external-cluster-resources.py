@@ -326,7 +326,14 @@ class RadosJSON:
             "--v2-port-enable",
             action="store_true",
             default=False,
-            help="Enable v2 mon port(3300) for mons",
+            help="(Deprecated) v2 port is now selected by default. This flag is ignored.",
+        )
+
+        common_group.add_argument(
+            "--v1-port-enable",
+            action="store_true",
+            default=False,
+            help="Use v1 mon port(6789) instead of the default v2 port(3300)",
         )
 
         output_group = argP.add_argument_group("output")
@@ -723,17 +730,22 @@ class RadosJSON:
         q_leader_details = q_leader_matching_list[0]
         # get the address vector of the quorum-leader
         q_leader_addrvec = q_leader_details.get("public_addrs", {}).get("addrvec", [])
-        ip_addr = str(q_leader_details["public_addr"].split("/")[0])
-
-        if self._arg_parser.v2_port_enable:
+        # default to v2 address (msgr2)
+        ip_addr = ""
+        if self._arg_parser.v1_port_enable:
+            if q_leader_addrvec[0]["type"] == "v1":
+                ip_addr = q_leader_addrvec[0]["addr"]
+            elif len(q_leader_addrvec) > 1 and q_leader_addrvec[1]["type"] == "v1":
+                ip_addr = q_leader_addrvec[1]["addr"]
+            else:
+                ip_addr = str(q_leader_details["public_addr"].split("/")[0])
+        else:
             if q_leader_addrvec[0]["type"] == "v2":
                 ip_addr = q_leader_addrvec[0]["addr"]
             elif len(q_leader_addrvec) > 1 and q_leader_addrvec[1]["type"] == "v2":
                 ip_addr = q_leader_addrvec[1]["addr"]
             else:
-                sys.stderr.write(
-                    "'v2' address type not present, and 'v2-port-enable' flag is provided"
-                )
+                ip_addr = str(q_leader_details["public_addr"].split("/")[0])
 
         return f"{str(q_leader_name)}={ip_addr}"
 
