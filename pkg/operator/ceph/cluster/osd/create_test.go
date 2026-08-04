@@ -179,14 +179,13 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		// OSD 6 already has a deployment (in the existence list). Make it a finished-replacement
 		// marker: scaled to zero, carrying the replace-ready-for-swap annotation. The create path
 		// must delete the marker and recreate the OSD from the reprovisioned status.
-		zeroReplicas := int32(0)
 		marker := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        fmt.Sprintf(osdAppNameFmt, 6),
 				Namespace:   namespace,
 				Annotations: map[string]string{cephv1.ReadyForSwapOSDAnnotationKey: ""},
 			},
-			Spec: appsv1.DeploymentSpec{Replicas: &zeroReplicas},
+			Spec: appsv1.DeploymentSpec{Replicas: new(int32(0))},
 		}
 		_, err := clientset.AppsV1().Deployments(namespace).Create(context.TODO(), marker, metav1.CreateOptions{})
 		require.NoError(t, err)

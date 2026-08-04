@@ -236,8 +236,7 @@ func (m *OSDHealthMonitor) scaleDownOSDDeployment(d *appsv1.Deployment, osdID in
 		return nil
 	}
 	log.NamespacedInfo(m.clusterInfo.Namespace, logger, "scaling osd.%d deployment %q to replicas=0", osdID, d.Name)
-	zero := int32(0)
-	d.Spec.Replicas = &zero
+	d.Spec.Replicas = new(int32(0))
 	updated, err := m.cluster.context.Clientset.AppsV1().Deployments(m.clusterInfo.Namespace).Update(m.clusterInfo.Context, d, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to scale osd.%d deployment %q to zero", osdID, d.Name)
@@ -302,9 +301,9 @@ func (m *OSDHealthMonitor) annotateReadyForSwap(d *appsv1.Deployment, osdID int)
 }
 
 // cancelReplaceOSD reverses a drain that was cancelled before the OSD was destroyed: mark the OSD
-// back `in`, delete any in-flight crypto-close Job, and clear the in-progress annotation and the
-// do-not-reconcile label so the updater scales the deployment back to replicas=1. The goroutine only
-// ever clears this label, never sets it. Idempotent across ticks.
+// back `in`, delete any in-flight crypto-close Job, scale the deployment back up, and clear the
+// in-progress annotation and the do-not-reconcile label. The goroutine only ever clears this label,
+// never sets it. Idempotent across ticks.
 func (m *OSDHealthMonitor) cancelReplaceOSD(d *appsv1.Deployment, osdID int) error {
 	log.NamespacedInfo(m.clusterInfo.Namespace, logger,
 		"replacement of osd.%d was cancelled before destroy; marking it back in and clearing the replacement markers", osdID)
@@ -313,19 +312,29 @@ func (m *OSDHealthMonitor) cancelReplaceOSD(d *appsv1.Deployment, osdID int) err
 		return errors.Wrapf(err, "failed to mark osd.%d back in on cancellation", osdID)
 	}
 
-	// Delete any in-flight crypto-close Job before clearing the fence label. If the encrypted OSD was
-	// cancelled after its crypto-close Job was created, a lingering `cryptsetup close` would race the
-	// daemon once it scales back up, so the Job must be gone before the label is cleared. The delete is
-	// idempotent (no-op if absent); a failed delete is returned so the cancellation retries next tick.
+	// The crypto-close Job must be fully gone before the fence is cleared, so a lingering `cryptsetup
+	// close` can never race the returning daemon. The delete is foreground, so the Job outlives its
+	// pods: while it is still there the cancellation is deferred and completes on a later tick.
 	if err := m.cluster.deleteCryptCloseJob(osdID); err != nil {
 		return errors.Wrapf(err, "failed to delete crypto-close job for osd.%d on cancellation", osdID)
 	}
+	status, err := m.cluster.cryptCloseJobStatusForOSD(osdID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check the crypto-close job of osd.%d on cancellation", osdID)
+	}
+	if status != cryptCloseJobNotFound {
+		log.NamespacedInfo(m.clusterInfo.Namespace, logger,
+			"cancellation of osd.%d is waiting for its crypto-close job to be deleted; will re-check next tick", osdID)
+		return nil
+	}
 
-	// Drop both markers in one update, the reverse of how the controller set them, so the OSD is never
-	// left owned-but-unfenced or fenced-but-unowned.
+	// Scale back up and drop both markers in one update, the reverse of how the controller set them, so
+	// the OSD is never left owned-but-unfenced or fenced-but-unowned. Removing the annotation fires no
+	// reconcile, so nothing else would scale the deployment back up.
+	d.Spec.Replicas = new(int32(1))
 	delete(d.Annotations, cephv1.ReplaceInProgressOSDAnnotationKey)
 	delete(d.Labels, cephv1.SkipReconcileLabelKey)
-	_, err := m.cluster.context.Clientset.AppsV1().Deployments(m.clusterInfo.Namespace).Update(m.clusterInfo.Context, d, metav1.UpdateOptions{})
+	_, err = m.cluster.context.Clientset.AppsV1().Deployments(m.clusterInfo.Namespace).Update(m.clusterInfo.Context, d, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to clear the replacement markers on osd.%d deployment %q", osdID, d.Name)
 	}
