@@ -132,15 +132,22 @@ func ListDevices(executor exec.Executor) ([]string, error) {
 	return strings.Split(devices, "\n"), nil
 }
 
+// resolveDevicePath returns an absolute path for a device. Callers pass either
+// a bare kernel name ("sdb") or an absolute path, which may be a device node
+// ("/dev/sdb") or a mount point for a PVC-backed block device
+// ("/mnt/<pvc-name>"). Only a bare kernel name needs the /dev prefix; adding it
+// unconditionally would produce "/dev//dev/sdb".
+func resolveDevicePath(device string) string {
+	if len(strings.Split(device, "/")) == 1 {
+		return fmt.Sprintf("/dev/%s", device)
+	}
+
+	return device
+}
+
 // GetDevicePartitions gets partitions on a given device
 func GetDevicePartitions(device string, executor exec.Executor) (partitions []Partition, unusedSpace uint64, err error) {
-	var devicePath string
-	splitDevicePath := strings.Split(device, "/")
-	if len(splitDevicePath) == 1 {
-		devicePath = fmt.Sprintf("/dev/%s", device) // device path for OSD on devices.
-	} else {
-		devicePath = device // use the exact device path (like /mnt/<pvc-name>) in case of PVC block device
-	}
+	devicePath := resolveDevicePath(device)
 
 	output, err := executor.ExecuteCommandWithOutput("lsblk", devicePath,
 		"--bytes", "--pairs", "--output", "NAME,SIZE,TYPE,PKNAME")
@@ -199,6 +206,7 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 
 // GetDeviceProperties gets device properties
 func GetDeviceProperties(device string, executor exec.Executor) (map[string]string, error) {
+<<<<<<< HEAD
 	// As we are mounting the block mode PVs on /mnt we use the entire path,
 	// e.g., if the device path is /mnt/example-pvc then its taken completely
 	// else if its just vdb then the following is used
@@ -207,6 +215,9 @@ func GetDeviceProperties(device string, executor exec.Executor) (map[string]stri
 		device = fmt.Sprintf("/dev/%s", device)
 	}
 	return GetDevicePropertiesFromPath(device, executor)
+=======
+	return GetDevicePropertiesFromPath(resolveDevicePath(device), executor)
+>>>>>>> 0697c463b (core: extract the /dev prefix handling into a helper)
 }
 
 // GetDevicePropertiesFromPath gets a device property from a path
@@ -237,14 +248,7 @@ func IsLV(devicePath string, executor exec.Executor) (bool, error) {
 
 // GetUdevInfo gets udev information
 func GetUdevInfo(device string, executor exec.Executor) (map[string]string, error) {
-	// The caller may pass either a kernel name ("sdb") or a full device path
-	// ("/dev/sdb"), so only add the /dev prefix when it is missing. Adding it
-	// unconditionally produces "/dev//dev/sdb", which udevadm rejects.
-	devicePath := strings.Split(device, "/")
-	if len(devicePath) == 1 {
-		device = fmt.Sprintf("/dev/%s", device)
-	}
-	output, err := executor.ExecuteCommandWithOutput("udevadm", "info", "--query=property", device)
+	output, err := executor.ExecuteCommandWithOutput("udevadm", "info", "--query=property", resolveDevicePath(device))
 	if err != nil {
 		return nil, err
 	}
@@ -255,10 +259,7 @@ func GetUdevInfo(device string, executor exec.Executor) (map[string]string, erro
 
 // GetDeviceFilesystems get the file systems available
 func GetDeviceFilesystems(device string, executor exec.Executor) (string, error) {
-	devicePath := strings.Split(device, "/")
-	if len(devicePath) == 1 {
-		device = fmt.Sprintf("/dev/%s", device)
-	}
+	device = resolveDevicePath(device)
 	output, err := executor.ExecuteCommandWithOutput("udevadm", "info", "--query=property", device)
 	if err != nil {
 		return "", err
@@ -273,10 +274,7 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 		return "", errors.Wrap(err, "sgdisk not found")
 	}
 
-	devicePath := strings.Split(device, "/")
-	if len(devicePath) == 1 {
-		device = fmt.Sprintf("/dev/%s", device)
-	}
+	device = resolveDevicePath(device)
 
 	output, err := executor.ExecuteCommandWithOutput(sgdiskCmd, "--print", device)
 	if err != nil {
