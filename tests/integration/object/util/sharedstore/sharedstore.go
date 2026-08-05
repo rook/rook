@@ -28,6 +28,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/ceph/go-ceph/rgw/admin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -361,8 +362,10 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 		client.GenerateRgwTLSCertSecret(t, k8sh, ns, certSecretName, rgwServiceName)
 	}
 
-	wait4.RequireCreate(ctx, t, ceph.CephObjectStores(ns), objectStore, wait4.ObjectStore,
+	live := wait4.RequireCreate(ctx, t, ceph.CephObjectStores(ns), objectStore, wait4.ObjectStore,
 		3*time.Minute, "shared CephObjectStore did not become Ready")
+	assert.NotEmpty(t, live.Status.Info["endpoint"],
+		"CephObjectStore %q became Ready without publishing an endpoint", storeName)
 
 	{
 		_, err := k8sh.Clientset.CoreV1().Services(ns).Create(ctx, svc, metav1.CreateOptions{})
