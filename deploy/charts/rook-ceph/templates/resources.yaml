@@ -8224,9 +8224,7 @@ spec:
                       minimum: 1
                       type: integer
                     activeStandby:
-                      description: |-
-                        Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
-                        If false, standbys will still be available, but will not have a warm metadata cache.
+                      description: 'DEPRECATED: use standbyReplay instead.'
                       type: boolean
                     annotations:
                       additionalProperties:
@@ -8978,6 +8976,17 @@ spec:
                           type: object
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    standbyCount:
+                      description: The number of metadata servers that are standby.
+                      format: int32
+                      maximum: 50
+                      minimum: 0
+                      type: integer
+                    standbyReplay:
+                      description: |-
+                        Whether each active MDS instance will have a standby-replay MDS with a warm metadata cache for faster failover.
+                        If false, standbys will still be available, but will not have a warm metadata cache.
+                      type: boolean
                     startupProbe:
                       description: ProbeSpec is a wrapper around Probe so it can be enabled or disabled for a Ceph daemon
                       properties:
