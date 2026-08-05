@@ -35,6 +35,8 @@ spec:
   metadataServer:
     # The number of active MDS instances
     activeCount: 1
+    # The number of standby MDS instances. The default is 0.
+    # standbyCount: 1
     # Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
     # If false, standbys will be available, but will not have a warm cache.
     activeStandby: true

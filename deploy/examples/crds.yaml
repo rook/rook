@@ -8973,6 +8973,13 @@ spec:
                           type: object
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    standbyCount:
+                      default: 0
+                      description: The number of metadata servers that are standby.
+                      format: int32
+                      maximum: 50
+                      minimum: 0
+                      type: integer
                     startupProbe:
                       description: ProbeSpec is a wrapper around Probe so it can be enabled or disabled for a Ceph daemon
                       properties:
@@ -9120,6 +9127,7 @@ spec:
                       type: object
                   required:
                     - activeCount
+                    - standbyCount
                   type: object
                 mirroring:
                   description: The mirroring settings

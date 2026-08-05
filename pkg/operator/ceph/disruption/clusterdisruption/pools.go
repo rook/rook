@@ -170,7 +170,7 @@ func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList 
 
 		activeCount := filesystem.Spec.MetadataServer.ActiveCount
 		minAvailable := &intstr.IntOrString{IntVal: activeCount - 1}
-		if filesystem.Spec.MetadataServer.ActiveStandby {
+		if filesystem.Spec.MetadataServer.ActiveStandby || filesystem.Spec.MetadataServer.StandbyCount > 0 {
 			minAvailable.IntVal++
 		}
 		if minAvailable.IntVal < 1 {

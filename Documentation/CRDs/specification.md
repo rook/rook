@@ -9462,6 +9462,17 @@ int32
 </tr>
 <tr>
 <td>
+<code>standbyCount</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>The number of metadata servers that are standby.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>activeStandby</code><br/>
 <em>
 bool

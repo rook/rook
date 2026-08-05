@@ -132,6 +132,7 @@ Both `metadataPool` and `dataPools` support defining names as required. The fina
 The metadata server settings correspond to the MDS daemon settings.
 
 * `activeCount`: The number of active MDS instances. As load increases, CephFS will automatically partition the filesystem across the MDS instances. Rook will create double the number of MDS instances as requested by the active count. The extra instances will be in standby mode for failover.
+* `standbyCount`: The number of standby MDS instances. The default is 0.
 * `activeStandby`: If true, the extra MDS instances will be in active standby mode and will keep a warm cache of the filesystem metadata for faster failover. The instances will be assigned by CephFS in failover pairs. If false, the extra MDS instances will all be on passive standby mode and will not maintain a warm cache of the metadata.
 * `mirroring`: Sets up mirroring of the filesystem
     * `enabled`: whether mirroring is enabled on that filesystem (default: false)

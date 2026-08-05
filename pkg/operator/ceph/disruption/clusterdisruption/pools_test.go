@@ -174,7 +174,7 @@ func TestReconcileCephFilesystemPDB(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: fsName, Namespace: ns},
 					Spec: cephv1.FilesystemSpec{
-						MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false},
+						MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false, StandbyCount: 0},
 					},
 				},
 			},
@@ -201,7 +201,7 @@ func TestReconcileCephFilesystemPDB(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: fsName, Namespace: ns},
 					Spec: cephv1.FilesystemSpec{
-						MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false},
+						MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false, StandbyCount: 0},
 					},
 				},
 			},
@@ -209,6 +209,62 @@ func TestReconcileCephFilesystemPDB(t *testing.T) {
 
 		err := r.reconcileCephFilesystem(fsList)
 		assert.NoError(t, err)
+	})
+
+	t.Run("1 active with standby-replay creates PDB", func(t *testing.T) {
+		client := fake.NewClientBuilder().WithScheme(s).Build()
+		r := &ReconcileClusterDisruption{
+			client:  client,
+			scheme:  s,
+			context: &controllerconfig.Context{OpManagerContext: context.TODO()},
+		}
+
+		fsList := &cephv1.CephFilesystemList{
+			Items: []cephv1.CephFilesystem{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: fsName, Namespace: ns},
+					Spec: cephv1.FilesystemSpec{
+						MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true, StandbyCount: 0},
+					},
+				},
+			},
+		}
+
+		err := r.reconcileCephFilesystem(fsList)
+		assert.NoError(t, err)
+
+		pdb := &policyv1.PodDisruptionBudget{}
+		err = client.Get(context.TODO(), types.NamespacedName{Name: pdbName, Namespace: ns}, pdb)
+		assert.NoError(t, err)
+		assert.Equal(t, int32(1), pdb.Spec.MinAvailable.IntVal)
+	})
+
+	t.Run("1 active with standby-replay and standby creates PDB", func(t *testing.T) {
+		client := fake.NewClientBuilder().WithScheme(s).Build()
+		r := &ReconcileClusterDisruption{
+			client:  client,
+			scheme:  s,
+			context: &controllerconfig.Context{OpManagerContext: context.TODO()},
+		}
+
+		fsList := &cephv1.CephFilesystemList{
+			Items: []cephv1.CephFilesystem{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: fsName, Namespace: ns},
+					Spec: cephv1.FilesystemSpec{
+						MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true, StandbyCount: 1},
+					},
+				},
+			},
+		}
+
+		err := r.reconcileCephFilesystem(fsList)
+		assert.NoError(t, err)
+
+		pdb := &policyv1.PodDisruptionBudget{}
+		err = client.Get(context.TODO(), types.NamespacedName{Name: pdbName, Namespace: ns}, pdb)
+		assert.NoError(t, err)
+		assert.Equal(t, int32(1), pdb.Spec.MinAvailable.IntVal)
 	})
 
 	t.Run("1 active with standby creates PDB", func(t *testing.T) {
@@ -224,7 +280,7 @@ func TestReconcileCephFilesystemPDB(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: fsName, Namespace: ns},
 					Spec: cephv1.FilesystemSpec{
-						MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true},
+						MetadataServer: cephv1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false, StandbyCount: 1},
 					},
 				},
 			},

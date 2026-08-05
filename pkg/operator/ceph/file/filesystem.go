@@ -66,8 +66,11 @@ func createFilesystem(
 			return errors.Wrapf(err, "failed to create filesystem %q", fs.Name)
 		}
 	}
-	if err := cephclient.AllowStandbyReplay(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveStandby, fs.Spec.MetadataServer.ActiveCount); err != nil {
+	if err := cephclient.SetAllowStandbyReplay(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
 		return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %q", fs.Name)
+	}
+	if err := cephclient.SetStandbyCountWanted(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.StandbyCount); err != nil {
+		return errors.Wrapf(err, "failed to set standby_count_wanted to filesystem %q", fs.Name)
 	}
 
 	// set the number of active mds instances
@@ -142,6 +145,9 @@ func validateFilesystem(context *clusterd.Context, clusterInfo *cephclient.Clust
 	}
 	if f.Spec.MetadataServer.ActiveCount < 1 {
 		return errors.New("MetadataServer.ActiveCount must be at least 1")
+	}
+	if f.Spec.MetadataServer.StandbyCount < 0 {
+		return errors.New("MetadataServer.StandbyCount must be at least 0")
 	}
 	// No data pool means that we expect the fs to exist already
 	if len(f.Spec.DataPools) == 0 {
