@@ -120,7 +120,7 @@ $ ceph osd down osd.<ID>
 ```bash
 kubectl rook-ceph rook purge-osd 0 --force
 
-# 2022-09-14 08:58:28.888431 I | rookcmd: starting Rook v1.10.0-alpha.0.164.gcb73f728c with arguments 'rook ceph osd remove --osd-ids=0 --force-osd-removal=true'
+# 2022-09-14 08:58:28.888431 I | rookcmd: starting Rook v1.10.0-alpha.0.164.gcb73f728c with arguments: rook ceph osd remove --osd-ids=0 --force-osd-removal=true
 # 2022-09-14 08:58:28.889217 I | rookcmd: flag values: --force-osd-removal=true, --help=false, --log-level=INFO, --operator-image=, --osd-ids=0, --preserve-pvc=false, --service-account=
 # 2022-09-14 08:58:28.889582 I | op-mon: parsing mon endpoints: b=10.106.118.240:6789
 # 2022-09-14 08:58:28.898898 I | cephclient: writing config file /var/lib/rook/rook-ceph/rook-ceph.config
