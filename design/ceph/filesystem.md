@@ -27,7 +27,7 @@ spec:
        codingChunks: 1
   metadataServer:
     activeCount: 1
-    activeStandby: true
+    standbyCount: 1
 ```
 
 Now create the file system.
@@ -72,13 +72,13 @@ Multiple data pools can be configured for the file system. Assigning users or fi
 
 The metadata server settings correspond to the MDS service.
 - `activeCount`: The number of active MDS instances. As load increases, CephFS will automatically partition the file system across the MDS instances. Rook will create double the number of MDS instances as requested by the active count. The extra instances will be in standby mode for failover.
-- `activeStandby`: If true, the extra MDS instances will be in active standby mode and will keep a warm cache of the file system metadata for faster failover. The instances will be assigned by CephFS in failover pairs. If false, the extra MDS instances will all be on passive standby mode and will not maintain a warm cache of the metadata.
+- `standbyCount`: The number of standby MDS instances. The default is 1.
 - `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, `podAntiAffinity`, and `topologySpreadConstraints` similar to placement defined for daemons configured by the [cluster CRD](/deploy/examples/cluster.yaml).
 
 ```yaml
   metadataServer:
     activeCount: 1
-    activeStandby: true
+    standbyCount: 1
     placement:
 ```
 
