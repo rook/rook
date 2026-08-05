@@ -205,8 +205,12 @@ the CI object suite.
 2. Write the entry func following the anatomy section; pick a globally unique
    outer `t.Run` name.
 3. Wire one dispatcher line in `tests/integration/ceph_object_test.go` and,
-   if the package creates CephObjectStoreUsers, add its namespace to the
-   shared store's `AllowUsersInNamespaces`.
+   if the package creates CephObjectStoreUsers in its own namespace against
+   the shared store, add its namespace to the shared store's
+   `AllowUsersInNamespaces`. That list gates one thing only — a user CR
+   naming a store in another namespace — so a package that reaches the store
+   through an ObjectBucketClaim, or that creates its users in the cluster
+   namespace, does not belong on it.
 4. Verify with the build/vet/gofmt commands above.
 
 ## Conversion playbook (old-style tests)
