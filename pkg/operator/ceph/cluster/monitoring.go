@@ -54,7 +54,7 @@ func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInf
 					InternalCancel: internalCancel,
 				})
 
-				// We can't use mon.IsFloatingMon(cluster.mons, daemon) because the mon ID is not available.
+				// We can't use mon.isFloatingMon(cluster.mons, daemon) because the mon ID is not available.
 				if daemon == "mon" && cluster.Spec.Mon.FloatingMon.Name != "" {
 					log.NamespacedInfo(cluster.Namespace, logger, "skip mon health check since floating mon %q is configured", daemon)
 					continue
