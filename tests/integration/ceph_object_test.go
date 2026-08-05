@@ -99,23 +99,20 @@ func (s *ObjectSuite) TestWithoutTLS() {
 }
 
 func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace string, tlsEnable bool) {
+	// only the packages that create CephObjectStoreUsers in their own namespace
+	// need to be allowed; the rest reach the store through OBCs, which this does
+	// not gate
 	sharedObjectStore := sharedstore.Create(t, k8sh, installer, sharedstore.Config{
 		Namespace: namespace,
 		StoreName: "sharedstore",
 		Instances: 1,
 		TLSEnable: tlsEnable,
 		AllowUsersInNamespaces: []string{
-			bucketlifecycle.Namespace,
 			bucketowner.Namespace,
-			bucketpolicy.Namespace,
-			bucketquota.Namespace,
-			bucketrw.Namespace,
-			userkeys.Namespace,
-			topickafka.Namespace,
-			useropmask.Namespace,
-			usercaps.Namespace,
 			cosi.Namespace,
-			notification.Namespace,
+			usercaps.Namespace,
+			userkeys.Namespace,
+			useropmask.Namespace,
 		},
 	})
 	defer sharedObjectStore.Destroy()
