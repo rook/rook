@@ -369,8 +369,8 @@ func fsTest(fsName string) cephv1.CephFilesystem {
 				},
 			},
 			MetadataServer: cephv1.MetadataServerSpec{
-				ActiveCount:   1,
-				ActiveStandby: true,
+				ActiveCount:  1,
+				StandbyCount: 1,
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
 						v1.ResourceMemory: *resource.NewQuantity(4294967296, resource.BinarySI),
@@ -625,8 +625,8 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{
 			MetadataServer: cephv1.MetadataServerSpec{
-				ActiveCount:   1,
-				ActiveStandby: true,
+				ActiveCount:  1,
+				StandbyCount: 1,
 			},
 		},
 	}
