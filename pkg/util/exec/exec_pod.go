@@ -151,7 +151,7 @@ func (e *RemotePodCommandExecutor) CopyLocalFileToContainer(ctx context.Context,
 	}
 	defer file.Close()
 	stdOut, stdErr, err := e.ExecWithOptions(ctx, ExecOptions{
-		Command:            []string{"sh", "-c", fmt.Sprintf("cat - > %s", dstPath)},
+		Command:            []string{"sh", "-c", fmt.Sprintf("cat - > %s", quoteArg(dstPath))},
 		Namespace:          namespace,
 		PodName:            pods.Items[0].Name,
 		ContainerName:      containerName,
