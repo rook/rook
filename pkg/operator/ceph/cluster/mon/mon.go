@@ -336,9 +336,9 @@ func (c *Cluster) startMons(targetCount int) error {
 	return nil
 }
 
-// IsFloatingMon returns true if the given mon name is the floating mon defined
+// isFloatingMon returns true if the given mon name is the floating mon defined
 // in the CephCluster spec.
-func IsFloatingMon(c *Cluster, name string) bool {
+func isFloatingMon(c *Cluster, name string) bool {
 	return c.spec.Mon.FloatingMon.Name != "" && name == c.spec.Mon.FloatingMon.Name
 }
 
@@ -963,7 +963,7 @@ func (c *Cluster) assignMons(mons []*monConfig, monsToSkipReconcile sets.Set[str
 	// scheduling for the monitor.
 	for _, mon := range mons {
 		// No need to create canary pod and pvc for floating mon
-		if IsFloatingMon(c, mon.DaemonName) {
+		if isFloatingMon(c, mon.DaemonName) {
 			log.NamespacedDebug(c.Namespace, logger, "skipping scheduling for floating mon %q", mon.DaemonName)
 			continue
 		}
@@ -1132,7 +1132,7 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool, m
 				// and potentially cause more mons to fail. Therefore, we abort if the mon failed to start after upgrade.
 				return errors.Wrapf(err, "failed to upgrade mon %q.", mons[i].DaemonName)
 			}
-			if IsFloatingMon(c, mons[i].DaemonName) {
+			if isFloatingMon(c, mons[i].DaemonName) {
 				// Floating mon failures must not be silently skipped.
 				return errors.Wrapf(err, "failed to start floating mon %q", mons[i].DaemonName)
 			}
@@ -1568,7 +1568,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 //     - if HostPath -> leave node selector as is
 //     - if PVC      -> remove node selector, if present
 func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) error {
-	floating := IsFloatingMon(c, m.DaemonName)
+	floating := isFloatingMon(c, m.DaemonName)
 	log.NamespacedInfo(c.Namespace, logger, "starting mon %q", m.DaemonName)
 
 	// Build the deployment spec. Floating mons use a YAML template that
@@ -1787,7 +1787,7 @@ func (c *Cluster) waitForQuorumWithMons(context *clusterd.Context, clusterInfo *
 		var runningMonNames []string
 		for _, m := range mons {
 			monLabel := AppName
-			if IsFloatingMon(c, m) {
+			if isFloatingMon(c, m) {
 				monLabel = FloatingMonAppName
 			}
 			running, err := k8sutil.PodsRunningWithLabel(clusterInfo.Context, context.Clientset, clusterInfo.Namespace, fmt.Sprintf("app=%s,mon=%s", monLabel, m))
