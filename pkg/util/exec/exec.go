@@ -266,7 +266,7 @@ func runCommandWithOutput(cmd *exec.Cmd, combinedOutput bool) (string, error) {
 }
 
 func logCommand(command string, arg ...string) {
-	logger.Debugf("Running command: %s %s", command, strings.Join(arg, " "))
+	logger.Debugf("Running command: %s", FormatCommand(command, arg...))
 }
 
 func assertErrorType(err error) string {
