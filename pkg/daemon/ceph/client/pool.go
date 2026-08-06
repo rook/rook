@@ -133,7 +133,7 @@ func getPoolApplication(context *clusterd.Context, clusterInfo *ClusterInfo, poo
 		// no application name
 		return "", nil
 	}
-	var application map[string]interface{}
+	var application map[string]any
 	err = json.Unmarshal([]byte(appDetails), &application)
 	if err != nil {
 		return "", errors.Wrapf(err, "unmarshal failed raw buffer response %s", string(appDetails))

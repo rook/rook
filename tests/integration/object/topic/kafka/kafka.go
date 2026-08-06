@@ -67,7 +67,7 @@ func checkRgwTopicEndpoint(t *testing.T, snsClient *sns.Client, arn, user, pass 
 			}
 
 			// the sns endpoint attributes are returned as JSON
-			var endpointJSON map[string]interface{}
+			var endpointJSON map[string]any
 			if err := json.Unmarshal([]byte(topicAttrs.Attributes["EndPoint"]), &endpointJSON); err != nil {
 				return err
 			}

@@ -32,7 +32,7 @@ import (
 //	    error 1
 //	    error 2
 //	    etc.`
-func AggregateErrors(errs []error, format string, args ...interface{}) error {
+func AggregateErrors(errs []error, format string, args ...any) error {
 	if len(errs) == 0 {
 		return nil
 	}

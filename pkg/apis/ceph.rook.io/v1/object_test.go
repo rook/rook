@@ -146,15 +146,15 @@ func TestValidateObjectStoreSecurity(t *testing.T) {
 		objectStore.Spec.Security = &ObjectStoreSecuritySpec{
 			Ciphers: []string{"AES256-SHA"},
 			SslOptions: &SslOptionsSpec{
-				TLSv1_2: boolPtr(false),
-				TLSv1_1: boolPtr(false),
-				TLSv1_0: boolPtr(false),
+				TLSv1_2: new(false),
+				TLSv1_1: new(false),
+				TLSv1_0: new(false),
 			},
 		}
 		err := validateObjectStoreSecurity(&objectStore.Spec)
 		assert.ErrorContains(t, err, "ciphers requires at least one TLS version")
 
-		objectStore.Spec.Security.SslOptions.TLSv1_2 = boolPtr(true)
+		objectStore.Spec.Security.SslOptions.TLSv1_2 = new(true)
 		err = validateObjectStoreSecurity(&objectStore.Spec)
 		assert.NoError(t, err)
 	})
@@ -167,8 +167,6 @@ func TestValidateObjectStoreSecurity(t *testing.T) {
 		assert.NoError(t, validateObjectStoreSecurity(&objectStore.Spec))
 	})
 }
-
-func boolPtr(b bool) *bool { return &b }
 
 func TestIsTLSEnabled(t *testing.T) {
 	objStore := &CephObjectStore{

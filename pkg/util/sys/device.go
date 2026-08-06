@@ -62,7 +62,7 @@ type CephVolumeInventory struct {
 }
 
 // CephVolumeLVMList represents the output of the ceph-volume lvm list command
-type CephVolumeLVMList map[string][]map[string]interface{}
+type CephVolumeLVMList map[string][]map[string]any
 
 // Partition represents a partition metadata
 type Partition struct {

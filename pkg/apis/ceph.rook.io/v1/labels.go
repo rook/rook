@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"maps"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -138,9 +139,7 @@ func (a Labels) OverwriteApplyToObjectMeta(t *metav1.ObjectMeta) {
 	if t.Labels == nil {
 		t.Labels = map[string]string{}
 	}
-	for k, v := range a {
-		t.Labels[k] = v
-	}
+	maps.Copy(t.Labels, a)
 }
 
 // Merge returns a Labels which results from merging the attributes of the

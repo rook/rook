@@ -60,7 +60,7 @@ func TestConfigFileVolumeSource_ToVolumeSource(t *testing.T) {
 		assert.Equal(t, v1.VolumeSource{}, *got)
 	})
 
-	for _, field := range reflect.VisibleFields(reflect.TypeOf(ConfigFileVolumeSource{})) {
+	for _, field := range reflect.VisibleFields(reflect.TypeFor[ConfigFileVolumeSource]()) {
 		// for each struct field of ConfigFileVolumeSource, create a new CFVS with that field filled
 		// in with some non-nil value to test ToVolumeSource() with. Then ensure that every
 		// possible volume type of the CFVS converts to k8s' corev1.VolumeSource successfully

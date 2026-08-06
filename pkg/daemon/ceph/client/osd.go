@@ -131,7 +131,7 @@ type OsdTree struct {
 		Type            string   `json:"type"`
 		TypeID          int      `json:"type_id"`
 		Children        []int    `json:"children,omitempty"`
-		PoolWeights     struct{} `json:"pool_weights,omitempty"`
+		PoolWeights     struct{} `json:"pool_weights"`
 		CrushWeight     float64  `json:"crush_weight,omitempty"`
 		Depth           int      `json:"depth,omitempty"`
 		Exists          int      `json:"exists,omitempty"`

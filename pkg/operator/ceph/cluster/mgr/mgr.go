@@ -101,7 +101,7 @@ func (c *Cluster) getReplicas() int {
 func (c *Cluster) getDaemonIDs() []string {
 	var daemonIDs []string
 	replicas := c.getReplicas()
-	for i := 0; i < replicas; i++ {
+	for i := range replicas {
 		daemonIDs = append(daemonIDs, k8sutil.IndexToName(i))
 	}
 	return daemonIDs
