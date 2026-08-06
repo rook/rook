@@ -32,7 +32,7 @@ func (src *ConfigFileVolumeSource) ToKubernetesVolumeSource() *corev1.VolumeSour
 	dst := &corev1.VolumeSource{}
 	vDst := reflect.ValueOf(dst).Elem()
 
-	tSrc := reflect.TypeOf(*src)
+	tSrc := reflect.TypeFor[ConfigFileVolumeSource]()
 	vSrc := reflect.ValueOf(*src)
 	for _, srcField := range reflect.VisibleFields(tSrc) {
 		if !srcField.IsExported() {

@@ -338,9 +338,9 @@ func filterDestroyedOSDIdsForNode(tree client.OsdTree, destroyedOSDIds []int, cr
 // crushHostFromLocation extracts the host bucket name from a CRUSH location string of the form
 // "root=default host=node-1 ...".
 func crushHostFromLocation(crushLocation string) string {
-	for _, token := range strings.Fields(crushLocation) {
-		if strings.HasPrefix(token, "host=") {
-			return strings.TrimPrefix(token, "host=")
+	for token := range strings.FieldsSeq(crushLocation) {
+		if after, ok := strings.CutPrefix(token, "host="); ok {
+			return after
 		}
 	}
 	return ""

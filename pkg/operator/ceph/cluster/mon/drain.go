@@ -60,10 +60,7 @@ func (c *Cluster) reconcileMonPDB() (*cephclient.MonStatusResponse, error) {
 	// but will also prevent race conditions that would allow quorum to be lost
 	// if another node is drained before a down mon is fully back in quorum.
 	// nolint:gosec // G115 - casting will not cause overflow
-	allowedDown := c.getMaxUnavailableMonPodCount() - int32(downMonCount)
-	if allowedDown < 0 {
-		allowedDown = 0
-	}
+	allowedDown := max(c.getMaxUnavailableMonPodCount()-int32(downMonCount), 0)
 
 	// only update the mon pdb if the maxunavailable changed
 	currentMaxUnavailable, err := c.getExistingMaxUnavailable()

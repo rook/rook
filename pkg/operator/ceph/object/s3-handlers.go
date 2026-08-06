@@ -35,7 +35,7 @@ import (
 
 type rookLogger struct{}
 
-func (r rookLogger) Logf(classification smithylogging.Classification, format string, v ...interface{}) {
+func (r rookLogger) Logf(classification smithylogging.Classification, format string, v ...any) {
 	logger.Debugf(format, v...)
 }
 
