@@ -57,6 +57,9 @@ var (
 	sanitizeDataSource             = "ROOK_SANITIZE_DATA_SOURCE"
 	sanitizeIteration              = "ROOK_SANITIZE_ITERATION"
 	sanitizeIterationDefault int32 = 1
+	cleanupStrategy                = "ROOK_CLEANUP_STRATEGY"
+	// cleanupNoRetryBackoffLimit fails the cleanup job on its first failure, see its use below
+	cleanupNoRetryBackoffLimit int32 = 0
 )
 
 func (c *ClusterController) startClusterCleanUp(context context.Context, cluster *cephv1.CephCluster, cephHosts []string, monSecret, clusterFSID string) {
@@ -89,6 +92,14 @@ func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHo
 			},
 		}
 
+		if cleanupStrategyOrDefault(cluster.Spec.CleanupPolicy.Strategy) == cephv1.CleanupStrategyFailOnError {
+			// Do not retry a failed sanitize. A `method: complete` shred writes from offset 0,
+			// so a pass that dies partway has already destroyed the BlueStore label while
+			// leaving most of the disk intact. A retry would find no OSDs to enumerate, do
+			// nothing, and exit successfully - reporting a wipe that did not happen.
+			job.Spec.BackoffLimit = &cleanupNoRetryBackoffLimit
+		}
+
 		// Apply annotations
 		cephv1.GetCleanupAnnotations(cluster.Spec.Annotations).ApplyToObjectMeta(&job.ObjectMeta)
 		cephv1.GetCleanupLabels(cluster.Spec.Labels).ApplyToObjectMeta(&job.ObjectMeta)
@@ -97,6 +108,15 @@ func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHo
 			log.NamespacedError(cluster.Namespace, logger, "failed to run cluster clean up job on node %q. %v", hostName, err)
 		}
 	}
+}
+
+// cleanupStrategyOrDefault returns the configured cleanup strategy, defaulting to
+// BestEffort when it is unset so that the behavior is unchanged for existing users.
+func cleanupStrategyOrDefault(strategy cephv1.CleanupStrategyProperty) cephv1.CleanupStrategyProperty {
+	if strategy == "" {
+		return cephv1.CleanupStrategyBestEffort
+	}
+	return strategy
 }
 
 func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, monSecret, cephFSID string) v1.Container {
@@ -122,6 +142,7 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 			{Name: sanitizeMethod, Value: cluster.Spec.CleanupPolicy.SanitizeDisks.Method.String()},
 			{Name: sanitizeDataSource, Value: cluster.Spec.CleanupPolicy.SanitizeDisks.DataSource.String()},
 			{Name: sanitizeIteration, Value: strconv.Itoa(int(cluster.Spec.CleanupPolicy.SanitizeDisks.Iteration))},
+			{Name: cleanupStrategy, Value: string(cleanupStrategyOrDefault(cluster.Spec.CleanupPolicy.Strategy))},
 			{Name: "DM_DISABLE_UDEV", Value: "1"},
 		}...)
 		if opcontroller.LoopDevicesAllowed() {

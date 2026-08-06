@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cleanup "github.com/rook/rook/pkg/daemon/ceph/cleanup"
@@ -38,6 +39,7 @@ var (
 	sanitizeMethod     string
 	sanitizeDataSource string
 	sanitizeIteration  int32
+	cleanupStrategy    string
 )
 
 var cleanUpCmd = &cobra.Command{
@@ -76,6 +78,7 @@ func init() {
 	cleanUpHostCmd.Flags().StringVar(&sanitizeMethod, "sanitize-method", string(cephv1.SanitizeMethodQuick), "sanitize method to use (metadata or data)")
 	cleanUpHostCmd.Flags().StringVar(&sanitizeDataSource, "sanitize-data-source", string(cephv1.SanitizeDataSourceZero), "data source to sanitize the disk (zero or random)")
 	cleanUpHostCmd.Flags().Int32Var(&sanitizeIteration, "sanitize-iteration", 1, "overwrite N times the disk")
+	cleanUpHostCmd.Flags().StringVar(&cleanupStrategy, "cleanup-strategy", string(cephv1.CleanupStrategyBestEffort), "how to react to a sanitize failure (BestEffort or FailOnError)")
 
 	flags.SetFlagsFromEnv(cleanUpHostCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(cleanUpSubVolumeGroupCmd.Flags(), rook.RookEnvVarPrefix)
@@ -116,7 +119,20 @@ func startHostCleanUp(cmd *cobra.Command, args []string) error {
 	)
 
 	// Start OSD wipe process
-	s.StartSanitizeDisks()
+	if err := s.StartSanitizeDisks(); err != nil {
+		switch strategy := cephv1.CleanupStrategyProperty(cleanupStrategy); strategy {
+		case cephv1.CleanupStrategyFailOnError:
+			rook.TerminateFatal(errors.Wrap(err, "failed to sanitize osd disks"))
+		case cephv1.CleanupStrategyBestEffort, "":
+			// The default strategy only logs the failure, which preserves the historical
+			// behavior for users who rely on the cleanup job always succeeding.
+			logger.Errorf("failed to sanitize osd disks, continuing because cleanup strategy is %q. %v", cephv1.CleanupStrategyBestEffort, err)
+		default:
+			// The CRD enum only guards the operator path. A hand-run job or env var can still
+			// carry a typo, and falling through silently would hide the sanitize failure.
+			logger.Errorf("unrecognized cleanup strategy %q, treating it as %q. %v", strategy, cephv1.CleanupStrategyBestEffort, err)
+		}
+	}
 
 	return nil
 }

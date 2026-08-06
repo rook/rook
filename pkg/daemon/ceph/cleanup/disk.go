@@ -17,6 +17,7 @@ limitations under the License.
 package cleanup
 
 import (
+	stderrors "errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -59,65 +60,101 @@ func NewDiskSanitizer(context *clusterd.Context, clusterInfo *client.ClusterInfo
 	}
 }
 
-// StartSanitizeDisks main entrypoint of the cleanup package
-func (s *DiskSanitizer) StartSanitizeDisks() {
+// StartSanitizeDisks main entrypoint of the cleanup package.
+// It attempts every disk and returns the joined errors of all the failures it encountered,
+// rather than stopping at the first one. Callers decide whether to act on it, see
+// cephv1.CleanupStrategyProperty.
+func (s *DiskSanitizer) StartSanitizeDisks() error {
+	var sanitizeErrs []error
+
 	// LVM based OSDs
 	osdLVMList, err := osd.GetCephVolumeLVMOSDs(s.context, s.clusterInfo, s.clusterInfo.FSID, "", false, false)
 	if err != nil {
 		logger.Errorf("failed to list lvm osd(s). %v", err)
+		sanitizeErrs = append(sanitizeErrs, errors.Wrap(err, "failed to list lvm osd(s)"))
 	} else {
 		// Start the sanitizing sequence
-		s.SanitizeLVMDisk(osdLVMList)
+		if err := s.SanitizeLVMDisk(osdLVMList); err != nil {
+			sanitizeErrs = append(sanitizeErrs, err)
+		}
 	}
 
 	// Raw based OSDs
 	osdRawList, err := osd.GetCephVolumeRawOSDs(s.context, s.clusterInfo, s.clusterInfo.FSID, "", "", "", false, true, nil)
 	if err != nil {
 		logger.Errorf("failed to list raw osd(s). %v", err)
+		sanitizeErrs = append(sanitizeErrs, errors.Wrap(err, "failed to list raw osd(s)"))
 	} else {
 		// Start the sanitizing sequence
-		s.SanitizeRawDisk(osdRawList)
+		if err := s.SanitizeRawDisk(osdRawList); err != nil {
+			sanitizeErrs = append(sanitizeErrs, err)
+		}
 	}
+
+	return stderrors.Join(sanitizeErrs...)
 }
 
-func (s *DiskSanitizer) SanitizeRawDisk(osdRawList []oposd.OSDInfo) {
-	// Initialize work group to wait for completion of all the go routine
+func (s *DiskSanitizer) SanitizeRawDisk(osdRawList []oposd.OSDInfo) error {
+	// Collect every failure rather than only the first one. errgroup is deliberately not used
+	// here: it keeps a single error, and cancellation would abort the sibling wipes, whereas
+	// this path wants every disk attempted and every failure reported.
 	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var sanitizeErrs []error
 
 	for _, osd := range osdRawList {
 		logger.Infof("sanitizing osd %d disk %q", osd.ID, osd.BlockPath)
 
-		// Increment the wait group counter
-		wg.Add(1)
-
 		// Put each sanitize in a go routine to speed things up
-		go s.executeSanitizeCommand(osd, &wg)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := s.executeSanitizeCommand(osd); err != nil {
+				mu.Lock()
+				sanitizeErrs = append(sanitizeErrs, err)
+				mu.Unlock()
+			}
+		}()
 	}
 
 	wg.Wait()
+
+	return stderrors.Join(sanitizeErrs...)
 }
 
-func (s *DiskSanitizer) SanitizeLVMDisk(osdLVMList []oposd.OSDInfo) {
-	// Initialize work group to wait for completion of all the go routine
+func (s *DiskSanitizer) SanitizeLVMDisk(osdLVMList []oposd.OSDInfo) error {
+	// See SanitizeRawDisk for why a plain WaitGroup is used rather than errgroup.
 	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var sanitizeErrs []error
+
+	appendErr := func(err error) {
+		mu.Lock()
+		defer mu.Unlock()
+		sanitizeErrs = append(sanitizeErrs, err)
+	}
+
 	pvs := []string{}
 
 	for _, osd := range osdLVMList {
-		// Increment the wait group counter
-		wg.Add(1)
-
 		// Lookup the PVs associated to the LV
 		pvDevices, err := s.returnPVDevice(osd.BlockPath)
 		if err != nil {
-			// Carry on: the ceph-volume zap below is still worth attempting, and only the
-			// LVM2 metadata purge for this OSD is lost.
-			logger.Errorf("failed to look up the physical volume of osd %d. %v", osd.ID, err)
+			// Record and carry on: the ceph-volume zap below is still worth attempting,
+			// and only the LVM2 metadata purge for this OSD is lost.
+			appendErr(err)
 		} else {
 			pvs = append(pvs, pvDevices...)
 		}
 
 		// run c-v
-		go s.wipeLVM(osd.ID, &wg)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := s.wipeLVM(osd.ID); err != nil {
+				appendErr(err)
+			}
+		}()
 	}
 	// Wait for ceph-volume to finish before wiping the remaining Physical Volume data
 	wg.Wait()
@@ -126,27 +163,35 @@ func (s *DiskSanitizer) SanitizeLVMDisk(osdLVMList []oposd.OSDInfo) {
 	// purge remaining LVM2 metadata from PV
 	for _, pv := range pvs {
 		wg2.Add(1)
-		go s.executeSanitizeCommand(oposd.OSDInfo{BlockPath: pv}, &wg2)
+		go func() {
+			defer wg2.Done()
+			if err := s.executeSanitizeCommand(oposd.OSDInfo{BlockPath: pv}); err != nil {
+				appendErr(err)
+			}
+		}()
 	}
 	wg2.Wait()
+
+	return stderrors.Join(sanitizeErrs...)
 }
 
-func (s *DiskSanitizer) wipeLVM(osdID int, wg *sync.WaitGroup) {
-	// On return, notify the WaitGroup that we’re done
-	defer wg.Done()
-
+func (s *DiskSanitizer) wipeLVM(osdID int) error {
 	output, err := s.context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", "ceph-volume", "lvm", "zap", "--osd-id", strconv.Itoa(osdID), "--destroy")
+	logger.Infof("%s\n", output)
+
 	if err != nil {
 		logger.Errorf("failed to sanitize osd %d. %s. %v", osdID, output, err)
+		return errors.Wrapf(err, "failed to sanitize lvm osd %d. %s", osdID, output)
 	}
 
-	logger.Infof("%s\n", output)
 	logger.Infof("successfully sanitized lvm osd %d", osdID)
+	return nil
 }
 
 func (s *DiskSanitizer) returnPVDevice(disk string) ([]string, error) {
 	output, err := s.context.Executor.ExecuteCommandWithOutput("lvs", disk, "-o", "seg_pe_ranges", "--noheadings")
 	if err != nil {
+		logger.Errorf("failed to execute lvs command. %v", err)
 		return nil, errors.Wrapf(err, "failed to look up the physical volume for %q", disk)
 	}
 
@@ -219,19 +264,20 @@ func (s *DiskSanitizer) buildShredCommands(disk string) []ShredCommand {
 	return shredCommands
 }
 
-func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfo, wg *sync.WaitGroup) {
-	// On return, notify the WaitGroup that we’re done
-	defer wg.Done()
+func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfo) error {
+	var sanitizeErrs []error
 
 	// If the device is encrypted, get the real path and remove the dm device
 	if osdInfo.Encrypted {
 		realPath, err := osd.GetBackingDeviceForEncryptedBlock(s.context, osdInfo.BlockPath)
 		if err != nil {
 			logger.Errorf("failed to get backing device for encrypted block %q. %v", osdInfo.BlockPath, err)
+			sanitizeErrs = append(sanitizeErrs, errors.Wrapf(err, "failed to get backing device for encrypted block %q", osdInfo.BlockPath))
 		} else {
 			err := osd.RemoveEncryptedDevice(s.context, osdInfo.BlockPath)
 			if err != nil {
 				logger.Errorf("failed to remove dm device %q. %v", osdInfo.BlockPath, err)
+				sanitizeErrs = append(sanitizeErrs, errors.Wrapf(err, "failed to remove dm device %q", osdInfo.BlockPath))
 			}
 
 			osdInfo.BlockPath = realPath
@@ -250,9 +296,12 @@ func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfo, wg *sync.W
 
 			if err != nil {
 				logger.Errorf("failed to execute sanitization command for osd disk %q. output: %s, error: %v", device, output, err)
+				sanitizeErrs = append(sanitizeErrs, errors.Wrapf(err, "failed to execute sanitization command for osd disk %q. output: %s", device, output))
 			} else {
 				logger.Infof("successfully executed sanitization command for osd disk %q", device)
 			}
 		}
 	}
+
+	return stderrors.Join(sanitizeErrs...)
 }

@@ -5320,7 +5320,51 @@ bool
 was reinstalled but OSD disk still contains the metadata from previous ceph cluster.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>strategy</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CleanupStrategyProperty">
+CleanupStrategyProperty
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Strategy determines how the cleanup job reacts to a failure while sanitizing disks.
+&ldquo;BestEffort&rdquo;, the default, logs the failure and still reports the job as successful,
+which preserves the historical behavior. &ldquo;FailOnError&rdquo; fails the job instead, so that a
+sanitize failure is visible rather than reported as a successful wipe. Note that this
+governs disk sanitization only; failures while removing dataDirHostPath are still
+best-effort.</p>
+</td>
+</tr>
 </tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CleanupStrategyProperty">CleanupStrategyProperty
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CleanupPolicySpec">CleanupPolicySpec</a>)
+</p>
+<div>
+<p>CleanupStrategyProperty represents how the cleanup job reacts to a failure</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;BestEffort&#34;</p></td>
+<td><p>CleanupStrategyBestEffort logs cleanup failures and still reports the job as successful.
+This is the default so that existing users relying on the behavior are unaffected.</p>
+</td>
+</tr><tr><td><p>&#34;FailOnError&#34;</p></td>
+<td><p>CleanupStrategyFailOnError fails the cleanup job when sanitizing disks fails, so that the
+failure is visible rather than reported as a successful wipe.</p>
+</td>
+</tr></tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ClientSecuritySpec">ClientSecuritySpec
 </h3>
