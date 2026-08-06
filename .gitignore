@@ -21,3 +21,6 @@ deploy/olm/templates/*
 site/
 public/
 __pycache__/
+
+# generated Go workspace files
+go.work.sum
