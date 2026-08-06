@@ -17,7 +17,6 @@ limitations under the License.
 package keyring
 
 import (
-	"context"
 	"path"
 	"testing"
 
@@ -72,7 +71,7 @@ func TestGenerateKey(t *testing.T) {
 }
 
 func TestKeyringStore(t *testing.T) {
-	ctxt := context.TODO()
+	ctxt := t.Context()
 	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,

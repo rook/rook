@@ -19,7 +19,6 @@ package objectuser
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -109,7 +108,7 @@ var (
 )
 
 func TestCephObjectStoreUserController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	cephObjectStore := &cephv1.CephObjectStore{}
@@ -279,7 +278,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		// Create a ReconcileObjectStoreUser object with the scheme and fake client.
 		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: events.NewFakeRecorder(50)}
 
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: store, Namespace: namespace}, cephObjectStore)
+		err := r.client.Get(t.Context(), types.NamespacedName{Name: store, Namespace: namespace}, cephObjectStore)
 		assert.NoError(t, err, cephObjectStore)
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -295,7 +294,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 
 		// Get the updated object.
 		// Create RGW pod
-		err := r.client.Create(context.TODO(), rgwPod)
+		err := r.client.Create(t.Context(), rgwPod)
 		assert.NoError(t, err)
 
 		// Mock client
@@ -338,7 +337,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
-		err = r.client.Get(context.TODO(), req.NamespacedName, objectUser)
+		err = r.client.Get(t.Context(), req.NamespacedName, objectUser)
 		assert.NoError(t, err)
 		assert.Equal(t, "Ready", objectUser.Status.Phase, objectUser)
 	})
@@ -373,7 +372,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 
 		// Create a user in a different namespace, and where the cephcluster does exist
 		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: events.NewFakeRecorder(50)}
-		err := r.client.Create(context.TODO(), rgwPod)
+		err := r.client.Create(t.Context(), rgwPod)
 		assert.NoError(t, err)
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -511,7 +510,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 		objContext: &cephobject.AdminOpsContext{
 			AdminOpsClient: adminClient,
 		},
-		opManagerContext: context.TODO(),
+		opManagerContext: t.Context(),
 	}
 	maxsize, err := resource.ParseQuantity(maxsizestr)
 	assert.NoError(t, err)
@@ -713,7 +712,7 @@ func TestCreateOrUpdateCephUserNoKeys(t *testing.T) {
 		objContext: &cephobject.AdminOpsContext{
 			AdminOpsClient: adminClient,
 		},
-		opManagerContext: context.TODO(),
+		opManagerContext: t.Context(),
 	}
 
 	userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
@@ -787,7 +786,7 @@ func TestValidateUser(t *testing.T) {
 }
 
 func TestResolveAccountRef(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion,
 		&cephv1.CephObjectStoreUser{},

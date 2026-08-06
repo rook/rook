@@ -40,7 +40,7 @@ func TestMigrateForEncryption(t *testing.T) {
 	}
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace: namespace,
-		Context:   context.TODO(),
+		Context:   t.Context(),
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -118,7 +118,7 @@ func TestMigrationForOSDStore(t *testing.T) {
 	}
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace: namespace,
-		Context:   context.TODO(),
+		Context:   t.Context(),
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -196,7 +196,7 @@ func TestIsLastOSDMigrationComplete(t *testing.T) {
 	}
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace: namespace,
-		Context:   context.TODO(),
+		Context:   t.Context(),
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -243,7 +243,7 @@ func TestStartOSDMigration(t *testing.T) {
 	}
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace: namespace,
-		Context:   context.TODO(),
+		Context:   t.Context(),
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -274,7 +274,7 @@ func TestStartOSDMigration(t *testing.T) {
 		// No new migration must be started while the previous one is incomplete: osd.2's
 		// deployment must still exist and no OSD may be recorded for migration.
 		assert.Nil(t, c.migrateOSD)
-		_, err = clientset.AppsV1().Deployments(namespace).Get(context.TODO(), "rook-ceph-osd-2", metav1.GetOptions{})
+		_, err = clientset.AppsV1().Deployments(namespace).Get(t.Context(), "rook-ceph-osd-2", metav1.GetOptions{})
 		assert.NoError(t, err)
 	})
 }

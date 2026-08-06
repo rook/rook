@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -43,7 +42,7 @@ import (
 )
 
 func TestReconcileDeleteCephCluster(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	cephNs := "rook-ceph"
 	clusterName := "my-cluster"
 	nsName := types.NamespacedName{
@@ -105,7 +104,7 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 			scheme:            scheme,
 			context:           clusterdCtx,
 			clusterController: controller,
-			opManagerContext:  context.TODO(),
+			opManagerContext:  t.Context(),
 		}
 
 		req := reconcile.Request{NamespacedName: nsName}
@@ -152,7 +151,7 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 
 func TestRemoveFinalizers(t *testing.T) {
 	reconcileCephCluster := &ReconcileCephCluster{
-		opManagerContext: context.TODO(),
+		opManagerContext: t.Context(),
 	}
 	s := scheme.Scheme
 	fakeObject1 := &cephv1.CephCluster{
@@ -254,7 +253,7 @@ func TestReconcileSkipsWhenSkipReconcileLabelSet(t *testing.T) {
 		scheme:            s,
 		context:           clusterdCtx,
 		clusterController: controller,
-		opManagerContext:  context.TODO(),
+		opManagerContext:  t.Context(),
 	}
 
 	resp, _, err := reconcileCephCluster.reconcile(reconcile.Request{NamespacedName: nsName})

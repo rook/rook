@@ -17,7 +17,6 @@ limitations under the License.
 package k8sutil
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -166,7 +165,7 @@ func TestDeleteSecretIfOwnedBy(t *testing.T) {
 				})
 			}
 
-			err := DeleteSecretIfOwnedBy(context.TODO(), client, "my-secret", "default", owner)
+			err := DeleteSecretIfOwnedBy(t.Context(), client, "my-secret", "default", owner)
 			if tt.expectedErr {
 				assert.Error(t, err)
 			} else {
@@ -177,7 +176,7 @@ func TestDeleteSecretIfOwnedBy(t *testing.T) {
 }
 
 func TestUpdateSecretIfOwnedBy(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	client := k8sfake.NewClientset()
 
 	expectedOwner := metav1.OwnerReference{

@@ -21,7 +21,6 @@ limitations under the License.
 package sharedstore
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -84,7 +83,7 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 	t.Helper()
 
 	s := &Sharedstore{tlsEnable: tlsEnable, installer: installer}
-	ctx := context.TODO()
+	ctx := t.Context()
 	ns := namespace
 
 	// securePort is the in-container RGW TLS listener port. The NodePort Service

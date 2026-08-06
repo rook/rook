@@ -17,7 +17,6 @@ limitations under the License.
 package k8sutil
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,7 +102,7 @@ func TestExpandPVCIfRequired(t *testing.T) {
 
 		// get existing PVC
 		existingPVC := &v1.PersistentVolumeClaim{}
-		err := cl.Get(context.TODO(), client.ObjectKey{Name: "test", Namespace: "rook-ceph"}, existingPVC)
+		err := cl.Get(t.Context(), client.ObjectKey{Name: "test", Namespace: "rook-ceph"}, existingPVC)
 		assert.NoError(t, err)
 
 		desiredPVC.Spec.Resources.Requests[v1.ResourceStorage] = apiresource.MustParse(tc.desiredPVCSize)
@@ -114,10 +113,10 @@ func TestExpandPVCIfRequired(t *testing.T) {
 			},
 		}
 
-		ExpandPVCIfRequired(context.TODO(), cl, desiredPVC, existingPVC)
+		ExpandPVCIfRequired(t.Context(), cl, desiredPVC, existingPVC)
 
 		// get existing PVC
-		err = cl.Get(context.TODO(), client.ObjectKey{Name: "test", Namespace: "rook-ceph"}, existingPVC)
+		err = cl.Get(t.Context(), client.ObjectKey{Name: "test", Namespace: "rook-ceph"}, existingPVC)
 		assert.NoError(t, err)
 
 		// verify size

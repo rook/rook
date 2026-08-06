@@ -17,7 +17,6 @@ limitations under the License.
 package osd
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -65,7 +64,7 @@ func osdDumpJSON(inByID map[int]int) string {
 func newReplaceHealthMonitor(t *testing.T, clientset *fake.Clientset, st *replaceTestState) *OSDHealthMonitor {
 	t.Helper()
 	clusterInfo := cephclient.AdminTestClusterInfo("rook-ceph")
-	clusterInfo.Context = context.TODO()
+	clusterInfo.Context = t.Context()
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if len(args) >= 2 && args[0] == "osd" && args[1] == "tree" {
@@ -100,7 +99,7 @@ func newReplaceHealthMonitor(t *testing.T, clientset *fake.Clientset, st *replac
 
 func getReplaceDep(t *testing.T, m *OSDHealthMonitor, osdID int) *appsv1.Deployment {
 	t.Helper()
-	d, err := m.context.Clientset.AppsV1().Deployments("rook-ceph").Get(context.TODO(), fmt.Sprintf(osdAppNameFmt, osdID), metav1.GetOptions{})
+	d, err := m.context.Clientset.AppsV1().Deployments("rook-ceph").Get(t.Context(), fmt.Sprintf(osdAppNameFmt, osdID), metav1.GetOptions{})
 	require.NoError(t, err)
 	return d
 }
@@ -270,7 +269,7 @@ func TestProcessOSDReplacementDestroy(t *testing.T) {
 		m := newReplaceHealthMonitor(t, fake.NewClientset(dep), st)
 		// a crypto-close Job exists from a prior tick before the cancellation.
 		require.NoError(t, m.cluster.startCryptCloseJob(osdID, "node-1"))
-		_, err := m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(context.TODO(), cryptCloseJobName(osdID), metav1.GetOptions{})
+		_, err := m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(t.Context(), cryptCloseJobName(osdID), metav1.GetOptions{})
 		require.NoError(t, err, "crypto-close job should exist before cancellation")
 
 		require.NoError(t, advanceFromState(t, m, st, dep, osdID))
@@ -280,7 +279,7 @@ func TestProcessOSDReplacementDestroy(t *testing.T) {
 		got := getReplaceDep(t, m, osdID)
 		assert.NotContains(t, got.Labels, cephv1.SkipReconcileLabelKey)
 		// the in-flight crypto-close Job is gone.
-		_, err = m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(context.TODO(), cryptCloseJobName(osdID), metav1.GetOptions{})
+		_, err = m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(t.Context(), cryptCloseJobName(osdID), metav1.GetOptions{})
 		assert.True(t, kerrors.IsNotFound(err), "crypto-close job must be deleted on cancellation")
 	})
 
@@ -356,7 +355,7 @@ func TestReplaceWaitsForPodToTerminate(t *testing.T) {
 	assert.NotContains(t, getReplaceDep(t, m, osdID).Annotations, cephv1.ReadyForSwapOSDAnnotationKey)
 
 	// Remove the pod (daemon terminated) and re-run: now pod-gone -> destroy proceeds.
-	require.NoError(t, m.context.Clientset.CoreV1().Pods("rook-ceph").Delete(context.TODO(), pod.Name, metav1.DeleteOptions{}))
+	require.NoError(t, m.context.Clientset.CoreV1().Pods("rook-ceph").Delete(t.Context(), pod.Name, metav1.DeleteOptions{}))
 	require.NoError(t, advanceFromState(t, m, st, getReplaceDep(t, m, osdID), osdID))
 	assert.Contains(t, st.cephCmds, fmt.Sprintf("osd destroy osd.%d --yes-i-really-mean-it", osdID))
 }
@@ -398,12 +397,12 @@ func TestReplaceDestroyStepsEncrypted(t *testing.T) {
 	require.NoError(t, advanceFromState(t, m, st, getReplaceDep(t, m, osdID), osdID))
 	assert.NotContains(t, st.cephCmds, fmt.Sprintf("osd destroy osd.%d --yes-i-really-mean-it", osdID))
 	assert.NotContains(t, getReplaceDep(t, m, osdID).Annotations, cephv1.ReadyForSwapOSDAnnotationKey, "crypto job not yet done, so not destroyed this tick")
-	job, err := m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(context.TODO(), cryptCloseJobName(osdID), metav1.GetOptions{})
+	job, err := m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(t.Context(), cryptCloseJobName(osdID), metav1.GetOptions{})
 	require.NoError(t, err, "crypto-close job should have been created")
 
 	// Mark the job succeeded and re-run: destroy steps proceed and the job is deleted BEFORE destroy.
 	job.Status.Succeeded = 1
-	_, err = m.context.Clientset.BatchV1().Jobs("rook-ceph").UpdateStatus(context.TODO(), job, metav1.UpdateOptions{})
+	_, err = m.context.Clientset.BatchV1().Jobs("rook-ceph").UpdateStatus(t.Context(), job, metav1.UpdateOptions{})
 	require.NoError(t, err)
 
 	require.NoError(t, advanceFromState(t, m, st, getReplaceDep(t, m, osdID), osdID))
@@ -411,7 +410,7 @@ func TestReplaceDestroyStepsEncrypted(t *testing.T) {
 	assert.Contains(t, st.cephCmds, fmt.Sprintf("osd destroy osd.%d --yes-i-really-mean-it", osdID))
 	assert.NotContains(t, getReplaceDep(t, m, osdID).Annotations, cephv1.ReadyForSwapOSDAnnotationKey,
 		"annotate is a separate transition once the slot reads destroyed")
-	_, err = m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(context.TODO(), cryptCloseJobName(osdID), metav1.GetOptions{})
+	_, err = m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(t.Context(), cryptCloseJobName(osdID), metav1.GetOptions{})
 	assert.True(t, kerrors.IsNotFound(err), "crypto-close job is deleted on the destroy tick, before/with osd destroy")
 
 	// Next tick: the slot reads destroyed -> pure annotate ready-for-swap; the Job is already gone, so
@@ -419,7 +418,7 @@ func TestReplaceDestroyStepsEncrypted(t *testing.T) {
 	st.tree[osdID] = "destroyed"
 	require.NoError(t, advanceFromState(t, m, st, getReplaceDep(t, m, osdID), osdID))
 	assert.Contains(t, getReplaceDep(t, m, osdID).Annotations, cephv1.ReadyForSwapOSDAnnotationKey, "crypto job succeeded and slot destroyed")
-	_, err = m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(context.TODO(), cryptCloseJobName(osdID), metav1.GetOptions{})
+	_, err = m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(t.Context(), cryptCloseJobName(osdID), metav1.GetOptions{})
 	assert.True(t, kerrors.IsNotFound(err), "crypto-close job remains deleted; the destroyed tick does not touch it")
 }
 
@@ -445,7 +444,7 @@ func TestReplaceExclusionSetCompleteOnFetchFailure(t *testing.T) {
 	dep5 := replaceMarkedDep(5)
 	dep7 := replaceMarkedDep(7)
 	clusterInfo := cephclient.AdminTestClusterInfo("rook-ceph")
-	clusterInfo.Context = context.TODO()
+	clusterInfo.Context = t.Context()
 	// Executor fails the osd tree fetch, so processOSDsDestroyForReplacement aborts the per-OSD actions.
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -487,7 +486,7 @@ func TestReplaceMarkerSurvivesNormalHealthPath(t *testing.T) {
 	m.checkOSDHealth()
 
 	// The marker deployment must still exist — it was excluded from removeOSDDeploymentIfSafeToDestroy.
-	_, err := m.context.Clientset.AppsV1().Deployments("rook-ceph").Get(context.TODO(), fmt.Sprintf(osdAppNameFmt, osdID), metav1.GetOptions{})
+	_, err := m.context.Clientset.AppsV1().Deployments("rook-ceph").Get(t.Context(), fmt.Sprintf(osdAppNameFmt, osdID), metav1.GetOptions{})
 	assert.NoError(t, err, "replacement marker must survive the normal health path")
 }
 

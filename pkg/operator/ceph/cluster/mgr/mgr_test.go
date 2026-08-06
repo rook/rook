@@ -112,7 +112,7 @@ func createNewCluster(t *testing.T) *Cluster {
 		Client:    cl,
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfo(t)
-	clusterInfo := &cephclient.ClusterInfo{Namespace: clusterNamespace, FSID: "myfsid", OwnerInfo: ownerInfo, CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Build: 0}, Context: context.TODO()}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: clusterNamespace, FSID: "myfsid", OwnerInfo: ownerInfo, CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Build: 0}, Context: t.Context()}
 	clusterInfo.SetName(clusterName)
 	clusterSpec := cephv1.ClusterSpec{
 		Annotations:        map[cephv1.KeyType]cephv1.Annotations{cephv1.KeyMgr: {"my": "annotation"}},
@@ -153,7 +153,7 @@ func TestStartMgr(t *testing.T) {
 	c.spec.Mgr.Count = 2
 	c.spec.Dashboard.Enabled = false
 	// delete the previous mgr since the mocked test won't update the existing one
-	err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(context.TODO(), "rook-ceph-mgr-a", metav1.DeleteOptions{})
+	err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(t.Context(), "rook-ceph-mgr-a", metav1.DeleteOptions{})
 	assert.NoError(t, err)
 	err = c.Start()
 	assert.NoError(t, err)
@@ -162,7 +162,7 @@ func TestStartMgr(t *testing.T) {
 	c.spec.Mgr.Count = 1
 	c.spec.Dashboard.Enabled = false
 	// clean the previous deployments
-	err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(context.TODO(), "rook-ceph-mgr-a", metav1.DeleteOptions{})
+	err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(t.Context(), "rook-ceph-mgr-a", metav1.DeleteOptions{})
 	assert.NoError(t, err)
 	assert.NoError(t, err)
 	err = c.Start()
@@ -175,7 +175,7 @@ func validateStart(t *testing.T, c *Cluster) {
 	for i := 0; i < c.spec.Mgr.Count; i++ {
 		logger.Infof("Looking for cephmgr replica %d", i)
 		daemonName := mgrNames[i]
-		d, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Get(context.TODO(), fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
+		d, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Get(t.Context(), fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, "annotation", d.Spec.Template.Annotations["my"])
 		assert.Contains(t, d.Spec.Template.Labels, "my-label-key")
@@ -192,7 +192,7 @@ func validateStart(t *testing.T, c *Cluster) {
 	// verify we have exactly the expected number of deployments and not extra
 	// the expected deployments were already retrieved above, but now we check for no extra deployments
 	options := metav1.ListOptions{LabelSelector: "app=rook-ceph-mgr"}
-	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(context.TODO(), options)
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(t.Context(), options)
 	assert.NoError(t, err)
 	assert.Equal(t, c.spec.Mgr.Count, len(deployments.Items))
 
@@ -200,10 +200,10 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func validateServices(t *testing.T, c *Cluster) {
-	_, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr", metav1.GetOptions{})
+	_, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(t.Context(), "rook-ceph-mgr", metav1.GetOptions{})
 	assert.NoError(t, err)
 
-	ds, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	ds, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(t.Context(), "rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	if c.spec.Dashboard.Enabled {
 		assert.NoError(t, err)
 		if c.spec.Dashboard.Port == 0 {
@@ -586,7 +586,7 @@ func TestMgrKeyRotation(t *testing.T) {
 	err := c.Start()
 	assert.NoError(t, err)
 	cluster := &cephv1.CephCluster{}
-	err = c.context.Client.Get(context.TODO(), c.clusterInfo.NamespacedName(), cluster)
+	err = c.context.Client.Get(t.Context(), c.clusterInfo.NamespacedName(), cluster)
 	assert.NoError(t, err)
 	assert.Equal(t, uint32(1), cluster.Status.Cephx.Mgr.KeyGeneration)
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -595,24 +595,24 @@ func TestMgrKeyRotation(t *testing.T) {
 	// verify that keyGeneration is set to 2 when the mgr key is rotated.
 	cluster.Spec.Security.CephX.Daemon.KeyRotationPolicy = cephv1.KeyGenerationCephxKeyRotationPolicy
 	cluster.Spec.Security.CephX.Daemon.KeyGeneration = 2
-	err = c.context.Client.Update(context.TODO(), cluster)
+	err = c.context.Client.Update(t.Context(), cluster)
 	assert.NoError(t, err)
 
 	err = c.Start()
 	assert.NoError(t, err)
-	err = c.context.Client.Get(context.TODO(), c.clusterInfo.NamespacedName(), cluster)
+	err = c.context.Client.Get(t.Context(), c.clusterInfo.NamespacedName(), cluster)
 	assert.NoError(t, err)
 	assert.Equal(t, uint32(2), cluster.Status.Cephx.Mgr.KeyGeneration)
 
 	// verify that keyGeneration is set to 3 when the mgr key is rotated again.
 	cluster.Spec.Security.CephX.Daemon.KeyRotationPolicy = cephv1.KeyGenerationCephxKeyRotationPolicy
 	cluster.Spec.Security.CephX.Daemon.KeyGeneration = 3
-	err = c.context.Client.Update(context.TODO(), cluster)
+	err = c.context.Client.Update(t.Context(), cluster)
 	assert.NoError(t, err)
 
 	err = c.Start()
 	assert.NoError(t, err)
-	err = c.context.Client.Get(context.TODO(), c.clusterInfo.NamespacedName(), cluster)
+	err = c.context.Client.Get(t.Context(), c.clusterInfo.NamespacedName(), cluster)
 	assert.NoError(t, err)
 	assert.Equal(t, uint32(3), cluster.Status.Cephx.Mgr.KeyGeneration)
 }

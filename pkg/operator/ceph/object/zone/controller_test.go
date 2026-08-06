@@ -18,7 +18,6 @@ limitations under the License.
 package zone
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -126,7 +125,7 @@ const (
 )
 
 func TestCephObjectZoneController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	name := "zone-a"
 	zonegroup := "zonegroup-a"
@@ -366,7 +365,7 @@ func TestCephObjectZoneController(t *testing.T) {
 
 	r = &ReconcileObjectZone{client: cl, scheme: s, context: c, clusterInfo: clusterInfo, recorder: events.NewFakeRecorder(50)}
 
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: zonegroup, Namespace: namespace}, objectZoneGroup)
+	err = r.client.Get(t.Context(), types.NamespacedName{Name: zonegroup, Namespace: namespace}, objectZoneGroup)
 	assert.NoError(t, err, objectZoneGroup)
 
 	req = reconcile.Request{
@@ -381,7 +380,7 @@ func TestCephObjectZoneController(t *testing.T) {
 	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
-	err = r.client.Get(context.TODO(), req.NamespacedName, objectZone)
+	err = r.client.Get(t.Context(), req.NamespacedName, objectZone)
 	assert.NoError(t, err)
 	assert.True(t, createPoolsCalled)
 	assert.True(t, commitChangesCalled)

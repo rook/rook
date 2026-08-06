@@ -17,7 +17,6 @@ limitations under the License.
 package file
 
 import (
-	"context"
 	"fmt"
 	"syscall"
 	"testing"
@@ -33,7 +32,7 @@ import (
 )
 
 func TestCephFilesystemDependents(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	scheme := runtime.NewScheme()
 	assert.NoError(t, cephv1.AddToScheme(scheme))
 	ns := "test-ceph-filesystem-dependents"

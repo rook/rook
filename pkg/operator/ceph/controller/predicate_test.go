@@ -17,7 +17,6 @@ limitations under the License.
 package controller
 
 import (
-	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -255,7 +254,7 @@ func TestIsDoNotReconcile(t *testing.T) {
 }
 
 func TestDuplicateCephClusters(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	namespace := "rook-ceph"
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{

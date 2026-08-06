@@ -76,9 +76,9 @@ func TestCephBucketController(t *testing.T) {
 				Image:             "rook",
 				ServiceAccount:    "foo",
 			},
-			opManagerContext: context.TODO(),
+			opManagerContext: t.Context(),
 		}
-		ctx := context.TODO()
+		ctx := t.Context()
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
@@ -139,7 +139,7 @@ func TestCephBucketController(t *testing.T) {
 		c.Client = cl
 
 		// Create a ReconcileBucket object with the scheme and fake client.
-		ctx, cancel := context.WithCancel(context.TODO())
+		ctx, cancel := context.WithCancel(t.Context())
 		// defer cancel()
 
 		r := &ReconcileBucket{

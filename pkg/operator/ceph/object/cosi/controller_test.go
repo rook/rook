@@ -1,7 +1,6 @@
 package cosi
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -29,7 +28,7 @@ const (
 )
 
 func TestCephCOSIDriverController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 	os.Setenv("POD_NAMESPACE", namespace)

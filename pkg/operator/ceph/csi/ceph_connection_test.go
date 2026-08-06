@@ -17,7 +17,6 @@ limitations under the License.
 package csi
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -72,7 +71,7 @@ func TestCreateUpdateCephConnection(t *testing.T) {
 	assert.NoError(t, err)
 
 	// When no RBDMirror is created
-	err = cl.Get(context.TODO(), types.NamespacedName{Name: ns, Namespace: ns}, csiCephConnection)
+	err = cl.Get(t.Context(), types.NamespacedName{Name: ns, Namespace: ns}, csiCephConnection)
 	assert.NoError(t, err)
 	assert.Equal(t, csiCephConnection.Spec.RbdMirrorDaemonCount, 0)
 
@@ -91,7 +90,7 @@ func TestCreateUpdateCephConnection(t *testing.T) {
 		cluster,
 	}
 
-	err = cl.Create(context.TODO(), rbdMirror)
+	err = cl.Create(t.Context(), rbdMirror)
 	assert.NoError(t, err)
 	// Create a fake client to mock API calls.
 	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
@@ -99,7 +98,7 @@ func TestCreateUpdateCephConnection(t *testing.T) {
 	assert.NoError(t, err)
 
 	// When RBDMirror is created
-	err = cl.Get(context.TODO(), types.NamespacedName{Name: ns, Namespace: ns}, csiCephConnection)
+	err = cl.Get(t.Context(), types.NamespacedName{Name: ns, Namespace: ns}, csiCephConnection)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, csiCephConnection.Spec.RbdMirrorDaemonCount)
 }
@@ -139,7 +138,7 @@ func TestCephConnectionDefaultTopology(t *testing.T) {
 	err := CreateUpdateCephConnection(cl, c, cluster.Spec)
 	assert.NoError(t, err)
 
-	err = cl.Get(context.TODO(), types.NamespacedName{Name: ns, Namespace: ns}, csiCephConnection)
+	err = cl.Get(t.Context(), types.NamespacedName{Name: ns, Namespace: ns}, csiCephConnection)
 	assert.NoError(t, err)
 	assert.Equal(t, 10, len(csiCephConnection.Spec.ReadAffinity.CrushLocationLabels))
 	labels := map[string]bool{}

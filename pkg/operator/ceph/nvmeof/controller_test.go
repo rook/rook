@@ -51,7 +51,7 @@ var (
 )
 
 func TestCephNVMeOFGatewayController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -441,7 +441,7 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 }
 
 func TestNVMeOFKeyRotation(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	var (
 		name      = "my-nvmeof"
 		namespace = "rook-ceph"

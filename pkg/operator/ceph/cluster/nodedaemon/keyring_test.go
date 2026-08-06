@@ -17,7 +17,6 @@ limitations under the License.
 package nodedaemon
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -50,7 +49,7 @@ func TestExporterKeyringCaps(t *testing.T) {
 
 func TestCreateCrashCollectorKeyring(t *testing.T) {
 	clusterContext := &clusterd.Context{}
-	ctx := context.TODO()
+	ctx := t.Context()
 	clusterInfo := &cephclient.ClusterInfo{
 		Context:     ctx,
 		Namespace:   "rook-ceph",
@@ -142,7 +141,7 @@ func TestCreateCrashCollectorKeyring(t *testing.T) {
 
 func TestCreateCephExporterKeyring(t *testing.T) {
 	clusterContext := &clusterd.Context{}
-	ctx := context.TODO()
+	ctx := t.Context()
 	clusterInfo := &cephclient.ClusterInfo{
 		Context:     ctx,
 		Namespace:   "rook-ceph",

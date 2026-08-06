@@ -17,7 +17,6 @@ limitations under the License.
 package object
 
 import (
-	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -408,7 +407,7 @@ func TestRgwConfigFromSecret(t *testing.T) {
 			"secKey": []byte("secVal"),
 		},
 	}
-	_, err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+	_, err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(t.Context(), s, metav1.CreateOptions{})
 	assert.NoError(t, err, "create secret")
 
 	got, err := c.generateMonConfigOptions(rgwConfig)

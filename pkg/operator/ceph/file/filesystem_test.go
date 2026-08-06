@@ -385,7 +385,7 @@ func fsTest(fsName string) cephv1.CephFilesystem {
 }
 
 func TestCreateFilesystem(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	var deploymentsUpdated *[]*apps.Deployment
 	mds.UpdateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 	configDir := t.TempDir()
@@ -452,7 +452,7 @@ func TestCreateFilesystem(t *testing.T) {
 }
 
 func TestUpgradeFilesystem(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	var deploymentsUpdated *[]*apps.Deployment
 	mds.UpdateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 	configDir := t.TempDir()
@@ -602,7 +602,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 }
 
 func TestCreateNopoolFilesystem(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := testop.New(t, 3)
 	configDir := t.TempDir()
 	executor := &exectest.MockExecutor{

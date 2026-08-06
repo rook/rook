@@ -17,7 +17,6 @@ limitations under the License.
 package integration
 
 import (
-	"context"
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
@@ -105,7 +104,7 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 	h.Suite.NoErrorf(err, "Failed to install Keystone in cluster")
 
 	// create usersecret for object store to use
-	testCtx := context.TODO()
+	testCtx := h.T().Context()
 
 	secrets := map[string][]byte{
 		"OS_AUTH_TYPE":            []byte("password"),
@@ -176,7 +175,7 @@ func (h *KeystoneAuthSuite) TestWithS3AndKeystone() {
 }
 
 func cleanUpTLSks(h *KeystoneAuthSuite) {
-	err := h.k8shelper.Clientset.CoreV1().Secrets(h.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
+	err := h.k8shelper.Clientset.CoreV1().Secrets(h.settings.Namespace).Delete(h.T().Context(), objectTLSSecretName, metav1.DeleteOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			logger.Fatal("failed to deleted store TLS secret")

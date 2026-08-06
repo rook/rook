@@ -17,7 +17,6 @@ limitations under the License.
 package osd
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -61,7 +60,7 @@ func TestRemovePVCs(t *testing.T) {
 		return false, nil, nil
 	}
 	ns := "testns"
-	ctx := context.TODO()
+	ctx := t.Context()
 	clusterInfo := client.AdminTestClusterInfo(ns)
 
 	t.Run("remove osd with data pvc", func(t *testing.T) {

@@ -17,7 +17,6 @@ limitations under the License.
 package k8sutil
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -30,7 +29,7 @@ import (
 
 func TestDeleteConfigMap(t *testing.T) {
 	k8s := fake.NewClientset()
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -61,7 +60,7 @@ func TestDeleteConfigMap(t *testing.T) {
 
 func TestGetOperatorSetting(t *testing.T) {
 	k8s := fake.NewClientset()
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	operatorSettingConfigMapName := "rook-ceph-operator-config"
 	testNamespace := "test-namespace"
@@ -118,7 +117,7 @@ func TestGetOperatorSetting(t *testing.T) {
 
 func TestCreateOrUpdateConfigMap(t *testing.T) {
 	k8s := fake.NewClientset()
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

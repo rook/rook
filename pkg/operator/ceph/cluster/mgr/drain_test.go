@@ -17,7 +17,6 @@ limitations under the License.
 package mgr
 
 import (
-	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -79,7 +78,7 @@ func TestReconcileMgrPDB(t *testing.T) {
 	err := c.reconcileMgrPDB()
 	assert.NoError(t, err)
 	existingPDBV1 := &policyv1.PodDisruptionBudget{}
-	err = c.context.Client.Get(context.TODO(), types.NamespacedName{Name: mgrPDBName, Namespace: mockNamespace}, existingPDBV1)
+	err = c.context.Client.Get(t.Context(), types.NamespacedName{Name: mgrPDBName, Namespace: mockNamespace}, existingPDBV1)
 	if testCases.errorExpected {
 		assert.Error(t, err)
 	}
@@ -106,10 +105,10 @@ func TestDeleteMgrPDB(t *testing.T) {
 	assert.NoError(t, err)
 	existingPDBV1 := &policyv1.PodDisruptionBudget{}
 	// mgr PDB exist
-	err = c.context.Client.Get(context.TODO(), fakeNamespaceName, existingPDBV1)
+	err = c.context.Client.Get(t.Context(), fakeNamespaceName, existingPDBV1)
 	assert.NoError(t, err)
 	c.deleteMgrPDB()
 	// mgr PDB deleted
-	err = c.context.Client.Get(context.TODO(), fakeNamespaceName, existingPDBV1)
+	err = c.context.Client.Get(t.Context(), fakeNamespaceName, existingPDBV1)
 	assert.Error(t, err)
 }

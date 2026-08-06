@@ -17,7 +17,6 @@ limitations under the License.
 package nvmeof
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -81,7 +80,7 @@ func newDeploymentSpecTest(t *testing.T) (*ReconcileCephNVMeOFGateway, string) {
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
 			CephVersion: cephver.Squid,
-			Context:     context.TODO(),
+			Context:     t.Context(),
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{

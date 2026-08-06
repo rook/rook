@@ -17,7 +17,6 @@ limitations under the License.
 package mon
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -35,7 +34,7 @@ import (
 )
 
 func TestNodeAffinity(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := test.New(t, 4)
 	c := New(ctx, &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, &k8sutil.OwnerInfo{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
@@ -167,7 +166,7 @@ func TestPodMemory(t *testing.T) {
 
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(t, 3)
-	c := New(context.TODO(), &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, &k8sutil.OwnerInfo{})
+	c := New(t.Context(), &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, &k8sutil.OwnerInfo{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	c.spec.Network.HostNetwork = true
@@ -208,7 +207,7 @@ func extractArgValue(args []string, name string) (string, string) {
 }
 
 func TestGetNodeInfoFromNode(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := test.New(t, 1)
 	node, err := clientset.CoreV1().Nodes().Get(ctx, "node0", metav1.GetOptions{})
 	assert.NoError(t, err)

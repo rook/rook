@@ -17,7 +17,6 @@ limitations under the License.
 package nodedaemon
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"testing"
@@ -77,7 +76,7 @@ func TestCreateOrUpdateCephExporter(t *testing.T) {
 	cephCluster.Spec.Labels = cephv1.LabelsSpec{}
 	cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
 	cephVersion := &cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
-	ctx := context.TODO()
+	ctx := t.Context()
 	context := &clusterd.Context{
 		Clientset:     test.New(t, 1),
 		RookClientset: rookclient.NewSimpleClientset(),
@@ -201,7 +200,7 @@ func TestCephExporterLogrotateContainer(t *testing.T) {
 		client:           cl,
 		scheme:           s,
 		context:          &clusterd.Context{},
-		opManagerContext: context.TODO(),
+		opManagerContext: t.Context(),
 	}
 
 	result, err := reconciler.createOrUpdateCephExporter(node, []corev1.Toleration{}, *cephCluster, cephVersion)
@@ -209,7 +208,7 @@ func TestCephExporterLogrotateContainer(t *testing.T) {
 	assert.Equal(t, controllerutil.OperationResultCreated, result)
 
 	deployment := &appsv1.Deployment{}
-	err = cl.Get(context.TODO(), types.NamespacedName{
+	err = cl.Get(t.Context(), types.NamespacedName{
 		Name:      "rook-ceph-exporter-testnode",
 		Namespace: "test-namespace",
 	}, deployment)
@@ -490,7 +489,7 @@ func TestApplyCephExporterLabels(t *testing.T) {
 
 func TestDeleteOrphanedExporterDeployments(t *testing.T) {
 	const namespace = "rook-ceph"
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	s := scheme.Scheme
 	err := appsv1.AddToScheme(s)

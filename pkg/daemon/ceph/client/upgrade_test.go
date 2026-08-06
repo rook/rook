@@ -17,7 +17,6 @@ limitations under the License.
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -381,7 +380,7 @@ func TestLeastUptodateDaemonVersion(t *testing.T) {
 		},
 	}
 	clusterInfo := ClusterInfo{}
-	ctx := context.TODO()
+	ctx := t.Context()
 	clusterInfo.Context = ctx
 
 	passed := 0

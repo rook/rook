@@ -17,7 +17,6 @@ limitations under the License.
 package pool
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -278,7 +277,7 @@ func TestDeletePool(t *testing.T) {
 // TestCephBlockPoolController runs ReconcileCephBlockPool.Reconcile() against a
 // fake client that tracks a CephBlockPool object.
 func TestCephBlockPoolController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -352,7 +351,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		scheme:                  s,
 		context:                 c,
 		blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
-		opManagerContext:        context.TODO(),
+		opManagerContext:        ctx,
 		recorder:                events.NewFakeRecorder(50),
 	}
 
@@ -409,7 +408,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			scheme:                  s,
 			context:                 c,
 			blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
-			opManagerContext:        context.TODO(),
+			opManagerContext:        ctx,
 			recorder:                events.NewFakeRecorder(50),
 		}
 
@@ -469,21 +468,21 @@ func TestCephBlockPoolController(t *testing.T) {
 			scheme:                  s,
 			context:                 c,
 			blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
-			opManagerContext:        context.TODO(),
+			opManagerContext:        ctx,
 			recorder:                events.NewFakeRecorder(50),
 		}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 
-		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+		err = r.client.Get(t.Context(), req.NamespacedName, pool)
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
 	})
 
 	t.Run("failure no mirror mode", func(t *testing.T) {
 		pool.Spec.Mirroring.Enabled = true
-		err := r.client.Update(context.TODO(), pool)
+		err := r.client.Update(t.Context(), pool)
 		assert.NoError(t, err)
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -505,7 +504,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		},
 	}
 	// Create fake pod
-	_, err := r.context.Clientset.CoreV1().Pods(namespace).Create(context.TODO(), p, metav1.CreateOptions{})
+	_, err := r.context.Clientset.CoreV1().Pods(namespace).Create(t.Context(), p, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	replicaSet := &appsv1.ReplicaSet{
@@ -521,7 +520,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	}
 
 	// Create fake replicaset
-	_, err = r.context.Clientset.AppsV1().ReplicaSets(namespace).Create(context.TODO(), replicaSet, metav1.CreateOptions{})
+	_, err = r.context.Clientset.AppsV1().ReplicaSets(namespace).Create(t.Context(), replicaSet, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	t.Run("success - mirroring set", func(t *testing.T) {
@@ -542,19 +541,19 @@ func TestCephBlockPoolController(t *testing.T) {
 			scheme:                  s,
 			context:                 c,
 			blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
-			opManagerContext:        context.TODO(),
+			opManagerContext:        ctx,
 			recorder:                events.NewFakeRecorder(50),
 		}
 
 		pool.Spec.Mirroring.Mode = "image"
 		pool.Spec.Mirroring.Peers.SecretNames = []string{}
-		err = r.client.Update(context.TODO(), pool)
+		err = r.client.Update(t.Context(), pool)
 		assert.NoError(t, err)
 		for i := 0; i < 5; i++ {
 			res, err := r.Reconcile(ctx, req)
 			assert.NoError(t, err)
 			assert.False(t, res.Requeue)
-			err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+			err = r.client.Get(t.Context(), req.NamespacedName, pool)
 			assert.NoError(t, err)
 			assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
 			if _, ok := pool.Status.Info[opcontroller.RBDMirrorBootstrapPeerSecretName]; ok {
@@ -584,12 +583,12 @@ func TestCephBlockPoolController(t *testing.T) {
 			scheme:                  s,
 			context:                 c,
 			blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
-			opManagerContext:        context.TODO(),
+			opManagerContext:        ctx,
 			recorder:                events.NewFakeRecorder(50),
 		}
 
 		pool.Spec.Mirroring.Peers.SecretNames = []string{peerSecretName}
-		err := r.client.Update(context.TODO(), pool)
+		err := r.client.Update(t.Context(), pool)
 		assert.NoError(t, err)
 		res, err := r.Reconcile(ctx, req)
 		// assert reconcile failure because peer token secret was not created
@@ -612,7 +611,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
-		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+		err = r.client.Get(t.Context(), req.NamespacedName, pool)
 		assert.NoError(t, err)
 	})
 
@@ -622,17 +621,17 @@ func TestCephBlockPoolController(t *testing.T) {
 			scheme:                  s,
 			context:                 c,
 			blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
-			opManagerContext:        context.TODO(),
+			opManagerContext:        ctx,
 			recorder:                events.NewFakeRecorder(50),
 		}
 		pool.Spec.Mirroring.Enabled = false
 		pool.Spec.Mirroring.Mode = "image"
-		err := r.client.Update(context.TODO(), pool)
+		err := r.client.Update(t.Context(), pool)
 		assert.NoError(t, err)
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
-		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+		err = r.client.Get(t.Context(), req.NamespacedName, pool)
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
 		assert.Equal(t, pool.Status.MirroringStatus, &cephv1.MirroringStatusSpec{})
@@ -699,7 +698,7 @@ func TestDeletionBlocked(t *testing.T) {
 		scheme:                  s,
 		context:                 c,
 		blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
-		opManagerContext:        context.TODO(),
+		opManagerContext:        t.Context(),
 		recorder:                events.NewFakeRecorder(50),
 		clusterInfo:             cephclient.AdminTestClusterInfo("mycluster"),
 	}
@@ -709,7 +708,7 @@ func TestDeletionBlocked(t *testing.T) {
 		assert.NoError(t, err)
 
 		result := &cephv1.CephBlockPool{}
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
+		err = r.client.Get(t.Context(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
 		assert.NoError(t, err)
 		assert.Equal(t, pool.Name, result.Name)
 		assert.Equal(t, pool.Namespace, result.Namespace)
@@ -727,7 +726,7 @@ func TestDeletionBlocked(t *testing.T) {
 		assert.NoError(t, err)
 
 		result := &cephv1.CephBlockPool{}
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
+		err = r.client.Get(t.Context(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
 		assert.NoError(t, err)
 		assert.Equal(t, pool.Name, result.Name)
 		assert.Equal(t, pool.Namespace, result.Namespace)
@@ -745,7 +744,7 @@ func TestDeletionBlocked(t *testing.T) {
 		assert.Error(t, err)
 
 		result := &cephv1.CephBlockPool{}
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
+		err = r.client.Get(t.Context(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
 		assert.NoError(t, err)
 		assert.Equal(t, pool.Name, result.Name)
 		assert.Equal(t, pool.Namespace, result.Namespace)
@@ -767,7 +766,7 @@ func TestDeletionBlocked(t *testing.T) {
 				BlockPoolName: pool.Name,
 			},
 		}
-		_, err := c.RookClientset.CephV1().CephBlockPoolRadosNamespaces(pool.Namespace).Create(context.TODO(), radosNamespace, metav1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephBlockPoolRadosNamespaces(pool.Namespace).Create(t.Context(), radosNamespace, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// A radosnamespaces prevents deletion of the pool
@@ -777,7 +776,7 @@ func TestDeletionBlocked(t *testing.T) {
 		assert.Error(t, err)
 
 		result := &cephv1.CephBlockPool{}
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
+		err = r.client.Get(t.Context(), types.NamespacedName{Name: pool.Name, Namespace: pool.Namespace}, result)
 		assert.NoError(t, err)
 		assert.Equal(t, pool.Name, result.Name)
 		assert.Equal(t, pool.Namespace, result.Namespace)
@@ -809,7 +808,7 @@ func TestIsAnyRadosNamespaceMirrored(t *testing.T) {
 		scheme:                  s,
 		context:                 c,
 		blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
-		opManagerContext:        context.TODO(),
+		opManagerContext:        t.Context(),
 		recorder:                events.NewFakeRecorder(50),
 		clusterInfo:             cephclient.AdminTestClusterInfo("mycluster"),
 	}
@@ -1077,7 +1076,7 @@ func TestGenerateStatsPoolList(t *testing.T) {
 }
 
 func TestMirrorPeerKeyRotationStatus(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// Set DEBUG logging
 	t.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 	var (
@@ -1204,7 +1203,7 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 		scheme:                  s,
 		context:                 c,
 		blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
-		opManagerContext:        context.TODO(),
+		opManagerContext:        t.Context(),
 		recorder:                events.NewFakeRecorder(50),
 	}
 
@@ -1223,7 +1222,7 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 		},
 	}
 	// Create fake pod
-	_, err = r.context.Clientset.CoreV1().Pods(namespace).Create(context.TODO(), p, metav1.CreateOptions{})
+	_, err = r.context.Clientset.CoreV1().Pods(namespace).Create(t.Context(), p, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	replicaSet := &appsv1.ReplicaSet{
@@ -1239,14 +1238,14 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 	}
 
 	// Create fake replicaset
-	_, err = r.context.Clientset.AppsV1().ReplicaSets(namespace).Create(context.TODO(), replicaSet, metav1.CreateOptions{})
+	_, err = r.context.Clientset.AppsV1().ReplicaSets(namespace).Create(t.Context(), replicaSet, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	t.Run("first reconcile - PeerToken cephx status is set to empty", func(t *testing.T) {
 		_, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		pool := &cephv1.CephBlockPool{}
-		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+		err = r.client.Get(t.Context(), req.NamespacedName, pool)
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.CephxStatus{}, pool.Status.Cephx.PeerToken)
 	})
@@ -1255,7 +1254,7 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 		_, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		pool := &cephv1.CephBlockPool{}
-		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+		err = r.client.Get(t.Context(), req.NamespacedName, pool)
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.CephxStatus{}, pool.Status.Cephx.PeerToken)
 	})
@@ -1267,12 +1266,12 @@ func TestMirrorPeerKeyRotationStatus(t *testing.T) {
 		}
 
 		cephCluster.Status.Cephx.RBDMirrorPeer = RDBMirrorPeerStatus
-		err := r.client.Update(context.TODO(), cephCluster)
+		err := r.client.Update(t.Context(), cephCluster)
 		assert.NoError(t, err)
 		_, err = r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		pool := &cephv1.CephBlockPool{}
-		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+		err = r.client.Get(t.Context(), req.NamespacedName, pool)
 		assert.NoError(t, err)
 		assert.Equal(t, RDBMirrorPeerStatus, pool.Status.Cephx.PeerToken)
 	})
@@ -1313,7 +1312,7 @@ func TestCephBlockPoolControllerPoolReachesReady(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.TODO()
+			ctx := t.Context()
 			capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 			os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
@@ -1402,7 +1401,7 @@ func TestCephBlockPoolControllerPoolReachesReady(t *testing.T) {
 				scheme:                  s,
 				context:                 c,
 				blockPoolMirrorContexts: make(map[string]*blockPoolHealth),
-				opManagerContext:        context.TODO(),
+				opManagerContext:        t.Context(),
 				recorder:                events.NewFakeRecorder(50),
 			}
 
@@ -1420,7 +1419,7 @@ func TestCephBlockPoolControllerPoolReachesReady(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Zero(t, res.RequeueAfter)
 
-			err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+			err = r.client.Get(t.Context(), req.NamespacedName, pool)
 			assert.NoError(t, err)
 			assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase, "%s pool status should reach Ready, not remain stuck in Progressing", tc.expectedType)
 			assert.Equal(t, tc.expectedType, pool.Status.Info["type"])
