@@ -25,8 +25,10 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildDataSource(t *testing.T) {
@@ -34,6 +36,60 @@ func TestBuildDataSource(t *testing.T) {
 	s.sanitizeDisksSpec.DataSource = cephv1.SanitizeDataSourceZero
 
 	assert.Equal(t, "/dev/zero", s.buildDataSource())
+}
+
+func TestReturnPVDevice(t *testing.T) {
+	newSanitizer := func(output string, err error) *DiskSanitizer {
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				return output, err
+			},
+		}
+		return NewDiskSanitizer(&clusterd.Context{Executor: executor}, &client.ClusterInfo{}, &cephv1.SanitizeDisksSpec{})
+	}
+
+	t.Run("returns the physical volume", func(t *testing.T) {
+		pvs, err := newSanitizer("/dev/sda:0-100", nil).returnPVDevice("/dev/vg/lv")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"/dev/sda"}, pvs)
+	})
+
+	// lvs emits one line per segment, so an LV spanning several PVs must yield all of them.
+	t.Run("returns every physical volume of a multi-segment lv", func(t *testing.T) {
+		pvs, err := newSanitizer("/dev/sdb1:0-2559\n  /dev/sdc1:0-1279", nil).returnPVDevice("/dev/vg/lv")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"/dev/sdb1", "/dev/sdc1"}, pvs)
+	})
+
+	t.Run("returns an error when lvs fails", func(t *testing.T) {
+		_, err := newSanitizer("", errors.New("lvs failed")).returnPVDevice("/dev/vg/lv")
+		assert.Error(t, err)
+	})
+
+	// This previously returned an empty slice that the caller indexed at [0], panicking
+	// before the raw OSD disks were ever sanitized.
+	t.Run("returns an error instead of an empty slice", func(t *testing.T) {
+		_, err := newSanitizer("", nil).returnPVDevice("/dev/vg/lv")
+		assert.Error(t, err)
+	})
+}
+
+func TestSanitizeLVMDiskDoesNotPanicOnLookupFailure(t *testing.T) {
+	zapped := false
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			return "", errors.New("lvs failed")
+		},
+		MockExecuteCommandWithCombinedOutput: func(command string, args ...string) (string, error) {
+			zapped = true
+			return "", nil
+		},
+	}
+	s := NewDiskSanitizer(&clusterd.Context{Executor: executor}, &client.ClusterInfo{}, &cephv1.SanitizeDisksSpec{})
+
+	s.SanitizeLVMDisk([]oposd.OSDInfo{{ID: 0, BlockPath: "/dev/vg/lv"}})
+
+	assert.True(t, zapped, "the ceph-volume zap should still be attempted")
 }
 
 func TestBuildShredCommands(t *testing.T) {

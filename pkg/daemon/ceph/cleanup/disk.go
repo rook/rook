@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -105,8 +106,15 @@ func (s *DiskSanitizer) SanitizeLVMDisk(osdLVMList []oposd.OSDInfo) {
 		// Increment the wait group counter
 		wg.Add(1)
 
-		// Lookup the PV associated to the LV
-		pvs = append(pvs, s.returnPVDevice(osd.BlockPath)[0])
+		// Lookup the PVs associated to the LV
+		pvDevices, err := s.returnPVDevice(osd.BlockPath)
+		if err != nil {
+			// Carry on: the ceph-volume zap below is still worth attempting, and only the
+			// LVM2 metadata purge for this OSD is lost.
+			logger.Errorf("failed to look up the physical volume of osd %d. %v", osd.ID, err)
+		} else {
+			pvs = append(pvs, pvDevices...)
+		}
 
 		// run c-v
 		go s.wipeLVM(osd.ID, &wg)
@@ -136,15 +144,29 @@ func (s *DiskSanitizer) wipeLVM(osdID int, wg *sync.WaitGroup) {
 	logger.Infof("successfully sanitized lvm osd %d", osdID)
 }
 
-func (s *DiskSanitizer) returnPVDevice(disk string) []string {
+func (s *DiskSanitizer) returnPVDevice(disk string) ([]string, error) {
 	output, err := s.context.Executor.ExecuteCommandWithOutput("lvs", disk, "-o", "seg_pe_ranges", "--noheadings")
 	if err != nil {
-		logger.Errorf("failed to execute lvs command. %v", err)
-		return []string{}
+		return nil, errors.Wrapf(err, "failed to look up the physical volume for %q", disk)
 	}
 
 	logger.Infof("output: %s", output)
-	return strings.Split(output, ":")
+
+	// lvs prints one "<pv>:<start>-<end>" range per segment, so a multi-segment LV spans
+	// several physical volumes and each line has to be considered.
+	var pvDevices []string
+	for _, line := range strings.Split(output, "\n") {
+		pv := strings.TrimSpace(strings.Split(line, ":")[0])
+		if pv != "" {
+			pvDevices = append(pvDevices, pv)
+		}
+	}
+
+	if len(pvDevices) == 0 {
+		return nil, errors.Errorf("no physical volume found for %q in lvs output %q", disk, output)
+	}
+
+	return pvDevices, nil
 }
 
 func (s *DiskSanitizer) buildDataSource() string {
