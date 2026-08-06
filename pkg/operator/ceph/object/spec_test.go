@@ -1365,10 +1365,6 @@ func TestGetHostnameFromEndpoint(t *testing.T) {
 	}
 }
 
-func strPtr(in string) *string {
-	return &in
-}
-
 func Test_buildRGWEnableAPIsConfigVal(t *testing.T) {
 	type args struct {
 		protocolSpec cephv1.ProtocolSpec
@@ -1436,7 +1432,7 @@ func Test_buildRGWEnableAPIsConfigVal(t *testing.T) {
 			args: args{
 				protocolSpec: cephv1.ProtocolSpec{
 					Swift: &cephv1.SwiftSpec{
-						UrlPrefix: strPtr("/"),
+						UrlPrefix: new("/"),
 					},
 				},
 			},
@@ -1447,7 +1443,7 @@ func Test_buildRGWEnableAPIsConfigVal(t *testing.T) {
 			args: args{
 				protocolSpec: cephv1.ProtocolSpec{
 					Swift: &cephv1.SwiftSpec{
-						UrlPrefix: strPtr("object/"),
+						UrlPrefix: new("object/"),
 					},
 				},
 			},
@@ -1477,7 +1473,7 @@ func Test_buildRGWEnableAPIsConfigVal(t *testing.T) {
 						" swift ",
 					},
 					Swift: &cephv1.SwiftSpec{
-						UrlPrefix: strPtr("/"),
+						UrlPrefix: new("/"),
 					},
 				},
 			},
@@ -1594,7 +1590,7 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 						"admin",
 					},
 					Swift: &cephv1.SwiftSpec{
-						UrlPrefix: strPtr("some-path"),
+						UrlPrefix: new("some-path"),
 					},
 				},
 			},
@@ -1606,7 +1602,7 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 			args: args{
 				protocolSpec: cephv1.ProtocolSpec{
 					Swift: &cephv1.SwiftSpec{
-						UrlPrefix: strPtr("/"),
+						UrlPrefix: new("/"),
 					},
 				},
 			},

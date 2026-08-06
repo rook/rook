@@ -70,7 +70,7 @@ func TestAvailableDataDevices(t *testing.T) {
 			"sdb": {Data: unassignedOSDID, DeviceInfo: &sys.LocalDisk{Name: "sdb"}},
 		}}
 		// Map iteration order is random; the sorted result must always be ["sdb", "sdc"].
-		for i := 0; i < 20; i++ {
+		for range 20 {
 			assert.Equal(t, []string{"sdb", "sdc"}, availableDataDevices(available))
 		}
 	})
@@ -261,13 +261,13 @@ func TestMatchBlankAndDestroyedByDeviceClasses(t *testing.T) {
 			// and every position past that boundary must be a genuine cross-class (best-effort) pair.
 			n := min(len(ids), len(devices))
 			matched := 0
-			for i := 0; i < n; i++ {
+			for i := range n {
 				if isDeviceClassMatch(tc.slotClass[ids[i]], tc.devClass[devices[i]]) {
 					matched++
 				}
 			}
 			assert.Equal(t, tc.wantMatches, matched, "wrong number of same-class pairs aligned")
-			for i := 0; i < n; i++ {
+			for i := range n {
 				isMatch := isDeviceClassMatch(tc.slotClass[ids[i]], tc.devClass[devices[i]])
 				if i < tc.wantMatches {
 					assert.Truef(t, isMatch, "position %d expected a same-class pair (osd.%d vs %q)", i, ids[i], devices[i])

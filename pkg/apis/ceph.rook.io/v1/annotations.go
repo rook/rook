@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"maps"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -114,9 +116,7 @@ func (a Annotations) Merge(with map[string]string) Annotations {
 	ret := Annotations{}
 
 	// Copy the contents of the original map (a) into ret
-	for k, v := range a {
-		ret[k] = v
-	}
+	maps.Copy(ret, a)
 
 	// Add entries from the 'with' map only if the key does not already exist
 	for k, v := range with {

@@ -39,7 +39,7 @@ func TestMatch(t *testing.T) {
 			Name:      "my-store",
 		},
 		TypeMeta: metav1.TypeMeta{
-			Kind:       reflect.TypeOf(cephv1.CephObjectStore{}).Name(),
+			Kind:       reflect.TypeFor[cephv1.CephObjectStore]().Name(),
 			APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 		},
 	}

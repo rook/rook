@@ -203,7 +203,7 @@ func AssertDelete[T, L runtime.Object](
 	client NamespacedDeleter[T, L],
 	name string,
 	timeout time.Duration,
-	msgAndArgs ...interface{},
+	msgAndArgs ...any,
 ) bool {
 	t.Helper()
 	if err := deleteAndWait(ctx, t, client, name, timeout); err != nil {
@@ -220,7 +220,7 @@ func RequireDelete[T, L runtime.Object](
 	client NamespacedDeleter[T, L],
 	name string,
 	timeout time.Duration,
-	msgAndArgs ...interface{},
+	msgAndArgs ...any,
 ) {
 	t.Helper()
 	require.NoError(t, deleteAndWait(ctx, t, client, name, timeout), msgAndArgs...)
@@ -237,7 +237,7 @@ func AssertAbsent[T, L runtime.Object](
 	client NamespacedWatcher[T, L],
 	name string,
 	timeout time.Duration,
-	msgAndArgs ...interface{},
+	msgAndArgs ...any,
 ) bool {
 	t.Helper()
 	if err := waitForAbsent(ctx, t, client, name, timeout); err != nil {
@@ -253,7 +253,7 @@ func RequireAbsent[T, L runtime.Object](
 	client NamespacedWatcher[T, L],
 	name string,
 	timeout time.Duration,
-	msgAndArgs ...interface{},
+	msgAndArgs ...any,
 ) {
 	t.Helper()
 	require.NoError(t, waitForAbsent(ctx, t, client, name, timeout), msgAndArgs...)
@@ -310,7 +310,7 @@ func AssertCreate[T, L runtime.Object](
 	obj T,
 	ready func(T) bool,
 	timeout time.Duration,
-	msgAndArgs ...interface{},
+	msgAndArgs ...any,
 ) (T, bool) {
 	t.Helper()
 	live, err := createAndWaitReady(ctx, t, client, obj, ready, timeout)
@@ -333,7 +333,7 @@ func RequireCreate[T, L runtime.Object](
 	obj T,
 	ready func(T) bool,
 	timeout time.Duration,
-	msgAndArgs ...interface{},
+	msgAndArgs ...any,
 ) T {
 	t.Helper()
 	live, err := createAndWaitReady(ctx, t, client, obj, ready, timeout)
@@ -353,7 +353,7 @@ func AssertCondition[T, L runtime.Object](
 	name string,
 	cond func(T) bool,
 	timeout time.Duration,
-	msgAndArgs ...interface{},
+	msgAndArgs ...any,
 ) (T, bool) {
 	t.Helper()
 	match, err := waitForCondition(ctx, t, client, name, cond, timeout)
@@ -373,7 +373,7 @@ func RequireCondition[T, L runtime.Object](
 	name string,
 	cond func(T) bool,
 	timeout time.Duration,
-	msgAndArgs ...interface{},
+	msgAndArgs ...any,
 ) T {
 	t.Helper()
 	match, err := waitForCondition(ctx, t, client, name, cond, timeout)
@@ -463,7 +463,7 @@ func AssertPodLog(
 	selector labels.Selector,
 	timeout time.Duration,
 	match func(line string) bool,
-	msgAndArgs ...interface{},
+	msgAndArgs ...any,
 ) bool {
 	t.Helper()
 	if err := matchPodLog(ctx, t, k8sh, namespace, selector, timeout, match); err != nil {
@@ -481,7 +481,7 @@ func RequirePodLog(
 	selector labels.Selector,
 	timeout time.Duration,
 	match func(line string) bool,
-	msgAndArgs ...interface{},
+	msgAndArgs ...any,
 ) {
 	t.Helper()
 	require.NoError(t, matchPodLog(ctx, t, k8sh, namespace, selector, timeout, match), msgAndArgs...)

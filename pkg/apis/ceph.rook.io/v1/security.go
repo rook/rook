@@ -103,9 +103,10 @@ func KeyTypesListToArgString(types []CephxKeyType) string {
 	if len(types) == 0 {
 		return ""
 	}
-	o := string(types[0])
+	var o strings.Builder
+	o.WriteString(string(types[0]))
 	for i := 1; i < len(types); i++ {
-		o += "," + string(types[i]) // ceph docs show comma-space separation
+		o.WriteString("," + string(types[i])) // ceph docs show comma-space separation
 	}
-	return o
+	return o.String()
 }

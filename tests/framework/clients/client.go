@@ -80,7 +80,7 @@ func (c *ClientOperation) Update(clusterInfo *client.ClusterInfo, clientName str
 		return nil, err
 	}
 
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		updatedcaps, _ = client.AuthGetCaps(context, clusterInfo, "client."+clientName)
 		if caps["mon"] == updatedcaps["mon"] {
 			logger.Infof("Finished updating the client via CRD")

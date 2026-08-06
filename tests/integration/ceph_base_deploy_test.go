@@ -80,7 +80,7 @@ func checkIfRookClusterHasHealthyIngress(s *suite.Suite, k8sh *utils.K8sHelper, 
 	assert.NoError(s.T(), err)
 }
 
-func HandlePanics(r interface{}, uninstaller func(), t func() *testing.T) {
+func HandlePanics(r any, uninstaller func(), t func() *testing.T) {
 	if r != nil {
 		logger.Infof("unexpected panic occurred during test %s, --> %v", t().Name(), r)
 		t().Fail()

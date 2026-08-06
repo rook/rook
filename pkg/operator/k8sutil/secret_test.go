@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/utils/ptr"
 )
 
 func TestIsSameOwnerReference(t *testing.T) {
@@ -64,7 +63,7 @@ func TestDeleteSecretIfOwnedBy(t *testing.T) {
 		APIVersion: "v1",
 		Kind:       "CephCluster",
 		Name:       "ceph-cluster",
-		Controller: ptr.To(true),
+		Controller: new(true),
 	}
 
 	tests := []struct {
@@ -108,7 +107,7 @@ func TestDeleteSecretIfOwnedBy(t *testing.T) {
 						APIVersion: "v1",
 						Kind:       "CephCluster",
 						Name:       "other-ceph-cluster",
-						Controller: ptr.To(true),
+						Controller: new(true),
 					}},
 				},
 			},
@@ -125,7 +124,7 @@ func TestDeleteSecretIfOwnedBy(t *testing.T) {
 						APIVersion: "v1",
 						Kind:       "CephCluster",
 						Name:       "my-ceph-cluster",
-						Controller: ptr.To(true),
+						Controller: new(true),
 					}},
 				},
 			},
@@ -184,7 +183,7 @@ func TestUpdateSecretIfOwnedBy(t *testing.T) {
 		APIVersion: "v1",
 		Kind:       "CephCluster",
 		Name:       "rook-ceph",
-		Controller: ptr.To(true),
+		Controller: new(true),
 	}
 
 	namespace := "default"
@@ -238,7 +237,7 @@ func TestUpdateSecretIfOwnedBy(t *testing.T) {
 		APIVersion: "v1",
 		Kind:       "OtherController",
 		Name:       "other",
-		Controller: ptr.To(true),
+		Controller: new(true),
 	}
 	secret3 := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

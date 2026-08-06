@@ -310,7 +310,7 @@ func TestReconcileObjectRealm_createRealmKeys(t *testing.T) {
 		// the access key is embedded in the '/'-delimited SigV4 credential scope, so a '/'
 		// anywhere in it makes "radosgw-admin realm pull" fail with "(22) Invalid argument"
 		urlSafe := regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			r := ReconcileObjectRealm{
 				context: &clusterd.Context{
 					Clientset: k8sfake.NewClientset(),
