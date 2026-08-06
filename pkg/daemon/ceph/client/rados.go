@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -183,7 +182,7 @@ func RadosNamespaceHasObjects(context *clusterd.Context, clusterInfo *ClusterInf
 	}
 	command, args := FinalizeCephCommandArgs(RadosTool, clusterInfo, radosArgs, context.ConfigDir)
 	// Pipe through "head -c 1" so only 1 byte is buffered regardless of object count.
-	shellCmd := command + " " + strings.Join(args, " ") + " 2>/dev/null | head -c 1"
+	shellCmd := exec.FormatCommand(command, args...) + " 2>/dev/null | head -c 1"
 	output, err := context.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, "sh", "-c", shellCmd)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to check for objects in rados://%s/%s", pool, namespace)

@@ -348,7 +348,7 @@ func removeOSDs(cmd *cobra.Command, args []string) error {
 
 	// We use strings instead of bool since the flag package has issues with parsing bools, or
 	// perhaps it's the translation between YAML and code... It's unclear but see:
-	// starting Rook v1.7.0-alpha.0.660.gb13faecc8 with arguments '/usr/local/bin/rook ceph osd remove --preserve-pvc false --force-osd-removal false --osd-ids 1'
+	// starting Rook v1.7.0-alpha.0.660.gb13faecc8 with arguments: /usr/local/bin/rook ceph osd remove --preserve-pvc false --force-osd-removal false --osd-ids 1
 	// flag values: --force-osd-removal=true, --help=false, --log-level=DEBUG, --operator-image=,
 	// --osd-ids=1, --preserve-pvc=true, --service-account=
 	//

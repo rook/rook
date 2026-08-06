@@ -27,7 +27,45 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestRadosNamespaceHasObjects(t *testing.T) {
+	RunAllCephCommandsInToolboxPod = ""
+
+	capturedShellCmd := func(t *testing.T, pool, namespace string) string {
+		var shellCmd string
+		me := &test.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
+				require.Equal(t, "sh", command)
+				require.Len(t, arg, 2)
+				require.Equal(t, "-c", arg[0])
+				shellCmd = arg[1]
+				return "", nil
+			},
+		}
+		ctx := &clusterd.Context{Executor: me, ConfigDir: "/var/lib/rook"}
+		_, err := RadosNamespaceHasObjects(ctx, AdminTestClusterInfo("rook-ceph"), pool, namespace)
+		require.NoError(t, err)
+		return shellCmd
+	}
+
+	t.Run("ordinary names stay unquoted", func(t *testing.T) {
+		assert.Equal(t,
+			"rados --pool mypool --namespace myns ls "+
+				"--cluster=rook-ceph "+
+				"--conf=/var/lib/rook/rook-ceph/rook-ceph.config "+
+				"--name=client.admin "+
+				"--keyring=/var/lib/rook/rook-ceph/client.admin.keyring "+
+				"2>/dev/null | head -c 1",
+			capturedShellCmd(t, "mypool", "myns"))
+	})
+
+	t.Run("shell metacharacters cannot break out of an argument", func(t *testing.T) {
+		assert.Contains(t, capturedShellCmd(t, "mypool", "myns; rm -rf /"),
+			"--namespace 'myns; rm -rf /' ls")
+	})
+}
 
 func TestRadosRemoveObject(t *testing.T) {
 	newTest := func(mockExec *test.MockExecutor) (*clusterd.Context, *ClusterInfo) {
