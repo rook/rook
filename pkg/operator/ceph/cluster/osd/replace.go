@@ -40,6 +40,7 @@ func (c *Cluster) processOSDReplacements() error {
 
 	var osdTree *cephclient.OsdTree
 	var osdDump *cephclient.OSDDump
+	var osdMetadata []cephclient.OSDMetadata
 	for i := range deployments.Items {
 		d := &deployments.Items[i]
 
@@ -82,17 +83,27 @@ func (c *Cluster) processOSDReplacements() error {
 			continue
 		}
 
-		// Fetch the osd tree only once a replacement needs validating; it carries the "destroyed"
-		// status that `ceph osd dump` does not.
+		// Query Ceph only once a replacement needs validating: the tree carries the "destroyed" status
+		// that `ceph osd dump` does not, and the metadata carries the physical devices behind each OSD.
 		if osdTree == nil {
 			tree, err := cephclient.HostTree(c.context, c.clusterInfo)
 			if err != nil {
-				return errors.Wrap(err, "failed to get osd tree to validate replacement requests")
+				// Without them the request cannot be validated. Skip it rather than reject a request
+				// that may well be valid.
+				log.NamespacedWarning(c.clusterInfo.Namespace, logger,
+					"failed to get osd tree to validate replacement requests; will retry on the next reconcile. %v", err)
+				continue
 			}
-			osdTree = &tree
+			metadata, err := cephclient.GetOSDMetadata(c.context, c.clusterInfo)
+			if err != nil {
+				log.NamespacedWarning(c.clusterInfo.Namespace, logger,
+					"failed to get osd metadata to validate replacement requests; will retry on the next reconcile. %v", err)
+				continue
+			}
+			osdTree, osdMetadata = &tree, *metadata
 		}
 
-		if err := c.validateReplaceOSD(d, replaceValue, osdTree); err != nil {
+		if err := c.validateReplaceOSD(d, replaceValue, osdTree, osdMetadata); err != nil {
 			// Skip the OSD; without the label it keeps reconciling normally.
 			log.NamespacedWarning(c.clusterInfo.Namespace, logger,
 				"skipping OSD replacement request on deployment %q: %v", d.Name, err)
@@ -143,7 +154,7 @@ func (c *Cluster) isMissingFromOSDDump(d *appsv1.Deployment, osdDump *cephclient
 }
 
 // validateReplaceOSD returns an error on the first failed validation check for a replacement request.
-func (c *Cluster) validateReplaceOSD(d *appsv1.Deployment, replaceValue string, osdTree *cephclient.OsdTree) error {
+func (c *Cluster) validateReplaceOSD(d *appsv1.Deployment, replaceValue string, osdTree *cephclient.OsdTree, osdMetadata []cephclient.OSDMetadata) error {
 	// The annotation value must match the deployment's own OSD id, guarding against a copy-paste typo.
 	osdID, err := GetOSDID(d)
 	if err != nil {
@@ -173,6 +184,39 @@ func (c *Cluster) validateReplaceOSD(d *appsv1.Deployment, replaceValue string, 
 	}
 	if !found {
 		return errors.Errorf("OSD %d does not exist in the osd tree", osdID)
+	}
+
+	if err := validateSingleOSDPerDevice(osdID, osdMetadata); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateSingleOSDPerDevice rejects the request when another OSD on the same host reports the same
+// physical device set in `ceph osd metadata`: replacement pairs one destroyed OSD with one whole blank
+// data device (see design/ceph/osd-replacement.md). The set is sorted and comma-separated, so string
+// equality compares sets; a down OSD's metadata is stale, so a renamed device may reject spuriously.
+func validateSingleOSDPerDevice(osdID int, osdMetadata []cephclient.OSDMetadata) error {
+	var target *cephclient.OSDMetadata
+	for i := range osdMetadata {
+		if osdMetadata[i].Id == osdID {
+			target = &osdMetadata[i]
+			break
+		}
+	}
+	// Metadata can be missing or carry no resolved devices/host; don't block the replacement on it.
+	if target == nil || target.Devices == "" || target.HostName == "" {
+		return nil
+	}
+
+	for i := range osdMetadata {
+		other := &osdMetadata[i]
+		if other.Id == osdID || other.HostName != target.HostName || other.Devices != target.Devices {
+			continue
+		}
+		return errors.Errorf("OSD %d and OSD %d on host %q report the same physical device(s) %q; replacement requires an OSD that owns its whole data device (osdsPerDevice > 1 is not supported)",
+			osdID, other.Id, target.HostName, target.Devices)
 	}
 
 	return nil

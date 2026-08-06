@@ -153,6 +153,7 @@ Rook's CephCluster controller predicate ([predicate.go#L252-L255](https://github
 2. **Target OSD exists and is not already destroyed.** `ceph osd dump`: the OSD must exist and its `state` must not contain `destroyed`.
 3. **Deployment is host-based.** Label `ceph.rook.io/pvc` must be absent.
 4. **Device references resolve now.** Best-effort check of the OSD's `spec.storage` references, per [Device references may not survive a swap](#device-references-may-not-survive-a-swap).
+5. **One OSD per device.** No other OSD on the same host may report the same physical device set in `ceph osd metadata`, per [Why `osdsPerDevice > 1` is out of scope](#why-osdsperdevice--1-is-out-of-scope).
 
 On the first failed check the controller skips the OSD and emits a Warning event on the CephCluster CR; see [open question 2](#open-questions). On all checks passing, it sets the `ceph.rook.io/do-not-reconcile` label and the `osd.rook.io/replace-in-progress` annotation, both in the same Deployment update so the goroutine never sees one without the other. From here the OSD and its Deployment are ignored by the controller's normal reconcile until the replacement completes or is cancelled, and the OSD health monitor goroutine takes over.
 
@@ -258,7 +259,23 @@ The flow naturally covers OSDs that have no metadata device:
 - **LVM single-disk.** Teardown is `ceph osd destroy` (plain) or `destroy` plus closing the data dm-crypt mapping (encrypted). The data LV is left as the marker. Provisioning uses `lvm prepare --data` without `--block.db`.
 - **`ceph-volume raw` OSDs.** Teardown is `ceph osd destroy`; the BlueStore label on the disk is the marker. Provisioning uses `raw prepare --osd-id <id>`.
 
-Host-based raw OSDs are always plain: `allowRawMode` provisions in lvm mode whenever the OSD is encrypted, has a metadata device, or sets `osdsPerDevice > 1` ([volume.go#L418-L463](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L418-L463)). So an encrypted single host disk is an lvm-mode OSD, and raw-encrypted does not arise. The flow covers all OSD types in a host-based cluster.
+Host-based raw OSDs are always plain: `allowRawMode` provisions in lvm mode whenever the OSD is encrypted, has a metadata device, or sets `osdsPerDevice > 1` ([volume.go#L418-L463](https://github.com/rook/rook/blob/59ce48ae88e5ea59df44249b41a887af96a2806c/pkg/daemon/ceph/osd/volume.go#L418-L463)). So an encrypted single host disk is an lvm-mode OSD, and raw-encrypted does not arise. The flow covers every host-based OSD type that owns its data device.
+
+### Why `osdsPerDevice > 1` is out of scope
+
+Pairing is strictly one destroyed slot to one blank data device, and the prepare invocation passes no
+slot count, so several OSDs on one disk cannot be rebuilt:
+
+- **Whole-disk swap.** The first slot paired consumes the entire disk, keeping the fractional CRUSH
+  weight it had as one of n. Its siblings stay `destroyed` with no device left to claim, and the disk is
+  now an LVM PV so it is never offered as blank again.
+- **One sibling replaced.** The disk still holds the surviving siblings' LVs, so it is never offered as
+  blank at all and the destroyed slot is never paired.
+
+Validation therefore rejects the request when the OSD shares its physical device with another OSD,
+detected from the device set `ceph osd metadata` reports for each OSD on the host. Supporting the
+layout properly means grouping n slots per device and passing `--data-slots n` to `lvm prepare`, which
+ceph-volume accepts — a separate feature, not a constraint of the disk format.
 
 ### Why keep the Deployment instead of deleting it
 

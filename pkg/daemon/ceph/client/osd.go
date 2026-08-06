@@ -468,6 +468,9 @@ func SetPrimaryAffinity(context *clusterd.Context, clusterInfo *ClusterInfo, osd
 type OSDMetadata struct {
 	Id       int    `json:"id"`
 	HostName string `json:"hostname"`
+	// Devices is the sorted, comma-separated set of physical block devices backing the OSD, resolved
+	// past any LVM/dm layer, e.g. "vdb" or "nvme0n1,vdb" when the DB is on a separate device.
+	Devices string `json:"devices"`
 }
 
 // GetOSDMetadata returns the output of `ceph osd metadata`

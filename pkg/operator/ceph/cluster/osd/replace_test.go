@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -67,12 +68,37 @@ func osdTreeJSON(osds map[int]string) string {
 	return fmt.Sprintf(`{"nodes":[%s],"stray":[]}`, nodes)
 }
 
+// osdMetadataJSON builds an `osd metadata` response from id -> "hostname|devices" pairs.
+func osdMetadataJSON(osds map[int]string) string {
+	entries := ""
+	for id, hostAndDevices := range osds {
+		host, devices, _ := strings.Cut(hostAndDevices, "|")
+		if entries != "" {
+			entries += ","
+		}
+		entries += fmt.Sprintf(`{"id":%d,"hostname":%q,"devices":%q}`, id, host, devices)
+	}
+	return fmt.Sprintf(`[%s]`, entries)
+}
+
 func newReplaceClusterWithTree(clientset *fake.Clientset, osds map[int]string) *Cluster {
+	// Default metadata: every OSD alone on its own device, so only the tree drives the outcome.
+	metadata := map[int]string{}
+	for id := range osds {
+		metadata[id] = fmt.Sprintf("node-1|disk%d", id)
+	}
+	return newReplaceClusterWithTreeAndMetadata(clientset, osds, metadata)
+}
+
+func newReplaceClusterWithTreeAndMetadata(clientset *fake.Clientset, osds, metadata map[int]string) *Cluster {
 	c := newTestReplaceCluster(clientset)
 	c.context.Executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if len(args) >= 2 && args[0] == "osd" && args[1] == "tree" {
 				return osdTreeJSON(osds), nil
+			}
+			if len(args) >= 2 && args[0] == "osd" && args[1] == "metadata" {
+				return osdMetadataJSON(metadata), nil
 			}
 			return "", nil
 		},
@@ -153,6 +179,20 @@ func TestProcessOSDReplacements(t *testing.T) {
 		dep := osdDeployment(5, map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-5"}, nil)
 		clientset := fake.NewClientset(dep)
 		c := newReplaceClusterWithTree(clientset, map[int]string{7: "up"})
+
+		require.NoError(t, c.processOSDReplacements())
+		assert.NotContains(t, getDep(c, 5).Labels, cephv1.SkipReconcileLabelKey)
+		assert.NotContains(t, getDep(c, 5).Annotations, cephv1.ReplaceInProgressOSDAnnotationKey)
+	})
+
+	t.Run("OSD sharing a device with a sibling is rejected and not fenced", func(t *testing.T) {
+		// osdsPerDevice > 1: osd 5 and osd 6 both sit on vdb, so replacement cannot pair the destroyed
+		// slots one-to-one with blank devices.
+		dep := osdDeployment(5, map[string]string{cephv1.ReplaceOSDAnnotationKey: "yes-really-replace-osd-5"}, nil)
+		clientset := fake.NewClientset(dep)
+		c := newReplaceClusterWithTreeAndMetadata(clientset,
+			map[int]string{5: "up", 6: "up"},
+			map[int]string{5: "node-1|vdb", 6: "node-1|vdb"})
 
 		require.NoError(t, c.processOSDReplacements())
 		assert.NotContains(t, getDep(c, 5).Labels, cephv1.SkipReconcileLabelKey)
@@ -268,6 +308,69 @@ func TestCleanupAbortedReplacement(t *testing.T) {
 		require.NoError(t, c.processOSDReplacements())
 		assert.True(t, depExists(t, c))
 	})
+}
+
+func TestValidateSingleOSDPerDevice(t *testing.T) {
+	md := func(id int, host, devices string) cephclient.OSDMetadata {
+		return cephclient.OSDMetadata{Id: id, HostName: host, Devices: devices}
+	}
+
+	tests := []struct {
+		name     string
+		metadata []cephclient.OSDMetadata
+		rejected bool
+	}{
+		{
+			name:     "one OSD per device",
+			metadata: []cephclient.OSDMetadata{md(5, "node-1", "vdb"), md(6, "node-1", "vdc")},
+		},
+		{
+			// osdsPerDevice > 1: both OSDs are backed by the same disk.
+			name:     "sibling on the same device",
+			metadata: []cephclient.OSDMetadata{md(5, "node-1", "vdb"), md(6, "node-1", "vdb")},
+			rejected: true,
+		},
+		{
+			// The same kernel name on two hosts is two different disks.
+			name:     "same device name on another host",
+			metadata: []cephclient.OSDMetadata{md(5, "node-1", "vdb"), md(6, "node-2", "vdb")},
+		},
+		{
+			// Siblings sharing a DB device also report their own distinct data disk, so this supported
+			// layout must not be mistaken for osdsPerDevice > 1.
+			name:     "shared metadata device",
+			metadata: []cephclient.OSDMetadata{md(5, "node-1", "nvme0n1,vdb"), md(6, "node-1", "nvme0n1,vdc")},
+		},
+		{
+			name:     "shared metadata device and a sibling on the data disk",
+			metadata: []cephclient.OSDMetadata{md(5, "node-1", "nvme0n1,vdb"), md(6, "node-1", "nvme0n1,vdb")},
+			rejected: true,
+		},
+		{
+			// Missing or unresolved metadata must not block the request.
+			name:     "target has no metadata",
+			metadata: []cephclient.OSDMetadata{md(6, "node-1", "vdb")},
+		},
+		{
+			name:     "target reports no devices",
+			metadata: []cephclient.OSDMetadata{md(5, "node-1", ""), md(6, "node-1", "")},
+		},
+		{
+			name:     "target reports no hostname",
+			metadata: []cephclient.OSDMetadata{md(5, "", "vdb"), md(6, "", "vdb")},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateSingleOSDPerDevice(5, test.metadata)
+			if test.rejected {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
 }
 
 func TestReplacementReadyToRecreate(t *testing.T) {
