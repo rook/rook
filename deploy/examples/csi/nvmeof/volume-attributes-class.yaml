@@ -1,0 +1,16 @@
+# VolumeAttributesClass for NVMe-oF volumes.
+# Controls which external hosts can connect to volumes via NVMe-oF,
+# and can also set QoS limits (IOPS, throughput).
+# For the full list of supported parameters, see:
+#   https://github.com/ceph/ceph-csi/blob/devel/examples/nvmeof/volumeattributesclass.yaml
+apiVersion: storage.k8s.io/v1
+kind: VolumeAttributesClass
+metadata:
+  name: nvmeof-external-hosts
+driverName: rook-ceph.nvmeof.csi.ceph.com # csi-provisioner-name
+parameters:
+  # Host access control: list of host NQNs allowed to connect to this volume.
+  # Find the host NQN on each client: cat /etc/nvme/hostnqn
+  # If the file does not exist, generate one: nvme gen-hostnqn
+  allowHostNQNs: |
+    - nqn.2014-08.org.nvmexpress:uuid:f8cf014c-22cd-11b2-a85c-ea3a6f188b53

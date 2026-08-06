@@ -1,20 +1,25 @@
-# StorageClass for in-cluster NVMe-oF consumption.
-# Pods inside the Kubernetes cluster consume volumes via the NVMe-oF CSI driver.
-# The CSI node plugin on each worker connects to gateways using the "listeners" list.
+# StorageClass for external NVMe-oF consumption.
+# External clients outside the Kubernetes cluster access volumes via standard
+# NVMe-oF initiators (nvme-cli). The CSI driver provisions the RBD image and
+# NVMe namespace on the gateway; external clients then discover and connect
+# through LoadBalancer services (see nvmeof-lb.yaml).
+#
+# The "listeners" list tells the CSI driver which gateway pods should create
+# NVMe-oF listeners. External clients connect to these gateways via
+# LoadBalancer services.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: ceph-nvmeof
+  name: ceph-nvmeof-external
 provisioner: rook-ceph.nvmeof.csi.ceph.com # csi-provisioner-name
 parameters:
   clusterID: rook-ceph
   pool: nvmeof
-  subsystemNQN: nqn.2016-06.io.spdk:cnode1.rook-ceph
   # Management API - talks to gateway to create subsystems/namespaces
   nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-a.rook-ceph.svc.cluster.local"
   nvmeofGatewayPort: "5500"
-  # Data Plane - worker nodes connect here for actual I/O
-  # List ALL gateway pods for HA and multipath
+  # List ALL gateway pods so the CSI driver creates listeners on each gateway.
+  # External clients connect to these gateways via LoadBalancer services.
   listeners: |
     [
       {
