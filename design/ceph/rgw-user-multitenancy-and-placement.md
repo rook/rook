@@ -4,29 +4,37 @@
 
 ## Summary
 
-This document proposes extending the `CephObjectStoreUser` CRD with four new spec fields:
+This document proposes extending the `CephObjectStoreUser` CRD with three new
+optional spec fields:
 
-- `tenant` — assigns the RGW user to a named RGW tenant, enabling bucket name isolation across tenants.
-- `defaultPlacement` — sets the user's default bucket placement target, controlling which data/metadata pools newly created buckets land in.
-- `defaultStorageClass` — sets the user's default storage class for objects, applied on top of `defaultPlacement`.
-- `defaultPlacementTags` — sets storage class placement tags associated with the user's default placement.
+- `tenant` — assigns the RGW user to a named tenant, enabling bucket name
+  isolation across tenants.
+- `defaultPlacement` — sets the user's default bucket placement target,
+  controlling which data/metadata pools newly created buckets land in.
+- `defaultStorageClass` — sets the user's default storage class for objects,
+  applied on top of `defaultPlacement`.
 
-All four fields already exist in the underlying `admin.User` struct in `go-ceph`; this work wires them into the Rook controller and API.
+A fourth field, `placementTags`, is deferred to follow-up work (see
+[Future work](#future-work)).
 
 ### Why tenant and placement are covered in the same document
 
-`tenant`, `defaultPlacement`, `defaultStorageClass`, and `defaultPlacementTags` are unrelated in what they do in RGW, but they're proposed together here because they:
-
-- are all optional additions to the exact same CRD field (`ObjectStoreUserSpec`), reviewed against the same schema and the same immutability/mutability rules,
-- share the same controller entry points (`generateUserConfig`, `isUserSync`, `createOrUpdateCephUser`), so a reviewer needs to see how they compose in that code regardless of which section of the doc they came from,
-
-Splitting placement into its own document would not change the schema or the controller logic — it would only move prose. We've kept them together so the field interactions (e.g. `defaultStorageClass` requiring `defaultPlacement`, all three being independent of `tenant`) are visible in one place instead of cross-referenced across two documents.
+`tenant` and the placement fields are unrelated in what they do in RGW, but
+they are proposed together because they are optional additions to the same
+CRD spec (`ObjectStoreUserSpec`), reviewed against the same schema and
+immutability rules, and share the same controller entry points
+(`generateUserConfig`, `isUserSync`, `createOrUpdateCephUser`). Keeping them
+together makes the field interactions (e.g. `defaultStorageClass` requiring
+`defaultPlacement`, the placement fields being independent of `tenant`)
+visible in one place.
 
 ## Motivation
 
 ### Tenant Isolation
 
-Ceph RGW supports a multitenancy model where users live in named tenants. Users in different tenants can own buckets with the same name without collision:
+Ceph RGW supports a multitenancy model where users live in named tenants.
+Users in different tenants can own buckets with the same name without
+collision:
 
 ```
 # Two separate objects, no conflict
@@ -37,7 +45,7 @@ tenantB$user1 → s3://photos
 Rook currently has no mechanism to place a `CephObjectStoreUser` in an RGW
 tenant. Operators who need per-tenant user isolation must manage RGW users
 manually outside of Rook, forgoing the benefits of the operator (secret
-rotation, lifecycle management, status conditions).
+rotation, lifecycle management, status reporting).
 
 ### Placement Targeting
 
@@ -49,134 +57,203 @@ placement.
 
 ## Goals
 
-- Add `spec.tenant` to `CephObjectStoreUser` to set the `Tenant` field on the RGW Admin Ops API `User` struct at user creation.
-- Add `spec.defaultPlacement` to `CephObjectStoreUser` to set `DefaultPlacement` on the user via `CreateUser`/`ModifyUser` in the RGW Admin Ops API.
-- Add `spec.defaultStorageClass` to `CephObjectStoreUser` to set `DefaultStorageClass` on the user, embedded into the placement rule sent to RGW
-- Add `spec.defaultPlacementTags` to `CephObjectStoreUser` to set `PlacementTags` on the user via `CreateUser`/`ModifyUser`, now that go-ceph supports it upstream (merged in [ceph/go-ceph#1290](https://github.com/ceph/go-ceph/pull/1290)).
-- Validate `defaultPlacement` against the named placements defined in the referenced `CephObjectStore`.
-- Require `defaultPlacement` to be set whenever `defaultStorageClass` is set, since RGW cannot apply a storage class without a placement target.
-- Treat `tenant` as immutable (changing tenant requires user deletion and recreation in RGW).
-- Treat `defaultPlacement`, `defaultStorageClass`, and `defaultPlacementTags` as mutable (can be updated via `ModifyUser`).
-- Explicitly reconcile removal of `defaultPlacement`/`defaultStorageClass`/`defaultPlacementTags` back to Ceph's defaults rather than leaving the RGW-side value stale (see [Unset/Removal Behavior](#unsetremoval-behavior)).
-- All four fields are independent of `tenant`: `defaultPlacement`/`defaultStorageClass`/`defaultPlacementTags` may be set without `tenant`, and vice versa.
-- Preserve backward compatibility: all new fields are optional, existing resources are unaffected.
+- Add `spec.tenant` to `CephObjectStoreUser`. The controller addresses the
+  RGW user by its combined identity `<tenant>$<name>` in every Admin Ops
+  call (see [RGW Tenant User ID Format](#rgw-tenant-user-id-format)).
+- Add `spec.defaultPlacement` and `spec.defaultStorageClass`, applied via
+  `CreateUser`/`ModifyUser` in the RGW Admin Ops API.
+- Require `defaultPlacement` to be set whenever `defaultStorageClass` is
+  set, since RGW cannot apply a storage class without a placement target.
+- Treat `tenant` as immutable (RGW does not support moving a user between
+  tenants; `radosgw-admin user rename` rejects tenant changes).
+- Treat `defaultPlacement` and `defaultStorageClass` as mutable.
+- Leave placement validation to RGW: the serving RGW validates
+  `default-placement` against the live zonegroup on every create/modify and
+  rejects unknown targets with `EINVAL`. The operator surfaces that failure
+  in the CR status instead of duplicating the check against a rook CR (which
+  would be wrong for zone-backed and external stores, where the store CR
+  does not carry the placement list).
+- Treat an absent placement field as **unmanaged**: the controller neither
+  writes nor reconciles it (see
+  [Field removal](#field-removal-unmanaged-semantics)).
+- CR behavior is identical on every supported Ceph version (see
+  [Ceph version invariance](#ceph-version-invariance)).
+- Preserve backward compatibility: all new fields are optional; existing
+  resources and pre-existing RGW users are unaffected.
 
+## Ceph version invariance
+
+The CRD contract MUST NOT vary with the cluster's Ceph version: the same
+spec produces the same RGW state, the same errors, and the same status on
+every supported release. RGW Admin Ops API differences are absorbed inside
+the controller, never exposed as version-conditional CRD behavior, and
+nothing in the CRD schema, godoc, or user documentation references Ceph
+versions.
+
+This is not hypothetical for these fields. Squid's admin ops API applies a
+user's storage class only when it is embedded in the placement rule
+(`<placement>/<storage-class>`) and ignores the separate
+`default-storage-class` parameter; Tentacle (via
+[ceph#57985](https://github.com/ceph/ceph/pull/57985),
+[tracker 66439](https://tracker.ceph.com/issues/66439), not backported)
+takes `default-placement` verbatim and honors the separate parameter — the
+embedded form fails with `EINVAL` there. The controller therefore selects
+the wire encoding by `cephver`:
+
+| cluster Ceph | wire encoding for `defaultStorageClass` |
+|---|---|
+| Squid (v19) | embedded: `default-placement=<placement>/<class>` |
+| Tentacle (v20) and later | separate: `default-placement=<placement>` + `default-storage-class=<class>` |
+
+Both encodings produce the identical `rgw_placement_rule` on the user, are
+validated by the same server-side `valid_placement` check, and are reported
+back identically by user info — so `isUserSync` and status are
+version-blind. The embedded form is an explicitly temporary path, retired
+when Squid leaves the support window. Unit tests assert the exact wire
+fields `generateUserConfig` produces for both versions; the integration
+suites exercise whichever arm matches their Ceph image.
+
+The same rule constrains future changes: a capability absent from older
+Ceph (e.g. clearing a user's placement, once
+[tracker 79090](https://tracker.ceph.com/issues/79090) lands) may only
+change CR semantics once rook's minimum supported Ceph includes it — never
+behind a runtime version gate.
 
 ## Background
 
 ### RGW Tenant User ID Format
 
-When a user is created in a tenant, RGW stores and returns the user as `$tenant$uid` internally, but the external UID (passed to the API) is just `uid`. When querying or deleting a tenanted user, the RGW Admin Ops API accepts a `Tenant` field alongside `ID` rather than a combined string.
+When a user is created in a tenant, the user's identity everywhere in RGW is
+the combined form `<tenant>$<uid>`. Every RGW Admin Ops operation resolves
+the `uid` parameter through this form (`rgw_user::from_str` splits on `$`);
+a bare `uid` addresses the user in the default (empty) tenant.
+
+The Admin Ops API accepts a separate `tenant` parameter **only on user
+create**. User info, modify, and remove have no tenant parameter — on those
+operations a tenant can only be expressed inside the combined `uid`. go-ceph
+mirrors this: `admin.User.Tenant` is transmitted by `CreateUser` only and
+silently dropped by `GetUser`/`ModifyUser`/`RemoveUser`.
+
+The controller therefore uses the combined `<tenant>$<name>` string as the
+user ID for **every** Admin Ops call, create included, and never relies on
+the go-ceph `Tenant` struct field. This is essential for correctness, not
+style: addressing a tenanted user by bare `uid` silently resolves to the
+same-named user in the default tenant — reconciliation would adopt (and CR
+deletion would delete) an unrelated user.
+
+As a safety backstop, the reconcile fails with an explicit error if the live
+user's tenant does not match `spec.tenant`, rather than adopting a user
+from another tenant.
 
 Equivalently via CLI:
+
 ```bash
-radosgw-admin user create --uid="user1" --tenant="tenantA" --display-name="User 1"
-# effective UID internally: tenantA$user1
-
-radosgw-admin user info --uid="user1" --tenant="tenantA"
+radosgw-admin user create --uid="tenantA$user1" --display-name="User 1"
+radosgw-admin user info --uid="tenantA$user1"
 ```
-
-The `go-ceph` `admin.User` struct already models this:
-```go
-type User struct {
-    ID                  string   `json:"user_id" url:"uid"`
-    Tenant              string   `url:"tenant"`                                          // ← passed as URL param only, not in JSON response
-    DefaultPlacement    string   `json:"default_placement" url:"default-placement"`
-    DefaultStorageClass string   `json:"default_storage_class" url:"default-storage-class"`
-    PlacementTags       []string `json:"placement_tags" url:"placement-tags"`             // ← support merged upstream in ceph/go-ceph#1290
-    // ...
-}
-```
-
-
-### Interaction with `AccountRef`
-
-`AccountRef` (added in a recent release) also links users to an RGW account and is already marked immutable. Users with `accountRef` set are account-member users. Tenant assignment and account membership are orthogonal in RGW—a user can belong to both a tenant and an account.
 
 ## Proposed API Changes
 
 ### `ObjectStoreUserSpec` (`pkg/apis/ceph.rook.io/v1/types.go`)
 
-`defaultPlacement` and `defaultStorageClass` are added as flat, top-level `*string` fields directly on `ObjectStoreUserSpec`, named to match the `go-ceph` `admin.User` fields exactly (`DefaultPlacement`, `DefaultStorageClass`), rather than being wrapped in a nested `ObjectStoreUserPlacementSpec` struct. This mirrors the pattern already established by PR [#17260](https://github.com/rook/rook/pull/17260), which added `DefaultStorageClass` as a flat field on the same spec — introducing a nested struct here would create two incompatible shapes for closely related fields on the same object.
+`defaultPlacement` and `defaultStorageClass` are flat, top-level fields on
+`ObjectStoreUserSpec`, named after the go-ceph `admin.User` fields they map
+to. This mirrors go-ceph's flat `admin.User` shape; a nested
+`ObjectStoreUserPlacementSpec` was considered in review and set aside, as
+the nesting would cover only these two fields.
 
 ```go
 // ObjectStoreUserSpec represent the spec of an Objectstoreuser
 // +kubebuilder:validation:XValidation:message="defaultStorageClass requires defaultPlacement",rule="!has(self.defaultStorageClass) || has(self.defaultPlacement)"
+// +kubebuilder:validation:XValidation:message="tenant is immutable",rule="has(oldSelf.tenant) == has(self.tenant) && (!has(self.tenant) || self.tenant == oldSelf.tenant)"
+// +kubebuilder:validation:XValidation:message="tenant cannot be combined with accountRef (CephObjectStoreAccount does not support tenants)",rule="!(has(self.tenant) && has(self.accountRef))"
 type ObjectStoreUserSpec struct {
-    Store        string `json:"store,omitempty"`
-    DisplayName  string `json:"displayName,omitempty"`
     // ... existing fields ...
 
     // Tenant is the RGW tenant this user belongs to.
-    // Users in different tenants can have buckets with the same name without conflict.
-    // When set, the effective user ID in RGW becomes "<tenant>$<name>".
-    // This field is immutable after creation.
+    // Users in different tenants can have buckets with the same name without
+    // conflict. When set, the effective user ID in RGW is "<tenant>$<name>".
+    // This field is immutable after creation: it may not be added, changed,
+    // or removed on an existing user.
     // +optional
-    // +kubebuilder:validation:XValidation:message="tenant is immutable",rule="self == oldSelf"
-    // +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._-]+$`
+    // +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_]+$`
     // +kubebuilder:validation:MaxLength=255
     Tenant string `json:"tenant,omitempty"`
 
-    // DefaultPlacement overrides the default pool placement for buckets created by
-    // this user. Must match one of the entries in the referenced CephObjectStore's
-    // spec.sharedPools.poolPlacements[].name. If not provided, the zone group's
-    // default placement target is used.
+    // DefaultPlacement sets the default pool placement target for buckets
+    // created by this user. It must name a placement target known to the
+    // zonegroup serving the referenced object store; RGW rejects unknown
+    // targets. If this field is absent the controller does not manage the
+    // user's placement: an existing value (set previously through this
+    // field, or outside of Rook) is left in place.
     // +optional
-    // +kubebuilder:validation:MinLength=0
+    // +kubebuilder:validation:MinLength=1
     // +kubebuilder:validation:MaxLength=2048
-    DefaultPlacement *string `json:"defaultPlacement,omitempty"`
+    // +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._-]+$`
+    DefaultPlacement string `json:"defaultPlacement,omitempty"`
 
-    // DefaultStorageClass overrides the default storage class for objects created by
-    // this user. Requires DefaultPlacement to be set. If not provided, the default
-    // `STANDARD` storage class is used.
+    // DefaultStorageClass sets the default storage class for objects created
+    // by this user, within the placement set by DefaultPlacement (which must
+    // also be set). The storage class must exist on that placement target;
+    // RGW rejects unknown storage classes. If this field is absent the
+    // controller does not manage the user's storage class.
     // +optional
-    // +kubebuilder:validation:MinLength=0
+    // +kubebuilder:validation:MinLength=1
     // +kubebuilder:validation:MaxLength=2048
-    DefaultStorageClass *string `json:"defaultStorageClass,omitempty"`
-
-    // DefaultPlacementTags is a list of storage class tags to associate with this
-    // user's default placement.
-    // +optional
-    // +listType=atomic
-    // +kubebuilder:validation:MinItems=1
-    // +kubebuilder:validation:MaxItems=64
-    DefaultPlacementTags []string `json:"defaultPlacementTags,omitempty"`
+    DefaultStorageClass string `json:"defaultStorageClass,omitempty"`
 }
 ```
 
-Maps to `go-ceph` `admin.User` fields:
-- `DefaultPlacement` → `DefaultPlacement` (URL param `default-placement`, embeds storage class — see below)
-- `DefaultStorageClass` → `DefaultStorageClass` (URL param `default-storage-class`, informational only — see below)
-- `DefaultPlacementTags` → `PlacementTags` (URL param `placement-tags`, JSON `placement_tags`)
+Notes on the validation shape, from review:
 
-**`PlacementTags` was previously out of scope** because go-ceph did not yet support it and PR #17260 does not implement it. That gap has since closed: [ceph/go-ceph#1290](https://github.com/ceph/go-ceph/pull/1290) added `PlacementTags` support to the admin ops client and merged upstream on 2026-07-09. This design now includes it as a flat `DefaultPlacementTags []string` field, following the same flat, go-ceph-aligned naming as the other fields. Rook's `go.mod` currently points at a fork (`github.com/ideepika/go-ceph`) pending an official tagged go-ceph release that includes this change; that pin must be replaced with a released version before this can merge.
+- The `tenant` immutability rule is spec-level with `has()` guards. A
+  field-level `self == oldSelf` rule is skipped by the API server when an
+  optional field is set or unset, which would permit exactly the two
+  transitions (adding or removing `tenant` on an existing user) that orphan
+  RGW users.
+- `tenant`'s charset is RGW's: `rgw_validate_tenant_name` accepts only
+  alphanumerics and `_`. `MaxLength=255` is a rook-side bound; RGW imposes
+  no length limit.
+- `MinLength=1` on the placement fields makes the empty string
+  unrepresentable. `""` would satisfy the `has()` in the requires-rule
+  while being meaningless on the wire (empty values cannot be transmitted —
+  see [Field removal](#field-removal-unmanaged-semantics)).
+- `defaultPlacement` forbids `/`, which is the storage-class separator in
+  RGW's embedded placement-rule syntax; permitting it would make the same
+  spec value parse differently across Ceph versions (see
+  [Ceph version invariance](#ceph-version-invariance)). Note that the
+  pre-existing `PoolPlacementSpec.Name` pattern permits `/`, so a
+  slash-bearing placement target defined on a store cannot be referenced
+  from this field; such names are ambiguous in RGW's own placement-rule
+  syntax regardless, and a follow-up may tighten `PoolPlacementSpec.Name`
+  to match.
 
-### Unset/Removal Behavior
+### Field removal (unmanaged semantics)
 
-Ceph RGW's `ModifyUser` semantics do not treat an absent field as "no change" —
-the field's zero value is sent, and RGW acts on it:
+An absent `defaultPlacement`/`defaultStorageClass` means **unmanaged**: the
+controller neither writes nor compares the corresponding RGW user property.
+Removing a previously-set field stops management and leaves the last-applied
+value in place on the RGW user; it does not revert the user to the
+zonegroup default. A pre-existing RGW user adopted by a CR keeps whatever
+placement it already had, whether it was set through this field or outside
+of Rook. A user who wants zonegroup-default behavior sets `defaultPlacement`
+to the default target's name explicitly (note this pins the user to that
+target; it does not track later changes to the zonegroup default).
 
-- If `defaultPlacement` is set and later removed from the spec, the controller
-  must issue a `ModifyUser` call with an explicit empty `default-placement`,
-  which reverts the user to the zone group's default placement target. Simply
-  omitting the field from a subsequent reconcile is not sufficient — go-ceph's
-  `ModifyUser` sends whatever value is present on the `admin.User` struct
-  passed to it, so a removed spec field must be explicitly reconciled by the
-  controller (e.g. by constructing the request with `DefaultPlacement: ""`),
-  not just left unset in Go.
+Revert-on-removal is not implementable today, on any supported Ceph, through
+any client: go-ceph never transmits empty parameter values
+([go-ceph#1307](https://github.com/ceph/go-ceph/issues/1307)), and RGW's
+admin ops modify handler ignores empty `default-placement` values anyway
+([tracker 79090](https://tracker.ceph.com/issues/79090)); `radosgw-admin`
+shares the same guard. Those issues track the upstream fixes. Per
+[Ceph version invariance](#ceph-version-invariance), Rook may adopt
+revert-on-removal semantics only once its minimum supported Ceph and a
+released go-ceph both support clearing — as an explicit, documented
+behavior change.
 
-- If both are removed together, the controller reverts to sending an empty
-  `default-placement`, which implicitly also clears any storage class override.
-- If `defaultPlacementTags` is set and later removed, the controller must send
-  an empty `placement-tags` list, clearing the tags on the live RGW user rather
-  than leaving the last-applied tags in place.
-
-This mirrors the enforcement mechanism already used for `tenant`'s
-immutability: the desired end-state is expressed declaratively in the spec, and
-the controller is responsible for issuing whatever explicit RGW admin API call
-is needed to converge live state to it, including reverting fields to their
-Ceph-side defaults on removal — not merely for what to send when a field is
-populated.
+The unmanaged contract is also what protects brownfield users: reconcile
+must not churn `ModifyUser` calls (or worse, rewrite state) for users whose
+placement was configured out-of-band and whose CRs never mention it.
 
 ### Example CR
 
@@ -192,15 +269,60 @@ spec:
   tenant: tenantA
   defaultPlacement: hot-tier
   defaultStorageClass: STANDARD_IA
-  defaultPlacementTags:
-    - tenant-a
 ```
+
+## Status
+
+The controller echoes applied state into the CR status after a successful
+reconcile: the effective `default_placement` and `default_storage_class`
+read back from user info. A placement or storage class rejected by RGW
+(`EINVAL` from server-side validation) fails the reconcile and surfaces the
+RGW error in the CR status; this is the intended validation UX, replacing
+operator-side pre-validation. A tenant mismatch between spec and the live
+user (see the addressing backstop above) is likewise a surfaced reconcile
+error, never a silent adoption.
+
+## Multisite
+
+RGW user metadata — including `default_placement` and
+`default_storage_class` — is realm-scoped and replicates to every zone via
+metadata sync. Placement *targets*, however, are zonegroup-scoped, and their
+pools are zone-local. Consequences this design accepts and documents:
+
+- Validation happens at apply time, by the RGW serving the referenced
+  object store, against **its** zonegroup only.
+- In a realm with multiple zonegroups (or independently-managed zone specs),
+  a user's synced `default_placement` may name a target that does not exist
+  in a peer zonegroup. Bucket creation there fails with
+  `InvalidLocationConstraint` at the S3 layer; Rook does not detect this.
+  Deployments using per-user placement across zonegroups should define the
+  same placement target names in every zonegroup of the realm.
+- Rook does not re-validate user placements when zonegroup placement targets
+  change after the fact.
+
+Zone-backed stores (`spec.zone.name` set) and external-mode stores are fully
+supported: because validation is RGW-side, no rook CR needs to carry the
+placement list.
+
+## Compatibility and rollback
+
+All fields are optional; CRs created by older Rook are unaffected, and the
+new schema invalidates no stored object.
+
+Rolling back to a Rook release that predates `spec.tenant` while tenanted
+CRs exist is **destructive**: the older operator addresses the user by bare
+name, fails to find the tenanted user, creates an untenanted user with the
+same name, and repoints the CR's Secret at it — orphaning the tenanted user
+and its buckets. Before downgrading, tenanted `CephObjectStoreUser` CRs must
+be removed (or the operator scaled down). This warning ships in the release
+notes. The placement fields carry no such hazard: an older operator simply
+stops managing them.
 
 ## S3 Client Configuration for Tenanted Users
 
 RGW exposes tenanted users to S3 clients through their access key / secret key pair — the S3 client itself requires no special modification. Credentials stored in the Rook-managed Kubernetes Secret are functionally identical regardless of whether the user belongs to a tenant.
 
-```yaml
+```ini
 # AWS CLI profile for a tenanted user — identical to a non-tenanted user
 [profile tenantA-user1]
 aws_access_key_id     = <AccessKey from rook-ceph-object-user-my-store-user1>
@@ -237,22 +359,49 @@ removing cross-tenant path-style access.
 ## Immutability
 
 `tenant` is immutable because RGW does not support moving a user between
-tenants; the only path is deletion and recreation. Attempting to change
-`tenant` on an existing `CephObjectStoreUser` would silently create a second
-user in the new tenant while leaving the original orphaned.
-
+tenants; the only path is deletion and recreation (`radosgw-admin user
+rename` explicitly rejects tenant changes, and the Admin Ops API has no
+rename operation). Changing `tenant` on an existing `CephObjectStoreUser`
+would create a second user in the new tenant while leaving the original
+orphaned. Enforcement is the spec-level CEL transition rule in
+[Proposed API Changes](#proposed-api-changes), backed by the controller's
+tenant-mismatch check described in
+[RGW Tenant User ID Format](#rgw-tenant-user-id-format).
 
 `defaultPlacement` and `defaultStorageClass` are mutable — RGW supports
-changing a user's default placement and storage class at any time; changes only
-affect future bucket/object creation, not existing buckets/objects. As
-described in [Unset/Removal Behavior](#unsetremoval-behavior), mutability also
-covers the removal case: the controller must actively drive RGW back to its own
-defaults rather than treating an unset field as a no-op.
+changing a user's default placement and storage class at any time; changes
+only affect future bucket/object creation, not existing buckets/objects.
+Removal of either field is covered by
+[Field removal](#field-removal-unmanaged-semantics).
 
 ## Interaction with `AccountRef`
 
-`tenant` and `accountRef` are orthogonal. Both can be set simultaneously. When both are set:
-- `userConfig.Tenant` is set from `spec.tenant`
-- `userConfig.AccountID` is set from `spec.accountRef`
+RGW requires an account member's tenant to equal the account's tenant
+(`validate_account_tenant`, enforced at user create/modify). Rook's
+`CephObjectStoreAccount` cannot currently create tenanted accounts, so every
+expressible `tenant` + `accountRef` combination would fail at RGW with
+`EINVAL` on a doubly-immutable field pair. The spec therefore rejects the
+combination at admission (CEL rule above). Supporting tenanted account
+members requires adding a tenant field to `CephObjectStoreAccount` (go-ceph
+already transmits one) and is listed under [Future work](#future-work).
 
-No conflict; `admin.User` has both fields.
+## Future work
+
+- **`placementTags`** (deferred from this design): RGW `placement_tags` is a
+  bucket-creation authorization list — a user may only create buckets in a
+  tagged placement target when one of the user's tags matches. It is
+  deferred because (a) its enabling half, tags on zonegroup placement
+  targets, has no Rook API (`PoolPlacementSpec` would need a `tags` field);
+  (b) client support exists only in unreleased go-ceph
+  ([go-ceph#1290](https://github.com/ceph/go-ceph/pull/1290)); and (c) tags
+  cannot be cleared through the admin ops API once set
+  ([tracker 79090](https://tracker.ceph.com/issues/79090)). When revisited:
+  the field is named `placementTags` (it is not scoped to the default
+  placement), ships together with `PoolPlacementSpec.tags`, and gates on a
+  released go-ceph.
+- **Revert-on-removal** for the placement fields, once
+  [tracker 79090](https://tracker.ceph.com/issues/79090) and
+  [go-ceph#1307](https://github.com/ceph/go-ceph/issues/1307) are in Rook's
+  support floor.
+- **Tenanted accounts**: a `tenant` field on `CephObjectStoreAccount`,
+  unlocking `tenant` + `accountRef` combinations.
