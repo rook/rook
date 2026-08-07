@@ -319,6 +319,15 @@ func (r *ReconcileCephCluster) Reconcile(context context.Context, request reconc
 }
 
 func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.Result, cephv1.CephCluster, error) {
+	if err := r.opManagerContext.Err(); err != nil {
+		log.NamespacedInfo(request.Namespace, logger, "context cancelled before entering reconcile, exiting reconcile")
+		emptyCephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{
+			Namespace: request.Namespace,
+			Name:      request.Name,
+		}}
+		return reconcile.Result{}, emptyCephCluster, nil
+	}
+
 	// Pass the client context to the ClusterController
 	r.clusterController.client = r.client
 
