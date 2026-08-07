@@ -241,7 +241,7 @@ func archiveCrash(clusterdContext *clusterd.Context, clusterInfo *client.Cluster
 	}
 }
 
-// DestroyOSD fetches the OSD to be replaced based on the ID and then destroys that OSD and zaps the backing device
+// DestroyOSD fetches the OSD to be migrated based on the ID and then destroys that OSD and zaps the backing device
 func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id int, isPVC bool) (*oposd.OSDInfo, error) {
 	osdInfo, err := GetOSDInfoById(context, clusterInfo, id)
 	if err != nil {
