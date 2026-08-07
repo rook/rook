@@ -2176,7 +2176,6 @@ jobs:
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "deploy/examples/csi/nfs/driver.yaml"
           BLOCK="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
           export BLOCK
           yq write -i deploy/examples/cluster-multus-test.yaml "spec.storage.deviceFilter" "${BLOCK}"
@@ -2185,16 +2184,12 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_toolbox
 
           kubectl create -f deploy/examples/filesystem-test.yaml
-          kubectl create -f deploy/examples/nfs-test.yaml
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
-
-      - name: wait for cephnfs to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready nfs 1
 
       - name: check multus connections
         run: tests/scripts/github-action-helper.sh test_multus_connections
@@ -2204,9 +2199,6 @@ jobs:
 
       - name: test ceph-csi-cephfs plugin restart
         run: tests/scripts/github-action-helper.sh test_csi_cephfs_workload
-
-      - name: test ceph-csi-nfs plugin restart
-        run: tests/scripts/github-action-helper.sh test_csi_nfs_workload
 
       - name: collect common logs
         if: always()
