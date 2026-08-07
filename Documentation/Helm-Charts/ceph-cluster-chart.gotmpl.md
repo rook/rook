@@ -142,6 +142,17 @@ commented out by default; uncomment and adjust them to deploy a multisite config
 | `cephObjectZones[].name` | The name of the CephObjectZone | `zone-a` |
 | `cephObjectZones[].spec` | The CephObjectZone spec, see the [CephObjectZone CRD](../CRDs/Object-Storage/ceph-object-zone-crd.md) documentation. | see values.yaml |
 
+### **Ceph Object Store Users**
+
+The `cephObjectStoreUsers` array in the values file defines a list of S3 users to create in an
+object store. The entries are commented out by default; uncomment and adjust them to create users,
+pointing each at a `cephObjectStores` entry via its `spec.store`.
+
+| Parameter | Description | Default |
+| --------- | ----------- | ------- |
+| `cephObjectStoreUsers[].name` | The name of the CephObjectStoreUser | `my-user` |
+| `cephObjectStoreUsers[].spec` | The CephObjectStoreUser spec, see the [CephObjectStoreUser CRD](../CRDs/Object-Storage/ceph-object-store-user-crd.md) documentation. | see values.yaml |
+
 ### **Existing Clusters**
 
 If you have an existing CephCluster CR that was created without the helm chart and you want the helm

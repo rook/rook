@@ -1,0 +1,81 @@
+suite: cephobjectstoreuser
+templates:
+  - cephobjectstoreuser.yaml
+tests:
+  - it: renders nothing by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders a CephObjectStoreUser for each configured user
+    set:
+      cephObjectStoreUsers:
+        - name: user-a
+          spec:
+            store: ceph-objectstore
+        - name: user-b
+          spec:
+            store: other-objectstore
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: CephObjectStoreUser
+      - isAPIVersion:
+          of: ceph.rook.io/v1
+      - equal:
+          path: metadata.name
+          value: user-a
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: user-b
+        documentIndex: 1
+
+  - it: places users in the release namespace
+    release:
+      namespace: rook-ceph
+    set:
+      cephObjectStoreUsers:
+        - name: user-a
+          spec:
+            store: ceph-objectstore
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: rook-ceph
+
+  - it: passes the spec through verbatim
+    set:
+      cephObjectStoreUsers:
+        - name: user-a
+          spec:
+            store: ceph-objectstore
+            displayName: A display name
+            clusterNamespace: other-cluster
+            quotas:
+              maxBuckets: 100
+              maxSize: 10G
+              maxObjects: 10000
+            capabilities:
+              user: "*"
+              bucket: "*"
+    asserts:
+      - equal:
+          path: spec.store
+          value: ceph-objectstore
+      - equal:
+          path: spec.displayName
+          value: A display name
+      - equal:
+          path: spec.clusterNamespace
+          value: other-cluster
+      - equal:
+          path: spec.quotas.maxBuckets
+          value: 100
+      - equal:
+          path: spec.quotas.maxSize
+          value: 10G
+      - equal:
+          path: spec.capabilities.user
+          value: "*"

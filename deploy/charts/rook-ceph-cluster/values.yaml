@@ -748,6 +748,14 @@ cephObjectStores:
 #      #   - "http://rgw-a.fqdn"
 #      # if the pools need to be removed from backend enable following setting
 #      # preservePoolsOnDelete: false
+## cephObjectStoreUsers create S3 users in a CephObjectStore. They are disabled by default;
+## remove the comments and set desired values to enable them. See
+## https://rook.io/docs/rook/latest/CRDs/Object-Storage/ceph-object-store-user-crd/
+#cephObjectStoreUsers:
+#  - name: my-user
+#    spec:
+#      store: ceph-objectstore
+#      displayName: my display name
 ## cephECBlockPools are disabled by default, please remove the comments and set desired values to enable it
 ## For erasure coded a replicated metadata pool is required.
 ## https://rook.io/docs/rook/latest/CRDs/Shared-Filesystem/ceph-filesystem-crd/#erasure-coded
