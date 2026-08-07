@@ -113,6 +113,9 @@ func (o *Operator) Run() error {
 			// Stop the operator CRD manager
 			opManagerStop()
 
+			// Short sleep to quickly work around https://github.com/rook/rook/issues/18112
+			time.Sleep(5 * time.Second)
+
 			// Run the operator CRD manager again
 			o.runCRDManager()
 
@@ -140,6 +143,7 @@ func (o *Operator) runCRDManager() {
 
 	// Pass the parent context to the cluster controller so that the monitoring go routines can
 	// consume it to terminate gracefully
+	logger.Info("swapping clusterController context") // debug https://github.com/rook/rook/issues/18112
 	o.clusterController.OpManagerCtx = opManagerContext
 
 	// Run the operator CRD manager
