@@ -207,10 +207,17 @@ The replacement runs in five stages, alternating between what you do and what Ro
 - **Matched automatically:** `useAllDevices: true`, a `deviceFilter` that matches by kernel name, or a `/dev/disk/by-path/...` reference when the new disk is in the same physical slot.
 - **Needs a CR update:** a `/dev/disk/by-id/...` or `/dev/disk/by-uuid/...` reference, an explicit device name, or a `by-path` reference when the disk moves to a different slot. These identify the old disk, so edit the CephCluster CR to point at the new one.
 
-**Supported layouts:** all types of OSDs for host-based clusters, including shared-metadata OSDs.
+**Supported:**
 
-!!! warning
-    This procedure replaces a single **data** disk. It does not replace a **metadata device** shared by several OSDs. If the disk that failed is the shared metadata device, this procedure does not apply.
+- Host-based OSDs that own their whole data device.
+- OSDs sharing a metadata (DB) device: the data disk is replaced, the DB volume is reused.
+- Encrypted OSDs.
+
+**Not supported:**
+
+- **PVC-based OSDs** (`storageClassDeviceSets`). Rook rejects the request.
+- **Multiple OSDs on one device** (`osdsPerDevice` greater than `1`). Rook rejects the request and logs a warning. Use [Remove an OSD](#remove-an-osd) for such a disk instead, and let the operator re-create the OSDs.
+- **The shared metadata device itself.** This procedure replaces a single **data** disk; if the failed disk is the metadata device shared by several OSDs, it does not apply.
 
 ### Step 1: Trigger the replacement
 
