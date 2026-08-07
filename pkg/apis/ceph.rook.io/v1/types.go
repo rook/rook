@@ -3546,7 +3546,20 @@ type CleanupPolicySpec struct {
 	// was reinstalled but OSD disk still contains the metadata from previous ceph cluster.
 	// +optional
 	WipeDevicesFromOtherClusters bool `json:"wipeDevicesFromOtherClusters"`
+
+	// Strategy determines how the cleanup job reacts to a failure while sanitizing disks.
+	// "BestEffort", the default, logs the failure and still reports the job as successful,
+	// which preserves the historical behavior. "FailOnError" fails the job instead, so that a
+	// sanitize failure is visible rather than reported as a successful wipe. Note that this
+	// governs disk sanitization only; failures while removing dataDirHostPath are still
+	// best-effort.
+	// +optional
+	// +kubebuilder:validation:Enum=BestEffort;FailOnError
+	Strategy CleanupStrategyProperty `json:"strategy,omitempty"`
 }
+
+// CleanupStrategyProperty represents how the cleanup job reacts to a failure
+type CleanupStrategyProperty string
 
 // CleanupConfirmationProperty represents the cleanup confirmation
 // +kubebuilder:validation:Pattern=`^$|^yes-really-destroy-data$`

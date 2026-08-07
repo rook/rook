@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -52,6 +53,72 @@ func TestCleanupJobSpec(t *testing.T) {
 	podTemplateSpec := controller.cleanUpJobTemplateSpec(cluster, "monSecret", "28b87851-8dc1-46c8-b1ec-90ec51a47c89")
 	assert.Equal(t, expectedHostPath, podTemplateSpec.Spec.Containers[0].Env[0].Value)
 	assert.Equal(t, expectedNamespace, podTemplateSpec.Spec.Containers[0].Env[1].Value)
+}
+
+func TestCleanupStrategyEnvVar(t *testing.T) {
+	strategyEnvValue := func(t *testing.T, strategy cephv1.CleanupStrategyProperty) string {
+		t.Helper()
+		cluster := &cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "test-rook-ceph"},
+			Spec: cephv1.ClusterSpec{
+				DataDirHostPath: "var/lib/rook",
+				CleanupPolicy: cephv1.CleanupPolicySpec{
+					Confirmation: "yes-really-destroy-data",
+					Strategy:     strategy,
+				},
+			},
+		}
+		context := &clusterd.Context{
+			Clientset:     testop.New(t, 3),
+			RookClientset: rookfake.NewSimpleClientset(),
+		}
+		controller := NewClusterController(context, "")
+		podTemplateSpec := controller.cleanUpJobTemplateSpec(cluster, "monSecret", "28b87851-8dc1-46c8-b1ec-90ec51a47c89")
+		for _, envVar := range podTemplateSpec.Spec.Containers[0].Env {
+			if envVar.Name == cleanupStrategy {
+				return envVar.Value
+			}
+		}
+		return ""
+	}
+
+	// An unset strategy must keep the historical best-effort behavior.
+	assert.Equal(t, string(cephv1.CleanupStrategyBestEffort), strategyEnvValue(t, ""))
+	assert.Equal(t, string(cephv1.CleanupStrategyBestEffort), strategyEnvValue(t, cephv1.CleanupStrategyBestEffort))
+	assert.Equal(t, string(cephv1.CleanupStrategyFailOnError), strategyEnvValue(t, cephv1.CleanupStrategyFailOnError))
+}
+
+func TestCleanupStrategyBackoffLimit(t *testing.T) {
+	backoffLimitFor := func(t *testing.T, strategy cephv1.CleanupStrategyProperty) *int32 {
+		t.Helper()
+		cluster := &cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "test-rook-ceph", Name: "rook-ceph"},
+			Spec: cephv1.ClusterSpec{
+				DataDirHostPath: "var/lib/rook",
+				CleanupPolicy: cephv1.CleanupPolicySpec{
+					Confirmation: "yes-really-destroy-data",
+					Strategy:     strategy,
+				},
+			},
+		}
+		clientset := testop.New(t, 1)
+		context := &clusterd.Context{Clientset: clientset, RookClientset: rookfake.NewSimpleClientset()}
+		controller := NewClusterController(context, "")
+		controller.startCleanUpJobs(cluster, []string{"node1"}, "monSecret", "fsid")
+
+		jobs, err := clientset.BatchV1().Jobs(cluster.Namespace).List(t.Context(), metav1.ListOptions{})
+		assert.NoError(t, err)
+		assert.Len(t, jobs.Items, 1)
+		return jobs.Items[0].Spec.BackoffLimit
+	}
+
+	// Retrying a partially completed wipe would re-enumerate OSDs whose metadata the first
+	// pass already destroyed, find none, and exit successfully - so FailOnError must not retry.
+	require.NotNil(t, backoffLimitFor(t, cephv1.CleanupStrategyFailOnError))
+	assert.Equal(t, int32(0), *backoffLimitFor(t, cephv1.CleanupStrategyFailOnError))
+
+	// The default must keep the Job's own default backoff limit.
+	assert.Nil(t, backoffLimitFor(t, ""))
 }
 
 func TestCleanupPlacement(t *testing.T) {

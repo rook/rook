@@ -31,6 +31,14 @@ const (
 
 	// DeleteDataDirOnHostsConfirmation represents the validation to destroy dataDirHostPath
 	DeleteDataDirOnHostsConfirmation CleanupConfirmationProperty = "yes-really-destroy-data"
+
+	// CleanupStrategyBestEffort logs cleanup failures and still reports the job as successful.
+	// This is the default so that existing users relying on the behavior are unaffected.
+	CleanupStrategyBestEffort CleanupStrategyProperty = "BestEffort"
+
+	// CleanupStrategyFailOnError fails the cleanup job when sanitizing disks fails, so that the
+	// failure is visible rather than reported as a successful wipe.
+	CleanupStrategyFailOnError CleanupStrategyProperty = "FailOnError"
 )
 
 // HasDataDirCleanPolicy returns whether the cluster has a data dir policy

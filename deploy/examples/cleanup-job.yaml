@@ -119,6 +119,13 @@ spec:
             - name: ROOK_SANITIZE_ITERATION
               value: "1"
 
+            # How to react to a sanitize failure: BestEffort (default) or FailOnError.
+            # BestEffort logs the failure and still reports the job as successful.
+            # FailOnError exits non-zero so that the failure is visible; set backoffLimit: 0
+            # above when using it, since retrying a partial wipe can report a false success.
+            # - name: ROOK_CLEANUP_STRATEGY
+            #   value: "FailOnError"
+
             - name: DM_DISABLE_UDEV
               value: "1"
 

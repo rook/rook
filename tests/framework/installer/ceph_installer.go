@@ -1091,6 +1091,9 @@ func (h *CephInstaller) addCleanupPolicy(namespace, clusterName string) error {
 		}
 		cluster.Spec.CleanupPolicy.Confirmation = cephv1.DeleteDataDirOnHostsConfirmation
 		cluster.Spec.CleanupPolicy.AllowUninstallWithVolumes = true
+		// Exercise the strategy against real devices: teardown already waits on the cleanup
+		// job, so a sanitize failure now surfaces as a failed job instead of being swallowed.
+		cluster.Spec.CleanupPolicy.Strategy = cephv1.CleanupStrategyFailOnError
 		_, err = h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Update(ctx, cluster, metav1.UpdateOptions{})
 		if err != nil {
 			returnErr = errors.Errorf("failed to add clean up policy to the cluster. %+v", err)

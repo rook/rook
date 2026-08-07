@@ -881,6 +881,13 @@ The `cleanupPolicy` has several fields:
         Using random sources will consume entropy from the system and will take much more time then the zero source
     * `iteration`: overwrite N times instead of the default (1). Takes an integer value
 * `allowUninstallWithVolumes`: If set to true, then the cephCluster deletion doesn't wait for the PVCs to be deleted. Default is `false`.
+* `strategy`: determines how the cleanup job reacts when sanitizing the disks fails. Possible choices are `BestEffort` (default) or `FailOnError`.
+    * `BestEffort`: failures are logged and the cleanup job still reports success. This is the default so that existing behavior is unchanged.
+    * `FailOnError`: a sanitize failure fails the cleanup job so that it is visible rather than reported as a successful wipe.
+        Use this when the disks are being decommissioned and a silent failure would leave readable data behind.
+        The job is not retried in this mode: a `method: complete` wipe that dies partway has already
+        destroyed the OSD metadata, so a second attempt would find no OSDs to sanitize and exit successfully.
+    * This setting governs disk sanitization only. Failures while removing `dataDirHostPath` remain best-effort under both strategies.
 
 To automate activation of the cleanup, you can use the following command. **WARNING: DATA WILL BE PERMANENTLY DELETED**:
 
