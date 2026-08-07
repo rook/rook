@@ -275,6 +275,24 @@ kubectl -n rook-ceph get deployment rook-ceph-osd-5
 
 The replacement is complete once OSD `5` is `up` and `in`. Ceph then backfills the data onto the new disk; monitor recovery from the [Ceph dashboard](../Monitoring/ceph-dashboard.md) or the toolbox until all PGs are `active+clean`.
 
+### If the replacement disk fails to provision
+
+If the replacement disk is faulty, provisioning can fail after Ceph has already reserved the OSD ID. The original OSD cannot then be kept in place: once a working disk is in place it is provisioned as a **new** OSD — which may or may not reuse the old ID — and Ceph rebalances data as it does for any new OSD. No data is lost.
+
+Rook deletes the leftover `rook-ceph-osd-5` deployment. The other OSDs sharing the metadata device are unaffected.
+
+The operator log records the cleanup:
+
+```console
+kubectl -n rook-ceph logs deploy/rook-ceph-operator | grep -i "replacement"
+```
+
+Why the disk failed to provision is logged by the OSD prepare job on that node, not by the operator:
+
+```console
+kubectl -n rook-ceph logs job/rook-ceph-osd-prepare-<node>
+```
+
 ## OSD Migration
 
 Ceph does not support changing certain settings on existing OSDs. To support changing these settings on an OSD, the OSD must be destroyed and re-created with the new settings. Rook will automate this by migrating only one OSD at a time. The operator waits for the data to rebalance (PGs to become `active+clean`) before migrating the next OSD. This ensures that there is no data loss. Refer to the [OSD migration](https://github.com/rook/rook/blob/master/design/ceph/osd-migration.md) design doc for more information. 

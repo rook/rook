@@ -182,6 +182,20 @@ func (dump *OSDDump) StatusByID(id int64) (int64, int64, error) {
 	return 0, 0, errors.Errorf("not found osd.%d in OSDDump", id)
 }
 
+// Exists reports whether the given OSD id is present in the osdmap.
+func (dump *OSDDump) Exists(id int64) bool {
+	for _, d := range dump.OSDs {
+		idFromDump, err := d.OSD.Int64()
+		if err != nil {
+			continue
+		}
+		if idFromDump == id {
+			return true
+		}
+	}
+	return false
+}
+
 func GetOSDUsage(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDUsage, error) {
 	args := []string{"osd", "df"}
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()

@@ -200,10 +200,15 @@ func (a *OsdAgent) preProvisionReplacedOSDs(context *clusterd.Context, available
 
 		// provision selected blank device into destroyed osdID slot:
 		if err := a.provisionReplacedOSD(context, destroyedID, entry); err != nil {
-			// Skip this slot on failure so one bad slot does not block the other slots or the normal
-			// provisioning that runs after this. The destroyed slot stays destroyed and is retried on
-			// the next reconcile.
-			logger.Errorf("failed to provision replacement for destroyed osd.%d on device %q, skipping. %v", destroyedID, blankDevice, err)
+			// Prepare can fail here because the swapped-in device is itself faulty. ceph-volume claims the
+			// OSD id before it writes anything to the disk, so its own rollback purges the reserved slot
+			// and zaps the reused DB LV. Skipping is safe: the DB LV's extents return to the metadata VG
+			// and are reused by the next OSD placed there, the data device is left blank and picked up as
+			// a new OSD, no data is lost since the purged slot rebalances like any removed OSD, and the
+			// leftover downscaled Deployment is cleaned up by the operator. Not returning the error keeps
+			// one bad slot from blocking the other slots or the normal provisioning that runs after this
+			// function.
+			logger.Errorf("failed to provision replacement for destroyed osd.%d on device %q, skipping. the destroyed slot may not have survived the failure. %v", destroyedID, blankDevice, err)
 			continue
 		}
 		logger.Infof("provisioned replacement osd.%d on device %q", destroyedID, blankDevice)
