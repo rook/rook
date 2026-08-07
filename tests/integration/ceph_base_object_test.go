@@ -48,15 +48,12 @@ const (
 )
 
 var (
-	userid                 = "rook-user"
-	userdisplayname        = "A rook RGW user"
-	bucketname             = "smokebkt"
-	obcName                = "smoke-delete-bucket"
-	maxObject              = "2"
-	bucketStorageClassName = "rook-smoke-delete-bucket"
-	maxBucket              = 1
-	maxSize                = "100000"
-	userCap                = "*"
+	userdisplayname = "A rook RGW user"
+	obcName         = "smoke-delete-bucket"
+	maxObject       = "2"
+	maxBucket       = 1
+	maxSize         = "100000"
+	userCap         = "*"
 )
 
 // Test Object StoreCreation on Rook that was installed via helm

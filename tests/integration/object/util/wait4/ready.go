@@ -18,6 +18,7 @@ package wait4
 
 import (
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
@@ -25,6 +26,16 @@ import (
 // ObjectStore reports whether a CephObjectStore has been reconciled to Ready.
 func ObjectStore(os *cephv1.CephObjectStore) bool {
 	return os.Status != nil && os.Status.Phase == cephv1.ConditionReady
+}
+
+// ObjectStoreDeletionBlocked reports whether a CephObjectStore's deletion is
+// blocked on dependents.
+func ObjectStoreDeletionBlocked(os *cephv1.CephObjectStore) bool {
+	if os.Status == nil {
+		return false
+	}
+	cond := cephv1.FindStatusCondition(os.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
+	return cond != nil && cond.Status == corev1.ConditionTrue
 }
 
 // ObjectStoreUser reports whether a CephObjectStoreUser has been reconciled to
