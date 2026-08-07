@@ -46,4 +46,6 @@ users:
   - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-osd
   - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-rgw
   - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-nvmeof
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-cmd-reporter
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-purge-osd
 {{- end }}

@@ -27,4 +27,14 @@ func TestNewSecurityContextConstraints(t *testing.T) {
 	scc := NewSecurityContextConstraints(name, name)
 	assert.True(t, scc.AllowPrivilegedContainer)
 	assert.Equal(t, name, scc.Name)
+	assert.Equal(t, []string{
+		"system:serviceaccount:rook-ceph:rook-ceph-system",
+		"system:serviceaccount:rook-ceph:rook-ceph-default",
+		"system:serviceaccount:rook-ceph:rook-ceph-mgr",
+		"system:serviceaccount:rook-ceph:rook-ceph-osd",
+		"system:serviceaccount:rook-ceph:rook-ceph-rgw",
+		"system:serviceaccount:rook-ceph:rook-ceph-nvmeof",
+		"system:serviceaccount:rook-ceph:rook-ceph-cmd-reporter",
+		"system:serviceaccount:rook-ceph:rook-ceph-purge-osd",
+	}, scc.Users)
 }
