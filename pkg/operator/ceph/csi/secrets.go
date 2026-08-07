@@ -341,7 +341,7 @@ func getPriorKeyCount(currentKeyCount int) int {
 // getCsiKeyRotationInfo runs the `ceph auth ls` command to fetch all the keys and filter out the keys with same base name. Example
 // for base name `client.csi-rbd-node`.
 // From the list of key name return from `getMatchingClient` we'll read the suffix index eg; for key `client.csi-rbd-node.3` we'll take `3` and compare with
-// KeyGeneration and basaed on the comparison we'll return bool to check if we should rotate the keys or not and returning list
+// KeyGeneration and based on the comparison we'll return bool to check if we should rotate the keys or not and returning list
 // of all the matching keys.
 func getCsiKeyRotationInfo(context *clusterd.Context, clusterInfo *client.ClusterInfo, keyBaseName string) (int, []string, error) {
 	authList, err := client.AuthList(context, clusterInfo)
