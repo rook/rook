@@ -24,10 +24,14 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -173,6 +177,93 @@ func TestMigrationForOSDStore(t *testing.T) {
 	})
 }
 
+func TestStartOSDMigrationSkipsFencedOSDs(t *testing.T) {
+	namespace := "rook-ceph"
+	// PGs report as clean so migration is not blocked on PG health.
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "status" {
+				return "{}", nil
+			}
+			return "", nil
+		},
+	}
+
+	newCluster := func() (*fake.Clientset, *clusterd.Context, *Cluster) {
+		clientset := fake.NewClientset()
+		ctx := &clusterd.Context{
+			Clientset: clientset,
+			Executor:  executor,
+		}
+		clusterInfo := &cephclient.ClusterInfo{
+			Namespace: namespace,
+			Context:   context.TODO(),
+		}
+		clusterInfo.SetName("mycluster")
+		clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+
+		c := New(ctx, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+		c.spec.Storage.Migration.Confirmation = OSDMigrationConfirmation
+		c.spec.Storage.Store.Type = "newStore"
+		return clientset, ctx, c
+	}
+
+	// createPendingOSD creates an OSD running the old store, so it is pending migration.
+	createPendingOSD := func(clientset *fake.Clientset, c *Cluster, nodeName string, osdID int, fenced bool) {
+		d := getDummyDeploymentOnNode(clientset, c, nodeName, osdID)
+		d.Labels[osdStore] = "oldStore"
+		if fenced {
+			// mark the deployment the way validateAndStartOSDReplacement does
+			k8sutil.AddLabelToDeployment(cephv1.SkipReconcileLabelKey, "true", d)
+			k8sutil.AddAnnotationToDeployment(cephv1.ReplaceInProgressOSDAnnotationKey, "true", d)
+		}
+		createDeploymentOrPanic(clientset, d)
+	}
+
+	// derive the fenced set as Cluster.Start does
+	osdsToSkipReconcile := func(ctx *clusterd.Context, c *Cluster) (sets.Set[string], error) {
+		return controller.GetDaemonsToSkipReconcile(context.TODO(), ctx, c.clusterInfo.Namespace, OsdIdLabelKey, AppName)
+	}
+
+	t.Run("a fenced OSD is skipped in favour of another pending OSD", func(t *testing.T) {
+		clientset, ctx, c := newCluster()
+		createPendingOSD(clientset, c, "node1", 1, true)
+		createPendingOSD(clientset, c, "node2", 2, false)
+
+		skip, err := osdsToSkipReconcile(ctx, c)
+		assert.NoError(t, err)
+
+		migrationConfig, err := c.startOSDMigration(skip)
+		assert.NoError(t, err)
+		assert.NotNil(t, migrationConfig)
+
+		assert.NotNil(t, c.migrateOSD)
+		assert.Equal(t, 2, c.migrateOSD.ID)
+		assert.Empty(t, migrationConfig.getOSDIds())
+		_, err = clientset.AppsV1().Deployments(namespace).Get(context.TODO(), "rook-ceph-osd-1", metav1.GetOptions{})
+		assert.NoError(t, err)
+		_, err = clientset.AppsV1().Deployments(namespace).Get(context.TODO(), "rook-ceph-osd-2", metav1.GetOptions{})
+		assert.True(t, kerrors.IsNotFound(err))
+	})
+
+	t.Run("no migration is started when every pending OSD is fenced", func(t *testing.T) {
+		clientset, ctx, c := newCluster()
+		createPendingOSD(clientset, c, "node1", 1, true)
+
+		skip, err := osdsToSkipReconcile(ctx, c)
+		assert.NoError(t, err)
+
+		migrationConfig, err := c.startOSDMigration(skip)
+		assert.NoError(t, err)
+		assert.NotNil(t, migrationConfig)
+
+		assert.Nil(t, c.migrateOSD)
+		assert.Empty(t, migrationConfig.getOSDIds())
+		_, err = clientset.AppsV1().Deployments(namespace).Get(context.TODO(), "rook-ceph-osd-1", metav1.GetOptions{})
+		assert.NoError(t, err)
+	})
+}
+
 func createMigrationConfigmap(osdID, ns string, clientset *fake.Clientset) error {
 	ctx := context.TODO()
 	data := make(map[string]string, 1)
@@ -263,7 +354,7 @@ func TestStartOSDMigration(t *testing.T) {
 		err := createMigrationConfigmap("1", namespace, clientset)
 		assert.NoError(t, err)
 
-		migrationConfig, err := c.startOSDMigration()
+		migrationConfig, err := c.startOSDMigration(nil)
 		// The reconcile must keep flowing (no error) so the interrupted OSD can be recreated
 		// downstream, while still returning the pending OSDs so the caller removes them from
 		// the update queue.
