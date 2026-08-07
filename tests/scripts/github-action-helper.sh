@@ -1056,6 +1056,7 @@ function test_csi_nvmeof_workload {
   wait_for cephblockpool nvmeof rook-ceph 600
 
   kubectl create -f "${REPO_DIR}/deploy/examples/nvmeof-test.yaml"
+  wait_for cephblockpool builtin-nvmeof rook-ceph 600
   wait_for cephnvmeofgateway nvmeof rook-ceph 600
   timeout 300 bash <<EOF
 until kubectl -n rook-ceph get pod --no-headers 2>/dev/null | awk '/rook-ceph-nvmeof-nvmeof-a-/ && \$3 == "Running" {f=1} END {exit !f}'; do

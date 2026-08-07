@@ -119,7 +119,6 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 				Finalizers: []string{"cephnvmeofgateway.ceph.rook.io"},
 			},
 			Spec: cephv1.NVMeOFGatewaySpec{
-				Pool:      "nvmeof",
 				Group:     "group-a",
 				Instances: 1,
 			},
@@ -461,7 +460,6 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: cephv1.NVMeOFGatewaySpec{
-			Pool:      "nvmeof",
 			Group:     "group-a",
 			Instances: 1,
 		},
@@ -696,7 +694,6 @@ func TestNVMeOFConfigMapGeneration(t *testing.T) {
 			Namespace: "rook-ceph",
 		},
 		Spec: cephv1.NVMeOFGatewaySpec{
-			Pool:      "pool-a",
 			Group:     "group-a",
 			Instances: 1,
 			NVMeOFConfig: map[string]map[string]string{
@@ -721,5 +718,5 @@ func TestNVMeOFConfigMapGeneration(t *testing.T) {
 	assert.Equal(t, "@@POD_IP@@", cfg.Section("gateway").Key("addr").String())
 	assert.Equal(t, "group-a", cfg.Section("gateway").Key("group").String())
 	assert.Equal(t, "5511", cfg.Section("gateway").Key("port").String())
-	assert.Equal(t, "pool-a", cfg.Section("ceph").Key("pool").String())
+	assert.Equal(t, nvmeofPoolName, cfg.Section("ceph").Key("pool").String())
 }

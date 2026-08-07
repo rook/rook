@@ -28,59 +28,47 @@ This guide assumes a Rook cluster as explained in the [Quickstart Guide](../../G
 
 - **Ceph Version**: Ceph v20 (Tentacle) or later
 
-## Step 1: Create a Ceph Block Pool
-
-Before creating the NVMe-oF gateway, you need to create a CephBlockPool that will be used by the gateway:
-
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephBlockPool
-metadata:
-  name: nvmeof
-  namespace: rook-ceph
-spec:
-  failureDomain: host
-  replicated:
-    size: 3
-```
-
-Create the pool:
-
-```console
-kubectl create -f deploy/examples/csi/nvmeof/nvmeof-pool.yaml
-```
-
-## Step 2: Create the NVMe-oF Gateway
+## Step 1: Create the NVMe-oF Gateway
 
 The `CephNVMeOFGateway` CRD manages the NVMe-oF gateway infrastructure. The operator will automatically create the following resources:
 
 - **Service**: One per gateway instance for service discovery
 - **Deployment**: One per gateway instance running the NVMe-oF gateway daemon
 
-Create the gateway:
+The gateway also requires an internal `.nvmeof` pool for its state. This pool is defined as a
+CephBlockPool CR with `spec.name: .nvmeof`.
+
+Create the gateway and the `.nvmeof` pool:
 
 ```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: builtin-nvmeof
+  namespace: rook-ceph
+spec:
+  name: .nvmeof
+  failureDomain: host
+  replicated:
+    size: 3
+---
 apiVersion: ceph.rook.io/v1
 kind: CephNVMeOFGateway
 metadata:
   name: nvmeof
   namespace: rook-ceph
 spec:
-  # Container image for the NVMe-oF gateway daemon
-  image: quay.io/ceph/nvmeof:1.5
-  # Pool name that will be used by the NVMe-oF gateway
-  pool: nvmeof
   # ANA (Asymmetric Namespace Access) group name
   group: group-a
-  # Number of gateway instances to run
-  instances: 1
+  # Number of gateway instances to run (2 recommended for HA)
+  instances: 2
   hostNetwork: false
 ```
 
 Apply the gateway configuration:
 
 ```console
-kubectl create -f deploy/examples/nvmeof-test.yaml
+kubectl create -f deploy/examples/nvmeof.yaml
 ```
 
 Verify the gateway is running:
@@ -96,7 +84,7 @@ NAME                                         READY   STATUS    RESTARTS   AGE
 rook-ceph-nvmeof-nvmeof-a-85844ff6b8-4r8gj   1/1     Running   0          91s
 ```
 
-## Step 3: Deploy the NVMe-oF CSI Driver via CSI Operator
+## Step 2: Deploy the NVMe-oF CSI Driver via CSI Operator
 
 The NVMe-oF CSI driver is deployed via the ceph-csi operator.
 
@@ -118,6 +106,26 @@ kubectl get pods -n rook-ceph | grep nvmeof
 ```console
 rook-ceph.nvmeof.csi.ceph.com-ctrlplugin-d9d77fb7c-kkl28   5/5     Running   0          60s
 rook-ceph.nvmeof.csi.ceph.com-nodeplugin-xvt5g              2/2     Running   0          60s
+```
+
+## Step 3: Create the Data Pool
+
+Create a CephBlockPool that will be used by the StorageClass to store data:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: nvmeof
+  namespace: rook-ceph
+spec:
+  failureDomain: host
+  replicated:
+    size: 3
+```
+
+```console
+kubectl create -f deploy/examples/csi/nvmeof/nvmeof-pool.yaml
 ```
 
 ## Step 4: Create the StorageClass
@@ -292,22 +300,9 @@ sudo mount /dev/nvmeXnY /mnt/nvmeof
 
 ## High Availability
 
-For production deployments, configure multiple gateway instances for high availability:
-
-1. **Increase Gateway Instances**: Set `instances: 2` or higher in the `CephNVMeOFGateway` spec
-2. **Update StorageClass Listeners**: Add all gateway deployment hostnames to the `listeners` array
-3. **Load Balancing**: Each gateway instance has its own Service; list all of them to support multipath/HA
-
-Example with multiple instances:
-
-```yaml
-spec:
-  instances: 2
-  # ... other settings
-```
-
-Then update the StorageClass `listeners` to include all gateway
-hostnames:
+The example (`nvmeof.yaml`) configures `instances: 2` for high availability.
+When running multiple gateway instances, update the StorageClass `listeners` to include all gateway
+deployment hostnames for multipath/HA:
 
 ```yaml
 listeners: |
@@ -375,10 +370,10 @@ kubectl delete storageclass ceph-nvmeof
 # Delete the NVMe-oF CSI operator resources
 kubectl delete -f deploy/examples/csi/nvmeof/csi-operator-nvmeof.yaml
 
-# Delete the NVMe-oF gateway
-kubectl delete -f deploy/examples/nvmeof-test.yaml
+# Delete the NVMe-oF gateway and its metadata pool
+kubectl delete -f deploy/examples/nvmeof.yaml
 
-# Delete the block pool (optional)
+# Delete the data pool (optional)
 kubectl delete -f deploy/examples/csi/nvmeof/nvmeof-pool.yaml
 ```
 
