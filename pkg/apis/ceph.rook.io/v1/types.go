@@ -1543,6 +1543,12 @@ type MetadataServerSpec struct {
 	// +kubebuilder:validation:Maximum=50
 	ActiveCount int32 `json:"activeCount"`
 
+	// The number of metadata servers that are standby.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=50
+	// +kubebuilder:default=0
+	StandbyCount int32 `json:"standbyCount"`
+
 	// Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
 	// If false, standbys will still be available, but will not have a warm metadata cache.
 	// +optional

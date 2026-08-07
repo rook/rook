@@ -135,6 +135,7 @@ func (c *Cluster) Start() error {
 	if c.fs.Spec.MetadataServer.ActiveStandby {
 		replicas = replicas * 2
 	}
+	replicas += c.fs.Spec.MetadataServer.StandbyCount
 
 	mdsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.clusterInfo.Context, c.context, c.clusterInfo.Namespace, config.MdsType, AppName)
 	if err != nil {
@@ -268,7 +269,7 @@ func (c *Cluster) upgradeMDS() error {
 	log.NamedInfo(nsName, logger, "upgrading MDS cluster for filesystem %q", c.fs.Name)
 
 	// 1. set allow_standby_replay to false
-	if err := cephclient.AllowStandbyReplay(c.context, c.clusterInfo, c.fs.Name, false, 0); err != nil {
+	if err := cephclient.SetAllowStandbyReplay(c.context, c.clusterInfo, c.fs.Name, false); err != nil {
 		return errors.Wrap(err, "failed to setting allow_standby_replay to false")
 	}
 
@@ -422,7 +423,7 @@ func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclien
 	}
 
 	// set allow_standby_replay back
-	if err := cephclient.AllowStandbyReplay(context, clusterInfo, fsName, fs.Spec.MetadataServer.ActiveStandby, fs.Spec.MetadataServer.ActiveCount); err != nil {
+	if err := cephclient.SetAllowStandbyReplay(context, clusterInfo, fsName, fs.Spec.MetadataServer.ActiveStandby); err != nil {
 		return errors.Wrap(err, "failed to set allow_standby_replay to true")
 	}
 
