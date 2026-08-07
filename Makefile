@@ -190,8 +190,26 @@ golangci-lint: $(YQ)
 markdownlint: ## Check formatting of documentation sources
 	@$(MARKDOWNLINT) "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs
 
+<<<<<<< HEAD
 .PHONY: markdownlint.fix
 markdownlint.fix: ## Check and fix formatting of documentation sources
+=======
+.PHONY: lint.markdown-links
+lint.markdown-links: check.container.runtime
+	@$(DOCKERCMD) run --rm -v "$$PWD:/workspace" --entrypoint "/workspace/tests/scripts/check-markdown-links-internal.sh" ghcr.io/tcort/markdown-link-check:stable
+
+# The base ref that lint.commits checks against; every commit reachable from HEAD but not from it
+# is linted. It defaults to the remote-tracking master so a stale local master branch does not drag
+# already-merged upstream commits into the range. Override when the upstream is a different remote,
+# e.g. lint.commits COMMITLINT_BASE=upstream/master.
+COMMITLINT_BASE ?= origin/master
+.PHONY: lint.commits
+lint.commits: ## Check this branch's commit messages with commitlint (requires npx).
+	@npx --yes -p @commitlint/cli -p @commitlint/config-conventional commitlint --config .commitlintrc.json --from $(COMMITLINT_BASE) --to HEAD
+
+.PHONY: fix.markdown
+fix.markdown: check.container.runtime ## Check and fix formatting of documentation sources
+>>>>>>> 800e88ef2 (build: add a make target to check commit messages)
 	@$(MARKDOWNLINT) "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --fix --config .markdownlint-cli2.cjs
 
 .PHONY: yamllint

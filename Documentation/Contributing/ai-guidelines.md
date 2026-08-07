@@ -16,7 +16,7 @@ In order to ensure legal guidelines, Rook requires human involvement and engagem
 ## Transparency requirements
 
 1. Contributors should disclose in pull request descriptions how AI tools assisted in development. E.g., generating substantial functions, documentation, and/or unit tests.
-2. Rook requires human sign-off. Signing commits using an AI tool, or listing AI tooling in commits using `co-authored-by`, `assisted-by`, `generated-by`, or using similar commit trailers is not necessary.
+2. Rook requires human sign-off. Sign commits with your own identity rather than an AI tool's. Commit trailers that credit AI tooling, such as `co-authored-by`, `assisted-by`, or `generated-by`, are permitted but not required.
 
 ## Best practices to respect maintainer time
 
