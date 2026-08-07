@@ -20,6 +20,7 @@ package mgr
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"strconv"
@@ -48,6 +49,7 @@ const (
 	passwordLength        = 20
 	passwordKeyName       = "password"
 	invalidArgErrorCode   = int(syscall.EINVAL)
+	dashboardTLSRefKey    = "rook/dashboard/sslCertificateRef"
 )
 
 var (
@@ -215,9 +217,9 @@ func (c *Cluster) initializeSecureDashboard() (bool, error) {
 	}
 
 	if c.spec.Dashboard.SSL {
-		alreadyCreated, err := c.createSelfSignedCert()
+		alreadyCreated, err := c.configureSSLCertificate()
 		if err != nil {
-			return restartNeeded, errors.Wrap(err, "failed to create a self signed cert for the ceph dashboard")
+			return restartNeeded, errors.Wrap(err, "failed to configure ssl certificate for the ceph dashboard")
 		}
 		if !alreadyCreated {
 			restartNeeded = true
@@ -231,18 +233,149 @@ func (c *Cluster) initializeSecureDashboard() (bool, error) {
 	return restartNeeded, nil
 }
 
-func (c *Cluster) createSelfSignedCert() (bool, error) {
-	// Check if the cert already exists
-	args := []string{"config-key", "get", "mgr/dashboard/crt"}
-	output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
-	if err == nil && len(output) > 0 {
-		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard is already initialized with a cert")
+func (c *Cluster) configureSSLCertificate() (bool, error) {
+	if c.spec.Dashboard.SSLCertificateRef != "" {
+		return c.configureCustomSSLCertificate()
+	}
+
+	// If Rook previously configured dashboard TLS from a Secret, reset the dashboard back to a self-signed certificate.
+	previousRef, err := c.getDashboardTLSRef()
+	if err != nil {
+		return false, err
+	}
+	if previousRef != "" {
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "removing previous dashboard TLS certificate from secret %q and generating a self-signed certificate", previousRef)
+		created, err := c.createSelfSignedCert(true)
+		if err != nil {
+			return false, err
+		}
+		if err := c.removeDashboardTLSRef(); err != nil {
+			return false, err
+		}
+		return created, nil
+	}
+	return c.createSelfSignedCert(false)
+}
+
+func (c *Cluster) configureCustomSSLCertificate() (bool, error) {
+	secretName := c.spec.Dashboard.SSLCertificateRef
+	secret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, secretName, metav1.GetOptions{})
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to get dashboard TLS secret %q", secretName)
+	}
+	if secret.Type != v1.SecretTypeTLS {
+		return false, errors.Errorf("dashboard TLS secret %q must be of type %q, not %q", secretName, v1.SecretTypeTLS, secret.Type)
+	}
+
+	cert, ok := secret.Data[v1.TLSCertKey]
+	if !ok {
+		return false, errors.Errorf("dashboard TLS secret %q is missing key %q", secretName, v1.TLSCertKey)
+	}
+	key, ok := secret.Data[v1.TLSPrivateKeyKey]
+	if !ok {
+		return false, errors.Errorf("dashboard TLS secret %q is missing key %q", secretName, v1.TLSPrivateKeyKey)
+	}
+	if err := validateDashboardTLSKey(secretName, cert, key); err != nil {
+		return false, err
+	}
+
+	// Handle cases where dashboard cert/key configs are already set, including from a previous failed reconcile.
+	certMatches, err := c.dashboardConfigKeyMatches("mgr/dashboard/crt", cert)
+	if err != nil {
+		return false, err
+	}
+	keyMatches, err := c.dashboardConfigKeyMatches("mgr/dashboard/key", key)
+	if err != nil {
+		return false, err
+	}
+	if certMatches && keyMatches {
+		if err := c.setDashboardTLSRef(secretName); err != nil {
+			return false, err
+		}
+		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard is already initialized with the referenced TLS certificate from secret %q", secretName)
 		return true, nil
 	}
-	log.NamespacedDebug(c.clusterInfo.Namespace, logger, "dashboard cert does not appear to exist. err=%v", err)
+
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "configuring dashboard TLS certificate from secret %q", secretName)
+	if err := c.setDashboardCertificate("mgr/dashboard/crt", cert); err != nil {
+		return false, errors.Wrap(err, "failed to set dashboard TLS certificate")
+	}
+	if err := c.setDashboardCertificate("mgr/dashboard/key", key); err != nil {
+		return false, errors.Wrap(err, "failed to set dashboard TLS certificate key")
+	}
+	if err := c.setDashboardTLSRef(secretName); err != nil {
+		return false, err
+	}
+	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard TLS certificate configured from secret %q", secretName)
+	return false, nil
+}
+
+func validateDashboardTLSKey(secretName string, cert, key []byte) error {
+	_, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse dashboard TLS secret %q", secretName)
+	}
+	return nil
+}
+
+func (c *Cluster) dashboardConfigKeyMatches(configKey string, expected []byte) (bool, error) {
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
+	output, err := monStore.GetKeyValue(configKey)
+	if err != nil {
+		if !config.IsKeyValueNotFound(err) {
+			return false, err
+		}
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "dashboard config key %q does not appear to exist. err=%v", configKey, err)
+		return false, nil
+	}
+	return output == string(expected), nil
+}
+
+func (c *Cluster) setDashboardCertificate(configKey string, content []byte) error {
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
+	return monStore.SetKeyValue(configKey, string(content))
+}
+
+func (c *Cluster) getDashboardTLSRef() (string, error) {
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
+	output, err := monStore.GetKeyValue(dashboardTLSRefKey)
+	if err != nil {
+		if !config.IsKeyValueNotFound(err) {
+			return "", err
+		}
+		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "dashboard TLS secret reference does not appear to exist. err=%v", err)
+		return "", nil
+	}
+	return output, nil
+}
+
+func (c *Cluster) setDashboardTLSRef(secretName string) error {
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
+	return monStore.SetKeyValue(dashboardTLSRefKey, secretName)
+}
+
+func (c *Cluster) removeDashboardTLSRef() error {
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
+	return monStore.RmKeyValue(dashboardTLSRefKey)
+}
+
+func (c *Cluster) createSelfSignedCert(force bool) (bool, error) {
+	if !force {
+		monStore := config.GetMonStore(c.context, c.clusterInfo)
+		output, err := monStore.GetKeyValue("mgr/dashboard/crt")
+		if err != nil {
+			if !config.IsKeyValueNotFound(err) {
+				return false, err
+			}
+			log.NamespacedDebug(c.clusterInfo.Namespace, logger, "dashboard cert does not appear to exist. err=%v", err)
+		} else if output != "" {
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "dashboard is already initialized with a cert")
+			return true, nil
+		}
+	}
 
 	// create a self-signed cert for the https connections
-	args = []string{"dashboard", "create-self-signed-cert"}
+	args := []string{"dashboard", "create-self-signed-cert"}
 
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	for i := 0; i < 5; i++ {
