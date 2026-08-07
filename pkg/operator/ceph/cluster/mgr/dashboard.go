@@ -245,7 +245,7 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 	args = []string{"dashboard", "create-self-signed-cert"}
 
 	// retry a few times in the case that the mgr module is not ready to accept commands
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
 		if errors.Is(err, context.DeadlineExceeded) {
 			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "cert creation timed out. trying again")

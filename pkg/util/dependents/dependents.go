@@ -124,7 +124,7 @@ func (d *DependentList) OfKind(pluralKind string) []string {
 //
 //	StringWithHeader("dependents of my %q", "mom")  -->
 //	`dependents of my "mom": FirstResources: [name1], SecondResources: [name2 name2 name3]`
-func (d *DependentList) StringWithHeader(headerFormat string, args ...interface{}) string {
+func (d *DependentList) StringWithHeader(headerFormat string, args ...any) string {
 	header := fmt.Sprintf(headerFormat, args...)
 	if len(d.d) == 0 {
 		return fmt.Sprintf("%s: none", header)
