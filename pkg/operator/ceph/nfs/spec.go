@@ -40,7 +40,8 @@ const (
 	AppName               = "rook-ceph-nfs"
 	ganeshaContainerName  = "nfs-ganesha"
 	ganeshaConfigVolume   = "ganesha-config"
-	ganeshaPid            = "/var/run/ganesha/ganesha.pid"
+	ganeshaPidDir         = "/var/run/ganesha"
+	ganeshaPid            = ganeshaPidDir + "/ganesha.pid"
 	nfsGaneshaMetricsPort = 9587
 )
 
@@ -123,6 +124,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	cephConfigVol, _ := cephConfigVolumeAndMount()
 	nfsConfigVol, _ := nfsConfigVolumeAndMount(cfg.ConfigConfigMap)
 	dbusVol, _ := dbusVolumeAndMount()
+	ganeshaPidVol, _ := ganeshaPidVolumeAndMount()
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
 			r.connectionConfigInitContainer(nfs, cfg.ID),
@@ -141,6 +143,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 			keyring.Volume().Resource(resourceName),
 			nfsConfigVol,
 			dbusVol,
+			ganeshaPidVol,
 		},
 		HostNetwork:       hostNetwork,
 		PriorityClassName: nfs.Spec.Server.PriorityClassName,
@@ -224,6 +227,7 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 	_, cephConfigMount := cephConfigVolumeAndMount()
 	_, nfsConfigMount := nfsConfigVolumeAndMount(cfg.ConfigConfigMap)
 	_, dbusMount := dbusVolumeAndMount()
+	_, ganeshaPidMount := ganeshaPidVolumeAndMount()
 	logLevel := "NIV_INFO" // Default log level
 	if nfs.Spec.Server.LogLevel != "" {
 		logLevel = nfs.Spec.Server.LogLevel
@@ -247,6 +251,7 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 			keyring.VolumeMount().Resource(instanceName(nfs, cfg.ID)),
 			nfsConfigMount,
 			dbusMount,
+			ganeshaPidMount,
 		},
 		Env:             controller.DaemonEnvVars(r.cephClusterSpec),
 		Resources:       nfs.Spec.Server.Resources,
@@ -349,5 +354,16 @@ func dbusVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	volName := k8sutil.PathToVolumeName(dbusSocketDir)
 	v := v1.Volume{Name: volName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
 	m := v1.VolumeMount{Name: volName, MountPath: dbusSocketDir}
+	return v, m
+}
+
+func ganeshaPidVolumeAndMount() (v1.Volume, v1.VolumeMount) {
+	// ganesha.nfsd is passed "-p <ganeshaPid>" and writes its pid file there on startup. The
+	// image's own /var/run/ganesha is only writable when the container runs as root, so give it
+	// a dedicated, always-writable volume instead - the same approach already used for /run/dbus
+	// above - rather than depending on the Ceph image's default user having write access there.
+	volName := k8sutil.PathToVolumeName(ganeshaPidDir)
+	v := v1.Volume{Name: volName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
+	m := v1.VolumeMount{Name: volName, MountPath: ganeshaPidDir}
 	return v, m
 }

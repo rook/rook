@@ -358,7 +358,9 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    volumeMounts,
 		Resources:       c.store.Spec.Gateway.Resources,
-		SecurityContext: controller.DefaultContainerSecurityContext(),
+		// update-ca-trust extract writes into /etc/pki/ca-trust/extracted, which is owned by
+		// root in the image regardless of the ceph data dirs' ownership
+		SecurityContext: controller.RootContainerSecurityContext(),
 	}
 }
 
@@ -406,7 +408,7 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 		controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 		c.store.Spec.Gateway.Resources,
-		controller.DefaultContainerSecurityContext(),
+		controller.RootContainerSecurityContext(),
 		"",
 	)
 }

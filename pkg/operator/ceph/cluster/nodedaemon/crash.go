@@ -147,7 +147,9 @@ func getCrashDirInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
 		},
 		Image:           cephCluster.Spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
-		SecurityContext: controller.DefaultContainerSecurityContext(),
+		// mkdir's target lives under the not-yet-chowned crash dir, so this needs root just
+		// like the chown init container below, until ownership has been fixed up
+		SecurityContext: controller.RootContainerSecurityContext(),
 		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
 		VolumeMounts:    controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath),
 	}
@@ -163,7 +165,7 @@ func getCrashChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container
 		controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath),
 		cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		controller.DefaultContainerSecurityContext(),
+		controller.RootContainerSecurityContext(),
 		"",
 	)
 }

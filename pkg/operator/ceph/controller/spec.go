@@ -104,6 +104,25 @@ LOG_ROTATE_CEPH_FILE=/etc/logrotate.d/ceph
 LOG_MAX_SIZE=%s
 ROTATE=%s
 ADDITIONAL_LOG_FILES=%s
+LOG_ROTATE_STATE_ARGS=""
+
+# /etc/logrotate.d is owned by root, so it's only writable when this container runs as root.
+# When running as a non-root user (e.g. a hardened ceph image with a non-root default user),
+# copy the packaged config into the already-chowned log dir and edit the writable copy instead,
+# namespaced by CEPH_CLIENT_ID so multiple daemons sharing a node's log dir don't clobber each
+# other's rotation config or state. Root-default images keep the original in-place behavior,
+# untouched, to avoid changing state file location/behavior for existing deployments.
+if [ "$(id -u)" -ne 0 ]; then
+	LOG_ROTATE_WRITABLE_FILE=/var/log/ceph/$CEPH_CLIENT_ID.logrotate.conf
+	cp "$LOG_ROTATE_CEPH_FILE" "$LOG_ROTATE_WRITABLE_FILE"
+	LOG_ROTATE_CEPH_FILE=$LOG_ROTATE_WRITABLE_FILE
+	LOG_ROTATE_STATE_ARGS="--state /var/log/ceph/$CEPH_CLIENT_ID.logrotate.status"
+	# the packaged config's "su root ceph" tells logrotate to switch to root before
+	# creating/chowning rotated files. That seteuid(0) call fails outright when this
+	# container has no root privileges to begin with, so point logrotate at the user
+	# it's already running as instead - no privilege switch is then required.
+	sed --in-place "s/su root ceph/su ceph ceph/" "$LOG_ROTATE_CEPH_FILE"
+fi
 
 # edit the logrotate file to only rotate a specific daemon log
 # otherwise we will logrotate log files without reloading certain daemons
@@ -123,7 +142,7 @@ fi
 
 while true; do
 	# we don't force the logrorate but we let the logrotate binary handle the rotation based on user's input for periodicity and size
-	logrotate --verbose "$LOG_ROTATE_CEPH_FILE"
+	logrotate --verbose $LOG_ROTATE_STATE_ARGS "$LOG_ROTATE_CEPH_FILE"
 	sleep 15m
 done
 `
@@ -741,6 +760,15 @@ func DefaultContainerSecurityContext() *v1.SecurityContext {
 			},
 		},
 	}
+}
+
+// RootContainerSecurityContext explicitly sets the user as root for init containers operation
+func RootContainerSecurityContext() *v1.SecurityContext {
+	context := DefaultContainerSecurityContext()
+	rootUser := int64(0)
+	context.RunAsUser = &rootUser
+	context.RunAsGroup = &rootUser
+	return context
 }
 
 // PodSecurityContext detects if the pod needs privileges to run

@@ -171,7 +171,7 @@ func getCephExporterChownInitContainer(cephCluster cephv1.CephCluster) corev1.Co
 		controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
 		mounts,
 		cephv1.GetCephExporterResources(cephCluster.Spec.Resources),
-		controller.DefaultContainerSecurityContext(),
+		controller.RootContainerSecurityContext(),
 		"",
 	)
 }
