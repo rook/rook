@@ -33,7 +33,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 // replaceTestState is the durable Ceph state a fake cluster reports, plus a record of the mutating
@@ -212,8 +214,7 @@ func TestProcessOSDReplacementDestroy(t *testing.T) {
 		// separate transition driven by the destroyed slot on the next tick. Use an OSD container so
 		// the (non-encrypted) destroy can complete.
 		dep := withOSDContainer(replaceMarkedDep(osdID), "node-1", false)
-		zero := int32(0)
-		dep.Spec.Replicas = &zero // already scaled down, no pod present
+		dep.Spec.Replicas = new(int32(0)) // already scaled down, no pod present
 		st := &replaceTestState{tree: map[int]string{osdID: "up"}, inByID: map[int]int{osdID: 0}, safeToDestroy: map[int]bool{osdID: true}}
 		m := newReplaceHealthMonitor(t, fake.NewClientset(dep), st)
 
@@ -259,6 +260,26 @@ func TestProcessOSDReplacementDestroy(t *testing.T) {
 		got := getReplaceDep(t, m, osdID)
 		assert.NotContains(t, got.Labels, cephv1.SkipReconcileLabelKey)
 		assert.NotContains(t, got.Annotations, cephv1.ReplaceInProgressOSDAnnotationKey)
+		require.NotNil(t, got.Spec.Replicas)
+		assert.Equal(t, int32(1), *got.Spec.Replicas)
+	})
+
+	t.Run("cancellation after scale-down restores replicas", func(t *testing.T) {
+		// Cancelled once the drain had already scaled the deployment down: the update that clears the
+		// markers must scale it back up, since this is the last tick the flow sees this deployment.
+		dep := cancelledDep(osdID)
+		dep.Spec.Replicas = new(int32(0))
+		st := &replaceTestState{tree: map[int]string{osdID: "up"}, inByID: map[int]int{osdID: 0}}
+		m := newReplaceHealthMonitor(t, fake.NewClientset(dep), st)
+		require.NoError(t, advanceFromState(t, m, st, dep, osdID))
+		assert.Contains(t, st.cephCmds, fmt.Sprintf("osd in %d", osdID))
+		// no destroy: cancellation is honored ahead of every destroy step.
+		assert.NotContains(t, st.cephCmds, fmt.Sprintf("osd destroy osd.%d --yes-i-really-mean-it", osdID))
+		got := getReplaceDep(t, m, osdID)
+		require.NotNil(t, got.Spec.Replicas)
+		assert.Equal(t, int32(1), *got.Spec.Replicas)
+		assert.NotContains(t, got.Labels, cephv1.SkipReconcileLabelKey)
+		assert.NotContains(t, got.Annotations, cephv1.ReplaceInProgressOSDAnnotationKey)
 	})
 
 	t.Run("cancellation deletes in-flight crypto-close job", func(t *testing.T) {
@@ -275,13 +296,52 @@ func TestProcessOSDReplacementDestroy(t *testing.T) {
 
 		require.NoError(t, advanceFromState(t, m, st, dep, osdID))
 
-		// OSD marked back in and fence label cleared.
+		// OSD marked back in, scaled back up and fence label cleared.
 		assert.Contains(t, st.cephCmds, fmt.Sprintf("osd in %d", osdID))
 		got := getReplaceDep(t, m, osdID)
 		assert.NotContains(t, got.Labels, cephv1.SkipReconcileLabelKey)
+		require.NotNil(t, got.Spec.Replicas)
+		assert.Equal(t, int32(1), *got.Spec.Replicas)
 		// the in-flight crypto-close Job is gone.
 		_, err = m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(context.TODO(), cryptCloseJobName(osdID), metav1.GetOptions{})
 		assert.True(t, kerrors.IsNotFound(err), "crypto-close job must be deleted on cancellation")
+	})
+
+	t.Run("cancellation waits for the crypto-close job to be gone", func(t *testing.T) {
+		// The Job is deleted with foreground propagation, so its object survives in the API until its
+		// pod is gone. The cancellation must not clear the fence or scale back up while it is still
+		// there, otherwise `cryptsetup close` would race the returning daemon.
+		dep := withOSDContainer(cancelledDep(osdID), "node-1", true)
+		dep.Spec.Replicas = new(int32(0))
+		st := &replaceTestState{tree: map[int]string{osdID: "up"}, inByID: map[int]int{osdID: 0}}
+		clientset := fake.NewClientset(dep)
+		// the fake clientset deletes immediately; swallow the delete to model a Job that is still
+		// terminating, then let it through to model the Job finally being gone.
+		terminating := true
+		clientset.PrependReactor("delete", "jobs", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			return terminating, nil, nil
+		})
+		m := newReplaceHealthMonitor(t, clientset, st)
+		require.NoError(t, m.cluster.startCryptCloseJob(osdID, "node-1"))
+
+		// Job still present: cancellation is deferred, markers and replicas untouched.
+		require.NoError(t, advanceFromState(t, m, st, getReplaceDep(t, m, osdID), osdID))
+		got := getReplaceDep(t, m, osdID)
+		assert.Contains(t, got.Labels, cephv1.SkipReconcileLabelKey, "the fence must survive while the job is still there")
+		assert.Contains(t, got.Annotations, cephv1.ReplaceInProgressOSDAnnotationKey)
+		require.NotNil(t, got.Spec.Replicas)
+		assert.Equal(t, int32(0), *got.Spec.Replicas)
+
+		// Job gone: the next tick completes the cancellation.
+		terminating = false
+		require.NoError(t, advanceFromState(t, m, st, getReplaceDep(t, m, osdID), osdID))
+		_, err := m.context.Clientset.BatchV1().Jobs("rook-ceph").Get(context.TODO(), cryptCloseJobName(osdID), metav1.GetOptions{})
+		require.True(t, kerrors.IsNotFound(err))
+		got = getReplaceDep(t, m, osdID)
+		assert.NotContains(t, got.Labels, cephv1.SkipReconcileLabelKey)
+		assert.NotContains(t, got.Annotations, cephv1.ReplaceInProgressOSDAnnotationKey)
+		require.NotNil(t, got.Spec.Replicas)
+		assert.Equal(t, int32(1), *got.Spec.Replicas)
 	})
 
 	t.Run("cancellation after destroy is not honored", func(t *testing.T) {
@@ -336,8 +396,7 @@ func TestReplaceScaleDown(t *testing.T) {
 func TestReplaceWaitsForPodToTerminate(t *testing.T) {
 	osdID := 5
 	dep := withOSDContainer(replaceMarkedDep(osdID), "node-1", false)
-	zero := int32(0)
-	dep.Spec.Replicas = &zero
+	dep.Spec.Replicas = new(int32(0))
 	// a still-Running (terminating) pod for this OSD blocks pod-gone.
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -367,8 +426,7 @@ func TestReplaceWaitsForPodToTerminate(t *testing.T) {
 func TestReplaceDestroySteps(t *testing.T) {
 	osdID := 5
 	dep := withOSDContainer(replaceMarkedDep(osdID), "node-1", false)
-	zero := int32(0)
-	dep.Spec.Replicas = &zero // already scaled down, no pod present
+	dep.Spec.Replicas = new(int32(0)) // already scaled down, no pod present
 	st := &replaceTestState{tree: map[int]string{osdID: "up"}, inByID: map[int]int{osdID: 0}, safeToDestroy: map[int]bool{osdID: true}}
 	m := newReplaceHealthMonitor(t, fake.NewClientset(dep), st)
 
@@ -389,8 +447,7 @@ func TestReplaceDestroySteps(t *testing.T) {
 func TestReplaceDestroyStepsEncrypted(t *testing.T) {
 	osdID := 5
 	dep := withOSDContainer(replaceMarkedDep(osdID), "node-1", true)
-	zero := int32(0)
-	dep.Spec.Replicas = &zero
+	dep.Spec.Replicas = new(int32(0))
 	st := &replaceTestState{tree: map[int]string{osdID: "up"}, inByID: map[int]int{osdID: 0}, safeToDestroy: map[int]bool{osdID: true}}
 	m := newReplaceHealthMonitor(t, fake.NewClientset(dep), st)
 
