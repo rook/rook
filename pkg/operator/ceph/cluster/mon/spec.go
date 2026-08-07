@@ -294,7 +294,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) corev1.Container 
 			controller.DaemonFlags(c.ClusterInfo, &c.spec, monConfig.DaemonName),
 			// needed so we can generate an initial monmap
 			// otherwise the mkfs will say: "0  no local addrs match monmap"
-			config.NewFlag("public-addr", monConfig.PublicIP),
+			config.NewFlag("public-addr", fmt.Sprintf("%s:%d", monConfig.PublicIP, monConfig.Port)),
 			"--mkfs",
 		),
 		Image:           c.spec.CephVersion.Image,
@@ -320,7 +320,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 			"--foreground",
 			// If the mon is already in the monmap, when the port is left off of --public-addr,
 			// it will still advertise on the previous port b/c monmap is saved to mon database.
-			config.NewFlag("public-addr", monConfig.PublicIP),
+			config.NewFlag("public-addr", fmt.Sprintf("%s:%d", monConfig.PublicIP, monConfig.Port)),
 			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
 			// For existing data store owned by root, the daemon will continue to run as root
 			//

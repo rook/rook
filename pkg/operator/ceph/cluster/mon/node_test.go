@@ -180,7 +180,7 @@ func TestHostNetwork(t *testing.T) {
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, pod.Spec.DNSPolicy)
 	assert.Equal(t, true, pod.Spec.HostNetwork)
 	val, message := extractArgValue(pod.Spec.Containers[0].Args, "--public-addr")
-	assert.Equal(t, "2.4.6.3", val, message)
+	assert.Equal(t, "2.4.6.3:6789", val, message)
 	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-bind-addr")
 	assert.Equal(t, "", val)
 	assert.Equal(t, "arg not found: --public-bind-addr", message)
