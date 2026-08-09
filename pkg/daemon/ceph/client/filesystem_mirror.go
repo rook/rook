@@ -32,7 +32,7 @@ type BootstrapPeerToken struct {
 	Token string `json:"token"`
 }
 
-// RemoveFilesystemMirrorPeer add a mirror peer in the cephfs-mirror configuration
+// RemoveFilesystemMirrorPeer removes a mirror peer from the cephfs-mirror configuration
 func RemoveFilesystemMirrorPeer(context *clusterd.Context, clusterInfo *ClusterInfo, peerUUID string) error {
 	logger.Infof("removing cephfs-mirror peer %q", peerUUID)
 
@@ -68,7 +68,7 @@ func EnableFilesystemSnapshotMirror(context *clusterd.Context, clusterInfo *Clus
 	return nil
 }
 
-// DisableFilesystemSnapshotMirror enables filesystem snapshot mirroring
+// DisableFilesystemSnapshotMirror disables filesystem snapshot mirroring
 func DisableFilesystemSnapshotMirror(context *clusterd.Context, clusterInfo *ClusterInfo, filesystem string) error {
 	logger.Infof("disabling ceph filesystem snapshot mirror for filesystem %q", filesystem)
 
