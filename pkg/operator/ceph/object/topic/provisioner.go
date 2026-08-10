@@ -122,6 +122,22 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 	return snsClient, nil
 }
 
+const (
+	amqpAckLevelRoutable = "routable"
+	// misspelling of amqpAckLevelRoutable, accepted by the CRD since the AMQP endpoint spec was
+	// introduced and always rejected by the RGW
+	amqpAckLevelRouteable = "routeable"
+)
+
+func amqpAckLevel(nsName types.NamespacedName, ackLevel string) string {
+	if ackLevel == amqpAckLevelRouteable {
+		log.NamedWarning(nsName, logger, "CephBucketTopic %q .spec.endpoint.amqp.ackLevel %q is a deprecated misspelling of %q and is sent to the RGW as %q. update the CephBucketTopic, support for the misspelling will be removed in a future release", nsName, amqpAckLevelRouteable, amqpAckLevelRoutable, amqpAckLevelRoutable)
+		return amqpAckLevelRoutable
+	}
+
+	return ackLevel
+}
+
 func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[string]string, *map[types.UID]*corev1.Secret, error) {
 	attr := make(map[string]string)
 	nsName := controller.NsName(topic.Namespace, topic.Name)
@@ -133,7 +149,7 @@ func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[st
 		log.NamedInfo(nsName, logger, "creating CephBucketTopic %q with endpoint %q", nsName, topic.Spec.Endpoint.AMQP.URI)
 		attr["push-endpoint"] = topic.Spec.Endpoint.AMQP.URI
 		attr["amqp-exchange"] = topic.Spec.Endpoint.AMQP.Exchange
-		attr["amqp-ack-level"] = topic.Spec.Endpoint.AMQP.AckLevel
+		attr["amqp-ack-level"] = amqpAckLevel(nsName, topic.Spec.Endpoint.AMQP.AckLevel)
 		attr["verify-ssl"] = strconv.FormatBool(!topic.Spec.Endpoint.AMQP.DisableVerifySSL)
 	}
 	if topic.Spec.Endpoint.HTTP != nil {
