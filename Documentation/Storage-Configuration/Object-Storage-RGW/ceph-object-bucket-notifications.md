@@ -159,8 +159,6 @@ spec:
       - name: project
         value: brown
   # notification apply for any of the events
-  # full list of supported events is here:
-  # https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types
   events: [8]
     - s3:ObjectCreated:Put
     - s3:ObjectCreated:Copy
@@ -173,7 +171,7 @@ spec:
 5. `keyFilter` (optional) are filters based on the object key. There could be up to 3 key filters defined: `prefix`, `suffix` and `regex`
 6. `metadataFilters` (optional) are filters based on the object metadata. All metadata fields defined as filters must exists in the object, with the values defined in the filter. Other metadata fields may exist in the object
 7. `tagFilters` (optional) are filters based on object tags. All tags defined as filters must exists in the object, with the values defined in the filter. Other tags may exist in the object
-8. `events` (optional) is a list of events that should trigger the notifications. By default all events should trigger notifications. Valid Events are:
+8. `events` (optional) is a list of events that should trigger the notifications. The S3 API requires a non-empty list, so when this field is unset or empty Rook sends `s3:ObjectCreated:*` and `s3:ObjectRemoved:*` itself rather than deferring to RGW. Those are the same two families [RGW uses as its own default](https://docs.ceph.com/en/latest/radosgw/notifications/). The lifecycle, replication and sync events are not included in that fallback and must be listed explicitly. RGW accepts the following, which is what its parser recognizes on the Ceph releases Rook supports (`NonCurrent` and `Noncurrent` are both accepted where they appear):
     * s3:ObjectCreated:*
     * s3:ObjectCreated:Put
     * s3:ObjectCreated:Post
@@ -182,6 +180,44 @@ spec:
     * s3:ObjectRemoved:*
     * s3:ObjectRemoved:Delete
     * s3:ObjectRemoved:DeleteMarkerCreated
+    * s3:ObjectLifecycle:*
+    * s3:ObjectLifecycle:Expiration:*
+    * s3:ObjectLifecycle:Expiration:Current
+    * s3:ObjectLifecycle:Expiration:NonCurrent
+    * s3:ObjectLifecycle:Expiration:Noncurrent
+    * s3:ObjectLifecycle:Expiration:DeleteMarker
+    * s3:ObjectLifecycle:Expiration:AbortMultipartUpload
+    * s3:ObjectLifecycle:Transition:*
+    * s3:ObjectLifecycle:Transition:Current
+    * s3:ObjectLifecycle:Transition:NonCurrent
+    * s3:ObjectLifecycle:Transition:Noncurrent
+    * s3:LifecycleExpiration:*
+    * s3:LifecycleExpiration:Delete
+    * s3:LifecycleExpiration:DeleteMarkerCreated
+    * s3:LifecycleTransition
+    * s3:ObjectSynced:*
+    * s3:ObjectSynced:Create
+    * s3:ObjectSynced:Delete
+    * s3:ObjectSynced:DeletionMarkerCreated
+    * s3:Replication:*
+    * s3:Replication:Create
+    * s3:Replication:Delete
+    * s3:Replication:DeletionMarkerCreated
+
+!!! warning
+    The CRD does not validate these values. Anything the API server accepts is
+    sent to RGW as written, and RGW rejects a configuration containing an event
+    it does not recognize with `Unknown Event type` — the whole notification,
+    not just the offending entry, so it is never created. A typo surfaces as a
+    failing reconcile rather than a rejected `kubectl apply`.
+
+!!! note
+    The `s3:ObjectRestore:*` events are not implemented in any released Ceph
+    version, so they cannot be used yet. Support was added upstream in
+    [ceph tracker #69203](https://tracker.ceph.com/issues/69203), with the
+    Tentacle backport at
+    [#75180](https://tracker.ceph.com/issues/75180); check those for the
+    release that will carry them.
 
 ### OBC Custom Resource
 
