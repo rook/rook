@@ -1346,7 +1346,7 @@ func (k8sh *K8sHelper) GetRGWServiceURL(storeName string, namespace string) (str
 	return k8sh.getExternalRGWServiceURL(storeName, namespace)
 }
 
-// GetRGWServiceURL returns URL of ceph RGW service in the cluster
+// getInternalRGWServiceURL returns the in-cluster URL of the ceph RGW service
 func (k8sh *K8sHelper) getInternalRGWServiceURL(storeName string, namespace string) (string, error) {
 	name := "rook-ceph-rgw-" + storeName
 	svc, err := k8sh.GetService(name, namespace)
@@ -1359,7 +1359,7 @@ func (k8sh *K8sHelper) getInternalRGWServiceURL(storeName string, namespace stri
 	return endpoint, nil
 }
 
-// GetRGWServiceURL returns URL of ceph RGW service in the cluster
+// getExternalRGWServiceURL returns the node-port URL of the ceph RGW service
 func (k8sh *K8sHelper) getExternalRGWServiceURL(storeName string, namespace string) (string, error) {
 	hostip, err := k8sh.GetPodHostIP("rook-ceph-rgw", namespace)
 	if err != nil {
