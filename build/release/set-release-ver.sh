@@ -5,9 +5,23 @@ set -euo pipefail
 # release version (TO_TAG) instead the old one (FROM_TAG) in preparation for a release.
 # The script will usually be run on a release branch.
 
+if [[ $# -ne 1 ]]; then
+  echo "usage: $0 <new release version>  # e.g., v1.17.2" >&2
+  exit 1
+fi
 TO_TAG="$1"
 
-FROM_TAG=$(grep "docker.io/rook/ceph" deploy/examples/images.txt | awk -F : '{ print $2 }')
+if [[ ! "$TO_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$ ]]; then
+  echo "error: '$TO_TAG' is not a release version (vX.Y.Z with an optional -alpha/-beta/-rc.N suffix)" >&2
+  exit 1
+fi
+
+FROM_TAG=$(grep "docker.io/rook/ceph" deploy/examples/images.txt | awk -F : '{ print $2 }') || true
+
+if [[ -z "$FROM_TAG" ]]; then
+  echo "error: could not determine the current version from deploy/examples/images.txt" >&2
+  exit 1
+fi
 
 echo "Updating from $FROM_TAG to $TO_TAG..."
 
