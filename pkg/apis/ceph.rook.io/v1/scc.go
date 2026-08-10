@@ -74,6 +74,8 @@ func NewSecurityContextConstraints(name string, namespaces ...string) *secv1.Sec
 					fmt.Sprintf("system:serviceaccount:%s:rook-ceph-osd", ns),
 					fmt.Sprintf("system:serviceaccount:%s:rook-ceph-rgw", ns),
 					fmt.Sprintf("system:serviceaccount:%s:rook-ceph-nvmeof", ns),
+					fmt.Sprintf("system:serviceaccount:%s:rook-ceph-cmd-reporter", ns),
+					fmt.Sprintf("system:serviceaccount:%s:rook-ceph-purge-osd", ns),
 				}...)
 			}
 			return
