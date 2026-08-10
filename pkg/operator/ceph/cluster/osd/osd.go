@@ -296,7 +296,7 @@ func (c *Cluster) Start() error {
 		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to get osds to skip reconcile. %v", err)
 	}
 
-	migrationConfig, err := c.startOSDMigration()
+	migrationConfig, err := c.startOSDMigration(osdsToSkipReconcile)
 	if err != nil {
 		return errors.Wrapf(err, "failed to start OSD migration")
 	}
@@ -386,7 +386,7 @@ func (c *Cluster) deleteOsdBootstrapKeyring() {
 	}
 }
 
-func (c *Cluster) startOSDMigration() (*migrationConfig, error) {
+func (c *Cluster) startOSDMigration(osdsToSkipReconcile sets.Set[string]) (*migrationConfig, error) {
 	if !c.isMigrationRequested() {
 		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "no OSD migration is requested")
 		return nil, nil
@@ -407,6 +407,14 @@ func (c *Cluster) startOSDMigration() (*migrationConfig, error) {
 	migrationConfig, err := c.newMigrationConfig()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get new OSD migration config")
+	}
+
+	// Skip migrating the OSDs with ceph.rook.io/do-not-reconcile label.
+	for osdID := range migrationConfig.osds {
+		if osdsToSkipReconcile.Has(strconv.Itoa(osdID)) {
+			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "skipping migration of OSD.%d labeled with %q", osdID, cephv1.SkipReconcileLabelKey)
+			delete(migrationConfig.osds, osdID)
+		}
 	}
 
 	migrationComplete, err := isLastOSDMigrationComplete(c)
