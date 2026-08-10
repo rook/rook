@@ -2,7 +2,7 @@
 
 This tree holds the new-style integration tests for rook's object storage
 features. It is the model for converting the remaining old-style object tests
-(`testObjectStoreOperations`, store lifecycle);
+(store lifecycle);
 follow the conventions here exactly so the conversion happens once.
 
 ## Execution model
@@ -38,13 +38,14 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `bucket/quota` | `object/bucket` | OBC maxObjects user quota + bucketMaxObjects/bucketMaxSize bucket quota |
 | `bucket/rw` | `object/bucket` | OBC S3 read/write/delete + OBC-stays-Bound |
 | `cosi` | `object/cosi` | CephCOSIDriver + COSI bucket provisioning |
+| `dependents` | `object` | CephObjectStore deletion blocked by dependents |
 | `notification` | `object/notification` | CephBucketNotification HTTP endpoint delivery |
 | `topic/kafka` | `object/topic` | CephBucketTopic kafka endpoints |
 | `user/caps` | `object/user` | user capabilities |
 | `user/keys` | `object/user` | explicit S3 key management |
 | `user/opmask` | `object/user` | user op_mask |
 | `zonepools` | `object` | zone.json pool fields covered by Rook's shared-pool mapping |
-| reserved: `tests/integration/object/lifecycle`, `tests/integration/object/dependents` | | future conversions |
+| reserved: `tests/integration/object/lifecycle` | | future conversions |
 
 Shared utilities live under `util/`:
 
@@ -60,7 +61,9 @@ Shared utilities live under `util/`:
   per-OBC S3 client.
 - `secrets` — verification helpers for the Secret references object CRDs
   publish in their status, shared by more than one package.
-- `sharedstore` — the shared CephObjectStore fixture.
+- `sharedstore` — the CephObjectStore fixture: the shared store, and the
+  private stores the private-store packages build (`Config.Kind` selects a
+  zoned or classic store).
 - `client` — rgw admin, SNS, and S3 client builders and TLS cert generation.
 
 ## Anatomy of a package
@@ -98,7 +101,12 @@ func TestObjectStoreUserCaps(t *testing.T, k8sh *utils.K8sHelper, store *shareds
 Rules encoded in that shape:
 
 - The entry signature is `(t, k8sh, store)` and never changes. New
-  dependencies are added as `Sharedstore` accessors, not parameters.
+  dependencies are added as `Sharedstore` accessors, not parameters. The one
+  exception is a package whose subject is destructive to the store itself
+  (deleting it, or a behavior the operator gates on the store's own spec):
+  it cannot share the fixture store, so it builds a private one with
+  `sharedstore.Create` and takes `(t, k8sh, installer, namespace, tlsEnable)`
+  instead. `dependents` is the model.
 - The var block declares everything the test uses: fixture objects (use
   constructors — `obc.StorageClass`, package-local helpers like
   `awsKeySecret`/`objectUserKey` — to keep literals one line each), then the
@@ -210,6 +218,5 @@ verification; wire the dispatcher; delete the old code; retire
 
 | old test | target package(s) | still needs (build in that PR) |
 |---|---|---|
-| `testObjectStoreOperations` deletion-blocked-by-dependents | `tests/integration/object/dependents` | private-store fixture, store condition predicates in `wait4` |
 | `createCephObjectStore`/`runObjectE2ETestLite`/deletion asserts | `tests/integration/object/lifecycle` | store create/health/delete helpers |
 | upgrade-suite object usage | stays in upgrade suite | switch to typed clients + `wait4` |
