@@ -75,7 +75,6 @@ auth:
     acceptedRoles: ["_member_", "service", "admin"] [1, 2]
     implicitTenants: swift                          [1]
     tokenCacheSize: 1000                            [1]
-    revocationInterval: 1200                        [1]
     serviceUserSecretName: rgw-service-user         [3, 2]
 ```
 Annotations:
