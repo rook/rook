@@ -2892,7 +2892,11 @@ type BucketNotificationSpec struct {
 	// The name of the topic associated with this notification
 	// +kubebuilder:validation:MinLength=1
 	Topic string `json:"topic"`
-	// List of events that should trigger the notification
+	// List of events that should trigger the notification. The S3 API requires a
+	// non-empty list, so when this is unset or empty Rook sends s3:ObjectCreated:*
+	// and s3:ObjectRemoved:* itself rather than deferring to RGW; those are the same
+	// two families RGW uses as its own default. The lifecycle, replication, sync and
+	// restore events this field accepts are not included.
 	// +optional
 	Events []BucketNotificationEvent `json:"events,omitempty"`
 	// Spec of notification filter

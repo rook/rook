@@ -68,7 +68,7 @@ spec:
     - name: regex
       value: [a-z]*
 
-  events: # applicable values [here](https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types), (default all)
+  events: # applicable values [here](https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types); if omitted, only object create and remove events are configured
 ```
 The information about bucket notification can passed to OBC/BAR(from [COSI](https://github.com/kubernetes/enhancements/tree/master/keps/sig-storage/1979-object-storage-support)) as labels. It can be set using `kubectl` commands, so the name of bucket notifications need to satisfy the [label syntax](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set). For OBC it will look like the following:
 

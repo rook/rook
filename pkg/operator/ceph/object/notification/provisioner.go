@@ -119,8 +119,10 @@ func createS3Filter(filter *cephv1.NotificationFilterSpec) *s3types.Notification
 }
 
 func createS3Events(events []cephv1.BucketNotificationEvent) []s3types.Event {
-	// in the AWS S3 library "Events" is required field
-	// but in our CR it is optional. indicating notifications on all events
+	// in the AWS S3 library "Events" is a required field, but in our CR it is
+	// optional. An empty list falls back to object create and remove events only,
+	// mirroring what RGW applies when a notification carries no Event element
+	// (see rgw_pubsub_s3_notification::decode_xml).
 	if len(events) == 0 {
 		return []s3types.Event{
 			s3types.Event("s3:ObjectCreated:*"),
