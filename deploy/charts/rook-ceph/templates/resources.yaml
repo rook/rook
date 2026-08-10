@@ -1034,7 +1034,11 @@ spec:
                         type: object
                       type: array
                     metadataFilters:
-                      description: Filters based on the object's metadata
+                      description: |-
+                        Filters based on the object's metadata.
+                        NOT IMPLEMENTED: this setting has no effect. RGW supports metadata and tag
+                        filters, but Rook sends only keyFilters to the bucket notification
+                        configuration.
                       items:
                         description: NotificationFilterRule represent a single rule in the Notification Filter spec
                         properties:
@@ -1051,7 +1055,11 @@ spec:
                         type: object
                       type: array
                     tagFilters:
-                      description: Filters based on the object's tags
+                      description: |-
+                        Filters based on the object's tags.
+                        NOT IMPLEMENTED: this setting has no effect. RGW supports metadata and tag
+                        filters, but Rook sends only keyFilters to the bucket notification
+                        configuration.
                       items:
                         description: NotificationFilterRule represent a single rule in the Notification Filter spec
                         properties:
@@ -1801,10 +1809,14 @@ spec:
                   nullable: true
                   properties:
                     machineDisruptionBudgetNamespace:
-                      description: Deprecated. Namespace to look for MDBs by the machineDisruptionBudgetController
+                      description: |-
+                        Deprecated: MachineDisruptionBudgetNamespace is no longer implemented and has no
+                        effect. The machine disruption budget controller has been removed.
                       type: string
                     manageMachineDisruptionBudgets:
-                      description: Deprecated. This enables management of machinedisruptionbudgets.
+                      description: |-
+                        Deprecated: ManageMachineDisruptionBudgets is no longer implemented and has no
+                        effect. The machine disruption budget controller has been removed.
                       type: boolean
                     managePodBudgets:
                       description: This enables management of poddisruptionbudgets
@@ -1817,7 +1829,7 @@ spec:
                       format: int64
                       type: integer
                     pgHealthCheckTimeout:
-                      description: 'DEPRECATED: PGHealthCheckTimeout is no longer implemented'
+                      description: 'Deprecated: PGHealthCheckTimeout is no longer implemented and has no effect.'
                       format: int64
                       type: integer
                     pgHealthyRegex:
@@ -4277,7 +4289,10 @@ spec:
                             description: Whether to consume all the storage devices found on a machine
                             type: boolean
                           volumeClaimTemplates:
-                            description: PersistentVolumeClaims to use as storage
+                            description: |-
+                              PersistentVolumeClaims to use as storage.
+                              NOT IMPLEMENTED: this setting has no effect. Use
+                              storageClassDeviceSets[].volumeClaimTemplates to back OSDs with PVCs.
                             items:
                               description: VolumeClaimTemplate is a simplified version of K8s corev1's PVC. It has no type meta or status.
                               properties:
@@ -4518,7 +4533,9 @@ spec:
                           config:
                             additionalProperties:
                               type: string
-                            description: Provider-specific device configuration
+                            description: |-
+                              Provider-specific device configuration.
+                              NOT IMPLEMENTED: this setting has no effect.
                             nullable: true
                             type: object
                             x-kubernetes-preserve-unknown-fields: true
@@ -5879,7 +5896,10 @@ spec:
                     useAllNodes:
                       type: boolean
                     volumeClaimTemplates:
-                      description: PersistentVolumeClaims to use as storage
+                      description: |-
+                        PersistentVolumeClaims to use as storage.
+                        NOT IMPLEMENTED: this setting has no effect. Use
+                        storageClassDeviceSets[].volumeClaimTemplates to back OSDs with PVCs.
                       items:
                         description: VolumeClaimTemplate is a simplified version of K8s corev1's PVC. It has no type meta or status.
                         properties:
@@ -13127,7 +13147,11 @@ spec:
                           description: Create new users in their own tenants of the same name. Possible values are true, false, swift and s3. The latter have the effect of splitting the identity space such that only the indicated protocol will use implicit tenants.
                           type: string
                         revocationInterval:
-                          description: The number of seconds between token revocation checks.
+                          description: |-
+                            The number of seconds between token revocation checks.
+                            NOT IMPLEMENTED: this setting has no effect, and never has in any Rook
+                            release that offers it. RGW stopped performing Keystone token revocation
+                            checks after Nautilus, which predates the oldest Ceph release Rook supports.
                           nullable: true
                           type: integer
                         serviceUserSecretName:
@@ -15304,7 +15328,11 @@ spec:
                         type: object
                       type: array
                     preserveRadosNamespaceDataOnDelete:
-                      description: Whether the RADOS namespaces should be preserved on deletion of the object store
+                      description: |-
+                        Whether the RADOS namespaces should be preserved on deletion of the object store.
+                        NOT IMPLEMENTED: this setting has no effect. Rook does not delete the RADOS
+                        namespaces of a shared-pool object store, so their data is retained regardless of
+                        this setting. See https://github.com/rook/rook/issues/13921.
                       type: boolean
                   type: object
                 zone:
@@ -16506,7 +16534,11 @@ spec:
                         type: object
                       type: array
                     preserveRadosNamespaceDataOnDelete:
-                      description: Whether the RADOS namespaces should be preserved on deletion of the object store
+                      description: |-
+                        Whether the RADOS namespaces should be preserved on deletion of the object store.
+                        NOT IMPLEMENTED: this setting has no effect. Rook does not delete the RADOS
+                        namespaces of a shared-pool object store, so their data is retained regardless of
+                        this setting. See https://github.com/rook/rook/issues/13921.
                       type: boolean
                   type: object
                 zoneGroup:

@@ -123,7 +123,6 @@ spec:
         - member
         - service
       implicitTenants: "swift"
-      revocationInterval: 1200
       serviceUserSecretName: usersecret
       tokenCacheSize: 1000
       url: https://keystone.example-namespace.svc/
@@ -140,7 +139,7 @@ The following options can be configured in the `keystone`-section:
 
 * `acceptedRoles`: The OpenStack Keystone [roles](https://docs.openstack.org/keystone/latest/admin/cli-manage-projects-users-and-roles.html#roles-and-role-assignments) accepted by RGW when authenticating against Keystone.
 * `implicitTenants`: Indicates whether to use implicit tenants. This can be `true`, `false`, `swift` and `s3`. For more details see the Ceph RadosGW documentation on [multitenancy](https://docs.ceph.com/en/latest/radosgw/multitenancy/).
-* `revocationInterval`: The number of seconds between token revocation checks.
+* `revocationInterval`: The number of seconds between token revocation checks. **Not implemented**: this setting has no effect, and never has in any Rook release that offers it. RGW stopped performing Keystone token revocation checks after Nautilus, which predates the oldest Ceph release Rook supports.
 * `serviceUserSecretName`: the name of the user secret containing the credentials for the admin user to use by rgw when communicating with Keystone. See [Object Store with Keystone and Swift](../../Storage-Configuration/Object-Storage-RGW/ceph-object-swift.md) for more details on what the secret must contain.
 * `tokenCacheSize`: specifies the maximum number of entries in each Keystone token cache.
 * `url`: The url of the Keystone API endpoint to use.
