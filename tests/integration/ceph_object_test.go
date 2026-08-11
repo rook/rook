@@ -17,14 +17,10 @@ limitations under the License.
 package integration
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	bucketlifecycle "github.com/rook/rook/tests/integration/object/bucket/lifecycle"
@@ -43,13 +39,6 @@ import (
 	"github.com/rook/rook/tests/integration/object/zonepools"
 )
 
-const (
-	objectStoreServicePrefixUniq = "rook-ceph-rgw-"
-	objectStoreTLSName           = "tls-test-store"
-)
-
-var objectStoreServicePrefix = "rook-ceph-rgw-"
-
 func TestCephObjectSuite(t *testing.T) {
 	s := new(ObjectSuite)
 	defer func(s *ObjectSuite) {
@@ -60,7 +49,6 @@ func TestCephObjectSuite(t *testing.T) {
 
 type ObjectSuite struct {
 	suite.Suite
-	helper    *clients.TestClient
 	settings  *installer.TestCephSettings
 	installer *installer.CephInstaller
 	k8sh      *utils.K8sHelper
@@ -84,7 +72,6 @@ func (s *ObjectSuite) SetupSuite() {
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
-	s.helper = clients.CreateTestClient(s.k8sh, s.installer.Manifests)
 }
 
 func (s *ObjectSuite) AfterTest(suiteName, testName string) {
@@ -100,21 +87,7 @@ func (s *ObjectSuite) TestWithTLS() {
 		s.T().Skip("object store tests skipped on openshift")
 	}
 
-	tls := true
-	swiftAndKeystone := false
-	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings, tls, swiftAndKeystone)
-	cleanUpTLS(s)
-}
-
-func cleanUpTLS(s *ObjectSuite) {
-	err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
-	if err != nil {
-		if !k8serrors.IsNotFound(err) {
-			logger.Fatal("failed to deleted store TLS secret")
-		}
-	}
-	logger.Info("successfully deleted store TLS secret")
+	runObjectE2ETest(s.T(), s.k8sh, s.installer, s.settings.Namespace, true)
 }
 
 func (s *ObjectSuite) TestWithoutTLS() {
@@ -122,84 +95,44 @@ func (s *ObjectSuite) TestWithoutTLS() {
 		s.T().Skip("object store tests skipped on openshift")
 	}
 
-	tls := false
-	swiftAndKeystone := false
-	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings, tls, swiftAndKeystone)
+	runObjectE2ETest(s.T(), s.k8sh, s.installer, s.settings.Namespace, false)
 }
 
-// Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
-// Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,
-// Check issues in MGRs, Delete Bucket and Delete user
-// Test for ObjectStore with and without TLS enabled
-func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, s *suite.Suite, settings *installer.TestCephSettings, tlsEnable bool, swiftAndKeystone bool) {
-	namespace := settings.Namespace
-	storeName := "test-store"
-	if tlsEnable {
-		storeName = objectStoreTLSName
-	}
-
-	logger.Infof("Running on Rook Cluster %s", namespace)
-	// a single gateway makes quota enforcement deterministic: rgw quota checks
-	// run against per-instance cached stats, and with multiple gateways an
-	// instance can be blind to writes served by its peers for up to
-	// rgw_user_quota_bucket_sync_interval; multi-instance deployment is still
-	// covered by the keystone suite
-	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, storeName, 1, tlsEnable, swiftAndKeystone)
-
-	// test that a second object store can be created (and deleted) while the first exists
-	s.T().Run("run a second object store", func(t *testing.T) {
-		otherStoreName := "other-" + storeName
-		// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
-		// and then deletes it.
-		deleteStore := true
-		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, swiftAndKeystone)
-	})
-
-	// the deletion checks that consumed this store live in the dependents
-	// package now; delete it so it cannot block cluster teardown
-	s.T().Run("delete the suite object store", func(t *testing.T) {
-		deleteObjectStore(t, k8sh, namespace, storeName)
-		assertObjectStoreDeletion(t, k8sh, namespace, storeName)
-	})
-
-	sharedObjectStore := sharedstore.Create(s.T(), k8sh, installer, sharedstore.Config{
-		Namespace: settings.Namespace,
+func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace string, tlsEnable bool) {
+	// only the packages that create CephObjectStoreUsers in their own namespace
+	// need to be allowed; the rest reach the store through OBCs, which this does
+	// not gate
+	sharedObjectStore := sharedstore.Create(t, k8sh, installer, sharedstore.Config{
+		Namespace: namespace,
 		StoreName: "sharedstore",
 		Instances: 1,
 		TLSEnable: tlsEnable,
 		AllowUsersInNamespaces: []string{
-			bucketlifecycle.Namespace,
 			bucketowner.Namespace,
-			bucketpolicy.Namespace,
-			bucketquota.Namespace,
-			bucketrw.Namespace,
-			userkeys.Namespace,
-			topickafka.Namespace,
-			useropmask.Namespace,
-			usercaps.Namespace,
 			cosi.Namespace,
-			notification.Namespace,
+			usercaps.Namespace,
+			userkeys.Namespace,
+			useropmask.Namespace,
 		},
 	})
 	defer sharedObjectStore.Destroy()
 
-	zonepools.TestZonePools(s.T(), k8sh, sharedObjectStore)
-	bucketlifecycle.TestObjectBucketClaimLifecycle(s.T(), k8sh, sharedObjectStore)
-	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, sharedObjectStore)
-	bucketpolicy.TestObjectBucketClaimPolicy(s.T(), k8sh, sharedObjectStore)
-	bucketquota.TestObjectBucketClaimQuota(s.T(), k8sh, sharedObjectStore)
-	bucketrw.TestObjectBucketClaimReadWrite(s.T(), k8sh, sharedObjectStore)
-	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, sharedObjectStore)
-	topickafka.TestBucketTopicKafka(s.T(), k8sh, sharedObjectStore)
-	useropmask.TestObjectStoreUserOpMask(s.T(), k8sh, sharedObjectStore)
-	usercaps.TestObjectStoreUserCaps(s.T(), k8sh, sharedObjectStore)
+	zonepools.TestZonePools(t, k8sh, sharedObjectStore)
+	bucketlifecycle.TestObjectBucketClaimLifecycle(t, k8sh, sharedObjectStore)
+	bucketowner.TestObjectBucketClaimBucketOwner(t, k8sh, sharedObjectStore)
+	bucketpolicy.TestObjectBucketClaimPolicy(t, k8sh, sharedObjectStore)
+	bucketquota.TestObjectBucketClaimQuota(t, k8sh, sharedObjectStore)
+	bucketrw.TestObjectBucketClaimReadWrite(t, k8sh, sharedObjectStore)
+	userkeys.TestObjectStoreUserKeys(t, k8sh, sharedObjectStore)
+	topickafka.TestBucketTopicKafka(t, k8sh, sharedObjectStore)
+	useropmask.TestObjectStoreUserOpMask(t, k8sh, sharedObjectStore)
+	usercaps.TestObjectStoreUserCaps(t, k8sh, sharedObjectStore)
 	// the ceph-cosi driver cannot reach a TLS object store endpoint, so this
 	// suite skips itself in the TLS pass
-	cosi.TestCephCOSIDriver(s.T(), k8sh, sharedObjectStore)
-	notification.TestBucketNotification(s.T(), k8sh, sharedObjectStore)
+	cosi.TestCephCOSIDriver(t, k8sh, sharedObjectStore)
+	notification.TestBucketNotification(t, k8sh, sharedObjectStore)
 
-	// last: this one builds and deletes a store of its own, so keep it clear of
-	// the packages sharing the fixture store
-	dependents.TestCephObjectStoreDependents(s.T(), k8sh, installer, settings.Namespace, tlsEnable)
+	// last: this builds and deletes a store of its own, so keep it clear of the
+	// packages sharing the fixture store
+	dependents.TestCephObjectStoreDependents(t, k8sh, installer, namespace, tlsEnable)
 }

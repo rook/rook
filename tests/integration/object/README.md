@@ -1,9 +1,9 @@
 # Object storage integration tests
 
 This tree holds the new-style integration tests for rook's object storage
-features. It is the model for converting the remaining old-style object tests
-(store lifecycle);
-follow the conventions here exactly so the conversion happens once.
+features; follow the conventions here exactly. Object storage is also exercised
+by the keystone, helm, and upgrade suites, which keep their own old-style
+tests.
 
 ## Execution model
 
@@ -45,7 +45,6 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `user/keys` | `object/user` | explicit S3 key management |
 | `user/opmask` | `object/user` | user op_mask |
 | `zonepools` | `object` | zone.json pool fields covered by Rook's shared-pool mapping |
-| reserved: `tests/integration/object/lifecycle` | | future conversions |
 
 Shared utilities live under `util/`:
 
@@ -62,8 +61,10 @@ Shared utilities live under `util/`:
 - `secrets` — verification helpers for the Secret references object CRDs
   publish in their status, shared by more than one package.
 - `sharedstore` — the CephObjectStore fixture: the shared store, and the
-  private stores the private-store packages build (`Config.Kind` selects a
-  zoned or classic store).
+  private store a private-store package builds (`Config.Kind` selects a zoned
+  or classic store). Create waits for the store to be Ready and publish an
+  endpoint, and Destroy asserts it deletes, so every store the suites build
+  covers the store lifecycle.
 - `client` — rgw admin, SNS, and S3 client builders and TLS cert generation.
 
 ## Anatomy of a package
@@ -106,7 +107,7 @@ Rules encoded in that shape:
   (deleting it, or a behavior the operator gates on the store's own spec):
   it cannot share the fixture store, so it builds a private one with
   `sharedstore.Create` and takes `(t, k8sh, installer, namespace, tlsEnable)`
-  instead. `dependents` is the model.
+  instead. `dependents` is the only one.
 - The var block declares everything the test uses: fixture objects (use
   constructors — `obc.StorageClass`, package-local helpers like
   `awsKeySecret`/`objectUserKey` — to keep literals one line each), then the
@@ -204,8 +205,12 @@ the CI object suite.
 2. Write the entry func following the anatomy section; pick a globally unique
    outer `t.Run` name.
 3. Wire one dispatcher line in `tests/integration/ceph_object_test.go` and,
-   if the package creates CephObjectStoreUsers, add its namespace to the
-   shared store's `AllowUsersInNamespaces`.
+   if the package creates CephObjectStoreUsers in its own namespace against
+   the shared store, add its namespace to the shared store's
+   `AllowUsersInNamespaces`. That list gates one thing only — a user CR
+   naming a store in another namespace — so a package that reaches the store
+   through an ObjectBucketClaim, or that creates its users in the cluster
+   namespace, does not belong on it.
 4. Verify with the build/vet/gofmt commands above.
 
 ## Conversion playbook (old-style tests)
@@ -218,5 +223,4 @@ verification; wire the dispatcher; delete the old code; retire
 
 | old test | target package(s) | still needs (build in that PR) |
 |---|---|---|
-| `createCephObjectStore`/`runObjectE2ETestLite`/deletion asserts | `tests/integration/object/lifecycle` | store create/health/delete helpers |
 | upgrade-suite object usage | stays in upgrade suite | switch to typed clients + `wait4` |
