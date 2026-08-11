@@ -624,6 +624,8 @@ map[string]string
 </em>
 </td>
 <td>
+<p>Caps is the complete set of Ceph capabilities granted to the client, keyed by daemon
+type (mon, osd, mds, mgr), not an additive list.</p>
 </td>
 </tr>
 <tr>
@@ -2175,6 +2177,10 @@ ObjectUserCapSpec
 </td>
 <td>
 <em>(Optional)</em>
+<p>Capabilities is the complete set of admin capabilities granted to the user, not an
+additive list. The version-gated capabilities <code>userInfoWithoutKeys</code> and <code>accounts</code> are
+the exception: Rook omits them, and logs a warning, on a cluster older than the Ceph
+version they require.</p>
 </td>
 </tr>
 <tr>
@@ -5417,6 +5423,8 @@ map[string]string
 </em>
 </td>
 <td>
+<p>Caps is the complete set of Ceph capabilities granted to the client, keyed by daemon
+type (mon, osd, mds, mgr), not an additive list.</p>
 </td>
 </tr>
 <tr>
@@ -12616,6 +12624,10 @@ ObjectUserCapSpec
 </td>
 <td>
 <em>(Optional)</em>
+<p>Capabilities is the complete set of admin capabilities granted to the user, not an
+additive list. The version-gated capabilities <code>userInfoWithoutKeys</code> and <code>accounts</code> are
+the exception: Rook omits them, and logs a warning, on a cluster older than the Ceph
+version they require.</p>
 </td>
 </tr>
 <tr>

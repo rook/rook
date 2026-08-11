@@ -1403,6 +1403,9 @@ spec:
                 caps:
                   additionalProperties:
                     type: string
+                  description: |-
+                    Caps is the complete set of Ceph capabilities granted to the client, keyed by daemon
+                    type (mon, osd, mds, mgr), not an additive list.
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
                 name:
@@ -15303,7 +15306,11 @@ spec:
                     - message: accountRef is immutable
                       rule: self == oldSelf
                 capabilities:
-                  description: Additional admin-level capabilities for the Ceph object store user
+                  description: |-
+                    Capabilities is the complete set of admin capabilities granted to the user, not an
+                    additive list. The version-gated capabilities `userInfoWithoutKeys` and `accounts` are
+                    the exception: Rook omits them, and logs a warning, on a cluster older than the Ceph
+                    version they require.
                   nullable: true
                   properties:
                     accounts:
