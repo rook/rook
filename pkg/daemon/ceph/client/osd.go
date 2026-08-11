@@ -470,7 +470,9 @@ type OSDMetadata struct {
 	HostName string `json:"hostname"`
 	// Devices is the sorted, comma-separated set of physical block devices backing the OSD, resolved
 	// past any LVM/dm layer, e.g. "vdb" or "nvme0n1,vdb" when the DB is on a separate device.
-	Devices string `json:"devices"`
+	Devices                 string `json:"devices"`
+	BluestoreBdevType       string `json:"bluestore_bdev_type"`
+	BluestoreBdevRotational string `json:"bluestore_bdev_rotational"`
 }
 
 // GetOSDMetadata returns the output of `ceph osd metadata`
@@ -485,6 +487,49 @@ func GetOSDMetadata(context *clusterd.Context, clusterInfo *ClusterInfo) (*[]OSD
 		return nil, errors.Wrap(err, "failed to unmarshal osd metadata response")
 	}
 	return &osdMetadata, nil
+}
+
+// GetOSDMetadataByID returns metadata for a single OSD.
+func GetOSDMetadataByID(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) (*OSDMetadata, error) {
+	args := []string{"osd", "metadata", strconv.Itoa(osdID)}
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get metadata by id for osd.%d", osdID)
+	}
+	var meta OSDMetadata
+	if err := json.Unmarshal(buf, &meta); err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal metadata for osd.%d", osdID)
+	}
+	return &meta, nil
+}
+
+// OSDBenchResult is the JSON output of `ceph tell osd.N bench`.
+type OSDBenchResult struct {
+	IOPS json.Number `json:"iops"`
+}
+
+// OSDBench runs a 4KiB random write bench on the OSD with Ceph recommended defaults.
+func OSDBench(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) (*OSDBenchResult, error) {
+	args := []string{"tell", fmt.Sprintf("osd.%d", osdID), "bench", "12288000", "4096", "4194304", "100"}
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to run ceph tell osd.%d bench", osdID)
+	}
+	var result OSDBenchResult
+	if err := json.Unmarshal(buf, &result); err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal bench result for osd.%d", osdID)
+	}
+	return &result, nil
+}
+
+// OSDCacheDrop runs `ceph tell osd.N cache drop`.
+func OSDCacheDrop(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) error {
+	args := []string{"tell", fmt.Sprintf("osd.%d", osdID), "cache", "drop"}
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to drop cache for osd.%d", osdID)
+	}
+	return nil
 }
 
 // Blocklist blocklists the client address for predefined duration

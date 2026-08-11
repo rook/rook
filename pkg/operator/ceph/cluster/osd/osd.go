@@ -482,6 +482,8 @@ func (c *Cluster) postReconcileUpdateOSDProperties(desiredOSDs map[int]*OSDInfo)
 		}
 	}
 
+	c.ensureMclockCapacityForOSDs()
+
 	return nil
 }
 

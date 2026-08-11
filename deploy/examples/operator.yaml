@@ -74,6 +74,8 @@ data:
   # DISCOVER_AGENT_POD_LABELS: "key1=value1,key2=value2"
   # Disable automatic orchestration when new devices are discovered
   ROOK_DISABLE_DEVICE_HOTPLUG: "false"
+  # Disable automatic OSD mclock capacity update
+  ROOK_DISABLE_OSD_BENCHMARK: "false"
   # The duration between discovering devices in the rook-discover daemonset.
   ROOK_DISCOVER_DEVICES_INTERVAL: "60m"
   # DISCOVER_DAEMON_RESOURCES: |
