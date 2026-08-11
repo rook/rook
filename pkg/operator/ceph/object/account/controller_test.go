@@ -1101,7 +1101,7 @@ func TestDeleteAccount(t *testing.T) {
 			},
 		}
 
-		err = r.deleteAccount(account)
+		_, err = r.deleteAccount(account)
 		assert.NoError(t, err)
 		assert.True(t, userDeleteCalled, "should delete root user")
 		assert.True(t, accountDeleteCalled, "should delete account")
@@ -1156,7 +1156,7 @@ func TestDeleteAccount(t *testing.T) {
 			},
 		}
 
-		err = r.deleteAccount(account)
+		_, err = r.deleteAccount(account)
 		assert.NoError(t, err)
 		assert.True(t, userDeleteCalled, "should always attempt to delete root user even when skipCreate is true")
 		assert.True(t, accountDeleteCalled, "should delete account")
@@ -1203,7 +1203,7 @@ func TestDeleteAccount(t *testing.T) {
 			},
 		}
 
-		err = r.deleteAccount(account)
+		_, err = r.deleteAccount(account)
 		assert.NoError(t, err)
 		assert.True(t, accountDeleteCalled, "should still delete account even if root user is gone")
 	})
@@ -1247,7 +1247,7 @@ func TestDeleteAccount(t *testing.T) {
 			},
 		}
 
-		err = r.deleteAccount(account)
+		_, err = r.deleteAccount(account)
 		assert.NoError(t, err)
 	})
 
@@ -1263,7 +1263,7 @@ func TestDeleteAccount(t *testing.T) {
 			},
 		}
 
-		err := r.deleteAccount(account)
+		_, err := r.deleteAccount(account)
 		assert.NoError(t, err)
 	})
 
@@ -1303,7 +1303,7 @@ func TestDeleteAccount(t *testing.T) {
 			},
 		}
 
-		err = r.deleteAccount(account)
+		_, err = r.deleteAccount(account)
 		assert.NoError(t, err)
 		assert.False(t, deleteCalled, "should not call RGW delete for a foreign account")
 	})
