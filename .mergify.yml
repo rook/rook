@@ -1,3 +1,12 @@
+# set here rather than on each backport rule so the `@Mergifyio backport`
+# command picks it up too
+defaults:
+  actions:
+    backport:
+      assignees:
+        - "{{ author }}"
+        - "{{ merged_by }}"
+
 pull_request_rules:
   # if there is a conflict in a backport PR, ping the author to send a proper backport PR
   - name: ping author on conflicts
