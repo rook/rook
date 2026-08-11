@@ -71,6 +71,60 @@ func TestValidateClient(t *testing.T) {
 	}
 	err = ValidateClient(context, &p)
 	assert.Nil(t, err)
+
+	// reject names that collide with Rook's own CSI keyrings, including rotated
+	// generations of those keyrings
+	for _, csiName := range []string{
+		"csi-rbd-node",
+		"csi-rbd-provisioner",
+		"csi-cephfs-node",
+		"csi-cephfs-provisioner",
+		"csi-rbd-node.1",
+		"csi-cephfs-provisioner.42",
+	} {
+		p = cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: csiName, Namespace: "myns"}}
+		p.Spec.Caps = map[string]string{"mon": "allow r"}
+		err = ValidateClient(context, &p)
+		assert.NotNil(t, err, "expected %q to be rejected as a reserved CSI keyring name", csiName)
+	}
+}
+
+func TestDeleteClient(t *testing.T) {
+	// deleteClient must never issue `ceph auth del` against a cephx entity Rook manages
+	// itself (here, a CSI keyring), even if a CephClient CR was created with a colliding
+	// name. Rook did not create that entity through the CR, so it must not destroy it.
+	for _, tc := range []struct {
+		name             string
+		clientName       string
+		expectAuthDelete bool
+	}{
+		{name: "reserved CSI name is not deleted", clientName: "csi-rbd-node", expectAuthDelete: false},
+		{name: "reserved CSI name with generation suffix is not deleted", clientName: "csi-cephfs-provisioner.1", expectAuthDelete: false},
+		{name: "non-reserved name is deleted normally", clientName: "my-client", expectAuthDelete: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			authDeleteCalled := false
+			executor := &exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+					if len(args) >= 2 && args[0] == "auth" && args[1] == "del" {
+						authDeleteCalled = true
+					}
+					return "", nil
+				},
+			}
+			r := &ReconcileCephClient{
+				context:     &clusterd.Context{Executor: executor},
+				clusterInfo: &cephclient.ClusterInfo{Context: context.TODO()},
+			}
+			cephClient := &cephv1.CephClient{
+				ObjectMeta: metav1.ObjectMeta{Name: tc.clientName, Namespace: "rook-ceph"},
+			}
+
+			err := r.deleteClient(cephClient)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectAuthDelete, authDeleteCalled)
+		})
+	}
 }
 
 func TestGenerateClient(t *testing.T) {

@@ -374,10 +374,23 @@ func (r *ReconcileCephClient) reconcileCephClientSecret(
 	return k8sutil.UpdateSecretIfOwnedBy(r.clusterInfo.Context, r.context.Clientset, secret)
 }
 
+// reservedClientNames matches cephx entity names that Rook manages itself (the admin user,
+// daemon bootstrap keys, and Rook's own CSI keyrings, including rotated generations of the
+// latter). A CephClient CR must never be allowed to create, update, or delete one of these.
+var reservedClientNames = regexp.MustCompile(`^admin$|^rgw.*$|^rbd-mirror$|^osd.[0-9]*$|^bootstrap-(mds|mgr|mon|osd|rgw|rbd-mirror)$|^rbd-mirror-peer$|^csi-(rbd|cephfs)-(provisioner|node)(\.[0-9]+)?$`)
+
 // Delete the client
 func (r *ReconcileCephClient) deleteClient(cephClient *cephv1.CephClient) error {
 	clientName := getClientName(cephClient)
 	nsName := opcontroller.NsName(cephClient.Namespace, cephClient.Name)
+
+	// Never delete a cephx entity Rook manages itself, even if a CephClient CR was created
+	// with a colliding name. This CR did not create the entity, so it must not destroy it.
+	if reservedClientNames.MatchString(clientName) {
+		log.NamedWarning(nsName, logger, "not deleting ceph client %q since it is a reserved name that Rook manages itself", clientName)
+		return nil
+	}
+
 	log.NamedInfo(nsName, logger, "deleting client object %q", clientName)
 
 	if err := cephclient.AuthDelete(r.context, r.clusterInfo, generateClientName(clientName)); err != nil {
@@ -390,10 +403,9 @@ func (r *ReconcileCephClient) deleteClient(cephClient *cephv1.CephClient) error 
 
 // ValidateClient the client arguments
 func ValidateClient(context *clusterd.Context, cephClient *cephv1.CephClient) error {
-	reservedNames := regexp.MustCompile("^admin$|^rgw.*$|^rbd-mirror$|^osd.[0-9]*$|^bootstrap-(mds|mgr|mon|osd|rgw|rbd-mirror)$|^rbd-mirror-peer$")
 	clientName := getClientName(cephClient)
 	// validate the Client name
-	if reservedNames.Match([]byte(clientName)) {
+	if reservedClientNames.MatchString(clientName) {
 		return errors.Errorf("ignoring reserved name %q", clientName)
 	}
 
