@@ -30,18 +30,23 @@ ifeq ($(BUILD_CONTEXT_DIR),)
 BUILD_CONTEXT_DIR := $(shell mktemp -d)
 endif
 
+# s5cmd's version
+S5CMD_VERSION = 2.3.0
+# s5cmd tarball checksums for integrity verification
+S5CMD_SHA256_AMD64 = de0fdbfa3aceae55e069ba81a0fc17b2026567637603734a387b2fca06c299b4
+S5CMD_SHA256_ARM64 = 1439f0d00ecedcd2a2f1f2c6749bbb0152b2257bf5086f29646ec8ae38798e24
 
 ifeq ($(GOARCH),amd64)
 S5CMD_ARCH = Linux-64bit
+S5CMD_SHA256=$(S5CMD_SHA256_AMD64)
 else
 S5CMD_ARCH = Linux-arm64
+S5CMD_SHA256=$(S5CMD_SHA256_ARM64)
 endif
 
 # build by default; allow opt-out by setting to false
 BUILD_CONTAINER_IMAGE ?= true
 
-# s5cmd's version
-S5CMD_VERSION = 2.3.0
 
 YQv3 := $(TOOLS_HOST_DIR)/yq-$(YQv3_VERSION)
 export YQv3
@@ -68,6 +73,7 @@ do.build:
 		$(DOCKERCMD) build --platform linux/$(GOARCH) $(BUILD_ARGS) \
 		--build-arg S5CMD_VERSION=$(S5CMD_VERSION) \
 		--build-arg S5CMD_ARCH=$(S5CMD_ARCH) \
+		--build-arg S5CMD_SHA256=$(S5CMD_SHA256) \
 		-t $(CEPH_IMAGE) \
 		$(BUILD_CONTEXT_DIR);\
 	fi
