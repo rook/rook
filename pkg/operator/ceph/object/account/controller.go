@@ -454,7 +454,7 @@ func (r *ReconcileObjectStoreAccount) deleteAccount(cephObjectStoreAccount *ceph
 	// if `rook.io/force-deletion` annotation is set to true, we will force delete the account even if it contains S3 resources
 	if opcontroller.ForceDeleteRequested(cephObjectStoreAccount.Annotations) {
 		log.NamedInfo(nsName, logger, "force-deletion annotation set to true, forcing deletion of account %q", accountID)
-		err = object.ForceDeleteAccount(nsName, r.objContext, accountID)
+		err = object.ForceDeleteAccount(cephObjectStoreAccount.UID, nsName, r.objContext, accountID, r.cephClusterSpec)
 		if err != nil {
 			return errors.Wrapf(err, "failed to force delete account %q", accountID)
 		}
