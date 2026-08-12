@@ -175,6 +175,12 @@ func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 	} else if v.Extra < other.Extra {
 		return false
 	}
+	// If we arrive here then v.Extra == other.Extra
+	if v.Build > other.Build {
+		return true
+	} else if v.Build < other.Build {
+		return false
+	}
 	// If we arrive here then both versions are identical
 	return true
 }
