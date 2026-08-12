@@ -6,6 +6,13 @@
 - The OSD prepare job now fails, and is retried by Kubernetes, when a freshly prepared device is
   missing from the `ceph-volume raw list` output, instead of silently reporting fewer OSDs than
   were prepared (which left OSDs registered in the osdmap with no OSD deployment created).
+- `CephClient` CRs are no longer allowed to use a name that resolves to one of Rook's own CSI
+  keyring usernames (`csi-rbd-node`, `csi-rbd-provisioner`, `csi-cephfs-node`,
+  `csi-cephfs-provisioner`, including rotated-generation suffixes such as `csi-rbd-node.1`). If
+  you already have a `CephClient` CR using one of these names, it will start failing
+  reconciliation with an `ignoring reserved name` error; delete it and recreate it under a
+  non-reserved name. Deleting such a CR is safe: Rook now skips deleting the underlying keyring
+  for a reserved name instead of removing the live CSI entity.
 
 ## Features
 
