@@ -331,6 +331,39 @@ the `description` fields of the CRDs. Reword a comment and the following files c
 * `deploy/charts/rook-ceph/templates/resources.yaml`
 * `Documentation/CRDs/specification.md`
 
+### API/CRD Design Guidelines
+
+When making changes to Rook's API in CRDs, a GitHub Issue with maintainer approval to change the
+API is required. If the API addition is more than a single field or uses non-trivial data type(s),
+a reviewed and merged [design document](#design-document) will be required.
+
+Consider the following when adding new API fields:
+
+1. What is the default behavior when the field is unset? Optional fields must document the default.
+2. Is the field mutable or immutable? Users assume mutable unless documentation states otherwise.
+    Immutable fields must be documented as such, and CEL validation rules should be created for them.
+3. What happens when the field is removed? Users assume removed fields revert to the default state.
+    Any divergence from this behavior must be approved by maintainers and documented.
+
+For a single, named field (e.g., `CephObjectStore.spec.gateway.port`), the usual approach should be
+to create a mutable field with a documented default that is used when unset/removed.
+
+Some Ceph configurations cannot be changed after resource creation. E.g., pool erasure coding chunks
+associated with `...erasureCoded.dataChunks`. The Rook API should add a CEL validation rule to
+prevent modification and should document the field as immutable.
+
+Rarely, Ceph may allow setting/mutating a config but not un-setting the config. The Rook API should
+add a CEL validation rule to prevent removal of the field and document it as such.
+
+As a starting point for CEL transition rules, refer to
+[Kubernetes recommendations](https://kubernetes.io/blog/2022/09/29/enforce-immutability-using-cel/).
+
+Rook commonly uses map types to pass arbitrary configurations to Ceph. E.g., `CephCluster.spec.cephConfig`.
+Such an API addition merits a design document because the type is non-trivial. Rook's common
+pattern for such an API allows mutability but does not have a defined default. Meaning, when a
+map entry is removed, Rook stops managing what the entry represents. To revert the config, users
+need to reconfigure it explicitly. Since this behavior is not typical, it must be documented.
+
 ## Integration Tests
 
 Rook's upstream continuous integration (CI) tests will run integration tests against your changes
