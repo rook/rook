@@ -128,6 +128,11 @@ func TestVersionAtLeast(t *testing.T) {
 	assert.True(t, (&CephVersion{1, 1, 1, 0, ""}).IsAtLeast(CephVersion{1, 1, 0, 0, ""}))
 	assert.False(t, (&CephVersion{1, 1, 0, 0, ""}).IsAtLeast(CephVersion{1, 1, 1, 0, ""}))
 	assert.True(t, (&CephVersion{1, 1, 1, 0, ""}).IsAtLeast(CephVersion{1, 1, 1, 0, ""}))
+
+	// Build number comparisons
+	assert.True(t, (&CephVersion{20, 2, 1, 324, ""}).IsAtLeast(CephVersion{20, 2, 1, 297, ""}))
+	assert.False(t, (&CephVersion{20, 2, 1, 294, ""}).IsAtLeast(CephVersion{20, 2, 1, 297, ""}))
+	assert.True(t, (&CephVersion{20, 2, 1, 297, ""}).IsAtLeast(CephVersion{20, 2, 1, 297, ""}))
 }
 
 func TestVersionAtLeastX(t *testing.T) {
