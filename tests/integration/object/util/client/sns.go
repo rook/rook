@@ -47,9 +47,7 @@ func (r *snsResolverV2) ResolveEndpoint(ctx context.Context, params sns.Endpoint
 	}, nil
 }
 
-func NewSNSClient(objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool) (*sns.Client, error) {
-	ctx := context.TODO()
-
+func NewSNSClient(ctx context.Context, objectStore *cephv1.CephObjectStore, k8sh *utils.K8sHelper, installer *installer.CephInstaller, tlsEnable bool) (*sns.Client, error) {
 	accessKey, secretKey, err := GetS3Credentials(objectStore, installer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get s3 credentials")

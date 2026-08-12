@@ -32,7 +32,7 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 )
 
-func NewAdminClient(objectStore *cephv1.CephObjectStore, installer *installer.CephInstaller, k8sh *utils.K8sHelper, tlsEnable bool) (*admin.API, error) {
+func NewAdminClient(ctx context.Context, objectStore *cephv1.CephObjectStore, installer *installer.CephInstaller, k8sh *utils.K8sHelper, tlsEnable bool) (*admin.API, error) {
 	accessKey, secretKey, err := GetS3Credentials(objectStore, installer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get s3 credentials")
@@ -54,7 +54,7 @@ func NewAdminClient(objectStore *cephv1.CephObjectStore, installer *installer.Ce
 	}
 
 	// verify that admin api is working
-	_, err = adminClient.GetInfo(context.Background())
+	_, err = adminClient.GetInfo(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "admin client is not working")
 	}
