@@ -67,7 +67,7 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 
 	// Token file
 	tokenFilePattern := fmt.Sprintf("rbd-mirror-token-%s", poolName)
-	tokenFilePath, err := os.CreateTemp("/tmp", tokenFilePattern)
+	tokenFilePath, err := os.CreateTemp("", tokenFilePattern)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temporary token file for pool %q", poolName)
 	}
