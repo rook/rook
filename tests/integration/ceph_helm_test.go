@@ -21,6 +21,7 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -104,7 +105,11 @@ func (h *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
 
 // Test Object StoreCreation on Rook that was installed via helm
 func (h *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
-	deleteStore := true
-	tls := false
-	runObjectE2ETestLite(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, false)
+	store := sharedstore.Create(h.T(), h.k8shelper, h.installer, sharedstore.Config{
+		Namespace: h.settings.Namespace,
+		StoreName: "default",
+		Instances: 3,
+		Kind:      sharedstore.Classic,
+	})
+	store.Destroy()
 }
