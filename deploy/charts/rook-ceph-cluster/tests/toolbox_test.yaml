@@ -129,3 +129,65 @@ tests:
       - equal:
           path: spec.revisionHistoryLimit
           value: 3
+
+  - it: adds an extra volume
+    set:
+      toolbox.enabled: true
+      toolbox.extraVolumes[0]:
+        name: foo
+        configMap:
+          name: bar
+    asserts:
+      - exists:
+          path: spec.template.spec.volumes[4]
+      - equal:
+          path: spec.template.spec.volumes[4].name
+          value: foo
+      - equal:
+          path: spec.template.spec.volumes[4].configMap.name
+          value: bar
+
+  - it: adds an extra volumeMount
+    set:
+      toolbox.enabled: true
+      toolbox.extraVolumeMounts[0]:
+        name: foo
+        mountPath: /bar
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[0].volumeMounts[4]
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[4].name
+          value: foo
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[4].mountPath
+          value: /bar
+
+  - it: adds an extra env
+    set:
+      toolbox.enabled: true
+      toolbox.extraEnv[0]:
+        name: foo
+        value: bar
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[0].env[1]
+      - equal:
+          path: spec.template.spec.containers[0].env[1].name
+          value: foo
+      - equal:
+          path: spec.template.spec.containers[0].env[1].value
+          value: bar
+
+  - it: adds an extra envFrom
+    set:
+      toolbox.enabled: true
+      toolbox.extraEnvFrom[0]:
+        configMapRef:
+          name: foo
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[0].envFrom[0]
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].configMapRef.name
+          value: foo
