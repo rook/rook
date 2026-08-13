@@ -18,6 +18,7 @@ FROM BASEIMAGE
 # env vars for s5cmd
 ARG S5CMD_VERSION
 ARG S5CMD_ARCH
+ARG S5CMD_SHA256
 
 # 'ip' tool must be installed for Multus.
 # Doing a 'dnf install' sometimes breaks CI when centos repos go down or have other package build errors.
@@ -26,6 +27,7 @@ RUN dnf install -y --repo baseos --setopt=install_weak_deps=False iproute && dnf
 
 # Install the s5cmd package to interact with s3 gateway
 RUN curl --fail -sSL -o /s5cmd.tar.gz https://github.com/peak/s5cmd/releases/download/v${S5CMD_VERSION}/s5cmd_${S5CMD_VERSION}_${S5CMD_ARCH}.tar.gz && \
+    echo "${S5CMD_SHA256}  /s5cmd.tar.gz" | sha256sum --status --check - && \
     mkdir /s5cmd && \
     tar xf /s5cmd.tar.gz -C /s5cmd && \
     install /s5cmd/s5cmd /usr/local/bin/s5cmd && \
