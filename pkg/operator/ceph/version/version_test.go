@@ -156,6 +156,36 @@ func TestIsSuperior(t *testing.T) {
 	assert.True(t, IsSuperior(CephVersion{15, 2, 2, 1, ""}, CephVersion{15, 2, 1, 0, ""}))
 }
 
+func TestIsStrictlySuperior(t *testing.T) {
+	// same ordering as IsSuperior when the commit IDs are equal
+	assert.False(t, IsStrictlySuperior(CephVersion{15, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
+	assert.False(t, IsStrictlySuperior(CephVersion{15, 2, 2, 0, ""}, CephVersion{16, 2, 2, 0, ""}))
+	assert.True(t, IsStrictlySuperior(CephVersion{16, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
+	assert.True(t, IsStrictlySuperior(CephVersion{15, 2, 2, 0, ""}, CephVersion{15, 1, 3, 0, ""}))
+	assert.True(t, IsStrictlySuperior(CephVersion{15, 2, 2, 0, ""}, CephVersion{15, 2, 1, 0, ""}))
+	assert.True(t, IsStrictlySuperior(CephVersion{15, 2, 2, 1, ""}, CephVersion{15, 2, 1, 0, ""}))
+
+	// unlike IsSuperior, a differing commit ID alone does not make either version superior
+	a := CephVersion{15, 2, 2, 0, "aaaaaaaaaaaaaaaa"}
+	b := CephVersion{15, 2, 2, 0, "bbbbbbbbbbbbbbbb"}
+	assert.True(t, IsSuperior(a, b))
+	assert.True(t, IsSuperior(b, a))
+	assert.False(t, IsStrictlySuperior(a, b))
+	assert.False(t, IsStrictlySuperior(b, a))
+
+	// the same holds when only one side reports a commit ID
+	assert.False(t, IsStrictlySuperior(CephVersion{15, 2, 2, 0, ""}, a))
+	assert.False(t, IsStrictlySuperior(a, CephVersion{15, 2, 2, 0, ""}))
+
+	// a differing commit ID must not mask a real version difference
+	assert.True(t, IsStrictlySuperior(CephVersion{15, 2, 3, 0, "aaaaaaaaaaaaaaaa"}, b))
+	assert.False(t, IsStrictlySuperior(CephVersion{15, 2, 1, 0, "aaaaaaaaaaaaaaaa"}, b))
+
+	// the caller's versions are not modified
+	assert.Equal(t, "aaaaaaaaaaaaaaaa", a.CommitID)
+	assert.Equal(t, "bbbbbbbbbbbbbbbb", b.CommitID)
+}
+
 func TestIsInferior(t *testing.T) {
 	assert.False(t, IsInferior(CephVersion{15, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
 	assert.False(t, IsInferior(CephVersion{16, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
@@ -196,6 +226,26 @@ func TestValidateCephVersionsBetweenLocalAndExternalClusters(t *testing.T) {
 	externalCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 2}
 	err = ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
 	assert.NoError(t, err)
+
+	// TEST 6: same release on both sides, but the images were built from different commits.
+	// Neither version is higher than the other, so connecting must be allowed.
+	localCephVersion = CephVersion{Major: 17, Minor: 2, Extra: 1, CommitID: "aaaaaaaaaaaaaaaa"}
+	externalCephVersion = CephVersion{Major: 17, Minor: 2, Extra: 1, CommitID: "bbbbbbbbbbbbbbbb"}
+	err = ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
+	assert.NoError(t, err)
+
+	// TEST 7: same release, but only the external cluster reports a commit ID
+	localCephVersion = CephVersion{Major: 17, Minor: 2, Extra: 1}
+	externalCephVersion = CephVersion{Major: 17, Minor: 2, Extra: 1, CommitID: "bbbbbbbbbbbbbbbb"}
+	err = ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
+	assert.NoError(t, err)
+
+	// TEST 8: a commit ID difference must not mask a real version difference. The local
+	// cluster is still higher than the external one, so this must be rejected.
+	localCephVersion = CephVersion{Major: 17, Minor: 2, Extra: 2, CommitID: "aaaaaaaaaaaaaaaa"}
+	externalCephVersion = CephVersion{Major: 17, Minor: 2, Extra: 1, CommitID: "bbbbbbbbbbbbbbbb"}
+	err = ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
+	assert.Error(t, err)
 }
 
 func TestCephVersion_Unsupported(t *testing.T) {
