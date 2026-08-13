@@ -89,6 +89,10 @@ The following table lists the configurable parameters of the rook-operator chart
 | `toolbox.affinity` | Toolbox affinity | `{}` |
 | `toolbox.containerSecurityContext` | Toolbox container security context | `{"capabilities":{"drop":["ALL"]},"runAsGroup":2016,"runAsNonRoot":true,"runAsUser":2016}` |
 | `toolbox.enabled` | Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md) | `false` |
+| `toolbox.extraEnv` | Add additional environment variables | `[]` |
+| `toolbox.extraEnvFrom` | Add additional environment variable sources | `[]` |
+| `toolbox.extraVolumeMounts` | Add additional volume mounts | `[]` |
+| `toolbox.extraVolumes` | Add additional volumes | `[]` |
 | `toolbox.image` | Toolbox image, superseded by `toolbox.repository` and `toolbox.tag` | the image used by the Ceph cluster |
 | `toolbox.labels` | Toolbox labels | `{}` |
 | `toolbox.priorityClassName` | Set the priority class for the toolbox if desired | `nil` |

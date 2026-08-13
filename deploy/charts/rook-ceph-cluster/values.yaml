@@ -56,6 +56,15 @@ toolbox:
   # -- Set the priority class for the toolbox if desired
   priorityClassName:
 
+  # -- Add additional volumes
+  extraVolumes: []
+  # -- Add additional volume mounts
+  extraVolumeMounts: []
+  # -- Add additional environment variables
+  extraEnv: []
+  # -- Add additional environment variable sources
+  extraEnvFrom: []
+
 monitoring:
   # -- Enable Prometheus integration, will also create necessary RBAC rules to allow Operator to create ServiceMonitors.
   # Monitoring requires Prometheus to be pre-installed
