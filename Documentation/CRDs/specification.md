@@ -2739,7 +2739,9 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>The ack level required for this topic (none/broker/routeable)</p>
+<p>The ack level required for this topic (none/broker/routable). The misspelled value
+&ldquo;routeable&rdquo; is deprecated, is sent to the RGW as &ldquo;routable&rdquo;, and will be removed in a
+future release.</p>
 </td>
 </tr>
 </tbody>
