@@ -54,6 +54,15 @@ rules:
       - create
       - delete
   - apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - get
+      - create
+      - update
+      - delete
+  - apiGroups:
       - multicluster.x-k8s.io
     resources:
       - serviceexports

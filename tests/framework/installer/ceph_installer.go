@@ -663,6 +663,13 @@ func (h *CephInstaller) InstallRook() (bool, error) {
 
 	logger.Infof("installed rook operator and cluster %s on k8s %s", h.settings.Namespace, h.k8sVersion)
 
+	if out, err := h.k8shelper.Kubectl("get", "networkpolicy", "-A"); err == nil {
+		logger.Infof("=== NetworkPolicies ===\n%s", out)
+	}
+	if out, err := h.k8shelper.Kubectl("get", "pods", "-A"); err == nil {
+		logger.Infof("=== Pods ===\n%s", out)
+	}
+
 	return true, nil
 }
 
