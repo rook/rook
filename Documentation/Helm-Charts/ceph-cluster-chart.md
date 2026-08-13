@@ -86,6 +86,10 @@ The following table lists the configurable parameters of the rook-operator chart
 | `monitoring.rulesNamespaceOverride` | The namespace in which to create the prometheus rules, if different from the rook cluster namespace. If you have multiple rook-ceph clusters in the same k8s cluster, choose the same namespace (ideally, namespace with prometheus deployed) to set rulesNamespaceOverride for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions. | `nil` |
 | `operatorNamespace` | Namespace of the main rook operator | `"rook-ceph"` |
 | `route.dashboard` | Enable an HTTPRoute for the ceph-dashboard | `{}` |
+| `toolbox.additionalEnv` | Add additional environment variables to the toolbox pod | `[]` |
+| `toolbox.additionalEnvFrom` | Add additional environment variable sources to the toolbox pod | `[]` |
+| `toolbox.additionalVolumeMounts` | Add additional volume mounts to the toolbox pod | `[]` |
+| `toolbox.additionalVolumes` | Add additional volumes to the toolbox pod. Note that this is subject to the SCC defined in ./templates/securityContextConstraints.yaml on OpenShift. | `[]` |
 | `toolbox.affinity` | Toolbox affinity | `{}` |
 | `toolbox.containerSecurityContext` | Toolbox container security context | `{"capabilities":{"drop":["ALL"]},"runAsGroup":2016,"runAsNonRoot":true,"runAsUser":2016}` |
 | `toolbox.enabled` | Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md) | `false` |
