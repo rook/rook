@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func TestTopicAttributesCreation(t *testing.T) {
@@ -107,6 +108,43 @@ func TestTopicAttributesCreation(t *testing.T) {
 		assert.Equal(t, expectedAttrs, attrs)
 	})
 
+	t.Run("test AMQP attributes with deprecated ack level", func(t *testing.T) {
+		uri := "amqp://my-rabbitmq-service:5672/vhost1"
+		exchange := "ex1"
+		expectedAttrs := map[string]string{
+			"OpaqueData":     emptyString,
+			"persistent":     falseString,
+			"push-endpoint":  uri,
+			"verify-ssl":     trueString,
+			"amqp-exchange":  exchange,
+			"amqp-ack-level": "routable",
+		}
+		bucketTopic := &cephv1.CephBucketTopic{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			TypeMeta: metav1.TypeMeta{
+				Kind: "CephBucketTopic",
+			},
+			Spec: cephv1.BucketTopicSpec{
+				ObjectStoreName:      store,
+				ObjectStoreNamespace: namespace,
+				Endpoint: cephv1.TopicEndpointSpec{
+					AMQP: &cephv1.AMQPEndpointSpec{
+						URI:      uri,
+						AckLevel: "routeable",
+						Exchange: exchange,
+					},
+				},
+			},
+		}
+
+		attrs, _, err := createTopicAttributes(provisioner{}, bucketTopic)
+		require.NoError(t, err)
+		assert.Equal(t, expectedAttrs, attrs)
+	})
+
 	t.Run("test Kafka attributes", func(t *testing.T) {
 		uri := "kafka://my-kafka-service:9092"
 		ackLevel := "broker"
@@ -146,4 +184,24 @@ func TestTopicAttributesCreation(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expectedAttrs, attrs)
 	})
+}
+
+func TestAMQPAckLevel(t *testing.T) {
+	nsName := types.NamespacedName{Name: name, Namespace: namespace}
+
+	for _, tc := range []struct {
+		name     string
+		ackLevel string
+		expected string
+	}{
+		{"unset", "", ""},
+		{"none", "none", "none"},
+		{"broker", "broker", "broker"},
+		{"routable", "routable", "routable"},
+		{"deprecated routeable", "routeable", "routable"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, amqpAckLevel(nsName, tc.ackLevel))
+		})
+	}
 }

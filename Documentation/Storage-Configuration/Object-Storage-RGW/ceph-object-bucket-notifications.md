@@ -109,6 +109,7 @@ stringData:
     + `none`: message is considered "delivered" if sent to broker
     + `broker`: message is considered "delivered" if acked by broker (default)
     + `routable`: message is considered "delivered" if broker can route to a consumer
+    + `routeable`: deprecated misspelling of `routable`. Rook sends it to the RGW as `routable`, and support for the misspelling will be removed in a future release
 14. `exchange` in the AMQP broker that would route the notifications. Different topics pointing to the same endpoint must use the same exchange
 15. `kafka` (optional) hold the spec for a Kafka endpoint. The format of the URI would be: `kafka://[<user>:<password>@]<fqdn>[:<port]`
     + port defaults to: 9092
