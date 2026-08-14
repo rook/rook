@@ -820,6 +820,13 @@ func (c *Cluster) failoverMon(name string) error {
 	}
 	c.ClusterInfo.InternalMonitors[m.DaemonName] = cephclient.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 
+	// Save the new mon's config before starting the deployment so that the mon's
+	// full address (including port) is available in mon_host when the daemon
+	// joins quorum
+	if err := c.saveMonConfig(); err != nil {
+		return errors.Wrap(err, "failed to save mon config before starting failover mon")
+	}
+
 	// Start the deployment
 	newMonMightBeInQuorum = true
 	if err := c.startDeployments(mConf, true, sets.New[string]()); err != nil {
