@@ -3508,6 +3508,7 @@ type ClientSpec struct {
 	RemoveSecret bool `json:"removeSecret,omitempty"`
 	// Caps is the complete set of Ceph capabilities granted to the client, keyed by daemon
 	// type (mon, osd, mds, mgr), not an additive list.
+	// +kubebuilder:validation:MinProperties=1
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Caps map[string]string `json:"caps"`
 	// Security represents security settings

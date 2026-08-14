@@ -62,6 +62,12 @@ func TestValidateClient(t *testing.T) {
 	err := ValidateClient(context, &p)
 	assert.NotNil(t, err)
 
+	// an empty map is as unusable as an absent one
+	p = cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"}}
+	p.Spec.Caps = map[string]string{}
+	err = ValidateClient(context, &p)
+	assert.NotNil(t, err)
+
 	// succeed with caps properly defined
 	p = cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"}}
 	p.Spec.Caps = map[string]string{

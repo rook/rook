@@ -1406,6 +1406,7 @@ spec:
                   description: |-
                     Caps is the complete set of Ceph capabilities granted to the client, keyed by daemon
                     type (mon, osd, mds, mgr), not an additive list.
+                  minProperties: 1
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
                 name:
