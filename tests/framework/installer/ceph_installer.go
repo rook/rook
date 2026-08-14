@@ -72,7 +72,7 @@ var (
 	SquidVersion                 = cephv1.CephVersionSpec{Image: squidTestImage}
 	SquidDevelVersion            = cephv1.CephVersionSpec{Image: squidDevelTestImage}
 	TentacleVersion              = cephv1.CephVersionSpec{Image: tentacleTestImage}
-	UmbrellaVersion              = cephv1.CephVersionSpec{Image: umbrellaTestImage}
+	UmbrellaVersion              = cephv1.CephVersionSpec{Image: umbrellaTestImage, AllowUnsupported: true}
 	TentacleDevelVersion         = cephv1.CephVersionSpec{Image: tentacleDevelTestImage, AllowUnsupported: true}
 	UmbrellaDevelVersion         = cephv1.CephVersionSpec{Image: umbrellaDevelTestImage, AllowUnsupported: true}
 	MainVersion                  = cephv1.CephVersionSpec{Image: mainTestImage, AllowUnsupported: true}
