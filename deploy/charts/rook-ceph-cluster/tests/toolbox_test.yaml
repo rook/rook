@@ -1,0 +1,131 @@
+suite: toolbox deployment
+templates:
+  - deployment.yaml
+tests:
+  - it: renders nothing when the toolbox is disabled
+    set:
+      toolbox.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: composes the image from the cephImage settings
+    set:
+      toolbox.enabled: true
+      cephImage.repository: quay.io/ceph/ceph
+      cephImage.tag: v20.2.2
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: quay.io/ceph/ceph:v20.2.2
+
+  - it: tracks a custom cephImage repository and tag
+    set:
+      toolbox.enabled: true
+      cephImage.repository: registry.example.com/ceph/ceph
+      cephImage.tag: v19.2.3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example.com/ceph/ceph:v19.2.3
+
+  - it: prefers toolbox.image over the cephImage settings
+    set:
+      toolbox.enabled: true
+      cephImage.repository: quay.io/ceph/ceph
+      cephImage.tag: v20.2.2
+      toolbox.image: registry.example.com/rook/ceph:v1.18.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example.com/rook/ceph:v1.18.0
+
+  - it: takes the tag from cephImage when only toolbox.repository is set
+    set:
+      toolbox.enabled: true
+      cephImage.repository: quay.io/ceph/ceph
+      cephImage.tag: v20.2.2
+      toolbox.repository: registry.example.com/rook/ceph
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example.com/rook/ceph:v20.2.2
+
+  - it: takes the repository from cephImage when only toolbox.tag is set
+    set:
+      toolbox.enabled: true
+      cephImage.repository: quay.io/ceph/ceph
+      cephImage.tag: v20.2.2
+      toolbox.tag: v19.2.3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: quay.io/ceph/ceph:v19.2.3
+
+  - it: composes toolbox.repository and toolbox.tag when both are set
+    set:
+      toolbox.enabled: true
+      cephImage.repository: quay.io/ceph/ceph
+      cephImage.tag: v20.2.2
+      toolbox.repository: registry.example.com/rook/ceph
+      toolbox.tag: v1.18.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example.com/rook/ceph:v1.18.0
+
+  - it: prefers toolbox.repository over toolbox.image
+    set:
+      toolbox.enabled: true
+      cephImage.repository: quay.io/ceph/ceph
+      cephImage.tag: v20.2.2
+      toolbox.image: registry.example.com/legacy/ceph:v18.2.0
+      toolbox.repository: registry.example.com/rook/ceph
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example.com/rook/ceph:v20.2.2
+
+  - it: prefers toolbox.tag over toolbox.image
+    set:
+      toolbox.enabled: true
+      cephImage.repository: quay.io/ceph/ceph
+      cephImage.tag: v20.2.2
+      toolbox.image: registry.example.com/legacy/ceph:v18.2.0
+      toolbox.tag: v19.2.3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: quay.io/ceph/ceph:v19.2.3
+
+  - it: leaves hostNetwork unset unless the cluster uses the host network
+    set:
+      toolbox.enabled: true
+    asserts:
+      - notExists:
+          path: spec.template.spec.hostNetwork
+
+  - it: enables hostNetwork for a host network provider
+    set:
+      toolbox.enabled: true
+      cephClusterSpec.network.provider: host
+    asserts:
+      - equal:
+          path: spec.template.spec.hostNetwork
+          value: true
+
+  - it: omits revisionHistoryLimit unless it is set
+    set:
+      toolbox.enabled: true
+    asserts:
+      - notExists:
+          path: spec.revisionHistoryLimit
+
+  - it: applies revisionHistoryLimit when set
+    set:
+      toolbox.enabled: true
+      revisionHistoryLimit: 3
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 3
