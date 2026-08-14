@@ -7,6 +7,9 @@
 # require ipBlock CIDRs that are cluster-specific and fragile, so we only enforce egress on most
 # Ceph daemon pods.
 #################################################################################################################
+# Mons route commands to the MGR and may need host-networked endpoints
+# (K8s API, external monitors) that are impossible to target with selectors.
+# Egress is therefore unrestricted.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -19,26 +22,11 @@ spec:
   policyTypes:
     - Egress
   egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system # namespace:dns
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
-          podSelector:
-            matchLabels:
-              app: rook-ceph-mon
-      ports:
-        - protocol: TCP
-          port: 3300
+    - {}
 ---
+# OSD pods may run init containers (e.g. encryption-open) that need to reach
+# external KMS endpoints (Vault, KMIP, etc.) whose addresses and ports vary per
+# deployment.  Egress is therefore unrestricted.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -51,49 +39,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system # namespace:dns
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
-          podSelector:
-            matchLabels:
-              app: rook-ceph-mon
-      ports:
-        - protocol: TCP
-          port: 3300
-        - protocol: TCP
-          port: 6789
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
-          podSelector:
-            matchLabels:
-              app: rook-ceph-mgr
-      ports:
-        - protocol: TCP
-          port: 6800
-          endPort: 7300
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
-          podSelector:
-            matchLabels:
-              app: rook-ceph-osd
-      ports:
-        - protocol: TCP
-          port: 6800
-          endPort: 7300
+    - {}
 ---
 # The MGR watch-active sidecar needs the K8s API to read configmaps and
 # monitor active-standby state. The API server is host-networked so it
@@ -183,16 +129,7 @@ spec:
     matchLabels:
       app: rook-ceph-exporter
   policyTypes:
-    - Ingress
     - Egress
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring # namespace:monitoring
-      ports:
-        - protocol: TCP
-          port: 9926
   egress:
     - to:
         - namespaceSelector:
@@ -227,7 +164,6 @@ spec:
     matchLabels:
       app: rook-ceph-osd-prepare
   policyTypes:
-    - Ingress
     - Egress
   egress:
     - {}
@@ -242,7 +178,6 @@ spec:
     matchLabels:
       app: rook-ceph-crashcollector
   policyTypes:
-    - Ingress
     - Egress
   egress:
     - to:
@@ -265,6 +200,9 @@ spec:
         - protocol: TCP
           port: 3300
 ---
+# The toolbox is used for admin tasks (radosgw-admin, rbd, ceph CLI) that may
+# need to reach daemons in any namespace (multi-cluster mirroring, multisite
+# RGW) and host-networked services.  Egress is therefore unrestricted.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -275,67 +213,6 @@ spec:
     matchLabels:
       app: rook-ceph-tools
   policyTypes:
-    - Ingress
     - Egress
   egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system # namespace:dns
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
-          podSelector:
-            matchLabels:
-              app: rook-ceph-mon
-      ports:
-        - protocol: TCP
-          port: 3300
-        - protocol: TCP
-          port: 6789
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
-          podSelector:
-            matchLabels:
-              app: rook-ceph-mgr
-      ports:
-        - protocol: TCP
-          port: 6800
-          endPort: 7300
-        - protocol: TCP
-          port: 9283
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
-          podSelector:
-            matchLabels:
-              app: rook-ceph-osd
-      ports:
-        - protocol: TCP
-          port: 6800
-          endPort: 7300
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: rook-ceph # namespace:cluster
-          podSelector:
-            matchLabels:
-              app: rook-ceph-rgw
-      ports:
-        - protocol: TCP
-          port: 80
-        - protocol: TCP
-          port: 443
-        - protocol: TCP
-          port: 8080
-        - protocol: TCP
-          port: 8443
+    - {}
