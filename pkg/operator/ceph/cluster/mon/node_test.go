@@ -185,6 +185,31 @@ func TestHostNetwork(t *testing.T) {
 	assert.Equal(t, "", val)
 	assert.Equal(t, "arg not found: --public-bind-addr", message)
 
+	// A single-stack, msgr2-only host-network mon needs a port-qualified bind address to avoid
+	// binding a legacy v1 address that may still be present in the monmap.
+	monConfig.Port = DefaultMsgr2Port
+	c.spec.Network.Connections = &cephv1.ConnectionsSpec{RequireMsgr2: true}
+	c.spec.Network.IPFamily = cephv1.IPv4
+	pod, err = c.makeMonPod(monConfig, false)
+	assert.NoError(t, err)
+	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-bind-addr")
+	assert.Equal(t, "$(ROOK_POD_IP):3300", val, message)
+
+	c.spec.Network.IPFamily = cephv1.IPv6
+	pod, err = c.makeMonPod(monConfig, false)
+	assert.NoError(t, err)
+	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-bind-addr")
+	assert.Equal(t, "[$(ROOK_POD_IP)]:3300", val, message)
+
+	// Preserve Rook's existing dual-stack safety behavior because one port-qualified address cannot
+	// safely represent both address families.
+	c.spec.Network.DualStack = true
+	pod, err = c.makeMonPod(monConfig, false)
+	assert.NoError(t, err)
+	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-bind-addr")
+	assert.Equal(t, "", val)
+	assert.Equal(t, "arg not found: --public-bind-addr", message)
+
 	// Host network setting of mons should be maintained even if the cluster spec hostnetwork is different
 	// from the mons to not be using host networking
 	monConfig.UseHostNetwork = false
