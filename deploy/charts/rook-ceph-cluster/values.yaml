@@ -56,13 +56,14 @@ toolbox:
   # -- Set the priority class for the toolbox if desired
   priorityClassName:
 
-  # -- Add additional volumes
+  # -- Add additional volumes to the toolbox pod.
+  # Note that this is subject to the SCC defined in ./templates/securityContextConstraints.yaml on OpenShift.
   extraVolumes: []
-  # -- Add additional volume mounts
+  # -- Add additional volume mounts to the toolbox pod
   extraVolumeMounts: []
-  # -- Add additional environment variables
+  # -- Add additional environment variables to the toolbox pod
   extraEnv: []
-  # -- Add additional environment variable sources
+  # -- Add additional environment variable sources to the toolbox pod
   extraEnvFrom: []
 
 monitoring:

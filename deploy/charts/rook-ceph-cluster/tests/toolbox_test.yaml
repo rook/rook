@@ -130,6 +130,25 @@ tests:
           path: spec.revisionHistoryLimit
           value: 3
 
+  - it: adds no extra volumes, volumeMounts, env, or envFrom by default
+    set:
+      toolbox.enabled: true
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[0].env[0]
+      - exists:
+          path: spec.template.spec.volumes[3]
+      - exists:
+          path: spec.template.spec.containers[0].volumeMounts[3]
+      - notExists:
+          path: spec.template.spec.containers[0].env[1]
+      - notExists:
+          path: spec.template.spec.containers[0].envFrom
+      - notExists:
+          path: spec.template.spec.volumes[4]
+      - notExists:
+          path: spec.template.spec.containers[0].volumesMounts[4]
+
   - it: adds an extra volume
     set:
       toolbox.enabled: true
