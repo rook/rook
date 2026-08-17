@@ -38,12 +38,6 @@ import (
 func (m *OSDHealthMonitor) processOSDsDestroyForReplacement() (map[int]struct{}, error) {
 	osdsUnderReplacement := map[int]struct{}{}
 
-	// OSD replacement is host-based only; on a PVC-backed cluster there is nothing to process, so
-	// skip the per-tick listing of all OSD deployments to avoid a needless scan every health tick.
-	if len(m.cluster.spec.Storage.StorageClassDeviceSets) > 0 {
-		return osdsUnderReplacement, nil
-	}
-
 	deployments, err := m.cluster.getOSDDeployments()
 	if err != nil {
 		return osdsUnderReplacement, errors.Wrap(err, "failed to list OSD deployments for replacement processing")

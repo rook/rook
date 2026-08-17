@@ -181,7 +181,7 @@ wipe a disk on the [Cleaning up a Cluster](../ceph-teardown.md#delete-the-data-o
 This procedure replaces a failed disk while the OSD keeps its original ID and its place in the CRUSH map, so Ceph backfills only the data that was on the failed disk rather than rebalancing the whole cluster. The replacement is triggered by an annotation on the OSD deployment.
 
 !!! note
-    This applies to **host-based clusters** only. To replace a disk backing a PVC-based OSD, follow [Remove an OSD](#remove-an-osd) instead and let the operator re-create it.
+    This applies to **host-based OSDs** only. To replace a disk backing a PVC-based OSD, follow [Remove an OSD](#remove-an-osd) instead and let the operator re-create it.
 
 ### How it works
 
