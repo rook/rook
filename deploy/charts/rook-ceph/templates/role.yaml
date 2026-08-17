@@ -60,4 +60,13 @@ rules:
     verbs:
       - get
       - create
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - get
+      - create
+      - update
+      - delete
 {{- end }}

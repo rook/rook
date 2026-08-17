@@ -64,6 +64,15 @@ rules:
       - create
       - update
       - delete
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - get
+      - create
+      - update
+      - delete
 ---
 # The cluster role for managing the Rook CRDs
 # Rook watches for its CRDs in all namespaces, so this should be a cluster-scoped role unless the
@@ -792,6 +801,15 @@ rules:
     verbs:
       - get
       - create
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - get
+      - create
+      - update
+      - delete
 ---
 # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding

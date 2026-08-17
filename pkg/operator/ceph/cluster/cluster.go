@@ -470,6 +470,13 @@ func (c *cluster) replaceDefaultCrushMap(newRoot string) (err error) {
 
 // preMonStartupActions is a collection of actions to run before the monitors are reconciled.
 func (c *cluster) preMonStartupActions(cephVersion cephver.CephVersion) error {
+	// Reconcile network policies for ceph daemon pods. A failure here is non-fatal: the ceph
+	// cluster will still start, but network policies may not be enforced until the next
+	// successful reconciliation.
+	if err := reconcileNetworkPolicies(c.ClusterInfo.Context, c.context, c.Namespace, c.ownerInfo, c.Spec.Network.IsHost()); err != nil {
+		logger.Warningf("failed to reconcile network policies, ceph cluster will continue starting: %v", err)
+	}
+
 	err := initClusterCephxStatus(c)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialized cluster cephx status")
