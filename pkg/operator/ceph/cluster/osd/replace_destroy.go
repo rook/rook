@@ -17,9 +17,6 @@ limitations under the License.
 package osd
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -36,254 +33,85 @@ import (
 //
 // Called from OSD health goroutine. Returns owned OSD ids to ignore from normal OSD health goroutine flow.
 func (m *OSDHealthMonitor) processOSDsDestroyForReplacement() (map[int]struct{}, error) {
-	osdsUnderReplacement := map[int]struct{}{}
-
-	// OSD replacement is host-based only; on a PVC-backed cluster there is nothing to process, so
-	// skip the per-tick listing of all OSD deployments to avoid a needless scan every health tick.
-	if len(m.cluster.spec.Storage.StorageClassDeviceSets) > 0 {
-		return osdsUnderReplacement, nil
-	}
-
-	deployments, err := m.cluster.getOSDDeployments()
-	if err != nil {
-		return osdsUnderReplacement, errors.Wrap(err, "failed to list OSD deployments for replacement processing")
-	}
-
-	// Collect the replacement-marked deployments. Every one (incl. ready-for-swap) goes into the
-	// exclusion set, but only those with work left are processed below: a deployment the controller has
-	// not marked in-progress is not owned by this function, and one already annotated ready-for-swap is done.
-	var toProcess []*appsv1.Deployment
-	for i := range deployments.Items {
-		d := &deployments.Items[i]
-		if d.Annotations[cephv1.ReplaceInProgressOSDAnnotationKey] != "true" {
-			continue
-		}
-
-		osdID, err := GetOSDID(d)
-		if err != nil {
-			log.NamespacedWarning(m.clusterInfo.Namespace, logger,
-				"skipping replacement processing for deployment %q: %v", d.Name, err)
-			continue
-		}
-
-		osdsUnderReplacement[osdID] = struct{}{}
-		if _, readyForSwap := d.Annotations[cephv1.ReadyForSwapOSDAnnotationKey]; readyForSwap {
-			// already processed
-			continue
-		}
-		toProcess = append(toProcess, d)
-	}
-
-	if len(toProcess) == 0 {
-		return osdsUnderReplacement, nil
-	}
-
-	tree, err := cephclient.HostTree(m.context, m.clusterInfo)
-	if err != nil {
-		log.NamespacedWarning(m.clusterInfo.Namespace, logger,
-			"failed to get osd tree for replacement processing; will retry next tick. %v", err)
-		return osdsUnderReplacement, nil
-	}
-	osdDump, err := cephclient.GetOSDDump(m.context, m.clusterInfo)
-	if err != nil {
-		log.NamespacedWarning(m.clusterInfo.Namespace, logger,
-			"failed to get osd dump for replacement processing; will retry next tick. %v", err)
-		return osdsUnderReplacement, nil
-	}
-
-	for _, d := range toProcess {
-		osdID, _ := GetOSDID(d) // already validated above
-		if err := m.processOSDReplacementDestroy(d, osdID, &tree, osdDump); err != nil {
-			log.NamespacedWarning(m.clusterInfo.Namespace, logger,
-				"failed to advance replacement for osd.%d; will retry next tick. %v", osdID, err)
-		}
-	}
-
-	return osdsUnderReplacement, nil
+	return m.destroySweep(replaceFlow{m: m})
 }
 
-// processOSDReplacementDestroy advances one replacement-marked OSD's destroy flow from durable markers on every
-// OSD heath tick
-func (m *OSDHealthMonitor) processOSDReplacementDestroy(d *appsv1.Deployment, osdID int, osdTree *cephclient.OsdTree, osdDump *cephclient.OSDDump) error {
+// replaceFlow is the OSD-replacement flow over the shared destroy machine: drain fully
+// (safe-to-destroy as both stop gate and terminal gate), destroy slot-preservingly, and leave the
+// deployment as the ready-for-swap marker. Design: design/ceph/osd-replacement.md.
+type replaceFlow struct {
+	m *OSDHealthMonitor
+}
+
+func (f replaceFlow) name() string { return "replacement" }
+
+func (f replaceFlow) ownsDeployment(d *appsv1.Deployment) bool {
+	return d.Annotations[cephv1.ReplaceInProgressOSDAnnotationKey] == "true"
+}
+
+// isComplete: a ready-for-swap deployment is done (checked by presence, deliberately not by value).
+func (f replaceFlow) isComplete(d *appsv1.Deployment) bool {
+	_, readyForSwap := d.Annotations[cephv1.ReadyForSwapOSDAnnotationKey]
+	return readyForSwap
+}
+
+// skipSweep: OSD replacement is host-based only; on a PVC-backed cluster there is nothing to
+// process, so skip the per-tick listing of all OSD deployments.
+func (f replaceFlow) skipSweep() bool {
+	return len(f.m.cluster.spec.Storage.StorageClassDeviceSets) > 0
+}
+
+// disengageRequested: the replace annotation was removed. Honored only before the slot is destroyed —
+// once destroyed, the Ceph state cannot be cheaply reversed, so the flow completes instead.
+func (f replaceFlow) disengageRequested(d *appsv1.Deployment, st destroyState) bool {
 	_, isReplaceRequested := d.Annotations[cephv1.ReplaceOSDAnnotationKey]
-	isDestroyed := isOSDDestroyedInTree(osdTree, osdID)
-	isDownscaled := d.Spec.Replicas != nil && *d.Spec.Replicas == 0
-
-	// Cancellation: the replace annotation was removed. Honored only before the slot is destroyed —
-	// once destroyed, the Ceph state cannot be cheaply reversed, so the flow completes instead. Kept
-	// ahead of every query so a cancellation can always mark the OSD back in.
-	if !isReplaceRequested && !isDestroyed {
-		return m.cancelReplaceOSD(d, osdID)
-	}
-
-	// Slot already destroyed: annotate ready-for-swap to signal the user.
-	if isDestroyed {
-		log.NamespacedInfo(m.clusterInfo.Namespace, logger,
-			"osd.%d is destroyed; annotating deployment %q as ready for swap", osdID, d.Name)
-		return m.annotateReadyForSwap(d, osdID)
-	}
-
-	if isDownscaled {
-		gone, err := m.isOSDPodGone(osdID)
-		if err != nil {
-			return err
-		}
-		if !gone {
-			log.NamespacedInfo(m.clusterInfo.Namespace, logger,
-				"osd.%d is scaled down; waiting for the pod to terminate before destroying", osdID)
-			return nil
-		}
-		// Pod is gone, run job to close crypto mappings on host for encrypted OSDs only.
-		isEncrypted, err := m.isReplaceOSDEncrypted(d)
-		if err != nil {
-			return err
-		}
-		if isEncrypted {
-			// run job or check status
-			done, err := m.runCryptCloseJobForOSD(d, osdID)
-			if err != nil {
-				return err
-			}
-			if !done {
-				return nil
-			}
-			// if job done. delete right away and proceed to osd-destroy.
-			if err := m.cluster.deleteCryptCloseJob(osdID); err != nil {
-				return errors.Wrapf(err, "failed to delete crypto-close job for osd.%d", osdID)
-			}
-		}
-		// double check safe-to-destroy before destroy
-		safe, err := cephclient.OsdSafeToDestroy(m.context, m.clusterInfo, osdID)
-		if err != nil {
-			log.NamespacedWarning(m.clusterInfo.Namespace, logger,
-				"failed to check safe-to-destroy for osd.%d; will re-check next tick. %v", osdID, err)
-			return nil
-		}
-		if !safe {
-			log.NamespacedInfo(m.clusterInfo.Namespace, logger,
-				"osd.%d is not yet safe-to-destroy; will re-check next tick", osdID)
-			return nil
-		}
-		// force the mon view to down to dodge a heartbeat-lag EBUSY on destroy (idempotent), then destroy
-		if err := cephclient.OSDDown(m.context, m.clusterInfo, osdID); err != nil {
-			return err
-		}
-		if err := cephclient.OSDDestroy(m.context, m.clusterInfo, osdID); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// OSD deployment is not yet scaled down: drive the drain.
-	isOSDIn := true
-	if _, in, err := osdDump.StatusByID(int64(osdID)); err != nil {
-		// OSD absent from the dump but its slot is not destroyed. Treat it as in: marking out is
-		// idempotent and the next tick re-reads once the dump reflects reality.
-		log.NamespacedWarning(m.clusterInfo.Namespace, logger,
-			"osd.%d not found in osd dump while not destroyed; treating it as in to begin drain. %v", osdID, err)
-	} else {
-		isOSDIn = in == inStatus
-	}
-
-	// Mark the OSD out to begin the drain. A just-out OSD cannot be safe-to-destroy yet, so return
-	// and wait for the drain on the next ticks; never destroy in the same tick it went out.
-	if isOSDIn {
-		log.NamespacedInfo(m.clusterInfo.Namespace, logger, "marking osd.%d out to begin replacement drain", osdID)
-		if err := cephclient.OSDOut(m.context, m.clusterInfo, osdID); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// OSD is out: wait until it has drained and is safe to destroy, then scale the deployment to 0 so
-	// the daemon releases the data/DB LVs. The pod-gone branch above takes over once the pod exits.
-	safe, err := cephclient.OsdSafeToDestroy(m.context, m.clusterInfo, osdID)
-	if err != nil {
-		log.NamespacedWarning(m.clusterInfo.Namespace, logger,
-			"failed to check safe-to-destroy for osd.%d; will re-check next tick. %v", osdID, err)
-		return nil
-	}
-	if !safe {
-		log.NamespacedInfo(m.clusterInfo.Namespace, logger,
-			"osd.%d is draining; not yet safe-to-destroy, will re-check next tick", osdID)
-		return nil
-	}
-
-	return m.scaleDownOSDDeployment(d, osdID)
+	return !isReplaceRequested && !st.destroyed
 }
 
-// isOSDPodGone reports whether the OSD daemon pod has terminated. PodsRunningWithLabel counts pods
-// whose phase is Running; a terminating pod stays Running until its containers exit, so this only
-// reads true once the daemon has actually released the data/DB LVs.
-func (m *OSDHealthMonitor) isOSDPodGone(osdID int) (bool, error) {
-	label := fmt.Sprintf("%s=%d", OsdIdLabelKey, osdID)
-	running, err := k8sutil.PodsRunningWithLabel(m.clusterInfo.Context, m.context.Clientset, m.clusterInfo.Namespace, label)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to check for running pods of osd.%d", osdID)
-	}
-	if running > 0 {
-		log.NamespacedInfo(m.clusterInfo.Namespace, logger,
-			"osd.%d still has %d running pod(s) after scale-down; will re-check next tick", osdID, running)
-		return false, nil
-	}
-	return true, nil
+func (f replaceFlow) disengage(d *appsv1.Deployment, osdID int) error {
+	return f.m.cancelReplaceOSD(d, osdID)
 }
 
-// scaleDownOSDDeployment sets the deployment replicas to 0 (only if not already). It is idempotent
-// across ticks; pod-gone is checked separately by the caller.
-func (m *OSDHealthMonitor) scaleDownOSDDeployment(d *appsv1.Deployment, osdID int) error {
-	if d.Spec.Replicas != nil && *d.Spec.Replicas == 0 {
-		return nil
-	}
-	log.NamespacedInfo(m.clusterInfo.Namespace, logger, "scaling osd.%d deployment %q to replicas=0", osdID, d.Name)
-	d.Spec.Replicas = new(int32(0))
-	updated, err := m.cluster.context.Clientset.AppsV1().Deployments(m.clusterInfo.Namespace).Update(m.clusterInfo.Context, d, metav1.UpdateOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "failed to scale osd.%d deployment %q to zero", osdID, d.Name)
-	}
-	// Keep the caller's copy in sync so a later update in the same flow does not clobber the
-	// replicas change with a stale object.
-	*d = *updated
-	return nil
+func (f replaceFlow) terminalReached(st destroyState) bool { return st.destroyed }
+
+func (f replaceFlow) finalize(d *appsv1.Deployment, osdID int) error {
+	log.NamespacedInfo(f.m.clusterInfo.Namespace, logger,
+		"osd.%d is destroyed; annotating deployment %q as ready for swap", osdID, d.Name)
+	return f.m.annotateReadyForSwap(d, osdID)
 }
 
-// runCryptCloseJobForOSD ensures the per-OSD crypto-close Job exists and reports whether it has
-// succeeded. It (re)creates the Job when none exists or a previous one failed, and polls otherwise.
-// Idempotent across ticks.
-func (m *OSDHealthMonitor) runCryptCloseJobForOSD(d *appsv1.Deployment, osdID int) (bool, error) {
-	status, err := m.cluster.cryptCloseJobStatusForOSD(osdID)
-	if err != nil {
-		return false, err
+// startDrain marks the OSD out. A just-out OSD cannot be safe-to-destroy yet, so acting ends the
+// tick; never destroy in the same tick it went out.
+func (f replaceFlow) startDrain(d *appsv1.Deployment, osdID int, st destroyState) (bool, error) {
+	if !st.in {
+		return false, nil
 	}
+	log.NamespacedInfo(f.m.clusterInfo.Namespace, logger, "marking osd.%d out to begin replacement drain", osdID)
+	return true, cephclient.OSDOut(f.m.context, f.m.clusterInfo, osdID)
+}
 
-	switch status {
-	case cryptCloseJobSucceeded:
-		return true, nil
-	case cryptCloseJobRunning:
-		log.NamespacedInfo(m.clusterInfo.Namespace, logger, "crypto-close job for osd.%d is still running", osdID)
-		return false, nil
-	default:
-		// NotFound or Failed: (re)create the Job, pinned to the OSD's node.
-		nodeName, err := m.replaceOSDNodeName(d, osdID)
-		if err != nil {
-			return false, err
-		}
-		// A previously-Failed Job means a genuinely stuck dm-crypt close (it already exhausted its
-		// in-container BackoffLimit / ActiveDeadlineSeconds). The design has no timeout — the user
-		// cancels by removing the annotation — so we keep recreating, but at Warning level so a wedged
-		// replacement is visible rather than silently looping every tick.
-		if status == cryptCloseJobFailed {
-			log.NamespacedWarning(m.clusterInfo.Namespace, logger,
-				"crypto-close job for osd.%d previously failed; recreating it on node %q", osdID, nodeName)
-		} else {
-			log.NamespacedInfo(m.clusterInfo.Namespace, logger,
-				"creating crypto-close job for osd.%d on node %q", osdID, nodeName)
-		}
-		if err := m.cluster.startCryptCloseJob(osdID, nodeName); err != nil {
-			return false, err
-		}
-		return false, nil
+func (f replaceFlow) stopGate(osdID int) (bool, error) {
+	return cephclient.OsdSafeToDestroy(f.m.context, f.m.clusterInfo, osdID)
+}
+
+func (f replaceFlow) terminalGate(osdID int) (bool, error) {
+	return cephclient.OsdSafeToDestroy(f.m.context, f.m.clusterInfo, osdID)
+}
+
+// terminal forces the mon view to down to dodge a heartbeat-lag EBUSY on destroy (idempotent), then
+// destroys the slot. The deployment stays as the ready-for-swap marker; finalize annotates it on a
+// later tick once the tree reports the slot destroyed.
+func (f replaceFlow) terminal(d *appsv1.Deployment, osdID int) error {
+	if err := cephclient.OSDDown(f.m.context, f.m.clusterInfo, osdID); err != nil {
+		return err
 	}
+	return cephclient.OSDDestroy(f.m.context, f.m.clusterInfo, osdID)
+}
+
+// processOSDReplacementDestroy advances one replacement-marked OSD's destroy flow from durable
+// markers on every OSD health tick.
+func (m *OSDHealthMonitor) processOSDReplacementDestroy(d *appsv1.Deployment, osdID int, osdTree *cephclient.OsdTree, osdDump *cephclient.OSDDump) error {
+	return m.advanceDestroy(replaceFlow{m: m}, d, osdID, osdTree, osdDump)
 }
 
 // annotateReadyForSwap adds the ready-for-swap annotation to the deployment and persists it. It is
@@ -339,40 +167,4 @@ func (m *OSDHealthMonitor) cancelReplaceOSD(d *appsv1.Deployment, osdID int) err
 		return errors.Wrapf(err, "failed to clear the replacement markers on osd.%d deployment %q", osdID, d.Name)
 	}
 	return nil
-}
-
-// isReplaceOSDEncrypted reports whether the OSD deployment is encrypted, using the same detection
-// as getOSDInfo: the "encrypted" label, or a dmcrypt block path. The label is checked first so the
-// common case needs no OSD-info parse.
-func (m *OSDHealthMonitor) isReplaceOSDEncrypted(d *appsv1.Deployment) (bool, error) {
-	if d.Labels[encrypted] == "true" {
-		return true, nil
-	}
-	osdInfo, err := m.cluster.getOSDInfo(d)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to read OSD info from deployment %q to determine encryption", d.Name)
-	}
-	return osdInfo.Encrypted, nil
-}
-
-// replaceOSDNodeName resolves the node the OSD runs on, so the crypto-close Job can be pinned to it.
-func (m *OSDHealthMonitor) replaceOSDNodeName(d *appsv1.Deployment, osdID int) (string, error) {
-	osdInfo, err := m.cluster.getOSDInfo(d)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to read OSD info from deployment %q to resolve its node", d.Name)
-	}
-	if strings.TrimSpace(osdInfo.NodeName) == "" {
-		return "", errors.Errorf("could not resolve the node name for osd.%d from deployment %q", osdID, d.Name)
-	}
-	return osdInfo.NodeName, nil
-}
-
-// isOSDDestroyedInTree reports whether the given OSD's slot is marked "destroyed" in the osd tree.
-func isOSDDestroyedInTree(osdTree *cephclient.OsdTree, osdID int) bool {
-	for _, node := range osdTree.Nodes {
-		if node.Type == "osd" && node.ID == osdID {
-			return node.Status == "destroyed"
-		}
-	}
-	return false
 }
