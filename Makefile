@@ -235,8 +235,10 @@ lint.helm: $(HELM) $(KUSTOMIZE) ## Check the helm charts
 test.helm: $(HELM_UNITTEST) ## Run the helm chart unit tests
 	$(HELM_UNITTEST) --strict $(addprefix $(HELM_CHARTS_DIR)/,$(HELM_CHARTS))
 
+.PHONY: lint.fast
+lint.fast: lint.yaml lint.markdown lint.shell lint.make lint.markdown lint.workflows lint.commits ## run some (fast) linters
 .PHONY: lint.quick
-lint.quick: lint.yaml lint.shell lint.make lint.go lint.helm lint.markdown ## run some (faster) linters
+lint.quick: lint.fast lint.helm ## run some (faster) linters
 .PHONY: lint
 lint: lint.quick lint.python ## Run various linters
 
