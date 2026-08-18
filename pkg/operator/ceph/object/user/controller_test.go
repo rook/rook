@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -985,4 +986,106 @@ func TestIsUserSync(t *testing.T) {
 
 		assert.False(t, isUserSync(&a, &b))
 	})
+}
+
+func TestUpdateKeyStatusDoesNotLogSecretData(t *testing.T) {
+	// corev1.Secret carries a generated String() method that prints its whole Data
+	// map, and fmt calls it at any nesting depth, so formatting a collection of
+	// Secrets writes every referenced credential to the log.
+	logBuf := bytes.NewBuffer([]byte{})
+	capnslog.SetFormatter(capnslog.NewLogFormatter(logBuf, "", 0))
+	// restore the sink so later tests in this package still log to stderr
+	t.Cleanup(func() { capnslog.SetFormatter(capnslog.NewDefaultFormatter(os.Stderr)) })
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+
+	objectUser := &cephv1.CephObjectStoreUser{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		TypeMeta:   metav1.TypeMeta{Kind: "CephObjectStoreUser"},
+	}
+
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreUser{})
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objectUser).Build()
+	r := &ReconcileObjectStoreUser{client: cl, scheme: s, opManagerContext: context.TODO()}
+
+	//nolint:gosec // only a test value, not a real secret
+	const secretValue = "EXAMPLESECRETKEYVALUE00000000000000000001"
+	referencedSecrets := map[types.UID]*corev1.Secret{
+		"uid-1": {
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "my-user-keys",
+				Namespace:       namespace,
+				UID:             "uid-1",
+				ResourceVersion: "1",
+			},
+			Data: map[string][]byte{"SecretKey": []byte(secretValue)},
+		},
+	}
+
+	r.updateKeyStatus(types.NamespacedName{Name: name, Namespace: namespace}, &referencedSecrets)
+
+	logOutput := logBuf.String()
+	// Secret.Data is map[string][]byte, which the generated String() renders as
+	// decimal byte values rather than text, so check for that form too
+	assert.NotContains(t, logOutput, secretValue)
+	assert.NotContains(t, logOutput, fmt.Sprintf("%v", []byte(secretValue)))
+	// the secret reference is what the line exists to report, and is still logged
+	assert.Contains(t, logOutput, "my-user-keys")
+}
+
+func TestCreateOrUpdateCephUserDoesNotLogKeySecret(t *testing.T) {
+	// admin.UserKeySpec has plain exported AccessKey and SecretKey fields and no
+	// String() method, so formatting a slice of them prints both halves.
+	logBuf := bytes.NewBuffer([]byte{})
+	capnslog.SetFormatter(capnslog.NewLogFormatter(logBuf, "", 0))
+	// restore the sink so later tests in this package still log to stderr
+	t.Cleanup(func() { capnslog.SetFormatter(capnslog.NewDefaultFormatter(os.Stderr)) })
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+
+	objectUser := &cephv1.CephObjectStoreUser{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec:       cephv1.ObjectStoreUserSpec{Store: store},
+		TypeMeta:   metav1.TypeMeta{Kind: "CephObjectStoreUser"},
+	}
+
+	// A live RGW user the API returned with one key, so createOrUpdateCephUser
+	// falls back to the live user's keys and formats them.
+	//nolint:gosec // only test values, not a real secret
+	const liveSecretKey = "EXAMPLELIVESECRETKEY0000000000000000000001"
+	userWithKeysJSON := `{
+	"user_id": "my-user",
+	"display_name": "my-user",
+	"max_buckets": 1000,
+	"keys": [{"user": "my-user", "access_key": "EXAMPLELIVEACCESSKEY01", "secret_key": "` + liveSecretKey + `"}],
+	"swift_keys": [],
+	"caps": [],
+	"op_mask": "read, write, delete",
+	"bucket_quota": {"enabled": false, "max_size": -1, "max_objects": -1},
+	"user_quota": {"enabled": false, "max_size": -1, "max_objects": -1},
+	"type": "rgw"
+}`
+
+	mockClient := &cephobject.MockClient{
+		MockDo: func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader([]byte(userWithKeysJSON))),
+			}, nil
+		},
+	}
+	adminClient, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient)
+	assert.NoError(t, err)
+	r := &ReconcileObjectStoreUser{
+		objContext:       &cephobject.AdminOpsContext{AdminOpsClient: adminClient},
+		opManagerContext: context.TODO(),
+	}
+
+	userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
+	require.NoError(t, err)
+	require.NoError(t, r.createOrUpdateCephUser(objectUser, userConfig))
+
+	logOutput := logBuf.String()
+	assert.NotContains(t, logOutput, liveSecretKey)
+	// the reconcile is still traceable by user name
+	assert.Contains(t, logOutput, "my-user")
 }

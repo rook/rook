@@ -511,7 +511,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		}
 
 		targetUser.Keys = []admin.UserKeySpec{liveUser.Keys[0]}
-		log.NamedDebug(nsName, logger, "reducing user %q keypairs to %v", u.Name, targetUser.Keys)
+		log.NamedDebug(nsName, logger, "reducing user %q from %d keypairs to 1", u.Name, len(liveUser.Keys))
 	}
 
 	if err := r.reconcileUserKeys(nsName, targetUser.Keys); err != nil {
@@ -895,8 +895,6 @@ func (r *ReconcileObjectStoreUser) updateKeyStatus(name types.NamespacedName, re
 		user.Status = &cephv1.ObjectStoreUserStatus{}
 	}
 
-	log.NamedDebug(name, logger, "updating CephObjectStoreUser .status.keys to %+v.", referencedSecrets)
-
 	keyStatus := []cephv1.SecretReference{}
 
 	for _, secret := range *referencedSecrets {
@@ -915,6 +913,10 @@ func (r *ReconcileObjectStoreUser) updateKeyStatus(name types.NamespacedName, re
 	sort.Slice(keyStatus, func(i, j int) bool {
 		return keyStatus[i].Name < keyStatus[j].Name
 	})
+
+	// log the secret references rather than the secrets themselves: corev1.Secret
+	// carries a generated String() that prints its whole Data map
+	log.NamedDebug(name, logger, "updating CephObjectStoreUser .status.keys to %+v", keyStatus)
 
 	user.Status.Keys = keyStatus
 
@@ -964,7 +966,7 @@ func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName
 	syncdKeys := make([]admin.UserKeySpec, len(targetKeys))
 
 	// remove any keys configured for the user that aren't present in targetKeys
-	for _, existingKey := range userInfo.Keys {
+	for i, existingKey := range userInfo.Keys {
 		targetKey, found := targetMap[existingKey.AccessKey]
 		if !found {
 			// RemoveKey() requires the UID to be set but GetUser() returns the list of keys with only .User set
@@ -972,9 +974,9 @@ func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName
 			rmKey.UID = userID
 
 			if err := client.RemoveKey(ctx, rmKey); err != nil {
-				return errors.Wrapf(err, "failed to remove key %q from user %q", existingKey.AccessKey, userID)
+				return errors.Wrapf(err, "failed to remove key %d from user %q", i, userID)
 			}
-			log.NamedDebug(nsName, logger, "removed key %q from user %q as it is not in the target list", existingKey.AccessKey, userID)
+			log.NamedDebug(nsName, logger, "removed key %d from user %q as it is not in the target list", i, userID)
 			continue
 		}
 		if existingKey.SecretKey != targetKey.SecretKey {
@@ -984,9 +986,9 @@ func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName
 			rmKey.UID = userID
 
 			if err := client.RemoveKey(ctx, rmKey); err != nil {
-				return errors.Wrapf(err, "failed to remove key %q from user %q", existingKey.AccessKey, userID)
+				return errors.Wrapf(err, "failed to remove key %d from user %q", i, userID)
 			}
-			log.NamedDebug(nsName, logger, "removed key %q from user %q needs as it needs to be recreated", existingKey.AccessKey, userID)
+			log.NamedDebug(nsName, logger, "removed key %d from user %q as it needs to be recreated", i, userID)
 			continue
 		}
 		// else key exists and is correct, no action needed
@@ -1002,9 +1004,9 @@ func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName
 	// create each desired key
 	for _, k := range targetMap {
 		if _, err := client.CreateKey(ctx, k); err != nil {
-			return errors.Wrapf(err, "failed to create key %q for user %q", k.AccessKey, userID)
+			return errors.Wrapf(err, "failed to create a key for user %q", userID)
 		}
-		log.NamedDebug(nsName, logger, "created key %q for user %q", k.AccessKey, userID)
+		log.NamedDebug(nsName, logger, "created a key for user %q", userID)
 	}
 
 	return nil
