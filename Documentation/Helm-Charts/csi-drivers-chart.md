@@ -24,7 +24,7 @@ Ceph-CSI publishes the drivers chart from the `ceph-csi-operator` Helm repositor
 ```console
 helm repo add ceph-csi-operator https://ceph.github.io/ceph-csi-operator
 helm install ceph-csi-drivers --namespace rook-ceph ceph-csi-operator/ceph-csi-drivers \
-  -f https://raw.githubusercontent.com/rook/rook/v1.20.4/deploy/charts/ceph-csi-drivers/values.yaml
+  -f https://raw.githubusercontent.com/rook/rook/v1.20.5/deploy/charts/ceph-csi-drivers/values.yaml
 ```
 
 ## Custom settings
