@@ -33,6 +33,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -1187,6 +1188,16 @@ func (c *Cluster) updateCephOsdStorageStatus() error {
 		cephCluster.Status.CephStorage = &cephClusterStorage
 
 		if cephx != nil {
+			// Attempt to determine the authoritative key type of the OSDs.
+			// If this fails, leave the key type as it would have been.
+			osdKeyType, err := keyring.DetermineCephxKeyTypesForEntityType(c.context, c.clusterInfo, cephclient.AuthDumpKeysEntityTypeOsd, "")
+			if err == nil && len(osdKeyType) == 1 {
+				log.NamespacedDebug(c.clusterInfo.Namespace, logger, "determined authoritative cephx key type for OSDs is %q", osdKeyType[0])
+				cephx.KeyType = cephv1.CephxKeyType(osdKeyType[0])
+			} else {
+				log.NamespacedInfo(c.clusterInfo.Namespace, logger, "failed to determine authoritative cephx key type for OSDs having key types [%v]: %v", osdKeyType, err)
+			}
+
 			cephCluster.Status.Cephx.OSD = *cephx
 		}
 

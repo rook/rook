@@ -57,6 +57,8 @@ func TestCreateCrashCollectorKeyring(t *testing.T) {
 		CephVersion: cephver.Squid,
 	}
 
+	keyring.SetAllowCephxKeyRotationForCluster(clusterInfo.Namespace, true)
+
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 
@@ -148,6 +150,8 @@ func TestCreateCephExporterKeyring(t *testing.T) {
 		Namespace:   "rook-ceph",
 		CephVersion: cephver.Squid,
 	}
+
+	keyring.SetAllowCephxKeyRotationForCluster(clusterInfo.Namespace, true)
 
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)

@@ -675,6 +675,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                   type: object
                 conditions:
@@ -1434,7 +1441,7 @@ spec:
                             this new value (generation values are not necessarily incremental, though that is the
                             intended use case). If this is set to less than or equal to the current key generation, keys
                             are not rotated.
-                          format: int32
+                          format: int64
                           maximum: 4294967295
                           minimum: 0
                           type: integer
@@ -1450,7 +1457,24 @@ spec:
                             - Disabled
                             - KeyGeneration
                           type: string
+                        keyType:
+                          description: |-
+                            KeyType specifies the desired CephX key cipher type.
+                            If unspecified, Ceph's default will be used.
+                            If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+                            initiate key rotation.
+                            If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+                            initiate key rotation.
+                          enum:
+                            - aes
+                            - aes256k
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
+                      x-kubernetes-validations:
+                        - message: keyGeneration cannot be removed once set
+                          rule: '!has(oldSelf.keyGeneration) || has(self.keyGeneration)'
                   type: object
               required:
                 - caps
@@ -1478,6 +1502,13 @@ spec:
                         Generation `0` indicates that keys existed prior to the implementation of key tracking.
                       format: int32
                       type: integer
+                    keyType:
+                      description: |-
+                        KeyType identifies the CephX key type for the current generation's keys, if known.
+                        If unknown, the value will be empty.
+                      maxLength: 7
+                      minLength: 3
+                      type: string
                   type: object
                 info:
                   additionalProperties:
@@ -3855,6 +3886,27 @@ spec:
                     cephx:
                       description: 'CephX configures CephX key settings. More: https://docs.ceph.com/en/latest/dev/cephx/'
                       properties:
+                        allowedCiphers:
+                          description: |-
+                            AllowedCiphers is an advanced configuration that can disrupt cluster availability!
+                            Review Rook documentation carefully before setting this in a production cluster!
+
+                            AllowedCiphers sets the Ceph config `auth_allowed_ciphers` to the list given.
+                            If the list is empty, Rook will enable support for all ciphers.
+                          items:
+                            description: |-
+                              A CephX key type represents a cipher type for CephX keys.
+                              Supported values: aes, aes256k.
+                            enum:
+                              - aes
+                              - aes256k
+                            maxLength: 7
+                            minLength: 3
+                            type: string
+                          maxItems: 2
+                          minItems: 1
+                          type: array
+                          x-kubernetes-list-type: set
                         csi:
                           description: |-
                             CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
@@ -3880,7 +3932,7 @@ spec:
                                 this new value (generation values are not necessarily incremental, though that is the
                                 intended use case). If this is set to less than or equal to the current key generation, keys
                                 are not rotated.
-                              format: int32
+                              format: int64
                               maximum: 4294967295
                               minimum: 0
                               type: integer
@@ -3896,7 +3948,24 @@ spec:
                                 - Disabled
                                 - KeyGeneration
                               type: string
+                            keyType:
+                              description: |-
+                                KeyType specifies the desired CephX key cipher type.
+                                If unspecified, Ceph's default will be used.
+                                If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+                                initiate key rotation.
+                                If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+                                initiate key rotation.
+                              enum:
+                                - aes
+                                - aes256k
+                              maxLength: 7
+                              minLength: 3
+                              type: string
                           type: object
+                          x-kubernetes-validations:
+                            - message: keyGeneration cannot be removed once set
+                              rule: '!has(oldSelf.keyGeneration) || has(self.keyGeneration)'
                         daemon:
                           description: |-
                             Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
@@ -3910,7 +3979,7 @@ spec:
                                 this new value (generation values are not necessarily incremental, though that is the
                                 intended use case). If this is set to less than or equal to the current key generation, keys
                                 are not rotated.
-                              format: int32
+                              format: int64
                               maximum: 4294967295
                               minimum: 0
                               type: integer
@@ -3926,7 +3995,24 @@ spec:
                                 - Disabled
                                 - KeyGeneration
                               type: string
+                            keyType:
+                              description: |-
+                                KeyType specifies the desired CephX key cipher type.
+                                If unspecified, Ceph's default will be used.
+                                If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+                                initiate key rotation.
+                                If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+                                initiate key rotation.
+                              enum:
+                                - aes
+                                - aes256k
+                              maxLength: 7
+                              minLength: 3
+                              type: string
                           type: object
+                          x-kubernetes-validations:
+                            - message: keyGeneration cannot be removed once set
+                              rule: '!has(oldSelf.keyGeneration) || has(self.keyGeneration)'
                         rbdMirrorPeer:
                           description: |-
                             RBDMirrorPeer configures CephX key settings of the `rbd-mirror-peer` user that is used for creating
@@ -3942,7 +4028,7 @@ spec:
                                 this new value (generation values are not necessarily incremental, though that is the
                                 intended use case). If this is set to less than or equal to the current key generation, keys
                                 are not rotated.
-                              format: int32
+                              format: int64
                               maximum: 4294967295
                               minimum: 0
                               type: integer
@@ -3958,7 +4044,24 @@ spec:
                                 - Disabled
                                 - KeyGeneration
                               type: string
+                            keyType:
+                              description: |-
+                                KeyType specifies the desired CephX key cipher type.
+                                If unspecified, Ceph's default will be used.
+                                If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+                                initiate key rotation.
+                                If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+                                initiate key rotation.
+                              enum:
+                                - aes
+                                - aes256k
+                              maxLength: 7
+                              minLength: 3
+                              type: string
                           type: object
+                          x-kubernetes-validations:
+                            - message: keyGeneration cannot be removed once set
+                              rule: '!has(oldSelf.keyGeneration) || has(self.keyGeneration)'
                       type: object
                     keyRotation:
                       description: KeyRotation defines options for rotation of OSD disk encryption keys.
@@ -6128,6 +6231,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                     cephExporter:
                       description: Ceph Exporter represents the cephx key rotation status of the ceph exporter daemon
@@ -6150,6 +6260,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                     crashCollector:
                       description: Crash Collector represents the cephx key rotation status of the crash collector daemon
@@ -6172,6 +6289,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                     csi:
                       description: CSI shows the CephX key status for Ceph-CSI components.
@@ -6194,6 +6318,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                         priorKeyCount:
                           description: PriorKeyCount reports the number of prior-generation CephX keys that remain active for the related component
                           type: integer
@@ -6219,6 +6350,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                     mon:
                       description: Mon represents the CephX key status of the Monitor daemons
@@ -6241,6 +6379,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                     osd:
                       description: OSD shows the CephX key status of OSDs
@@ -6263,6 +6408,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                     rbdMirrorPeer:
                       description: RBDMirrorPeer represents the cephx key rotation status of the `rbd-mirror-peer` user
@@ -6285,6 +6437,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                   type: object
                 conditions:
@@ -7667,6 +7826,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                   type: object
                 conditions:
@@ -9237,6 +9403,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                   type: object
                 conditions:
@@ -11680,6 +11853,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                   type: object
                 conditions:
@@ -12592,6 +12772,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                   type: object
                 conditions:
@@ -15160,6 +15347,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                   type: object
                 conditions:
@@ -17045,6 +17239,13 @@ spec:
                             Generation `0` indicates that keys existed prior to the implementation of key tracking.
                           format: int32
                           type: integer
+                        keyType:
+                          description: |-
+                            KeyType identifies the CephX key type for the current generation's keys, if known.
+                            If unknown, the value will be empty.
+                          maxLength: 7
+                          minLength: 3
+                          type: string
                       type: object
                   type: object
                 conditions:

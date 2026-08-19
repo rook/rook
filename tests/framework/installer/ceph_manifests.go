@@ -247,6 +247,17 @@ spec:
 `
 	}
 
+	if m.settings.RookVersion != Version1_19 {
+		// to support upgrading from old version, ensure this isn't added when using old rook
+		clusterSpec += `
+  security:
+    cephx:
+      csi:
+        # keep the old aes key type when the host kernel does not yet support aes256k
+        keyType: aes
+`
+	}
+
 	if m.settings.ConnectionsEncrypted {
 		clusterSpec += `
   csi:
@@ -254,6 +265,7 @@ spec:
       kernelMountOptions: ms_mode=secure
   `
 	}
+
 	return clusterSpec + `
   priorityClassNames:
     mon: system-node-critical

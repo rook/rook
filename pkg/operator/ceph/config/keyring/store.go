@@ -24,6 +24,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -64,10 +65,13 @@ func keyringSecretName(resourceName string) string {
 // GenerateKey generates a key for a Ceph user with the given access permissions. It returns the key
 // generated on success. Ceph will always return the most up-to-date key for a daemon, and the key
 // usually does not change.
-func (k *SecretStore) GenerateKey(user string, access []string) (string, error) {
+// Note: If the key type passed to this function changes after initial generation, the key will not
+// be rotated. This ensures that Rook manages key rotation explicitly.
+func (k *SecretStore) GenerateKey(user string, keyType cephv1.CephxKeyType, access []string) (string, error) {
 	// get-or-create-key for the user account
-	key, err := client.AuthGetOrCreateKey(k.context, k.clusterInfo, user, access)
+	key, err := client.AuthGetOrCreateKey(k.context, k.clusterInfo, user, string(keyType), access)
 	if err != nil {
+		// This also handles failures due to key type changing after key generation.
 		logger.Infof("Error getting or creating key for %q. "+
 			"Attempting to update capabilities in case the user already exists. %v", user, err)
 		uErr := client.AuthUpdateCaps(k.context, k.clusterInfo, user, access)
@@ -83,8 +87,8 @@ func (k *SecretStore) GenerateKey(user string, access []string) (string, error) 
 }
 
 // RotateKey rotates a key for a Ceph user without modifying permissions. It returns the new key on success.
-func (k *SecretStore) RotateKey(user string) (string, error) {
-	key, err := client.AuthRotate(k.context, k.clusterInfo, user)
+func (k *SecretStore) RotateKey(user string, keyType cephv1.CephxKeyType) (string, error) {
+	key, err := client.AuthRotate(k.context, k.clusterInfo, user, string(keyType))
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to rotate key for %q", user)
 	}

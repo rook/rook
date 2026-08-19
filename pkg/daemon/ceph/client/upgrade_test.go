@@ -368,7 +368,7 @@ func TestLeastUptodateDaemonVersion(t *testing.T) {
     "ceph version 20.3.0-660-ababababa (abababababababababababababababababababab) tentacle (dev - Debug)": 1
   },
   "mgr": {
-    "ceph version 20.3.0-661-g68f47b56 (68f47b56a9717515844599c880de2b56a7135786) tentacle (dev - Debug)": 1
+    "malformed output": 1
   },
   "osd": {
     "ceph version 20.3.0-661-g68f47b56 (68f47b56a9717515844599c880de2b56a7135786) tentacle (dev - Debug)": 4
@@ -395,4 +395,16 @@ func TestLeastUptodateDaemonVersion(t *testing.T) {
 		}
 	}
 	assert.Equal(t, iterations, passed)
+
+	got, err := LeastUptodateDaemonVersion(clusterCtx, &clusterInfo, "mds")
+	assert.NoError(t, err)
+	assert.Zero(t, got)
+
+	got, err = LeastUptodateDaemonVersion(clusterCtx, &clusterInfo, "osd")
+	assert.NoError(t, err)
+	assert.Equal(t, cephver.CephVersion{Major: 20, Minor: 3, Extra: 0, Build: 661, CommitID: "68f47b56a9717515844599c880de2b56a7135786"}, got)
+
+	got, err = LeastUptodateDaemonVersion(clusterCtx, &clusterInfo, "mgr")
+	assert.Error(t, err)
+	assert.Equal(t, cephver.CephVersion{}, got)
 }

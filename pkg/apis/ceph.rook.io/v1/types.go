@@ -341,18 +341,33 @@ type ClusterSecuritySpec struct {
 }
 
 type ClusterCephxConfig struct {
+	// AllowedCiphers is an advanced configuration that can disrupt cluster availability!
+	// Review Rook documentation carefully before setting this in a production cluster!
+	//
+	// AllowedCiphers sets the Ceph config `auth_allowed_ciphers` to the list given.
+	// If the list is empty, Rook will enable support for all ciphers.
+	// +optional
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=2
+	// +kubebuilder:validation:items:Enum=aes;aes256k
+	AllowedCiphers []CephxKeyType `json:"allowedCiphers,omitempty"`
+
 	// Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
 	// Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
+	// +optional
 	Daemon CephxConfig `json:"daemon,omitempty"`
 
 	// RBDMirrorPeer configures CephX key settings of the `rbd-mirror-peer` user that is used for creating
 	// bootstrap peer token used connect peer clusters. Rotating the `rbd-mirror-peer` user key will update
 	// the mirror peer token.
 	// Rotation will affect any existing peers connected to this cluster, so take care when exercising this option.
+	// +optional
 	RBDMirrorPeer CephxConfig `json:"rbdMirrorPeer,omitempty"`
 
 	// CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
 	// CSI key rotation can affect existing PV connections, so take care when exercising this option.
+	// +optional
 	CSI CephXConfigWithPriorCount `json:"csi,omitempty"`
 }
 
@@ -372,6 +387,7 @@ type CephXConfigWithPriorCount struct {
 	KeepPriorKeyCountMax uint8 `json:"keepPriorKeyCountMax,omitempty"`
 }
 
+// +kubebuilder:validation:XValidation:message="keyGeneration cannot be removed once set",rule="!has(oldSelf.keyGeneration) || has(self.keyGeneration)"
 type CephxConfig struct {
 	// KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
 	// One of Disabled, or KeyGeneration. Default Disabled.
@@ -389,14 +405,37 @@ type CephxConfig struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=4294967295
 	// +kubebuilder:validation:XValidation:message="keyGeneration cannot be decreased",rule="self >= oldSelf"
+	// +kubebuilder:validation:Format=int64
 	KeyGeneration uint32 `json:"keyGeneration,omitempty"`
+
+	// KeyType specifies the desired CephX key cipher type.
+	// If unspecified, Ceph's default will be used.
+	// If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+	// initiate key rotation.
+	// If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+	// initiate key rotation.
+	// +optional
+	// +kubebuilder:validation:Enum=aes;aes256k
+	KeyType CephxKeyType `json:"keyType,omitempty"`
 }
 
+// A CephX key rotation policy controls if and when CephX keys are rotated after initial creation.
+// Supported values: Disabled, KeyGeneration. Default: Disabled.
 type CephxKeyRotationPolicy string
+
+// A CephX key type represents a cipher type for CephX keys.
+// Supported values: aes, aes256k.
+// +kubebuilder:validation:MinLength=3
+// +kubebuilder:validation:MaxLength=7
+type CephxKeyType string
 
 const (
 	DisabledCephxKeyRotationPolicy      CephxKeyRotationPolicy = "Disabled"
 	KeyGenerationCephxKeyRotationPolicy CephxKeyRotationPolicy = "KeyGeneration"
+
+	CephxKeyTypeUndefined CephxKeyType = ""
+	CephxKeyTypeAes       CephxKeyType = "aes"
+	CephxKeyTypeAes256k   CephxKeyType = "aes256k"
 )
 
 // ObjectStoreSecuritySpec is spec to define security features like encryption
@@ -813,6 +852,11 @@ type CephxStatus struct {
 	// The special value "Uninitialized" indicates that keys are being created for the first time.
 	// An empty string indicates that the version is unknown, as expected in brownfield deployments.
 	KeyCephVersion string `json:"keyCephVersion,omitempty"`
+
+	// KeyType identifies the CephX key type for the current generation's keys, if known.
+	// If unknown, the value will be empty.
+	// +optional
+	KeyType CephxKeyType `json:"keyType,omitempty"`
 }
 
 type CephxStatusWithKeyCount struct {

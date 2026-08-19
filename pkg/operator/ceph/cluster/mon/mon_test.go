@@ -1248,6 +1248,8 @@ func TestRotateMonCephxKeys(t *testing.T) {
 	assert.NoError(t, err)
 	c := newCluster(context, namespace, true, v1.ResourceRequirements{})
 
+	keyring.SetAllowCephxKeyRotationForCluster(namespace, true)
+
 	uninitializedStatus := keyring.UninitializedCephxStatus()
 	cluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1289,7 +1291,7 @@ func TestRotateMonCephxKeys(t *testing.T) {
 	}
 	c.context = &clusterd.Context{Clientset: test.New(t, 5), Executor: executor, Client: cl}
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
-	c.ClusterInfo.CephVersion = keyring.CephAuthMonRotateSupportedVersion
+	c.ClusterInfo.CephVersion = cephver.CephVersion{Major: 20, Minor: 3, Extra: 999}
 
 	// create rook-ceph-mon secret
 	secret := &v1.Secret{
@@ -1329,7 +1331,7 @@ func TestRotateMonCephxKeys(t *testing.T) {
 	cluster.Status.Cephx.Mon.KeyCephVersion = "19.2.3-0"
 	err = c.context.Client.Update(ctx, cluster)
 	assert.NoError(t, err)
-	c.ClusterInfo.CephVersion = keyring.CephAuthRotateSupportedVersion // but not CephAuthMonRotateSupportedVersion
+	c.ClusterInfo.CephVersion = keyring.CephAuthRotateSupportedVersion
 	shouldRotate, err = c.RotateMonCephxKeys(cluster)
 	assert.NoError(t, err)
 	assert.False(t, shouldRotate)

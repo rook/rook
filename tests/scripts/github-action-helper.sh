@@ -436,7 +436,6 @@ function deploy_manifest_with_local_build() {
 # Deploy toolbox with same ceph version as the cluster-test for ci
 function deploy_toolbox() {
   cd "${REPO_DIR}/deploy/examples"
-  sed -i 's/image: quay\.io\/ceph\/ceph:.*/image: quay.io\/ceph\/ceph:v18/' toolbox.yaml
   local ns
   ns=$(yq r toolbox.yaml metadata.namespace 2>/dev/null)
   timeout 300 bash -c 'until kubectl get secret rook-ceph-mon -n "$1" &>/dev/null && kubectl get cm rook-ceph-mon-endpoints -n "$1" &>/dev/null; do sleep 2; done' _ "${ns}"
@@ -1177,6 +1176,74 @@ function check_keys_not_exists() {
       echo "key '$key' not exists"
     fi
   done
+}
+
+function test_rotate_cephx_keys() {
+  patch=$(cat <<EOF
+spec:
+  security:
+    cephx:
+      daemon:
+        keyRotationPolicy: KeyGeneration
+        keyGeneration: 2
+      csi:
+        keyRotationPolicy: KeyGeneration
+        keyGeneration: 2
+        keepPriorKeyCountMax: 1 # keep one prior key also
+        keyType: aes # keep the old aes key type when the host kernel does not yet support aes256k
+EOF
+)
+
+  cluster_name="$(kubectl -n rook-ceph get cephcluster -o name --no-headers)"
+
+  # e.g., cephcluster.ceph.rook.io/my-cluster
+  kubectl -n rook-ceph patch "$cluster_name" --type merge -p "$patch"
+
+  # wait for admin key to be rotated
+  timeout 300 bash <<EOF
+  until [[ \$(kubectl -n rook-ceph get "$cluster_name" -o jsonpath='{.status.cephx.admin.keyGeneration}') -eq 2 ]]; do
+    echo "waiting for admin key to be rotated"
+    kubectl -n rook-ceph get "$cluster_name" -o jsonpath='{.status.cephx}'
+    sleep 5
+  done
+EOF
+
+  # restart tools pod to refresh admin key
+  timeout 60 kubectl -n rook-ceph delete pod -l app=rook-ceph-tools
+
+  # wait for OSD key to be rotated (last cluster key to be rotated)
+  # at approx 300 seconds, mon rotation begins
+  timeout 300 bash <<EOF
+until [[ \$(kubectl -n rook-ceph get "$cluster_name" -o jsonpath='{.status.cephx.osd.keyGeneration}') -eq 2 ]]; do
+  echo "waiting for OSD CephX keys to be rotated"
+  kubectl -n rook-ceph get "$cluster_name" -o jsonpath='{.status.cephx}'
+  sleep 5
+done
+EOF
+
+  # check cephx rotation status
+  stat="$(kubectl -n rook-ceph get "$cluster_name" -o jsonpath='{.status.cephx}')"
+  echo "$stat" | jq # show output for debugging
+
+  # assertions
+  [[ "$(echo "$stat" | jq -r '.admin.keyGeneration')" == "2" ]]
+  # Some ceph versions don't support mon rotation, so leave mon generation dontcare for now
+  # [[ "$(echo "$stat" | jq -r '.mon.keyGeneration')" == "2" ]]
+  [[ "$(echo "$stat" | jq -r '.cephExporter.keyGeneration')" == "2" ]]
+  [[ "$(echo "$stat" | jq -r '.crashCollector.keyGeneration')" == "2" ]]
+  [[ "$(echo "$stat" | jq -r '.mgr.keyGeneration')" == "2" ]]
+  [[ "$(echo "$stat" | jq -r '.osd.keyGeneration')" == "2" ]]
+  [[ "$(echo "$stat" | jq -r '.csi.keyGeneration')" == "2" ]]
+  [[ "$(echo "$stat" | jq -r '.csi.keyType')" == "aes" ]] # requested rotation to legacy type
+  [[ "$(echo "$stat" | jq -r '.rbdMirrorPeer.keyGeneration')" == "1" ]] # did not request rotation
+
+  # check ceph internal key info
+  toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  kubectl -n rook-ceph exec "$toolbox" -- ceph auth ls
+  { # 'ceph auth dump-keys' is a new command. Don't fail CI if it doesn't exist in the test version.
+    auth="$(kubectl -n rook-ceph exec "$toolbox" -- ceph auth dump-keys --format=json-pretty)"
+    echo "$auth" | jq # show output for debugging
+  } || true
 }
 
 FUNCTION="$1"
