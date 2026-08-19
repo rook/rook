@@ -13,11 +13,11 @@ tests:
     set:
       toolbox.enabled: true
       cephImage.repository: quay.io/ceph/ceph
-      cephImage.tag: v20.2.2
+      cephImage.tag: v20.2.3
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: quay.io/ceph/ceph:v20.2.2
+          value: quay.io/ceph/ceph:v20.2.3
 
   - it: tracks a custom cephImage repository and tag
     set:
@@ -33,7 +33,7 @@ tests:
     set:
       toolbox.enabled: true
       cephImage.repository: quay.io/ceph/ceph
-      cephImage.tag: v20.2.2
+      cephImage.tag: v20.2.3
       toolbox.image: registry.example.com/rook/ceph:v1.18.0
     asserts:
       - equal:
@@ -44,18 +44,18 @@ tests:
     set:
       toolbox.enabled: true
       cephImage.repository: quay.io/ceph/ceph
-      cephImage.tag: v20.2.2
+      cephImage.tag: v20.2.3
       toolbox.repository: registry.example.com/rook/ceph
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: registry.example.com/rook/ceph:v20.2.2
+          value: registry.example.com/rook/ceph:v20.2.3
 
   - it: takes the repository from cephImage when only toolbox.tag is set
     set:
       toolbox.enabled: true
       cephImage.repository: quay.io/ceph/ceph
-      cephImage.tag: v20.2.2
+      cephImage.tag: v20.2.3
       toolbox.tag: v19.2.3
     asserts:
       - equal:
@@ -66,7 +66,7 @@ tests:
     set:
       toolbox.enabled: true
       cephImage.repository: quay.io/ceph/ceph
-      cephImage.tag: v20.2.2
+      cephImage.tag: v20.2.3
       toolbox.repository: registry.example.com/rook/ceph
       toolbox.tag: v1.18.0
     asserts:
@@ -78,19 +78,19 @@ tests:
     set:
       toolbox.enabled: true
       cephImage.repository: quay.io/ceph/ceph
-      cephImage.tag: v20.2.2
+      cephImage.tag: v20.2.3
       toolbox.image: registry.example.com/legacy/ceph:v18.2.0
       toolbox.repository: registry.example.com/rook/ceph
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: registry.example.com/rook/ceph:v20.2.2
+          value: registry.example.com/rook/ceph:v20.2.3
 
   - it: prefers toolbox.tag over toolbox.image
     set:
       toolbox.enabled: true
       cephImage.repository: quay.io/ceph/ceph
-      cephImage.tag: v20.2.2
+      cephImage.tag: v20.2.3
       toolbox.image: registry.example.com/legacy/ceph:v18.2.0
       toolbox.tag: v19.2.3
     asserts:
