@@ -9599,6 +9599,50 @@ This factor is applied when resources.requests.memory is set and resources.limit
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.MetricsTLSSpec">MetricsTLSSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MonitoringSpec">MonitoringSpec</a>)
+</p>
+<div>
+<p>MetricsTLSSpec defines TLS configuration for the MGR Prometheus metrics endpoint.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>enabled</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Enabled determines whether TLS is enabled for the metrics endpoint.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>secretName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SecretName is the name of the Kubernetes TLS secret that contains tls.crt
+and tls.key for the metrics endpoint. If empty, defaults to
+DefaultMetricsTLSSecretName.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.MgrSpec">MgrSpec
 </h3>
 <p>
@@ -10549,6 +10593,22 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>Interval determines prometheus scrape interval</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>metricsTLS,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MetricsTLSSpec">
+MetricsTLSSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MetricsTLS configures native HTTPS for the MGR Prometheus metrics endpoint.
+Requires Ceph with prometheus module TLS support.
+Rook mounts a Kubernetes TLS Secret into the mgr pod and configures the module.</p>
 </td>
 </tr>
 <tr>
