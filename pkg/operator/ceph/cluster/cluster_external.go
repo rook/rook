@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -48,6 +49,10 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	}
 
 	opcontroller.UpdateCondition(c.OpManagerCtx, c.context, cluster.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionConnecting, v1.ConditionTrue, cephv1.ClusterConnectingReason, "Attempting to connect to an external Ceph cluster")
+
+	// Rook needs a workaround for internal clusters when Ceph is updated while OSD keys are also
+	// rotated. This doesn't apply to external clusters, so always allow rotation for those.
+	keyring.SetAllowCephxKeyRotationForCluster(cluster.Namespace, true)
 
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo

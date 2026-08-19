@@ -194,8 +194,11 @@ func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, control
 	}
 
 	allowedErrStatus := map[string]struct{}{
-		"MDS_ALL_DOWN":     {},
-		"MGR_MODULE_ERROR": {},
+		"MDS_ALL_DOWN":                            {},
+		"MGR_MODULE_ERROR":                        {},
+		"AUTH_INSECURE_SERVICE_KEY_TYPE":          {}, // rook can reconcile cephx keys to clear this
+		"AUTH_INSECURE_ROTATING_SERVICE_KEY_TYPE": {}, // rook can reconcile cephx keys to clear this
+		"AUTH_INSECURE_SERVICE_TICKETS":           {}, // rook can reconcile cephx keys to clear this
 	}
 	allCanBeIgnored := true
 	for _, healthErrKey := range healthErrKeys {

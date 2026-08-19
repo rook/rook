@@ -17,6 +17,10 @@ spec:
   cephVersion:
     image: quay.io/ceph/ceph:v20
     allowUnsupported: true
+  security:
+    cephx:
+      csi:
+        keyType: aes # required when Kubernetes nodes don't run Linux kernel 7.0+
   mon:
     count: 1
     allowMultiplePerNode: true

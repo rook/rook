@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -140,6 +141,8 @@ func Test_admin_key_rotation(t *testing.T) {
 
 	ns := "ns"
 	clusterName := "my-cluster"
+
+	keyring.SetAllowCephxKeyRotationForCluster(ns, true)
 
 	newTest := func() (*clusterd.Context, *client.ClusterInfo, *k8sutil.OwnerInfo, *cephv1.CephCluster) {
 		reloadManagerCalled = false

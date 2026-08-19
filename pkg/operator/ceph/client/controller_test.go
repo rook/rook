@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -559,6 +560,7 @@ func TestReconcileCephClient_reconcileCephClientSecret(t *testing.T) {
 
 func TestKeyRotation(t *testing.T) {
 	// test key rotation end-to-end
+	keyring.SetAllowCephxKeyRotationForCluster(namespace, true)
 
 	ctx := context.TODO()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)

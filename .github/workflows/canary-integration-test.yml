@@ -328,7 +328,7 @@ jobs:
           tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node.1 client.csi-rbd-provisioner.1 client.csi-cephfs-node.1 client.csi-cephfs-provisioner.1 client.healthchecker.1
 
           # rotate the key
-          output2=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephfs-filesystem-name myfs --cephx-key-rotate rotate)
+          output2=$(kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephfs-filesystem-name myfs --cephx-key-rotate rotate --cephx-key-type aes)
 
           # check if it create a csi rbd, cephfs and Healthchecker rotated keys
           tests/scripts/github-action-helper.sh check_keys_exists client.csi-rbd-node.2 client.csi-rbd-provisioner.2 client.csi-cephfs-node.2 client.csi-cephfs-provisioner.2 client.healthchecker.2
@@ -352,7 +352,8 @@ jobs:
           fi
 
           # if --cephx-key-rotate is not set provide the latest key
-          output4=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephfs-filesystem-name myfs)
+          # '--cephx-key-type' is a no-op here, but we set it so output2 and output4 can be diffed easily
+          output4=$(kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cephfs-filesystem-name myfs --cephx-key-type aes)
           if [ "$output2" == "$output4" ]; then
             echo "csi rbd and cephfs key uses latest generation"
           else
@@ -778,6 +779,11 @@ jobs:
 
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+      - name: verify CephX key rotation
+        run: |
+          tests/scripts/github-action-helper.sh test_rotate_cephx_keys
+          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
 
       - name: collect common logs
         if: always()
@@ -1260,6 +1266,11 @@ jobs:
           kubectl -n rook-ceph get pods
           kubectl -n rook-ceph get secrets
 
+      - name: verify CephX key rotation
+        run: |
+          tests/scripts/github-action-helper.sh test_rotate_cephx_keys
+          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
       - name: collect common logs
         if: always()
         uses: ./.github/workflows/collect-logs
@@ -1325,7 +1336,7 @@ jobs:
           kubectl -n rook-ceph get pods
           kubectl -n rook-ceph get secrets
 
-      - name: wait and verify key rotation
+      - name: verify OSD DMCRYPT (KMS) key rotation
         run: tests/scripts/github-action-helper.sh verify_key_rotation
 
       - name: test osd deployment removal and re-hydration
