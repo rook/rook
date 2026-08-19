@@ -109,11 +109,11 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialRookVersion string, initia
 }
 
 func (s *UpgradeSuite) TestUpgradeRook() {
-	s.testUpgrade(false, installer.SquidVersion)
+	s.testUpgrade(false, v1.CephVersionSpec{Image: "quay.io/ceph/ceph:v19.2.5"} /* needed while initial rook version is < v19.2.9 */)
 }
 
 func (s *UpgradeSuite) TestUpgradeHelm() {
-	s.testUpgrade(true, installer.SquidVersion)
+	s.testUpgrade(true, v1.CephVersionSpec{Image: "quay.io/ceph/ceph:v19.2.5"} /* needed while initial rook version is < v19.2.9 */)
 }
 
 func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersionSpec) {
