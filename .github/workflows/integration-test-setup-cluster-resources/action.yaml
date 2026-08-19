@@ -29,6 +29,10 @@ runs:
         sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_amd64.deb
         rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_amd64.deb
 
+    - name: Ensure minikube cni config directory exists
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: sudo mkdir -p /etc/cni/net.d
+
     - name: Setup Minikube
       uses: medyagh/setup-minikube@e9e035a86bbc3caea26a450bd4dbf9d0c453682e # v0.0.21
       with:
