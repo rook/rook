@@ -33,6 +33,7 @@ CT_VERSION := v3.13.0
 KUSTOMIZE_VERSION := v5.3.0
 MARKDOWNLINT_IMAGE_VERSION := v0.22.0
 SHELLCHECK_VERSION := v0.10.0
+BLACK_VERSION := 26.5.1
 
 # For future updates,the SHA of the 'latest' tag can be obtained like this:
 # podman inspect --format='{{index .RepoDigests 0}}' docker.io/cytopia/yamllint:latest
@@ -238,16 +239,27 @@ lint.helm: $(HELM) $(KUSTOMIZE) ## Check the helm charts
 test.helm: $(HELM_UNITTEST) ## Run the helm chart unit tests
 	$(HELM_UNITTEST) --strict $(addprefix $(HELM_CHARTS_DIR)/,$(HELM_CHARTS))
 
+
 .PHONY: lint.quick
-lint.quick: lint.yaml lint.shell lint.go lint.make lint.markdown lint.workflows lint.commits ## run some (faster) linters
+lint.quick: lint.yaml lint.markdown lint.shell lint.go lint.make lint.markdown lint.workflows lint.commits lint.python ## run some (fast) linters
 .PHONY: lint
 lint: lint.quick lint.helm ## Run various linters
 
-.PHONY: lint.python
-lint.python: ## lint python scripts
-	pylint $(shell find $(ROOT_DIR) -name '*.py') -E
-.PHONY: lint.make
+.PHONY: lint.python.pylint
+lint.python.pylint: ## lint python scripts with pylint.
+	@echo "Linting python code with pylint..."
+	@pylint $(shell find $(ROOT_DIR) -name '*.py') -E
+	@echo "All python scripts are good."
 
+.PHONY: lint.python.black
+lint.python.black: check.container.runtime ## lint python scripts with the black formatter.
+	@echo "Linting python code with black..."
+	@$(BLACK) --check .
+	@echo "All python scripts are good."
+.PHONY: lint.python
+lint.python: lint.python.black ## lint python scripts
+
+.PHONY: lint.make
 lint.make: ## lint the Makefile
 	@$(CHECKMAKE) Makefile
 
