@@ -237,7 +237,7 @@ test.helm: $(HELM_UNITTEST) ## Run the helm chart unit tests
 	$(HELM_UNITTEST) --strict $(addprefix $(HELM_CHARTS_DIR)/,$(HELM_CHARTS))
 
 .PHONY: lint.fast
-lint.fast: lint.yaml lint.markdown lint.shell lint.make lint.markdown lint.workflows lint.commits lint.python ## run some (fast) linters
+lint.fast: lint.yaml lint.markdown lint.shell lint.make lint.workflows lint.commits lint.python ## run some (fast) linters
 .PHONY: lint.quick
 lint.quick: lint.fast lint.helm ## run some (faster) linters
 .PHONY: lint
