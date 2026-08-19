@@ -471,9 +471,21 @@ class RadosJSON:
             default="",
             required=False,
             help="Enable cephx key rotation for the users created by this script. This will create a new user with suffix `.{x}` and update the secrets with the new key."
-            + "Set `--cephx-key-rotation rotate` to initiate rotation."
-            + "To revert keys to the prior generation, set `--cephx-key-rotation revert`."
+            + "Set `--cephx-key-rotate rotate` to initiate rotation."
+            + "To revert keys to the prior generation, set `--cephx-key-rotate revert`."
             + "Note: If user are reverting to prior generation, then the user should manually delete the prior used user keys from the cluster after reverting",
+        )
+        output_group.add_argument(
+            "--cephx-key-type",
+            default="",
+            required=False,
+            choices=["aes", "aes256k"],
+            help="When new Ceph client keys are created or when CephX key rotation is enabled (see --cephx-key-rotate), "
+            + "this will request Ceph create a specific type of key. "
+            + "If not specified, Ceph will use its configured preferred key type. "
+            + "If keys already exist, this flag is a no-op. "
+            + "Recommended: use 'aes256k' if supported by the Linux kernel (v7.0+) running on Rook cluster nodes.",
+            # TODO(key): link to ceph docs when available.
         )
 
         upgrade_group = argP.add_argument_group("upgrade")
@@ -1070,7 +1082,13 @@ class RadosJSON:
             "format": "json",
         }
 
+        if self._arg_parser.cephx_key_type != "":
+            cmd_json["key_type"] = self._arg_parser.cephx_key_type
+
         if self._arg_parser.dry_run:
+            key_type_out = ""
+            if cmd_json.get("key_type"):
+                key_type_out = " --key-type=" + cmd_json.get("key_type")
             return (
                 self.dry_run(
                     "ceph "
@@ -1079,6 +1097,7 @@ class RadosJSON:
                     + cmd_json["entity"]
                     + " "
                     + " ".join(cmd_json["caps"])
+                    + key_type_out
                 ),
                 "",
             )
@@ -1209,7 +1228,13 @@ class RadosJSON:
             "format": "json",
         }
 
+        if self._arg_parser.cephx_key_type != "":
+            cmd_json["key_type"] = self._arg_parser.cephx_key_type
+
         if self._arg_parser.dry_run:
+            key_type_out = ""
+            if cmd_json.get("key_type"):
+                key_type_out = " --key-type=" + cmd_json.get("key_type")
             return self.dry_run(
                 "ceph "
                 + cmd_json["prefix"]
@@ -1217,6 +1242,7 @@ class RadosJSON:
                 + cmd_json["entity"]
                 + " "
                 + " ".join(cmd_json["caps"])
+                + key_type_out
             )
         # check if user already exist
         user_key = self.check_user_exist(entity)

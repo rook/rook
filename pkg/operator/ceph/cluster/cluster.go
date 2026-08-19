@@ -59,6 +59,10 @@ const (
 	deleteUnusedCrushRulesSetting = "ROOK_DELETE_UNUSED_CRUSH_RULES"
 )
 
+// admin key rotation ends with a rook restart, so return a reconcile error after to help
+// prevent rook from continuing reconcile when restart is imminent
+var errOsdUpgradeCephxRotationWorkaroundRestart = fmt.Errorf("cephx key rotation re-enablement requires the current cluster reconcile to restart")
+
 var telemetryMutex sync.Mutex
 
 type cluster struct {
@@ -135,7 +139,7 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 
 	// Execute actions after the monitors are up and running
 	log.NamespacedDebug(c.Namespace, logger, "monitors are up and running, executing post actions")
-	err = c.postMonStartupActions()
+	err = c.postMonStartupActions(cephVersion)
 	if err != nil {
 		return errors.Wrap(err, "failed to execute post actions after all the ceph monitors started")
 	}
@@ -168,6 +172,17 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 		if err := c.mons.ConfigureArbiter(); err != nil {
 			return errors.Wrap(err, "failed to configure stretch arbiter")
 		}
+	}
+
+	// workaround OSD upgrade issue when AES256K support is introduced
+	if err = c.setIsSafeToRotateCephxKeys(cephVersion); err != nil {
+		return errors.Wrap(err, "failed to check and set safety of cephx key rotation")
+	}
+
+	// rotating service key type can only be updated after mon, mgr, and osds are upgraded
+	err = setRotatingServiceKeyType(c.context, c.ClusterInfo, &c.ClusterInfo.CephVersion, c.Spec.Security.CephX)
+	if err != nil {
+		return errors.Wrap(err, "failed to set rotating service cephx key type after OSD update")
 	}
 
 	log.NamespacedInfo(c.Namespace, logger, "done reconciling ceph cluster")
@@ -481,15 +496,27 @@ func (c *cluster) preMonStartupActions(cephVersion cephver.CephVersion) error {
 // postMonStartupActions is a collection of actions to run once the monitors are up and running
 // It gets executed right after the main mon Start() method
 // Basically, it is executed between the monitors and the manager sequence
-func (c *cluster) postMonStartupActions() error {
+func (c *cluster) postMonStartupActions(imageCephVersion cephver.CephVersion) error {
 	// full cluster spec/status will be used to inform various cephx rotations
 	clusterObj := &cephv1.CephCluster{}
 	if err := c.context.Client.Get(c.ClusterInfo.Context, c.ClusterInfo.NamespacedName(), clusterObj); err != nil {
 		return errors.Wrapf(err, "failed to get cluster %v.", c.ClusterInfo.NamespacedName())
 	}
 
+	// workaround OSD upgrade issue when AES256K support is introduced
+	if err := c.setIsSafeToRotateCephxKeys(imageCephVersion); err != nil {
+		return errors.Wrap(err, "failed to check and set safety of cephx key rotation")
+	}
+
+	// users can specify daemon key type to override Rook's default key type if needed
+	// also allows Rook to ignore daemon.keyType for all daemon key generation/rotation
+	err := setDefaultCephxKeyType(c.context, c.ClusterInfo, &c.ClusterInfo.CephVersion, clusterObj.Spec.Security.CephX)
+	if err != nil {
+		return err
+	}
+
 	// rotate admin key first thing after mons are updated
-	err := rotateAdminCephxKey(c.context, c.ClusterInfo, c.ownerInfo, clusterObj) // TODO: rename?
+	err = rotateAdminCephxKey(c.context, c.ClusterInfo, c.ownerInfo, clusterObj) // TODO: rename?
 	if err != nil {
 		return errors.Wrapf(err, "failed to rotate admin cephx key")
 	}
@@ -935,4 +962,76 @@ func (c *cluster) deleteBootstrapKeys() {
 			log.NamespacedInfo(c.Namespace, logger, "successfully deleted bootstrap key %q", bootstrapkey)
 		}
 	}
+}
+
+// Work around ceph bug preventing key rotation at the same time Ceph is being upgraded from
+// non-AES256K-supporting version to-AES256K-supporting version.
+// More workaround notes on SetAllowCephxKeyRotationForCluster().
+func (c *cluster) setIsSafeToRotateCephxKeys(imageCephVersion cephver.CephVersion) error {
+	allowedAtStart, definedAtStart := keyring.GetAllowCephxKeyRotationForCluster(c.Namespace)
+
+	if !c.isUpgrade {
+		// workaround is only needed when upgrading
+		logger.Infof("for cluster in namespace %q, enabling cephx key rotation because the cluster is not upgrading", c.Namespace)
+		keyring.SetAllowCephxKeyRotationForCluster(c.Namespace, true)
+
+		if definedAtStart && !allowedAtStart {
+			// Rotation allowed is not being newly established here. We should restart to ensure
+			// child reconciles restart. This case shouldn't be encountered but might if the
+			// CephCluster reconcile restarts after OSD upgrade but before setting setting is-safe.
+			logger.Infof("non-upgrade: restarting rook operator after cephx key rotation is re-enabled for cluster in namespace %q", c.Namespace)
+			reloadManagerFunc()
+			return errors.Wrapf(errOsdUpgradeCephxRotationWorkaroundRestart, "non-upgrade") // context cancel will error anyway, so return err now
+		}
+
+		return nil
+	}
+
+	leastOsdVer, err := client.LeastUptodateDaemonVersion(c.context, c.ClusterInfo, config.OsdType)
+	if err != nil {
+		return errors.Wrap(err, "failed to determine the least-versioned OSD")
+	}
+
+	// are AES256K keys supported?
+	leastOsdSupports := client.Aes256kKeysSupported(leastOsdVer)
+	imageSupports := client.Aes256kKeysSupported(imageCephVersion)
+
+	if cephver.IsIdentical(leastOsdVer, cephver.CephVersion{}) {
+		// leastOsdVer==0.0.0 means no OSDs running, meaning no workaround needed
+		logger.Infof(
+			"for cluster in namespace %q, enabling cephx key rotation because no OSDs were detected requiring workaround",
+			c.Namespace)
+		keyring.SetAllowCephxKeyRotationForCluster(c.Namespace, true)
+		return nil
+	}
+
+	if imageSupports && !leastOsdSupports {
+		logger.Infof(
+			"for cluster in namespace %q, disabling cephx key rotation because desired ceph image version %q supports AES256K keys, but at least one OSD (low version %q) does not",
+			c.Namespace, &imageCephVersion, &leastOsdVer)
+		keyring.SetAllowCephxKeyRotationForCluster(c.Namespace, false)
+	} else {
+		logger.Infof(
+			"for cluster in namespace %q, enabling cephx key rotation because desired ceph image version %q (supports AES256K %t) and least OSD version %q (supports AES256K %t) are compatible",
+			c.Namespace, &imageCephVersion, imageSupports, &leastOsdVer, leastOsdSupports)
+		keyring.SetAllowCephxKeyRotationForCluster(c.Namespace, true)
+	}
+
+	if !definedAtStart {
+		// We newly established that rotation is allowed/disallowed. No need to restart.
+		return nil
+	}
+
+	allowedAtEnd, _ := keyring.GetAllowCephxKeyRotationForCluster(c.Namespace)
+
+	if !allowedAtStart && allowedAtEnd {
+		// Key rotation was previously disabled because the least-versioned OSD did not support it.
+		// Now that the least-versioned OSD supports it, reload the manager to force all reconcilers
+		// to reassess whether keys should/can be rotated.
+		logger.Infof("upgrade: restarting rook operator after cephx key rotation is re-enabled for cluster in namespace %q", c.Namespace)
+		reloadManagerFunc()
+		return errors.Wrapf(errOsdUpgradeCephxRotationWorkaroundRestart, "upgrade") // context cancel will error anyway, so return err now
+	}
+
+	return nil
 }

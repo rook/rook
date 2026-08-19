@@ -29,10 +29,10 @@ toolbox:
   repository: #quay.io/ceph/ceph
   # -- The tag of the toolbox image
   # @default -- `.Values.cephImage.tag`
-  tag: #v20.2.2
+  tag: #v20.2.4
   # -- Toolbox image, superseded by `toolbox.repository` and `toolbox.tag`
   # @default -- the image used by the Ceph cluster
-  image: #quay.io/ceph/ceph:v20.2.2
+  image: #quay.io/ceph/ceph:v20.2.4
   # -- Toolbox tolerations
   tolerations: []
   # -- Toolbox affinity
@@ -104,8 +104,8 @@ cephImage:
   repository: quay.io/ceph/ceph
   # In production, use a specific version tag instead of the general v20 flag, which pulls the latest release and could result in different
   # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
-  # To be more precise, you can always use a timestamp tag such as quay.io/ceph/ceph:v20.2.2-20260616
-  tag: v20.2.2
+  # To be more precise, you can always use a timestamp tag such as quay.io/ceph/ceph:v20.2.4-20260818
+  tag: v20.2.4
   # Whether to allow unsupported versions of Ceph. Currently Squid and Tentacle are supported.
   # Future versions would require this to be set to `true`.
   # Do not set to true in production.
@@ -149,6 +149,11 @@ cephClusterSpec:
   # This configuration will be ignored if `skipUpgradeChecks` is `true`.
   # Default is false.
   upgradeOSDRequiresHealthyPGs: false
+
+  security:
+    cephx:
+      csi:
+        keyType: aes # required when Kubernetes nodes don't run Linux kernel 7.0+
 
   mon:
     # Set the number of mons to be started. Generally recommended to be 3.

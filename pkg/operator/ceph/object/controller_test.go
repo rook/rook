@@ -1335,6 +1335,7 @@ func Test_mapSecretToCR(t *testing.T) {
 
 func TestKeyRotation(t *testing.T) {
 	// test key rotation end-to-end
+	keyring.SetAllowCephxKeyRotationForCluster(namespace, true)
 
 	ctx := context.TODO()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
