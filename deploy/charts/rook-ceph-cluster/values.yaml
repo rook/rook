@@ -81,6 +81,14 @@ monitoring:
   # externalMgrPrometheusPort: <port>
   # Scrape interval for prometheus
   # interval: 10s
+  # Enable native HTTPS on the Ceph mgr prometheus endpoint (Ceph v20.2+).
+  # Rook mounts the TLS Secret and configures the prometheus module; it does not create certificates.
+  # metricsTLS:
+  #   secretName: rook-ceph-prometheus-server-tls
+  #   ca:
+  #     configMap:
+  #       name: rook-ceph-mgr-metrics-service-ca
+  #       key: service-ca.crt
   # allow adding custom labels and annotations to the prometheus rule
   prometheusRule:
     # -- Labels applied to PrometheusRule

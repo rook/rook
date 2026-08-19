@@ -9691,6 +9691,97 @@ This factor is applied when resources.requests.memory is set and resources.limit
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.MetricsTLSCASpec">MetricsTLSCASpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MetricsTLSSpec">MetricsTLSSpec</a>)
+</p>
+<div>
+<p>MetricsTLSCASpec selects a CA bundle from a Secret or ConfigMap.
+Exactly one of secret or configMap must be set.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>secret</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
+Kubernetes core/v1.SecretKeySelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>configMap</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#configmapkeyselector-v1-core">
+Kubernetes core/v1.ConfigMapKeySelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.MetricsTLSSpec">MetricsTLSSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MonitoringSpec">MonitoringSpec</a>)
+</p>
+<div>
+<p>MetricsTLSSpec defines TLS for the MGR Prometheus metrics endpoint.
+The presence of metricsTLS enables TLS.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>secretName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>SecretName is the Kubernetes Secret containing tls.crt and tls.key for the
+mgr HTTPS listener.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ca,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MetricsTLSCASpec">
+MetricsTLSCASpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CA is an optional trust anchor for the ServiceMonitor tlsConfig.ca.
+Omit when the server cert contains a public CA.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.MgrSpec">MgrSpec
 </h3>
 <p>
@@ -10641,6 +10732,22 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>Interval determines prometheus scrape interval</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>metricsTLS,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MetricsTLSSpec">
+MetricsTLSSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MetricsTLS configures native HTTPS for the MGR Prometheus metrics endpoint.
+Requires Ceph with prometheus module TLS support.
+Rook mounts a Kubernetes TLS Secret into the mgr pod and configures the module.</p>
 </td>
 </tr>
 <tr>
