@@ -250,6 +250,17 @@ func IsSuperior(a, b CephVersion) bool {
 	return false
 }
 
+// IsStrictlySuperior checks if a given version is superior to another one, ignoring any
+// difference in commit ID. Commit IDs are hashes and have no ordering, so unlike IsSuperior
+// this never reports one version as superior to another purely because the two were built
+// from different commits.
+func IsStrictlySuperior(a, b CephVersion) bool {
+	a.CommitID = ""
+	b.CommitID = ""
+
+	return IsSuperior(a, b)
+}
+
 // IsInferior checks if a given version if inferior to another one
 func IsInferior(a, b CephVersion) bool {
 	if a.Major < b.Major {
@@ -295,14 +306,16 @@ func ValidateCephVersionsBetweenLocalAndExternalClusters(localVersion, externalV
 		return nil
 	}
 
-	// Local version must never be higher than the external one
-	if IsSuperior(localVersion, externalVersion) {
+	// Local version must never be higher than the external one. Compare the releases with
+	// IsStrictlySuperior so that two clusters running the same release built from different
+	// commits are not reported as one being higher than the other.
+	if IsStrictlySuperior(localVersion, externalVersion) {
 		return errors.Errorf("local cluster ceph version %q is higher than the external cluster version %q, this must never happen", localVersion.String(), externalVersion.String())
 	}
 
 	// External cluster was updated to a minor version higher, consider updating too!
 	if localVersion.Major == externalVersion.Major {
-		if IsSuperior(externalVersion, localVersion) {
+		if IsStrictlySuperior(externalVersion, localVersion) {
 			logger.Warningf("external cluster ceph version is a minor version higher %q than the local cluster %q, consider upgrading", externalVersion.String(), localVersion.String())
 			return nil
 		}
