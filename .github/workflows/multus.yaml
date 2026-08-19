@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   test-validation-tool:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: true
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
