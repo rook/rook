@@ -30,6 +30,10 @@ spec:
     {{- with .interval }}
     interval: {{ . }}
     {{- end }}
+    {{- with .metricsTLS }}
+    metricsTLS:
+    {{- . | toYaml | nindent 6 }}
+    {{- end }}
   {{- end }}
   {{- with .Values.cephImage }}
   cephVersion:
