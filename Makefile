@@ -254,6 +254,12 @@ lint.python.black: check.container.runtime ## lint python scripts with the black
 	@echo "Linting python code with black..."
 	@$(BLACK) --check .
 	@echo "All python scripts are good."
+.PHONY: format.python.black
+format.python.black: check.container.runtime
+	@$(BLACK) .
+
+.PHONY: format.python
+format.python: format.python.black
 
 .PHONY: lint.python
 lint.python: lint.python.black ## lint python scripts
