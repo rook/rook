@@ -1,5 +1,6 @@
 name: Integration tests
 on:
+
   pull_request:
     branches:
       - master
@@ -9,6 +10,7 @@ on:
       - "design/**"
 
 defaults:
+
   run:
     # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
     shell: bash --noprofile --norc -eo pipefail -x {0}
@@ -29,6 +31,7 @@ env:
 
 jobs:
   # Every suite below consumes this one build instead of running its own.
+
   build-rook-image-amd64:
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     runs-on: ubuntu-22.04
@@ -89,32 +92,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
+      - name: TestCephSmokeSuite
+        uses: ./.github/workflows/integration-suites/smoke
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          rook-image-artifact: rook-image-amd64
-
-      - name: TestCephSmokeSuite
-        run: |
-          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -failfast -run CephSmokeSuite github.com/rook/rook/tests/integration
-
-      - name: collect logs and publish them
-        if: always()
-        uses: ./.github/workflows/integration-test-collect-logs
-        with:
-          cluster-namespaces: smoke-ns
-          operator-namespace: smoke-ns-system
-          artifact-name: ceph-smoke-suite-artifact-${{ matrix.kubernetes-version }}
+          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephObjectSuite:
     needs: build-rook-image-amd64
@@ -130,32 +112,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
+      - name: TestCephObjectSuite
+        uses: ./.github/workflows/integration-suites/object
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          rook-image-artifact: rook-image-amd64
-
-      - name: TestCephObjectSuite
-        run: |
-          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          SKIP_CLEANUP_POLICY=false go test -v -timeout 2400s -failfast -run CephObjectSuite/TestWithoutTLS github.com/rook/rook/tests/integration
-
-      - name: collect logs and publish them
-        if: always()
-        uses: ./.github/workflows/integration-test-collect-logs
-        with:
-          cluster-namespaces: object-ns
-          operator-namespace: object-ns-system
-          artifact-name: ceph-object-suite-artifact-${{ matrix.kubernetes-version }}
+          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephObjectSuiteTLS:
     needs: build-rook-image-amd64
@@ -171,32 +132,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
+      - name: TestCephObjectSuiteTLS
+        uses: ./.github/workflows/integration-suites/object-tls
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          rook-image-artifact: rook-image-amd64
-
-      - name: TestCephObjectSuiteTLS
-        run: |
-          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          SKIP_CLEANUP_POLICY=false go test -v -timeout 2400s -failfast -run CephObjectSuite/TestWithTLS github.com/rook/rook/tests/integration
-
-      - name: collect logs and publish them
-        if: always()
-        uses: ./.github/workflows/integration-test-collect-logs
-        with:
-          cluster-namespaces: object-ns
-          operator-namespace: object-ns-system
-          artifact-name: ceph-object-suite-tls-artifact-${{ matrix.kubernetes-version }}
+          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephHelmSuite:
     needs: build-rook-image-amd64
@@ -218,34 +158,11 @@ jobs:
         with:
           version: ${{ matrix.helm-version }}
 
-      - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
+      - name: TestCephHelmSuite
+        uses: ./.github/workflows/integration-suites/helm
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          rook-image-artifact: rook-image-amd64
-
-      - name: remove read permission from kube config file
-        run: sudo chmod go-r ~/.kube/config
-
-      - name: TestCephHelmSuite
-        run: |
-          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          SKIP_TEST_CLEANUP=false SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -failfast -run CephHelmSuite github.com/rook/rook/tests/integration
-
-      - name: collect logs and publish them
-        if: always()
-        uses: ./.github/workflows/integration-test-collect-logs
-        with:
-          cluster-namespaces: helm-ns
-          artifact-name: ceph-helm-suite-artifact-${{ matrix.kubernetes-version }}
+          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephUpgradeSuite:
     needs: build-rook-image-amd64
@@ -266,32 +183,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
+      - name: TestCephUpgradeSuite
+        uses: ./.github/workflows/integration-suites/upgrade
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          rook-image-artifact: rook-image-amd64
-
-      - name: TestCephUpgradeSuite
-        run: |
-          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          go test -v -timeout 3600s -failfast -run CephUpgradeSuite/TestUpgradeRook github.com/rook/rook/tests/integration
-
-      - name: collect logs and publish them
-        if: always()
-        uses: ./.github/workflows/integration-test-collect-logs
-        with:
-          cluster-namespaces: upgrade
-          operator-namespace: upgrade-system
-          artifact-name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-version }}
+          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestHelmUpgradeSuite:
     needs: build-rook-image-amd64
@@ -317,32 +213,11 @@ jobs:
         with:
           version: v3.18.2
 
-      - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
+      - name: TestHelmUpgradeSuite
+        uses: ./.github/workflows/integration-suites/helm-upgrade
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          rook-image-artifact: rook-image-amd64
-
-      - name: TestHelmUpgradeSuite
-        run: |
-          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          go test -v -timeout 2700s -failfast -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration
-
-      - name: collect logs and publish them
-        if: always()
-        uses: ./.github/workflows/integration-test-collect-logs
-        with:
-          cluster-namespaces: upgrade
-          operator-namespace: upgrade-system
-          artifact-name: ceph-upgrade-helm-suite-artifact-${{ matrix.kubernetes-version }}
+          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephMultiClusterDeploySuite:
     needs: build-rook-image-amd64
@@ -358,35 +233,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
+      - name: TestCephMultiClusterDeploySuite
+        uses: ./.github/workflows/integration-suites/multi-cluster
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          rook-image-artifact: rook-image-amd64
-
-      - name: TestCephMultiClusterDeploySuite
-        run: |
-          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
-          export BLOCK="/dev/${DEVICE_NAME}"
-          export TEST_SCRATCH_DEVICE="/dev/${DEVICE_NAME}"
-          export DEVICE_FILTER="$DEVICE_NAME"
-          go test -v -timeout 1800s -failfast -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
-
-      - name: collect logs and publish them
-        if: always()
-        uses: ./.github/workflows/integration-test-collect-logs
-        with:
-          cluster-namespaces: multi-core multi-external
-          operator-namespace: multi-core-system
-          artifact-name: ceph-multi-cluster-deploy-suite-artifact-${{ matrix.kubernetes-version }}
-          upload-on: always
+          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephKeystoneAuthSuite:
     needs: build-rook-image-amd64
@@ -407,29 +258,8 @@ jobs:
         with:
           version: v3.18.2
 
-      - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
+      - name: TestCephKeystoneAuthSuite
+        uses: ./.github/workflows/integration-suites/keystone-auth
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          rook-image-artifact: rook-image-amd64
-
-      - name: TestCephKeystoneAuthSuite
-        run: |
-          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          export DEVICE_FILTER
-          SKIP_CLEANUP_POLICY=false go test -v -timeout 3600s -failfast -run CephKeystoneAuthSuite github.com/rook/rook/tests/integration
-
-      - name: collect logs and publish them
-        if: always()
-        uses: ./.github/workflows/integration-test-collect-logs
-        with:
-          cluster-namespaces: keystoneauth-ns
-          operator-namespace: keystoneauth-ns-system
-          artifact-name: ceph-keystone-auth-suite-artifact-${{ matrix.kubernetes-version }}
+          use-tmate: ${{ secrets.USE_TMATE }}
