@@ -76,11 +76,11 @@ func (k *SecretStore) GenerateKey(user string, keyType cephv1.CephxKeyType, acce
 			"Attempting to update capabilities in case the user already exists. %v", user, err)
 		uErr := client.AuthUpdateCaps(k.context, k.clusterInfo, user, access)
 		if uErr != nil {
-			return "", errors.Wrapf(err, "failed to get, create, or update auth key for %s", user)
+			return "", errors.Wrapf(uErr, "failed to get, create, or update auth key for %s", user)
 		}
 		key, uErr = client.AuthGetKey(k.context, k.clusterInfo, user)
 		if uErr != nil {
-			return "", errors.Wrapf(err, "failed to get key after updating existing auth capabilities for %s", user)
+			return "", errors.Wrapf(uErr, "failed to get key after updating existing auth capabilities for %s", user)
 		}
 	}
 	return key, nil
