@@ -15,6 +15,10 @@ on:
         description: "JSON list of object suite subtests such as TestWithoutTLS, TestWithTLS"
         default: '["TestWithoutTLS", "TestWithTLS"]'
         type: string
+      rook_image_artifact:
+        description: name of a prebuilt rook image artifact to import; empty builds rook in-job
+        default: ""
+        type: string
 
 defaults:
   run:
@@ -49,7 +53,8 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          kubernetes-version: "v1.36.2"
+          kubernetes-version: "v1.36.1"
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: TestCephSmokeSuite
         run: |
@@ -92,7 +97,8 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          kubernetes-version: "v1.36.2"
+          kubernetes-version: "v1.36.1"
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: TestCephUpgradeSuite
         run: |
@@ -136,7 +142,8 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          kubernetes-version: "v1.36.2"
+          kubernetes-version: "v1.36.1"
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: TestCephObjectSuite
         run: |
