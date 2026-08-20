@@ -95,8 +95,10 @@ jobs:
 
   canary-arm64:
     if: github.repository == 'rook/rook'
+    needs: build-rook-image-arm64
     uses: ./.github/workflows/ceph-arm64-suite-test.yml
     with:
+      rook_image_artifact: rook-image-arm64
       ceph_images: '["quay.io/ceph/ceph:v19", "quay.io/ceph/ceph:v20", "quay.io/ceph/ceph:v21", "quay.ceph.io/ceph-ci/ceph:main-arm64", "quay.ceph.io/ceph-ci/ceph:squid-release-arm64", "quay.ceph.io/ceph-ci/ceph:tentacle-arm64", "quay.ceph.io/ceph-ci/ceph:umbrella-release-arm64"]'
     secrets: inherit
 
