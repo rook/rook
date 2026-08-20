@@ -36,7 +36,7 @@ func (p *PoolSpec) IsHybridStoragePool() bool {
 func ValidateCephBlockPool(p *CephBlockPool) error {
 	if p.Spec.Name == ".rgw.root" || p.Spec.Name == ".mgr" || p.Spec.Name == ".nfs" {
 		if p.Spec.IsErasureCoded() {
-			return errors.Errorf("invalid CephBlockPool spec: ceph built-in pool %q cannot be erasure coded", p.Name)
+			return errors.Errorf("invalid CephBlockPool spec: ceph built-in pool %q cannot be erasure coded", p.Spec.Name)
 		}
 	}
 
