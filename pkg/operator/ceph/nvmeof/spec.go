@@ -73,6 +73,14 @@ func getPorts(nvmeof *cephv1.CephNVMeOFGateway) (ioPort, gatewayPort, monitorPor
 //go:embed connectionconfig.sh
 var connectionConfigScript string
 
+// preStopScript deregisters the NVMe-oF gateway from Ceph when the pod is
+// being terminated (scale-down, pod delete, node drain, etc.). It uses the
+// rados library available in the gateway container image since the ceph CLI
+// is not present.
+//
+//go:embed prestop.py
+var preStopScript string
+
 func (r *ReconcileCephNVMeOFGateway) generateCephNVMeOFService(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) *v1.Service {
 	labels := getLabels(nvmeof, daemonID)
 	serviceName := instanceName(nvmeof, daemonID)
@@ -181,7 +189,7 @@ func (r *ReconcileCephNVMeOFGateway) makeDeployment(nvmeof *cephv1.CephNVMeOFGat
 	gatewayConfigVol, gatewayConfigMount := gatewayConfigVolumeAndMount(configMapName)
 
 	initContainer := r.createCephConfigInitContainer(nvmeof, daemonID, gatewayConfigMount)
-	daemonContainer, err := r.daemonContainer(nvmeof, cephConfigMount)
+	daemonContainer, err := r.daemonContainer(nvmeof, daemonID, cephConfigMount)
 	if err != nil {
 		return nil, err
 	}
@@ -353,12 +361,13 @@ func (r *ReconcileCephNVMeOFGateway) createCephConfigInitContainer(nvmeof *cephv
 	return container
 }
 
-func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGateway, cephConfigMount v1.VolumeMount) (v1.Container, error) {
+func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGateway, daemonID string, cephConfigMount v1.VolumeMount) (v1.Container, error) {
 	image, err := r.getNVMeOFImage(nvmeof)
 	if err != nil {
 		return v1.Container{}, err
 	}
 
+	gatewayName := instanceName(nvmeof, daemonID)
 	privileged := true
 	container := v1.Container{
 		Name: "nvmeof-gateway",
@@ -374,16 +383,37 @@ func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGa
 		},
 		Env: func() []v1.EnvVar {
 			envVars := controller.DaemonEnvVars(r.cephClusterSpec)
-			// Build CEPH_ARGS using DefaultFlags which includes fsid, keyring, logging flags, and mon host flags
 			cephArgs := cephconfig.DefaultFlags(r.clusterInfo.FSID, "/etc/ceph/keyring")
 			cephArgsStr := strings.Join(cephArgs, " ")
 			logger.Infof("CEPH_ARGS for nvmeof gateway: %s", cephArgsStr)
-			envVars = append(envVars, v1.EnvVar{
-				Name:  "CEPH_ARGS",
-				Value: cephArgsStr,
-			})
+			envVars = append(envVars,
+				v1.EnvVar{
+					Name:  "CEPH_ARGS",
+					Value: cephArgsStr,
+				},
+				v1.EnvVar{
+					Name:  "GATEWAY_NAME",
+					Value: gatewayName,
+				},
+				v1.EnvVar{
+					Name:  "POOL_NAME",
+					Value: nvmeofPoolName,
+				},
+				v1.EnvVar{
+					Name:  "ANA_GROUP",
+					Value: nvmeof.Spec.Group,
+				},
+			)
 			return envVars
 		}(),
+
+		Lifecycle: &v1.Lifecycle{
+			PreStop: &v1.LifecycleHandler{
+				Exec: &v1.ExecAction{
+					Command: []string{"python3", "-c", preStopScript},
+				},
+			},
+		},
 
 		Ports: func() []v1.ContainerPort {
 			ioPort, gatewayPort, monitorPort, discoveryPort := getPorts(nvmeof)
