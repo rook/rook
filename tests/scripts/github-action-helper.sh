@@ -536,6 +536,11 @@ function wait_for_prepare_pod() {
     echo 'waiting for mon.a to be created'
     sleep 5
   done
+  if ! echo "$pod" | grep 'rook-ceph-mon-a'; then
+    echo "timed out after ${timeout}s waiting for mon.a to be created" >&2
+    kubectl --namespace rook-ceph get pod || true
+    return 1
+  fi
 
   # wait for at an osd prepare pod to complete
   OSD_COUNT=$1
@@ -548,8 +553,19 @@ function wait_for_prepare_pod() {
     echo 'waiting for at least one osd prepare pod to be running or finished'
     sleep 5
   done
+  if ! echo "$pod" | grep 'Running\|Succeeded\|Failed'; then
+    echo "timed out after ${timeout}s waiting for an osd prepare pod to be running or finished" >&2
+    kubectl --namespace rook-ceph get pod || true
+    return 1
+  fi
   pod="$("${get_pod_cmd[@]}" --selector app=rook-ceph-osd-prepare --output name | awk 'FNR <= 1')"
-  kubectl --namespace rook-ceph logs --follow "$pod"
+  if [[ -z "$pod" ]]; then
+    echo "no osd prepare pod found to collect logs from" >&2
+    kubectl --namespace rook-ceph get pod || true
+    return 1
+  fi
+  # bounded: a prepare pod starved of resources must not hold --follow open until the runner dies
+  timeout 450 kubectl --namespace rook-ceph logs --follow "$pod" || true
 
   # wait for an osd daemon pod to start
   timeout=60
