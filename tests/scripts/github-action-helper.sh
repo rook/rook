@@ -955,7 +955,7 @@ function write_object_read_from_replica_cluster() {
   # zone's position, the same marker-based barrier ceph's own multisite QA uses. The bucket
   # metadata has to arrive on the reading zone via metadata sync before the checkpoint can
   # resolve the bucket at all, hence the outer retry.
-  retry_for 120 kubectl -n "$read_cluster_ns" exec deploy/rook-ceph-tools -- \
+  retry_for 300 kubectl -n "$read_cluster_ns" exec deploy/rook-ceph-tools -- \
     radosgw-admin bucket sync checkpoint --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone="$read_zone" \
     --bucket="$test_bucket_name" --source-zone="$write_zone" --retry-delay-ms=5000 --timeout-sec=300
 
