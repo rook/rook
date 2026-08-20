@@ -423,6 +423,68 @@ func TestConfigureModules(t *testing.T) {
 	assert.Equal(t, 1, modulesDisabled)
 	assert.Equal(t, "mymodule", lastModuleConfigured)
 	assert.Equal(t, 0, len(configSettings))
+
+	// rook module is force-disabled on affected Ceph versions even if enabled in the spec
+	modulesEnabled = 0
+	modulesDisabled = 0
+	lastModuleConfigured = ""
+	c.clusterInfo.CephVersion = cephver.CephVersion{Major: 20, Minor: 2, Extra: 3}
+	c.spec.Mgr.Modules = []cephv1.Module{
+		{Name: "rook", Enabled: true},
+	}
+	assert.NoError(t, c.configureMgrModules())
+	assert.Equal(t, 0, modulesEnabled, "rook module should not be enabled on Ceph v20.2.3")
+	assert.Equal(t, 1, modulesDisabled, "rook module should be force-disabled on Ceph v20.2.3")
+	assert.Equal(t, "rook", lastModuleConfigured)
+
+	// rook module disabled in the spec on an affected version should still be force-disabled
+	modulesEnabled = 0
+	modulesDisabled = 0
+	lastModuleConfigured = ""
+	c.spec.Mgr.Modules = []cephv1.Module{
+		{Name: "rook", Enabled: false},
+	}
+	assert.NoError(t, c.configureMgrModules())
+	assert.Equal(t, 0, modulesEnabled)
+	assert.Equal(t, 1, modulesDisabled, "rook module should be force-disabled even when spec says disabled")
+	assert.Equal(t, "rook", lastModuleConfigured)
+
+	// rook module should be allowed on a non-affected Ceph version
+	modulesEnabled = 0
+	modulesDisabled = 0
+	lastModuleConfigured = ""
+	c.clusterInfo.CephVersion = cephver.CephVersion{Major: 20, Minor: 2, Extra: 5}
+	c.spec.Mgr.Modules = []cephv1.Module{
+		{Name: "rook", Enabled: true},
+	}
+	assert.NoError(t, c.configureMgrModules())
+	assert.Equal(t, 1, modulesEnabled, "rook module should be enabled on Ceph v20.2.5")
+	assert.Equal(t, 0, modulesDisabled)
+	assert.Equal(t, "rook", lastModuleConfigured)
+}
+
+func TestRookModuleDisabledForCephVersion(t *testing.T) {
+	c := &Cluster{
+		clusterInfo: cephclient.AdminTestClusterInfo("test"),
+	}
+
+	tests := []struct {
+		version  cephver.CephVersion
+		disabled bool
+	}{
+		{cephver.CephVersion{Major: 20, Minor: 2, Extra: 1}, false},
+		{cephver.CephVersion{Major: 20, Minor: 2, Extra: 2}, true},
+		{cephver.CephVersion{Major: 20, Minor: 2, Extra: 3}, true},
+		{cephver.CephVersion{Major: 20, Minor: 2, Extra: 4}, true},
+		{cephver.CephVersion{Major: 20, Minor: 2, Extra: 5}, false},
+		{cephver.CephVersion{Major: 19, Minor: 2, Extra: 3}, false},
+		{cephver.CephVersion{Major: 20, Minor: 1, Extra: 3}, false},
+		{cephver.CephVersion{Major: 21, Minor: 0, Extra: 0}, false},
+	}
+	for _, tt := range tests {
+		c.clusterInfo.CephVersion = tt.version
+		assert.Equal(t, tt.disabled, c.rookModuleDisabledForCephVersion(), "version: %s", tt.version.String())
+	}
 }
 
 func TestMgrDaemons(t *testing.T) {
