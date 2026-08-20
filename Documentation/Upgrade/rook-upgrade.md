@@ -143,7 +143,7 @@ In order to successfully upgrade a Rook cluster, the following prerequisites mus
 
 ## Rook Operator Upgrade
 
-The examples given in this guide upgrade a live Rook cluster running `v1.19.8` to
+The examples given in this guide upgrade a live Rook cluster running `v1.19.10` to
 the version `v1.20.5`. This upgrade should work from any official patch release of Rook v1.19 to any
 official patch release of v1.20.
 
@@ -271,8 +271,8 @@ rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.20.5
 rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.20.5
 rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.20.5
 rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.20.5
-rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.19.8
-rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.19.8
+rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.19.10
+rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.19.10
 ```
 
 An easy check to see if the upgrade is totally finished is to check that there is only one
@@ -281,7 +281,7 @@ An easy check to see if the upgrade is totally finished is to check that there i
 ```console
 # kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
-  rook-version=v1.19.8
+  rook-version=v1.19.10
   rook-version=v1.20.5
 This cluster is finished:
   rook-version=v1.20.5
