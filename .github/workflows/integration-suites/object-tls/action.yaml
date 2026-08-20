@@ -1,0 +1,41 @@
+name: TestCephObjectSuiteTLS
+description: Run the Ceph object suite with TLS against the prebuilt rook image
+inputs:
+  kubernetes-version:
+    description: kubernetes version to create the cluster with
+    required: true
+  use-tmate:
+    description: the USE_TMATE secret, for pre-job debugging
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: consider (pre-job) debugging
+      uses: ./.github/workflows/tmate_debug
+      with:
+        use-tmate: ${{ inputs.use-tmate }}
+        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
+    - name: setup cluster resources
+      uses: ./.github/workflows/integration-test-setup-cluster-resources
+      with:
+        kubernetes-version: ${{ inputs.kubernetes-version }}
+        rook-image-artifact: rook-image-amd64
+
+    - name: TestCephObjectSuiteTLS
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+        DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
+        export DEVICE_FILTER
+        SKIP_CLEANUP_POLICY=false go test -v -timeout 2400s -failfast -run CephObjectSuite/TestWithTLS github.com/rook/rook/tests/integration
+
+    - name: collect logs and publish them
+      if: always()
+      uses: ./.github/workflows/integration-test-collect-logs
+      with:
+        cluster-namespaces: object-ns
+        operator-namespace: object-ns-system
+        artifact-name: ceph-object-suite-tls-artifact-${{ inputs.kubernetes-version }}
