@@ -29,6 +29,11 @@ The following Ceph versions are supported in this release of Rook:
 * Ceph Squid v19.2.0 or newer
 * Ceph Tentacle v20.2.1 or newer
     * Recommended: [Disable the rook mgr module](#disable-the-rook-mgr-module) before upgrading to Tentacle.
+* Ceph Squid v19.2.6 and Tentacle v20.2.4: Multisite deployments need RGW settings applied **before** upgrading
+    * The SigV4 hardening in these releases (CVE-2026-54330) rejects the requests RGW's own multisite
+    forwarding generates ([tracker 79698](https://tracker.ceph.com/issues/79698)).
+    See the [multisite documentation](../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md)
+    for the required settings and when to revert them.
 * Ceph Tentacle v20.2.0: Not recommended
     * IMPORTANT: **There is a known data corruption issue in v20.2.0**, if the "read affinity" feature is enabled.
     Read affinity is disabled by default, and is enabled by the CephCluster setting `csi.readAffinity.enabled: true`.

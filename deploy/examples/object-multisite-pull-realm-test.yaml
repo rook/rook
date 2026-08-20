@@ -63,5 +63,12 @@ spec:
     port: 80
     # securePort: 443
     instances: 1
+    rgwConfig:
+      # Ceph v19.2.6/v20.2.4 harden SigV4 validation (CVE-2026-54330), and RGW's own multisite
+      # forwarding fails it even between same-version zones, breaking writes to the secondary
+      # zone. Accept the improper signatures and keep inter-zone requests on SigV2 until Ceph
+      # fixes the forwarding signatures: https://tracker.ceph.com/issues/79698
+      rgw_sigv4_insecure: "true"
+      rgw_s3_client_max_sig_ver: "2"
   zone:
     name: zone-b

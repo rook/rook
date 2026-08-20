@@ -63,6 +63,12 @@ spec:
       bdev_flock_retry: "20"
       bluefs_buffered_io: "false"
       mon_data_avail_warn: "10"
+      # several test OSDs share one small node; the 4Gi default overcommits its memory
+      osd_memory_target: "1073741824"
+      # multisite sync polls every log shard per interval; the defaults (64/128 shards)
+      # swamp small test clusters with sync traffic. Same tuning as ceph's multisite QA.
+      rgw_md_log_max_shards: "4"
+      rgw_data_log_num_shards: "4"
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
