@@ -141,13 +141,6 @@ func (h *CephInstaller) CreateCephOperator() (err error) {
 		return errors.Errorf("Failed to create rook-operator pod: %v ", err)
 	}
 
-	if networkPolicy := h.Manifests.GetNetworkPolicy(); networkPolicy != "" {
-		logger.Info("Creating NetworkPolicies")
-		if _, err = h.k8shelper.KubectlWithStdin(networkPolicy, createFromStdinArgs...); err != nil {
-			return errors.Wrap(err, "failed to create network policies")
-		}
-	}
-
 	if err := h.CreateVolumeReplicationCRDs(); err != nil {
 		return errors.Wrap(err, "failed to create volume replication CRDs")
 	}
@@ -172,6 +165,27 @@ func (h *CephInstaller) CreateCephOperator() (err error) {
 
 	logger.Infof("Rook operator started")
 
+	return nil
+}
+
+// CreateNetworkPolicies applies the network-policy manifest when the current
+// Rook version ships one.  It is called from installRookOperator so that both
+// the Helm and the plain-kubectl operator paths are covered.
+func (h *CephInstaller) CreateNetworkPolicies() error {
+	networkPolicy := h.Manifests.GetNetworkPolicy()
+	if networkPolicy == "" {
+		return nil
+	}
+	logger.Info("Creating NetworkPolicies")
+	if _, err := h.k8shelper.KubectlWithStdin(networkPolicy, createFromStdinArgs...); err != nil {
+		return errors.Wrap(err, "failed to create network policies")
+	}
+	if out, err := h.k8shelper.Kubectl("get", "networkpolicy", "-A"); err == nil {
+		logger.Infof("=== NetworkPolicies ===\n%s", out)
+	}
+	if out, err := h.k8shelper.Kubectl("get", "pods", "-A"); err == nil {
+		logger.Infof("=== Pods ===\n%s", out)
+	}
 	return nil
 }
 
@@ -563,6 +577,10 @@ func (h *CephInstaller) installRookOperator() (bool, error) {
 			return false, errors.Wrap(err, "failed to configure ceph operator")
 		}
 	}
+	if err := h.CreateNetworkPolicies(); err != nil {
+		return false, err
+	}
+
 	if !h.k8shelper.IsPodInExpectedState("rook-ceph-operator", h.settings.OperatorNamespace, "Running") {
 		logger.Error("rook-ceph-operator is not running")
 		h.k8shelper.GetLogsFromNamespace(h.settings.OperatorNamespace, "test-setup", utils.TestEnvName())
@@ -662,13 +680,6 @@ func (h *CephInstaller) InstallRook() (bool, error) {
 	}
 
 	logger.Infof("installed rook operator and cluster %s on k8s %s", h.settings.Namespace, h.k8sVersion)
-
-	if out, err := h.k8shelper.Kubectl("get", "networkpolicy", "-A"); err == nil {
-		logger.Infof("=== NetworkPolicies ===\n%s", out)
-	}
-	if out, err := h.k8shelper.Kubectl("get", "pods", "-A"); err == nil {
-		logger.Infof("=== Pods ===\n%s", out)
-	}
 
 	return true, nil
 }

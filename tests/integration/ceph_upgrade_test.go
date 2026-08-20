@@ -518,6 +518,10 @@ func (s *UpgradeSuite) upgradeToMaster() {
 	s.settings.RookVersion = installer.LocalBuildTag
 	s.installer.Manifests = installer.NewCephManifests(s.settings)
 
+	// The previous version does not ship network policies, so apply them now
+	// that the manifests point to master.
+	require.NoError(s.T(), s.installer.CreateNetworkPolicies())
+
 	if s.settings.UseHelm {
 		logger.Info("Requiring msgr2 during helm upgrade to test the port conversion from 6789 to 3300")
 		s.settings.RequireMsgr2 = true

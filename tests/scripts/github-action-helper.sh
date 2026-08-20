@@ -464,7 +464,7 @@ function replace_ceph_image() {
 function deploy_cluster() {
   cd "${REPO_DIR}/deploy/examples"
 
-  # kubectl create -f networkpolicy.yaml
+  kubectl create -f networkpolicy.yaml
   deploy_manifest_with_local_build operator.yaml
 
   if [ $# == 0 ]; then
@@ -1149,10 +1149,6 @@ function test_object_separate_pools() {
 }
 
 function delete_cluster() {
-  echo "=== Network Policies before delete_cluster ==="
-  kubectl get networkpolicies.networking.k8s.io -A -o yaml
-  echo "=== End of Network Policies ==="
-
   kubectl --namespace rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
   kubectl --namespace rook-ceph delete cephcluster rook-ceph
   kubectl --namespace rook-ceph logs deploy/rook-ceph-operator
