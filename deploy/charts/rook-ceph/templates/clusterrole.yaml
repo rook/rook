@@ -64,15 +64,6 @@ rules:
       - create
       - update
       - delete
-  - apiGroups:
-      - networking.k8s.io
-    resources:
-      - networkpolicies
-    verbs:
-      - get
-      - create
-      - update
-      - delete
 ---
 # The cluster role for managing the Rook CRDs
 # Rook watches for its CRDs in all namespaces, so this should be a cluster-scoped role unless the
