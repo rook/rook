@@ -170,6 +170,9 @@ spec:
   mgr:
     count: ` + strconv.Itoa(mgrCount) + `
     allowMultiplePerNode: true
+    modules:
+      - name: rook
+        enabled: false
   dashboard:
     enabled: true
   network:

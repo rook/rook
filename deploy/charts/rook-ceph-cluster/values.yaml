@@ -172,8 +172,9 @@ cephClusterSpec:
     modules:
       # List of modules to optionally enable or disable.
       # Note the "dashboard" and "monitoring" modules are already configured by other settings in the cluster CR.
-      # - name: rook
-      #   enabled: true
+      # The rook mgr module is not recommended. The only impact is that some small features will be disabled in the Ceph dashboard.
+      - name: rook
+        enabled: false
 
   # enable the ceph dashboard for viewing cluster status
   dashboard:
