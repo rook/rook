@@ -227,6 +227,14 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 		}
 		r.clusterInfo.CephVersion = runningCephVersion
 
+		for i := 0; i < cephNVMeOFGateway.Spec.Instances; i++ {
+			daemonID := k8sutil.IndexToName(i)
+			gwName := instanceName(cephNVMeOFGateway, daemonID)
+			if err := r.deleteNVMeOFGateway(gwName, cephNVMeOFGateway.Spec.Group); err != nil {
+				logger.Warningf("failed to delete nvme-gw %q during CR deletion, continuing: %v", gwName, err)
+			}
+		}
+
 		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephNVMeOFGateway)
 		if err != nil {
 			return reconcile.Result{}, *cephNVMeOFGateway, errors.Wrap(err, "failed to remove finalizer")
@@ -367,6 +375,10 @@ func (r *ReconcileCephNVMeOFGateway) downCephNVMeOFGateway(cephNVMeOFGateway *ce
 		daemonID := k8sutil.IndexToName(i)
 		name := instanceName(cephNVMeOFGateway, daemonID)
 
+		if err := r.deleteNVMeOFGateway(name, cephNVMeOFGateway.Spec.Group); err != nil {
+			return errors.Wrapf(err, "failed to delete nvme-gw %q from Ceph", name)
+		}
+
 		err := r.context.Clientset.AppsV1().Deployments(cephNVMeOFGateway.Namespace).Delete(r.opManagerContext, name, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
 			return errors.Wrapf(err, "failed to delete deployment %q", name)
@@ -378,6 +390,18 @@ func (r *ReconcileCephNVMeOFGateway) downCephNVMeOFGateway(cephNVMeOFGateway *ce
 		}
 	}
 
+	return nil
+}
+
+func (r *ReconcileCephNVMeOFGateway) deleteNVMeOFGateway(gatewayName, group string) error {
+	logger.Infof("deleting nvme-gw %q from pool %q group %q", gatewayName, nvmeofPoolName, group)
+	args := []string{"nvme-gw", "delete", gatewayName, nvmeofPoolName, group}
+	cmd := cephclient.NewCephCommand(r.context, r.clusterInfo, args)
+	cmd.JsonOutput = false
+	_, err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to run ceph nvme-gw delete for %q", gatewayName)
+	}
 	return nil
 }
 
