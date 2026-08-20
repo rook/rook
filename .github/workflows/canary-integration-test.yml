@@ -1993,6 +1993,10 @@ jobs:
           kubectl -n rook-ceph wait --for=condition=Ready pod -l rook_object_store=multisite-store --timeout=300s
           kubectl -n rook-ceph-secondary wait --for=condition=Ready pod -l rook_object_store=zone-b-multisite-store --timeout=300s
 
+      - name: restart RGWs to pick up the final multisite period
+        run: |
+          tests/scripts/github-action-helper.sh restart_multisite_rgws
+
       - name: wait for multisite sync to be established
         run: |
           tests/scripts/github-action-helper.sh wait_for_multisite_sync_established

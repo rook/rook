@@ -842,6 +842,18 @@ function nudge_multisite_secondary() {
   kubectl -n rook-ceph-secondary rollout status deploy/rook-ceph-rgw-zone-b-multisite-store-a --timeout=120s
 }
 
+# Both RGWs boot while the multisite period is still converging (zone-b joins the zonegroup
+# only after zone-a is already serving), and a gateway that raced a period change can leave its
+# sync state machine wedged in "init" without ever erroring. Restarting the gateways once the
+# join has settled makes sync initialize from the final period, mirroring ceph's own multisite
+# QA, which restarts zone gateways after committing period changes.
+function restart_multisite_rgws() {
+  kubectl -n rook-ceph rollout restart deploy/rook-ceph-rgw-multisite-store-a
+  kubectl -n rook-ceph-secondary rollout restart deploy/rook-ceph-rgw-zone-b-multisite-store-a
+  kubectl -n rook-ceph rollout status deploy/rook-ceph-rgw-multisite-store-a --timeout=120s
+  kubectl -n rook-ceph-secondary rollout status deploy/rook-ceph-rgw-zone-b-multisite-store-a --timeout=120s
+}
+
 function wait_for_multisite_sync_established() {
   # Wait until both zones report multisite sync fully established before exercising
   # replication, mirroring the checkpoints ceph's own multisite QA performs before asserting
@@ -863,10 +875,24 @@ function wait_for_multisite_sync_established() {
     fi
     nudge_multisite_secondary
   done
-  # Data sync legitimately reports caught up at 0/0 shards before any objects are written, so the
-  # meaningful precondition is that metadata sync (above) has actually initialized.
-  wait_for_sync_status rook-ceph-secondary zone-b "data is caught up with source" 300
-  wait_for_sync_status rook-ceph zone-a "data is caught up with source" 300
+  # "data is caught up with source" is vacuously true while data sync is still wedged in "init"
+  # (it reports 0/0 shards), so require the shard counts that prove sync actually initialized.
+  # A wedged gateway never leaves "init" on its own; restart it and retry once (see
+  # restart_multisite_rgws).
+  local initialized='incremental sync: [0-9]*/[1-9]'
+  wait_for_sync_status rook-ceph-secondary zone-b "$initialized" 300
+  for attempt in 1 2; do
+    if wait_for_sync_status rook-ceph zone-a "$initialized" 180; then
+      return 0
+    fi
+    if [[ $attempt -ge 2 ]]; then
+      echo "zone-a data sync never initialized after ${attempt} attempts"
+      return 1
+    fi
+    echo "nudging zone-a: restarting its RGW to re-run data sync init"
+    kubectl -n rook-ceph rollout restart deploy/rook-ceph-rgw-multisite-store-a
+    kubectl -n rook-ceph rollout status deploy/rook-ceph-rgw-multisite-store-a --timeout=120s
+  done
 }
 
 function dump_multisite_diagnostics() {
