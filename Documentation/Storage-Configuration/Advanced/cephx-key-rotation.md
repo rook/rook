@@ -451,7 +451,7 @@ More background information on the CVE is present after the resolution guide for
 
 Follow these instructions to resolve CVE-2025–30156 as quickly as possible with minimal risk.
 
-1. Upgrade to Rook v1.20.5 or higher (or v1.19.9 or higher)
+1. Upgrade to Rook v1.20.6 or higher (or v1.19.10 or higher)
 2. Upgrade to Ceph v20.2.4 or higher (or v19.2.6 or higher)
 3. Initiate key rotation for the keys you wish to rotate
 
