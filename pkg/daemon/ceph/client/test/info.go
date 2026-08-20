@@ -57,7 +57,7 @@ func CreateTestClusterInfo(monCount int) *client.ClusterInfo {
 		Context:          context.TODO(),
 	}
 	mons := []string{"a", "b", "c", "d", "e"}
-	for i := 0; i < monCount; i++ {
+	for i := range monCount {
 		id := mons[i]
 		c.InternalMonitors[id] = &client.MonInfo{
 			Name:     id,

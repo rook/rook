@@ -99,7 +99,7 @@ func (s *StorageScopeSpec) resolveNodeSelection(node *Node) {
 			node.Selection.UseAllDevices = s.Selection.UseAllDevices
 		} else {
 			// neither node nor cluster have a value set for use all devices, use the default value.
-			node.Selection.UseAllDevices = newBool(false)
+			node.Selection.UseAllDevices = new(false)
 		}
 	}
 
@@ -149,10 +149,6 @@ func resolveString(setting *string, parent, defaultVal string) {
 			*setting = defaultVal
 		}
 	}
-}
-
-func newBool(val bool) *bool {
-	return &val
 }
 
 // NodesByName implements an interface to sort nodes by name

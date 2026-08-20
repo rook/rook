@@ -26,7 +26,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 )
 
 func getMonitoringClient(context *clusterd.Context) (*monitoringclient.Clientset, error) {
@@ -67,7 +66,7 @@ func GetServiceMonitor(name string, namespace string, portName string) *monitori
 					HonorLabels: true,
 					RelabelConfigs: []monitoringv1.RelabelConfig{{
 						TargetLabel: "cluster",
-						Replacement: ptr.To(namespace),
+						Replacement: new(namespace),
 					}},
 				},
 			},

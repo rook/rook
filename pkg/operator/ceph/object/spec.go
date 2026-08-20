@@ -804,7 +804,7 @@ func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore
 			{
 				Addresses: k8sEndpointAddrs,
 				Conditions: discoveryv1.EndpointConditions{
-					Ready: ptr.To(true),
+					Ready: new(true),
 				},
 			},
 		},
@@ -947,8 +947,8 @@ func addPortToEndpoint(endpoints *discoveryv1.EndpointSlice, name string, port i
 		return
 	}
 	endpoints.Ports = append(endpoints.Ports, discoveryv1.EndpointPort{
-		Name:     ptr.To(name),
-		Port:     ptr.To(port),
+		Name:     new(name),
+		Port:     new(port),
 		Protocol: ptr.To(v1.ProtocolTCP),
 	})
 }

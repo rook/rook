@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -172,15 +173,16 @@ func genKeyring(clientName, authKey string, clientCaps []string) (string, error)
 	if authKey == "" {
 		return "", fmt.Errorf("cannot generate %q keyring with empty cephx key", clientName)
 	}
-	o := fmt.Sprintf("[%s]\n", clientName)
-	o += fmt.Sprintf("	key = %s\n", authKey)
+	var o strings.Builder
+	fmt.Fprintf(&o, "[%s]\n", clientName)
+	fmt.Fprintf(&o, "	key = %s\n", authKey)
 	if len(clientCaps)%2 != 0 {
 		return "", fmt.Errorf("cannot generate %q keyring for caps list %v with uneven number of items", clientName, clientCaps)
 	}
 	for i := 0; i < len(clientCaps); i += 2 {
-		o += fmt.Sprintf("	caps %s = %q\n", clientCaps[i], clientCaps[i+1])
+		fmt.Fprintf(&o, "	caps %s = %q\n", clientCaps[i], clientCaps[i+1])
 	}
-	return o, nil
+	return o.String(), nil
 }
 
 // main routine for rotating the client.admin key
