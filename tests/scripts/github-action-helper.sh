@@ -906,15 +906,25 @@ function dump_multisite_diagnostics() {
     if [[ "$ns" == "rook-ceph" ]]; then zone="zone-a"; else zone="zone-b"; fi
     echo "===== ${ns}: pods"
     kubectl -n "$ns" get pods -o wide
+    # the cluster this dump runs against just failed, so bound every toolbox command: an
+    # unreachable cluster must not stall the dump for the full rados client mount timeout
+    echo "===== ${ns}: ceph versions"
+    kubectl -n "$ns" exec deploy/rook-ceph-tools -- ceph --connect-timeout 10 versions
     echo "===== ${ns}: rgw pod details"
     kubectl -n "$ns" describe pods -l app=rook-ceph-rgw
-    echo "===== ${ns}: rgw pod logs"
-    kubectl -n "$ns" logs -l app=rook-ceph-rgw --all-containers --tail=100
+    echo "===== ${ns}: rgw pod logs (excluding successful requests)"
+    # multisite sync polling produces hundreds of 2xx request lines per second, so a raw tail
+    # covers only milliseconds; drop 2xx request/response lines to surface errors instead
+    kubectl -n "$ns" logs -l app=rook-ceph-rgw --all-containers --tail=5000 |
+      grep -Ev 'http_status=2[0-9]{2} |" 2[0-9]{2} |====== starting new request' | tail -n 150
+    echo "===== ${ns}: sync error list"
+    kubectl -n "$ns" exec deploy/rook-ceph-tools -- \
+      timeout 60 radosgw-admin sync error list --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone="$zone" | head -n 100
     echo "===== ${ns}: sync status (${zone})"
     kubectl -n "$ns" exec deploy/rook-ceph-tools -- \
-      radosgw-admin sync status --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone="$zone"
+      timeout 60 radosgw-admin sync status --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone="$zone"
     echo "===== ${ns}: period"
-    kubectl -n "$ns" exec deploy/rook-ceph-tools -- radosgw-admin period get --rgw-realm=realm-a
+    kubectl -n "$ns" exec deploy/rook-ceph-tools -- timeout 60 radosgw-admin period get --rgw-realm=realm-a
   done
   set -e
   return 0
