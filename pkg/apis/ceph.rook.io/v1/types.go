@@ -69,6 +69,13 @@ type CephClusterHealthCheckSpec struct {
 	// StartupProbe allows changing the startupProbe configuration for a given daemon
 	// +optional
 	StartupProbe map[KeyType]*ProbeSpec `json:"startupProbe,omitempty"`
+
+	// MuteHealthWarning configures muting of Ceph health warnings.
+	// +optional
+	// +kubebuilder:validation:MinProperties=0
+	// +kubebuilder:validation:MaxProperties=10
+	// +kubebuilder:validation:XValidation:rule="self.all(k, k.matches('^[A-Z]+(_[A-Z]+)+$'))",message="keys must be valid Ceph health check codes"
+	MuteHealthWarning map[string]MuteHealthWarningSpec `json:"muteHealthWarning,omitempty"` //nolint:kubeapilinter // Map keys are the Ceph health check codes
 }
 
 // DaemonHealthSpec is a daemon health check
@@ -85,6 +92,14 @@ type DaemonHealthSpec struct {
 	// +optional
 	// +nullable
 	ObjectStorageDaemon HealthCheckSpec `json:"osd,omitempty"`
+}
+
+// MuteHealthWarningSpec configures muting of a Ceph health warning.
+type MuteHealthWarningSpec struct {
+	// Policy controls whether to mute or unmute a Ceph health warning.
+	// +kubebuilder:validation:Enum=mute;unmute
+	// +required
+	Policy string `json:"policy,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
