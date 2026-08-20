@@ -16,6 +16,10 @@ inputs:
   kubernetes-version:
     description: kubernetes version to use for the workflow
     required: true
+  rook-image-artifact:
+    description: name of a prebuilt rook image artifact to import; empty builds rook in-job
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -32,6 +36,7 @@ runs:
       uses: ./.github/workflows/integration-test-setup-cluster-resources
       with:
         kubernetes-version: ${{ inputs.kubernetes-version }}
+        rook-image-artifact: ${{ inputs.rook-image-artifact }}
 
     - name: set Ceph version in CephCluster manifest
       shell: bash --noprofile --norc -eo pipefail -x {0}
