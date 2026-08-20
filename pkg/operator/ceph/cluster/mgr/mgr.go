@@ -479,7 +479,24 @@ func (c *Cluster) enableBalancerModule() error {
 	return nil
 }
 
+// The rook mgr module has some issues in specific Ceph releases, so we disable it for those versions.
+// v20.2.2 has a memory leak and v20.2.3 and v20.2.4 cause a mgr pod crash.
+func (c *Cluster) rookModuleDisabledForCephVersion() bool {
+	v := c.clusterInfo.CephVersion
+	if v.Major != 20 || v.Minor != 2 {
+		return false
+	}
+	return v.Extra >= 2 && v.Extra <= 4
+}
+
 func (c *Cluster) configureMgrModules() error {
+	if c.rookModuleDisabledForCephVersion() {
+		logger.Infof("disabling the rook mgr module for Ceph %s", c.clusterInfo.CephVersion.String())
+		if err := cephclient.MgrDisableModule(c.context, c.clusterInfo, rookModuleName); err != nil {
+			logger.Warningf("failed to disable rook mgr module. %v", err)
+		}
+	}
+
 	// Enable mgr modules from the spec
 	for _, module := range c.spec.Mgr.Modules {
 		if module.Name == "" {
@@ -487,6 +504,12 @@ func (c *Cluster) configureMgrModules() error {
 		}
 		if wellKnownModule(module.Name) {
 			return errors.Errorf("cannot configure mgr module %q that is configured with other cluster settings", module.Name)
+		}
+		if module.Name == rookModuleName && c.rookModuleDisabledForCephVersion() {
+			if module.Enabled {
+				logger.Infof("skipping rook mgr module configuration for Ceph %s", c.clusterInfo.CephVersion.String())
+			}
+			continue
 		}
 		minVersion, versionOK := c.moduleMeetsMinVersion(module.Name)
 		if !versionOK {
