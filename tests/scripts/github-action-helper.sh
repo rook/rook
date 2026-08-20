@@ -433,7 +433,9 @@ function deploy_manifest_with_local_build() {
   kubectl create -f $1
 }
 
-# Deploy toolbox with same ceph version as the cluster-test for ci
+# Deploy the toolbox from its committed manifest. The toolbox image deliberately does NOT
+# track the cluster under test: the version skew exercises Ceph's cross-version client
+# compatibility promises, which has caught real Ceph API breaks before release.
 function deploy_toolbox() {
   cd "${REPO_DIR}/deploy/examples"
   local ns
