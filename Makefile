@@ -100,6 +100,9 @@ ifneq ($(filter $(PLATFORM),$(SERVER_PLATFORMS)),)
 GO_STATIC_PACKAGES += $(SERVER_PACKAGES)
 endif
 
+# build holds the toolbox manifest generator, so it belongs in the test and vet sweeps
+GO_SUBDIRS=cmd pkg build
+
 GO_BUILDFLAGS=$(BUILDFLAGS)
 GO_LDFLAGS=$(LDFLAGS)
 GO_TAGS=$(TAGS)
@@ -118,8 +121,15 @@ build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
+<<<<<<< HEAD
 build.common: export SKIP_GEN_CRD_DOCS=true
 build.common: build.version helm.build mod.check crds gen-rbac
+=======
+
+
+.PHONY: build.common
+build.common: build.version helm.build mod.check crds.manifests gen.rbac gen.toolbox
+>>>>>>> 8698dc86c (build: generate the toolbox script manifests from toolbox.sh)
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 	@$(MAKE) -C images/ceph list-image
@@ -233,6 +243,16 @@ gen-rbac: $(HELM) $(YQ) helm.dependency.build ## Generate RBAC from Helm charts
 	HELM=$(HELM) ./build/rbac/gen-common.sh
 	HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
 
+<<<<<<< HEAD
+=======
+.PHONY: gen.toolbox
+gen.toolbox: gen-toolbox
+.PHONY: gen-toolbox
+gen-toolbox: ## Generate the inline toolbox scripts from images/ceph/toolbox.sh
+	go run ./build/toolbox
+
+.PHONY: gen.docs
+>>>>>>> 8698dc86c (build: generate the toolbox script manifests from toolbox.sh)
 gen.docs: docs ## generate docs
 .PHONY: docs
 docs: helm-docs ## generate documentation
@@ -257,7 +277,15 @@ gen.crd-docs: generate-docs-crds
 generate-docs-crds: ## Build the documentation for CRD
 	@GOBIN=$(GOBIN) build/crds/generate-crd-docs.sh
 
+<<<<<<< HEAD
 generate: gen.codegen gen.crds gen.rbac gen.docs gen.crd-docs ## Update all generated files (code, manifests, charts, and docs).
+=======
+.PHONY: generate-docs-crds
+generate-docs-crds: crds.docs ## Build the documentation for CRDs
+
+.PHONY: generate
+generate: gen.codegen gen.crds gen.rbac gen.toolbox ## Update all generated files (code, manifests, charts, and docs).
+>>>>>>> 8698dc86c (build: generate the toolbox script manifests from toolbox.sh)
 
 
 .PHONY: all build.common
