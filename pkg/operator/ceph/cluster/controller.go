@@ -141,8 +141,11 @@ func watchOwnedCoreObject[T client.Object](c controller.Controller, mgr manager.
 	)
 }
 
-// isSecretRefFromCluster checks if the secret name is referenced in the CephCluster cephConfigFromSecret field.
+// isSecretRefFromCluster checks if the secret name is referenced in the CephCluster spec.
 func isSecretRefFromCluster(secretName string, clusterSpec cephv1.ClusterSpec) bool {
+	if secretName == clusterSpec.Dashboard.SSLCertificateRef {
+		return true
+	}
 	for _, secretKeyMap := range clusterSpec.CephConfigFromSecret {
 		for _, keySelector := range secretKeyMap {
 			if secretName == keySelector.Name {

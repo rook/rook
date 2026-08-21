@@ -211,6 +211,24 @@ func TestRemoveFinalizers(t *testing.T) {
 	}
 }
 
+func TestIsSecretRefFromCluster(t *testing.T) {
+	clusterSpec := cephv1.ClusterSpec{
+		Dashboard: cephv1.DashboardSpec{SSLCertificateRef: "dashboard-tls"},
+		CephConfigFromSecret: map[string]map[string]corev1.SecretKeySelector{
+			"global": {
+				"debug_mgr": {
+					LocalObjectReference: corev1.LocalObjectReference{Name: "ceph-config"},
+					Key:                  "debug_mgr",
+				},
+			},
+		},
+	}
+
+	assert.True(t, isSecretRefFromCluster("dashboard-tls", clusterSpec))
+	assert.True(t, isSecretRefFromCluster("ceph-config", clusterSpec))
+	assert.False(t, isSecretRefFromCluster("other-secret", clusterSpec))
+}
+
 func TestReconcileSkipsWhenSkipReconcileLabelSet(t *testing.T) {
 	cephNs := "rook-ceph"
 	clusterName := "my-cluster"
