@@ -51,6 +51,15 @@ spec:
       mon:
         interval: 45s
         timeout: 600s
+    muteHealthWarning:
+      AUTH_INSECURE_ROTATING_SERVICE_KEY_TYPE:
+        policy: mute
+      AUTH_INSECURE_CLIENT_KEY_TYPE:
+        policy: mute
+      AUTH_INSECURE_KEYS_ALLOWED:
+        policy: mute
+      AUTH_INSECURE_KEYS_CREATABLE:
+        policy: mute
   priorityClassNames:
     all: system-node-critical
     mgr: system-cluster-critical
