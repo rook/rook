@@ -500,6 +500,11 @@ function deploy_cluster() {
   kubectl create -f cluster-test.yaml
 
   deploy_toolbox
+
+  echo "=== NetworkPolicies ==="
+  kubectl get networkpolicy -A
+  echo "=== Pods ==="
+  kubectl get pods -A
 }
 
 # These resources were extracted from the original deploy_cluster(), which was
