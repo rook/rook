@@ -393,6 +393,7 @@ func TestCephObjectStoreController(t *testing.T) {
 			context:          c,
 			recorder:         events.NewFakeRecorder(50),
 			opManagerContext: context.TODO(),
+			storeContexts:    map[string]*objectStoreHealth{},
 		}
 
 		return r
@@ -742,7 +743,10 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		context:          c,
 		recorder:         events.NewFakeRecorder(50),
 		opManagerContext: ctx,
+		storeContexts:    map[string]*objectStoreHealth{},
 	}
+	// reconciling a multisite store starts the sync checker go routine
+	t.Cleanup(func() { r.cancelMultisiteSyncChecker(objectStore) })
 
 	_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
@@ -793,6 +797,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 			context:          c,
 			recorder:         events.NewFakeRecorder(50),
 			opManagerContext: ctx,
+			storeContexts:    map[string]*objectStoreHealth{},
 		}
 
 		// have to also track the same objects in the rook clientset
@@ -963,6 +968,7 @@ func TestCephObjectStoreControllerZoneNotReady(t *testing.T) {
 				context:          c,
 				recorder:         events.NewFakeRecorder(50),
 				opManagerContext: ctx,
+				storeContexts:    map[string]*objectStoreHealth{},
 			}
 
 			_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
@@ -1166,6 +1172,7 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 			context:          c,
 			recorder:         events.NewFakeRecorder(50),
 			opManagerContext: ctx,
+			storeContexts:    map[string]*objectStoreHealth{},
 		}
 
 		_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
@@ -1614,6 +1621,7 @@ func TestKeyRotation(t *testing.T) {
 		context:          c,
 		recorder:         events.NewFakeRecorder(50),
 		opManagerContext: ctx,
+		storeContexts:    map[string]*objectStoreHealth{},
 	}
 
 	_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
