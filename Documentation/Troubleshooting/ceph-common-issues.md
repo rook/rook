@@ -12,6 +12,7 @@ title: Ceph Common Issues
     - [Ceph Tools](#ceph-tools)
     - [Tools in the Rook Toolbox](#tools-in-the-rook-toolbox)
     - [Ceph Commands](#ceph-commands)
+- [Ceph health warnings](#ceph-health-warnings)
 - [Cluster failing to service requests](#cluster-failing-to-service-requests)
 - [Monitors are the only pods running](#monitors-are-the-only-pods-running)
 - [PVCs stay in pending state](#pvcs-stay-in-pending-state)
@@ -75,6 +76,30 @@ Here are some common commands to troubleshoot a Ceph cluster:
 The first two status commands provide the overall cluster health. The normal state for cluster operations is HEALTH_OK, but will still function when the state is in a HEALTH_WARN state. If you are in a WARN state, then the cluster is in a condition that it may enter the HEALTH_ERROR state at which point *all* disk I/O operations are halted. If a HEALTH_WARN state is observed, then one should take action to prevent the cluster from halting when it enters the HEALTH_ERROR state.
 
 There are many Ceph sub-commands to look at and manipulate Ceph objects, well beyond the scope this document. See the [Ceph documentation](https://docs.ceph.com/) for more details of gathering information about the health of the cluster. In addition, there are other helpful hints and some best practices located in the [Advanced Configuration section](../Storage-Configuration/Advanced/ceph-configuration.md). Of particular note, there are scripts for collecting logs and gathering OSD information there.
+
+## Ceph health warnings
+
+After installing Rook, `ceph status` may show health warnings since the Ceph release with
+a new AES256 key type as outlined in the [Rook advisory](https://medium.com/rook-io/rook-advisory-for-ceph-cve-2025-30156-cc1f8dee6da3).
+
+### Symptoms
+
+```console
+$ ceph status
+...
+    health: HEALTH_WARN
+            4 auth client entities with insecure key types
+            Monitors are configured to allow auth using insecure key types
+            Monitors are configured to allow creation of insecure key types
+```
+
+### Solution
+
+There are two options to resolve these health warnings:
+
+1. Update all client cephx keys to AES256K. This requires a kernel version 7.0 or newer. See the
+    [Cephx Keys and Rotation](../Storage-Configuration/Advanced/cephx-key-rotation.md) topic.
+2. The health warnings can be muted. See the topic on [muting the health warnings](../Storage-Configuration/Advanced/cephx-key-rotation.md#warnings).
 
 ## Cluster failing to service requests
 
