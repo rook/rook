@@ -3136,6 +3136,25 @@ spec:
                         Whether to disable the metrics reported by Ceph. If false, the prometheus mgr module and Ceph exporter are enabled.
                         If true, the prometheus mgr module and Ceph exporter are both disabled. Default is false.
                       type: boolean
+                    metricsTLS:
+                      description: |-
+                        MetricsTLS configures native HTTPS for the MGR Prometheus metrics endpoint.
+                        Requires Ceph with prometheus module TLS support.
+                        Rook mounts a Kubernetes TLS Secret into the mgr pod and configures the module.
+                      minProperties: 1
+                      properties:
+                        enabled:
+                          description: Enabled determines whether TLS is enabled for the metrics endpoint.
+                          type: boolean
+                        secretName:
+                          description: |-
+                            SecretName is the name of the Kubernetes TLS secret that contains tls.crt
+                            and tls.key for the metrics endpoint. If empty, defaults to
+                            DefaultMetricsTLSSecretName.
+                          maxLength: 253
+                          minLength: 1
+                          type: string
+                      type: object
                     port:
                       description: Port is the prometheus server port
                       maximum: 65535

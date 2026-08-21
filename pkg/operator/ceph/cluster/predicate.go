@@ -231,6 +231,18 @@ func isFloatingMonConfigMap(ctx context.Context, client client.Client, cm *corev
 	return false
 }
 
+func isMetricsTLSSecretRefFromCluster(secretName string, clusterSpec cephv1.ClusterSpec) bool {
+	if clusterSpec.Monitoring.MetricsTLS == nil {
+		return false
+	}
+
+	name := cephv1.DefaultMetricsTLSSecretName
+	if clusterSpec.Monitoring.MetricsTLS.SecretName != "" {
+		name = clusterSpec.Monitoring.MetricsTLS.SecretName
+	}
+	return secretName == name
+}
+
 func watchControllerPredicate[T *cephv1.CephCluster](ctx context.Context, c client.Client) predicate.TypedFuncs[T] {
 	return predicate.TypedFuncs[T]{
 		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
