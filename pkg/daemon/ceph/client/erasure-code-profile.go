@@ -106,7 +106,7 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterInfo *ClusterInf
 		profilePairs = append(profilePairs, fmt.Sprintf("stripe_unit=%d", stripeBytes))
 	}
 
-	args := []string{"osd", "erasure-code-profile", "set", profileName, "--force"}
+	args := []string{"osd", "erasure-code-profile", "set", profileName, "--force", "--yes-i-really-mean-it"}
 	args = append(args, profilePairs...)
 	cmd := NewCephCommand(context, clusterInfo, args)
 	cmd.JsonOutput = false
