@@ -792,6 +792,12 @@ const (
 	// RadosNamespaceEmptyReason represents when a rados namespace does not contain images or snapshots that are blocking
 	// deletion.
 	RadosNamespaceEmptyReason ConditionReason = "RadosNamespaceEmpty"
+	// MultisiteSyncWedgedReason represents when an object store's multisite sync is stuck in a
+	// state it cannot leave on its own and Rook has exhausted its budget for recovering it.
+	MultisiteSyncWedgedReason ConditionReason = "MultisiteSyncWedged"
+	// MultisiteSyncHealthyReason represents when an object store's multisite sync state machines
+	// are initialized.
+	MultisiteSyncHealthyReason ConditionReason = "MultisiteSyncHealthy"
 )
 
 // ConditionType represent a resource's status
@@ -817,6 +823,10 @@ const (
 	ConditionPoolDeletionIsBlocked ConditionType = "PoolDeletionIsBlocked"
 	// ConditionRadosNSDeletionIsBlocked represents when deletion of the object is blocked.
 	ConditionRadosNSDeletionIsBlocked ConditionType = "RadosNamespaceDeletionIsBlocked"
+
+	// ConditionMultisiteSyncHealthy represents whether an object store's multisite sync state
+	// machines are initialized and Rook is not out of recovery attempts for them.
+	ConditionMultisiteSyncHealthy ConditionType = "MultisiteSyncHealthy"
 )
 
 // ClusterState represents the state of a Ceph Cluster

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -85,15 +86,23 @@ var cephObjectStoreDependents = CephObjectStoreDependents
 
 // ReconcileCephObjectStore reconciles a cephObjectStore object
 type ReconcileCephObjectStore struct {
-	client           client.Client
-	bktclient        bktclient.Interface
-	scheme           *runtime.Scheme
-	context          *clusterd.Context
-	clusterSpec      *cephv1.ClusterSpec
-	clusterInfo      *cephclient.ClusterInfo
-	recorder         events.EventRecorder
-	opManagerContext context.Context
-	opConfig         opcontroller.OperatorConfig
+	client             client.Client
+	bktclient          bktclient.Interface
+	scheme             *runtime.Scheme
+	context            *clusterd.Context
+	clusterSpec        *cephv1.ClusterSpec
+	clusterInfo        *cephclient.ClusterInfo
+	recorder           events.EventRecorder
+	opManagerContext   context.Context
+	opConfig           opcontroller.OperatorConfig
+	storeContexts      map[string]*objectStoreHealth
+	storeContextsMutex sync.Mutex
+}
+
+type objectStoreHealth struct {
+	internalCtx    context.Context
+	internalCancel context.CancelFunc
+	started        bool
 }
 
 // Add creates a new cephObjectStore Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -113,6 +122,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 		opManagerContext: opManagerContext,
 		opConfig:         opConfig,
+		storeContexts:    make(map[string]*objectStoreHealth),
 	}
 }
 
@@ -334,6 +344,9 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		// If not, we should wait for it to be ready
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephObjectStore.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// don't leak the sync checker routine if we are force deleting
+			r.cancelMultisiteSyncChecker(cephObjectStore)
+
 			// Remove finalizer
 			err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStore)
 			if err != nil {
@@ -409,6 +422,8 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 			clusterInfo: r.clusterInfo,
 		}
 		cfg.deleteStore()
+
+		r.cancelMultisiteSyncChecker(cephObjectStore)
 
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStore)
@@ -515,6 +530,12 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	err = updateStatus(r.opManagerContext, observedGeneration, cephObjectStore.Spec.Gateway.Instances, r.client, request.NamespacedName, cephv1.ConditionReady, buildStatusInfo(cephObjectStore), &cephxStatus)
 	if err != nil {
 		return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to set final status for cephObjectStore %q", request.NamespacedName)
+	}
+
+	if shouldCheckMultisiteSync(cephObjectStore) {
+		r.startMultisiteSyncChecker(cephObjectStore, request.NamespacedName)
+	} else {
+		r.cancelMultisiteSyncChecker(cephObjectStore)
 	}
 
 	// Return and do not requeue
@@ -733,4 +754,47 @@ func (r *ReconcileCephObjectStore) getMultisiteResourceNames(cephObjectStore *ce
 	log.NamedDebug(nsName, logger, "CephObjectRealm resource %s found", realm.Name)
 
 	return realm.Name, zonegroup.Name, zone.Name, zone, reconcile.Result{}, nil
+}
+
+func storeContextKeyName(store *cephv1.CephObjectStore) string {
+	return types.NamespacedName{Namespace: store.Namespace, Name: store.Name}.String()
+}
+
+// start monitoring the multisite sync status of the object store. This is a noop if monitoring is
+// already running.
+func (r *ReconcileCephObjectStore) startMultisiteSyncChecker(store *cephv1.CephObjectStore, namespacedName types.NamespacedName) {
+	r.storeContextsMutex.Lock()
+	defer r.storeContextsMutex.Unlock()
+
+	key := storeContextKeyName(store)
+	storeContext, exists := r.storeContexts[key]
+	if !exists {
+		internalCtx, internalCancel := context.WithCancel(r.opManagerContext)
+		storeContext = &objectStoreHealth{
+			internalCtx:    internalCtx,
+			internalCancel: internalCancel,
+		}
+		r.storeContexts[key] = storeContext
+	}
+
+	if storeContext.started {
+		log.NamedDebug(namespacedName, logger, "multisite sync status monitoring go routine already running!")
+		return
+	}
+
+	checker := newMultisiteSyncChecker(r.context, r.client, r.recorder, r.clusterInfo, r.clusterSpec, store, namespacedName)
+	go checker.checkSyncHealth(storeContext.internalCtx)
+	storeContext.started = true
+}
+
+// cancel monitoring the multisite sync status. This is a noop if monitoring is not running.
+func (r *ReconcileCephObjectStore) cancelMultisiteSyncChecker(store *cephv1.CephObjectStore) {
+	r.storeContextsMutex.Lock()
+	defer r.storeContextsMutex.Unlock()
+
+	key := storeContextKeyName(store)
+	if storeContext, exists := r.storeContexts[key]; exists {
+		storeContext.internalCancel()
+		delete(r.storeContexts, key)
+	}
 }

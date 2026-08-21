@@ -12,3 +12,9 @@
 - RBD QoS (Quality of Service) support via `VolumeAttributesClass` using the krbd mounter with cgroup v2 `io.max` enforcement. See the [RBD QoS documentation](Documentation/Storage-Configuration/Block-Storage-RBD/rbd-qos.md) for details.
 - Automated OSD replacement. OSD deployment can be annotated to mark it for replacement. Rook will drain and destroy it with preserving its CRUSH position to later reuse it when new device will be available on the same node. All types of OSDs supported for host-based cluster included OSDs sharing metadata device. PVC-based OSDs are not supported. See [OSD replacement design document](./design/ceph/osd-replacement.md) for details.
 - The rook-ceph-cluster Helm chart can create `CephObjectStoreUser` resources via the new `cephObjectStoreUsers` value.
+- RGW multisite sync that wedges during initialization is now detected and recovered automatically:
+  Rook pulls the RGW configuration period and restarts the affected object store's gateways, with a
+  capped number of attempts, a `MultisiteSyncHealthy` status condition, and events on the
+  `CephObjectStore`. See the
+  [multisite documentation](Documentation/Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md#automatic-sync-recovery)
+  for details.
