@@ -440,7 +440,9 @@ function deploy_toolbox() {
   cd "${REPO_DIR}/deploy/examples"
   local ns
   ns=$(yq r toolbox.yaml metadata.namespace 2>/dev/null)
-  timeout 300 bash -c 'until kubectl get secret rook-ceph-mon -n "$1" &>/dev/null && kubectl get cm rook-ceph-mon-endpoints -n "$1" &>/dev/null; do sleep 2; done' _ "${ns}"
+  # the ConfigMap is created before the operator fills in the mon endpoints, and a toolbox that
+  # starts against an empty "data" key never learns where the mons are
+  timeout 300 bash -c 'until kubectl get secret rook-ceph-mon -n "$1" &>/dev/null && kubectl get cm rook-ceph-mon-endpoints -n "$1" -o jsonpath="{.data.data}" 2>/dev/null | grep -q .; do sleep 2; done' _ "${ns}"
   kubectl create -f toolbox.yaml
   kubectl -n "${ns}" wait --for=condition=available deployment/rook-ceph-tools --timeout=300s
 }
@@ -828,73 +830,25 @@ function wait_for_sync_status() {
   return 1
 }
 
-# nudge_multisite_secondary forces the secondary zone to converge on the latest period when it
-# has wedged. The master pushes each new period to the secondary's RGW, but that push is
-# rejected (HTTP 403) until the realm system user is resolvable locally on the secondary; when
-# it starts out unresolvable the master keeps re-pushing identically and the secondary never
-# recovers, so its metadata sync never leaves the "failed to read sync status" state. Pulling
-# the period directly (outbound auth, which works) and restarting the RGW so it re-runs metadata
-# sync init against the now-ready master breaks the wedge. This mirrors ceph's own multisite QA,
-# which restarts zone gateways after the period is committed.
-function nudge_multisite_secondary() {
-  echo "nudging the secondary zone to converge: pulling the latest period and restarting its RGW"
-  kubectl -n rook-ceph-secondary exec deploy/rook-ceph-tools -- \
-    radosgw-admin period pull --rgw-realm=realm-a || true
-  kubectl -n rook-ceph-secondary rollout restart deploy/rook-ceph-rgw-zone-b-multisite-store-a
-  kubectl -n rook-ceph-secondary rollout status deploy/rook-ceph-rgw-zone-b-multisite-store-a --timeout=120s
-}
-
-# Both RGWs boot while the multisite period is still converging (zone-b joins the zonegroup
-# only after zone-a is already serving), and a gateway that raced a period change can leave its
-# sync state machine wedged in "init" without ever erroring. Restarting the gateways once the
-# join has settled makes sync initialize from the final period, mirroring ceph's own multisite
-# QA, which restarts zone gateways after committing period changes.
-function restart_multisite_rgws() {
-  kubectl -n rook-ceph rollout restart deploy/rook-ceph-rgw-multisite-store-a
-  kubectl -n rook-ceph-secondary rollout restart deploy/rook-ceph-rgw-zone-b-multisite-store-a
-  kubectl -n rook-ceph rollout status deploy/rook-ceph-rgw-multisite-store-a --timeout=120s
-  kubectl -n rook-ceph-secondary rollout status deploy/rook-ceph-rgw-zone-b-multisite-store-a --timeout=120s
-}
-
 function wait_for_multisite_sync_established() {
   # Wait until both zones report multisite sync fully established before exercising
   # replication, mirroring the checkpoints ceph's own multisite QA performs before asserting
   # anything. This also rides out the RGW frontend pauses caused by the configuration period
   # changes that follow the second zone joining the zonegroup.
   #
-  # The secondary's metadata sync can wedge on a fresh setup (see nudge_multisite_secondary); if
-  # it has not initialized within a couple of minutes, nudge it to converge rather than waiting
-  # out a doomed timeout, then retry. Healthy setups pass the first attempt in seconds, so the
-  # nudge only ever runs when the sync is genuinely stuck.
-  local attempt
-  for attempt in 1 2 3; do
-    if wait_for_sync_status rook-ceph-secondary zone-b "metadata is caught up with master" 120; then
-      break
-    fi
-    if [[ $attempt -ge 3 ]]; then
-      echo "zone-b metadata sync never established after ${attempt} attempts"
-      return 1
-    fi
-    nudge_multisite_secondary
-  done
+  # A fresh multisite setup can wedge: a gateway that raced a period change never leaves sync
+  # "init", and a secondary whose realm system user was not yet resolvable locally rejects the
+  # master's period pushes forever. The operator detects both and recovers them by pulling the
+  # period and restarting the RGW, which takes 3-5 minutes to trigger in the worst case. So this
+  # function only waits, generously enough to cover that detection latency, and never nudges the
+  # gateways itself: the strict "incremental sync" checks below are what regression-test the
+  # operator's recovery.
+  wait_for_sync_status rook-ceph-secondary zone-b "metadata is caught up with master" 600
   # "data is caught up with source" is vacuously true while data sync is still wedged in "init"
   # (it reports 0/0 shards), so require the shard counts that prove sync actually initialized.
-  # A wedged gateway never leaves "init" on its own; restart it and retry once (see
-  # restart_multisite_rgws).
   local initialized='incremental sync: [0-9]*/[1-9]'
-  wait_for_sync_status rook-ceph-secondary zone-b "$initialized" 300
-  for attempt in 1 2; do
-    if wait_for_sync_status rook-ceph zone-a "$initialized" 180; then
-      return 0
-    fi
-    if [[ $attempt -ge 2 ]]; then
-      echo "zone-a data sync never initialized after ${attempt} attempts"
-      return 1
-    fi
-    echo "nudging zone-a: restarting its RGW to re-run data sync init"
-    kubectl -n rook-ceph rollout restart deploy/rook-ceph-rgw-multisite-store-a
-    kubectl -n rook-ceph rollout status deploy/rook-ceph-rgw-multisite-store-a --timeout=120s
-  done
+  wait_for_sync_status rook-ceph-secondary zone-b "$initialized" 600
+  wait_for_sync_status rook-ceph zone-a "$initialized" 600
 }
 
 function dump_multisite_diagnostics() {
@@ -906,6 +860,11 @@ function dump_multisite_diagnostics() {
     if [[ "$ns" == "rook-ceph" ]]; then zone="zone-a"; else zone="zone-b"; fi
     echo "===== ${ns}: pods"
     kubectl -n "$ns" get pods -o wide
+    echo "===== ${ns}: recent events"
+    # the operator reports its multisite recovery (period pull, RGW restart) as events
+    kubectl -n "$ns" get events --sort-by=.lastTimestamp | tail -n 40
+    echo "===== ${ns}: object store phase and conditions"
+    kubectl -n "$ns" get cephobjectstore -o jsonpath='{range .items[*]}{.metadata.name}{" phase="}{.status.phase}{"\n"}{range .status.conditions[*]}{"  "}{.type}{"="}{.status}{" reason="}{.reason}{" message="}{.message}{"\n"}{end}{end}'
     # the cluster this dump runs against just failed, so bound every toolbox command: an
     # unreachable cluster must not stall the dump for the full rados client mount timeout
     echo "===== ${ns}: ceph versions"
@@ -1143,8 +1102,16 @@ EOF
   kubectl -n default exec pod/nvmeof-test-pod -- sh -c "echo 'abcd efg hij' > /mnt/nvmeof/test.txt && grep -qx 'abcd efg hij' /mnt/nvmeof/test.txt"
 }
 
+# usage: toolbox [-n <namespace>] <command> [args...]
+# Exec through the deployment rather than a pod name so kubectl picks a running pod instead of
+# whichever one happens to be first, which can be terminating.
 function toolbox() {
-  kubectl -n rook-ceph exec -it "$(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')" -- "$@"
+  local ns=rook-ceph
+  if [[ "$1" == "-n" ]]; then
+    ns=${2?namespace is required after -n}
+    shift 2
+  fi
+  kubectl -n "$ns" exec -it deploy/rook-ceph-tools -- "$@"
 }
 
 function ceph() {
