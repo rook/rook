@@ -2,8 +2,7 @@
 
 This tree holds the new-style integration tests for rook's object storage
 features; follow the conventions here exactly. Object storage is also exercised
-by the keystone, helm, and upgrade suites, which keep their own old-style
-tests.
+by the keystone and upgrade suites, which keep their own old-style tests.
 
 ## Execution model
 
@@ -62,9 +61,9 @@ Shared utilities live under `util/`:
   publish in their status, shared by more than one package.
 - `sharedstore` — the CephObjectStore fixture: the shared store, and the
   private store a private-store package builds (`Config.Kind` selects a zoned
-  or classic store). Create waits for the store to be Ready and publish an
-  endpoint, and Destroy asserts it deletes, so every store the suites build
-  covers the store lifecycle.
+  or classic store). Create waits for the store to be Ready, publish an
+  endpoint, and bring up all `Config.Instances` gateways, and Destroy asserts
+  it deletes, so every store the suites build covers the store lifecycle.
 - `client` — rgw admin, SNS, and S3 client builders and TLS cert generation.
 
 ## Anatomy of a package
