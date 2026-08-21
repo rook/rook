@@ -578,7 +578,7 @@ cephFileSystems:
           name: data0
       metadataServer:
         activeCount: 1
-        activeStandby: true
+        standbyCount: 1
         resources:
           limits:
             memory: "4Gi"

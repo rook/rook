@@ -42,8 +42,8 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{
 			MetadataServer: cephv1.MetadataServerSpec{
-				ActiveCount:   1,
-				ActiveStandby: false,
+				ActiveCount:  1,
+				StandbyCount: 1,
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
 						v1.ResourceCPU:    *resource.NewQuantity(500.0, resource.BinarySI),
