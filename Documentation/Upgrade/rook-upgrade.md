@@ -55,6 +55,14 @@ those releases.
 
 ## Breaking changes in v1.19
 
+* Be aware that **Ceph [CVE-2025–30156](https://ceph.io/en/news/blog/2026/v20-2-4-v19-2-6-combo-released/)**
+    was announced. Rook users are advised to upgrade to Rook v1.20.6 or v1.19.10 and Ceph versions
+    v20.2.4 or v19.2.6 as soon as possible. Ceph will report health errors until users rotate core
+    CephX auth keys. For instructions needed to rotate CephX keys, see Rook's
+    [CVE resolution guide](../Storage-Configuration/Advanced/cephx-key-rotation.md#cve-2025-30156-resolution).
+    Users upgrading from Rook v1.18 or lower should follow guidance in
+    [Rook issue #18203](https://github.com/rook/rook/issues/18203#issuecomment-5397373786)
+
 * The minimum supported Kubernetes version is v1.30.
 
 * The minimum supported Ceph version is v19.2.0. Rook v1.18 clusters running Ceph v18 must upgrade
