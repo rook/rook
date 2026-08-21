@@ -7084,7 +7084,7 @@ time.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>DEPRECATED: PGHealthCheckTimeout is no longer implemented</p>
+<p>Deprecated: PGHealthCheckTimeout is no longer implemented and has no effect.</p>
 </td>
 </tr>
 <tr>
@@ -7109,7 +7109,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Deprecated. This enables management of machinedisruptionbudgets.</p>
+<p>Deprecated: ManageMachineDisruptionBudgets is no longer implemented and has no
+effect. The machine disruption budget controller has been removed.</p>
 </td>
 </tr>
 <tr>
@@ -7121,7 +7122,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Deprecated. Namespace to look for MDBs by the machineDisruptionBudgetController</p>
+<p>Deprecated: MachineDisruptionBudgetNamespace is no longer implemented and has no
+effect. The machine disruption budget controller has been removed.</p>
 </td>
 </tr>
 </tbody>
@@ -9410,7 +9412,10 @@ int
 </td>
 <td>
 <em>(Optional)</em>
-<p>The number of seconds between token revocation checks.</p>
+<p>The number of seconds between token revocation checks.
+NOT IMPLEMENTED: this setting has no effect, and never has in any Rook
+release that offers it. RGW stopped performing Keystone token revocation
+checks after Nautilus, which predates the oldest Ceph release Rook supports.</p>
 </td>
 </tr>
 </tbody>
@@ -11589,7 +11594,10 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Filters based on the object&rsquo;s metadata</p>
+<p>Filters based on the object&rsquo;s metadata.
+NOT IMPLEMENTED: this setting has no effect. RGW supports metadata and tag
+filters, but Rook sends only keyFilters to the bucket notification
+configuration.</p>
 </td>
 </tr>
 <tr>
@@ -11603,7 +11611,10 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Filters based on the object&rsquo;s tags</p>
+<p>Filters based on the object&rsquo;s tags.
+NOT IMPLEMENTED: this setting has no effect. RGW supports metadata and tag
+filters, but Rook sends only keyFilters to the bucket notification
+configuration.</p>
 </td>
 </tr>
 </tbody>
@@ -11960,7 +11971,10 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Whether the RADOS namespaces should be preserved on deletion of the object store</p>
+<p>Whether the RADOS namespaces should be preserved on deletion of the object store.
+NOT IMPLEMENTED: this setting has no effect. Rook does not delete the RADOS
+namespaces of a shared-pool object store, so their data is retained regardless of
+this setting. See <a href="https://github.com/rook/rook/issues/13921">https://github.com/rook/rook/issues/13921</a>.</p>
 </td>
 </tr>
 <tr>
@@ -15099,7 +15113,9 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>PersistentVolumeClaims to use as storage</p>
+<p>PersistentVolumeClaims to use as storage.
+NOT IMPLEMENTED: this setting has no effect. Use
+storageClassDeviceSets[].volumeClaimTemplates to back OSDs with PVCs.</p>
 </td>
 </tr>
 </tbody>
@@ -15734,7 +15750,8 @@ map[string]string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Provider-specific device configuration</p>
+<p>Provider-specific device configuration.
+NOT IMPLEMENTED: this setting has no effect.</p>
 </td>
 </tr>
 <tr>

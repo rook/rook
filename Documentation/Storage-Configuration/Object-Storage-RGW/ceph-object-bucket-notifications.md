@@ -150,18 +150,10 @@ spec:
       # match objects with keys with only lowercase characters
       - name: regex
         value: "[a-z]*\\.*"
-    metadataFilters: [6]
-      - name: x-amz-meta-color
-        value: blue
-      - name: x-amz-meta-user-type
-        value: free
-    tagFilters: [7]
-      - name: project
-        value: brown
   # notification apply for any of the events
   # full list of supported events is here:
   # https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types
-  events: [8]
+  events: [6]
     - s3:ObjectCreated:Put
     - s3:ObjectCreated:Copy
 ```
@@ -171,9 +163,7 @@ spec:
 3. `topic` to which the notifications should be sent
 4. `filter` (optional) holds a list of filtering rules of different types. Only objects that match all the filters will trigger notification sending
 5. `keyFilter` (optional) are filters based on the object key. There could be up to 3 key filters defined: `prefix`, `suffix` and `regex`
-6. `metadataFilters` (optional) are filters based on the object metadata. All metadata fields defined as filters must exists in the object, with the values defined in the filter. Other metadata fields may exist in the object
-7. `tagFilters` (optional) are filters based on object tags. All tags defined as filters must exists in the object, with the values defined in the filter. Other tags may exist in the object
-8. `events` (optional) is a list of events that should trigger the notifications. By default all events should trigger notifications. Valid Events are:
+6. `events` (optional) is a list of events that should trigger the notifications. By default all events should trigger notifications. Valid Events are:
     * s3:ObjectCreated:*
     * s3:ObjectCreated:Put
     * s3:ObjectCreated:Post
@@ -182,6 +172,12 @@ spec:
     * s3:ObjectRemoved:*
     * s3:ObjectRemoved:Delete
     * s3:ObjectRemoved:DeleteMarkerCreated
+
+!!! note
+    `metadataFilters` and `tagFilters` are accepted by the API but **not
+    implemented**: they have no effect. RGW supports both filter types, but
+    Rook sends only `keyFilters` to the bucket notification configuration, so a
+    notification is not narrowed by object metadata or object tags.
 
 ### OBC Custom Resource
 

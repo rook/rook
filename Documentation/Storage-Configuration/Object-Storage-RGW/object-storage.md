@@ -168,12 +168,17 @@ spec:
   sharedPools:
     metadataPoolName: rgw-meta-pool
     dataPoolName: rgw-data-pool
-    preserveRadosNamespaceDataOnDelete: true
   gateway:
     # sslCertificateRef:
     port: 80
     instances: 1
 ```
+
+!!! note
+    `preserveRadosNamespaceDataOnDelete` is accepted by the API but **not
+    implemented**: it has no effect. Rook does not delete the RADOS namespaces of
+    a shared-pool object store, so their data is retained when the object store is
+    deleted regardless of this setting.
 
 Create the object store:
 
