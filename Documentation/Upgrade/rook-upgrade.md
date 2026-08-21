@@ -36,6 +36,12 @@ those releases.
 
 ## Breaking changes in v1.20
 
+* Be aware that **Ceph [CVE-2025–30156](https://ceph.io/en/news/blog/2026/v20-2-4-v19-2-6-combo-released/)**
+    was recently announced. Rook users are advised to upgrade to Rook v1.20.6 or v1.19.10 and Ceph
+    versions v20.2.4 or v19.2.6 as soon as possible. See
+    [Rook's advisory](https://medium.com/@b.blaine.gardner/rook-advisory-for-ceph-cve-2025-30156-cc1f8dee6da3)
+    for instructions needed to rotate CephX keys.
+
 * **CSI drivers are admin-managed via the ceph-csi-operator.** Rook no longer deploys CSI
     drivers. Existing CSI settings that were configured through the `rook-ceph-operator-config`
     ConfigMap must be migrated to the ceph-csi-operator resources. The following sections will guide
