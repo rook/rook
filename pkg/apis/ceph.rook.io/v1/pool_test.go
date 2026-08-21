@@ -45,6 +45,21 @@ func TestValidatePoolSpec(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestValidateCephBlockPoolBuiltInPool(t *testing.T) {
+	p := &CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-pool"},
+		Spec: NamedBlockPoolSpec{
+			Name: ".mgr",
+			PoolSpec: PoolSpec{
+				ErasureCoded: ErasureCodedSpec{CodingChunks: 1, DataChunks: 2},
+			},
+		},
+	}
+
+	err := ValidateCephBlockPool(p)
+	assert.EqualError(t, err, `invalid CephBlockPool spec: ceph built-in pool ".mgr" cannot be erasure coded`)
+}
+
 func TestMirroringSpec_SnapshotSchedulesEnabled(t *testing.T) {
 	type fields struct {
 		Enabled           bool
