@@ -10,6 +10,7 @@
 
 ## Features
 
+<<<<<<< HEAD
 - The latest supported Kubernetes version is v1.36.
 - RGW Account support: Added `CephObjectStoreAccount` CRD for managing RGW accounts, and `accountRef` field in `CephObjectStoreUser` to associate users with accounts. This feature is experimental and currently only supported with the Ceph main branch image (`quay.ceph.io/ceph-ci/ceph:main`). See the [Object Store Accounts](Documentation/Storage-Configuration/Object-Storage-RGW/ceph-object-accounts.md) documentation for more details.
 - SSE-S3 with Vault Agent: Added support for server-side encryption with SSE-S3 using HashiCorp Vault Agent authentication. See the [CephObjectStore Security Settings](Documentation/CRDs/Object-Storage/ceph-object-store-crd.md#sse-s3-with-vault-agent) for more details.
@@ -17,3 +18,9 @@
 - Declare stable the feature to concurrently reconcile multiple Ceph Clusters with the setting `ROOK_RECONCILE_CONCURRENT_CLUSTERS`.
 - Containers within a pod are now consistently reconciled by name instead of relying on the order in which they are declared.  This is a defensive measure against the declaration order changing due to manipulation by a mutating webhook.
 - OSD resize with encrypted host-based OSDs: When using `encryptedDevice: true` with host-based (non-PVC) OSDs, resizing the underlying disk now automatically expands encrypted OSDs.
+=======
+- RBD QoS (Quality of Service) support via `VolumeAttributesClass` using the krbd mounter with cgroup v2 `io.max` enforcement. See the [RBD QoS documentation](Documentation/Storage-Configuration/Block-Storage-RBD/rbd-qos.md) for details.
+- Automated OSD replacement. OSD deployment can be annotated to mark it for replacement. Rook will drain and destroy it with preserving its CRUSH position to later reuse it when new device will be available on the same node. All types of OSDs supported for host-based cluster included OSDs sharing metadata device. PVC-based OSDs are not supported. See [OSD replacement design document](./design/ceph/osd-replacement.md) for details.
+- The rook-ceph-cluster Helm chart can create `CephObjectStoreUser` resources via the new `cephObjectStoreUsers` value.
+- The toolbox deployments from the Helm chart and the example manifests now reload the keyring and `ceph.conf` automatically after CephX key rotation, mon failover, or a config override change.
+>>>>>>> 365244049 (docs: note that all toolbox deployments reload the keyring)
