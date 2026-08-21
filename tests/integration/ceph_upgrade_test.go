@@ -280,10 +280,15 @@ func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preF
 
 	if !s.settings.UseHelm {
 		logger.Infof("Initializing object before the upgrade")
+		// the previous release reconciles this store, so keep it to the classic
+		// shape the suite upgraded from before it moved to the fixture; a zoned
+		// store asks that release for a whole multisite config, and its rgw
+		// never served the admin API
 		s.objectStore = sharedstore.Create(s.T(), s.k8sh, s.installer, sharedstore.Config{
 			Namespace: s.settings.Namespace,
 			StoreName: installer.ObjectStoreName,
 			Instances: 1,
+			Kind:      sharedstore.Classic,
 		})
 	}
 
