@@ -50,7 +50,7 @@ func (b *BucketOperation) DeleteObc(obcName string, storageClassName string, buc
 	return b.k8sh.ResourceOperation("delete", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
 }
 
-// CheckOBC, returns true if the obc, secret and configmap are all in the "check" state,
+// CheckOBC returns true if the obc, secret and configmap are all in the "check" state,
 // and returns false if any of these resources are not in the "check" state.
 // Check state values:
 //

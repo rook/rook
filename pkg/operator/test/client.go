@@ -78,7 +78,7 @@ func AddReadyNode(t *testing.T, clientset *fake.Clientset, name, ip string) {
 	}
 }
 
-// AddSomeReadyNodes create a number of new, ready Nodes.
+// AddSomeReadyNodes creates a number of new, ready Nodes.
 //   - name from 0 to count-1
 //   - ip from 0.0.0.0 to <count-1>.<count-1>.<count-1>.<count-1>
 func AddSomeReadyNodes(t *testing.T, clientset *fake.Clientset, count int) {
@@ -261,7 +261,7 @@ func pickNode(clientset *fake.Clientset) string {
 	if len(nodes.Items) == 0 {
 		panic(fmt.Errorf("pickNode: no nodes are available in the fake clientset to pick from"))
 	}
-	pickNodeIdx = pickNodeIdx % len(nodes.Items) // reset to 0 once idx is more than number of nodes
+	pickNodeIdx = pickNodeIdx % len(nodes.Items) // reset to 0 once idx is more than the number of nodes
 	name := nodes.Items[pickNodeIdx].GetName()
 	pickNodeIdx++
 	return name

@@ -76,7 +76,7 @@ var controllerTypeMeta = metav1.TypeMeta{
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
-// ReconcileObjectZone reconciles a ObjectZone object
+// ReconcileObjectZone reconciles an ObjectZone object
 type ReconcileObjectZone struct {
 	client           client.Client
 	scheme           *runtime.Scheme
@@ -128,7 +128,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a CephObjectZone object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a CephObjectZone object and makes changes based on the state read
 // and what is in the CephObjectZone.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -362,7 +362,7 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 		args = append(args, "--master")
 	}
 	if len(zone.Spec.CustomEndpoints) > 0 {
-		// If custom endpoint list defined set those values
+		// If custom endpoint list is defined, set those values
 		zoneEndpoints := strings.Join(zone.Spec.CustomEndpoints, ",")
 		args = append(args, fmt.Sprintf("--endpoints=%s", zoneEndpoints))
 	}
@@ -564,11 +564,11 @@ func (r *ReconcileObjectZone) deleteCephObjectZone(zone *cephv1.CephObjectZone, 
 		}
 	}
 
-	// zone successfully removed from zonegroup proceed with delete
+	// zone successfully removed from zonegroup, proceed with delete
 	// master zone cannot be removed from zonegroup, it will be always present
 	if !zonePresent || zoneIsMaster {
 		if !zone.Spec.PreservePoolsOnDelete {
-			// This case zone is removed only after the successful pool deletion
+			// In this case the zone is removed only after the successful pool deletion
 			err = r.deleteZonePools(objContext, zone, realmName)
 			if err != nil {
 				res, _, err := r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, zone, types.NamespacedName{Namespace: zone.Namespace, Name: zone.Name}, "failed to delete ceph zone", err)

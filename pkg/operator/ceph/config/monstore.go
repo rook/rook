@@ -109,7 +109,7 @@ func (m *MonStore) Set(who, option, value string) error {
 	return nil
 }
 
-// Delete a config in the centralized mon configuration database.
+// Delete deletes a config in the centralized mon configuration database.
 func (m *MonStore) Delete(who, option string) error {
 	logger.Infof("deleting %q %q option from the mon configuration database", who, option)
 	args := []string{"config", "rm", who, normalizeKey(option)}
@@ -161,7 +161,7 @@ func (m *MonStore) GetDaemon(who string) ([]Option, error) {
 	return daemonOptions, nil
 }
 
-// DeleteDaemon delete all configs for a specific daemon in the centralized mon configuration database.
+// DeleteDaemon deletes all configs for a specific daemon in the centralized mon configuration database.
 func (m *MonStore) DeleteDaemon(who string) error {
 	configOptions, err := m.GetDaemon(who)
 	if err != nil {

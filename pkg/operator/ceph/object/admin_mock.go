@@ -21,7 +21,7 @@ import "net/http"
 // MockClient is the mock of the HTTP Client
 // It can be used to mock HTTP request/response from the rgw admin ops API
 type MockClient struct {
-	// MockDo is a type that mock the Do method from the HTTP package
+	// MockDo is a function that mocks the Do method from the HTTP package
 	MockDo MockDoType
 }
 

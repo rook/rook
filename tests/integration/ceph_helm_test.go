@@ -92,7 +92,7 @@ func (h *HelmSuite) TestARookInstallViaHelm() {
 	checkIfRookClusterHasHealthyIngress(&h.Suite, h.k8shelper, h.settings.Namespace)
 }
 
-// Test BlockCreation on Rook that was installed via Helm
+// Test Block Creation on Rook that was installed via Helm
 func (h *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
 	runBlockCSITestLite(h.helper, h.k8shelper, &h.Suite, h.settings)
 }
@@ -102,7 +102,7 @@ func (h *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
 	runFileE2ETestLite(h.helper, h.k8shelper, &h.Suite, h.settings, "testfs")
 }
 
-// Test Object StoreCreation on Rook that was installed via helm
+// Test Object Store Creation on Rook that was installed via helm
 func (h *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
 	deleteStore := true
 	tls := false

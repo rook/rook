@@ -43,7 +43,7 @@ const (
 
 var vaultMandatoryConnectionDetails = []string{api.EnvVaultAddress}
 
-// Used for unit tests mocking too as well as production code
+// Used for unit test mocking as well as production code
 var (
 	createTmpFile      = os.CreateTemp
 	getRemoveCertFiles = getRemoveCertFilesFunc
@@ -103,9 +103,9 @@ func InitVault(ctx context.Context, context *clusterd.Context, namespace string,
 	return v, nil
 }
 
-// configTLS returns a map of TLS config that map physical files for the TLS library to load
+// configTLS returns a map of TLS config that maps physical files for the TLS library to load
 // Also it returns a function to remove the temporary files (certs, keys)
-// The signature has named result parameters to help building 'defer' statements especially for the
+// The signature has named result parameters to help build 'defer' statements especially for the
 // content of removeCertFiles which needs to be populated by the files to remove if no errors and be
 // nil on errors
 func configTLS(ctx context.Context, clusterdContext *clusterd.Context, namespace string, config map[string]string) (newConfig map[string]string, removeCertFiles removeCertFilesFunction, retErr error) {
@@ -207,7 +207,7 @@ func validateVaultConnectionDetails(ctx context.Context, clusterdContext *cluste
 		}
 	}
 
-	// We do not support a directory with multiple CA since we fetch a k8s Secret and read its content
+	// We do not support a directory with multiple CAs since we fetch a k8s Secret and read its content
 	// So we operate with a single CA only
 	if GetParam(kmsConfig, api.EnvVaultCAPath) != "" {
 		return errors.Errorf("failed to validate TLS connection details. %q is not supported. use %q instead", api.EnvVaultCAPath, api.EnvVaultCACert)

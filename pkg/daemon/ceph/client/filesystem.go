@@ -214,7 +214,7 @@ func FailAllStandbyReplayMDS(context *clusterd.Context, clusterInfo *ClusterInfo
 	return nil
 }
 
-// GetMdsIdByRank get mds ID from the given rank
+// GetMdsIdByRank gets mds ID from the given rank
 func GetMdsIdByRank(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, rank int32) (string, error) {
 	fs, err := getFilesystem(context, clusterInfo, fsName)
 	if err != nil {
@@ -356,7 +356,7 @@ func deleteFSPool(context *clusterd.Context, clusterInfo *ClusterInfo, poolNames
 	return DeletePool(context, clusterInfo, name)
 }
 
-// WaitForNoStandbys waits for all standbys go away
+// WaitForNoStandbys waits for all standbys to go away
 func WaitForNoStandbys(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, retryInterval, timeout time.Duration) error {
 	err := wait.PollUntilContextTimeout(clusterInfo.Context, retryInterval, timeout, true, func(ctx ctx.Context) (bool, error) {
 		mdsDump, err := GetMDSDump(context, clusterInfo)
@@ -444,7 +444,7 @@ type SubvolumeList []Subvolume
 const NoSubvolumeGroup = ""
 
 // ListSubvolumesInGroup lists all subvolumes present in the given filesystem's subvolume group by
-// name. If groupName is empty, list subvolumes that are not in any group.
+// name. If groupName is empty, lists subvolumes that are not in any group.
 var ListSubvolumesInGroup = listSubvolumesInGroup
 
 // with above, allow this to be overridden for unit testing

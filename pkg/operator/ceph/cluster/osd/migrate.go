@@ -36,7 +36,7 @@ import (
 const (
 	// OSDMigrationConfirmation is the confirmation provided by the user in the cephCluster spec.
 	OSDMigrationConfirmation = "yes-really-migrate-osds"
-	// OSDUpdateStoreConfirmation is the confirmation provided by the user to updated OSD backend store
+	// OSDUpdateStoreConfirmation is the confirmation provided by the user to update OSD backend store
 	OSDUpdateStoreConfirmation = "yes-really-update-store"
 	// OSDMigrationConfigName is the configMap that stores the ID of the last migrated OSD
 	OSDMigrationConfigName = "osd-migration-config"

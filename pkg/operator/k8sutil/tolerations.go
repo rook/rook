@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-// This function takes raw YAML string and converts it to Kubernetes Tolerations array
+// This function takes a raw YAML string and converts it to a Kubernetes Tolerations array
 func YamlToTolerations(raw string) ([]v1.Toleration, error) {
 	if raw == "" {
 		return []v1.Toleration{}, nil

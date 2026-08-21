@@ -45,12 +45,12 @@ func TestDeleteResource(t *testing.T) {
 
 	defaultWaitOpts := &WaitOptions{RetryCount: 2, RetryInterval: 1 * time.Millisecond}
 
-	// Failure to delete should return error
+	// Failure to delete should return an error
 	deleteError = fmt.Errorf("err on delete")
 	err := DeleteResource(stubDelete, stubVerify, "test resource name", &DeleteOptions{}, defaultWaitOpts)
 	assert.Error(t, err)
 
-	// NotFound error should return error if DeleteOptions.MustDelete is set
+	// NotFound error should return an error if DeleteOptions.MustDelete is set
 	deleteError = k8sNotFoundError
 	err = DeleteResource(stubDelete, stubVerify, "test resource name", &DeleteOptions{MustDelete: true}, defaultWaitOpts)
 	assert.Error(t, err)

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package notification to manage a rook bucket notifications.
+// Package notification to manage rook bucket notifications.
 package notification
 
 import (
@@ -62,7 +62,7 @@ var (
 	waitForRequeueIfNotificationNotDeleted = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 )
 
-// ReconcileNotifications reconciles a CephbucketNotification
+// ReconcileNotifications reconciles a CephBucketNotification
 type ReconcileNotifications struct {
 	client           client.Client
 	context          *clusterd.Context
@@ -119,7 +119,7 @@ func addNotificationReconciler(mgr manager.Manager, r reconcile.Reconciler) erro
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a CephBucketNotification object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a CephBucketNotification object and makes changes based on the state read
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileNotifications) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -177,7 +177,7 @@ func (r *ReconcileNotifications) reconcile(request reconcile.Request) (reconcile
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, *notification, errors.New("cluster is not ready")
 	}
 
-	// fetch all OBCs that has a label matching this CephBucketNotification
+	// fetch all OBCs that have a label matching this CephBucketNotification
 	namespaceListOpt := client.InNamespace(notification.Namespace)
 	labelListOpt := client.MatchingLabels{
 		notificationLabelPrefix + notification.Name: notification.Name,
@@ -246,7 +246,7 @@ func validateObjectStoreName(topic *cephv1.CephBucketTopic, bucketStoreName type
 	return nil
 }
 
-// getReadyCluster get cluster info and spec if the cluster is ready
+// getReadyCluster gets cluster info and spec if the cluster is ready
 func getReadyCluster(client client.Client, opManagerContext context.Context, context clusterd.Context, objectStoreNamespace string) (*cephclient.ClusterInfo, *cephv1.ClusterSpec, error) {
 	// find the namespace for the ceph cluster (may be different than the namespace of the notification CR)
 	// Make sure a CephCluster is present otherwise do nothing

@@ -94,7 +94,7 @@ func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Co
 		mons:            mon.New(ctx, context, c.Namespace, c.Spec, ownerInfo),
 		// update observedGeneration with current generation value,
 		// because generation can be changed before reconcile got completed
-		// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+		// CR status will be updated at end of reconcile, so it reflects that the reconcile has finished
 		observedGeneration: c.ObjectMeta.Generation,
 	}
 }
@@ -436,7 +436,7 @@ func (c *cluster) removeDefaultCrushRoot() error {
 		if code, ok := extractExitCode(err); ok {
 			if code == int(syscall.ENOTEMPTY) || code == int(syscall.EBUSY) {
 				// we do not want to delete the default node if it’s in use,
-				// and we also do not care much. There are two more causes here:
+				// and we also do not care much. There are three more causes here:
 				// - a (non-root?) CRUSH node with the default label was created
 				//   automatically, e.g. from topology labels, and OSDs (or sub
 				//   nodes) have been placed in there. In this case, the node
@@ -902,7 +902,7 @@ func (c *cluster) fetchSecretValue(selector v1.SecretKeySelector) (string, error
 	return string(val), nil
 }
 
-// initClusterCephxStatus set `Uninitialized` cephx status for new clusters.
+// initClusterCephxStatus sets `Uninitialized` cephx status for new clusters.
 // this should not be run for external mode clusters
 func initClusterCephxStatus(c *cluster) error {
 	initErr := c.ClusterInfo.IsInitialized()
@@ -965,7 +965,7 @@ func (c *cluster) deleteBootstrapKeys() {
 }
 
 // Work around ceph bug preventing key rotation at the same time Ceph is being upgraded from
-// non-AES256K-supporting version to-AES256K-supporting version.
+// non-AES256K-supporting version to AES256K-supporting version.
 // More workaround notes on SetAllowCephxKeyRotationForCluster().
 func (c *cluster) setIsSafeToRotateCephxKeys(imageCephVersion cephver.CephVersion) error {
 	allowedAtStart, definedAtStart := keyring.GetAllowCephxKeyRotationForCluster(c.Namespace)
@@ -978,7 +978,7 @@ func (c *cluster) setIsSafeToRotateCephxKeys(imageCephVersion cephver.CephVersio
 		if definedAtStart && !allowedAtStart {
 			// Rotation allowed is not being newly established here. We should restart to ensure
 			// child reconciles restart. This case shouldn't be encountered but might if the
-			// CephCluster reconcile restarts after OSD upgrade but before setting setting is-safe.
+			// CephCluster reconcile restarts after OSD upgrade but before setting is-safe.
 			logger.Infof("non-upgrade: restarting rook operator after cephx key rotation is re-enabled for cluster in namespace %q", c.Namespace)
 			reloadManagerFunc()
 			return errors.Wrapf(errOsdUpgradeCephxRotationWorkaroundRestart, "non-upgrade") // context cancel will error anyway, so return err now

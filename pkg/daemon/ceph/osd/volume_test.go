@@ -436,7 +436,7 @@ func TestConfigureCVDevices(t *testing.T) {
 	}
 
 	{
-		// Test case for with no available lvm mode OSD and existing raw mode OSD on LV-backed PVC, it should return info of raw mode OSD
+		// Test case for no available lvm mode OSD and existing raw mode OSD on LV-backed PVC, it should return info of raw mode OSD
 		t.Log("Test case for with no available lvm mode OSD and existing raw mode OSD on LV-backed PVC, it should return info of raw mode OSD")
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {

@@ -41,7 +41,7 @@ func ListImagesInPool(context *clusterd.Context, clusterInfo *ClusterInfo, poolN
 	return ListImagesInRadosNamespace(context, clusterInfo, poolName, "")
 }
 
-// ListImagesInRadosNamespace returns a list if images created in a cephblockpool rados namespace
+// ListImagesInRadosNamespace returns a list of images created in a cephblockpool rados namespace
 func ListImagesInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, namespace string) ([]CephBlockImage, error) {
 	args := []string{"ls", "-l", poolName}
 	if namespace != "" {
@@ -54,9 +54,9 @@ func ListImagesInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterI
 		return nil, errors.Wrapf(err, "failed to list images for pool %s", poolName)
 	}
 
-	// The regex expression captures the json result at the end buf
+	// The regex expression captures the json result at the end of buf
 	// When logLevel is DEBUG buf contains log statements of librados (see tests for examples)
-	// It can happen that the end of the "real" output doesn't not contain a new line
+	// It can happen that the end of the "real" output doesn't contain a new line
 	// that's why looking for the end isn't an option here (anymore?)
 	res := regexp.MustCompile(`(?m)^\[(.*)\]`).FindStringSubmatch(string(buf))
 	if len(res) == 0 {
@@ -173,7 +173,7 @@ type RBDStatus struct {
 
 // GetWatchers returns a list of watchers of the RBD image.
 // The RBD status output is parsed to get the desired IP+nonce.
-// For example: `192.168.39.137:0/3762982934“ is returned.
+// For example: `192.168.39.137:0/3762982934` is returned.
 func (r RBDStatus) GetWatchers() []string {
 	watcherList := []string{}
 	for _, watcher := range r.Watchers {

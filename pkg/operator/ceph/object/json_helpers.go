@@ -7,7 +7,7 @@ import (
 )
 
 // getObjProperty - helper function to manipulate JSON Objects.
-// returns nested property of json object.
+// returns a nested property of a json object.
 // Example:
 //
 //	obj = {"a":{"b":"foo"}}
@@ -44,7 +44,7 @@ func getObjProperty[T string | map[string]interface{} | []interface{}](obj map[s
 }
 
 // updateObjProperty - helper function to manipulate JSON Objects.
-// sets new value to json object nested field only if it is already exists in json and returns previous value.
+// sets a new value on a json object nested field only if it already exists in json and returns the previous value.
 func updateObjProperty[T string | []string | map[string]interface{} | []interface{}](obj map[string]interface{}, val T, path ...string) (T, error) {
 	var prev T
 	if len(path) == 0 {
@@ -101,7 +101,7 @@ func castJson(in, out interface{}) bool {
 }
 
 // toObj - helper function to manipulate JSON Objects.
-// Casts any go struct to map representing JSON object.
+// Casts any go struct to a map representing a JSON object.
 func toObj(val interface{}) (map[string]interface{}, error) {
 	bytes, err := json.Marshal(val)
 	if err != nil {
@@ -112,7 +112,7 @@ func toObj(val interface{}) (map[string]interface{}, error) {
 }
 
 // deepCopyJson - helper function to manipulate JSON Objects.
-// Makes deep copy of json object by converting to JSON and back.
+// Makes a deep copy of a json object by converting to JSON and back.
 func deepCopyJson(in map[string]interface{}) (map[string]interface{}, error) {
 	bytes, err := json.Marshal(in)
 	if err != nil {

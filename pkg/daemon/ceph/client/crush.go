@@ -81,7 +81,7 @@ type stepSpec struct {
 	Type      string `json:"type"`
 }
 
-// CrushFindResult is go representation of the Ceph osd find command output
+// CrushFindResult is a go representation of the Ceph osd find command output
 type CrushFindResult struct {
 	ID       int               `json:"osd"`
 	IP       string            `json:"ip"`
@@ -140,7 +140,7 @@ func FindOSDInCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo, osdI
 	return &result, nil
 }
 
-// GetCrushHostName gets the hostname where an OSD is running on
+// GetCrushHostName gets the hostname where an OSD is running
 func GetCrushHostName(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) (string, error) {
 	result, err := FindOSDInCrushMap(context, clusterInfo, osdID)
 	if err != nil {

@@ -272,7 +272,7 @@ func (c *Cluster) SetMgrRoleLabel(daemonNameToUpdate string, isActive bool) erro
 	})
 	if err != nil {
 		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "cannot get pod for mgr daemon %s", daemonNameToUpdate)
-		return err // force mrg_role update in the next call
+		return err // force mgr_role update in the next call
 	}
 
 	newMgrRole := standbyMgrStatus
@@ -347,7 +347,7 @@ func (c *Cluster) reconcileServices() error {
 	return nil
 }
 
-// For the upgrade scenario: we remove any selector DaemonIDLabel from the all
+// For the upgrade scenario: we remove any selector DaemonIDLabel from all
 // the services since new mgr HA doesn't rely on this label anymore and we add
 // the new "mgr_role=active" instead.
 func (c *Cluster) updateServiceSelectors() {
@@ -567,7 +567,7 @@ func wellKnownModule(name string) bool {
 	return slices.Contains(knownModules, name)
 }
 
-// EnableServiceMonitor add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster
+// EnableServiceMonitor adds a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster
 func (c *Cluster) EnableServiceMonitor() error {
 	serviceMonitor := k8sutil.GetServiceMonitor(AppName, c.clusterInfo.Namespace, serviceMonitorPort)
 	cephv1.GetMonitoringLabels(c.spec.Labels).OverwriteApplyToObjectMeta(&serviceMonitor.ObjectMeta)

@@ -121,9 +121,9 @@ const (
 )
 
 // PolicyStatement is the Go representation of a PolicyStatement json struct
-// it defines what Actions that a Principle can or cannot perform on a Resource
+// it defines what Actions a Principal can or cannot perform on a Resource
 type PolicyStatement struct {
-	// Sid (optional) is the PolicyStatement's unique  identifier
+	// Sid (optional) is the PolicyStatement's unique identifier
 	Sid string `json:"Sid"`
 	// Effect determines whether the Action(s) are 'Allow'ed or 'Deny'ed.
 	Effect effect `json:"Effect"`
@@ -255,7 +255,7 @@ func (ps *PolicyStatement) ForResources(resources ...string) *PolicyStatement {
 	return ps
 }
 
-// ForSubResources add contents inside the bucket to the PolicyStatement with the appropriate ARN prefix
+// ForSubResources adds contents inside the bucket to the PolicyStatement with the appropriate ARN prefix
 func (ps *PolicyStatement) ForSubResources(resources ...string) *PolicyStatement {
 	var subresource string
 	for _, v := range resources {
@@ -283,7 +283,7 @@ func (ps *PolicyStatement) Denies() *PolicyStatement {
 	return ps
 }
 
-// Actions is the set of "s3:*" actions for the PolicyStatement is concerned
+// Actions is the set of "s3:*" actions the PolicyStatement is concerned with
 func (ps *PolicyStatement) Actions(actions ...action) *PolicyStatement {
 	ps.Action = actions
 	return ps

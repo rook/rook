@@ -164,7 +164,7 @@ func isCephPod(labels map[string]string, podName string) bool {
 	// canary pods for monitors might stick around during startup
 	// at that time, the initial monitors haven't been deployed yet.
 	// If we don't invalidate canary pods,
-	// the crash collector pod will start and environment variable like 'ROOK_CEPH_MON_HOST'
+	// the crash collector pod will start and environment variables like 'ROOK_CEPH_MON_HOST'
 	// will be empty since the monitors don't exist yet
 	isCanaryPod := strings.Contains(podName, "-canary-")
 	isCrashCollectorPod := strings.Contains(podName, "-crashcollector-")

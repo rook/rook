@@ -261,7 +261,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 
 	log.NamedInfo(opcontroller.NsName(f.Namespace, f.Name), logger, "creating filesystem %q", f.Name)
 
-	// Make easy to locate a pool by name and avoid repeated searches
+	// Make it easy to locate a pool by name and avoid repeated searches
 	reversedPoolMap := make(map[string]int)
 	for key, value := range poolNames {
 		reversedPoolMap[value] = key
@@ -307,7 +307,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 	return nil
 }
 
-// downFilesystem marks the filesystem as down and the MDS' as failed
+// downFilesystem marks the filesystem as down and the MDSes as failed
 func downFilesystem(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, filesystemName string) error {
 	log.NamedInfo(opcontroller.NsName(clusterInfo.Namespace, filesystemName), logger, "downing filesystem %q", filesystemName)
 
@@ -318,8 +318,8 @@ func downFilesystem(context *clusterd.Context, clusterInfo *cephclient.ClusterIn
 	return nil
 }
 
-// generateDataPoolNames generates DataPool name by prefixing the filesystem name to the constant DataPoolSuffix
-// or get predefined name from spec
+// generateDataPoolNames generates the DataPool names by prefixing the filesystem name to the constant dataPoolSuffix
+// or gets the predefined names from the spec
 func generateDataPoolNames(f *Filesystem, spec cephv1.FilesystemSpec) []string {
 	var dataPoolNames []string
 
@@ -340,7 +340,7 @@ func generateDataPoolNames(f *Filesystem, spec cephv1.FilesystemSpec) []string {
 	return dataPoolNames
 }
 
-// GenerateMetaDataPoolName generates MetaDataPool name by prefixing the filesystem name to the constant metaDataPoolSuffix
+// GenerateMetaDataPoolName generates the MetaDataPool name by prefixing the filesystem name to the constant metaDataPoolSuffix
 func GenerateMetaDataPoolName(fsName string) string {
 	return generateMetaDataPoolName(fsName, nil)
 }

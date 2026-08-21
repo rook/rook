@@ -33,7 +33,7 @@ import (
 const (
 	// DiskType is a disk type
 	DiskType = "disk"
-	// SSDType is an sdd type
+	// SSDType is an ssd type
 	SSDType = "ssd"
 	// PartType is a partition type
 	PartType = "part"
@@ -48,7 +48,7 @@ const (
 	// LoopType is a loop device type
 	LoopType  = "loop"
 	sgdiskCmd = "sgdisk"
-	// CephLVPrefix is the prefix of a LV owned by ceph-volume
+	// CephLVPrefix is the prefix of an LV owned by ceph-volume
 	CephLVPrefix = "ceph--"
 )
 
@@ -64,7 +64,7 @@ type CephVolumeInventory struct {
 // CephVolumeLVMList represents the output of the ceph-volume lvm list command
 type CephVolumeLVMList map[string][]map[string]interface{}
 
-// Partition represents a partition metadata
+// Partition represents partition metadata
 type Partition struct {
 	Name       string
 	Size       uint64
@@ -78,17 +78,17 @@ type LocalDisk struct {
 	Name string `json:"name"`
 	// Parent is the device parent's name
 	Parent string `json:"parent"`
-	// HasChildren is whether the device has a children device
+	// HasChildren is whether the device has a child device
 	HasChildren bool `json:"hasChildren"`
 	// DevLinks is the persistent device path on the host
 	DevLinks string `json:"devLinks"`
-	// Size is the device capacity in byte
+	// Size is the device capacity in bytes
 	Size uint64 `json:"size"`
 	// UUID is used by /dev/disk/by-uuid
 	UUID string `json:"uuid"`
 	// Serial is the disk serial used by /dev/disk/by-id
 	Serial string `json:"serial"`
-	// Type is disk type
+	// Type is the disk type
 	Type string `json:"type"`
 	// Rotational is the boolean whether the device is rotational: true for hdd, false for ssd and nvme
 	Rotational bool `json:"rotational"`
@@ -98,7 +98,7 @@ type LocalDisk struct {
 	Partitions []Partition
 	// Filesystem is the filesystem currently on the device
 	Filesystem string `json:"filesystem"`
-	// Mountpoint is the mountpoint of the filesystem's on the device
+	// Mountpoint is the mountpoint of the filesystem on the device
 	Mountpoint string `json:"mountpoint"`
 	// Vendor is the device vendor
 	Vendor string `json:"vendor"`
@@ -120,7 +120,7 @@ type LocalDisk struct {
 	Encrypted bool `json:"encrypted,omitempty"`
 }
 
-// ListDevices list all devices available on a machine
+// ListDevices lists all devices available on a machine
 func ListDevices(executor exec.Executor) ([]string, error) {
 	devices, err := executor.ExecuteCommandWithOutput("lsblk", "--all", "--noheadings", "--list", "--output", "KNAME")
 	if err != nil {
@@ -207,7 +207,7 @@ func GetDeviceProperties(device string, executor exec.Executor) (map[string]stri
 	return GetDevicePropertiesFromPath(resolveDevicePath(device), executor)
 }
 
-// GetDevicePropertiesFromPath gets a device property from a path
+// GetDevicePropertiesFromPath gets the device properties from a path
 func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map[string]string, error) {
 	output, err := executor.ExecuteCommandWithOutput("lsblk", devicePath,
 		"--bytes", "--nodeps", "--pairs", "--paths", "--output", "SIZE,ROTA,RO,TYPE,PKNAME,NAME,KNAME,MOUNTPOINT,FSTYPE")
@@ -220,7 +220,7 @@ func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map
 	return parseKeyValuePairString(output), nil
 }
 
-// IsLV returns if a device is owned by LVM, is a logical volume
+// IsLV returns whether a device is owned by LVM, i.e. is a logical volume
 func IsLV(devicePath string, executor exec.Executor) (bool, error) {
 	devProps, err := GetDevicePropertiesFromPath(devicePath, executor)
 	if err != nil {
@@ -244,7 +244,7 @@ func GetUdevInfo(device string, executor exec.Executor) (map[string]string, erro
 	return parseUdevInfo(output), nil
 }
 
-// GetDeviceFilesystems get the file systems available
+// GetDeviceFilesystems gets the file systems available
 func GetDeviceFilesystems(device string, executor exec.Executor) (string, error) {
 	device = resolveDevicePath(device)
 	output, err := executor.ExecuteCommandWithOutput("udevadm", "info", "--query=property", device)
@@ -255,7 +255,7 @@ func GetDeviceFilesystems(device string, executor exec.Executor) (string, error)
 	return parseFS(output), nil
 }
 
-// GetDiskUUID look up the UUID for a disk.
+// GetDiskUUID looks up the UUID for a disk.
 func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 	if _, err := osexec.LookPath(sgdiskCmd); err != nil {
 		return "", errors.Wrap(err, "sgdisk not found")
@@ -460,7 +460,7 @@ func lvmList(executor exec.Executor, lv string) (CephVolumeLVMList, error) {
 	return cvLVMList, nil
 }
 
-// ListDevicesChild list all child available on a device
+// ListDevicesChild lists all children available on a device
 // For an encrypted device, it will return the encrypted device like so:
 // lsblk --noheadings --output NAME --path --list /dev/sdd
 // /dev/sdd

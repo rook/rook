@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ApplyMultus apply multus selector to Pods
+// ApplyMultus applies the multus selector to Pods
 // Multus supports short and json syntax, use only one kind at a time.
 func ApplyMultus(clusterNamespace string, netSpec *cephv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 	app, ok := objectMeta.Labels["app"]

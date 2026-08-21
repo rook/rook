@@ -203,13 +203,13 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	return nil
 }
 
-// check on for rbd secrets
+// check for rbd secrets
 func isCSIRBDSecret(name string) bool {
 	return strings.HasPrefix(name, csi.CsiRBDProvisionerSecret) ||
 		strings.HasPrefix(name, csi.CsiRBDNodeSecret)
 }
 
-// Reconcile reads that state of the cluster for a CephBlockPoolRadosNamespace
+// Reconcile reads the state of the cluster for a CephBlockPoolRadosNamespace
 // object and makes changes based on the state read and what is in the
 // CephBlockPoolRadosNamespace.Spec The Controller will requeue the Request to be
 // processed again if the returned error is non-nil or Result.Requeue is true,
@@ -267,7 +267,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		//
 		// Also, only remove the finalizer if the CephCluster is gone
 		// If not, we should wait for it to be ready
-		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
+		// This handles the case where the operator is not ready to accept Ceph commands but the cluster exists
 		if !radosNamespace.GetDeletionTimestamp().IsZero() && !cephClusterExists {
 			// don't leak the health checker routine if we are force-deleting
 			r.cancelMirrorMonitoring(radosNamespaceChannelKeyName(radosNamespace.Namespace, poolAndRadosNamespaceName))
@@ -386,7 +386,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 
 	// If the cephBlockPool is not ready to accept commands, we should wait for it to be ready
 	if cephBlockPool.Status == nil || cephBlockPool.Status.Phase != cephv1.ConditionReady {
-		// We know the CR is present so it should a matter of second for it to become ready
+		// We know the CR is present so it should be a matter of seconds for it to become ready
 		return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, radosNamespace, errors.Wrapf(err, "failed to fetch ceph blockpool %q, cannot create rados namespace %q", pool, radosNamespace.Name)
 	}
 	// Create or Update rados namespace
@@ -554,7 +554,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolR
 	}
 
 	// Initialize the channel for radosNamespace
-	// This allows us to track multiple radosNamespace in the same namespace
+	// This allows us to track multiple radosNamespaces in the same namespace
 	radosNamespaceChannelKey := radosNamespaceChannelKeyName(cephBlockPool.Namespace, poolAndRadosNamespaceName)
 	_, radosNamespaceContextsExists := r.radosNamespaceContexts[radosNamespaceChannelKey]
 	if !radosNamespaceContextsExists {

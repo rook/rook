@@ -98,7 +98,7 @@ func (e *provisionErrors) asMessages() string {
 	return o
 }
 
-// return name of status ConfigMap
+// return the name of the status ConfigMap
 func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) string {
 	return UpdateNodeOrPVCStatus(c.clusterInfo.Context, c.kv, node, status)
 }
@@ -112,7 +112,7 @@ func statusConfigMapLabels(node string) map[string]string {
 }
 
 // UpdateNodeOrPVCStatus updates the status ConfigMap for the OSD on the given node or PVC. It returns the name
-// the ConfigMap used.
+// of the ConfigMap used.
 func UpdateNodeOrPVCStatus(ctx context.Context, kv *k8sutil.ConfigMapKVStore, nodeOrPVC string, status OrchestrationStatus) string {
 	labels := statusConfigMapLabels(nodeOrPVC)
 

@@ -46,12 +46,12 @@ const (
 	CephBlockPoolRadosNamespaceEnv = "RADOS_NAMESPACE"
 )
 
-// ResourceCleanup defines an rook ceph resource to be cleaned up
+// ResourceCleanup defines a rook ceph resource to be cleaned up
 type ResourceCleanup struct {
 	resource  k8sClient.Object
 	cluster   *cephv1.CephCluster
 	rookImage string
-	// config defines the attributes of the custom resource to passed in as environment variables in the clean up job
+	// config defines the attributes of the custom resource to be passed in as environment variables in the clean up job
 	config map[string]string
 }
 
@@ -64,7 +64,7 @@ func NewResourceCleanup(obj k8sClient.Object, cluster *cephv1.CephCluster, rookI
 	}
 }
 
-// Start a new job to perform clean up of the ceph resources. It returns true if the cleanup job has succeeded
+// StartJob starts a new job to perform clean up of the ceph resources. It returns an error if the job could not be started
 func (c *ResourceCleanup) StartJob(ctx context.Context, clientset kubernetes.Interface, jobName string) error {
 	podSpec := c.jobTemplateSpec()
 	job := &batch.Job{
@@ -137,7 +137,7 @@ func (c *ResourceCleanup) jobTemplateSpec() v1.PodTemplateSpec {
 	return podSpec
 }
 
-// ForceDeleteRequested returns true if `rook.io/force-deletion:true` annotation is available on the resource
+// ForceDeleteRequested returns true if the `rook.io/force-deletion:true` annotation is available on the resource
 func ForceDeleteRequested(annotations map[string]string) bool {
 	if value, found := annotations[RESOURCE_CLEANUP_ANNOTATION]; found {
 		if strings.EqualFold(value, "true") {

@@ -213,7 +213,7 @@ func (cr *CmdReporter) Run(ctx context.Context, timeout time.Duration) (stdout, 
 	return stdout, stderr, retcode, nil
 }
 
-// return watcher or nil if configmap exists
+// return a watcher or nil if the configmap exists
 func (cr *CmdReporter) newWatcher(ctx context.Context) (watch.Interface, error) {
 	jobName := cr.job.Name
 	namespace := cr.job.Namespace
@@ -245,7 +245,7 @@ func (cr *CmdReporter) newWatcher(ctx context.Context) (watch.Interface, error) 
 	return watcher, nil
 }
 
-// return nil when configmap exists
+// return nil when the configmap exists
 func (cr *CmdReporter) waitForConfigMap(ctx context.Context, timeout time.Duration) error {
 	jobName := cr.job.Name
 

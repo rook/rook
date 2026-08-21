@@ -53,7 +53,7 @@ func (c *clusterConfig) generateMimeTypes() error {
 		log.NamedInfo(nsName, logger, "config map %q for object store %q already exists, not overwriting", c.mimeTypesConfigMapName(), c.store.Name)
 		return nil
 	}
-	// is not found
+	// the config map was not found
 	if err := k.SetValue(c.clusterInfo.Context, c.mimeTypesConfigMapName(), mimeTypesFileName, mimeTypes); err != nil {
 		return errors.Wrapf(err, "failed to create config map for object store %q", c.store.Name)
 	}

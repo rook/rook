@@ -24,7 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
-// TestCephSettings struct for handling panic and test suite tear down
+// TestCephSettings holds the settings for installing a test Ceph cluster
 type TestCephSettings struct {
 	DataDirHostPath             string
 	ClusterName                 string

@@ -202,7 +202,7 @@ func getClusterPoolIDMap(clusterContext *clusterd.Context, clusterInfo *cephclie
 		}
 		defer os.Remove(keyringFile.Name())
 
-		// Generate an empty config file to be passed as `--conf`argument in ceph CLI
+		// Generate an empty config file to be passed as the `--conf` argument in ceph CLI
 		configFile, err := util.CreateTempFile("")
 		if err != nil {
 			return mappings, errors.Wrap(err, "failed to create a temp config file")

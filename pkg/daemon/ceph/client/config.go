@@ -163,7 +163,7 @@ func mergeDefaultConfigWithRookConfigOverride(clusterdContext *clusterd.Context,
 	return nil
 }
 
-// prepends "client." if a user namespace is not already specified
+// getQualifiedUser prepends "client." if a user namespace is not already specified
 func getQualifiedUser(user string) string {
 	if !strings.Contains(user, ".") {
 		return fmt.Sprintf("client.%s", user)

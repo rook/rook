@@ -19,7 +19,7 @@ package utils
 import "time"
 
 // Retry executes the function ('f') 'count' times waiting for 'wait' duration between
-// each attempt to run the function. Print the 'description' before all test info messages.
+// each attempt to run the function. Prints the 'description' before all test info messages.
 // Returns true the first time function 'f' returns true or false if 'f' never returns true.
 func Retry(count uint16, wait time.Duration, description string, f func() bool) bool {
 	for i := uint16(1); i < count+1; i++ {

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package topic to manage a rook bucket topics.
+// Package topic to manage rook bucket topics.
 package topic
 
 import (
@@ -184,7 +184,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a CephBucketTopic object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a CephBucketTopic object and makes changes based on the state read
 // and what is in the CephBucketTopic.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -288,7 +288,7 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, errors.Wrapf(err, "topic creation failed for CephBucketTopic %q", request.NamespacedName)
 	}
 
-	// update ObservedGeneration in status a the end of reconcile
+	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
 	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus, topicARN, referencedSecrets)
 

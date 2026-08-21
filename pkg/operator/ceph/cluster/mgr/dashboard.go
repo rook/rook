@@ -113,7 +113,7 @@ func (c *Cluster) configureDashboardModules() error {
 }
 
 // Delete the manager per-daemon configuration. Returns true
-// if all the configuration entries have been delete successfully.
+// if all the configuration entries have been deleted successfully.
 func (c *Cluster) deleteManagerDaemonConfiguration() bool {
 	mgrKeysToDelete := []string{
 		"mgr/dashboard/url_prefix",
@@ -292,7 +292,7 @@ func (c *Cluster) setLoginCredentials(password string) error {
 	// > ceph dashboard ac-user-create <username> -i <path-to-password-file>
 	//
 	// Note: this command will succeed in case the user <dashboardUsername> already
-	// exists however it will not update the password. That why we need to explicitly
+	// exists however it will not update the password. That is why we need to explicitly
 	// call the ac-user-set-password command to ensure the password is updated correctly
 	args = []string{"dashboard", "ac-user-create", dashboardUsername, "-i", file.Name(), "administrator"}
 	_, err = client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {

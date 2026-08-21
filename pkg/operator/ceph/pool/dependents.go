@@ -31,7 +31,7 @@ import (
 
 const radosNamespacesKeyName = "CephBlockPoolRadosNamespaces"
 
-// cephBlockPoolDependents returns the rbd namespaces (s) which exist in the rbd pool that should block
+// cephBlockPoolDependents returns the rbd namespace(s) which exist in the rbd pool that should block
 // deletion.
 func cephBlockPoolDependents(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, blockpool *cephv1.CephBlockPool) (*dependents.DependentList, error) {
 	nsName := controller.NsName(blockpool.Namespace, blockpool.Name)
@@ -39,7 +39,7 @@ func cephBlockPoolDependents(clusterdCtx *clusterd.Context, clusterInfo *client.
 
 	deps := dependents.NewDependentList()
 
-	// CepbBlockPoolNamespaces
+	// CephBlockPoolRadosNamespaces
 	namespaces, err := clusterdCtx.RookClientset.CephV1().CephBlockPoolRadosNamespaces(blockpool.Namespace).List(clusterInfo.Context, metav1.ListOptions{})
 	if err != nil {
 		return deps, errors.Wrapf(err, "%s. failed to list CephBlockPoolRadosNamespace for CephBlockPool %q", baseErrMsg, nsName)

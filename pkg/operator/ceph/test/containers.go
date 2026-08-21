@@ -253,7 +253,7 @@ func (ct *ContainersTester) allNonrequiredVarNames() []string {
 	return all
 }
 
-// FindDuplicateEnvVars finds duplicated environment variables and return the variable name list.
+// FindDuplicateEnvVars finds duplicated environment variables and returns the variable name list.
 func FindDuplicateEnvVars(container v1.Container) []string {
 	var duplicateEnvVars []string
 	envVars := map[string]string{}

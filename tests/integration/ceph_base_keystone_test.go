@@ -644,7 +644,7 @@ func CleanUpKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 	//(as they will be removed anyway on uninstalling cert-manager)
 }
 
-// Test Object StoreCreation on Rook that was installed via helm
+// Test Object Store Creation on Rook that was installed via helm
 func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool, swiftAndKeystone bool) {
 	andDeleting := ""
 	if deleteStore {

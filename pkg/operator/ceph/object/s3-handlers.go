@@ -130,7 +130,7 @@ func (s *S3Agent) createBucket(ctx context.Context, name string, infoLogging boo
 	return nil
 }
 
-// PutObjectInBucket function puts an object in a bucket using s3 client
+// PutObjectInBucket function puts an object in a bucket using the s3 client
 func (s *S3Agent) PutObjectInBucket(ctx context.Context, bucketname string, body string, key string,
 	contentType string,
 ) (bool, error) {
@@ -147,7 +147,7 @@ func (s *S3Agent) PutObjectInBucket(ctx context.Context, bucketname string, body
 	return true, nil
 }
 
-// GetObjectInBucket function retrieves an object from a bucket using s3 client
+// GetObjectInBucket function retrieves an object from a bucket using the s3 client
 func (s *S3Agent) GetObjectInBucket(ctx context.Context, bucketname string, key string) (string, error) {
 	result, err := s.Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: &bucketname,
@@ -166,7 +166,7 @@ func (s *S3Agent) GetObjectInBucket(ctx context.Context, bucketname string, key 
 	return buf.String(), nil
 }
 
-// DeleteObjectInBucket function deletes given bucket using s3 client
+// DeleteObjectInBucket function deletes an object from a bucket using the s3 client
 func (s *S3Agent) DeleteObjectInBucket(ctx context.Context, bucketname string, key string) (bool, error) {
 	_, err := s.Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &bucketname,

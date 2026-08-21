@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package notification to manage a rook bucket notifications.
+// Package notification to manage rook bucket notifications.
 package notification
 
 import (
@@ -119,8 +119,8 @@ func createS3Filter(filter *cephv1.NotificationFilterSpec) *s3types.Notification
 }
 
 func createS3Events(events []cephv1.BucketNotificationEvent) []s3types.Event {
-	// in the AWS S3 library "Events" is required field
-	// but in our CR it is optional. indicating notifications on all events
+	// in the AWS S3 library "Events" is a required field
+	// but in our CR it is optional, indicating notifications on all events
 	if len(events) == 0 {
 		return []s3types.Event{
 			s3types.Event("s3:ObjectCreated:*"),

@@ -84,7 +84,7 @@ func WatchControllerPredicate[T client.Object](scheme *runtime.Scheme) predicate
 
 			logger.Debugf("update event for %q: %q", kind, nsName)
 
-			// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+			// If the label "do_not_reconcile" is set on the object, let's not reconcile that request
 			IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
 			if IsDoNotReconcile {
 				logger.Debugf("resource %q: %q had update event but %q label is set, doing nothing", kind, nsName, DoNotReconcileLabelName)
@@ -218,7 +218,7 @@ func WatchPredicateForNonCRDObject[T client.Object](owner runtime.Object, scheme
 			}
 			objectName := object.GetName()
 			if match {
-				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				// If the label "do_not_reconcile" is set on the object, let's not reconcile that request
 				IsDoNotReconcile := IsDoNotReconcile(object.GetLabels())
 				if IsDoNotReconcile {
 					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objectName)
@@ -279,7 +279,7 @@ func WatchPredicateForNonCRDObject[T client.Object](owner runtime.Object, scheme
 	}
 }
 
-// isValidEvent analyses the diff between two objects events and determines if we should reconcile
+// isValidEvent analyses the diff between two object events and determines if we should reconcile
 // that event or not. The goal is to avoid double-reconcile as much as possible.
 // If the patch could contain sensitive data, isValidEvent will not leak the data to logs.
 func isValidEvent(patch []byte, objectName string, patchContainsSensitiveData bool) bool {
@@ -409,7 +409,7 @@ func isCMToIgnoreOnDelete(obj runtime.Object) bool {
 	}
 
 	objectName := cm.GetName()
-	// is it the object the temporarily osd config map?
+	// is the object the temporary osd config map?
 	if strings.HasPrefix(objectName, "rook-ceph-osd-") && strings.HasSuffix(objectName, "-status") {
 		logger.Debugf("do not reconcile on %q config map changes", objectName)
 		return true
@@ -459,7 +459,7 @@ func ReloadManager() {
 	_ = p.Signal(syscall.SIGHUP)
 }
 
-// DuplicateCephClusters determine whether a similar object exists in the same namespace
+// DuplicateCephClusters determines whether a similar object exists in the same namespace
 // mainly used for the CephCluster which we only support a single instance per namespace
 func DuplicateCephClusters(ctx context.Context, c client.Client, object *cephv1.CephCluster, log bool) bool {
 	cephClusterList := &cephv1.CephClusterList{}
@@ -476,7 +476,7 @@ func DuplicateCephClusters(ctx context.Context, c client.Client, object *cephv1.
 
 	// This check is needed when the operator is down and a cluster was created
 	if len(cephClusterList.Items) > 1 {
-		// Since multiple predicate are using this function we don't want all of them to log the
+		// Since multiple predicates are using this function we don't want all of them to log the
 		// same message, so one predicate can log and the other cannot
 		if log {
 			logger.Errorf("found more than one ceph cluster in namespace %q. not reconciling. only one ceph cluster per namespace.", object.GetNamespace())

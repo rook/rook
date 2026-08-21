@@ -114,7 +114,7 @@ func New(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, spec ce
 	}
 }
 
-// OSDInfo represent all the properties of a given OSD
+// OSDInfo represents all the properties of a given OSD
 type OSDInfo struct {
 	ID             int    `json:"id"`
 	Cluster        string `json:"cluster"`
@@ -349,7 +349,7 @@ func (c *Cluster) Start() error {
 	}
 
 	// clean up status configmaps and prepare jobs that might be dangling from previous reconciles
-	// for example, if the storage spec changed from or a node failed in a previous failed reconcile
+	// for example, if the storage spec changed or a node failed in a previous failed reconcile
 	c.deleteAllOrphanedPrepareJobs()
 	c.deleteAllStatusConfigMaps()
 
@@ -1009,11 +1009,11 @@ func GetLocationWithNode(ctx context.Context, clientset kubernetes.Interface, no
 }
 
 // getNode will try to get the node object for the provided nodeName
-// it will try using the node's name it's hostname label
+// it will try using the node's name or its hostname label
 func getNode(ctx context.Context, clientset kubernetes.Interface, nodeName string) (*corev1.Node, error) {
 	var node *corev1.Node
 	var err error
-	// try to find by the node by matching the provided nodeName
+	// try to find the node by matching the provided nodeName
 	node, err = clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if kerrors.IsNotFound(err) {
 		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.LabelHostname(), nodeName)}

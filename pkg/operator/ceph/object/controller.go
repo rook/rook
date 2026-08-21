@@ -263,7 +263,7 @@ func isObjStoreSpecContainsSecret(spec *cephv1.ObjectStoreSpec, secret *corev1.S
 	return false
 }
 
-// Reconcile reads that state of the cluster for a cephObjectStore object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a cephObjectStore object and makes changes based on the state read
 // and what is in the cephObjectStore.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -290,7 +290,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	}
 	// update observedGeneration local variable with current generation value,
 	// because generation can be changed before reconcile got completed
-	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	// CR status will be updated at end of reconcile, so to reflect that the reconcile has finished
 	observedGeneration := cephObjectStore.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
@@ -552,7 +552,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 			}
 		} else {
 			// For any legacy users that have an external mode CephObjectStore successfully using
-			// the Service/Endpoints and who have already created OBCs,we  leave the legacy
+			// the Service/Endpoints and who have already created OBCs, we leave the legacy
 			// Service/Endpoints in place. We need to update legacy services if the user edits the
 			// externalRgwEndpoint -- perhaps their RGW node changed IPs.
 
@@ -672,7 +672,7 @@ func (r *ReconcileCephObjectStore) retrieveMultisiteZone(store *cephv1.CephObjec
 
 	_, err := RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneGroupArg, zoneArg)
 	if err != nil {
-		// ENOENT mean "No such file or directory"
+		// ENOENT means "No such file or directory"
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			return waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "ceph zone %q not found", store.Spec.Zone.Name)
 		} else {

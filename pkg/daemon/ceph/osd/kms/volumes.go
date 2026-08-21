@@ -42,7 +42,7 @@ const (
 	VaultFileName = "vault.token"
 )
 
-// VaultSecretVolumeAndMount return the volume and matching volume mount for mounting the vault secrets into /etc/vault
+// VaultSecretVolumeAndMount returns the volume and matching volume mount for mounting the vault secrets into /etc/vault
 func VaultSecretVolumeAndMount(kmsVaultConfigFiles map[string]string, tokenSecretName string) []v1.VolumeProjection {
 	// Projection list
 	secretVolumeProjections := []v1.VolumeProjection{}

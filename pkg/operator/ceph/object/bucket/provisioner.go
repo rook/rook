@@ -90,7 +90,7 @@ func (p Provisioner) GenerateUserID(obc *bktv1alpha1.ObjectBucketClaim, ob *bktv
 	return username, nil
 }
 
-// Provision creates an s3 bucket and returns a connection info
+// Provision creates an s3 bucket and returns connection info
 // representing the bucket's endpoint and user access credentials.
 func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBucket, error) {
 	nsName := p.objectContext.NsName()
@@ -164,7 +164,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	return p.composeObjectBucket(bucket), nil
 }
 
-// Grant attaches to an existing rgw bucket and returns a connection info
+// Grant attaches to an existing rgw bucket and returns connection info
 // representing the bucket's endpoint and user access credentials.
 func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBucket, error) {
 	nsName := p.objectContext.NsName()
@@ -223,7 +223,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 
 	// generate the bucket policy if it isn't managed by the user
 
-	// if the policy does not exist, we'll create a new and append the statement to it
+	// if the policy does not exist, we'll create a new one and append the statement to it
 	policy, err := p.s3Agent.GetBucketPolicy(p.clusterInfo.Context, p.bucketName)
 	if err != nil {
 		var apiErr smithy.APIError

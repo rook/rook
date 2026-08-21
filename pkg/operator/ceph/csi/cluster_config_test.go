@@ -327,14 +327,14 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.Equal(t, 1, len(cc[2].Monitors))
 		assert.Equal(t, radosNSofCluster1, cc[2].RBD.RadosNamespace, cc)
 
-		// update mon IP's and check is it updating for all clusterID's
+		// update mon IPs and check if it is updating for all clusterIDs
 		csiCluster1ConfigEntry.Monitors = append(csiCluster1ConfigEntry.Monitors, "1.2.3.10:5000")
 		s, err = updateCsiClusterConfig(s, clusterIDofCluster1, clusterInfo, &csiCluster1ConfigEntry)
 		assert.NoError(t, err)
 		cc, err = parseCsiClusterConfig(s)
 		assert.NoError(t, err)
 		assert.Equal(t, 3, len(cc), cc)
-		// check mon entries are updated in all configmap
+		// check mon entries are updated in all configmaps
 		for _, i := range cc {
 			assert.Equal(t, 2, len(i.Monitors))
 		}
@@ -378,7 +378,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		cc, err = parseCsiClusterConfig(s)
 		assert.NoError(t, err)
 		assert.Equal(t, 6, len(cc), cc)
-		// check mon entries of 1st cluster amd mon overlapping with 2nd cluster
+		// check mon entries of 1st cluster and mon overlapping with 2nd cluster
 		for i := 0; i < 3; i++ {
 			assert.Equal(t, 2, len(cc[i].Monitors))
 			assert.False(t, contains(cc[i].Monitors, cluster2Mons))
@@ -389,7 +389,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 			assert.Equal(t, 1, len(cc[i].Monitors))
 			assert.False(t, contains(cc[i].Monitors, csiCluster1ConfigEntry.Monitors))
 		}
-		// update mon on 2nd cluster and check is it updating for all clusterID's
+		// update mon on 2nd cluster and check if it is updating for all clusterIDs
 		// of 2nd cluster
 		csiCluster2ConfigEntry.Monitors = append(csiCluster2ConfigEntry.Monitors, "192.168.0.3:5000")
 		s, err = updateCsiClusterConfig(s, clusterIDofCluster2, clusterInfo, &csiCluster2ConfigEntry)
@@ -402,7 +402,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 			assert.Equal(t, 2, len(i.Monitors))
 		}
 		// check for overlapping
-		// check mon entries of 1st cluster amd mon overlapping with 2nd cluster
+		// check mon entries of 1st cluster and mon overlapping with 2nd cluster
 		for i := 0; i < 3; i++ {
 			assert.False(t, contains(cc[i].Monitors, cluster2Mons))
 		}
@@ -410,8 +410,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		for i := 3; i < 6; i++ {
 			assert.False(t, contains(cc[i].Monitors, csiCluster1ConfigEntry.Monitors))
 		}
-		// Remove one mon from 2nd cluster and check is it updating for all
-		// clusterID's of 2nd cluster
+		// Remove one mon from 2nd cluster and check if it is updating for all
+		// clusterIDs of 2nd cluster
 		i := 1
 		csiCluster2ConfigEntry.Monitors = append(csiCluster2ConfigEntry.Monitors[:i], csiCluster2ConfigEntry.Monitors[i+1:]...)
 		s, err = updateCsiClusterConfig(s, clusterIDofCluster2, clusterInfo, &csiCluster2ConfigEntry)
@@ -420,7 +420,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 6, len(cc), cc)
 		// check for overlapping
-		// check mon entries of 1st cluster amd mon overlapping with 2nd cluster
+		// check mon entries of 1st cluster and mon overlapping with 2nd cluster
 		for i := 0; i < 3; i++ {
 			assert.False(t, contains(cc[i].Monitors, cluster2Mons))
 			assert.Equal(t, 2, len(cc[i].Monitors))

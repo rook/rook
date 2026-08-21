@@ -398,7 +398,7 @@ func (c *Cluster) buildSelectorLabels(labels map[string]string) map[string]strin
 	return selectorLabels
 }
 
-// isHostNetworkEnabled checks if hostNetwork field is set in mgr spec, if not
+// isHostNetworkEnabled checks if the hostNetwork field is set in the mgr spec, if not
 // gets it from Cluster Spec
 func isHostNetworkEnabled(c *Cluster) bool {
 	hostNetwork := c.spec.Network.IsHost()

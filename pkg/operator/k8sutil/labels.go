@@ -23,7 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// ParseStringToLabels parse a label selector string into a map[string]string
+// ParseStringToLabels parses a label selector string into a map[string]string
 func ParseStringToLabels(in string) map[string]string {
 	labels := map[string]string{}
 
@@ -50,7 +50,7 @@ func ParseStringToLabels(in string) map[string]string {
 }
 
 // AddRecommendedLabels adds the labels to the resources created by rook
-// The labels added are name, instance,etc
+// The labels added are name, instance, etc.
 func AddRecommendedLabels(labels map[string]string, appName, parentName, resourceKind, resourceInstance string) {
 	labels["app.kubernetes.io/name"] = appName
 	labels["app.kubernetes.io/instance"] = resourceInstance
@@ -61,7 +61,7 @@ func AddRecommendedLabels(labels map[string]string, appName, parentName, resourc
 	labels["rook.io/operator-namespace"] = os.Getenv(PodNamespaceEnvVar)
 }
 
-// LabelHostname returns label name to identify k8s node hostname
+// LabelHostname returns the label name used to identify the k8s node hostname
 func LabelHostname() string {
 	if label := os.Getenv("ROOK_CUSTOM_HOSTNAME_LABEL"); label != "" {
 		return label

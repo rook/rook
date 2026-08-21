@@ -77,7 +77,7 @@ func TestValidatePinningValues(t *testing.T) {
 	err = validatePinningValues(testData)
 	assert.Error(t, err)
 
-	// nothing is set, noerror
+	// nothing is set, no error
 	var testData1 cephv1.CephFilesystemSubVolumeGroupSpecPinning
 	err = validatePinningValues(testData1)
 	assert.NoError(t, err)

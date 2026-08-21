@@ -51,19 +51,19 @@ var cleanUpHostCmd = &cobra.Command{
 }
 
 var cleanUpSubVolumeGroupCmd = &cobra.Command{
-	// the subcommand matches CRD kind of the custom resource to be cleaned up
+	// the subcommand matches the CRD kind of the custom resource to be cleaned up
 	Use:   "CephFilesystemSubVolumeGroup",
 	Short: "Starts the cleanup process of a CephFilesystemSubVolumeGroup",
 }
 
 var cleanUpRadosNamespaceCmd = &cobra.Command{
-	// the subcommand matches CRD kind of the custom resource to be cleaned up
+	// the subcommand matches the CRD kind of the custom resource to be cleaned up
 	Use:   "CephBlockPoolRadosNamespace",
 	Short: "Starts the cleanup process for a CephBlockPoolRadosNamespace",
 }
 
 var cleanUpBlockPoolCmd = &cobra.Command{
-	// the subcommand matches CRD kind of the custom resource to be cleaned up
+	// the subcommand matches the CRD kind of the custom resource to be cleaned up
 	Use:   "CephBlockPool",
 	Short: "Starts the cleanup process for a CephBlockPool",
 }

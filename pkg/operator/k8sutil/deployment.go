@@ -64,7 +64,7 @@ func GetDeploymentSpecImage(clientset kubernetes.Interface, d appsv1.Deployment,
 //  1. verify that a resource can be stopped
 //  2. verify that we can continue the update procedure
 //
-// Basically, we go one resource by one and check if we can stop and then if the resource has been successfully updated
+// Basically, we go one resource at a time and check if we can stop and then if the resource has been successfully updated
 // we check if we can go ahead and move to the next one.
 func UpdateDeploymentAndWait(ctx context.Context, clusterContext *clusterd.Context, modifiedDeployment *appsv1.Deployment, namespace string, verifyCallback func(action string) error) error {
 	currentDeployment, err := clusterContext.Clientset.AppsV1().Deployments(namespace).Get(ctx, modifiedDeployment.Name, metav1.GetOptions{})
@@ -131,7 +131,7 @@ func WaitForDeploymentToStart(ctx context.Context, clusterdContext *clusterd.Con
 		}
 
 		// If ProgressDeadlineExceeded is reached let's fail earlier
-		// This can happen if one of the deployment cannot be scheduled on a node and stays in "pending" state
+		// This can happen if one of the deployments cannot be scheduled on a node and stays in "pending" state
 		for _, condition := range d.Status.Conditions {
 			if condition.Type == appsv1.DeploymentProgressing && condition.Reason == "ProgressDeadlineExceeded" {
 				return fmt.Errorf("gave up waiting for deployment %q to update because %q", deployment.Name, condition.Reason)
@@ -321,7 +321,7 @@ func deploymentIsDoneUpdating(d *appsv1.Deployment, oldObservedGeneration int64)
 	return d.Status.ObservedGeneration != oldObservedGeneration && d.Status.UpdatedReplicas > 0 && d.Status.ReadyReplicas > 0
 }
 
-// return error if progress deadline exceeded condition on the deployment
+// progressDeadlineExceeded returns an error if the progress deadline exceeded condition is set on the deployment
 func progressDeadlineExceeded(d *appsv1.Deployment) error {
 	for _, condition := range d.Status.Conditions {
 		if condition.Type == appsv1.DeploymentProgressing && condition.Reason == "ProgressDeadlineExceeded" {
@@ -372,7 +372,7 @@ func updateDeployment(
 	return oldDeployment, nil, nil
 }
 
-// GetDeployments returns a list of deployment names labels matching a given selector
+// GetDeployments returns the list of deployments matching a given label selector
 // example of a label selector might be "app=rook-ceph-mon, mon!=b"
 // more: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 func GetDeployments(ctx context.Context, clientset kubernetes.Interface, namespace, labelSelector string) (*appsv1.DeploymentList, error) {

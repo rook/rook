@@ -73,7 +73,7 @@ var (
 	accountsMinCephVersion            = cephver.CephVersion{Major: 19, Minor: 2, Extra: 3}
 )
 
-// newMultisiteAdminOpsCtxFunc help us mocking the admin ops API client in unit test
+// newMultisiteAdminOpsCtxFunc helps us mock the admin ops API client in unit tests
 var newMultisiteAdminOpsCtxFunc = object.NewMultisiteAdminOpsContext
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "object-user-controller")
@@ -84,7 +84,7 @@ var controllerTypeMeta = metav1.TypeMeta{
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
-// ReconcileObjectStoreUser reconciles a ObjectStoreUser object
+// ReconcileObjectStoreUser reconciles an ObjectStoreUser object
 type ReconcileObjectStoreUser struct {
 	client            client.Client
 	scheme            *runtime.Scheme
@@ -225,7 +225,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a CephObjectStoreUser object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a CephObjectStoreUser object and makes changes based on the state read
 // and what is in the CephObjectStoreUser.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -461,7 +461,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	log.NamedTrace(nsName, logger, "user capabilities(id: %s, caps: %#v, user caps: %s, op mask: %s)",
 		liveUser.ID, liveUser.Caps, liveUser.UserCaps, liveUser.OpMask)
 	if targetUser.UserCaps != liveUser.UserCaps {
-		// If they are no caps to be removed, the API will return an error "missing user capabilities"
+		// If there are no caps to be removed, the API will return an error "missing user capabilities"
 		if liveUser.UserCaps != "" {
 			log.NamedTrace(nsName, logger, "remove capabilities %s from user %s", liveUser.UserCaps, targetUser.ID)
 			_, err = r.objContext.AdminOpsClient.RemoveUserCap(r.opManagerContext, targetUser.ID, liveUser.UserCaps)
@@ -955,7 +955,7 @@ func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName
 		return errors.Wrapf(err, "failed to get user %q", userID)
 	}
 
-	// create a lookup for the targetkeys (by AccessKey)
+	// create a lookup for the targetKeys (by AccessKey)
 	targetMap := make(map[string]admin.UserKeySpec, len(targetKeys))
 	for _, k := range targetKeys {
 		targetMap[k.AccessKey] = k

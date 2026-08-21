@@ -79,7 +79,7 @@ func (c *Cluster) processOSDReplacements() error {
 
 		replaceValue, requested := d.Annotations[cephv1.ReplaceOSDAnnotationKey]
 		if !requested {
-			// skip: dont have replace annotation
+			// skip: don't have replace annotation
 			continue
 		}
 

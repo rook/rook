@@ -133,7 +133,7 @@ func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *
 	err = k8sh.CreateSnapshotController("apply")
 	require.NoError(s.T(), err)
 	// cleanup the CRD and controller in defer to make sure the CRD and
-	// controller are removed as filesystem test also install CRD and controller.
+	// controller are removed as filesystem test also installs CRD and controller.
 	defer func() {
 		logger.Infof("delete snapshot-controller")
 		err = k8sh.DeleteSnapshotController()
@@ -263,7 +263,7 @@ func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *
 	require.NoError(s.T(), err)
 }
 
-// Smoke Test for Block Storage - Test check the following operations on Block Storage in order
+// Smoke Test for Block Storage - Test checks the following operations on Block Storage in order
 // Create,Mount,Write,Read,Expand,Unmount and Delete.
 func runBlockCSITest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, namespace string) {
 	podName := "block-test"
@@ -531,8 +531,8 @@ func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s *
 	deleteBlockLite(helper, k8sh, s, clusterInfo, poolname, storageclassname, blockname, requireBlockImagesRemoved)
 }
 
-// periodically checking if block image count has changed to expected value
-// When creating pvc in k8s platform, it may take some time for the block Image to be bounded
+// retryBlockImageCountCheck periodically checks if the block image count has changed to the expected value
+// When creating a pvc in a k8s platform, it may take some time for the block image to be bound
 func retryBlockImageCountCheck(helper *clients.TestClient, clusterInfo *client.ClusterInfo, expectedImageCount int) error {
 	// Allow twice the usual retry budget: if the first provisioning attempt fails
 	// (e.g. the pool is not created yet), the external-provisioner sidecar backs

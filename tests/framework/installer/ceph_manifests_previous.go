@@ -46,7 +46,7 @@ func (m *CephManifestsPreviousVersion) GetCSIOperator() string {
 	return m.settings.replaceCSIOperatorSettings(m.settings.OperatorNamespace, manifest)
 }
 
-// GetRookOperator returns rook Operator manifest
+// GetOperator returns the rook operator manifest
 func (m *CephManifestsPreviousVersion) GetOperator() string {
 	var manifest string
 	if utils.IsPlatformOpenShift() {
@@ -57,12 +57,12 @@ func (m *CephManifestsPreviousVersion) GetOperator() string {
 	return m.settings.replaceOperatorSettings(manifest)
 }
 
-// GetCommon returns rook-cluster manifest
+// GetCommon returns the rook common manifest
 func (m *CephManifestsPreviousVersion) GetCommon() string {
 	return m.settings.readManifestFromGitHub("common.yaml")
 }
 
-// GetRookToolBox returns rook-toolbox manifest
+// GetToolbox returns the rook-toolbox manifest
 func (m *CephManifestsPreviousVersion) GetToolbox() string {
 	if m.settings.DirectMountToolbox {
 		manifest := strings.ReplaceAll(m.settings.readManifestFromGitHub("direct-mount.yaml"), "name: rook-direct-mount", "name: rook-ceph-tools")
@@ -89,7 +89,7 @@ func (m *CephManifestsPreviousVersion) GetNetworkPolicy() string {
 //**********************************************************************************
 //**********************************************************************************
 
-// GetRookCluster returns rook-cluster manifest
+// GetCephCluster returns the rook cluster manifest
 func (m *CephManifestsPreviousVersion) GetCephCluster() string {
 	return m.latest.GetCephCluster()
 }
@@ -147,17 +147,17 @@ func (m *CephManifestsPreviousVersion) GetObjectStoreUser(name, displayName, sto
 	return m.latest.GetObjectStoreUser(name, displayName, store, usercaps, maxsize, maxbuckets, maxobjects)
 }
 
-// GetBucketStorageClass returns the manifest to create object bucket
+// GetBucketStorageClass returns the manifest to create the object bucket storage class
 func (m *CephManifestsPreviousVersion) GetBucketStorageClass(storeName, storageClassName, reclaimPolicy string) string {
 	return m.latest.GetBucketStorageClass(storeName, storageClassName, reclaimPolicy)
 }
 
-// GetOBC returns the manifest to create object bucket claim
+// GetOBC returns the manifest to create an object bucket claim
 func (m *CephManifestsPreviousVersion) GetOBC(claimName, storageClassName, objectBucketName, maxObject string, varBucketName bool) string {
 	return m.latest.GetOBC(claimName, storageClassName, objectBucketName, maxObject, varBucketName)
 }
 
-// GetBucketTopic returns the manifest to create ceph bucket topic
+// GetBucketTopic returns the manifest to create a ceph bucket topic
 func (m *CephManifestsPreviousVersion) GetBucketTopic(topicName, storeName, httpEndpointService string) string {
 	return m.latest.GetBucketTopic(topicName, storeName, httpEndpointService)
 }

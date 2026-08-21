@@ -71,7 +71,7 @@ var (
 	}
 	dataPoolName = "rgw.buckets.data"
 
-	// An user with system privileges for dashboard service
+	// A user with system privileges for dashboard service
 	DashboardUser = "dashboard-admin"
 
 	zonePoolNSSuffix = map[string]string{
@@ -588,7 +588,7 @@ func configureObjectStore(objContext *Context, store *cephv1.CephObjectStore, zo
 
 			// There is no need to update the Zone endpoints when:
 			//  - the zone does not have the endpoint and the synchronization is disabled on the objectstore
-			//  - the zone already have the endpoint and the synchronization is enabled
+			//  - the zone already has the endpoint and the synchronization is enabled
 			if isEndpointAlreadyExists == store.Spec.Gateway.DisableMultisiteSyncTraffic {
 				if !isEndpointAlreadyExists {
 					zoneEndpointsList = append(zoneEndpointsList, objContext.Endpoint)
@@ -930,11 +930,11 @@ func adjustZoneDefaultPools(objContext *Context, zone map[string]interface{}, sp
 
 	defaultMetaPool := getDefaultMetadataPool(spec)
 	if defaultMetaPool == "" {
-		// default pool is not presented in shared pool spec
+		// default pool is not present in the shared pool spec
 		return zone, nil
 	}
 	// add zone namespace to metadata pool to safely share across rgw instances or zones.
-	// in non-multisite case zone name equals to rgw instance name
+	// in the non-multisite case the zone name equals the rgw instance name
 	defaultMetaPool = defaultMetaPool + ":" + name
 	for pool, nsSuffix := range zonePoolNSSuffix {
 		// replace rgw internal index pools with namespaced metadata pool
@@ -1023,7 +1023,7 @@ func checkPoolIsEmpty(objContext *Context, name string) (bool, error) {
 
 // configurePoolsConcurrently checks if operator pod resources are set or not
 func configurePoolsConcurrently() bool {
-	// if operator resources are specified return false as it will lead to operator pod killed due to resource limit
+	// if operator resources are specified return false as it will lead to operator pod being killed due to resource limit
 	// nolint S1008 (go-staticcheck), we can safely suppress this
 	if os.Getenv("OPERATOR_RESOURCES_SPECIFIED") == "true" {
 		return false
@@ -1100,7 +1100,7 @@ func GetObjectBucketProvisioner(namespace string) (string, error) {
 	return provName, nil
 }
 
-// checkDashboardUser returns true if the dashboard user exists and has the same credentials as the given user, else return false
+// checkDashboardUser returns true if the dashboard user exists and has the same credentials as the given user, else returns false
 func checkDashboardUser(context *Context, user ObjectUser) (bool, error) {
 	dUser, errId, err := GetUser(context, DashboardUser)
 
@@ -1121,7 +1121,7 @@ func checkDashboardUser(context *Context, user ObjectUser) (bool, error) {
 	return false, err
 }
 
-// retrieveDashboardAPICredentials Retrieves the dashboard's access and secret key and set it on the given ObjectUser
+// retrieveDashboardAPICredentials retrieves the dashboard's access and secret keys and sets them on the given ObjectUser
 func retrieveDashboardAPICredentials(context *Context, user *ObjectUser) error {
 	args := []string{"dashboard", "get-rgw-api-access-key"}
 	cephCmd := cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
@@ -1287,7 +1287,7 @@ func errorOrIsNotFound(err error, msg string, args ...string) error {
 	return errors.Wrapf(err, msg, args)
 }
 
-// ShouldUpdateZoneEndpointList checks whether zone endpoint list need to be updated or not
+// ShouldUpdateZoneEndpointList checks whether zone endpoint list needs to be updated or not
 func ShouldUpdateZoneEndpointList(zones []zoneType, desiredEndpointList []string, zoneName string) (bool, error) {
 	if zoneName == "" {
 		return false, errors.Errorf("zone name can't be empty")
@@ -1345,7 +1345,7 @@ func CheckIfZonePresentInZoneGroup(objContext *Context) (bool, error) {
 	return false, nil
 }
 
-// ValidateObjectStorePoolsConfig returns error if given ObjectStore pool configuration is inconsistent.
+// ValidateObjectStorePoolsConfig returns an error if the given ObjectStore pool configuration is inconsistent.
 func ValidateObjectStorePoolsConfig(metadataPool, dataPool cephv1.PoolSpec, sharedPools cephv1.ObjectSharedPoolsSpec) error {
 	if err := validatePoolPlacements(sharedPools.PoolPlacements); err != nil {
 		return err

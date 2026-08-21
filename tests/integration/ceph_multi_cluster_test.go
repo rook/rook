@@ -120,7 +120,7 @@ func (s *MultiClusterDeploySuite) createPools() {
 }
 
 func (s *MultiClusterDeploySuite) deletePools() {
-	// create a test pool in each cluster so that we get some PGs
+	// delete the test pool created in each cluster
 	clusterInfo := client.AdminTestClusterInfo(s.settings.Namespace)
 	if err := s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, clusterInfo, s.poolName); err != nil {
 		logger.Errorf("failed to delete pool %q. %v", s.poolName, err)
@@ -147,7 +147,7 @@ func (s *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
 	checkIfRookClusterIsHealthy(&s.Suite, s.testClient, s.externalManifests.Settings().Namespace)
 }
 
-// Setup is wrapper for setting up multiple rook clusters.
+// setupMultiClusterCore is a wrapper for setting up the core rook cluster.
 func (s *MultiClusterDeploySuite) setupMultiClusterCore() {
 	root, err := utils.FindRookRoot()
 	require.NoError(s.T(), err, "failed to get rook root")

@@ -47,7 +47,7 @@ func TestDeleteConfigMap(t *testing.T) {
 
 	// There is no need to test all permutations, as the `DeleteResource` function is already
 	// tested. Setting Wait=true and ErrorOnTimeout=true will cause both the delete and verify
-	// functions to be exercised, and it will return error if either fail with an unexpected error.
+	// functions to be exercised, and it will return an error if either fails with an unexpected error.
 	opts := &DeleteOptions{}
 	opts.Wait = true
 	opts.ErrorOnTimeout = true

@@ -77,7 +77,7 @@ func wereMonEndpointsUpdated(namespace string, oldCMData, newCMData map[string]s
 				log.NamespacedDebug(namespace, logger, "mons were added or removed from the endpoints cm")
 				return true
 			}
-			// Since Schedule is map, it's unordered, so let's order it
+			// Since Schedule is a map, it's unordered, so let's order it
 			oldKeys := make([]string, 0, len(oldMappingToGo.Schedule))
 			for k := range oldMappingToGo.Schedule {
 				oldKeys = append(oldKeys, k)

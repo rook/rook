@@ -591,7 +591,7 @@ func TestCluster_configurePrometheusModule(t *testing.T) {
 	assert.Equal(t, 1, modulesDisabled)
 	assert.Equal(t, PrometheusModuleName, lastModuleConfigured)
 
-	// Enable prometheus module, no changed
+	// Enable prometheus module, no change
 	modulesDisabled = 0
 	c.spec.Monitoring.MetricsDisabled = false
 	err = c.configurePrometheusModule()

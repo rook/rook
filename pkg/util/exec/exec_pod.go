@@ -93,7 +93,7 @@ func (e *RemotePodCommandExecutor) ExecWithOptions(ctx context.Context, options 
 }
 
 // ExecCommandInContainerWithFullOutput executes a command in the
-// specified container and return stdout, stderr and error
+// specified container and returns stdout, stderr and error
 func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutput(ctx context.Context, appLabel, containerName, namespace string, cmd ...string) (string, string, error) {
 	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appLabel)}
 	pods, err := e.ClientSet.CoreV1().Pods(namespace).List(ctx, options)

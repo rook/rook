@@ -144,7 +144,7 @@ func getSecretNameByAnnotation(c client.Client, ctx context.Context, namespace, 
 	return defaultName, nil
 }
 
-// CreateDefaultClientProfile creates a default client profile for csi-operator to connect driver
+// CreateDefaultClientProfile creates a default client profile for csi-operator to connect the driver
 func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.ClusterInfo) error {
 	logger.Info("Creating ceph-csi clientProfile default CR")
 	csiOpClientProfile := &csiopv1.ClientProfile{}

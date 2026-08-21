@@ -140,7 +140,7 @@ func TestMonStore_GetDaemon(t *testing.T) {
 	assert.Contains(t, execedCmd, "ceph config get client.rgw.test.a")
 	assert.True(t, reflect.DeepEqual(options, []Option{{"client.rgw.test.a", "rgw_enable_usage_log", "true"}}))
 
-	// json parse exception return as expected
+	// json parse exception returned as expected
 	execReturn = "bad json output"
 	_, e = monStore.GetDaemon("client.rgw.test.a")
 	assert.Error(t, e)

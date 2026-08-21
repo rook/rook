@@ -67,7 +67,7 @@ var (
 )
 
 // claimAdminRotationLock tries to claim a lock on admin key rotation for a cluster namespace
-// returns error if the lock could not be granted.
+// returns an error if the lock could not be granted.
 // Because (*Mutex).Lock() blocks while trying to get a lock, we could end up stalling Rook
 // reconciles if we rely solely on the lock itself. To prevent stalls, use a map 'set' to indicate
 // whether rotation is in progress, and only lock access to the set. When a rotation is locked,
@@ -338,7 +338,7 @@ func entityExistsInAuthList(entity string, authList cephclient.AuthListOutput) b
 	return false
 }
 
-// helper routine that rotate client.admin cephx key including cleanup and cephx status update
+// helper routine that rotates the client.admin cephx key including cleanup and cephx status update
 // uses the provided client.admin-rotator keyring to rotate client.admin
 func rotateAdminCephxKeyUsingRotator(
 	clusterdCtx *clusterd.Context,
@@ -484,7 +484,7 @@ func adminRotationTmpDir(clusterdCtx *clusterd.Context, clusterInfo *cephclient.
 }
 
 // make a minimal copy of the clusterInfo that tells called cephclient functions to use the given
-// username and keyring path instead the defaults
+// username and keyring path instead of the defaults
 func minimalCopyClusterInfo(clusterInfo *cephclient.ClusterInfo, username, keyringFilePath string) *cephclient.ClusterInfo {
 	c := &cephclient.ClusterInfo{
 		Context:   clusterInfo.Context,

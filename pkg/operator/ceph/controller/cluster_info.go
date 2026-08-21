@@ -130,7 +130,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 		if cephClusterSpec.Security.CephX.Daemon.KeyType != "" {
 			// allow users to use the cephx daemon key type config to override the key type used for
 			// bootstrapping the admin and mon keys. There is a chance Rook could make the wrong
-			// determination when bootstrapping these keys ceph-authtool, and it might be important
+			// determination when bootstrapping these keys with ceph-authtool, and it might be important
 			// for users to override them as a workaround. daemon key creation/rotation after mons
 			// are running is done by the running mons, so no ability to set overrides after initial
 			// bootstrapping is necessary
@@ -480,8 +480,8 @@ func ParseMonEndpoints(input string) map[string]*cephclient.MonInfo {
 	return mons
 }
 
-// PopulateExternalClusterInfo Add validation in the code to fail if the external cluster has no
-// OSDs keep waiting
+// PopulateExternalClusterInfo waits for the external cluster's connection info to become
+// available, retrying until it is found or the context is canceled.
 func PopulateExternalClusterInfo(cephClusterSpec *cephv1.ClusterSpec, context *clusterd.Context, ctx context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) (*cephclient.ClusterInfo, error) {
 	for {
 		// Checking for the context makes sure we don't loop forever with a canceled context

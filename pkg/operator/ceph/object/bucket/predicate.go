@@ -70,7 +70,7 @@ func cephClusterPredicate[T *cephv1.CephCluster](ctx context.Context, c client.C
 	return predicate.TypedFuncs[T]{
 		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
 			// If a Ceph Cluster is created we want to reconcile the bucket provisioner
-			// If there are more than one ceph cluster in the same namespace do not reconcile
+			// If there is more than one ceph cluster in the same namespace do not reconcile
 			return !controller.DuplicateCephClusters(ctx, c, e.Object, false)
 		},
 

@@ -412,7 +412,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	// For OSD on PVC with LVM the directory does not exist yet
 	// It gets created by the 'ceph-volume lvm activate' command
 	//
-	// 	So OSD non-PVC the directory has been created by the 'activate' container already and has chown it
+	// 	So for OSD non-PVC the directory has been created by the 'activate' container already and has chowned it
 	// So we don't need to chown it again
 	dataPath := ""
 
@@ -546,7 +546,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 
 	// If the log collector is enabled we add the side-car container
 	if c.spec.LogCollector.Enabled {
-		// If HostPID is already enabled we don't need to activate shareProcessNamespace since all pods already see each others
+		// If HostPID is already enabled we don't need to activate shareProcessNamespace since all pods already see each other
 		if !podTemplateSpec.Spec.HostPID {
 			shareProcessNamespace := true
 			podTemplateSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
@@ -686,7 +686,7 @@ func (c *Cluster) createOSDService(osd OSDInfo, labels map[string]string) (*v1.S
 	return svc, nil
 }
 
-// applyAllPlacementIfNeeded apply spec.placement.all if OnlyApplyOSDPlacement set to false
+// applyAllPlacementIfNeeded applies spec.placement.all if OnlyApplyOSDPlacement is set to false
 func (c *Cluster) applyAllPlacementIfNeeded(d *v1.PodSpec) {
 	// The placement for OSDs is computed from several different places:
 	// - For non-PVCs: `placement.all` and `placement.osd`
@@ -744,7 +744,7 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 
 // This container runs all the actions needed to activate an OSD before we can run the OSD process
 func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string, osdInfo OSDInfo, osdProps osdProperties) ([]v1.Volume, *v1.Container) {
-	// We need to use hostPath because the same reason as written in the comment of getDataBridgeVolumeSource()
+	// We need to use hostPath for the same reason as written in the comment of getDataBridgeVolumeSource()
 
 	hostPathType := v1.HostPathDirectoryOrCreate
 	source := v1.VolumeSource{
@@ -864,9 +864,9 @@ func (c *Cluster) getPVCInitContainer(osdProps osdProperties) v1.Container {
 
 func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProperties) v1.Container {
 	cpDestinationName := path.Join(mountPath, bluestoreBlockName)
-	// Encrypted is a special
+	// Encrypted is a special case
 	// We have an initial "cp" to copy the pvc to an empty dir, typically we copy it in /var/lib/ceph/osd/ceph-0/block
-	// BUT we encryption we need a second block copy, the copy of the opened encrypted block which ultimately will be at /var/lib/ceph/osd/ceph-0/block
+	// BUT with encryption we need a second block copy, the copy of the opened encrypted block which ultimately will be at /var/lib/ceph/osd/ceph-0/block
 	// So when encrypted we first copy to /var/lib/ceph/osd/ceph-0/block-tmp
 	// Then open the encrypted block and finally copy it to /var/lib/ceph/osd/ceph-0/block
 	// If we don't do this "cp" will fail to copy the special block file
@@ -1069,9 +1069,9 @@ func (c *Cluster) getPVCMetadataInitContainer(mountPath string, osdProps osdProp
 
 func (c *Cluster) getPVCMetadataInitContainerActivate(mountPath string, osdProps osdProperties) v1.Container {
 	cpDestinationName := path.Join(mountPath, bluestoreMetadataName)
-	// Encrypted is a special
+	// Encrypted is a special case
 	// We have an initial "cp" to copy the pvc to an empty dir, typically we copy it in /var/lib/ceph/osd/ceph-0/block
-	// BUT we encryption we need a second block copy, the copy of the opened encrypted block which ultimately will be at /var/lib/ceph/osd/ceph-0/block
+	// BUT with encryption we need a second block copy, the copy of the opened encrypted block which ultimately will be at /var/lib/ceph/osd/ceph-0/block
 	// So when encrypted we first copy to /var/lib/ceph/osd/ceph-0/block-tmp
 	// Then open the encrypted block and finally copy it to /var/lib/ceph/osd/ceph-0/block
 	// If we don't do this "cp" will fail to copy the special block file
@@ -1137,9 +1137,9 @@ func (c *Cluster) getPVCWalInitContainer(mountPath string, osdProps osdPropertie
 
 func (c *Cluster) getPVCWalInitContainerActivate(mountPath string, osdProps osdProperties) v1.Container {
 	cpDestinationName := path.Join(mountPath, bluestoreWalName)
-	// Encrypted is a special
+	// Encrypted is a special case
 	// We have an initial "cp" to copy the pvc to an empty dir, typically we copy it in /var/lib/ceph/osd/ceph-0/block
-	// BUT we encryption we need a second block copy, the copy of the opened encrypted block which ultimately will be at /var/lib/ceph/osd/ceph-0/block
+	// BUT with encryption we need a second block copy, the copy of the opened encrypted block which ultimately will be at /var/lib/ceph/osd/ceph-0/block
 	// So when encrypted we first copy to /var/lib/ceph/osd/ceph-0/block-tmp
 	// Then open the encrypted block and finally copy it to /var/lib/ceph/osd/ceph-0/block
 	// If we don't do this "cp" will fail to copy the special block file

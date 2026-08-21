@@ -39,12 +39,12 @@ type OwnerInfo struct {
 	ownerRefNamespace string
 }
 
-// NewOwnerInfo create a new ownerInfo to set ownerReference by controllerutil
+// NewOwnerInfo creates a new ownerInfo to set ownerReference by controllerutil
 func NewOwnerInfo(owner metav1.Object, scheme *runtime.Scheme) *OwnerInfo {
 	return &OwnerInfo{owner: owner, scheme: scheme}
 }
 
-// NewOwnerInfoWithOwnerRef create a new ownerInfo to set ownerReference by rook itself
+// NewOwnerInfoWithOwnerRef creates a new ownerInfo to set ownerReference by rook itself
 func NewOwnerInfoWithOwnerRef(ownerRef *metav1.OwnerReference, namespace string) *OwnerInfo {
 	return &OwnerInfo{ownerRef: ownerRef, ownerRefNamespace: namespace}
 }
@@ -73,7 +73,7 @@ func (info *OwnerInfo) validateController(object metav1.Object) error {
 	return nil
 }
 
-// SetOwnerReference set the owner reference of object
+// SetOwnerReference sets the owner reference of an object
 func (info *OwnerInfo) SetOwnerReference(object metav1.Object) error {
 	if info.owner != nil {
 		return controllerutil.SetOwnerReference(info.owner, object, info.scheme)
@@ -111,7 +111,7 @@ func referSameObject(a, b metav1.OwnerReference) bool {
 	return groupVersionA.Group == groupVersionB.Group && a.Kind == b.Kind && a.Name == b.Name
 }
 
-// SetControllerReference set the controller reference of object
+// SetControllerReference sets the controller reference of an object
 func (info *OwnerInfo) SetControllerReference(object metav1.Object) error {
 	if info.owner != nil {
 		return controllerutil.SetControllerReference(info.owner, object, info.scheme)
@@ -128,7 +128,7 @@ func (info *OwnerInfo) SetControllerReference(object metav1.Object) error {
 		return err
 	}
 
-	// Do not override the BlockOwnerDeletion is already set
+	// Do not override the BlockOwnerDeletion if already set
 	if info.ownerRef.BlockOwnerDeletion == nil {
 		blockOwnerDeletion := true
 		info.ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
@@ -192,7 +192,7 @@ type ContainerResource struct {
 	Resource v1.ResourceRequirements `json:"resource"`
 }
 
-// YamlToContainerResourceArray takes raw YAML string and converts it to array of
+// YamlToContainerResourceArray takes a raw YAML string and converts it to an array of
 // ContainerResource
 func YamlToContainerResourceArray(raw string) ([]ContainerResource, error) {
 	resources := []ContainerResource{}
@@ -214,7 +214,7 @@ type resourcesRequirements struct {
 	Resources v1.ResourceRequirements `json:"resources"`
 }
 
-// YamlToContainerResource takes raw YAML string and converts it to resourcesrequirements
+// YamlToContainerResource takes a raw YAML string and converts it to a v1.ResourceRequirements
 func YamlToContainerResource(raw string) (v1.ResourceRequirements, error) {
 	resources := resourcesRequirements{}
 	if raw == "" {

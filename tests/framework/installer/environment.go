@@ -60,12 +60,12 @@ func baseTestDir() (string, error) {
 	return val, nil
 }
 
-// TestScratchDevice get the scratch device to be used for OSD
+// TestScratchDevice gets the scratch device to be used for OSD
 func TestScratchDevice() string {
 	return getEnvVarWithDefault("TEST_SCRATCH_DEVICE", "/dev/nvme0n1")
 }
 
-// getDeviceFilter get the device name used for OSD
+// getDeviceFilter gets the device filter used to select OSD devices
 func getDeviceFilter() string {
 	return getEnvVarWithDefault("DEVICE_FILTER", `""`)
 }

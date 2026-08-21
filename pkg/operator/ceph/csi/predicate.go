@@ -37,7 +37,7 @@ func cmPredicate[T *corev1.ConfigMap]() predicate.TypedFuncs[T] {
 		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
 			cm := (*corev1.ConfigMap)(e.Object)
 
-			// We don't want to use cm.Generation here, it case the operator was stopped and the
+			// We don't want to use cm.Generation here, in case the operator was stopped and the
 			// ConfigMap was created
 			return cm.Name == opcontroller.OperatorSettingConfigMapName
 		},
@@ -72,14 +72,14 @@ func cmPredicate[T *corev1.ConfigMap]() predicate.TypedFuncs[T] {
 	}
 }
 
-// predicateController is the predicate function to trigger reconcile on operator configuration cm change
+// cephClusterPredicate is the predicate function to trigger reconcile on CephCluster create and delete events
 func cephClusterPredicate[T *cephv1.CephCluster](ctx context.Context, c client.Client, opNamespace string) predicate.TypedFuncs[T] {
 	return predicate.TypedFuncs[T]{
 		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
 			cephCluster := (*cephv1.CephCluster)(e.Object)
 
 			// If a Ceph Cluster is created we want to reconcile the csi driver
-			// If there are more than one ceph cluster in the same namespace do not reconcile
+			// If there is more than one ceph cluster in the same namespace do not reconcile
 			if opcontroller.DuplicateCephClusters(ctx, c, cephCluster, false) {
 				return false
 			}
@@ -100,7 +100,7 @@ func cephClusterPredicate[T *cephv1.CephCluster](ctx context.Context, c client.C
 			// does not exist... However, these days the operator config map is part of the
 			// operator.yaml so it's probably acceptable?
 			// This does not account for the case where the cephcluster is already deployed and
-			// the upgrade the operator or restart it. However, the CM check above should catch that
+			// we upgrade the operator or restart it. However, the CM check above should catch that
 			return cephCluster.Generation == 1
 		},
 

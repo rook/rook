@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	// LocalBuildTag tag for the latest manifests
+	// LocalBuildTag is the tag for the latest manifests
 	LocalBuildTag = "local-build"
 )
 

@@ -64,7 +64,7 @@ func ibmKeyProtectServiceAPIKeyEnvVarFromSecret(tokenSecretName string) v1.EnvVa
 	}
 }
 
-// vaultTLSEnvVarFromSecret translates TLS env var which are set to k8s secret name to their actual path on the fs once mounted as volume
+// vaultTLSEnvVarFromSecret translates TLS env vars which are set to k8s secret name to their actual path on the fs once mounted as volume
 // See: VaultSecretVolumeAndMount() for more details
 func vaultTLSEnvVarFromSecret(kmsConfig map[string]string) []v1.EnvVar {
 	vaultTLSEnvVar := []v1.EnvVar{}
@@ -92,7 +92,7 @@ func ConfigToEnvVar(spec cephv1.ClusterSpec) []v1.EnvVar {
 	}
 
 	if spec.Security.KeyManagementService.IsIBMKeyProtectKMS() {
-		// We don't want to leak the IBM service API key to the container environment variables even
+		// We don't want to leak the IBM service API key to the container environment variables even though
 		// the container is ephemeral.
 		// The IBM_KP_SERVICE_API_KEY content is mounted in the provisioner container as an
 		// environment variable from a secret
@@ -102,7 +102,7 @@ func ConfigToEnvVar(spec cephv1.ClusterSpec) []v1.EnvVar {
 
 	if spec.Security.KeyManagementService.IsKMIPKMS() {
 		for key, val := range spec.Security.KeyManagementService.ConnectionDetails {
-			// these token details will be mounted into osd pod instead of being inserted as env vars.
+			// these token details will be mounted into the osd pod instead of being inserted as env vars.
 			if sets.NewString(kmsKMIPMandatoryTokenDetails...).Has(key) {
 				continue
 			}
@@ -142,7 +142,7 @@ func ConfigToEnvVar(spec cephv1.ClusterSpec) []v1.EnvVar {
 	return sortV1EnvVar(envs)
 }
 
-// ConfigEnvsToMapString returns all the env variables in map from a known KMS
+// ConfigEnvsToMapString returns all the env variables in a map from a known KMS
 func ConfigEnvsToMapString() map[string]string {
 	envs := make(map[string]string)
 	for _, e := range os.Environ() {

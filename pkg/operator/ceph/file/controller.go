@@ -160,7 +160,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 		return err
 	}
 
-	// Watch for ConfigMap "rook-ceph-mon-endpoints" update and reconcile, which will reconcile update the bootstrap peer token
+	// Watch for ConfigMap "rook-ceph-mon-endpoints" update and reconcile, which will reconcile and update the bootstrap peer token
 	err = c.Watch(
 		source.Kind(
 			mgr.GetCache(),
@@ -176,7 +176,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a CephFilesystem object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a CephFilesystem object and makes changes based on the state read
 // and what is in the cephFilesystem.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -309,7 +309,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 				errors.Wrapf(err, "failed to delete filesystem %q. ", cephFilesystem.Name)
 		}
 
-		// If the ceph fs still in the map, we must remove it during CR deletion
+		// If the ceph fs is still in the map, we must remove it during CR deletion
 		r.cancelMirrorMonitoring(cephFilesystem)
 
 		// Remove finalizer
@@ -468,7 +468,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 	if !statusUpdated {
 		// update ObservedGeneration in status at the end of reconcile
-		// Set Ready status, we are done reconciling$
+		// Set Ready status, we are done reconciling
 		// TODO: set status to Ready **only** if the filesystem is ready
 		_, err := r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, nil, &cephxStatus)
 		if err != nil {

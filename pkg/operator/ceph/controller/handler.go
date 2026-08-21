@@ -28,7 +28,7 @@ import (
 )
 
 // ObjectToCRMapper returns the list of a given object type metadata
-// It is used to trigger a reconcile object Kind A when watching object Kind B
+// It is used to trigger a reconcile of object Kind A when watching object Kind B
 // So we reconcile Kind A instead of Kind B
 // For instance, we watch for CephCluster CR changes but want to reconcile CephFilesystem based on a Spec change
 func ObjectToCRMapper[List client.ObjectList, T runtime.Object](ctx context.Context, c client.Client, list List, scheme *runtime.Scheme) (handler.TypedMapFunc[T, reconcile.Request], error) {

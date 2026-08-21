@@ -62,7 +62,7 @@ func InitAzure(ctx context.Context, context *clusterd.Context, namespace string,
 	return secrets, nil
 }
 
-// azureKVCert retrivies azure client cert from the secret and stores that in a file
+// azureKVCert retrieves azure client cert from the secret and stores that in a file
 func azureKVCert(ctx context.Context, context *clusterd.Context, namespace string, config map[string]string) (newConfig map[string]string, removeCertFiles removeCertFilesFunction, retErr error) {
 	var filesToRemove []*os.File
 	defer func() {

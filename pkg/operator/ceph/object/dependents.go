@@ -73,7 +73,7 @@ func CephObjectStoreDependents(
 			return deps, errors.Errorf("%s: %q\nall peer zones must be deleted, or a peer zone must be manually set as the master zone after that peer has all necessary data synched to it", zoneIsMasterWithPeersDependentType, deps.OfKind(zoneIsMasterWithPeersDependentType))
 		}
 
-		// this is a master zone with NO peers. it is the last store  that has this data,
+		// this is a master zone with NO peers. it is the last store that has this data,
 		// so we should prevent users from accidentally deleting it by continuing to check for buckets
 	}
 
@@ -153,7 +153,7 @@ func getMasterZoneDependents(
 	if err != nil {
 		return errors.Wrapf(err, "failed to decode zonegroup %q", objContext.ZoneGroup)
 	}
-	// if only master zone remains then it is okay delete
+	// if only the master zone remains then it is okay to delete
 	if len(zoneGroupJson.Zones) > 1 {
 		for _, zone := range zoneGroupJson.Zones {
 			if zone.Name != store.Spec.Zone.Name {

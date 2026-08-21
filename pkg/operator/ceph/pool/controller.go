@@ -127,7 +127,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 		return err
 	}
 
-	// Build Handler function to return the list of ceph block pool
+	// Build Handler function to return the list of ceph block pools
 	// This is used by the watchers below
 	configHandler, err := opcontroller.ObjectToCRMapper[*cephv1.CephBlockPoolList, *corev1.ConfigMap](
 		opManagerContext,
@@ -139,7 +139,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 		return err
 	}
 
-	// Watch for ConfigMap "rook-ceph-mon-endpoints" update and reconcile, which will reconcile update the bootstrap peer token
+	// Watch for ConfigMap "rook-ceph-mon-endpoints" update and reconcile, which will reconcile and update the bootstrap peer token
 	err = c.Watch(
 		source.Kind(
 			mgr.GetCache(),
@@ -152,7 +152,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 		return err
 	}
 
-	// Build Handler function to return the list of ceph block pool
+	// Build Handler function to return the list of ceph block pools
 	// This is used by the watchers below
 	secretHandler, err := opcontroller.ObjectToCRMapper[*cephv1.CephBlockPoolList, *corev1.Secret](
 		opManagerContext,
@@ -179,7 +179,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a CephBlockPool object and makes changes based on the state read
+// Reconcile reads the state of the cluster for a CephBlockPool object and makes changes based on the state read
 // and what is in the CephBlockPool.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -242,7 +242,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		//
 		// Also, only remove the finalizer if the CephCluster is gone
 		// If not, we should wait for it to be ready
-		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
+		// This handles the case where the operator is not ready to accept Ceph commands but the cluster exists
 		if !cephBlockPool.GetDeletionTimestamp().IsZero() && !cephClusterExists {
 			// don't leak the health checker routine if we are force-deleting
 			r.cancelMirrorMonitoring(cephBlockPool)
@@ -427,7 +427,7 @@ func (r *ReconcileCephBlockPool) configurePoolMirroring(request reconcile.Reques
 			} else {
 				if cephBlockPool.Spec.Mirroring.Mode != "init-only" {
 					r.blockPoolMirrorContexts[blockPoolChannelKey].started = true
-					// Run the goroutine to update the mirroring status and skip when blockpool mirroing mode in init-only as radosnamespace mirroring is the right place to check
+					// Run the goroutine to update the mirroring status and skip when blockpool mirroring mode is init-only as radosnamespace mirroring is the right place to check
 					// mirroring status when blockpool mirroring mode is init-only.
 					go checker.CheckMirroring(r.blockPoolMirrorContexts[blockPoolChannelKey].internalCtx)
 				}

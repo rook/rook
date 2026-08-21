@@ -44,7 +44,7 @@ const (
 	objectTLSSecretName = rgwPrefix + "-tls-test-store-csr"
 )
 
-// Test Object StoreCreation on Rook that was installed via helm
+// Test Object Store Creation on Rook that was installed via helm
 func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool, swiftAndKeystone bool) {
 	andDeleting := ""
 	if deleteStore {

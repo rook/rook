@@ -45,7 +45,7 @@ func (e *MockExecutor) ExecuteCommand(command string, arg ...string) error {
 	return nil
 }
 
-// ExecuteCommandWithStdin starts a process, provides stdin and wait for its completion with timeout.
+// ExecuteCommandWithStdin starts a process, provides stdin and waits for its completion with timeout.
 func (e *MockExecutor) ExecuteCommandWithStdin(timeout time.Duration, command string, stdin *string, arg ...string) error {
 	if e.MockExecuteCommand != nil {
 		return e.MockExecuteCommandWithStdin(timeout, command, stdin, arg...)

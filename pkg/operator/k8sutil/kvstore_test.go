@@ -157,7 +157,7 @@ func TestClearStore(t *testing.T) {
 	err = kv.ClearStore(ctx, storeName)
 	assert.Nil(t, err)
 
-	// getting the store should return an error for not exist
+	// getting the store should return an error since it does not exist
 	_, err = kv.GetStore(ctx, storeName)
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))

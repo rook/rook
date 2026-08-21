@@ -68,7 +68,7 @@ func GetProbeWithDefaults(desiredProbe, currentProbe *v1.Probe) *v1.Probe {
 	// On the first iteration, the handler appears empty and is then replaced by whatever first daemon value comes in
 	// e.g: [env -i sh -c ceph --admin-daemon /run/ceph/ceph-mon.b.asok mon_status] - meaning mon b was the first picked in the list of mons
 	// On the second iteration the value of mon b remains, since the pointer has been allocated
-	// This means the handler is not empty anymore and not replaced by the current one which it should
+	// This means the handler is not empty anymore and not replaced by the current one, which it should be
 	//
 	// Let's always force the default handler, there is no reason to change it anyway since the underlying content is generated based on the daemon's name
 	// so we can not make it generic via the spec

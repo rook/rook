@@ -149,7 +149,7 @@ func InitKMIP(config map[string]string) (*kmipKMS, error) {
 // IsKMIP determines whether the configured KMS is KMIP.
 func (c *Config) IsKMIP() bool { return c.Provider == TypeKMIP }
 
-// registerKey will create a register key and return its unique identifier.
+// registerKey will register a key and return its unique identifier.
 func (kms *kmipKMS) registerKey(keyName, keyValue string) (string, error) {
 	valueBytes, err := base64.StdEncoding.DecodeString(keyValue)
 	if err != nil {
@@ -392,7 +392,7 @@ func (kms *kmipKMS) send(
 	return &respMsg, decoder, biID[:], nil
 }
 
-// verifyResponse verifies the response success and return the batch item.
+// verifyResponse verifies the response success and returns the batch item.
 func (kms *kmipKMS) verifyResponse(
 	respMsg *kmip.ResponseMessage,
 	operation kmip14.Operation,

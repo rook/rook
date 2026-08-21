@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ExpandPVCIfRequired will expand the PVC if requested size is greater than the actual size of existing PVC
+// ExpandPVCIfRequired will expand the PVC if the requested size is greater than the actual size of the existing PVC
 func ExpandPVCIfRequired(ctx context.Context, client client.Client, desiredPVC *v1.PersistentVolumeClaim, currentPVC *v1.PersistentVolumeClaim) bool {
 	desiredSize, desiredOK := desiredPVC.Spec.Resources.Requests[v1.ResourceStorage]
 	currentSize, currentOK := currentPVC.Spec.Resources.Requests[v1.ResourceStorage]

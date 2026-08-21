@@ -148,8 +148,8 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 			// For block mode
 			block = fmt.Sprintf("/mnt/%s", a.nodeName)
 
-			// This is hard to determine a potential metadata device here
-			// Also, I don't think (leseb) this code we have run in this condition
+			// It is hard to determine a potential metadata device here
+			// Also, I don't think (leseb) this code has ever run in this condition
 			// I tried several things:
 			//    * evict a node, osd moves, the prepare job was never relaunched ever because we check for the osd deployment and skip the prepare
 			//    * restarted the operator, again the prepare job was not re-run
@@ -188,7 +188,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		return nil, errors.Wrap(err, "failed to generate osd keyring")
 	}
 
-	// Check if the PVC is an LVM block device (certain StorageClass do this)
+	// Check if the PVC is an LVM block device (certain StorageClasses do this)
 	var preparedRawDevices []string
 	if a.pvcBacked {
 		for _, device := range devices.Entries {
@@ -470,7 +470,7 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 		// And reject everything else
 		// We have 2 different regex depending on the version of LVM present in the container...
 		// Since https://github.com/lvmteam/lvm2/commit/08396b4bce45fb8311979250623f04ec0ddb628c#diff-13c602a6258e57ce666a240e67c44f38
-		// the content changed, so depending which version is installed one of the two replace will work
+		// the content changed, so depending on which version is installed one of the two replacements will work
 		if lvBackedPV {
 			// ceph-volume calls lvs to locate given "vg/lv", so allow "/dev" here. However, ignore loopback devices
 			output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|^/dev/loop.*|", "a|^/dev/.*|", "r|.*|" ]`), 1)
@@ -1067,8 +1067,8 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 	}
 
 	if len(existingOSDs) == 0 {
-		// ceph-volume raw list didn't return any existing OSDs. Its possible that /dev/mapper entry of the encrypted disks were removed.
-		// Check for cephFSID in the luks header of the disk and clean the disk if does not match the cephFSID of the current cluster.
+		// ceph-volume raw list didn't return any existing OSDs. It's possible that /dev/mapper entries of the encrypted disks were removed.
+		// Check for cephFSID in the luks header of the disk and clean the disk if it does not match the cephFSID of the current cluster.
 		logger.Infof("ceph-volume didn't return any existing OSDs. Checking for cephFSID of a different cluster in the luks header of the disk")
 		err := wipeEncryptedDevicesFromOtherClusters(context, a.clusterInfo.FSID)
 		if err != nil {
@@ -1204,7 +1204,7 @@ func sanitizeOSDsPerDevice(count int) string {
 	return strconv.Itoa(count)
 }
 
-// GetCephVolumeLVMOSDs list OSD prepared with lvm mode
+// GetCephVolumeLVMOSDs lists OSDs prepared with lvm mode
 func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, cephfsid, lv string, skipLVRelease, lvBackedPV bool) ([]oposd.OSDInfo, error) {
 	// lv can be a block device if raw mode is used
 	cvMode := "lvm"
@@ -1300,8 +1300,8 @@ func readCVLogContent(cvLogFilePath string) string {
 	return string(b)
 }
 
-// GetCephVolumeRawOSDs list OSD prepared with raw mode.
-// Sometimes this function called against a device, sometimes it's not. For instance, in the cleanup
+// GetCephVolumeRawOSDs lists OSDs prepared with raw mode.
+// Sometimes this function is called against a device, sometimes it's not. For instance, in the cleanup
 // scenario, we don't pass any block because we are looking for all the OSDs present on the machine.
 // On the other hand, the PVC scenario always uses the PVC block as a block to check whether the
 // disk is an OSD or not.
@@ -1322,7 +1322,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	// If block is passed, check if it's an encrypted device, this is needed to get the correct
 	// device path and populate the OSDInfo for that OSD
 	// When the device is passed, this means we entered the case where no devices were found
-	// available, this indicates OSD have been prepared already.
+	// available, this indicates OSDs have been prepared already.
 	// However, there is a scenario where we run the prepare job again and this is when the OSD
 	// deployment is removed. The operator will reconcile upon deletion of the OSD deployment thus
 	// re-running the prepare job to re-hydrate the OSDInfo.
@@ -1339,8 +1339,8 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			var encryptedBlock string
 			// Find the encrypted block as part of the output
 			// Most of the time we get 2 devices, the parent and the child but we don't want to guess
-			// which one is the child by looking at the index, instead the iterate over the list
-			// Our encrypted device **always** have "-dmcrypt" in the name.
+			// which one is the child by looking at the index, instead we iterate over the list
+			// Our encrypted devices **always** have "-dmcrypt" in the name.
 			for _, device := range childDevice {
 				if strings.Contains(device, "-dmcrypt") {
 					encryptedBlock = device
@@ -1504,7 +1504,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 		// If this is an encrypted OSD
 		// Always rely on the env variable and NOT what we find as a block name, this function is
 		// called by:
-		//   * the prepare job, which pass the env variable for encryption or not
+		//   * the prepare job, which passes the env variable for encryption or not
 		//   * the cleanup job which lists **all** devices and cleans them up
 		// They do different things, in the case of the prepare job we want to close the encrypted
 		// device because the device is going to be detached from the pod and re-attached to the OSD
@@ -1574,7 +1574,7 @@ func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
 	}
 	baseArgs := []string{"-oL", cephVolumeCmd, "--log-path", logPath}
 
-	// Do not use combined output for "list" calls, otherwise we will get stderr is the output and this will break the json unmarshall
+	// Do not use combined output for "list" calls, otherwise we will get stderr in the output and this will break the json unmarshall
 	f := context.Executor.ExecuteCommandWithOutput
 	co, err := f(baseCommand, append(baseArgs, args...)...)
 	if err != nil {

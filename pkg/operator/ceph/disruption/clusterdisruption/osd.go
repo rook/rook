@@ -44,7 +44,7 @@ import (
 )
 
 const (
-	// osdPDBAppName is that app label value for pdbs targeting osds
+	// osdPDBAppName is the app label value for pdbs targeting osds
 	osdPDBAppName = "rook-ceph-osd"
 	// osdPDBOsdIdLabel is the label on osd pods for pdbs targeting specific osd ids
 	osdPDBOsdIdLabel                 = "osd"
@@ -484,7 +484,7 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 			}
 			downOSDs = append(downOSDs, osdID)
 
-			// check if OSD is down on unscheduleable node
+			// check if OSD is down on unschedulable node
 			var osdNodeName string
 			for _, metadata := range *osdMetadata {
 				if metadata.Id == osdID {
@@ -565,7 +565,7 @@ func resetPDBConfig(pdbStateMap *corev1.ConfigMap) {
 
 // setPDBConfig updates the OSD PDB config map. If there are unschedulable nodes (that is, a node drain event)
 // then those failureDomains are given higher precedence than the failureDomains where OSDs might be down
-// due to some reason but node is schedulable. `Noout` is set only if nodes are unscheduleable.
+// due to some reason but node is schedulable. `Noout` is set only if nodes are unschedulable.
 func setPDBConfig(pdbStateMap *corev1.ConfigMap, osdDownFailureDomains, nodeDrainFailureDomains []string) {
 	if len(pdbStateMap.Data[drainingFailureDomainKey]) == 0 {
 		if len(nodeDrainFailureDomains) > 0 {
@@ -589,8 +589,8 @@ func setPDBConfig(pdbStateMap *corev1.ConfigMap, osdDownFailureDomains, nodeDrai
 	}
 }
 
-// requeuePDBController returns requeue request with timeout if:
-// - allowedDisruption in main PDB is 0, that is, One or more OSD went down.
+// requeuePDBController returns a requeue request with a timeout if:
+// - allowedDisruption in main PDB is 0, that is, one or more OSDs went down.
 // - MaxUnavailable in the main PDB is > 1, that is, OSDs are down but PGs might be clean.
 // - default OSD PDB is not available.
 func (r *ReconcileClusterDisruption) requeuePDBController(request reconcile.Request) (reconcile.Result, error) {

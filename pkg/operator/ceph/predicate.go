@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package operator to manage Kubernetes storage.
+// Package operator manages Kubernetes storage.
 package operator
 
 import (
@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-// predicateController is the predicate function to trigger reconcile on operator configuration cm change
+// operatorSettingConfigMapPredicate is the predicate function to trigger reconcile on operator configuration cm change
 func operatorSettingConfigMapPredicate[T *corev1.ConfigMap]() predicate.TypedFuncs[T] {
 	return predicate.TypedFuncs[T]{
 		CreateFunc: func(e event.TypedCreateEvent[T]) bool {

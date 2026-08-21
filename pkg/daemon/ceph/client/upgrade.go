@@ -127,7 +127,7 @@ func OkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, d
 		// if len(versions.Mon) > 1, this means we have different Ceph versions for some monitor(s).
 		// This is fine, we can run the upgrade checks
 		if len(versions.Mon) == 1 {
-			// now trying to parse and find how many mons are presents
+			// now trying to parse and find how many mons are present
 			// if we have less than 3 mons we skip the check and do best-effort
 			// we do less than 3 because during the initial bootstrap the mon sequence is updated too
 			// so running the check on 2/3 mon fails
@@ -148,8 +148,8 @@ func OkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, d
 	}
 
 	// we don't implement any checks for mon, rgw and rbdmirror since:
-	//  - mon: the is done in the monitor code since it ensures all the mons are always in quorum before continuing
-	//  - rgw: the pod spec has a liveness probe so if the pod successfully start
+	//  - mon: this is done in the monitor code since it ensures all the mons are always in quorum before continuing
+	//  - rgw: the pod spec has a liveness probe so if the pod successfully starts
 	//  - rbdmirror: you can chain as many as you want like mdss but there is no ok-to-stop logic yet
 	err = util.Retry(okToStopRetries, okToStopDelay, func() error {
 		return okToStopDaemon(context, clusterInfo, deployment, daemonType, daemonName)
@@ -186,9 +186,9 @@ func okToStopDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, deploym
 		logger.Debugf("deployment %s is ok to be updated. %s", deployment, output)
 	}
 
-	// At this point, we can't tell if the daemon is unknown or if
-	// but it's not a problem since perhaps it has no "ok-to-stop" call
-	// It's fine to return nil here
+	// Reaching this point means either the daemon type has no "ok-to-stop" check
+	// (it is in daemonNoCheck) or the check passed, so returning nil is correct
+	// in either case.
 	logger.Debugf("deployment %s is ok to be updated.", deployment)
 
 	return nil
@@ -306,7 +306,7 @@ func allOSDsSameHost(context *clusterd.Context, clusterInfo *ClusterInfo) (bool,
 		return false, errNoHostInCRUSH
 	}
 
-	// If the number of OSD node is 1, chances are this is simple setup with all OSDs on it
+	// If the number of OSD nodes is 1, chances are this is a simple setup with all OSDs on it
 	if hostOsdNodes == 1 {
 		// number of OSDs on that host
 		hostOsdNum := len(hostOsdTree.Nodes[0].Children)
@@ -362,8 +362,8 @@ func OSDUpdateShouldCheckOkToStop(context *clusterd.Context, clusterInfo *Cluste
 }
 
 // osdDoNothing determines whether we should perform upgrade pre-check and post-checks for the OSD daemon
-// it checks for various cluster info like number of OSD and their placement
-// it returns 'true' if we need to do nothing and false and we should pre-check/post-check
+// it checks for various cluster info like the number of OSDs and their placement
+// it returns 'true' if we need to do nothing and false if we should pre-check/post-check
 func osdDoNothing(context *clusterd.Context, clusterInfo *ClusterInfo) bool {
 	osds, err := OsdListNum(context, clusterInfo)
 	if err != nil {
@@ -383,12 +383,12 @@ func osdDoNothing(context *clusterd.Context, clusterInfo *ClusterInfo) bool {
 	aio, err := allOSDsSameHost(context, clusterInfo)
 	if err != nil {
 		// We return true so that we can continue without a retry and subsequently not test if the
-		// osd can be stopped This handles the scenario where the OSDs have been created but not yet
-		// started due to a wrong CR configuration For instance, when OSDs are encrypted and Vault
+		// osd can be stopped. This handles the scenario where the OSDs have been created but not yet
+		// started due to a wrong CR configuration. For instance, when OSDs are encrypted and Vault
 		// is used to store encryption keys, if the KV version is incorrect during the cluster
 		// initialization the OSDs will fail to start and stay in CLBO until the CR is updated again
-		// with the correct KV version so that it can start For this scenario we don't need to go
-		// through the path where the check whether the OSD can be stopped or not, so it will always
+		// with the correct KV version so that it can start. For this scenario we don't need to go
+		// through the path that checks whether the OSD can be stopped, so it will always
 		// fail and make us wait for nothing
 		if errors.Is(err, errNoHostInCRUSH) {
 			logger.Warning("the CRUSH map has no 'host' entries so not performing ok-to-stop checks")

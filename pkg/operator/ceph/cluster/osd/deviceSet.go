@@ -140,7 +140,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(errs *provisionErrors) {
 		}
 	}
 
-	// check if the pvc are resize successfully
+	// check if the pvcs are resized successfully
 	waitForPvcToExpandWithTimeout(c.clusterInfo.Context, c.context.Client, pvcResizeMap, c.clusterInfo.Namespace, c.spec.WaitTimeoutForHealthyOSDInMinutes)
 }
 

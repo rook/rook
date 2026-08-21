@@ -88,7 +88,7 @@ var (
 
 	rgwAPIwithoutS3 = []string{"s3website", "swift", "swift_auth", "admin", "sts", "iam", "notifications"}
 
-	// used to pass Pod name and namespaces to Pod container arguments.
+	// used to pass Pod name and namespace to Pod container arguments.
 	podNameEnvVars = []v1.EnvVar{
 		{
 			Name: "POD_NS",
@@ -350,7 +350,7 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 	return v1.Container{
 		Name:    "update-ca-bundle-initcontainer",
 		Command: []string{"/bin/bash", "-c"},
-		// copy all content of caBundleExtractedDir to avoid directory mount itself
+		// copy all content of caBundleExtractedDir to avoid mounting the directory itself
 		Args: []string{
 			fmt.Sprintf("/usr/bin/update-ca-trust extract; cp -rf %s/* %s", caBundleExtractedDir, updatedCaBundleDir),
 		},
@@ -363,8 +363,8 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 }
 
 // The vault token is passed as Secret for rgw container. So it is mounted as read only.
-// RGW has restrictions over vault token file, it should owned by same user (ceph) which
-// rgw daemon runs and all other permission should be nil or zero. Here ownership can be
+// RGW has restrictions over vault token file, it should be owned by the same user (ceph) that the
+// rgw daemon runs as and all other permissions should be nil or zero. Here ownership can be
 // changed with help of FSGroup but in openshift environments for security reasons it has
 // predefined value, so it won't work there. Hence the token file and certs (if present)
 // are copied to other volume from mounted secrets then ownership/permissions are changed
@@ -891,7 +891,7 @@ func (c *clusterConfig) CheckRGWKMS() (bool, error) {
 					return false, errors.New("failed to validate vault kv version, only v2 is supported")
 				}
 			} else {
-				// If VAUL_BACKEND is not specified let's assume it's v2
+				// If VAULT_BACKEND is not specified let's assume it's v2
 				log.NamedWarning(nsName, logger, "%s is not set, assuming the only supported version 2", vault.VaultBackendKey)
 				c.store.Spec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendKey] = "v2"
 			}
@@ -1031,7 +1031,7 @@ func getDaemonName(rgwConfig *rgwConfig) string {
 	return fmt.Sprintf("ceph-%s", generateCephXUser(rgwConfig.ResourceName))
 }
 
-// Following apis set the RGW options if requested, since they are used in unit tests for validating different scenarios
+// The following APIs set the RGW options if requested, since they are used in unit tests for validating different scenarios
 func (c *clusterConfig) sseKMSDefaultOptions(setOptions bool) []string {
 	if setOptions {
 		return []string{
@@ -1140,8 +1140,8 @@ func (c *clusterConfig) sseS3VaultTLSOptions(setOptions bool) []string {
 	return rgwOptions
 }
 
-// Builds list of rgw config parameters which should be passed as CLI flags.
-// Consider set config option as flag if BOTH criteria fulfilled:
+// Builds the list of rgw config parameters which should be passed as CLI flags.
+// Consider setting a config option as a flag if BOTH criteria are fulfilled:
 //  1. config value is not secret
 //  2. config change requires RGW daemon restart
 //
@@ -1161,7 +1161,7 @@ func buildRGWConfigFlags(objectStore *cephv1.CephObjectStore) []string {
 
 func buildRGWEnableAPIsConfigVal(protocolSpec cephv1.ProtocolSpec) []string {
 	if len(protocolSpec.EnableAPIs) != 0 {
-		// handle explicit enabledAPIS spec
+		// handle explicit enabledAPIs spec
 		enabledAPIs := make([]string, len(protocolSpec.EnableAPIs))
 		for i, v := range protocolSpec.EnableAPIs {
 			enabledAPIs[i] = strings.TrimSpace(string(v))
