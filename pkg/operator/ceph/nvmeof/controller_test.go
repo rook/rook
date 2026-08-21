@@ -84,6 +84,12 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 					if args[0] == "status" {
 						return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 					}
+					if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+						return `{"pool":".nvmeof","pool_id":1,"size":1}`, nil
+					}
+					if args[0] == "osd" && args[1] == "pool" && args[2] == "application" && args[3] == "get" {
+						return `{"rbd":{}}`, nil
+					}
 					if args[0] == "nvme-gw" && args[1] == "create" {
 						return "", nil
 					}
@@ -248,6 +254,99 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.Contains(t, event, "ReconcileFailed")
 			assert.Contains(t, event, "invalid configuration")
 		})
+	})
+
+	t.Run("error - nvmeof metadata pool not initialized", func(t *testing.T) {
+		executor := successExecutor(t)
+		original := executor.MockExecuteCommandWithOutput
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "ceph" && len(args) >= 4 && args[0] == "osd" && args[1] == "pool" && args[2] == "application" && args[3] == "get" {
+				return `{}`, nil
+			}
+			return original(command, args...)
+		}
+		cCtx := newContext(executor)
+		cl := newControllerClient(baseCephNVMeOFGateway(), cephClusterReady(cCtx))
+		r := newReconcile(cCtx, cl)
+		fakeRecorder := events.NewFakeRecorder(50)
+		r.recorder = fakeRecorder
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.Equal(t, 10*time.Second, res.RequeueAfter)
+
+		deps, listErr := cCtx.Clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+		assert.NoError(t, listErr)
+		assert.Empty(t, deps.Items)
+
+		assert.GreaterOrEqual(t, len(fakeRecorder.Events), 1)
+		event := <-fakeRecorder.Events
+		assert.Contains(t, event, "ReconcileFailed")
+		assert.Contains(t, event, nvmeofPoolName)
+	})
+
+	t.Run("error - nvmeof metadata pool missing", func(t *testing.T) {
+		executor := successExecutor(t)
+		original := executor.MockExecuteCommandWithOutput
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "ceph" && len(args) >= 3 && args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+				return "", fmt.Errorf("Error ENOENT: pool '.nvmeof' does not exist")
+			}
+			return original(command, args...)
+		}
+		cCtx := newContext(executor)
+		cl := newControllerClient(baseCephNVMeOFGateway(), cephClusterReady(cCtx))
+		r := newReconcile(cCtx, cl)
+		fakeRecorder := events.NewFakeRecorder(50)
+		r.recorder = fakeRecorder
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.Equal(t, 10*time.Second, res.RequeueAfter)
+
+		deps, listErr := cCtx.Clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+		assert.NoError(t, listErr)
+		assert.Empty(t, deps.Items)
+
+		assert.GreaterOrEqual(t, len(fakeRecorder.Events), 1)
+		event := <-fakeRecorder.Events
+		assert.Contains(t, event, "ReconcileFailed")
+		assert.Contains(t, event, nvmeofPoolName)
+	})
+
+	t.Run("create gateway after metadata pool becomes initialized", func(t *testing.T) {
+		poolInitialized := false
+		executor := successExecutor(t)
+		original := executor.MockExecuteCommandWithOutput
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "ceph" && len(args) >= 4 && args[0] == "osd" && args[1] == "pool" && args[2] == "application" && args[3] == "get" {
+				if !poolInitialized {
+					return `{}`, nil
+				}
+				return `{"rbd":{}}`, nil
+			}
+			return original(command, args...)
+		}
+		cCtx := newContext(executor)
+		cl := newControllerClient(baseCephNVMeOFGateway(), cephClusterReady(cCtx))
+		r := newReconcile(cCtx, cl)
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.Equal(t, 10*time.Second, res.RequeueAfter)
+		deps, listErr := cCtx.Clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+		assert.NoError(t, listErr)
+		assert.Empty(t, deps.Items)
+
+		poolInitialized = true
+
+		res, err = r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.Equal(t, time.Duration(0), res.RequeueAfter)
+		deps, listErr = cCtx.Clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+		assert.NoError(t, listErr)
+		assert.Len(t, deps.Items, 1)
+		assert.Equal(t, "rook-ceph-nvmeof-my-nvmeof-a", deps.Items[0].Name)
 	})
 
 	assertCephNVMeOFGatewayReady := func(t *testing.T, r *ReconcileCephNVMeOFGateway, names ...string) {
@@ -504,6 +603,12 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 			if command == "ceph" {
 				if args[0] == "status" {
 					return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+				}
+				if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+					return `{"pool":".nvmeof","pool_id":1,"size":1}`, nil
+				}
+				if args[0] == "osd" && args[1] == "pool" && args[2] == "application" && args[3] == "get" {
+					return `{"rbd":{}}`, nil
 				}
 				if args[0] == "nvme-gw" && args[1] == "create" {
 					return "", nil

@@ -122,7 +122,7 @@ func GetPoolNamesByID(context *clusterd.Context, clusterInfo *ClusterInfo) (map[
 	return names, nil
 }
 
-func getPoolApplication(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (string, error) {
+func GetPoolApplication(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (string, error) {
 	args := []string{"osd", "pool", "application", "get", poolName}
 	appDetails, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
@@ -322,7 +322,7 @@ func DeletePool(context *clusterd.Context, clusterInfo *ClusterInfo, name string
 }
 
 func givePoolAppTag(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, appName string) error {
-	currentAppName, err := getPoolApplication(context, clusterInfo, poolName)
+	currentAppName, err := GetPoolApplication(context, clusterInfo, poolName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get application for pool %q", poolName)
 	}
