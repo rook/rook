@@ -1,3 +1,5 @@
+<!-- stuff -->
+
 <img alt="Rook" src="Documentation/media/logo.svg" width="50%" height="50%">
 
 [![CNCF Status](https://img.shields.io/badge/cncf%20status-graduated-blue.svg)](https://www.cncf.io/projects)
