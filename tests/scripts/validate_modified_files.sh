@@ -9,6 +9,7 @@ MOD_ERR="changes found by 'make mod.check'. please run 'make mod.check' locally 
 CRD_ERR="changes found by 'make crds'. please run 'make crds' locally and update your PR"
 BUILD_ERR="changes found by make build', please commit your go.sum or other changed files"
 HELM_ERR="changes found by 'make gen-rbac'. please run 'make gen-rbac' locally and update your PR"
+TOOLBOX_ERR="changes found by 'make gen-toolbox'. please run 'make gen-toolbox' locally and update your PR"
 DOCS_ERR="changes found by 'make docs'. please run 'make docs' locally and update your PR"
 HELM_DOCS_ERR="changes found by 'make helm-docs'. please run 'make helm-docs' locally and update your PR"
 
@@ -52,7 +53,10 @@ case "$1" in
   gen-rbac)
     validate "$HELM_ERR"
   ;;
+  gen-toolbox)
+    validate "$TOOLBOX_ERR"
+  ;;
   *)
-    echo $"Usage: $0 {docs|helm-docs|codegen|modcheck|crd|build|gen-rbac}"
+    echo $"Usage: $0 {docs|helm-docs|codegen|modcheck|crd|build|gen-rbac|gen-toolbox}"
     exit 1
 esac
