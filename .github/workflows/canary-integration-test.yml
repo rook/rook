@@ -11,6 +11,10 @@ on:
         description: kubernetes version to use for the workflow
         default: '["v1.36.1"]'
         type: string
+      rook_image_artifact:
+        description: name of a prebuilt rook image artifact to import; empty builds rook in-job
+        default: ""
+        type: string
 
 defaults:
   run:
@@ -44,6 +48,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
@@ -485,6 +490,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
@@ -573,6 +579,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
@@ -634,6 +641,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
@@ -695,6 +703,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
@@ -762,6 +771,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
@@ -828,6 +838,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
@@ -895,6 +906,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ matrix.ceph-image }}"
@@ -1013,6 +1025,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ matrix.ceph-image }}"
@@ -1073,6 +1086,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ matrix.ceph-image }}"
@@ -1145,6 +1159,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ matrix.ceph-image }}"
@@ -1253,6 +1268,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ matrix.ceph-image }}"
@@ -1320,6 +1336,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ matrix.ceph-image }}"
@@ -1392,6 +1409,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ matrix.ceph-image }}"
@@ -1490,6 +1508,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ matrix.ceph-image }}"
@@ -1568,6 +1587,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ matrix.ceph-image }}"
@@ -1634,6 +1654,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
@@ -1944,6 +1965,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
@@ -2059,6 +2081,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: install nvme initiator prerequisites
         run: tests/scripts/github-action-helper.sh install_nvme_initiator_prerequisites
@@ -2136,6 +2159,7 @@ jobs:
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: consider (post-job) debugging
         uses: ./.github/workflows/upterm_debug
@@ -2165,6 +2189,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image "deploy/examples/cluster-multus-test.yaml" "${{ matrix.ceph-image }}"
@@ -2257,6 +2282,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
