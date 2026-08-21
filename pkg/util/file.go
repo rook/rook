@@ -47,6 +47,8 @@ func CreateTempFile(content string) (*os.File, error) {
 	// Write content into file
 	err = os.WriteFile(file.Name(), []byte(content), 0o400)
 	if err != nil {
+		file.Close()
+		os.Remove(file.Name())
 		return nil, errors.Wrap(err, "failed to write content into file")
 	}
 	return file, nil
