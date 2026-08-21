@@ -70,7 +70,7 @@ EOF
 }
 
 build_helm_resources() {
-  TMP_FILE=$(mktemp -q /tmp/resources.XXXXXX || exit 1)
+  TMP_FILE=$(mktemp "${TMPDIR:-/tmp}/resources.XXXXXX" || exit 1)
   echo "Generating helm resources.yaml to temp file: $TMP_FILE"
   {
     # add header
@@ -85,6 +85,9 @@ build_helm_resources() {
     echo "{{- end }}"
   } >>"$TMP_FILE"
   echo "updating helm crds file $CEPH_HELM_CRDS_FILE_PATH from temp file"
+  # mktemp creates the file 0600 and mv carries that mode over to the
+  # destination, so the mode has to be set before the move.
+  chmod 0644 "$TMP_FILE"
   mv "$TMP_FILE" "$CEPH_HELM_CRDS_FILE_PATH"
 }
 
