@@ -29,7 +29,7 @@ const ServiceServingCertKey = "service.beta.openshift.io/serving-cert-secret-nam
 
 // 38 is the max length of a ceph store name as total length of the resource name cannot be more than 63 characters limit
 // and there is a configmap which is formed by appending `rook-ceph-rgw-<STORE-NAME>-mime-types`
-// so over all it brings up to (63-14-11 = 38) characters for the store name
+// so overall it brings up to (63-14-11 = 38) characters for the store name
 const objectStoreNameMaxLen = 38
 
 func (s *ObjectStoreSpec) IsMultisite() bool {
@@ -68,7 +68,7 @@ func (s *ObjectRealmSpec) IsPullRealm() bool {
 	return s.Pull.Endpoint != ""
 }
 
-// ValidateObjectSpec validate the object store arguments
+// ValidateObjectSpec validates the object store arguments
 func ValidateObjectSpec(gs *CephObjectStore) error {
 	if gs.Name == "" {
 		return errors.New("missing name")
@@ -78,7 +78,7 @@ func ValidateObjectSpec(gs *CephObjectStore) error {
 	}
 
 	// validate the object store name only if it is not an external cluster
-	// as external cluster won't create the rgw daemon and it's other resources
+	// as external cluster won't create the rgw daemon and its other resources
 	// and there is some legacy external cluster which has more length of objectstore
 	// so to run them successfully we are not validating the objectstore name
 	if !gs.Spec.IsExternal() {
@@ -146,7 +146,7 @@ func validateObjectStoreSecurity(spec *ObjectStoreSpec) error {
 	return nil
 }
 
-// isTLSv1_2orBelowEnabled check if TLS v1.2 or below is enabled
+// isTLSv1_2orBelowEnabled checks if TLS v1.2 or below is enabled
 func isTLSv1_2orBelowEnabled(opts *SslOptionsSpec) bool {
 	if opts == nil {
 		return true
@@ -193,7 +193,7 @@ func (c *CephObjectStore) GetAdvertiseEndpoint() (string, int32, bool, error) {
 		address = c.Spec.Gateway.ExternalRgwEndpoints[0].String()
 	}
 
-	// if users override the advertise endpoint themselves, these value take priority
+	// if users override the advertise endpoint themselves, these values take priority
 	if c.AdvertiseEndpointIsSet() {
 		address = c.Spec.Hosting.AdvertiseEndpoint.DnsName
 		port = c.Spec.Hosting.AdvertiseEndpoint.Port

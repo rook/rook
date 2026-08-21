@@ -33,7 +33,7 @@ func (c *ClusterSpec) RequireMsgr2() bool {
 	return false
 }
 
-// RequireMsgr2 checks if the network settings require the msgr2 protocol
+// NetworkEncryptionEnabled returns whether Ceph network encryption is enabled
 func (c *ClusterSpec) NetworkEncryptionEnabled() bool {
 	if c.Network.Connections == nil {
 		return false
