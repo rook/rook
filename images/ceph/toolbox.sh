@@ -27,6 +27,15 @@ config_override_exists() {
   [ -f "${CONFIG_OVERRIDE_MOUNT}" ] && [ -s "${CONFIG_OVERRIDE_MOUNT}" ]
 }
 
+# the mon endpoints configmap is created before any mon has an address, so on a new
+# cluster the projected file is missing or empty until the first mon is running
+wait_for_mon_endpoints() {
+  while [ ! -s "${ENDPOINT_MOUNT}" ]; do
+    echo "$(date) waiting for mon endpoints in ${ENDPOINT_MOUNT}"
+    sleep 2
+  done
+}
+
 # create/update the ceph keyring file
 write_keyring() {
   DATE=$(date)
@@ -37,11 +46,17 @@ write_keyring() {
     ceph_secret=$(cat ${KEYRING_MOUNT})
   fi
 
+  if [[ "$ceph_secret" == "" ]]; then
+    echo "$DATE no keyring secret found, keeping ${KEYRING_FILE} unchanged"
+    return
+  fi
+
   echo "$DATE writing keyring to ${KEYRING_FILE}"
-  cat <<EOF > ${KEYRING_FILE}
+  cat <<EOF > "${KEYRING_FILE}.tmp"
 [${ROOK_CEPH_USERNAME}]
 key = ${ceph_secret}
 EOF
+  mv -f "${KEYRING_FILE}.tmp" "${KEYRING_FILE}"
 
 } # write_keyring()
 
@@ -53,7 +68,12 @@ write_conf() {
   # filter out the mon names
   # external cluster can have numbers or hyphens in mon names, handling them in regex
   # shellcheck disable=SC2001
-  mon_endpoints=$(cat ${ENDPOINT_MOUNT}| sed 's/[a-z0-9_-]\+=//g')
+  mon_endpoints=$(sed 's/[a-z0-9_-]\+=//g' "${ENDPOINT_MOUNT}" 2>/dev/null || true)
+
+  if [ -z "${mon_endpoints}" ]; then
+    echo "$DATE no mon endpoints in ${ENDPOINT_MOUNT}, keeping ${CEPH_CONFIG} unchanged"
+    return
+  fi
 
   config_override=""
   if config_override_exists; then
@@ -62,7 +82,7 @@ write_conf() {
   fi
 
   echo "$DATE writing mon endpoints to ${CEPH_CONFIG}: ${mon_endpoints}"
-  cat << EOF > ${CEPH_CONFIG}
+  cat << EOF > "${CEPH_CONFIG}.tmp"
 [global]
 mon_host = ${mon_endpoints}
 
@@ -71,6 +91,7 @@ keyring = ${KEYRING_FILE}
 
 ${config_override}
 EOF
+  mv -f "${CEPH_CONFIG}.tmp" "${CEPH_CONFIG}"
 
 } # write_conf()
 
@@ -137,6 +158,7 @@ watch_etc_ceph() {
 
 # write the initial config files
 write_keyring
+wait_for_mon_endpoints
 write_conf
 
 # continuously update the config files for mon failover and/or cephx key rotation
