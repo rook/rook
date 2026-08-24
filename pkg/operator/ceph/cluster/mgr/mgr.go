@@ -489,12 +489,22 @@ func (c *Cluster) rookModuleDisabledForCephVersion() bool {
 	return v.Extra >= 2 && v.Extra <= 4
 }
 
+// disableRookOrchestratorModule clears the orchestrator backend and then disables the
+// rook mgr module. The backend is cleared first so the orchestrator no longer references
+// the rook module that is about to be disabled.
+func (c *Cluster) disableRookOrchestratorModule() {
+	if err := c.setOrchestratorBackend(""); err != nil {
+		logger.Warningf("failed to clear the orchestrator backend. %v", err)
+	}
+	if err := cephclient.MgrDisableModule(c.context, c.clusterInfo, rookModuleName); err != nil {
+		logger.Warningf("failed to disable rook mgr module. %v", err)
+	}
+}
+
 func (c *Cluster) configureMgrModules() error {
 	if c.rookModuleDisabledForCephVersion() {
 		logger.Infof("disabling the rook mgr module for Ceph %s", c.clusterInfo.CephVersion.String())
-		if err := cephclient.MgrDisableModule(c.context, c.clusterInfo, rookModuleName); err != nil {
-			logger.Warningf("failed to disable rook mgr module. %v", err)
-		}
+		c.disableRookOrchestratorModule()
 	}
 
 	// Enable mgr modules from the spec
@@ -540,6 +550,10 @@ func (c *Cluster) configureMgrModules() error {
 			}
 
 		} else {
+			if module.Name == rookModuleName {
+				c.disableRookOrchestratorModule()
+				continue
+			}
 			if err := cephclient.MgrDisableModule(c.context, c.clusterInfo, module.Name); err != nil {
 				return errors.Wrapf(err, "failed to disable mgr module %q", module.Name)
 			}

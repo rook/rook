@@ -370,6 +370,7 @@ func TestUpdateServiceSelectors(t *testing.T) {
 func TestConfigureModules(t *testing.T) {
 	modulesEnabled := 0
 	modulesDisabled := 0
+	backendCleared := 0
 	configSettings := map[string]string{}
 	lastModuleConfigured := ""
 	executor := &exectest.MockExecutor{
@@ -391,6 +392,9 @@ func TestConfigureModules(t *testing.T) {
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "config" && args[1] == "set" && args[2] == "global" {
 				configSettings[args[3]] = args[4]
+			}
+			if args[0] == "orch" && args[1] == "set" && args[2] == "backend" && args[3] == "" {
+				backendCleared++
 			}
 			return "", nil
 		},
@@ -427,6 +431,7 @@ func TestConfigureModules(t *testing.T) {
 	// rook module is force-disabled on affected Ceph versions even if enabled in the spec
 	modulesEnabled = 0
 	modulesDisabled = 0
+	backendCleared = 0
 	lastModuleConfigured = ""
 	c.clusterInfo.CephVersion = cephver.CephVersion{Major: 20, Minor: 2, Extra: 3}
 	c.spec.Mgr.Modules = []cephv1.Module{
@@ -435,6 +440,7 @@ func TestConfigureModules(t *testing.T) {
 	assert.NoError(t, c.configureMgrModules())
 	assert.Equal(t, 0, modulesEnabled, "rook module should not be enabled on Ceph v20.2.3")
 	assert.Equal(t, 1, modulesDisabled, "rook module should be force-disabled on Ceph v20.2.3")
+	assert.Equal(t, 1, backendCleared, "orchestrator backend should be cleared when the rook module is disabled")
 	assert.Equal(t, "rook", lastModuleConfigured)
 
 	// rook module disabled in the spec on an affected version should still be force-disabled
@@ -460,6 +466,20 @@ func TestConfigureModules(t *testing.T) {
 	assert.NoError(t, c.configureMgrModules())
 	assert.GreaterOrEqual(t, modulesEnabled, 1, "rook module should be enabled on Ceph v20.2.5")
 	assert.Equal(t, 0, modulesDisabled)
+	assert.Equal(t, "rook", lastModuleConfigured)
+
+	// rook module disabled in the spec on a non-affected version clears the orchestrator backend
+	modulesEnabled = 0
+	modulesDisabled = 0
+	backendCleared = 0
+	lastModuleConfigured = ""
+	c.spec.Mgr.Modules = []cephv1.Module{
+		{Name: "rook", Enabled: false},
+	}
+	assert.NoError(t, c.configureMgrModules())
+	assert.Equal(t, 0, modulesEnabled)
+	assert.Equal(t, 1, modulesDisabled, "rook module should be disabled per the spec")
+	assert.Equal(t, 1, backendCleared, "orchestrator backend should be cleared when the rook module is disabled")
 	assert.Equal(t, "rook", lastModuleConfigured)
 }
 
