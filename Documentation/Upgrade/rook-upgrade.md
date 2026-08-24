@@ -51,6 +51,8 @@ those releases.
 
 ## Breaking changes in v1.15
 
+* **Ceph versions v19.2.6+ are [not supported](https://github.com/rook/rook/issues/18203#issuecomment-5397373786)**.
+
 * The minimum supported version of Kubernetes is v1.26.
     Upgrade to Kubernetes v1.26 or higher before upgrading Rook.
 
