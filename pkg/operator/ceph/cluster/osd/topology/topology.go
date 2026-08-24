@@ -14,9 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package config provides methods for generating the Ceph config for a Ceph cluster and for
-// producing a "ceph.conf" compatible file from the config as well as Ceph command line-compatible
-// flags.
+// Package topology derives an OSD's CRUSH location from Kubernetes node topology labels.
 package topology
 
 import (
@@ -149,10 +147,10 @@ func GetDefaultTopologyLabels() string {
 	return strings.Join(Labels, ",")
 }
 
-// CheckTopologyConflicts verifies that:
-// 1. No child domain (e.g. rack) has fewer distinct values than its immediate parent.
-// 2. No topology value is used under more than one label key.
-// 3. No label value lives under more than one parent label value.
+// CheckTopologyConflicts verifies, for all topology labels other than the hostname label:
+// 1. No label carries an empty value on any node.
+// 2. No label value lives under more than one parent label value.
+// 3. No topology value is used under more than one label key.
 func CheckTopologyConflicts(nodes *[]corev1.Node) error {
 	logger.Debugf("Starting CheckTopologyConflicts with %d nodes", len(*nodes))
 
