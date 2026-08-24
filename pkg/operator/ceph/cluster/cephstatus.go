@@ -51,16 +51,20 @@ type cephStatusChecker struct {
 	interval    *time.Duration
 	client      client.Client
 	isExternal  bool
+	// muteHealthWarningsApplied tracks the last successfully applied mute policy for each
+	// health warning so a mute is not re-applied on every health check cycle
+	muteHealthWarningsApplied map[string]string
 }
 
 // newCephStatusChecker creates a new HealthChecker object
 func newCephStatusChecker(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec) *cephStatusChecker {
 	c := &cephStatusChecker{
-		context:     context,
-		clusterInfo: clusterInfo,
-		interval:    &defaultStatusCheckInterval,
-		client:      context.Client,
-		isExternal:  clusterSpec.External.Enable,
+		context:                   context,
+		clusterInfo:               clusterInfo,
+		interval:                  &defaultStatusCheckInterval,
+		client:                    context.Client,
+		isExternal:                clusterSpec.External.Enable,
+		muteHealthWarningsApplied: map[string]string{},
 	}
 
 	// allow overriding the check interval with an env var on the operator
@@ -184,11 +188,21 @@ func (c *cephStatusChecker) configureHealthSettings(status cephclient.CephStatus
 	}
 
 	for warning, value := range muteHealthWarnings {
+		// skip re-applying the mute if the policy has not changed since it was last applied
+		if c.muteHealthWarningsApplied == nil {
+			c.muteHealthWarningsApplied = map[string]string{}
+		}
+		if current, ok := c.muteHealthWarningsApplied[warning]; ok && current == value {
+			continue
+		}
 		log.NamespacedDebug(c.clusterInfo.Namespace, logger, "configuring health warning mute %q=%q", warning, string(value))
 		err := cephclient.MuteHealthWarning(c.context, c.clusterInfo, warning, string(value))
 		if err != nil {
 			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to configure health warning mute %q=%q: %v", warning, string(value), err)
+			// do not record the failed attempt so we retry on the next cycle
+			continue
 		}
+		c.muteHealthWarningsApplied[warning] = value
 	}
 }
 
