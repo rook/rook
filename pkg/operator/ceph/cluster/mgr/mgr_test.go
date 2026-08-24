@@ -458,7 +458,7 @@ func TestConfigureModules(t *testing.T) {
 		{Name: "rook", Enabled: true},
 	}
 	assert.NoError(t, c.configureMgrModules())
-	assert.GreaterOrEqual(t, 1, modulesEnabled, "rook module should be enabled on Ceph v20.2.5")
+	assert.GreaterOrEqual(t, modulesEnabled, 1, "rook module should be enabled on Ceph v20.2.5")
 	assert.Equal(t, 0, modulesDisabled)
 	assert.Equal(t, "rook", lastModuleConfigured)
 }
