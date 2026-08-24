@@ -52,6 +52,8 @@ those releases.
 
 ## Breaking changes in v1.16
 
+* **Ceph versions v19.2.6+ are [not supported](https://github.com/rook/rook/issues/18203#issuecomment-5397373786)**.
+
 * The minimum supported Kubernetes version is v1.27.
 
 * Rook no longer supports Ceph v17 (Quincy) as it is end of life. Rook v1.15 clusters should
