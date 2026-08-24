@@ -1,0 +1,91 @@
+name: pvc-db-wal
+description: Run the pvc-db-wal canary test against the prebuilt rook image
+inputs:
+  ceph-image:
+    description: Ceph image to create the cluster with
+    required: true
+  kubernetes-version:
+    description: kubernetes version to create the cluster with
+    required: true
+  rook-image-artifact:
+    description: name of a prebuilt rook image artifact to import; empty builds rook in-job
+    required: false
+    default: ""
+  use-tmate:
+    description: the USE_TMATE secret, for pre-job debugging
+    required: false
+    default: ""
+  artifact-name:
+    description: name to publish collected logs under
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: consider (pre-job) debugging
+      uses: ./.github/workflows/tmate_debug
+      with:
+        use-tmate: ${{ inputs.use-tmate }}
+        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
+    - name: setup cluster resources
+      uses: ./.github/workflows/integration-test-setup-cluster-resources
+      with:
+        kubernetes-version: ${{ inputs.kubernetes-version }}
+        rook-image-artifact: ${{ inputs.rook-image-artifact }}
+
+    - name: set Ceph version in CephCluster manifest
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ inputs.ceph-image }}"
+
+    - name: use local disk
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh use_local_disk
+
+    - name: create bluestore partitions and PVCs for wal
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
+
+    - name: create cluster prerequisites
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+    - name: deploy rook
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
+        cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+        cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+        kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+    - name: wait for prepare pod
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
+
+    - name: wait for ceph to be ready
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+        kubectl -n rook-ceph get pods
+
+    - name: teardown cluster with cleanup policy
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh delete_cluster
+        BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+        export BLOCK
+        sudo head --bytes=60 "${BLOCK}1"
+        sudo head --bytes=60 "${BLOCK}2"
+        sudo lsblk
+
+    - name: collect common logs
+      if: always()
+      uses: ./.github/workflows/collect-logs
+      with:
+        name: ${{ inputs.artifact-name }}
+    - name: consider (post-job) debugging
+      uses: ./.github/workflows/upterm_debug
+      with:
+        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
