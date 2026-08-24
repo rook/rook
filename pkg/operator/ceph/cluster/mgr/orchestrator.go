@@ -36,16 +36,16 @@ func (c *Cluster) configureOrchestratorModules() error {
 	if err := client.MgrEnableModule(c.context, c.clusterInfo, rookModuleName, true); err != nil {
 		return errors.Wrap(err, "failed to enable mgr rook module")
 	}
-	if err := c.setRookOrchestratorBackend(); err != nil {
+	if err := c.setOrchestratorBackend(rookModuleName); err != nil {
 		return errors.Wrap(err, "failed to set rook orchestrator backend")
 	}
 	return nil
 }
 
-func (c *Cluster) setRookOrchestratorBackend() error {
+func (c *Cluster) setOrchestratorBackend(name string) error {
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	_, err := client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
-		args := []string{"orch", "set", "backend", "rook"}
+		args := []string{"orch", "set", "backend", name}
 		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
 		return "set rook backend", output, err
 	}, 5, orchestratorInitWaitTime)
