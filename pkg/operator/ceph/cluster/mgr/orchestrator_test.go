@@ -72,7 +72,7 @@ func TestOrchestratorModules(t *testing.T) {
 
 	err := c.configureOrchestratorModules()
 	assert.Error(t, err)
-	err = c.setRookOrchestratorBackend()
+	err = c.setOrchestratorBackend(rookModuleName)
 	assert.NoError(t, err)
 	assert.True(t, rookModuleEnabled)
 	assert.True(t, rookBackendSet)
@@ -81,13 +81,13 @@ func TestOrchestratorModules(t *testing.T) {
 	// the rook module will succeed
 	err = c.configureOrchestratorModules()
 	assert.NoError(t, err)
-	err = c.setRookOrchestratorBackend()
+	err = c.setOrchestratorBackend(rookModuleName)
 	assert.NoError(t, err)
 	assert.True(t, rookModuleEnabled)
 	assert.True(t, rookBackendSet)
 
 	c.clusterInfo.CephVersion = cephver.Squid
-	err = c.setRookOrchestratorBackend()
+	err = c.setOrchestratorBackend(rookModuleName)
 	assert.NoError(t, err)
 	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
@@ -101,6 +101,30 @@ func TestOrchestratorModules(t *testing.T) {
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
-	err = c.setRookOrchestratorBackend()
+	err = c.setOrchestratorBackend(rookModuleName)
 	assert.NoError(t, err)
+}
+
+func TestUnsetRookOrchestratorBackend(t *testing.T) {
+	backendCleared := false
+	executor := &exectest.MockExecutor{}
+	exec.CephCommandsTimeout = 15 * time.Second
+	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "orch" && args[1] == "set" && args[2] == "backend" && args[3] == "" {
+			backendCleared = true
+			return "", nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	clusterInfo := &cephclient.ClusterInfo{
+		CephVersion: cephver.Squid,
+		Context:     context.TODO(),
+	}
+	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Executor: executor}}
+
+	err := c.setOrchestratorBackend("")
+	assert.NoError(t, err)
+	assert.True(t, backendCleared)
 }
