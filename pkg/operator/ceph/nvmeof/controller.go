@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	"github.com/coreos/pkg/capnslog"
@@ -265,6 +266,13 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 	}
 	if r.shouldRotateCephxKeys {
 		logger.Infof("cephx keys will be rotated for %q", request.NamespacedName)
+	}
+
+	// The gateway stores OMAP state in the .nvmeof pool. Creating pods before that
+	// pool exists causes CrashLoopBackOff. Fail and retry until the pool is ready.
+	if err := r.ensureNVMeOFMetadataPoolReady(); err != nil {
+		return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, *cephNVMeOFGateway,
+			errors.Wrapf(err, "waiting for nvmeof metadata pool %q to be ready before creating gateway deployments", nvmeofPoolName)
 	}
 
 	_, err = r.reconcileCreateCephNVMeOFGateway(cephNVMeOFGateway)
@@ -545,6 +553,26 @@ func validateGateway(g *cephv1.CephNVMeOFGateway) error {
 		return errors.New("gateway group name is required")
 	}
 
+	return nil
+}
+
+// ensureNVMeOFMetadataPoolReady confirms the .nvmeof RADOS pool exists and has
+// been fully initialized (application tag set) before gateway deployments are
+// created. Checking via Ceph commands is more reliable than CR status which may
+// lag behind the actual pool state.
+func (r *ReconcileCephNVMeOFGateway) ensureNVMeOFMetadataPoolReady() error {
+	_, err := cephclient.GetPoolDetails(r.context, r.clusterInfo, nvmeofPoolName)
+	if err != nil {
+		return errors.Wrapf(err, "nvmeof metadata pool %q does not exist yet", nvmeofPoolName)
+	}
+
+	app, err := cephclient.GetPoolApplication(r.context, r.clusterInfo, nvmeofPoolName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check application for nvmeof metadata pool %q", nvmeofPoolName)
+	}
+	if app == "" {
+		return errors.Errorf("nvmeof metadata pool %q exists but is not yet initialized (no application set)", nvmeofPoolName)
+	}
 	return nil
 }
 
