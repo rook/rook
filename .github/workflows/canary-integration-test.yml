@@ -1926,7 +1926,7 @@ jobs:
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
-        ceph-image: ${{ fromJson(inputs.ceph_images) }}
+        ceph-image: ["quay.ceph.io/ceph-ci/ceph:19.2.6-overlord-79698"]
         kubernetes-version: ${{ fromJson(inputs.kubernetes-version) }}
     steps:
       - name: checkout
