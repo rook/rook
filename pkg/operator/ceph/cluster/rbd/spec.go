@@ -107,7 +107,7 @@ func (r *ReconcileCephRBDMirror) makeChownInitContainer(daemonConfig *daemonConf
 		controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 		rbdMirror.Spec.Resources,
-		controller.DefaultContainerSecurityContext(),
+		controller.RootContainerSecurityContext(),
 		"",
 	)
 }
