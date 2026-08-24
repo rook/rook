@@ -239,15 +239,15 @@ test.helm: $(HELM_UNITTEST) ## Run the helm chart unit tests
 	$(HELM_UNITTEST) --strict $(addprefix $(HELM_CHARTS_DIR)/,$(HELM_CHARTS))
 
 .PHONY: lint.quick
-lint.quick: lint.yaml lint.shell lint.make lint.go lint.helm lint.markdown ## run some (faster) linters
+lint.quick: lint.yaml lint.shell lint.go lint.make lint.markdown lint.workflows lint.commits ## run some (faster) linters
 .PHONY: lint
-lint: lint.quick lint.python ## Run various linters
+lint: lint.quick lint.helm ## Run various linters
 
 .PHONY: lint.python
 lint.python: ## lint python scripts
 	pylint $(shell find $(ROOT_DIR) -name '*.py') -E
-
 .PHONY: lint.make
+
 lint.make: ## lint the Makefile
 	@$(CHECKMAKE) Makefile
 
