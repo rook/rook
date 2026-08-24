@@ -349,6 +349,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	securityContext := &v1.SecurityContext{
 		Privileged:             &privileged,
 		RunAsUser:              &runAsUser,
+		RunAsGroup:             &runAsUser,
 		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 		Capabilities: &v1.Capabilities{
 			Add: []v1.Capability{},
@@ -739,6 +740,7 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 		Image:           c.rookVersion,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    []v1.VolumeMount{mount},
+		SecurityContext: controller.RootContainerSecurityContext(),
 	}
 }
 
@@ -819,19 +821,17 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 // To be able to perform this action, the CAP_MKNOD capability is required.
 // Provide a securityContext which requests the MKNOD capability for the container to function properly.
 func getBlockDevMapperContext() *v1.SecurityContext {
-	privileged := controller.HostPathRequiresPrivileged()
-
-	return &v1.SecurityContext{
-		Capabilities: &v1.Capabilities{
-			Add: []v1.Capability{
-				"MKNOD",
-			},
-			Drop: []v1.Capability{
-				"NET_RAW",
-			},
+	context := controller.RootContainerSecurityContext()
+	context.Capabilities = &v1.Capabilities{
+		Add: []v1.Capability{
+			"MKNOD",
 		},
-		Privileged: &privileged,
+		Drop: []v1.Capability{
+			"NET_RAW",
+		},
 	}
+
+	return context
 }
 
 // Currently we can't mount a block mode pv directly to a privileged container

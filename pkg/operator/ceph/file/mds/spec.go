@@ -127,7 +127,7 @@ func (c *Cluster) makeChownInitContainer(mdsConfig *mdsConfig) v1.Container {
 		controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 		c.fs.Spec.MetadataServer.Resources,
-		controller.DefaultContainerSecurityContext(),
+		controller.RootContainerSecurityContext(),
 		"",
 	)
 }
