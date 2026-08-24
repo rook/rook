@@ -54,6 +54,8 @@ those releases.
 
 ## Breaking changes in v1.18
 
+* **Ceph versions v19.2.6+ and v20.2.4+ are [not supported](https://github.com/rook/rook/issues/18203#issuecomment-5397373786)**.
+
 * Helm: Two new properties have been added to the storage classes in the `rook-ceph-cluster` chart.
     Adding these properties will cause the helm upgrade to fail since storage classes are immutable.
     Before upgrading the `rook-ceph-cluster` chart, one of these actions is necessary:

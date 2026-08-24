@@ -27,8 +27,8 @@ until all the daemons have been updated.
 The following Ceph versions are supported in this release of Rook:
 
 * Ceph Reef v18.2.0 or newer
-* Ceph Squid v19.2.0 or newer
-* Ceph Tentacle v20.2.0 or newer
+* Ceph Squid v19.2.0 - v19.2.5 (**v19.2.6+ are [not supported](https://github.com/rook/rook/issues/18203#issuecomment-5397373786)**)
+* Ceph Tentacle v20.2.0 - v20.2.3 (**v20.2.4+ are [not supported](https://github.com/rook/rook/issues/18203#issuecomment-5397373786)**)
     * IMPORTANT: **There is a known data corruption issue in v20.2.0**, if the "read affinity" feature is enabled.
     Read affinity is disabled by default, and is enabled by the CephCluster setting `csi.readAffinity.enabled: true`.
     If you have enabled read affinity, we recommend waiting for v20.2.1 before upgrading to Ceph Tentacle v20.
