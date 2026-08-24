@@ -297,6 +297,10 @@ This will ensure any accidental AES keys raise visible warnings after full migra
 
 ### Migrating CSI keys to a new key type
 
+!!! important
+    [Ceph-CSI](https://github.com/ceph/ceph-csi) must be updated to at least v3.16.3 to support
+    AES256K keys.
+
 The [rotation example above](#rotation-example) shows how to rotate CSI keys while keeping the older
 `aes` key type for all Linux kernel versions. This section explains how to follow up to migrate the
 example's CSI keys to `aes256k` completely with minimal application downtime. At the end of this
@@ -328,6 +332,9 @@ migration, all CSI keys and all application PVCs will be utilizing new keys with
 7. As a final optional step, clean up old keys which are no longer in use by setting
     `keepPriorKeyCountMax: 0`.
 
+In the event of issues during this process, either due to kernel incompatibility or a CSI issue,
+[revert back to using AES](#reverting-back-to-an-older-key-type).
+
 ### Migrating external cluster keys to a new key type
 
 When Rook is configured to use an [external cluster](../../CRDs/Cluster/external-cluster/provider-export.md),
@@ -354,6 +361,19 @@ Support for AES256K keys is currently limited by client and Kernel support. If a
 rotated to the new type but the client/kernel does not support it, Rook allows reverting back to an
 older key type. This process is as simple as specifying `keyType: aes` for the required component.
 This will rotate the key again, and the new key will be of type `aes`.
+
+An example for reverting CSI keys back to `aes` follows:
+
+```yaml
+spec:
+  security:
+    cephx:
+      csi:
+        keyRotationPolicy: KeyGeneration
+        keyGeneration: 3 # modify as needed
+        keepPriorKeyCountMax: 2 # keep the original in-use key active
+        keyType: aes
+```
 
 ### Allowed Ciphers
 
