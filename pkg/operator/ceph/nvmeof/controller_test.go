@@ -96,6 +96,9 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 					if args[0] == "nvme-gw" && args[1] == "show" {
 						return "", nil
 					}
+					if args[0] == "nvme-gw" && args[1] == "delete" {
+						return "", nil
+					}
 				}
 				panic(fmt.Sprintf("unhandled command %s %v", command, args))
 			},
@@ -612,6 +615,9 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 					return "", nil
 				}
 				if args[0] == "nvme-gw" && args[1] == "show" {
+					return "", nil
+				}
+				if args[0] == "nvme-gw" && args[1] == "delete" {
 					return "", nil
 				}
 			}
