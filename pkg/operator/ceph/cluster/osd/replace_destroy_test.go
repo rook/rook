@@ -199,6 +199,20 @@ func TestProcessOSDReplacementDestroy(t *testing.T) {
 		assert.NotContains(t, st.cephCmds, fmt.Sprintf("osd destroy osd.%d --yes-i-really-mean-it", osdID))
 	})
 
+	t.Run("in-flight replacement is not stranded by device sets added to the spec", func(t *testing.T) {
+		// A host OSD stays a valid replacement target in a cluster that also has device sets; bailing out
+		// on them would leave it fenced and half torn down for good.
+		dep := replaceMarkedDep(osdID)
+		st := &replaceTestState{tree: map[int]string{osdID: "up"}, inByID: map[int]int{osdID: 1}}
+		m := newReplaceHealthMonitor(t, fake.NewClientset(dep), st)
+		m.cluster.spec.Storage.StorageClassDeviceSets = []cephv1.StorageClassDeviceSet{{Name: "set1", Count: 1}}
+
+		replacing, err := m.processOSDsDestroyForReplacement()
+		require.NoError(t, err)
+		assert.Contains(t, replacing, osdID)
+		assert.Contains(t, st.cephCmds, fmt.Sprintf("osd out %d", osdID))
+	})
+
 	t.Run("draining when out but not safe", func(t *testing.T) {
 		dep := replaceMarkedDep(osdID)
 		st := &replaceTestState{tree: map[int]string{osdID: "up"}, inByID: map[int]int{osdID: 0}, safeToDestroy: map[int]bool{}}
