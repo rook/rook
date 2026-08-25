@@ -507,6 +507,10 @@ CephFilesystem users should check its `status.cephx` as well.
 to elevate the permissions of a CephX key. CephX authentication keys for core Ceph daemons, child
 Ceph daemons (e.g., RGW), and Rook's admin key will have been rotated to the new AES256K cipher.
 
+!!! Note
+    The Rook toolbox has an update to support key rotations, taking about 60 seconds to get updated
+    keys. Update it to the latest manifest, or restart the toolbox to continue using it after rotation.
+
 #### **Non-urgent follow-up tasks**
 
 !!! Important
