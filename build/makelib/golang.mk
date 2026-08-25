@@ -48,7 +48,11 @@ GO_TEST_FLAGS ?=
 # ====================================================================================
 # Setup go environment
 
+<<<<<<< HEAD
 GO_SUPPORTED_VERSIONS ?= 1.25|1.26
+=======
+GO_SUPPORTED_VERSIONS ?= 1.26|1.27
+>>>>>>> ff7db99 (build: add support for go v1.27)
 
 GO_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/integration)

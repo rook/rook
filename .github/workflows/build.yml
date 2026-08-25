@@ -77,7 +77,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+<<<<<<< HEAD
         go-version: ["1.25", "1.26"]
+=======
+        go-version: ["1.26","1.27"]
+>>>>>>> ff7db99 (build: add support for go v1.27)
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
