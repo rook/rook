@@ -40,6 +40,7 @@ check.container.runtime:
 	$(if $(shell $(DOCKERCMD) version >/dev/null 2>&1 && echo available),,$(error no usable container runtime found. Install docker or podman, or set DOCKERCMD to a working command.))
 
 MARKDOWNLINT := $(DOCKERCMD) run --rm -v $$PWD:/workdir davidanson/markdownlint-cli2:$(MARKDOWNLINT_IMAGE_VERSION)
+BLACK := $(DOCKERCMD) run --rm --volume $$PWD:/src --user $$(id -u):$$(id -g) --workdir /src pyfound/black:$(BLACK_VERSION) black
 
 ifneq ($(strip $(YAMLLINT_IMAGE_SHA)),)
 YAMLLINT := $(DOCKERCMD) run  --rm -t -v $(CURDIR):/workdir:ro -w /workdir --entrypoint yamllint cytopia/yamllint@$(YAMLLINT_IMAGE_SHA)
