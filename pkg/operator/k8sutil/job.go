@@ -23,6 +23,7 @@ import (
 	"time"
 
 	batch "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -38,7 +39,7 @@ func RunReplaceableJob(ctx context.Context, clientset kubernetes.Interface, job 
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Warningf("failed to detect job %s. %+v", job.Name, err)
 	} else if err == nil {
-		// if the job is still running, and the caller has not asked for deletion,
+		// if the caller has not asked for deletion,
 		// allow it to continue to completion
 		if existingJob.Status.Active > 0 && !deleteIfFound {
 			logger.Infof("Found previous job %s. Status=%+v", job.Name, existingJob.Status)
@@ -51,6 +52,20 @@ func RunReplaceableJob(ctx context.Context, clientset kubernetes.Interface, job 
 		if err != nil {
 			return fmt.Errorf("failed to remove job %s. %+v", job.Name, err)
 		}
+	}
+
+	_, err = clientset.BatchV1().Jobs(job.Namespace).Create(ctx, job, metav1.CreateOptions{})
+	return err
+}
+
+func RunJob(ctx context.Context, clientset kubernetes.Interface, job *batch.Job) error {
+	// check if the job was already created and what its status is
+	existingJob, err := clientset.BatchV1().Jobs(job.Namespace).Get(ctx, job.Name, metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Warningf("failed to detect job %s. %+v", job.Name, err)
+	} else if err == nil {
+		logger.Infof("Found previous job %s. Status=%+v", job.Name, existingJob.Status)
+		return nil
 	}
 
 	_, err = clientset.BatchV1().Jobs(job.Namespace).Create(ctx, job, metav1.CreateOptions{})
@@ -102,4 +117,24 @@ func AddRookVersionLabelToJob(j *batch.Job) {
 		j.Labels = map[string]string{}
 	}
 	addRookVersionLabel(j.Labels)
+}
+
+func CheckIfJobIsCompleted(ctx context.Context, clientset kubernetes.Interface, job *batch.Job) (bool, error) {
+	if job == nil {
+		return false, fmt.Errorf("job is nil")
+	}
+
+	existingJob, err := clientset.BatchV1().Jobs(job.Namespace).Get(ctx, job.Name, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to get job %s. %+v", job.Name, err)
+	}
+
+	for _, condition := range existingJob.Status.Conditions {
+		if condition.Type == batch.JobComplete &&
+			condition.Status == corev1.ConditionTrue {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

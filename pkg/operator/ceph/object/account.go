@@ -19,12 +19,18 @@ package object
 import (
 	"context"
 	"fmt"
-	"syscall"
+	"strings"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/pkg/errors"
-	"github.com/rook/rook/pkg/util/exec"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
+	batch "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -90,29 +96,149 @@ func DeleteAccount(nsName types.NamespacedName, ctx context.Context, adminOpsCon
 	return nil
 }
 
-// ForceDeleteAccount removes an RGW account, even if it has associated users or buckets.
-func ForceDeleteAccount(nsName types.NamespacedName, adminOpsContext *AdminOpsContext, accountID string) error {
+// ForceDeleteAccount removes an RGW account by creating a Kubernetes Job that runs
+// "radosgw-admin account rm --purge-data". A Job is used because purging large
+// amounts of data can far exceed the operator's 15-second command timeout.
+// The Job retries on failure until the purge completes or the account no longer exists.
+func ForceDeleteAccount(uid types.UID, nsName types.NamespacedName, adminOpsContext *AdminOpsContext, accountID string, cephClusterSpec *cephv1.ClusterSpec) (bool, error) {
 	if accountID == "" {
-		return errors.New("account ID cannot be empty")
+		return false, errors.New("account ID cannot be empty")
 	}
-
-	// run the cli cmd using --purge-data flag
 	if adminOpsContext == nil {
-		return errors.New("adminOpsContext cannot be nil")
-	}
-	// Rook should use admin ops API for this, but `--purge-data` isn't integrated yet. Swap this implementation when it is.
-	account := fmt.Sprintf("--account-id=%s", accountID)
-	_, err := runAdminCommand(&adminOpsContext.Context, false, "account", "rm", "--purge-data", account)
-	if err != nil {
-		// If account doesn't exist, consider it successful (idempotent)
-		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
-			log.NamedInfo(nsName, logger, "account %q not found, considering force-deletion successful", accountID)
-			return nil
-		}
-		return errors.Wrapf(err, "failed to force delete account %q using CLI", accountID)
+		return false, errors.New("adminOpsContext cannot be nil")
 	}
 
-	return nil
+	clusterInfo := adminOpsContext.clusterInfo
+	job := makeAccountPurgeJob(uid, nsName, adminOpsContext, accountID, clusterInfo, cephClusterSpec)
+
+	if err := clusterInfo.OwnerInfo.SetControllerReference(job); err != nil {
+		return false, errors.Wrapf(err, "failed to set owner reference on purge job for account %q", accountID)
+	}
+
+	log.NamedInfo(nsName, logger, "creating purge-data job %q for account %q", job.Name, accountID)
+	if err := k8sutil.RunJob(clusterInfo.Context, adminOpsContext.Context.Context.Clientset, job); err != nil {
+		return false, errors.Wrapf(err, "failed to create purge-data job for account %q", accountID)
+	}
+
+	// check for the job to complete with a re-qeueue loop, to not block other reconcile operations
+	jobComplete, err := k8sutil.CheckIfJobIsCompleted(clusterInfo.Context, adminOpsContext.Context.Context.Clientset, job)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to check if purge-data job %q for account %q is completed", job.Name, accountID)
+	}
+	if !jobComplete {
+		log.NamedInfo(nsName, logger, "purge-data job %q for account %q is still running, requeuing reconcile", job.Name, accountID)
+		return true, nil
+	}
+
+	// if the job completed successfully, the account should be gone, but check to be sure
+	_, err = GetAccount(clusterInfo.Context, adminOpsContext, accountID)
+	if err != nil {
+		if errors.Is(err, admin.ErrNoSuchKey) {
+			log.NamedInfo(nsName, logger, "account %q successfully purged", accountID)
+			// delete the job now that the account is gone
+			if err := k8sutil.DeleteBatchJob(clusterInfo.Context, adminOpsContext.Context.Context.Clientset, job.Namespace, job.Name, true); err != nil {
+				return false, errors.Wrapf(err, "failed to delete purge-data job %q for account %q", job.Name, accountID)
+			}
+			// this function will take exit from here
+			return false, nil
+		}
+	}
+
+	// do not delete the job if the account still exists, so we can check the job logs for errors
+	return false, errors.Wrapf(err, "failed to verify account %q was purged", accountID)
+}
+
+func makeAccountPurgeJob(uid types.UID, nsName types.NamespacedName, adminOpsContext *AdminOpsContext, accountID string, clusterInfo *cephclient.ClusterInfo, cephClusterSpec *cephv1.ClusterSpec) *batch.Job {
+	// Build the radosgw-admin command args
+	args := []string{
+		"account", "rm",
+		"--purge-data",
+		fmt.Sprintf("--account-id=%s", accountID),
+	}
+
+	// Add multisite flags when applicable
+	if adminOpsContext.Name != "" && clusterInfo.CephCred.Username == cephclient.AdminUsername {
+		args = append(args,
+			fmt.Sprintf("--rgw-realm=%s", adminOpsContext.Realm),
+			fmt.Sprintf("--rgw-zonegroup=%s", adminOpsContext.ZoneGroup),
+			fmt.Sprintf("--rgw-zone=%s", adminOpsContext.Zone),
+		)
+	}
+	keyringFile := fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username)
+	keyringFilePath := fmt.Sprintf("%s/%s/%s", cephClusterSpec.DataDirHostPath, nsName.Namespace, keyringFile)
+	configFile := fmt.Sprintf("%s.config", clusterInfo.Namespace)
+	configFilePath := fmt.Sprintf("%s/%s/%s", cephClusterSpec.DataDirHostPath, nsName.Namespace, configFile)
+
+	args = append(args,
+		fmt.Sprintf("--keyring=%s", keyringFilePath),
+		fmt.Sprintf("--conf=%s", configFilePath),
+		fmt.Sprintf("--name=%s", clusterInfo.CephCred.Username),
+	)
+
+	// Wrap in a shell to treat ENOENT (exit code 2) as success
+	shellCmd := fmt.Sprintf(`
+		radosgw-admin %s;
+		rc=$?;
+		if [ $rc -eq 0 ]; then
+    		echo 'account purge succeeded';
+  		elif [ $rc -eq 2 ]; then
+    		echo 'account not found, nothing to purge';
+    		exit 0;
+  		else
+    		echo "account purge failed with exit code $rc";
+  		fi;
+  		exit $rc
+		`, strings.Join(args, " "),
+	)
+
+	volumes := []corev1.Volume{{Name: "account-cleanup", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: cephClusterSpec.DataDirHostPath}}}}
+	volumeMounts := []corev1.VolumeMount{{Name: "account-cleanup", MountPath: cephClusterSpec.DataDirHostPath}}
+	jobName := k8sutil.TruncateNodeNameForJob("rgw-account-purge-%s", fmt.Sprintf("%s-%s-%s", nsName.Name, nsName.Namespace, uid))
+
+	labels := map[string]string{
+		k8sutil.AppAttr:     "rgw-account-purge",
+		k8sutil.ClusterAttr: clusterInfo.Namespace,
+	}
+	timeToLive := int32(86400) // 24 hours
+
+	job := getJobTemplate(jobName, nsName.Namespace, labels, volumes, volumeMounts, shellCmd, cephClusterSpec, timeToLive)
+
+	k8sutil.AddRookVersionLabelToJob(job)
+	return job
+}
+
+func getJobTemplate(jobName, namespace string, labels map[string]string, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, shellCmd string, cephClusterSpec *cephv1.ClusterSpec, timeToLive int32) *batch.Job {
+	return &batch.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobName,
+			Namespace: namespace,
+			Labels:    labels,
+		},
+		Spec: batch.JobSpec{
+			TTLSecondsAfterFinished: &timeToLive,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:            "rgw-account-purge",
+							Image:           cephClusterSpec.CephVersion.Image,
+							ImagePullPolicy: opcontroller.GetContainerImagePullPolicy(cephClusterSpec.CephVersion.ImagePullPolicy),
+							Command:         []string{"/bin/sh", "-c"},
+							Args:            []string{shellCmd},
+							VolumeMounts:    volumeMounts,
+							SecurityContext: opcontroller.PrivilegedContext(true),
+						},
+					},
+					Volumes:            volumes,
+					RestartPolicy:      corev1.RestartPolicyOnFailure,
+					ServiceAccountName: k8sutil.DefaultServiceAccount,
+				},
+			},
+		},
+	}
 }
 
 // CreateAccountRootUser creates a root user for the given RGW account using the admin ops API.
