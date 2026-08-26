@@ -35,6 +35,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -552,6 +553,42 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			assert.Equal(t, tc.expectedSetNoOutValue, existingConfigMaps.Items[0].Data[setNoOut])
 		})
 	}
+}
+
+func TestReconcilePDBForOSDNooutUnsetFailure(t *testing.T) {
+	configMap := fakePDBConfigMap("zone-1")
+	r := getFakeReconciler(t, cephCluster, configMap)
+	clusterInfo := getFakeClusterInfo()
+	clusterInfo.Context = context.TODO()
+	request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
+
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "status" {
+			return healthyCephStatus, nil
+		}
+		if args[0] == "osd" && args[1] == "dump" {
+			return `{"OSDs": [{"OSD": 3, "Up": 3, "In": 3}], "crush_node_flags": {"zone-1": ["noout"]}}`, nil
+		}
+		if args[0] == "osd" && (args[1] == "unset-group" || args[1] == "set-group") {
+			return "", errors.Errorf("mock failure of ceph command '%v'", args)
+		}
+		return "", errors.Errorf("unexpected ceph command '%v'", args)
+	}
+	clientset := test.New(t, 3)
+	test.SetFakeKubernetesVersion(clientset, "v1.21.0")
+	r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor, Clientset: clientset}}
+
+	_, err := r.reconcilePDBsForOSDs(clusterInfo, request, configMap, "zone",
+		[]string{"zone-1", "zone-2", "zone-3"}, []string{}, []string{}, []int{}, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "noout")
+
+	existingConfigMap := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pdbStateMapName, Namespace: namespace}, existingConfigMap)
+	require.NoError(t, err)
+	assert.Equal(t, "", existingConfigMap.Data[drainingFailureDomainKey])
 }
 
 func TestHasNodeDrained(t *testing.T) {
