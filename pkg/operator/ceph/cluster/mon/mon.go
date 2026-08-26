@@ -343,9 +343,17 @@ func isFloatingMon(c *Cluster, name string) bool {
 }
 
 func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
-	// Enable the mon connectivity strategy
-	if err := cephclient.EnableStretchElectionStrategy(c.context, c.ClusterInfo); err != nil {
-		return errors.Wrap(err, "failed to enable stretch cluster")
+	// Enable the mon connectivity strategy. In Ceph Squid and newer, changing the
+	// election strategy fails with EINVAL once stretch mode is already enabled.
+	// Since the connectivity strategy was set when stretch mode was first enabled,
+	// skip the call when the mon dump already reports stretch mode.
+	monDump, err := cephclient.GetMonDump(c.context, c.ClusterInfo)
+	if err != nil || !monDump.StretchMode {
+		if err := cephclient.EnableStretchElectionStrategy(c.context, c.ClusterInfo); err != nil {
+			return errors.Wrap(err, "failed to enable stretch cluster")
+		}
+	} else {
+		log.NamespacedInfo(c.Namespace, logger, "stretch mode is already enabled, skipping the election strategy update")
 	}
 
 	// Create the default crush rule for stretch clusters, that by default will also apply to all pools
