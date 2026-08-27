@@ -27,6 +27,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -831,4 +832,56 @@ func Test_initClusterCephxStatus(t *testing.T) {
 		assert.Equal(t, monStatus, cluster.Status.Cephx.Mon)
 		assert.Equal(t, cephv1.CephxStatus{}, cluster.Status.Cephx.Mgr) // no status means no update
 	})
+}
+
+func TestConfigureHealthMute(t *testing.T) {
+	clusterInfo := cephclient.AdminTestClusterInfo("ns")
+	var muted string
+	c := &cluster{
+		context: &clusterd.Context{
+			RookClientset: rookclient.NewSimpleClientset(&cephv1.CephCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      clusterInfo.NamespacedName().Name,
+					Namespace: clusterInfo.Namespace,
+				},
+			}),
+			Executor: &exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+					logger.Infof("Command: %s %v", command, args)
+					if args[0] == "health" && args[1] == "mute" {
+						muted = args[2]
+						return "", nil
+					}
+					return "", errors.New("mock error to simulate failure of health mute")
+				},
+			},
+		},
+		ClusterInfo: clusterInfo,
+		Namespace:   clusterInfo.Namespace,
+		Spec:        &cephv1.ClusterSpec{},
+	}
+
+	type args struct {
+		expectedMute string
+		desiredMute  map[string]cephv1.MuteHealthWarningSpec
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{"mute-mds", args{"MDS_ALL_DOWN", map[string]cephv1.MuteHealthWarningSpec{
+			"MDS_ALL_DOWN": {Policy: "mute"},
+		}}},
+		{"mute-mds", args{"", map[string]cephv1.MuteHealthWarningSpec{
+			"MDS_ALL_DOWN": {Policy: "unmute"},
+		}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			muted = ""
+			c.Spec.HealthCheck.MuteHealthWarning = tt.args.desiredMute
+			c.configureHealthWarnings()
+			assert.Equal(t, tt.args.expectedMute, muted)
+		})
+	}
 }
