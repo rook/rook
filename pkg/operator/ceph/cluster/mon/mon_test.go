@@ -675,6 +675,98 @@ func TestConfigureArbiter(t *testing.T) {
 	})
 }
 
+func TestConfigureStretchCluster(t *testing.T) {
+	c := &Cluster{spec: cephv1.ClusterSpec{
+		Mon: cephv1.MonSpec{
+			StretchCluster: &cephv1.StretchClusterSpec{
+				Zones: []cephv1.MonZoneSpec{
+					{Name: "a", Arbiter: true},
+					{Name: "b"},
+					{Name: "c"},
+				},
+			},
+		},
+	}}
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(5)
+
+	// crushDump reports the default stretch crush rule as already existing so that
+	// CreateDefaultStretchCrushRule() returns early without needing to mock a full
+	// crush map update.
+	crushDump := `{"rules":[{"rule_id":0,"rule_name":"default_stretch_cluster_rule"}]}`
+
+	t.Run("stretch mode not yet enabled - election strategy is set", func(t *testing.T) {
+		setElectionStrategy := false
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				logger.Infof("%s %v", command, args)
+				switch {
+				case args[0] == "mon" && args[1] == "dump":
+					return `{"stretch_mode": false}`, nil
+				case args[0] == "mon" && args[1] == "set" && args[2] == "election_strategy":
+					setElectionStrategy = true
+					return "", nil
+				case args[0] == "osd" && args[1] == "crush" && args[2] == "dump":
+					return crushDump, nil
+				}
+				return "", fmt.Errorf("unrecognized output file command: %s %v", command, args)
+			},
+		}
+		c.context = &clusterd.Context{Clientset: test.New(t, 5), Executor: executor}
+
+		err := c.configureStretchCluster(nil)
+		assert.NoError(t, err)
+		assert.True(t, setElectionStrategy)
+	})
+
+	t.Run("stretch mode already enabled - election strategy is not touched", func(t *testing.T) {
+		setElectionStrategy := false
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				logger.Infof("%s %v", command, args)
+				switch {
+				case args[0] == "mon" && args[1] == "dump":
+					return `{"stretch_mode": true}`, nil
+				case args[0] == "mon" && args[1] == "set" && args[2] == "election_strategy":
+					setElectionStrategy = true
+					return "", fmt.Errorf("exit status 22")
+				case args[0] == "osd" && args[1] == "crush" && args[2] == "dump":
+					return crushDump, nil
+				}
+				return "", fmt.Errorf("unrecognized output file command: %s %v", command, args)
+			},
+		}
+		c.context = &clusterd.Context{Clientset: test.New(t, 5), Executor: executor}
+
+		err := c.configureStretchCluster(nil)
+		assert.NoError(t, err)
+		assert.False(t, setElectionStrategy)
+	})
+
+	t.Run("mon dump fails - election strategy is not touched and error is returned", func(t *testing.T) {
+		setElectionStrategy := false
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				logger.Infof("%s %v", command, args)
+				switch {
+				case args[0] == "mon" && args[1] == "dump":
+					return "", fmt.Errorf("failed to connect to cluster")
+				case args[0] == "mon" && args[1] == "set" && args[2] == "election_strategy":
+					setElectionStrategy = true
+					return "", nil
+				case args[0] == "osd" && args[1] == "crush" && args[2] == "dump":
+					return crushDump, nil
+				}
+				return "", fmt.Errorf("unrecognized output file command: %s %v", command, args)
+			},
+		}
+		c.context = &clusterd.Context{Clientset: test.New(t, 5), Executor: executor}
+
+		err := c.configureStretchCluster(nil)
+		assert.Error(t, err)
+		assert.False(t, setElectionStrategy)
+	})
+}
+
 func TestFindAvailableZoneMon(t *testing.T) {
 	c := &Cluster{spec: cephv1.ClusterSpec{
 		Mon: cephv1.MonSpec{
