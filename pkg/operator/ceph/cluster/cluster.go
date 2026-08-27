@@ -570,6 +570,9 @@ func (c *cluster) postMonStartupActions(imageCephVersion cephver.CephVersion) er
 		}
 	}
 
+	// Configure health settings such as muting health warnings from the spec
+	c.configureHealthWarnings()
+
 	crushRoot := client.GetCrushRootFromSpec(c.Spec)
 	if crushRoot != "default" {
 		// Remove the root=default and replicated_rule which are created by
@@ -591,6 +594,18 @@ func (c *cluster) postMonStartupActions(imageCephVersion cephver.CephVersion) er
 	c.deleteBootstrapKeys()
 
 	return nil
+}
+
+// configureHealthSettings mutes the health warnings configured in the cluster spec and
+// disables the insecure global ID reclaim when there are no legacy clients connected.
+func (c *cluster) configureHealthWarnings() {
+	for warning, spec := range c.Spec.HealthCheck.MuteHealthWarning {
+		log.NamespacedDebug(c.Namespace, logger, "configuring health warning mute %q=%q", warning, spec.Policy)
+		err := client.MuteHealthWarning(c.context, c.ClusterInfo, warning, spec.Policy)
+		if err != nil {
+			log.NamespacedError(c.Namespace, logger, "failed to configure health warning mute %q=%q: %v", warning, spec.Policy, err)
+		}
+	}
 }
 
 func (c *cluster) postMgrStartupActions() error {
