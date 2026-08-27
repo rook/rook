@@ -144,11 +144,33 @@ func TestMonDump(t *testing.T) {
 	dump, err := GetMonDump(context, clusterInfo)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, dump.ElectionStrategy)
-	assert.Equal(t, "{zone=a}", dump.Mons[0].CrushLocation)
 	assert.Equal(t, "a", dump.Mons[0].Name)
 	assert.Equal(t, 0, dump.Mons[0].Rank)
 	assert.Equal(t, "b", dump.Mons[1].Name)
 	assert.Equal(t, 1, dump.Mons[1].Rank)
 	assert.Equal(t, 3, len(dump.Mons))
 	assert.Equal(t, 3, len(dump.Quorum))
+}
+
+// TestMonDumpArrayCrushLocation verifies GetMonDump() still works against newer Ceph
+// versions (e.g. 20.2.4/tentacle) that report "crush_location" as an array of
+// {"key":..., "val":...} objects instead of the older "{zone=a}" string form.
+func TestMonDumpArrayCrushLocation(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		switch {
+		case args[0] == "mon" && args[1] == "dump":
+			return `{"epoch":9,"fsid":"b7b8fe14-4e31-42f5-8aa1-dd46d37b6390","election_strategy":3,"stretch_mode":true,"tiebreaker_mon":"a","mons":[
+		{"rank":0,"name":"a","crush_location":[{"key":"zone","val":"a"}]}],
+		"quorum":[0]}`, nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	context := &clusterd.Context{Executor: executor}
+	clusterInfo := AdminTestClusterInfo("mycluster")
+
+	dump, err := GetMonDump(context, clusterInfo)
+	assert.NoError(t, err)
+	assert.True(t, dump.StretchMode)
+	assert.Equal(t, "a", dump.Mons[0].Name)
 }
