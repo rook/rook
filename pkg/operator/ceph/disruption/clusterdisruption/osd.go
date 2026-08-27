@@ -323,9 +323,9 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		}
 	}
 
-	err = r.updateNoout(clusterInfo, pdbStateMap, allFailureDomains)
-	if err != nil {
-		logger.Errorf("failed to update maintenance noout in cluster %q. %v", request, err)
+	nooutUpdateErr := r.updateNoout(clusterInfo, pdbStateMap, allFailureDomains)
+	if nooutUpdateErr != nil {
+		logger.Errorf("failed to update maintenance noout in cluster %q. %v", request, nooutUpdateErr)
 	}
 
 	// update PDB configmap
@@ -335,6 +335,10 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, errors.Wrapf(err, "failed to update configMap %q in cluster %q", pdbStateMapName, request)
+	}
+
+	if nooutUpdateErr != nil {
+		return reconcile.Result{}, errors.Wrapf(nooutUpdateErr, "failed to update maintenance noout in cluster %q", request)
 	}
 
 	return r.requeuePDBController(request)
