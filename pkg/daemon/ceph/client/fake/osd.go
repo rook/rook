@@ -27,7 +27,7 @@ import (
 // example:  numOSDs = 5  =>  return: "[0,1,2,3,4]"
 func OsdLsOutput(numOSDs int) string {
 	stringIDs := make([]string, 0, numOSDs)
-	for id := 0; id < numOSDs; id++ {
+	for id := range numOSDs {
 		stringIDs = append(stringIDs, strconv.Itoa(id))
 	}
 	return fmt.Sprintf("[%s]", strings.Join(stringIDs, ","))
@@ -82,12 +82,12 @@ func OsdTreeOutput(numNodes, numOSDsPerNode int) string {
 	nodesJSON := []string{}
 	osdsJSON := []string{}
 	nodes := []string{}
-	for n := 0; n < numNodes; n++ {
+	for n := range numNodes {
 		osds := []string{}
 		nodeName := fmt.Sprintf("node%d", n)
 		nodeID := -3 - n
 		nodes = append(nodes, strconv.Itoa(nodeID))
-		for i := 0; i < numOSDsPerNode; i++ {
+		for i := range numOSDsPerNode {
 			osdID := n + 3*i
 			osds = append(osds, strconv.Itoa(osdID))
 			osdsJSON = append(osdsJSON, fmt.Sprintf(osdFormat, osdID, osdID))
@@ -116,7 +116,7 @@ func OsdOkToStopOutput(queriedID int, returnOsdIds []int) string {
 
 	// ok-to-stop
 	osdIdsStr := make([]string, len(returnOsdIds))
-	for i := 0; i < len(returnOsdIds); i++ {
+	for i := range returnOsdIds {
 		osdIdsStr[i] = strconv.Itoa(returnOsdIds[i])
 	}
 	return fmt.Sprintf(okTemplate, strings.Join(osdIdsStr, ","))

@@ -103,14 +103,6 @@ func newFalse() *bool {
 	return &t
 }
 
-func newInt(val int) *int {
-	return &val
-}
-
-func newString(val string) *string {
-	return &val
-}
-
 func TestObjectStoreSpecMarshalSwiftAndKeystone(t *testing.T) {
 	// Assert that the new ObjectStoreSpec fields specified in <design/ceph/object/swift-and-keystone-integration.md> are correctly parsed
 	specYaml := []byte(`
@@ -147,8 +139,8 @@ protocols:
 				Url:                   "https://keystone:5000/",
 				AcceptedRoles:         []string{"_member_", "service", "admin"},
 				ImplicitTenants:       "swift",
-				TokenCacheSize:        newInt(1000),
-				RevocationInterval:    newInt(1200),
+				TokenCacheSize:        new(1000),
+				RevocationInterval:    new(1200),
 				ServiceUserSecretName: "rgw-service-user",
 			},
 		},
@@ -159,7 +151,7 @@ protocols:
 			},
 			Swift: &SwiftSpec{
 				AccountInUrl:      newTrue(),
-				UrlPrefix:         newString("/example"),
+				UrlPrefix:         new("/example"),
 				VersioningEnabled: newFalse(),
 			},
 		},

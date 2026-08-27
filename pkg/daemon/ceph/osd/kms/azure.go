@@ -49,7 +49,7 @@ func InitAzure(ctx context.Context, context *clusterd.Context, namespace string,
 	defer removecertFiles()
 
 	// Convert map string to map interface
-	secretConfig := make(map[string]interface{})
+	secretConfig := make(map[string]any)
 	for key, value := range azureKVConfig {
 		secretConfig[key] = string(value)
 	}

@@ -48,7 +48,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 			logger.Infof("COMMAND: %s %v", command, args)
 			if command == "ceph-authtool" && args[0] == "--create-keyring" {
 				filename := args[1]
-				assert.NoError(t, os.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0o600))
+				assert.NoError(t, os.WriteFile(filename, fmt.Appendf(nil, "key = %s", adminSecret), 0o600))
 			}
 			// with unsupported ceph version, --key-type should default to 'aes'
 			assert.Equal(t, "--key-type", args[5])
@@ -194,7 +194,7 @@ func TestCreateClusterSecretsAes256k(t *testing.T) {
 			logger.Infof("COMMAND: %s %v", command, args)
 			if command == "ceph-authtool" && args[0] == "--create-keyring" {
 				filename := args[1]
-				assert.NoError(t, os.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0o600))
+				assert.NoError(t, os.WriteFile(filename, fmt.Appendf(nil, "key = %s", adminSecret), 0o600))
 			}
 			// with supported ceph version, --key-type should not be set so ceph can use its own default
 			assert.NotContains(t, args, "--key-type")

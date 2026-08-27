@@ -19,6 +19,7 @@ package osd
 import (
 	"context"
 	"fmt"
+	"maps"
 	"regexp"
 	"strconv"
 	"strings"
@@ -132,7 +133,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(errs *provisionErrors) {
 		if pvcsToCreate > 0 {
 			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "creating %d new PVCs for device set %q", pvcsToCreate, deviceSet.Name)
 		}
-		for i := 0; i < pvcsToCreate; i++ {
+		for i := range pvcsToCreate {
 			pvcID := highestExistingID + i + 1
 			deviceSet := c.createDeviceSetPVCsForIndex(deviceSet, existingPVCs, pvcID, errs, pvcResizeMap)
 			c.deviceSets = append(c.deviceSets, deviceSet)
@@ -270,9 +271,7 @@ func makeDeviceSetPVC(deviceSetName, pvcID string, setIndex int, pvcTemplate v1.
 	pvcLabels := makeStorageClassDeviceSetPVCLabel(deviceSetName, pvcID, setIndex, cephImage, rookImage)
 
 	// Add user provided labels to pvcTemplates
-	for k, v := range pvcTemplate.GetLabels() {
-		pvcLabels[k] = v
-	}
+	maps.Copy(pvcLabels, pvcTemplate.GetLabels())
 
 	// pvc naming format rook-ceph-osd-<deviceSetName>-<SetNumber>-<PVCIndex>-<generatedSuffix>
 	return &v1.PersistentVolumeClaim{

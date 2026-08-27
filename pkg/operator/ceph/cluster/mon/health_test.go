@@ -19,6 +19,7 @@ package mon
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"reflect"
 	"testing"
@@ -914,16 +915,12 @@ func TestExternalMons_notInSpec_InQuorum(t *testing.T) {
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	inital5Mons := make(map[string]*cephclient.MonInfo)
-	for k, v := range c.ClusterInfo.InternalMonitors {
-		inital5Mons[k] = v
-	}
+	maps.Copy(inital5Mons, c.ClusterInfo.InternalMonitors)
 
 	// 2. add external mon to quorum but not in spec:
 
 	mons := make(map[string]*cephclient.MonInfo)
-	for k, v := range inital5Mons {
-		mons[k] = v
-	}
+	maps.Copy(mons, inital5Mons)
 	// add unknown mon to quorum:
 	mons["ext-mon-id"] = &cephclient.MonInfo{Name: "ext-mon-id", Endpoint: "0.0.0.0:6789"}
 	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(mons)
@@ -1058,9 +1055,7 @@ func TestExternalMons_inSpec_notInQuorum(t *testing.T) {
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	inital5Mons := make(map[string]*cephclient.MonInfo)
-	for k, v := range c.ClusterInfo.InternalMonitors {
-		inital5Mons[k] = v
-	}
+	maps.Copy(inital5Mons, c.ClusterInfo.InternalMonitors)
 
 	// 2. add external mon id to spec but not to quorum
 	c.spec.Mon.ExternalMonIDs = []string{"ext-mon-id"}
@@ -1193,18 +1188,14 @@ func TestExternalMons_inSpec_inQuorum(t *testing.T) {
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	inital5Mons := make(map[string]*cephclient.MonInfo)
-	for k, v := range c.ClusterInfo.InternalMonitors {
-		inital5Mons[k] = v
-	}
+	maps.Copy(inital5Mons, c.ClusterInfo.InternalMonitors)
 
 	// 2. add external mon id to spec
 	c.spec.Mon.ExternalMonIDs = []string{"ext-mon-id"}
 
 	// add ext mon to quorum:
 	mons := make(map[string]*cephclient.MonInfo)
-	for k, v := range inital5Mons {
-		mons[k] = v
-	}
+	maps.Copy(mons, inital5Mons)
 	mons["ext-mon-id"] = &cephclient.MonInfo{Name: "ext-mon-id", Endpoint: "0.0.0.0:6789"}
 	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(mons)
 
@@ -1270,9 +1261,7 @@ func TestExternalMons_inSpec_inQuorum(t *testing.T) {
 	// 4. upscale back to 5:
 	c.spec.Mon.Count = 5
 	mons = make(map[string]*cephclient.MonInfo)
-	for k, v := range c.ClusterInfo.InternalMonitors {
-		mons[k] = v
-	}
+	maps.Copy(mons, c.ClusterInfo.InternalMonitors)
 	mons["ext-mon-id"] = &cephclient.MonInfo{Name: "ext-mon-id", Endpoint: "0.0.0.0:6789"}
 	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(mons)
 

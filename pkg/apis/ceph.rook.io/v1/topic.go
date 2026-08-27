@@ -18,6 +18,7 @@ package v1
 
 import (
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -29,10 +30,8 @@ func validateURI(uri string, expectedSchemas []string) error {
 		return err
 	}
 	schema := strings.ToLower(parsedURI.Scheme)
-	for _, s := range expectedSchemas {
-		if s == schema {
-			return nil
-		}
+	if slices.Contains(expectedSchemas, schema) {
+		return nil
 	}
 	return errors.Errorf("URI schema %q no in %v", schema, expectedSchemas)
 }

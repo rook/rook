@@ -892,14 +892,14 @@ func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.Moni
 			{
 				Addresses: addresses,
 				Conditions: discoveryv1.EndpointConditions{
-					Ready: ptr.To(true),
+					Ready: new(true),
 				},
 			},
 		},
 		Ports: []discoveryv1.EndpointPort{
 			{
-				Name:     ptr.To(ServiceExternalMetricName),
-				Port:     ptr.To(int32(monitoringSpec.ExternalMgrPrometheusPort)),
+				Name:     new(ServiceExternalMetricName),
+				Port:     new(int32(monitoringSpec.ExternalMgrPrometheusPort)),
 				Protocol: ptr.To(v1.ProtocolTCP),
 			},
 		},

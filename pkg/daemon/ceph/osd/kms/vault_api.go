@@ -18,6 +18,7 @@ package kms
 
 import (
 	"context"
+	"maps"
 	"strings"
 
 	"github.com/libopenstorage/secrets/vault"
@@ -46,12 +47,10 @@ func newVaultClient(ctx context.Context, clusterdContext *clusterd.Context, name
 	// Always use a new map otherwise the map will mutate and subsequent calls will fail since the
 	// TLS content has been altered by the TLS config in vaultClient()
 	localSecretConfig := make(map[string]string)
-	for k, v := range secretConfig {
-		localSecretConfig[k] = v
-	}
+	maps.Copy(localSecretConfig, secretConfig)
 
 	// Convert map string to map interface
-	c := make(map[string]interface{})
+	c := make(map[string]any)
 	for k, v := range localSecretConfig {
 		c[k] = v
 	}
