@@ -333,9 +333,19 @@ func (c *Cluster) startMons(targetCount int) error {
 }
 
 func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
-	// Enable the mon connectivity strategy
-	if err := cephclient.EnableStretchElectionStrategy(c.context, c.ClusterInfo); err != nil {
-		return errors.Wrap(err, "failed to enable stretch cluster")
+	// Enable the mon connectivity strategy, but only if stretch mode is not already enabled.
+	// Ceph Squid rejects any attempt to change the election strategy once stretch mode is
+	// enabled, so calling this unconditionally on every reconcile breaks already-stretched
+	// clusters after a Reef->Squid upgrade. If we can't determine the current state, skip
+	// the change and requeue rather than risk hitting that same rejection.
+	monDump, err := cephclient.GetMonDump(c.context, c.ClusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get mon dump to determine current stretch mode state")
+	}
+	if !monDump.StretchMode {
+		if err := cephclient.EnableStretchElectionStrategy(c.context, c.ClusterInfo); err != nil {
+			return errors.Wrap(err, "failed to enable stretch cluster")
+		}
 	}
 
 	// Create the default crush rule for stretch clusters, that by default will also apply to all pools
