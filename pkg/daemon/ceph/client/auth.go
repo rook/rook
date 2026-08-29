@@ -135,6 +135,18 @@ func Aes256kKeysSupported(ver version.CephVersion) bool {
 	}
 }
 
+// RgwCapProfileSupported returns true if the given Ceph version has the rgw cephx cap profile
+func RgwCapProfileSupported(ver version.CephVersion) bool {
+	switch ver.Major {
+	case 19:
+		return ver.IsAtLeast(version.CephVersion{Major: 19, Minor: 2, Extra: 7})
+	case 20:
+		return ver.IsAtLeast(version.CephVersion{Major: 20, Minor: 2, Extra: 5})
+	default:
+		return ver.Major >= 21
+	}
+}
+
 // AuthRotate rotates a daemon's cephx auth key, retaining existing caps.
 func AuthRotate(context *clusterd.Context, clusterInfo *ClusterInfo, name, keyType string) (string, error) {
 	logger.Infof("rotating ceph auth key %q", name)

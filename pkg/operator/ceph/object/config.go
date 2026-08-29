@@ -25,6 +25,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -35,13 +36,6 @@ import (
 )
 
 const (
-	keyringTemplate = `
-[%s]
-key = %s
-caps mon = "allow rw"
-caps osd = "allow rwx"
-`
-
 	caBundleVolumeName              = "rook-ceph-custom-ca-bundle"
 	caBundleUpdatedVolumeName       = "rook-ceph-ca-bundle-updated"
 	caBundleTrustedDir              = "/etc/pki/ca-trust/"
@@ -166,10 +160,12 @@ func generateCephXUser(name string) string {
 func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	nsName := controller.NsName(c.clusterInfo.Namespace, c.store.Name)
 	user := generateCephXUser(rgwConfig.ResourceName)
-	/* TODO: this says `osd allow rwx` while template says `osd allow *`; which is correct? */
-	access := []string{"osd", "allow rwx", "mon", "allow rw"}
 	s := keyring.GetSecretStore(c.context, c.clusterInfo, c.ownerInfo)
 
+	access := []string{"osd", "allow rwx", "mon", "allow rw"}
+	if cephclient.RgwCapProfileSupported(c.clusterInfo.CephVersion) {
+		access = []string{"mon", "profile rgw", "mgr", "profile rgw", "osd", "profile rgw"}
+	}
 	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
 	key, err := s.GenerateKey(user, keyType, access)
 	if err != nil {
@@ -186,7 +182,7 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 		}
 	}
 
-	keyring := fmt.Sprintf(keyringTemplate, user, key)
+	keyring := cephclient.CephKeyring(cephclient.CephCred{Username: user, Secret: key})
 	return s.CreateOrUpdate(rgwConfig.ResourceName, keyring)
 }
 
