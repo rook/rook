@@ -430,7 +430,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		r.clusterInfo.CephVersion = desiredCephVersion
 	} else {
 		// Detect desired CephCluster version
-		runningCephVersion, desiredCephVersion, err := currentAndDesiredCephVersion(
+		desiredCephVersion, runningCephVersion, err := currentAndDesiredCephVersion(
 			r.opManagerContext,
 			r.opConfig.Image,
 			cephObjectStore.Namespace,
@@ -452,11 +452,23 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		// the cluster is being upgraded. So the controller will just wait for the upgrade to finish and
 		// then versions should match. Obviously using the cmd reporter job adds up to the deployment time
 		// Skip waiting for upgrades to finish in case of external cluster.
-		if !cephCluster.Spec.External.Enable && !reflect.DeepEqual(*runningCephVersion, *desiredCephVersion) {
-			// Upgrade is in progress, let's wait for the mons to be done
-			return opcontroller.WaitForRequeueIfCephClusterIsUpgrading,
-				*cephObjectStore,
-				opcontroller.ErrorCephUpgradingRequeue(desiredCephVersion, runningCephVersion)
+		if !cephCluster.Spec.External.Enable {
+			if !reflect.DeepEqual(*runningCephVersion, *desiredCephVersion) {
+				// Upgrade is in progress, let's wait for the mons to be done
+				return opcontroller.WaitForRequeueIfCephClusterIsUpgrading,
+					*cephObjectStore,
+					opcontroller.ErrorCephUpgradingRequeue(runningCephVersion, desiredCephVersion)
+			}
+			// RGW depends on the OSDs, so wait for them to finish upgrading first
+			osdVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.OsdType)
+			if err != nil {
+				return reconcile.Result{}, *cephObjectStore, errors.Wrap(err, "failed to retrieve current ceph osd version")
+			}
+			if osdVersion.Major != 0 && !reflect.DeepEqual(osdVersion, *desiredCephVersion) {
+				return opcontroller.WaitForRequeueIfCephClusterIsUpgrading,
+					*cephObjectStore,
+					opcontroller.ErrorCephUpgradingRequeue(&osdVersion, desiredCephVersion)
+			}
 		}
 		r.clusterInfo.CephVersion = *runningCephVersion
 
