@@ -299,6 +299,12 @@ sequenceDiagram
    incomplete. Each `realm list` reports only the realms in the location it is pointed at, so a store can
    read a list with no other realms while another realm's topology is still present in a different
    namespace, and Rook would delete the whole shared `.rgw.root` pool and every realm's topology in it.
+
+   Retaining `.rgw.root` while another realm's records exist is pre-existing behavior. The deletion
+   gate reads `realm list`, and Rook never deletes multisite realm records, so a leftover multisite
+   realm already keeps the pool from being reclaimed today. The occupancy check adds no new
+   retention policy. It only re-establishes the precondition that no other realm still uses the
+   pool, which a single un-namespaced `realm list` used to establish on its own.
     - Mitigation: a two-step occupancy check must pass before Rook deletes the `.rgw.root` pool. See
       **The `.rgw.root` occupancy check** below.
 2. **Outdated CRDs during upgrade window.** During the upgrade that introduces the feature, a
