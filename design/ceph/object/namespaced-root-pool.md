@@ -70,10 +70,11 @@ The design builds on the following pre-existing behaviors and accepts the constr
   again later if it is missing. The design relies on this existing
   ordering, i.e., a consumer never has to act before the records it depends on exist, because it waits
   instead.
-- **`namespacedRootPool` propagation in multisite is not coordinated across clusters.** Each cluster's Rook operator manages only its
-  own CRs, so in multisite DR the administrator must set `namespacedRootPool` identically on the source
-  (primary) realm and on each pull realm (`spec.pull.endpoint` set). Rook cannot actively detect a
-  cross-cluster mismatch (see the Multisite DR operational note).
+- **The root pool location is cluster-local.** RGW and `radosgw-admin` resolve the root pool from
+  their local configuration, and no multisite exchange (`realm pull`, `period pull`, replication)
+  carries a pool location. A realm's `namespacedRootPool` value therefore needs to be consistent
+  only within a cluster. Peering with clusters that do not know the field, such as non-Rook peers
+  or Rook releases before this feature, is unaffected (see the Multisite DR operational note).
 
 
 ## Glossary
@@ -356,12 +357,12 @@ holding bulk data.
   `namespacedRootPool: true` stores or realms should not be created until the rollout has completed
   (risk 2). Downgrades below the introducing release should be
   unsupported while namespaced stores or realms exist (see Open Question 2 on operator downgrade).
-- **Multisite DR**: `namespacedRootPool` must be set identically on the source realm and on each pull
-  realm (see Constraints and assumptions). If the values disagree, the secondary resolves the wrong
-  root-pool location. A `realm pull` then finds nothing at the expected location, or subsequent writes
-  fork the topology. Rook performs no active cross-cluster detection. Comparing the resolved location
-  surfaced in the two clusters' realm and store statuses (see Observability) is how a mismatch is
-  diagnosed.
+- **Multisite DR**: the root pool location is cluster-local (see Constraints and assumptions), so the
+  source realm and a pull realm (`spec.pull.endpoint` set) may resolve different locations without
+  affecting `realm pull` or replication. Setting `namespacedRootPool` uniformly across the clusters
+  is still recommended. The cephx separation and the decoupling benefits apply only to the clusters
+  where the realm is namespaced. Each cluster's resolved location is surfaced in its realm and store
+  statuses (see Observability).
 - **Out-of-band tooling**: flag-less `radosgw-admin` (e.g. the toolbox) resolves the default
   `.rgw.root` and will not see namespaced realms unless the four root-pool options are passed explicitly.
 - **External-mode stores**: an external-mode CephObjectStore runs no local RGW daemons and
@@ -407,9 +408,6 @@ Test planning (unit and end-to-end) is deferred to the implementation PR.
   `radosgw-admin` through the mgr as `-n mgr.<id>` with no `rgw_*_root_pool` flags
   (`mgr_module.py send_rgwadmin_command`), so it resolves the default `.rgw.root` and cannot see or
   deal with namespaced root pools. Rook cannot fix this.
-- In multisite DR the field must be kept identical across independently managed clusters. Rook
-  performs no active detection of a mismatch and diagnosing one requires manually comparing the two
-  clusters' statuses (see Operational notes).
 - There is no cluster-wide default realm spanning namespaced realms (see Operational notes).
 
 ## Alternatives
