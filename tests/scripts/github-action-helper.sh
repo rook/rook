@@ -264,11 +264,8 @@ function check_empty_file() {
   fi
 }
 
-function build_rook() {
-  build_type=build
-  if [ -n "$1" ]; then
-    build_type=$1
-  fi
+function make_build_with_retry() {
+  local build_type="${1:-build}"
   GOPATH=$(go env GOPATH) make clean
   for _ in $(seq 1 3); do
     # capture stderr too: go/make write network errors (the strings
@@ -300,9 +297,22 @@ function build_rook() {
         ;;
       esac
     fi
-    # no errors so we break the loop after the first iteration
-    break
+    # no errors so we are done
+    return 0
   done
+  # every attempt hit a network error; falling out of the loop would return 0
+  # and leave the caller tagging an image that was never built
+  echo "build failed after 3 attempts with the following log:"
+  echo "$o"
+  exit 1
+}
+
+function build_rook() {
+  build_type=build
+  if [ -n "$1" ]; then
+    build_type=$1
+  fi
+  make_build_with_retry "$build_type"
   # validate build
   tests/scripts/validate_modified_files.sh build
   docker images
@@ -324,6 +334,17 @@ function ensure_kind_is_available() {
   }
 }
 
+function ensure_kind_cluster_exists() {
+  # Without this an absent or renamed cluster makes `kind get nodes` print
+  # nothing, so an import loop over it silently does nothing and returns 0.
+  ensure_kind_is_available
+  local cluster="${KIND_CLUSTER_NAME:-kind}"
+  if ! kind get clusters 2>/dev/null | grep -qx "$cluster"; then
+    echo "no kind cluster '$cluster'" >&2
+    exit 1
+  fi
+}
+
 function load_image_into_cluster() {
   # Under kind, a locally built image lives only in the host docker daemon and must be
   # explicitly imported into each cluster node's containerd before any pod can run it.
@@ -332,16 +353,65 @@ function load_image_into_cluster() {
   # the node's containerd config, and the kind version bundled with helm/kind-action cannot read
   # the config version shipped by current kindest/node images ("unknown containerd config
   # version: 4"). Piping `docker save` into the node's ctr sidesteps that version mismatch.
-  ensure_kind_is_available
+  ensure_kind_cluster_exists
   local image="${1?image is required}"
   local cluster="${KIND_CLUSTER_NAME:-kind}"
-  if ! kind get clusters 2>/dev/null | grep -qx "$cluster"; then
-    echo "load_image_into_cluster: no kind cluster '$cluster'" >&2
-    exit 1
-  fi
   local node
   for node in $(kind get nodes --name "$cluster"); do
     docker save "$image" | docker exec -i "$node" ctr --namespace=k8s.io images import -
+  done
+}
+
+function build_rook_image_artifact() {
+  make_build_with_retry build
+  tests/scripts/validate_modified_files.sh build
+  local build_image version
+  build_image="$(docker images | awk '/build-/ {print $1}')"
+  version="$(cat _output/version)"
+  docker tag "$build_image" docker.io/rook/ceph:local-build
+  docker tag "$build_image" "rook/ceph:${version}"
+  mkdir -p _output/ci-image
+  # stream through zstd rather than writing the tar first; it is 1.6 GB and the
+  # runner has already had to free disk space to get this far
+  docker save "$build_image" docker.io/rook/ceph:local-build "rook/ceph:${version}" |
+    zstd -T0 -3 -o _output/ci-image/rook-image.tar.zst
+  cp _output/version _output/ci-image/version
+  # `make build` also runs helm.build, which fetches each chart's dependencies
+  # into gitignored paths. Consumers install the charts from the source tree and
+  # never run a build, so the artifact has to carry these too.
+  tar -czf _output/ci-image/helm-deps.tar.gz \
+    deploy/charts/rook-ceph/charts \
+    deploy/charts/rook-ceph-cluster/charts \
+    deploy/charts/rook-ceph/Chart.lock \
+    deploy/charts/rook-ceph-cluster/Chart.lock
+}
+
+function load_rook_image_artifact() {
+  # The artifact is already in `docker save` format, so it feeds the node's ctr
+  # directly and the host docker daemon is never involved.
+  ensure_kind_cluster_exists
+  mkdir -p _output
+  cp _output/ci-image/version _output/version
+  tar -xzf _output/ci-image/helm-deps.tar.gz
+  local cluster="${KIND_CLUSTER_NAME:-kind}"
+  local node
+  for node in $(kind get nodes --name "$cluster"); do
+    zstd -dc _output/ci-image/rook-image.tar.zst |
+      docker exec -i "$node" ctr --namespace=k8s.io images import -
+    # A multi-reference `docker save` piped into `ctr images import` is new
+    # here, so check every tag registered rather than letting a partial import
+    # surface later as an ImagePullBackOff.
+    # ctr normalizes an archive's RepoTags to fully-qualified refs, so the
+    # version tag saved as rook/ceph:<version> lands as docker.io/rook/ceph:<version>
+    local imported tag
+    imported="$(docker exec "$node" ctr --namespace=k8s.io images ls -q)"
+    for tag in "docker.io/rook/ceph:local-build" "docker.io/rook/ceph:$(cat _output/version)"; do
+      if ! grep -qx "$tag" <<<"$imported"; then
+        echo "$tag missing from $node after import; imported:" >&2
+        echo "$imported" >&2
+        exit 1
+      fi
+    done
   done
 }
 
@@ -993,12 +1063,6 @@ function test_multisite_object_replication() {
   write_object_read_from_replica_cluster "$cluster_2_ip" "$cluster_1_ip" test2 zone-b zone-a rook-ceph
 }
 
-function create_helm_tag() {
-  helm_tag="$(cat _output/version)"
-  build_image="$(docker images | awk '/build-/ {print $1}')"
-  docker tag "${build_image}" "rook/ceph:${helm_tag}"
-  load_image_into_cluster "rook/ceph:${helm_tag}"
-}
 
 function test_multus_connections() {
   EXEC='kubectl -n rook-ceph exec -t deploy/rook-ceph-tools -- ceph --connect-timeout 10'

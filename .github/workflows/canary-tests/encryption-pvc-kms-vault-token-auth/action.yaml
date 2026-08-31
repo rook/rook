@@ -1,0 +1,120 @@
+name: encryption-pvc-kms-vault-token-auth
+description: Run the encryption-pvc-kms-vault-token-auth canary test against the prebuilt rook image
+inputs:
+  ceph-image:
+    description: Ceph image to create the cluster with
+    required: true
+  kubernetes-version:
+    description: kubernetes version to create the cluster with
+    required: true
+  rook-image-artifact:
+    description: name of a prebuilt rook image artifact to import; empty builds rook in-job
+    required: false
+    default: ""
+  use-tmate:
+    description: the USE_TMATE secret, for pre-job debugging
+    required: false
+    default: ""
+  artifact-name:
+    description: name to publish collected logs under
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: consider (pre-job) debugging
+      uses: ./.github/workflows/tmate_debug
+      with:
+        use-tmate: ${{ inputs.use-tmate }}
+        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
+    - name: setup cluster resources
+      uses: ./.github/workflows/integration-test-setup-cluster-resources
+      with:
+        kubernetes-version: ${{ inputs.kubernetes-version }}
+        rook-image-artifact: ${{ inputs.rook-image-artifact }}
+
+    - name: set Ceph version in CephCluster manifest
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ inputs.ceph-image }}"
+
+    - name: use local disk and create partitions for osds
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh use_local_disk
+        tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+    - name: create cluster prerequisites
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+        export BLOCK
+        tests/scripts/localPathPV.sh "$BLOCK"
+        tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+    - name: deploy vault
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/deploy-validate-vault.sh deploy
+
+    - name: deploy cluster
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+        cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+        yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+        kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+        yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
+        yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_BACKEND_PATH" rook/ver2
+        kubectl create -f tests/manifests/test-object.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+    - name: wait for prepare pod
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
+
+    - name: wait for ceph to be ready
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+        tests/scripts/validate_cluster.sh rgw my-store
+        kubectl -n rook-ceph get pods
+        kubectl -n rook-ceph get secrets
+
+    - name: validate osd vault
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/deploy-validate-vault.sh validate_osd
+        sudo lsblk
+
+    - name: wait and verify key rotation
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/deploy-validate-vault.sh validate_key_rotation rook/ver1
+
+    - name: validate rgw vault kv
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/deploy-validate-vault.sh validate_rgw
+
+    - name: validate rgw vault transit
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        kubectl delete -f tests/manifests/test-object.yaml
+        yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_SECRET_ENGINE" transit
+        timeout 120 bash -c 'while kubectl -n rook-ceph get cephobjectstore my-store; do echo "waiting for objectstore my-store to delete"; sleep 5; done'
+        echo "wait for rgw pod to be deleted"
+        kubectl wait --for=delete pod -l app=rook-ceph-rgw -n rook-ceph --timeout=100s
+        kubectl create -f tests/manifests/test-object.yaml
+        tests/scripts/validate_cluster.sh rgw my-store
+        tests/scripts/deploy-validate-vault.sh validate_rgw
+
+    - name: collect common logs
+      if: always()
+      uses: ./.github/workflows/collect-logs
+      with:
+        name: ${{ inputs.artifact-name }}
+    - name: consider (post-job) debugging
+      uses: ./.github/workflows/upterm_debug
+      with:
+        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}

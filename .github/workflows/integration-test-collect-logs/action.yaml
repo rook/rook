@@ -1,0 +1,47 @@
+# The canary tests use ./.github/workflows/collect-logs instead; the go
+# integration tests write their logs elsewhere and publish them differently.
+name: Integration test log collector
+description: Collect go integration test logs, publish them, and offer post-job debugging
+inputs:
+  artifact-name:
+    description: name to publish the collected logs under
+    required: true
+  cluster-namespaces:
+    description: space-separated CephCluster namespaces to collect from
+    required: true
+  operator-namespace:
+    description: operator namespace; empty means it matches the cluster namespace
+    required: false
+    default: ""
+  upload-on:
+    description: '"failure" to publish logs only when the suite failed, "always" either way'
+    required: false
+    default: failure
+
+runs:
+  using: "composite"
+  steps:
+    - name: collect common logs
+      if: always()
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      env:
+        CLUSTER_NAMESPACES: ${{ inputs.cluster-namespaces }}
+        OPERATOR_NAMESPACE: ${{ inputs.operator-namespace }}
+      run: |
+        export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+        export OPERATOR_NAMESPACE
+        for ns in $CLUSTER_NAMESPACES; do
+          CLUSTER_NAMESPACE="$ns" tests/scripts/collect-logs.sh
+        done
+
+    - name: Artifact
+      if: ${{ inputs.upload-on == 'always' || failure() }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+    - name: consider (post-job) debugging
+      uses: ./.github/workflows/upterm_debug
+      with:
+        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
