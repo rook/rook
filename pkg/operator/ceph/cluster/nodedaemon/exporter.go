@@ -306,36 +306,38 @@ func applyCephExporterLabels(cephCluster cephv1.CephCluster, serviceMonitor *mon
 	}
 }
 
-// deleteOrphanedExporterDeployments lists all ceph-exporter deployments in the given namespace
-// and deletes any whose target node (stored in the node_name label) no longer exists in the cluster.
-// This cleans up stale Pending exporter pods that were left behind when a node was removed while
-// the operator was not running.
-func (r *ReconcileNode) deleteOrphanedExporterDeployments(namespace string) error {
+// deleteOrphanedNodeDaemonDeployments lists all crash collector and ceph-exporter
+// deployments in the given namespace and deletes any whose target node (stored in
+// the node_name label) no longer exists in the cluster. This cleans up stale
+// deployments that were left behind when nodes were removed while the operator
+// was not running.
+func (r *ReconcileNode) deleteOrphanedNodeDaemonDeployments(namespace string) error {
 	deploymentList := &appsv1.DeploymentList{}
 	err := r.client.List(r.opManagerContext, deploymentList,
-		client.MatchingLabels{k8sutil.AppAttr: cephExporterAppName},
+		client.HasLabels{NodeNameLabel},
 		client.InNamespace(namespace),
 	)
 	if err != nil {
-		return errors.Wrapf(err, "failed to list exporter deployments in namespace %q", namespace)
+		return errors.Wrapf(err, "failed to list node daemon deployments in namespace %q", namespace)
 	}
 
 	for i := range deploymentList.Items {
 		d := deploymentList.Items[i]
-		nodeName, ok := d.Labels[NodeNameLabel]
-		if !ok {
+		appName := d.Labels[k8sutil.AppAttr]
+		if appName != CrashCollectorAppName && appName != cephExporterAppName {
 			continue
 		}
+		nodeName := d.Labels[NodeNameLabel]
 		node := &corev1.Node{}
 		err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: nodeName}, node)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				log.NamespacedInfo(namespace, logger, "deleting orphaned ceph-exporter deployment %q: target node %q no longer exists", d.Name, nodeName)
+				log.NamespacedInfo(namespace, logger, "deleting orphaned %q deployment %q: target node %q no longer exists", appName, d.Name, nodeName)
 				if delErr := r.deleteDeployment(d); delErr != nil {
-					return errors.Wrapf(delErr, "failed to delete orphaned exporter deployment %q in namespace %q", d.Name, namespace)
+					return errors.Wrapf(delErr, "failed to delete orphaned %q deployment %q in namespace %q", appName, d.Name, namespace)
 				}
 			} else {
-				return errors.Wrapf(err, "failed to check existence of node %q for exporter deployment %q", nodeName, d.Name)
+				return errors.Wrapf(err, "failed to check existence of node %q for %q deployment %q", nodeName, appName, d.Name)
 			}
 		}
 	}
