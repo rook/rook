@@ -502,11 +502,16 @@ Potential problems with this approach:
 
 - **A third channel for the same options** (startup flags, `radosgw-admin` arguments, mon config
   database): harder to see where an effective value comes from when debugging.
-- **Stale entries on cephx user name reuse?** The cephx user name is derived from the
+- **Stale entries on cephx user name reuse.** The cephx user name is derived from the
   CephObjectStore name, so a recreated CephObjectStore of the same name would address the same
-  mon config section. Not a problem in practice: Rook deletes the cephx user and its mon config
-  section when the CephObjectStore is deleted, so a same-named successor starts with a fresh
-  cephx user and an empty section — the entries are never inherited.
+  mon config section. Deletion-time cleanup is best-effort. A failed removal is only logged and
+  the finalizer is released regardless, so a same-named successor can inherit the four entries.
+  A successor created with `namespacedRootPool: false` emits no root-pool flags of its own. The
+  inherited entries would then take effect and its daemons would silently resolve the old
+  namespace. The backstop therefore prunes at create time instead of relying on delete-time
+  cleanup. On every reconcile of a store whose resolved layout is not namespaced, Rook deletes
+  the four keys from the store's mon-config section before writing its own configuration, so
+  no-inheritance holds by construction.
 - **Collision between `rgwConfig` and operator-written config.**
   `spec.gateway.rgwConfig` lets users set arbitrary RGW options in the same mon config section,
   so a user-provided value for a root-pool option would collide with the value the operator writes.
