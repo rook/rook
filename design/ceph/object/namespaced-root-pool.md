@@ -20,8 +20,11 @@ To mitigate this we propose a new `namespacedRootPool` feature.
 
 - **Enabling realm separation at the cephx level.** With `namespacedRootPool` and `sharedPools`
   together, a realm's entire RADOS footprint (data, metadata, and topology) would lie in
-  distinct RADOS namespaces. A Rook user could then achieve cephx-enforced realm separation by manually provisioning an RGW instance with a cephx user scoped to those namespaces. Rook
-  itself would not create or manage such scoped users for RGW instances.
+  distinct RADOS namespaces. A Rook user could then achieve cephx-enforced realm separation by manually provisioning an RGW instance with a cephx user scoped to those namespaces (the user's mon caps must use the [`profile rgw`](https://github.com/ceph/ceph/pull/70538) cap profile; a bare `mon 'allow rw'` would undermine the separation).
+  Separating realms like this closes confidentiality gaps between realms. For example, the zone record in `.rgw.root` carries the realm's `system_key` (the
+  credentials used for multisite replication) in cleartext, so under broad OSD
+  capabilities any RGW can read another realm's replication credentials out of the
+  shared pool. An OSD capability scoped to the realm's namespaces stops that read.
 - **Decrease coupling of realms stored in the same `.rgw.root` pool.** If every realm shares a `.rgw.root` pool then every `radosgw-admin` invocation can reach any realm, so a wrong `--rgw-realm`, a default-realm-fallback commit, or a `realm list` delete sweep can hit a neighboring realm. Invoking any `radosgw-admin` command against a namespace-separated realm would not influence realms living in other namespaces.
 
     Keeping each realm in a separate RADOS namespace would also help with:
@@ -51,7 +54,7 @@ To mitigate this we propose a new `namespacedRootPool` feature.
 - Changing the `sharedPools` data/metadata model or its API.
 - Access control. This feature would control the placement of topology records. It would not change
   what any RGW daemon or client is authorized to read or write. It would, however, arrange the
-  layout so that users can apply namespace-scoped cephx capabilities themselves.
+  layout that namespace-scoped cephx capabilities require (see Motivation).
 
 ### Constraints and assumptions
 
