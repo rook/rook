@@ -407,7 +407,11 @@ Test planning (unit and end-to-end) is deferred to the implementation PR.
   multisite management (realm/zone-group/zone create and list, period, replication setup) runs
   `radosgw-admin` through the mgr as `-n mgr.<id>` with no `rgw_*_root_pool` flags
   (`mgr_module.py send_rgwadmin_command`), so it resolves the default `.rgw.root` and cannot see or
-  deal with namespaced root pools. Rook cannot fix this.
+  deal with namespaced root pools. Pointing the mgr at a namespaced realm via the mon config
+  database (`ceph config set mgr rgw_realm_root_pool ...`) would be honored, but mon-config masks
+  cannot express a per-realm scope, so exactly one root-pool location is addressable and every
+  other realm would disappear from the dashboard. Serving multiple realms is the case this feature
+  exists for, so the limitation stays and a fix belongs upstream.
 - There is no cluster-wide default realm spanning namespaced realms (see Operational notes).
 
 ## Alternatives
