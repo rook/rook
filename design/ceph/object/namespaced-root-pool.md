@@ -189,6 +189,13 @@ entry.
 Ceph uses these four options, `rgw_realm_root_pool`, `rgw_zonegroup_root_pool`,
 `rgw_zone_root_pool`, and `rgw_period_root_pool`, to set the RGW root pool (default is `.rgw.root`). Ceph parses each value as `pool[:namespace]`, so setting them to `.rgw.root:<realm-name>` keeps the same pool but confines the records to a RADOS namespace. When a realm's resolved layout is namespaced, Rook should set all four options to `.rgw.root:<realm-name>`. This must be propagated on every `radosgw-admin` call and in the RGW daemon's startup flags (its pod container arguments).
 
+When the resolved layout is not namespaced, Rook should emit none of the four options and keep
+today's behavior. Emitting them unconditionally, with `.rgw.root` for an un-namespaced layout,
+would silently take over the options for stores that never opted into this feature but customized
+their root pool via `rgwConfig` or ceph.conf (see risk 5). Leaving the options unset there is a
+deliberate exception to the no-reliance-on-defaults motivation, since being explicit would override
+user customization.
+
 ### How do controllers get the correct root pool location?
 
 Every controller that issues a `radosgw-admin` command, and every RGW pod that is rendered, needs to
