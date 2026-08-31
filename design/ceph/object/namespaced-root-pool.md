@@ -164,7 +164,7 @@ The rule that a store joining a zone cannot own its realm is a whole-object CEL 
 
 CEL validation rules run on every write, not only at creation. This matters because `zone.name` is
 mutable. A create-time-only check would accept a namespaced standalone store that is later changed to
-join a zone. The rejection of root-pool options in `spec.gateway.rgwConfig` (risk 5) is
+join a zone. The rejection of root-pool options in the gateway spec (risk 5) is
 enforced in the controller.
 
 Status:
@@ -325,12 +325,17 @@ sequenceDiagram
    - Mitigation: see the **Deletion is skipped if root pool location cannot be resolved** paragraph.
 4. **Operator downgrade.** A downgraded Rook operator does not know how to use the `namespacedRootPool` option and therefore uses the root pool default location `.rgw.root`, which shares the pool among realms. It may then create a new realm there even though the newer operator had provisioned a `namespacedRootPool` realm that lives in a namespace of `.rgw.root`.
     - Mitigation: Such a scenario is not tackled by this design. See Open Question 2 on operator downgrade.
-5. **RGW Root Pool options redefined in `spec.gateway.rgwConfig`.** A user can specify `rgw_realm_root_pool`,
+5. **RGW root pool options redefined in the gateway spec.** A user can specify `rgw_realm_root_pool`,
 `rgw_zonegroup_root_pool`, `rgw_zone_root_pool`, `rgw_period_root_pool`, or the obsolete
-`rgw_region_root_pool` via `spec.gateway.rgwConfig`. This can collide with values set by `namespacedRootPool`.
+`rgw_region_root_pool` through three channels: `spec.gateway.rgwConfig`,
+`spec.gateway.rgwConfigFromSecret` and
+`spec.gateway.rgwCommandFlags`. Any of them can collide with values set by
+`namespacedRootPool`.
     - Mitigation: For stores whose resolved layout is namespaced, such overriding should be
-      **rejected as an invalid spec**. Stores that do not use `namespacedRootPool` keep today's
-      `rgwConfig` behavior.
+      **rejected as an invalid spec**, and the rejection should compare normalized option names,
+      since Ceph accepts `rgw zone root pool` as a spelling of `rgw_zone_root_pool` and a literal
+      match would let the whitespace spelling through. Stores that do not use `namespacedRootPool`
+      keep today's behavior in all three channels.
 
 #### The `.rgw.root` occupancy check (mitigation of risk 1)
 
