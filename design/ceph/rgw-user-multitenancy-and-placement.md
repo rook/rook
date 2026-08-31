@@ -392,13 +392,16 @@ already transmits one) and is listed under [Future work](#future-work).
   tagged placement target when one of the user's tags matches. It is
   deferred because (a) its enabling half, tags on zonegroup placement
   targets, has no Rook API (`PoolPlacementSpec` would need a `tags` field);
-  (b) client support exists only in unreleased go-ceph
-  ([go-ceph#1290](https://github.com/ceph/go-ceph/pull/1290)); and (c) tags
-  cannot be cleared through the admin ops API once set
+  (b) client support requires a `go.mod` bump — Rook currently pins go-ceph
+  v0.40.0, which predates `PlacementTags` support
+  ([go-ceph#1290](https://github.com/ceph/go-ceph/pull/1290), merged
+  2026-07-09 and released in go-ceph v0.41.0 on 2026-08-11 — the dependency
+  itself is released, only Rook's pin is behind); and (c) tags cannot be
+  cleared through the admin ops API once set
   ([tracker 79090](https://tracker.ceph.com/issues/79090)). When revisited:
   the field is named `placementTags` (it is not scoped to the default
-  placement), ships together with `PoolPlacementSpec.tags`, and gates on a
-  released go-ceph.
+  placement), ships together with `PoolPlacementSpec.tags`, and gates on
+  bumping Rook's go-ceph pin to v0.41.0+.
 - **Revert-on-removal** for the placement fields, once
   [tracker 79090](https://tracker.ceph.com/issues/79090) and
   [go-ceph#1307](https://github.com/ceph/go-ceph/issues/1307) are in Rook's
