@@ -1,0 +1,143 @@
+name: pvc
+description: Run the pvc canary test against the prebuilt rook image
+inputs:
+  ceph-image:
+    description: Ceph image to create the cluster with
+    required: true
+  kubernetes-version:
+    description: kubernetes version to create the cluster with
+    required: true
+  rook-image-artifact:
+    description: name of a prebuilt rook image artifact to import; empty builds rook in-job
+    required: false
+    default: ""
+  use-tmate:
+    description: the USE_TMATE secret, for pre-job debugging
+    required: false
+    default: ""
+  artifact-name:
+    description: name to publish collected logs under
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: consider (pre-job) debugging
+      uses: ./.github/workflows/tmate_debug
+      with:
+        use-tmate: ${{ inputs.use-tmate }}
+        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
+    - name: setup cluster resources
+      uses: ./.github/workflows/integration-test-setup-cluster-resources
+      with:
+        kubernetes-version: ${{ inputs.kubernetes-version }}
+        rook-image-artifact: ${{ inputs.rook-image-artifact }}
+
+    - name: set Ceph version in CephCluster manifest
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ inputs.ceph-image }}"
+
+    - name: partition the first disk for OSDs
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        # the first disk is split into two partitions (one OSD each); the
+        # second disk (provisioned by find_second_block_dev) is used whole as
+        # the 3rd OSD
+        tests/scripts/github-action-helper.sh use_local_disk
+        tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+    - name: create cluster prerequisites
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+        export BLOCK
+        EXTRA_DEV="$(tests/scripts/github-action-helper.sh find_second_block_dev)"
+        tests/scripts/localPathPV.sh "$BLOCK"
+        tests/scripts/blockDevicePV.sh "/dev/$EXTRA_DEV"
+        tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+    - name: deploy cluster
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 3
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+        kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+    - name: wait for prepare pod
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 3
+
+    - name: wait for ceph to be ready
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 3
+
+    - name: check-ownerreferences
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+    - name: teardown cluster with cleanup policy
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh delete_cluster
+        lsblk
+        BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+        export BLOCK
+        EXTRA_DEV="$(tests/scripts/github-action-helper.sh find_second_block_dev)"
+        sudo head --bytes=60 "${BLOCK}1"
+        sudo head --bytes=60 "${BLOCK}2"
+        sudo head --bytes=60 "/dev/$EXTRA_DEV"
+
+    - name: recreate cluster prerequisites
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+        export BLOCK
+        EXTRA_DEV="$(tests/scripts/github-action-helper.sh find_second_block_dev)"
+        tests/scripts/localPathPV.sh "$BLOCK"
+        tests/scripts/blockDevicePV.sh "/dev/$EXTRA_DEV"
+        tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+    - name: redeploy cluster
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+        kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+    - name: wait for prepare pod
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 3
+
+    - name: wait for ceph to be ready
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 3
+
+    - name: check-ownerreferences
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+    - name: teardown cluster with cleanup policy
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh delete_cluster
+        lsblk
+        BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+        export BLOCK
+        EXTRA_DEV="$(tests/scripts/github-action-helper.sh find_second_block_dev)"
+        sudo head --bytes=60 "${BLOCK}1"
+        sudo head --bytes=60 "${BLOCK}2"
+        sudo head --bytes=60 "/dev/$EXTRA_DEV"
+
+    - name: collect common logs
+      if: always()
+      uses: ./.github/workflows/collect-logs
+      with:
+        name: ${{ inputs.artifact-name }}
+    - name: consider (post-job) debugging
+      uses: ./.github/workflows/upterm_debug
+      with:
+        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}

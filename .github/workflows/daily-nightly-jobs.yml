@@ -19,340 +19,104 @@ env:
   GOFLAGS: "-tags=ceph_preview"
 
 jobs:
-  canary-arm64:
+  build-rook-image-amd64:
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: true # removes old golang version but saves ~6GB
+          large-packages: false # takes a long time to run b/c package mgr
+          android: false # takes a long time to run b/c package mgr
+          dotnet: false # takes a long time to run b/c package mgr
+          haskell: false # takes a long time to run b/c package mgr
+
+      - name: setup golang
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
+
+      - name: build rook image
+        run: tests/scripts/github-action-helper.sh build_rook_image_artifact
+
+      - name: upload rook image
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rook-image-amd64
+          path: _output/ci-image
+          retention-days: 7
+          # the payload is already zstd-compressed
+          compression-level: 0
+          overwrite: true
+
+  build-rook-image-arm64:
+    if: github.repository == 'rook/rook'
     runs-on: [ubuntu-22.04-arm]
-    if: github.repository == 'rook/rook'
-
+    timeout-minutes: 40
     steps:
       - name: checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+          tool-cache: true # removes old golang version but saves ~6GB
+          large-packages: false # takes a long time to run b/c package mgr
+          android: false # takes a long time to run b/c package mgr
+          dotnet: false # takes a long time to run b/c package mgr
+          haskell: false # takes a long time to run b/c package mgr
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
+      - name: setup golang
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          kubernetes-version: "v1.36.1"
+          go-version: "1.26"
 
-      - name: validate-yaml
-        run: tests/scripts/github-action-helper.sh validate_yaml
+      - name: build rook image
+        run: tests/scripts/github-action-helper.sh build_rook_image_artifact
 
-      - name: use local disk and create partitions for osds
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-      - name: deploy cluster
-        run: |
-          # Use the official build images for the nightly arm tests instead of rebuilding
-          export USE_LOCAL_BUILD=false
-          # removing liveness probes since the env is slow and the probe is killing the daemons
-          yq write -d0 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mon.disabled" true
-          yq write -d0 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mgr.disabled" true
-          yq write -d0 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.osd.disabled" true
-          tests/scripts/github-action-helper.sh deploy_cluster
-          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
-
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: canary-arm64
-
-  smoke-suite-squid-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
-        with:
-          kubernetes-version: "v1.36.1"
-
-      - name: TestCephSmokeSuite
-        run: |
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="squid-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
-
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="smoke-ns"
-          export OPERATOR_NAMESPACE="smoke-ns-system"
-          tests/scripts/collect-logs.sh
-
-      - name: Artifact
+      - name: upload rook image
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
         with:
-          name: ceph-smoke-suite-squid-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+          name: rook-image-arm64
+          path: _output/ci-image
+          retention-days: 7
+          # the payload is already zstd-compressed
+          compression-level: 0
+          overwrite: true
 
-  smoke-suite-tentacle-devel:
+  canary-arm64:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
+    needs: build-rook-image-arm64
+    uses: ./.github/workflows/ceph-arm64-suite-test.yml
+    with:
+      rook_image_artifact: rook-image-arm64
+      ceph_images: '["quay.io/ceph/ceph:v20"]'
+    secrets: inherit
 
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
-        with:
-          kubernetes-version: "v1.36.1"
-
-      - name: TestCephSmokeSuite
-        run: |
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="tentacle-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
-
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="smoke-ns"
-          export OPERATOR_NAMESPACE="smoke-ns-system"
-          tests/scripts/collect-logs.sh
-
-      - name: Artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: ceph-smoke-suite-tentacle-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
-  smoke-suite-ceph-main:
+  ceph-suite-tests:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
-        with:
-          kubernetes-version: "v1.36.1"
-
-      - name: TestCephSmokeSuite
-        run: |
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
-
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="smoke-ns"
-          export OPERATOR_NAMESPACE="smoke-ns-system"
-          tests/scripts/collect-logs.sh
-
-      - name: Artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: ceph-smoke-suite-main-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
-  object-suite-ceph-main:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
-        with:
-          kubernetes-version: "v1.36.1"
-
-      - name: TestCephObjectSuite (without TLS)
-        run: |
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -failfast -run CephObjectSuite/TestWithoutTLS github.com/rook/rook/tests/integration
-
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="object-ns"
-          export OPERATOR_NAMESPACE="object-ns-system"
-          tests/scripts/collect-logs.sh
-
-      - name: Artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: ceph-object-suite-main-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
-  object-suite-tls-ceph-main:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          fetch-depth: 0
-
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
-        with:
-          kubernetes-version: "v1.36.1"
-
-      - name: TestCephObjectSuiteTLS
-        run: |
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -failfast -run CephObjectSuite/TestWithTLS github.com/rook/rook/tests/integration
-
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="object-ns"
-          export OPERATOR_NAMESPACE="object-ns-system"
-          tests/scripts/collect-logs.sh
-
-      - name: Artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: ceph-object-suite-tls-main-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
-  upgrade-from-squid-stable-to-squid-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
-        with:
-          kubernetes-version: "v1.36.1"
-
-      - name: TestCephUpgradeSuite
-        run: |
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToSquidDevel github.com/rook/rook/tests/integration
-
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="upgrade"
-          export OPERATOR_NAMESPACE="upgrade-system"
-          tests/scripts/collect-logs.sh
-
-      - name: Artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: ceph-upgrade-suite-squid-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
-  upgrade-from-tentacle-stable-to-tentacle-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup-cluster-resources
-        with:
-          kubernetes-version: "v1.36.1"
-
-      - name: TestCephUpgradeSuite
-        run: |
-          DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          export DEVICE_FILTER
-          go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToTentacleDevel github.com/rook/rook/tests/integration
-
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="upgrade"
-          export OPERATOR_NAMESPACE="upgrade-system"
-          tests/scripts/collect-logs.sh
-
-      - name: Artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: ceph-upgrade-suite-tentacle-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+    needs: build-rook-image-amd64
+    uses: ./.github/workflows/ceph-suite-integration-test.yml
+    with:
+      ceph_suite_versions: '["squid-devel", "tentacle-devel", "main"]'
+      object_suite_tests: '["TestWithoutTLS", "TestWithTLS"]'
+      rook_image_artifact: rook-image-amd64
+    secrets: inherit
 
   canary-tests:
     if: github.repository == 'rook/rook'
+    needs: build-rook-image-amd64
     uses: ./.github/workflows/canary-integration-test.yml
     with:
+      rook_image_artifact: rook-image-amd64
       ceph_images: '["quay.io/ceph/ceph:v19", "quay.io/ceph/ceph:v20", "quay.ceph.io/ceph-ci/ceph:main", "quay.ceph.io/ceph-ci/ceph:squid", "quay.ceph.io/ceph-ci/ceph:tentacle"]'
     secrets: inherit
