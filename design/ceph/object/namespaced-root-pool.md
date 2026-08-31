@@ -347,12 +347,26 @@ Rook should therefore verify that no RADOS namespace in the pool still holds a r
    the only way to discover which namespaces exist at all, because a RADOS namespace has no existence
    apart from the objects that carry it.
 2. For every detected RADOS namespace, run `radosgw-admin realm list` with the four root-pool options
-   pointed at the namespace's root pool location. If any location reports a realm, the pool is still
-   in use and the delete is refused.
+   pointed at the namespace's root pool location.
 
-Step 1 discovers the RADOS namespaces in the pool and step 2 checks whether any of them holds a realm.
-Rook runs the check right before it deletes the pool. At that point the store's own realm records are
-already deleted, so the store never blocks its own teardown.
+The check has three outcomes, and only one of them deletes `.rgw.root`:
+
+- **Provably empty**: every command succeeded and no location reports a realm. `.rgw.root` stays in
+  the delete set.
+- **Occupied**: a location reports a realm. `.rgw.root` is still in use and is dropped from the
+  delete set.
+- **Inconclusive**: the namespace listing or a `realm list` fails or times out. The check cannot
+  prove `.rgw.root` is unused, so this counts as occupied. Rook drops `.rgw.root` from the delete
+  set and logs a warning naming the pool and the reason.
+
+The check gates only whether `.rgw.root` joins the delete set. On the occupied and inconclusive
+outcomes the store's own pools are still deleted and the teardown completes, so a refusal never
+wedges the store's deletion, and retaining `.rgw.root` is already the normal outcome whenever
+another realm exists.
+
+Rook runs the check right before it deletes `.rgw.root`. A failed `realm rm` earlier in the
+teardown is only logged, so the check can still find the store's own records and count them as
+occupancy. That outcome retains `.rgw.root` and the teardown still completes, which fails safe.
 
 Listing the whole pool sounds expensive but is not at this size, and the check only runs during a
 delete operation, never in a steady-state reconcile. Rook creates `.rgw.root` with `pg_num` 8, and the
