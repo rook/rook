@@ -34,11 +34,39 @@ import (
 )
 
 // CephCOSIDriverInformer provides access to a shared informer and lister for
-// CephCOSIDrivers.
+// CephCOSIDrivers. Prefer using the type-safe variant (see [TypedCephCOSIDriverInformer]).
 type CephCOSIDriverInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() cephrookiov1.CephCOSIDriverLister
 }
+
+// TypedCephCOSIDriverInformer provides access to a shared informer and lister for
+// CephCOSIDrivers, including the type-safe TypedInformer variant.
+// It is a superset of CephCOSIDriverInformer.
+type TypedCephCOSIDriverInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() CephCOSIDriverIndexInformer
+	Lister() cephrookiov1.CephCOSIDriverLister
+}
+
+// CephCOSIDriverIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type CephCOSIDriverIndexInformer cache.TypedSharedIndexInformer[*apiscephrookiov1.CephCOSIDriver]
+
+// CephCOSIDriverHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for CephCOSIDriver.
+type CephCOSIDriverHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiscephrookiov1.CephCOSIDriver]
+
+// CephCOSIDriverDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for CephCOSIDriver.
+type CephCOSIDriverDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiscephrookiov1.CephCOSIDriver]
+
+// CephCOSIDriverFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for CephCOSIDriver.
+type CephCOSIDriverFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiscephrookiov1.CephCOSIDriver]
+
+// CephCOSIDriverIndexers is a specialization of [cache.TypedIndexers] for CephCOSIDriver.
+type CephCOSIDriverIndexers = cache.TypedIndexers[*apiscephrookiov1.CephCOSIDriver]
+
+// DeletedCephCOSIDriver is a specialization of [cache.DeletedObject] for CephCOSIDriver.
+type DeletedCephCOSIDriver = cache.DeletedObject[*apiscephrookiov1.CephCOSIDriver]
 
 type cephCOSIDriverInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type cephCOSIDriverInformer struct {
 // NewCephCOSIDriverInformer constructs a new informer for CephCOSIDriver type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephCOSIDriverInformer]).
 func NewCephCOSIDriverInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewCephCOSIDriverInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedCephCOSIDriverInformer constructs a new informer for CephCOSIDriver type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephCOSIDriverInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephCOSIDriverIndexers) CephCOSIDriverIndexInformer {
+	return NewTypedCephCOSIDriverInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredCephCOSIDriverInformer constructs a new informer for CephCOSIDriver type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredCephCOSIDriverInformer]).
 func NewFilteredCephCOSIDriverInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewCephCOSIDriverInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedCephCOSIDriverInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredCephCOSIDriverInformer constructs a new informer for CephCOSIDriver type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredCephCOSIDriverInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephCOSIDriverIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) CephCOSIDriverIndexInformer {
+	return NewTypedCephCOSIDriverInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewCephCOSIDriverInformerWithOptions constructs a new informer for CephCOSIDriver type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephCOSIDriverInformerWithOptions]).
 func NewCephCOSIDriverInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedCephCOSIDriverInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedCephCOSIDriverInformerWithOptions constructs a new informer for CephCOSIDriver type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephCOSIDriverInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) CephCOSIDriverIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephcosidrivers"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephCOSIDriver](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewCephCOSIDriverInformerWithOptions(client versioned.Interface, namespace 
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *cephCOSIDriverInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewCephCOSIDriverInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedCephCOSIDriverInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *cephCOSIDriverInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiscephrookiov1.CephCOSIDriver{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *cephCOSIDriverInformer) TypedInformer() CephCOSIDriverIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephCOSIDriver](f.factory.InformerFor(&apiscephrookiov1.CephCOSIDriver{}, f.defaultInformer))
 }
 
 func (f *cephCOSIDriverInformer) Lister() cephrookiov1.CephCOSIDriverLister {
 	return cephrookiov1.NewCephCOSIDriverLister(f.Informer().GetIndexer())
+}
+
+// ToTypedCephCOSIDriverInformer converts an untyped informer into a TypedCephCOSIDriverInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephCOSIDriver. If that is not the case, calling type-safe methods of the returned
+// TypedCephCOSIDriverInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedCephCOSIDriverInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedCephCOSIDriverInformer(informer CephCOSIDriverInformer) TypedCephCOSIDriverInformer {
+	if informer, ok := informer.(TypedCephCOSIDriverInformer); ok {
+		return informer
+	}
+	return &cephCOSIDriverTypedInformerAdapter{informer}
+}
+
+type cephCOSIDriverTypedInformerAdapter struct {
+	CephCOSIDriverInformer
+}
+
+func (a *cephCOSIDriverTypedInformerAdapter) TypedInformer() CephCOSIDriverIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephCOSIDriver](a.Informer())
+}
+
+// ToCephCOSIDriverIndexInformer converts an untyped informer into a CephCOSIDriverIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephCOSIDriver. If that is not the case, calling type-safe methods of the returned
+// CephCOSIDriverIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a CephCOSIDriverIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToCephCOSIDriverIndexInformer(informer cache.SharedIndexInformer) CephCOSIDriverIndexInformer {
+	if informer, ok := informer.(CephCOSIDriverIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephCOSIDriver](informer)
 }

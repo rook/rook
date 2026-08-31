@@ -1918,6 +1918,13 @@ spec:
                               grpc:
                                 description: GRPC specifies a GRPC HealthCheckRequest.
                                 properties:
+                                  mode:
+                                    description: |-
+                                      mode specifies the connection mode for the gRPC health probe.
+                                      Set to "TLS" to use TLS without certificate verification.
+                                      Set to "Plaintext" to use a plaintext (insecure) connection explicitly.
+                                      If not specified, the probe uses a plaintext (insecure) connection.
+                                    type: string
                                   port:
                                     description: Port number of the gRPC service. Number must be in the range 1 to 65535.
                                     format: int32
@@ -1972,6 +1979,11 @@ spec:
                                       Number must be in the range 1 to 65535.
                                       Name must be an IANA_SVC_NAME.
                                     x-kubernetes-int-or-string: true
+                                  protocol:
+                                    description: |-
+                                      Protocol selects the wire protocol for the probe connection.
+                                      Nil defaults to HTTP/1.1.
+                                    type: string
                                   scheme:
                                     description: |-
                                       Scheme to use for connecting to the host.
@@ -2086,6 +2098,13 @@ spec:
                               grpc:
                                 description: GRPC specifies a GRPC HealthCheckRequest.
                                 properties:
+                                  mode:
+                                    description: |-
+                                      mode specifies the connection mode for the gRPC health probe.
+                                      Set to "TLS" to use TLS without certificate verification.
+                                      Set to "Plaintext" to use a plaintext (insecure) connection explicitly.
+                                      If not specified, the probe uses a plaintext (insecure) connection.
+                                    type: string
                                   port:
                                     description: Port number of the gRPC service. Number must be in the range 1 to 65535.
                                     format: int32
@@ -2140,6 +2159,11 @@ spec:
                                       Number must be in the range 1 to 65535.
                                       Name must be an IANA_SVC_NAME.
                                     x-kubernetes-int-or-string: true
+                                  protocol:
+                                    description: |-
+                                      Protocol selects the wire protocol for the probe connection.
+                                      Nil defaults to HTTP/1.1.
+                                    type: string
                                   scheme:
                                     description: |-
                                       Scheme to use for connecting to the host.
@@ -2384,8 +2408,8 @@ spec:
                                           * An existing PVC (PersistentVolumeClaim)
                                           If the provisioner or an external controller can support the specified data source,
                                           it will create a new volume based on the contents of the specified data source.
-                                          When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                                          and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                                          dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                                          copied to dataSource when dataSourceRef.namespace is not specified.
                                           If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                                         properties:
                                           apiGroup:
@@ -2428,7 +2452,6 @@ spec:
                                             specified.
                                           * While dataSource only allows local objects, dataSourceRef allows objects
                                             in any namespaces.
-                                          (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                                           (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                                         properties:
                                           apiGroup:
@@ -2608,8 +2631,8 @@ spec:
                                 * An existing PVC (PersistentVolumeClaim)
                                 If the provisioner or an external controller can support the specified data source,
                                 it will create a new volume based on the contents of the specified data source.
-                                When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                                and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                                dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                                copied to dataSource when dataSourceRef.namespace is not specified.
                                 If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                               properties:
                                 apiGroup:
@@ -2652,7 +2675,6 @@ spec:
                                   specified.
                                 * While dataSource only allows local objects, dataSourceRef allows objects
                                   in any namespaces.
-                                (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                                 (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                               properties:
                                 apiGroup:
@@ -2839,8 +2861,8 @@ spec:
                                       * An existing PVC (PersistentVolumeClaim)
                                       If the provisioner or an external controller can support the specified data source,
                                       it will create a new volume based on the contents of the specified data source.
-                                      When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                                      and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                                      dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                                      copied to dataSource when dataSourceRef.namespace is not specified.
                                       If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                                     properties:
                                       apiGroup:
@@ -2883,7 +2905,6 @@ spec:
                                         specified.
                                       * While dataSource only allows local objects, dataSourceRef allows objects
                                         in any namespaces.
-                                      (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                                       (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                                     properties:
                                       apiGroup:
@@ -4323,8 +4344,8 @@ spec:
                                         * An existing PVC (PersistentVolumeClaim)
                                         If the provisioner or an external controller can support the specified data source,
                                         it will create a new volume based on the contents of the specified data source.
-                                        When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                                        and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                                        dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                                        copied to dataSource when dataSourceRef.namespace is not specified.
                                         If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                                       properties:
                                         apiGroup:
@@ -4367,7 +4388,6 @@ spec:
                                           specified.
                                         * While dataSource only allows local objects, dataSourceRef allows objects
                                           in any namespaces.
-                                        (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                                         (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                                       properties:
                                         apiGroup:
@@ -5675,8 +5695,8 @@ spec:
                                         * An existing PVC (PersistentVolumeClaim)
                                         If the provisioner or an external controller can support the specified data source,
                                         it will create a new volume based on the contents of the specified data source.
-                                        When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                                        and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                                        dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                                        copied to dataSource when dataSourceRef.namespace is not specified.
                                         If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                                       properties:
                                         apiGroup:
@@ -5719,7 +5739,6 @@ spec:
                                           specified.
                                         * While dataSource only allows local objects, dataSourceRef allows objects
                                           in any namespaces.
-                                        (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                                         (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                                       properties:
                                         apiGroup:
@@ -5925,8 +5944,8 @@ spec:
                                   * An existing PVC (PersistentVolumeClaim)
                                   If the provisioner or an external controller can support the specified data source,
                                   it will create a new volume based on the contents of the specified data source.
-                                  When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                                  and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                                  dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                                  copied to dataSource when dataSourceRef.namespace is not specified.
                                   If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                                 properties:
                                   apiGroup:
@@ -5969,7 +5988,6 @@ spec:
                                     specified.
                                   * While dataSource only allows local objects, dataSourceRef allows objects
                                     in any namespaces.
-                                  (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                                   (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                                 properties:
                                   apiGroup:
@@ -8463,6 +8481,13 @@ spec:
                             grpc:
                               description: GRPC specifies a GRPC HealthCheckRequest.
                               properties:
+                                mode:
+                                  description: |-
+                                    mode specifies the connection mode for the gRPC health probe.
+                                    Set to "TLS" to use TLS without certificate verification.
+                                    Set to "Plaintext" to use a plaintext (insecure) connection explicitly.
+                                    If not specified, the probe uses a plaintext (insecure) connection.
+                                  type: string
                                 port:
                                   description: Port number of the gRPC service. Number must be in the range 1 to 65535.
                                   format: int32
@@ -8517,6 +8542,11 @@ spec:
                                     Number must be in the range 1 to 65535.
                                     Name must be an IANA_SVC_NAME.
                                   x-kubernetes-int-or-string: true
+                                protocol:
+                                  description: |-
+                                    Protocol selects the wire protocol for the probe connection.
+                                    Nil defaults to HTTP/1.1.
+                                  type: string
                                 scheme:
                                   description: |-
                                     Scheme to use for connecting to the host.
@@ -9183,6 +9213,13 @@ spec:
                             grpc:
                               description: GRPC specifies a GRPC HealthCheckRequest.
                               properties:
+                                mode:
+                                  description: |-
+                                    mode specifies the connection mode for the gRPC health probe.
+                                    Set to "TLS" to use TLS without certificate verification.
+                                    Set to "Plaintext" to use a plaintext (insecure) connection explicitly.
+                                    If not specified, the probe uses a plaintext (insecure) connection.
+                                  type: string
                                 port:
                                   description: Port number of the gRPC service. Number must be in the range 1 to 65535.
                                   format: int32
@@ -9237,6 +9274,11 @@ spec:
                                     Number must be in the range 1 to 65535.
                                     Name must be an IANA_SVC_NAME.
                                   x-kubernetes-int-or-string: true
+                                protocol:
+                                  description: |-
+                                    Protocol selects the wire protocol for the probe connection.
+                                    Nil defaults to HTTP/1.1.
+                                  type: string
                                 scheme:
                                   description: |-
                                     Scheme to use for connecting to the host.
@@ -9850,6 +9892,9 @@ spec:
                                     defaultMode:
                                       format: int32
                                       type: integer
+                                    defaultUser:
+                                      format: int64
+                                      type: integer
                                     items:
                                       items:
                                         properties:
@@ -9860,6 +9905,9 @@ spec:
                                             type: integer
                                           path:
                                             type: string
+                                          user:
+                                            format: int64
+                                            type: integer
                                         required:
                                           - key
                                           - path
@@ -9877,6 +9925,9 @@ spec:
                                   properties:
                                     medium:
                                       type: string
+                                    mode:
+                                      format: int32
+                                      type: integer
                                     sizeLimit:
                                       anyOf:
                                         - type: integer
@@ -9906,6 +9957,9 @@ spec:
                                   properties:
                                     defaultMode:
                                       format: int32
+                                      type: integer
+                                    defaultUser:
+                                      format: int64
                                       type: integer
                                     sources:
                                       items:
@@ -9946,6 +10000,9 @@ spec:
                                                 type: string
                                               signerName:
                                                 type: string
+                                              user:
+                                                format: int64
+                                                type: integer
                                             required:
                                               - path
                                             type: object
@@ -9961,6 +10018,9 @@ spec:
                                                       type: integer
                                                     path:
                                                       type: string
+                                                    user:
+                                                      format: int64
+                                                      type: integer
                                                   required:
                                                     - key
                                                     - path
@@ -10010,6 +10070,9 @@ spec:
                                                         - resource
                                                       type: object
                                                       x-kubernetes-map-type: atomic
+                                                    user:
+                                                      format: int64
+                                                      type: integer
                                                   required:
                                                     - path
                                                   type: object
@@ -10031,6 +10094,9 @@ spec:
                                                 type: integer
                                               signerName:
                                                 type: string
+                                              user:
+                                                format: int64
+                                                type: integer
                                               userAnnotations:
                                                 additionalProperties:
                                                   type: string
@@ -10051,6 +10117,9 @@ spec:
                                                       type: integer
                                                     path:
                                                       type: string
+                                                    user:
+                                                      format: int64
+                                                      type: integer
                                                   required:
                                                     - key
                                                     - path
@@ -10073,6 +10142,9 @@ spec:
                                                 type: integer
                                               path:
                                                 type: string
+                                              user:
+                                                format: int64
+                                                type: integer
                                             required:
                                               - path
                                             type: object
@@ -10085,6 +10157,9 @@ spec:
                                     defaultMode:
                                       format: int32
                                       type: integer
+                                    defaultUser:
+                                      format: int64
+                                      type: integer
                                     items:
                                       items:
                                         properties:
@@ -10095,6 +10170,9 @@ spec:
                                             type: integer
                                           path:
                                             type: string
+                                          user:
+                                            format: int64
+                                            type: integer
                                         required:
                                           - key
                                           - path
@@ -10126,6 +10204,9 @@ spec:
                                     defaultMode:
                                       format: int32
                                       type: integer
+                                    defaultUser:
+                                      format: int64
+                                      type: integer
                                     items:
                                       items:
                                         properties:
@@ -10136,6 +10217,9 @@ spec:
                                             type: integer
                                           path:
                                             type: string
+                                          user:
+                                            format: int64
+                                            type: integer
                                         required:
                                           - key
                                           - path
@@ -10153,6 +10237,9 @@ spec:
                                   properties:
                                     medium:
                                       type: string
+                                    mode:
+                                      format: int32
+                                      type: integer
                                     sizeLimit:
                                       anyOf:
                                         - type: integer
@@ -10182,6 +10269,9 @@ spec:
                                   properties:
                                     defaultMode:
                                       format: int32
+                                      type: integer
+                                    defaultUser:
+                                      format: int64
                                       type: integer
                                     sources:
                                       items:
@@ -10222,6 +10312,9 @@ spec:
                                                 type: string
                                               signerName:
                                                 type: string
+                                              user:
+                                                format: int64
+                                                type: integer
                                             required:
                                               - path
                                             type: object
@@ -10237,6 +10330,9 @@ spec:
                                                       type: integer
                                                     path:
                                                       type: string
+                                                    user:
+                                                      format: int64
+                                                      type: integer
                                                   required:
                                                     - key
                                                     - path
@@ -10286,6 +10382,9 @@ spec:
                                                         - resource
                                                       type: object
                                                       x-kubernetes-map-type: atomic
+                                                    user:
+                                                      format: int64
+                                                      type: integer
                                                   required:
                                                     - path
                                                   type: object
@@ -10307,6 +10406,9 @@ spec:
                                                 type: integer
                                               signerName:
                                                 type: string
+                                              user:
+                                                format: int64
+                                                type: integer
                                               userAnnotations:
                                                 additionalProperties:
                                                   type: string
@@ -10327,6 +10429,9 @@ spec:
                                                       type: integer
                                                     path:
                                                       type: string
+                                                    user:
+                                                      format: int64
+                                                      type: integer
                                                   required:
                                                     - key
                                                     - path
@@ -10349,6 +10454,9 @@ spec:
                                                 type: integer
                                               path:
                                                 type: string
+                                              user:
+                                                format: int64
+                                                type: integer
                                             required:
                                               - path
                                             type: object
@@ -10361,6 +10469,9 @@ spec:
                                     defaultMode:
                                       format: int32
                                       type: integer
+                                    defaultUser:
+                                      format: int64
+                                      type: integer
                                     items:
                                       items:
                                         properties:
@@ -10371,6 +10482,9 @@ spec:
                                             type: integer
                                           path:
                                             type: string
+                                          user:
+                                            format: int64
+                                            type: integer
                                         required:
                                           - key
                                           - path
@@ -10431,6 +10545,9 @@ spec:
                                           defaultMode:
                                             format: int32
                                             type: integer
+                                          defaultUser:
+                                            format: int64
+                                            type: integer
                                           items:
                                             items:
                                               properties:
@@ -10441,6 +10558,9 @@ spec:
                                                   type: integer
                                                 path:
                                                   type: string
+                                                user:
+                                                  format: int64
+                                                  type: integer
                                               required:
                                                 - key
                                                 - path
@@ -10458,6 +10578,9 @@ spec:
                                         properties:
                                           medium:
                                             type: string
+                                          mode:
+                                            format: int32
+                                            type: integer
                                           sizeLimit:
                                             anyOf:
                                               - type: integer
@@ -10487,6 +10610,9 @@ spec:
                                         properties:
                                           defaultMode:
                                             format: int32
+                                            type: integer
+                                          defaultUser:
+                                            format: int64
                                             type: integer
                                           sources:
                                             items:
@@ -10527,6 +10653,9 @@ spec:
                                                       type: string
                                                     signerName:
                                                       type: string
+                                                    user:
+                                                      format: int64
+                                                      type: integer
                                                   required:
                                                     - path
                                                   type: object
@@ -10542,6 +10671,9 @@ spec:
                                                             type: integer
                                                           path:
                                                             type: string
+                                                          user:
+                                                            format: int64
+                                                            type: integer
                                                         required:
                                                           - key
                                                           - path
@@ -10591,6 +10723,9 @@ spec:
                                                               - resource
                                                             type: object
                                                             x-kubernetes-map-type: atomic
+                                                          user:
+                                                            format: int64
+                                                            type: integer
                                                         required:
                                                           - path
                                                         type: object
@@ -10612,6 +10747,9 @@ spec:
                                                       type: integer
                                                     signerName:
                                                       type: string
+                                                    user:
+                                                      format: int64
+                                                      type: integer
                                                     userAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -10632,6 +10770,9 @@ spec:
                                                             type: integer
                                                           path:
                                                             type: string
+                                                          user:
+                                                            format: int64
+                                                            type: integer
                                                         required:
                                                           - key
                                                           - path
@@ -10654,6 +10795,9 @@ spec:
                                                       type: integer
                                                     path:
                                                       type: string
+                                                    user:
+                                                      format: int64
+                                                      type: integer
                                                   required:
                                                     - path
                                                   type: object
@@ -10666,6 +10810,9 @@ spec:
                                           defaultMode:
                                             format: int32
                                             type: integer
+                                          defaultUser:
+                                            format: int64
+                                            type: integer
                                           items:
                                             items:
                                               properties:
@@ -10676,6 +10823,9 @@ spec:
                                                   type: integer
                                                 path:
                                                   type: string
+                                                user:
+                                                  format: int64
+                                                  type: integer
                                               required:
                                                 - key
                                                 - path
@@ -10779,6 +10929,9 @@ spec:
                                         defaultMode:
                                           format: int32
                                           type: integer
+                                        defaultUser:
+                                          format: int64
+                                          type: integer
                                         items:
                                           items:
                                             properties:
@@ -10789,6 +10942,9 @@ spec:
                                                 type: integer
                                               path:
                                                 type: string
+                                              user:
+                                                format: int64
+                                                type: integer
                                             required:
                                               - key
                                               - path
@@ -10806,6 +10962,9 @@ spec:
                                       properties:
                                         medium:
                                           type: string
+                                        mode:
+                                          format: int32
+                                          type: integer
                                         sizeLimit:
                                           anyOf:
                                             - type: integer
@@ -10835,6 +10994,9 @@ spec:
                                       properties:
                                         defaultMode:
                                           format: int32
+                                          type: integer
+                                        defaultUser:
+                                          format: int64
                                           type: integer
                                         sources:
                                           items:
@@ -10875,6 +11037,9 @@ spec:
                                                     type: string
                                                   signerName:
                                                     type: string
+                                                  user:
+                                                    format: int64
+                                                    type: integer
                                                 required:
                                                   - path
                                                 type: object
@@ -10890,6 +11055,9 @@ spec:
                                                           type: integer
                                                         path:
                                                           type: string
+                                                        user:
+                                                          format: int64
+                                                          type: integer
                                                       required:
                                                         - key
                                                         - path
@@ -10939,6 +11107,9 @@ spec:
                                                             - resource
                                                           type: object
                                                           x-kubernetes-map-type: atomic
+                                                        user:
+                                                          format: int64
+                                                          type: integer
                                                       required:
                                                         - path
                                                       type: object
@@ -10960,6 +11131,9 @@ spec:
                                                     type: integer
                                                   signerName:
                                                     type: string
+                                                  user:
+                                                    format: int64
+                                                    type: integer
                                                   userAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -10980,6 +11154,9 @@ spec:
                                                           type: integer
                                                         path:
                                                           type: string
+                                                        user:
+                                                          format: int64
+                                                          type: integer
                                                       required:
                                                         - key
                                                         - path
@@ -11002,6 +11179,9 @@ spec:
                                                     type: integer
                                                   path:
                                                     type: string
+                                                  user:
+                                                    format: int64
+                                                    type: integer
                                                 required:
                                                   - path
                                                 type: object
@@ -11014,6 +11194,9 @@ spec:
                                         defaultMode:
                                           format: int32
                                           type: integer
+                                        defaultUser:
+                                          format: int64
+                                          type: integer
                                         items:
                                           items:
                                             properties:
@@ -11024,6 +11207,9 @@ spec:
                                                 type: integer
                                               path:
                                                 type: string
+                                              user:
+                                                format: int64
+                                                type: integer
                                             required:
                                               - key
                                               - path
@@ -11125,6 +11311,13 @@ spec:
                             grpc:
                               description: GRPC specifies a GRPC HealthCheckRequest.
                               properties:
+                                mode:
+                                  description: |-
+                                    mode specifies the connection mode for the gRPC health probe.
+                                    Set to "TLS" to use TLS without certificate verification.
+                                    Set to "Plaintext" to use a plaintext (insecure) connection explicitly.
+                                    If not specified, the probe uses a plaintext (insecure) connection.
+                                  type: string
                                 port:
                                   description: Port number of the gRPC service. Number must be in the range 1 to 65535.
                                   format: int32
@@ -11179,6 +11372,11 @@ spec:
                                     Number must be in the range 1 to 65535.
                                     Name must be an IANA_SVC_NAME.
                                   x-kubernetes-int-or-string: true
+                                protocol:
+                                  description: |-
+                                    Protocol selects the wire protocol for the probe connection.
+                                    Nil defaults to HTTP/1.1.
+                                  type: string
                                 scheme:
                                   description: |-
                                     Scheme to use for connecting to the host.
@@ -12024,6 +12222,13 @@ spec:
                         grpc:
                           description: GRPC specifies a GRPC HealthCheckRequest.
                           properties:
+                            mode:
+                              description: |-
+                                mode specifies the connection mode for the gRPC health probe.
+                                Set to "TLS" to use TLS without certificate verification.
+                                Set to "Plaintext" to use a plaintext (insecure) connection explicitly.
+                                If not specified, the probe uses a plaintext (insecure) connection.
+                              type: string
                             port:
                               description: Port number of the gRPC service. Number must be in the range 1 to 65535.
                               format: int32
@@ -12078,6 +12283,11 @@ spec:
                                 Number must be in the range 1 to 65535.
                                 Name must be an IANA_SVC_NAME.
                               x-kubernetes-int-or-string: true
+                            protocol:
+                              description: |-
+                                Protocol selects the wire protocol for the probe connection.
+                                Nil defaults to HTTP/1.1.
+                              type: string
                             scheme:
                               description: |-
                                 Scheme to use for connecting to the host.
@@ -13408,6 +13618,9 @@ spec:
                                   defaultMode:
                                     format: int32
                                     type: integer
+                                  defaultUser:
+                                    format: int64
+                                    type: integer
                                   items:
                                     items:
                                       properties:
@@ -13418,6 +13631,9 @@ spec:
                                           type: integer
                                         path:
                                           type: string
+                                        user:
+                                          format: int64
+                                          type: integer
                                       required:
                                         - key
                                         - path
@@ -13435,6 +13651,9 @@ spec:
                                 properties:
                                   medium:
                                     type: string
+                                  mode:
+                                    format: int32
+                                    type: integer
                                   sizeLimit:
                                     anyOf:
                                       - type: integer
@@ -13464,6 +13683,9 @@ spec:
                                 properties:
                                   defaultMode:
                                     format: int32
+                                    type: integer
+                                  defaultUser:
+                                    format: int64
                                     type: integer
                                   sources:
                                     items:
@@ -13504,6 +13726,9 @@ spec:
                                               type: string
                                             signerName:
                                               type: string
+                                            user:
+                                              format: int64
+                                              type: integer
                                           required:
                                             - path
                                           type: object
@@ -13519,6 +13744,9 @@ spec:
                                                     type: integer
                                                   path:
                                                     type: string
+                                                  user:
+                                                    format: int64
+                                                    type: integer
                                                 required:
                                                   - key
                                                   - path
@@ -13568,6 +13796,9 @@ spec:
                                                       - resource
                                                     type: object
                                                     x-kubernetes-map-type: atomic
+                                                  user:
+                                                    format: int64
+                                                    type: integer
                                                 required:
                                                   - path
                                                 type: object
@@ -13589,6 +13820,9 @@ spec:
                                               type: integer
                                             signerName:
                                               type: string
+                                            user:
+                                              format: int64
+                                              type: integer
                                             userAnnotations:
                                               additionalProperties:
                                                 type: string
@@ -13609,6 +13843,9 @@ spec:
                                                     type: integer
                                                   path:
                                                     type: string
+                                                  user:
+                                                    format: int64
+                                                    type: integer
                                                 required:
                                                   - key
                                                   - path
@@ -13631,6 +13868,9 @@ spec:
                                               type: integer
                                             path:
                                               type: string
+                                            user:
+                                              format: int64
+                                              type: integer
                                           required:
                                             - path
                                           type: object
@@ -13643,6 +13883,9 @@ spec:
                                   defaultMode:
                                     format: int32
                                     type: integer
+                                  defaultUser:
+                                    format: int64
+                                    type: integer
                                   items:
                                     items:
                                       properties:
@@ -13653,6 +13896,9 @@ spec:
                                           type: integer
                                         path:
                                           type: string
+                                        user:
+                                          format: int64
+                                          type: integer
                                       required:
                                         - key
                                         - path
@@ -14512,6 +14758,13 @@ spec:
                             grpc:
                               description: GRPC specifies a GRPC HealthCheckRequest.
                               properties:
+                                mode:
+                                  description: |-
+                                    mode specifies the connection mode for the gRPC health probe.
+                                    Set to "TLS" to use TLS without certificate verification.
+                                    Set to "Plaintext" to use a plaintext (insecure) connection explicitly.
+                                    If not specified, the probe uses a plaintext (insecure) connection.
+                                  type: string
                                 port:
                                   description: Port number of the gRPC service. Number must be in the range 1 to 65535.
                                   format: int32
@@ -14566,6 +14819,11 @@ spec:
                                     Number must be in the range 1 to 65535.
                                     Name must be an IANA_SVC_NAME.
                                   x-kubernetes-int-or-string: true
+                                protocol:
+                                  description: |-
+                                    Protocol selects the wire protocol for the probe connection.
+                                    Nil defaults to HTTP/1.1.
+                                  type: string
                                 scheme:
                                   description: |-
                                     Scheme to use for connecting to the host.
@@ -14658,6 +14916,13 @@ spec:
                             grpc:
                               description: GRPC specifies a GRPC HealthCheckRequest.
                               properties:
+                                mode:
+                                  description: |-
+                                    mode specifies the connection mode for the gRPC health probe.
+                                    Set to "TLS" to use TLS without certificate verification.
+                                    Set to "Plaintext" to use a plaintext (insecure) connection explicitly.
+                                    If not specified, the probe uses a plaintext (insecure) connection.
+                                  type: string
                                 port:
                                   description: Port number of the gRPC service. Number must be in the range 1 to 65535.
                                   format: int32
@@ -14712,6 +14977,11 @@ spec:
                                     Number must be in the range 1 to 65535.
                                     Name must be an IANA_SVC_NAME.
                                   x-kubernetes-int-or-string: true
+                                protocol:
+                                  description: |-
+                                    Protocol selects the wire protocol for the probe connection.
+                                    Nil defaults to HTTP/1.1.
+                                  type: string
                                 scheme:
                                   description: |-
                                     Scheme to use for connecting to the host.

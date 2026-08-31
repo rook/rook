@@ -34,11 +34,39 @@ import (
 )
 
 // CephBucketTopicInformer provides access to a shared informer and lister for
-// CephBucketTopics.
+// CephBucketTopics. Prefer using the type-safe variant (see [TypedCephBucketTopicInformer]).
 type CephBucketTopicInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() cephrookiov1.CephBucketTopicLister
 }
+
+// TypedCephBucketTopicInformer provides access to a shared informer and lister for
+// CephBucketTopics, including the type-safe TypedInformer variant.
+// It is a superset of CephBucketTopicInformer.
+type TypedCephBucketTopicInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() CephBucketTopicIndexInformer
+	Lister() cephrookiov1.CephBucketTopicLister
+}
+
+// CephBucketTopicIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type CephBucketTopicIndexInformer cache.TypedSharedIndexInformer[*apiscephrookiov1.CephBucketTopic]
+
+// CephBucketTopicHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for CephBucketTopic.
+type CephBucketTopicHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiscephrookiov1.CephBucketTopic]
+
+// CephBucketTopicDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for CephBucketTopic.
+type CephBucketTopicDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiscephrookiov1.CephBucketTopic]
+
+// CephBucketTopicFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for CephBucketTopic.
+type CephBucketTopicFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiscephrookiov1.CephBucketTopic]
+
+// CephBucketTopicIndexers is a specialization of [cache.TypedIndexers] for CephBucketTopic.
+type CephBucketTopicIndexers = cache.TypedIndexers[*apiscephrookiov1.CephBucketTopic]
+
+// DeletedCephBucketTopic is a specialization of [cache.DeletedObject] for CephBucketTopic.
+type DeletedCephBucketTopic = cache.DeletedObject[*apiscephrookiov1.CephBucketTopic]
 
 type cephBucketTopicInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type cephBucketTopicInformer struct {
 // NewCephBucketTopicInformer constructs a new informer for CephBucketTopic type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephBucketTopicInformer]).
 func NewCephBucketTopicInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewCephBucketTopicInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedCephBucketTopicInformer constructs a new informer for CephBucketTopic type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephBucketTopicInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephBucketTopicIndexers) CephBucketTopicIndexInformer {
+	return NewTypedCephBucketTopicInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredCephBucketTopicInformer constructs a new informer for CephBucketTopic type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredCephBucketTopicInformer]).
 func NewFilteredCephBucketTopicInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewCephBucketTopicInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedCephBucketTopicInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredCephBucketTopicInformer constructs a new informer for CephBucketTopic type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredCephBucketTopicInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephBucketTopicIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) CephBucketTopicIndexInformer {
+	return NewTypedCephBucketTopicInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewCephBucketTopicInformerWithOptions constructs a new informer for CephBucketTopic type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephBucketTopicInformerWithOptions]).
 func NewCephBucketTopicInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedCephBucketTopicInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedCephBucketTopicInformerWithOptions constructs a new informer for CephBucketTopic type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephBucketTopicInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) CephBucketTopicIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephbuckettopics"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBucketTopic](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewCephBucketTopicInformerWithOptions(client versioned.Interface, namespace
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *cephBucketTopicInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewCephBucketTopicInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedCephBucketTopicInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *cephBucketTopicInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiscephrookiov1.CephBucketTopic{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *cephBucketTopicInformer) TypedInformer() CephBucketTopicIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBucketTopic](f.factory.InformerFor(&apiscephrookiov1.CephBucketTopic{}, f.defaultInformer))
 }
 
 func (f *cephBucketTopicInformer) Lister() cephrookiov1.CephBucketTopicLister {
 	return cephrookiov1.NewCephBucketTopicLister(f.Informer().GetIndexer())
+}
+
+// ToTypedCephBucketTopicInformer converts an untyped informer into a TypedCephBucketTopicInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephBucketTopic. If that is not the case, calling type-safe methods of the returned
+// TypedCephBucketTopicInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedCephBucketTopicInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedCephBucketTopicInformer(informer CephBucketTopicInformer) TypedCephBucketTopicInformer {
+	if informer, ok := informer.(TypedCephBucketTopicInformer); ok {
+		return informer
+	}
+	return &cephBucketTopicTypedInformerAdapter{informer}
+}
+
+type cephBucketTopicTypedInformerAdapter struct {
+	CephBucketTopicInformer
+}
+
+func (a *cephBucketTopicTypedInformerAdapter) TypedInformer() CephBucketTopicIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBucketTopic](a.Informer())
+}
+
+// ToCephBucketTopicIndexInformer converts an untyped informer into a CephBucketTopicIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephBucketTopic. If that is not the case, calling type-safe methods of the returned
+// CephBucketTopicIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a CephBucketTopicIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToCephBucketTopicIndexInformer(informer cache.SharedIndexInformer) CephBucketTopicIndexInformer {
+	if informer, ok := informer.(CephBucketTopicIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBucketTopic](informer)
 }
