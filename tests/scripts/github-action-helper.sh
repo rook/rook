@@ -1028,12 +1028,6 @@ function test_multisite_object_replication() {
   write_object_read_from_replica_cluster "$cluster_2_ip" "$cluster_1_ip" test2 zone-b zone-a rook-ceph
 }
 
-function create_helm_tag() {
-  helm_tag="$(cat _output/version)"
-  build_image="$(docker images | awk '/build-/ {print $1}')"
-  docker tag "${build_image}" "rook/ceph:${helm_tag}"
-  load_image_into_cluster "rook/ceph:${helm_tag}"
-}
 
 function test_multus_connections() {
   EXEC='kubectl -n rook-ceph exec -t deploy/rook-ceph-tools -- ceph --connect-timeout 10'
