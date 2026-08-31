@@ -332,6 +332,44 @@ func TestPersistMons(t *testing.T) {
 	assert.Equal(t, map[string]string{"key": "value"}, cm.Annotations)
 }
 
+func TestPersistMonsWithoutEndpoints(t *testing.T) {
+	ctx := context.TODO()
+	clientset := test.New(t, 1)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := New(ctx, &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
+	c.ClusterInfo.InternalMonitors = map[string]*cephclient.MonInfo{}
+
+	// creating the configmap before any mon has an endpoint persists the other keys,
+	// but must not add an empty endpoints key
+	err := c.persistExpectedMonDaemonsInConfigMap()
+	assert.NoError(t, err)
+
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, ok := cm.Data[EndpointDataKey]
+	assert.False(t, ok)
+	assert.Equal(t, `{"node":{}}`, cm.Data[opcontroller.MappingKey])
+	assert.Equal(t, "-1", cm.Data[opcontroller.MaxMonIDKey])
+
+	c.ClusterInfo.InternalMonitors["a"] = &cephclient.MonInfo{Name: "a", Endpoint: "1.2.3.1:3300"}
+	err = c.persistExpectedMonDaemonsInConfigMap()
+	assert.NoError(t, err)
+
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "a=1.2.3.1:3300", cm.Data[EndpointDataKey])
+
+	// losing every mon endpoint must not overwrite the stored endpoints
+	c.ClusterInfo.InternalMonitors = map[string]*cephclient.MonInfo{}
+	err = c.persistExpectedMonDaemonsInConfigMap()
+	assert.NoError(t, err)
+
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "a=1.2.3.1:3300", cm.Data[EndpointDataKey])
+}
+
 func TestCreateEndpointSlices(t *testing.T) {
 	clientset := test.New(t, 1)
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()

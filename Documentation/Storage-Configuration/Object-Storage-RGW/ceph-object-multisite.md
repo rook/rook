@@ -201,6 +201,26 @@ object-multisite-pull-realm.yaml (with changes) in the [examples](https://github
 kubectl create -f object-multisite-pull-realm.yaml
 ```
 
+## Automatic Sync Recovery
+
+A zone's replication can wedge while it initializes: a secondary's metadata sync can stay
+uninitialized when the RGW configuration period advances before the realm's system user is
+resolvable locally, and any zone's data sync from a peer can stick in `init` when a gateway races
+a period change. These states never resolve on their own.
+
+Rook watches the sync state of every multisite object store and recovers a wedge automatically:
+when the same wedge signal persists across three consecutive checks (about three minutes), Rook
+pulls the period (for a secondary's metadata wedge) and restarts the store's gateways, the same
+remedy Ceph's own multisite QA applies after period changes. Recovery is capped at two attempts
+per signal per half hour. Each recovery emits a `MultisiteSyncRecovery` event on the
+`CephObjectStore`; if the cap is exhausted while the sync is still wedged, the store's status gains
+a `MultisiteSyncHealthy: "False"` condition and a `MultisiteSyncWedged` warning event, and Rook
+stops restarting the gateways until the sync recovers.
+
+Stores with `spec.gateway.disableMultisiteSyncTraffic: true` and external stores are never
+touched. To keep Rook from restarting a specific store's gateways (for example, while debugging),
+label the RGW deployment with `ceph.rook.io/do-not-reconcile`.
+
 ## Scaling a Multisite
 
 Scaling the number of gateways that run the synchronization thread to 2 or more can increase the latency of the

@@ -6508,6 +6508,14 @@ Kubernetes meta/v1.Time
 </tr><tr><td><p>&#34;Deleting&#34;</p></td>
 <td><p>DeletingReason represents when Rook has detected a resource object should be deleted.</p>
 </td>
+</tr><tr><td><p>&#34;MultisiteSyncHealthy&#34;</p></td>
+<td><p>MultisiteSyncHealthyReason represents when an object store&rsquo;s multisite sync state machines
+are initialized.</p>
+</td>
+</tr><tr><td><p>&#34;MultisiteSyncWedged&#34;</p></td>
+<td><p>MultisiteSyncWedgedReason represents when an object store&rsquo;s multisite sync is stuck in a
+state it cannot leave on its own and Rook has exhausted its budget for recovering it.</p>
+</td>
 </tr><tr><td><p>&#34;ObjectHasDependents&#34;</p></td>
 <td><p>ObjectHasDependentsReason represents when a resource object has dependents that are blocking
 deletion.</p>
@@ -6575,6 +6583,10 @@ deletion.</p>
 </td>
 </tr><tr><td><p>&#34;Failure&#34;</p></td>
 <td><p>ConditionFailure represents Failure state of an object</p>
+</td>
+</tr><tr><td><p>&#34;MultisiteSyncHealthy&#34;</p></td>
+<td><p>ConditionMultisiteSyncHealthy represents whether an object store&rsquo;s multisite sync state
+machines are initialized and Rook is not out of recovery attempts for them.</p>
 </td>
 </tr><tr><td><p>&#34;PoolDeletionIsBlocked&#34;</p></td>
 <td><p>ConditionPoolDeletionIsBlocked represents when deletion of the object is blocked.</p>

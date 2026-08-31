@@ -1437,7 +1437,6 @@ func (c *Cluster) persistExpectedMonDaemonsInConfigMap() error {
 	}
 
 	configMap.Data = map[string]string{
-		EndpointDataKey:         flattenMonEndpoints(c.ClusterInfo.AllMonitors()),
 		EndpointExternalMonsKey: strings.Join(extMonIDs, ","),
 		// persist the maxMonID that was previously stored in the configmap. We are likely saving info
 		// about scheduling of the mons, but we only want to update the maxMonID once a new mon has
@@ -1448,6 +1447,23 @@ func (c *Cluster) persistExpectedMonDaemonsInConfigMap() error {
 		controller.MappingKey:     string(monMapping),
 		controller.OutOfQuorumKey: strings.Join(monsOutOfQuorum, ","),
 		csi.ConfigKey:             csiConfigValue,
+	}
+
+	if monitors := c.ClusterInfo.AllMonitors(); len(monitors) > 0 {
+		configMap.Data[EndpointDataKey] = flattenMonEndpoints(monitors)
+	} else {
+		// 0 mons is an error state rather than a request to clear the endpoints, the same
+		// reasoning that stops persistExpectedMonDaemonsAsEndpointSlice from publishing an
+		// empty set. Anything mounting this key renders unusable config from an empty value,
+		// so keep whatever is stored and don't add the key before there is a mon to put in it.
+		storedEndpoints, stored, err := c.getStoredMonEndpoints()
+		if err != nil {
+			return errors.Wrap(err, "failed to load the stored mon endpoints")
+		}
+		if stored {
+			configMap.Data[EndpointDataKey] = storedEndpoints
+		}
+		log.NamespacedDebug(c.Namespace, logger, "no mon addresses found, not updating the mon endpoints %q in configmap %s", storedEndpoints, configMap.Name)
 	}
 
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(c.ClusterInfo.Context, configMap, metav1.CreateOptions{}); err != nil {
@@ -1462,6 +1478,20 @@ func (c *Cluster) persistExpectedMonDaemonsInConfigMap() error {
 	}
 	log.NamespacedInfo(c.Namespace, logger, "saved mon endpoints to config map %+v", configMap.Data)
 	return nil
+}
+
+// getStoredMonEndpoints returns the mon endpoints currently persisted in the mon endpoints
+// configmap, and whether the key is present at all.
+func (c *Cluster) getStoredMonEndpoints() (string, bool, error) {
+	configmap, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(c.ClusterInfo.Context, EndpointConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return "", false, nil
+		}
+		return "", false, errors.Wrap(err, "could not load mon endpoints")
+	}
+	endpoints, ok := configmap.Data[EndpointDataKey]
+	return endpoints, ok, nil
 }
 
 func (c *Cluster) getStoredMaxMonID() (string, error) {
