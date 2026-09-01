@@ -116,6 +116,7 @@ type CephToolCommand struct {
 	tool            string
 	args            []string
 	timeout         time.Duration
+	stdin           *string
 	JsonOutput      bool
 	combinedOutput  bool
 	RemoteExecution bool
@@ -208,6 +209,10 @@ func (c *CephToolCommand) run() ([]byte, error) {
 
 	var output, stderr string
 	var err error
+	if c.stdin != nil {
+		err = c.context.Executor.ExecuteCommandWithStdin(c.timeout, command, c.stdin, args...)
+		return nil, err
+	}
 
 	// NewRBDCommand does not use the --out-file option so we only check for remote execution here
 	// Still forcing the check for the command if the behavior changes in the future
@@ -247,6 +252,13 @@ func (c *CephToolCommand) Run() ([]byte, error) {
 func (c *CephToolCommand) RunWithTimeout(timeout time.Duration) ([]byte, error) {
 	c.timeout = timeout
 	return c.run()
+}
+
+func (c *CephToolCommand) RunWithStdin(timeout time.Duration, stdin string) error {
+	c.timeout = timeout
+	c.stdin = &stdin
+	_, err := c.run()
+	return err
 }
 
 func ExecuteCephCommandWithRetry(
