@@ -34,11 +34,39 @@ import (
 )
 
 // CephBlockPoolInformer provides access to a shared informer and lister for
-// CephBlockPools.
+// CephBlockPools. Prefer using the type-safe variant (see [TypedCephBlockPoolInformer]).
 type CephBlockPoolInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() cephrookiov1.CephBlockPoolLister
 }
+
+// TypedCephBlockPoolInformer provides access to a shared informer and lister for
+// CephBlockPools, including the type-safe TypedInformer variant.
+// It is a superset of CephBlockPoolInformer.
+type TypedCephBlockPoolInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() CephBlockPoolIndexInformer
+	Lister() cephrookiov1.CephBlockPoolLister
+}
+
+// CephBlockPoolIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type CephBlockPoolIndexInformer cache.TypedSharedIndexInformer[*apiscephrookiov1.CephBlockPool]
+
+// CephBlockPoolHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for CephBlockPool.
+type CephBlockPoolHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiscephrookiov1.CephBlockPool]
+
+// CephBlockPoolDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for CephBlockPool.
+type CephBlockPoolDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiscephrookiov1.CephBlockPool]
+
+// CephBlockPoolFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for CephBlockPool.
+type CephBlockPoolFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiscephrookiov1.CephBlockPool]
+
+// CephBlockPoolIndexers is a specialization of [cache.TypedIndexers] for CephBlockPool.
+type CephBlockPoolIndexers = cache.TypedIndexers[*apiscephrookiov1.CephBlockPool]
+
+// DeletedCephBlockPool is a specialization of [cache.DeletedObject] for CephBlockPool.
+type DeletedCephBlockPool = cache.DeletedObject[*apiscephrookiov1.CephBlockPool]
 
 type cephBlockPoolInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type cephBlockPoolInformer struct {
 // NewCephBlockPoolInformer constructs a new informer for CephBlockPool type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephBlockPoolInformer]).
 func NewCephBlockPoolInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewCephBlockPoolInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedCephBlockPoolInformer constructs a new informer for CephBlockPool type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephBlockPoolInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephBlockPoolIndexers) CephBlockPoolIndexInformer {
+	return NewTypedCephBlockPoolInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredCephBlockPoolInformer constructs a new informer for CephBlockPool type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredCephBlockPoolInformer]).
 func NewFilteredCephBlockPoolInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewCephBlockPoolInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedCephBlockPoolInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredCephBlockPoolInformer constructs a new informer for CephBlockPool type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredCephBlockPoolInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephBlockPoolIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) CephBlockPoolIndexInformer {
+	return NewTypedCephBlockPoolInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewCephBlockPoolInformerWithOptions constructs a new informer for CephBlockPool type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephBlockPoolInformerWithOptions]).
 func NewCephBlockPoolInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedCephBlockPoolInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedCephBlockPoolInformerWithOptions constructs a new informer for CephBlockPool type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephBlockPoolInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) CephBlockPoolIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephblockpools"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBlockPool](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewCephBlockPoolInformerWithOptions(client versioned.Interface, namespace s
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *cephBlockPoolInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewCephBlockPoolInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedCephBlockPoolInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *cephBlockPoolInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiscephrookiov1.CephBlockPool{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *cephBlockPoolInformer) TypedInformer() CephBlockPoolIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBlockPool](f.factory.InformerFor(&apiscephrookiov1.CephBlockPool{}, f.defaultInformer))
 }
 
 func (f *cephBlockPoolInformer) Lister() cephrookiov1.CephBlockPoolLister {
 	return cephrookiov1.NewCephBlockPoolLister(f.Informer().GetIndexer())
+}
+
+// ToTypedCephBlockPoolInformer converts an untyped informer into a TypedCephBlockPoolInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephBlockPool. If that is not the case, calling type-safe methods of the returned
+// TypedCephBlockPoolInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedCephBlockPoolInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedCephBlockPoolInformer(informer CephBlockPoolInformer) TypedCephBlockPoolInformer {
+	if informer, ok := informer.(TypedCephBlockPoolInformer); ok {
+		return informer
+	}
+	return &cephBlockPoolTypedInformerAdapter{informer}
+}
+
+type cephBlockPoolTypedInformerAdapter struct {
+	CephBlockPoolInformer
+}
+
+func (a *cephBlockPoolTypedInformerAdapter) TypedInformer() CephBlockPoolIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBlockPool](a.Informer())
+}
+
+// ToCephBlockPoolIndexInformer converts an untyped informer into a CephBlockPoolIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephBlockPool. If that is not the case, calling type-safe methods of the returned
+// CephBlockPoolIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a CephBlockPoolIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToCephBlockPoolIndexInformer(informer cache.SharedIndexInformer) CephBlockPoolIndexInformer {
+	if informer, ok := informer.(CephBlockPoolIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBlockPool](informer)
 }

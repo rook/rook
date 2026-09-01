@@ -34,11 +34,39 @@ import (
 )
 
 // CephFilesystemInformer provides access to a shared informer and lister for
-// CephFilesystems.
+// CephFilesystems. Prefer using the type-safe variant (see [TypedCephFilesystemInformer]).
 type CephFilesystemInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() cephrookiov1.CephFilesystemLister
 }
+
+// TypedCephFilesystemInformer provides access to a shared informer and lister for
+// CephFilesystems, including the type-safe TypedInformer variant.
+// It is a superset of CephFilesystemInformer.
+type TypedCephFilesystemInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() CephFilesystemIndexInformer
+	Lister() cephrookiov1.CephFilesystemLister
+}
+
+// CephFilesystemIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type CephFilesystemIndexInformer cache.TypedSharedIndexInformer[*apiscephrookiov1.CephFilesystem]
+
+// CephFilesystemHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for CephFilesystem.
+type CephFilesystemHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiscephrookiov1.CephFilesystem]
+
+// CephFilesystemDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for CephFilesystem.
+type CephFilesystemDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiscephrookiov1.CephFilesystem]
+
+// CephFilesystemFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for CephFilesystem.
+type CephFilesystemFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiscephrookiov1.CephFilesystem]
+
+// CephFilesystemIndexers is a specialization of [cache.TypedIndexers] for CephFilesystem.
+type CephFilesystemIndexers = cache.TypedIndexers[*apiscephrookiov1.CephFilesystem]
+
+// DeletedCephFilesystem is a specialization of [cache.DeletedObject] for CephFilesystem.
+type DeletedCephFilesystem = cache.DeletedObject[*apiscephrookiov1.CephFilesystem]
 
 type cephFilesystemInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type cephFilesystemInformer struct {
 // NewCephFilesystemInformer constructs a new informer for CephFilesystem type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephFilesystemInformer]).
 func NewCephFilesystemInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewCephFilesystemInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedCephFilesystemInformer constructs a new informer for CephFilesystem type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephFilesystemInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephFilesystemIndexers) CephFilesystemIndexInformer {
+	return NewTypedCephFilesystemInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredCephFilesystemInformer constructs a new informer for CephFilesystem type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredCephFilesystemInformer]).
 func NewFilteredCephFilesystemInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewCephFilesystemInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedCephFilesystemInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredCephFilesystemInformer constructs a new informer for CephFilesystem type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredCephFilesystemInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephFilesystemIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) CephFilesystemIndexInformer {
+	return NewTypedCephFilesystemInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewCephFilesystemInformerWithOptions constructs a new informer for CephFilesystem type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephFilesystemInformerWithOptions]).
 func NewCephFilesystemInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedCephFilesystemInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedCephFilesystemInformerWithOptions constructs a new informer for CephFilesystem type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephFilesystemInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) CephFilesystemIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephfilesystems"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephFilesystem](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewCephFilesystemInformerWithOptions(client versioned.Interface, namespace 
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *cephFilesystemInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewCephFilesystemInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedCephFilesystemInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *cephFilesystemInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiscephrookiov1.CephFilesystem{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *cephFilesystemInformer) TypedInformer() CephFilesystemIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephFilesystem](f.factory.InformerFor(&apiscephrookiov1.CephFilesystem{}, f.defaultInformer))
 }
 
 func (f *cephFilesystemInformer) Lister() cephrookiov1.CephFilesystemLister {
 	return cephrookiov1.NewCephFilesystemLister(f.Informer().GetIndexer())
+}
+
+// ToTypedCephFilesystemInformer converts an untyped informer into a TypedCephFilesystemInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephFilesystem. If that is not the case, calling type-safe methods of the returned
+// TypedCephFilesystemInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedCephFilesystemInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedCephFilesystemInformer(informer CephFilesystemInformer) TypedCephFilesystemInformer {
+	if informer, ok := informer.(TypedCephFilesystemInformer); ok {
+		return informer
+	}
+	return &cephFilesystemTypedInformerAdapter{informer}
+}
+
+type cephFilesystemTypedInformerAdapter struct {
+	CephFilesystemInformer
+}
+
+func (a *cephFilesystemTypedInformerAdapter) TypedInformer() CephFilesystemIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephFilesystem](a.Informer())
+}
+
+// ToCephFilesystemIndexInformer converts an untyped informer into a CephFilesystemIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephFilesystem. If that is not the case, calling type-safe methods of the returned
+// CephFilesystemIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a CephFilesystemIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToCephFilesystemIndexInformer(informer cache.SharedIndexInformer) CephFilesystemIndexInformer {
+	if informer, ok := informer.(CephFilesystemIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephFilesystem](informer)
 }

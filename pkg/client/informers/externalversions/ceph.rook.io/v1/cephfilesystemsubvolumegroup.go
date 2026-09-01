@@ -34,11 +34,39 @@ import (
 )
 
 // CephFilesystemSubVolumeGroupInformer provides access to a shared informer and lister for
-// CephFilesystemSubVolumeGroups.
+// CephFilesystemSubVolumeGroups. Prefer using the type-safe variant (see [TypedCephFilesystemSubVolumeGroupInformer]).
 type CephFilesystemSubVolumeGroupInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() cephrookiov1.CephFilesystemSubVolumeGroupLister
 }
+
+// TypedCephFilesystemSubVolumeGroupInformer provides access to a shared informer and lister for
+// CephFilesystemSubVolumeGroups, including the type-safe TypedInformer variant.
+// It is a superset of CephFilesystemSubVolumeGroupInformer.
+type TypedCephFilesystemSubVolumeGroupInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() CephFilesystemSubVolumeGroupIndexInformer
+	Lister() cephrookiov1.CephFilesystemSubVolumeGroupLister
+}
+
+// CephFilesystemSubVolumeGroupIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type CephFilesystemSubVolumeGroupIndexInformer cache.TypedSharedIndexInformer[*apiscephrookiov1.CephFilesystemSubVolumeGroup]
+
+// CephFilesystemSubVolumeGroupHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for CephFilesystemSubVolumeGroup.
+type CephFilesystemSubVolumeGroupHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiscephrookiov1.CephFilesystemSubVolumeGroup]
+
+// CephFilesystemSubVolumeGroupDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for CephFilesystemSubVolumeGroup.
+type CephFilesystemSubVolumeGroupDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiscephrookiov1.CephFilesystemSubVolumeGroup]
+
+// CephFilesystemSubVolumeGroupFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for CephFilesystemSubVolumeGroup.
+type CephFilesystemSubVolumeGroupFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiscephrookiov1.CephFilesystemSubVolumeGroup]
+
+// CephFilesystemSubVolumeGroupIndexers is a specialization of [cache.TypedIndexers] for CephFilesystemSubVolumeGroup.
+type CephFilesystemSubVolumeGroupIndexers = cache.TypedIndexers[*apiscephrookiov1.CephFilesystemSubVolumeGroup]
+
+// DeletedCephFilesystemSubVolumeGroup is a specialization of [cache.DeletedObject] for CephFilesystemSubVolumeGroup.
+type DeletedCephFilesystemSubVolumeGroup = cache.DeletedObject[*apiscephrookiov1.CephFilesystemSubVolumeGroup]
 
 type cephFilesystemSubVolumeGroupInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type cephFilesystemSubVolumeGroupInformer struct {
 // NewCephFilesystemSubVolumeGroupInformer constructs a new informer for CephFilesystemSubVolumeGroup type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephFilesystemSubVolumeGroupInformer]).
 func NewCephFilesystemSubVolumeGroupInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewCephFilesystemSubVolumeGroupInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedCephFilesystemSubVolumeGroupInformer constructs a new informer for CephFilesystemSubVolumeGroup type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephFilesystemSubVolumeGroupInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephFilesystemSubVolumeGroupIndexers) CephFilesystemSubVolumeGroupIndexInformer {
+	return NewTypedCephFilesystemSubVolumeGroupInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredCephFilesystemSubVolumeGroupInformer constructs a new informer for CephFilesystemSubVolumeGroup type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredCephFilesystemSubVolumeGroupInformer]).
 func NewFilteredCephFilesystemSubVolumeGroupInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewCephFilesystemSubVolumeGroupInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedCephFilesystemSubVolumeGroupInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredCephFilesystemSubVolumeGroupInformer constructs a new informer for CephFilesystemSubVolumeGroup type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredCephFilesystemSubVolumeGroupInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephFilesystemSubVolumeGroupIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) CephFilesystemSubVolumeGroupIndexInformer {
+	return NewTypedCephFilesystemSubVolumeGroupInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewCephFilesystemSubVolumeGroupInformerWithOptions constructs a new informer for CephFilesystemSubVolumeGroup type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephFilesystemSubVolumeGroupInformerWithOptions]).
 func NewCephFilesystemSubVolumeGroupInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedCephFilesystemSubVolumeGroupInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedCephFilesystemSubVolumeGroupInformerWithOptions constructs a new informer for CephFilesystemSubVolumeGroup type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephFilesystemSubVolumeGroupInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) CephFilesystemSubVolumeGroupIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephfilesystemsubvolumegroups"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephFilesystemSubVolumeGroup](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewCephFilesystemSubVolumeGroupInformerWithOptions(client versioned.Interfa
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *cephFilesystemSubVolumeGroupInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewCephFilesystemSubVolumeGroupInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedCephFilesystemSubVolumeGroupInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *cephFilesystemSubVolumeGroupInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiscephrookiov1.CephFilesystemSubVolumeGroup{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *cephFilesystemSubVolumeGroupInformer) TypedInformer() CephFilesystemSubVolumeGroupIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephFilesystemSubVolumeGroup](f.factory.InformerFor(&apiscephrookiov1.CephFilesystemSubVolumeGroup{}, f.defaultInformer))
 }
 
 func (f *cephFilesystemSubVolumeGroupInformer) Lister() cephrookiov1.CephFilesystemSubVolumeGroupLister {
 	return cephrookiov1.NewCephFilesystemSubVolumeGroupLister(f.Informer().GetIndexer())
+}
+
+// ToTypedCephFilesystemSubVolumeGroupInformer converts an untyped informer into a TypedCephFilesystemSubVolumeGroupInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephFilesystemSubVolumeGroup. If that is not the case, calling type-safe methods of the returned
+// TypedCephFilesystemSubVolumeGroupInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedCephFilesystemSubVolumeGroupInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedCephFilesystemSubVolumeGroupInformer(informer CephFilesystemSubVolumeGroupInformer) TypedCephFilesystemSubVolumeGroupInformer {
+	if informer, ok := informer.(TypedCephFilesystemSubVolumeGroupInformer); ok {
+		return informer
+	}
+	return &cephFilesystemSubVolumeGroupTypedInformerAdapter{informer}
+}
+
+type cephFilesystemSubVolumeGroupTypedInformerAdapter struct {
+	CephFilesystemSubVolumeGroupInformer
+}
+
+func (a *cephFilesystemSubVolumeGroupTypedInformerAdapter) TypedInformer() CephFilesystemSubVolumeGroupIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephFilesystemSubVolumeGroup](a.Informer())
+}
+
+// ToCephFilesystemSubVolumeGroupIndexInformer converts an untyped informer into a CephFilesystemSubVolumeGroupIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephFilesystemSubVolumeGroup. If that is not the case, calling type-safe methods of the returned
+// CephFilesystemSubVolumeGroupIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a CephFilesystemSubVolumeGroupIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToCephFilesystemSubVolumeGroupIndexInformer(informer cache.SharedIndexInformer) CephFilesystemSubVolumeGroupIndexInformer {
+	if informer, ok := informer.(CephFilesystemSubVolumeGroupIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephFilesystemSubVolumeGroup](informer)
 }

@@ -34,11 +34,39 @@ import (
 )
 
 // CephBlockPoolRadosNamespaceInformer provides access to a shared informer and lister for
-// CephBlockPoolRadosNamespaces.
+// CephBlockPoolRadosNamespaces. Prefer using the type-safe variant (see [TypedCephBlockPoolRadosNamespaceInformer]).
 type CephBlockPoolRadosNamespaceInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() cephrookiov1.CephBlockPoolRadosNamespaceLister
 }
+
+// TypedCephBlockPoolRadosNamespaceInformer provides access to a shared informer and lister for
+// CephBlockPoolRadosNamespaces, including the type-safe TypedInformer variant.
+// It is a superset of CephBlockPoolRadosNamespaceInformer.
+type TypedCephBlockPoolRadosNamespaceInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() CephBlockPoolRadosNamespaceIndexInformer
+	Lister() cephrookiov1.CephBlockPoolRadosNamespaceLister
+}
+
+// CephBlockPoolRadosNamespaceIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type CephBlockPoolRadosNamespaceIndexInformer cache.TypedSharedIndexInformer[*apiscephrookiov1.CephBlockPoolRadosNamespace]
+
+// CephBlockPoolRadosNamespaceHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for CephBlockPoolRadosNamespace.
+type CephBlockPoolRadosNamespaceHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiscephrookiov1.CephBlockPoolRadosNamespace]
+
+// CephBlockPoolRadosNamespaceDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for CephBlockPoolRadosNamespace.
+type CephBlockPoolRadosNamespaceDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiscephrookiov1.CephBlockPoolRadosNamespace]
+
+// CephBlockPoolRadosNamespaceFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for CephBlockPoolRadosNamespace.
+type CephBlockPoolRadosNamespaceFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiscephrookiov1.CephBlockPoolRadosNamespace]
+
+// CephBlockPoolRadosNamespaceIndexers is a specialization of [cache.TypedIndexers] for CephBlockPoolRadosNamespace.
+type CephBlockPoolRadosNamespaceIndexers = cache.TypedIndexers[*apiscephrookiov1.CephBlockPoolRadosNamespace]
+
+// DeletedCephBlockPoolRadosNamespace is a specialization of [cache.DeletedObject] for CephBlockPoolRadosNamespace.
+type DeletedCephBlockPoolRadosNamespace = cache.DeletedObject[*apiscephrookiov1.CephBlockPoolRadosNamespace]
 
 type cephBlockPoolRadosNamespaceInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type cephBlockPoolRadosNamespaceInformer struct {
 // NewCephBlockPoolRadosNamespaceInformer constructs a new informer for CephBlockPoolRadosNamespace type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephBlockPoolRadosNamespaceInformer]).
 func NewCephBlockPoolRadosNamespaceInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewCephBlockPoolRadosNamespaceInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedCephBlockPoolRadosNamespaceInformer constructs a new informer for CephBlockPoolRadosNamespace type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephBlockPoolRadosNamespaceInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephBlockPoolRadosNamespaceIndexers) CephBlockPoolRadosNamespaceIndexInformer {
+	return NewTypedCephBlockPoolRadosNamespaceInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredCephBlockPoolRadosNamespaceInformer constructs a new informer for CephBlockPoolRadosNamespace type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredCephBlockPoolRadosNamespaceInformer]).
 func NewFilteredCephBlockPoolRadosNamespaceInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewCephBlockPoolRadosNamespaceInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedCephBlockPoolRadosNamespaceInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredCephBlockPoolRadosNamespaceInformer constructs a new informer for CephBlockPoolRadosNamespace type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredCephBlockPoolRadosNamespaceInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephBlockPoolRadosNamespaceIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) CephBlockPoolRadosNamespaceIndexInformer {
+	return NewTypedCephBlockPoolRadosNamespaceInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewCephBlockPoolRadosNamespaceInformerWithOptions constructs a new informer for CephBlockPoolRadosNamespace type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephBlockPoolRadosNamespaceInformerWithOptions]).
 func NewCephBlockPoolRadosNamespaceInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedCephBlockPoolRadosNamespaceInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedCephBlockPoolRadosNamespaceInformerWithOptions constructs a new informer for CephBlockPoolRadosNamespace type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephBlockPoolRadosNamespaceInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) CephBlockPoolRadosNamespaceIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephblockpoolradosnamespaces"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBlockPoolRadosNamespace](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewCephBlockPoolRadosNamespaceInformerWithOptions(client versioned.Interfac
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *cephBlockPoolRadosNamespaceInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewCephBlockPoolRadosNamespaceInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedCephBlockPoolRadosNamespaceInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *cephBlockPoolRadosNamespaceInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiscephrookiov1.CephBlockPoolRadosNamespace{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *cephBlockPoolRadosNamespaceInformer) TypedInformer() CephBlockPoolRadosNamespaceIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBlockPoolRadosNamespace](f.factory.InformerFor(&apiscephrookiov1.CephBlockPoolRadosNamespace{}, f.defaultInformer))
 }
 
 func (f *cephBlockPoolRadosNamespaceInformer) Lister() cephrookiov1.CephBlockPoolRadosNamespaceLister {
 	return cephrookiov1.NewCephBlockPoolRadosNamespaceLister(f.Informer().GetIndexer())
+}
+
+// ToTypedCephBlockPoolRadosNamespaceInformer converts an untyped informer into a TypedCephBlockPoolRadosNamespaceInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephBlockPoolRadosNamespace. If that is not the case, calling type-safe methods of the returned
+// TypedCephBlockPoolRadosNamespaceInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedCephBlockPoolRadosNamespaceInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedCephBlockPoolRadosNamespaceInformer(informer CephBlockPoolRadosNamespaceInformer) TypedCephBlockPoolRadosNamespaceInformer {
+	if informer, ok := informer.(TypedCephBlockPoolRadosNamespaceInformer); ok {
+		return informer
+	}
+	return &cephBlockPoolRadosNamespaceTypedInformerAdapter{informer}
+}
+
+type cephBlockPoolRadosNamespaceTypedInformerAdapter struct {
+	CephBlockPoolRadosNamespaceInformer
+}
+
+func (a *cephBlockPoolRadosNamespaceTypedInformerAdapter) TypedInformer() CephBlockPoolRadosNamespaceIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBlockPoolRadosNamespace](a.Informer())
+}
+
+// ToCephBlockPoolRadosNamespaceIndexInformer converts an untyped informer into a CephBlockPoolRadosNamespaceIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephBlockPoolRadosNamespace. If that is not the case, calling type-safe methods of the returned
+// CephBlockPoolRadosNamespaceIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a CephBlockPoolRadosNamespaceIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToCephBlockPoolRadosNamespaceIndexInformer(informer cache.SharedIndexInformer) CephBlockPoolRadosNamespaceIndexInformer {
+	if informer, ok := informer.(CephBlockPoolRadosNamespaceIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBlockPoolRadosNamespace](informer)
 }

@@ -34,11 +34,39 @@ import (
 )
 
 // CephObjectStoreAccountInformer provides access to a shared informer and lister for
-// CephObjectStoreAccounts.
+// CephObjectStoreAccounts. Prefer using the type-safe variant (see [TypedCephObjectStoreAccountInformer]).
 type CephObjectStoreAccountInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() cephrookiov1.CephObjectStoreAccountLister
 }
+
+// TypedCephObjectStoreAccountInformer provides access to a shared informer and lister for
+// CephObjectStoreAccounts, including the type-safe TypedInformer variant.
+// It is a superset of CephObjectStoreAccountInformer.
+type TypedCephObjectStoreAccountInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() CephObjectStoreAccountIndexInformer
+	Lister() cephrookiov1.CephObjectStoreAccountLister
+}
+
+// CephObjectStoreAccountIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type CephObjectStoreAccountIndexInformer cache.TypedSharedIndexInformer[*apiscephrookiov1.CephObjectStoreAccount]
+
+// CephObjectStoreAccountHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for CephObjectStoreAccount.
+type CephObjectStoreAccountHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiscephrookiov1.CephObjectStoreAccount]
+
+// CephObjectStoreAccountDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for CephObjectStoreAccount.
+type CephObjectStoreAccountDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiscephrookiov1.CephObjectStoreAccount]
+
+// CephObjectStoreAccountFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for CephObjectStoreAccount.
+type CephObjectStoreAccountFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiscephrookiov1.CephObjectStoreAccount]
+
+// CephObjectStoreAccountIndexers is a specialization of [cache.TypedIndexers] for CephObjectStoreAccount.
+type CephObjectStoreAccountIndexers = cache.TypedIndexers[*apiscephrookiov1.CephObjectStoreAccount]
+
+// DeletedCephObjectStoreAccount is a specialization of [cache.DeletedObject] for CephObjectStoreAccount.
+type DeletedCephObjectStoreAccount = cache.DeletedObject[*apiscephrookiov1.CephObjectStoreAccount]
 
 type cephObjectStoreAccountInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type cephObjectStoreAccountInformer struct {
 // NewCephObjectStoreAccountInformer constructs a new informer for CephObjectStoreAccount type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephObjectStoreAccountInformer]).
 func NewCephObjectStoreAccountInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewCephObjectStoreAccountInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedCephObjectStoreAccountInformer constructs a new informer for CephObjectStoreAccount type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephObjectStoreAccountInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephObjectStoreAccountIndexers) CephObjectStoreAccountIndexInformer {
+	return NewTypedCephObjectStoreAccountInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredCephObjectStoreAccountInformer constructs a new informer for CephObjectStoreAccount type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredCephObjectStoreAccountInformer]).
 func NewFilteredCephObjectStoreAccountInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewCephObjectStoreAccountInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedCephObjectStoreAccountInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredCephObjectStoreAccountInformer constructs a new informer for CephObjectStoreAccount type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredCephObjectStoreAccountInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephObjectStoreAccountIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) CephObjectStoreAccountIndexInformer {
+	return NewTypedCephObjectStoreAccountInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewCephObjectStoreAccountInformerWithOptions constructs a new informer for CephObjectStoreAccount type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephObjectStoreAccountInformerWithOptions]).
 func NewCephObjectStoreAccountInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedCephObjectStoreAccountInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedCephObjectStoreAccountInformerWithOptions constructs a new informer for CephObjectStoreAccount type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephObjectStoreAccountInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) CephObjectStoreAccountIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephobjectstoreaccounts"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephObjectStoreAccount](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewCephObjectStoreAccountInformerWithOptions(client versioned.Interface, na
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *cephObjectStoreAccountInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewCephObjectStoreAccountInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedCephObjectStoreAccountInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *cephObjectStoreAccountInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiscephrookiov1.CephObjectStoreAccount{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *cephObjectStoreAccountInformer) TypedInformer() CephObjectStoreAccountIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephObjectStoreAccount](f.factory.InformerFor(&apiscephrookiov1.CephObjectStoreAccount{}, f.defaultInformer))
 }
 
 func (f *cephObjectStoreAccountInformer) Lister() cephrookiov1.CephObjectStoreAccountLister {
 	return cephrookiov1.NewCephObjectStoreAccountLister(f.Informer().GetIndexer())
+}
+
+// ToTypedCephObjectStoreAccountInformer converts an untyped informer into a TypedCephObjectStoreAccountInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephObjectStoreAccount. If that is not the case, calling type-safe methods of the returned
+// TypedCephObjectStoreAccountInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedCephObjectStoreAccountInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedCephObjectStoreAccountInformer(informer CephObjectStoreAccountInformer) TypedCephObjectStoreAccountInformer {
+	if informer, ok := informer.(TypedCephObjectStoreAccountInformer); ok {
+		return informer
+	}
+	return &cephObjectStoreAccountTypedInformerAdapter{informer}
+}
+
+type cephObjectStoreAccountTypedInformerAdapter struct {
+	CephObjectStoreAccountInformer
+}
+
+func (a *cephObjectStoreAccountTypedInformerAdapter) TypedInformer() CephObjectStoreAccountIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephObjectStoreAccount](a.Informer())
+}
+
+// ToCephObjectStoreAccountIndexInformer converts an untyped informer into a CephObjectStoreAccountIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephObjectStoreAccount. If that is not the case, calling type-safe methods of the returned
+// CephObjectStoreAccountIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a CephObjectStoreAccountIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToCephObjectStoreAccountIndexInformer(informer cache.SharedIndexInformer) CephObjectStoreAccountIndexInformer {
+	if informer, ok := informer.(CephObjectStoreAccountIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephObjectStoreAccount](informer)
 }

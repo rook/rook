@@ -34,11 +34,39 @@ import (
 )
 
 // CephNVMeOFGatewayInformer provides access to a shared informer and lister for
-// CephNVMeOFGateways.
+// CephNVMeOFGateways. Prefer using the type-safe variant (see [TypedCephNVMeOFGatewayInformer]).
 type CephNVMeOFGatewayInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() cephrookiov1.CephNVMeOFGatewayLister
 }
+
+// TypedCephNVMeOFGatewayInformer provides access to a shared informer and lister for
+// CephNVMeOFGateways, including the type-safe TypedInformer variant.
+// It is a superset of CephNVMeOFGatewayInformer.
+type TypedCephNVMeOFGatewayInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() CephNVMeOFGatewayIndexInformer
+	Lister() cephrookiov1.CephNVMeOFGatewayLister
+}
+
+// CephNVMeOFGatewayIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type CephNVMeOFGatewayIndexInformer cache.TypedSharedIndexInformer[*apiscephrookiov1.CephNVMeOFGateway]
+
+// CephNVMeOFGatewayHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for CephNVMeOFGateway.
+type CephNVMeOFGatewayHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiscephrookiov1.CephNVMeOFGateway]
+
+// CephNVMeOFGatewayDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for CephNVMeOFGateway.
+type CephNVMeOFGatewayDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiscephrookiov1.CephNVMeOFGateway]
+
+// CephNVMeOFGatewayFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for CephNVMeOFGateway.
+type CephNVMeOFGatewayFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiscephrookiov1.CephNVMeOFGateway]
+
+// CephNVMeOFGatewayIndexers is a specialization of [cache.TypedIndexers] for CephNVMeOFGateway.
+type CephNVMeOFGatewayIndexers = cache.TypedIndexers[*apiscephrookiov1.CephNVMeOFGateway]
+
+// DeletedCephNVMeOFGateway is a specialization of [cache.DeletedObject] for CephNVMeOFGateway.
+type DeletedCephNVMeOFGateway = cache.DeletedObject[*apiscephrookiov1.CephNVMeOFGateway]
 
 type cephNVMeOFGatewayInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type cephNVMeOFGatewayInformer struct {
 // NewCephNVMeOFGatewayInformer constructs a new informer for CephNVMeOFGateway type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephNVMeOFGatewayInformer]).
 func NewCephNVMeOFGatewayInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewCephNVMeOFGatewayInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedCephNVMeOFGatewayInformer constructs a new informer for CephNVMeOFGateway type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephNVMeOFGatewayInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephNVMeOFGatewayIndexers) CephNVMeOFGatewayIndexInformer {
+	return NewTypedCephNVMeOFGatewayInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredCephNVMeOFGatewayInformer constructs a new informer for CephNVMeOFGateway type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredCephNVMeOFGatewayInformer]).
 func NewFilteredCephNVMeOFGatewayInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewCephNVMeOFGatewayInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedCephNVMeOFGatewayInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredCephNVMeOFGatewayInformer constructs a new informer for CephNVMeOFGateway type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredCephNVMeOFGatewayInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephNVMeOFGatewayIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) CephNVMeOFGatewayIndexInformer {
+	return NewTypedCephNVMeOFGatewayInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewCephNVMeOFGatewayInformerWithOptions constructs a new informer for CephNVMeOFGateway type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephNVMeOFGatewayInformerWithOptions]).
 func NewCephNVMeOFGatewayInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedCephNVMeOFGatewayInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedCephNVMeOFGatewayInformerWithOptions constructs a new informer for CephNVMeOFGateway type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephNVMeOFGatewayInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) CephNVMeOFGatewayIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephnvmeofgateways"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephNVMeOFGateway](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewCephNVMeOFGatewayInformerWithOptions(client versioned.Interface, namespa
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *cephNVMeOFGatewayInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewCephNVMeOFGatewayInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedCephNVMeOFGatewayInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *cephNVMeOFGatewayInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiscephrookiov1.CephNVMeOFGateway{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *cephNVMeOFGatewayInformer) TypedInformer() CephNVMeOFGatewayIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephNVMeOFGateway](f.factory.InformerFor(&apiscephrookiov1.CephNVMeOFGateway{}, f.defaultInformer))
 }
 
 func (f *cephNVMeOFGatewayInformer) Lister() cephrookiov1.CephNVMeOFGatewayLister {
 	return cephrookiov1.NewCephNVMeOFGatewayLister(f.Informer().GetIndexer())
+}
+
+// ToTypedCephNVMeOFGatewayInformer converts an untyped informer into a TypedCephNVMeOFGatewayInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephNVMeOFGateway. If that is not the case, calling type-safe methods of the returned
+// TypedCephNVMeOFGatewayInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedCephNVMeOFGatewayInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedCephNVMeOFGatewayInformer(informer CephNVMeOFGatewayInformer) TypedCephNVMeOFGatewayInformer {
+	if informer, ok := informer.(TypedCephNVMeOFGatewayInformer); ok {
+		return informer
+	}
+	return &cephNVMeOFGatewayTypedInformerAdapter{informer}
+}
+
+type cephNVMeOFGatewayTypedInformerAdapter struct {
+	CephNVMeOFGatewayInformer
+}
+
+func (a *cephNVMeOFGatewayTypedInformerAdapter) TypedInformer() CephNVMeOFGatewayIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephNVMeOFGateway](a.Informer())
+}
+
+// ToCephNVMeOFGatewayIndexInformer converts an untyped informer into a CephNVMeOFGatewayIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephNVMeOFGateway. If that is not the case, calling type-safe methods of the returned
+// CephNVMeOFGatewayIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a CephNVMeOFGatewayIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToCephNVMeOFGatewayIndexInformer(informer cache.SharedIndexInformer) CephNVMeOFGatewayIndexInformer {
+	if informer, ok := informer.(CephNVMeOFGatewayIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephNVMeOFGateway](informer)
 }

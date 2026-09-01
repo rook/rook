@@ -34,11 +34,39 @@ import (
 )
 
 // CephBucketNotificationInformer provides access to a shared informer and lister for
-// CephBucketNotifications.
+// CephBucketNotifications. Prefer using the type-safe variant (see [TypedCephBucketNotificationInformer]).
 type CephBucketNotificationInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() cephrookiov1.CephBucketNotificationLister
 }
+
+// TypedCephBucketNotificationInformer provides access to a shared informer and lister for
+// CephBucketNotifications, including the type-safe TypedInformer variant.
+// It is a superset of CephBucketNotificationInformer.
+type TypedCephBucketNotificationInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() CephBucketNotificationIndexInformer
+	Lister() cephrookiov1.CephBucketNotificationLister
+}
+
+// CephBucketNotificationIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type CephBucketNotificationIndexInformer cache.TypedSharedIndexInformer[*apiscephrookiov1.CephBucketNotification]
+
+// CephBucketNotificationHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for CephBucketNotification.
+type CephBucketNotificationHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiscephrookiov1.CephBucketNotification]
+
+// CephBucketNotificationDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for CephBucketNotification.
+type CephBucketNotificationDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiscephrookiov1.CephBucketNotification]
+
+// CephBucketNotificationFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for CephBucketNotification.
+type CephBucketNotificationFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiscephrookiov1.CephBucketNotification]
+
+// CephBucketNotificationIndexers is a specialization of [cache.TypedIndexers] for CephBucketNotification.
+type CephBucketNotificationIndexers = cache.TypedIndexers[*apiscephrookiov1.CephBucketNotification]
+
+// DeletedCephBucketNotification is a specialization of [cache.DeletedObject] for CephBucketNotification.
+type DeletedCephBucketNotification = cache.DeletedObject[*apiscephrookiov1.CephBucketNotification]
 
 type cephBucketNotificationInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -49,25 +77,49 @@ type cephBucketNotificationInformer struct {
 // NewCephBucketNotificationInformer constructs a new informer for CephBucketNotification type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephBucketNotificationInformer]).
 func NewCephBucketNotificationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewCephBucketNotificationInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedCephBucketNotificationInformer constructs a new informer for CephBucketNotification type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephBucketNotificationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephBucketNotificationIndexers) CephBucketNotificationIndexInformer {
+	return NewTypedCephBucketNotificationInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredCephBucketNotificationInformer constructs a new informer for CephBucketNotification type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredCephBucketNotificationInformer]).
 func NewFilteredCephBucketNotificationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewCephBucketNotificationInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedCephBucketNotificationInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredCephBucketNotificationInformer constructs a new informer for CephBucketNotification type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredCephBucketNotificationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers CephBucketNotificationIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) CephBucketNotificationIndexInformer {
+	return NewTypedCephBucketNotificationInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewCephBucketNotificationInformerWithOptions constructs a new informer for CephBucketNotification type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedCephBucketNotificationInformerWithOptions]).
 func NewCephBucketNotificationInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedCephBucketNotificationInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedCephBucketNotificationInformerWithOptions constructs a new informer for CephBucketNotification type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedCephBucketNotificationInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) CephBucketNotificationIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephbucketnotifications"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBucketNotification](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -100,17 +152,57 @@ func NewCephBucketNotificationInformerWithOptions(client versioned.Interface, na
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *cephBucketNotificationInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewCephBucketNotificationInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedCephBucketNotificationInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *cephBucketNotificationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiscephrookiov1.CephBucketNotification{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *cephBucketNotificationInformer) TypedInformer() CephBucketNotificationIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBucketNotification](f.factory.InformerFor(&apiscephrookiov1.CephBucketNotification{}, f.defaultInformer))
 }
 
 func (f *cephBucketNotificationInformer) Lister() cephrookiov1.CephBucketNotificationLister {
 	return cephrookiov1.NewCephBucketNotificationLister(f.Informer().GetIndexer())
+}
+
+// ToTypedCephBucketNotificationInformer converts an untyped informer into a TypedCephBucketNotificationInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephBucketNotification. If that is not the case, calling type-safe methods of the returned
+// TypedCephBucketNotificationInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedCephBucketNotificationInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedCephBucketNotificationInformer(informer CephBucketNotificationInformer) TypedCephBucketNotificationInformer {
+	if informer, ok := informer.(TypedCephBucketNotificationInformer); ok {
+		return informer
+	}
+	return &cephBucketNotificationTypedInformerAdapter{informer}
+}
+
+type cephBucketNotificationTypedInformerAdapter struct {
+	CephBucketNotificationInformer
+}
+
+func (a *cephBucketNotificationTypedInformerAdapter) TypedInformer() CephBucketNotificationIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBucketNotification](a.Informer())
+}
+
+// ToCephBucketNotificationIndexInformer converts an untyped informer into a CephBucketNotificationIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *CephBucketNotification. If that is not the case, calling type-safe methods of the returned
+// CephBucketNotificationIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a CephBucketNotificationIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToCephBucketNotificationIndexInformer(informer cache.SharedIndexInformer) CephBucketNotificationIndexInformer {
+	if informer, ok := informer.(CephBucketNotificationIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiscephrookiov1.CephBucketNotification](informer)
 }
