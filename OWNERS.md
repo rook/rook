@@ -20,8 +20,6 @@ Maintainers will be added according to the [process for adding a maintainer](GOV
 
 * Travis Nielsen <tnielsen@redhat.com> ([travisn](https://github.com/travisn))
 * Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
-* Alexander Trost <galexrt@googlemail.com> ([galexrt](https://github.com/galexrt))
-* Sebastien Han <shan@redhat.com> ([leseb](https://github.com/leseb))
 * Blaine Gardner <blaine.gardner@redhat.com> ([BlaineEXE](https://github.com/BlaineEXE))
 * Satoru Takeuchi <satoru.takeuchi@gmail.com> ([satoru-takeuchi](https://github.com/satoru-takeuchi))
 * Subham Rai <srai@redhat.com> ([subhamkrai](https://github.com/subhamkrai))
@@ -36,6 +34,8 @@ This list will be updated according to the [process for removing a maintainer](G
 * Bassam Tabbara <bassam@upbound.io> ([bassam](https://github.com/bassam))
 * Dmitry Yusupov <dmitry.yusupov@gmail.com> ([dyusupov](https://github.com/dyusupov))
 * Yannis Zarkadas <yanniszarkadas@gmail.com> ([yanniszark](https://github.com/yanniszark))
+* Alexander Trost <galexrt@googlemail.com> ([galexrt](https://github.com/galexrt))
+* Sébastien Han <shan@redhat.com> ([leseb](https://github.com/leseb))
 
 ## Code Owners
 
