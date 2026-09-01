@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
@@ -234,12 +235,38 @@ func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[st
 }
 
 func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
+	nsName := controller.NsName(c.clusterInfo.Namespace, c.store.Name)
 	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 	who := generateCephXUser(rgwConfig.ResourceName)
 
 	configOptions, err := c.generateMonConfigOptions(rgwConfig)
 	if err != nil {
 		return err
+	}
+
+	// STS cleanup when disabled
+	if stsAuthVal, exists := configOptions["rgw_s3_auth_use_sts"]; exists && stsAuthVal == "false" {
+		log.NamedInfo(nsName, logger, "STS is being disabled, cleaning up STS configuration and secrets")
+
+		// Check if rgw_sts_key was previously set before deleting
+		prevStsKey, _ := monStore.Get(who, "rgw_sts_key")
+		if prevStsKey != "" {
+			err := monStore.Delete(who, "rgw_sts_key")
+			if err != nil {
+				log.NamedWarning(nsName, logger, "failed to delete rgw_sts_key from mon config store: %v", err)
+			}
+		}
+
+		// Delete the STS secret
+		stsSecretName := fmt.Sprintf("sts-key-%s", c.store.Name)
+		err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(
+			c.clusterInfo.Context,
+			stsSecretName,
+			metav1.DeleteOptions{},
+		)
+		if err != nil && !kerrors.IsNotFound(err) {
+			log.NamedWarning(nsName, logger, "failed to delete STS secret %q: %v", stsSecretName, err)
+		}
 	}
 
 	if err := monStore.SetAll(who, configOptions); err != nil {
