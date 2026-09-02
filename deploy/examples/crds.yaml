@@ -15916,6 +15916,30 @@ spec:
                 clusterNamespace:
                   description: The namespace where the parent CephCluster and CephObjectStore are found
                   type: string
+                defaultPlacement:
+                  description: |-
+                    DefaultPlacement sets the default pool placement target for buckets
+                    created by this user. It must name a placement target known to the
+                    zonegroup serving the referenced object store; RGW rejects unknown
+                    targets. If this field is absent the controller does not manage the
+                    user's placement: an existing value (set previously through this
+                    field, or outside of Rook) is left in place.
+                  maxLength: 2048
+                  minLength: 1
+                  pattern: ^[a-zA-Z0-9._-]+$
+                  type: string
+                defaultStorageClass:
+                  description: |-
+                    DefaultStorageClass sets the default storage class for objects created
+                    by this user, within the placement set by DefaultPlacement (which must
+                    also be set). The storage class must exist on that placement target;
+                    RGW rejects unknown storage classes. If this field is absent the
+                    controller does not manage the user's storage class: an existing value
+                    is preserved, except when DefaultPlacement changes, which resets the
+                    storage class to the new target's default (STANDARD).
+                  maxLength: 2048
+                  minLength: 1
+                  type: string
                 displayName:
                   description: The display name for the ceph user.
                   type: string
@@ -16015,6 +16039,9 @@ spec:
                   description: The store the user will be created in
                   type: string
               type: object
+              x-kubernetes-validations:
+                - message: defaultStorageClass requires defaultPlacement
+                  rule: '!has(self.defaultStorageClass) || has(self.defaultPlacement)'
             status:
               description: ObjectStoreUserStatus represents the status Ceph Object Store Gateway User
               properties:
