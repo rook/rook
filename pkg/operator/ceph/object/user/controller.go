@@ -235,7 +235,7 @@ func (r *ReconcileObjectStoreUser) Reconcile(context context.Context, request re
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, cephObjectStoreUser, err := r.reconcile(request)
 	if err != nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus, nil)
 		log.NamedError(request.NamespacedName, logger, "failed to reconcile %v", err)
 	}
 
@@ -274,7 +274,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// The CR was just created, initializing status fields
 	if cephObjectStoreUser.Status == nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus, nil)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -388,7 +388,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	// CREATE/UPDATE CEPH USER
-	reconcileResponse, err = r.reconcileCephUser(cephObjectStoreUser, userConfig)
+	reconcileResponse, liveUser, err := r.reconcileCephUser(cephObjectStoreUser, userConfig)
 	if err != nil {
 		return reconcileResponse, *cephObjectStoreUser, err
 	}
@@ -412,23 +412,23 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
-	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
+	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus, liveUser)
 
 	// Return and do not requeue
 	log.NamedDebug(request.NamespacedName, logger, "done reconciling")
 	return reconcile.Result{}, *cephObjectStoreUser, nil
 }
 
-func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1.CephObjectStoreUser, userConfig *admin.User) (reconcile.Result, error) {
-	err := r.createOrUpdateCephUser(cephObjectStoreUser, userConfig)
+func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1.CephObjectStoreUser, userConfig *admin.User) (reconcile.Result, *admin.User, error) {
+	liveUser, err := r.createOrUpdateCephUser(cephObjectStoreUser, userConfig)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to create/update object store user %q", cephObjectStoreUser.Name)
+		return reconcile.Result{}, nil, errors.Wrapf(err, "failed to create/update object store user %q", cephObjectStoreUser.Name)
 	}
 
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, liveUser, nil
 }
 
-func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectStoreUser, targetUser *admin.User) error {
+func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectStoreUser, targetUser *admin.User) (*admin.User, error) {
 	nsName := opcontroller.NsName(u.Namespace, u.Name)
 	log.NamedInfo(nsName, logger, "creating ceph object user")
 
@@ -439,19 +439,21 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			liveUser, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, *targetUser)
 			if err != nil {
-				return errors.Wrapf(err, "failed to create ceph object user %v", &targetUser.ID)
+				return nil, errors.Wrapf(err, "failed to create ceph object user %v", &targetUser.ID)
 			}
 			logCreateOrUpdate = fmt.Sprintf("created ceph object user %q", u.Name)
 		} else {
-			return errors.Wrapf(err, "failed to get details from ceph object user %q", u.Name)
+			return nil, errors.Wrapf(err, "failed to get details from ceph object user %q", u.Name)
 		}
 	}
 
 	// Update simple scalar fields supported by admin.ModifyUser() excluding keys, as this method is unable to handle multiple keys.
 	if !isUserSync(targetUser, &liveUser) {
+		preserveLiveStorageClass(targetUser, &liveUser, r.clusterInfo.CephVersion)
+
 		liveUser, err = r.objContext.AdminOpsClient.ModifyUser(r.opManagerContext, *targetUser)
 		if err != nil {
-			return errors.Wrapf(err, "failed to update ceph object user %q", targetUser.ID)
+			return nil, errors.Wrapf(err, "failed to update ceph object user %q", targetUser.ID)
 		}
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
 	}
@@ -467,14 +469,14 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 			log.NamedTrace(nsName, logger, "remove capabilities %s from user %s", liveUser.UserCaps, targetUser.ID)
 			_, err = r.objContext.AdminOpsClient.RemoveUserCap(r.opManagerContext, targetUser.ID, liveUser.UserCaps)
 			if err != nil {
-				return errors.Wrapf(err, "failed to remove current ceph object user %q capabilities", targetUser.ID)
+				return nil, errors.Wrapf(err, "failed to remove current ceph object user %q capabilities", targetUser.ID)
 			}
 		}
 		if targetUser.UserCaps != "" {
 			log.NamedTrace(nsName, logger, "set capabilities %s for user %s", targetUser.UserCaps, targetUser.ID)
 			_, err = r.objContext.AdminOpsClient.AddUserCap(r.opManagerContext, targetUser.ID, targetUser.UserCaps)
 			if err != nil {
-				return errors.Wrapf(err, "failed to update ceph object user %q capabilities", targetUser.ID)
+				return nil, errors.Wrapf(err, "failed to update ceph object user %q capabilities", targetUser.ID)
 			}
 		}
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
@@ -501,14 +503,14 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	}
 	err = r.objContext.AdminOpsClient.SetUserQuota(r.opManagerContext, userQuota)
 	if err != nil {
-		return errors.Wrapf(err, "failed to set quotas for user %q", u.Name)
+		return nil, errors.Wrapf(err, "failed to set quotas for user %q", u.Name)
 	}
 
 	if len(targetUser.Keys) == 0 {
 		// use the keys already set on the user & remove all but one key
 		if len(liveUser.Keys) == 0 {
 			// something is wrong, there should be at least one key
-			return errors.Errorf("no keys set for user %q", u.Name)
+			return nil, errors.Errorf("no keys set for user %q", u.Name)
 		}
 
 		targetUser.Keys = []admin.UserKeySpec{liveUser.Keys[0]}
@@ -516,11 +518,11 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	}
 
 	if err := r.reconcileUserKeys(nsName, targetUser.Keys); err != nil {
-		return errors.Wrapf(err, "failed to reconcile keys for user %q", u.Name)
+		return nil, errors.Wrapf(err, "failed to reconcile keys for user %q", u.Name)
 	}
 	log.NamedInfo(nsName, logger, "%s", logCreateOrUpdate)
 
-	return nil
+	return &liveUser, nil
 }
 
 func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephObjectStoreUser) error {
@@ -681,6 +683,19 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser, cephVersion cephver.Ce
 
 	userConfig.OpMask = opMask
 
+	if user.Spec.DefaultPlacement != "" {
+		userConfig.DefaultPlacement = user.Spec.DefaultPlacement
+		if cephVersion.IsAtLeastTentacle() {
+			userConfig.DefaultStorageClass = user.Spec.DefaultStorageClass
+		} else if user.Spec.DefaultStorageClass != "" {
+			// Squid's admin ops API never reads default-storage-class and splits
+			// the placement rule on "/" instead; ceph tracker 66439 changed that
+			// in Tentacle and was not backported. Drop this arm once Squid
+			// leaves the support window.
+			userConfig.DefaultPlacement += "/" + user.Spec.DefaultStorageClass
+		}
+	}
+
 	return userConfig, nil
 }
 
@@ -688,9 +703,15 @@ func generateCephUserSecretName(u *cephv1.CephObjectStoreUser) string {
 	return fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name)
 }
 
-func generateStatusInfo(u *cephv1.CephObjectStoreUser) map[string]string {
+func generateStatusInfo(u *cephv1.CephObjectStoreUser, liveUser *admin.User) map[string]string {
 	m := make(map[string]string)
 	m["secretName"] = generateCephUserSecretName(u)
+	if liveUser != nil {
+		if placement, storageClass := effectiveDefaultPlacement(liveUser); placement != "" {
+			m["defaultPlacement"] = placement
+			m["defaultStorageClass"] = normalizeStorageClass(storageClass)
+		}
+	}
 	return m
 }
 
@@ -848,8 +869,10 @@ func (r *ReconcileObjectStoreUser) resolveAccountRef(u *cephv1.CephObjectStoreUs
 	return accountID, reconcile.Result{}, nil
 }
 
-// updateStatus updates an object with a given status
-func (r *ReconcileObjectStoreUser) updateStatus(observedGeneration int64, name types.NamespacedName, status string) {
+// updateStatus updates an object with a given status. liveUser, when non-nil,
+// is the rgw user as reported by the admin ops API at the end of a successful
+// reconcile; its effective state is echoed into `.status.info`.
+func (r *ReconcileObjectStoreUser) updateStatus(observedGeneration int64, name types.NamespacedName, status string, liveUser *admin.User) {
 	user := &cephv1.CephObjectStoreUser{}
 	if err := r.client.Get(r.opManagerContext, name, user); err != nil {
 		if kerrors.IsNotFound(err) {
@@ -865,7 +888,7 @@ func (r *ReconcileObjectStoreUser) updateStatus(observedGeneration int64, name t
 
 	user.Status.Phase = status
 	if user.Status.Phase == k8sutil.ReadyStatus {
-		user.Status.Info = generateStatusInfo(user)
+		user.Status.Info = generateStatusInfo(user, liveUser)
 	}
 	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 		user.Status.ObservedGeneration = observedGeneration
@@ -1044,7 +1067,7 @@ func (r *ReconcileObjectStoreUser) generateUserKeySpec(user *cephv1.CephObjectSt
 // This is intended to determine if an update is needed/possible via AdminOpsClient.ModifyUser().
 // AdminOpsClient.ModifyUser() does not currently support updating all types of user configuration and only supports:
 //
-//	[]string{"uid", "display-name", "default-placement", "email", "generate-key", "access-key", "secret-key", "key-type", "max-buckets", "suspended", "op-mask"}))
+//	[]string{"uid", "display-name", "default-placement", "default-storage-class", "email", "generate-key", "access-key", "secret-key", "key-type", "max-buckets", "suspended", "op-mask"}))
 //
 // While this method does have support for updating keys, it is unable to handle multiple keys, so key reconciliation needs to be handled separately.
 // There is also no support for updating capabilities via ModifyUser().
@@ -1066,5 +1089,69 @@ func isUserSync(targetUser, liveUser *admin.User) bool {
 		return false
 	}
 
+	targetPlacement, targetStorageClass := effectiveDefaultPlacement(targetUser)
+	if targetPlacement != "" {
+		livePlacement, liveStorageClass := effectiveDefaultPlacement(liveUser)
+		if targetPlacement != livePlacement {
+			return false
+		}
+		if targetStorageClass != "" && normalizeStorageClass(targetStorageClass) != normalizeStorageClass(liveStorageClass) {
+			return false
+		}
+	}
+
 	return true
+}
+
+// effectiveDefaultPlacement resolves a user's default placement into its
+// placement target and storage class. On Squid the storage class is embedded in
+// the placement rule as "<placement>/<storage-class>", while user info reports
+// the two back as separate fields, so both representations must resolve to the
+// same pair.
+func effectiveDefaultPlacement(user *admin.User) (placement, storageClass string) {
+	if p, sc, found := strings.Cut(user.DefaultPlacement, "/"); found {
+		return p, sc
+	}
+	return user.DefaultPlacement, user.DefaultStorageClass
+}
+
+// preserveLiveStorageClass carries the live user's default storage class into
+// target when the CR does not manage one.
+//
+// An RGW user's placement is a single {name, storage class} rule, and every
+// ModifyUser carrying default-placement rewrites the whole rule: Squid clears
+// the storage class when the value has no "/", and Tentacle leaves it empty
+// unless default-storage-class is sent. So a modify triggered by unrelated
+// drift — a display name, an op-mask — would silently reset the storage class
+// of a user whose CR sets only defaultPlacement.
+//
+// The class is not carried when the target names a different placement: that
+// target need not offer the same class, so the rule legitimately re-derives to
+// the new target's default.
+func preserveLiveStorageClass(target, live *admin.User, cephVersion cephver.CephVersion) {
+	targetPlacement, targetStorageClass := effectiveDefaultPlacement(target)
+	if targetPlacement == "" || targetStorageClass != "" {
+		return
+	}
+
+	livePlacement, liveStorageClass := effectiveDefaultPlacement(live)
+	if targetPlacement != livePlacement || liveStorageClass == "" {
+		return
+	}
+
+	if cephVersion.IsAtLeastTentacle() {
+		target.DefaultStorageClass = liveStorageClass
+		return
+	}
+	target.DefaultPlacement = targetPlacement + "/" + liveStorageClass
+}
+
+// normalizeStorageClass resolves the two spellings of a user's default storage
+// class: user info reports it as "" on Squid and Tentacle, and as "STANDARD" on
+// newer Ceph.
+func normalizeStorageClass(storageClass string) string {
+	if storageClass == "" {
+		return "STANDARD"
+	}
+	return storageClass
 }

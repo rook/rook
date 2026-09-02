@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 
 	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephobject "github.com/rook/rook/pkg/operator/ceph/object"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -422,9 +423,49 @@ func TestBuildUpdateStatusInfo(t *testing.T) {
 		},
 	}
 
-	statusInfo := generateStatusInfo(cephObjectStoreUser)
-	assert.NotEmpty(t, statusInfo["secretName"])
-	assert.Equal(t, "rook-ceph-object-user-my-store-my-user", statusInfo["secretName"])
+	t.Run("no live user", func(t *testing.T) {
+		statusInfo := generateStatusInfo(cephObjectStoreUser, nil)
+		assert.NotEmpty(t, statusInfo["secretName"])
+		assert.Equal(t, "rook-ceph-object-user-my-store-my-user", statusInfo["secretName"])
+		assert.NotContains(t, statusInfo, "defaultPlacement")
+		assert.NotContains(t, statusInfo, "defaultStorageClass")
+	})
+
+	t.Run("live user without a placement", func(t *testing.T) {
+		statusInfo := generateStatusInfo(cephObjectStoreUser, &admin.User{})
+		assert.NotContains(t, statusInfo, "defaultPlacement")
+		assert.NotContains(t, statusInfo, "defaultStorageClass")
+	})
+
+	t.Run("live user with a placement only", func(t *testing.T) {
+		statusInfo := generateStatusInfo(cephObjectStoreUser, &admin.User{DefaultPlacement: "hot-tier"})
+		assert.Equal(t, "hot-tier", statusInfo["defaultPlacement"])
+		assert.Equal(t, "STANDARD", statusInfo["defaultStorageClass"])
+	})
+
+	t.Run("live user reporting the default storage class explicitly", func(t *testing.T) {
+		statusInfo := generateStatusInfo(cephObjectStoreUser, &admin.User{
+			DefaultPlacement:    "hot-tier",
+			DefaultStorageClass: "STANDARD",
+		})
+		assert.Equal(t, "hot-tier", statusInfo["defaultPlacement"])
+		assert.Equal(t, "STANDARD", statusInfo["defaultStorageClass"])
+	})
+
+	t.Run("live user with a placement and storage class", func(t *testing.T) {
+		statusInfo := generateStatusInfo(cephObjectStoreUser, &admin.User{
+			DefaultPlacement:    "hot-tier",
+			DefaultStorageClass: "STANDARD_IA",
+		})
+		assert.Equal(t, "hot-tier", statusInfo["defaultPlacement"])
+		assert.Equal(t, "STANDARD_IA", statusInfo["defaultStorageClass"])
+	})
+
+	t.Run("live user with an embedded storage class", func(t *testing.T) {
+		statusInfo := generateStatusInfo(cephObjectStoreUser, &admin.User{DefaultPlacement: "hot-tier/STANDARD_IA"})
+		assert.Equal(t, "hot-tier", statusInfo["defaultPlacement"])
+		assert.Equal(t, "STANDARD_IA", statusInfo["defaultStorageClass"])
+	})
 }
 
 func TestCreateOrUpdateCephUser(t *testing.T) {
@@ -511,6 +552,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 		objContext: &cephobject.AdminOpsContext{
 			AdminOpsClient: adminClient,
 		},
+		clusterInfo:      &cephclient.ClusterInfo{CephVersion: cephver.Minimum},
 		opManagerContext: context.TODO(),
 	}
 	maxsize, err := resource.ParseQuantity(maxsizestr)
@@ -518,7 +560,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 
 	t.Run("user with empty name", func(t *testing.T) {
 		userConfig := &admin.User{}
-		err = r.createOrUpdateCephUser(objectUser, userConfig)
+		_, err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.Error(t, err)
 	})
 
@@ -526,7 +568,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 		objectUser.Name = name
 		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
-		err = r.createOrUpdateCephUser(objectUser, userConfig)
+		_, err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 
@@ -534,7 +576,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket}
 		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
-		err = r.createOrUpdateCephUser(objectUser, userConfig)
+		_, err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 
@@ -548,7 +590,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 		}
 		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
-		err = r.createOrUpdateCephUser(objectUser, userConfig)
+		_, err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 
@@ -558,35 +600,35 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxObjects: &maxobject}
 		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
-		err = r.createOrUpdateCephUser(objectUser, userConfig)
+		_, err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("setting MaxSize for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxSize: &maxsize}
 		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
-		err = r.createOrUpdateCephUser(objectUser, userConfig)
+		_, err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("resetting MaxSize and MaxObjects for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = nil
 		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
-		err = r.createOrUpdateCephUser(objectUser, userConfig)
+		_, err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("setting both MaxSize and MaxObjects for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxObjects: &maxobject, MaxSize: &maxsize}
 		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
-		err = r.createOrUpdateCephUser(objectUser, userConfig)
+		_, err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("resetting MaxSize and MaxObjects again for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = nil
 		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
-		err = r.createOrUpdateCephUser(objectUser, userConfig)
+		_, err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 
@@ -600,7 +642,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket, MaxObjects: &maxobject, MaxSize: &maxsize}
 		userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 		require.NoError(t, err)
-		err = r.createOrUpdateCephUser(objectUser, userConfig)
+		_, err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 }
@@ -648,6 +690,168 @@ func TestGenerateUserConfigCephVersionChecks(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Contains(t, userConfig.UserCaps, "accounts=*;")
 	})
+}
+
+func TestGenerateUserConfigDefaultPlacement(t *testing.T) {
+	var (
+		squid    = cephver.CephVersion{Major: 19, Minor: 2, Extra: 3}
+		tentacle = cephver.CephVersion{Major: 20, Minor: 2, Extra: 0}
+		umbrella = cephver.CephVersion{Major: 21, Minor: 0, Extra: 0}
+	)
+
+	tests := []struct {
+		name             string
+		cephVersion      cephver.CephVersion
+		placement        string
+		storageClass     string
+		wantPlacement    string
+		wantStorageClass string
+	}{
+		{"squid, unset", squid, "", "", "", ""},
+		{"squid, placement only", squid, "hot-tier", "", "hot-tier", ""},
+		{"squid, placement and storage class", squid, "hot-tier", "STANDARD_IA", "hot-tier/STANDARD_IA", ""},
+		{"tentacle, unset", tentacle, "", "", "", ""},
+		{"tentacle, placement only", tentacle, "hot-tier", "", "hot-tier", ""},
+		{"tentacle, placement and storage class", tentacle, "hot-tier", "STANDARD_IA", "hot-tier", "STANDARD_IA"},
+		{"tentacle boundary, placement and storage class", cephver.Tentacle, "hot-tier", "STANDARD_IA", "hot-tier", "STANDARD_IA"},
+		{"umbrella, placement and storage class", umbrella, "hot-tier", "STANDARD_IA", "hot-tier", "STANDARD_IA"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objectUser := &cephv1.CephObjectStoreUser{
+				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+				Spec: cephv1.ObjectStoreUserSpec{
+					Store:               store,
+					DefaultPlacement:    tt.placement,
+					DefaultStorageClass: tt.storageClass,
+				},
+			}
+
+			userConfig, err := generateUserConfig(objectUser, tt.cephVersion)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantPlacement, userConfig.DefaultPlacement)
+			assert.Equal(t, tt.wantStorageClass, userConfig.DefaultStorageClass)
+		})
+	}
+}
+
+func TestPreserveLiveStorageClass(t *testing.T) {
+	var (
+		squid    = cephver.CephVersion{Major: 19, Minor: 2, Extra: 3}
+		tentacle = cephver.CephVersion{Major: 20, Minor: 2, Extra: 0}
+	)
+
+	tests := []struct {
+		name             string
+		cephVersion      cephver.CephVersion
+		target           admin.User
+		live             admin.User
+		wantPlacement    string
+		wantStorageClass string
+	}{
+		{
+			name:        "squid, unmanaged storage class is carried into an unrelated modify",
+			cephVersion: squid,
+			target: admin.User{
+				DisplayName:      "new name",
+				DefaultPlacement: "hot-tier",
+			},
+			live: admin.User{
+				DisplayName:         "old name",
+				DefaultPlacement:    "hot-tier",
+				DefaultStorageClass: "STANDARD_IA",
+			},
+			wantPlacement:    "hot-tier/STANDARD_IA",
+			wantStorageClass: "",
+		},
+		{
+			name:        "tentacle, unmanaged storage class is carried into an unrelated modify",
+			cephVersion: tentacle,
+			target: admin.User{
+				DisplayName:      "new name",
+				DefaultPlacement: "hot-tier",
+			},
+			live: admin.User{
+				DisplayName:         "old name",
+				DefaultPlacement:    "hot-tier",
+				DefaultStorageClass: "STANDARD_IA",
+			},
+			wantPlacement:    "hot-tier",
+			wantStorageClass: "STANDARD_IA",
+		},
+		{
+			name:        "squid, live storage class embedded in the placement is carried",
+			cephVersion: squid,
+			target: admin.User{
+				DefaultPlacement: "hot-tier",
+			},
+			live: admin.User{
+				DefaultPlacement: "hot-tier/STANDARD_IA",
+			},
+			wantPlacement:    "hot-tier/STANDARD_IA",
+			wantStorageClass: "",
+		},
+		{
+			name:        "a changed placement does not carry the storage class",
+			cephVersion: tentacle,
+			target: admin.User{
+				DefaultPlacement: "cold-tier",
+			},
+			live: admin.User{
+				DefaultPlacement:    "hot-tier",
+				DefaultStorageClass: "STANDARD_IA",
+			},
+			wantPlacement:    "cold-tier",
+			wantStorageClass: "",
+		},
+		{
+			name:        "a managed storage class is left alone",
+			cephVersion: tentacle,
+			target: admin.User{
+				DefaultPlacement:    "hot-tier",
+				DefaultStorageClass: "GLACIER",
+			},
+			live: admin.User{
+				DefaultPlacement:    "hot-tier",
+				DefaultStorageClass: "STANDARD_IA",
+			},
+			wantPlacement:    "hot-tier",
+			wantStorageClass: "GLACIER",
+		},
+		{
+			name:        "an unmanaged placement is left alone",
+			cephVersion: tentacle,
+			target:      admin.User{},
+			live: admin.User{
+				DefaultPlacement:    "hot-tier",
+				DefaultStorageClass: "STANDARD_IA",
+			},
+			wantPlacement:    "",
+			wantStorageClass: "",
+		},
+		{
+			name:        "an unset live storage class leaves the target unchanged",
+			cephVersion: squid,
+			target: admin.User{
+				DefaultPlacement: "hot-tier",
+			},
+			live: admin.User{
+				DefaultPlacement: "hot-tier",
+			},
+			wantPlacement:    "hot-tier",
+			wantStorageClass: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			preserveLiveStorageClass(&tt.target, &tt.live, tt.cephVersion)
+
+			assert.Equal(t, tt.wantPlacement, tt.target.DefaultPlacement)
+			assert.Equal(t, tt.wantStorageClass, tt.target.DefaultStorageClass)
+		})
+	}
 }
 
 func TestCreateOrUpdateCephUserNoKeys(t *testing.T) {
@@ -713,12 +917,13 @@ func TestCreateOrUpdateCephUserNoKeys(t *testing.T) {
 		objContext: &cephobject.AdminOpsContext{
 			AdminOpsClient: adminClient,
 		},
+		clusterInfo:      &cephclient.ClusterInfo{CephVersion: cephver.Minimum},
 		opManagerContext: context.TODO(),
 	}
 
 	userConfig, err := generateUserConfig(objectUser, cephver.Minimum)
 	require.NoError(t, err)
-	err = r.createOrUpdateCephUser(objectUser, userConfig)
+	_, err = r.createOrUpdateCephUser(objectUser, userConfig)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no keys set for user")
 }
@@ -981,6 +1186,86 @@ func TestIsUserSync(t *testing.T) {
 		}
 		b := admin.User{
 			OpMask: "read",
+		}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultPlacement unmanaged by the target", func(t *testing.T) {
+		a := admin.User{}
+		b := admin.User{
+			DefaultPlacement:    "hot-tier",
+			DefaultStorageClass: "STANDARD_IA",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultPlacement same", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "hot-tier",
+		}
+		b := admin.User{
+			DefaultPlacement: "hot-tier",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultPlacement different", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "hot-tier",
+		}
+		b := admin.User{
+			DefaultPlacement: "cold-tier",
+		}
+
+		assert.False(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass unmanaged by the target", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "hot-tier",
+		}
+		b := admin.User{
+			DefaultPlacement:    "hot-tier",
+			DefaultStorageClass: "STANDARD_IA",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass STANDARD matches an unset live storage class", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement:    "hot-tier",
+			DefaultStorageClass: "STANDARD",
+		}
+		b := admin.User{
+			DefaultPlacement: "hot-tier",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass embedded in the target matches the split live form", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "hot-tier/STANDARD_IA",
+		}
+		b := admin.User{
+			DefaultPlacement:    "hot-tier",
+			DefaultStorageClass: "STANDARD_IA",
+		}
+
+		assert.True(t, isUserSync(&a, &b))
+	})
+
+	t.Run("DefaultStorageClass embedded in the target differs from the split live form", func(t *testing.T) {
+		a := admin.User{
+			DefaultPlacement: "hot-tier/STANDARD_IA",
+		}
+		b := admin.User{
+			DefaultPlacement:    "hot-tier",
+			DefaultStorageClass: "GLACIER",
 		}
 
 		assert.False(t, isUserSync(&a, &b))

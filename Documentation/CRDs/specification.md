@@ -2248,6 +2248,41 @@ When set, the user is created as an account user with no default permissions,
 and resources created by this user are owned by the account.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>defaultPlacement</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DefaultPlacement sets the default pool placement target for buckets
+created by this user. It must name a placement target known to the
+zonegroup serving the referenced object store; RGW rejects unknown
+targets. If this field is absent the controller does not manage the
+user&rsquo;s placement: an existing value (set previously through this
+field, or outside of Rook) is left in place.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultStorageClass</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DefaultStorageClass sets the default storage class for objects created
+by this user, within the placement set by DefaultPlacement (which must
+also be set). The storage class must exist on that placement target;
+RGW rejects unknown storage classes. If this field is absent the
+controller does not manage the user&rsquo;s storage class: an existing value
+is preserved, except when DefaultPlacement changes, which resets the
+storage class to the new target&rsquo;s default (STANDARD).</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -12779,6 +12814,41 @@ ObjectStoreUserAccountRef
 The referenced account must be in the same namespace as the user.
 When set, the user is created as an account user with no default permissions,
 and resources created by this user are owned by the account.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultPlacement</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DefaultPlacement sets the default pool placement target for buckets
+created by this user. It must name a placement target known to the
+zonegroup serving the referenced object store; RGW rejects unknown
+targets. If this field is absent the controller does not manage the
+user&rsquo;s placement: an existing value (set previously through this
+field, or outside of Rook) is left in place.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultStorageClass</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DefaultStorageClass sets the default storage class for objects created
+by this user, within the placement set by DefaultPlacement (which must
+also be set). The storage class must exist on that placement target;
+RGW rejects unknown storage classes. If this field is absent the
+controller does not manage the user&rsquo;s storage class: an existing value
+is preserved, except when DefaultPlacement changes, which resets the
+storage class to the new target&rsquo;s default (STANDARD).</p>
 </td>
 </tr>
 </tbody>
