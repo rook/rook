@@ -6,6 +6,10 @@
 - The OSD prepare job now fails, and is retried by Kubernetes, when a freshly prepared device is
   missing from the `ceph-volume raw list` output, instead of silently reporting fewer OSDs than
   were prepared (which left OSDs registered in the osdmap with no OSD deployment created).
+- When `network.connections.encryption.enabled` is set, Rook now also sets the mon-specific
+  `ms_mon_cluster_mode`, `ms_mon_service_mode`, and `ms_mon_client_mode` settings to `secure`.
+  Previously only the general `ms_*_mode` settings were set, which left mon sessions able to
+  fall back to an unencrypted `crc` connection mode.
 
 ## Features
 
