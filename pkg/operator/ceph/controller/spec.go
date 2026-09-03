@@ -50,11 +50,12 @@ import (
 const (
 	// ConfigInitContainerName is the name which is given to the config initialization container
 	// in all Ceph pods.
-	ConfigInitContainerName                 = "config-init"
-	logVolumeName                           = "rook-ceph-log"
-	volumeMountSubPath                      = "data"
-	crashVolumeName                         = "rook-ceph-crash"
-	daemonSocketDir                         = "/run/ceph"
+	ConfigInitContainerName = "config-init"
+	logVolumeName           = "rook-ceph-log"
+	volumeMountSubPath      = "data"
+	crashVolumeName         = "rook-ceph-crash"
+	// DaemonSocketDir is the directory where Ceph daemons create their admin sockets.
+	DaemonSocketDir                         = "/run/ceph"
 	daemonSocketsSubPath                    = "/exporter"
 	logCollector                            = "log-collector"
 	DaemonIDLabel                           = "ceph_daemon_id"
@@ -225,7 +226,7 @@ func CephVolumeMounts(dataPaths *opconfig.DataPathMap, confGeneratedInPod bool) 
 		configMount,
 		// Rook doesn't run in ceph containers, so it doesn't need the config override mounted
 	}
-	v = append(v, v1.VolumeMount{Name: "ceph-daemons-sock-dir", MountPath: daemonSocketDir})
+	v = append(v, v1.VolumeMount{Name: "ceph-daemons-sock-dir", MountPath: DaemonSocketDir})
 	v = append(v, StoredLogAndCrashVolumeMount(dataPaths.ContainerLogDir(), dataPaths.ContainerCrashDir())...)
 
 	return v
@@ -316,7 +317,7 @@ func DaemonVolumeMounts(dataPaths *opconfig.DataPathMap, keyringResourceName str
 		configOverrideMount,
 	}
 	if dataDirHostPath != "" {
-		mounts = append(mounts, v1.VolumeMount{Name: "ceph-daemons-sock-dir", MountPath: daemonSocketDir})
+		mounts = append(mounts, v1.VolumeMount{Name: "ceph-daemons-sock-dir", MountPath: DaemonSocketDir})
 	}
 	if keyringResourceName != "" {
 		mounts = append(mounts, keyring.VolumeMount().Resource(keyringResourceName))
@@ -329,7 +330,8 @@ func DaemonVolumeMounts(dataPaths *opconfig.DataPathMap, keyringResourceName str
 		// no data is stored in container, so there are no more mounts
 		return mounts
 	}
-	return append(mounts,
+	return append(
+		mounts,
 		v1.VolumeMount{Name: "ceph-daemon-data", MountPath: dataPaths.ContainerDataDir},
 	)
 }
@@ -535,13 +537,14 @@ func ChownCephDataDirsInitContainer(
 	configDir string,
 ) v1.Container {
 	args := make([]string, 0, 5)
-	args = append(args,
+	args = append(
+		args,
 		"--verbose",
 		"--recursive",
 		"ceph:ceph",
 		opconfig.VarLogCephDir,
 		opconfig.VarLibCephCrashDir,
-		daemonSocketDir,
+		DaemonSocketDir,
 	)
 	if configDir != "" {
 		args = append(args, configDir)
@@ -708,7 +711,7 @@ func (c *daemonConfig) buildSocketName() string {
 }
 
 func (c *daemonConfig) buildSocketPath() string {
-	return path.Join(daemonSocketDir, c.buildSocketName())
+	return path.Join(DaemonSocketDir, c.buildSocketName())
 }
 
 func (c *daemonConfig) buildAdminSocketCommand() string {

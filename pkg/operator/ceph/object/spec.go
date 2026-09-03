@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
 	apps "k8s.io/api/apps/v1"
@@ -85,6 +86,10 @@ chown --recursive --verbose ceph:ceph $VAULT_TOKEN_NEW_PATH
 var (
 	//go:embed rgw-probe.sh
 	rgwProbeScriptTemplate string
+
+	// serviceUniqueID flag was backported to Squid in v19.2.4 and to Tentacle in v20.2.1
+	serviceUniqueIDSquidMinVersion    = cephver.CephVersion{Major: 19, Minor: 2, Extra: 4}
+	serviceUniqueIDTentacleMinVersion = cephver.CephVersion{Major: 20, Minor: 2, Extra: 1}
 
 	rgwAPIwithoutS3 = []string{"s3website", "swift", "swift_auth", "admin", "sts", "iam", "notifications"}
 
@@ -393,7 +398,8 @@ func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig, kmsEnabled
 		Image:           c.clusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts: append(
-			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), vaultVolMounts...),
+			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), vaultVolMounts...,
+		),
 		Resources:       c.store.Spec.Gateway.Resources,
 		SecurityContext: controller.RootContainerSecurityContext(),
 	}
@@ -409,6 +415,17 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 		controller.RootContainerSecurityContext(),
 		"",
 	)
+}
+
+// serviceUniqueIDSupported returns true if the running Ceph version supports the
+// service_unique_id flag. The flag was backported to Squid in v19.2.4 and to
+// Tentacle in v20.2.1.
+func (c *clusterConfig) serviceUniqueIDSupported() bool {
+	v := c.clusterInfo.CephVersion
+	if v.Major == serviceUniqueIDSquidMinVersion.Major {
+		return v.IsAtLeast(serviceUniqueIDSquidMinVersion)
+	}
+	return v.IsAtLeast(serviceUniqueIDTentacleMinVersion)
 }
 
 func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container, error) {
@@ -445,13 +462,24 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolumeMount(),
 		),
-		Env:             controller.DaemonEnvVars(c.clusterSpec),
+		Env:             append(controller.DaemonEnvVars(c.clusterSpec), k8sutil.NameEnvVar()),
 		Resources:       c.store.Spec.Gateway.Resources,
 		StartupProbe:    startupProbe,
 		LivenessProbe:   noLivenessProbe(),
 		ReadinessProbe:  readinessProbe,
 		SecurityContext: controller.DefaultContainerSecurityContext(),
 		WorkingDir:      cephconfig.VarLogCephDir,
+	}
+
+	// The service_unique_id flag makes the rgw daemon_id unique among multiple rgw instances.
+	// It was backported to Squid in v19.2.4 and to Tentacle in v20.2.1, so only set it on
+	// versions that support it.
+	if c.serviceUniqueIDSupported() {
+		// serviceUniqueId is set to the pod name, obtained at runtime via the downward API
+		// (POD_NAME env var). Kubernetes expands $(POD_NAME) in the container args since the
+		// env var is defined on the container.
+		serviceUniqueId := fmt.Sprintf("$(%s)", k8sutil.PodNameEnvVar)
+		container.Args = append(container.Args, cephconfig.NewFlag("service_unique_id", serviceUniqueId))
 	}
 
 	// If the startup probe is enabled
@@ -468,7 +496,8 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		if supportsCurlCaBundle(c) {
 			customCaBundleMount := v1.VolumeMount{Name: caBundleVolumeName, MountPath: caBundleMountPath, ReadOnly: true}
 			container.VolumeMounts = append(container.VolumeMounts, customCaBundleMount)
-			container.Env = append(container.Env,
+			container.Env = append(
+				container.Env,
 				v1.EnvVar{
 					// Following PR introduced to specify ssl certificate for RGW
 					// admin operations with this CURL_CA_BUNDLE env variable.
@@ -500,7 +529,8 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 	}
 	if c.store.Spec.Gateway.OpsLogSidecar != nil {
 		container.Env = append(container.Env, podNameEnvVars...)
-		container.Args = append(container.Args,
+		container.Args = append(
+			container.Args,
 			cephconfig.NewFlag("rgw_enable_ops_log", "true"),
 			cephconfig.NewFlag("rgw_ops_log_file_path", opsLogAbsFilename),
 		)
