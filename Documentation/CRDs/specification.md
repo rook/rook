@@ -223,7 +223,12 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>List of events that should trigger the notification</p>
+<p>List of events that should trigger the notification. The S3 API requires a
+non-empty list, so when this is unset or empty Rook sends s3:ObjectCreated:*
+and s3:ObjectRemoved:* itself rather than deferring to RGW; those are the same
+two families RGW uses as its own default. That fallback covers only those two
+families: to receive the lifecycle, replication or sync events this field also
+accepts, list them here explicitly.</p>
 </td>
 </tr>
 <tr>
@@ -2984,7 +2989,12 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>List of events that should trigger the notification</p>
+<p>List of events that should trigger the notification. The S3 API requires a
+non-empty list, so when this is unset or empty Rook sends s3:ObjectCreated:*
+and s3:ObjectRemoved:* itself rather than deferring to RGW; those are the same
+two families RGW uses as its own default. That fallback covers only those two
+families: to receive the lifecycle, replication or sync events this field also
+accepts, list them here explicitly.</p>
 </td>
 </tr>
 <tr>
