@@ -2440,6 +2440,10 @@ type ObjectStoreUserSpec struct {
 	// The display name for the ceph user.
 	// +optional
 	DisplayName string `json:"displayName,omitempty"`
+	// Capabilities is the complete set of admin capabilities granted to the user, not an
+	// additive list. The version-gated capabilities `userInfoWithoutKeys` and `accounts` are
+	// the exception: Rook omits them, and logs a warning, on a cluster older than the Ceph
+	// version they require.
 	// +optional
 	// +nullable
 	Capabilities *ObjectUserCapSpec `json:"capabilities,omitempty"`
@@ -3552,6 +3556,9 @@ type ClientSpec struct {
 	// If true, the K8s secret will be deleted, but the cephx keyring will remain until the CR is deleted.
 	// +optional
 	RemoveSecret bool `json:"removeSecret,omitempty"`
+	// Caps is the complete set of Ceph capabilities granted to the client, keyed by daemon
+	// type (mon, osd, mds, mgr), not an additive list.
+	// +kubebuilder:validation:MinProperties=1
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Caps map[string]string `json:"caps"`
 	// Security represents security settings
