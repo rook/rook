@@ -14,3 +14,4 @@
 - The rook-ceph-cluster Helm chart can create `CephObjectStoreUser` resources via the new `cephObjectStoreUsers` value.
 - The toolbox deployments from the Helm chart and the example manifests now reload the keyring and `ceph.conf` automatically after CephX key rotation, mon failover, or a config override change.
 - CephCluster dashboard TLS certificates can now be configured from a same-namespace Kubernetes TLS Secret with `spec.dashboard.sslCertificateRef` when dashboard SSL is enabled. Rook reconciles updates to the referenced Secret and restores the default self-signed certificate when the reference is removed.
+- OSD: `wipeDevicesFromOtherClusters` now also wipes PVC-backed encrypted devices that were formatted with LUKS but failed before completion (missing `ceph_fsid` token), allowing them to be reprovisioned cleanly. Metadata and WAL PVCs as well as host-based volumes are preserved.
