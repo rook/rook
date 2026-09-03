@@ -14,3 +14,4 @@
 - The rook-ceph-cluster Helm chart can create `CephObjectStoreUser` resources via the new `cephObjectStoreUsers` value.
 - The toolbox deployments from the Helm chart and the example manifests now reload the keyring and `ceph.conf` automatically after CephX key rotation, mon failover, or a config override change.
 - CephCluster dashboard TLS certificates can now be configured from a same-namespace Kubernetes TLS Secret with `spec.dashboard.sslCertificateRef` when dashboard SSL is enabled. Rook reconciles updates to the referenced Secret and restores the default self-signed certificate when the reference is removed.
+- The rook-ceph-cluster Helm chart can now add additional volumes and environment variables to the toolbox pod via the values `toolbox.extra{Volumes,VolumeMounts,Env,EnvFrom}`.
