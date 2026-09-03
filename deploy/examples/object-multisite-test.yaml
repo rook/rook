@@ -58,5 +58,8 @@ spec:
       # fixes the forwarding signatures: https://tracker.ceph.com/issues/79698
       rgw_sigv4_insecure: "true"
       rgw_s3_client_max_sig_ver: "2"
+      # always-on sync debug so the rare stuck-shard sync stalls in CI produce
+      # upstream-actionable logs in the collected artifacts
+      debug_rgw_sync: "20"
   zone:
     name: zone-a
