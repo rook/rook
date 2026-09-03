@@ -94,6 +94,8 @@ func CreateOrUpdateServiceMonitor(context *clusterd.Context, ctx context.Context
 		}
 		return nil, fmt.Errorf("failed to retrieve servicemonitor. %v", err)
 	}
+
+	preserveServiceMonitorConfigMapCA(oldSm, serviceMonitorDefinition)
 	oldSm.Spec = serviceMonitorDefinition.Spec
 	oldSm.ObjectMeta.Labels = serviceMonitorDefinition.ObjectMeta.Labels
 	sm, err := client.MonitoringV1().ServiceMonitors(namespace).Update(ctx, oldSm, metav1.UpdateOptions{})
@@ -101,4 +103,23 @@ func CreateOrUpdateServiceMonitor(context *clusterd.Context, ctx context.Context
 		return nil, fmt.Errorf("failed to update servicemonitor. %v", err)
 	}
 	return sm, nil
+}
+
+func preserveServiceMonitorConfigMapCA(existing, desired *monitoringv1.ServiceMonitor) {
+	if existing == nil || desired == nil {
+		return
+	}
+	if len(existing.Spec.Endpoints) == 0 || len(desired.Spec.Endpoints) == 0 {
+		return
+	}
+
+	existingTLS := existing.Spec.Endpoints[0].TLSConfig
+	if existingTLS == nil || existingTLS.CA.ConfigMap == nil {
+		return
+	}
+
+	if desired.Spec.Endpoints[0].TLSConfig == nil {
+		desired.Spec.Endpoints[0].TLSConfig = &monitoringv1.TLSConfig{}
+	}
+	desired.Spec.Endpoints[0].TLSConfig.CA = existingTLS.CA
 }

@@ -306,6 +306,8 @@ func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) (*v1.Se
 		},
 	}
 
+	c.applyMetricsTLSToService(svc)
+
 	// If the cluster is external we don't need to add the selector
 	if name != controller.ExternalMgrAppName {
 		svc.Spec.Selector = selectorLabels
@@ -315,6 +317,7 @@ func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) (*v1.Se
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set owner reference to monitoring service %q", svc.Name)
 	}
+
 	return svc, nil
 }
 

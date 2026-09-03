@@ -94,6 +94,10 @@ spec:
   monitoring:
     # requires Prometheus to be pre-installed
     enabled: false
+    # metricsTLS enables native HTTPS on the Ceph mgr prometheus endpoint (Ceph Tentacle+).
+    # metricsTLS:
+    #   enabled: true
+    #   # secretName: rook-ceph-prometheus-server-tls
     # Whether to disable the metrics reported by Ceph. If false, the prometheus mgr module and Ceph exporter are enabled.
     # If true, the prometheus mgr module and Ceph exporter are both disabled. Default is false.
     metricsDisabled: false

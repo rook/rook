@@ -157,6 +157,8 @@ func (c *Cluster) Start() error {
 			return errors.Wrapf(err, "failed to create deployment")
 		}
 
+		c.applyMetricsTLSToDeployment(d)
+
 		// apply cephx secret resource version to the deployment to ensure it restarts when keyring updates
 		d.Spec.Template.Annotations[keyring.CephxKeyIdentifierAnnotation] = secretResourceVersion
 
@@ -326,11 +328,17 @@ func (c *Cluster) reconcileServices() error {
 	}
 
 	// create the metrics service
-	service, err := c.MakeMetricsService(AppName, serviceMetricName)
+	service, err := c.MakeMetricsService(AppName, c.metricsServicePortName())
 	if err != nil {
 		return err
 	}
-	if _, err := k8sutil.CreateOrUpdateService(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, service); err != nil {
+	if c.isMetricsTLSEnabled() && !c.clusterInfo.CephVersion.IsAtLeastTentacle() {
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger,
+			"monitoring.metricsTLS is enabled but Ceph version %q does not support native prometheus TLS (requires Tentacle+)",
+			c.clusterInfo.CephVersion.String())
+	}
+
+	if err := c.reconcileMetricsService(service); err != nil {
 		return errors.Wrap(err, "failed to create mgr metrics service")
 	}
 
@@ -449,6 +457,10 @@ func (c *Cluster) configurePrometheusModule() error {
 			return err
 		}
 		log.NamespacedInfo(c.clusterInfo.Namespace, logger, "prometheus config will change, interval: %v", interval)
+	}
+
+	if err := c.configurePrometheusTLS(monStore, daemonID); err != nil {
+		return err
 	}
 
 	if portHasChanged || intervalHasChanged {
@@ -593,6 +605,8 @@ func (c *Cluster) EnableServiceMonitor() error {
 		duration := c.spec.Monitoring.Interval.Duration.String()
 		serviceMonitor.Spec.Endpoints[0].Interval = monitoringv1.Duration(duration)
 	}
+
+	c.applyMetricsTLSToServiceMonitor(serviceMonitor)
 	err := c.clusterInfo.OwnerInfo.SetControllerReference(serviceMonitor)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set owner reference to service monitor %q", serviceMonitor.Name)

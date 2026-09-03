@@ -619,10 +619,35 @@ type MonitoringSpec struct {
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
 
+	// MetricsTLS configures native HTTPS for the MGR Prometheus metrics endpoint.
+	// Requires Ceph with prometheus module TLS support.
+	// Rook mounts a Kubernetes TLS Secret into the mgr pod and configures the module.
+	// +optional
+	MetricsTLS *MetricsTLSSpec `json:"metricsTLS,omitzero"` //nolint:kubeapilinter // optional pointer struct field
+
 	// Ceph exporter configuration
 	// +optional
 	Exporter *CephExporterSpec `json:"exporter,omitempty"`
 }
+
+// MetricsTLSSpec defines TLS configuration for the MGR Prometheus metrics endpoint.
+// +kubebuilder:validation:MinProperties=1
+type MetricsTLSSpec struct {
+	// Enabled determines whether TLS is enabled for the metrics endpoint.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// SecretName is the name of the Kubernetes TLS secret that contains tls.crt
+	// and tls.key for the metrics endpoint. If empty, defaults to
+	// DefaultMetricsTLSSecretName.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
+}
+
+// DefaultMetricsTLSSecretName is the default Secret used for MGR prometheus TLS.
+const DefaultMetricsTLSSecretName = "rook-ceph-prometheus-server-tls"
 
 type CephExporterSpec struct {
 	// Only performance counters greater than or equal to this option are fetched
