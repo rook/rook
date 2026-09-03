@@ -60,12 +60,12 @@ var (
 	// wait for secret "rook-ceph-crash-collector-keyring" to be created
 	waitForRequeueIfSecretNotCreated = reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}
 
-	// exporterOrphanCheckDone tracks namespaces where the one-time orphaned
-	// exporter deployment cleanup has already run. The check only needs to
-	// happen once per operator lifetime – stale deployments can only
-	// accumulate while the operator is offline, so a single pass on startup
-	// is sufficient.
-	exporterOrphanCheckDone = map[string]bool{}
+	// nodeDaemonOrphanCheckDone tracks namespaces where the one-time orphaned
+	// crash collector and ceph-exporter deployment cleanup has already run.
+	// The check only needs to happen once per operator lifetime – stale
+	// deployments can only accumulate while the operator is offline, so a
+	// single pass on startup is sufficient.
+	nodeDaemonOrphanCheckDone = map[string]bool{}
 )
 
 // ReconcileNode reconciles ReplicaSets
@@ -99,8 +99,16 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, node)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			// if a node is not present, ignore the event
-			log.NamespacedDebug(request.Namespace, logger, "node %q not found. Ignoring since object must be deleted. %v", request.Name, err)
+			// The node is gone, but crash collector or ceph-exporter deployments
+			// targeting it may remain, leaving their pods pending forever. The
+			// node is only known to be gone (NotFound), so it is safe to remove
+			// its node daemons.
+			log.NamespacedInfo(request.Namespace, logger, "node %q no longer exists, deleting its crash collector and ceph-exporter deployments. %v", request.Name, err)
+			for _, appName := range []string{CrashCollectorAppName, cephExporterAppName} {
+				if err := r.listDeploymentAndDelete(appName, request.Name, ""); err != nil {
+					return reconcile.Result{}, errors.Wrapf(err, "failed to delete node daemons for deleted node %q", request.Name)
+				}
+			}
 			return reconcile.Result{}, nil
 		} else {
 			return reconcile.Result{}, errors.Wrapf(err, "could not get node %q", request.Name)
@@ -185,16 +193,18 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 		}
 
-		// Clean up any exporter deployments whose target node no longer exists.
-		// This only needs to run once per operator lifetime: stale deployments
-		// can only accumulate while the operator is offline, so a single pass
-		// on startup is sufficient. Skip subsequent reconciles to avoid the
-		// extra API calls, especially in large clusters.
-		if !exporterOrphanCheckDone[namespace] {
-			if err := r.deleteOrphanedExporterDeployments(namespace); err != nil {
-				log.NamespacedError(namespace, logger, "failed to clean up orphaned ceph-exporter deployments. %v", err)
+		// Clean up any crash collector or ceph-exporter deployments whose
+		// target node no longer exists. This only needs to run once per
+		// operator lifetime: stale deployments can only accumulate while the
+		// operator is offline, so a single pass on startup is sufficient.
+		// Skip subsequent reconciles to avoid the extra API calls, especially
+		// in large clusters. A failed pass is retried on the next reconcile.
+		if !nodeDaemonOrphanCheckDone[namespace] {
+			if err := r.deleteOrphanedNodeDaemonDeployments(namespace); err != nil {
+				log.NamespacedError(namespace, logger, "failed to clean up orphaned node daemon deployments. %v", err)
+			} else {
+				nodeDaemonOrphanCheckDone[namespace] = true
 			}
-			exporterOrphanCheckDone[namespace] = true
 		}
 
 		// If the node has Ceph pods we create the daemons
