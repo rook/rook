@@ -27,6 +27,8 @@ spec:
     - read
     - write
     - delete
+  defaultPlacement: hot-tier
+  defaultStorageClass: STANDARD_IA
 ```
 
 ## Object Store User Settings
@@ -66,6 +68,17 @@ spec:
     * `ratelimit`
     * `userInfoWithoutKeys` # minimum ceph version 19.2.0 for supporting this cap
     * `accounts` # minimum ceph version 19.2.3 for supporting this cap
+* `defaultPlacement`: The default pool placement target for buckets created by this user, overriding the zonegroup default.
+    The value must name a placement target known to the zonegroup serving the object store; the RGW validates it and
+    rejects an unknown target, in which case the user's status phase becomes `Failure` and the RGW error is recorded as
+    an Event on the CephObjectStoreUser.
+    Removing this setting stops Rook from managing the user's placement and leaves the last applied value in place on the
+    RGW user; it does not restore the zonegroup default. To pin the user to the zonegroup default target, set this
+    setting to that target's name.
+* `defaultStorageClass`: The default storage class for objects created by this user, within `defaultPlacement`, which
+    must also be set. The storage class must exist on that placement target; the RGW validates it. Removing this setting
+    stops Rook from managing the user's storage class, as with `defaultPlacement`: the value in place is preserved,
+    except when `defaultPlacement` changes, which resets the storage class to the new target's default (`STANDARD`).
 * `opMask`: Internally, RGW labels "operations" on persistent state as `RGW_OP_TYPE_READ` (`read`), `RGW_OP_TYPE_WRITE` (`write`), or `RGW_OP_TYPE_DELETE` (`delete`). All RGW users have an "operation mask", which does not function as mask or filter as is typically implied by the word "mask", but as a set of allowed or permissible "operation" types the user is able to perform. The "operation mask" is applied regardless of the bucket or IAM policy. For example, in order for an RGW user to be able to read an object from a bucket, that user must have **both** the `read` "op mask" bit and an IAM/bucket policy that allows `s3:GetObject`. The default operations allowed are `read`, `write`, and `delete`. Setting the value to `[]` (an empty YAML sequence) causes all "operations" in the mask to be removed, meaning that the user will not be able to perform any operations. These operation masks are supported:
     * `read`
     * `write`

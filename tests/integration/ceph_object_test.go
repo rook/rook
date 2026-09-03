@@ -35,6 +35,8 @@ import (
 	usercaps "github.com/rook/rook/tests/integration/object/user/caps"
 	userkeys "github.com/rook/rook/tests/integration/object/user/keys"
 	useropmask "github.com/rook/rook/tests/integration/object/user/opmask"
+	userplacement "github.com/rook/rook/tests/integration/object/user/placement"
+	userstorageclass "github.com/rook/rook/tests/integration/object/user/storageclass"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 	"github.com/rook/rook/tests/integration/object/zonepools"
 )
@@ -113,6 +115,8 @@ func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.
 			usercaps.Namespace,
 			userkeys.Namespace,
 			useropmask.Namespace,
+			userplacement.Namespace,
+			userstorageclass.Namespace,
 		},
 	})
 	defer sharedObjectStore.Destroy()
@@ -127,6 +131,8 @@ func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.
 	topickafka.TestBucketTopicKafka(t, k8sh, sharedObjectStore)
 	useropmask.TestObjectStoreUserOpMask(t, k8sh, sharedObjectStore)
 	usercaps.TestObjectStoreUserCaps(t, k8sh, sharedObjectStore)
+	userplacement.TestObjectStoreUserDefaultPlacement(t, k8sh, sharedObjectStore)
+	userstorageclass.TestObjectStoreUserDefaultStorageClass(t, k8sh, sharedObjectStore)
 	// the ceph-cosi driver cannot reach a TLS object store endpoint, so this
 	// suite skips itself in the TLS pass
 	cosi.TestCephCOSIDriver(t, k8sh, sharedObjectStore)

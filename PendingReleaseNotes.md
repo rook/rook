@@ -14,3 +14,8 @@
 - The rook-ceph-cluster Helm chart can create `CephObjectStoreUser` resources via the new `cephObjectStoreUsers` value.
 - The toolbox deployments from the Helm chart and the example manifests now reload the keyring and `ceph.conf` automatically after CephX key rotation, mon failover, or a config override change.
 - CephCluster dashboard TLS certificates can now be configured from a same-namespace Kubernetes TLS Secret with `spec.dashboard.sslCertificateRef` when dashboard SSL is enabled. Rook reconciles updates to the referenced Secret and restores the default self-signed certificate when the reference is removed.
+- `CephObjectStoreUser` gained `spec.defaultPlacement` and `spec.defaultStorageClass`, which set the RGW user's default
+  bucket placement target and default storage class. Both are optional and validated by the RGW; the effective values are
+  reported in `status.info`. Removing either field stops Rook from managing it and leaves the last applied value in place
+  on the RGW user, except that changing `defaultPlacement` without a `defaultStorageClass` resets the storage class to
+  the new placement target's default.
