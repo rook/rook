@@ -42,7 +42,7 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
-          kubernetes-version: "v1.36.1"
+          kubernetes-version: "v1.37.0"
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: set Ceph image for ${{ matrix.ceph-image }}
