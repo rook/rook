@@ -13,7 +13,7 @@ spec:
   displayName: "my display name"
   # Quotas set on the user
   # quotas:
-  #   maxBuckets: 100
+  #   maxBuckets: 100 # Rook applies a default limit of 1000 buckets if unset
   #   maxSize: 10G
   #   maxObjects: 10000
   # Additional permissions given to the user
