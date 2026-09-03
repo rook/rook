@@ -19,6 +19,7 @@ package object
 import (
 	"context"
 	"maps"
+	"strings"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -27,6 +28,7 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -279,6 +281,35 @@ func TestBuildSslOptions(t *testing.T) {
 func TestGenerateCephXUser(t *testing.T) {
 	fakeUser := generateCephXUser("rook-ceph-rgw-fake-store-fake-user")
 	assert.Equal(t, "client.rgw.fake.store.fake.user", fakeUser)
+}
+
+func TestGenerateKeyring(t *testing.T) {
+	for name, tc := range map[string]struct {
+		version cephver.CephVersion
+		want    string
+	}{
+		"profile supported":   {cephver.CephVersion{Major: 20, Minor: 2, Extra: 5}, "mon profile rgw mgr profile rgw osd profile rgw"},
+		"profile unsupported": {cephver.CephVersion{Major: 20, Minor: 2, Extra: 4}, "osd allow rwx mon allow rw"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var granted string
+			c := newConfig(t)
+			c.clusterInfo.Context = context.TODO()
+			c.clusterInfo.CephVersion = tc.version
+			c.ownerInfo = cephclient.NewMinimumOwnerInfoWithOwnerRef()
+			c.context.Executor = &exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+					if args[1] == "get-or-create-key" {
+						granted = strings.Join(args, " ")
+					}
+					return `{"key":"mykey"}`, nil
+				},
+			}
+			_, err := c.generateKeyring(&rgwConfig{ResourceName: "rook-ceph-rgw-my-store-a"})
+			assert.NoError(t, err)
+			assert.Contains(t, granted, "client.rgw.my.store.a "+tc.want)
+		})
+	}
 }
 
 // general testing theory here is that this easy unit test covers almost all of the RGW configs

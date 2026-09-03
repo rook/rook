@@ -129,7 +129,7 @@ func CurrentAndDesiredCephVersion(ctx context.Context, rookImage, namespace, job
 }
 
 func ErrorCephUpgradingRequeue(runningCephVersion, desiredCephVersion *cephver.CephVersion) error {
-	return errors.Errorf(`waiting for ceph monitors upgrade to finish. `+
+	return errors.Errorf(`waiting for ceph upgrade to finish. `+
 		`current version: %s. `+
 		`expected version: %s. `+
 		`will reconcile again in %s`,
