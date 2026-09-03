@@ -29,7 +29,7 @@ the current release, the authoritative sources are the
 
 | Rook | Kubernetes | Ceph |
 | ---- | ---------- | ---- |
-| 1.20 | v1.31 – v1.36 | Squid v19.2.0+, Tentacle v20.2.1+ |
+| 1.20 | v1.31 – v1.37 | Squid v19.2.0+, Tentacle v20.2.1+ |
 | 1.19 | v1.30 – v1.35 | Squid v19.2.0+, Tentacle v20.2.1+ |
 | 1.18 | v1.29 – v1.34 | Reef v18.2.0+, Squid v19.2.0+, Tentacle v20.2.0+ |
 | 1.17 | v1.28 – v1.33 | Reef v18.2.0+, Squid v19.2.0+ |
