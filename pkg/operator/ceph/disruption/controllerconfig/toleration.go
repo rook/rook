@@ -18,7 +18,7 @@ package controllerconfig
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -48,10 +48,8 @@ func (t *TolerationSet) ToList() []corev1.Toleration {
 	for _, toleration := range t.tolerations {
 		tolerationList = append(tolerationList, toleration)
 	}
-	sort.SliceStable(tolerationList, func(i, j int) bool {
-		a := getKey(tolerationList[i])
-		b := getKey(tolerationList[j])
-		return strings.Compare(a, b) == -1
+	slices.SortStableFunc(tolerationList, func(a, b corev1.Toleration) int {
+		return strings.Compare(getKey(a), getKey(b))
 	})
 	return tolerationList
 }
