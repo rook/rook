@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cleanup "github.com/rook/rook/pkg/daemon/ceph/cleanup"
@@ -115,8 +116,12 @@ func startHostCleanUp(cmd *cobra.Command, args []string) error {
 		},
 	)
 
-	// Start OSD wipe process
-	s.StartSanitizeDisks()
+	// Start OSD wipe process. A failure here means a disk that was reported as wiped may still
+	// hold readable data, so the job must not exit successfully, matching the sibling cleanup
+	// subcommands below.
+	if err := s.StartSanitizeDisks(); err != nil {
+		rook.TerminateFatal(errors.Wrap(err, "failed to sanitize osd disks"))
+	}
 
 	return nil
 }

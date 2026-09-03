@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -52,6 +53,32 @@ func TestCleanupJobSpec(t *testing.T) {
 	podTemplateSpec := controller.cleanUpJobTemplateSpec(cluster, "monSecret", "28b87851-8dc1-46c8-b1ec-90ec51a47c89")
 	assert.Equal(t, expectedHostPath, podTemplateSpec.Spec.Containers[0].Env[0].Value)
 	assert.Equal(t, expectedNamespace, podTemplateSpec.Spec.Containers[0].Env[1].Value)
+}
+
+func TestCleanupJobBackoffLimit(t *testing.T) {
+	cluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "test-rook-ceph", Name: "rook-ceph"},
+		Spec: cephv1.ClusterSpec{
+			DataDirHostPath: "var/lib/rook",
+			CleanupPolicy: cephv1.CleanupPolicySpec{
+				Confirmation: "yes-really-destroy-data",
+			},
+		},
+	}
+	clientset := testop.New(t, 1)
+	context := &clusterd.Context{Clientset: clientset, RookClientset: rookfake.NewSimpleClientset()}
+	controller := NewClusterController(context, "")
+	controller.startCleanUpJobs(cluster, []string{"node1"}, "monSecret", "fsid")
+
+	jobs, err := clientset.BatchV1().Jobs(cluster.Namespace).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, jobs.Items, 1)
+
+	// Retrying a partially completed wipe would re-enumerate OSDs whose metadata the first pass
+	// already destroyed, find none, and exit successfully - masking the failure the job just
+	// reported. The default backoff limit of 6 would do exactly that, so it is pinned to 0.
+	require.NotNil(t, jobs.Items[0].Spec.BackoffLimit)
+	assert.Equal(t, int32(0), *jobs.Items[0].Spec.BackoffLimit)
 }
 
 func TestCleanupPlacement(t *testing.T) {
