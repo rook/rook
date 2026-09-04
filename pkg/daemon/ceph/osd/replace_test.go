@@ -691,3 +691,24 @@ func TestIsCryptsetupNotActive(t *testing.T) {
 	assert.False(t, isCryptsetupNotActive(errors.New("exit status 1")))
 	assert.False(t, isCryptsetupNotActive(nil))
 }
+
+func TestCephVolumeLVMListParseFailureDoesNotLeakLockboxSecret(t *testing.T) {
+	// the raw ceph-volume response carries ceph.cephx_lockbox_secret even though
+	// osdTags does not map it, so the payload must not ride along with the error
+	const lockboxSecret = "EXAMPLELOCKBOXSECRET00000000000000000001"
+	badResult := `{"3": [{"type": "block", "path": 12345, "tags": {"ceph.encrypted": "1", "ceph.cephx_lockbox_secret": "` + lockboxSecret + `"}}]}`
+
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if command == "stdbuf" && args[4] == "lvm" && args[5] == "list" {
+			return badResult, nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+
+	_, err := cephVolumeLVMList(&clusterd.Context{Executor: executor}, 3)
+
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), lockboxSecret)
+	assert.Contains(t, err.Error(), "cvLVMListEntry.path of type string")
+}

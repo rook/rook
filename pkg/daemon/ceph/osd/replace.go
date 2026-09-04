@@ -51,7 +51,7 @@ func cephVolumeLVMList(context *clusterd.Context, osdID int) ([]cvLVMListEntry, 
 	}
 	var listResult map[string][]cvLVMListEntry
 	if err := json.Unmarshal([]byte(result), &listResult); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal ceph-volume lvm list result for osd.%d. %s", osdID, result)
+		return nil, errors.Wrapf(err, "failed to unmarshal ceph-volume lvm list result for osd.%d (%d bytes)", osdID, len(result))
 	}
 	return listResult[strconv.Itoa(osdID)], nil
 }

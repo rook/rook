@@ -56,7 +56,10 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 	var user admin.User
 	err := json.Unmarshal([]byte(data), &user)
 	if err != nil {
-		return nil, RGWErrorParse, errors.Wrapf(err, "failed to unmarshal json. %s", data)
+		// the payload is a radosgw-admin user document, which carries the user's S3
+		// keys. A type error names the offending field, but a syntax error reports
+		// only its message, so report the response size in its place.
+		return nil, RGWErrorParse, errors.Wrapf(err, "failed to unmarshal user json (%d bytes)", len(data))
 	}
 
 	rookUser := ObjectUser{UserID: user.ID, DisplayName: &user.DisplayName, Email: &user.Email}
