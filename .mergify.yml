@@ -253,13 +253,13 @@ pull_request_rules:
       - "check-success=TestCephHelmSuite (v3.13.3, v1.37.0)"
       - "check-success=TestCephHelmSuite (v3.18.3, v1.37.0)"
       - "check-success=TestCephMultiClusterDeploySuite (v1.37.0)"
-      - "check-success=TestCephObjectSuite (v1.31.14)"
+      - "check-success=TestCephObjectSuite (v1.32.11)"
       - "check-success=TestCephObjectSuiteTLS (v1.37.0)"
-      - "check-success=TestCephSmokeSuite (v1.31.14)"
+      - "check-success=TestCephSmokeSuite (v1.32.11)"
       - "check-success=TestCephSmokeSuite (v1.37.0)"
-      - "check-success=TestCephUpgradeSuite (v1.31.14)"
+      - "check-success=TestCephUpgradeSuite (v1.32.11)"
       - "check-success=TestCephUpgradeSuite (v1.37.0)"
-      - "check-success=TestHelmUpgradeSuite (v1.31.14)"
+      - "check-success=TestHelmUpgradeSuite (v1.32.11)"
       - "check-success=TestHelmUpgradeSuite (v1.37.0)"
     actions:
       merge:
