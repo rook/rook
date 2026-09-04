@@ -17,8 +17,11 @@ This page contains information regarding the CI configuration used for the Rook 
     * `AWS_USR` + `AWS_PSW`: AWS credentials with access to S3 for Helm chart publishing.
     * `GIT_API_TOKEN`: GitHub access token, used to push docs changes to the docs repositories `gh-pages` branch.
 
-## Variables
+## SSH debugging
 
-* SSH debugging (see [Debugging CI over SSH](debugging-ci-over-ssh.md)):
-    * `CI_DEBUG_ALLOWLIST`: Comma-separated GitHub usernames allowed to attach to a CI SSH debug session. If unset, only the run's triggering actor may connect.
-    * `UPTERMD_URL`: Optional address of a self-hosted `uptermd` relay (e.g. `uptermd.example.com:22`). If unset, the public upterm server is used.
+See [Debugging CI over SSH](debugging-ci-over-ssh.md). A debug session is always
+restricted to the run's triggering actor (who must have write access to request
+one), so no repository configuration is required. A self-hosted `uptermd` relay
+can optionally be used via the `upterm-server` input of the
+[`ci-ssh-debug`](https://github.com/rook/rook/blob/master/.github/workflows/ci-ssh-debug/action.yml)
+action.

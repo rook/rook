@@ -17,10 +17,10 @@ that relay — there is no inbound SSH to the runner itself.
 
 - **Your SSH public key must be registered on GitHub** (Settings → SSH and GPG
   keys). Access is granted by fetching keys from `https://github.com/<user>.keys`.
-- **You must be on the debug allowlist.** Access is restricted to the GitHub
-  usernames listed in the `CI_DEBUG_ALLOWLIST` repository variable (see
-  [Configuration](#configuration)). If the allowlist is unset, only the user who
-  triggered the run can connect.
+- **You must be the user who triggered the run.** The session only accepts the
+  triggering actor's SSH keys. Because opening a session already requires write
+  access (applying the `debug-ci` label or re-running a job), the person who
+  requests the session is the person who connects.
 
 ## Opening a session
 
@@ -64,19 +64,17 @@ step will pause there until you connect or the timeout elapses.
 
 ## Configuration
 
-The behavior is controlled by two repository variables (Settings → Secrets and
-variables → Actions → Variables). Neither contains a secret, so both are stored
-as plain variables:
-
-| Variable | Purpose |
-| --- | --- |
-| `CI_DEBUG_ALLOWLIST` | Comma-separated GitHub usernames allowed to attach to a session (e.g. `alice,bob`). Keys are pulled from `github.com/<user>.keys`. If unset, only the run's triggering actor may connect. |
-| `UPTERMD_URL` | Optional. Address of a self-hosted [`uptermd`](https://github.com/owenthereal/upterm) relay (e.g. `uptermd.example.com:22`), for full independence from the public relay. If unset, the public `uptermd.upterm.dev:22` server is used. |
+No configuration is required — access is always restricted to the run's
+triggering actor. The `ci-ssh-debug` action exposes one optional input,
+`upterm-server`, the address of a self-hosted
+[`uptermd`](https://github.com/owenthereal/upterm) relay (e.g.
+`uptermd.example.com:22`) for full independence from the public relay. It
+defaults to the public `uptermd.upterm.dev:22` server.
 
 ## Security notes
 
-- Access is gated by an **SSH-key allowlist**, so the connection command being
-  visible in public logs does not grant a shell to the public.
+- Access is gated by the **triggering actor's SSH keys**, so the connection
+  command being visible in public logs does not grant a shell to the public.
 - Sessions only open in the `rook` organization's repositories (or on a manual
   re-run); they are never opened automatically.
 - The session runs with the job's `GITHUB_TOKEN`; for pull requests from forks

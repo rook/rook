@@ -2,7 +2,7 @@ name: "CI SSH debug session"
 description: >
   Open an on-demand SSH debug session into the CI runner (via upterm) so Rook
   developers can troubleshoot failed or in-progress GitHub Actions runs. Access
-  is restricted to an allowlist of developer SSH keys, and the connection
+  is restricted to the run's triggering actor's SSH keys, and the connection
   details are published to the job summary for easy discovery.
 inputs:
   debug-ci:
@@ -13,6 +13,10 @@ inputs:
     description: "Shut the session down if no one connects within this many minutes."
     required: false
     default: "15"
+  upterm-server:
+    description: "Optional self-hosted uptermd relay address (e.g. uptermd.example.com:22)."
+    required: false
+    default: "uptermd.upterm.dev:22"
 runs:
   using: "composite"
   steps:
@@ -37,16 +41,15 @@ runs:
       if: steps.gate.outputs.enable
       uses: owenthereal/action-upterm@f26ebc11e22a09b8365f39d2cdafd06f63b42053 # v1.14.0
       with:
-        ## Restrict who can attach. Keys are fetched from github.com/<user>.keys
-        ## for every login listed in the CI_DEBUG_ALLOWLIST repository variable
-        ## (comma-separated GitHub usernames). If the variable is unset we fall
-        ## back to the triggering actor's keys only -- never an open session.
-        limit-access-to-users: ${{ vars.CI_DEBUG_ALLOWLIST }}
-        limit-access-to-actor: ${{ vars.CI_DEBUG_ALLOWLIST == '' }}
+        ## Restrict who can attach to the run's triggering actor only. Their keys
+        ## are fetched from github.com/<user>.keys, so the connection command
+        ## being visible in public logs never grants a shell to anyone else.
+        ## Opening a session already requires write access (the debug-ci label or
+        ## a re-run), so the actor is the person who requested it.
+        limit-access-to-actor: true
         ## Optional self-hosted relay for full independence from the public
-        ## upterm server. Set the UPTERMD_URL repository variable (e.g.
-        ## "uptermd.example.com:22") to use it; otherwise the public server is used.
-        upterm-server: ${{ vars.UPTERMD_URL != '' && vars.UPTERMD_URL || 'uptermd.upterm.dev:22' }}
+        ## upterm server; defaults to the public server.
+        upterm-server: ${{ inputs.upterm-server }}
         ## If no one connects within this window, shut the server down so the job
         ## does not hold a runner (and CI minutes) open indefinitely.
         wait-timeout-minutes: ${{ inputs.wait-timeout-minutes }}
@@ -60,7 +63,7 @@ runs:
           echo ""
           echo "An upterm debug session was opened for this job. The \`ssh\` / \`upterm\` connection command is printed in the **set up upterm session** step's logs above (visible live while the job runs)."
           echo ""
-          echo "- Access is restricted to the SSH keys of the developers in the \`CI_DEBUG_ALLOWLIST\` repository variable (or the run's actor if that variable is unset)."
+          echo "- Access is restricted to the SSH keys of the run's triggering actor."
           echo "- The session closes automatically after **${{ inputs.wait-timeout-minutes }} minutes** with no connection."
           echo ""
           echo "See [Debugging CI over SSH](https://github.com/rook/rook/blob/master/Documentation/Contributing/debugging-ci-over-ssh.md)."
