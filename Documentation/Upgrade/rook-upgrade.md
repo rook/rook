@@ -41,7 +41,7 @@ those releases.
     ConfigMap must be migrated to the ceph-csi-operator resources. The following sections will guide
     you through this conversion.
 
-* The minimum supported Kubernetes version is v1.31.
+* The minimum supported Kubernetes version is v1.32.
 
 ## Considerations
 
