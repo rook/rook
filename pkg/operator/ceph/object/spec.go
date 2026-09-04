@@ -423,7 +423,10 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 	if err != nil {
 		return v1.Container{}, errors.Wrap(err, "failed to generate default readiness probe")
 	}
-
+	// serviceUniqueId is set to the pod name, obtained at runtime via the downward API
+	// (POD_NAME env var). Kubernetes expands $(POD_NAME) in the container args since the
+	// env var is defined on the container below.
+	serviceUniqueId := fmt.Sprintf("$(%s)", k8sutil.PodNameEnvVar)
 	container := v1.Container{
 		Name:            rgwContainerName,
 		Image:           c.clusterSpec.CephVersion.Image,
@@ -440,12 +443,13 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			cephconfig.NewFlag("rgw realm", rgwConfig.Realm),
 			cephconfig.NewFlag("rgw zonegroup", rgwConfig.ZoneGroup),
 			cephconfig.NewFlag("rgw zone", rgwConfig.Zone),
+			cephconfig.NewFlag("service_unique_id", serviceUniqueId),
 		),
 		VolumeMounts: append(
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolumeMount(),
 		),
-		Env:             controller.DaemonEnvVars(c.clusterSpec),
+		Env:             append(controller.DaemonEnvVars(c.clusterSpec), k8sutil.NameEnvVar()),
 		Resources:       c.store.Spec.Gateway.Resources,
 		StartupProbe:    startupProbe,
 		LivenessProbe:   noLivenessProbe(),
