@@ -1,0 +1,67 @@
+name: "CI SSH debug session"
+description: >
+  Open an on-demand SSH debug session into the CI runner (via upterm) so Rook
+  developers can troubleshoot failed or in-progress GitHub Actions runs. Access
+  is restricted to an allowlist of developer SSH keys, and the connection
+  details are published to the job summary for easy discovery.
+inputs:
+  debug-ci:
+    description: "Whether the PR carries the 'debug-ci' label (string 'true'/'false')."
+    required: false
+    default: "false"
+  wait-timeout-minutes:
+    description: "Shut the session down if no one connects within this many minutes."
+    required: false
+    default: "15"
+runs:
+  using: "composite"
+  steps:
+    - name: decide whether to open a debug session
+      id: gate
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      # Only consider a session when it was explicitly requested: either the run
+      # was started with debug logging, or a maintainer applied the 'debug-ci'
+      # label (applying a label requires write access, so the label is itself an
+      # authorization gate).
+      if: runner.debug || inputs.debug-ci == 'true'
+      run: |
+        enable=""
+        # Enable in the canonical Rook org, or on any manual re-run (a common way
+        # to reopen a session on a job that has already finished).
+        if [ "${GITHUB_REPOSITORY_OWNER}" = "rook" ] || [ "${GITHUB_RUN_ATTEMPT:-1}" -gt 1 ]; then
+          enable=1
+        fi
+        echo "enable=${enable}" >> "$GITHUB_OUTPUT"
+
+    - name: set up upterm session
+      if: steps.gate.outputs.enable
+      uses: owenthereal/action-upterm@f26ebc11e22a09b8365f39d2cdafd06f63b42053 # v1.14.0
+      with:
+        ## Restrict who can attach. Keys are fetched from github.com/<user>.keys
+        ## for every login listed in the CI_DEBUG_ALLOWLIST repository variable
+        ## (comma-separated GitHub usernames). If the variable is unset we fall
+        ## back to the triggering actor's keys only -- never an open session.
+        limit-access-to-users: ${{ vars.CI_DEBUG_ALLOWLIST }}
+        limit-access-to-actor: ${{ vars.CI_DEBUG_ALLOWLIST == '' }}
+        ## Optional self-hosted relay for full independence from the public
+        ## upterm server. Set the UPTERMD_URL repository variable (e.g.
+        ## "uptermd.example.com:22") to use it; otherwise the public server is used.
+        upterm-server: ${{ vars.UPTERMD_URL != '' && vars.UPTERMD_URL || 'uptermd.upterm.dev:22' }}
+        ## If no one connects within this window, shut the server down so the job
+        ## does not hold a runner (and CI minutes) open indefinitely.
+        wait-timeout-minutes: ${{ inputs.wait-timeout-minutes }}
+
+    - name: publish connection details to the job summary
+      if: steps.gate.outputs.enable
+      shell: bash --noprofile --norc -eo pipefail {0}
+      run: |
+        {
+          echo "## 🔧 CI SSH debug session"
+          echo ""
+          echo "An upterm debug session was opened for this job. The \`ssh\` / \`upterm\` connection command is printed in the **set up upterm session** step's logs above (visible live while the job runs)."
+          echo ""
+          echo "- Access is restricted to the SSH keys of the developers in the \`CI_DEBUG_ALLOWLIST\` repository variable (or the run's actor if that variable is unset)."
+          echo "- The session closes automatically after **${{ inputs.wait-timeout-minutes }} minutes** with no connection."
+          echo ""
+          echo "See [Debugging CI over SSH](https://github.com/rook/rook/blob/master/Documentation/Contributing/debugging-ci-over-ssh.md)."
+        } >> "$GITHUB_STEP_SUMMARY"

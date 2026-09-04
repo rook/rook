@@ -16,3 +16,9 @@ This page contains information regarding the CI configuration used for the Rook 
     * `DOCKER_REGISTRY`: Target registry namespace (e.g., `rook`)
     * `AWS_USR` + `AWS_PSW`: AWS credentials with access to S3 for Helm chart publishing.
     * `GIT_API_TOKEN`: GitHub access token, used to push docs changes to the docs repositories `gh-pages` branch.
+
+## Variables
+
+* SSH debugging (see [Debugging CI over SSH](debugging-ci-over-ssh.md)):
+    * `CI_DEBUG_ALLOWLIST`: Comma-separated GitHub usernames allowed to attach to a CI SSH debug session. If unset, only the run's triggering actor may connect.
+    * `UPTERMD_URL`: Optional address of a self-hosted `uptermd` relay (e.g. `uptermd.example.com:22`). If unset, the public upterm server is used.
