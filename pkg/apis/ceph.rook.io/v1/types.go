@@ -1593,8 +1593,18 @@ type MetadataServerSpec struct {
 	// +kubebuilder:validation:Maximum=50
 	ActiveCount int32 `json:"activeCount"`
 
-	// Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
+	// The number of metadata servers that are standby.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=50
+	// +optional
+	StandbyCount int32 `json:"standbyCount"`
+
+	// Whether each active MDS instance will have a standby-replay MDS with a warm metadata cache for faster failover.
 	// If false, standbys will still be available, but will not have a warm metadata cache.
+	// +optional
+	StandbyReplay bool `json:"standbyReplay,omitempty"`
+
+	// DEPRECATED: use standbyReplay instead.
 	// +optional
 	ActiveStandby bool `json:"activeStandby,omitempty"`
 

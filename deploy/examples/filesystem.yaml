@@ -47,9 +47,12 @@ spec:
   metadataServer:
     # The number of active MDS instances
     activeCount: 1
-    # Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
-    # If true, double the number of mds daemons will be created.
-    activeStandby: true
+    # The number of standby MDS instances
+    standbyCount: 1
+    # Whether each active MDS instance will have a standby-replay MDS for faster failover.
+    # If false, the total number of MDS instances is `activeCount + standbyCount`.
+    # If true, the total number of MDS instances is `activeCount * 2 + standbyCount`.
+    standbyReplay: false
     # The affinity rules to apply to the mds deployment
     placement:
       #  nodeAffinity:

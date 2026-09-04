@@ -451,7 +451,8 @@ spec:
   metadataServer:
     resources: null
     activeCount: ` + strconv.Itoa(activeCount) + `
-    activeStandby: true`
+    standbyCount: ` + strconv.Itoa(activeCount) + `
+    standbyReplay: false`
 }
 
 // GetNFS returns the manifest to create a Rook Ceph NFS resource with the given config.

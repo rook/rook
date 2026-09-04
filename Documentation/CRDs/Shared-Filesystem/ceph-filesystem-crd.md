@@ -34,7 +34,7 @@ spec:
   preserveFilesystemOnDelete: true
   metadataServer:
     activeCount: 1
-    activeStandby: true
+    standbyCount: 1
     # A key/value list of annotations
     annotations:
     #  key: value
@@ -91,7 +91,7 @@ spec:
         codingChunks: 1
   metadataServer:
     activeCount: 1
-    activeStandby: true
+    standbyCount: 1
 ```
 
 **IMPORTANT**: For erasure coded pools, we have to create a replicated pool as the default data pool and an erasure-coded pool as a secondary pool.
@@ -132,7 +132,9 @@ Both `metadataPool` and `dataPools` support defining names as required. The fina
 The metadata server settings correspond to the MDS daemon settings.
 
 * `activeCount`: The number of active MDS instances. As load increases, CephFS will automatically partition the filesystem across the MDS instances. Rook will create double the number of MDS instances as requested by the active count. The extra instances will be in standby mode for failover.
-* `activeStandby`: If true, the extra MDS instances will be in active standby mode and will keep a warm cache of the filesystem metadata for faster failover. The instances will be assigned by CephFS in failover pairs. If false, the extra MDS instances will all be on passive standby mode and will not maintain a warm cache of the metadata.
+* `standbyCount`: The number of standby MDS instances.
+* `standbyReplay`: If true, the extra MDS instances will be in standby-replay mode and will keep a warm cache of the filesystem metadata for faster failover. The instances will be assigned by CephFS in failover pairs. If false, the extra MDS instances will all be on passive standby mode and will not maintain a warm cache of the metadata.
+* (deprecated) `activeStandby`: Replaced by `standbyReplay`. For backwards compatibility and upgradeability, this option remains supported.
 * `mirroring`: Sets up mirroring of the filesystem
     * `enabled`: whether mirroring is enabled on that filesystem (default: false)
     * `peers`: to configure mirroring peers

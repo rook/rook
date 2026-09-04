@@ -33,7 +33,7 @@ spec:
   preserveFilesystemOnDelete: true
   metadataServer:
     activeCount: 1
-    activeStandby: true
+    standbyCount: 1
 ```
 
 The Rook operator will create all the pools and other resources necessary to start the service. This may take a minute to complete.
