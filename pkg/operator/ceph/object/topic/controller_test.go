@@ -18,7 +18,9 @@ limitations under the License.
 package topic
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -245,4 +247,49 @@ func TestCephBucketTopicController(t *testing.T) {
 		assert.NotNil(t, bucketTopic.Status.ARN)
 		assert.Equal(t, *bucketTopic.Status.ARN, expectedARN)
 	})
+}
+
+func TestUpdateStatusDoesNotLogSecretData(t *testing.T) {
+	// corev1.Secret carries a generated String() method that prints its whole Data
+	// map, and fmt calls it at any nesting depth, so formatting a collection of
+	// Secrets writes every referenced credential to the log.
+	logBuf := bytes.NewBuffer([]byte{})
+	capnslog.SetFormatter(capnslog.NewLogFormatter(logBuf, "", 0))
+	// restore the sink so later tests in this package still log to stderr
+	t.Cleanup(func() { capnslog.SetFormatter(capnslog.NewDefaultFormatter(os.Stderr)) })
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+
+	bucketTopic := &cephv1.CephBucketTopic{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		TypeMeta:   metav1.TypeMeta{Kind: "CephBucketTopic"},
+	}
+
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBucketTopic{})
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(bucketTopic).Build()
+	r := &ReconcileBucketTopic{client: cl, opManagerContext: context.TODO()}
+
+	//nolint:gosec // only a test value, not a real secret
+	const passwordValue = "EXAMPLEKAFKAPASSWORD0000000000000000000001"
+	referencedSecrets := map[types.UID]*corev1.Secret{
+		"uid-1": {
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "kafka-credentials",
+				Namespace:       namespace,
+				UID:             "uid-1",
+				ResourceVersion: "1",
+			},
+			Data: map[string][]byte{"password": []byte(passwordValue)},
+		},
+	}
+
+	r.updateStatus(k8sutil.ObservedGenerationNotAvailable, types.NamespacedName{Name: name, Namespace: namespace}, k8sutil.ReadyStatus, nil, &referencedSecrets)
+
+	logOutput := logBuf.String()
+	// Secret.Data is map[string][]byte, which the generated String() renders as
+	// decimal byte values rather than text, so check for that form too
+	assert.NotContains(t, logOutput, passwordValue)
+	assert.NotContains(t, logOutput, fmt.Sprintf("%v", []byte(passwordValue)))
+	// the secret reference is what the line exists to report, and is still logged
+	assert.Contains(t, logOutput, "kafka-credentials")
 }
