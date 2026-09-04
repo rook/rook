@@ -22,17 +22,17 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: consider (pre-job) debugging
-      uses: ./.github/workflows/tmate_debug
-      with:
-        use-tmate: ${{ inputs.use-tmate }}
-        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
-
     - name: setup cluster resources
       uses: ./.github/workflows/integration-test-setup-cluster-resources
       with:
         kubernetes-version: ${{ inputs.kubernetes-version }}
         rook-image-artifact: ${{ inputs.rook-image-artifact }}
+
+    - name: consider (pre-job) debugging
+      uses: ./.github/workflows/tmate_debug
+      with:
+        use-tmate: ${{ inputs.use-tmate }}
+        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
     - name: set Ceph version in CephCluster manifest
       shell: bash --noprofile --norc -eo pipefail -x {0}
