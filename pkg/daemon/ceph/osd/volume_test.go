@@ -1836,6 +1836,59 @@ func TestParseCephVolumeLVMResult(t *testing.T) {
 	assert.Equal(t, 2, len(osds))
 }
 
+func TestCephVolumeLVMResultParseFailureDoesNotLeakLockboxSecret(t *testing.T) {
+	// ceph-volume list output carries ceph.cephx_lockbox_secret for encrypted OSDs.
+	// This error becomes OrchestrationStatus.Message, which the OSD provisioning job
+	// writes to a ConfigMap, so the payload must not ride along with it.
+	const lockboxSecret = "EXAMPLELOCKBOXSECRET00000000000000000001"
+	tags := `"tags": {"ceph.osd_fsid": "9ee6a1e7-1c3f-4c1e-9a5b-0c4b1f2d3e4f", "ceph.encrypted": "1", "ceph.cephx_lockbox_secret": "` + lockboxSecret + `"}`
+
+	tests := []struct {
+		name   string
+		result string
+		// the field a type error names; empty when the error is a syntax error,
+		// which reports only its own message
+		namesField string
+	}{
+		{
+			// path is a string in osdInfo, so a number is the shape a ceph-volume
+			// schema change would take
+			name:       "type error",
+			result:     `{"0": [{"name": "osd-block-9ee6a1e7", "path": 12345, ` + tags + `, "type": "block"}]}`,
+			namesField: "osdInfo.path of type string",
+		},
+		{
+			// callCephVolume warns that stderr contamination breaks the unmarshal, so
+			// a malformed response is the likelier failure here
+			name:   "truncated response",
+			result: `{"0": [{"name": "osd-block-9ee6a1e7", ` + tags,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			executor := &exectest.MockExecutor{}
+			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+				if command == "stdbuf" && args[4] == "lvm" && args[5] == "list" {
+					return tc.result, nil
+				}
+				return "", errors.Errorf("unknown command %s %s", command, args)
+			}
+
+			context := &clusterd.Context{Executor: executor}
+			_, err := GetCephVolumeLVMOSDs(context, &cephclient.ClusterInfo{Namespace: "name"}, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", false, false)
+
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), lockboxSecret)
+			// the response size is the only context a syntax error leaves
+			assert.Contains(t, err.Error(), fmt.Sprintf("(%d bytes)", len(tc.result)))
+			if tc.namesField != "" {
+				assert.Contains(t, err.Error(), tc.namesField)
+			}
+		})
+	}
+}
+
 func TestParseCephVolumeRawResult(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
