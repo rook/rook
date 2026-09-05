@@ -130,8 +130,19 @@ func Aes256kKeysSupported(ver version.CephVersion) bool {
 		return ver.IsAtLeast(version.CephVersion{Major: 19, Minor: 2, Extra: 6})
 	case 20:
 		return ver.IsAtLeast(version.CephVersion{Major: 20, Minor: 2, Extra: 4})
+	case 21:
+		// v21.3.0 is an out-of-sequence Umbrella development tag created before
+		// v21.1.0 and before aes256k support was merged upstream; its numerically
+		// higher minor must not be mistaken for a later, feature-complete release.
+		if ver.Minor == 3 && ver.Extra == 0 {
+			return false
+		}
+		// aes256k support landed after the v21.1.0 development tag, so plain
+		// "major == 21" is a false positive. Umbrella carries the feature
+		// starting with the 21.2.z stable release train.
+		return ver.IsAtLeast(version.CephVersion{Major: 21, Minor: 2, Extra: 0})
 	default:
-		return ver.Major >= 21
+		return ver.Major > 21
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -762,3 +763,31 @@ const authDumpKeysRawJson = `{
     ]
   }
 }`
+
+func TestAes256kKeysSupported(t *testing.T) {
+	cases := []struct {
+		name     string
+		ver      version.CephVersion
+		expected bool
+	}{
+		{"squid below threshold", version.CephVersion{Major: 19, Minor: 2, Extra: 5}, false},
+		{"squid at threshold", version.CephVersion{Major: 19, Minor: 2, Extra: 6}, true},
+		{"tentacle below threshold", version.CephVersion{Major: 20, Minor: 2, Extra: 3}, false},
+		{"tentacle at threshold", version.CephVersion{Major: 20, Minor: 2, Extra: 4}, true},
+		// regression: v21.1.0 is a pre-release development tag that predates
+		// the aes256k feature merge and must not be reported as supported
+		{"umbrella v21.1.0 dev tag", version.CephVersion{Major: 21, Minor: 1, Extra: 0}, false},
+		{"umbrella below stable threshold", version.CephVersion{Major: 21, Minor: 0, Extra: 1}, false},
+		// regression: v21.3.0 was tagged before v21.1.0 and before the aes256k
+		// feature merge; its numerically higher minor must not read as "later"
+		{"umbrella v21.3.0 out-of-sequence dev tag", version.CephVersion{Major: 21, Minor: 3, Extra: 0}, false},
+		{"umbrella at stable threshold", version.CephVersion{Major: 21, Minor: 2, Extra: 0}, true},
+		{"future major release", version.CephVersion{Major: 22, Minor: 0, Extra: 0}, true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.expected, Aes256kKeysSupported(c.ver))
+		})
+	}
+}

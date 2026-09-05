@@ -32,7 +32,7 @@ func TestShouldRotateCephxKeys(t *testing.T) {
 	// commit IDs will ensure they are being ignored as part of comparison to keyCephVersion status
 	v20_2_0 := version.CephVersion{Major: 20, Minor: 2, Extra: 0, CommitID: "ababababababa"}
 	v20_2_4 := version.CephVersion{Major: 20, Minor: 2, Extra: 4, CommitID: "ababababababa"}
-	SupportsKeyTypeVer := version.CephVersion{Major: 21}
+	SupportsKeyTypeVer := version.CephVersion{Major: 21, Minor: 2, Extra: 0}
 
 	clusterNs := "rook-system"
 	SetAllowCephxKeyRotationForCluster(clusterNs, true) // default allow rotation
