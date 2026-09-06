@@ -19,6 +19,31 @@ CV_MODE="$ROOK_CV_MODE"
 DEVICE="${ROOK_BLOCK_PATH:-}"
 ENCRYPTED="$ROOK_ENCRYPTED_DEVICE"
 
+# abort activation if the block device or the OSD fsid file is still locked by
+# another process (e.g. an OSD daemon from a previous pod that is still shutting
+# down).
+function is_path_locked() {
+	local target="$1"
+	[[ -e "$target" ]] || return 1
+	# /proc/locks field 6 is "<major>:<minor>:<inode>" of the locked inode.
+	local lock_id
+	lock_id=$(python3 -c '
+import os, sys
+st = os.stat(sys.argv[1])
+print("%02x:%02x:%d" % (os.major(st.st_dev), os.minor(st.st_dev), st.st_ino))
+' "$target")
+	awk -v id="$lock_id" '$6 == id { found=1 } END { exit !found }' /proc/locks
+}
+
+if [ -n "$DEVICE" ] && [ -e "$DEVICE" ] && is_path_locked "$DEVICE"; then
+	echo "$DEVICE is locked by another process, aborting activation of OSD $OSD_ID" >&2
+	exit 1
+fi
+if [ -e "$OSD_DATA_DIR/fsid" ] && is_path_locked "$OSD_DATA_DIR/fsid"; then
+	echo "$OSD_DATA_DIR/fsid is locked by another process, aborting activation of OSD $OSD_ID" >&2
+	exit 1
+fi
+
 # copy the latest lockbox keys to the keyring file as they might have been rotated
 if [ "$ENCRYPTED" == "true" ] ; then
 	if [ -z "${ROOK_OSD_UUID:-}" ]; then
