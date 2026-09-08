@@ -28,7 +28,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: codespell
-        uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579 # master
+        uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579 # v2.2
         with:
           # LICENSE: skip file because codespell wants to flag complies, which we may want to flag
           # in other places, so ignore the file itself assuming it is correct
@@ -57,4 +57,4 @@ jobs:
         with:
           fetch-depth: 0
       - name: misspell
-        uses: reviewdog/action-misspell@d6429416b12b09b4e2768307d53bef58d172e962 # v1.27.0
+        uses: reviewdog/action-misspell@ba7ac4030fa6812f8c8b2d4e516af8bc99553c32 # v1.28.0
