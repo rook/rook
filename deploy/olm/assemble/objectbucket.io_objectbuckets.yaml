@@ -2,6 +2,8 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
   name: objectbuckets.objectbucket.io
 spec:
   group: objectbucket.io
@@ -9,61 +11,170 @@ spec:
     kind: ObjectBucket
     listKind: ObjectBucketList
     plural: objectbuckets
-    singular: objectbucket
     shortNames:
-      - ob
-      - obs
+    - ob
+    - obs
+    singular: objectbucket
   scope: Cluster
   versions:
-    - name: v1alpha1
-      served: true
-      storage: true
-      schema:
-        openAPIV3Schema:
-          type: object
-          properties:
-            spec:
-              type: object
-              properties:
-                storageClassName:
+  - additionalPrinterColumns:
+    - description: StorageClass
+      jsonPath: .spec.storageClassName
+      name: StorageClass
+      type: string
+    - description: ClaimNamespace
+      jsonPath: .spec.claimRef.namespace
+      name: ClaimNamespace
+      type: string
+    - description: ClaimName
+      jsonPath: .spec.claimRef.name
+      name: ClaimName
+      type: string
+    - description: ReclaimPolicy
+      jsonPath: .spec.reclaimPolicy
+      name: ReclaimPolicy
+      type: string
+    - description: Phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ObjectBucket is the Schema for the objectbuckets API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              ObjectBucketSpec defines the desired state of ObjectBucket. Fields defined here should be normal among all providers.
+              Authentication must be of a type defined in this package to pass type checks in reconciler
+            properties:
+              additionalState:
+                additionalProperties:
                   type: string
-                endpoint:
-                  type: object
-                  nullable: true
-                  properties:
-                    bucketHost:
+                type: object
+              claimRef:
+                description: ObjectReference contains enough information to let you
+                  inspect or modify the referred object.
+                properties:
+                  apiVersion:
+                    description: API version of the referent.
+                    type: string
+                  fieldPath:
+                    description: |-
+                      If referring to a piece of an object instead of an entire object, this string
+                      should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
+                      For example, if the object reference is to a container within a pod, this would take on a value like:
+                      "spec.containers{name}" (where "name" refers to the name of the container that triggered
+                      the event) or if no container name is specified "spec.containers[2]" (container with
+                      index 2 in this pod). This syntax is chosen only to have some well-defined way of
+                      referencing a part of an object.
+                    type: string
+                  kind:
+                    description: |-
+                      Kind of the referent.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                    type: string
+                  name:
+                    description: |-
+                      Name of the referent.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace of the referent.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+                    type: string
+                  resourceVersion:
+                    description: |-
+                      Specific resourceVersion to which this reference is made, if any.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+                    type: string
+                  uid:
+                    description: |-
+                      UID of the referent.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              endpoint:
+                description: |-
+                  Endpoint contains all connection relevant data that an app may require for accessing
+                  the bucket
+                properties:
+                  additionalConfig:
+                    additionalProperties:
                       type: string
-                    bucketPort:
-                      type: integer
-                      format: int32
-                    bucketName:
-                      type: string
-                    region:
-                      type: string
-                    subRegion:
-                      type: string
-                    additionalConfig:
-                      type: object
-                      nullable: true
-                      x-kubernetes-preserve-unknown-fields: true
-                authentication:
-                  type: object
-                  nullable: true
-                  items:
                     type: object
-                    x-kubernetes-preserve-unknown-fields: true
-                additionalState:
-                  type: object
-                  nullable: true
-                  x-kubernetes-preserve-unknown-fields: true
-                reclaimPolicy:
-                  type: string
-                claimRef:
-                  type: object
-                  nullable: true
-                  x-kubernetes-preserve-unknown-fields: true
-            status:
-              type: object
-              x-kubernetes-preserve-unknown-fields: true
-      subresources:
-        status: {}
+                  bucketHost:
+                    type: string
+                  bucketName:
+                    type: string
+                  bucketPort:
+                    type: integer
+                  region:
+                    type: string
+                  subRegion:
+                    type: string
+                required:
+                - additionalConfig
+                - bucketHost
+                - bucketName
+                - bucketPort
+                - region
+                - subRegion
+                type: object
+              reclaimPolicy:
+                description: PersistentVolumeReclaimPolicy describes a policy for
+                  end-of-life maintenance of persistent volumes.
+                enum:
+                - Recycle
+                - Retain
+                - Delete
+                type: string
+              storageClassName:
+                type: string
+            required:
+            - additionalState
+            - claimRef
+            - endpoint
+            - reclaimPolicy
+            - storageClassName
+            type: object
+          status:
+            description: ObjectBucketStatus defines the observed state of ObjectBucket
+            properties:
+              phase:
+                description: ObjectBucketStatusPhase is set by the controller to save
+                  the state of the provisioning process.
+                enum:
+                - Bound
+                - Released
+                - Failed
+                type: string
+            required:
+            - phase
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources: {}
