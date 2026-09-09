@@ -134,7 +134,7 @@ csi:
     # -- CSIAddons sidecar image repository
     repository: quay.io/csiaddons/k8s-sidecar
     # -- CSIAddons sidecar image tag
-    tag: v0.14.0
+    tag: v0.15.0
 
   serviceMonitor:
     # -- Enable ServiceMonitor for CSI metrics

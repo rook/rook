@@ -58,7 +58,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.cephcsi.repository` | Ceph CSI image repository | `"quay.io/cephcsi/cephcsi"` |
 | `csi.cephcsi.tag` | Ceph CSI image tag | `"v3.17.1"` |
 | `csi.csiAddons.repository` | CSIAddons sidecar image repository | `"quay.io/csiaddons/k8s-sidecar"` |
-| `csi.csiAddons.tag` | CSIAddons sidecar image tag | `"v0.14.0"` |
+| `csi.csiAddons.tag` | CSIAddons sidecar image tag | `"v0.15.0"` |
 | `csi.installCsiOperator` | When true, install the ceph-csi-operator subchart (see Chart.yaml `condition`). | `true` |
 | `csi.provisioner.repository` | Kubernetes CSI provisioner image repository | `"registry.k8s.io/sig-storage/csi-provisioner"` |
 | `csi.provisioner.tag` | Provisioner image tag | `"v6.2.0"` |
