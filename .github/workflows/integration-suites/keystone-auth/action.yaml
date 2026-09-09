@@ -25,6 +25,7 @@ runs:
         rook-image-artifact: rook-image-amd64
 
     - name: TestCephKeystoneAuthSuite
+      id: test
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         tests/scripts/github-action-helper.sh collect_udev_logs_in_background
@@ -39,3 +40,4 @@ runs:
         cluster-namespaces: keystoneauth-ns
         operator-namespace: keystoneauth-ns-system
         artifact-name: ceph-keystone-auth-suite-artifact-${{ inputs.kubernetes-version }}
+        upload: ${{ steps.test.outcome != 'success' }}

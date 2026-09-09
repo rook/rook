@@ -41,4 +41,4 @@ runs:
         cluster-namespaces: multi-core multi-external
         operator-namespace: multi-core-system
         artifact-name: ceph-multi-cluster-deploy-suite-artifact-${{ inputs.kubernetes-version }}
-        upload-on: always
+        upload: "true"
