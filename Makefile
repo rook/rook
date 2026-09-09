@@ -333,7 +333,7 @@ gen-rbac: $(HELM) $(YQ) helm.dependency.build ## Generate RBAC from Helm charts
 gen.toolbox: gen-toolbox
 .PHONY: gen-toolbox
 gen-toolbox: ## Generate the inline toolbox scripts from images/ceph/toolbox.sh
-	go run ./build/toolbox
+	GOOS=$(shell go env GOSHOSTOS) GOARCH=$(shell go env GOHOSTARCH) go run ./build/toolbox
 
 .PHONY: gen.docs
 gen.docs: docs ## generate docs
