@@ -51,7 +51,7 @@ var (
 	Umbrella = CephVersion{21, 0, 0, 0, ""}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions = []CephVersion{Squid, Tentacle}
+	supportedVersions = []CephVersion{Squid, Tentacle, Umbrella}
 
 	// unsupportedVersions are possibly Ceph pin-point releases that introduced breaking changes and are not recommended
 	unsupportedVersions []CephVersion
