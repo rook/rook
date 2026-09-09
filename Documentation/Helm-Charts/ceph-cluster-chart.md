@@ -89,6 +89,10 @@ The following table lists the configurable parameters of the rook-operator chart
 | `toolbox.affinity` | Toolbox affinity | `{}` |
 | `toolbox.containerSecurityContext` | Toolbox container security context | `{"capabilities":{"drop":["ALL"]},"runAsGroup":2016,"runAsNonRoot":true,"runAsUser":2016}` |
 | `toolbox.enabled` | Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md) | `false` |
+| `toolbox.extraEnv` | Add additional environment variables to the toolbox pod | `[]` |
+| `toolbox.extraEnvFrom` | Add additional environment variable sources to the toolbox pod | `[]` |
+| `toolbox.extraVolumeMounts` | Add additional volume mounts to the toolbox pod | `[]` |
+| `toolbox.extraVolumes` | Add additional volumes to the toolbox pod. Note that this is subject to the SCC defined in ./templates/securityContextConstraints.yaml on OpenShift. | `[]` |
 | `toolbox.image` | Toolbox image, superseded by `toolbox.repository` and `toolbox.tag` | the image used by the Ceph cluster |
 | `toolbox.labels` | Toolbox labels | `{}` |
 | `toolbox.priorityClassName` | Set the priority class for the toolbox if desired | `nil` |

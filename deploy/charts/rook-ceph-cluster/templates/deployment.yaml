@@ -189,6 +189,13 @@ spec:
                 secretKeyRef:
                   name: rook-ceph-mon
                   key: ceph-username
+            {{- with .Values.toolbox.extraEnv }}
+            {{- . | toYaml | nindent 12 }}
+            {{- end }}
+          {{- with .Values.toolbox.extraEnvFrom }}
+          envFrom:
+            {{- . | toYaml | nindent 12 }}
+          {{- end }}
           {{- with .Values.toolbox.resources }}
           resources:
             {{- . | toYaml | nindent 12 }}
@@ -203,6 +210,9 @@ spec:
             - name: rook-config-override
               mountPath: /etc/rook-config-override
               readOnly: true
+            {{- with .Values.toolbox.extraVolumeMounts }}
+            {{- . | toYaml | nindent 12 }}
+            {{- end }}
       serviceAccountName: rook-ceph-default
       volumes:
         - name: ceph-admin-secret
@@ -224,6 +234,9 @@ spec:
             optional: true
         - name: ceph-config
           emptyDir: {}
+        {{- with .Values.toolbox.extraVolumes }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
       tolerations:
         - key: "node.kubernetes.io/unreachable"
           operator: "Exists"
