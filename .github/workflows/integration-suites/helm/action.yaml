@@ -29,6 +29,7 @@ runs:
       run: sudo chmod go-r ~/.kube/config
 
     - name: TestCephHelmSuite
+      id: test
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         tests/scripts/github-action-helper.sh collect_udev_logs_in_background
@@ -42,3 +43,4 @@ runs:
       with:
         cluster-namespaces: helm-ns
         artifact-name: ceph-helm-suite-artifact-${{ inputs.kubernetes-version }}
+        upload: ${{ steps.test.outcome != 'success' }}
