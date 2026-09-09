@@ -344,8 +344,6 @@ func (r *ReconcileBucketTopic) updateStatus(observedGeneration int64, nsName typ
 		topic.Status.ObservedGeneration = observedGeneration
 	}
 
-	log.NamedDebug(nsName, logger, "updating CephBucketTopic %q .status.secrets to %+v.", nsName, referencedSecrets)
-
 	if referencedSecrets != nil {
 		secretsStatus := []cephv1.SecretReference{}
 
@@ -365,6 +363,10 @@ func (r *ReconcileBucketTopic) updateStatus(observedGeneration int64, nsName typ
 		sort.Slice(secretsStatus, func(i, j int) bool {
 			return secretsStatus[i].Name < secretsStatus[j].Name
 		})
+
+		// log the secret references rather than the secrets themselves: corev1.Secret
+		// carries a generated String() that prints its whole Data map
+		log.NamedDebug(nsName, logger, "updating CephBucketTopic %q .status.secrets to %+v", nsName, secretsStatus)
 
 		topic.Status.Secrets = secretsStatus
 	}
