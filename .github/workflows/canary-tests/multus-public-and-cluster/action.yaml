@@ -11,10 +11,6 @@ inputs:
     description: name of a prebuilt rook image artifact to import; empty builds rook in-job
     required: false
     default: ""
-  use-tmate:
-    description: the USE_TMATE secret, for pre-job debugging
-    required: false
-    default: ""
   artifact-name:
     description: name to publish collected logs under
     required: true
@@ -23,9 +19,8 @@ runs:
   using: "composite"
   steps:
     - name: consider (pre-job) debugging
-      uses: ./.github/workflows/tmate_debug
+      uses: ./.github/workflows/upterm_debug
       with:
-        use-tmate: ${{ inputs.use-tmate }}
         debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
     - name: setup cluster resources
@@ -111,7 +106,3 @@ runs:
       with:
         name: ${{ inputs.artifact-name }}
         additional-namespace: kube-system
-    - name: consider (post-job) debugging
-      uses: ./.github/workflows/upterm_debug
-      with:
-        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
