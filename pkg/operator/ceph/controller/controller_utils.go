@@ -61,6 +61,13 @@ const (
 
 	revisionHistoryLimitSettingName string = "ROOK_REVISION_HISTORY_LIMIT"
 
+	// csiOperatorResourcesSettingName controls whether Rook creates the CephConnection and
+	// ClientProfile CRs consumed by the ceph-csi-operator. Clusters that use no CSI driver,
+	// such as object store only clusters, can disable this and skip installing the
+	// ceph-csi-operator and its CRDs entirely.
+	csiOperatorResourcesSettingName  string = "ROOK_CREATE_CSI_OPERATOR_RESOURCES"
+	csiOperatorResourcesDefaultValue string = "true"
+
 	// UninitializedCephConfigError refers to the error message printed by the Ceph CLI when there is no ceph configuration file
 	// This typically is raised when the operator has not finished initializing
 	UninitializedCephConfigError = "error calling conf_read_file"
@@ -98,6 +105,13 @@ var (
 
 func DiscoveryDaemonEnabled() bool {
 	return k8sutil.GetOperatorSetting("ROOK_ENABLE_DISCOVERY_DAEMON", "false") == "true"
+}
+
+// CSIOperatorResourcesEnabled returns true if Rook should create and update the CephConnection
+// and ClientProfile CRs consumed by the ceph-csi-operator. Clusters that use no CSI driver can
+// disable this so the ceph-csi-operator and its CRDs are not required.
+func CSIOperatorResourcesEnabled() bool {
+	return k8sutil.GetOperatorSetting(csiOperatorResourcesSettingName, csiOperatorResourcesDefaultValue) == "true"
 }
 
 // SetCephCommandsTimeout sets the timeout value of Ceph commands which are executed from Rook

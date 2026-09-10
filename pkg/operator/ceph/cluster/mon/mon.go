@@ -1254,6 +1254,10 @@ func (c *Cluster) saveMonConfig() error {
 		return errors.Wrap(err, "failed to write connection config for new mons")
 	}
 
+	if !controller.CSIOperatorResourcesEnabled() {
+		return csi.DeleteCSIOperatorResources(c.context.Client, c.ClusterInfo)
+	}
+
 	if len(c.ClusterInfo.AllMonitors()) > 0 {
 		err := csi.CreateUpdateCephConnection(c.context.Client, c.ClusterInfo, c.spec)
 		if err != nil {
