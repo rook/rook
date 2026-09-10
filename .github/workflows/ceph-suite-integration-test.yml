@@ -45,11 +45,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
@@ -88,11 +83,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
@@ -133,11 +123,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
