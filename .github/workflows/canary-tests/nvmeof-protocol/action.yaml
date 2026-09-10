@@ -23,9 +23,8 @@ runs:
   using: "composite"
   steps:
     - name: consider (pre-job) debugging
-      uses: ./.github/workflows/tmate_debug
+      uses: ./.github/workflows/upterm_debug
       with:
-        use-tmate: ${{ inputs.use-tmate }}
         debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
     - name: setup cluster resources
@@ -84,6 +83,8 @@ runs:
       with:
         name: ${{ inputs.artifact-name }}
     - name: consider (post-job) debugging
-      uses: ./.github/workflows/upterm_debug
+      uses: ./.github/workflows/tmate_debug
+      if: always()
       with:
+        use-tmate: ${{ inputs.use-tmate }}
         debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}

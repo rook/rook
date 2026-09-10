@@ -457,9 +457,8 @@ jobs:
           fetch-depth: 0
 
       - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
+        uses: ./.github/workflows/upterm_debug
         with:
-          use-tmate: ${{ secrets.USE_TMATE }}
           debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: run encryption KMS IBM Key Protect
@@ -477,8 +476,9 @@ jobs:
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
       - name: consider (post-job) debugging
-        uses: ./.github/workflows/upterm_debug
+        uses: ./.github/workflows/tmate_debug
         with:
+          use-tmate: ${{ secrets.USE_TMATE }}
           debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   multus-public-and-cluster:
