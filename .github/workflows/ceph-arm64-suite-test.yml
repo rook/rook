@@ -34,11 +34,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
         with:
