@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
@@ -552,6 +553,22 @@ func TestCephObjectStoreController(t *testing.T) {
 		assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", objectStore.Status.Info["endpoint"], objectStore)
 		assert.True(t, calledCommitConfigChanges)
 		assert.Equal(t, 19, r.clusterInfo.CephVersion.Major)
+	})
+
+	t.Run("requeue - osds still upgrading", func(t *testing.T) {
+		r := setupEnvironmentWithReadyCephCluster()
+		r.context.Executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "versions" {
+					return `{"osd": {"ceph version 18.2.4 (0000000000000000) reef (stable)": 3}}`, nil
+				}
+				return "", nil
+			},
+		}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.Equal(t, opcontroller.WaitForRequeueIfCephClusterIsUpgrading, res)
 	})
 }
 
