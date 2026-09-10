@@ -27,6 +27,8 @@ import (
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -82,6 +84,41 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 	assert.Equal(t, csiOpClientProfile.Spec.CephFs.SubVolumeGroup, cephSubVolGrpNamespacedName.Name)
 	assert.Equal(t, csiOpClientProfile.Spec.CephFs.KernelMountOptions["ms_mode"], kernelMountKeyVal[1])
 	assert.Equal(t, *csiOpClientProfile.Spec.CephFs.RadosNamespace, cephSubVolGrpRadosNamespaceNamespacedName.Name)
+}
+
+func TestDeleteCSIOperatorResources(t *testing.T) {
+	ns := "test"
+	c := clienttest.CreateTestClusterInfo(1)
+	c.Namespace = ns
+	t.Setenv(k8sutil.PodNamespaceEnvVar, ns)
+
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &csiopv1.CephConnection{}, &csiopv1.ClientProfile{})
+
+	t.Run("deletes existing CRs", func(t *testing.T) {
+		conn := &csiopv1.CephConnection{
+			ObjectMeta: metav1.ObjectMeta{Name: ns, Namespace: ns},
+		}
+		profile := &csiopv1.ClientProfile{
+			ObjectMeta: metav1.ObjectMeta{Name: ns, Namespace: ns},
+		}
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(conn, profile).Build()
+
+		err := DeleteCSIOperatorResources(cl, c)
+		assert.NoError(t, err)
+
+		err = cl.Get(t.Context(), types.NamespacedName{Name: ns, Namespace: ns}, conn)
+		assert.True(t, apierrors.IsNotFound(err), "CephConnection should be deleted")
+
+		err = cl.Get(t.Context(), types.NamespacedName{Name: ns, Namespace: ns}, profile)
+		assert.True(t, apierrors.IsNotFound(err), "ClientProfile should be deleted")
+	})
+
+	t.Run("no error when CRs do not exist", func(t *testing.T) {
+		cl := fake.NewClientBuilder().WithScheme(s).Build()
+		err := DeleteCSIOperatorResources(cl, c)
+		assert.NoError(t, err)
+	})
 }
 
 func TestParseMountOptions(t *testing.T) {
