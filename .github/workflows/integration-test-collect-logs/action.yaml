@@ -13,10 +13,10 @@ inputs:
     description: operator namespace; empty means it matches the cluster namespace
     required: false
     default: ""
-  upload-on:
-    description: '"failure" to publish logs only when the suite failed, "always" either way'
+  upload:
+    description: 'whether to upload the collected logs as an artifact; callers typically pass the outcome of their test step (e.g. steps.test.outcome != ''success'') to upload only on failure, or "true" to always upload'
     required: false
-    default: failure
+    default: "true"
 
 runs:
   using: "composite"
@@ -34,8 +34,13 @@ runs:
           CLUSTER_NAMESPACE="$ns" tests/scripts/collect-logs.sh
         done
 
+    # Do not gate this on failure() here: this is a nested composite action, so
+    # failure() only reflects the steps of this action, not the test step in the
+    # calling suite that actually failed. The caller passes the upload decision
+    # via the `upload` input, derived from its own test step's outcome. (Status
+    # functions like failure() are only allowed in `if:`, not in `with:` values.)
     - name: Artifact
-      if: ${{ inputs.upload-on == 'always' || failure() }}
+      if: ${{ always() && inputs.upload == 'true' }}
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ inputs.artifact-name }}
