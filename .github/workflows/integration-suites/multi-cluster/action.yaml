@@ -5,7 +5,7 @@ inputs:
     description: kubernetes version to create the cluster with
     required: true
   use-tmate:
-    description: the USE_TMATE secret, for pre-job debugging
+    description: the USE_TMATE secret, for post-job debugging
     required: false
     default: ""
 
@@ -41,4 +41,5 @@ runs:
         operator-namespace: multi-core-system
         artifact-name: ceph-multi-cluster-deploy-suite-artifact-${{ inputs.kubernetes-version }}
         upload: "true"
+        upload-on: always
         use-tmate: ${{ inputs.use-tmate }}

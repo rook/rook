@@ -5,7 +5,7 @@ inputs:
     description: kubernetes version to create the cluster with
     required: true
   use-tmate:
-    description: the USE_TMATE secret, for pre-job debugging
+    description: the USE_TMATE secret, for post-job debugging
     required: false
     default: ""
 
@@ -40,3 +40,4 @@ runs:
         operator-namespace: object-ns-system
         artifact-name: ceph-object-suite-tls-artifact-${{ inputs.kubernetes-version }}
         upload: ${{ steps.test.outcome != 'success' }}
+        use-tmate: ${{ inputs.use-tmate }}
