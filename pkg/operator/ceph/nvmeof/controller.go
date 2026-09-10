@@ -420,7 +420,7 @@ func (r *ReconcileCephNVMeOFGateway) deleteNVMeOFGateway(gatewayName, group stri
 // getNVMeOFGatewayConfig generates a complete nvmeof.conf configuration file
 // with all values filled in (no placeholders). User overrides from nvmeofConfig
 // are merged on top of the default configuration.
-func getNVMeOFGatewayConfig(poolName, podName, podIP, anaGroup string, userConfig map[string]map[string]string) (string, error) {
+func getNVMeOFGatewayConfig(poolName, podName, podIP, anaGroup string, hostNetwork bool, userConfig map[string]map[string]string) (string, error) {
 	cfg := ini.Empty()
 	// Set default [gateway] section
 	gatewaySection, err := cfg.NewSection("gateway")
@@ -442,6 +442,12 @@ func getNVMeOFGatewayConfig(poolName, podName, podIP, anaGroup string, userConfi
 	gatewaySection.Key("max_ns_to_change_lb_grp").SetValue("8")
 	gatewaySection.Key("verify_listener_ip").SetValue("False")
 	gatewaySection.Key("enable_monitor_client").SetValue("True")
+	// When hostNetwork is enabled, the pod's hostname becomes the node hostname
+	// (due to UTS namespace sharing), which breaks listener matching.
+	// Setting override_hostname forces the gateway to use its configured name.
+	if hostNetwork {
+		gatewaySection.Key("override_hostname").SetValue(podName)
+	}
 
 	// Set default [discovery] section
 	discoverySection, err := cfg.NewSection("discovery")
@@ -520,8 +526,9 @@ func (r *ReconcileCephNVMeOFGateway) generateConfigMap(nvmeof *cephv1.CephNVMeOF
 	// Use placeholder that will be replaced at runtime with actual pod IP
 	// The init container will replace @@POD_IP@@ with the actual pod IP
 	podIP := "@@POD_IP@@"
+	hostNetwork := nvmeof.IsHostNetwork(r.cephClusterSpec)
 
-	configContent, err := getNVMeOFGatewayConfig(nvmeofPoolName, podName, podIP, anaGroup, nvmeof.Spec.NVMeOFConfig)
+	configContent, err := getNVMeOFGatewayConfig(nvmeofPoolName, podName, podIP, anaGroup, hostNetwork, nvmeof.Spec.NVMeOFConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate nvmeof config")
 	}

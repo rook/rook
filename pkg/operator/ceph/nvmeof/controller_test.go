@@ -758,7 +758,7 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 
 func TestNVMeOFConfigGeneration(t *testing.T) {
 	t.Run("defaults", func(t *testing.T) {
-		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", nil)
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, nil)
 		assert.NoError(t, err)
 
 		cfg, err := ini.Load([]byte(config))
@@ -773,6 +773,16 @@ func TestNVMeOFConfigGeneration(t *testing.T) {
 		assert.Equal(t, "pool-a", cfg.Section("ceph").Key("pool").String())
 		assert.Equal(t, "4096", cfg.Section("spdk").Key("mem_size").String())
 		assert.Equal(t, "5499", cfg.Section("monitor").Key("port").String())
+		assert.Equal(t, "", cfg.Section("gateway").Key("override_hostname").String())
+	})
+
+	t.Run("hostNetwork sets override_hostname", func(t *testing.T) {
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", true, nil)
+		assert.NoError(t, err)
+
+		cfg, err := ini.Load([]byte(config))
+		assert.NoError(t, err)
+		assert.Equal(t, "pod-a", cfg.Section("gateway").Key("override_hostname").String())
 	})
 
 	t.Run("overrides and new section", func(t *testing.T) {
@@ -788,7 +798,7 @@ func TestNVMeOFConfigGeneration(t *testing.T) {
 				"foo": "bar",
 			},
 		}
-		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", userConfig)
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, userConfig)
 		assert.NoError(t, err)
 
 		cfg, err := ini.Load([]byte(config))
