@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# TOOLBOX_SCRIPT_BODY_BEGIN
 # inputs
 ENDPOINT_MOUNT="/etc/rook/mon-endpoints"
 KEYRING_MOUNT="/var/lib/rook-ceph-mon/secret.keyring"

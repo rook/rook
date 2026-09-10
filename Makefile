@@ -100,6 +100,9 @@ ifneq ($(filter $(PLATFORM),$(SERVER_PLATFORMS)),)
 GO_STATIC_PACKAGES += $(SERVER_PACKAGES)
 endif
 
+# build holds the toolbox manifest generator, so it belongs in the test and vet sweeps
+GO_SUBDIRS=cmd pkg build
+
 GO_BUILDFLAGS=$(BUILDFLAGS)
 GO_LDFLAGS=$(LDFLAGS)
 GO_TAGS=$(TAGS)
@@ -119,7 +122,7 @@ build.version:
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
 build.common: export SKIP_GEN_CRD_DOCS=true
-build.common: build.version helm.build mod.check crds gen-rbac
+build.common: build.version helm.build mod.check crds gen-rbac gen-toolbox
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 	@$(MAKE) -C images/ceph list-image
@@ -233,6 +236,10 @@ gen-rbac: $(HELM) $(YQ) helm.dependency.build ## Generate RBAC from Helm charts
 	HELM=$(HELM) ./build/rbac/gen-common.sh
 	HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
 
+gen.toolbox: gen-toolbox
+gen-toolbox: ## Generate the inline toolbox scripts from images/ceph/toolbox.sh
+	go run ./build/toolbox
+
 gen.docs: docs ## generate docs
 .PHONY: docs
 docs: helm-docs ## generate documentation
@@ -257,11 +264,11 @@ gen.crd-docs: generate-docs-crds
 generate-docs-crds: ## Build the documentation for CRD
 	@GOBIN=$(GOBIN) build/crds/generate-crd-docs.sh
 
-generate: gen.codegen gen.crds gen.rbac gen.docs gen.crd-docs ## Update all generated files (code, manifests, charts, and docs).
+generate: gen.codegen gen.crds gen.rbac gen.toolbox gen.docs gen.crd-docs ## Update all generated files (code, manifests, charts, and docs).
 
 
 .PHONY: all build.common
-.PHONY: build build.all install test check vet fmt codegen gen.codegen gen.rbac gen.crds gen.crd-docs gen.docs gen.helm-docs generate mod.check clean distclean prune
+.PHONY: build build.all install test check vet fmt codegen gen.codegen gen.rbac gen.toolbox gen.crds gen.crd-docs gen.docs gen.helm-docs generate mod.check clean distclean prune
 
 # ====================================================================================
 # Help
