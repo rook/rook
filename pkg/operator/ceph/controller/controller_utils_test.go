@@ -104,6 +104,19 @@ func TestCanIgnoreHealthErrStatusInReconcile(t *testing.T) {
 	assert.False(t, canIgnoreHealthErrStatusInReconcile(cluster, "controller"))
 }
 
+func TestCSIOperatorResourcesEnabled(t *testing.T) {
+	defer os.Unsetenv("ROOK_CREATE_CSI_OPERATOR_RESOURCES")
+
+	// default is true when env var is not set
+	assert.True(t, CSIOperatorResourcesEnabled())
+
+	os.Setenv("ROOK_CREATE_CSI_OPERATOR_RESOURCES", "false")
+	assert.False(t, CSIOperatorResourcesEnabled())
+
+	os.Setenv("ROOK_CREATE_CSI_OPERATOR_RESOURCES", "true")
+	assert.True(t, CSIOperatorResourcesEnabled())
+}
+
 func TestSetCephCommandsTimeout(t *testing.T) {
 	defer os.Unsetenv("ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS")
 
