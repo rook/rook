@@ -45,10 +45,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
         with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
@@ -77,6 +77,14 @@ jobs:
           name: ceph-smoke-suite-${{ matrix.ceph-suite-version }}-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
+      - name: consider (post-job) debugging
+        if: always()
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
+
   upgrade-suite:
     runs-on: ubuntu-22.04
     strategy:
@@ -89,10 +97,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
         with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
@@ -121,6 +129,14 @@ jobs:
           name: ceph-upgrade-suite-${{ matrix.upgrade-test }}-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
+      - name: consider (post-job) debugging
+        if: always()
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
+
   object-suite:
     runs-on: ubuntu-22.04
     strategy:
@@ -134,10 +150,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
         with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
@@ -165,3 +181,11 @@ jobs:
         with:
           name: ceph-object-suite-${{ matrix.ceph-suite-version }}-${{ matrix.object-test }}-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+
+      - name: consider (post-job) debugging
+        if: always()
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}

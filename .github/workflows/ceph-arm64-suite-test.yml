@@ -34,10 +34,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider tmate debugging
-        uses: ./.github/workflows/tmate_debug
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
         with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-setup-cluster-resources
@@ -76,3 +76,11 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+
+
+      - name: consider (post-job) debugging
+        if: always()
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}

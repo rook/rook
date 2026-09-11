@@ -17,6 +17,11 @@ inputs:
     description: 'whether to upload the collected logs as an artifact; callers typically pass the outcome of their test step (e.g. steps.test.outcome != ''success'') to upload only on failure, or "true" to always upload'
     required: false
     default: "true"
+    default: failure
+  use-tmate:
+    description: 'whether to use tmate for debugging'
+    required: false
+    default: ''
 
 runs:
   using: "composite"
@@ -47,6 +52,8 @@ runs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: consider (post-job) debugging
-      uses: ./.github/workflows/upterm_debug
+      uses: ./.github/workflows/tmate_debug
+      if: always()
       with:
+        use-tmate: ${{ inputs.use-tmate }}
         debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
