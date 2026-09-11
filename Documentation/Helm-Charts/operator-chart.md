@@ -57,6 +57,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.attacher.tag` | Attacher image tag | `"v4.12.0"` |
 | `csi.cephcsi.repository` | Ceph CSI image repository | `"quay.io/cephcsi/cephcsi"` |
 | `csi.cephcsi.tag` | Ceph CSI image tag | `"v3.17.1"` |
+| `csi.createCsiOperatorResources` | When true, Rook creates the CephConnection and ClientProfile CRs consumed by the ceph-csi-operator. Set to false for clusters that use no CSI driver, such as object store only clusters, so the ceph-csi-operator and its CRDs are not required. | `true` |
 | `csi.csiAddons.repository` | CSIAddons sidecar image repository | `"quay.io/csiaddons/k8s-sidecar"` |
 | `csi.csiAddons.tag` | CSIAddons sidecar image tag | `"v0.14.0"` |
 | `csi.installCsiOperator` | When true, install the ceph-csi-operator subchart (see Chart.yaml `condition`). | `true` |
