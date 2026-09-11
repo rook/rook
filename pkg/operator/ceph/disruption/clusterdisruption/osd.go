@@ -18,8 +18,9 @@ package clusterdisruption
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"slices"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -47,177 +48,105 @@ const (
 	// osdPDBAppName is the app label value for pdbs targeting osds
 	osdPDBAppName = "rook-ceph-osd"
 	// osdPDBOsdIdLabel is the label on osd pods for pdbs targeting specific osd ids
-	osdPDBOsdIdLabel                 = "osd"
-	drainingFailureDomainKey         = "draining-failure-domain"
-	drainingFailureDomainDurationKey = "draining-failure-domain-duration"
-	setNoOut                         = "set-no-out"
+	osdPDBOsdIdLabel = "osd"
 	// DefaultMaintenanceTimeout is the period for which a drained failure domain will remain in noout
 	DefaultMaintenanceTimeout = 30 * time.Minute
 	nooutFlag                 = "noout"
+
+	// CephStatusSettleTime is how long to wait for Ceph to update PG status after detecting a node drain.
+	// When a node is drained, OSDs go down rapidly but Ceph's PG health might take several seconds
+	// to reflect the impact. During this window, Ceph may report "PGs clean" even though PGs are
+	// about to become unhealthy. We wait up to 60 seconds before trusting the "PGs clean" status.
+	CephStatusSettleTime = 60 * time.Second
 )
 
-func (r *ReconcileClusterDisruption) createPDB(pdb client.Object) error {
-	err := r.client.Create(r.context.OpManagerContext, pdb)
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return errors.Wrapf(err, "failed to create pdb %q", pdb.GetName())
-	}
-	return nil
+// DrainState represents the current drain state of the cluster.
+type DrainState struct {
+	// ActiveDrains maps failure domain name → drain details
+	// Empty map = no active drains
+	ActiveDrains map[string]DomainDrainInfo `json:"activeDrains"`
+
+	// When this state was last updated
+	LastUpdate time.Time `json:"lastUpdate"`
 }
 
-func (r *ReconcileClusterDisruption) deletePDB(pdb client.Object) error {
-	err := r.client.Delete(r.context.OpManagerContext, pdb)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return errors.Wrapf(err, "failed to delete pdb %q", pdb.GetName())
-	}
-	return nil
+// DomainDrainInfo contains details about a draining failure domain
+type DomainDrainInfo struct {
+	// Which failure domain is draining (e.g., "zone-a")
+	Domain string `json:"domain"`
+
+	// When the drain started
+	StartTime time.Time `json:"startTime"`
+
+	// Whether we're still waiting for Ceph PG status to settle (60s wait)
+	WaitingForCephStatus bool `json:"waitingForCephStatus"`
+
+	// Whether to set noout on this domain
+	SetNoOut bool `json:"setNoOut"`
+
+	// When noout was set (for timeout tracking)
+	NoOutSetAt time.Time `json:"noOutSetAt,omitempty"`
 }
 
-// createDefaultPDBforOSD creates a single PDB for all OSDs with maxUnavailable=1
-// This allows all OSDs in a single failure domain to go down.
-func (r *ReconcileClusterDisruption) createDefaultPDBforOSD(namespace string, excludeOSDs []int) error {
-	cephCluster, ok := r.clusterMap.GetCluster(namespace)
-	if !ok {
-		return errors.Errorf("failed to find the namespace %q in the clustermap", namespace)
-	}
-	pdbRequest := types.NamespacedName{Name: osdPDBAppName, Namespace: namespace}
-	objectMeta := metav1.ObjectMeta{
-		Name:      osdPDBAppName,
-		Namespace: namespace,
-	}
-	matchExpressions := []metav1.LabelSelectorRequirement{
-		// require the pod to be an OSD pod
-		{
-			Key:      k8sutil.AppAttr,
-			Operator: metav1.LabelSelectorOpIn,
-			Values:   []string{osdPDBAppName},
-		},
-	}
-	if len(excludeOSDs) > 0 {
-		excludeOSDsValues := make([]string, len(excludeOSDs))
-		for i, excludeOSD := range excludeOSDs {
-			excludeOSDsValues[i] = strconv.Itoa(excludeOSD)
-		}
-		matchExpressions = append(matchExpressions, metav1.LabelSelectorRequirement{
-			// don't consider pods for excluded OSD IDs
-			Key:      osdPDBOsdIdLabel,
-			Operator: metav1.LabelSelectorOpNotIn,
-			Values:   excludeOSDsValues,
-		})
-	}
-
-	pdb := &policyv1.PodDisruptionBudget{
-		ObjectMeta: objectMeta,
-		Spec: policyv1.PodDisruptionBudgetSpec{
-			MaxUnavailable: &intstr.IntOrString{IntVal: 1},
-			Selector: &metav1.LabelSelector{
-				MatchExpressions: matchExpressions,
-			},
-		},
-	}
-	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
-	err := ownerInfo.SetControllerReference(pdb)
+// ToConfigMapData serializes DrainState to ConfigMap data
+func (s DrainState) ToConfigMapData() (map[string]string, error) {
+	data, err := json.Marshal(s)
 	if err != nil {
-		return errors.Wrapf(err, "failed to set owner reference to pdb %v", pdb)
+		return nil, err
 	}
-
-	existingPDB := &policyv1.PodDisruptionBudget{}
-	err = r.client.Get(r.context.OpManagerContext, pdbRequest, existingPDB)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Info("all PGs are active+clean. Restoring default OSD pdb settings")
-			logger.Infof("creating the default pdb %q with maxUnavailable=1 for all osd", osdPDBAppName)
-			return r.createPDB(pdb)
-		}
-		return errors.Wrapf(err, "failed to get pdb %q", pdb.Name)
-	}
-
-	existingPDB.Spec = pdb.Spec
-	err = r.client.Update(r.context.OpManagerContext, existingPDB)
-	if err != nil {
-		return errors.Wrapf(err, "failed to update existing pdb %q", existingPDB.Name)
-	}
-	return nil
+	return map[string]string{"drainState": string(data)}, nil
 }
 
-func (r *ReconcileClusterDisruption) deleteDefaultPDBforOSD(namespace string) error {
-	pdbRequest := types.NamespacedName{Name: osdPDBAppName, Namespace: namespace}
-	objectMeta := metav1.ObjectMeta{
-		Name:      osdPDBAppName,
-		Namespace: namespace,
+// drainStateFromConfigMap deserializes DrainState from ConfigMap
+func drainStateFromConfigMap(data map[string]string) (DrainState, error) {
+	stateJSON := data["drainState"]
+	if stateJSON == "" {
+		// No state yet, return empty
+		return DrainState{
+			ActiveDrains: make(map[string]DomainDrainInfo),
+			LastUpdate:   time.Now(),
+		}, nil
 	}
-	pdb := &policyv1.PodDisruptionBudget{
-		ObjectMeta: objectMeta,
+
+	var state DrainState
+	if err := json.Unmarshal([]byte(stateJSON), &state); err != nil {
+		return DrainState{}, err
 	}
-	err := r.client.Get(r.context.OpManagerContext, pdbRequest, &policyv1.PodDisruptionBudget{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return errors.Wrapf(err, "failed to get pdb %q", pdb.Name)
-	}
-	logger.Infof("deleting the default pdb %q with maxUnavailable=1 for all osd", osdPDBAppName)
-	return r.deletePDB(pdb)
+	return state, nil
 }
 
-// createBlockingPDBForOSD creates individual blocking PDBs (maxUnavailable=0) for all the OSDs in
-// failure domains that are not draining
-func (r *ReconcileClusterDisruption) createBlockingPDBForOSD(namespace, failureDomainType, failureDomainName string) error {
-	cephCluster, ok := r.clusterMap.GetCluster(namespace)
-	if !ok {
-		return errors.Errorf("failed to find the namespace %q in the clustermap", namespace)
+// drainingDomainNames returns list of draining domain names for logging
+func (s DrainState) drainingDomainNames() []string {
+	names := make([]string, 0, len(s.ActiveDrains))
+	for name := range s.ActiveDrains {
+		names = append(names, name)
 	}
-
-	pdbName := getPDBName(failureDomainType, failureDomainName)
-	pdbRequest := types.NamespacedName{Name: pdbName, Namespace: namespace}
-	objectMeta := metav1.ObjectMeta{
-		Name:      pdbName,
-		Namespace: namespace,
-	}
-	selector := &metav1.LabelSelector{
-		MatchLabels: map[string]string{fmt.Sprintf(osd.TopologyLocationLabel, failureDomainType): failureDomainName},
-	}
-	pdb := &policyv1.PodDisruptionBudget{
-		ObjectMeta: objectMeta,
-		Spec: policyv1.PodDisruptionBudgetSpec{
-			MaxUnavailable: &intstr.IntOrString{IntVal: 0},
-			Selector:       selector,
-		},
-	}
-	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
-	err := ownerInfo.SetControllerReference(pdb)
-	if err != nil {
-		return errors.Wrapf(err, "failed to set owner reference to pdb %v", pdb)
-	}
-	err = r.client.Get(r.context.OpManagerContext, pdbRequest, &policyv1.PodDisruptionBudget{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Infof("creating temporary blocking pdb %q with maxUnavailable=0 for %q failure domain %q", pdbName, failureDomainType, failureDomainName)
-			return r.createPDB(pdb)
-		}
-		return errors.Wrapf(err, "failed to get pdb %q", pdb.Name)
-	}
-	return nil
+	return names
 }
 
-func (r *ReconcileClusterDisruption) deleteBlockingPDBForOSD(namespace, failureDomainType, failureDomainName string) error {
-	pdbName := getPDBName(failureDomainType, failureDomainName)
-	pdbRequest := types.NamespacedName{Name: pdbName, Namespace: namespace}
-	objectMeta := metav1.ObjectMeta{
-		Name:      pdbName,
-		Namespace: namespace,
-	}
-	pdb := &policyv1.PodDisruptionBudget{
-		ObjectMeta: objectMeta,
-	}
-	err := r.client.Get(r.context.OpManagerContext, pdbRequest, &policyv1.PodDisruptionBudget{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return errors.Wrapf(err, "failed to get pdb %q", pdb.Name)
-	}
-	logger.Infof("deleting temporary blocking pdb with %q with maxUnavailable=0 for %q failure domain %q", pdbName, failureDomainType, failureDomainName)
-	return r.deletePDB(pdb)
+// DesiredPDBSet represents what PDBs should exist
+type DesiredPDBSet struct {
+	// Default PDB spec (nil = should not exist)
+	DefaultPDB *policyv1.PodDisruptionBudgetSpec
+
+	// Blocking PDBs keyed by PDB name
+	BlockingPDBs map[string]policyv1.PodDisruptionBudgetSpec
+
+	// Which OSDs to exclude from default PDB
+	ExcludeOSDs []int
+}
+
+// ClusterObservations packages all cluster state we observe
+type ClusterObservations struct {
+	// PG health status
+	PGClean     bool
+	PGHealthMsg string
+
+	// Failure domain information
+	AllDomains       []string // All failure domains in cluster
+	NodeDrainDomains []string // Domains with nodes being drained
+	OSDDownDomains   []string // Domains with down OSDs
+	DownOSDs         []int    // Individual OSD IDs that are down
 }
 
 func (r *ReconcileClusterDisruption) initializePDBState(request reconcile.Request) (*corev1.ConfigMap, error) {
@@ -233,9 +162,17 @@ func (r *ReconcileClusterDisruption) initializePDBState(request reconcile.Reques
 	}
 	err := r.client.Get(r.context.OpManagerContext, pdbStateMapRequest, pdbStateMap)
 	if apierrors.IsNotFound(err) {
-		// create configmap to track the draining failure domain
-		pdbStateMap.Data = map[string]string{drainingFailureDomainKey: "", setNoOut: ""}
-		err := r.client.Create(r.context.OpManagerContext, pdbStateMap)
+		// Create configmap with empty drain state
+		emptyState := DrainState{
+			ActiveDrains: make(map[string]DomainDrainInfo),
+			LastUpdate:   time.Now(),
+		}
+		data, err := emptyState.ToConfigMapData()
+		if err != nil {
+			return pdbStateMap, errors.Wrap(err, "failed to serialize empty drain state")
+		}
+		pdbStateMap.Data = data
+		err = r.client.Create(r.context.OpManagerContext, pdbStateMap)
 		if err != nil {
 			return pdbStateMap, errors.Wrapf(err, "failed to create the PDB state map %q", pdbStateMapRequest)
 		}
@@ -243,6 +180,331 @@ func (r *ReconcileClusterDisruption) initializePDBState(request reconcile.Reques
 		return pdbStateMap, errors.Wrapf(err, "failed to get the pdbStateMap %s", pdbStateMapRequest)
 	}
 	return pdbStateMap, nil
+}
+
+// detectDrainState determines the new drain state based on observations.
+// This is a PURE function with no side effects - easy to test.
+func detectDrainState(
+	currentState DrainState,
+	observations ClusterObservations,
+) DrainState {
+	// If everything is healthy, clear all drain state
+	if observations.PGClean &&
+		len(observations.NodeDrainDomains) == 0 &&
+		len(observations.OSDDownDomains) == 0 {
+		return DrainState{
+			ActiveDrains: make(map[string]DomainDrainInfo),
+			LastUpdate:   time.Now(),
+		}
+	}
+
+	newState := DrainState{
+		ActiveDrains: make(map[string]DomainDrainInfo),
+		LastUpdate:   time.Now(),
+	}
+
+	// Process node drain domains (these are actual maintenance events)
+	for _, domain := range observations.NodeDrainDomains {
+		existingDrain, alreadyDraining := currentState.ActiveDrains[domain]
+
+		if !alreadyDraining {
+			// NEW DRAIN: Start waiting for Ceph status to settle
+			newState.ActiveDrains[domain] = DomainDrainInfo{
+				Domain:               domain,
+				StartTime:            time.Now(),
+				WaitingForCephStatus: true, // Enter 60-second wait
+				SetNoOut:             true, // Node drain → set noout
+				NoOutSetAt:           time.Now(),
+			}
+			continue
+		}
+
+		// EXISTING DRAIN: Check wait period
+		if existingDrain.WaitingForCephStatus {
+			elapsed := time.Since(existingDrain.StartTime)
+			if elapsed < CephStatusSettleTime {
+				// Still in wait period - keep waiting
+				newState.ActiveDrains[domain] = existingDrain
+			} else {
+				// Wait period over - exit waiting state
+				existingDrain.WaitingForCephStatus = false
+				newState.ActiveDrains[domain] = existingDrain
+			}
+			continue
+		}
+
+		// Past wait period: keep drain active if PGs not clean
+		if !observations.PGClean {
+			newState.ActiveDrains[domain] = existingDrain
+		}
+		// If PGs clean after wait: drain recovered, don't add to newState
+	}
+
+	// Process OSD-down domains (not node drains - e.g., disk failures)
+	for _, domain := range observations.OSDDownDomains {
+		if _, exists := newState.ActiveDrains[domain]; !exists {
+			// OSD down in this domain but no node drain
+			if !observations.PGClean {
+				// PGs not clean - treat as drain
+				newState.ActiveDrains[domain] = DomainDrainInfo{
+					Domain:    domain,
+					StartTime: time.Now(),
+					SetNoOut:  false, // Not a node drain, don't set noout
+				}
+			}
+			// If PGs clean: drive failure scenario, will be handled by excluding OSDs
+		}
+	}
+
+	return newState
+}
+
+// calculateDesiredPDBs determines what PDBs should exist given the drain state.
+func calculateDesiredPDBs(
+	drainState DrainState,
+	observations ClusterObservations,
+	failureDomainType string,
+) DesiredPDBSet {
+	result := DesiredPDBSet{
+		BlockingPDBs: make(map[string]policyv1.PodDisruptionBudgetSpec),
+		ExcludeOSDs:  []int{},
+	}
+
+	// CASE 1: No active drains
+	if len(drainState.ActiveDrains) == 0 {
+		// Just default PDB, possibly excluding down OSDs
+		if observations.PGClean && len(observations.DownOSDs) > 0 {
+			// Drive failure scenario: exclude down OSDs from default PDB
+			result.ExcludeOSDs = observations.DownOSDs
+		}
+		result.DefaultPDB = makeDefaultPDBSpec(result.ExcludeOSDs)
+		return result
+	}
+
+	// CASE 2: Active drains
+	// Determine if we should exclude OSDs from default PDB
+	// (only if past wait period and PGs still clean)
+	for _, drainInfo := range drainState.ActiveDrains {
+		if !drainInfo.WaitingForCephStatus && observations.PGClean {
+			// Past wait period, PGs clean - this is a genuine drive failure
+			result.ExcludeOSDs = observations.DownOSDs
+			break
+		}
+	}
+
+	// Create blocking PDBs for all non-draining domains
+	for _, domain := range observations.AllDomains {
+		if _, isDraining := drainState.ActiveDrains[domain]; !isDraining {
+			pdbName := getPDBName(failureDomainType, domain)
+			result.BlockingPDBs[pdbName] = makeBlockingPDBSpec(failureDomainType, domain)
+		}
+	}
+
+	return result
+}
+
+// makeDefaultPDBSpec constructs the default PDB spec
+func makeDefaultPDBSpec(excludeOSDs []int) *policyv1.PodDisruptionBudgetSpec {
+	matchExpressions := []metav1.LabelSelectorRequirement{
+		{
+			Key:      k8sutil.AppAttr,
+			Operator: metav1.LabelSelectorOpIn,
+			Values:   []string{osdPDBAppName},
+		},
+	}
+
+	// Exclude specific OSDs if needed
+	if len(excludeOSDs) > 0 {
+		excludeValues := make([]string, len(excludeOSDs))
+		for i, osd := range excludeOSDs {
+			excludeValues[i] = strconv.Itoa(osd)
+		}
+		matchExpressions = append(matchExpressions, metav1.LabelSelectorRequirement{
+			Key:      osdPDBOsdIdLabel,
+			Operator: metav1.LabelSelectorOpNotIn,
+			Values:   excludeValues,
+		})
+	}
+
+	return &policyv1.PodDisruptionBudgetSpec{
+		MaxUnavailable: &intstr.IntOrString{IntVal: 1},
+		Selector: &metav1.LabelSelector{
+			MatchExpressions: matchExpressions,
+		},
+	}
+}
+
+// makeBlockingPDBSpec constructs a blocking PDB spec for a failure domain
+func makeBlockingPDBSpec(failureDomainType, domainName string) policyv1.PodDisruptionBudgetSpec {
+	selector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			fmt.Sprintf(osd.TopologyLocationLabel, failureDomainType): domainName,
+		},
+	}
+
+	return policyv1.PodDisruptionBudgetSpec{
+		MaxUnavailable: &intstr.IntOrString{IntVal: 0},
+		Selector:       selector,
+	}
+}
+
+// reconcilePDBs makes the actual PDB state match the desired state.
+func (r *ReconcileClusterDisruption) reconcilePDBs(
+	ctx context.Context,
+	namespace string,
+	desired DesiredPDBSet,
+	cephCluster *cephv1.CephCluster,
+) error {
+	// Get all existing OSD PDBs
+	existingPDBs, err := r.listOSDPDBs(ctx, namespace)
+	if err != nil {
+		return errors.Wrap(err, "failed to list existing PDBs")
+	}
+
+	trackedPDBs := make(map[string]bool)
+
+	// Reconcile DEFAULT PDB
+	if desired.DefaultPDB != nil {
+		// Default PDB should exist
+		if err := r.reconcileSinglePDB(ctx, namespace, osdPDBAppName, *desired.DefaultPDB, existingPDBs, cephCluster); err != nil {
+			return errors.Wrap(err, "failed to reconcile default PDB")
+		}
+		trackedPDBs[osdPDBAppName] = true
+	} else {
+		// Default PDB should NOT exist (active drain case)
+		if pdb, exists := existingPDBs[osdPDBAppName]; exists {
+			logger.Infof("Deleting default PDB %q during active drain", osdPDBAppName)
+			if err := r.client.Delete(ctx, pdb); err != nil && !apierrors.IsNotFound(err) {
+				return errors.Wrapf(err, "failed to delete default PDB %q", osdPDBAppName)
+			}
+		}
+		trackedPDBs[osdPDBAppName] = true
+	}
+
+	// Reconcile BLOCKING PDBs
+	for pdbName, pdbSpec := range desired.BlockingPDBs {
+		if err := r.reconcileSinglePDB(ctx, namespace, pdbName, pdbSpec, existingPDBs, cephCluster); err != nil {
+			return errors.Wrapf(err, "failed to reconcile blocking PDB %q", pdbName)
+		}
+		trackedPDBs[pdbName] = true
+	}
+
+	// Delete UNEXPECTED PDBs
+	for name, pdb := range existingPDBs {
+		if !trackedPDBs[name] {
+			logger.Infof("Deleting unexpected PDB %q", name)
+			if err := r.client.Delete(ctx, pdb); err != nil && !apierrors.IsNotFound(err) {
+				return errors.Wrapf(err, "failed to delete PDB %q", name)
+			}
+		}
+	}
+
+	return nil
+}
+
+// reconcileSinglePDB creates or updates a single PDB
+func (r *ReconcileClusterDisruption) reconcileSinglePDB(
+	ctx context.Context,
+	namespace string,
+	pdbName string,
+	desiredSpec policyv1.PodDisruptionBudgetSpec,
+	existingPDBs map[string]*policyv1.PodDisruptionBudget,
+	cephCluster *cephv1.CephCluster,
+) error {
+	if currentPDB, exists := existingPDBs[pdbName]; exists {
+		// PDB exists - update if spec changed
+		if !reflect.DeepEqual(currentPDB.Spec, desiredSpec) {
+			logger.Infof("Updating PDB %q", pdbName)
+			currentPDB.Spec = desiredSpec
+			if err := r.client.Update(ctx, currentPDB); err != nil {
+				return errors.Wrapf(err, "failed to update PDB %q", pdbName)
+			}
+		}
+	} else {
+		// PDB doesn't exist - create it
+		logger.Infof("Creating PDB %q", pdbName)
+		pdb := &policyv1.PodDisruptionBudget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pdbName,
+				Namespace: namespace,
+			},
+			Spec: desiredSpec,
+		}
+
+		// Set owner reference
+		ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
+		if err := ownerInfo.SetControllerReference(pdb); err != nil {
+			return errors.Wrap(err, "failed to set owner reference")
+		}
+
+		if err := r.client.Create(ctx, pdb); err != nil && !apierrors.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "failed to create PDB %q", pdbName)
+		}
+	}
+
+	return nil
+}
+
+// listOSDPDBs lists all OSD-related PDBs in the namespace
+func (r *ReconcileClusterDisruption) listOSDPDBs(
+	ctx context.Context,
+	namespace string,
+) (map[string]*policyv1.PodDisruptionBudget, error) {
+	pdbList := &policyv1.PodDisruptionBudgetList{}
+	if err := r.client.List(ctx, pdbList, client.InNamespace(namespace)); err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]*policyv1.PodDisruptionBudget)
+	for i := range pdbList.Items {
+		pdb := &pdbList.Items[i]
+		// Only track OSD-related PDBs
+		if strings.HasPrefix(pdb.Name, osdPDBAppName) {
+			result[pdb.Name] = pdb
+		}
+	}
+
+	return result, nil
+}
+
+// updateNooutFromState updates noout flags based on drain state
+func (r *ReconcileClusterDisruption) updateNooutFromState(
+	clusterInfo *cephclient.ClusterInfo,
+	drainState DrainState,
+	allFailureDomains []string,
+) error {
+	osdDump, err := cephclient.GetOSDDump(r.context.ClusterdContext, clusterInfo)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get osddump for reconciling noout")
+	}
+
+	for _, failureDomainName := range allFailureDomains {
+		drainInfo, isDraining := drainState.ActiveDrains[failureDomainName]
+
+		if isDraining && drainInfo.SetNoOut {
+			// Should have noout set
+			elapsed := time.Since(drainInfo.NoOutSetAt)
+			if elapsed >= r.maintenanceTimeout {
+				// Noout expired - unset it
+				logger.Infof("Noout timeout expired for %q", failureDomainName)
+				if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, clusterInfo, false, failureDomainName, nooutFlag); err != nil {
+					return errors.Wrapf(err, "failed to unset noout on %q", failureDomainName)
+				}
+			} else {
+				// Set noout
+				if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, clusterInfo, true, failureDomainName, nooutFlag); err != nil {
+					return errors.Wrapf(err, "failed to set noout on %q", failureDomainName)
+				}
+			}
+		} else {
+			// Should NOT have noout set
+			if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, clusterInfo, false, failureDomainName, nooutFlag); err != nil {
+				return errors.Wrapf(err, "failed to ensure noout unset on %q", failureDomainName)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
@@ -256,6 +518,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 	downOSDs []int,
 	pgHealthyRegex string,
 ) (reconcile.Result, error) {
+	// Check Ceph cluster health
 	pgHealthMsg, pgClean, err := cephclient.IsClusterClean(r.context.ClusterdContext, clusterInfo, pgHealthyRegex)
 	if err != nil {
 		// If the error contains that message, this means the cluster is not up and running
@@ -268,174 +531,81 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, nil
 	}
 
-	osdDown := len(downOSDs) > 0
-	// OSDs which should be excluded from the default PDB. This is done when there are no active drains and all PGs are
-	// active+clean, but there are some down OSDs. In that case we exclude the down OSDs from the PDB otherwise all drains
-	// in the cluster would be blocked until the down OSDs came back.
-	excludeOSDs := make([]int, 0)
-
-	// switch block to update the PDB state config map based on the PG status and running OSDs
-	switch {
-	case !osdDown && pgClean:
-		logger.Infof("OSDs are up and PGs are clean. PG status: %q", pgHealthMsg)
-		resetPDBConfig(pdbStateMap)
-	case osdDown && pgClean:
-		logger.Infof("OSD(s) %v are down but PGs are clean. PG Status: %q", downOSDs, pgHealthMsg)
-		// In case of a node drain event, the OSD pods can get drained rapidly and it would take some time for rook to fetch
-		// the correct PG status. So wait for 60 seconds when OSD is down and node drain event is detected
-		if len(nodeDrainFailureDomains) > 0 {
-			lastNodeDrainTimeStamp, err := getLastNodeDrainTimeStamp(pdbStateMap, drainingFailureDomainDurationKey)
-			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "failed to get last node drain timestamp from the configmap %q", pdbStateMap.Name)
-			}
-			if time.Since(lastNodeDrainTimeStamp) < 60*time.Second {
-				logger.Infof("node drain is detected. Requeue to ensure that correct PG status is read.")
-			} else {
-				excludeOSDs = slices.Clone(downOSDs)
-			}
-		} else {
-			excludeOSDs = slices.Clone(downOSDs)
-			resetPDBConfig(pdbStateMap)
-		}
-	case osdDown && !pgClean:
-		setPDBConfig(pdbStateMap, osdDownFailureDomains, nodeDrainFailureDomains)
-		logger.Infof("OSD(s) %v are down and PGs are not clean. PGs Status: %q", downOSDs, pgHealthMsg)
-
-	// no-op. Wait for the PGs to become healthy from the previous node drain event
-	case !osdDown && !pgClean && len(pdbStateMap.Data[drainingFailureDomainKey]) > 1:
-		logger.Infof("OSDs are up but PGs are not clean from previous drain event. PGs Status: %q", pgHealthMsg)
+	// STEP 2: Package observations
+	observations := ClusterObservations{
+		PGClean:          pgClean,
+		PGHealthMsg:      pgHealthMsg,
+		AllDomains:       allFailureDomains,
+		NodeDrainDomains: nodeDrainFailureDomains,
+		OSDDownDomains:   osdDownFailureDomains,
+		DownOSDs:         downOSDs,
 	}
 
-	// handle drains based on the PDB config map
-	if pdbStateMap.Data[drainingFailureDomainKey] != "" {
-		logger.Infof("OSD failure Domains : %q", allFailureDomains)
-		logger.Infof("Draining Failure Domain: %q", pdbStateMap.Data[drainingFailureDomainKey])
-		logger.Infof("Set noout on draining Failure Domain: %q", pdbStateMap.Data[setNoOut])
-		// delete default OSD pdb and create blocking OSD pdbs
-		err := r.handleActiveDrains(allFailureDomains, pdbStateMap.Data[drainingFailureDomainKey], failureDomainType, clusterInfo.Namespace)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to handle active drains")
-		}
-	} else if pdbStateMap.Data[drainingFailureDomainKey] == "" {
-		// delete all blocking OSD pdb and restore the default OSD pdb
-		err = r.handleInactiveDrains(allFailureDomains, failureDomainType, clusterInfo.Namespace, excludeOSDs)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to handle inactive drains")
-		}
-	}
+	logger.Infof("Cluster observations: PGs=%q, NodeDrains=%v, OSDDownDomains=%v, DownOSDs=%v",
+		pgHealthMsg, nodeDrainFailureDomains, osdDownFailureDomains, downOSDs)
 
-	nooutUpdateErr := r.updateNoout(clusterInfo, pdbStateMap, allFailureDomains)
-	if nooutUpdateErr != nil {
-		logger.Errorf("failed to update maintenance noout in cluster %q. %v", request, nooutUpdateErr)
-	}
-
-	// update PDB configmap
-	err = r.client.Update(clusterInfo.Context, pdbStateMap)
+	// Load current drain state
+	currentState, err := drainStateFromConfigMap(pdbStateMap.Data)
 	if err != nil {
+		logger.Warningf("Failed to parse drain state from configmap, starting fresh: %v", err)
+		currentState = DrainState{
+			ActiveDrains: make(map[string]DomainDrainInfo),
+			LastUpdate:   time.Now(),
+		}
+	}
+
+	// Detect new drain state
+	newState := detectDrainState(currentState, observations)
+
+	logger.Infof("Drain state: %d active drains", len(newState.ActiveDrains))
+	for domain, info := range newState.ActiveDrains {
+		logger.Infof("  - Domain %q: draining (waiting=%v, noout=%v)",
+			domain, info.WaitingForCephStatus, info.SetNoOut)
+	}
+
+	// Calculate desired PDBs
+	desiredPDBs := calculateDesiredPDBs(newState, observations, failureDomainType)
+
+	if desiredPDBs.DefaultPDB != nil {
+		logger.Infof("Desired state: default PDB (exclude %d OSDs), %d blocking PDBs",
+			len(desiredPDBs.ExcludeOSDs), len(desiredPDBs.BlockingPDBs))
+	} else {
+		logger.Infof("Desired state: no default PDB (active drain), %d blocking PDBs",
+			len(desiredPDBs.BlockingPDBs))
+	}
+
+	// Reconcile PDBs to match desired state
+	cephCluster, ok := r.clusterMap.GetCluster(request.Namespace)
+	if !ok {
+		return reconcile.Result{}, errors.Errorf("failed to find cluster in namespace %q", request.Namespace)
+	}
+
+	if err := r.reconcilePDBs(clusterInfo.Context, clusterInfo.Namespace, desiredPDBs, cephCluster); err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to reconcile PDBs")
+	}
+
+	// Update noout flags
+	if err := r.updateNooutFromState(clusterInfo, newState, allFailureDomains); err != nil {
+		logger.Errorf("failed to update noout in cluster %q: %v", request.Namespace, err)
+		return reconcile.Result{}, err
+	}
+
+	// Save new drain state to ConfigMap
+	newConfigMapData, err := newState.ToConfigMapData()
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to serialize drain state")
+	}
+	pdbStateMap.Data = newConfigMapData
+
+	if err := r.client.Update(clusterInfo.Context, pdbStateMap); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return reconcile.Result{}, nil
 		}
-		return reconcile.Result{}, errors.Wrapf(err, "failed to update configMap %q in cluster %q", pdbStateMapName, request)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to update configMap %q", pdbStateMapName)
 	}
 
-	if nooutUpdateErr != nil {
-		return reconcile.Result{}, errors.Wrapf(nooutUpdateErr, "failed to update maintenance noout in cluster %q", request)
-	}
-
-	return r.requeuePDBController(request)
-}
-
-func (r *ReconcileClusterDisruption) handleActiveDrains(allFailureDomains []string, drainingFailureDomain,
-	failureDomainType, namespace string,
-) error {
-	for _, failureDomainName := range allFailureDomains {
-		// create blocking PDB for failure domains not currently draining
-		if failureDomainName != drainingFailureDomain {
-			err := r.createBlockingPDBForOSD(namespace, failureDomainType, failureDomainName)
-			if err != nil {
-				return errors.Wrapf(err, "failed to create blocking pdb for %q failure domain %q", failureDomainType, failureDomainName)
-			}
-		} else {
-			err := r.deleteBlockingPDBForOSD(namespace, failureDomainType, failureDomainName)
-			if err != nil {
-				return errors.Wrapf(err, "failed to delete blocking pdb for %q failure domain %q. %v", failureDomainType, failureDomainName, err)
-			}
-		}
-	}
-
-	// delete the default PDB for OSD
-	// This will allow all OSDs in the currently drained failure domain to be removed.
-	logger.Debug("deleting default pdb with maxUnavailable=1 for all osd")
-	err := r.deleteDefaultPDBforOSD(namespace)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete the default osd pdb")
-	}
-	return nil
-}
-
-func (r *ReconcileClusterDisruption) handleInactiveDrains(allFailureDomains []string, failureDomainType, namespace string, excludeOSDs []int) error {
-	err := r.createDefaultPDBforOSD(namespace, excludeOSDs)
-	if err != nil {
-		return errors.Wrap(err, "failed to create default pdb")
-	}
-	for _, failureDomainName := range allFailureDomains {
-		err := r.deleteBlockingPDBForOSD(namespace, failureDomainType, failureDomainName)
-		if err != nil {
-			return errors.Wrapf(err, "failed to delete pdb for %q failure domain %q. %v", failureDomainType, failureDomainName, err)
-		}
-		logger.Debugf("deleted temporary blocking pdb for %q failure domain %q.", failureDomainType, failureDomainName)
-	}
-	return nil
-}
-
-func (r *ReconcileClusterDisruption) updateNoout(clusterInfo *cephclient.ClusterInfo, pdbStateMap *corev1.ConfigMap, allFailureDomains []string) error {
-	osdDump, err := cephclient.GetOSDDump(r.context.ClusterdContext, clusterInfo)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get osddump for reconciling maintenance noout in namespace %s", clusterInfo.Namespace)
-	}
-	for _, failureDomainName := range allFailureDomains {
-		drainingFailureDomainTimeStampKey := fmt.Sprintf("%s-noout-last-set-at", failureDomainName)
-		if pdbStateMap.Data[drainingFailureDomainKey] == failureDomainName {
-			if pdbStateMap.Data[setNoOut] == "true" {
-				// get the time stamp
-				nooutSetTimeString, ok := pdbStateMap.Data[drainingFailureDomainTimeStampKey]
-				if !ok || len(nooutSetTimeString) == 0 {
-					// initialize it if it's not set
-					pdbStateMap.Data[drainingFailureDomainTimeStampKey] = time.Now().Format(time.RFC3339)
-				}
-				// parse the timestamp
-				nooutSetTime, err := time.Parse(time.RFC3339, pdbStateMap.Data[drainingFailureDomainTimeStampKey])
-				if err != nil {
-					return errors.Wrapf(err, "failed to parse timestamp %s for failureDomain %s", pdbStateMap.Data[drainingFailureDomainTimeStampKey], nooutSetTime)
-				}
-				if time.Since(nooutSetTime) >= r.maintenanceTimeout {
-					// noout expired
-					if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, clusterInfo, false, failureDomainName, nooutFlag); err != nil {
-						return errors.Wrapf(err, "failed to update flag on crush unit when noout expired.")
-					}
-				} else {
-					// set noout
-					if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, clusterInfo, true, failureDomainName, nooutFlag); err != nil {
-						return errors.Wrapf(err, "failed to update flag on crush unit while setting noout.")
-					}
-				}
-			} else {
-				if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, clusterInfo, false, failureDomainName, nooutFlag); err != nil {
-					return errors.Wrapf(err, "failed to update flag on crush unit when ensuring noout is unset.")
-				}
-				// delete the timestamp
-				delete(pdbStateMap.Data, drainingFailureDomainTimeStampKey)
-			}
-		} else {
-			// ensure noout unset
-			if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, clusterInfo, false, failureDomainName, nooutFlag); err != nil {
-				return errors.Wrapf(err, "failed to update flag on crush unit when ensuring noout is unset.")
-			}
-			// delete the timestamp
-			delete(pdbStateMap.Data, drainingFailureDomainTimeStampKey)
-		}
-	}
-	return nil
+	// Requeue if needed
+	return requeueIfNeeded(newState, observations), nil
 }
 
 func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclient.ClusterInfo, request reconcile.Request, poolFailureDomain string) ([]string, []string, []string, []int, error) {
@@ -457,6 +627,12 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 		return nil, nil, nil, nil, errors.Wrapf(err, "failed to get OSD status")
 	}
 
+	// Build OSD ID → node name lookup map once (O(1) instead of O(m) per OSD)
+	osdNodeMap := make(map[int]string, len(*osdMetadata))
+	for _, metadata := range *osdMetadata {
+		osdNodeMap[metadata.Id] = metadata.HostName
+	}
+
 	for _, deployment := range osdDeploymentList.Items {
 		labels := deployment.GetLabels()
 		failureDomainName := labels[topologyLocationLabel]
@@ -465,22 +641,20 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 				topologyLocationLabel, deployment.Name)
 		}
 
+		// Insert is idempotent - no need to check Has() first
+		allFailureDomains.Insert(failureDomainName)
+
 		// Skip OSDs being replaced. The marker Deployment sits at replicas=0 during the replacement, so
 		// counting it as down would create blocking PDBs on the other failure domains and freeze
 		// cluster-wide maintenance for the whole (possibly multi-day) replacement.
 		if shouldIgnoreOSD(&deployment) {
 			logger.Debugf("skipping OSD deployment %q from down-detection because it is marked for replacement", deployment.Name)
-			if !allFailureDomains.Has(failureDomainName) {
-				allFailureDomains.Insert(failureDomainName)
-			}
 			continue
 		}
 
 		// Assume node drain if osd deployment ReadyReplicas count is 0 and OSD pod is not scheduled on a node
 		if deployment.Status.ReadyReplicas < 1 {
-			if !osdDownFailureDomains.Has(failureDomainName) {
-				osdDownFailureDomains.Insert(failureDomainName)
-			}
+			osdDownFailureDomains.Insert(failureDomainName)
 
 			osdID, err := osd.GetOSDID(&deployment)
 			if err != nil {
@@ -488,37 +662,24 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 			}
 			downOSDs = append(downOSDs, osdID)
 
-			// check if OSD is down on unschedulable node
-			var osdNodeName string
-			for _, metadata := range *osdMetadata {
-				if metadata.Id == osdID {
-					osdNodeName = metadata.HostName
-				}
-			}
-			if osdNodeName != "" {
-				isDrained, err := hasOSDNodeDrained(clusterInfo.Context, r.client, osdNodeName)
-				if err != nil {
-					return nil, nil, nil, nil, errors.Wrapf(err, "failed to check if osd %q node is drained", deployment.Name)
-				}
-				if isDrained {
-					logger.Infof("osd %q is down on node %q and a possible node drain is detected", deployment.Name, osdNodeName)
-					if !nodeDrainFailureDomains.Has(failureDomainName) {
-						nodeDrainFailureDomains.Insert(failureDomainName)
-					}
-				} else {
-					if !strings.HasSuffix(deployment.Name, "-debug") {
-						logger.Infof("osd %q is down on node %q but no node drain is detected", deployment.Name, osdNodeName)
-					}
-				}
-			} else {
+			// O(1) lookup instead of O(m) loop
+			osdNodeName, ok := osdNodeMap[osdID]
+			if !ok || osdNodeName == "" {
 				logger.Warningf("failed to get the node name for the OSD %d", osdID)
 				continue
 			}
 
-		}
+			isDrained, err := hasOSDNodeDrained(clusterInfo.Context, r.client, osdNodeName)
+			if err != nil {
+				return nil, nil, nil, nil, errors.Wrapf(err, "failed to check if osd %q node is drained", deployment.Name)
+			}
 
-		if !allFailureDomains.Has(failureDomainName) {
-			allFailureDomains.Insert(failureDomainName)
+			if isDrained {
+				logger.Infof("osd %q is down on node %q and a possible node drain is detected", deployment.Name, osdNodeName)
+				nodeDrainFailureDomains.Insert(failureDomainName)
+			} else if !strings.HasSuffix(deployment.Name, "-debug") {
+				logger.Infof("osd %q is down on node %q but no node drain is detected", deployment.Name, osdNodeName)
+			}
 		}
 	}
 	return sets.List(allFailureDomains), sets.List(nodeDrainFailureDomains), sets.List(osdDownFailureDomains), downOSDs, nil
@@ -560,43 +721,33 @@ func getPDBName(failureDomainType, failureDomainName string) string {
 	return k8sutil.TruncateNodeName(fmt.Sprintf("%s-%s-%s", osdPDBAppName, failureDomainType, "%s"), failureDomainName)
 }
 
-func resetPDBConfig(pdbStateMap *corev1.ConfigMap) {
-	pdbStateMap.Data[drainingFailureDomainKey] = ""
-	delete(pdbStateMap.Data, drainingFailureDomainDurationKey)
-	// reset `set-no-out` flag on the configMap
-	pdbStateMap.Data[setNoOut] = ""
-}
-
-// setPDBConfig updates the OSD PDB config map. If there are unschedulable nodes (that is, a node drain event)
-// then those failureDomains are given higher precedence than the failureDomains where OSDs might be down
-// due to some reason but node is schedulable. `Noout` is set only if nodes are unschedulable.
-func setPDBConfig(pdbStateMap *corev1.ConfigMap, osdDownFailureDomains, nodeDrainFailureDomains []string) {
-	if len(pdbStateMap.Data[drainingFailureDomainKey]) == 0 {
-		if len(nodeDrainFailureDomains) > 0 {
-			pdbStateMap.Data[drainingFailureDomainKey] = nodeDrainFailureDomains[0]
-			pdbStateMap.Data[setNoOut] = "true"
-		} else if len(osdDownFailureDomains) > 0 {
-			pdbStateMap.Data[drainingFailureDomainKey] = osdDownFailureDomains[0]
-			pdbStateMap.Data[setNoOut] = ""
-		}
-		pdbStateMap.Data[drainingFailureDomainDurationKey] = time.Now().Format(time.RFC3339)
-	} else {
-		// Update the PDB configmap if the previously drained node is back but some other nodes are down.
-		if len(nodeDrainFailureDomains) > 0 && !slices.Contains(nodeDrainFailureDomains, pdbStateMap.Data[drainingFailureDomainKey]) {
-			pdbStateMap.Data[drainingFailureDomainKey] = nodeDrainFailureDomains[0]
-			pdbStateMap.Data[setNoOut] = "true"
-		} else if len(osdDownFailureDomains) > 0 && !slices.Contains(osdDownFailureDomains, pdbStateMap.Data[drainingFailureDomainKey]) {
-			pdbStateMap.Data[drainingFailureDomainKey] = osdDownFailureDomains[0]
-			pdbStateMap.Data[setNoOut] = ""
-		}
-		pdbStateMap.Data[drainingFailureDomainDurationKey] = time.Now().Format(time.RFC3339)
+// requeueIfNeeded determines if reconcile should requeue based on actual cluster state.
+// Returns a requeue result if the cluster state requires continued monitoring.
+func requeueIfNeeded(
+	drainState DrainState,
+	observations ClusterObservations,
+) reconcile.Result {
+	// Monitor active drains - need to watch for recovery
+	if len(drainState.ActiveDrains) > 0 {
+		logger.Infof("Active drains: %v. Requeuing in 30s to monitor recovery",
+			drainState.drainingDomainNames())
+		return reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}
 	}
+
+	// Monitor drive failures - down OSDs with clean PGs
+	if len(observations.DownOSDs) > 0 {
+		logger.Infof("Down OSDs: %v. Requeuing in 30s to monitor recovery",
+			observations.DownOSDs)
+		return reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}
+	}
+
+	// Everything healthy - wait for external events (pod changes, etc.)
+	logger.Info("successfully reconciled OSD PDB controller")
+	return reconcile.Result{}
 }
 
-// requeuePDBController returns a requeue request with a timeout if:
-// - allowedDisruption in main PDB is 0, that is, one or more OSDs went down.
-// - MaxUnavailable in the main PDB is > 1, that is, OSDs are down but PGs might be clean.
-// - default OSD PDB is not available.
+// requeuePDBController is the legacy requeue logic based on PDB status.
+// DEPRECATED: Kept for reference but no longer used. Use requeueIfNeeded() instead.
 func (r *ReconcileClusterDisruption) requeuePDBController(request reconcile.Request) (reconcile.Result, error) {
 	defaultPDB := &policyv1.PodDisruptionBudget{}
 	err := r.client.Get(r.context.OpManagerContext, types.NamespacedName{Name: osdPDBAppName, Namespace: request.Namespace}, defaultPDB)
@@ -617,23 +768,6 @@ func (r *ReconcileClusterDisruption) requeuePDBController(request reconcile.Requ
 
 	logger.Info("successfully reconciled OSD PDB controller")
 	return reconcile.Result{}, nil
-}
-
-func getLastNodeDrainTimeStamp(pdbStateMap *corev1.ConfigMap, key string) (time.Time, error) {
-	var err error
-	var lastDrainTimeStamp time.Time
-	lastDrainTimeStampString, ok := pdbStateMap.Data[key]
-	if !ok || len(lastDrainTimeStampString) == 0 {
-		currentTimeStamp := time.Now()
-		pdbStateMap.Data[key] = currentTimeStamp.Format(time.RFC3339)
-		return currentTimeStamp, nil
-	} else {
-		lastDrainTimeStamp, err = time.Parse(time.RFC3339, pdbStateMap.Data[key])
-		if err != nil {
-			return time.Time{}, errors.Wrapf(err, "failed to parse timestamp %q", pdbStateMap.Data[key])
-		}
-	}
-	return lastDrainTimeStamp, nil
 }
 
 func pdbExcludesOSDs(pdb *policyv1.PodDisruptionBudget) bool {
