@@ -19,6 +19,8 @@ package osd
 
 import (
 	"context"
+	"os/exec"
+	"strings"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -38,6 +40,33 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+func TestFindRawOSDDevice(t *testing.T) {
+	rawList := `{
+		"aux": {
+			"osd_uuid": "abc",
+			"device_db": "/dev/db"
+		},
+		"main": {
+			"osd_id": 3,
+			"device": "/dev/sdc"
+		}
+	}`
+	_, pythonCode, found := strings.Cut(activateOSDOnNodeCode, "python3 -c \"\n")
+	if !found {
+		t.Fatal("failed to find Python device lookup in the OSD activation script")
+	}
+	pythonCode, _, found = strings.Cut(pythonCode, "\n\"")
+	if !found {
+		t.Fatal("failed to find the end of the Python device lookup in the OSD activation script")
+	}
+	command := exec.Command("python3", "-c", strings.ReplaceAll(pythonCode, "$OSD_ID", "3")) //nolint:gosec // command and arguments are test constants
+	command.Stdin = strings.NewReader(rawList)
+
+	output, err := command.Output()
+	assert.NoError(t, err)
+	assert.Equal(t, "/dev/sdc", string(output))
+}
 
 func TestPodContainer(t *testing.T) {
 	cluster := &Cluster{rookVersion: "23", clusterInfo: cephclient.AdminTestClusterInfo("myosd")}
