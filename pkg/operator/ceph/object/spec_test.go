@@ -1757,3 +1757,66 @@ func TestGenerateServiceLabels(t *testing.T) {
 	// Verify default labels are still present
 	assert.Equal(t, "rook-ceph-rgw", svc.ObjectMeta.Labels["app"])
 }
+
+func TestServiceUniqueIDSupported(t *testing.T) {
+	tests := []struct {
+		name     string
+		version  cephver.CephVersion
+		expected bool
+	}{
+		{"squid below min", cephver.CephVersion{Major: 19, Minor: 2, Extra: 3}, false},
+		{"squid at min", cephver.CephVersion{Major: 19, Minor: 2, Extra: 4}, true},
+		{"squid above min", cephver.CephVersion{Major: 19, Minor: 2, Extra: 5}, true},
+		{"tentacle below min", cephver.CephVersion{Major: 20, Minor: 2, Extra: 0}, false},
+		{"tentacle at min", cephver.CephVersion{Major: 20, Minor: 2, Extra: 1}, true},
+		{"tentacle above min", cephver.CephVersion{Major: 20, Minor: 2, Extra: 2}, true},
+		{"future major", cephver.CephVersion{Major: 21, Minor: 0, Extra: 0}, true},
+		{"below squid", cephver.CephVersion{Major: 18, Minor: 2, Extra: 9}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &clusterConfig{
+				clusterInfo: &client.ClusterInfo{CephVersion: tt.version},
+			}
+			assert.Equal(t, tt.expected, c.serviceUniqueIDSupported())
+		})
+	}
+}
+
+func TestServiceUniqueIDFlag(t *testing.T) {
+	store := simpleStore()
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
+	rgwConfig := &rgwConfig{
+		ResourceName: fmt.Sprintf("%s-%s", AppName, store.Name),
+		DaemonID:     "default",
+	}
+
+	newClusterConfig := func(v cephver.CephVersion) *clusterConfig {
+		info := clienttest.CreateTestClusterInfo(1)
+		info.CephVersion = v
+		return &clusterConfig{
+			context:     &clusterd.Context{Executor: &exectest.MockExecutor{}, Clientset: test.New(t, 0)},
+			clusterInfo: info,
+			store:       store,
+			clusterSpec: &cephv1.ClusterSpec{
+				CephVersion:     cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v19"},
+				DataDirHostPath: "/var/lib/rook",
+			},
+			DataPathMap: data,
+		}
+	}
+
+	t.Run("flag set on supported version", func(t *testing.T) {
+		c := newClusterConfig(cephver.CephVersion{Major: 19, Minor: 2, Extra: 4})
+		container, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.Contains(t, container.Args, "--service-unique-id=$(POD_NAME)")
+	})
+
+	t.Run("flag omitted on unsupported version", func(t *testing.T) {
+		c := newClusterConfig(cephver.CephVersion{Major: 19, Minor: 2, Extra: 3})
+		container, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.NotContains(t, container.Args, "--service-unique-id=$(POD_NAME)")
+	})
+}
