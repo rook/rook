@@ -2433,6 +2433,7 @@ type CephObjectStoreUserList struct {
 }
 
 // ObjectStoreUserSpec represents the spec of a CephObjectStoreUser
+// +kubebuilder:validation:XValidation:message="defaultStorageClass requires defaultPlacement",rule="!has(self.defaultStorageClass) || has(self.defaultPlacement)"
 type ObjectStoreUserSpec struct {
 	// The store the user will be created in
 	// +optional
@@ -2466,6 +2467,28 @@ type ObjectStoreUserSpec struct {
 	// +optional
 	// +kubebuilder:validation:XValidation:message="accountRef is immutable",rule="self == oldSelf"
 	AccountRef ObjectStoreUserAccountRef `json:"accountRef,omitzero"`
+	// DefaultPlacement sets the default pool placement target for buckets
+	// created by this user. It must name a placement target known to the
+	// zonegroup serving the referenced object store; RGW rejects unknown
+	// targets. If this field is absent the controller does not manage the
+	// user's placement: an existing value (set previously through this
+	// field, or outside of Rook) is left in place.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._-]+$`
+	DefaultPlacement string `json:"defaultPlacement,omitempty"`
+	// DefaultStorageClass sets the default storage class for objects created
+	// by this user, within the placement set by DefaultPlacement (which must
+	// also be set). The storage class must exist on that placement target;
+	// RGW rejects unknown storage classes. If this field is absent the
+	// controller does not manage the user's storage class: an existing value
+	// is preserved, except when DefaultPlacement changes, which resets the
+	// storage class to the new target's default (STANDARD).
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=2048
+	DefaultStorageClass string `json:"defaultStorageClass,omitempty"`
 }
 
 // ObjectStoreUserAccountRef is a reference to a CephObjectStoreAccount

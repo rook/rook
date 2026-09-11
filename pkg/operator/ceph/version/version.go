@@ -37,11 +37,22 @@ type CephVersion struct {
 
 const (
 	unknownVersionString = "<unknown version>"
+
+	// MinimumMajor is the major version of the oldest Ceph release rook
+	// supports. It is a constant, unlike Minimum, so code that exists only to
+	// serve releases below a given major can assert at compile time that it is
+	// still needed:
+	//
+	//	type squidArmStillNeeded [19 - cephver.MinimumMajor]struct{}
+	//
+	// Such a declaration stops compiling once the floor passes v19, which turns
+	// deleting the arm from a grep sweep into a build failure.
+	MinimumMajor = 19
 )
 
 var (
 	// Minimum supported version
-	Minimum = CephVersion{19, 2, 0, 0, ""}
+	Minimum = CephVersion{MinimumMajor, 2, 0, 0, ""}
 
 	// Squid ceph version
 	Squid = CephVersion{19, 0, 0, 0, ""}
