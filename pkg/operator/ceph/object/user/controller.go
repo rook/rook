@@ -570,6 +570,15 @@ func generateUserCaps(user *admin.User) string {
 	return caps.String()
 }
 
+// squidPlacementEncodingStillNeeded stops compiling once the minimum supported
+// Ceph major passes v19: the embedded "<placement>/<storage-class>" encoding in
+// generateUserConfig exists only for Squid, and this declaration is what turns
+// deleting it into a build failure instead of a reminder. Remove the encoding
+// arm, its tests, and this type together.
+type squidPlacementEncodingStillNeeded [19 - cephver.MinimumMajor]struct{}
+
+var _ squidPlacementEncodingStillNeeded
+
 func generateUserConfig(user *cephv1.CephObjectStoreUser, cephVersion cephver.CephVersion) (*admin.User, error) {
 	// Set DisplayName to match Name if DisplayName is not set
 	displayName := user.Spec.DisplayName
@@ -690,8 +699,9 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser, cephVersion cephver.Ce
 		} else if user.Spec.DefaultStorageClass != "" {
 			// Squid's admin ops API never reads default-storage-class and splits
 			// the placement rule on "/" instead; https://tracker.ceph.com/issues/66439
-			// changed that in Tentacle and was not backported. Drop this arm once
-			// Squid leaves the support window.
+			// changed that in Tentacle and was not backported. The build fails
+			// through squidPlacementEncodingStillNeeded once Squid leaves the
+			// support window; drop this arm then.
 			userConfig.DefaultPlacement += "/" + user.Spec.DefaultStorageClass
 		}
 	}
