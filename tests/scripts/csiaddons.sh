@@ -16,7 +16,7 @@
 
 set -xEo pipefail
 
-CSIADDONS_VERSION="v0.14.0"
+CSIADDONS_VERSION="v0.15.0"
 CSIADDONS_CRD_NAME="csiaddonsnodes.csiaddons.openshift.io"
 CSIADDONS_CONTAINER_NAME="csi-addons"
 
@@ -29,7 +29,25 @@ function setup_csiaddons() {
   kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/setup-controller.yaml
 
   echo "enabling csi-addons"
-  kubectl patch cm rook-ceph-operator-config -n rook-ceph --type merge -p '{"data":{"CSI_ENABLE_CSIADDONS":"true"}}'
+  kubectl patch operatorconfig ceph-csi-operator-config -n rook-ceph --type merge -p '{"spec":{"driverSpecDefaults":{"deployCsiAddons":true}}}'
+
+  echo "waiting for ceph-csi-operator to add csi-addons sidecar to CSI pods"
+  timeout=300
+  start_time="${SECONDS}"
+  while [[ $((SECONDS - start_time)) -lt $timeout ]]; do
+    rbd_containers=$(kubectl get deployment -n rook-ceph -l app=rook-ceph.rbd.csi.ceph.com-ctrlplugin -o jsonpath='{.items[0].spec.template.spec.containers[*].name}' 2>/dev/null || true)
+    if echo "$rbd_containers" | grep -q "csi-addons"; then
+      echo "csi-addons sidecar added to RBD CSI deployment"
+      break
+    fi
+    echo "waiting for csi-addons sidecar to be added to deployment spec..."
+    sleep 5
+  done
+  if ! echo "$rbd_containers" | grep -q "csi-addons"; then
+    echo "timed out after ${timeout}s waiting for csi-addons sidecar to be added" >&2
+    kubectl get deployment -n rook-ceph -l app=rook-ceph.rbd.csi.ceph.com-ctrlplugin || true
+    return 1
+  fi
 
   echo "Successfully created CSI-Addons"
 }
