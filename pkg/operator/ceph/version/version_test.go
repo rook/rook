@@ -104,6 +104,13 @@ func TestSupported(t *testing.T) {
 	assert.False(t, Umbrella.Supported())
 }
 
+func TestMinimumMajor(t *testing.T) {
+	// compile-time guards key on the constant; Minimum is what the operator
+	// enforces at runtime. They must not drift apart.
+	assert.Equal(t, MinimumMajor, Minimum.Major)
+	assert.True(t, Minimum.Supported())
+}
+
 func TestIsRelease(t *testing.T) {
 	assert.True(t, Squid.isRelease(Squid))
 	assert.True(t, Tentacle.isRelease(Tentacle))
