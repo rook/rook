@@ -18,7 +18,6 @@ spec:
   sharedPools:
     metadataPoolName: rgw-meta-pool
     dataPoolName: rgw-data-pool
-    preserveRadosNamespaceDataOnDelete: true
   # The gateway service configuration
   gateway:
     # A reference to the secret in the rook namespace where the ssl certificate is stored
