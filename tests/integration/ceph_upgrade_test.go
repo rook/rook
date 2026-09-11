@@ -179,7 +179,22 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	// Verify reading and writing to the test clients
 	newFile = "post-tentacle-upgrade-file"
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
+	rbdFilesToRead = append(rbdFilesToRead, newFile)
+	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
 	logger.Infof("Verified upgrade from squid to tentacle")
+
+	s.checkObjectUser(objectUserID)
+
+	//
+	// Upgrade from tentacle to umbrella
+	//
+	logger.Infof("*** UPGRADING CEPH FROM TENTACLE TO UMBRELLA ***")
+	s.gatherLogs(s.settings.OperatorNamespace, "_before_umbrella_upgrade")
+	s.upgradeCephVersion(installer.UmbrellaVersion.Image, numOSDs)
+	// Verify reading and writing to the test clients
+	newFile = "post-umbrella-upgrade-file"
+	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
+	logger.Infof("Verified upgrade from tentacle to umbrella")
 
 	s.checkObjectUser(objectUserID)
 }
@@ -248,6 +263,40 @@ func (s *UpgradeSuite) TestUpgradeCephToTentacleDevel() {
 	newFile := "post-tentacle-upgrade-file"
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("verified upgrade from tentacle stable to tentacle devel")
+
+	s.checkObjectUser(objectUserID)
+}
+
+func (s *UpgradeSuite) TestUpgradeCephToUmbrellaDevel() {
+	baseRookImage := installer.LocalBuildTag
+	s.baseSetup(false, baseRookImage, installer.UmbrellaVersion)
+
+	objectUserID := "upgraded-user"
+	preFilename := "pre-upgrade-file"
+	s.settings.CephVersion = installer.UmbrellaVersion
+	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(baseRookImage, objectUserID, preFilename)
+	clusterInfo := client.AdminTestClusterInfo(s.namespace)
+	requireBlockImagesRemoved := false
+	defer func() {
+		blockTestDataCleanUp(s.helper, s.k8sh, &s.Suite, clusterInfo, installer.BlockPoolName, installer.BlockPoolSCName, blockName, rbdPodName, requireBlockImagesRemoved)
+		cleanupFilesystemConsumer(s.helper, s.k8sh, &s.Suite, s.namespace, filePodName)
+		cleanupFilesystem(s.helper, s.k8sh, &s.Suite, s.namespace, installer.FilesystemName)
+		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
+		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
+		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
+		s.cleanUpObjectStore()
+	}()
+
+	//
+	// Upgrade from umbrella to umbrella devel
+	//
+	logger.Infof("*** UPGRADING CEPH FROM UMBRELLA STABLE TO UMBRELLA DEVEL ***")
+	s.gatherLogs(s.settings.OperatorNamespace, "_before_umbrella_upgrade")
+	s.upgradeCephVersion(installer.UmbrellaDevelVersion.Image, numOSDs)
+	// Verify reading and writing to the test clients
+	newFile := "post-umbrella-upgrade-file"
+	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
+	logger.Infof("verified upgrade from umbrella stable to umbrella devel")
 
 	s.checkObjectUser(objectUserID)
 }
