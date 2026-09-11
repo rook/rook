@@ -456,12 +456,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
-
       - name: run encryption KMS IBM Key Protect
         uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
         if: "env.IBM_KP_SERVICE_INSTANCE_ID != '' && env.IBM_KP_SERVICE_API_KEY != ''"
@@ -476,7 +470,13 @@ jobs:
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
-      - name: consider (post-job) debugging
+      - name: consider (post-job) debugging(tmate)
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
+      - name: consider (post-job) debugging (upterm)
         uses: ./.github/workflows/upterm_debug
         with:
           debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}

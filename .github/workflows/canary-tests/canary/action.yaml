@@ -22,12 +22,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: consider (pre-job) debugging
-      uses: ./.github/workflows/tmate_debug
-      with:
-        use-tmate: ${{ inputs.use-tmate }}
-        debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
-
     - name: setup cluster resources
       uses: ./.github/workflows/integration-test-setup-cluster-resources
       with:
