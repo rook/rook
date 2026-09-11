@@ -825,10 +825,13 @@ func (c *cluster) configureMsgr2() error {
 	encryptionSetting := "secure"
 	rbdMapOptions := "rbd_default_map_options"
 	encryptionGlobalConfigSettings := map[string]string{
-		"ms_cluster_mode": encryptionSetting,
-		"ms_service_mode": encryptionSetting,
-		"ms_client_mode":  encryptionSetting,
-		rbdMapOptions:     "ms_mode=secure",
+		"ms_cluster_mode":     encryptionSetting,
+		"ms_service_mode":     encryptionSetting,
+		"ms_client_mode":      encryptionSetting,
+		"ms_mon_cluster_mode": encryptionSetting,
+		"ms_mon_service_mode": encryptionSetting,
+		"ms_mon_client_mode":  encryptionSetting,
+		rbdMapOptions:         "ms_mode=secure",
 	}
 	monStore := config.GetMonStore(c.context, c.ClusterInfo)
 
