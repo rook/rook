@@ -270,18 +270,19 @@ After this you only need to create the service monitor as stated above.
 
 ### CSI Liveness
 
-To integrate CSI liveness into ceph monitoring we will need to deploy
-a service and service monitor.
+To integrate CSI liveness into Ceph monitoring we will need to deploy a service monitor.
 
 ```console
 kubectl create -f csi-metrics-service-monitor.yaml
 ```
 
-This will create the service monitor to have prometheus monitor CSI
+This will create the service monitor to have prometheus monitor all CSI plugins where liveness metrics are enabled.
+The Ceph CSI operator takes care of creating the corresponding services.
 
 !!! note
     Please note that the liveness sidecar is disabled by default.
-    To enable it set `CSI_ENABLE_LIVENESS` to `true` in the Rook operator settings (operator.yaml).
+    When manually managing the drivers set `spec.liveness.metricsPort` in the Driver spec.
+    When using the ceph-csi-drivers Helm chart set `operatorConfig.driverSpecDefaults.liveness.enabled: true` or `drivers.$driver.liveness.enabled: true` in the values.
 
 ### Collecting RBD per-image IO statistics
 
