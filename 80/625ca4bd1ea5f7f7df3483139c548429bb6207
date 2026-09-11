@@ -49,3 +49,7 @@
 {"id":"8586ff94-4feb-41bc-94cd-396aa054dd26","ts":"2026-09-11T15:15:03.371Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/multus.yaml","version":"1.0.0","taskID":"7b578cb1-9d80-4604-b0ac-8b7571ccf043"}
 {"id":"fd888099-8d89-449b-9188-c17953d03924","ts":"2026-09-11T15:23:44.401Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/canary-integration-test.yml","version":"1.0.0","taskID":"7b578cb1-9d80-4604-b0ac-8b7571ccf043"}
 {"id":"3b63e8e7-9bca-4904-8b68-777f195fab09","ts":"2026-09-11T15:23:50.542Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/multus.yaml","version":"1.0.0","taskID":"7b578cb1-9d80-4604-b0ac-8b7571ccf043"}
+
+{"id":"4398315c-980f-4a16-b35c-d79b9bfe3702","ts":"2026-09-11T15:34:51.875Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/canary-tests/encryption-pvc-kms-vault-k8s-auth/action.yaml","version":"1.0.0","taskID":"2c3c10b6-c4f0-4573-a7ef-2db289d7e274"}
+{"id":"6128ffd3-31ce-438f-a35d-3f735497447a","ts":"2026-09-11T15:36:16.670Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/canary-tests/encryption-pvc-kms-vault-token-auth/action.yaml","version":"1.0.0","taskID":"2c3c10b6-c4f0-4573-a7ef-2db289d7e274"}
+{"id":"3c7e8636-fc65-4629-991d-93b9c1141fa1","ts":"2026-09-11T15:38:34.164Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/canary-tests/rgw-multisite-testing/action.yaml","version":"1.0.0","taskID":"2c3c10b6-c4f0-4573-a7ef-2db289d7e274"}
