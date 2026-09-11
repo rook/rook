@@ -619,9 +619,43 @@ type MonitoringSpec struct {
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
 
+	// MetricsTLS configures native HTTPS for the MGR Prometheus metrics endpoint.
+	// Requires Ceph with prometheus module TLS support.
+	// Rook mounts a Kubernetes TLS Secret into the mgr pod and configures the module.
+	// +optional
+	MetricsTLS *MetricsTLSSpec `json:"metricsTLS,omitzero"` //nolint:kubeapilinter // optional pointer struct field
+
 	// Ceph exporter configuration
 	// +optional
 	Exporter *CephExporterSpec `json:"exporter,omitempty"`
+}
+
+// MetricsTLSSpec defines TLS for the MGR Prometheus metrics endpoint.
+// The presence of metricsTLS enables TLS.
+// +kubebuilder:validation:MinProperties=1
+type MetricsTLSSpec struct {
+	// SecretName is the Kubernetes Secret containing tls.crt and tls.key for the
+	// mgr HTTPS listener.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	SecretName string `json:"secretName,omitempty"`
+
+	// CA is an optional trust anchor for the ServiceMonitor tlsConfig.ca.
+	// Omit when the server cert contains a public CA.
+	// +optional
+	CA MetricsTLSCASpec `json:"ca,omitzero"`
+}
+
+// MetricsTLSCASpec selects a CA bundle from a Secret or ConfigMap.
+// Exactly one of secret or configMap must be set.
+// +kubebuilder:validation:MinProperties=1
+// +kubebuilder:validation:MaxProperties=1
+type MetricsTLSCASpec struct {
+	// +optional
+	Secret *v1.SecretKeySelector `json:"secret,omitempty"`
+	// +optional
+	ConfigMap *v1.ConfigMapKeySelector `json:"configMap,omitempty"`
 }
 
 type CephExporterSpec struct {

@@ -153,6 +153,9 @@ func isSecretRefFromCluster(secretName string, clusterSpec cephv1.ClusterSpec) b
 			}
 		}
 	}
+	if clusterSpec.Monitoring.MetricsTLS != nil && secretName == clusterSpec.Monitoring.MetricsTLS.SecretName {
+		return true
+	}
 	return false
 }
 
@@ -244,7 +247,8 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 						// No more than 1 cluster can exist in a namespace, and all secrets referenced by a
 						// CephConfigFromSecret must be in the same namespace as the cluster. We only need to
 						// trigger a reconcile once, so we only need to find one match per cluster.
-						if secret.GetNamespace() == clusterResource.GetNamespace() && isSecretRefFromCluster(secret.GetName(), clusterResource.Spec) {
+						if secret.GetNamespace() == clusterResource.GetNamespace() &&
+							isSecretRefFromCluster(secret.GetName(), clusterResource.Spec) {
 							requests = append(requests, reconcile.Request{
 								NamespacedName: client.ObjectKey{
 									Namespace: clusterResource.GetNamespace(),
