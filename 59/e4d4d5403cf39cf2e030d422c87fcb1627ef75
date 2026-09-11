@@ -44,3 +44,8 @@
 {"id":"43938301-8574-4b2e-b849-41ac2920d594","ts":"2026-09-10T09:33:22.510Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/canary-integration-test.yml","version":"1.0.0","taskID":"620555af-cd87-47e6-82aa-36452d7e802c"}
 {"id":"6cb8ea92-5a36-4307-9a55-336247d9e604","ts":"2026-09-10T09:33:33.654Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/multus.yaml","version":"1.0.0","taskID":"620555af-cd87-47e6-82aa-36452d7e802c"}
 {"id":"5b7fbea5-1b36-40e1-b48e-0d5aeb3e0620","ts":"2026-09-10T09:33:37.838Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/multus.yaml","version":"1.0.0","taskID":"620555af-cd87-47e6-82aa-36452d7e802c"}
+
+{"id":"0c19265b-b103-4314-9f1b-528e8a94a15a","ts":"2026-09-11T15:14:52.889Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/canary-integration-test.yml","version":"1.0.0","taskID":"7b578cb1-9d80-4604-b0ac-8b7571ccf043"}
+{"id":"8586ff94-4feb-41bc-94cd-396aa054dd26","ts":"2026-09-11T15:15:03.371Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/multus.yaml","version":"1.0.0","taskID":"7b578cb1-9d80-4604-b0ac-8b7571ccf043"}
+{"id":"fd888099-8d89-449b-9188-c17953d03924","ts":"2026-09-11T15:23:44.401Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/canary-integration-test.yml","version":"1.0.0","taskID":"7b578cb1-9d80-4604-b0ac-8b7571ccf043"}
+{"id":"3b63e8e7-9bca-4904-8b68-777f195fab09","ts":"2026-09-11T15:23:50.542Z","path":"/Users/obnox/go/src/github.com/rook/rook/.github/workflows/multus.yaml","version":"1.0.0","taskID":"7b578cb1-9d80-4604-b0ac-8b7571ccf043"}
