@@ -1147,6 +1147,8 @@ type PoolSpec struct {
 	StatusCheck MirrorHealthCheckSpec `json:"statusCheck,omitempty"`
 
 	// The quota settings
+	// Remove a quota by setting it to zero; deleting the field does not clear the
+	// quota on its own. See the individual fields for what removal does.
 	// +optional
 	// +nullable
 	Quotas QuotaSpec `json:"quotas,omitempty"`
@@ -1470,15 +1472,23 @@ type SnapshotScheduleSpec struct {
 type QuotaSpec struct {
 	// MaxBytes represents the quota in bytes
 	// Deprecated in favor of MaxSize
+	// Ignored entirely while MaxSize is set.
+	// Set this to 0 to remove the quota; removing the field instead leaves the
+	// last value enforced.
 	// +optional
 	MaxBytes *uint64 `json:"maxBytes,omitempty"`
 
 	// MaxSize represents the quota in bytes as a string
+	// Takes precedence over MaxBytes, which is ignored while this is set.
+	// Set this to the string "0" to remove the quota; removing the field instead
+	// leaves the last value enforced, or applies MaxBytes when that is also set.
 	// +kubebuilder:validation:Pattern=`^[0-9]+[\.]?[0-9]*([KMGTPE]i|[kMGTPE])?$`
 	// +optional
 	MaxSize *string `json:"maxSize,omitempty"`
 
 	// MaxObjects represents the quota in objects
+	// Set this to 0 to remove the quota; removing the field instead leaves the
+	// last value enforced.
 	// +optional
 	MaxObjects *uint64 `json:"maxObjects,omitempty"`
 }
@@ -2564,15 +2574,18 @@ type ObjectUserCapSpec struct {
 // ObjectUserQuotaSpec can be used to set quotas for the object store user to limit their usage. See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/?#quota-management) for more
 type ObjectUserQuotaSpec struct {
 	// Maximum bucket limit for the ceph user
+	// Rook applies a default limit of 1000 buckets when this is not set.
 	// +optional
 	// +nullable
 	MaxBuckets *int `json:"maxBuckets,omitempty"`
 	// Maximum size limit of all objects across all the user's buckets
 	// See https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity for more info.
+	// Setting this to 0 applies a limit of 0 rather than removing the quota.
 	// +optional
 	// +nullable
 	MaxSize *resource.Quantity `json:"maxSize,omitempty"`
 	// Maximum number of objects across all the user's buckets
+	// Setting this to 0 applies a limit of 0 rather than removing the quota.
 	// +optional
 	// +nullable
 	MaxObjects *int64 `json:"maxObjects,omitempty"`

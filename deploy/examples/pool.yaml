@@ -39,7 +39,9 @@ spec:
   # For reference: https://docs.ceph.com/docs/master/mgr/prometheus/#rbd-io-statistics
   # enableRBDStats: true
   # Set any property on a given pool
-  # see https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values
+  # see https://docs.ceph.com/docs/master/rados/operations/pools/#setting-pool-values
+  # Removing a parameter does not reset it. Modify values to the desired state
+  # after a parameter key is defined.
   parameters:
     # Inline compression mode for the data pool
     # Further reference: https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
@@ -62,7 +64,9 @@ spec:
       disabled: false
       interval: 60s
   # quota in bytes and/or objects, default value is 0 (unlimited)
-  # see https://docs.ceph.com/en/latest/rados/operations/pools/#set-pool-quotas
+  # see https://docs.ceph.com/en/latest/rados/operations/pools/#setting-pool-quotas
+  # To remove a quota set maxSize to "0" or maxObjects to 0; deleting the
+  # setting instead leaves the last value Rook wrote enforced on the pool
   # quotas:
   #   maxSize: "10Gi" # valid suffixes include k, M, G, T, P, E, Ki, Mi, Gi, Ti, Pi, Ei
   #   maxObjects: 1000000000 # 1 billion objects

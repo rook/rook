@@ -43,8 +43,8 @@ spec:
 * `clusterNamespace`: The namespace where the parent CephCluster and CephObjectStore are found. If not specified,
     the user must be in the same namespace as the cluster and object store.
     To enable this feature, the CephObjectStore allowUsersInNamespaces must include the namespace of this user.
-* `quotas`: This represents quota limitation can be set on the user. Please refer [here](https://docs.ceph.com/en/latest/radosgw/admin/#quota-management) for details.
-    * `maxBuckets`: The maximum bucket limit for the user.
+* `quotas`: This represents quota limitation can be set on the user. Please refer [here](https://docs.ceph.com/en/latest/radosgw/admin/#quota-management) for details. `maxSize` and `maxObjects` set to `0` apply a zero quota rather than removing the quota.
+    * `maxBuckets`: The maximum bucket limit for the user (default: 1000).
     * `maxSize`: Maximum size limit of all objects across all the user's buckets.
     * `maxObjects`: Maximum number of objects across all the user's buckets.
 * `capabilities`: Ceph allows users to be given additional permissions. Due to missing APIs in go-ceph for updating the user capabilities, this setting can currently only be used during the creation of the object store user. If a user's capabilities need modified, the user must be deleted and re-created.
