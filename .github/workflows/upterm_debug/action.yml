@@ -20,6 +20,8 @@ runs:
       if: ${{ env.ENABLE_UPTERM }}
       uses: owenthereal/action-upterm@f26ebc11e22a09b8365f39d2cdafd06f63b42053 # v1.14.0
       with:
+        ## Pin the version of upterm used by the action:
+        upterm-version: v0.26.0
         ## whether to limit ssh access and adds the ssh public key for the user which triggered the workflow:
         limit-access-to-actor: false
         ## If no one connects within five minutes, shut down the server:
