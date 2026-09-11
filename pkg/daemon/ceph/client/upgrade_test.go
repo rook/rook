@@ -127,23 +127,36 @@ func TestFindFSName(t *testing.T) {
 }
 
 func TestDaemonMapEntry(t *testing.T) {
-	dummyVersionsRaw := []byte(`
-	{
-		"mon": {
-			"ceph version 18.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) reef (stable)": 1,
-			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
-		}
-	}`)
+	dummyVersions := cephv1.CephDaemonsVersions{
+		Mon:          map[string]int{"mon": 1},
+		Mgr:          map[string]int{"mgr": 1},
+		Mds:          map[string]int{"mds": 1},
+		Osd:          map[string]int{"osd": 1},
+		Rgw:          map[string]int{"rgw": 1},
+		RbdMirror:    map[string]int{"rbd-mirror": 1},
+		CephFSMirror: map[string]int{"fs-mirror": 1},
+	}
+	tests := []struct {
+		daemonType string
+		expected   map[string]int
+	}{
+		{"mon", dummyVersions.Mon},
+		{"mgr", dummyVersions.Mgr},
+		{"mds", dummyVersions.Mds},
+		{"osd", dummyVersions.Osd},
+		{"rgw", dummyVersions.Rgw},
+		{"rbd-mirror", dummyVersions.RbdMirror},
+		{"fs-mirror", dummyVersions.CephFSMirror},
+	}
+	for _, tt := range tests {
+		t.Run(tt.daemonType, func(t *testing.T) {
+			m, err := daemonMapEntry(&dummyVersions, tt.daemonType)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, m)
+		})
+	}
 
-	var dummyVersions cephv1.CephDaemonsVersions
-	err := json.Unmarshal([]byte(dummyVersionsRaw), &dummyVersions)
-	assert.NoError(t, err)
-
-	m, err := daemonMapEntry(&dummyVersions, "mon")
-	assert.NoError(t, err)
-	assert.Equal(t, dummyVersions.Mon, m)
-
-	_, err = daemonMapEntry(&dummyVersions, "dummy")
+	_, err := daemonMapEntry(&dummyVersions, "dummy")
 	assert.Error(t, err)
 }
 
