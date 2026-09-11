@@ -883,6 +883,11 @@ The `cleanupPolicy` has several fields:
     * `iteration`: overwrite N times instead of the default (1). Takes an integer value
 * `allowUninstallWithVolumes`: If set to true, then the cephCluster deletion doesn't wait for the PVCs to be deleted. Default is `false`.
 
+If sanitizing a disk fails, the cleanup job now ends `Failed` instead of reporting success, so that a
+disk which may still hold readable data is not mistaken for a wiped one. The job is not retried: a
+`method: complete` wipe that dies partway has already destroyed the OSD metadata, so a second attempt
+would find no OSDs to sanitize and exit successfully.
+
 To automate activation of the cleanup, you can use the following command. **WARNING: DATA WILL BE PERMANENTLY DELETED**:
 
 ```console
