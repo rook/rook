@@ -17567,6 +17567,16 @@ spec:
     - name: v1alpha1
       served: true
       storage: true
+      additionalPrinterColumns:
+        - jsonPath: .spec.storageClassName
+          name: StorageClass
+          type: string
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       schema:
         openAPIV3Schema:
           type: object
@@ -17611,6 +17621,25 @@ spec:
     - name: v1alpha1
       served: true
       storage: true
+      additionalPrinterColumns:
+        - jsonPath: .spec.storageClassName
+          name: StorageClass
+          type: string
+        - jsonPath: .spec.claimRef.namespace
+          name: ClaimNamespace
+          type: string
+        - jsonPath: .spec.claimRef.name
+          name: ClaimName
+          type: string
+        - jsonPath: .spec.reclaimPolicy
+          name: ReclaimPolicy
+          type: string
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       schema:
         openAPIV3Schema:
           type: object
