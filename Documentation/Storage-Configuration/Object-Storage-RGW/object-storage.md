@@ -17,7 +17,7 @@ Rook can configure the Ceph Object Store for several different scenarios. See ea
 3. Create [one or more object stores with pool placement targets and storage classes](#create-local-object-stores-with-pool-placements). This configuration allows Rook to provide different object placement options to object store clients.
 4. Connect to an [RGW service in an external Ceph cluster](#connect-to-an-external-object-store), rather than create a local object store.
 5. Configure [RGW Multisite](#object-multisite) to synchronize buckets between object stores in different clusters.
-6. Create a [multi-instance RGW setup](#object-multi-instance). This option allows to have multiple `CephObjectStore` with different configurations backed by the same storage pools. For example, serving S3, Swift, or Admin-ops API by separate RGW instances.
+6. Create a [multi-instance RGW setup](#object-multi-instance). This option allows you to have multiple `CephObjectStore` with different configurations backed by the same storage pools. For example, serving S3, Swift, or Admin-ops API by separate RGW instances.
 
 !!! note
     Updating the configuration of an object store between these types is not supported.
