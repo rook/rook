@@ -1559,6 +1559,19 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	return osds, nil
 }
 
+// the ceph-volume list output reports the cephx lockbox secret of every encrypted OSD, both as a
+// json tag map and as the raw lv_tags string, and none of it belongs in a pod log
+var (
+	lockboxSecretTagRegex   = regexp.MustCompile(`("ceph\.cephx_lockbox_secret"\s*:\s*")[^"]*(")`)
+	lockboxSecretLVTagRegex = regexp.MustCompile(`(ceph\.cephx_lockbox_secret=)[^,"]*`)
+)
+
+func redactCephVolumeOutput(output string) string {
+	output = lockboxSecretTagRegex.ReplaceAllString(output, "${1}*****${2}")
+
+	return lockboxSecretLVTagRegex.ReplaceAllString(output, "${1}*****")
+}
+
 func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
 	// Use stdbuf to capture the python output buffer such that we can write to the pod log as the
 	// logging happens instead of using the default buffering that will log everything after
@@ -1580,14 +1593,14 @@ func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
 	if err != nil {
 		// Print c-v log before exiting with failure
 		cvLog := readCVLogContent("/tmp/ceph-log/ceph-volume.log")
-		logger.Errorf("%s", co)
+		logger.Errorf("%s", redactCephVolumeOutput(co))
 		if cvLog != "" {
-			logger.Errorf("%s", cvLog)
+			logger.Errorf("%s", redactCephVolumeOutput(cvLog))
 		}
 
 		return "", errors.Wrapf(err, "failed ceph-volume call (see ceph-volume log above for more details)")
 	}
-	logger.Debugf("%v", co)
+	logger.Debugf("%v", redactCephVolumeOutput(co))
 
 	return co, nil
 }
