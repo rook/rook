@@ -17,6 +17,7 @@ rules:
       - watch
       - create
       - update
+      - patch
       - delete
 # OLM: END ROLE
 ---
@@ -92,6 +93,7 @@ rules:
       - list
       - create
       - update
+      - patch
 # OLM: END ROLE
 ---
 # OLM: BEGIN ROLE BINDING

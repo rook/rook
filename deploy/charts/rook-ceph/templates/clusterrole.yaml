@@ -91,6 +91,7 @@ rules:
       - get
       - list
       - watch
+      - patch
   - apiGroups:
       - ""
       - "discovery.k8s.io"
@@ -166,6 +167,7 @@ rules:
       - watch
       # Ideally the update permission is not required, but Rook needs it to add finalizers to resources.
       - update
+      - patch
   # Rook must have update access to status subresources for its custom resources.
   - apiGroups: ["ceph.rook.io"]
     resources:

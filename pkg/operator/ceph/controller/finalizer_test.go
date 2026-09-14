@@ -49,6 +49,13 @@ func TestAddFinalizerIfNotPresent(t *testing.T) {
 	generationUpdated, err := AddFinalizerIfNotPresent(context.TODO(), cl, fakeObject)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, fakeObject.Finalizers)
+	// Adding the finalizer is a metadata-only patch, so the generation is not
+	// bumped and the reconcile can continue in the same pass.
+	assert.False(t, generationUpdated)
+
+	// Adding again when the finalizer is already present is a no-op.
+	generationUpdated, err = AddFinalizerIfNotPresent(context.TODO(), cl, fakeObject)
+	assert.NoError(t, err)
 	assert.False(t, generationUpdated)
 }
 
