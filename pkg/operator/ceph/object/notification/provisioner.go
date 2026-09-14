@@ -21,7 +21,6 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
@@ -95,41 +94,51 @@ func newS3Agent(p provisioner) (*object.S3Agent, error) {
 	return object.NewS3Agent(accessKey, secretKey, objContext.Endpoint, logger.LevelAt(capnslog.DEBUG), tlsCert, insecureTLS, nil)
 }
 
-// TODO: convert all rules without restrictions once the AWS SDK supports that
-func createS3FilterRules(filterRules []cephv1.NotificationKeyFilterRule) (s3FilterRules []s3types.FilterRule) {
-	for _, rule := range filterRules {
-		r := rule.DeepCopy()
-		s3FilterRules = append(s3FilterRules, s3types.FilterRule{
-			Name:  s3types.FilterRuleName(r.Name),
-			Value: &r.Value,
-		})
+func createS3KeyFilterRules(filterRules []cephv1.NotificationKeyFilterRule) *FilterRules {
+	if len(filterRules) == 0 {
+		return nil
 	}
-	return
+	rules := make([]FilterRule, 0, len(filterRules))
+	for _, rule := range filterRules {
+		rules = append(rules, FilterRule{Name: rule.Name, Value: rule.Value})
+	}
+	return &FilterRules{FilterRules: rules}
 }
 
-func createS3Filter(filter *cephv1.NotificationFilterSpec) *s3types.NotificationConfigurationFilter {
+func createS3FilterRules(filterRules []cephv1.NotificationFilterRule) *FilterRules {
+	if len(filterRules) == 0 {
+		return nil
+	}
+	rules := make([]FilterRule, 0, len(filterRules))
+	for _, rule := range filterRules {
+		rules = append(rules, FilterRule{Name: rule.Name, Value: rule.Value})
+	}
+	return &FilterRules{FilterRules: rules}
+}
+
+func createS3Filter(filter *cephv1.NotificationFilterSpec) *NotificationFilter {
 	if filter == nil {
 		return nil
 	}
-	return &s3types.NotificationConfigurationFilter{
-		Key: &s3types.S3KeyFilter{
-			FilterRules: createS3FilterRules(filter.KeyFilters),
-		},
+	return &NotificationFilter{
+		S3Key:      createS3KeyFilterRules(filter.KeyFilters),
+		S3Metadata: createS3FilterRules(filter.MetadataFilters),
+		S3Tags:     createS3FilterRules(filter.TagFilters),
 	}
 }
 
-func createS3Events(events []cephv1.BucketNotificationEvent) []s3types.Event {
-	// in the AWS S3 library "Events" is a required field
+func createS3Events(events []cephv1.BucketNotificationEvent) []string {
+	// in the S3 API "Events" is a required field
 	// but in our CR it is optional, indicating notifications on all events
 	if len(events) == 0 {
-		return []s3types.Event{
-			s3types.Event("s3:ObjectCreated:*"),
-			s3types.Event("s3:ObjectRemoved:*"),
+		return []string{
+			"s3:ObjectCreated:*",
+			"s3:ObjectRemoved:*",
 		}
 	}
-	s3Events := make([]s3types.Event, 0, len(events))
+	s3Events := make([]string, 0, len(events))
 	for _, event := range events {
-		s3Events = append(s3Events, s3types.Event(string(event)))
+		s3Events = append(s3Events, string(event))
 	}
 	return s3Events
 }
@@ -144,16 +153,14 @@ var createNotification = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, t
 	if err != nil {
 		return errors.Wrapf(err, "failed to create S3 agent for CephBucketNotification %q provisioning for bucket %q", bnName, bucketName)
 	}
-	_, err = s3Agent.Client.PutBucketNotificationConfiguration(p.opManagerContext, &s3.PutBucketNotificationConfigurationInput{
+	err = PutBucketNotification(p.opManagerContext, s3Agent.Client, &PutBucketNotificationRequestInput{
 		Bucket: &bucketName,
-		NotificationConfiguration: &s3types.NotificationConfiguration{
-			TopicConfigurations: []s3types.TopicConfiguration{
-				{
-					Events:   createS3Events(notification.Spec.Events),
-					Filter:   createS3Filter(notification.Spec.Filter),
-					Id:       &notification.Name,
-					TopicArn: &topicARN,
-				},
+		TopicConfigurations: []TopicConfiguration{
+			{
+				Events:   createS3Events(notification.Spec.Events),
+				Filter:   createS3Filter(notification.Spec.Filter),
+				Id:       notification.Name,
+				TopicArn: topicARN,
 			},
 		},
 	})
