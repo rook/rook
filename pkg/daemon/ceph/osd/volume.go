@@ -1220,7 +1220,10 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	var cephVolumeResult map[string][]osdInfo
 	err = json.Unmarshal([]byte(result), &cephVolumeResult)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal ceph-volume %s list results. %s", cvMode, result)
+		// the payload carries ceph.cephx_lockbox_secret for encrypted OSDs, and this
+		// error reaches the OSD status ConfigMap. A syntax error reports only its
+		// message, so report the response size in place of the response.
+		return nil, errors.Wrapf(err, "failed to unmarshal ceph-volume %s list results (%d bytes)", cvMode, len(result))
 	}
 
 	for name, osdInfo := range cephVolumeResult {
