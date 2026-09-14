@@ -17,6 +17,7 @@ limitations under the License.
 package osd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -25,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -1828,6 +1830,38 @@ func TestParseCephVolumeLVMResult(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
+}
+
+func TestCephVolumeResponseIsNotLoggedWithLockboxSecret(t *testing.T) {
+	// the ceph-volume list output carries the cephx lockbox secret of every encrypted OSD, and the
+	// OSD jobs pin their own log level to debug, so the raw response must never be logged as-is
+	const lockboxValue = "AQBnE1Vp6hdNFhAAMMNHhxTLVwBWLcaHfnCNSg=="
+	result := strings.ReplaceAll(cephVolumeLVMTestResult, "ceph.cephx_lockbox_secret=", "ceph.cephx_lockbox_secret="+lockboxValue)
+	result = strings.ReplaceAll(result, `"ceph.cephx_lockbox_secret": ""`, `"ceph.cephx_lockbox_secret": "`+lockboxValue+`"`)
+
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if command == "stdbuf" {
+			if args[4] == "lvm" && args[5] == "list" {
+				return result, nil
+			}
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+
+	logBuf := bytes.NewBuffer([]byte{})
+	capnslog.SetFormatter(capnslog.NewLogFormatter(logBuf, "", 0))
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+
+	context := &clusterd.Context{Executor: executor}
+	osds, err := GetCephVolumeLVMOSDs(context, &cephclient.ClusterInfo{Namespace: "name"}, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", false, false)
+	assert.NoError(t, err)
+	require.Equal(t, 2, len(osds))
+
+	logOutput := logBuf.String()
+	assert.NotContains(t, logOutput, lockboxValue)
+	// the rest of the response is still logged, since it is what makes the log line useful
+	assert.Contains(t, logOutput, "dbe407e0-c1cb-495e-b30a-02e01de6c8ae")
 }
 
 func TestParseCephVolumeRawResult(t *testing.T) {
