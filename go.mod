@@ -43,7 +43,7 @@ require (
 	github.com/sykesm/zap-logfmt v0.0.4
 	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v3 v3.0.5
-	golang.org/x/sync v0.22.0
+	golang.org/x/sync v0.23.0
 	gopkg.in/ini.v1 v1.67.3
 	k8s.io/api v0.37.0
 	k8s.io/apiextensions-apiserver v0.37.0
