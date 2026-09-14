@@ -7,3 +7,4 @@ Changes should *not* be included here if they are backported to previous release
 
 
 ## Features
+- `CephBucketNotification` `spec.filter.metadataFilters` and `spec.filter.tagFilters` are now sent to RGW. They were previously accepted by the CRD and silently dropped, so notifications fired on objects the filters were meant to exclude.
