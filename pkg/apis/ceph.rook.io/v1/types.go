@@ -3594,7 +3594,8 @@ type CleanupPolicySpec struct {
 	// +optional
 	AllowUninstallWithVolumes bool `json:"allowUninstallWithVolumes,omitempty"`
 
-	// WipeDevicesFromOtherClusters wipes the OSD disks belonging to other clusters. This is useful in scenarios where ceph cluster
+	// WipeDevicesFromOtherClusters wipes the OSD disks belonging to other clusters or incomplete/unprovisioned
+	// encrypted devices missing ceph_fsid on PVC-backed storage. This is useful in scenarios where ceph cluster
 	// was reinstalled but OSD disk still contains the metadata from previous ceph cluster.
 	// +optional
 	WipeDevicesFromOtherClusters bool `json:"wipeDevicesFromOtherClusters"`
