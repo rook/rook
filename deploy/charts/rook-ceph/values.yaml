@@ -94,6 +94,11 @@ csi:
   # -- When true, install the ceph-csi-operator subchart (see Chart.yaml `condition`).
   installCsiOperator: true
 
+  # -- When true, Rook creates the CephConnection and ClientProfile CRs consumed by the
+  # ceph-csi-operator. Set to false for clusters that use no CSI driver, such as object store
+  # only clusters, so the ceph-csi-operator and its CRDs are not required.
+  createCsiOperatorResources: true
+
   cephcsi:
     # -- Ceph CSI image repository
     repository: quay.io/cephcsi/cephcsi
