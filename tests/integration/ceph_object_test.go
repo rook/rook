@@ -40,6 +40,7 @@ import (
 	userplacement "github.com/rook/rook/tests/integration/object/user/placement"
 	usersecrettemplate "github.com/rook/rook/tests/integration/object/user/secrettemplate"
 	userstorageclass "github.com/rook/rook/tests/integration/object/user/storageclass"
+	usertenant "github.com/rook/rook/tests/integration/object/user/tenant"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 	"github.com/rook/rook/tests/integration/object/zone"
 	"github.com/rook/rook/tests/integration/object/zonegroup"
@@ -125,6 +126,7 @@ func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.
 			userplacement.Namespace,
 			usersecrettemplate.Namespace,
 			userstorageclass.Namespace,
+			usertenant.Namespace,
 		},
 	})
 	defer sharedObjectStore.Destroy()
@@ -143,6 +145,7 @@ func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.
 	userplacement.TestObjectStoreUserDefaultPlacement(t, k8sh, sharedObjectStore)
 	usersecrettemplate.TestObjectStoreUserSecretTemplate(t, k8sh, sharedObjectStore)
 	userstorageclass.TestObjectStoreUserDefaultStorageClass(t, k8sh, sharedObjectStore)
+	usertenant.TestObjectStoreUserTenant(t, k8sh, sharedObjectStore)
 	// the ceph-cosi driver cannot reach a TLS object store endpoint, so this
 	// suite skips itself in the TLS pass
 	cosi.TestCephCOSIDriver(t, k8sh, sharedObjectStore)

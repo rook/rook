@@ -49,6 +49,7 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `user/placement` | `object/user` | user defaultPlacement, including its unmanaged-on-removal semantics |
 | `user/secrettemplate` | `object/user` | user secretTemplate labels and annotations on the generated Secret |
 | `user/storageclass` | `object/user` | user defaultStorageClass, verified on a bucket the user creates |
+| `user/tenant` | `object/user` | user tenant addressing (`<tenant>$<name>`) and isolation from the default tenant |
 | `zone` | `object/zone` | CephObjectZone deletion blocked by its object stores, on its own and then with the rest of the chain at once |
 | `zonegroup` | `object/zonegroup` | CephObjectZoneGroup deletion blocked by its zones, one at a time and all at once |
 | `zonepools` | `object` | zone.json pool fields covered by Rook's shared-pool mapping |
