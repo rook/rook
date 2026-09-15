@@ -34,6 +34,7 @@ must not collide with std-lib package names (no `io`, no `http`).
 |---|---|---|
 | `bucket/lifecycle` | `object/bucket` | OBC bucketLifecycle management |
 | `bucket/owner` | `object/bucket` | OBC `bucketOwner` handling |
+| `bucket/placement` | `object/bucket` | OBC `bucketPlacement`/`bucketStorageClass` bucket placement |
 | `bucket/policy` | `object/bucket` | OBC bucketPolicy management |
 | `bucket/quota` | `object/bucket` | OBC maxObjects user quota + bucketMaxObjects/bucketMaxSize bucket quota |
 | `bucket/rw` | `object/bucket` | OBC S3 read/write/delete + OBC-stays-Bound |

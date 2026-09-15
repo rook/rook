@@ -15,3 +15,4 @@
 - The toolbox deployments from the Helm chart and the example manifests now reload the keyring and `ceph.conf` automatically after CephX key rotation, mon failover, or a config override change.
 - CephCluster dashboard TLS certificates can now be configured from a same-namespace Kubernetes TLS Secret with `spec.dashboard.sslCertificateRef` when dashboard SSL is enabled. Rook reconciles updates to the referenced Secret and restores the default self-signed certificate when the reference is removed.
 - Object store reconciles now wait for the OSDs to finish upgrading.
+- Buckets provisioned via ObjectBucketClaim can request a placement target and a default storage class with the `bucketPlacement` and `bucketStorageClass` `additionalConfig` keys (disabled by default; enable via `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS`). A request the store or an existing bucket cannot satisfy fails the reconcile and is reported as a Warning Event on the OBC.
