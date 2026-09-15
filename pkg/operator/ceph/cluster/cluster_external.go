@@ -214,6 +214,10 @@ func purgeExternalCluster(clientset kubernetes.Interface, namespace string) {
 }
 
 func validateExternalClusterSpec(cluster *cluster) error {
+	if cluster.Spec.Monitoring.MetricsTLS != nil {
+		return errors.New("monitoring.metricsTLS is not supported on external Ceph clusters")
+	}
+
 	if cluster.Spec.CephVersion.Image != "" {
 		if cluster.Spec.DataDirHostPath == "" {
 			return errors.New("dataDirHostPath must be specified")
