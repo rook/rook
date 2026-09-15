@@ -444,7 +444,7 @@ func (c *Cluster) configurePrometheusModule() error {
 	// scrape interval
 	if c.spec.Monitoring.Interval != nil {
 		interval := c.spec.Monitoring.Interval.Duration.Seconds()
-		intervalHasChanged, err = monStore.SetIfChanged(daemonID, "mgr/prometheus/scrape_interval", fmt.Sprintf("%v", interval))
+		intervalHasChanged, err = monStore.SetIfChanged(daemonID, "mgr/prometheus/scrape_interval", fmt.Sprintf("%f", interval))
 		if err != nil {
 			return err
 		}
