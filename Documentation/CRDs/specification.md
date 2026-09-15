@@ -9556,6 +9556,18 @@ int32
 </tr>
 <tr>
 <td>
+<code>standbyCount</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The number of metadata servers that are standby.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>activeStandby</code><br/>
 <em>
 bool
@@ -9563,7 +9575,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
+<p>Whether each active MDS instance will have a standby-replay MDS with a warm metadata cache for faster failover.
 If false, standbys will still be available, but will not have a warm metadata cache.</p>
 </td>
 </tr>
