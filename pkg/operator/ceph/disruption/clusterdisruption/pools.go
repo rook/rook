@@ -87,8 +87,7 @@ func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
 
 	for _, pool := range poolList {
 		for index, failureDomain := range topology.CRUSHMapLevelsOrdered {
-			if index == minfailureDomainIndex {
-				// index is higher-than/equal-to the min
+			if index > minfailureDomainIndex {
 				break
 			}
 			if pool.FailureDomain == failureDomain {
