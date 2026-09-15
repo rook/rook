@@ -607,13 +607,19 @@ func splitTenantAndName(userID string) (tenant, name string) {
 }
 
 // verifyLiveUserTenant is the safety backstop against adopting or deleting an
-// RGW user from the wrong tenant. Every Admin Ops call already addresses the
-// user by the combined "<tenant>$<name>" ID, so a mismatch here should be
-// unreachable in practice; this guards against ever silently reconciling a
-// user that spec.tenant does not actually name.
+// RGW user that spec does not name. Tenant isolation itself comes from
+// addressing every Admin Ops call by the combined "<tenant>$<name>" ID.
+//
+// The Admin Ops API reports the tenant in a separate "tenant" field and
+// returns the bare name in "user_id", and go-ceph's admin.User does not decode
+// "tenant". A bare live ID therefore carries no tenant information and is
+// accepted on its name alone; a combined live ID must match the spec tenant.
 func verifyLiveUserTenant(u *cephv1.CephObjectStoreUser, liveUser *admin.User) error {
-	liveTenant, _ := splitTenantAndName(liveUser.ID)
-	if liveTenant != u.Spec.Tenant {
+	liveTenant, liveName := splitTenantAndName(liveUser.ID)
+	if liveName != u.Name {
+		return errors.Errorf("live ceph object user %q does not match expected user %q", liveUser.ID, rgwUserID(u))
+	}
+	if strings.Contains(liveUser.ID, "$") && liveTenant != u.Spec.Tenant {
 		return errors.Errorf("live ceph object user %q belongs to tenant %q, expected tenant %q", liveUser.ID, liveTenant, u.Spec.Tenant)
 	}
 	return nil
