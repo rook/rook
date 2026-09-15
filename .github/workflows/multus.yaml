@@ -50,9 +50,8 @@ jobs:
           cluster_name: kind
 
       - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
+        uses: ./.github/workflows/upterm_debug
         with:
-          use-tmate: ${{ secrets.USE_TMATE }}
           debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: Setup multus
@@ -121,7 +120,3 @@ jobs:
           kubectl get events -A --sort-by=.lastTimestamp | tail -60 || true
           kubectl -n kube-system logs -l name=multus --all-containers --tail=30 || true
 
-      - name: consider (post-job) debugging
-        uses: ./.github/workflows/upterm_debug
-        with:
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
