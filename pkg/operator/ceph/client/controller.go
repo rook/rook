@@ -406,7 +406,7 @@ func ValidateClient(context *clusterd.Context, cephClient *cephv1.CephClient) er
 	}
 
 	// Validate Spec
-	if cephClient.Spec.Caps == nil {
+	if len(cephClient.Spec.Caps) == 0 {
 		return errors.New("no caps specified")
 	}
 	for _, cap := range cephClient.Spec.Caps {

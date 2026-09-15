@@ -47,11 +47,15 @@ spec:
     * `maxBuckets`: The maximum bucket limit for the user.
     * `maxSize`: Maximum size limit of all objects across all the user's buckets.
     * `maxObjects`: Maximum number of objects across all the user's buckets.
-* `capabilities`: Ceph allows users to be given additional permissions. Due to missing APIs in go-ceph for updating the user capabilities, this setting can currently only be used during the creation of the object store user. If a user's capabilities need modified, the user must be deleted and re-created.
+* `opMask`: Internally, RGW labels "operations" on persistent state as `RGW_OP_TYPE_READ` (`read`), `RGW_OP_TYPE_WRITE` (`write`), or `RGW_OP_TYPE_DELETE` (`delete`). All RGW users have an "operation mask", which does not function as mask or filter as is typically implied by the word "mask", but as a set of allowed or permissible "operation" types the user is able to perform. The "operation mask" is applied regardless of the bucket or IAM policy. For example, in order for an RGW user to be able to read an object from a bucket, that user must have **both** the `read` "op mask" bit and an IAM/bucket policy that allows `s3:GetObject`. The default operations allowed are `read`, `write`, and `delete`. Setting the value to `[]` (an empty YAML sequence) causes all "operations" in the mask to be removed, meaning that the user will not be able to perform any operations. These operation masks are supported:
+    * `read`
+    * `write`
+    * `delete`
+* `capabilities`: Ceph allows users to be given additional permissions. The capabilities in the spec are the complete set granted to the user. Version-gated capabilities noted below are omitted, with a warning, on an unsupported Ceph version.
     See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/#add-remove-admin-capabilities) for more info.
     Rook supports adding `read`, `write`, `read, write`, or `*` permissions for the following resources:
-    * `user`
-    * `buckets`
+    * `user` (`users` is an alias for it)
+    * `buckets` (`bucket` is an alias for it)
     * `usage`
     * `metadata`
     * `zone`
@@ -62,11 +66,7 @@ spec:
     * `mdlog`
     * `datalog`
     * `user-policy`
-    * `odic-provider`
+    * `oidc-provider`
     * `ratelimit`
     * `userInfoWithoutKeys` # minimum ceph version 19.2.0 for supporting this cap
     * `accounts` # minimum ceph version 19.2.3 for supporting this cap
-* `opMask`: Internally, RGW labels "operations" on persistent state as `RGW_OP_TYPE_READ` (`read`), `RGW_OP_TYPE_WRITE` (`write`), or `RGW_OP_TYPE_DELETE` (`delete`). All RGW users have an "operation mask", which does not function as mask or filter as is typically implied by the word "mask", but as a set of allowed or permissible "operation" types the user is able to perform. The "operation mask" is applied regardless of the bucket or IAM policy. For example, in order for an RGW user to be able to read an object from a bucket, that user must have **both** the `read` "op mask" bit and an IAM/bucket policy that allows `s3:GetObject`. The default operations allowed are `read`, `write`, and `delete`. Setting the value to `[]` (an empty YAML sequence) causes all "operations" in the mask to be removed, meaning that the user will not be able to perform any operations. These operation masks are supported:
-    * `read`
-    * `write`
-    * `delete`
