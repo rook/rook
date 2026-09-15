@@ -6,11 +6,14 @@ import (
 	"os"
 	"path"
 	"sort"
+	"strings"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/util/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -71,7 +74,16 @@ func validatePoolPlacementStorageClasses(scList []cephv1.PlacementStorageClassSp
 	return nil
 }
 
-func adjustZonePlacementPools(zone map[string]any, spec cephv1.ObjectSharedPoolsSpec) (map[string]any, error) {
+// adjustZonePlacementPools adds and removes zone placement_pools entries and storage classes to match
+// the spec. Pool references of an existing placement are immutable once any of its pools exists in
+// the cluster (existingPools): buckets are addressed by placement name, so re-pointing would make
+// their data unreachable. A spec that changes such pools is rejected with an error.
+//
+// 'default-placement' cannot be removed (https://tracker.ceph.com/issues/68775). When it is not in
+// the spec it is set once, on a fresh zone, to the pools of the placement marked default, and kept
+// as is afterwards. Which placement is default is tracked only by the zonegroup's default_placement,
+// see adjustZoneGroupPlacementTargets.
+func adjustZonePlacementPools(nsName types.NamespacedName, zone map[string]any, spec cephv1.ObjectSharedPoolsSpec, existingPools sets.Set[string]) (map[string]any, error) {
 	name, err := getObjProperty[string](zone, "name")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get zone name: %w", err)
@@ -101,42 +113,45 @@ func adjustZonePlacementPools(zone map[string]any, spec cephv1.ObjectSharedPools
 		if err != nil {
 			return nil, fmt.Errorf("unable to get pool placement name for zone %s: %w", name, err)
 		}
-		// check if placement should be removed
-		if _, inSpec := fromSpec[placementID]; !inSpec {
-			if placementID == defaultPlacementCephConfigName {
-				// 'default-placement' should always be kept as a workaround for https://tracker.ceph.com/issues/68775.
-				// if user specified other placement as default, then copy pool names to 'default-placement' from it:
-				if userDefault, inSpec := fromSpec[getDefaultPlacementName(spec)]; inSpec {
-					// duplicate user defined default placement under 'default-placement' name in spec to update pools on the next step
-					fromSpec[defaultPlacementCephConfigName] = userDefault
-				}
-			} else {
-				// remove placement if it is not in spec
-				idxToRemove[i] = struct{}{}
-				continue
-			}
+		if _, inSpec := fromSpec[placementID]; !inSpec && placementID != defaultPlacementCephConfigName {
+			// remove placement if it is not in spec
+			idxToRemove[i] = struct{}{}
+			continue
 		}
-		// update placement with values from spec:
-		if pSpec, inSpec := fromSpec[placementID]; inSpec {
-			_, err = updateObjProperty(pObj, pSpec.Val.IndexPool, "val", "index_pool")
-			if err != nil {
-				return nil, fmt.Errorf("unable to set index pool to pool placement %q for zone %q: %w", placementID, name, err)
-			}
-			_, err = updateObjProperty(pObj, pSpec.Val.DataExtraPool, "val", "data_extra_pool")
-			if err != nil {
-				return nil, fmt.Errorf("unable to set data extra pool to pool placement %q for zone %q: %w", placementID, name, err)
-			}
-			scObj, err := toObj(pSpec.Val.StorageClasses)
-			if err != nil {
-				return nil, fmt.Errorf("unable convert to pool placement %q storage class for zone %q: %w", placementID, name, err)
-			}
 
-			_, err = updateObjProperty(pObj, scObj, "val", "storage_classes")
-			if err != nil {
-				return nil, fmt.Errorf("unable to set storage classes to pool placement %q for zone %q: %w", placementID, name, err)
-			}
-			inConfig[placementID] = struct{}{}
+		fromZone, err := parseZonePlacementPoolVal(pObj)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse pool placement %q for zone %q: %w", placementID, name, err)
 		}
+		update, updateNeeded, err := getPlacementUpdate(placementID, fromZone, fromZone.poolsExist(existingPools), fromSpec, getDefaultPlacementName(spec))
+		if err != nil {
+			return nil, fmt.Errorf("invalidObjStorePoolConfig: zone %q placement %q: %w", name, placementID, err)
+		}
+		if !updateNeeded {
+			log.NamedDebug(nsName, logger, "zone %q placement %q stays on its pools %v", name, placementID, fromZone.pools())
+			inConfig[placementID] = struct{}{}
+			continue
+		}
+
+		// update placement with values from spec:
+		_, err = updateObjProperty(pObj, update.IndexPool, "val", "index_pool")
+		if err != nil {
+			return nil, fmt.Errorf("unable to set index pool to pool placement %q for zone %q: %w", placementID, name, err)
+		}
+		_, err = updateObjProperty(pObj, update.DataExtraPool, "val", "data_extra_pool")
+		if err != nil {
+			return nil, fmt.Errorf("unable to set data extra pool to pool placement %q for zone %q: %w", placementID, name, err)
+		}
+		scObj, err := toObj(update.StorageClasses)
+		if err != nil {
+			return nil, fmt.Errorf("unable convert to pool placement %q storage class for zone %q: %w", placementID, name, err)
+		}
+
+		_, err = updateObjProperty(pObj, scObj, "val", "storage_classes")
+		if err != nil {
+			return nil, fmt.Errorf("unable to set storage classes to pool placement %q for zone %q: %w", placementID, name, err)
+		}
+		inConfig[placementID] = struct{}{}
 	}
 	if len(idxToRemove) != 0 {
 		// delete placements from slice
@@ -192,6 +207,101 @@ func adjustZonePlacementPools(zone map[string]any, spec cephv1.ObjectSharedPools
 		return nil, fmt.Errorf("unable to set pool placements for zone %q: %w", name, err)
 	}
 	return zone, nil
+}
+
+// getPlacementUpdate returns the value an existing zone placement must be updated to, or
+// updateNeeded=false if it stays as is.
+func getPlacementUpdate(placementID string, fromZone ZonePlacementPoolVal, poolsExist bool, fromSpec map[string]ZonePlacementPool, defaultPlacementName string) (update ZonePlacementPoolVal, updateNeeded bool, err error) {
+	specPlacement, inSpec := fromSpec[placementID]
+	switch {
+	case inSpec && poolsExist:
+		// placement is in use: the spec may add or remove storage classes but not change pools
+		if err := fromZone.validatePoolsUnchanged(specPlacement.Val); err != nil {
+			return ZonePlacementPoolVal{}, false, err
+		}
+		return specPlacement.Val, true, nil
+	case inSpec:
+		return specPlacement.Val, true, nil
+	case poolsExist:
+		// 'default-placement' is in use and cannot be removed (https://tracker.ceph.com/issues/68775)
+		return ZonePlacementPoolVal{}, false, nil
+	default:
+		// 'default-placement' on a fresh zone: set it to the pools of the placement marked default, if any
+		defaultPlacement, hasDefault := fromSpec[defaultPlacementName]
+		if !hasDefault {
+			return ZonePlacementPoolVal{}, false, nil
+		}
+		return defaultPlacement.Val, true, nil
+	}
+}
+
+// parseZonePlacementPoolVal decodes the "val" object of a zone placement_pools entry.
+func parseZonePlacementPoolVal(placement map[string]any) (ZonePlacementPoolVal, error) {
+	val, err := getObjProperty[map[string]any](placement, "val")
+	if err != nil {
+		return ZonePlacementPoolVal{}, err
+	}
+	var res ZonePlacementPoolVal
+	if !castJson(val, &res) {
+		return res, fmt.Errorf("unexpected pool placement format: %+v", val)
+	}
+	return res, nil
+}
+
+// pools lists the pools referenced by the placement, RADOS namespace stripped:
+// the index pool, the data extra pool, and the data pool of every storage class.
+func (v ZonePlacementPoolVal) pools() []string {
+	namespaced := []string{v.IndexPool, v.DataExtraPool}
+	for _, sc := range v.StorageClasses {
+		namespaced = append(namespaced, sc.DataPool)
+	}
+	pools := make([]string, 0, len(namespaced))
+	for _, p := range namespaced {
+		poolName, _, _ := strings.Cut(p, ":")
+		pools = append(pools, poolName)
+	}
+	return pools
+}
+
+// poolsExist reports whether any pool referenced by the placement exists in the cluster.
+// A placement whose pools do not exist cannot hold buckets and is safe to redefine.
+func (v ZonePlacementPoolVal) poolsExist(existingPools sets.Set[string]) bool {
+	for _, p := range v.pools() {
+		if existingPools.Has(p) {
+			return true
+		}
+	}
+	return false
+}
+
+// validatePoolsUnchanged compares the current placement v with desired and returns an error if a pool
+// present in both differs: the index pool, the data extra pool, or the data pool of a storage class.
+// Storage classes only in one of them are ignored, so adding and removing classes is allowed.
+func (v ZonePlacementPoolVal) validatePoolsUnchanged(desired ZonePlacementPoolVal) error {
+	const hint = "pools of an existing placement are immutable because buckets reference them; to place new buckets elsewhere add a new placement and mark it default"
+
+	if v.IndexPool != desired.IndexPool {
+		return fmt.Errorf("index pool cannot be changed from %q to %q: %s", v.IndexPool, desired.IndexPool, hint)
+	}
+	if v.DataExtraPool != desired.DataExtraPool {
+		return fmt.Errorf("data extra pool cannot be changed from %q to %q: %s", v.DataExtraPool, desired.DataExtraPool, hint)
+	}
+	scNames := make([]string, 0, len(v.StorageClasses))
+	for sc := range v.StorageClasses {
+		scNames = append(scNames, sc)
+	}
+	sort.Strings(scNames)
+	for _, sc := range scNames {
+		desiredSC, ok := desired.StorageClasses[sc]
+		if !ok {
+			// storage class removed from spec
+			continue
+		}
+		if v.StorageClasses[sc].DataPool != desiredSC.DataPool {
+			return fmt.Errorf("storage class %q data pool cannot be changed from %q to %q: %s", sc, v.StorageClasses[sc].DataPool, desiredSC.DataPool, hint)
+		}
+	}
+	return nil
 }
 
 func getDefaultPlacementName(spec cephv1.ObjectSharedPoolsSpec) string {
