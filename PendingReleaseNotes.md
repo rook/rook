@@ -14,3 +14,5 @@ Changes should *not* be included here if they are backported to previous release
 - RGW SSE-S3 accepts `VAULT_TRANSIT_BACKEND_PATH` in `security.s3.connectionDetails` for a Vault transit engine that is
   not mounted at the default `transit` path. RGW SSE-KMS with the `transit` engine accepts it in
   `security.kms.connectionDetails` too.
+- `CephObjectStoreUser` gained `spec.tenant`, which places the RGW user in a tenant so its bucket names do not collide
+  with buckets in other tenants. It is immutable after creation and cannot be combined with `accountRef`.
