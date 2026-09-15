@@ -21,9 +21,14 @@ drivers:
   rbd:
     enabled: true
     name: rook-ceph.rbd.csi.ceph.com # csi-provisioner-name
+    # Set snapshotPolicy to enable snapshot/group snapshot support.
+    # If unset/none, the csi-snapshotter sidecar is not deployed.
+    # Valid values: none, volumeSnapshot, volumeGroupSnapshot.
+    # snapshotPolicy: volumeSnapshot
   cephfs:
     enabled: true
     name: rook-ceph.cephfs.csi.ceph.com # csi-provisioner-name
+    # snapshotPolicy: volumeSnapshot
   nfs:
     enabled: false
     name: rook-ceph.nfs.csi.ceph.com # csi-provisioner-name
