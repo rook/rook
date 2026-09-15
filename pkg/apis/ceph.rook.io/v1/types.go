@@ -1959,7 +1959,10 @@ type ObjectSharedPoolsSpec struct {
 	// +optional
 	DataPoolName string `json:"dataPoolName,omitempty"`
 
-	// Whether the RADOS namespaces should be preserved on deletion of the object store
+	// Whether the RADOS namespaces should be preserved on deletion of the object store.
+	// NOT IMPLEMENTED: this setting has no effect. Rook does not delete the RADOS
+	// namespaces of a shared-pool object store, so their data is retained regardless of
+	// this setting. See https://github.com/rook/rook/issues/13921.
 	// +optional
 	PreserveRadosNamespaceDataOnDelete bool `json:"preserveRadosNamespaceDataOnDelete"`
 
@@ -2290,6 +2293,9 @@ type KeystoneSpec struct {
 	// +nullable
 	TokenCacheSize *int `json:"tokenCacheSize,omitempty"`
 	// The number of seconds between token revocation checks.
+	// NOT IMPLEMENTED: this setting has no effect, and never has in any Rook
+	// release that offers it. RGW stopped performing Keystone token revocation
+	// checks after Nautilus, which predates the oldest Ceph release Rook supports.
 	// +optional
 	// +nullable
 	RevocationInterval *int `json:"revocationInterval,omitempty"`
@@ -2929,10 +2935,16 @@ type NotificationFilterSpec struct {
 	// Filters based on the object's key
 	// +optional
 	KeyFilters []NotificationKeyFilterRule `json:"keyFilters,omitempty"`
-	// Filters based on the object's metadata
+	// Filters based on the object's metadata.
+	// NOT IMPLEMENTED: this setting has no effect. RGW supports metadata and tag
+	// filters, but Rook sends only keyFilters to the bucket notification
+	// configuration.
 	// +optional
 	MetadataFilters []NotificationFilterRule `json:"metadataFilters,omitempty"`
-	// Filters based on the object's tags
+	// Filters based on the object's tags.
+	// NOT IMPLEMENTED: this setting has no effect. RGW supports metadata and tag
+	// filters, but Rook sends only keyFilters to the bucket notification
+	// configuration.
 	// +optional
 	TagFilters []NotificationFilterRule `json:"tagFilters,omitempty"`
 }
@@ -3491,7 +3503,7 @@ type DisruptionManagementSpec struct {
 	// +optional
 	OSDMaintenanceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
 
-	// DEPRECATED: PGHealthCheckTimeout is no longer implemented
+	// Deprecated: PGHealthCheckTimeout is no longer implemented and has no effect.
 	// +optional
 	PGHealthCheckTimeout time.Duration `json:"pgHealthCheckTimeout,omitempty"`
 
@@ -3500,11 +3512,13 @@ type DisruptionManagementSpec struct {
 	// +optional
 	PGHealthyRegex string `json:"pgHealthyRegex,omitempty"`
 
-	// Deprecated. This enables management of machinedisruptionbudgets.
+	// Deprecated: ManageMachineDisruptionBudgets is no longer implemented and has no
+	// effect. The machine disruption budget controller has been removed.
 	// +optional
 	ManageMachineDisruptionBudgets bool `json:"manageMachineDisruptionBudgets,omitempty"`
 
-	// Deprecated. Namespace to look for MDBs by the machineDisruptionBudgetController
+	// Deprecated: MachineDisruptionBudgetNamespace is no longer implemented and has no
+	// effect. The machine disruption budget controller has been removed.
 	// +optional
 	MachineDisruptionBudgetNamespace string `json:"machineDisruptionBudgetNamespace,omitempty"`
 }
@@ -3902,7 +3916,9 @@ type Selection struct {
 	// +nullable
 	// +optional
 	Devices []Device `json:"devices,omitempty"`
-	// PersistentVolumeClaims to use as storage
+	// PersistentVolumeClaims to use as storage.
+	// NOT IMPLEMENTED: this setting has no effect. Use
+	// storageClassDeviceSets[].volumeClaimTemplates to back OSDs with PVCs.
 	// +optional
 	VolumeClaimTemplates []VolumeClaimTemplate `json:"volumeClaimTemplates,omitempty"`
 }
@@ -3967,7 +3983,8 @@ type StorageClassDeviceSet struct {
 	// +nullable
 	// +optional
 	PreparePlacement *Placement `json:"preparePlacement,omitempty"` // Placement constraints for the device preparation
-	// Provider-specific device configuration
+	// Provider-specific device configuration.
+	// NOT IMPLEMENTED: this setting has no effect.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
