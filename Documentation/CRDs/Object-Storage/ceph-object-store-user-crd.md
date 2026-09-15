@@ -27,6 +27,7 @@ spec:
     - read
     - write
     - delete
+  tenant: tenantA
   defaultPlacement: hot-tier
   defaultStorageClass: STANDARD_IA
 ```
@@ -68,6 +69,13 @@ spec:
     * `ratelimit`
     * `userInfoWithoutKeys` # minimum ceph version 19.2.0 for supporting this cap
     * `accounts` # minimum ceph version 19.2.3 for supporting this cap
+* `tenant`: Assigns the user to a named RGW tenant, so buckets created by this user are isolated from same-named
+    buckets in other tenants (`tenantA$my-bucket` and `tenantB$my-bucket` do not collide). The effective RGW user ID
+    becomes `<tenant>$<name>`. This field is immutable: RGW has no operation to move an existing user between tenants,
+    so it cannot be added, changed, or removed once the user is created. It cannot currently be combined with
+    `accountRef`. See the
+    [design doc](https://github.com/rook/rook/blob/master/design/ceph/rgw-user-multitenancy-and-placement.md) for the
+    addressing model.
 * `defaultPlacement`: The default pool placement target for buckets created by this user, overriding the zonegroup default.
     The value must name a placement target known to the zonegroup serving the object store; RGW validates it and
     rejects an unknown target, in which case the user's status phase becomes `Failure` and the RGW error is recorded as
