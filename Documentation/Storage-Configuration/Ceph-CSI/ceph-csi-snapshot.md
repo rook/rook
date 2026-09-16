@@ -6,6 +6,23 @@ title: Snapshots
 
 - Install the [snapshot controller and snapshot v1 CRD](https://github.com/kubernetes-csi/external-snapshotter/tree/master#usage).
 
+- If using the **ceph-csi-operator** (ceph-csi-drivers Helm chart), set the
+`snapshotPolicy` on each driver that needs snapshot support. The default value
+is `none`, which disables the `csi-snapshotter` sidecar. For example, in the ceph-csi-drivers
+Helm chart values:
+
+    ```yaml
+    drivers:
+      rbd:
+        snapshotPolicy: volumeSnapshot
+      cephfs:
+        snapshotPolicy: volumeSnapshot
+    ```
+
+    Valid values are `none`, `volumeSnapshot`, and `volumeGroupSnapshot`.
+    Use `volumeGroupSnapshot` if you need
+    [Volume Group Snapshots](ceph-csi-volume-group-snapshot.md) instead.
+
 - We also need a `VolumeSnapshotClass` for volume snapshot to work. The purpose of a `VolumeSnapshotClass` is
 defined in [the kubernetes
 documentation](https://kubernetes.io/docs/concepts/storage/volume-snapshot-classes/).

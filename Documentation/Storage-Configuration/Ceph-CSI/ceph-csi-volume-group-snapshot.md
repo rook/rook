@@ -14,6 +14,20 @@ or to restore existing volumes to a previous state (represented by the snapshots
 refer to VolumeGroupSnapshot documentation
 [here](https://github.com/kubernetes-csi/external-snapshotter/tree/master#volume-group-snapshot-support) for more details.
 
+- If using the **ceph-csi-operator** (ceph-csi-drivers Helm chart), set the
+`snapshotPolicy` to `volumeGroupSnapshot` on each driver that needs volume
+group snapshot support. The default value is `none`, which disables the
+`csi-snapshotter` sidecar. For example, in the ceph-csi-drivers
+Helm chart values:
+
+    ```yaml
+    drivers:
+      rbd:
+        snapshotPolicy: volumeGroupSnapshot
+      cephfs:
+        snapshotPolicy: volumeGroupSnapshot
+    ```
+
 - A `VolumeGroupSnapshotClass` is needed for the volume group snapshot to work. The purpose of a `VolumeGroupSnapshotClass` is
 defined in [the kubernetes
 documentation](https://kubernetes.io/blog/2024/12/18/kubernetes-1-32-volume-group-snapshot-beta/).
