@@ -65,6 +65,12 @@ jobs:
       - name: validate gen-rbac
         run: tests/scripts/validate_modified_files.sh gen-rbac
 
+      - name: run gen-toolbox
+        run: make gen-toolbox
+
+      - name: validate gen-toolbox
+        run: tests/scripts/validate_modified_files.sh gen-toolbox
+
   linux-build-all:
     runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"

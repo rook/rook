@@ -228,7 +228,8 @@ status:
 
 !!! note
     When the admin key rotates, the toolbox pod may need to be restarted to refresh the keyring.
-    The latest toolbox manifest will reload the keyring automatically after a few minutes delay.
+    The latest toolbox deployments, both the example manifests and the Helm chart, reload the
+    keyring automatically after a few minutes delay.
 
 ## Key types
 
