@@ -160,7 +160,7 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 		}
 	}
 
-	if h.settings.RookVersion == LocalBuildTag && h.settings.UseHelm {
+	if h.settings.UseHelm {
 		if err := h.InstallCephCsiDriversViaHelm(); err != nil {
 			return errors.Wrap(err, "failed to install ceph-csi-drivers chart")
 		}
@@ -193,17 +193,6 @@ func csiDriverChartValues(driverName string) map[string]any {
 }
 
 func (h *CephInstaller) InstallCephCsiDriversViaHelm() error {
-	if err := h.k8shelper.CreateSnapshotCRD("create"); err != nil {
-		return errors.Wrap(err, "failed to install snapshot CRDs")
-	}
-	if err := h.k8shelper.CreateSnapshotController("create"); err != nil {
-		return errors.Wrap(err, "failed to install snapshot controller")
-	}
-	// the snapshot controller is installed while the cluster is busy rolling daemons during
-	// upgrade tests, and its image pull plus rollout regularly exceeds 150s in CI
-	if err := h.k8shelper.WaitForSnapshotController(90); err != nil {
-		return errors.Wrap(err, "snapshot controller is not ready")
-	}
 	op := h.settings.OperatorNamespace
 
 	drivers := map[string]any{
