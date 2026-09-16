@@ -48,9 +48,6 @@ const (
 	// kmipDefaultWriteTimeout is the default write network timeout.
 	kmipDefaultWriteTimeout = uint8(10)
 
-	// cryptographicLength of the key.
-	cryptographicLength = 256
-
 	// value not credential, just configuration keys.
 	//nolint:gosec
 	kmipEndpoint      = "KMIP_ENDPOINT"
@@ -164,11 +161,11 @@ func (kms *kmipKMS) registerKey(keyName, keyValue string) (string, error) {
 		ObjectType: kmip14.ObjectTypeSymmetricKey,
 		SymmetricKey: &kmip.SymmetricKey{
 			KeyBlock: kmip.KeyBlock{
-				KeyFormatType: kmip14.KeyFormatTypeOpaque,
+				KeyFormatType: kmip14.KeyFormatTypeRaw,
 				KeyValue: &kmip.KeyValue{
 					KeyMaterial: valueBytes,
 				},
-				CryptographicLength:    cryptographicLength,
+				CryptographicLength:    len(valueBytes) * 8,
 				CryptographicAlgorithm: kmip14.CryptographicAlgorithmAES,
 			},
 		},
