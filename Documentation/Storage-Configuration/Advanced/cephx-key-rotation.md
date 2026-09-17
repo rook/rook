@@ -482,7 +482,7 @@ rotated CephX keys. PVCs will remain active throughout this process.
 ```yaml
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v1.20.4-20260818
+    image: quay.io/ceph/ceph:v20.2.4-20260818
   security:
     cephx:
       daemon:
