@@ -829,7 +829,11 @@ func ConfigureSharedPoolsForZone(objContext *Context, sharedPools cephv1.ObjectS
 	}
 
 	log.NamedInfo(objContext.NsName(), logger, "configuring shared pools for object store")
-	if err := sharedPoolsExist(objContext, sharedPools); err != nil {
+	existingPools, err := listPoolNames(objContext)
+	if err != nil {
+		return err
+	}
+	if err := sharedPoolsExist(existingPools, sharedPools); err != nil {
 		return errors.Wrapf(err, "object store cannot be configured until shared pools exist")
 	}
 
@@ -837,11 +841,11 @@ func ConfigureSharedPoolsForZone(objContext *Context, sharedPools cephv1.ObjectS
 	if err != nil {
 		return err
 	}
-	zoneUpdated, err := adjustZoneDefaultPools(objContext, zoneConfig, sharedPools)
+	zoneUpdated, err := adjustZoneDefaultPools(objContext.NsName(), zoneConfig, sharedPools, existingPools)
 	if err != nil {
 		return err
 	}
-	zoneUpdated, err = adjustZonePlacementPools(zoneUpdated, sharedPools)
+	zoneUpdated, err = adjustZonePlacementPools(objContext.NsName(), zoneUpdated, sharedPools, existingPools)
 	if err != nil {
 		return err
 	}
@@ -877,38 +881,43 @@ func ConfigureSharedPoolsForZone(objContext *Context, sharedPools cephv1.ObjectS
 	return nil
 }
 
-func sharedPoolsExist(objContext *Context, sharedPools cephv1.ObjectSharedPoolsSpec) error {
-	existingPools, err := cephclient.ListPoolSummaries(objContext.Context, objContext.clusterInfo)
+// listPoolNames returns the names of all pools in the cluster.
+func listPoolNames(objContext *Context) (sets.Set[string], error) {
+	summaries, err := cephclient.ListPoolSummaries(objContext.Context, objContext.clusterInfo)
 	if err != nil {
-		return errors.Wrapf(err, "failed to list pools")
+		return nil, errors.Wrapf(err, "failed to list pools")
 	}
-	existing := make(map[string]struct{}, len(existingPools))
-	for _, pool := range existingPools {
-		existing[pool.Name] = struct{}{}
+	pools := sets.New[string]()
+	for _, pool := range summaries {
+		pools.Insert(pool.Name)
 	}
+	return pools, nil
+}
+
+func sharedPoolsExist(existingPools sets.Set[string], sharedPools cephv1.ObjectSharedPoolsSpec) error {
 	// sharedPools.MetadataPoolName, DataPoolName, and sharedPools.PoolPlacements.DataNonECPoolName are optional.
 	// ignore optional pools with empty name:
-	existing[""] = struct{}{}
+	missing := func(pool string) bool { return pool != "" && !existingPools.Has(pool) }
 
-	if _, ok := existing[sharedPools.MetadataPoolName]; !ok {
+	if missing(sharedPools.MetadataPoolName) {
 		return fmt.Errorf("sharedPool do not exist: %s", sharedPools.MetadataPoolName)
 	}
-	if _, ok := existing[sharedPools.DataPoolName]; !ok {
+	if missing(sharedPools.DataPoolName) {
 		return fmt.Errorf("sharedPool do not exist: %s", sharedPools.DataPoolName)
 	}
 
 	for _, pp := range sharedPools.PoolPlacements {
-		if _, ok := existing[pp.MetadataPoolName]; !ok {
+		if missing(pp.MetadataPoolName) {
 			return fmt.Errorf("sharedPool does not exist: pool %s for placement %s", pp.MetadataPoolName, pp.Name)
 		}
-		if _, ok := existing[pp.DataPoolName]; !ok {
+		if missing(pp.DataPoolName) {
 			return fmt.Errorf("sharedPool do not exist: pool %s for placement %s", pp.DataPoolName, pp.Name)
 		}
-		if _, ok := existing[pp.DataNonECPoolName]; !ok {
+		if missing(pp.DataNonECPoolName) {
 			return fmt.Errorf("sharedPool do not exist: pool %s for placement %s", pp.DataNonECPoolName, pp.Name)
 		}
 		for _, sc := range pp.StorageClasses {
-			if _, ok := existing[sc.DataPoolName]; !ok {
+			if missing(sc.DataPoolName) {
 				return fmt.Errorf("sharedPool do not exist: pool %s for StorageClass %s", sc.DataPoolName, sc.Name)
 			}
 		}
@@ -917,7 +926,15 @@ func sharedPoolsExist(objContext *Context, sharedPools cephv1.ObjectSharedPoolsS
 	return nil
 }
 
-func adjustZoneDefaultPools(objContext *Context, zone map[string]interface{}, spec cephv1.ObjectSharedPoolsSpec) (map[string]interface{}, error) {
+// adjustZoneDefaultPools points the zone's system pool fields (user index, metadata root, logs, ...)
+// at the spec's default metadata pool, namespaced by zone name.
+//
+// A field is left unchanged if the pool it currently references exists in the cluster: that pool may
+// hold data and re-pointing the field would make it unreachable. This keeps the system pools in place
+// when the default placement changes. On a fresh zone every field references a <zone>.rgw.* pool that
+// does not exist yet, because the zone is configured before the RGW deployment is created and RGW is
+// what would create those pools, so the first reconcile sets all fields.
+func adjustZoneDefaultPools(nsName types.NamespacedName, zone map[string]any, spec cephv1.ObjectSharedPoolsSpec, existingPools sets.Set[string]) (map[string]any, error) {
 	name, err := getObjProperty[string](zone, "name")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get zone name: %w", err)
@@ -937,31 +954,23 @@ func adjustZoneDefaultPools(objContext *Context, zone map[string]interface{}, sp
 	// in non-multisite case zone name equals to rgw instance name
 	defaultMetaPool = defaultMetaPool + ":" + name
 	for pool, nsSuffix := range zonePoolNSSuffix {
-		// replace rgw internal index pools with namespaced metadata pool
 		namespacedPool := defaultMetaPool + nsSuffix
 
-		// check if old pool has data BEFORE overwriting the zone property
-		prev, _ := zone[pool].(string)
-		if prev != "" && prev != namespacedPool {
-			empty, err := checkPoolIsEmpty(objContext, prev)
-			if err != nil {
-				return nil, fmt.Errorf("zone pool field %q: unable to check old pool %q: %w", pool, prev, err)
-			}
-			if !empty {
-				log.NamedWarning(objContext.NsName(), logger,
-					"zone pool field %q is being remapped from %q which still contains data", pool, prev)
-				continue
-			}
-		}
-
-		prev, err := updateObjProperty(zone, namespacedPool, pool)
-		if err != nil {
-			log.NamedInfo(objContext.NsName(), logger, "unable to apply rados namespace to shared pool: %v", err)
+		prev, ok := zone[pool].(string)
+		if !ok {
+			// pool field is not present in this ceph version's zone config
 			continue
 		}
-		if namespacedPool != prev {
-			log.NamedDebug(objContext.NsName(), logger, "update shared pool %s for zone %s: %s -> %s", pool, name, prev, namespacedPool)
+		if prev == namespacedPool {
+			continue
 		}
+		prevPool, _, _ := strings.Cut(prev, ":")
+		if existingPools.Has(prevPool) {
+			log.NamedDebug(nsName, logger, "zone %q pool field %q stays on %q: the pool exists and may hold data", name, pool, prev)
+			continue
+		}
+		zone[pool] = namespacedPool
+		log.NamedDebug(nsName, logger, "update shared pool %s for zone %s: %s -> %s", pool, name, prev, namespacedPool)
 	}
 
 	// check for unknown pool properties in zone json
@@ -975,7 +984,7 @@ func adjustZoneDefaultPools(objContext *Context, zone map[string]interface{}, sp
 			continue
 		}
 		if _, ok := zonePoolNSSuffix[field]; !ok {
-			log.NamedWarning(objContext.NsName(), logger, "zone config %q contains unknown pool %q", name, field)
+			log.NamedWarning(nsName, logger, "zone config %q contains unknown pool %q", name, field)
 		}
 	}
 
@@ -988,37 +997,6 @@ func ZoneJsonPoolKeys() sets.Set[string] {
 		s.Insert(k)
 	}
 	return s
-}
-
-func checkPoolIsEmpty(objContext *Context, name string) (bool, error) {
-	poolName, namespace, isNamespaced := strings.Cut(name, ":")
-
-	poolExists, err := cephclient.IsPoolPresent(objContext.Context, objContext.clusterInfo, poolName)
-	if err != nil {
-		return false, fmt.Errorf("failed to check if pool %q exists: %w", poolName, err)
-	}
-	if !poolExists {
-		return true, nil
-	}
-
-	if isNamespaced {
-		hasObjects, err := cephclient.RadosNamespaceHasObjects(objContext.Context, objContext.clusterInfo, poolName, namespace)
-		if err != nil {
-			return false, fmt.Errorf("failed to check pool %q namespace %q: %w", poolName, namespace, err)
-		}
-		return !hasObjects, nil
-	}
-
-	stats, err := cephclient.GetPoolStats(objContext.Context, objContext.clusterInfo)
-	if err != nil {
-		return false, fmt.Errorf("failed to get pool stats: %w", err)
-	}
-	for _, p := range stats.Pools {
-		if p.Name == poolName && p.Stats.Objects > 0 {
-			return false, nil
-		}
-	}
-	return true, nil
 }
 
 // configurePoolsConcurrently checks if operator pod resources are set or not

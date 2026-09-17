@@ -36,6 +36,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kexec "k8s.io/utils/exec"
 )
@@ -2012,24 +2013,7 @@ func Test_sharedPoolsExist(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor := &exectest.MockExecutor{}
-			mockExecutorFuncOutput := func(command string, args ...string) (string, error) {
-				if args[0] == "osd" && args[1] == "lspools" {
-					pools := make([]string, len(tt.args.existsInCluster))
-					for i, p := range tt.args.existsInCluster {
-						pools[i] = fmt.Sprintf(`{"poolnum":%d,"poolname":%q}`, i+1, p)
-					}
-					poolJson := fmt.Sprintf(`[%s]`, strings.Join(pools, ","))
-					return poolJson, nil
-				}
-				return "", errors.Errorf("unexpected ceph command %q", args)
-			}
-			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-				return mockExecutorFuncOutput(command, args...)
-			}
-			context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", clusterInfo: client.AdminTestClusterInfo("mycluster")}
-
-			if err := sharedPoolsExist(context, tt.args.sharedPools); (err != nil) != tt.wantErr {
+			if err := sharedPoolsExist(sets.New(tt.args.existsInCluster...), tt.args.sharedPools); (err != nil) != tt.wantErr {
 				t.Errorf("sharedPoolsExist() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
