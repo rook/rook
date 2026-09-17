@@ -479,6 +479,14 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 			output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|.*|" ]`), 1)
 			output = bytes.Replace(output, []byte(`# filter = [ "a|.*|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|.*|" ]`), 1)
 		}
+	} else {
+		// Reject RBD devices so that "lvs" does not scan them. When other OSDs are down (e.g. after
+		// a network outage), reads to mapped RBD devices can block indefinitely, which puts "lvs" in
+		// uninterruptible sleep (D state) and deadlocks OSD provisioning.
+		// We have 2 different regex depending on the version of LVM present in the container,
+		// see the comment above for the on-PVC case.
+		output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "r|^/dev/rbd.*|", "a|.*/|" ]`), 1)
+		output = bytes.Replace(output, []byte(`# filter = [ "a|.*|" ]`), []byte(`filter = [ "r|^/dev/rbd.*|", "a|.*|" ]`), 1)
 	}
 
 	// #nosec G703 -- lvmConfPath is a hard-coded constant, not user input
