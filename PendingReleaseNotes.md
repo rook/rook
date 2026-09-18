@@ -6,6 +6,11 @@
 - The OSD prepare job now fails, and is retried by Kubernetes, when a freshly prepared device is
   missing from the `ceph-volume raw list` output, instead of silently reporting fewer OSDs than
   were prepared (which left OSDs registered in the osdmap with no OSD deployment created).
+- Rolling back to a Rook release that predates `CephObjectStoreUser.spec.tenant` while tenanted
+  `CephObjectStoreUser` resources exist is destructive: the older operator addresses the user by its
+  bare name, fails to find the tenanted user, creates a new untenanted user with the same name, and
+  repoints the CR's Secret at it, orphaning the original tenanted user and its buckets. Remove tenanted
+  `CephObjectStoreUser` CRs (or scale down the operator) before downgrading.
 
 ## Features
 
@@ -15,3 +20,12 @@
 - The toolbox deployments from the Helm chart and the example manifests now reload the keyring and `ceph.conf` automatically after CephX key rotation, mon failover, or a config override change.
 - CephCluster dashboard TLS certificates can now be configured from a same-namespace Kubernetes TLS Secret with `spec.dashboard.sslCertificateRef` when dashboard SSL is enabled. Rook reconciles updates to the referenced Secret and restores the default self-signed certificate when the reference is removed.
 - Object store reconciles now wait for the OSDs to finish upgrading.
+- `CephObjectStoreUser` gained `spec.defaultPlacement` and `spec.defaultStorageClass`, which set the RGW user's default
+  bucket placement target and default storage class. Both are optional and validated by RGW; the effective values are
+  reported in `status.info`. Removing either field stops Rook from managing it and leaves the last applied value in place
+  on the RGW user, except that changing `defaultPlacement` without a `defaultStorageClass` resets the storage class to
+  the new placement target's default.
+- `CephObjectStoreUser` gained `spec.tenant`, which assigns the RGW user to a named tenant so buckets created by that
+  user do not collide by name with buckets in other tenants. The field is optional and immutable after creation, and
+  cannot be combined with `spec.accountRef`. See the note under Breaking Changes about downgrade hazards for tenanted
+  users.
