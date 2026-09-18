@@ -174,9 +174,6 @@ func csiDriverChartValues(driverName string) map[string]any {
 		"name":           driverName,
 		"enabled":        true,
 		"snapshotPolicy": "volumeSnapshot",
-		"imageSet": map[string]any{
-			"name": "rook-csi-operator-image-set-configmap",
-		},
 		"nodePlugin": map[string]any{
 			"kubeletDirPath":         "/var/lib/kubelet",
 			"priorityClassName":      "system-node-critical",
@@ -222,10 +219,7 @@ func (h *CephInstaller) InstallCephCsiDriversViaHelm() error {
 			"namespace": op,
 			"create":    true,
 			"driverSpecDefaults": map[string]any{
-				"log": map[string]any{"verbosity": 0},
-				"imageSet": map[string]any{
-					"name": "rook-csi-operator-image-set-configmap",
-				},
+				"log":              map[string]any{"verbosity": 0},
 				"snapshotPolicy":   "volumeSnapshot",
 				"enableMetadata":   false,
 				"generateOMapInfo": false,
