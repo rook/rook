@@ -65,7 +65,7 @@ mon_data_avail_warn = 10
 [mon]
 mon compact on start = true
 `
-	volumeReplicationVersion = "v0.5.0"
+	volumeReplicationVersion = "v0.15.0"
 )
 
 var (
