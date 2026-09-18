@@ -66,6 +66,9 @@ kubectl delete storageclass csi-cephfs
 
 4. If the `cleanupPolicy` was applied, wait for the `rook-ceph-cleanup` jobs to be completed on all the nodes.
 
+    A job that ends `Failed` means the disks on that node were not fully sanitized. Check the job's
+    logs before reusing the hardware.
+
     These jobs will perform the following operations:
 
     * Delete the all files under `dataDirHostPath` on all the nodes

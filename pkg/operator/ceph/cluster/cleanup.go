@@ -57,6 +57,8 @@ var (
 	sanitizeDataSource             = "ROOK_SANITIZE_DATA_SOURCE"
 	sanitizeIteration              = "ROOK_SANITIZE_ITERATION"
 	sanitizeIterationDefault int32 = 1
+	// cleanupNoRetryBackoffLimit fails the cleanup job on its first failure, see its use below
+	cleanupNoRetryBackoffLimit int32 = 0
 )
 
 func (c *ClusterController) startClusterCleanUp(context context.Context, cluster *cephv1.CephCluster, cephHosts []string, monSecret, clusterFSID string) {
@@ -88,6 +90,12 @@ func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHo
 				Template: podSpec,
 			},
 		}
+
+		// Do not retry a failed sanitize. A `method: complete` shred writes from offset 0, so a
+		// pass that dies partway has already destroyed the BlueStore label while leaving most of
+		// the disk intact. A retry would find no OSDs to enumerate, do nothing, and exit
+		// successfully - reporting a wipe that did not happen.
+		job.Spec.BackoffLimit = &cleanupNoRetryBackoffLimit
 
 		// Apply annotations
 		cephv1.GetCleanupAnnotations(cluster.Spec.Annotations).ApplyToObjectMeta(&job.ObjectMeta)

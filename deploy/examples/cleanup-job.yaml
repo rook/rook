@@ -44,6 +44,10 @@ metadata:
     app: rook-ceph-cleanup
     rook-ceph-cleanup: "true"
 spec:
+  # Do not retry a failed wipe. A partial `complete` sanitize has already destroyed the
+  # BlueStore label, so a retry finds no OSDs, does nothing, and exits successfully -
+  # reporting a wipe that did not happen. The operator-managed job sets this too.
+  backoffLimit: 0
   template:
     metadata:
       name: rook-ceph-cleanup
