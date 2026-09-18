@@ -94,6 +94,7 @@ func CreateOrUpdateServiceMonitor(context *clusterd.Context, ctx context.Context
 		}
 		return nil, fmt.Errorf("failed to retrieve servicemonitor. %v", err)
 	}
+
 	oldSm.Spec = serviceMonitorDefinition.Spec
 	oldSm.ObjectMeta.Labels = serviceMonitorDefinition.ObjectMeta.Labels
 	sm, err := client.MonitoringV1().ServiceMonitors(namespace).Update(ctx, oldSm, metav1.UpdateOptions{})
