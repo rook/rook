@@ -234,9 +234,27 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, store *shareds
 			})
 		})
 
-		// fetch the automatic secret; it should hold the only key set on the rgw user
-		autoSecret, err := secretClient.Get(ctx, generateObjectStoreUserSecretName(osu1), metav1.GetOptions{})
-		require.NoError(t, err)
+		// fetch the automatic secret; it should hold the only key set on the rgw
+		// user. The controller writes the secret after reconciling the rgw keys,
+		// so poll until it carries a key the rgw user has rather than snapshotting
+		// it the instant the rgw user converges — that snapshot can predate the
+		// write, and requireRgwUserKeys never re-reads it.
+		var autoSecret *corev1.Secret
+		wait4.RequireEventually(ctx, t, wait4.TimeoutShort, "automatic secret holds a key set on the rgw user", func(ctx context.Context) error {
+			s, err := secretClient.Get(ctx, generateObjectStoreUserSecretName(osu1), metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			liveUser, err := adminClient.GetUser(ctx, admin.User{ID: osu1.Name})
+			if err != nil {
+				return err
+			}
+			if _, err := findUserKeySpec(liveUser.Keys, string(s.Data["AccessKey"])); err != nil {
+				return err
+			}
+			autoSecret = s
+			return nil
+		})
 
 		requireRgwUserKeys(t, adminClient, osu1, "AccessKey", "SecretKey", autoSecret)
 
