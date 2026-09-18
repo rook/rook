@@ -38,6 +38,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: canary
         uses: ./.github/workflows/canary-tests/canary
         with:
@@ -59,6 +64,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: raw-disk-with-object
         uses: ./.github/workflows/canary-tests/raw-disk-with-object
         with:
@@ -79,6 +89,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: two-osds-in-device
         uses: ./.github/workflows/canary-tests/two-osds-in-device
@@ -102,6 +117,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: osd-with-metadata-partition-device
         uses: ./.github/workflows/canary-tests/osd-with-metadata-partition-device
         with:
@@ -122,6 +142,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: osd-with-metadata-device
         uses: ./.github/workflows/canary-tests/osd-with-metadata-device
@@ -144,6 +169,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: encryption
         uses: ./.github/workflows/canary-tests/encryption
         with:
@@ -164,6 +194,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: lvm
         uses: ./.github/workflows/canary-tests/lvm
@@ -186,6 +221,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: pvc
         uses: ./.github/workflows/canary-tests/pvc
         with:
@@ -206,6 +246,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: pvc-db
         uses: ./.github/workflows/canary-tests/pvc-db
@@ -228,6 +273,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: pvc-db-wal
         uses: ./.github/workflows/canary-tests/pvc-db-wal
         with:
@@ -248,6 +298,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: encryption-pvc
         uses: ./.github/workflows/canary-tests/encryption-pvc
@@ -270,6 +325,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: encryption-pvc-db
         uses: ./.github/workflows/canary-tests/encryption-pvc-db
         with:
@@ -290,6 +350,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: encryption-pvc-db-wal
         uses: ./.github/workflows/canary-tests/encryption-pvc-db-wal
@@ -312,6 +377,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: encryption-pvc-kms-vault-token-auth
         uses: ./.github/workflows/canary-tests/encryption-pvc-kms-vault-token-auth
         with:
@@ -332,6 +402,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: encryption-pvc-kms-vault-k8s-auth
         uses: ./.github/workflows/canary-tests/encryption-pvc-kms-vault-k8s-auth
@@ -354,6 +429,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: lvm-pvc
         uses: ./.github/workflows/canary-tests/lvm-pvc
         with:
@@ -374,6 +454,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: multi-cluster-mirroring
         uses: ./.github/workflows/canary-tests/multi-cluster-mirroring
@@ -396,6 +481,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: rgw-multisite-testing
         uses: ./.github/workflows/canary-tests/rgw-multisite-testing
         with:
@@ -417,6 +507,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: nvmeof-protocol
         uses: ./.github/workflows/canary-tests/nvmeof-protocol
         with:
@@ -436,6 +531,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: run encryption KMS IBM Key Protect
         uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
@@ -465,6 +565,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: multus-public-and-cluster
         uses: ./.github/workflows/canary-tests/multus-public-and-cluster
         with:
@@ -485,6 +590,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: two-object-one-zone
         uses: ./.github/workflows/canary-tests/two-object-one-zone

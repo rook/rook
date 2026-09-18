@@ -25,5 +25,5 @@ runs:
         ## whether to limit ssh access and adds the ssh public key for the user which triggered the workflow:
         limit-access-to-actor: false
         ## If no one connects within five minutes, shut down the server:
-        wait-timeout-minutes: 5
+        wait-timeout-minutes: 1
         detached: true
