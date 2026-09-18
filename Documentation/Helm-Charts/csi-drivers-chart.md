@@ -116,5 +116,14 @@ See: [Node plugin kubelet path and SELinux host mount](../Storage-Configuration/
 
 ### Custom CSI images
 
-Custom CSI images are configured from the [rook-ceph](operator-chart.md#configuration) chart.
-See the default images in the `rook-ceph` chart [values](https://github.com/rook/rook/blob/release-1.20/deploy/charts/rook-ceph/values.yaml#L97-L137)
+Default CSI images are managed by the ceph-csi-operator. To override them, create an `ImageSet`
+ConfigMap in the operator namespace and reference it from the `ceph-csi-drivers` chart values:
+
+```yaml
+operatorConfig:
+  driverSpecDefaults:
+    imageSet:
+      name: my-custom-csi-images
+```
+
+See [Custom Images](../Storage-Configuration/Ceph-CSI/custom-images.md) for the full ConfigMap format.

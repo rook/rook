@@ -53,25 +53,11 @@ The following table lists the configurable parameters of the rook-operator chart
 | `cephCommandsTimeoutSeconds` | The timeout for ceph commands in seconds | `"15"` |
 | `containerSecurityContext` | Set the container security context for the operator | `{"capabilities":{"drop":["ALL"]},"runAsGroup":2016,"runAsNonRoot":true,"runAsUser":2016}` |
 | `crds.enabled` | Whether the helm chart should create and update the CRDs. If false, the CRDs must be managed independently with deploy/examples/crds.yaml. **WARNING** Only set during first deployment. If later disabled the cluster may be DESTROYED. If the CRDs are deleted in this case, see [the disaster recovery guide](https://rook.io/docs/rook/latest/Troubleshooting/disaster-recovery/#restoring-crds-after-deletion) to restore them. | `true` |
-| `csi.attacher.repository` | Kubernetes CSI Attacher image repository | `"registry.k8s.io/sig-storage/csi-attacher"` |
-| `csi.attacher.tag` | Attacher image tag | `"v4.12.0"` |
-| `csi.cephcsi.repository` | Ceph CSI image repository | `"quay.io/cephcsi/cephcsi"` |
-| `csi.cephcsi.tag` | Ceph CSI image tag | `"v3.17.1"` |
-| `csi.csiAddons.repository` | CSIAddons sidecar image repository | `"quay.io/csiaddons/k8s-sidecar"` |
-| `csi.csiAddons.tag` | CSIAddons sidecar image tag | `"v0.14.0"` |
 | `csi.installCsiOperator` | When true, install the ceph-csi-operator subchart (see Chart.yaml `condition`). | `true` |
-| `csi.provisioner.repository` | Kubernetes CSI provisioner image repository | `"registry.k8s.io/sig-storage/csi-provisioner"` |
-| `csi.provisioner.tag` | Provisioner image tag | `"v6.2.0"` |
-| `csi.registrar.repository` | Kubernetes CSI registrar image repository | `"registry.k8s.io/sig-storage/csi-node-driver-registrar"` |
-| `csi.registrar.tag` | Registrar image tag | `"v2.17.0"` |
-| `csi.resizer.repository` | Kubernetes CSI resizer image repository | `"registry.k8s.io/sig-storage/csi-resizer"` |
-| `csi.resizer.tag` | Resizer image tag | `"v2.1.0"` |
 | `csi.serviceMonitor.enabled` | Enable ServiceMonitor for CSI metrics | `false` |
 | `csi.serviceMonitor.interval` | Interval at which metrics should be scraped | `"5s"` |
 | `csi.serviceMonitor.labels` | Additional labels for the ServiceMonitor | `{}` |
 | `csi.serviceMonitor.namespace` | Namespace in which to deploy the ServiceMonitor | the release namespace |
-| `csi.snapshotter.repository` | Kubernetes CSI snapshotter image repository | `"registry.k8s.io/sig-storage/csi-snapshotter"` |
-| `csi.snapshotter.tag` | Snapshotter image tag | `"v8.5.0"` |
 | `currentNamespaceOnly` | Whether the operator should watch cluster CRD in its own namespace or not | `false` |
 | `customHostnameLabel` | Custom label to identify node hostname. If not set `kubernetes.io/hostname` will be used | `nil` |
 | `deleteUnusedCrushRules` | If true, delete unused generated CRUSH rules after the mgr starts | `true` |

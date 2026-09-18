@@ -10,8 +10,6 @@
 operatorConfig:
   namespace: rook-ceph # namespace:operator
   driverSpecDefaults:
-    imageSet:
-      name: rook-csi-operator-image-set-configmap
     nodePlugin:
       priorityClassName: system-node-critical
     controllerPlugin:

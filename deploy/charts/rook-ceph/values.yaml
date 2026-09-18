@@ -94,47 +94,11 @@ csi:
   # -- When true, install the ceph-csi-operator subchart (see Chart.yaml `condition`).
   installCsiOperator: true
 
-  cephcsi:
-    # -- Ceph CSI image repository
-    repository: quay.io/cephcsi/cephcsi
-    # -- Ceph CSI image tag
-    tag: v3.17.1
-
-  registrar:
-    # -- Kubernetes CSI registrar image repository
-    repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
-    # -- Registrar image tag
-    tag: v2.17.0
-
-  provisioner:
-    # -- Kubernetes CSI provisioner image repository
-    repository: registry.k8s.io/sig-storage/csi-provisioner
-    # -- Provisioner image tag
-    tag: v6.2.0
-
-  snapshotter:
-    # -- Kubernetes CSI snapshotter image repository
-    repository: registry.k8s.io/sig-storage/csi-snapshotter
-    # -- Snapshotter image tag
-    tag: v8.5.0
-
-  attacher:
-    # -- Kubernetes CSI Attacher image repository
-    repository: registry.k8s.io/sig-storage/csi-attacher
-    # -- Attacher image tag
-    tag: v4.12.0
-
-  resizer:
-    # -- Kubernetes CSI resizer image repository
-    repository: registry.k8s.io/sig-storage/csi-resizer
-    # -- Resizer image tag
-    tag: v2.1.0
-
-  csiAddons:
-    # -- CSIAddons sidecar image repository
-    repository: quay.io/csiaddons/k8s-sidecar
-    # -- CSIAddons sidecar image tag
-    tag: v0.14.0
+  # CSI container images are now managed by the ceph-csi-operator. The operator
+  # defines its own defaults for all sidecar and plugin images. To override
+  # images, create an ImageSet ConfigMap in the operator namespace and reference
+  # it from the OperatorConfig CR. See the ceph-csi-operator documentation and
+  # the ceph-csi-drivers chart for details.
 
   serviceMonitor:
     # -- Enable ServiceMonitor for CSI metrics
