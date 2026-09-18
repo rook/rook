@@ -88,6 +88,11 @@ data:
   # Whether to create all Rook pods to run on the host network, for example in environments where a CNI is not enabled
   ROOK_ENFORCE_HOST_NETWORK: "false"
 
+  # Whether Rook creates the CephConnection and ClientProfile CRs consumed by the ceph-csi-operator.
+  # Set to "false" for clusters that use no CSI driver, such as object store only clusters, so the
+  # ceph-csi-operator and its CRDs (csi-operator.yaml) are not required.
+  ROOK_CREATE_CSI_OPERATOR_RESOURCES: "true"
+
   # RevisionHistoryLimit value for all deployments created by rook.
   # ROOK_REVISION_HISTORY_LIMIT: "3"
 
