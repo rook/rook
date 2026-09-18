@@ -25,6 +25,7 @@ import (
 
 	"github.com/pkg/errors"
 	policyv1 "k8s.io/api/policy/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -122,7 +123,7 @@ func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreLis
 				ObjectMeta: metav1.ObjectMeta{Name: pdbName, Namespace: namespace},
 			}
 			log.NamespacedInfo(namespace, logger, "deleting stale PDB %q with %d instance(s)", pdbName, rgwCount)
-			if err := r.deletePDB(stalePDB); err != nil {
+			if err := r.client.Delete(r.context.OpManagerContext, stalePDB); err != nil && !apierrors.IsNotFound(err) {
 				return errors.Wrapf(err, "failed to delete stale pdb %q", pdbName)
 			}
 			continue
@@ -178,7 +179,7 @@ func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList 
 				ObjectMeta: metav1.ObjectMeta{Name: pdbName, Namespace: namespace},
 			}
 			log.NamespacedInfo(namespace, logger, "deleting stale PDB %q", pdbName)
-			if err := r.deletePDB(stalePDB); err != nil {
+			if err := r.client.Delete(r.context.OpManagerContext, stalePDB); err != nil && !apierrors.IsNotFound(err) {
 				return errors.Wrapf(err, "failed to delete stale pdb %q", pdbName)
 			}
 			continue
