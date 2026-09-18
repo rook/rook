@@ -2550,3 +2550,47 @@ func TestGetCephVolumeRawOSDsHonorDeviceClass(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateLVMConfig(t *testing.T) {
+	originalLVMConfPath := lvmConfPath
+	defer func() { lvmConfPath = originalLVMConfPath }()
+
+	sampleConf := `udev_sync = 1
+allow_changes_with_duplicate_pvs = 0
+udev_rules = 1
+use_lvmetad = 1
+obtain_device_list_from_udev = 1
+scan = [ "/dev" ]
+	# filter = [ "a|.*|" ]
+`
+
+	setupConfFile := func(t *testing.T) {
+		t.Helper()
+		f, err := os.CreateTemp("", "lvmconf")
+		require.NoError(t, err)
+		t.Cleanup(func() { os.Remove(f.Name()) })
+		_, err = f.WriteString(sampleConf)
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+		lvmConfPath = f.Name()
+	}
+
+	t.Run("not on PVC rejects RBD devices so lvs does not block on them", func(t *testing.T) {
+		setupConfFile(t)
+		err := UpdateLVMConfig(&clusterd.Context{}, false, false)
+		require.NoError(t, err)
+		output, err := os.ReadFile(lvmConfPath)
+		require.NoError(t, err)
+		assert.Contains(t, string(output), `filter = [ "r|^/dev/rbd.*|", "a|.*|" ]`)
+	})
+
+	t.Run("on PVC does not add an RBD filter", func(t *testing.T) {
+		setupConfFile(t)
+		err := UpdateLVMConfig(&clusterd.Context{}, true, false)
+		require.NoError(t, err)
+		output, err := os.ReadFile(lvmConfPath)
+		require.NoError(t, err)
+		assert.NotContains(t, string(output), "rbd")
+		assert.Contains(t, string(output), `filter = [ "a|^/mnt/.*|", "r|.*|" ]`)
+	})
+}
