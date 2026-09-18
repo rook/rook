@@ -1,6 +1,5 @@
 name: Integration tests
 on:
-
   pull_request:
     branches:
       - master
@@ -10,7 +9,6 @@ on:
       - "design/**"
 
 defaults:
-
   run:
     # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
     shell: bash --noprofile --norc -eo pipefail -x {0}
@@ -92,11 +90,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: TestCephSmokeSuite
         uses: ./.github/workflows/integration-suites/smoke
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephObjectSuite:
     needs: build-rook-image-amd64
@@ -105,18 +107,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.32.11"]  # test only on oldest supported k8s version
+        kubernetes-version: ["v1.32.11"] # test only on oldest supported k8s version
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: TestCephObjectSuite
         uses: ./.github/workflows/integration-suites/object
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephObjectSuiteTLS:
     needs: build-rook-image-amd64
@@ -125,18 +131,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: ["v1.37.0"]  # test only on latest supported k8s version
+        kubernetes-version: ["v1.37.0"] # test only on latest supported k8s version
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: TestCephObjectSuiteTLS
         uses: ./.github/workflows/integration-suites/object-tls
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephHelmSuite:
     needs: build-rook-image-amd64
@@ -153,6 +163,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: Set up Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
@@ -162,7 +177,6 @@ jobs:
         uses: ./.github/workflows/integration-suites/helm
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephUpgradeSuite:
     needs: build-rook-image-amd64
@@ -183,11 +197,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: TestCephUpgradeSuite
         uses: ./.github/workflows/integration-suites/upgrade
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestHelmUpgradeSuite:
     needs: build-rook-image-amd64
@@ -208,6 +226,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: Set up Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
@@ -217,7 +240,6 @@ jobs:
         uses: ./.github/workflows/integration-suites/helm-upgrade
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephMultiClusterDeploySuite:
     needs: build-rook-image-amd64
@@ -233,11 +255,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: TestCephMultiClusterDeploySuite
         uses: ./.github/workflows/integration-suites/multi-cluster
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          use-tmate: ${{ secrets.USE_TMATE }}
 
   TestCephKeystoneAuthSuite:
     needs: build-rook-image-amd64
@@ -253,6 +279,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: Set up Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
@@ -262,4 +293,3 @@ jobs:
         uses: ./.github/workflows/integration-suites/keystone-auth
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
-          use-tmate: ${{ secrets.USE_TMATE }}

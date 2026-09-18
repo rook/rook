@@ -38,13 +38,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: canary
         uses: ./.github/workflows/canary-tests/canary
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   raw-disk-with-object:
@@ -60,13 +64,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: raw-disk-with-object
         uses: ./.github/workflows/canary-tests/raw-disk-with-object
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   two-osds-in-device:
@@ -82,13 +90,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: two-osds-in-device
         uses: ./.github/workflows/canary-tests/two-osds-in-device
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   osd-with-metadata-partition-device:
@@ -105,13 +117,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: osd-with-metadata-partition-device
         uses: ./.github/workflows/canary-tests/osd-with-metadata-partition-device
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   osd-with-metadata-device:
@@ -127,13 +143,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: osd-with-metadata-device
         uses: ./.github/workflows/canary-tests/osd-with-metadata-device
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   encryption:
@@ -149,13 +169,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: encryption
         uses: ./.github/workflows/canary-tests/encryption
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   lvm:
@@ -171,13 +195,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: lvm
         uses: ./.github/workflows/canary-tests/lvm
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   pvc:
@@ -193,13 +221,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: pvc
         uses: ./.github/workflows/canary-tests/pvc
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   pvc-db:
@@ -215,13 +247,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: pvc-db
         uses: ./.github/workflows/canary-tests/pvc-db
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   pvc-db-wal:
@@ -237,13 +273,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: pvc-db-wal
         uses: ./.github/workflows/canary-tests/pvc-db-wal
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   encryption-pvc:
@@ -259,13 +299,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: encryption-pvc
         uses: ./.github/workflows/canary-tests/encryption-pvc
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   encryption-pvc-db:
@@ -281,13 +325,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: encryption-pvc-db
         uses: ./.github/workflows/canary-tests/encryption-pvc-db
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   encryption-pvc-db-wal:
@@ -303,13 +351,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: encryption-pvc-db-wal
         uses: ./.github/workflows/canary-tests/encryption-pvc-db-wal
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   encryption-pvc-kms-vault-token-auth:
@@ -325,13 +377,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: encryption-pvc-kms-vault-token-auth
         uses: ./.github/workflows/canary-tests/encryption-pvc-kms-vault-token-auth
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   encryption-pvc-kms-vault-k8s-auth:
@@ -347,13 +403,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: encryption-pvc-kms-vault-k8s-auth
         uses: ./.github/workflows/canary-tests/encryption-pvc-kms-vault-k8s-auth
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   lvm-pvc:
@@ -369,13 +429,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: lvm-pvc
         uses: ./.github/workflows/canary-tests/lvm-pvc
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   multi-cluster-mirroring:
@@ -391,13 +455,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: multi-cluster-mirroring
         uses: ./.github/workflows/canary-tests/multi-cluster-mirroring
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   rgw-multisite-testing:
@@ -413,13 +481,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: rgw-multisite-testing
         uses: ./.github/workflows/canary-tests/rgw-multisite-testing
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   nvmeof-protocol:
@@ -435,13 +507,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: nvmeof-protocol
         uses: ./.github/workflows/canary-tests/nvmeof-protocol
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   encryption-pvc-kms-ibm-kp:
@@ -457,9 +533,8 @@ jobs:
           fetch-depth: 0
 
       - name: consider (pre-job) debugging
-        uses: ./.github/workflows/tmate_debug
+        uses: ./.github/workflows/upterm_debug
         with:
-          use-tmate: ${{ secrets.USE_TMATE }}
           debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: run encryption KMS IBM Key Protect
@@ -476,10 +551,6 @@ jobs:
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
 
-      - name: consider (post-job) debugging
-        uses: ./.github/workflows/upterm_debug
-        with:
-          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
   multus-public-and-cluster:
     runs-on: ubuntu-22.04
@@ -494,13 +565,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: multus-public-and-cluster
         uses: ./.github/workflows/canary-tests/multus-public-and-cluster
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
 
   two-object-one-zone:
@@ -516,11 +591,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
       - name: two-object-one-zone
         uses: ./.github/workflows/canary-tests/two-object-one-zone
         with:
           ceph-image: ${{ matrix.ceph-image }}
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
-          use-tmate: ${{ secrets.USE_TMATE }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
