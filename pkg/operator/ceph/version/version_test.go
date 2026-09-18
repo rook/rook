@@ -101,14 +101,16 @@ func TestSupported(t *testing.T) {
 	for _, v := range supportedVersions {
 		assert.True(t, v.Supported())
 	}
-	assert.False(t, Umbrella.Supported())
+	assert.False(t, (&CephVersion{22, 0, 0, 0, ""}).Supported())
 }
 
 func TestIsRelease(t *testing.T) {
 	assert.True(t, Squid.isRelease(Squid))
 	assert.True(t, Tentacle.isRelease(Tentacle))
+	assert.True(t, Umbrella.isRelease(Umbrella))
 
 	assert.False(t, Squid.isRelease(Tentacle))
+	assert.False(t, Tentacle.isRelease(Umbrella))
 
 	SquidUpdate := Squid
 	SquidUpdate.Minor = 33
@@ -119,7 +121,10 @@ func TestIsRelease(t *testing.T) {
 func TestVersionAtLeast(t *testing.T) {
 	assert.True(t, Squid.IsAtLeast(Squid))
 	assert.True(t, Tentacle.IsAtLeast(Tentacle))
+	assert.True(t, Umbrella.IsAtLeast(Umbrella))
 	assert.True(t, Tentacle.IsAtLeast(Squid))
+	assert.True(t, Umbrella.IsAtLeast(Tentacle))
+	assert.True(t, Umbrella.IsAtLeast(Squid))
 
 	assert.True(t, (&CephVersion{1, 0, 0, 0, ""}).IsAtLeast(CephVersion{0, 0, 0, 0, ""}))
 	assert.False(t, (&CephVersion{0, 0, 0, 0, ""}).IsAtLeast(CephVersion{1, 0, 0, 0, ""}))
@@ -138,8 +143,13 @@ func TestVersionAtLeast(t *testing.T) {
 func TestVersionAtLeastX(t *testing.T) {
 	assert.True(t, Squid.IsAtLeastSquid())
 	assert.False(t, Squid.IsAtLeastTentacle())
+	assert.False(t, Squid.IsAtLeastUmbrella())
 	assert.True(t, Tentacle.IsAtLeastSquid())
 	assert.True(t, Tentacle.IsAtLeastTentacle())
+	assert.False(t, Tentacle.IsAtLeastUmbrella())
+	assert.True(t, Umbrella.IsAtLeastSquid())
+	assert.True(t, Umbrella.IsAtLeastTentacle())
+	assert.True(t, Umbrella.IsAtLeastUmbrella())
 }
 
 func TestIsIdentical(t *testing.T) {
