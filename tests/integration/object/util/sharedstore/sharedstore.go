@@ -41,6 +41,15 @@ import (
 	"github.com/rook/rook/tests/integration/object/util/wait4"
 )
 
+// The shared store's zone defines two pool placements: PlacementDefault, the
+// zonegroup default, which also carries the StorageClassFoo storage class, and
+// PlacementLocA, a second target for bucket placement tests.
+const (
+	PlacementDefault = "default"
+	StorageClassFoo  = "FOO"
+	PlacementLocA    = "loc-a"
+)
+
 type Sharedstore struct {
 	adminClient *admin.API
 	snsClient   *sns.Client
@@ -182,16 +191,23 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 			SharedPools: cephv1.ObjectSharedPoolsSpec{
 				PoolPlacements: []cephv1.PoolPlacementSpec{
 					{
-						Name:             "default",
+						Name:             PlacementDefault,
 						Default:          true,
 						MetadataPoolName: storeName + ".rgw.buckets.index",
 						DataPoolName:     storeName + ".rgw.buckets.data",
 						StorageClasses: []cephv1.PlacementStorageClassSpec{
 							{
-								Name:         "FOO",
+								Name:         StorageClassFoo,
 								DataPoolName: storeName + ".rgw.buckets.data.foo",
 							},
 						},
+					},
+					{
+						// the same shared pools back this placement; RADOS
+						// namespacing keeps its data distinct
+						Name:             PlacementLocA,
+						MetadataPoolName: storeName + ".rgw.buckets.index",
+						DataPoolName:     storeName + ".rgw.buckets.data",
 					},
 				},
 			},
