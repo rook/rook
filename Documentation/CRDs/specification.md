@@ -13266,7 +13266,8 @@ int
 </td>
 <td>
 <em>(Optional)</em>
-<p>Maximum bucket limit for the ceph user</p>
+<p>Maximum bucket limit for the ceph user
+Rook applies a default limit of 1000 buckets when this is not set.</p>
 </td>
 </tr>
 <tr>
@@ -13279,7 +13280,8 @@ k8s.io/apimachinery/pkg/api/resource.Quantity
 <td>
 <em>(Optional)</em>
 <p>Maximum size limit of all objects across all the user&rsquo;s buckets
-See <a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity">https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity</a> for more info.</p>
+See <a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity">https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity</a> for more info.
+Setting this to 0 applies a limit of 0 rather than removing the quota.</p>
 </td>
 </tr>
 <tr>
@@ -13291,7 +13293,8 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>Maximum number of objects across all the user&rsquo;s buckets</p>
+<p>Maximum number of objects across all the user&rsquo;s buckets
+Setting this to 0 applies a limit of 0 rather than removing the quota.</p>
 </td>
 </tr>
 </tbody>
@@ -14066,7 +14069,9 @@ QuotaSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>The quota settings</p>
+<p>The quota settings
+Remove a quota by setting it to zero; deleting the field does not clear the
+quota on its own. See the individual fields for what removal does.</p>
 </td>
 </tr>
 <tr>
@@ -14253,7 +14258,10 @@ uint64
 <td>
 <em>(Optional)</em>
 <p>MaxBytes represents the quota in bytes
-Deprecated in favor of MaxSize</p>
+Deprecated in favor of MaxSize
+Ignored entirely while MaxSize is set.
+Set this to 0 to remove the quota; removing the field instead leaves the
+last value enforced.</p>
 </td>
 </tr>
 <tr>
@@ -14265,7 +14273,10 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>MaxSize represents the quota in bytes as a string</p>
+<p>MaxSize represents the quota in bytes as a string
+Takes precedence over MaxBytes, which is ignored while this is set.
+Set this to the string &ldquo;0&rdquo; to remove the quota; removing the field instead
+leaves the last value enforced, or applies MaxBytes when that is also set.</p>
 </td>
 </tr>
 <tr>
@@ -14277,7 +14288,9 @@ uint64
 </td>
 <td>
 <em>(Optional)</em>
-<p>MaxObjects represents the quota in objects</p>
+<p>MaxObjects represents the quota in objects
+Set this to 0 to remove the quota; removing the field instead leaves the
+last value enforced.</p>
 </td>
 </tr>
 </tbody>
