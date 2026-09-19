@@ -20,3 +20,4 @@
   reported in `status.info`. Removing either field stops Rook from managing it and leaves the last applied value in place
   on the RGW user, except that changing `defaultPlacement` without a `defaultStorageClass` resets the storage class to
   the new placement target's default.
+- OSD: `wipeDevicesFromOtherClusters` now also wipes PVC-backed encrypted devices that were formatted with LUKS but failed before completion (missing `ceph_fsid` token), allowing them to be reprovisioned cleanly. Metadata and WAL PVCs as well as host-based volumes are preserved.
