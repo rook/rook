@@ -20,3 +20,4 @@
   reported in `status.info`. Removing either field stops Rook from managing it and leaves the last applied value in place
   on the RGW user, except that changing `defaultPlacement` without a `defaultStorageClass` resets the storage class to
   the new placement target's default.
+- `CephBucketNotification` `spec.filter.metadataFilters` and `spec.filter.tagFilters` are now sent to RGW. They were previously accepted by the CRD and silently dropped, so notifications fired on objects the filters were meant to exclude.
