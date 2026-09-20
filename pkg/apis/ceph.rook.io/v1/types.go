@@ -619,6 +619,13 @@ type MonitoringSpec struct {
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
 
+	// ScrapeTimeoutSeconds determines the timeout of a prometheus scrape, in seconds. It must
+	// not be greater than the scrape interval. Defaults to the Prometheus global scrape timeout
+	// when unset.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	ScrapeTimeoutSeconds int64 `json:"scrapeTimeoutSeconds,omitempty"`
+
 	// MetricsTLS configures native HTTPS for the MGR Prometheus metrics endpoint.
 	// Requires Ceph with prometheus module TLS support: https://github.com/ceph/ceph/pull/70989
 	// Rook mounts a Kubernetes TLS Secret into the mgr pod and configures the module.

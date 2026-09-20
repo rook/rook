@@ -3205,6 +3205,14 @@ spec:
                       maximum: 65535
                       minimum: 0
                       type: integer
+                    scrapeTimeoutSeconds:
+                      description: |-
+                        ScrapeTimeoutSeconds determines the timeout of a prometheus scrape, in seconds. It must
+                        not be greater than the scrape interval. Defaults to the Prometheus global scrape timeout
+                        when unset.
+                      format: int64
+                      minimum: 1
+                      type: integer
                   type: object
                 network:
                   description: Network related configuration
