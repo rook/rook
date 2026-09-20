@@ -6,6 +6,11 @@
 - The OSD prepare job now fails, and is retried by Kubernetes, when a freshly prepared device is
   missing from the `ceph-volume raw list` output, instead of silently reporting fewer OSDs than
   were prepared (which left OSDs registered in the osdmap with no OSD deployment created).
+- Rook now replaces the dashboard's per-realm RGW credential map (`RGW_API_ACCESS_KEY` and
+  `RGW_API_SECRET_KEY` holding `{realm: key}`) with the single credential pair it shares across
+  every object store's `dashboard-admin` user, instead of storing that map as a user's access and
+  secret key. A `dashboard-admin` whose keys are the map is recreated. Per-realm dashboard
+  credentials configured by hand are overwritten.
 
 ## Features
 
