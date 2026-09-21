@@ -41,7 +41,7 @@ jobs:
 
         # docker/setup-qemu action installs QEMU static binaries, which are used to run builders for architectures other than the host.
       - name: set up QEMU
-        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # master
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # master
         with:
           platforms: all
 
