@@ -17,12 +17,12 @@ The default upstream images are included below, which can be customized to the d
 
 ```yaml
 plugin: "quay.io/cephcsi/cephcsi:v3.17.1"
-provisioner: "registry.k8s.io/sig-storage/csi-provisioner:v6.2.0"
-attacher: "registry.k8s.io/sig-storage/csi-attacher:v4.12.0"
-resizer: "registry.k8s.io/sig-storage/csi-resizer:v2.1.0"
-snapshotter: "registry.k8s.io/sig-storage/csi-snapshotter:v8.5.0"
-registrar: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.17.0"
-addons: "quay.io/csiaddons/k8s-sidecar:v0.14.0"
+provisioner: "registry.k8s.io/sig-storage/csi-provisioner:v6.3.0"
+attacher: "registry.k8s.io/sig-storage/csi-attacher:v4.13.0"
+resizer: "registry.k8s.io/sig-storage/csi-resizer:v2.2.1"
+snapshotter: "registry.k8s.io/sig-storage/csi-snapshotter:v8.6.0"
+registrar: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.18.0"
+addons: "quay.io/csiaddons/k8s-sidecar:v0.15.1"
 ```
 
 When using Helm, the images are configured under the `csi` section of `values.yaml`
