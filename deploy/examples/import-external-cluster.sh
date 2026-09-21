@@ -158,7 +158,7 @@ function importSecret() {
       patch \
       secret \
       "$MON_SECRET_NAME" \
-      -p "{\"stringData\":{\"$MON_SECRET_CEPH_USERNAME_KEYNAME\":\"$userID\",\"$MON_SECRET_CEPH_SECRET_KEYNAME\":\"$ROOK_EXTERNAL_USER_SECRET\"}}"
+      -p "{\"stringData\":{\"$MON_SECRET_CEPH_USERNAME_KEYNAME\":\"$userID\"}}"
   fi
 }
 
