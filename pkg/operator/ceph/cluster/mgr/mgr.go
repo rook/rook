@@ -604,20 +604,6 @@ func wellKnownModule(name string) bool {
 	return slices.Contains(knownModules, name)
 }
 
-// applyMonitoringTimingToServiceMonitor sets the scrape interval and timeout on the ServiceMonitor endpoint.
-// Both are left untouched when unset, so Prometheus applies its own global defaults.
-func applyMonitoringTimingToServiceMonitor(monitoring cephv1.MonitoringSpec, serviceMonitor *monitoringv1.ServiceMonitor) {
-	if len(serviceMonitor.Spec.Endpoints) == 0 {
-		return
-	}
-	if monitoring.Interval != nil {
-		serviceMonitor.Spec.Endpoints[0].Interval = monitoringv1.Duration(monitoring.Interval.Duration.String())
-	}
-	if monitoring.ScrapeTimeoutSeconds > 0 {
-		serviceMonitor.Spec.Endpoints[0].ScrapeTimeout = monitoringv1.Duration(fmt.Sprintf("%ds", monitoring.ScrapeTimeoutSeconds))
-	}
-}
-
 // EnableServiceMonitor adds a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster
 func (c *Cluster) EnableServiceMonitor() error {
 	serviceMonitor := k8sutil.GetServiceMonitor(AppName, c.clusterInfo.Namespace, serviceMonitorPort)
@@ -626,7 +612,7 @@ func (c *Cluster) EnableServiceMonitor() error {
 	if c.spec.External.Enable {
 		serviceMonitor.Spec.Endpoints[0].Port = controller.ServiceExternalMetricName
 	}
-	applyMonitoringTimingToServiceMonitor(c.spec.Monitoring, serviceMonitor)
+	k8sutil.ApplyMonitoringTiming(c.spec.Monitoring, serviceMonitor)
 
 	c.applyMetricsTLSToServiceMonitor(serviceMonitor)
 	err := c.clusterInfo.OwnerInfo.SetControllerReference(serviceMonitor)
