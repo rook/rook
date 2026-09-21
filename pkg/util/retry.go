@@ -17,17 +17,24 @@ limitations under the License.
 package util
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
 )
 
-// Retry will attempt the given function until it succeeds, up to the given maximum amount of retries,
-// sleeping for the given duration in between attempts.
-func Retry(maxRetries int, delay time.Duration, f func() error) error {
+// RetryWithContext will attempt the given function until it succeeds, up to the given maximum amount of retries,
+// sleeping for the given duration in between attempts. It aborts as soon as ctx is cancelled instead of consuming
+// the full retry budget and returns ctx.Err() on cancellation.
+func RetryWithContext(ctx context.Context, maxRetries int, delay time.Duration, f func() error) error {
 	tries := 0
 	for {
+		// Don't start another attempt if context has already been cancelled.
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		err := f()
 		if err == nil {
 			// function succeeded, all done
@@ -36,11 +43,15 @@ func Retry(maxRetries int, delay time.Duration, f func() error) error {
 
 		tries++
 		if tries > maxRetries {
-			return fmt.Errorf("max retries exceeded, last err: %v", err)
+			return fmt.Errorf("max retries exceeded, last err: %w", err)
 		}
 
 		logger.Infof("retrying after %v, last error: %v", delay, err)
-		<-time.After(delay)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
+		}
 	}
 }
 
