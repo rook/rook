@@ -463,31 +463,31 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 	output = bytes.Replace(output, []byte("use_lvmetad = 1"), []byte("use_lvmetad = 0"), 1)
 	output = bytes.Replace(output, []byte("obtain_device_list_from_udev = 1"), []byte("obtain_device_list_from_udev = 0"), 1)
 
+	var filter []byte
+
 	// When running on PVC
 	if onPVC {
 		output = bytes.Replace(output, []byte(`scan = [ "/dev" ]`), []byte(`scan = [ "/dev", "/mnt" ]`), 1)
 		// Only filter blocks in /mnt, when running on PVC we copy the PVC claim path to /mnt
 		// And reject everything else
-		// We have 2 different regex depending on the version of LVM present in the container...
-		// Since https://github.com/lvmteam/lvm2/commit/08396b4bce45fb8311979250623f04ec0ddb628c#diff-13c602a6258e57ce666a240e67c44f38
-		// the content changed, so depending on which version is installed one of the two replacements will work
 		if lvBackedPV {
-			// ceph-volume calls lvs to locate given "vg/lv", so allow "/dev" here. However, ignore loopback devices
-			output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|^/dev/loop.*|", "a|^/dev/.*|", "r|.*|" ]`), 1)
-			output = bytes.Replace(output, []byte(`# filter = [ "a|.*|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|^/dev/loop.*|", "a|^/dev/.*|", "r|.*|" ]`), 1)
+			// ceph-volume calls lvs to locate given "vg/lv", so allow "/dev" here.
+			// However, ignore loopback and rbd devices
+			filter = []byte(`filter = [ "a|^/mnt/.*|", "r|^/dev/loop.*|", "r|^/dev/rbd.*|", "a|^/dev/.*|", "r|.*|" ]`)
 		} else {
-			output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|.*|" ]`), 1)
-			output = bytes.Replace(output, []byte(`# filter = [ "a|.*|" ]`), []byte(`filter = [ "a|^/mnt/.*|", "r|.*|" ]`), 1)
+			filter = []byte(`filter = [ "a|^/mnt/.*|", "r|.*|" ]`)
 		}
 	} else {
 		// Reject RBD devices so that "lvs" does not scan them. When other OSDs are down (e.g. after
 		// a network outage), reads to mapped RBD devices can block indefinitely, which puts "lvs" in
 		// uninterruptible sleep (D state) and deadlocks OSD provisioning.
-		// We have 2 different regex depending on the version of LVM present in the container,
-		// see the comment above for the on-PVC case.
-		output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), []byte(`filter = [ "r|^/dev/rbd.*|", "a|.*/|" ]`), 1)
-		output = bytes.Replace(output, []byte(`# filter = [ "a|.*|" ]`), []byte(`filter = [ "r|^/dev/rbd.*|", "a|.*|" ]`), 1)
+		filter = []byte(`filter = [ "r|^/dev/rbd.*|", "a|.*|" ]`)
 	}
+	// We have 2 different regex depending on the version of LVM present in the container...
+	// Since https://github.com/lvmteam/lvm2/commit/08396b4bce45fb8311979250623f04ec0ddb628c#diff-13c602a6258e57ce666a240e67c44f38
+	// the content changed, so depending on which version is installed one of the two replacements will work
+	output = bytes.Replace(output, []byte(`# filter = [ "a|.*/|" ]`), filter, 1)
+	output = bytes.Replace(output, []byte(`# filter = [ "a|.*|" ]`), filter, 1)
 
 	// #nosec G703 -- lvmConfPath is a hard-coded constant, not user input
 	if err = os.WriteFile(lvmConfPath, output, 0o600); err != nil {

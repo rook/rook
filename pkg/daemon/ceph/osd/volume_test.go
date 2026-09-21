@@ -2593,4 +2593,13 @@ scan = [ "/dev" ]
 		assert.NotContains(t, string(output), "rbd")
 		assert.Contains(t, string(output), `filter = [ "a|^/mnt/.*|", "r|.*|" ]`)
 	})
+
+	t.Run("LV-backed PVCs reject loopback and RBD devices", func(t *testing.T) {
+		setupConfFile(t)
+		err := UpdateLVMConfig(&clusterd.Context{}, true, true)
+		require.NoError(t, err)
+		output, err := os.ReadFile(lvmConfPath)
+		require.NoError(t, err)
+		assert.Contains(t, string(output), `filter = [ "a|^/mnt/.*|", "r|^/dev/loop.*|", "r|^/dev/rbd.*|", "a|^/dev/.*|", "r|.*|" ]`)
+	})
 }
