@@ -151,7 +151,7 @@ func OkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, d
 	//  - mon: the is done in the monitor code since it ensures all the mons are always in quorum before continuing
 	//  - rgw: the pod spec has a liveness probe so if the pod successfully start
 	//  - rbdmirror: you can chain as many as you want like mdss but there is no ok-to-stop logic yet
-	err = util.Retry(okToStopRetries, okToStopDelay, func() error {
+	err = util.RetryWithContext(clusterInfo.Context, okToStopRetries, okToStopDelay, func() error {
 		return okToStopDaemon(context, clusterInfo, deployment, daemonType, daemonName)
 	})
 	if err != nil {
@@ -199,7 +199,7 @@ func okToStopDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, deploym
 func okToContinueMDSDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, daemonType, daemonName string) error {
 	// wait for the MDS to be active again or in standby-replay
 	retries, delay := getRetryConfig(clusterInfo, "mds")
-	err := util.Retry(retries, delay, func() error {
+	err := util.RetryWithContext(clusterInfo.Context, retries, delay, func() error {
 		return MdsActiveOrStandbyReplay(context, clusterInfo, findFSName(deployment))
 	})
 	if err != nil {
