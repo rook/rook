@@ -2,8 +2,10 @@ package bucket
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 
+	"github.com/aws/smithy-go"
 	"github.com/ceph/go-ceph/rgw/admin"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
@@ -50,15 +52,46 @@ func (b *bucket) getUserCreds() (accessKeyID, secretAccessKey string, err error)
 	return
 }
 
-func (p *Provisioner) bucketExists(name string) (bool, string, error) {
+// bucketExists returns whether the named bucket exists, and its bucket info
+// (owner, placement rule, etc.) when it does.
+func (p *Provisioner) bucketExists(name string) (bool, *admin.Bucket, error) {
 	bucket, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchBucket) {
-			return false, "", nil
+			return false, nil, nil
 		}
-		return false, "", errors.Wrapf(err, "failed to get ceph bucket %q", name)
+		return false, nil, errors.Wrapf(err, "failed to get ceph bucket %q", name)
 	}
-	return true, bucket.Owner, nil
+	return true, &bucket, nil
+}
+
+// placementRefusals are the S3 error codes with which RGW refuses a requested
+// placement or storage class at CreateBucket: an unknown target or class, a
+// target the owner's placement tags do not permit, and an existing bucket
+// whose placement the request would change.
+var placementRefusals = []string{
+	"InvalidLocationConstraint",
+	"IllegalLocationConstraintException",
+	"AccessDenied",
+	"BucketAlreadyExists",
+}
+
+// createBucket creates the bucket as the OBC's user on its requested
+// placement and storage class, recording RGW's refusal of either on the OBC.
+// Any other failure, RGW's or the network's, is returned without an Event.
+func (p *Provisioner) createBucket(bucket *bucket) error {
+	additionalConfig := bucket.additionalConfig
+	err := p.s3Agent.CreateBucketWithPlacement(p.clusterInfo.Context, p.bucketName, additionalConfig.bucketPlacement, additionalConfig.bucketStorageClass)
+	if err == nil {
+		return nil
+	}
+	err = errors.Wrapf(err, "error creating bucket %q", p.bucketName)
+	var apiErr smithy.APIError
+	if (additionalConfig.bucketPlacement != "" || additionalConfig.bucketStorageClass != "") &&
+		errors.As(err, &apiErr) && slices.Contains(placementRefusals, apiErr.ErrorCode()) {
+		p.recordWarning(bucket.options.ObjectBucketClaim, EventReasonBucketPlacementRejected, actionProvision, err.Error())
+	}
+	return err
 }
 
 // Create a Ceph user based on the passed-in name or a generated name. Return the
