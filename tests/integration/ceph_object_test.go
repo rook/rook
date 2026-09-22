@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 	bucketlifecycle "github.com/rook/rook/tests/integration/object/bucket/lifecycle"
 	bucketowner "github.com/rook/rook/tests/integration/object/bucket/owner"
+	bucketplacement "github.com/rook/rook/tests/integration/object/bucket/placement"
 	bucketpolicy "github.com/rook/rook/tests/integration/object/bucket/policy"
 	bucketquota "github.com/rook/rook/tests/integration/object/bucket/quota"
 	bucketrw "github.com/rook/rook/tests/integration/object/bucket/rw"
@@ -123,6 +124,7 @@ func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.
 
 	zonepools.TestZonePools(t, k8sh, sharedObjectStore)
 	bucketlifecycle.TestObjectBucketClaimLifecycle(t, k8sh, sharedObjectStore)
+	bucketplacement.TestObjectBucketClaimPlacement(t, k8sh, sharedObjectStore)
 	bucketowner.TestObjectBucketClaimBucketOwner(t, k8sh, sharedObjectStore)
 	bucketpolicy.TestObjectBucketClaimPolicy(t, k8sh, sharedObjectStore)
 	bucketquota.TestObjectBucketClaimQuota(t, k8sh, sharedObjectStore)
