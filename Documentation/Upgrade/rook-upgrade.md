@@ -14,7 +14,7 @@ We welcome feedback and opening issues!
 
 ## Supported Versions
 
-This guide is for upgrading from **Rook v1.19.x to Rook v1.20.x**.
+This guide is for upgrading from **Rook v1.20.x to Rook v1.21.x**.
 
 Please refer to the upgrade guides from previous releases for supported upgrade paths.
 Rook upgrades are only supported between official releases.
@@ -22,6 +22,7 @@ Rook upgrades are only supported between official releases.
 For a guide to upgrade previous versions of Rook, please refer to the version of documentation for
 those releases.
 
+* [Upgrade 1.19 to 1.20](https://rook.io/docs/rook/v1.20/Upgrade/rook-upgrade/)
 * [Upgrade 1.18 to 1.19](https://rook.io/docs/rook/v1.19/Upgrade/rook-upgrade/)
 * [Upgrade 1.17 to 1.18](https://rook.io/docs/rook/v1.18/Upgrade/rook-upgrade/)
 * [Upgrade 1.16 to 1.17](https://rook.io/docs/rook/v1.17/Upgrade/rook-upgrade/)
@@ -34,13 +35,15 @@ those releases.
     official releases. Builds from the master branch can have functionality changed or removed at any
     time without compatibility support and without prior notice.
 
-## Breaking changes in v1.20
+## Breaking changes in v1.21
 
-* **CSI drivers are admin-managed via the ceph-csi-operator.** Rook no longer deploys CSI
-    drivers. Existing CSI settings that were configured through the `rook-ceph-operator-config`
-    ConfigMap must be migrated to the ceph-csi-operator resources. The following sections will guide
-    you through this conversion.
-
+* Helm OCI chart tags no longer include the `v` prefix (e.g., `1.21.0` instead of `v1.21.0`). Update any scripts or tooling that reference the chart by tag.
+* Ceph msgrv2 is required by default.
+    * Msgrv2 requires the 5.11 kernel. If you have an older kernel, disable the msgrv2 protocol
+        with the CephCluster CR setting `network.connections.requireMsgr2: false`. If using the helm chart, this same value is applied
+        under the `cephClusterSpec` of the values.
+    * To preserve compatibility, existing volume mounts will continue to use the msgrv1 protocol until they are drained and remounted.
+    * Ceph mons will not exclusively require msgrv2 until new mons are deployed during mon failover.
 * The minimum supported Kubernetes version is v1.32.
 
 ## Considerations
@@ -57,24 +60,24 @@ With this upgrade guide, there are a few notes to consider:
 
 Unless otherwise noted due to extenuating requirements, upgrades from one patch release of Rook to
 another are as simple as updating the common resources and the image of the Rook operator. For
-example, when Rook v1.20.1 is released, the process of updating from v1.20.0 is as simple as running
+example, when Rook v1.21.1 is released, the process of updating from v1.21.0 is as simple as running
 the following:
 
 ```console
-git clone --single-branch --depth=1 --branch v1.20.1 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.21.1 https://github.com/rook/rook.git
 cd rook/deploy/examples
 ```
 
 If the Rook Operator or CephCluster are deployed into a different namespace than
-`rook-ceph`, see the [Update common resources and CRDs](#2-update-common-resources-and-crds)
+`rook-ceph`, see the [Update common resources and CRDs](#1-update-common-resources-and-crds)
 section for instructions on how to change the default namespaces in `common.yaml`.
 
-Then, apply the latest changes from v1.20, update CSI operator resources, and update the Rook
+Then, apply the latest changes from v1.21, update CSI operator resources, and update the Rook
 Operator image.
 
 ```console
 kubectl apply -f common.yaml -f crds.yaml -f csi-operator.yaml
-kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.20.1
+kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.21.1
 ```
 
 A good practice is to update Rook common resources from the example
@@ -112,7 +115,6 @@ To apply custom configuration to the ceph-csi-operator subchart, see the
 [ceph-csi-operator configuration reference](https://github.com/ceph/ceph-csi-operator/blob/main/docs/helm-charts/operator-chart.md#configuration). Settings for the subchart need to be included in the
 `ceph-csi-operator` section of values.yaml when creating or updating the `rook-ceph` chart.
 See the default settings applied by Rook in [values.yaml](https://github.com/rook/rook/blob/release-1.20/deploy/charts/rook-ceph/values.yaml#L86).
-
 
 ### `ceph-csi-drivers` Chart
 
@@ -160,31 +162,7 @@ export ROOK_OPERATOR_NAMESPACE=rook-ceph
 export ROOK_CLUSTER_NAMESPACE=rook-ceph
 ```
 
-### **1. Save existing CSI settings**
-
-If custom CSI settings are required, in previous releases they were applied in the ConfigMap `rook-ceph-operator-config`
-as defined in `operator.yaml`, or in the `rook-ceph` helm chart. Starting in Rook v1.18, Rook
-converted these Rook settings in the Ceph-CSI operator settings and automatically created the
-`OperatorConfig` and `Driver` CRs.
-
-Before upgrading to v1.20, retrieve these CRs to get your desired settings, to ensure they are
-preserved after the upgrade.
-
-```console
-kubectl -n $ROOK_OPERATOR_NAMESPACE get drivers.csi.ceph.io -o yaml > preupgrade-drivers.yaml
-kubectl -n $ROOK_OPERATOR_NAMESPACE get operatorconfigs.csi.ceph.io -o yaml > preupgrade-opconfig.yaml
-```
-
-For **manifest installs**, the default CSI settings are included in `operator.yaml`. Since the upgrade
-steps do not fully apply this yaml, all CSI settings will be preserved and there is no further action needed
-for CSI settings after the upgrade. However, if `operator.yaml` is ever fully applied, the default
-CSI settings will be applied unless the settings are first updated in that yaml.
-
-For **Helm installs**, the settings are all applied by the new [`ceph-csi-drivers`](../Helm-Charts/csi-drivers-chart.md) chart,
-as mentioned in a previous section. Compare that the helm drivers chart creates the desired
-settings compared to your previous settings.
-
-### **2. Update common resources and CRDs**
+### **1. Update common resources and CRDs**
 
 !!! hint
     Common resources and CRDs are automatically updated when using Helm charts.
@@ -228,19 +206,19 @@ upgrade the Prometheus RBAC resources:
 kubectl apply -f deploy/examples/monitoring/rbac.yaml
 ```
 
-### **3. Update the Rook Operator**
+### **2. Update the Rook Operator**
 
 !!! hint
     The operator is automatically updated when using Helm charts.
 
-The largest portion of the upgrade is triggered when the operator's image is updated to `v1.20.x`.
+The largest portion of the upgrade is triggered when the operator's image is updated to `v1.21.x`.
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```console
 kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.21.0-beta.0
 ```
 
-### **4. Update Ceph CSI Custom Images**
+### **3. Update Ceph CSI Custom Images**
 
 !!! hint
     This is automatically updated if custom CSI image versions are not set.
@@ -248,7 +226,7 @@ kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-cep
 Update to the latest Ceph-CSI drivers if custom CSI images are specified.
 See the [CSI Custom Images](../Storage-Configuration/Ceph-CSI/custom-images.md) documentation.
 
-### **5. Wait for the upgrade to complete**
+### **4. Wait for the upgrade to complete**
 
 Watch now in amazement as the Ceph mons, mgrs, OSDs, rbd-mirrors, MDSes and RGWs are terminated and
 replaced with updated versions in sequence. The cluster may be unresponsive very briefly as mons update,
@@ -287,7 +265,7 @@ This cluster is finished:
   rook-version=v1.21.0-beta.0
 ```
 
-### **6. Verify the updated cluster**
+### 5. Verify the updated cluster**
 
 At this point, the Rook operator should be running version `rook/ceph:v1.21.0-beta.0`.
 
