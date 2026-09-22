@@ -3214,6 +3214,9 @@ spec:
                       minimum: 1
                       type: integer
                   type: object
+                  x-kubernetes-validations:
+                    - message: scrapeTimeoutSeconds must not be greater than interval
+                      rule: '!has(self.interval) || !has(self.scrapeTimeoutSeconds) || duration(self.interval).getSeconds() >= self.scrapeTimeoutSeconds'
                 network:
                   description: Network related configuration
                   nullable: true

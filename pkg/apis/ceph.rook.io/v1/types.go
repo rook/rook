@@ -587,6 +587,7 @@ type DashboardSpec struct {
 }
 
 // MonitoringSpec represents the settings for Prometheus based Ceph monitoring
+// +kubebuilder:validation:XValidation:message="scrapeTimeoutSeconds must not be greater than interval",rule="!has(self.interval) || !has(self.scrapeTimeoutSeconds) || duration(self.interval).getSeconds() >= self.scrapeTimeoutSeconds"
 type MonitoringSpec struct {
 	// Enabled determines whether to create the prometheus rules for the ceph cluster. If true, the prometheus
 	// types must exist or the creation will fail. Default is false.

@@ -335,10 +335,6 @@ func preClusterStartValidation(cluster *cluster) error {
 		return errors.Wrapf(err, "failed to validate network spec for cluster in namespace %q", cluster.Namespace)
 	}
 
-	if err := cephv1.ValidateMonitoringSpec(cluster.Spec.Monitoring); err != nil {
-		return errors.Wrapf(err, "failed to validate monitoring spec for cluster in namespace %q", cluster.Namespace)
-	}
-
 	// Validate on-PVC cluster encryption KMS settings
 	if cluster.Spec.Storage.IsOnPVCEncrypted() && cluster.Spec.Security.KeyManagementService.IsEnabled() {
 		// Validate the KMS details
