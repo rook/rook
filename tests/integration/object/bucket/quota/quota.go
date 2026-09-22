@@ -46,18 +46,6 @@ const (
 	key4 = "obj4"
 )
 
-// obAdditionalConfig returns a predicate matching an ObjectBucket whose endpoint
-// additionalConfig has key set to value, the sign that the provisioner has applied
-// a quota change to the backing bucket.
-func obAdditionalConfig(key, value string) func(*bktv1alpha1.ObjectBucket) bool {
-	return func(ob *bktv1alpha1.ObjectBucket) bool {
-		if ob.Spec.Connection == nil || ob.Spec.Connection.Endpoint == nil {
-			return false
-		}
-		return ob.Spec.Connection.Endpoint.AdditionalConfigData[key] == value
-	}
-}
-
 // requireQuotaEnforced waits until putting key into bucket is rejected. rgw
 // enforces user quota against per-instance cached stats, so enforcement can lag
 // recent writes; an unexpectedly-successful put is deleted so the next attempt
@@ -142,7 +130,7 @@ func TestObjectBucketClaimQuota(t *testing.T, k8sh *utils.K8sHelper, store *shar
 			})
 
 			wait4.RequireCondition(ctx, t, obClient, liveObc1.Spec.ObjectBucketName,
-				obAdditionalConfig("maxObjects", "3"), wait4.TimeoutShort)
+				wait4.OBAdditionalConfig("maxObjects", "3"), wait4.TimeoutShort)
 		})
 
 		t.Run(fmt.Sprintf("raised maxObjects quota admits object %q", key3), func(t *testing.T) {
@@ -186,7 +174,7 @@ func TestObjectBucketClaimQuota(t *testing.T, k8sh *utils.K8sHelper, store *shar
 			})
 
 			wait4.RequireCondition(ctx, t, obClient, liveObc2.Spec.ObjectBucketName,
-				obAdditionalConfig("bucketMaxSize", "4Ki"), wait4.TimeoutShort)
+				wait4.OBAdditionalConfig("bucketMaxSize", "4Ki"), wait4.TimeoutShort)
 		})
 
 		t.Run(fmt.Sprintf("bucketMaxSize quota is enforced on obc %q", obc2.Name), func(t *testing.T) {
