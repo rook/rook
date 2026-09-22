@@ -104,37 +104,37 @@ csi:
     # -- Kubernetes CSI registrar image repository
     repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
     # -- Registrar image tag
-    tag: v2.17.0
+    tag: v2.18.0
 
   provisioner:
     # -- Kubernetes CSI provisioner image repository
     repository: registry.k8s.io/sig-storage/csi-provisioner
     # -- Provisioner image tag
-    tag: v6.2.0
+    tag: v6.3.0
 
   snapshotter:
     # -- Kubernetes CSI snapshotter image repository
     repository: registry.k8s.io/sig-storage/csi-snapshotter
     # -- Snapshotter image tag
-    tag: v8.5.0
+    tag: v8.6.0
 
   attacher:
     # -- Kubernetes CSI Attacher image repository
     repository: registry.k8s.io/sig-storage/csi-attacher
     # -- Attacher image tag
-    tag: v4.12.0
+    tag: v4.13.0
 
   resizer:
     # -- Kubernetes CSI resizer image repository
     repository: registry.k8s.io/sig-storage/csi-resizer
     # -- Resizer image tag
-    tag: v2.1.0
+    tag: v2.2.1
 
   csiAddons:
     # -- CSIAddons sidecar image repository
     repository: quay.io/csiaddons/k8s-sidecar
     # -- CSIAddons sidecar image tag
-    tag: v0.14.0
+    tag: v0.15.1
 
   serviceMonitor:
     # -- Enable ServiceMonitor for CSI metrics
