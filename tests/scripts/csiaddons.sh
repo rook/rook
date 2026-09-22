@@ -16,7 +16,7 @@
 
 set -xEo pipefail
 
-CSIADDONS_VERSION="v0.14.0"
+CSIADDONS_VERSION="v0.15.1"
 CSIADDONS_CRD_NAME="csiaddonsnodes.csiaddons.openshift.io"
 CSIADDONS_CONTAINER_NAME="csi-addons"
 
@@ -29,7 +29,7 @@ function setup_csiaddons() {
   kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/setup-controller.yaml
 
   echo "enabling csi-addons"
-  kubectl patch cm rook-ceph-operator-config -n rook-ceph --type merge -p '{"data":{"CSI_ENABLE_CSIADDONS":"true"}}'
+  kubectl patch operatorconfig ceph-csi-operator-config -n rook-ceph --type merge -p '{"spec":{"driverSpecDefaults":{"deployCsiAddons":true}}}'
 
   echo "Successfully created CSI-Addons"
 }
