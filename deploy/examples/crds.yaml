@@ -17703,9 +17703,9 @@ spec:
               type: object
               x-kubernetes-validations:
                 - message: bucketName is immutable once set
-                  rule: '!has(oldSelf.bucketName) || self.bucketName == oldSelf.bucketName'
+                  rule: '!has(oldSelf.bucketName) || oldSelf.bucketName == "" || self.bucketName == oldSelf.bucketName'
                 - message: generateBucketName is immutable once set
-                  rule: '!has(oldSelf.generateBucketName) || self.generateBucketName == oldSelf.generateBucketName'
+                  rule: '!has(oldSelf.generateBucketName) || oldSelf.generateBucketName == "" || self.generateBucketName == oldSelf.generateBucketName'
             status:
               description: ObjectBucketClaimStatus defines the observed state of ObjectBucketClaim
               properties:
