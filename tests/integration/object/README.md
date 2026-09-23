@@ -46,6 +46,7 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `user/opmask` | `object/user` | user op_mask |
 | `user/placement` | `object/user` | user defaultPlacement, including its unmanaged-on-removal semantics |
 | `user/storageclass` | `object/user` | user defaultStorageClass, verified on a bucket the user creates |
+| `user/tenant` | `object/user` | user tenant addressing (`<tenant>$<name>`) and isolation from the default tenant |
 | `zonepools` | `object` | zone.json pool fields covered by Rook's shared-pool mapping |
 
 Shared utilities live under `util/`:

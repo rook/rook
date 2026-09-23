@@ -433,8 +433,8 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	log.NamedInfo(nsName, logger, "creating ceph object user")
 
 	logCreateOrUpdate := fmt.Sprintf("retrieved existing ceph object user %q", u.Name)
-	// lookup user by name only and not by access key
-	liveUser, err := r.objContext.AdminOpsClient.GetUser(r.opManagerContext, admin.User{ID: u.Name})
+	// lookup user by its combined tenant$name identity, not by access key
+	liveUser, err := r.objContext.AdminOpsClient.GetUser(r.opManagerContext, admin.User{ID: rgwUserID(u)})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			liveUser, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, *targetUser)
@@ -445,6 +445,10 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		} else {
 			return nil, errors.Wrapf(err, "failed to get details from ceph object user %q", u.Name)
 		}
+	}
+
+	if err := verifyLiveUserTenant(u, &liveUser); err != nil {
+		return nil, err
 	}
 
 	// Update simple scalar fields supported by admin.ModifyUser() excluding keys, as this method is unable to handle multiple keys.
@@ -496,7 +500,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		}
 	}
 	userQuota := admin.QuotaSpec{
-		UID:        u.Name,
+		UID:        rgwUserID(u),
 		Enabled:    &quotaEnabled,
 		MaxSize:    &maxSize,
 		MaxObjects: &maxObjects,
@@ -517,7 +521,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		log.NamedDebug(nsName, logger, "reducing user %q from %d keypairs to 1", u.Name, len(liveUser.Keys))
 	}
 
-	if err := r.reconcileUserKeys(nsName, targetUser.Keys); err != nil {
+	if err := r.reconcileUserKeys(nsName, rgwUserID(u), targetUser.Keys); err != nil {
 		return nil, errors.Wrapf(err, "failed to reconcile keys for user %q", u.Name)
 	}
 	log.NamedInfo(nsName, logger, "%s", logCreateOrUpdate)
@@ -579,6 +583,48 @@ type squidPlacementEncodingStillNeeded [19 - cephver.MinimumMajor]struct{}
 
 var _ squidPlacementEncodingStillNeeded
 
+// rgwUserID returns the identity used to address the RGW user in every Admin
+// Ops API call: the bare name, or the combined "<tenant>$<name>" form when
+// the user belongs to a tenant. The Admin Ops API accepts a separate tenant
+// parameter only on user create (go-ceph's admin.User.Tenant field is
+// silently dropped by GetUser/ModifyUser/RemoveUser), so addressing by this
+// combined ID is required for every call, not just create: a bare uid
+// otherwise resolves to a same-named user in the default tenant.
+func rgwUserID(u *cephv1.CephObjectStoreUser) string {
+	if u.Spec.Tenant == "" {
+		return u.Name
+	}
+	return u.Spec.Tenant + "$" + u.Name
+}
+
+// splitTenantAndName splits an RGW user ID of the combined "<tenant>$<name>"
+// form into its parts. A bare (untenanted) ID returns an empty tenant.
+func splitTenantAndName(userID string) (tenant, name string) {
+	if i := strings.Index(userID, "$"); i != -1 {
+		return userID[:i], userID[i+1:]
+	}
+	return "", userID
+}
+
+// verifyLiveUserTenant is the safety backstop against adopting or deleting an
+// RGW user that spec does not name. Tenant isolation itself comes from
+// addressing every Admin Ops call by the combined "<tenant>$<name>" ID.
+//
+// The Admin Ops API reports the tenant in a separate "tenant" field and
+// returns the bare name in "user_id", and go-ceph's admin.User does not decode
+// "tenant". A bare live ID therefore carries no tenant information and is
+// accepted on its name alone; a combined live ID must match the spec tenant.
+func verifyLiveUserTenant(u *cephv1.CephObjectStoreUser, liveUser *admin.User) error {
+	liveTenant, liveName := splitTenantAndName(liveUser.ID)
+	if liveName != u.Name {
+		return errors.Errorf("live ceph object user %q does not match expected user %q", liveUser.ID, rgwUserID(u))
+	}
+	if strings.Contains(liveUser.ID, "$") && liveTenant != u.Spec.Tenant {
+		return errors.Errorf("live ceph object user %q belongs to tenant %q, expected tenant %q", liveUser.ID, liveTenant, u.Spec.Tenant)
+	}
+	return nil
+}
+
 func generateUserConfig(user *cephv1.CephObjectStoreUser, cephVersion cephver.CephVersion) (*admin.User, error) {
 	// Set DisplayName to match Name if DisplayName is not set
 	displayName := user.Spec.DisplayName
@@ -588,7 +634,7 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser, cephVersion cephver.Ce
 
 	// create the user
 	userConfig := &admin.User{
-		ID:          user.Name,
+		ID:          rgwUserID(user),
 		DisplayName: displayName,
 		Keys:        make([]admin.UserKeySpec, 0),
 	}
@@ -805,7 +851,7 @@ func clusterStoreNamespace(user *cephv1.CephObjectStoreUser) string {
 // Delete the user
 func (r *ReconcileObjectStoreUser) deleteUser(u *cephv1.CephObjectStoreUser) error {
 	nsName := opcontroller.NsName(u.Namespace, u.Name)
-	err := r.objContext.AdminOpsClient.RemoveUser(r.opManagerContext, admin.User{ID: u.Name})
+	err := r.objContext.AdminOpsClient.RemoveUser(r.opManagerContext, admin.User{ID: rgwUserID(u)})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			log.NamedWarning(nsName, logger, "user does not exist, nothing to remove")
@@ -981,10 +1027,10 @@ func (r *ReconcileObjectStoreUser) getSecretValue(selector *corev1.SecretKeySele
 }
 
 // reconcileUserKeys ensures the user's RGW keys match exactly the targetKeys slice.  Any keys set on the user but not present in targetKeys are purged.
-func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName, targetKeys []admin.UserKeySpec) error {
+// nsName is used for logging only; userID is the RGW Admin Ops identity (the combined "<tenant>$<name>" form when the user belongs to a tenant).
+func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName, userID string, targetKeys []admin.UserKeySpec) error {
 	ctx := r.opManagerContext
 	client := r.objContext.AdminOpsClient
-	userID := nsName.Name
 
 	// fetch the current user keys
 	userInfo, err := client.GetUser(ctx, admin.User{ID: userID})
@@ -1071,7 +1117,7 @@ func (r *ReconcileObjectStoreUser) generateUserKeySpec(user *cephv1.CephObjectSt
 		referencedSecrets[secret.UID] = secret
 
 		keys = append(keys, admin.UserKeySpec{
-			UID:       user.Name,
+			UID:       rgwUserID(user),
 			AccessKey: accessKey,
 			SecretKey: secretKey,
 			KeyType:   "s3",

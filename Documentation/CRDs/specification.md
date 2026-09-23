@@ -2250,6 +2250,22 @@ and resources created by this user are owned by the account.</p>
 </tr>
 <tr>
 <td>
+<code>tenant</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Tenant is the RGW tenant this user belongs to.
+Users in different tenants can have buckets with the same name without
+conflict. When set, the effective user ID in RGW is &ldquo;<tenant>$<name>&rdquo;.
+This field is immutable after creation: it may not be added, changed,
+or removed on an existing user.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>defaultPlacement</code><br/>
 <em>
 string
@@ -12921,6 +12937,22 @@ ObjectStoreUserAccountRef
 The referenced account must be in the same namespace as the user.
 When set, the user is created as an account user with no default permissions,
 and resources created by this user are owned by the account.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tenant</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Tenant is the RGW tenant this user belongs to.
+Users in different tenants can have buckets with the same name without
+conflict. When set, the effective user ID in RGW is &ldquo;<tenant>$<name>&rdquo;.
+This field is immutable after creation: it may not be added, changed,
+or removed on an existing user.</p>
 </td>
 </tr>
 <tr>
