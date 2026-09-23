@@ -6,6 +6,10 @@
 - The OSD prepare job now fails, and is retried by Kubernetes, when a freshly prepared device is
   missing from the `ceph-volume raw list` output, instead of silently reporting fewer OSDs than
   were prepared (which left OSDs registered in the osdmap with no OSD deployment created).
+- The cluster cleanup job now fails when disk sanitization fails, instead of logging the failure and
+  reporting success. The job is no longer retried, because retrying a partial wipe re-enumerates OSDs
+  whose metadata the first pass already destroyed, finds none, and exits successfully. Automation that
+  assumed the cleanup job always reaches `Complete` needs to handle `Failed`.
 
 ## Features
 
