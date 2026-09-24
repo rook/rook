@@ -22,3 +22,5 @@
 *.tmpl
 # helm-unittest suites
 tests/
+# promtool unit tests
+prometheus/test_localrules.yml
