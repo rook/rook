@@ -166,11 +166,14 @@ func (c *Cluster) cryptCloseJobPodTemplateSpec(osdID int) v1.PodTemplateSpec {
 		RestartPolicy:      v1.RestartPolicyOnFailure,
 		PriorityClassName:  cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 		ServiceAccountName: k8sutil.DefaultServiceAccount,
-		HostNetwork:        controller.EnforceHostNetwork(),
+		HostNetwork:        c.spec.Network.IsHost(),
 		SecurityContext:    &v1.PodSecurityContext{},
 		// cryptsetup synchronizes with udev on the host through a semaphore; share the host IPC
 		// namespace so luksClose can reach it, matching the OSD prepare and key-rotation jobs.
 		HostIPC: true,
+	}
+	if c.spec.Network.IsHost() {
+		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
 	// Apply the OSD placement so the pod tolerates the same node taints the OSD daemon and prepare

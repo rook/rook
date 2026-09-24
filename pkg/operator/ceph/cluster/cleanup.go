@@ -167,8 +167,11 @@ func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, 
 			PriorityClassName:  cephv1.GetCleanupPriorityClassName(cluster.Spec.PriorityClassNames),
 			SecurityContext:    &v1.PodSecurityContext{},
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
-			HostNetwork:        opcontroller.EnforceHostNetwork(),
+			HostNetwork:        cluster.Spec.Network.IsHost(),
 		},
+	}
+	if cluster.Spec.Network.IsHost() {
+		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 
 	cephv1.GetCleanupAnnotations(cluster.Spec.Annotations).ApplyToObjectMeta(&podSpec.ObjectMeta)
