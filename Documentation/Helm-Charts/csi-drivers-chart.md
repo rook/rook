@@ -113,8 +113,3 @@ operatorConfig:
 ```
 
 See: [Node plugin kubelet path and SELinux host mount](../Storage-Configuration/Ceph-CSI/csi-configuration.md#node-plugin-kubelet-path-and-selinux-host-mount)
-
-### Custom CSI images
-
-Custom CSI images are configured from the [rook-ceph](operator-chart.md#configuration) chart.
-See the default images in the `rook-ceph` chart [values](https://github.com/rook/rook/blob/release-1.20/deploy/charts/rook-ceph/values.yaml#L97-L137)
