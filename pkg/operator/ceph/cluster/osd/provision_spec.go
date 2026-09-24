@@ -155,7 +155,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		},
 		RestartPolicy:     restart,
 		Volumes:           volumes,
-		HostNetwork:       opcontroller.EnforceHostNetwork(),
+		HostNetwork:       c.spec.Network.IsHost(),
 		PriorityClassName: cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 		SchedulerName:     osdProps.schedulerName,
 		SecurityContext:   &v1.PodSecurityContext{},
