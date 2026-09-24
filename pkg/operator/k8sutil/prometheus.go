@@ -76,7 +76,7 @@ func GetServiceMonitor(name string, namespace string, portName string) *monitori
 }
 
 // ApplyMonitoringTiming sets the scrape interval and timeout on the ServiceMonitor endpoint.
-// Both are left untouched when unset, so Prometheus applies its own global defaults.
+// An unset interval keeps the 10s from GetServiceMonitor; an unset timeout is left to Prometheus.
 func ApplyMonitoringTiming(monitoring cephv1.MonitoringSpec, serviceMonitor *monitoringv1.ServiceMonitor) {
 	if len(serviceMonitor.Spec.Endpoints) == 0 {
 		return

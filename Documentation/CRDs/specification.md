@@ -10779,8 +10779,8 @@ int64
 <td>
 <em>(Optional)</em>
 <p>ScrapeTimeoutSeconds determines the timeout of a prometheus scrape, in seconds. It must
-not be greater than the scrape interval. Defaults to the Prometheus global scrape timeout
-when unset.</p>
+not be greater than the scrape interval, which defaults to 10s when unset. Defaults to the
+Prometheus global scrape timeout when unset.</p>
 </td>
 </tr>
 <tr>

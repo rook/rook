@@ -3208,15 +3208,15 @@ spec:
                     scrapeTimeoutSeconds:
                       description: |-
                         ScrapeTimeoutSeconds determines the timeout of a prometheus scrape, in seconds. It must
-                        not be greater than the scrape interval. Defaults to the Prometheus global scrape timeout
-                        when unset.
+                        not be greater than the scrape interval, which defaults to 10s when unset. Defaults to the
+                        Prometheus global scrape timeout when unset.
                       format: int64
                       minimum: 1
                       type: integer
                   type: object
                   x-kubernetes-validations:
-                    - message: scrapeTimeoutSeconds must not be greater than interval
-                      rule: '!has(self.interval) || !has(self.scrapeTimeoutSeconds) || duration(self.interval).getSeconds() >= self.scrapeTimeoutSeconds'
+                    - message: scrapeTimeoutSeconds must not be greater than interval, which defaults to 10s
+                      rule: '!has(self.scrapeTimeoutSeconds) || (has(self.interval) ? duration(self.interval).getSeconds() : 10) >= self.scrapeTimeoutSeconds'
                 network:
                   description: Network related configuration
                   nullable: true
