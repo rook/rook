@@ -17,6 +17,10 @@ optional spec fields:
 A fourth field, `placementTags`, is deferred to follow-up work (see
 [Future work](#future-work)).
 
+[Tenanted accounts](#tenanted-accounts) extends `tenant` to
+`CephObjectStoreAccount`, so that a tenanted `CephObjectStoreUser` can be a
+member of an account.
+
 ### Why tenant and placement are covered in the same document
 
 `tenant` and the placement fields are unrelated in what they do in RGW, but
@@ -166,7 +170,6 @@ the nesting would cover only these two fields.
 // ObjectStoreUserSpec represent the spec of an Objectstoreuser
 // +kubebuilder:validation:XValidation:message="defaultStorageClass requires defaultPlacement",rule="!has(self.defaultStorageClass) || has(self.defaultPlacement)"
 // +kubebuilder:validation:XValidation:message="tenant is immutable",rule="has(oldSelf.tenant) == has(self.tenant) && (!has(self.tenant) || self.tenant == oldSelf.tenant)"
-// +kubebuilder:validation:XValidation:message="tenant cannot be combined with accountRef (CephObjectStoreAccount does not support tenants)",rule="!(has(self.tenant) && has(self.accountRef))"
 type ObjectStoreUserSpec struct {
     // ... existing fields ...
 
@@ -374,16 +377,265 @@ only affect future bucket/object creation, not existing buckets/objects.
 Removal of either field is covered by
 [Field removal](#field-removal-unmanaged-semantics).
 
-## Interaction with `AccountRef`
+## Tenanted accounts
 
-RGW requires an account member's tenant to equal the account's tenant
-(`validate_account_tenant`, enforced at user create/modify). Rook's
-`CephObjectStoreAccount` cannot currently create tenanted accounts, so every
-expressible `tenant` + `accountRef` combination would fail at RGW with
-`EINVAL` on a doubly-immutable field pair. The spec therefore rejects the
-combination at admission (CEL rule above). Supporting tenanted account
-members requires adding a tenant field to `CephObjectStoreAccount` (go-ceph
-already transmits one) and is listed under [Future work](#future-work).
+This section adds a `tenant` field to `CephObjectStoreAccount`, so that a
+tenanted `CephObjectStoreUser` can be an account member through
+`accountRef`.
+
+### RGW account tenancy
+
+These properties of RGW accounts shape the design. Each is checked against
+the Ceph v20.2.4 source; none of the logic differs in v19.2.x or on main.
+
+- An account has a tenant (`RGWAccountInfo::tenant`), set on create through
+  the Admin Ops `tenant` parameter (`POST /admin/account`). An empty tenant
+  is the default tenant.
+- The tenant cannot change. Account modify returns `EINVAL` ("cannot modify
+  account tenant") when it is given a different tenant, and ignores an
+  absent one.
+- Account IDs are globally unique, across all tenants. Account names are
+  unique only within a tenant (the name index key is `<tenant>$<name>`).
+- Get, modify and delete by account ID ignore the tenant entirely. RGW
+  therefore never reports a mismatch between a CR's tenant and the live
+  account's tenant; the controller has to compare them itself.
+- An account member must be in the account's tenant
+  (`validate_account_tenant`, enforced on user create and on user modify
+  into an account). A mismatch fails with `EINVAL` ("User tenant does not
+  match account tenant"). This includes the account root user.
+- RGW validates nothing about an account's tenant string, but it rejects a
+  user whose tenant is formatted like an account ID (`RGW` followed by 17
+  digits). An account with such a tenant could never have members.
+
+go-ceph v0.41.0, which Rook already pins, carries `admin.Account.Tenant` and
+sends it on `CreateAccount` and `ModifyAccount`. Empty strings are never
+sent, so an untenanted account produces exactly the same requests as today.
+
+### Tenancy model
+
+```mermaid
+flowchart LR
+    subgraph k8s["Kubernetes"]
+        acct["CephObjectStoreAccount team-a<br/>tenant: team_a"]
+        alice["CephObjectStoreUser alice<br/>tenant: team_a<br/>accountRef: team-a"]
+        bob["CephObjectStoreUser bob<br/>tenant: team_a"]
+        carol["CephObjectStoreUser carol<br/>(no tenant)"]
+    end
+
+    subgraph rgw["RGW"]
+        subgraph ta["tenant team_a"]
+            racct["account RGW00000000000000001"]
+            rroot["root user team_a${cr-uid}"]
+            ralice["user team_a$alice"]
+            rbob["user team_a$bob"]
+            bta[("bucket team_a/photos")]
+        end
+        subgraph td["default tenant"]
+            rcarol["user carol"]
+            btd[("bucket photos")]
+        end
+    end
+
+    acct -->|creates| racct
+    acct -->|creates| rroot
+    alice -->|creates| ralice
+    bob -->|creates| rbob
+    carol -->|creates| rcarol
+    rroot -. member of .-> racct
+    ralice -. member of .-> racct
+    ralice -->|owns| bta
+    rcarol -->|owns| btd
+```
+
+`team_a/photos` and `photos` do not collide because they live in different
+tenants. `bob` shares `alice`'s tenant, so bucket names collide between them,
+but `bob` is not an account member.
+
+### API change
+
+```go
+// ObjectStoreAccountSpec represents the spec of an RGW Account
+// +kubebuilder:validation:XValidation:message="tenant is immutable",rule="has(oldSelf.tenant) == has(self.tenant) && (!has(self.tenant) || self.tenant == oldSelf.tenant)"
+type ObjectStoreAccountSpec struct {
+    // ... existing fields ...
+
+    // Tenant is the RGW tenant this account belongs to. A CephObjectStoreUser
+    // that references this account must set the same tenant.
+    // This field is immutable after creation: it may not be added, changed,
+    // or removed on an existing account.
+    // +optional
+    // +kubebuilder:validation:MinLength=1
+    // +kubebuilder:validation:MaxLength=255
+    // +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_]+$`
+    // +kubebuilder:validation:XValidation:message="tenant must not be formatted as an account ID",rule="!self.matches('^RGW[0-9]{17}$')"
+    Tenant string `json:"tenant,omitempty"`
+}
+```
+
+The charset, length and immutability rule are the same as
+`ObjectStoreUserSpec.Tenant`, for the same reasons (see
+[Immutability](#immutability)); the transition rule is spec-level and
+`has()`-guarded so that adding or removing the field is blocked too. The
+account-ID rule exists because RGW accepts such a tenant on the account and
+only fails later, on every member.
+
+On `ObjectStoreUserSpec`, the admission rule that rejected `tenant` together
+with `accountRef` is removed. Removing a validation rule only widens what the
+API accepts, so no stored object becomes invalid.
+
+### Membership: the user states its tenant explicitly
+
+A member user sets `tenant` itself, and it must equal the account's
+`tenant`. The user does not inherit the tenant from the account:
+
+- **Deletion must not depend on another object.** The user controller
+  addresses a tenanted user as `<tenant>$<name>` in every Admin Ops call. If
+  the tenant came from the account, deleting the user would require reading
+  the account CR first. Account CRs are often deleted before their users
+  during cleanup, which would leave the RGW user unaddressable and orphaned.
+- **A user's RGW identity stays readable from its own CR**, the same as for
+  users without an account.
+- **The check cannot drift.** `CephObjectStoreUser.spec.tenant`,
+  `CephObjectStoreUser.spec.accountRef` and `CephObjectStoreAccount.spec.tenant`
+  are all immutable, so a mismatch can only exist from the moment the user is
+  created. It never appears later.
+
+CEL cannot compare fields across objects, so the check runs in the user
+controller rather than at admission. `resolveAccountRef` already rejects a
+`store` mismatch between the user and the account; the tenant check sits
+beside it and fails the reconcile without requeueing, since the mismatch
+cannot resolve itself. RGW's own `validate_account_tenant` remains the final
+backstop, but its `EINVAL` does not say which fields disagree.
+
+### Controller behavior
+
+`CephObjectStoreAccount` reconcile:
+
+- **Create:** `tenant` is sent on `CreateAccount`, and only there.
+- **Existing account:** the live account's tenant (from `GetAccount`) must
+  equal `spec.tenant`, or the reconcile fails with an explicit error and the
+  account is left untouched. This runs after the existing ownership check.
+  `ModifyAccount` never sends `tenant`; RGW cannot move an account between
+  tenants, and a modify that names a different one fails.
+- **Root user:** its ID becomes `<tenant>$<CR UID>` for a tenanted account,
+  and that combined form is used for every Admin Ops user call, as for
+  `CephObjectStoreUser`. Untenanted accounts keep the bare `<CR UID>`.
+- **Deletion:** account lookups and the purge job address the account by its
+  globally unique ID, so they need no tenant.
+
+This is the reverse of the user controller, which never relies on a
+separate tenant parameter. The difference follows from how RGW addresses the
+two objects: users by an ID that embeds the tenant, accounts by a global ID
+that does not.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as account controller
+    participant K as Kubernetes API
+    participant R as RGW Admin Ops
+
+    C->>R: GET /admin/account?id=RGW…
+    alt account does not exist
+        C->>K: persist status.accountID (creation bookmark)
+        C->>R: POST /admin/account?id=RGW…&name=…&tenant=team_a
+    else account exists
+        Note over C: ownership check: status.accountID == ID
+        alt live tenant != spec.tenant
+            Note over C: reconcile error, account left untouched
+        else tenants match
+            C->>R: PUT /admin/account?id=RGW…&name=… (no tenant)
+        end
+    end
+    C->>R: GET /admin/user?uid=team_a${cr-uid}
+    alt root user missing
+        C->>R: PUT /admin/user?uid=team_a${cr-uid}&account-id=RGW…&account-root=true
+    else root user exists
+        C->>R: POST /admin/user?uid=team_a${cr-uid}&display-name=…
+    end
+    C->>K: root user Secret, status Ready
+```
+
+### Where each rule is enforced
+
+```mermaid
+flowchart TD
+    apply["kubectl apply CephObjectStoreUser<br/>tenant + accountRef"] --> adm
+
+    subgraph adm["Admission (CEL)"]
+        a1{"tenant matches charset<br/>and length?"}
+        a2{"tenant unchanged<br/>on update?"}
+        a3{"accountRef unchanged<br/>on update?"}
+    end
+    a1 -- no --> rej["rejected by API server"]
+    a2 -- no --> rej
+    a3 -- no --> rej
+    a1 -- yes --> a2 -- yes --> a3 -- yes --> ctl
+
+    subgraph ctl["resolveAccountRef"]
+        c1{"account CR exists?"}
+        c2{"store matches?"}
+        c3{"tenant matches<br/>account tenant?"}
+        c4{"account Ready with<br/>status.accountID?"}
+    end
+    c1 -- no --> req["requeue"]
+    c2 -- no --> err["reconcile error, no requeue"]
+    c3 -- no --> err
+    c4 -- no --> req
+    c1 -- yes --> c2 -- yes --> c3 -- yes --> c4 -- yes --> usercreate
+
+    usercreate["PUT /admin/user?uid=team_a$alice&account-id=RGW…"] --> rgw
+    subgraph rgw["RGW"]
+        r1{"validate_account_tenant"}
+    end
+    r1 -- mismatch --> einval["EINVAL surfaced in CR status"]
+    r1 -- ok --> ready["user created, Secret written, Ready"]
+```
+
+The account CR goes through the same admission rules for its own `tenant`,
+plus the account-ID-format rule.
+
+### Rollout
+
+The `tenant` + `accountRef` admission rule ships with `CephObjectStoreUser`
+tenants and is removed in the same change that adds
+`CephObjectStoreAccount.spec.tenant`, so no release accepts a combination the
+controller cannot satisfy. If both land in the same release, the rule never
+ships.
+
+### Compatibility and rollback
+
+`tenant` is optional and absent on every existing account, and an absent
+tenant produces the same requests as today, so existing accounts and their
+root users are unaffected.
+
+Rolling back to a Rook release without `CephObjectStoreAccount.spec.tenant`
+while tenanted accounts exist is unsupported, as for tenanted users (see
+[Compatibility and rollback](#compatibility-and-rollback)). The older
+operator addresses the root user by its bare `<CR UID>`, so it cannot find
+the tenanted root user, and recreating it fails RGW's tenant check. Before
+downgrading, remove tenanted `CephObjectStoreAccount` CRs and their member
+users, or scale the operator down. This warning ships in the release notes
+alongside the one for tenanted users.
+
+### Multisite
+
+Account metadata, tenant included, is realm-scoped and replicates through
+metadata sync in the same way as user metadata. Because account IDs are
+global, an account created in one zone keeps its ID and tenant in every
+zone. No zone-specific behavior is added.
+
+### Test plan
+
+- Unit: `tenant` sent on account create; modify never sends `tenant`; a
+  live-tenant mismatch fails without calling modify; root user ID is
+  `<tenant>$<CR UID>` only when a tenant is set; `resolveAccountRef` accepts
+  matching tenants and rejects every mismatch (tenanted user with untenanted
+  account, the reverse, and two different tenants) without requeueing.
+- Integration (object suite): a tenanted account with a tenanted member
+  user, checking the RGW identities `team_a$alice` and the root user's
+  `team_a$<CR UID>`, account membership, and that a member with a different
+  tenant never becomes Ready.
 
 ## Future work
 
@@ -406,5 +658,3 @@ already transmits one) and is listed under [Future work](#future-work).
   [tracker 79090](https://tracker.ceph.com/issues/79090) and
   [go-ceph#1307](https://github.com/ceph/go-ceph/issues/1307) are in Rook's
   support floor.
-- **Tenanted accounts**: a `tenant` field on `CephObjectStoreAccount`,
-  unlocking `tenant` + `accountRef` combinations.
