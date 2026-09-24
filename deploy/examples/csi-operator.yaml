@@ -117,6 +117,101 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.2
+  name: clientprofilereplications.csi.ceph.io
+spec:
+  group: csi.ceph.io
+  names:
+    kind: ClientProfileReplication
+    listKind: ClientProfileReplicationList
+    plural: clientprofilereplications
+    singular: clientprofilereplication
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          description: ClientProfileReplication is the Schema for the clientprofilereplications
+            API
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: spec defines the desired state of ClientProfileReplication
+              properties:
+                localClientProfile:
+                  description: LocalClientProfile is the name of the local ClientProfile
+                    CR
+                  type: string
+                rbd:
+                  description: RBD contains RBD-specific replication configuration
+                  properties:
+                    poolMapping:
+                      description: PoolMapping maps local pool names to remote pool
+                        IDs
+                      items:
+                        description: PoolMappingSpec defines the mapping for a single
+                          pool
+                        properties:
+                          name:
+                            description: Name is the pool name (must be consistent across
+                              clusters)
+                            type: string
+                          remoteID:
+                            description: RemoteID is the pool ID on the remote cluster
+                            type: string
+                        required:
+                          - name
+                          - remoteID
+                        type: object
+                      type: array
+                  type: object
+                remoteClientProfile:
+                  description: RemoteClientProfile is the name of the remote cluster's
+                    client profile
+                  type: string
+              required:
+                - localClientProfile
+                - remoteClientProfile
+              type: object
+            status:
+              description: status defines the observed state of ClientProfileReplication
+              properties:
+                message:
+                  description: Message provides human-readable details about the current
+                    phase
+                  type: string
+                phase:
+                  description: Phase indicates the current state of this CR
+                  type: string
+              type: object
+          required:
+            - spec
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
   name: clientprofiles.csi.ceph.io
 spec:
   group: csi.ceph.io
@@ -7570,6 +7665,56 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
+  name: ceph-csi-clientprofilereplication-editor-role
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofilereplications
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofilereplications/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: ceph-csi-operator
+  name: ceph-csi-clientprofilereplication-viewer-role
+rules:
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofilereplications
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - csi.ceph.io
+    resources:
+      - clientprofilereplications/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: ceph-csi-operator
   name: ceph-csi-clientprofiles-editor-role
 rules:
   - apiGroups:
@@ -7701,6 +7846,7 @@ rules:
       - csi.ceph.io
     resources:
       - clientprofilemappings
+      - clientprofilereplications
       - clientprofiles
       - drivers
     verbs:
@@ -7715,6 +7861,7 @@ rules:
       - csi.ceph.io
     resources:
       - clientprofilemappings/finalizers
+      - clientprofilereplications/finalizers
       - clientprofiles/finalizers
       - drivers/finalizers
     verbs:
@@ -7723,6 +7870,7 @@ rules:
       - csi.ceph.io
     resources:
       - clientprofilemappings/status
+      - clientprofilereplications/status
       - clientprofiles/status
       - drivers/status
     verbs:
@@ -7736,6 +7884,18 @@ rules:
     verbs:
       - get
       - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
       - watch
   - apiGroups:
       - storage.k8s.io
@@ -8760,7 +8920,7 @@ spec:
               value: "ceph-csi-"
             - name: WATCH_NAMESPACE
               value: ""
-          image: quay.io/cephcsi/ceph-csi-operator:v1.0.4
+          image: docker.io/subham03/rook:csi # TODO: Change to the official image
           livenessProbe:
             httpGet:
               path: /healthz

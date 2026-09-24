@@ -45,6 +45,15 @@ import (
 
 const (
 	controllerName = "rook-ceph-operator-csi-controller"
+
+	// csiImageSetConfigMapName is the configmap that holds CSI container image overrides
+	// for the ceph-csi-operator. Empty values cause the operator to use its built-in defaults.
+	csiImageSetConfigMapName = "rook-csi-operator-image-set-configmap"
+
+	// staleV120CephCSIImage is the cephcsi plugin image shipped as the default in Rook v1.20.
+	// If this value is found in the image-set configmap during reconcile, all values are reset
+	// to empty so the ceph-csi-operator uses its own built-in defaults.
+	staleV120CephCSIImage = "quay.io/cephcsi/cephcsi:v3.17.1"
 )
 
 // ReconcileCSI reconciles a ceph-csi driver
@@ -160,6 +169,10 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to apply operator settings configmap")
 	}
 
+	if err := r.resetStaleCSIImageSetConfigMap(); err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to reset stale CSI image-set configmap")
+	}
+
 	// Set driver names based on operator namespace
 	driverPrefix := fmt.Sprintf("%s.", r.opConfig.OperatorNamespace)
 	CephFSDriverName = driverPrefix + cephFSDriverSuffix
@@ -214,4 +227,35 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	}
 
 	return reconcileResult, nil
+}
+
+// resetStaleCSIImageSetConfigMap resets the image-set configmap values to empty if it
+// detects stale v1.20 defaults. This is a one-time migration for manifest-based
+// upgrades from v1.20 to v1.21. After the first reset, this function becomes a no-op.
+func (r *ReconcileCSI) resetStaleCSIImageSetConfigMap() error {
+	ns := r.opConfig.OperatorNamespace
+	cm, err := r.context.Clientset.CoreV1().ConfigMaps(ns).Get(r.opManagerContext, csiImageSetConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debugf("configmap %q not found, skipping stale image check", csiImageSetConfigMapName)
+			return nil
+		}
+		return errors.Wrapf(err, "failed to get configmap %q", csiImageSetConfigMapName)
+	}
+
+	if cm.Data["plugin"] != staleV120CephCSIImage {
+		return nil
+	}
+
+	logger.Infof("detected stale v1.20 CSI images in configmap %q, resetting to empty so ceph-csi-operator uses its defaults", csiImageSetConfigMapName)
+	for key := range cm.Data {
+		cm.Data[key] = ""
+	}
+
+	_, err = r.context.Clientset.CoreV1().ConfigMaps(ns).Update(r.opManagerContext, cm, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to reset stale configmap %q", csiImageSetConfigMapName)
+	}
+
+	return nil
 }

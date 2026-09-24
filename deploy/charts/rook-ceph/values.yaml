@@ -94,47 +94,52 @@ csi:
   # -- When true, install the ceph-csi-operator subchart (see Chart.yaml `condition`).
   installCsiOperator: true
 
+  # CSI container images are managed by the ceph-csi-operator. Empty defaults
+  # allow the operator to use its built-in images. Set the repository and tag
+  # to override, values are rendered into the image configmap.
+  # See the Custom Images documentation for details.
+
   cephcsi:
     # -- Ceph CSI image repository
-    repository: quay.io/cephcsi/cephcsi
+    repository: ""
     # -- Ceph CSI image tag
-    tag: v3.17.1
+    tag: ""
 
   registrar:
     # -- Kubernetes CSI registrar image repository
-    repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
+    repository: ""
     # -- Registrar image tag
-    tag: v2.18.0
+    tag: ""
 
   provisioner:
     # -- Kubernetes CSI provisioner image repository
-    repository: registry.k8s.io/sig-storage/csi-provisioner
+    repository: ""
     # -- Provisioner image tag
-    tag: v6.3.0
+    tag: ""
 
   snapshotter:
     # -- Kubernetes CSI snapshotter image repository
-    repository: registry.k8s.io/sig-storage/csi-snapshotter
+    repository: ""
     # -- Snapshotter image tag
-    tag: v8.6.0
+    tag: ""
 
   attacher:
     # -- Kubernetes CSI Attacher image repository
-    repository: registry.k8s.io/sig-storage/csi-attacher
+    repository: ""
     # -- Attacher image tag
-    tag: v4.13.0
+    tag: ""
 
   resizer:
     # -- Kubernetes CSI resizer image repository
-    repository: registry.k8s.io/sig-storage/csi-resizer
+    repository: ""
     # -- Resizer image tag
-    tag: v2.2.1
+    tag: ""
 
   csiAddons:
     # -- CSIAddons sidecar image repository
-    repository: quay.io/csiaddons/k8s-sidecar
+    repository: ""
     # -- CSIAddons sidecar image tag
-    tag: v0.15.1
+    tag: ""
 
   serviceMonitor:
     # -- Enable ServiceMonitor for CSI metrics

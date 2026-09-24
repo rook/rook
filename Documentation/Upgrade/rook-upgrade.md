@@ -226,7 +226,10 @@ kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-cep
 !!! hint
     This is automatically updated if custom CSI image versions are not set.
 
-Update to the latest Ceph-CSI drivers if custom CSI images are specified.
+Starting in v1.21, Rook no longer sets default CSI container images in the
+`rook-csi-operator-image-set-configmap` configmap. All values are empty so the
+ceph-csi-operator uses its built-in defaults. Users with customized CSI images
+should verify overrides are still present in the configmap after upgrade.
 See the [CSI Custom Images](../Storage-Configuration/Ceph-CSI/custom-images.md) documentation.
 
 ### **4. Wait for the upgrade to complete**

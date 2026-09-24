@@ -93,11 +93,14 @@ $(YQv3):
 
 # reading from a file and outputting to the same file can have undefined results, so use this intermediate
 IMAGE_TMP="/tmp/rook-ceph-image-list"
+# Extract the ceph-csi-operator version from csi-operator.yaml to fetch its default images
+CSI_OP_TAG = $(shell grep -m1 'ceph-csi-operator:' $(MANIFESTS_DIR)/csi-operator.yaml | sed 's/.*://')
+CSI_DEFAULTS_URL = https://raw.githubusercontent.com/ceph/ceph-csi-operator/$(CSI_OP_TAG)/internal/controller/defaults.go
 list-image: ## Create a list of images for offline installation
 	@echo "producing list of images for offline installation"
 	rm -f $(IMAGE_TMP)
 	awk '/image:/ && NF > 1 {print $$2}' $(MANIFESTS_DIR)/operator.yaml $(MANIFESTS_DIR)/cluster.yaml $(MANIFESTS_DIR)/csi-operator.yaml >$(IMAGE_TMP)
-	grep -E '^[[:space:]]+(provisioner|attacher|resizer|snapshotter|registrar|plugin|addons):' $(MANIFESTS_DIR)/operator.yaml | sed -E 's/.*"([^"]+)".*/\1/' >>$(IMAGE_TMP)
+	curl -sL $(CSI_DEFAULTS_URL) | grep -oE '"(registry\.k8s\.io|quay\.io)[^"]*"' | tr -d '"' >>$(IMAGE_TMP)
 	test ! -f ../../pkg/operator/ceph/csi/spec.go || grep -E 'quay\.io|registry\.k8s\.io' ../../pkg/operator/ceph/csi/spec.go | sed -E 's/.*"([^"]+)".*/\1/' >>$(IMAGE_TMP)
 	grep -E 'quay\.io|gcr\.io' ../../pkg/operator/ceph/object/cosi/spec.go | sed -E 's/.*"([^"]+)".*/\1/' >>$(IMAGE_TMP)
 	rm -f $(MANIFESTS_DIR)/images.txt
