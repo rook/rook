@@ -1,8 +1,9 @@
-# Run from this directory with: promtool test rules test_localrules.yml
+# Run from this directory with: promtool test rules localrules.yaml
+# Do not use the *_test.yaml suffix, which is reserved for helm-unittest suites.
 # Percent-used values from Ceph are fractions. A fast-growing pool must alert,
 # while a flat pool and a slow-growing pool must not.
 rule_files:
-  - localrules.yaml
+  - ../prometheus/localrules.yaml
 evaluation_interval: 1h
 tests:
   - interval: 1h

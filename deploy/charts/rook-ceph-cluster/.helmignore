@@ -20,7 +20,5 @@
 .idea/
 *.tmproj
 *.tmpl
-# helm-unittest suites
+# Test suites
 tests/
-# promtool unit tests
-prometheus/test_localrules.yml
