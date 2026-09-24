@@ -40,6 +40,10 @@ runs:
         export BLOCK
         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
+    - name: run the cluster on the host network
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh use_host_network
+
     - name: deploy cluster
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
@@ -53,6 +57,10 @@ runs:
     - name: wait for ceph to be ready
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+
+    - name: check pods are on the host network
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh check_host_network
 
     - name: check-ownerreferences
       shell: bash --noprofile --norc -eo pipefail -x {0}
