@@ -46,38 +46,38 @@ metadata:
     {{- include "library.rook-ceph.labels" $ | nindent 4 }}
 data:
   {{- with .provisioner }}
-  {{- if and .repository .tag }}
-  provisioner: "{{ .repository }}:{{ .tag }}"
-  {{- end }}
+  provisioner: "{{ if and .repository .tag }}{{ .repository }}:{{ .tag }}{{ end }}"
+  {{- else }}
+  provisioner: ""
   {{- end }}
   {{- with .attacher }}
-  {{- if and .repository .tag }}
-  attacher: "{{ .repository }}:{{ .tag }}"
-  {{- end }}
+  attacher: "{{ if and .repository .tag }}{{ .repository }}:{{ .tag }}{{ end }}"
+  {{- else }}
+  attacher: ""
   {{- end }}
   {{- with .resizer }}
-  {{- if and .repository .tag }}
-  resizer: "{{ .repository }}:{{ .tag }}"
-  {{- end }}
+  resizer: "{{ if and .repository .tag }}{{ .repository }}:{{ .tag }}{{ end }}"
+  {{- else }}
+  resizer: ""
   {{- end }}
   {{- with .snapshotter }}
-  {{- if and .repository .tag }}
-  snapshotter: "{{ .repository }}:{{ .tag }}"
-  {{- end }}
+  snapshotter: "{{ if and .repository .tag }}{{ .repository }}:{{ .tag }}{{ end }}"
+  {{- else }}
+  snapshotter: ""
   {{- end }}
   {{- with .registrar }}
-  {{- if and .repository .tag }}
-  registrar: "{{ .repository }}:{{ .tag }}"
-  {{- end }}
+  registrar: "{{ if and .repository .tag }}{{ .repository }}:{{ .tag }}{{ end }}"
+  {{- else }}
+  registrar: ""
   {{- end }}
   {{- with .cephcsi }}
-  {{- if and .repository .tag }}
-  plugin: "{{ .repository }}:{{ .tag }}"
-  {{- end }}
+  plugin: "{{ if and .repository .tag }}{{ .repository }}:{{ .tag }}{{ end }}"
+  {{- else }}
+  plugin: ""
   {{- end }}
   {{- with .csiAddons }}
-  {{- if and .repository .tag }}
-  addons: "{{ .repository }}:{{ .tag }}"
-  {{- end }}
+  addons: "{{ if and .repository .tag }}{{ .repository }}:{{ .tag }}{{ end }}"
+  {{- else }}
+  addons: ""
   {{- end }}
 {{- end }}

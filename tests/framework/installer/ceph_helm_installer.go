@@ -65,6 +65,16 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 		"monitoring":            map[string]any{"enabled": true},
 		"revisionHistoryLimit":  "3",
 		"enforceHostNetwork":    "false",
+		"ceph-csi-operator": map[string]any{
+			"controllerManager": map[string]any{
+				"manager": map[string]any{
+					"image": map[string]any{
+						"repository": "docker.io/subham03/rook",
+						"tag":        "csi",
+					},
+				},
+			},
+		},
 	}
 	// create the operator namespace
 	if err := h.k8shelper.CreateNamespace(h.settings.OperatorNamespace); err != nil {

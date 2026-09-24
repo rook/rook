@@ -3,10 +3,7 @@ title: CSI Configuration
 ---
 
 CSI drivers are managed by the [ceph-csi-operator](https://github.com/ceph/ceph-csi-operator). This means CSI tuning is done
-through CSI operator custom resources (`OperatorConfig` and `Driver`) and the ConfigMap `rook-csi-operator-image-set-configmap`.
-
-!!! important
-    The Rook ConfigMap `rook-ceph-operator-config` no longer applies CSI settings.
+through CSI operator custom resources (`OperatorConfig` and `Driver`)
 
 This document provides some example CSI settings that may need to be customized.
 
@@ -76,9 +73,7 @@ spec:
 
 ## Custom container images
 
-Previously: `CSI_*_IMAGE` keys in `rook-ceph-operator-config`. Now use the `ImageSet` ConfigMap referenced by `OperatorConfig`.
-
-See `deploy/examples/operator.yaml`.
+See [Custom Images](custom-images.md).
 
 ## Controller replicas and strategy
 
