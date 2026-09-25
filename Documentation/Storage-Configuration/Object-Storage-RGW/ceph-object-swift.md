@@ -69,7 +69,6 @@ spec:
         - member
         - service
       implicitTenants: "swift"
-      revocationInterval: 1200
       serviceUserSecretName: usersecret
       tokenCacheSize: 1000
       url: https://keystone.rook-ceph.svc/

@@ -22,7 +22,7 @@ If endpoint(s) are not specified the endpoint will be set to the Kubernetes serv
 
 This example `ceph-object-zone.yaml`, names a zone `my-zone`.
 ```yaml
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1
 kind: CephObjectZone
 metadata:
   name: zone-a
@@ -148,7 +148,7 @@ The following variables can be configured in the ceph-object-zone resource.
 - `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the zone will remain when the CephObjectZone is deleted. This is a security measure to avoid accidental loss of data. It is set to 'true' by default. If not specified it is also deemed as 'true'.
 
 ```yaml
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1
 kind: CephObjectZone
 metadata:
   name: zone-b
@@ -194,18 +194,17 @@ Just like deleting the zone itself, removing the pools must be done by hand thro
       codingChunks: 2
 ```
 
-The [radosNamespaces](/design/ceph/object/store.md/#pools-shared-by-multiple-cephobjectstore) feature is supported for the ceph-object-zone CRD as well. The following example shows how to configure a `radosnamespace` in the zone spec.
+The [sharedPools](/design/ceph/object/store.md/#pools-shared-by-multiple-cephobjectstore) feature is supported for the ceph-object-zone CRD as well. The following example shows how to configure shared pools in the zone spec.
 
 ```yaml
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1
 kind: CephObjectZone
 metadata:
   name: zone-b
   namespace: rook-ceph
 spec:
   zoneGroup: zone-group-b
-  radosNamespaces:
+  sharedPools:
     metadataPoolName: rgw-meta-pool
     dataPoolName: rgw-data-pool
-    preserveRadosNamespaceDataOnDelete: true
 ```
