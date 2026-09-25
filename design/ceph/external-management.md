@@ -64,7 +64,7 @@ spec:
        codingChunks: 1
   metadataServer:
     activeCount: 1
-    activeStandby: true
+    standbyCount: 1
 ```
 
 ### After (pools may be omitted)
@@ -82,7 +82,7 @@ metadata:
 spec:
   metadataServer:
     activeCount: 1
-    activeStandby: true
+    standbyCount: 1
 ```
 
 
