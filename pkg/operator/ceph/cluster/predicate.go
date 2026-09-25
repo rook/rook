@@ -183,8 +183,8 @@ func predicateForClusterConfigMapWatcher[T *corev1.ConfigMap](ctx context.Contex
 			objOld := (*corev1.ConfigMap)(e.ObjectOld)
 
 			if objNew.Name == opcontroller.OperatorSettingConfigMapName {
-				if objOld.Data["ROOK_USE_CSI_OPERATOR"] != objNew.Data["ROOK_USE_CSI_OPERATOR"] {
-					log.NamespacedInfo(objNew.Namespace, logger, "ROOK_USE_CSI_OPERATOR changed from %q to %q", objOld.Data["ROOK_USE_CSI_OPERATOR"], objNew.Data["ROOK_USE_CSI_OPERATOR"])
+				if objOld.Data["ROOK_CREATE_CSI_OPERATOR_RESOURCES"] != objNew.Data["ROOK_CREATE_CSI_OPERATOR_RESOURCES"] {
+					log.NamespacedInfo(objNew.Namespace, logger, "ROOK_CREATE_CSI_OPERATOR_RESOURCES changed from %q to %q", objOld.Data["ROOK_CREATE_CSI_OPERATOR_RESOURCES"], objNew.Data["ROOK_CREATE_CSI_OPERATOR_RESOURCES"])
 					return true
 				}
 			}
