@@ -192,7 +192,7 @@ data:
   resizer: "registry.k8s.io/sig-storage/csi-resizer:v2.2.1"
   snapshotter: "registry.k8s.io/sig-storage/csi-snapshotter:v8.6.0"
   registrar: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.18.0"
-  plugin: "quay.io/cephcsi/cephcsi:v3.17.1"
+  plugin: "quay.io/cephcsi/cephcsi:v3.18.0"
   addons: "quay.io/csiaddons/k8s-sidecar:v0.15.1"
 ---
 # OperatorConfig defines the default settings for all CSI drivers.
