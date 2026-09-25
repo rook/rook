@@ -634,7 +634,7 @@ func TestCluster_configurePrometheusModule(t *testing.T) {
 	c.spec.Monitoring.Interval = &metav1.Duration{
 		Duration: 30 * time.Second,
 	}
-	modulesGetOutput = "30"
+	modulesGetOutput = "30.000000"
 	configSettings = make(map[string]string)
 	err = c.configurePrometheusModule()
 	assert.NoError(t, err)
@@ -655,7 +655,7 @@ func TestCluster_configurePrometheusModule(t *testing.T) {
 	assert.Equal(t, 2, modulesEnabled)
 	assert.Equal(t, 1, modulesDisabled)
 	assert.Equal(t, "30002", configSettings["mgr/prometheus/server_port"])
-	assert.Equal(t, "60", configSettings["mgr/prometheus/scrape_interval"])
+	assert.Equal(t, "60.000000", configSettings["mgr/prometheus/scrape_interval"])
 }
 
 func TestMgrKeyRotation(t *testing.T) {
