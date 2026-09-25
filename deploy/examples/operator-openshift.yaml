@@ -180,20 +180,23 @@ data:
 # For the complete list of ceph-csi-operator chart settings, see:
 # https://github.com/ceph/ceph-csi-operator/blob/main/docs/helm-charts/drivers-chart.md#configuration
 
-# ImageSet ConfigMap defines the container images used by the CSI drivers.
+# CSI image configmap, default images are managed by the ceph-csi-operator.
+# Empty values allow the ceph-csi-operator to use its built-in defaults.
+# Set values here to override the defaults.
+# See the ceph-csi-operator documentation for details.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: rook-csi-operator-image-set-configmap
   namespace: rook-ceph # namespace:operator
 data:
-  provisioner: "registry.k8s.io/sig-storage/csi-provisioner:v6.3.0"
-  attacher: "registry.k8s.io/sig-storage/csi-attacher:v4.13.0"
-  resizer: "registry.k8s.io/sig-storage/csi-resizer:v2.2.1"
-  snapshotter: "registry.k8s.io/sig-storage/csi-snapshotter:v8.6.0"
-  registrar: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.18.0"
-  plugin: "quay.io/cephcsi/cephcsi:v3.17.1"
-  addons: "quay.io/csiaddons/k8s-sidecar:v0.15.1"
+  provisioner: ""
+  attacher: ""
+  resizer: ""
+  snapshotter: ""
+  registrar: ""
+  plugin: ""
+  addons: ""
 ---
 # OperatorConfig defines the default settings for all CSI drivers.
 apiVersion: csi.ceph.io/v1
