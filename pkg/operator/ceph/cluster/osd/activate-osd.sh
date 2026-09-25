@@ -49,8 +49,9 @@ if [[ "$CV_MODE" == "lvm" ]]; then
 	done
 	TMP_DIR=$(mktemp -d)
 
-	# prevent LVM from trying to scan RBD volumes that may be unable to serve reads without this OSD up
-	echo 'devices { filter = ["r|/dev/rbd.*|"] }' >> /etc/lvm/lvm.conf
+	# prevent LVM from trying to scan network-backed block devices (RBD, NBD, DRBD) that
+	# may be unable to serve reads without this OSD up
+	echo 'devices { filter = ["r|/dev/rbd.*|", "r|/dev/nbd.*|", "r|/dev/drbd.*|"] }' >> /etc/lvm/lvm.conf
 
 	# activate osd
 	ceph-volume lvm activate --no-systemd "$OSD_STORE_FLAG" "$OSD_ID" "$OSD_UUID"
@@ -160,6 +161,14 @@ sys.exit('no disk found with OSD ID $OSD_ID')
 	if [ -L "$OSD_BLOCK_PATH" ] && [ "$(readlink "$OSD_BLOCK_PATH")" != "$DEVICE" ] ; then
 		rm $OSD_BLOCK_PATH
 	fi
+
+	# prevent LVM from trying to scan network-backed block devices (RBD, NBD, DRBD) that
+	# may be unable to serve reads without this OSD up — same deadlock the lvm-mode path
+	# guards against (see the filter added above for lvm-mode OSDs).
+	# ceph-volume raw activate calls lvs internally; without this filter, lvs scans all
+	# block devices including /dev/rbd*, which triggers a krbd read that needs Ceph,
+	# creating a circular dependency that leaves the lvs process in uninterruptible sleep (D state).
+	echo 'devices { filter = ["r|/dev/rbd.*|", "r|/dev/nbd.*|", "r|/dev/drbd.*|"] }' >> /etc/lvm/lvm.conf
 
 	# ceph-volume raw mode only supports bluestore so we don't need to pass a store flag
 	ceph-volume raw activate --device "$DEVICE" --no-systemd --no-tmpfs
