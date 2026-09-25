@@ -30,8 +30,9 @@ spec:
       - name: project
         value: brown
   # notification apply for any of the events
-  # full list of supported events is here:
-  # https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types
+  # full list of supported events, including which are not usable on the Ceph
+  # releases Rook supports:
+  # https://rook.io/docs/rook/latest/Storage-Configuration/Object-Storage-RGW/ceph-object-bucket-notifications/
   events:
     - s3:ObjectCreated:Put
     - s3:ObjectCreated:Copy
