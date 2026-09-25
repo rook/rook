@@ -887,6 +887,33 @@ func TestGetOSDInfo(t *testing.T) {
 		assert.Equal(t, "true", d.Spec.Template.Labels[encrypted])
 	})
 
+	t.Run("global encryptedDevice does not set the encrypted label", func(t *testing.T) {
+		osdInfo := &OSDInfo{
+			UUID:      "osd-uuid",
+			BlockPath: "/dev/vg/lv",
+			CVMode:    "lvm",
+		}
+		osdProp := osdProperties{
+			crushHostname: node,
+			storeConfig:   config.StoreConfig{EncryptedDevice: true},
+		}
+
+		d, err := c.makeDeployment(osdProp, osdInfo, dataPathMap)
+		assert.NoError(t, err)
+		assert.Equal(t, "false", d.Labels[encrypted])
+		assert.True(t, d.Spec.Template.Spec.HostIPC)
+
+		// once the global setting is turned off, the unencrypted OSD is not treated as encrypted
+		updatedOSDInfo, err := c.getOSDInfo(d)
+		assert.NoError(t, err)
+		assert.False(t, updatedOSDInfo.Encrypted)
+		osdProp.storeConfig.EncryptedDevice = false
+		d, err = c.makeDeployment(osdProp, &updatedOSDInfo, dataPathMap)
+		assert.NoError(t, err)
+		assert.False(t, d.Spec.Template.Spec.HostIPC)
+		verifyEnvVar(t, d.Spec.Template.Spec.InitContainers[0].Env, EncryptedDeviceEnvVarName, "false", true)
+	})
+
 	t.Run("verify the non-existence of labels if the corresponding fields are not set on OSDInfo and OSDProperties", func(t *testing.T) {
 		useAllDevices := true
 		osdInfo := &OSDInfo{

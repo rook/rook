@@ -192,6 +192,11 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	// ceph-volume --dmcrypt uses cryptsetup that synchronizes with udev on
 	// host through semaphore
 	podSpec.HostIPC = osdProps.storeConfig.EncryptedDevice || osdProps.encrypted
+	for _, device := range osdProps.devices {
+		if device.Config[config.EncryptedDeviceKey] == "true" {
+			podSpec.HostIPC = true
+		}
+	}
 
 	return &v1.PodTemplateSpec{
 		ObjectMeta: podMeta,

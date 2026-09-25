@@ -868,6 +868,164 @@ func TestInitializeBlock(t *testing.T) {
 		logger.Info("success, go to next test")
 	}
 
+	// Test per-device encryption behavior
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", EncryptedDevice: true}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
+			},
+		}
+
+		for _, globalEncryption := range []bool{false, true} {
+			executor := &exectest.MockExecutor{}
+			executor.MockExecuteCommand = func(command string, args ...string) error {
+				logger.Infof("%s %v", command, args)
+
+				// Validate base common args
+				err := testBaseArgs(args)
+				if err != nil {
+					return err
+				}
+
+				dmcryptCount := 0
+				for _, arg := range args {
+					if arg == "--dmcrypt" {
+						dmcryptCount++
+					}
+				}
+				if dmcryptCount != 1 {
+					return errors.Errorf("expected --dmcrypt once, got %d: %s %s", dmcryptCount, command, args)
+				}
+
+				if slices.Contains(args, "--osds-per-device") && slices.Contains(args, "/dev/sda") {
+					return nil
+				}
+
+				return errors.Errorf("unknown command %s %s", command, args)
+			}
+			a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{EncryptedDevice: globalEncryption, StoreType: "bluestore"}}
+			context := &clusterd.Context{Executor: executor}
+
+			err := a.initializeDevicesLVMMode(context, devices)
+			assert.NoError(t, err, "failed per-device encryption test, global encryption %t", globalEncryption)
+		}
+		logger.Info("success, go to next test")
+	}
+
+	// Test per-device encryption with metadata device
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb", EncryptedDevice: true}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
+			},
+		}
+
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return err
+			}
+
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/sdb" && args[14] == "--dmcrypt" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return "", err
+			}
+
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/sdb" && args[14] == "--dmcrypt" {
+				return `[{"data": "/dev/sdb"}]`, nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{Name: "sda"}, {Name: "sdb"},
+			},
+		}
+
+		err := a.initializeDevicesLVMMode(context, devices)
+		assert.NoError(t, err, "failed per-device encryption with metadata device test")
+		logger.Info("success, go to next test")
+	}
+
+	// Test two devices sharing a metadata device with different per-device encryption
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb", EncryptedDevice: true}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
+				"sdc": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sdc", MetadataDevice: "sdb"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
+			},
+		}
+
+		executor := &exectest.MockExecutor{}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{Name: "sda"}, {Name: "sdb"}, {Name: "sdc"},
+			},
+		}
+
+		err := a.initializeDevicesLVMMode(context, devices)
+		assert.ErrorContains(t, err, "has more than 1 encryptedDevice value set")
+		logger.Info("success, go to next test")
+	}
+
+	// Test per-device encryption with metadata partition device
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb1", EncryptedDevice: true}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
+			},
+		}
+
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBasePrepareArgs(args)
+			if err != nil {
+				return err
+			}
+
+			if len(args) == 12 && args[7] == "--data" && args[8] == "/dev/sda" && args[9] == "--block.db" && args[10] == "/dev/sdb1" && args[11] == "--dmcrypt" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{Name: "sda"}, {Name: "sdb1", Type: sys.PartType},
+			},
+		}
+
+		err := a.initializeDevicesLVMMode(context, devices)
+		assert.NoError(t, err, "failed per-device encryption with metadata partition device test")
+		logger.Info("success, go to next test")
+	}
+
 	// Test multiple OSD per device
 	{
 		executor := &exectest.MockExecutor{}
@@ -1836,6 +1994,26 @@ func TestParseCephVolumeLVMResult(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
+	for _, osd := range osds {
+		assert.False(t, osd.Encrypted)
+	}
+
+	t.Run("encrypted tag sets Encrypted", func(t *testing.T) {
+		encryptedResult := strings.ReplaceAll(cephVolumeLVMTestResult, `"ceph.encrypted": "0"`, `"ceph.encrypted": "1"`)
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "stdbuf" && args[4] == "lvm" && args[5] == "list" {
+				return encryptedResult, nil
+			}
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		osds, err := GetCephVolumeLVMOSDs(context, &cephclient.ClusterInfo{Namespace: "name"}, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", false, false)
+		assert.Nil(t, err)
+		require.Equal(t, 2, len(osds))
+		for _, osd := range osds {
+			assert.True(t, osd.Encrypted)
+		}
+	})
 }
 
 func TestCephVolumeResponseIsNotLoggedWithLockboxSecret(t *testing.T) {
@@ -2268,6 +2446,54 @@ func TestAllowRawMode(t *testing.T) {
 	}
 }
 
+func TestInitializeDevicesPerDeviceEncryption(t *testing.T) {
+	// global encryption is off, so raw mode is allowed and only the per-device
+	// setting can keep the encrypted device out of it
+	var rawPrepared, lvmPrepared [][]string
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		if slices.Contains(args, "raw") && slices.Contains(args, "prepare") {
+			rawPrepared = append(rawPrepared, args)
+			return "", nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	executor.MockExecuteCommand = func(command string, args ...string) error {
+		logger.Infof("%s %v", command, args)
+		if slices.Contains(args, "lvm") && slices.Contains(args, "batch") {
+			if !slices.Contains(args, "--report") {
+				lvmPrepared = append(lvmPrepared, args)
+			}
+			return nil
+		}
+		return errors.Errorf("unknown command %s %s", command, args)
+	}
+
+	devices := &DeviceOsdMapping{
+		Entries: map[string]*DeviceOsdIDEntry{
+			"sda": {Data: -1, Config: DesiredDevice{Name: "sda", EncryptedDevice: true}, DeviceInfo: &sys.LocalDisk{Name: "sda", Type: sys.DiskType}},
+			"sdc": {Data: -1, Config: DesiredDevice{Name: "sdc"}, DeviceInfo: &sys.LocalDisk{Name: "sdc", Type: sys.DiskType}},
+		},
+	}
+	a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+	context := &clusterd.Context{Executor: executor}
+
+	preparedRawDevices, err := a.initializeDevices(context, devices)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"/dev/sdc"}, preparedRawDevices)
+
+	require.Len(t, rawPrepared, 1)
+	assert.Contains(t, rawPrepared[0], "/dev/sdc")
+	assert.NotContains(t, rawPrepared[0], "/dev/sda")
+	assert.NotContains(t, rawPrepared[0], "--dmcrypt")
+
+	require.Len(t, lvmPrepared, 1)
+	assert.Contains(t, lvmPrepared[0], "/dev/sda")
+	assert.NotContains(t, lvmPrepared[0], "/dev/sdc")
+	assert.Contains(t, lvmPrepared[0], "--dmcrypt")
+}
+
 func TestAppendOSDInfo(t *testing.T) {
 	// Set 1: duplicate entries
 	{
@@ -2338,6 +2564,12 @@ func TestIsSafeToUseRawMode(t *testing.T) {
 		device.DeviceInfo.Type = sys.DiskType
 	})
 
+	t.Run("not safe if device is encrypted", func(t *testing.T) {
+		device.Config.EncryptedDevice = true
+		assert.False(t, isSafeToUseRawMode(device))
+		device.Config.EncryptedDevice = false
+	})
+
 	t.Run("not safe if OSDs per device > 1", func(t *testing.T) {
 		device.Config.OSDsPerDevice = 2
 		assert.False(t, isSafeToUseRawMode(device))
@@ -2370,6 +2602,11 @@ func TestLVMModeAllowed(t *testing.T) {
 	// non-encrypted part
 	device.DeviceInfo.Type = sys.PartType
 	assert.True(t, lvmModeAllowed(device, storeConfig))
+
+	// per-device encrypted part
+	device.Config.EncryptedDevice = true
+	assert.False(t, lvmModeAllowed(device, storeConfig))
+	device.Config.EncryptedDevice = false
 
 	// encrypted part
 	storeConfig.EncryptedDevice = true
