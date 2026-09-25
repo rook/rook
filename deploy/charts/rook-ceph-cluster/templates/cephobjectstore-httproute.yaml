@@ -17,8 +17,11 @@ spec:
     {{- .route.parentRefs | toYaml | nindent 4 }}
   rules:
     - backendRefs:
-        - name: rook-ceph-rgw-{{ .name }}
+        - group: ''
+          kind: Service
+          name: rook-ceph-rgw-{{ .name }}
           port: {{ .route.port | default .spec.gateway.securePort | default .spec.gateway.port }}
+          weight: 1
       matches:
         - path:
             type: {{ .route.host.pathType | default "PathPrefix" }}
