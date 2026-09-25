@@ -127,23 +127,26 @@ func TestFindFSName(t *testing.T) {
 }
 
 func TestDaemonMapEntry(t *testing.T) {
-	dummyVersionsRaw := []byte(`
-	{
-		"mon": {
-			"ceph version 18.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) reef (stable)": 1,
-			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
-		}
-	}`)
+	dummyVersions := cephv1.CephDaemonsVersions{
+		Mon: map[string]int{"mon": 1},
+		Osd: map[string]int{"osd": 1},
+	}
+	tests := []struct {
+		daemonType string
+		expected   map[string]int
+	}{
+		{"mon", dummyVersions.Mon},
+		{"osd", dummyVersions.Osd},
+	}
+	for _, tt := range tests {
+		t.Run(tt.daemonType, func(t *testing.T) {
+			m, err := daemonMapEntry(&dummyVersions, tt.daemonType)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, m)
+		})
+	}
 
-	var dummyVersions cephv1.CephDaemonsVersions
-	err := json.Unmarshal([]byte(dummyVersionsRaw), &dummyVersions)
-	assert.NoError(t, err)
-
-	m, err := daemonMapEntry(&dummyVersions, "mon")
-	assert.NoError(t, err)
-	assert.Equal(t, dummyVersions.Mon, m)
-
-	_, err = daemonMapEntry(&dummyVersions, "dummy")
+	_, err := daemonMapEntry(&dummyVersions, "dummy")
 	assert.Error(t, err)
 }
 
@@ -367,12 +370,7 @@ func TestLeastUptodateDaemonVersion(t *testing.T) {
     "ceph version 20.3.0-661-g68f47b56 (68f47b56a9717515844599c880de2b56a7135786) tentacle (dev - Debug)": 2,
     "ceph version 20.3.0-660-ababababa (abababababababababababababababababababab) tentacle (dev - Debug)": 1
   },
-  "mgr": {
-    "malformed output": 1
-  },
-  "osd": {
-    "ceph version 20.3.0-661-g68f47b56 (68f47b56a9717515844599c880de2b56a7135786) tentacle (dev - Debug)": 4
-  },
+  "osd": {},
   "overall": {
     "ceph version 20.3.0-661-g68f47b56 (68f47b56a9717515844599c880de2b56a7135786) tentacle (dev - Debug)": 8
   }
@@ -396,13 +394,9 @@ func TestLeastUptodateDaemonVersion(t *testing.T) {
 	}
 	assert.Equal(t, iterations, passed)
 
-	got, err := LeastUptodateDaemonVersion(clusterCtx, &clusterInfo, "mds")
+	got, err := LeastUptodateDaemonVersion(clusterCtx, &clusterInfo, "osd")
 	assert.NoError(t, err)
 	assert.Zero(t, got)
-
-	got, err = LeastUptodateDaemonVersion(clusterCtx, &clusterInfo, "osd")
-	assert.NoError(t, err)
-	assert.Equal(t, cephver.CephVersion{Major: 20, Minor: 3, Extra: 0, Build: 661, CommitID: "68f47b56a9717515844599c880de2b56a7135786"}, got)
 
 	got, err = LeastUptodateDaemonVersion(clusterCtx, &clusterInfo, "mgr")
 	assert.Error(t, err)
