@@ -246,6 +246,9 @@ flags are present on RBD volumes.
     * `target_size_ratio:` gives a hint (%) to the Ceph PG autoscaler in terms of expected consumption of the total cluster capacity of a given pool, for more info see the [ceph documentation](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size)
     * `compression_mode`: Configures data compression at the OSD level. If left unspecified, no compression is performed. Values supported are [these](https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression):  `none`, `passive`, `aggressive`, and `force`.  In most cases `aggressive` is appropriate.  Specify `force` only if you really know what you're doing.
 
+    !!! important
+        Rook never unsets a pool property. Removing a parameter leaves the last value Rook wrote set on the pool, unless another spec field supplies one, in which case that field's value is applied on the next reconcile. The fields that can supply one are the deprecated `compressionMode`, `replicated.targetSizeRatio` and `replicated.size`. Some Ceph pool properties also cannot be changed back at all once enabled.
+
 * `mirroring`: Configures Ceph `rbd-mirror` replicaton of the pool to a different Ceph cluster.
     * `enabled`: whether mirroring is enabled on that pool (default: false)
     * `mode`: mirroring mode to run, possible values are "pool", "image" or "init-only" (required). Refer to the [mirroring modes Ceph documentation](https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#enable-mirroring) for more details.
@@ -264,8 +267,8 @@ flags are present on RBD volumes.
     * `maxSize`: quota in bytes as a string with quantity suffixes (e.g. "10Gi")
     * `maxObjects`: quota in objects as an integer
 
-    !!! note
-        A value of 0 disables the quota.
+    !!! important
+        Rook writes only the quotas present in the spec. Removing `maxSize` or `maxObjects` issues no command to Ceph, so the last value Rook wrote stays enforced on the pool. To remove a quota, set `maxSize` to `"0"` or `maxObjects` to `0` instead of deleting the field. If the deprecated `maxBytes` is also set, removing `maxSize` applies `maxBytes` rather than leaving the quota untouched.
 
 ### Add specific pool properties
 
