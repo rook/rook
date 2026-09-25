@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -196,6 +197,31 @@ const (
 	access_key = "VFKF8SSU9L3L2UR03Z8C"
 	//#nosec G101 -- The credentials are just for the unit tests
 	secret_key = "5U4e2MkXHgXstfWkxGZOI6AXDfVUkDDHM7Dwc3mY"
+
+	// What `ceph dashboard get-rgw-api-{access,secret}-key` prints once the dashboard has
+	// configured credentials itself: a Python dict repr mapping each realm to a key of the
+	// dashboard's own user, rather than a single key.
+	//#nosec G101 -- The credentials are just for the unit tests
+	accessKeyRealmMap = `{'store-a': 'VFKF8SSU9L3L2UR03Z8C'}`
+	//#nosec G101 -- The credentials are just for the unit tests
+	secretKeyRealmMap = `{'store-a': '5U4e2MkXHgXstfWkxGZOI6AXDfVUkDDHM7Dwc3mY'}`
+
+	// A dashboard-admin user left behind by an operator that stored the realm map as its keys.
+	//#nosec G101 -- The credentials are just for the unit tests
+	dashboardAdminRealmMapJSON = `{
+    "user_id": "dashboard-admin",
+    "display_name": "dashboard-admin",
+    "email": "",
+    "keys": [
+        {
+            "user": "dashboard-admin",
+            "access_key": "{'store-a': 'VFKF8SSU9L3L2UR03Z8C'}",
+            "secret_key": "{'store-a': '5U4e2MkXHgXstfWkxGZOI6AXDfVUkDDHM7Dwc3mY'}"
+        }
+    ],
+    "system": "true",
+    "type": "rgw"
+}`
 )
 
 func TestReconcileRealm(t *testing.T) {
@@ -582,9 +608,10 @@ func TestCheckDashboardUser(t *testing.T) {
 		storeName)
 
 	// Scenario 1: No user exists yet
-	user, err := getDashboardUser(objContext)
+	user, credentialsPublished, err := getDashboardUser(objContext)
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
+	assert.False(t, credentialsPublished)
 	assert.Nil(t, user.AccessKey)
 	assert.Nil(t, user.SecretKey)
 	checkdashboard, err := checkDashboardUser(objContext, user)
@@ -614,9 +641,10 @@ func TestCheckDashboardUser(t *testing.T) {
 		},
 	}
 
-	user, err = getDashboardUser(objContext)
+	user, credentialsPublished, err = getDashboardUser(objContext)
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
+	assert.True(t, credentialsPublished)
 	assert.NotNil(t, user.AccessKey)
 	assert.NotNil(t, user.SecretKey)
 
@@ -647,9 +675,10 @@ func TestCheckDashboardUser(t *testing.T) {
 		},
 	}
 
-	user, err = getDashboardUser(objContext)
+	user, credentialsPublished, err = getDashboardUser(objContext)
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
+	assert.True(t, credentialsPublished)
 	assert.NotNil(t, user.AccessKey)
 	assert.NotNil(t, user.SecretKey)
 
@@ -683,7 +712,7 @@ func TestDashboard(t *testing.T) {
 	},
 		storeName)
 
-	user, err := getDashboardUser(objContext)
+	user, _, err := getDashboardUser(objContext)
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 	checkdashboard, err := checkDashboardUser(objContext, user)
@@ -705,7 +734,7 @@ func TestDashboard(t *testing.T) {
 	}
 	objContext.Context.Executor = executor
 
-	user, err = getDashboardUser(objContext)
+	user, _, err = getDashboardUser(objContext)
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 	checkdashboard, err = checkDashboardUser(objContext, user)
@@ -725,6 +754,205 @@ func TestDashboard(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, checkdashboard)
 	disableRGWDashboard(objContext)
+}
+
+func Test_isUsableDashboardCredential(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{"access key", access_key, true},
+		{"secret key", secret_key, true},
+		{"empty", "", false},
+		{"realm map", accessKeyRealmMap, false},
+		{"realm map secret", secretKeyRealmMap, false},
+		{"realm map as json", `{"store-a": "VFKF8SSU9L3L2UR03Z8C"}`, false},
+		{"multi realm map", `{'store-a': 'VFKF8SSU9L3L2UR03Z8C', 'store-b': 'ZBOXZZR6C3QKOTX1IY4W'}`, false},
+		{"empty map", "{}", false},
+		{"whitespace only", "   ", false},
+		{"embedded whitespace", "VFKF8SSU9L3L 2UR03Z8C", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isUsableDashboardCredential(tt.value))
+		})
+	}
+}
+
+// The dashboard replaces RGW_API_ACCESS_KEY with a per-realm map of its own credentials as soon
+// as it configures them itself. Reading that map back must not be mistaken for a key, otherwise
+// the dashboard user of every object store reconciled afterwards is created with the map as its
+// access and secret key and RGW answers 403 InvalidAccessKeyId. See rook/rook#17553.
+func TestGetDashboardUserWithRealmMap(t *testing.T) {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "dashboard" {
+				switch args[1] {
+				case "get-rgw-api-access-key":
+					return accessKeyRealmMap, nil
+				case "get-rgw-api-secret-key":
+					return secretKeyRealmMap, nil
+				}
+			}
+			return "", nil
+		},
+	}
+	objContext := newDashboardTestContext(executor)
+
+	user, credentialsPublished, err := getDashboardUser(objContext)
+	assert.NoError(t, err)
+	assert.False(t, credentialsPublished)
+	assert.Nil(t, user.AccessKey)
+	assert.Nil(t, user.SecretKey)
+}
+
+// A dashboard user already holding the realm map has to be recreated, otherwise the object
+// stores broken by earlier operators would stay broken across every future reconcile.
+func TestCheckDashboardUserWithRealmMapKeys(t *testing.T) {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			return "", nil
+		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			if args[0] == "user" && args[1] == "info" {
+				return dashboardAdminRealmMapJSON, nil
+			}
+			return "", nil
+		},
+	}
+	objContext := newDashboardTestContext(executor)
+
+	user, credentialsPublished, err := getDashboardUser(objContext)
+	assert.NoError(t, err)
+	assert.False(t, credentialsPublished)
+
+	checkdashboard, err := checkDashboardUser(objContext, user)
+	assert.NoError(t, err)
+	assert.False(t, checkdashboard)
+}
+
+// End to end cover for rook/rook#17553: with the realm map published and no dashboard user in
+// this store's realm yet, the user must be created with keys RGW generates and the dashboard
+// must be given one of those keys rather than the map it started with.
+func TestEnableRGWDashboardWithRealmMap(t *testing.T) {
+	var mu sync.Mutex
+	var createArgs []string
+	var publishedAccessKey string
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			if args[0] == "dashboard" {
+				switch args[1] {
+				case "get-rgw-api-access-key":
+					return accessKeyRealmMap, nil
+				case "get-rgw-api-secret-key":
+					return secretKeyRealmMap, nil
+				case "set-rgw-api-access-key":
+					publishedAccessKey = readInputFileArg(args)
+				}
+			}
+			return "", nil
+		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			if args[0] == "user" {
+				switch args[1] {
+				case "info":
+					return "no user info saved", nil
+				case "create":
+					createArgs = append([]string(nil), args...)
+					return dashboardAdminCreateJSON, nil
+				}
+			}
+			return "", nil
+		},
+	}
+	objContext := newDashboardTestContext(executor)
+
+	err := enableRGWDashboard(objContext)
+	assert.NoError(t, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	// RGW generates the pair, so no key is handed to `radosgw-admin user create` at all.
+	assert.NotContains(t, createArgs, "--access-key")
+	assert.NotContains(t, createArgs, "--secret")
+	assert.NotContains(t, createArgs, accessKeyRealmMap)
+	assert.NotContains(t, createArgs, secretKeyRealmMap)
+
+	// The dashboard ends up with the generated key instead of the map it published.
+	assert.Equal(t, access_key, publishedAccessKey)
+}
+
+// An existing dashboard user is reused rather than rolled when the dashboard has no usable pair
+// of its own, since recreating it would invalidate every other object store sharing that pair.
+func TestEnableRGWDashboardRepublishesExistingUser(t *testing.T) {
+	var mu sync.Mutex
+	userCreated := false
+	var publishedAccessKey string
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			if args[0] == "dashboard" && args[1] == "set-rgw-api-access-key" {
+				publishedAccessKey = readInputFileArg(args)
+			}
+			// Every `dashboard get-*` returns empty, as it does after a reset.
+			return "", nil
+		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			if args[0] == "user" {
+				switch args[1] {
+				case "info":
+					return dashboardAdminCreateJSON, nil
+				case "create":
+					userCreated = true
+					return dashboardAdminCreateJSON, nil
+				}
+			}
+			return "", nil
+		},
+	}
+	objContext := newDashboardTestContext(executor)
+
+	err := enableRGWDashboard(objContext)
+	assert.NoError(t, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.False(t, userCreated)
+	assert.Equal(t, access_key, publishedAccessKey)
+}
+
+func newDashboardTestContext(executor *exectest.MockExecutor) *Context {
+	return NewContext(&clusterd.Context{Executor: executor}, &client.ClusterInfo{
+		Namespace:   "mycluster",
+		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9},
+		Context:     context.TODO(),
+	},
+		"myobject")
+}
+
+// readInputFileArg returns the contents of the file passed to a ceph command via `-i`.
+func readInputFileArg(args []string) string {
+	for i, arg := range args {
+		if arg == "-i" && i+1 < len(args) {
+			content, err := os.ReadFile(args[i+1])
+			if err != nil {
+				return ""
+			}
+			return string(content)
+		}
+	}
+	return ""
 }
 
 // import TestMockExecHelperProcess
