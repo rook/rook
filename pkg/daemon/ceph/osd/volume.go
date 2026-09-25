@@ -532,6 +532,12 @@ func isSafeToUseRawMode(device *DeviceOsdIDEntry) bool {
 		return false
 	}
 
+	// ceph-volume raw mode does not support encryption yet
+	if device.Config.EncryptedDevice {
+		logger.Debugf("won't use raw mode for disk %q since encryption is enabled", device.Config.Name)
+		return false
+	}
+
 	// ceph-volume raw mode does not support more than one OSD per disk
 	if device.Config.OSDsPerDevice > 1 {
 		logger.Debugf("won't use raw mode for disk %q since osd per device is %d", device.Config.Name, device.Config.OSDsPerDevice)
@@ -548,7 +554,7 @@ func isSafeToUseRawMode(device *DeviceOsdIDEntry) bool {
 }
 
 func lvmModeAllowed(device *DeviceOsdIDEntry, storeConfig *config.StoreConfig) bool {
-	if device.DeviceInfo.Type == sys.PartType && storeConfig.EncryptedDevice {
+	if device.DeviceInfo.Type == sys.PartType && (storeConfig.EncryptedDevice || device.Config.EncryptedDevice) {
 		logger.Infof("skipping partition %q for lvm mode since encryption is not supported on partitions with a `metadataDevice` or `osdsPerDevice > 1`", device.Config.Name)
 		return false
 	}
@@ -758,11 +764,16 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 				}
 
 				logger.Infof("using %s as metadataDevice for device %s and let ceph-volume lvm batch decide how to create volumes", md, deviceArg)
+				deviceEncrypted := strconv.FormatBool(a.storeConfig.EncryptedDevice || device.Config.EncryptedDevice)
 				if _, ok := metadataDevices[md]; ok {
 					// Fail when two devices using the same metadata device have different values for osdsPerDevice
 					metadataDevices[md]["devices"] += " " + deviceArg
 					if deviceOSDCount != metadataDevices[md]["osdsperdevice"] {
 						return errors.Errorf("metadataDevice (%s) has more than 1 osdsPerDevice value set: %s != %s", md, deviceOSDCount, metadataDevices[md]["osdsperdevice"])
+					}
+					// Fail when two devices using the same metadata device have different values for encryptedDevice
+					if deviceEncrypted != metadataDevices[md]["encrypted"] {
+						return errors.Errorf("metadataDevice (%s) has more than 1 encryptedDevice value set: %s != %s", md, deviceEncrypted, metadataDevices[md]["encrypted"])
 					}
 				} else {
 					metadataDevices[md] = make(map[string]string)
@@ -771,6 +782,7 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 						metadataDevices[md]["deviceclass"] = device.Config.DeviceClass
 					}
 					metadataDevices[md]["devices"] = deviceArg
+					metadataDevices[md]["encrypted"] = deviceEncrypted
 				}
 				if metadataDevice.Type == sys.PartType {
 					if a.metadataDevice != "" && device.Config.MetadataDevice == "" {
@@ -803,6 +815,10 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 					deviceOSDCount,
 					deviceArg,
 				}...)
+
+				if device.Config.EncryptedDevice && !a.storeConfig.EncryptedDevice {
+					immediateExecuteArgs = append(immediateExecuteArgs, encryptedFlag)
+				}
 
 				// assign the device class specific to the device
 				immediateExecuteArgs = a.appendDeviceClassArg(device, immediateExecuteArgs)
@@ -897,6 +913,10 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 				dbDeviceFlag,
 				mdPath,
 			}...)
+		}
+
+		if conf["encrypted"] == "true" && !a.storeConfig.EncryptedDevice {
+			mdArgs = append(mdArgs, encryptedFlag)
 		}
 
 		if _, ok := conf["deviceclass"]; ok {
@@ -1237,6 +1257,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			continue
 		}
 		var osdFSID, osdDeviceClass string
+		var osdEncrypted bool
 		for _, osd := range osdInfo {
 			if osd.Tags.ClusterFSID != cephfsid {
 				logger.Infof("skipping osd%d: %q running on a different ceph cluster %q", id, osd.Tags.OSDFSID, osd.Tags.ClusterFSID)
@@ -1244,6 +1265,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			}
 			osdFSID = osd.Tags.OSDFSID
 			osdDeviceClass = osd.Tags.CrushDeviceClass
+			osdEncrypted = osd.Tags.Encrypted == "1"
 
 			// If no lv is specified let's take the one we discovered
 			if lv == "" {
@@ -1279,6 +1301,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			CVMode:        cvMode,
 			Store:         osdStore,
 			DeviceClass:   osdDeviceClass,
+			Encrypted:     osdEncrypted,
 		}
 		osds = append(osds, osd)
 	}

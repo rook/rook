@@ -421,7 +421,7 @@ func (a *OsdAgent) buildReplacementPrepareArgs(osdID int, dataDevice, dbLV strin
 		if dbLV != "" {
 			args = append(args, blockDBFlag, dbLV)
 		}
-		if a.storeConfig.EncryptedDevice {
+		if a.storeConfig.EncryptedDevice || entry.Config.EncryptedDevice {
 			args = append(args, encryptedFlag)
 		}
 	}

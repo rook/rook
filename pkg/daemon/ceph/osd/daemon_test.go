@@ -506,6 +506,25 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 1, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sdt1"].Data)
 
+	// per-device encryption on a disk
+	agent.devices = []DesiredDevice{{Name: "sdd", EncryptedDevice: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.True(t, mapping.Entries["sdd"].Config.EncryptedDevice)
+
+	// partition with per-device encryption is rejected
+	agent.devices = []DesiredDevice{{Name: "sdt1", EncryptedDevice: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+
+	// logical volume with per-device encryption is rejected
+	agent.devices = []DesiredDevice{{Name: "/dev/mapper/vg1-lv1", EncryptedDevice: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+
 	// test on PVC
 	context.Devices = []*sys.LocalDisk{
 		{Name: "/mnt/set1-0-data-qfhfk", RealPath: "/dev/xvdcy", Type: "data"},

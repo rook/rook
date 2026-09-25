@@ -43,7 +43,8 @@ func TestParseDesiredDevices(t *testing.T) {
 		{
 			ID: "nvme01",
 			StoreConfig: osdcfg.StoreConfig{
-				OSDsPerDevice: 5,
+				OSDsPerDevice:   5,
+				EncryptedDevice: true,
 			},
 		},
 	}
@@ -60,6 +61,9 @@ func TestParseDesiredDevices(t *testing.T) {
 	assert.Equal(t, 1, result[0].OSDsPerDevice)
 	assert.Equal(t, 1, result[1].OSDsPerDevice)
 	assert.Equal(t, 5, result[2].OSDsPerDevice)
+	assert.False(t, result[0].EncryptedDevice)
+	assert.False(t, result[1].EncryptedDevice)
+	assert.True(t, result[2].EncryptedDevice)
 	assert.False(t, result[0].IsFilter)
 	assert.False(t, result[1].IsFilter)
 	assert.False(t, result[2].IsFilter)

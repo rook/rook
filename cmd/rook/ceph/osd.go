@@ -415,6 +415,7 @@ func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 		d.DeviceClass = cd.StoreConfig.DeviceClass
 		d.InitialWeight = cd.StoreConfig.InitialWeight
 		d.MetadataDevice = cd.StoreConfig.MetadataDevice
+		d.EncryptedDevice = cd.StoreConfig.EncryptedDevice
 
 		if d.OSDsPerDevice < 1 {
 			return nil, errors.Errorf("osds per device should be greater than 0 (%d)", d.OSDsPerDevice)
