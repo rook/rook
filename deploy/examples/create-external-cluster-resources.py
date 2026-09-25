@@ -1639,7 +1639,10 @@ class RadosJSON:
         # run ceph auth ls to list all the keys
         cmd_json = {"prefix": "auth ls", "format": "json"}
         if self._arg_parser.dry_run:
-            return self.dry_run("ceph " + cmd_json["prefix"])
+            self.dry_run("ceph " + cmd_json["prefix"])
+            # the cluster is not queried in dry-run mode, so the real latest
+            # generation is unknown; assume no prior generation exists
+            return generation
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
