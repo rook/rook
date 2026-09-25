@@ -23,3 +23,4 @@
   reported in `status.info`. Removing either field stops Rook from managing it and leaves the last applied value in place
   on the RGW user, except that changing `defaultPlacement` without a `defaultStorageClass` resets the storage class to
   the new placement target's default.
+- Buckets provisioned via ObjectBucketClaim can request a placement target and a default storage class with the `bucketPlacement` and `bucketStorageClass` `additionalConfig` keys (disabled by default; enable via `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS`). A request the store or an existing bucket cannot satisfy fails the reconcile and is reported as a Warning Event on the OBC.

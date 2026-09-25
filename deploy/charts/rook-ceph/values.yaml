@@ -230,7 +230,7 @@ obcProvisionerNamePrefix:
 # -- Many OBC additional config fields may be risky for administrators to allow users control over.
 # The safe and default-allowed fields are 'maxObjects' and 'maxSize'.
 # Other fields should be considered risky. To allow all additional configs, use this value:
-#   "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner"
+#   "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner,bucketPlacement,bucketStorageClass"
 # @default -- "maxObjects,maxSize"
 obcAllowAdditionalConfigFields: "maxObjects,maxSize"
 

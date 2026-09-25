@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -30,6 +31,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	smithylogging "github.com/aws/smithy-go/logging"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/pkg/errors"
 )
 
@@ -95,31 +97,58 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 	}, nil
 }
 
-// CreateBucket creates a bucket with the given name
+// CreateBucket creates a bucket with the given name, leaving its placement
+// target and default storage class to RGW.
 func (s *S3Agent) CreateBucket(ctx context.Context, name string) error {
-	return s.createBucket(ctx, name, true)
+	return s.createBucket(ctx, name, "", "", true)
 }
 
-func (s *S3Agent) createBucket(ctx context.Context, name string, infoLogging bool) error {
+// CreateBucketWithPlacement creates a bucket on the named RGW placement
+// target with the given default storage class. Either may be empty, which
+// leaves that choice to RGW. A BucketAlreadyExists answer is an error when
+// either is set: RGW cannot re-place an existing bucket, and it answers a
+// same-owner re-create that changes nothing with 200 rather than 409.
+func (s *S3Agent) CreateBucketWithPlacement(ctx context.Context, name, placement, storageClass string) error {
+	return s.createBucket(ctx, name, placement, storageClass, true)
+}
+
+func (s *S3Agent) createBucket(ctx context.Context, name, placement, storageClass string, infoLogging bool) error {
+	target := describePlacement(placement, storageClass)
 	if infoLogging {
-		logger.Infof("creating bucket %q", name)
+		logger.Infof("creating bucket %q%s", name, target)
 	} else {
-		logger.Debugf("creating bucket %q", name)
+		logger.Debugf("creating bucket %q%s", name, target)
 	}
 
 	input := &s3.CreateBucketInput{
 		Bucket: &name,
 	}
+	if placement != "" {
+		// RGW reads the constraint as "<zonegroup>:<placement>"; an empty
+		// zonegroup is the one serving the request
+		input.CreateBucketConfiguration = &s3types.CreateBucketConfiguration{
+			LocationConstraint: s3types.BucketLocationConstraint(":" + placement),
+		}
+	}
+	var optFns []func(*s3.Options)
+	if storageClass != "" {
+		// CreateBucketInput has no storage class field; a bucket default
+		// storage class is an RGW extension read from this request header
+		optFns = append(optFns, func(o *s3.Options) {
+			o.APIOptions = append(o.APIOptions, smithyhttp.SetHeaderValue("X-Amz-Storage-Class", storageClass))
+		})
+	}
 
-	_, err := s.Client.CreateBucket(ctx, input)
+	_, err := s.Client.CreateBucket(ctx, input, optFns...)
 	if err != nil {
 		var alreadyExists *s3types.BucketAlreadyExists
 		var alreadyOwned *s3types.BucketAlreadyOwnedByYou
-		if errors.As(err, &alreadyExists) || errors.As(err, &alreadyOwned) {
+		placementRequested := placement != "" || storageClass != ""
+		if errors.As(err, &alreadyOwned) || (errors.As(err, &alreadyExists) && !placementRequested) {
 			logger.Debugf("bucket %q already exists or is owned by you", name)
 			return nil
 		}
-		return errors.Wrapf(err, "failed to create bucket %q", name)
+		return errors.Wrapf(err, "failed to create bucket %q%s", name, target)
 	}
 
 	if infoLogging {
@@ -128,6 +157,22 @@ func (s *S3Agent) createBucket(ctx context.Context, name string, infoLogging boo
 		logger.Debugf("successfully created bucket %q", name)
 	}
 	return nil
+}
+
+// describePlacement renders a placement request for log and error text, as
+// ` with placement "x" and storage class "y"`; empty when nothing was requested.
+func describePlacement(placement, storageClass string) string {
+	var parts []string
+	if placement != "" {
+		parts = append(parts, fmt.Sprintf("placement %q", placement))
+	}
+	if storageClass != "" {
+		parts = append(parts, fmt.Sprintf("storage class %q", storageClass))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return " with " + strings.Join(parts, " and ")
 }
 
 // PutObjectInBucket function puts an object in a bucket using the s3 client
