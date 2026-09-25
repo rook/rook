@@ -20,7 +20,9 @@ spec:
     {{- .Values.route.dashboard.parentRefs | toYaml | nindent 4 }}
   rules:
     - backendRefs:
-        - name: rook-ceph-mgr-dashboard
+        - group: ''
+          kind: Service
+          name: rook-ceph-mgr-dashboard
           {{- if .Values.cephClusterSpec.dashboard.port }}
           port: {{ .Values.cephClusterSpec.dashboard.port }}
           {{- else if .Values.cephClusterSpec.dashboard.ssl }}
@@ -28,6 +30,7 @@ spec:
           {{- else }}
           port: 7000
           {{- end }}
+          weight: 1
       matches:
         - path:
             type: {{ .Values.route.dashboard.host.pathType | default "PathPrefix" }}
