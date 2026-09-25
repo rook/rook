@@ -259,10 +259,13 @@ spec:
 		clusterSpec += `
   csi:
     cephfs:
-      kernelMountOptions: ms_mode=secure
-  `
+      kernelMountOptions: ms_mode=secure`
+	} else if m.settings.RequireMsgr2 {
+		clusterSpec += `
+  csi:
+    cephfs:
+      kernelMountOptions: ms_mode=prefer-crc`
 	}
-
 	return clusterSpec + `
   priorityClassNames:
     mon: system-node-critical
