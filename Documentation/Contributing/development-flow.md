@@ -369,9 +369,9 @@ need to reconfigure it explicitly. Since this behavior is not typical, it must b
 Rook's upstream continuous integration (CI) tests will run integration tests against your changes
 automatically.
 
-## Tmate Session
+## SSH Session
 
-Integration tests will be run in Github actions. If an integration test fails, enable a tmate session to troubleshoot the issue by one of the following steps:
+Integration tests will be run in Github actions. If an integration test fails, enable an ssh session to troubleshoot the issue by one of the following steps:
 
 * Restart the CI action and click the "Enable debug logging" checkbox from the github UI, or
 * Add the label `debug-ci` to the PR and push your changes again.
