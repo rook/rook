@@ -19,7 +19,9 @@ package realm
 
 import (
 	"context"
+	"errors"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,17 +29,20 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -357,5 +362,187 @@ func TestReconcileObjectRealm_createRealmKeys(t *testing.T) {
 		_, err := r.createRealmKeys(realm)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "user likely created or modified the secret manually and should add the missing key back into the secret")
+	})
+}
+
+func TestCephObjectRealmFinalizer(t *testing.T) {
+	ctx := context.TODO()
+	finalizer := "cephobjectrealm.ceph.rook.io"
+	req := reconcile.Request{NamespacedName: types.NamespacedName{Name: name, Namespace: namespace}}
+
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectRealm{}, &cephv1.CephObjectRealmList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
+
+	newRealm := func() *cephv1.CephObjectRealm {
+		return &cephv1.CephObjectRealm{
+			TypeMeta:   metav1.TypeMeta{Kind: "CephObjectRealm"},
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		}
+	}
+	newDeletingRealm := func() *cephv1.CephObjectRealm {
+		realm := newRealm()
+		realm.Finalizers = []string{finalizer}
+		realm.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		return realm
+	}
+	newCephCluster := func(health string) *cephv1.CephCluster {
+		return &cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: namespace, Namespace: namespace},
+			Status:     cephv1.ClusterStatus{CephStatus: &cephv1.CephStatus{Health: health}},
+		}
+	}
+	newZoneGroup := func(zoneGroupName, zoneGroupNamespace, realmName string) *cephv1.CephObjectZoneGroup {
+		return &cephv1.CephObjectZoneGroup{
+			ObjectMeta: metav1.ObjectMeta{Name: zoneGroupName, Namespace: zoneGroupNamespace},
+			Spec:       cephv1.ObjectZoneGroupSpec{Realm: realmName},
+		}
+	}
+	newReconciler := func(rookClient *rookclient.Clientset, objects ...runtime.Object) (*ReconcileObjectRealm, *events.FakeRecorder) {
+		recorder := events.NewFakeRecorder(50)
+		return &ReconcileObjectRealm{
+			client:           test.NewFakeClientWithKind(s, objects...),
+			scheme:           s,
+			context:          &clusterd.Context{Clientset: k8sfake.NewClientset(), RookClientset: rookClient},
+			opManagerContext: ctx,
+			recorder:         recorder,
+		}, recorder
+	}
+	drainEvents := func(recorder *events.FakeRecorder) []string {
+		var got []string
+		for len(recorder.Events) > 0 {
+			got = append(got, <-recorder.Events)
+		}
+		return got
+	}
+
+	t.Run("reconcile adds the finalizer", func(t *testing.T) {
+		r, _ := newReconciler(rookclient.NewSimpleClientset(), newRealm())
+
+		_, err := r.Reconcile(ctx, req)
+		require.NoError(t, err)
+
+		realm := &cephv1.CephObjectRealm{}
+		require.NoError(t, r.client.Get(ctx, req.NamespacedName, realm))
+		assert.Contains(t, realm.Finalizers, finalizer)
+	})
+
+	// With a destructive cleanup policy, a CephCluster that is being deleted counts as gone
+	destroyedCluster := newCephCluster("HEALTH_OK")
+	destroyedCluster.Finalizers = []string{"cephcluster.ceph.rook.io"}
+	destroyedCluster.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+	destroyedCluster.Spec.CleanupPolicy.Confirmation = cephv1.DeleteDataDirOnHostsConfirmation
+
+	dependent := newZoneGroup("zonegroup-a", namespace, name)
+
+	tests := []struct {
+		name        string
+		cephCluster *cephv1.CephCluster // nil if no CephCluster exists
+		zoneGroups  []runtime.Object
+		wantResult  reconcile.Result
+		released    bool
+		blocked     bool // the deletion is reported as blocked by the zone groups
+	}{
+		{
+			name:        "deletion is blocked while a zone group references the realm",
+			cephCluster: newCephCluster("HEALTH_OK"),
+			zoneGroups:  []runtime.Object{dependent},
+			wantResult:  opcontroller.WaitForRequeueIfFinalizerBlocked,
+			blocked:     true,
+		},
+		{
+			name:        "finalizer is removed when no zone group references the realm",
+			cephCluster: newCephCluster("HEALTH_OK"),
+			zoneGroups:  []runtime.Object{newZoneGroup("zonegroup-b", namespace, "realm-b"), newZoneGroup("zonegroup-a", "other-namespace", name)},
+			released:    true,
+		},
+		{
+			name:        "finalizer is removed when there are no zone groups",
+			cephCluster: newCephCluster("HEALTH_OK"),
+			released:    true,
+		},
+		{
+			name:        "deletion waits while the CephCluster is not ready",
+			cephCluster: newCephCluster(""),
+			zoneGroups:  []runtime.Object{dependent},
+			wantResult:  opcontroller.WaitForRequeueIfCephClusterNotReady,
+		},
+		{
+			name:       "finalizer is removed when there is no CephCluster",
+			zoneGroups: []runtime.Object{dependent},
+			released:   true,
+		},
+		{
+			name:        "finalizer is removed when the CephCluster is deleted with a cleanup policy",
+			cephCluster: destroyedCluster,
+			zoneGroups:  []runtime.Object{dependent},
+			released:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objects := []runtime.Object{newDeletingRealm()}
+			if tt.cephCluster != nil {
+				objects = append(objects, tt.cephCluster.DeepCopy())
+			}
+			r, recorder := newReconciler(rookclient.NewSimpleClientset(tt.zoneGroups...), objects...)
+
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantResult, res)
+
+			got := &cephv1.CephObjectRealm{}
+			err = r.client.Get(ctx, req.NamespacedName, got)
+			if tt.released {
+				assert.True(t, kerrors.IsNotFound(err), "realm CR should be gone, got err: %v", err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Contains(t, got.Finalizers, finalizer)
+
+			if tt.blocked {
+				require.NotNil(t, got.Status)
+				cond := cephv1.FindStatusCondition(got.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
+				require.NotNil(t, cond)
+				assert.Equal(t, v1.ConditionTrue, cond.Status)
+				assert.Equal(t, cephv1.ObjectHasDependentsReason, cond.Reason)
+
+				events := drainEvents(recorder)
+				require.Len(t, events, 1)
+				assert.Contains(t, events[0], "Warning ReconcileFailed")
+				assert.Contains(t, events[0], "will not be deleted until all dependents are removed: CephObjectZoneGroups: [zonegroup-a]")
+			}
+		})
+	}
+
+	t.Run("deletion reports the deleting event once no zone group references the realm", func(t *testing.T) {
+		r, recorder := newReconciler(rookclient.NewSimpleClientset(), newDeletingRealm(), newCephCluster("HEALTH_OK"))
+
+		_, err := r.Reconcile(ctx, req)
+		require.NoError(t, err)
+
+		events := drainEvents(recorder)
+		assert.Condition(t, func() bool {
+			for _, e := range events {
+				if strings.HasPrefix(e, "Normal Deleting ") {
+					return true
+				}
+			}
+			return false
+		}, "expected a Normal Deleting event, got %v", events)
+	})
+
+	t.Run("deletion waits when the zone groups cannot be listed", func(t *testing.T) {
+		rookClient := rookclient.NewSimpleClientset()
+		rookClient.PrependReactor("list", "cephobjectzonegroups", func(k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, errors.New("list failed")
+		})
+		r, _ := newReconciler(rookClient, newDeletingRealm(), newCephCluster("HEALTH_OK"))
+
+		_, err := r.Reconcile(ctx, req)
+		assert.ErrorContains(t, err, "list failed")
+
+		got := &cephv1.CephObjectRealm{}
+		require.NoError(t, r.client.Get(ctx, req.NamespacedName, got))
+		assert.Contains(t, got.Finalizers, finalizer)
 	})
 }
