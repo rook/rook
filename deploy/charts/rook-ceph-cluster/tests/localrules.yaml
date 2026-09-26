@@ -1,0 +1,52 @@
+# Run from this directory with: promtool test rules localrules.yaml
+# Do not use the *_test.yaml suffix, which is reserved for helm-unittest suites.
+# Percent-used values from Ceph are fractions. A fast-growing pool must alert,
+# while a flat pool and a slow-growing pool must not.
+rule_files:
+  - ../prometheus/localrules.yaml
+evaluation_interval: 1h
+tests:
+  - interval: 1h
+    input_series:
+      - series: 'ceph_pool_percent_used{cluster="mycluster",pool_id="1",instance="mgr-a"}'
+        values: '0.30+0.01x48'
+      - series: 'ceph_pool_percent_used{cluster="mycluster",pool_id="2",instance="mgr-a"}'
+        values: '0.20+0x48'
+      - series: 'ceph_pool_percent_used{cluster="mycluster",pool_id="3",instance="mgr-a"}'
+        values: '0.20+0.0002x48'
+      - series: 'ceph_pool_metadata{cluster="mycluster",pool_id="1",name="growing",instance="mgr-a"}'
+        values: '1+0x48'
+      - series: 'ceph_pool_metadata{cluster="mycluster",pool_id="2",name="flat",instance="mgr-a"}'
+        values: '1+0x48'
+      - series: 'ceph_pool_metadata{cluster="mycluster",pool_id="3",name="slow",instance="mgr-a"}'
+        values: '1+0x48'
+    alert_rule_test:
+      - eval_time: 1h
+        alertname: CephPoolGrowthWarning
+        exp_alerts: [] # the 1h pending period has not elapsed
+      - eval_time: 2h
+        alertname: CephPoolGrowthWarning
+        exp_alerts:
+          - exp_labels:
+              cluster: mycluster
+              pool_id: "1"
+              name: growing
+              severity: warning
+              type: ceph_default
+              oid: 1.3.6.1.4.1.50495.1.2.1.9.2
+            exp_annotations:
+              summary: Pool growth rate may soon exceed capacity on cluster mycluster
+              description: Pool 'growing' will be full in less than 5 days assuming the average fill-up rate of the past 48 hours.
+      - eval_time: 48h
+        alertname: CephPoolGrowthWarning
+        exp_alerts:
+          - exp_labels:
+              cluster: mycluster
+              pool_id: "1"
+              name: growing
+              severity: warning
+              type: ceph_default
+              oid: 1.3.6.1.4.1.50495.1.2.1.9.2
+            exp_annotations:
+              summary: Pool growth rate may soon exceed capacity on cluster mycluster
+              description: Pool 'growing' will be full in less than 5 days assuming the average fill-up rate of the past 48 hours.

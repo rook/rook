@@ -20,5 +20,5 @@
 .idea/
 *.tmproj
 *.tmpl
-# helm-unittest suites
+# Test suites
 tests/
