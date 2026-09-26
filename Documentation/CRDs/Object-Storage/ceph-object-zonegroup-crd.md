@@ -27,3 +27,5 @@ spec:
 ### Spec
 
 * `realm`: The object realm in which the zone group will be created. This matches the name of the object realm CRD.
+
+When deleting a CephObjectZoneGroup, deletion will be blocked until all `CephObjectZones` belonging to the zone group are removed.
