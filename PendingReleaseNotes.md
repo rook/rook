@@ -9,6 +9,10 @@
 - Ceph msgrv2 is required by default. Msgrv2 requires the 5.11 kernel. If you have an older kernel, disable the msgrv2 protocol
   with the CephCluster CR setting `network.connections.requireMsgr2: false`. If using the helm chart, this same value is applied
   under the `cephClusterSpec` of the values.
+- Deleting a `CephObjectRealm` or `CephObjectZoneGroup` is now blocked until the
+  `CephObjectZoneGroups` or `CephObjectZones` that reference it are deleted, so that the resources
+  that depend on it can still look it up while they are deleted. See
+  [Multisite Cleanup](Documentation/Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md#multisite-cleanup).
 
 ## Features
 
