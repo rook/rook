@@ -331,6 +331,8 @@ Changes made to the resource's configuration or deletion of the resource are not
 
 When the ceph-object-zone group resource is deleted or modified, the zone group is not deleted from the Ceph cluster. Zone Group deletion must be done through the toolbox.
 
+Deleting a CephObjectZoneGroup is blocked until all CephObjectZones that reference it are deleted. Until then, the zone group's `DeletionIsBlocked` status condition lists the zones that block its deletion.
+
 #### Deleting a Zone Group
 
 The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command.
@@ -347,6 +349,8 @@ radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zonegro
 Changes made to the resource's configuration or deletion of the resource are not reflected on the Ceph cluster.
 
 When the ceph-object-realm resource is deleted or modified, the realm is not deleted from the Ceph cluster. Realm deletion must be done via the toolbox.
+
+Deleting a CephObjectRealm is blocked until all CephObjectZoneGroups that reference it are deleted. Until then, the realm's `DeletionIsBlocked` status condition lists the zone groups that block its deletion.
 
 #### Deleting a Realm
 

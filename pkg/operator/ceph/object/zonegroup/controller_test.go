@@ -19,6 +19,8 @@ package zonegroup
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,14 +31,20 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -361,4 +369,187 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 	assert.False(t, res.Requeue)
 	err = r.client.Get(context.TODO(), req.NamespacedName, objectZoneGroup)
 	assert.NoError(t, err)
+}
+
+func TestCephObjectZoneGroupFinalizer(t *testing.T) {
+	ctx := context.TODO()
+	finalizer := "cephobjectzonegroup.ceph.rook.io"
+	req := reconcile.Request{NamespacedName: types.NamespacedName{Name: name, Namespace: namespace}}
+
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectZoneGroup{}, &cephv1.CephObjectZoneGroupList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
+
+	newZoneGroup := func() *cephv1.CephObjectZoneGroup {
+		return &cephv1.CephObjectZoneGroup{
+			TypeMeta:   metav1.TypeMeta{Kind: "CephObjectZoneGroup"},
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+			Spec:       cephv1.ObjectZoneGroupSpec{Realm: realm},
+		}
+	}
+	newDeletingZoneGroup := func() *cephv1.CephObjectZoneGroup {
+		zoneGroup := newZoneGroup()
+		zoneGroup.Finalizers = []string{finalizer}
+		zoneGroup.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		return zoneGroup
+	}
+	newCephCluster := func(health string) *cephv1.CephCluster {
+		return &cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: namespace, Namespace: namespace},
+			Status:     cephv1.ClusterStatus{CephStatus: &cephv1.CephStatus{Health: health}},
+		}
+	}
+	newZone := func(zoneName, zoneNamespace, zoneGroupName string) *cephv1.CephObjectZone {
+		return &cephv1.CephObjectZone{
+			ObjectMeta: metav1.ObjectMeta{Name: zoneName, Namespace: zoneNamespace},
+			Spec:       cephv1.ObjectZoneSpec{ZoneGroup: zoneGroupName},
+		}
+	}
+	newReconciler := func(rookClient *rookclient.Clientset, objects ...runtime.Object) (*ReconcileObjectZoneGroup, *events.FakeRecorder) {
+		recorder := events.NewFakeRecorder(50)
+		return &ReconcileObjectZoneGroup{
+			client:           test.NewFakeClientWithKind(s, objects...),
+			scheme:           s,
+			context:          &clusterd.Context{Clientset: k8sfake.NewClientset(), RookClientset: rookClient},
+			opManagerContext: ctx,
+			recorder:         recorder,
+		}, recorder
+	}
+	drainEvents := func(recorder *events.FakeRecorder) []string {
+		var got []string
+		for len(recorder.Events) > 0 {
+			got = append(got, <-recorder.Events)
+		}
+		return got
+	}
+
+	t.Run("reconcile adds the finalizer", func(t *testing.T) {
+		r, _ := newReconciler(rookclient.NewSimpleClientset(), newZoneGroup())
+
+		_, err := r.Reconcile(ctx, req)
+		require.NoError(t, err)
+
+		zoneGroup := &cephv1.CephObjectZoneGroup{}
+		require.NoError(t, r.client.Get(ctx, req.NamespacedName, zoneGroup))
+		assert.Contains(t, zoneGroup.Finalizers, finalizer)
+	})
+
+	// With a destructive cleanup policy, a CephCluster that is being deleted counts as gone
+	destroyedCluster := newCephCluster("HEALTH_OK")
+	destroyedCluster.Finalizers = []string{"cephcluster.ceph.rook.io"}
+	destroyedCluster.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+	destroyedCluster.Spec.CleanupPolicy.Confirmation = cephv1.DeleteDataDirOnHostsConfirmation
+
+	dependent := newZone("zone-a", namespace, name)
+
+	tests := []struct {
+		name        string
+		cephCluster *cephv1.CephCluster // nil if no CephCluster exists
+		zones       []runtime.Object
+		wantResult  reconcile.Result
+		released    bool
+		blocked     bool // the deletion is reported as blocked by the zones
+	}{
+		{
+			name:        "deletion is blocked while a zone references the zone group",
+			cephCluster: newCephCluster("HEALTH_OK"),
+			zones:       []runtime.Object{dependent},
+			wantResult:  opcontroller.WaitForRequeueIfFinalizerBlocked,
+			blocked:     true,
+		},
+		{
+			name:        "finalizer is removed when no zone references the zone group",
+			cephCluster: newCephCluster("HEALTH_OK"),
+			zones:       []runtime.Object{newZone("zone-b", namespace, "zonegroup-b"), newZone("zone-a", "other-namespace", name)},
+			released:    true,
+		},
+		{
+			name:        "finalizer is removed when there are no zones",
+			cephCluster: newCephCluster("HEALTH_OK"),
+			released:    true,
+		},
+		{
+			name:        "deletion waits while the CephCluster is not ready",
+			cephCluster: newCephCluster(""),
+			zones:       []runtime.Object{dependent},
+			wantResult:  opcontroller.WaitForRequeueIfCephClusterNotReady,
+		},
+		{
+			name:     "finalizer is removed when there is no CephCluster",
+			zones:    []runtime.Object{dependent},
+			released: true,
+		},
+		{
+			name:        "finalizer is removed when the CephCluster is deleted with a cleanup policy",
+			cephCluster: destroyedCluster,
+			zones:       []runtime.Object{dependent},
+			released:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objects := []runtime.Object{newDeletingZoneGroup()}
+			if tt.cephCluster != nil {
+				objects = append(objects, tt.cephCluster.DeepCopy())
+			}
+			r, recorder := newReconciler(rookclient.NewSimpleClientset(tt.zones...), objects...)
+
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantResult, res)
+
+			got := &cephv1.CephObjectZoneGroup{}
+			err = r.client.Get(ctx, req.NamespacedName, got)
+			if tt.released {
+				assert.True(t, kerrors.IsNotFound(err), "zone group CR should be gone, got err: %v", err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Contains(t, got.Finalizers, finalizer)
+
+			if tt.blocked {
+				require.NotNil(t, got.Status)
+				cond := cephv1.FindStatusCondition(got.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
+				require.NotNil(t, cond)
+				assert.Equal(t, v1.ConditionTrue, cond.Status)
+				assert.Equal(t, cephv1.ObjectHasDependentsReason, cond.Reason)
+
+				events := drainEvents(recorder)
+				require.Len(t, events, 1)
+				assert.Contains(t, events[0], "Warning ReconcileFailed")
+				assert.Contains(t, events[0], "will not be deleted until all dependents are removed: CephObjectZones: [zone-a]")
+			}
+		})
+	}
+
+	t.Run("deletion reports the deleting event once no zone references the zone group", func(t *testing.T) {
+		r, recorder := newReconciler(rookclient.NewSimpleClientset(), newDeletingZoneGroup(), newCephCluster("HEALTH_OK"))
+
+		_, err := r.Reconcile(ctx, req)
+		require.NoError(t, err)
+
+		events := drainEvents(recorder)
+		assert.Condition(t, func() bool {
+			for _, e := range events {
+				if strings.HasPrefix(e, "Normal Deleting ") {
+					return true
+				}
+			}
+			return false
+		}, "expected a Normal Deleting event, got %v", events)
+	})
+
+	t.Run("deletion waits when the zones cannot be listed", func(t *testing.T) {
+		rookClient := rookclient.NewSimpleClientset()
+		rookClient.PrependReactor("list", "cephobjectzones", func(k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, errors.New("list failed")
+		})
+		r, _ := newReconciler(rookClient, newDeletingZoneGroup(), newCephCluster("HEALTH_OK"))
+
+		_, err := r.Reconcile(ctx, req)
+		assert.ErrorContains(t, err, "list failed")
+
+		got := &cephv1.CephObjectZoneGroup{}
+		require.NoError(t, r.client.Get(ctx, req.NamespacedName, got))
+		assert.Contains(t, got.Finalizers, finalizer)
+	})
 }
