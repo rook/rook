@@ -8,8 +8,8 @@ on:
         required: true
         type: string
       upgrade_suite_tests:
-        description: "JSON list of upgrade suite subtests such as TestUpgradeCephToSquidDevel, TestUpgradeCephToTentacleDevel"
-        default: '["TestUpgradeCephToSquidDevel", "TestUpgradeCephToTentacleDevel"]'
+        description: "JSON list of upgrade suite subtests such as TestUpgradeCephToSquidDevel, TestUpgradeCephToTentacleDevel, TestUpgradeCephToUmbrellaDevel"
+        default: '["TestUpgradeCephToSquidDevel", "TestUpgradeCephToTentacleDevel", "TestUpgradeCephToUmbrellaDevel"]'
         type: string
       object_suite_tests:
         description: "JSON list of object suite subtests such as TestWithoutTLS, TestWithTLS"
