@@ -39,8 +39,8 @@ can be replicated or backed up with kubed. This proposal gives COSU Secrets the 
 * Preserving labels or annotations that other actors write directly to the Secret. The operator
     keeps its current behavior of owning the Secret's metadata. Changing to server-side apply with
     field ownership would be a separate change affecting every Secret the operator writes.
-* Other Secrets that Rook generates, such as the CephObjectStoreAccount root-user Secret. The same
-    field shape can be added to them later.
+* Other Secrets that Rook generates, such as the CephObjectStoreAccount root-user Secret. The
+    `SecretTemplate` type is not specific to CephObjectStoreUser, so they can reuse it later.
 * Renaming the Secret or changing its data keys.
 
 ## API Changes
@@ -66,19 +66,21 @@ spec:
 ```
 
 ```go
-// ObjectUserSecretTemplate defines metadata to add to the Secret that holds a
-// CephObjectStoreUser's credentials.
-type ObjectUserSecretTemplate struct {
-    // Labels to add to the Secret. Keys that Rook sets or acts on are not allowed.
+// SecretTemplate defines labels and annotations to add to a Secret that Rook
+// generates.
+type SecretTemplate struct {
+    // Labels to add to the Secret. Keys that Rook acts on are not allowed.
     // +optional
-    Labels Labels `json:"labels,omitempty"`
+    Labels map[string]LabelValue `json:"labels,omitempty"`
     // Annotations to add to the Secret. Keys that Rook acts on are not allowed.
     // +optional
-    Annotations Annotations `json:"annotations,omitempty"`
+    Annotations map[string]AnnotationValue `json:"annotations,omitempty"`
 }
 ```
 
-The field reuses Rook's existing `Labels` and `Annotations` types. The name and shape follow
+The maps are plain maps rather than Rook's `Labels` and `Annotations` types, because
+controller-gen cannot apply `MaxProperties` through a named map type. Values use the `LabelValue`
+and `AnnotationValue` string types so that the schema can bound their length. The name and shape follow
 cert-manager's `Certificate.spec.secretTemplate`, which solves the same problem for the Secrets that
 cert-manager generates. Like cert-manager, template entries cannot override the metadata that the
 controller sets itself.
@@ -97,21 +99,38 @@ These keys are reserved because Rook sets them or changes its behavior when they
     by `csi.rook.io/*` annotations on Secrets in the cluster namespace. A COSU Secret carrying one
     would break CSI for RadosNamespaces and SubVolumeGroups.
 
+The `SecretTemplate` type reserves the keys that Rook acts on in any Secret: `do_not_reconcile`,
+`cephx-keyring`, and the `rook.io` prefix. The four labels that Rook sets on this particular Secret
+are reserved by a rule on the CephObjectStoreUser's `secretTemplate` field instead, so another
+resource can reuse the type and reserve the labels that it sets on its own Secret.
+
 Any label or annotation that Rook adds to this Secret in future must use a `rook.io` prefix, so it
 is already reserved and never makes a stored CR invalid.
 
 ### Validation
 
-A CEL rule rejects the COSU at admission if either map contains a reserved key, a label key or
-annotation key that is not a valid qualified name, or a label value that is not a valid label
-value. The syntax checks use the Kubernetes CEL format library (`format.qualifiedName()` and
-`format.labelValue()`), which is available from Kubernetes 1.32, Rook's minimum supported version.
-Rook already ships a per-key CEL rule on a map (`muteHealthWarning` in the CephCluster health check
-settings), so this follows existing precedent.
+CEL rules reject the COSU at admission if either map contains a reserved key, or a label key or
+annotation key that is not a valid qualified name. The key checks use the Kubernetes CEL format
+library (`format.qualifiedName()`), which is available from Kubernetes 1.32, Rook's minimum supported
+version. Annotation keys are lowercased before the check, as the API server does for a Secret's
+annotations. Rook already ships a per-key CEL rule on a map (`muteHealthWarning` in the CephCluster
+health check settings), so this follows existing precedent.
 
-`MaxProperties` limits both maps. This keeps the CEL rule within the cost budget and keeps the
-Secret well below the object size limit. The chosen limit must be shown to fit the budget on a
-Kubernetes 1.32 API server.
+Label values are checked by the schema instead of CEL, with the Kubernetes label value pattern and
+its 63-character limit, which express the Kubernetes rule without any CEL cost.
+
+A CEL rule also limits the annotations to 256 KiB in total, counting the bytes of every key and
+value, which is the limit that Kubernetes applies to a Secret's annotations. Each annotation value is
+limited to 256 KiB as well, and to 262144 characters, which the API server needs to bound the cost
+of the rules. `MaxProperties` limits both maps to
+32 entries, which keeps the CEL rules within the cost budget; a Kubernetes 1.32 API server confirms
+this.
+
+An empty `secretTemplate`, `labels`, or `annotations` is rejected. Rook's Go types omit an empty map
+when they serialize a CephObjectStoreUser, so an admitted empty map would silently disappear from the
+CR on the next update through those types. `SecretTemplate` also reports itself as zero when both
+maps are empty, so a Go client that builds it from empty maps omits it instead of sending an empty
+`secretTemplate`, which would be rejected.
 
 The operator checks the same rules with the Kubernetes validation helpers before it makes any RGW
 change, as Rook already does for user-supplied node labels. This covers CRs stored before the CEL
@@ -197,5 +216,5 @@ default.
 * A CEL test against a Kubernetes 1.32 API server (a disposable kind cluster with the CRD applied
     and server-side dry-run). It shows that reserved keys and invalid syntax are rejected, and that
     the rule fits the cost budget at `MaxProperties`.
-* An assertion in the existing object-user integration test that a labeled COSU's Secret carries
-    the label and can be found with a label selector.
+* An object-user integration test showing that a labeled COSU's Secret carries the label, can be
+    found with a label selector, and loses an entry removed from the CR.
