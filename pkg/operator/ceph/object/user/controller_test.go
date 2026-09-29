@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -343,6 +344,57 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		err = r.client.Get(context.TODO(), req.NamespacedName, objectUser)
 		assert.NoError(t, err)
 		assert.Equal(t, "Ready", objectUser.Status.Phase, objectUser)
+	})
+
+	t.Run("invalid secretTemplate fails before any RGW user change", func(t *testing.T) {
+		invalidUser := objectUser.DeepCopy()
+		invalidUser.Spec.SecretTemplate.Labels = map[string]cephv1.LabelValue{"team": "payments team"}
+		require.NoError(t, r.client.Update(ctx, invalidUser))
+
+		previous := newMultisiteAdminOpsCtxFunc
+		t.Cleanup(func() { newMultisiteAdminOpsCtxFunc = previous })
+		var mutatingRequests []string
+		newMultisiteAdminOpsCtxFunc = func(objContext *cephobject.Context, spec *cephv1.ObjectStoreSpec) (*cephobject.AdminOpsContext, error) {
+			mockClient := &cephobject.MockClient{
+				MockDo: func(req *http.Request) (*http.Response, error) {
+					if req.Method != http.MethodGet {
+						mutatingRequests = append(mutatingRequests, req.Method+" "+req.URL.String())
+					}
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
+					}, nil
+				},
+			}
+			context, err := cephobject.NewMultisiteContext(r.context, r.clusterInfo, cephObjectStore)
+			require.NoError(t, err)
+			adminClient, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient)
+			require.NoError(t, err)
+			return &cephobject.AdminOpsContext{
+				Context:               *context,
+				AdminOpsUserAccessKey: "53S6B9S809NUP19IJ2K3",
+				// #nosec G101 -- fake test credential
+				AdminOpsUserSecretKey: "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", // notsecret
+				AdminOpsClient:        adminClient,
+			}, nil
+		}
+		recorder := events.NewFakeRecorder(10)
+		r.recorder = recorder
+
+		_, err := r.Reconcile(ctx, req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `spec.secretTemplate.labels: Invalid value: "payments team"`)
+		assert.Empty(t, mutatingRequests)
+
+		require.NoError(t, r.client.Get(ctx, req.NamespacedName, invalidUser))
+		assert.Equal(t, k8sutil.ReconcileFailedStatus, invalidUser.Status.Phase)
+		var failureEvent string
+		for len(recorder.Events) > 0 {
+			if e := <-recorder.Events; strings.Contains(e, string(cephv1.ReconcileFailed)) {
+				failureEvent = e
+			}
+		}
+		assert.Contains(t, failureEvent, `spec.secretTemplate.labels: Invalid value: "payments team"`)
 	})
 
 	t.Run("cluster and object store in different namespace", func(t *testing.T) {
@@ -989,6 +1041,143 @@ func TestValidateUser(t *testing.T) {
 			},
 		}
 		assert.NoError(t, r.validateUser(u))
+	})
+}
+
+func TestValidateSecretTemplate(t *testing.T) {
+	userWith := func(tmpl cephv1.SecretTemplate) *cephv1.CephObjectStoreUser {
+		return &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+			Spec:       cephv1.ObjectStoreUserSpec{Store: store, SecretTemplate: tmpl},
+		}
+	}
+
+	valid := []struct {
+		name string
+		tmpl cephv1.SecretTemplate
+	}{
+		{"empty", cephv1.SecretTemplate{}},
+		{"labels and annotations", cephv1.SecretTemplate{
+			Labels: map[string]cephv1.LabelValue{"team": "payments", "example.com/tier": "gold", "empty": ""},
+			Annotations: map[string]cephv1.AnnotationValue{
+				"reflector.v1.k8s.emberstack.com/reflection-allowed": "true",
+				"free-form": "any value / with spaces",
+			},
+		}},
+		{"annotation key with an uppercase prefix", cephv1.SecretTemplate{
+			Annotations: map[string]cephv1.AnnotationValue{"Example.COM/Replicate": "true"},
+		}},
+		{"keys that only look like rook.io", cephv1.SecretTemplate{
+			Labels:      map[string]cephv1.LabelValue{"notrook.io/x": "y", "rook.io.example.com/x": "y"},
+			Annotations: map[string]cephv1.AnnotationValue{"notrook.io/x": "y"},
+		}},
+	}
+	for _, tt := range valid {
+		t.Run("accepts "+tt.name, func(t *testing.T) {
+			assert.NoError(t, validateSecretTemplate(userWith(tt.tmpl)))
+		})
+	}
+
+	invalid := []struct {
+		name    string
+		tmpl    cephv1.SecretTemplate
+		wantErr string
+	}{
+		{"invalid label key", cephv1.SecretTemplate{Labels: map[string]cephv1.LabelValue{"bad key": "v"}}, "spec.secretTemplate.labels"},
+		{"invalid label value", cephv1.SecretTemplate{Labels: map[string]cephv1.LabelValue{"team": "payments team"}}, "spec.secretTemplate.labels"},
+		{"label value too long", cephv1.SecretTemplate{Labels: map[string]cephv1.LabelValue{"team": cephv1.LabelValue(strings.Repeat("a", 64))}}, "spec.secretTemplate.labels"},
+		{"reserved label app", cephv1.SecretTemplate{Labels: map[string]cephv1.LabelValue{"app": "x"}}, "spec.secretTemplate.labels[app]"},
+		{"reserved label user", cephv1.SecretTemplate{Labels: map[string]cephv1.LabelValue{"user": "x"}}, "spec.secretTemplate.labels[user]"},
+		{"reserved label rook_cluster", cephv1.SecretTemplate{Labels: map[string]cephv1.LabelValue{"rook_cluster": "x"}}, "spec.secretTemplate.labels[rook_cluster]"},
+		{"reserved label rook_object_store", cephv1.SecretTemplate{Labels: map[string]cephv1.LabelValue{"rook_object_store": "x"}}, "spec.secretTemplate.labels[rook_object_store]"},
+		{"reserved label do_not_reconcile", cephv1.SecretTemplate{Labels: map[string]cephv1.LabelValue{"do_not_reconcile": "true"}}, "spec.secretTemplate.labels[do_not_reconcile]"},
+		{"reserved label rook.io prefix", cephv1.SecretTemplate{Labels: map[string]cephv1.LabelValue{"rook.io/x": "y"}}, "spec.secretTemplate.labels[rook.io/x]"},
+		{"reserved label *.rook.io prefix", cephv1.SecretTemplate{Labels: map[string]cephv1.LabelValue{"ceph.rook.io/x": "y"}}, "spec.secretTemplate.labels[ceph.rook.io/x]"},
+		{"invalid annotation key", cephv1.SecretTemplate{Annotations: map[string]cephv1.AnnotationValue{"bad key": "v"}}, "spec.secretTemplate.annotations"},
+		{"annotations too large", cephv1.SecretTemplate{Annotations: map[string]cephv1.AnnotationValue{"big": cephv1.AnnotationValue(strings.Repeat("a", 256*1024))}}, "spec.secretTemplate.annotations"},
+		{"reserved annotation cephx-keyring", cephv1.SecretTemplate{Annotations: map[string]cephv1.AnnotationValue{"cephx-keyring": "x"}}, "spec.secretTemplate.annotations[cephx-keyring]"},
+		{"reserved annotation csi.rook.io", cephv1.SecretTemplate{Annotations: map[string]cephv1.AnnotationValue{"csi.rook.io/RBDProvisionerSecret": "true"}}, "spec.secretTemplate.annotations[csi.rook.io/RBDProvisionerSecret]"},
+	}
+	for _, tt := range invalid {
+		t.Run("rejects "+tt.name, func(t *testing.T) {
+			err := validateSecretTemplate(userWith(tt.tmpl))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestCephUserSecretTemplate(t *testing.T) {
+	ctx := context.TODO()
+	s := runtime.NewScheme()
+	require.NoError(t, cephv1.AddToScheme(s))
+	require.NoError(t, corev1.AddToScheme(s))
+
+	user := &cephv1.CephObjectStoreUser{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, UID: "user-uid"},
+		Spec:       cephv1.ObjectStoreUserSpec{Store: store},
+	}
+	userConfig := &admin.User{Keys: []admin.UserKeySpec{{AccessKey: "access", SecretKey: "secret"}}}
+	r := &ReconcileObjectStoreUser{
+		client:           fake.NewClientBuilder().WithScheme(s).Build(),
+		scheme:           s,
+		objContext:       &cephobject.AdminOpsContext{Context: cephobject.Context{Endpoint: "http://rook-ceph-rgw-my-store:80"}},
+		opManagerContext: ctx,
+	}
+	rookLabels := map[string]string{
+		"app":               appName,
+		"user":              name,
+		"rook_cluster":      namespace,
+		"rook_object_store": store,
+	}
+	getSecret := func(t *testing.T) *corev1.Secret {
+		secret := &corev1.Secret{}
+		require.NoError(t, r.client.Get(ctx, types.NamespacedName{Name: generateCephUserSecretName(user), Namespace: namespace}, secret))
+		return secret
+	}
+
+	t.Run("no template keeps only Rook's labels", func(t *testing.T) {
+		_, err := r.reconcileCephUserSecret(user, userConfig, "")
+		require.NoError(t, err)
+		secret := getSecret(t)
+		assert.Equal(t, rookLabels, secret.Labels)
+		assert.Empty(t, secret.Annotations)
+	})
+
+	t.Run("template labels and annotations are added", func(t *testing.T) {
+		user.Spec.SecretTemplate = cephv1.SecretTemplate{
+			Labels:      map[string]cephv1.LabelValue{"team": "payments", "tier": "gold"},
+			Annotations: map[string]cephv1.AnnotationValue{"reflector.v1.k8s.emberstack.com/reflection-allowed": "true"},
+		}
+		_, err := r.reconcileCephUserSecret(user, userConfig, "")
+		require.NoError(t, err)
+		secret := getSecret(t)
+		for k, v := range rookLabels {
+			assert.Equal(t, v, secret.Labels[k], k)
+		}
+		assert.Equal(t, "payments", secret.Labels["team"])
+		assert.Equal(t, "gold", secret.Labels["tier"])
+		assert.Equal(t, map[string]string{"reflector.v1.k8s.emberstack.com/reflection-allowed": "true"}, secret.Annotations)
+	})
+
+	t.Run("entries removed from the template are removed from the Secret", func(t *testing.T) {
+		user.Spec.SecretTemplate = cephv1.SecretTemplate{
+			Labels: map[string]cephv1.LabelValue{"team": "payments"},
+		}
+		_, err := r.reconcileCephUserSecret(user, userConfig, "")
+		require.NoError(t, err)
+		secret := getSecret(t)
+		assert.NotContains(t, secret.Labels, "tier")
+		assert.Equal(t, "payments", secret.Labels["team"])
+		assert.Empty(t, secret.Annotations)
+	})
+
+	t.Run("a reserved key in the template never overrides Rook's label", func(t *testing.T) {
+		user.Spec.SecretTemplate = cephv1.SecretTemplate{
+			Labels: map[string]cephv1.LabelValue{"app": "other", "rook_object_store": "other"},
+		}
+		secret := r.generateCephUserSecret(user, userConfig, "")
+		assert.Equal(t, rookLabels, secret.Labels)
 	})
 }
 

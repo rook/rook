@@ -2283,6 +2283,25 @@ is preserved, except when DefaultPlacement changes, which resets the
 storage class to the new target&rsquo;s default (STANDARD).</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>secretTemplate,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SecretTemplate">
+SecretTemplate
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SecretTemplate defines labels and annotations to add to the Secret that
+holds this user&rsquo;s credentials, for example to opt the Secret in to a
+tool that copies Secrets into other namespaces. Anyone who can edit this
+CephObjectStoreUser can use it to hand the credentials to such a tool.
+The labels app, user, rook_cluster and rook_object_store, which Rook
+sets on this Secret, are reserved.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -2924,6 +2943,17 @@ CIDRList
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.AnnotationValue">AnnotationValue
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.SecretTemplate">SecretTemplate</a>)
+</p>
+<div>
+<p>AnnotationValue is a Kubernetes annotation value of at most 256 KiB. Its
+length is also capped at 262144 characters, the most a 256 KiB value can
+hold, because the API server needs that bound to accept the CEL rules that
+check a template&rsquo;s annotations.</p>
+</div>
 <h3 id="ceph.rook.io/v1.Annotations">Annotations
 (<code>map[string]string</code> alias)</h3>
 <p>
@@ -9462,6 +9492,15 @@ int
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.LabelValue">LabelValue
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.SecretTemplate">SecretTemplate</a>)
+</p>
+<div>
+<p>LabelValue is a Kubernetes label value: at most 63 characters, empty or
+alphanumeric at both ends, with &lsquo;-&rsquo;, &lsquo;_&rsquo; and &lsquo;.&rsquo; allowed in between.</p>
+</div>
 <h3 id="ceph.rook.io/v1.Labels">Labels
 (<code>map[string]string</code> alias)</h3>
 <p>
@@ -12958,6 +12997,25 @@ is preserved, except when DefaultPlacement changes, which resets the
 storage class to the new target&rsquo;s default (STANDARD).</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>secretTemplate,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SecretTemplate">
+SecretTemplate
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SecretTemplate defines labels and annotations to add to the Secret that
+holds this user&rsquo;s credentials, for example to opt the Secret in to a
+tool that copies Secrets into other namespaces. Anyone who can edit this
+CephObjectStoreUser can use it to hand the credentials to such a tool.
+The labels app, user, rook_cluster and rook_object_store, which Rook
+sets on this Secret, are reserved.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus
@@ -15162,6 +15220,56 @@ string
 </em>
 </td>
 <td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.SecretTemplate">SecretTemplate
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreUserSpec">ObjectStoreUserSpec</a>)
+</p>
+<div>
+<p>SecretTemplate defines labels and annotations to add to a Secret that Rook
+generates. Keys that Rook acts on in any Secret are rejected here; a resource
+that uses this type also reserves the labels it sets on its own Secret.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>labels</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.LabelValue">
+map[string]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.LabelValue
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Labels to add to the Secret. The key do_not_reconcile, and keys with a
+rook.io or *.rook.io prefix, are reserved.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>annotations</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AnnotationValue">
+map[string]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.AnnotationValue
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Annotations to add to the Secret, at most 256 KiB in total. The key
+cephx-keyring, and keys with a rook.io or *.rook.io prefix, are reserved.</p>
 </td>
 </tr>
 </tbody>
