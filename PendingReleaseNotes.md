@@ -7,3 +7,7 @@ Changes should *not* be included here if they are backported to previous release
 
 
 ## Features
+
+- `CephObjectStoreUser` gained `spec.secretTemplate`, which adds labels and annotations to the Secret that holds the
+  user's credentials, for example to opt the Secret in to a tool that copies Secrets into other namespaces. Keys that
+  Rook sets or acts on are reserved.
