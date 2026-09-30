@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/tests/integration/object/cosi"
 	"github.com/rook/rook/tests/integration/object/dependents"
 	"github.com/rook/rook/tests/integration/object/notification"
+	"github.com/rook/rook/tests/integration/object/realm"
 	topickafka "github.com/rook/rook/tests/integration/object/topic/kafka"
 	usercaps "github.com/rook/rook/tests/integration/object/user/caps"
 	userkeys "github.com/rook/rook/tests/integration/object/user/keys"
@@ -38,6 +39,7 @@ import (
 	userplacement "github.com/rook/rook/tests/integration/object/user/placement"
 	userstorageclass "github.com/rook/rook/tests/integration/object/user/storageclass"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
+	"github.com/rook/rook/tests/integration/object/zonegroup"
 	"github.com/rook/rook/tests/integration/object/zonepools"
 )
 
@@ -137,6 +139,8 @@ func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.
 	// suite skips itself in the TLS pass
 	cosi.TestCephCOSIDriver(t, k8sh, sharedObjectStore)
 	notification.TestBucketNotification(t, k8sh, sharedObjectStore)
+	realm.TestCephObjectRealmDependents(t, k8sh, sharedObjectStore)
+	zonegroup.TestCephObjectZoneGroupDependents(t, k8sh, sharedObjectStore)
 
 	// last: this builds and deletes a store of its own, so keep it clear of the
 	// packages sharing the fixture store

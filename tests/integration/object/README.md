@@ -40,12 +40,14 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `cosi` | `object/cosi` | CephCOSIDriver + COSI bucket provisioning |
 | `dependents` | `object` | CephObjectStore deletion blocked by dependents |
 | `notification` | `object/notification` | CephBucketNotification HTTP endpoint delivery |
+| `realm` | `object/realm` | CephObjectRealm deletion blocked by its zone groups |
 | `topic/kafka` | `object/topic` | CephBucketTopic kafka endpoints |
 | `user/caps` | `object/user` | user capabilities |
 | `user/keys` | `object/user` | explicit S3 key management |
 | `user/opmask` | `object/user` | user op_mask |
 | `user/placement` | `object/user` | user defaultPlacement, including its unmanaged-on-removal semantics |
 | `user/storageclass` | `object/user` | user defaultStorageClass, verified on a bucket the user creates |
+| `zonegroup` | `object/zonegroup` | CephObjectZoneGroup deletion blocked by its zones, one at a time and all at once |
 | `zonepools` | `object` | zone.json pool fields covered by Rook's shared-pool mapping |
 
 Shared utilities live under `util/`:
@@ -67,6 +69,11 @@ Shared utilities live under `util/`:
   or classic store). Create waits for the store to be Ready and publish an
   endpoint, and Destroy asserts it deletes, so every store the suites build
   covers the store lifecycle.
+- `multisite` — the realm, zone group, and zone chain that the `realm` and
+  `zonegroup` packages build (`NewChain`), and their deletion
+  checks: `CheckDeletionBlocked` for a CR that waits for its dependents, and
+  `CheckPoolsDeleted`, which checks that a deleted zone left none of its pools
+  behind.
 - `client` — rgw admin, SNS, and S3 client builders and TLS cert generation.
 
 ## Anatomy of a package
