@@ -17,7 +17,6 @@ limitations under the License.
 package kms
 
 import (
-	"context"
 	"testing"
 
 	"github.com/libopenstorage/secrets/azure"
@@ -29,7 +28,7 @@ import (
 )
 
 func Test_AzureKVCert(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	ns := "rook-ceph"
 	context := &clusterd.Context{Clientset: test.New(t, 3)}
 	t.Run("azure secret name not provided in config", func(t *testing.T) {

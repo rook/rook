@@ -17,7 +17,6 @@ limitations under the License.
 package controller
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -304,7 +303,7 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 		err := ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, cephclient.NewMinimumOwnerInfo(t))
 		assert.NoError(t, err)
 
-		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(t.Context(), "rook-ceph-mgr-external", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, "192.168.0.1", currentEndpoints.Endpoints[0].Addresses[0], currentEndpoints)
 	})
@@ -332,7 +331,7 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 		err := ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, cephclient.NewMinimumOwnerInfo(t))
 		assert.NoError(t, err)
 
-		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(t.Context(), "rook-ceph-mgr-external", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, "172.17.0.12", currentEndpoints.Endpoints[0].Addresses[0], currentEndpoints)
 	})
@@ -359,13 +358,13 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 		ownerInfo := cephclient.NewMinimumOwnerInfo(t)
 		ep, err := createExternalMetricsEndpoints(clusterInfo.Namespace, monitoringSpec, ownerInfo)
 		assert.NoError(t, err)
-		_, err = ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Create(context.TODO(), ep, metav1.CreateOptions{})
+		_, err = ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Create(t.Context(), ep, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		err = ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, ownerInfo)
 		assert.NoError(t, err)
 
-		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(t.Context(), "rook-ceph-mgr-external", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, "172.17.0.12", currentEndpoints.Endpoints[0].Addresses[0], currentEndpoints)
 		assert.Equal(t, currentEndpoints.Labels[discoveryv1.LabelServiceName], ExternalMgrAppName)
@@ -395,13 +394,13 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 		ownerInfo := cephclient.NewMinimumOwnerInfo(t)
 		ep, err := createExternalMetricsEndpoints(clusterInfo.Namespace, monitoringSpec, ownerInfo)
 		assert.NoError(t, err)
-		_, err = ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Create(context.TODO(), ep, metav1.CreateOptions{})
+		_, err = ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Create(t.Context(), ep, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		err = ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, ownerInfo)
 		assert.NoError(t, err)
 
-		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(t.Context(), "rook-ceph-mgr-external", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, "192.168.0.1", currentEndpoints.Endpoints[0].Addresses[0], currentEndpoints)
 	})
@@ -432,7 +431,7 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 		err := ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, cephclient.NewMinimumOwnerInfo(t))
 		assert.NoError(t, err)
 
-		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(t.Context(), "rook-ceph-mgr-external", metav1.GetOptions{})
 		assert.NoError(t, err)
 		// Active mgr at [0], stale [0] preserved, no duplicates
 		assert.Equal(t, []string{"192.168.0.2", "192.168.0.1", "192.168.0.3"}, currentEndpoints.Endpoints[0].Addresses)
@@ -463,7 +462,7 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 		err := ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, cephclient.NewMinimumOwnerInfo(t))
 		assert.NoError(t, err)
 
-		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(t.Context(), "rook-ceph-mgr-external", metav1.GetOptions{})
 		assert.NoError(t, err)
 		// Endpoints unchanged when active mgr cannot be determined
 		assert.Equal(t, []string{"192.168.0.1", "192.168.0.2"}, currentEndpoints.Endpoints[0].Addresses)
@@ -495,7 +494,7 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 		err := ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, cephclient.NewMinimumOwnerInfo(t))
 		assert.NoError(t, err)
 
-		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(t.Context(), "rook-ceph-mgr-external", metav1.GetOptions{})
 		assert.NoError(t, err)
 		// Active mgr at [0], duplicate removed
 		assert.Equal(t, []string{"192.168.0.1", "192.168.0.2"}, currentEndpoints.Endpoints[0].Addresses)
@@ -527,7 +526,7 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 		err := ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, cephclient.NewMinimumOwnerInfo(t))
 		assert.NoError(t, err)
 
-		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		currentEndpoints, err := ctx.Clientset.DiscoveryV1().EndpointSlices(namespace).Get(t.Context(), "rook-ceph-mgr-external", metav1.GetOptions{})
 		assert.NoError(t, err)
 		// Active mgr stays at [0], remaining order preserved
 		assert.Equal(t, []string{"192.168.0.1", "192.168.0.2", "192.168.0.3"}, currentEndpoints.Endpoints[0].Addresses)
@@ -765,14 +764,14 @@ func TestGetDaemonsToSkipReconcile(t *testing.T) {
 				},
 			}
 
-			_, err := clientset.AppsV1().Deployments(namespace).Create(context.TODO(), dep, metav1.CreateOptions{})
+			_, err := clientset.AppsV1().Deployments(namespace).Create(t.Context(), dep, metav1.CreateOptions{})
 			assert.NoError(t, err)
 
 			clusterdCtx := &clusterd.Context{
 				Clientset: clientset,
 			}
 
-			result, err := GetDaemonsToSkipReconcile(context.TODO(), clusterdCtx, namespace, daemonName, appLabel)
+			result, err := GetDaemonsToSkipReconcile(t.Context(), clusterdCtx, namespace, daemonName, appLabel)
 			assert.NoError(t, err)
 
 			if tt.expectedSkip {

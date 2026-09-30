@@ -61,7 +61,7 @@ func TestGeneratePassword(t *testing.T) {
 }
 
 func TestGetOrGeneratePassword(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := test.New(t, 3)
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "myns", OwnerInfo: ownerInfo}
@@ -88,7 +88,7 @@ func TestGetOrGeneratePassword(t *testing.T) {
 }
 
 func TestStartSecureDashboard(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	enables := 0
 	disables := 0
 	moduleRetries := 0
@@ -211,7 +211,7 @@ func TestStartSecureDashboard(t *testing.T) {
 }
 
 func TestCreateSelfSignedCertRetriesWrappedDeadlineExceeded(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := test.New(t, 3)
 	attempts := 0
 	executor := &exectest.MockExecutor{

@@ -834,7 +834,7 @@ func TestDeploymentOnNode_DeviceClassFromLabel(t *testing.T) {
 			Labels: map[string]string{corev1.LabelHostname: "node0", NodeDeviceClassLabelKey: "fast"},
 		},
 	}
-	_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+	_, err := clientset.CoreV1().Nodes().Create(t.Context(), node, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	clusterInfo := &cephclient.ClusterInfo{
@@ -843,7 +843,7 @@ func TestDeploymentOnNode_DeviceClassFromLabel(t *testing.T) {
 	}
 	clusterInfo.SetName("test")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
-	clusterInfo.Context = context.TODO()
+	clusterInfo.Context = t.Context()
 
 	spec := cephv1.ClusterSpec{
 		Storage: cephv1.StorageScopeSpec{

@@ -18,7 +18,6 @@ package object
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -394,7 +393,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 			},
 		}
 		c = newClusterdCtx(executor, &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")})
-		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(context.TODO(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")}, v1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(t.Context(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")}, v1.CreateOptions{})
 		assert.NoError(t, err)
 		client, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient(`[]`))
 		assert.NoError(t, err)
@@ -424,7 +423,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 			},
 		}
 		c = newClusterdCtx(executor, &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")})
-		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(context.TODO(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1"), Spec: cephv1.ObjectStoreUserSpec{Store: "my-store"}}, v1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(t.Context(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1"), Spec: cephv1.ObjectStoreUserSpec{Store: "my-store"}}, v1.CreateOptions{})
 		assert.NoError(t, err)
 		client, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient(`[]`))
 		assert.NoError(t, err)
@@ -496,7 +495,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 			},
 		}
 		c = newClusterdCtx(executor, &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")})
-		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(context.TODO(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")}, v1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(t.Context(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")}, v1.CreateOptions{})
 		assert.NoError(t, err)
 		client, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient(`[]`))
 		assert.NoError(t, err)
@@ -532,7 +531,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 			},
 		}
 		c = newClusterdCtx(executor, &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")})
-		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(context.TODO(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1"), Spec: cephv1.ObjectStoreUserSpec{Store: storeZoneB.Name}}, v1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(t.Context(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1"), Spec: cephv1.ObjectStoreUserSpec{Store: storeZoneB.Name}}, v1.CreateOptions{})
 		assert.NoError(t, err)
 		client, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient(`[]`))
 		assert.NoError(t, err)
@@ -636,7 +635,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 			},
 		}
 		c = newClusterdCtx(executor, &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")})
-		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(context.TODO(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")}, v1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(t.Context(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")}, v1.CreateOptions{})
 		assert.NoError(t, err)
 		client, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient(`[]`))
 		assert.NoError(t, err)
@@ -672,7 +671,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 			},
 		}
 		c = newClusterdCtx(executor, &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")})
-		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(context.TODO(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1"), Spec: cephv1.ObjectStoreUserSpec{Store: storeZoneA.Name}}, v1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(t.Context(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1"), Spec: cephv1.ObjectStoreUserSpec{Store: storeZoneA.Name}}, v1.CreateOptions{})
 		assert.NoError(t, err)
 		client, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient(`[]`))
 		assert.NoError(t, err)
@@ -779,7 +778,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 			},
 		}
 		c = newClusterdCtx(executor, &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")})
-		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(context.TODO(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")}, v1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(t.Context(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")}, v1.CreateOptions{})
 		assert.NoError(t, err)
 		client, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient(`[]`))
 		assert.NoError(t, err)
@@ -816,7 +815,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 			},
 		}
 		c = newClusterdCtx(executor, &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")})
-		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(context.TODO(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1"), Spec: cephv1.ObjectStoreUserSpec{Store: storeZoneA.Name}}, v1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(t.Context(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1"), Spec: cephv1.ObjectStoreUserSpec{Store: storeZoneA.Name}}, v1.CreateOptions{})
 		assert.NoError(t, err)
 		client, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient(`[]`))
 		assert.NoError(t, err)

@@ -17,7 +17,6 @@ limitations under the License.
 package csi
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -605,7 +604,7 @@ func TestUpdateNetNamespaceFilePath(t *testing.T) {
 }
 
 func Test_updateCsiConfigMapOwnerRefs(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	ns := "test-ns"
 	ownerController := true
 	blockOwnerDel := true

@@ -49,7 +49,7 @@ const (
 )
 
 func TestCephFilesystemMirrorController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	var (
 		name      = "my-fs-mirror"
 		namespace = "rook-ceph"
@@ -257,14 +257,14 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
-		err = r.client.Get(context.TODO(), req.NamespacedName, fsMirror)
+		err = r.client.Get(t.Context(), req.NamespacedName, fsMirror)
 		assert.NoError(t, err)
 		assert.Equal(t, "Ready", fsMirror.Status.Phase, fsMirror)
 	})
 }
 
 func TestFSMirrorKeyRotation(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	var (
 		name      = "my-fs-mirror"
 		namespace = "rook-ceph"

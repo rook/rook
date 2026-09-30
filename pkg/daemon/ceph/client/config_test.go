@@ -17,7 +17,6 @@ limitations under the License.
 package client
 
 import (
-	"context"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -60,7 +59,7 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 }
 
 func TestGenerateConfigFile(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	// set up a temporary config directory that will be cleaned up after test
 	configDir := t.TempDir()
 
