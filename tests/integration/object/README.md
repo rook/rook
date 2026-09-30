@@ -47,6 +47,7 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `user/opmask` | `object/user` | user op_mask |
 | `user/placement` | `object/user` | user defaultPlacement, including its unmanaged-on-removal semantics |
 | `user/storageclass` | `object/user` | user defaultStorageClass, verified on a bucket the user creates |
+| `zone` | `object/zone` | CephObjectZone deletion blocked by its object stores, on its own and then with the rest of the chain at once |
 | `zonegroup` | `object/zonegroup` | CephObjectZoneGroup deletion blocked by its zones, one at a time and all at once |
 | `zonepools` | `object` | zone.json pool fields covered by Rook's shared-pool mapping |
 
@@ -68,9 +69,11 @@ Shared utilities live under `util/`:
   private store a private-store package builds (`Config.Kind` selects a zoned
   or classic store). Create waits for the store to be Ready and publish an
   endpoint, and Destroy asserts it deletes, so every store the suites build
-  covers the store lifecycle.
-- `multisite` — the realm, zone group, and zone chain that the `realm` and
-  `zonegroup` packages build (`NewChain`), and their deletion
+  covers the store lifecycle. A package that needs a second multisite store
+  builds it directly, as `zone` does: the fixture's zoned store owns the
+  cluster's `rgw.root` pool CR, so only one of them can exist at a time.
+- `multisite` — the realm, zone group, and zone chain that the `realm`,
+  `zonegroup`, and `zone` packages build (`NewChain`), and their deletion
   checks: `CheckDeletionBlocked` for a CR that waits for its dependents, and
   `CheckPoolsDeleted`, which checks that a deleted zone left none of its pools
   behind.

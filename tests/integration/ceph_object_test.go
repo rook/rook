@@ -39,6 +39,7 @@ import (
 	userplacement "github.com/rook/rook/tests/integration/object/user/placement"
 	userstorageclass "github.com/rook/rook/tests/integration/object/user/storageclass"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
+	"github.com/rook/rook/tests/integration/object/zone"
 	"github.com/rook/rook/tests/integration/object/zonegroup"
 	"github.com/rook/rook/tests/integration/object/zonepools"
 )
@@ -141,6 +142,7 @@ func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.
 	notification.TestBucketNotification(t, k8sh, sharedObjectStore)
 	realm.TestCephObjectRealmDependents(t, k8sh, sharedObjectStore)
 	zonegroup.TestCephObjectZoneGroupDependents(t, k8sh, sharedObjectStore)
+	zone.TestCephObjectZoneDependents(t, k8sh, sharedObjectStore)
 
 	// last: this builds and deletes a store of its own, so keep it clear of the
 	// packages sharing the fixture store
