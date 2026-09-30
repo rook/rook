@@ -124,7 +124,7 @@ func TestStart(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
 		CephVersion: cephver.Squid,
-		Context:     context.TODO(),
+		Context:     t.Context(),
 	}
 	clusterInfo.SetName("rook-ceph-test")
 	context := &clusterd.Context{Clientset: clientset, Client: client, ConfigDir: "/var/lib/rook", Executor: executor}
@@ -178,7 +178,7 @@ func createNode(nodeName string, condition corev1.NodeConditionType, clientset *
 }
 
 func TestAddRemoveNode(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	namespace := "ns-add-remove"
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node23"
@@ -437,7 +437,7 @@ func TestPostReconcileUpdateOSDProperties(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
 		CephVersion: cephver.Squid,
-		Context:     context.TODO(),
+		Context:     t.Context(),
 	}
 	clusterInfo.SetName("rook-ceph-test")
 	context := &clusterd.Context{Clientset: clientset, Client: client, ConfigDir: "/var/lib/rook", Executor: executor}
@@ -487,7 +487,7 @@ func TestAddNodeFailure(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns-add-remove",
 		CephVersion: cephver.Squid,
-		Context:     context.TODO(),
+		Context:     t.Context(),
 	}
 	clusterInfo.SetName("testcluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -534,7 +534,7 @@ func TestOSDProvisionCleanup(t *testing.T) {
 	// Create orphaned status configmap
 	cmName := statusConfigMapName(missingNodeName)
 	cmLabels := statusConfigMapLabels(missingNodeName)
-	_, err := clientset.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &corev1.ConfigMap{
+	_, err := clientset.CoreV1().ConfigMaps(namespace).Create(t.Context(), &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   cmName,
 			Labels: cmLabels,
@@ -545,7 +545,7 @@ func TestOSDProvisionCleanup(t *testing.T) {
 	// Create orphaned provision job
 	orphanedJobName := provisionJobName(missingNodeName)
 	orphanedJobLabels := provisionJobLabels(namespace)
-	_, err = clientset.BatchV1().Jobs(namespace).Create(context.TODO(), &batchv1.Job{
+	_, err = clientset.BatchV1().Jobs(namespace).Create(t.Context(), &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   orphanedJobName,
 			Labels: orphanedJobLabels,
@@ -565,7 +565,7 @@ func TestOSDProvisionCleanup(t *testing.T) {
 	// Create a non-orphaned provision job
 	nonOrphanedJobName := provisionJobName(existingNodeName)
 	nonOrphanedJobLabels := provisionJobLabels(namespace)
-	_, err = clientset.BatchV1().Jobs(namespace).Create(context.TODO(), &batchv1.Job{
+	_, err = clientset.BatchV1().Jobs(namespace).Create(t.Context(), &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   nonOrphanedJobName,
 			Labels: nonOrphanedJobLabels,
@@ -583,7 +583,7 @@ func TestOSDProvisionCleanup(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create the existing node
-	_, err = clientset.CoreV1().Nodes().Create(context.TODO(), &corev1.Node{
+	_, err = clientset.CoreV1().Nodes().Create(t.Context(), &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: existingNodeName,
 			Labels: map[string]string{
@@ -611,7 +611,7 @@ func TestOSDProvisionCleanup(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
 		CephVersion: cephver.Squid,
-		Context:     context.TODO(),
+		Context:     t.Context(),
 	}
 	clusterInfo.SetName("testcluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -643,20 +643,20 @@ func TestOSDProvisionCleanup(t *testing.T) {
 	assert.Nil(t, err)
 
 	// validate that orphaned status configmap was deleted
-	_, err = clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), cmName, metav1.GetOptions{})
+	_, err = clientset.CoreV1().ConfigMaps(namespace).Get(t.Context(), cmName, metav1.GetOptions{})
 	assert.True(t, k8serrors.IsNotFound(err), "Orphaned status configmap was not deleted.")
 
 	// validate that orphaned provision job was deleted
-	_, err = clientset.BatchV1().Jobs(namespace).Get(context.TODO(), orphanedJobName, metav1.GetOptions{})
+	_, err = clientset.BatchV1().Jobs(namespace).Get(t.Context(), orphanedJobName, metav1.GetOptions{})
 	assert.True(t, k8serrors.IsNotFound(err), "Orphaned provision job was not deleted.")
 
 	// validate that the non-orphaned provision job was not deleted
-	_, err = clientset.BatchV1().Jobs(namespace).Get(context.TODO(), nonOrphanedJobName, metav1.GetOptions{})
+	_, err = clientset.BatchV1().Jobs(namespace).Get(t.Context(), nonOrphanedJobName, metav1.GetOptions{})
 	assert.NoError(t, err, "non-orphaned provision job was deleted.")
 }
 
 func TestGetPVCHostName(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := fake.NewClientset()
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
 	clusterInfo.SetName("mycluster")
@@ -1076,7 +1076,7 @@ func TestGetOSDInfoWithCustomRoot(t *testing.T) {
 }
 
 func TestUpdateCephStorageStatus(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clusterInfo := cephclient.AdminTestClusterInfo("fake")
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -1180,7 +1180,7 @@ func TestUpdateCephStorageStatus(t *testing.T) {
 }
 
 func Test_updateCephOsdStorageStatus_cephx(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clusterInfo := cephclient.AdminTestClusterInfo("fake")
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -1401,7 +1401,7 @@ func TestValidateOSDSettings(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
 		CephVersion: cephver.Squid,
-		Context:     context.TODO(),
+		Context:     t.Context(),
 	}
 	clusterInfo.SetName("rook-ceph-test")
 	c := New(&clusterd.Context{}, clusterInfo, cephv1.ClusterSpec{}, "version")
@@ -1501,7 +1501,7 @@ func TestResolveDeviceClass(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
 		CephVersion: cephver.Squid,
-		Context:     context.TODO(),
+		Context:     t.Context(),
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -1513,7 +1513,7 @@ func TestResolveDeviceClass(t *testing.T) {
 				Labels: labels,
 			},
 		}
-		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+		_, err := clientset.CoreV1().Nodes().Create(t.Context(), node, metav1.CreateOptions{})
 		assert.NoError(t, err)
 	}
 

@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"encoding/base32"
 	"fmt"
 	"strings"
@@ -69,7 +68,7 @@ func AddReadyNode(t *testing.T, clientset *fake.Clientset, name, ip string) {
 			},
 		},
 	}
-	_, err := clientset.CoreV1().Nodes().Create(context.TODO(), n, metav1.CreateOptions{})
+	_, err := clientset.CoreV1().Nodes().Create(t.Context(), n, metav1.CreateOptions{})
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			t.Logf("AddReadyNode: node %q already exists; not treating this as an error", n.Name)

@@ -30,7 +30,7 @@ import (
 )
 
 func TestCreateService(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	clientset := test.New(t, 1)
 	c := New(ctx, &clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, &k8sutil.OwnerInfo{})
 	c.ClusterInfo = client.AdminTestClusterInfo("rook-ceph")

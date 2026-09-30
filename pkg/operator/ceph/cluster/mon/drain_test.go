@@ -17,7 +17,6 @@ limitations under the License.
 package mon
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -60,7 +59,7 @@ func createMonQuorumResponse(monNames []string, quorumRanks []int) string {
 
 // createFakeClusterWithExecutor creates a fake cluster with optional executor for mocking ceph commands
 func createFakeClusterWithExecutor(t *testing.T, cephClusterObj *cephv1.CephCluster, k8sVersion string, executor *exectest.MockExecutor) *Cluster {
-	ctx := context.TODO()
+	ctx := t.Context()
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	scheme := scheme.Scheme
 	err := policyv1.AddToScheme(scheme)
@@ -274,7 +273,7 @@ func TestReconcileMonPDB(t *testing.T) {
 			assert.NoError(t, err)
 
 			existingPDB := &policyv1.PodDisruptionBudget{}
-			err = c.context.Client.Get(context.TODO(), types.NamespacedName{Name: monPDBName, Namespace: mockNamespace}, existingPDB)
+			err = c.context.Client.Get(t.Context(), types.NamespacedName{Name: monPDBName, Namespace: mockNamespace}, existingPDB)
 
 			if !tc.shouldCreatePDB {
 				assert.Nil(t, quorumStatus)
@@ -293,7 +292,7 @@ func TestReconcileMonPDB(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, quorumStatus)
 
-			err = c.context.Client.Delete(context.TODO(), existingPDB)
+			err = c.context.Client.Delete(t.Context(), existingPDB)
 			assert.NoError(t, err)
 		})
 	}

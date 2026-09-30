@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -132,7 +131,7 @@ func TestPredicateForNodeWatcherUpdate(t *testing.T) {
 	defer nodesCheckedForReconcile.Delete(nodeName)
 
 	client := getFakeClient(fakeCluster(ns))
-	p := predicateForNodeWatcher[*corev1.Node](context.TODO(), client, &clusterd.Context{}, opns)
+	p := predicateForNodeWatcher[*corev1.Node](t.Context(), client, &clusterd.Context{}, opns)
 
 	baseNode := func() *corev1.Node {
 		return &corev1.Node{

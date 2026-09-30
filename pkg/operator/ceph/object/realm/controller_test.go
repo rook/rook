@@ -18,7 +18,6 @@ limitations under the License.
 package realm
 
 import (
-	"context"
 	"regexp"
 	"testing"
 	"time"
@@ -55,7 +54,7 @@ var (
 )
 
 func TestCephObjectRealmController(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	//
 	// TEST 1 SETUP
 	//
@@ -162,12 +161,12 @@ func TestCephObjectRealmController(t *testing.T) {
 	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
-	err = r.client.Get(context.TODO(), req.NamespacedName, objectRealm)
+	err = r.client.Get(t.Context(), req.NamespacedName, objectRealm)
 	assert.NoError(t, err)
 }
 
 func TestPullCephRealm(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	r, objectRealm := getObjectRealmAndReconcileObjectRealm(t)
 
 	secrets := map[string][]byte{
@@ -265,7 +264,7 @@ func getObjectRealmAndReconcileObjectRealm(t *testing.T) (*ReconcileObjectRealm,
 }
 
 func TestReconcileObjectRealm_createRealmKeys(t *testing.T) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	realmName := "my-realm"
 	ns := "my-ns"
 

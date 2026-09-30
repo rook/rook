@@ -17,7 +17,6 @@ limitations under the License.
 package osd
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -187,10 +186,10 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 			},
 			Spec: appsv1.DeploymentSpec{Replicas: new(int32(0))},
 		}
-		_, err := clientset.AppsV1().Deployments(namespace).Create(context.TODO(), marker, metav1.CreateOptions{})
+		_, err := clientset.AppsV1().Deployments(namespace).Create(t.Context(), marker, metav1.CreateOptions{})
 		require.NoError(t, err)
 		defer func() {
-			_ = clientset.AppsV1().Deployments(namespace).Delete(context.TODO(), marker.Name, metav1.DeleteOptions{})
+			_ = clientset.AppsV1().Deployments(namespace).Delete(t.Context(), marker.Name, metav1.DeleteOptions{})
 		}()
 
 		doSetup()
@@ -206,7 +205,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		// OSD 6 is recreated; OSD 3 is left to the updater
 		assert.ElementsMatch(t, createCallsOnNode, []int{6})
 		// the marker deployment was deleted
-		_, err = clientset.AppsV1().Deployments(namespace).Get(context.TODO(), marker.Name, metav1.GetOptions{})
+		_, err = clientset.AppsV1().Deployments(namespace).Get(t.Context(), marker.Name, metav1.GetOptions{})
 		assert.True(t, kerrors.IsNotFound(err))
 	})
 
@@ -353,7 +352,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
-	clusterInfo.Context = context.TODO()
+	clusterInfo.Context = t.Context()
 
 	spec := cephv1.ClusterSpec{}
 
@@ -379,7 +378,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 		assert.Zero(t, awaitingStatusConfigMaps.Len())
 		assert.Zero(t, errs.len())
 		// no result configmaps should have been created
-		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(t.Context(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Len(t, cms.Items, 0)
 	})
@@ -404,7 +403,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 		assert.Zero(t, awaitingStatusConfigMaps.Len())
 		assert.Zero(t, errs.len()) // this was not a problem with a single job but with ALL jobs
 		// no result configmaps should have been created
-		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(t.Context(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Len(t, cms.Items, 0)
 	})
@@ -428,7 +427,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 2, awaitingStatusConfigMaps.Len())
 		assert.Zero(t, errs.len())
-		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(t.Context(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Len(t, cms.Items, 2)
 	})
@@ -440,7 +439,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 2, awaitingStatusConfigMaps.Len())
 		assert.Zero(t, errs.len())
-		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(t.Context(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Len(t, cms.Items, 2) // still just 2 configmaps should exist (the same 2 from before)
 	})
@@ -463,7 +462,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 0, awaitingStatusConfigMaps.Len())
 		assert.Equal(t, 1, errs.len())
-		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(t.Context(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Len(t, cms.Items, 0)
 	})
@@ -490,7 +489,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
-	clusterInfo.Context = context.TODO()
+	clusterInfo.Context = t.Context()
 
 	var useAllDevices bool
 	spec := cephv1.ClusterSpec{}
@@ -518,7 +517,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 		assert.Zero(t, prepareJobsRun.Len())
 		assert.Zero(t, errs.len())
 		// no result configmaps should have been created
-		cms, err = clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+		cms, err = clientset.CoreV1().ConfigMaps(namespace).List(t.Context(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Len(t, cms.Items, 0)
 	})
@@ -542,7 +541,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 		assert.Zero(t, prepareJobsRun.Len())
 		assert.Equal(t, 1, errs.len()) // this was not a problem with a single job but with ALL jobs
 		// no result configmaps should have been created
-		cms, err = clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+		cms, err = clientset.CoreV1().ConfigMaps(namespace).List(t.Context(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Len(t, cms.Items, 0)
 	})
@@ -559,7 +558,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 			sets.List(prepareJobsRun),
 		)
 		// all result configmaps should have been created
-		cms, err = clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+		cms, err = clientset.CoreV1().ConfigMaps(namespace).List(t.Context(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Len(t, cms.Items, 3)
 	})
@@ -671,7 +670,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 			sets.List(prepareJobsRun),
 		)
 		// with a fresh clientset, only the one results ConfigMap should exist
-		cms, err = clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+		cms, err = clientset.CoreV1().ConfigMaps(namespace).List(t.Context(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Len(t, cms.Items, 1)
 		assert.Equal(t, sets.List(prepareJobsRun)[0], cms.Items[0].Name)
@@ -689,10 +688,10 @@ func Test_startProvisioningOverNodes_deviceClassNodeLabel(t *testing.T) {
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
-	clusterInfo.Context = context.TODO()
+	clusterInfo.Context = t.Context()
 
 	getDeviceClassEnvFromJobs := func(clientset *fake.Clientset) map[string]string {
-		jobs, err := clientset.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{})
+		jobs, err := clientset.BatchV1().Jobs(namespace).List(t.Context(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		result := map[string]string{}
 		for _, job := range jobs.Items {
@@ -725,7 +724,7 @@ func Test_startProvisioningOverNodes_deviceClassNodeLabel(t *testing.T) {
 				},
 			},
 		}
-		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+		_, err := clientset.CoreV1().Nodes().Create(t.Context(), node, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		spec := cephv1.ClusterSpec{
@@ -766,7 +765,7 @@ func Test_startProvisioningOverNodes_deviceClassNodeLabel(t *testing.T) {
 				},
 			},
 		}
-		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+		_, err := clientset.CoreV1().Nodes().Create(t.Context(), node, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		spec := cephv1.ClusterSpec{
@@ -806,7 +805,7 @@ func Test_startProvisioningOverNodes_deviceClassNodeLabel(t *testing.T) {
 				},
 			},
 		}
-		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+		_, err := clientset.CoreV1().Nodes().Create(t.Context(), node, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		spec := cephv1.ClusterSpec{
@@ -863,9 +862,9 @@ func Test_startProvisioningOverNodes_deviceClassNodeLabel(t *testing.T) {
 				},
 			},
 		}
-		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), node0, metav1.CreateOptions{})
+		_, err := clientset.CoreV1().Nodes().Create(t.Context(), node0, metav1.CreateOptions{})
 		assert.NoError(t, err)
-		_, err = clientset.CoreV1().Nodes().Create(context.TODO(), node1, metav1.CreateOptions{})
+		_, err = clientset.CoreV1().Nodes().Create(t.Context(), node1, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		spec := cephv1.ClusterSpec{

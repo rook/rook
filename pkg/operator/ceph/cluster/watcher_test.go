@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -91,7 +90,7 @@ func TestCheckStorageForNode(t *testing.T) {
 func TestOnK8sNode(t *testing.T) {
 	ns := "rook-ceph"
 	opns := "operator"
-	ctx := context.TODO()
+	ctx := t.Context()
 	cephCluster := fakeCluster(ns)
 	objects := []runtime.Object{
 		cephCluster,
