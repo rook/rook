@@ -31,10 +31,47 @@ func ObjectStore(os *cephv1.CephObjectStore) bool {
 // ObjectStoreDeletionBlocked reports whether a CephObjectStore's deletion is
 // blocked on dependents.
 func ObjectStoreDeletionBlocked(os *cephv1.CephObjectStore) bool {
-	if os.Status == nil {
-		return false
-	}
-	cond := cephv1.FindStatusCondition(os.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
+	return os.Status != nil && deletionIsBlocked(os.Status.Conditions)
+}
+
+// ObjectRealm reports whether a CephObjectRealm has been reconciled to Ready.
+func ObjectRealm(r *cephv1.CephObjectRealm) bool {
+	return r.Status != nil && r.Status.Phase == string(cephv1.ConditionReady)
+}
+
+// ObjectRealmDeletionBlocked reports whether a CephObjectRealm's deletion is
+// blocked on dependents.
+func ObjectRealmDeletionBlocked(r *cephv1.CephObjectRealm) bool {
+	return r.Status != nil && deletionIsBlocked(r.Status.Conditions)
+}
+
+// ObjectZoneGroup reports whether a CephObjectZoneGroup has been reconciled to
+// Ready.
+func ObjectZoneGroup(zg *cephv1.CephObjectZoneGroup) bool {
+	return zg.Status != nil && zg.Status.Phase == string(cephv1.ConditionReady)
+}
+
+// ObjectZoneGroupDeletionBlocked reports whether a CephObjectZoneGroup's
+// deletion is blocked on dependents.
+func ObjectZoneGroupDeletionBlocked(zg *cephv1.CephObjectZoneGroup) bool {
+	return zg.Status != nil && deletionIsBlocked(zg.Status.Conditions)
+}
+
+// ObjectZone reports whether a CephObjectZone has been reconciled to Ready.
+func ObjectZone(z *cephv1.CephObjectZone) bool {
+	return z.Status != nil && z.Status.Phase == string(cephv1.ConditionReady)
+}
+
+// ObjectZoneDeletionBlocked reports whether a CephObjectZone's deletion is
+// blocked on dependents.
+func ObjectZoneDeletionBlocked(z *cephv1.CephObjectZone) bool {
+	return z.Status != nil && deletionIsBlocked(z.Status.Conditions)
+}
+
+// deletionIsBlocked reports whether conditions hold a true DeletionIsBlocked
+// condition.
+func deletionIsBlocked(conditions []cephv1.Condition) bool {
+	cond := cephv1.FindStatusCondition(conditions, cephv1.ConditionDeletionIsBlocked)
 	return cond != nil && cond.Status == corev1.ConditionTrue
 }
 

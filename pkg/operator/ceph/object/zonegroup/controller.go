@@ -27,6 +27,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -42,6 +43,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/log"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -69,6 +71,7 @@ type ReconcileObjectZoneGroup struct {
 	context          *clusterd.Context
 	clusterInfo      *cephclient.ClusterInfo
 	opManagerContext context.Context
+	recorder         events.EventRecorder
 }
 
 // Add creates a new CephObjectZoneGroup Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -84,6 +87,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		scheme:           mgr.GetScheme(),
 		context:          context,
 		opManagerContext: opManagerContext,
+		recorder:         mgr.GetEventRecorder("rook-" + controllerName),
 	}
 }
 
@@ -143,6 +147,16 @@ func (r *ReconcileObjectZoneGroup) reconcile(request reconcile.Request) (reconci
 	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 	observedGeneration := cephObjectZoneGroup.ObjectMeta.Generation
 
+	// Set a finalizer so the CR is not deleted before the zones that reference it
+	generationUpdated, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectZoneGroup)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+	}
+	if generationUpdated {
+		log.NamedInfo(request.NamespacedName, logger, "reconciling the object zone group after adding finalizer")
+		return reconcile.Result{}, nil
+	}
+
 	// The CR was just created, initializing status fields
 	if cephObjectZoneGroup.Status == nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)
@@ -153,6 +167,11 @@ func (r *ReconcileObjectZoneGroup) reconcile(request reconcile.Request) (reconci
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		if !cephObjectZoneGroup.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// Remove finalizer
+			err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectZoneGroup)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+			}
 			// Return and do not requeue. Successful deletion.
 			return reconcile.Result{}, nil
 		}
@@ -161,8 +180,27 @@ func (r *ReconcileObjectZoneGroup) reconcile(request reconcile.Request) (reconci
 
 	// DELETE: the CR was deleted
 	if !cephObjectZoneGroup.GetDeletionTimestamp().IsZero() {
-		log.NamedDebug(request.NamespacedName, logger, "deleting zone group CR %q", cephObjectZoneGroup.Name)
+		// Zones and object stores in the zone group look up this CR for as long as they exist,
+		// including while they are deleted, so it is kept until no zone references it. Zones in
+		// turn wait for their object stores. The Ceph zone group is not deleted.
+		deps, err := CephObjectZoneGroupDependentZones(r.opManagerContext, r.context, cephObjectZoneGroup)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		if !deps.Empty() {
+			err := reporting.ReportDeletionBlockedDueToDependents(r.opManagerContext, logger, r.client, cephObjectZoneGroup, deps)
+			r.recorder.Eventf(cephObjectZoneGroup, nil, v1.EventTypeWarning, string(cephv1.ReconcileFailed), string(cephv1.ReconcileFailed), "%v", err)
+			// Not returning the error keeps the fixed requeue interval instead of the rate limiter's
+			// backoff, so the finalizer is released soon after the last zone is gone.
+			return opcontroller.WaitForRequeueIfFinalizerBlocked, nil
+		}
+		reporting.ReportDeletionNotBlockedDueToDependents(r.opManagerContext, logger, r.client, r.recorder, cephObjectZoneGroup)
 
+		// Remove finalizer
+		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectZoneGroup)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+		}
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, nil
 	}
