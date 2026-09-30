@@ -441,7 +441,7 @@ A Placement configuration is specified (according to the kubernetes PodSpec) as:
 
 If you use `labelSelector` for `osd` pods, you must write two rules both for `rook-ceph-osd` and `rook-ceph-osd-prepare` like [the example configuration](https://github.com/rook/rook/blob/master/deploy/examples/cluster-on-pvc.yaml#L68). It comes from the design that there are these two pods for an OSD. For more detail, see the [osd design doc](https://github.com/rook/rook/blob/master/design/ceph/dedicated-osd-pod.md) and [the related issue](https://github.com/rook/rook/issues/4582).
 
-The Rook Ceph operator creates a Job called `rook-ceph-detect-version` to detect the full Ceph version used by the given `cephVersion.image`. The placement from the `mon` section is used for the Job except for the `PodAntiAffinity` field.
+The Rook Ceph operator creates a Job called `rook-ceph-detect-version` to detect the full Ceph version used by the given `cephVersion.image`. The placement from the `mon` section is used for the Job except for the `PodAntiAffinity` field. The `mon` priority class name is also used for the Job.
 
 #### Placement Example
 
@@ -591,7 +591,7 @@ You can set priority class names for Rook components for the list of key value p
 
 * `all`: Set priority class names for MGRs, Mons, OSDs, and crashcollectors.
 * `mgr`: Set priority class names for MGRs. Examples default to system-cluster-critical.
-* `mon`: Set priority class names for Mons. Examples default to system-node-critical.
+* `mon`: Set priority class names for Mons and the Ceph version detection Jobs. Examples default to system-node-critical.
 * `osd`: Set priority class names for OSDs. Examples default to system-node-critical.
 * `crashcollector`: Set priority class names for crashcollectors.
 * `exporter`: Set priority class names for exporters.
