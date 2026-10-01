@@ -57,4 +57,4 @@ jobs:
         with:
           fetch-depth: 0
       - name: misspell
-        uses: reviewdog/action-misspell@5f62a0ac088400bd1a3283bbb109efc5a22e8171 # v1.30.0
+        uses: reviewdog/action-misspell@7cea3d501cb3834c688e08c89ed77b71764d1784 # v1.30.1
