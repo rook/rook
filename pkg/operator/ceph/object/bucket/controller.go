@@ -37,6 +37,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -50,6 +51,11 @@ type ReconcileBucket struct {
 	clusterInfo      *cephclient.ClusterInfo
 	opConfig         opcontroller.OperatorConfig
 	opManagerContext context.Context
+	bucketContexts   map[string]*bucketContext
+}
+
+type bucketContext struct {
+	started bool
 }
 
 // Add creates a new Ceph CSI Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -69,6 +75,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		context:          context,
 		opConfig:         opConfig,
 		opManagerContext: opManagerContext,
+		bucketContexts:   make(map[string]*bucketContext),
 	}
 }
 
@@ -158,6 +165,16 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 	}
 	r.clusterInfo = clusterInfo
 
+	// Initialize the channel for the buckets
+	// This allows us to track multiple buckets in the same operator namespace
+	bucketContextKey := r.opConfig.OperatorNamespace
+
+	if r.bucketContexts[bucketContextKey].started {
+		log.NamedDebug(types.NamespacedName{Namespace: r.opConfig.OperatorNamespace}, logger, "bucket provisioner controller go routine already running!")
+		return reconcile.Result{}, nil
+	}
+	r.bucketContexts[bucketContextKey].started = true
+
 	// Start the object bucket provisioner
 	bucketProvisioner := NewProvisioner(r.context, clusterInfo)
 	// If cluster is external, pass down the user to the bucket controller
@@ -172,7 +189,7 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 	go func() {
 		err = bucketController.RunWithContext(r.opManagerContext)
 		if err != nil {
-			log.NamedError(request.NamespacedName, logger, "failed to run bucket controller. %v", err)
+			log.NamedError(types.NamespacedName{Namespace: r.opConfig.OperatorNamespace}, logger, "failed to run bucket controller. %v", err)
 			errChan <- err
 		}
 	}()
@@ -182,7 +199,7 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 	case <-errChan:
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to run bucket controller")
 	default:
-		log.NamedInfo(request.NamespacedName, logger, "successfully reconciled bucket provisioner")
+		log.NamedInfo(types.NamespacedName{Namespace: r.opConfig.OperatorNamespace}, logger, "successfully reconciled bucket provisioner")
 		return reconcile.Result{}, nil
 	}
 }
