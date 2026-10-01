@@ -56,6 +56,16 @@ toolbox:
   # -- Set the priority class for the toolbox if desired
   priorityClassName:
 
+  # -- Add additional volumes to the toolbox pod.
+  # Note that this is subject to the SCC defined in ./templates/securityContextConstraints.yaml on OpenShift.
+  additionalVolumes: []
+  # -- Add additional volume mounts to the toolbox pod
+  additionalVolumeMounts: []
+  # -- Add additional environment variables to the toolbox pod
+  additionalEnv: []
+  # -- Add additional environment variable sources to the toolbox pod
+  additionalEnvFrom: []
+
 monitoring:
   # -- Enable Prometheus integration, will also create necessary RBAC rules to allow Operator to create ServiceMonitors.
   # Monitoring requires Prometheus to be pre-installed
