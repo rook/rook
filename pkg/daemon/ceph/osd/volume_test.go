@@ -2530,60 +2530,65 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 // 1. Metadata and WAL PVC devices (which never receive a token) are preserved and NOT wiped.
 // 2. Non-PVC (host-based) token-less LUKS devices are preserved and NOT wiped.
 func TestWipeDevicesFromOtherClusters_MissingCephFSID(t *testing.T) {
-	t.Run("PVC data device with missing token is wiped", func(t *testing.T) {
-		agent := &OsdAgent{
-			pvcBacked: true,
-			clusterInfo: &cephclient.ClusterInfo{
-				FSID: "c03d7353-96e5-4a41-98de-830dfff97d06",
-			},
-		}
-		devicePath := "/dev/nvme5n1"
-		var executedCommands []string
+	for name, rawList := range map[string]string{
+		"no existing OSDs": `{}`,
+		"current OSD and a partially provisioned device": `{"current":{"osd_id":0,"ceph_fsid":"c03d7353-96e5-4a41-98de-830dfff97d06","device":"/dev/current"}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			agent := &OsdAgent{
+				pvcBacked: true,
+				clusterInfo: &cephclient.ClusterInfo{
+					FSID: "c03d7353-96e5-4a41-98de-830dfff97d06",
+				},
+			}
+			devicePath := "/dev/nvme5n1"
+			var executedCommands []string
 
-		executor := &exectest.MockExecutor{}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-			if slices.Contains(args, "raw") && slices.Contains(args, "list") {
-				return `{}`, nil // ceph-volume raw list returns no existing OSDs
-			}
-			return "", errors.Errorf("unknown command %s %s", command, args)
-		}
-		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
-			executedCommands = append(executedCommands, command)
-			if command == cryptsetupBinary && args[0] == "luksDump" {
-				return luksDumpNoSubsystem, nil
-			}
-			if command == "stdbuf" {
-				return "", nil
-			}
-			if command == "umount" {
-				return "not mounted", errors.New("not mounted")
-			}
-			if command == "wipefs" {
-				if args[1] != devicePath {
-					return "", errors.Errorf("device %s should have been zapped, got %s", devicePath, args[1])
+			executor := &exectest.MockExecutor{}
+			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+				if slices.Contains(args, "raw") && slices.Contains(args, "list") {
+					return rawList, nil
 				}
-				return "", nil
+				return "", errors.Errorf("unknown command %s %s", command, args)
 			}
-			if command == "ceph-bluestore-tool" {
-				return "", nil
+			executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+				executedCommands = append(executedCommands, command)
+				if command == cryptsetupBinary && args[0] == "luksDump" {
+					return luksDumpNoSubsystem, nil
+				}
+				if command == "stdbuf" {
+					return "", nil
+				}
+				if command == "umount" {
+					return "not mounted", errors.New("not mounted")
+				}
+				if command == "wipefs" {
+					if args[1] != devicePath {
+						return "", errors.Errorf("device %s should have been zapped, got %s", devicePath, args[1])
+					}
+					return "", nil
+				}
+				if command == "ceph-bluestore-tool" {
+					return "", nil
+				}
+				if command == "dd" {
+					return "", nil
+				}
+				return "", errors.Errorf("unknown command %s %s", command, args)
 			}
-			if command == "dd" {
-				return "", nil
-			}
-			return "", errors.Errorf("unknown command %s %s", command, args)
-		}
 
-		disk := &sys.LocalDisk{Name: "nvme5n1", RealPath: devicePath, Type: pvcDataTypeDevice, Filesystem: "crypto_LUKS"}
-		context := &clusterd.Context{
-			Devices: []*sys.LocalDisk{disk},
-		}
-		context.Executor = executor
-		err := agent.WipeDevicesFromOtherClusters(context)
-		assert.NoError(t, err)
-		assert.Contains(t, executedCommands, "wipefs")
-		assert.Contains(t, executedCommands, "dd")
-		assert.Empty(t, disk.Filesystem)
-	})
+			disk := &sys.LocalDisk{Name: "nvme5n1", RealPath: devicePath, Type: pvcDataTypeDevice, Filesystem: "crypto_LUKS"}
+			context := &clusterd.Context{
+				Devices: []*sys.LocalDisk{disk},
+			}
+			context.Executor = executor
+			err := agent.WipeDevicesFromOtherClusters(context)
+			assert.NoError(t, err)
+			assert.Contains(t, executedCommands, "wipefs")
+			assert.Contains(t, executedCommands, "dd")
+			assert.Empty(t, disk.Filesystem)
+		})
+	}
 
 	t.Run("PVC metadata and WAL devices with missing token are skipped", func(t *testing.T) {
 		agent := &OsdAgent{

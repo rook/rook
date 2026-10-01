@@ -1066,17 +1066,6 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 		return errors.Wrapf(err, "failed to unmarshal ceph-volume raw list results")
 	}
 
-	if len(existingOSDs) == 0 {
-		// ceph-volume raw list didn't return any existing OSDs. It's possible that /dev/mapper entries of the encrypted disks were removed.
-		// Check for cephFSID in the luks header of the disk and clean the disk if it does not match the cephFSID of the current cluster.
-		logger.Infof("ceph-volume didn't return any existing OSDs. Checking for cephFSID of a different cluster in the luks header of the disk")
-		err := a.wipeEncryptedDevicesFromOtherClusters(context)
-		if err != nil {
-			return errors.Wrapf(err, "failed to clean up encrypted disks from other clusters")
-		}
-		return nil
-	}
-
 	for _, existingOSD := range existingOSDs {
 		// Wipe the devices that will be used for preparing OSD but already have OSD metadata from another ceph cluster
 		if existingOSD.CephFsid != a.clusterInfo.FSID {
@@ -1110,6 +1099,10 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 		}
 	}
 
+	// Partially provisioned encrypted devices may coexist with already discovered OSDs.
+	if err := a.wipeEncryptedDevicesFromOtherClusters(context); err != nil {
+		return errors.Wrapf(err, "failed to clean up encrypted disks from other clusters")
+	}
 	return nil
 }
 
