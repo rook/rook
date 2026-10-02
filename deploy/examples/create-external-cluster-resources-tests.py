@@ -285,3 +285,21 @@ class TestRadosJSON(unittest.TestCase):
         if mon_port != "3300":
             self.fail(f"Expected Port: 3300, Returned Port: {mon_port}")
         print(f"MonPort: {mon_port}")
+
+    def test_dry_run_cephx_key_rotate(self):
+        self.rjObj = ext.RadosJSON(
+            [
+                "--rbd-data-pool-name=abc",
+                "--format=json",
+                "--dry-run",
+                "--cephx-key-rotate=rotate",
+            ]
+        )
+        self.rjObj.cluster = ext.DummyRados.Rados()
+        # get_cephx_latest_key_generation() used to return 'None' in dry-run
+        # mode, which crashed 'main()' with a TypeError when it computed
+        # 'current_generation + 1'
+        generation = self.rjObj.get_cephx_latest_key_generation()
+        if generation is None:
+            self.fail("get_cephx_latest_key_generation() should not return None")
+        self.rjObj.main()
