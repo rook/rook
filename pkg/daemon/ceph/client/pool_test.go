@@ -60,6 +60,9 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if len(args) > 2 && args[2] == "set-quota" {
+			return "", nil
+		}
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" {
 			if args[2] == "create" {
@@ -168,6 +171,9 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if len(args) > 2 && args[2] == "set-quota" {
+			return "", nil
+		}
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" {
 			if args[2] == "create" {
@@ -444,6 +450,9 @@ func TestExistingPoolDoesNotRecreateBaseCrushRule(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if len(args) > 2 && args[2] == "set-quota" {
+			return "", nil
+		}
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" && args[2] == "get" {
 			// Pool already exists and uses a suffixed crush rule
@@ -775,4 +784,31 @@ func testCreateHybridCrushRule(t *testing.T, alreadyExists bool) {
 func hasCrushtool() bool {
 	_, err := exec.LookPath("crushtool")
 	return err == nil
+}
+
+func TestClearPoolQuotaOnRemoval(t *testing.T) {
+	var calls []string
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if len(args) > 2 && args[2] == "set-quota" {
+			calls = append(calls, args[4]+"="+args[5])
+			return "", nil
+		}
+		if len(args) > 3 && args[3] == "get" {
+			return emptyApplicationName, nil
+		}
+		return "", nil
+	}
+
+	p := cephv1.NamedPoolSpec{Name: "mypool"}
+	err := setCommonPoolProperties(context, AdminTestClusterInfo("mycluster"), p)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"max_bytes=0", "max_objects=0"}, calls)
+
+	calls = nil
+	p.Name = ".rgw.root"
+	err = setCommonPoolProperties(context, AdminTestClusterInfo("mycluster"), p)
+	assert.NoError(t, err)
+	assert.Empty(t, calls)
 }

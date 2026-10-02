@@ -181,6 +181,9 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 	if multiFS {
 		return &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if len(args) > 2 && args[2] == "set-quota" {
+					return "", nil
+				}
 				if slices.Contains(args, "fs") && slices.Contains(args, "get") {
 					if firstGet {
 						firstGet = false
@@ -263,6 +266,9 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 
 	return &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if len(args) > 2 && args[2] == "set-quota" {
+				return "", nil
+			}
 			if slices.Contains(args, "fs") && slices.Contains(args, "get") {
 				if firstGet {
 					firstGet = false
@@ -599,6 +605,9 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 	configDir := t.TempDir()
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if len(args) > 2 && args[2] == "set-quota" {
+				return "", nil
+			}
 			if !strings.Contains(command, "ceph-authtool") {
 				return "{\"key\":\"mysecurekey\"}", nil
 			}
