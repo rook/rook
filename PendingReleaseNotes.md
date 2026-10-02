@@ -9,6 +9,10 @@
 - Ceph msgrv2 is required by default. Msgrv2 requires the 5.11 kernel. If you have an older kernel, disable the msgrv2 protocol
   with the CephCluster CR setting `network.connections.requireMsgr2: false`. If using the helm chart, this same value is applied
   under the `cephClusterSpec` of the values.
+- When `network.connections.encryption.enabled` is set, Rook now also sets the mon-specific
+  `ms_mon_cluster_mode`, `ms_mon_service_mode`, and `ms_mon_client_mode` settings to `secure`.
+  Previously only the general `ms_*_mode` settings were set, which left mon sessions able to
+  fall back to an unencrypted `crc` connection mode.
 
 ## Features
 
