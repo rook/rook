@@ -39,6 +39,15 @@ if [ "$ENCRYPTED" == "true" ] ; then
 	fi
 fi
 
+# prevent LVM from opening rbd devices, including ceph-csi's encrypted (luks-rbd) mappings over them:
+# they cannot serve reads while the OSDs behind them are down, so an LVM scan that opens one blocks
+# in uninterruptible sleep, deadlocking activation when one of those OSDs is this one. Both modes
+# reach LVM (lvm activate always; raw activate from Ceph v20.2.3, and from v19.2.1 for a
+# device-mapper OSD device), so set it before branching. Only devices whose names show they depend
+# on this cluster are rejected, since an lvm-mode OSD may sit on any other device, drbd and nbd
+# included.
+echo 'devices { filter = ["r|/dev/rbd.*|", "r|/dev/mapper/luks-rbd-.*|"] }' >> /etc/lvm/lvm.conf
+
 # active the osd with ceph-volume
 if [[ "$CV_MODE" == "lvm" ]]; then
 	for var in ROOK_OSD_UUID ROOK_OSD_STORE_FLAG; do
@@ -48,9 +57,6 @@ if [[ "$CV_MODE" == "lvm" ]]; then
 		fi
 	done
 	TMP_DIR=$(mktemp -d)
-
-	# prevent LVM from trying to scan RBD volumes that may be unable to serve reads without this OSD up
-	echo 'devices { filter = ["r|/dev/rbd.*|"] }' >> /etc/lvm/lvm.conf
 
 	# activate osd
 	ceph-volume lvm activate --no-systemd "$OSD_STORE_FLAG" "$OSD_ID" "$OSD_UUID"
@@ -127,10 +133,11 @@ sys.exit('no disk found with OSD ID $OSD_ID')
 		# The disk may have been renamed, so scan disks to find the right one. Build the
 		# scan list explicitly instead of letting a bare 'ceph-volume raw list' scan every
 		# block device: opening an rbd device can block in uninterruptible sleep while this
-		# OSD is down (the same deadlock the lvm filter above prevents for lvm-mode OSDs).
+		# OSD is down (the same deadlock the LVM filter above prevents).
 		# Skip rbd, nbd, and drbd (network-backed devices that can hang when their backing
-		# storage is unavailable) and zram (volatile RAM); Rook never provisions OSDs on any
-		# of these. loop devices are intentionally kept, since OSDs on loop devices are
+		# storage is unavailable) and zram (volatile RAM), so this fallback would not find an
+		# OSD on one of these; device discovery refuses rbd, but nothing prevents an OSD on the
+		# others. loop devices are intentionally kept, since OSDs on loop devices are
 		# supported for CI and local testing.
 		SCAN_DEVICES="$(lsblk --noheadings --paths --list --output NAME,TYPE | awk '$2 == "disk" || $2 == "part" {print $1}' | grep -vE '^/dev/(rbd|nbd|zram|drbd)' || true)"
 		[[ -z "$SCAN_DEVICES" ]] && { echo "no devices to scan for OSD $OSD_ID" ; exit 1 ; }
