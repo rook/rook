@@ -60,6 +60,10 @@ var (
 	lvmConfPath   = "/etc/lvm/lvm.conf"
 	cvLogDir      = ""
 
+	// callCephVolume and the lvm-mode and replacement prepare calls log here: a temporary location
+	// that isn't persisted, so a printed failure log carries none of a previous pod's failures
+	cephVolumeTmpLogDir = filepath.Join(os.TempDir(), "ceph-log")
+
 	isEncrypted = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
 	isOnPVC     = os.Getenv(oposd.PVCBackedOSDVarName) == "true"
 )
@@ -669,7 +673,7 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 
 func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *DeviceOsdMapping) error {
 	storeFlag := a.storeConfig.GetStoreFlag()
-	logPath := "/tmp/ceph-log"
+	logPath := cephVolumeTmpLogDir
 	if err := os.MkdirAll(logPath, 0o700); err != nil {
 		return errors.Wrapf(err, "failed to create dir %q", logPath)
 	}
@@ -817,7 +821,7 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 
 				// execute ceph-volume immediately with the device-specific setting instead of batching up multiple devices together
 				if err := context.Executor.ExecuteCommand(baseCommand, immediateExecuteArgs...); err != nil {
-					cvLog := readCVLogContent("/tmp/ceph-log/ceph-volume.log")
+					cvLog := readCVLogContent(filepath.Join(cephVolumeTmpLogDir, "ceph-volume.log"))
 					if cvLog != "" {
 						logger.Errorf("%s", cvLog)
 					}
@@ -1584,7 +1588,7 @@ func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
 	// Send the log to a temp location that isn't persisted to disk so that we can print out the
 	// failure log later without also printing out past failures
 	// TODO: does this mess up expectations from the ceph log collector daemon?
-	logPath := "/tmp/ceph-log"
+	logPath := cephVolumeTmpLogDir
 	if err := os.MkdirAll(logPath, 0o700); err != nil {
 		return "", errors.Wrapf(err, "failed to create dir %q", logPath)
 	}
@@ -1595,7 +1599,7 @@ func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
 	co, err := f(baseCommand, append(baseArgs, args...)...)
 	if err != nil {
 		// Print c-v log before exiting with failure
-		cvLog := readCVLogContent("/tmp/ceph-log/ceph-volume.log")
+		cvLog := readCVLogContent(filepath.Join(cephVolumeTmpLogDir, "ceph-volume.log"))
 		logger.Errorf("%s", redactCephVolumeOutput(co))
 		if cvLog != "" {
 			logger.Errorf("%s", redactCephVolumeOutput(cvLog))

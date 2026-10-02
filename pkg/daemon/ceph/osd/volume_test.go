@@ -638,7 +638,7 @@ func TestConfigureCVDevices(t *testing.T) {
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return "{\"key\":\"mysecurekey\"}", nil
 			}
-			if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == "/tmp/ceph-log" {
+			if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == cephVolumeTmpLogDir {
 				return `{}`, nil
 			}
 			if args[0] == "osd" && args[1] == "tree" {
@@ -779,7 +779,7 @@ func TestConfigureCVDevices(t *testing.T) {
 
 func testBaseArgs(args []string) error {
 	// stdbuf -oL ceph-volume --log-path /tmp/ceph-log lvm batch --prepare --bluestore --yes --osds-per-device 1 --crush-device-class hdd /dev/sda --db-devices /dev/sdl1 --report
-	if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == "/tmp/ceph-log" && args[4] == "lvm" && args[5] == "batch" && args[6] == "--prepare" && args[7] == "--bluestore" && args[8] == "--yes" {
+	if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == cephVolumeTmpLogDir && args[4] == "lvm" && args[5] == "batch" && args[6] == "--prepare" && args[7] == "--bluestore" && args[8] == "--yes" {
 		return nil
 	}
 
@@ -788,7 +788,7 @@ func testBaseArgs(args []string) error {
 
 func testBasePrepareArgs(args []string) error {
 	// stdbuf -oL ceph-volume --log-path /tmp/ceph-log lvm prepare --bluestore --crush-device-class hdd --data /dev/sda --block.db /dev/sdj1
-	if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == "/tmp/ceph-log" && args[4] == "lvm" && args[5] == "prepare" && args[6] == "--bluestore" {
+	if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == cephVolumeTmpLogDir && args[4] == "lvm" && args[5] == "prepare" && args[6] == "--bluestore" {
 		return nil
 	}
 

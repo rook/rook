@@ -367,7 +367,7 @@ func (a *OsdAgent) provisionReplacedOSD(context *clusterd.Context, osdID int, en
 
 	baseCommand := "stdbuf"
 	// Match callCephVolume's log path so the failure log read below is the one this command wrote.
-	logPath := "/tmp/ceph-log"
+	logPath := cephVolumeTmpLogDir
 	if err := os.MkdirAll(logPath, 0o700); err != nil {
 		return errors.Wrapf(err, "failed to create dir %q", logPath)
 	}
