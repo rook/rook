@@ -9,6 +9,9 @@
 - Ceph msgrv2 is required by default. Msgrv2 requires the 5.11 kernel. If you have an older kernel, disable the msgrv2 protocol
   with the CephCluster CR setting `network.connections.requireMsgr2: false`. If using the helm chart, this same value is applied
   under the `cephClusterSpec` of the values.
+- When selecting devices on a node (`useAllDevices`, `deviceFilter`, `devicePathFilter`, or `devices`), Rook now
+  skips nbd, drbd, and zram devices, as it already skipped rbd devices, so no new OSDs are created on them. OSDs on
+  PVCs are not affected.
 
 ## Features
 
