@@ -1135,8 +1135,18 @@ func wipeEncryptedDevicesFromOtherClusters(context *clusterd.Context, currentClu
 func getOSDDiskToBeWiped(context *clusterd.Context, existingOSDDevice string) (*sys.LocalDisk, string, error) {
 	var err error
 	var encryptedBlock string
-	// encrypted OSDs have /dev/mapper/* entries. Find the real device path in case of encrypted OSDs
+	// encrypted OSDs have /dev/mapper/* entries. Find the real device path in case of encrypted OSDs.
+	// Other device-mapper targets, such as an LV holding a raw OSD, are listed under /dev/mapper too
+	// and are matched as they are.
+	isCrypt := false
 	if strings.Contains(existingOSDDevice, "mapper") {
+		isCrypt, err = sys.IsDeviceEncrypted(context.Executor, existingOSDDevice)
+		if err != nil {
+			logger.Warningf("failed to get the device type of %q: %q", existingOSDDevice, err)
+			return nil, "", nil
+		}
+	}
+	if isCrypt {
 		encryptedBlock = existingOSDDevice
 		existingOSDDevice, err = GetBackingDeviceForEncryptedBlock(context, existingOSDDevice)
 		if err != nil {
@@ -1148,9 +1158,8 @@ func getOSDDiskToBeWiped(context *clusterd.Context, existingOSDDevice string) (*
 
 	var osdDisk *sys.LocalDisk
 	for _, desiredDevice := range context.Devices {
-		// Also check DevLinks since ceph-volume may report a symlink path
-		// (e.g. /dev/rhel/ceph-data) that differs from RealPath
-		// (e.g. /dev/mapper/rhel-ceph--data)
+		// Also check DevLinks so the device matches under any of its aliases (e.g. /dev/rhel/ceph-data
+		// for an LV whose RealPath is /dev/mapper/rhel-ceph--data)
 		if desiredDevice.RealPath == existingOSDDevice || slices.Contains(strings.Split(desiredDevice.DevLinks, " "), existingOSDDevice) {
 			osdDisk = desiredDevice
 			break
