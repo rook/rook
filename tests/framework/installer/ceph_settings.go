@@ -99,7 +99,7 @@ func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 	manifest = strings.ReplaceAll(manifest, `CSI_ENABLE_VOLUME_REPLICATION: "false"`, fmt.Sprintf(`CSI_ENABLE_VOLUME_REPLICATION: "%t"`, s.EnableVolumeReplication))
 	manifest = strings.ReplaceAll(manifest,
 		`# ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: "maxObjects,maxSize" # default allowed configs`,
-		`ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner"`)
+		`ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner,bucketPlacement,bucketStorageClass"`)
 	if s.ClusterConcurrency > 1 {
 		manifest = strings.ReplaceAll(manifest, `ROOK_RECONCILE_CONCURRENT_CLUSTERS: "1"`, fmt.Sprintf(`ROOK_RECONCILE_CONCURRENT_CLUSTERS: "%d"`, s.ClusterConcurrency))
 	}

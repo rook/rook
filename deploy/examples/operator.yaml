@@ -44,7 +44,7 @@ data:
   # Many OBC additional config fields may be risky for administrators to allow users control over.
   # The safe and default-allowed fields are 'maxObjects' and 'maxSize'.
   # Other fields should be considered risky. To allow all additional configs, use this value:
-  #   "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner"
+  #   "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner,bucketPlacement,bucketStorageClass"
   # ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: "maxObjects,maxSize" # default allowed configs
 
   # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.

@@ -80,3 +80,15 @@ func OBCBound(obc *bktv1alpha1.ObjectBucketClaim) bool {
 func OBBound(ob *bktv1alpha1.ObjectBucket) bool {
 	return ob.Status.Phase == bktv1alpha1.ObjectBucketStatusPhaseBound
 }
+
+// OBAdditionalConfig returns a condition reporting whether an ObjectBucket's
+// endpoint carries the additionalConfig key with the given value — the sign
+// that the provisioner has applied that key to the backing bucket.
+func OBAdditionalConfig(key, value string) func(*bktv1alpha1.ObjectBucket) bool {
+	return func(ob *bktv1alpha1.ObjectBucket) bool {
+		if ob.Spec.Connection == nil || ob.Spec.Connection.Endpoint == nil {
+			return false
+		}
+		return ob.Spec.Connection.Endpoint.AdditionalConfigData[key] == value
+	}
+}
