@@ -361,12 +361,12 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	}
 
 	// needed for luksOpen synchronization when devices are encrypted and the osd is prepared with LVM
-	hostIPC := osdProps.storeConfig.EncryptedDevice || osdProps.encrypted
+	hostIPC := osdProps.storeConfig.EncryptedDevice || osdProps.encrypted || osd.Encrypted
 
 	osdLabels := c.getOSDLabels(*osd, failureDomainValue, osdProps.portable)
 
 	// update encryption label on the OSD deployment
-	if osdProps.storeConfig.EncryptedDevice || osdProps.encrypted || osd.Encrypted {
+	if osdProps.encrypted || osd.Encrypted {
 		osdLabels[encrypted] = "true"
 	} else {
 		osdLabels[encrypted] = "false"
@@ -775,7 +775,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		v1.EnvVar{Name: "ROOK_OSD_UUID", Value: osdInfo.UUID},
 		v1.EnvVar{Name: "ROOK_OSD_STORE_FLAG", Value: osdStoreFlag},
 		cvModeEnvVariable(osdInfo.CVMode),
-		encryptedDeviceEnvVar(osdProps.storeConfig.EncryptedDevice),
+		encryptedDeviceEnvVar(osdProps.storeConfig.EncryptedDevice || osdInfo.Encrypted),
 	)
 
 	// Build empty dir osd path to something like "/var/lib/ceph/osd/ceph-0"
