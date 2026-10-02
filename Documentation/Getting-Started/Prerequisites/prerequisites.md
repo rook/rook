@@ -22,6 +22,9 @@ To configure the Ceph storage cluster, at least one of these local storage types
 * LVM Logical Volumes (no formatted filesystem)
 * Persistent Volumes available from a storage class in `block` mode
 
+When selecting devices on a node (`useAllDevices`, `deviceFilter`, `devicePathFilter`, or `devices`), Rook skips
+rbd, nbd, drbd, and zram devices. OSDs on PVCs are not affected.
+
 Confirm whether the partitions or devices are formatted with filesystems with the following command:
 
 ```console
