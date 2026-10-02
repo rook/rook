@@ -10,6 +10,10 @@
   with the CephCluster CR setting `network.connections.requireMsgr2: false`. If using the helm chart, this same value is applied
   under the `cephClusterSpec` of the values.
 
+## Notable Changes
+
+- Default CSI container images are no longer set by Rook. The `rook-csi-operator-image-set-configmap` configmap now ships with empty values, allowing the ceph-csi-operator to use its built-in defaults. Users with custom CSI images should ensure their overrides are present in the configmap after upgrade.
+
 ## Features
 
 - Ceph Umbrella (v21) is now a supported version of Ceph.
