@@ -19,7 +19,7 @@ package kms
 import (
 	"testing"
 
-	kp "github.com/IBM/keyprotect-go-client"
+	kp "github.com/IBM/keyprotect-go-client/ibmkeyprotectapiv2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,26 +45,26 @@ func TestInitKeyProtect(t *testing.T) {
 	t.Run("default base URL", func(t *testing.T) {
 		c, err := InitKeyProtect(config)
 		assert.NoError(t, err)
-		assert.Equal(t, kp.DefaultBaseURL, c.Config.BaseURL)
+		assert.Equal(t, kp.DefaultServiceURL, c.baseURL)
 	})
 
 	t.Run("different base URL", func(t *testing.T) {
 		config[IbmKeyProtectBaseUrlKey] = "https://us-west.kms.cloud.ibm.com"
 		c, err := InitKeyProtect(config)
 		assert.NoError(t, err)
-		assert.Equal(t, "https://us-west.kms.cloud.ibm.com", c.Config.BaseURL)
+		assert.Equal(t, "https://us-west.kms.cloud.ibm.com", c.baseURL)
 	})
 
 	t.Run("default base token URL", func(t *testing.T) {
 		c, err := InitKeyProtect(config)
 		assert.NoError(t, err)
-		assert.Equal(t, kp.DefaultTokenURL, c.Config.TokenURL)
+		assert.Equal(t, ibmKeyProtectDefaultTokenURL, c.tokenURL)
 	})
 
-	t.Run("different base URL", func(t *testing.T) {
-		config[IbmKeyProtectTokenUrlKey] = "new"
+	t.Run("different token URL", func(t *testing.T) {
+		config[IbmKeyProtectTokenUrlKey] = "https://private.iam.cloud.ibm.com/oidc/token"
 		c, err := InitKeyProtect(config)
 		assert.NoError(t, err)
-		assert.Equal(t, "new", c.Config.TokenURL)
+		assert.Equal(t, "https://private.iam.cloud.ibm.com/oidc/token", c.tokenURL)
 	})
 }
