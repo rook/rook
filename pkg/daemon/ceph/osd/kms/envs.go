@@ -19,7 +19,7 @@ package kms
 import (
 	"os"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/vault/api"
@@ -164,8 +164,10 @@ func ConfigEnvsToMapString() map[string]string {
 
 // sortV1EnvVar sorts a list of v1.EnvVar
 func sortV1EnvVar(envs []v1.EnvVar) []v1.EnvVar {
-	sort.SliceStable(envs, func(i, j int) bool {
-		return envs[i].Name < envs[j].Name
+	// ConfigToEnvVar ensures that environment variable names are unique, so a
+	// stable sort is not required.
+	slices.SortFunc(envs, func(a, b v1.EnvVar) int {
+		return strings.Compare(a.Name, b.Name)
 	})
 
 	return envs
