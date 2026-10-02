@@ -10771,6 +10771,20 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
+<code>scrapeTimeoutSeconds</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ScrapeTimeoutSeconds determines the timeout of a prometheus scrape, in seconds. It must
+not be greater than the scrape interval, which defaults to 10s when unset. Defaults to the
+Prometheus global scrape timeout when unset.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>metricsTLS,omitzero</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.MetricsTLSSpec">

@@ -612,10 +612,7 @@ func (c *Cluster) EnableServiceMonitor() error {
 	if c.spec.External.Enable {
 		serviceMonitor.Spec.Endpoints[0].Port = controller.ServiceExternalMetricName
 	}
-	if c.spec.Monitoring.Interval != nil {
-		duration := c.spec.Monitoring.Interval.Duration.String()
-		serviceMonitor.Spec.Endpoints[0].Interval = monitoringv1.Duration(duration)
-	}
+	k8sutil.ApplyMonitoringTiming(c.spec.Monitoring, serviceMonitor)
 
 	c.applyMetricsTLSToServiceMonitor(serviceMonitor)
 	err := c.clusterInfo.OwnerInfo.SetControllerReference(serviceMonitor)
