@@ -2523,7 +2523,62 @@ type ObjectStoreUserSpec struct {
 	// +kubebuilder:validation:MaxLength=2048
 	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._-]+$`
 	DefaultStorageClass string `json:"defaultStorageClass,omitempty"`
+	// SecretTemplate defines labels and annotations to add to the Secret that
+	// holds this user's credentials, for example to opt the Secret in to a
+	// tool that copies Secrets into other namespaces. Anyone who can edit this
+	// CephObjectStoreUser can use it to hand the credentials to such a tool.
+	// The labels app, user, rook_cluster and rook_object_store, which Rook
+	// sets on this Secret, are reserved.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="!has(self.labels) || self.labels.all(k, !(k in ['app', 'user', 'rook_cluster', 'rook_object_store']))",message="label keys app, user, rook_cluster and rook_object_store are reserved by Rook"
+	SecretTemplate SecretTemplate `json:"secretTemplate,omitzero"`
 }
+
+// SecretTemplate defines labels and annotations to add to a Secret that Rook
+// generates. Keys that Rook acts on in any Secret are rejected here; a resource
+// that uses this type also reserves the labels it sets on its own Secret.
+// +kubebuilder:validation:MinProperties=1
+type SecretTemplate struct {
+	// Labels to add to the Secret. The key do_not_reconcile, and keys with a
+	// rook.io or *.rook.io prefix, are reserved.
+	// +optional
+	// +kubebuilder:validation:MinProperties=1
+	// +kubebuilder:validation:MaxProperties=32
+	// +kubebuilder:validation:XValidation:rule="self.all(k, !format.qualifiedName().validate(k).hasValue())",message="label keys must be valid Kubernetes label keys"
+	// +kubebuilder:validation:XValidation:rule="self.all(k, k != 'do_not_reconcile')",message="label key do_not_reconcile is reserved by Rook"
+	// +kubebuilder:validation:XValidation:rule="self.all(k, !k.matches('^([^/]*[.])?rook[.]io/'))",message="label keys with a rook.io prefix are reserved by Rook"
+	Labels map[string]LabelValue `json:"labels,omitempty"`
+	// Annotations to add to the Secret, at most 256 KiB in total. The key
+	// cephx-keyring, and keys with a rook.io or *.rook.io prefix, are reserved.
+	// +optional
+	// +kubebuilder:validation:MinProperties=1
+	// +kubebuilder:validation:MaxProperties=32
+	// +kubebuilder:validation:XValidation:rule="self.all(k, !format.qualifiedName().validate(k.lowerAscii()).hasValue())",message="annotation keys must be valid Kubernetes annotation keys"
+	// +kubebuilder:validation:XValidation:rule="self.all(k, k != 'cephx-keyring')",message="annotation key cephx-keyring is reserved by Rook"
+	// +kubebuilder:validation:XValidation:rule="self.all(k, !k.matches('^([^/]*[.])?rook[.]io/'))",message="annotation keys with a rook.io prefix are reserved by Rook"
+	// +kubebuilder:validation:XValidation:rule="self.map(k, size(bytes(k)) + size(bytes(self[k]))).sum() <= 262144",message="annotations must total at most 256 KiB"
+	Annotations map[string]AnnotationValue `json:"annotations,omitempty"`
+}
+
+// IsZero reports whether the template sets no labels and no annotations, so
+// that an empty template is omitted when a CephObjectStoreUser is serialized.
+func (t SecretTemplate) IsZero() bool {
+	return len(t.Labels) == 0 && len(t.Annotations) == 0
+}
+
+// LabelValue is a Kubernetes label value: at most 63 characters, empty or
+// alphanumeric at both ends, with '-', '_' and '.' allowed in between.
+// +kubebuilder:validation:MaxLength=63
+// +kubebuilder:validation:Pattern=`^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$`
+type LabelValue string
+
+// AnnotationValue is a Kubernetes annotation value of at most 256 KiB. Its
+// length is also capped at 262144 characters, the most a 256 KiB value can
+// hold, because the API server needs that bound to accept the CEL rules that
+// check a template's annotations.
+// +kubebuilder:validation:MaxLength=262144
+// +kubebuilder:validation:XValidation:rule="size(bytes(self)) <= 262144",message="annotation values must be at most 256 KiB"
+type AnnotationValue string
 
 // ObjectStoreUserAccountRef is a reference to a CephObjectStoreAccount
 type ObjectStoreUserAccountRef struct {
