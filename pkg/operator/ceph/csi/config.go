@@ -30,6 +30,7 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -209,6 +210,36 @@ func createUpdateClientProfile(c client.Client, clusterInfo *cephclient.ClusterI
 		return errors.Wrapf(err, "failed to create ceph-csi for clientProfile CR %q", clientProfile.Name)
 	}
 	logger.Infof("successfully updated ceph-csi for clientProfile CR %q", clientProfile.Name)
+
+	return nil
+}
+
+// DeleteCSIOperatorResources deletes the CephConnection and ClientProfile CRs that Rook creates
+// for the ceph-csi-operator. It is a no-op if the CRs are already gone, or if the
+// ceph-csi-operator CRDs are not installed at all.
+func DeleteCSIOperatorResources(c client.Client, clusterInfo *cephclient.ClusterInfo) error {
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+
+	cephConnection := &csiopv1.CephConnection{}
+	cephConnection.Name = clusterInfo.Namespace
+	cephConnection.Namespace = operatorNamespace
+	if err := deleteCSIOperatorResource(clusterInfo.Context, c, cephConnection); err != nil {
+		return err
+	}
+
+	clientProfile := &csiopv1.ClientProfile{}
+	clientProfile.Name = clusterInfo.Namespace
+	clientProfile.Namespace = operatorNamespace
+
+	return deleteCSIOperatorResource(clusterInfo.Context, c, clientProfile)
+}
+
+func deleteCSIOperatorResource(ctx context.Context, c client.Client, obj client.Object) error {
+	err := c.Delete(ctx, obj)
+	// the CR is already gone, or the ceph-csi-operator CRDs are not installed
+	if err != nil && !apierrors.IsNotFound(err) && !meta.IsNoMatchError(err) {
+		return errors.Wrapf(err, "failed to delete csi operator resource %q", obj.GetName())
+	}
 
 	return nil
 }
