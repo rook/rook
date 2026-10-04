@@ -19,6 +19,7 @@ package nfs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -92,13 +93,10 @@ func TestCephNFSController(t *testing.T) {
 					if args[0] == "auth" && args[1] == "get-or-create-key" {
 						return nfsCephAuthGetOrCreateKey, nil
 					}
-					if args[0] == "osd" && args[1] == "pool" && args[2] == "create" {
-						return "", nil
+					if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+						return `{"pool_id":1}`, nil
 					}
 					if args[0] == "osd" && args[1] == "crush" && args[2] == "rule" {
-						return "", nil
-					}
-					if args[0] == "osd" && args[1] == "pool" && args[2] == "application" {
 						return "", nil
 					}
 				}
@@ -266,6 +264,35 @@ func TestCephNFSController(t *testing.T) {
 			assert.Contains(t, event, // verify the security spec calls the Validate() method
 				"System Security Services Daemon (SSSD) is enabled, but no runtime option is specified")
 		})
+	})
+
+	t.Run("error - nfs pool does not exist", func(t *testing.T) {
+		poolNotFoundExecutor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				logger.Infof("mock execute: %s %v", command, args)
+				if command == "ceph" {
+					if args[0] == "status" {
+						return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+					}
+					if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+						return "", errors.New("pool '.nfs' does not exist")
+					}
+				}
+				panic(fmt.Sprintf("unhandled command %s %v", command, args))
+			},
+		}
+		cCtx := newContext(poolNotFoundExecutor)
+		cl := newControllerClient(baseCephNFS(), cephClusterReady(cCtx))
+		r := newReconcile(cCtx, cl)
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
+
+		cephNFS := &cephv1.CephNFS{}
+		err = r.client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, cephNFS)
+		assert.NoError(t, err)
+		assert.NotEqual(t, "Ready", cephNFS.Status.Phase)
 	})
 
 	assertCephNFSReady := func(t *testing.T, r *ReconcileCephNFS, names ...string) {
@@ -599,13 +626,10 @@ func TestNFSKeyRotation(t *testing.T) {
 				if args[0] == "auth" && args[1] == "rotate" {
 					return nfsDaemonRotatedKey, nil
 				}
-				if args[0] == "osd" && args[1] == "pool" && args[2] == "create" {
-					return "", nil
+				if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+					return `{"pool_id":1}`, nil
 				}
 				if args[0] == "osd" && args[1] == "crush" && args[2] == "rule" {
-					return "", nil
-				}
-				if args[0] == "osd" && args[1] == "pool" && args[2] == "application" {
 					return "", nil
 				}
 			}

@@ -6,14 +6,14 @@ All CephNFS daemons are configured using shared RADOS objects stored in a Ceph p
 Users can modify the configuration object for each CephNFS cluster if they wish to customize the
 configuration.
 
-## Changing configuration of the .nfs pool
+## Configuring the .nfs pool
 
-By default, Rook creates the `.nfs` pool with Ceph's default configuration. If you wish to change
-the configuration of this pool (for example to change its failure domain or replication factor), you
-can create a CephBlockPool with the `spec.name` field set to `.nfs`. This pool **must** be
-replicated and **cannot** be erasure coded.
+The `.nfs` pool must be created by the user via a CephBlockPool CR before creating any CephNFS
+resources. The NFS controller will wait for this pool to exist before proceeding with reconciliation.
+Create a CephBlockPool with the `spec.name` field set to `.nfs`. This pool **must** be replicated
+and **cannot** be erasure coded.
 [`deploy/examples/nfs.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/nfs.yaml)
-contains a sample for reference.
+contains a sample CephBlockPool for reference.
 
 ## Adding custom NFS-Ganesha config file changes
 
