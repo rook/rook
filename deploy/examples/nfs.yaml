@@ -2,9 +2,6 @@
 # Create a Ceph pool with settings for replication in production environments. A minimum of 3 OSDs on
 # different hosts are required in this example.
 #  kubectl create -f nfs.yaml
-#
-# This example is for Ceph v16 and above only. If you are using Ceph v15, see Rook v1.8 examples
-# from the 'release-1.8' branch
 #################################################################################################################
 
 apiVersion: ceph.rook.io/v1
@@ -104,24 +101,24 @@ spec:
     #       requests:
     #         cpu: "2"
     #         memory: "1Gi"
-# ---
-# # The built-in Ceph pool ".nfs" is used for storing configuration for all CephNFS clusters. If this
-# # shared pool needs to be configured with alternate settings, create this pool (once) with any of
-# # the pool properties. Create this pool before creating any CephNFSes, or else some properties may
-# # not be applied when the pool is created by default. This pool must be replicated.
-# apiVersion: ceph.rook.io/v1
-# kind: CephBlockPool
-# metadata:
-#   name: builtin-nfs
-#   namespace: rook-ceph # namespace:cluster
-# spec:
-#   # The required pool name ".nfs" cannot be specified as a K8s resource name, thus we override
-#   # the pool name created in Ceph with this name property
-#   name: .nfs
-#   failureDomain: host
-#   replicated:
-#     size: 3
-#     requireSafeReplicaSize: true
+---
+# The built-in Ceph pool ".nfs" is used for storing configuration for all CephNFS clusters.
+# This CephBlockPool CR must be created before creating any CephNFS resources, as the NFS
+# controller requires the pool to exist. Customize pool properties as needed.
+# This pool must be replicated.
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: builtin-nfs
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The required pool name ".nfs" cannot be specified as a K8s resource name, thus we override
+  # the pool name created in Ceph with this name property
+  name: .nfs
+  failureDomain: host
+  replicated:
+    size: 3
+    requireSafeReplicaSize: true
 
 # ---
 # # Example configmap for providing sssd.conf file to the SSSD sidecar
