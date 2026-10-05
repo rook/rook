@@ -14,8 +14,10 @@ optional spec fields:
 - `defaultStorageClass` — sets the user's default storage class for objects,
   applied on top of `defaultPlacement`.
 
-A fourth field, `placementTags`, is deferred to follow-up work (see
-[Future work](#future-work)).
+[Placement tags](#placement-tags) adds `placementTags` to
+`CephObjectStoreUser` and `tags` to `CephObjectStore` pool placements, so that
+a placement target can be restricted to the users allowed to create buckets
+in it.
 
 [Tenanted accounts](#tenanted-accounts) extends `tenant` to
 `CephObjectStoreAccount`, so that a tenanted `CephObjectStoreUser` can be a
@@ -57,7 +59,9 @@ rotation, lifecycle management, status reporting).
 placement targets (each backed by distinct metadata/data pools). However, the
 `CephObjectStoreUser` controller has no way to assign a user's
 `default-placement`, meaning all users default to the store-wide default
-placement.
+placement. A default placement alone does not stop a user from creating
+buckets in another placement; [Placement tags](#placement-tags) adds that
+enforcement.
 
 ## Goals
 
@@ -84,6 +88,9 @@ placement.
   [Ceph version invariance](#ceph-version-invariance)).
 - Preserve backward compatibility: all new fields are optional; existing
   resources and pre-existing RGW users are unaffected.
+- Let a placement target be restricted to specific users with RGW placement
+  tags, so that a tenant's placement, and the RADOS namespaces behind it, only
+  ever hold that tenant's data.
 
 ## Ceph version invariance
 
@@ -637,23 +644,214 @@ zone. No zone-specific behavior is added.
   `team_a$<CR UID>`, account membership, and that a member with a different
   tenant never becomes Ready.
 
+## Placement tags
+
+This section adds `placementTags` to `CephObjectStoreUser` and `tags` to
+`CephObjectStore` pool placements, turning a placement target from a default
+into an enforced boundary. It was deferred from the first version of this
+design (see [Future work](#future-work)); two of the three reasons for deferring
+it no longer hold, and the third is handled by the API below.
+
+### Motivation
+
+`defaultPlacement` only chooses where a user's buckets go when the client does
+not ask. Any user can still create a bucket in any placement target of the
+zonegroup by naming it in `LocationConstraint`. In a store shared by several
+tenants, that means one tenant can write into another tenant's placement: its
+pools, device class, erasure-code profile and capacity.
+
+It also defeats the RADOS-level operations that motivate per-tenant placements
+in the first place ([#17412](https://github.com/rook/rook/issues/17412)):
+purging, migrating or inspecting one tenant's data directly in its RADOS
+namespace, instead of deleting or copying objects one by one through RGW. Those
+operations are only safe if the namespace holds nothing but that tenant's data,
+which requires that nobody else can create buckets there.
+
+RGW already enforces this with placement tags. After choosing the placement
+for a new bucket, RGW checks the target's tags against the user's tags
+(`RGWSI_Zone::select_bucket_location`, `user_permitted`; identical in v19.2.6
+and v20.2.4):
+
+```mermaid
+flowchart TD
+    req["CreateBucket"] --> pick{"placement named in<br/>LocationConstraint?"}
+    pick -- yes --> t1["use requested placement"]
+    pick -- no --> dp{"user has<br/>default_placement?"}
+    dp -- yes --> t2["use user default"]
+    dp -- no --> t3["use zonegroup default"]
+    t1 --> tags
+    t2 --> tags
+    t3 --> tags
+    tags{"target has tags?"}
+    tags -- no --> ok["bucket created"]
+    tags -- yes --> match{"user holds a<br/>matching tag?"}
+    match -- yes --> ok
+    match -- no --> deny["EPERM: user not permitted<br/>to use placement rule"]
+```
+
+An untagged target stays open to every user, so tags are opt-in per placement.
+
+### Why it is no longer deferred
+
+| Reason for deferring | Status |
+|---|---|
+| Tags on zonegroup placement targets had no Rook API | Added below as `PoolPlacementSpec.tags` |
+| Rook pinned go-ceph v0.40.0, before `PlacementTags` support | Rook now pins v0.41.0, which sends `placement-tags` on user create and modify |
+| User tags cannot be cleared through Admin Ops ([tracker 79090](https://tracker.ceph.com/issues/79090), [go-ceph#1307](https://github.com/ceph/go-ceph/issues/1307)) | Still open, and the fix PR (ceph/ceph#71199) was closed unmerged. Handled by forbidding removal at admission (below) |
+
+### API changes
+
+```go
+// PoolPlacementSpec (CephObjectStore.spec.sharedPools.poolPlacements[])
+type PoolPlacementSpec struct {
+    // ... existing fields ...
+
+    // Tags restricts bucket creation in this placement to users holding at
+    // least one of these tags in CephObjectStoreUser.spec.placementTags. An
+    // empty list leaves the placement open to every user.
+    // +optional
+    // +listType=set
+    // +kubebuilder:validation:MaxItems=32
+    // +kubebuilder:validation:items:MinLength=1
+    // +kubebuilder:validation:items:MaxLength=255
+    // +kubebuilder:validation:items:Pattern=`^[a-zA-Z0-9._-]+$`
+    Tags []string `json:"tags,omitempty"`
+}
+
+// ObjectStoreUserSpec
+// +kubebuilder:validation:XValidation:message="placementTags cannot be removed once set; replace them with another list instead",rule="!has(oldSelf.placementTags) || (has(self.placementTags) && size(self.placementTags) > 0)"
+type ObjectStoreUserSpec struct {
+    // ... existing fields ...
+
+    // PlacementTags lists the placement tags this user holds. A user may
+    // create buckets in a tagged placement target only when it holds one of
+    // that target's tags. Untagged targets are open to every user.
+    // Once set, this field cannot be removed or emptied, because RGW offers
+    // no way to clear a user's tags; replace the list to change access.
+    // +optional
+    // +listType=set
+    // +kubebuilder:validation:MinItems=1
+    // +kubebuilder:validation:MaxItems=32
+    // +kubebuilder:validation:items:MinLength=1
+    // +kubebuilder:validation:items:MaxLength=255
+    // +kubebuilder:validation:items:Pattern=`^[a-zA-Z0-9._-]+$`
+    PlacementTags []string `json:"placementTags,omitempty"`
+}
+```
+
+The tag pattern excludes `,` because Admin Ops takes the user's tags as one
+comma-separated parameter. Both lists are sets, so their order is irrelevant.
+
+### Semantics
+
+**User tags (`placementTags`)** are mutable. Each reconcile sends the full list
+on create and modify, and RGW replaces the user's tag list with it, so adding,
+removing or changing individual tags works as long as the list stays non-empty.
+An absent field is unmanaged, like `defaultPlacement`: Rook neither sets nor
+reads tags on a user that does not declare them.
+
+Removing the field, or emptying it, is rejected at admission. RGW ignores an
+empty `placement-tags` parameter (tracker 79090), so a removal would succeed in
+the CR while the user kept every tag it had, and with them access the spec no
+longer grants. Rejecting it keeps the spec from claiming less access than RGW
+enforces. To revoke a user's access to all tagged placements, replace its tags
+with one that no placement uses. The rule is lifted once a fix for 79090 is in
+Rook's supported Ceph floor and go-ceph can send an empty value.
+
+**Placement tags (`poolPlacements[].tags`)** are authoritative. Rook already
+owns each placement target it creates (it removes targets that leave the
+spec), so on every reconcile it sets the target's tags to the spec's list, and
+an absent or empty list clears them. Zonegroup configuration is replaced
+through `radosgw-admin zonegroup set`, which has no equivalent of the user-tag
+limitation.
+
+**Tagging the default placement** locks out every user without a matching tag,
+including users Rook provisions for ObjectBucketClaims and COSI, which do not
+carry tags. The documentation warns about this, but it is not forbidden: a
+store dedicated to tagged tenants may want exactly that.
+
+### Example: one placement per tenant, enforced
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: store-a
+spec:
+  sharedPools:
+    metadataPoolName: rgw-meta-pool   # default placement, untagged: open to all
+    dataPoolName: rgw-data-pool
+    poolPlacements:
+      - name: bwi
+        metadataPoolName: rgw-meta-pool
+        dataPoolName: rgw-data-pool   # namespaces store-a.bwi.*
+        tags: [bwi]
+      - name: acme
+        metadataPoolName: rgw-meta-pool
+        dataPoolName: rgw-data-pool   # namespaces store-a.acme.*
+        tags: [acme]
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: alice
+spec:
+  store: store-a
+  tenant: bwi
+  defaultPlacement: bwi     # where alice's buckets go by default
+  placementTags: [bwi]      # where alice may create buckets
+```
+
+Alice's buckets land in `store-a.bwi.*`. A user in tenant `acme` that asks for
+`LocationConstraint: store-a:bwi` (zonegroup `store-a`, placement `bwi`) gets
+`EPERM`, so the `store-a.bwi.*` namespaces only
+ever hold `bwi` data.
+
+### Interaction with tenants and accounts
+
+Tags, tenants and accounts are independent RGW mechanisms. `tenant` scopes
+names, accounts scope ownership and IAM, and placement tags scope where buckets
+may be created. A tenant is not tagged as a whole; every user of the tenant
+carries the tag, which the operator sets on each `CephObjectStoreUser`. Account
+membership does not grant tags either, because RGW checks the tags of the
+requesting user.
+
+### Multisite
+
+User tags are user metadata and replicate realm-wide through metadata sync.
+Placement target tags are zonegroup configuration. In a zonegroup with several
+zones, each zone's pool placements must declare the same tags for a given
+placement name, because the target, and so its tags, is shared by the whole
+zonegroup.
+
+### Compatibility
+
+Both fields are optional. Existing users have no `placementTags`, so they stay
+unmanaged. Placement targets created by Rook today have no tags, but tags added
+by hand with `radosgw-admin zonegroup placement modify --tags` on a
+Rook-managed target are cleared on the first reconcile after upgrade unless
+they are declared in `poolPlacements[].tags`. This ships as a release note.
+
+Rolling back to a release without these fields leaves both kinds of tags in
+place in RGW. The older operator does not touch user tags and keeps unknown
+target fields, so enforcement continues, but nothing manages the tags anymore.
+
+### Test plan
+
+- Unit: tags sent on user create and modify, absent tags never sent; CEL
+  rejects removing or emptying `placementTags` and accepts replacing it; target
+  tags written from `poolPlacements[].tags` and cleared when removed.
+- Integration (object suite): a tagged placement; a user with the tag creates a
+  bucket there, a user without it gets `AccessDenied`, and both can still use
+  the untagged default placement.
+
 ## Future work
 
-- **`placementTags`** (deferred from this design): RGW `placement_tags` is a
-  bucket-creation authorization list — a user may only create buckets in a
-  tagged placement target when one of the user's tags matches. It is
-  deferred because (a) its enabling half, tags on zonegroup placement
-  targets, has no Rook API (`PoolPlacementSpec` would need a `tags` field);
-  (b) client support requires a `go.mod` bump — Rook currently pins go-ceph
-  v0.40.0, which predates `PlacementTags` support
-  ([go-ceph#1290](https://github.com/ceph/go-ceph/pull/1290), merged
-  2026-07-09 and released in go-ceph v0.41.0 on 2026-08-11 — the dependency
-  itself is released, only Rook's pin is behind); and (c) tags cannot be
-  cleared through the admin ops API once set
-  ([tracker 79090](https://tracker.ceph.com/issues/79090)). When revisited:
-  the field is named `placementTags` (it is not scoped to the default
-  placement), ships together with `PoolPlacementSpec.tags`, and gates on
-  bumping Rook's go-ceph pin to v0.41.0+.
+- **Removable `placementTags`**: drop the admission rule that forbids
+  removing or emptying a user's `placementTags`, once a fix for
+  [tracker 79090](https://tracker.ceph.com/issues/79090) is in Rook's
+  supported Ceph floor and go-ceph can send an empty value
+  ([go-ceph#1307](https://github.com/ceph/go-ceph/issues/1307)).
 - **Revert-on-removal** for the placement fields, once
   [tracker 79090](https://tracker.ceph.com/issues/79090) and
   [go-ceph#1307](https://github.com/ceph/go-ceph/issues/1307) are in Rook's
