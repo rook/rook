@@ -24,3 +24,6 @@
   reported in `status.info`. Removing either field stops Rook from managing it and leaves the last applied value in place
   on the RGW user, except that changing `defaultPlacement` without a `defaultStorageClass` resets the storage class to
   the new placement target's default.
+- `CephObjectStoreUser` gained `spec.secretTemplate`, which adds labels and annotations to the Secret that holds the
+  user's credentials, for example to opt the Secret in to a tool that copies Secrets into other namespaces. Keys that
+  Rook sets or acts on are reserved.
