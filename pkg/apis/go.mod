@@ -16,8 +16,8 @@ require (
 	github.com/openshift/api v0.0.0-20241216151652-de9de05a8e43
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.12.1
-	k8s.io/api v0.37.0
-	k8s.io/apimachinery v0.37.0
+	k8s.io/api v0.37.1
+	k8s.io/apimachinery v0.37.1
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
 )
 
