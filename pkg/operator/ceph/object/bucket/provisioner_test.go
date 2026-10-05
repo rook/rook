@@ -28,6 +28,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/ceph/go-ceph/rgw/admin"
+	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
+	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
@@ -36,9 +38,11 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/events"
 )
 
 const (
@@ -51,7 +55,7 @@ func TestPopulateDomainAndPort(t *testing.T) {
 	store := "test-store"
 	namespace := "ns"
 	clusterInfo := client.AdminTestClusterInfo(namespace)
-	p := NewProvisioner(&clusterd.Context{RookClientset: rookclient.NewSimpleClientset(), Clientset: test.New(t, 1)}, clusterInfo)
+	p := NewProvisioner(&clusterd.Context{RookClientset: rookclient.NewSimpleClientset(), Clientset: test.New(t, 1)}, clusterInfo, nil)
 	p.objectContext = object.NewContext(p.context, clusterInfo, store)
 	sc := &storagev1.StorageClass{
 		Parameters: map[string]string{
@@ -590,10 +594,47 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 		assert.Equal(t, additionalConfigSpec{bucketOwner: &(&struct{ s string }{"foo"}).s}, *spec)
 	})
 
+	t.Run("bucketPlacement field should be set", func(t *testing.T) {
+		os.Setenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS", "bucketPlacement")
+		defer os.Unsetenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS")
+		opcontroller.SetObcAllowAdditionalConfigFields()
+		defer opcontroller.SetObcAllowAdditionalConfigFields()
+
+		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketPlacement": "archive"})
+		assert.NoError(t, err)
+		assert.Equal(t, additionalConfigSpec{bucketPlacement: "archive"}, *spec)
+	})
+
+	t.Run("bucketStorageClass field should be set", func(t *testing.T) {
+		os.Setenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS", "bucketStorageClass")
+		defer os.Unsetenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS")
+		opcontroller.SetObcAllowAdditionalConfigFields()
+		defer opcontroller.SetObcAllowAdditionalConfigFields()
+
+		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketStorageClass": "FOO"})
+		assert.NoError(t, err)
+		assert.Equal(t, additionalConfigSpec{bucketStorageClass: "FOO"}, *spec)
+	})
+
+	t.Run("malformed placement values are rejected at parse time", func(t *testing.T) {
+		os.Setenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS", "bucketPlacement,bucketStorageClass")
+		defer os.Unsetenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS")
+		opcontroller.SetObcAllowAdditionalConfigFields()
+		defer opcontroller.SetObcAllowAdditionalConfigFields()
+
+		_, err := additionalConfigSpecFromMap(map[string]string{"bucketPlacement": "foo:bar"})
+		require.ErrorIs(t, err, errInvalidPlacementValue)
+		assert.Contains(t, err.Error(), `bucketPlacement "foo:bar"`)
+
+		_, err = additionalConfigSpecFromMap(map[string]string{"bucketStorageClass": "FOO "})
+		require.ErrorIs(t, err, errInvalidPlacementValue)
+		assert.Contains(t, err.Error(), `bucketStorageClass "FOO "`)
+	})
+
 	t.Run("fields disallowed by default", func(t *testing.T) {
 		opcontroller.SetObcAllowAdditionalConfigFields()
 
-		for _, configKey := range []string{"bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner"} {
+		for _, configKey := range []string{"bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "bucketPlacement", "bucketStorageClass"} {
 			_, err := additionalConfigSpecFromMap(map[string]string{configKey: "foo"})
 			assert.Error(t, err)
 		}
@@ -605,6 +646,230 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 		spec, err := additionalConfigSpecFromMap(map[string]string{})
 		assert.NoError(t, err)
 		assert.Equal(t, additionalConfigSpec{}, *spec)
+	})
+}
+
+func TestValidatePlacementValue(t *testing.T) {
+	tests := []struct {
+		value   string
+		wantErr bool
+	}{
+		{"", false},
+		{"archive", false},
+		{"a.b_c-d", false},
+		{"loc-a", false},
+		{"STANDARD_IA", false},
+		{"foo:bar", true},
+		{"a/b", true},
+		{"loc a", true},
+		{"loc-a/COLD", true},
+		{"FOO ", true},
+		{"\tCOLD", true},
+	}
+	for _, key := range []string{bucketPlacementKey, bucketStorageClassKey} {
+		for _, tt := range tests {
+			t.Run(key+" "+tt.value, func(t *testing.T) {
+				err := validatePlacementValue(key, tt.value)
+				if tt.wantErr {
+					require.Error(t, err)
+					assert.Contains(t, err.Error(), fmt.Sprintf("%s %q", key, tt.value))
+					return
+				}
+				assert.NoError(t, err)
+			})
+		}
+	}
+}
+
+func TestParsePlacementRule(t *testing.T) {
+	tests := []struct {
+		rule, placement, storageClass string
+	}{
+		{"loc-a", "loc-a", "STANDARD"},
+		{"loc-a/STANDARD", "loc-a", "STANDARD"},
+		{"loc-a/COLD", "loc-a", "COLD"},
+		{"default/FOO", "default", "FOO"},
+		{"loc-a/", "loc-a", "STANDARD"},
+		{"a/b/COLD", "a", "b/COLD"},
+		{"", "", "STANDARD"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.rule, func(t *testing.T) {
+			placement, storageClass := parsePlacementRule(tt.rule)
+			assert.Equal(t, tt.placement, placement)
+			assert.Equal(t, tt.storageClass, storageClass)
+		})
+	}
+}
+
+func TestCheckPlacementRule(t *testing.T) {
+	tests := []struct {
+		name               string
+		rule               string
+		placement          string
+		storageClass       string
+		wantErr            bool
+		wantErrContains    []string
+		wantErrNotContains []string
+	}{
+		{name: "neither requested", rule: "loc-a/COLD"},
+		{name: "placement matches", rule: "loc-a", placement: "loc-a"},
+		{name: "placement matches with an explicit class", rule: "loc-a/COLD", placement: "loc-a"},
+		{name: "storage class matches", rule: "loc-a/COLD", storageClass: "COLD"},
+		{name: "STANDARD matches an absent class", rule: "loc-a", storageClass: "STANDARD"},
+		{name: "STANDARD matches an explicit STANDARD", rule: "loc-a/STANDARD", storageClass: "STANDARD"},
+		{name: "both match", rule: "loc-a/COLD", placement: "loc-a", storageClass: "COLD"},
+		{
+			name: "placement mismatch", rule: "default", placement: "loc-a", wantErr: true,
+			wantErrContains:    []string{`bucketPlacement "loc-a"`, `placement "default"`},
+			wantErrNotContains: []string{"bucketStorageClass"},
+		},
+		{
+			name: "storage class mismatch against an absent class", rule: "loc-a", storageClass: "COLD", wantErr: true,
+			wantErrContains:    []string{`bucketStorageClass "COLD"`, `storage class "STANDARD"`},
+			wantErrNotContains: []string{"bucketPlacement"},
+		},
+		{
+			name: "storage class mismatch against an explicit class", rule: "loc-a/COLD", storageClass: "FOO", wantErr: true,
+			wantErrContains: []string{`bucketStorageClass "FOO"`, `storage class "COLD"`},
+		},
+		{
+			name: "placement mismatch with a matching class", rule: "default/COLD", placement: "loc-a", storageClass: "COLD", wantErr: true,
+			wantErrContains:    []string{`bucketPlacement "loc-a"`},
+			wantErrNotContains: []string{"bucketStorageClass"},
+		},
+		{
+			name: "both mismatch", rule: "default", placement: "loc-a", storageClass: "COLD", wantErr: true,
+			wantErrContains: []string{`bucketPlacement "loc-a"`, `placement "default"`, `bucketStorageClass "COLD"`, `storage class "STANDARD"`},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkPlacementRule(tt.rule, tt.placement, tt.storageClass)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			for _, want := range tt.wantErrContains {
+				assert.Contains(t, err.Error(), want)
+			}
+			for _, unwanted := range tt.wantErrNotContains {
+				assert.NotContains(t, err.Error(), unwanted)
+			}
+		})
+	}
+}
+
+// newPlacementBucket builds the per-call state the placement checks read:
+// an OBC for the Event and the parsed additionalConfig.
+func newPlacementBucket(placement, storageClass string) *bucket {
+	return &bucket{
+		options: &apibkt.BucketOptions{
+			ObjectBucketClaim: &bktv1alpha1.ObjectBucketClaim{
+				ObjectMeta: metav1.ObjectMeta{Name: "my-obc", Namespace: "my-ns"},
+			},
+		},
+		additionalConfig: &additionalConfigSpec{bucketPlacement: placement, bucketStorageClass: storageClass},
+	}
+}
+
+func TestProvisioner_parseAdditionalConfig(t *testing.T) {
+	os.Setenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS", "bucketPlacement,bucketStorageClass")
+	defer os.Unsetenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS")
+	opcontroller.SetObcAllowAdditionalConfigFields()
+	defer opcontroller.SetObcAllowAdditionalConfigFields()
+
+	newOBC := func(additionalConfig map[string]string) *bktv1alpha1.ObjectBucketClaim {
+		return &bktv1alpha1.ObjectBucketClaim{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-obc", Namespace: "my-ns"},
+			Spec:       bktv1alpha1.ObjectBucketClaimSpec{AdditionalConfig: additionalConfig},
+		}
+	}
+
+	t.Run("valid values record no event", func(t *testing.T) {
+		recorder := events.NewFakeRecorder(1)
+		p := &Provisioner{recorder: recorder}
+		spec, err := p.parseAdditionalConfig(newOBC(map[string]string{"bucketPlacement": "loc-a", "bucketStorageClass": "COLD"}), actionProvision)
+		require.NoError(t, err)
+		assert.Equal(t, "loc-a", spec.bucketPlacement)
+		assert.Equal(t, "COLD", spec.bucketStorageClass)
+		assert.Empty(t, recorder.Events)
+	})
+
+	t.Run("malformed placement fails and records an InvalidBucketPlacement event", func(t *testing.T) {
+		recorder := events.NewFakeRecorder(1)
+		p := &Provisioner{recorder: recorder}
+		_, err := p.parseAdditionalConfig(newOBC(map[string]string{"bucketPlacement": "foo:bar"}), actionGrant)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `bucketPlacement "foo:bar"`)
+
+		require.Len(t, recorder.Events, 1)
+		event := <-recorder.Events
+		assert.Contains(t, event, "Warning "+EventReasonInvalidBucketPlacement+" ")
+		assert.Contains(t, event, `bucketPlacement "foo:bar"`)
+	})
+
+	t.Run("malformed storage class fails and records an InvalidBucketPlacement event", func(t *testing.T) {
+		recorder := events.NewFakeRecorder(1)
+		p := &Provisioner{recorder: recorder}
+		_, err := p.parseAdditionalConfig(newOBC(map[string]string{"bucketStorageClass": "FOO "}), actionProvision)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `bucketStorageClass "FOO "`)
+		assert.Len(t, recorder.Events, 1)
+	})
+
+	t.Run("a key the allowlist rejects records no event", func(t *testing.T) {
+		recorder := events.NewFakeRecorder(1)
+		p := &Provisioner{recorder: recorder}
+		_, err := p.parseAdditionalConfig(newOBC(map[string]string{"bucketPolicy": "{}"}), actionProvision)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not allowed")
+		assert.Empty(t, recorder.Events)
+	})
+
+	t.Run("nil recorder is safe", func(t *testing.T) {
+		p := &Provisioner{}
+		_, err := p.parseAdditionalConfig(newOBC(map[string]string{"bucketPlacement": "a/b"}), actionProvision)
+		assert.Error(t, err)
+	})
+}
+
+func TestProvisioner_checkExistingBucketPlacement(t *testing.T) {
+	info := &admin.Bucket{Bucket: "bkt", PlacementRule: "default"}
+
+	t.Run("unset keys are not compared", func(t *testing.T) {
+		recorder := events.NewFakeRecorder(1)
+		p := &Provisioner{bucketName: "bkt", recorder: recorder}
+		assert.NoError(t, p.checkExistingBucketPlacement(newPlacementBucket("", ""), info, actionProvision))
+		assert.Empty(t, recorder.Events)
+	})
+
+	t.Run("matching request records no event", func(t *testing.T) {
+		recorder := events.NewFakeRecorder(1)
+		p := &Provisioner{bucketName: "bkt", recorder: recorder}
+		assert.NoError(t, p.checkExistingBucketPlacement(newPlacementBucket("default", "STANDARD"), info, actionGrant))
+		assert.Empty(t, recorder.Events)
+	})
+
+	t.Run("mismatch fails and records a BucketPlacementMismatch event naming both values", func(t *testing.T) {
+		recorder := events.NewFakeRecorder(1)
+		p := &Provisioner{bucketName: "bkt", recorder: recorder}
+		err := p.checkExistingBucketPlacement(newPlacementBucket("loc-a", "COLD"), info, actionGrant)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `bucket "bkt" already exists and its placement cannot be changed`)
+		assert.Contains(t, err.Error(), `bucketPlacement "loc-a" was requested but the bucket is on placement "default"`)
+		assert.Contains(t, err.Error(), `bucketStorageClass "COLD" was requested but the bucket has storage class "STANDARD"`)
+
+		require.Len(t, recorder.Events, 1)
+		event := <-recorder.Events
+		assert.Contains(t, event, "Warning "+EventReasonBucketPlacementMismatch+" ")
+		assert.Contains(t, event, err.Error())
+	})
+
+	t.Run("nil recorder is safe", func(t *testing.T) {
+		p := &Provisioner{bucketName: "bkt"}
+		assert.Error(t, p.checkExistingBucketPlacement(newPlacementBucket("loc-a", ""), info, actionProvision))
 	})
 }
 

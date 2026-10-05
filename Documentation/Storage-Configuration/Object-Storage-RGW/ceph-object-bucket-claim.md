@@ -76,6 +76,8 @@ spec:
         ]
       }
     bucketOwner: "rgw-user"
+    bucketPlacement: "europe"
+    bucketStorageClass: "REDUCED_REDUNDANCY"
 ```
 
 1. `name` of the `ObjectBucketClaim`. This name becomes the name of the Secret and ConfigMap.
@@ -96,6 +98,8 @@ If both `bucketName` and `generateBucketName` are blank or omitted then the stor
     * `bucketPolicy`: (disabled by default) A raw JSON format string that defines an AWS S3 format the bucket policy. If set, the policy string will override any existing policy set on the bucket and any default bucket policy that the bucket provisioner potentially would have automatically generated.
     * `bucketLifecycle`: (disabled by default) A raw JSON format string that defines an AWS S3 format bucket lifecycle configuration. Note that the rules must be sorted by `ID` in order to be idempotent.
     * `bucketOwner`: (disabled by default)  The name of a pre-existing ceph rgw user account that will own the bucket. A `CephObjectStoreUser` resource may be used to create an ceph rgw user account. If the bucket already exists and is owned by a different user, the bucket will be re-linked to the specified user.
+    * `bucketPlacement`: (disabled by default) The name of the placement target to create the bucket in, matching `^[a-zA-Z0-9._-]+$`. Placement targets are configured on the `CephObjectStore` via [pool placements](object-storage.md#create-local-object-stores-with-pool-placements) or externally via `radosgw-admin`; RGW validates the name when the bucket is created, and an unknown or disallowed placement fails provisioning. The value only applies when the provisioner creates the bucket, as RGW bucket placement cannot be changed after creation: if the bucket already exists (a brownfield bucket, a bucket re-linked via `bucketOwner`, or a bound OBC whose value was edited) with a different placement, the reconcile fails until the value is corrected or removed. A placement requested without `bucketStorageClass` gets the `STANDARD` storage class. A value Rook rejects, a placement or storage class RGW refuses, and a mismatch with an existing bucket are each reported as a Warning Event on the OBC.
+    * `bucketStorageClass`: (disabled by default) The default storage class for objects in the bucket, one of the storage classes of the bucket's placement target (every placement target has `STANDARD`), matching `^[a-zA-Z0-9._-]+$`. Objects written without an explicit `x-amz-storage-class` use it. It may be set without `bucketPlacement`, in which case the bucket's placement target is the owner's default (or the zonegroup's). Like `bucketPlacement`, it only applies when the provisioner creates the bucket, a value that differs from an existing bucket's storage class fails the reconcile, and failures are reported the same way.
 
 Several OBC `additionalConfig` fields are disabled by default. Default-disabled additional config
 fields may be risky for administrators to allow users control over, and they should be enabled only

@@ -96,7 +96,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `monRunAsRoot` | If true, ceph mon pods will be run as root | `false` |
 | `monitoring.enabled` | Enable monitoring. Requires Prometheus to be pre-installed. Enabling will also create RBAC rules to allow Operator to create ServiceMonitors | `false` |
 | `nodeSelector` | Kubernetes [`nodeSelector`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector) to add to the Deployment. | `{}` |
-| `obcAllowAdditionalConfigFields` | Many OBC additional config fields may be risky for administrators to allow users control over. The safe and default-allowed fields are 'maxObjects' and 'maxSize'. Other fields should be considered risky. To allow all additional configs, use this value:   "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner" | "maxObjects,maxSize" |
+| `obcAllowAdditionalConfigFields` | Many OBC additional config fields may be risky for administrators to allow users control over. The safe and default-allowed fields are 'maxObjects' and 'maxSize'. Other fields should be considered risky. To allow all additional configs, use this value:   "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner,bucketPlacement,bucketStorageClass" | "maxObjects,maxSize" |
 | `obcProvisionerNamePrefix` | Specify the prefix for the OBC provisioner in place of the cluster namespace | `ceph cluster namespace` |
 | `operatorPodLabels` | Custom pod labels for the operator | `{}` |
 | `priorityClassName` | Set the priority class for the rook operator deployment if desired | `nil` |

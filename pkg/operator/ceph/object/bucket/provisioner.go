@@ -35,8 +35,10 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/util/log"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/events"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -62,6 +64,8 @@ type Provisioner struct {
 	insecureTLS          bool
 	adminOpsClient       *admin.API
 	s3Agent              *object.S3Agent
+	// recorder is nil outside a controller manager, and then records nothing
+	recorder events.EventRecorder
 }
 
 type additionalConfigSpec struct {
@@ -72,12 +76,22 @@ type additionalConfigSpec struct {
 	bucketPolicy     *string
 	bucketLifecycle  *string
 	bucketOwner      *string
+	// bucketPlacement and bucketStorageClass are empty when not requested;
+	// an empty OBC value requests nothing, the same as an absent key
+	bucketPlacement    string
+	bucketStorageClass string
 }
+
+// Event actions: the Provisioner call that recorded the Event.
+const (
+	actionProvision = "Provision"
+	actionGrant     = "Grant"
+)
 
 var _ apibkt.Provisioner = &Provisioner{}
 
-func NewProvisioner(context *clusterd.Context, clusterInfo *client.ClusterInfo) *Provisioner {
-	return &Provisioner{context: context, clusterInfo: clusterInfo}
+func NewProvisioner(context *clusterd.Context, clusterInfo *client.ClusterInfo, recorder events.EventRecorder) *Provisioner {
+	return &Provisioner{context: context, clusterInfo: clusterInfo, recorder: recorder}
 }
 
 func (p Provisioner) GenerateUserID(obc *bktv1alpha1.ObjectBucketClaim, ob *bktv1alpha1.ObjectBucket) (string, error) {
@@ -96,9 +110,9 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	nsName := p.objectContext.NsName()
 	log.NamedDebug(nsName, logger, "Provision event for OB options: %+v", options)
 
-	additionalConfig, err := additionalConfigSpecFromMap(options.ObjectBucketClaim.Spec.AdditionalConfig)
+	additionalConfig, err := p.parseAdditionalConfig(options.ObjectBucketClaim, actionProvision)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to process additionalConfig")
+		return nil, err
 	}
 
 	bucket := &bucket{provisioner: &p, options: options, additionalConfig: additionalConfig}
@@ -108,6 +122,19 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, err
 	}
 	log.NamedInfo(nsName, logger, "Provision: creating bucket %q for OBC %q", p.bucketName, options.ObjectBucketClaim.Name)
+
+	// an existing bucket that cannot satisfy the claim is refused before the
+	// claim's user is created, so the refusal leaves nothing behind
+	bucketExists, bucketInfo, err := p.bucketExists(p.bucketName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error creating bucket %q. failed to check if bucket already exists", p.bucketName)
+	}
+	if bucketExists {
+		err = p.checkExistingBucketPlacement(bucket, bucketInfo, actionProvision)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	p.accessKeyID, p.secretAccessKey, err = bucket.getUserCreds()
 	if err != nil {
@@ -119,23 +146,14 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, err
 	}
 
-	// create the bucket
-	var bucketExists bool
-	var owner string
-	bucketExists, owner, err = p.bucketExists(p.bucketName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error creating bucket %q. failed to check if bucket already exists", p.bucketName)
-	}
 	if !bucketExists {
-		// if bucket already exists, this returns error: TooManyBuckets because we set the quota
-		// below. If it already exists, assume we are good to go
 		log.NamedDebug(nsName, logger, "creating bucket %q owned by user %q", p.bucketName, p.cephUserName)
-		err = p.s3Agent.CreateBucket(p.clusterInfo.Context, p.bucketName)
+		err = p.createBucket(bucket)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error creating bucket %q", p.bucketName)
+			return nil, err
 		}
-	} else if owner != p.cephUserName {
-		log.NamedDebug(nsName, logger, "bucket %q already exists and is owned by user %q instead of user %q, relinking...", p.bucketName, owner, p.cephUserName)
+	} else if bucketInfo.Owner != p.cephUserName {
+		log.NamedDebug(nsName, logger, "bucket %q already exists and is owned by user %q instead of user %q, relinking...", p.bucketName, bucketInfo.Owner, p.cephUserName)
 
 		err = p.adminOpsClient.LinkBucket(p.clusterInfo.Context, admin.BucketLinkInput{Bucket: p.bucketName, UID: p.cephUserName})
 		if err != nil {
@@ -170,9 +188,9 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	nsName := p.objectContext.NsName()
 	log.NamedDebug(nsName, logger, "Grant event for OB options: %+v", options)
 
-	additionalConfig, err := additionalConfigSpecFromMap(options.ObjectBucketClaim.Spec.AdditionalConfig)
+	additionalConfig, err := p.parseAdditionalConfig(options.ObjectBucketClaim, actionGrant)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to process additionalConfig")
+		return nil, err
 	}
 
 	bucket := &bucket{provisioner: &p, options: options, additionalConfig: additionalConfig}
@@ -186,8 +204,16 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 
 	// check and make sure the bucket exists
 	log.NamedInfo(nsName, logger, "Checking for existing bucket %q", p.bucketName)
-	if exists, _, err := p.bucketExists(p.bucketName); !exists {
-		return nil, errors.Wrapf(err, "bucket %s does not exist", p.bucketName)
+	exists, bucketInfo, err := p.bucketExists(p.bucketName)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.Errorf("bucket %q does not exist", p.bucketName)
+	}
+	err = p.checkExistingBucketPlacement(bucket, bucketInfo, actionGrant)
+	if err != nil {
+		return nil, err
 	}
 
 	p.accessKeyID, p.secretAccessKey, err = bucket.getUserCreds()
@@ -524,6 +550,44 @@ func (p *Provisioner) composeObjectBucket(bucket *bucket) *bktv1alpha1.ObjectBuc
 			Connection: conn,
 		},
 	}
+}
+
+// parseAdditionalConfig parses the OBC's additionalConfig before any RGW
+// call, recording a malformed bucketPlacement or bucketStorageClass on the
+// OBC; a key the allowlist rejects is an error the claim's author cannot
+// see, as it always was.
+func (p *Provisioner) parseAdditionalConfig(obc *bktv1alpha1.ObjectBucketClaim, action string) (*additionalConfigSpec, error) {
+	additionalConfig, err := additionalConfigSpecFromMap(obc.Spec.AdditionalConfig)
+	if err == nil {
+		return additionalConfig, nil
+	}
+	if errors.Is(err, errInvalidPlacementValue) {
+		p.recordWarning(obc, EventReasonInvalidBucketPlacement, action, err.Error())
+	}
+	return nil, errors.Wrap(err, "failed to process additionalConfig")
+}
+
+// checkExistingBucketPlacement fails an OBC whose bucketPlacement or
+// bucketStorageClass its existing bucket does not satisfy, recording the
+// mismatch on the OBC. Callers run it before creating the claim's user and
+// before any write to the bucket, so an unsatisfiable claim leaves nothing
+// behind.
+func (p *Provisioner) checkExistingBucketPlacement(bucket *bucket, bucketInfo *admin.Bucket, action string) error {
+	additionalConfig := bucket.additionalConfig
+	err := checkPlacementRule(bucketInfo.PlacementRule, additionalConfig.bucketPlacement, additionalConfig.bucketStorageClass)
+	if err == nil {
+		return nil
+	}
+	err = errors.Wrapf(err, "bucket %q already exists and its placement cannot be changed", p.bucketName)
+	p.recordWarning(bucket.options.ObjectBucketClaim, EventReasonBucketPlacementMismatch, action, err.Error())
+	return err
+}
+
+func (p *Provisioner) recordWarning(obc *bktv1alpha1.ObjectBucketClaim, reason, action, note string) {
+	if p.recorder == nil {
+		return
+	}
+	p.recorder.Eventf(obc, nil, corev1.EventTypeWarning, reason, action, "%s", note)
 }
 
 func (p *Provisioner) setObjectContext() error {
