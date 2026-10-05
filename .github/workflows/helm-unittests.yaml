@@ -29,3 +29,10 @@ jobs:
 
       - name: Unit test the helm charts
         run: make test.helm
+
+      - name: Unit test Prometheus alert rules
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/deploy/charts/rook-ceph-cluster:/rules:ro" \
+            --workdir /rules prom/prometheus:v3.14.0 \
+            test rules tests/localrules.yaml tests/nvmeof-cpu.yaml
