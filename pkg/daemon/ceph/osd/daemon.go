@@ -515,8 +515,13 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 					} else if strings.HasPrefix(desiredDevice.Name, "/dev/") {
 						matched = matchDevLinks(device.DevLinks, desiredDevice.Name)
 					}
+					if matched && device.Type == sys.PartType && desiredDevice.EncryptedDevice {
+						logger.Infof("partition %q is not picked because encrypted OSD on partition is not allowed", device.Name)
+						matched = false
+						continue
+					}
 					if matched && device.Type == sys.LVMType {
-						if agent.storeConfig.EncryptedDevice {
+						if agent.storeConfig.EncryptedDevice || desiredDevice.EncryptedDevice {
 							logger.Infof("logical volume %q is not picked because encrypted OSD on LV is not allowed", device.Name)
 							matched = false
 							continue

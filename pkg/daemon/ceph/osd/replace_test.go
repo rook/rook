@@ -472,11 +472,12 @@ func TestBuildReplacementPrepareArgs(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		store    config.StoreConfig
-		dbLV     string
-		useRaw   bool
-		expected []string
+		name            string
+		store           config.StoreConfig
+		deviceEncrypted bool
+		dbLV            string
+		useRaw          bool
+		expected        []string
 	}{
 		{
 			name:   "raw single-disk",
@@ -520,12 +521,26 @@ func TestBuildReplacementPrepareArgs(t *testing.T) {
 				"--dmcrypt", "--crush-device-class", "hdd",
 			},
 		},
+		{
+			name:            "lvm shared-metadata per-device encrypted",
+			store:           config.StoreConfig{StoreType: "bluestore"},
+			deviceEncrypted: true,
+			dbLV:            "ceph-db-vg/osd-db-y",
+			useRaw:          false,
+			expected: []string{
+				"-oL", "ceph-volume", "--log-path", logPath, "lvm", "prepare", "--bluestore",
+				"--osd-id", "0", "--data", "/dev/vdb", "--block.db", "ceph-db-vg/osd-db-y",
+				"--dmcrypt", "--crush-device-class", "hdd",
+			},
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			a := &OsdAgent{storeConfig: tc.store}
-			args := a.buildReplacementPrepareArgs(0, "/dev/vdb", tc.dbLV, entry, tc.useRaw, logPath)
+			e := *entry
+			e.Config.EncryptedDevice = tc.deviceEncrypted
+			args := a.buildReplacementPrepareArgs(0, "/dev/vdb", tc.dbLV, &e, tc.useRaw, logPath)
 			assert.Equal(t, tc.expected, args)
 		})
 	}
