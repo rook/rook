@@ -24,3 +24,4 @@
   reported in `status.info`. Removing either field stops Rook from managing it and leaves the last applied value in place
   on the RGW user, except that changing `defaultPlacement` without a `defaultStorageClass` resets the storage class to
   the new placement target's default.
+- Default CSI container images are no longer set by Rook. The `rook-csi-operator-image-set-configmap` configmap now ships with empty values, allowing the ceph-csi-operator to use its built-in defaults. Users with custom CSI images should ensure their overrides are present in the configmap after upgrade.
