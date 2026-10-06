@@ -93,7 +93,7 @@ var KnownCephxKeyTypes = []CephxKeyType{
 	CephxKeyTypeAes256k,
 }
 
-// PreferredCephxKeytype returns Rook's preferred key type.
+// PreferredCephxKeyType returns Rook's preferred key type.
 func PreferredCephxKeyType() CephxKeyType {
 	return KnownCephxKeyTypes[len(KnownCephxKeyTypes)-1]
 }
