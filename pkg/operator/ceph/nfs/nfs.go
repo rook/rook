@@ -321,25 +321,16 @@ func validateGanesha(context *clusterd.Context, clusterInfo *cephclient.ClusterI
 	return nil
 }
 
-// create and enable default RADOS pool
-func (r *ReconcileCephNFS) configureNFSPool(n *cephv1.CephNFS) error {
+// nfsPoolExists checks whether the NFS pool exists. The pool should be created
+// via a CephBlockPool CR (e.g. "builtin-nfs" with spec.name=".nfs") rather than
+// by the NFS controller directly.
+func (r *ReconcileCephNFS) nfsPoolExists(n *cephv1.CephNFS) (bool, error) {
 	poolName := n.Spec.RADOS.Pool
-	nsName := controller.NsName(n.Namespace, n.Name)
-	log.NamedInfo(nsName, logger, "configuring pool %q for nfs", poolName)
-
-	args := []string{"osd", "pool", "create", poolName, "--yes-i-really-mean-it"}
-
-	output, err := cephclient.NewCephCommand(r.context, r.clusterInfo, args).Run()
+	_, err := cephclient.GetPoolDetails(r.context, r.clusterInfo, poolName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create default NFS pool %q. %s", poolName, string(output))
+		nsName := controller.NsName(n.Namespace, n.Name)
+		log.NamedWarning(nsName, logger, "pool %q does not exist yet; create a CephBlockPool CR (e.g. builtin-nfs with spec.name=%q) to provide it", poolName, poolName)
+		return false, nil
 	}
-
-	args = []string{"osd", "pool", "application", "enable", poolName, "nfs", "--yes-i-really-mean-it"}
-	_, err = cephclient.NewCephCommand(r.context, r.clusterInfo, args).Run()
-	if err != nil {
-		return errors.Wrapf(err, "failed to enable application 'nfs' on pool %q", poolName)
-	}
-
-	log.NamedInfo(nsName, logger, "set pool %q for the application nfs", poolName)
-	return nil
+	return true, nil
 }
