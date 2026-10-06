@@ -318,10 +318,14 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		log.NamedInfo(request.NamespacedName, logger, "cephx keys for CephNFS will be rotated")
 	}
 
-	// Check for the existence of the .nfs pool
-	err = r.configureNFSPool(cephNFS)
+	// Check for the existence of the .nfs pool, which must be created via a CephBlockPool CR
+	poolExists, err := r.nfsPoolExists(cephNFS)
 	if err != nil {
-		return reconcile.Result{}, *cephNFS, errors.Wrapf(err, "failed to configure nfs pool %q", cephNFS.Spec.RADOS.Pool)
+		return reconcile.Result{}, *cephNFS, errors.Wrapf(err, "failed to check for nfs pool %q", cephNFS.Spec.RADOS.Pool)
+	}
+	if !poolExists {
+		log.NamedInfo(request.NamespacedName, logger, "waiting for pool %q to be created via a CephBlockPool CR before proceeding with NFS reconciliation", cephNFS.Spec.RADOS.Pool)
+		return opcontroller.WaitForRequeueIfCephClusterNotReady, *cephNFS, nil
 	}
 
 	// CREATE/UPDATE
