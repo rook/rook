@@ -24,6 +24,7 @@ spec:
   # (ceph config get mgr mgr/cephadm/container_image_nvmeof).
   # Set the image property to override the default:
   # image: quay.io/ceph/nvmeof:<version>
+  image: quay.io/ceph/nvmeof:1.7.23
   group: group-a
   instances: 1
   hostNetwork: false
