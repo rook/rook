@@ -10,7 +10,11 @@ spec:
   # (ceph config get mgr mgr/cephadm/container_image_nvmeof).
   # Set the image property to override the default:
   # image: quay.io/ceph/nvmeof:<version>
+<<<<<<< HEAD
   pool: nvmeof
+=======
+  image: quay.io/ceph/nvmeof:1.7.23
+>>>>>>> bcb1b9d (ci: pin nvmeof:1.7.23 to fix aes256k keyring mismatch)
   group: group-a
   instances: 1
   hostNetwork: false
