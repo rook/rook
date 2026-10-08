@@ -116,6 +116,16 @@ Upgrade charts in this order:
 The `rook-ceph` helm chart upgrade performs the Rook operator and ceph-csi-operator subchart
 upgrades.
 
+!!! important
+    If **custom CSI images** are configured (the `rook-csi-operator-image-set-configmap` is
+    customized), scale down the Rook operator **before** running `helm upgrade`.
+
+    The Helm upgrade updates the `rook-ceph-operator-config` configmap, which triggers a CSI
+    reconcile in the still-running operator. On shutdown that operator can write its own
+    (pre-upgrade) version of `rook-csi-operator-image-set-configmap` back over the values just
+    applied by Helm, so the new operator starts up with the old custom images. Scaling the
+    operator down first avoids this race. Helm scales the operator back up as part of the upgrade.
+
 To apply custom configuration to the ceph-csi-operator subchart, see the
 [ceph-csi-operator configuration reference](https://github.com/ceph/ceph-csi-operator/blob/main/docs/helm-charts/operator-chart.md#configuration). Settings for the subchart need to be included in the
 `ceph-csi-operator` section of values.yaml when creating or updating the `rook-ceph` chart.
