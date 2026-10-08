@@ -37,6 +37,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -1790,5 +1791,78 @@ func TestReconcileRootUser(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, secretName)
 		assert.True(t, modifyCalled, "should always call modify to ensure desired state")
+	})
+}
+
+func TestBuildAccountQuota(t *testing.T) {
+	int64Ptr := func(i int64) *int64 { return &i }
+	quantityPtr := func(s string) *resource.Quantity {
+		q := resource.MustParse(s)
+		return &q
+	}
+
+	t.Run("nil quota disables the quota with unlimited sentinels", func(t *testing.T) {
+		q := buildAccountQuota("RGW1", admin.AccountQuotaTypeAccount, nil)
+		assert.Equal(t, "RGW1", q.ID)
+		assert.Equal(t, admin.AccountQuotaTypeAccount, q.QuotaType)
+		assert.False(t, *q.Enabled)
+		assert.Equal(t, int64(-1), *q.MaxSize)
+		assert.Equal(t, int64(-1), *q.MaxObjects)
+	})
+
+	t.Run("empty quota disables the quota with unlimited sentinels", func(t *testing.T) {
+		q := buildAccountQuota("RGW1", admin.AccountQuotaTypeAccount, &cephv1.ObjectStorageQuota{})
+		assert.False(t, *q.Enabled)
+		assert.Equal(t, int64(-1), *q.MaxSize)
+		assert.Equal(t, int64(-1), *q.MaxObjects)
+	})
+
+	t.Run("size only enables the quota and converts to bytes", func(t *testing.T) {
+		q := buildAccountQuota("RGW1", admin.AccountQuotaTypeAccount, &cephv1.ObjectStorageQuota{MaxSize: quantityPtr("10Gi")})
+		assert.True(t, *q.Enabled)
+		assert.Equal(t, int64(10*1024*1024*1024), *q.MaxSize)
+		assert.Equal(t, int64(-1), *q.MaxObjects)
+	})
+
+	t.Run("objects only enables the quota", func(t *testing.T) {
+		q := buildAccountQuota("RGW1", admin.AccountQuotaTypeBucket, &cephv1.ObjectStorageQuota{MaxObjects: int64Ptr(1000)})
+		assert.Equal(t, admin.AccountQuotaTypeBucket, q.QuotaType)
+		assert.True(t, *q.Enabled)
+		assert.Equal(t, int64(-1), *q.MaxSize)
+		assert.Equal(t, int64(1000), *q.MaxObjects)
+	})
+
+	t.Run("both size and objects set", func(t *testing.T) {
+		q := buildAccountQuota("RGW1", admin.AccountQuotaTypeAccount, &cephv1.ObjectStorageQuota{MaxSize: quantityPtr("1Ti"), MaxObjects: int64Ptr(500)})
+		assert.True(t, *q.Enabled)
+		assert.Equal(t, int64(1024*1024*1024*1024), *q.MaxSize)
+		assert.Equal(t, int64(500), *q.MaxObjects)
+	})
+}
+
+func TestApplyAccountResourceLimits(t *testing.T) {
+	int64Ptr := func(i int64) *int64 { return &i }
+
+	t.Run("nil quotas leaves the account untouched", func(t *testing.T) {
+		account := &admin.Account{ID: "RGW1"}
+		applyAccountResourceLimits(account, nil)
+		assert.Nil(t, account.MaxBuckets)
+		assert.Nil(t, account.MaxUsers)
+		assert.Nil(t, account.MaxRoles)
+		assert.Nil(t, account.MaxGroups)
+		assert.Nil(t, account.MaxAccessKeys)
+	})
+
+	t.Run("set fields are copied and unset fields stay nil", func(t *testing.T) {
+		account := &admin.Account{ID: "RGW1"}
+		applyAccountResourceLimits(account, &cephv1.AccountQuotaSpec{
+			MaxBuckets:    int64Ptr(100),
+			MaxAccessKeys: int64Ptr(8),
+		})
+		assert.Equal(t, int64(100), *account.MaxBuckets)
+		assert.Equal(t, int64(8), *account.MaxAccessKeys)
+		assert.Nil(t, account.MaxUsers)
+		assert.Nil(t, account.MaxRoles)
+		assert.Nil(t, account.MaxGroups)
 	})
 }

@@ -268,14 +268,18 @@ spec:
   store: my-store
   # [Optional] Quotas for the account
   quotas:
-    # [Optional] Maximum total size of all objects across all buckets in the account.
-    maxSize: 10Gi
-    # [Optional] Maximum total number of objects across all buckets in the account.
-    maxObjects: 1000000
-    # [Optional] Maximum total size of objects in any individual bucket in the account.
-    maxBucketSize: 1Gi
-    # [Optional] Maximum number of objects in any individual bucket in the account.
-    maxBucketObjects: 100000
+    # [Optional] Account-wide storage quota across all buckets in the account.
+    account:
+      # [Optional] Maximum total size of all objects across all buckets in the account.
+      maxSize: 10Gi
+      # [Optional] Maximum total number of objects across all buckets in the account.
+      maxObjects: 1000000
+    # [Optional] Default storage quota applied to each individual bucket in the account.
+    defaultBucket:
+      # [Optional] Maximum total size of objects in any individual bucket in the account.
+      maxSize: 1Gi
+      # [Optional] Maximum number of objects in any individual bucket in the account.
+      maxObjects: 100000
     # [Optional] Maximum number of buckets the account can own.
     maxBuckets: 100
     # [Optional] Maximum number of users the account can have.
@@ -294,11 +298,11 @@ spec:
 
 The account controller reconciles quotas as follows:
 
-- **Account quota** (`maxSize`, `maxObjects`): enabled when either field is set, disabled when both are removed.
-- **Bucket quota** (`maxBucketSize`, `maxBucketObjects`): enabled when either field is set, disabled when both are removed.
+- **Account quota** (`account.maxSize`, `account.maxObjects`): enabled when either field is set, disabled when both are removed.
+- **Bucket quota** (`defaultBucket.maxSize`, `defaultBucket.maxObjects`): enabled when either field is set, disabled when both are removed.
 - **Resource limits** (`maxBuckets`, `maxUsers`, `maxRoles`, `maxGroups`, `maxAccessKeys`): set via account modify API. Unset fields default to unlimited (-1).
 
-**Note**: Account and Bucket quota APIs (`Quota`, `BucketQuota` of type `admin.QuotaSpec)`) in `go-ceph` are not implemented yet.
+The account-wide and default per-bucket quotas share a common `account`/`defaultBucket` sub-struct (`maxSize`, `maxObjects`), so the two scopes are expressed with one reusable type rather than duplicated fields.
 
 #### Interaction with User-Level Quotas
 

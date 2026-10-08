@@ -339,6 +339,17 @@ func (r *ReconcileObjectStoreAccount) reconcileAccount(cephObjectStoreAccount *c
 	}
 	nsName := types.NamespacedName{Namespace: cephObjectStoreAccount.Namespace, Name: cephObjectStoreAccount.Name}
 
+	applyAccountResourceLimits(&desiredAccount, cephObjectStoreAccount.Spec.Quotas)
+	if q := cephObjectStoreAccount.Spec.Quotas; q != nil {
+		log.NamedInfo(nsName, logger, "applying resource limits for account %q: maxBuckets=%s maxUsers=%s maxRoles=%s maxGroups=%s maxAccessKeys=%s",
+			desiredAccount.ID,
+			int64PtrString(q.MaxBuckets),
+			int64PtrString(q.MaxUsers),
+			int64PtrString(q.MaxRoles),
+			int64PtrString(q.MaxGroups),
+			int64PtrString(q.MaxAccessKeys))
+	}
+
 	// Try to fetch the existing account
 	liveAccountExists := true
 	_, err = object.GetAccount(r.opManagerContext, r.objContext, desiredAccount.ID)
@@ -367,6 +378,9 @@ func (r *ReconcileObjectStoreAccount) reconcileAccount(cephObjectStoreAccount *c
 			return "", errors.Wrapf(err, "failed to modify account %q", desiredAccount.ID)
 		}
 		log.NamedInfo(nsName, logger, "successfully modified account %q", desiredAccount.ID)
+		if err := r.reconcileAccountQuotas(nsName, updatedAccount.ID, cephObjectStoreAccount.Spec.Quotas); err != nil {
+			return "", err
+		}
 		return updatedAccount.ID, nil
 	}
 
@@ -390,7 +404,88 @@ func (r *ReconcileObjectStoreAccount) reconcileAccount(cephObjectStoreAccount *c
 	}
 
 	log.NamedInfo(nsName, logger, "successfully created account %q with ID %q", desiredAccount.Name, createdAccount.ID)
+	if err := r.reconcileAccountQuotas(nsName, createdAccount.ID, cephObjectStoreAccount.Spec.Quotas); err != nil {
+		return "", err
+	}
 	return createdAccount.ID, nil
+}
+
+// applyAccountResourceLimits copies the account resource limits from the quota spec onto the RGW
+// account object. When the quotas block is omitted or a specific field is unset, the corresponding
+// pointer is nil and RGW leaves that limit unchanged.
+func applyAccountResourceLimits(account *admin.Account, quotas *cephv1.AccountQuotaSpec) {
+	if quotas == nil {
+		return
+	}
+	account.MaxBuckets = quotas.MaxBuckets
+	account.MaxUsers = quotas.MaxUsers
+	account.MaxRoles = quotas.MaxRoles
+	account.MaxGroups = quotas.MaxGroups
+	account.MaxAccessKeys = quotas.MaxAccessKeys
+}
+
+// reconcileAccountQuotas applies the account-wide and default per-bucket storage quotas.
+// When the block is present, both quota types are reconciled on every pass. A quota is
+// enabled only when at least one of its size or object limits is set, so clearing those fields in
+// the spec disables the quota on the next reconcile. When the quotas block is omitted, no quota
+// calls are made so that quotas managed outside Rook are left untouched.
+func (r *ReconcileObjectStoreAccount) reconcileAccountQuotas(nsName types.NamespacedName, accountID string, quotas *cephv1.AccountQuotaSpec) error {
+	if quotas == nil {
+		return nil
+	}
+
+	if err := r.applyStorageQuota(nsName, accountID, admin.AccountQuotaTypeAccount, quotas.Account); err != nil {
+		return err
+	}
+	if err := r.applyStorageQuota(nsName, accountID, admin.AccountQuotaTypeBucket, quotas.DefaultBucket); err != nil {
+		return err
+	}
+
+	log.NamedInfo(nsName, logger, "successfully reconciled quotas for account %q", accountID)
+	return nil
+}
+
+// applyStorageQuota builds and applies account-wide or default per-bucket storage quota
+func (r *ReconcileObjectStoreAccount) applyStorageQuota(nsName types.NamespacedName, accountID, quotaType string, quota *cephv1.ObjectStorageQuota) error {
+	accountQuota := buildAccountQuota(accountID, quotaType, quota)
+	log.NamedInfo(nsName, logger, "applying %s quota for account %q: enabled=%t maxSize=%d maxObjects=%d",
+		quotaType, accountID, *accountQuota.Enabled, *accountQuota.MaxSize, *accountQuota.MaxObjects)
+	if err := object.SetAccountQuota(r.opManagerContext, r.objContext, accountQuota); err != nil {
+		return errors.Wrapf(err, "failed to set %s quota on account %q", quotaType, accountID)
+	}
+	return nil
+}
+
+func int64PtrString(v *int64) string {
+	if v == nil {
+		return "<nil>"
+	}
+	return strconv.FormatInt(*v, 10)
+}
+
+// buildAccountQuota creates the AccountQuotaSpec. An unset size or object limit defaults to -1 (unlimited)
+// and the quota is enabled only when at least one of the two is set.
+func buildAccountQuota(accountID, quotaType string, quota *cephv1.ObjectStorageQuota) admin.AccountQuotaSpec {
+	enabled := false
+	size := int64(-1)
+	objects := int64(-1)
+	if quota != nil {
+		if quota.MaxSize != nil {
+			size = quota.MaxSize.Value()
+			enabled = true
+		}
+		if quota.MaxObjects != nil {
+			objects = *quota.MaxObjects
+			enabled = true
+		}
+	}
+	return admin.AccountQuotaSpec{
+		ID:         accountID,
+		QuotaType:  quotaType,
+		Enabled:    &enabled,
+		MaxSize:    &size,
+		MaxObjects: &objects,
+	}
 }
 
 // persistAccountIDToStatus persists the account ID to the CR status before
