@@ -19,6 +19,7 @@ package account
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -29,6 +30,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -339,6 +341,13 @@ func (r *ReconcileObjectStoreAccount) reconcileAccount(cephObjectStoreAccount *c
 	}
 	nsName := types.NamespacedName{Namespace: cephObjectStoreAccount.Namespace, Name: cephObjectStoreAccount.Name}
 
+	applyAccountResourceLimits(&desiredAccount, cephObjectStoreAccount.Spec.Quotas)
+	resourceLimitsJSON, err := json.Marshal(cephObjectStoreAccount.Spec.Quotas)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to marshal resource limits for account %q", desiredAccount.ID)
+	}
+	log.NamedInfo(nsName, logger, "applying resource limits for account %q: %s", desiredAccount.ID, resourceLimitsJSON)
+
 	// Try to fetch the existing account
 	liveAccountExists := true
 	_, err = object.GetAccount(r.opManagerContext, r.objContext, desiredAccount.ID)
@@ -367,6 +376,11 @@ func (r *ReconcileObjectStoreAccount) reconcileAccount(cephObjectStoreAccount *c
 			return "", errors.Wrapf(err, "failed to modify account %q", desiredAccount.ID)
 		}
 		log.NamedInfo(nsName, logger, "successfully modified account %q", desiredAccount.ID)
+
+		if err := r.reconcileAccountStorageQuotas(nsName, updatedAccount.ID, cephObjectStoreAccount.Spec.Quotas); err != nil {
+			return "", err
+		}
+
 		return updatedAccount.ID, nil
 	}
 
@@ -390,7 +404,79 @@ func (r *ReconcileObjectStoreAccount) reconcileAccount(cephObjectStoreAccount *c
 	}
 
 	log.NamedInfo(nsName, logger, "successfully created account %q with ID %q", desiredAccount.Name, createdAccount.ID)
+
+	if err := r.reconcileAccountStorageQuotas(nsName, createdAccount.ID, cephObjectStoreAccount.Spec.Quotas); err != nil {
+		return "", err
+	}
+
 	return createdAccount.ID, nil
+}
+
+// Ceph defaults for account resource limits (RGWAccountInfo in src/rgw/rgw_common.h). RGW only
+// updates a limit that is sent in the request, so unset limits are sent explicitly to reset them.
+const (
+	defaultAccountResourceLimit  int64 = 1000
+	defaultAccountAccessKeyLimit int64 = 4
+)
+
+// applyAccountResourceLimits sets every account resource limit on the RGW account object. Unset
+// limits are reset to the Ceph default so that removing a limit from the spec takes effect.
+func applyAccountResourceLimits(account *admin.Account, quotas cephv1.AccountQuotaSpec) {
+	account.MaxBuckets = limitOrDefault(quotas.MaxBuckets, defaultAccountResourceLimit)
+	account.MaxUsers = limitOrDefault(quotas.MaxUsers, defaultAccountResourceLimit)
+	account.MaxRoles = limitOrDefault(quotas.MaxRoles, defaultAccountResourceLimit)
+	account.MaxGroups = limitOrDefault(quotas.MaxGroups, defaultAccountResourceLimit)
+	account.MaxAccessKeys = limitOrDefault(quotas.MaxAccessKeys, defaultAccountAccessKeyLimit)
+}
+
+func limitOrDefault(limit *int64, defaultLimit int64) *int64 {
+	if limit != nil {
+		v := *limit
+		return &v
+	}
+	return &defaultLimit
+}
+
+// reconcileAccountStorageQuotas applies the account-wide storage quota (maxSize and maxObjects) on
+// every reconcile. The quota is enabled only when maxSize or maxObjects is set, so clearing both
+// disables it.
+// Resource limits (maxBuckets, maxUsers, maxRoles, maxGroups, maxAccessKeys) are not handled
+// here. RGW sets them through the account create/modify API rather than the quota API, so they
+// are applied in reconcileAccount via applyAccountResourceLimits.
+func (r *ReconcileObjectStoreAccount) reconcileAccountStorageQuotas(nsName types.NamespacedName, accountID string, quotas cephv1.AccountQuotaSpec) error {
+	quotaType := admin.AccountQuotaTypeAccount
+	accountQuota := buildAccountStorageQuota(accountID, quotaType, quotas.MaxSize, quotas.MaxObjects)
+	log.NamedInfo(nsName, logger, "applying %s storage quota for account %q: enabled=%t maxSize=%d maxObjects=%d",
+		quotaType, accountID, *accountQuota.Enabled, *accountQuota.MaxSize, *accountQuota.MaxObjects)
+	if err := r.objContext.AdminOpsClient.SetAccountQuota(r.opManagerContext, accountQuota); err != nil {
+		return errors.Wrapf(err, "failed to set %s storage quota on account %q", quotaType, accountID)
+	}
+
+	log.NamedInfo(nsName, logger, "successfully reconciled storage quotas for account %q", accountID)
+	return nil
+}
+
+// buildAccountStorageQuota creates the AccountQuotaSpec. An unset size or object limit defaults to -1 (unlimited)
+// and the quota is enabled only when at least one of the two is set.
+func buildAccountStorageQuota(accountID, quotaType string, maxSize *resource.Quantity, maxObjects *int64) admin.AccountQuotaSpec {
+	enabled := false
+	size := int64(-1)
+	objects := int64(-1)
+	if maxSize != nil {
+		size = maxSize.Value()
+		enabled = true
+	}
+	if maxObjects != nil {
+		objects = *maxObjects
+		enabled = true
+	}
+	return admin.AccountQuotaSpec{
+		ID:         accountID,
+		QuotaType:  quotaType,
+		Enabled:    &enabled,
+		MaxSize:    &size,
+		MaxObjects: &objects,
+	}
 }
 
 // persistAccountIDToStatus persists the account ID to the CR status before
