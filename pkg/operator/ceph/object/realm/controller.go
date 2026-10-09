@@ -149,6 +149,16 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 	observedGeneration := cephObjectRealm.ObjectMeta.Generation
 
+	// Set a finalizer so the CR is not deleted before the zone groups that reference it
+	generationUpdated, err := opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectRealm)
+	if err != nil {
+		return reconcile.Result{}, *cephObjectRealm, errors.Wrap(err, "failed to add finalizer")
+	}
+	if generationUpdated {
+		log.NamedInfo(request.NamespacedName, logger, "reconciling the object realm after adding finalizer")
+		return reconcile.Result{}, *cephObjectRealm, nil
+	}
+
 	// The CR was just created, initializing status fields
 	if cephObjectRealm.Status == nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)
@@ -159,6 +169,11 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		if !cephObjectRealm.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// Remove finalizer
+			err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectRealm)
+			if err != nil {
+				return reconcile.Result{}, *cephObjectRealm, errors.Wrap(err, "failed to remove finalizer")
+			}
 			// Return and do not requeue. Successful deletion.
 			return reconcile.Result{}, *cephObjectRealm, nil
 		}
@@ -167,9 +182,24 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 
 	// DELETE: the CR was deleted
 	if !cephObjectRealm.GetDeletionTimestamp().IsZero() {
-		log.NamedDebug(request.NamespacedName, logger, "deleting realm CR")
-		r.recorder.Eventf(cephObjectRealm, nil, v1.EventTypeNormal, string(cephv1.ReconcileStarted), string(cephv1.ReconcileStarted), "deleting CephObjectRealm %q", cephObjectRealm.Name)
+		// Zone groups need the realm CR to reconcile, and object stores look it up even while they
+		// are deleted, so the CR is kept until no zone group references it. Zone groups in turn
+		// wait for their zones, and zones for their object stores. The Ceph realm is not deleted.
+		deps, err := CephObjectRealmDependentZoneGroups(r.opManagerContext, r.context, cephObjectRealm)
+		if err != nil {
+			return reconcile.Result{}, *cephObjectRealm, err
+		}
+		if !deps.Empty() {
+			err := reporting.ReportDeletionBlockedDueToDependents(r.opManagerContext, logger, r.client, cephObjectRealm, deps)
+			return opcontroller.WaitForRequeueIfFinalizerBlocked, *cephObjectRealm, err
+		}
+		reporting.ReportDeletionNotBlockedDueToDependents(r.opManagerContext, logger, r.client, r.recorder, cephObjectRealm)
 
+		// Remove finalizer
+		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectRealm)
+		if err != nil {
+			return reconcile.Result{}, *cephObjectRealm, errors.Wrap(err, "failed to remove finalizer")
+		}
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, *cephObjectRealm, nil
 	}

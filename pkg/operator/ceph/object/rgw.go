@@ -272,8 +272,9 @@ func (c *clusterConfig) deleteStore() {
 
 		// Delete the realm and pools.
 		// NewMultisiteContext may return nil objContext when the CephObjectStore references a
-		// CephObjectZone (spec.zone.name is set) and the zone/zonegroup/realm CRDs have already
-		// been garbage-collected. This happens during simultaneous deletion of all multisite CRDs.
+		// CephObjectZone (spec.zone.name is set) and the zone, zone group, or realm CR is already
+		// gone. Each of them waits for the resources that reference it, so this happens only in
+		// corner cases, such as a finalizer that was removed by hand.
 		// Guard against nil to avoid a panic in that case — realm/pool cleanup is best-effort anyway.
 		objContext, err := NewMultisiteContext(c.context, c.clusterInfo, c.store)
 		if err != nil {
