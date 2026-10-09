@@ -1722,6 +1722,8 @@ type CephFilesystemStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	Message string `json:"message,omitempty"`
+	// +optional
 	SnapshotScheduleStatus *FilesystemSnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
 	// Use only info and put mirroringStatus in it?
 	// +optional
