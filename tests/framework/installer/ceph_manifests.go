@@ -522,7 +522,6 @@ spec:
         - member
         - service
       implicitTenants: "true"
-      revocationInterval: 1200
       serviceUserSecretName: usersecret
       tokenCacheSize: 1000
       url: https://keystone.{{ .Manifests.Settings.Namespace }}.svc/

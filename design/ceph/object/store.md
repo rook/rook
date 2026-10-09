@@ -82,14 +82,13 @@ spec:
 
 #### Pools shared by multiple CephObjectStore
 
-If user want to use existing pools for metadata and data, the pools must be created before the object store is created. This will be useful if multiple objectstore can share same pools. The detail of pools need to shared in `sharedPools` settings in object-store CRD. Now the object stores can consume same pool isolated with different namespaces. Usually RGW server itself create different [namespaces](https://docs.ceph.com/en/latest/radosgw/layout/#appendix-compendium) on the pools. User can create via [Pool CRD](/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md), this is need to present before the object store is created. Similar to `preservePoolsOnDelete` setting, `preserveRadosNamespaceDataOnDelete` is used to preserve the data in the rados namespace when the object store is deleted. It is set to 'false' by default.
+If user want to use existing pools for metadata and data, the pools must be created before the object store is created. This will be useful if multiple objectstore can share same pools. The detail of pools need to shared in `sharedPools` settings in object-store CRD. Now the object stores can consume same pool isolated with different namespaces. Usually RGW server itself create different [namespaces](https://docs.ceph.com/en/latest/radosgw/layout/#appendix-compendium) on the pools. User can create via [Pool CRD](/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md), this is need to present before the object store is created. Similar to the `preservePoolsOnDelete` setting, `preserveRadosNamespaceDataOnDelete` was intended to preserve the data in the rados namespace when the object store is deleted. It is not implemented and has no effect: Rook does not delete the RADOS namespaces of a shared-pool object store, so their data is retained either way. RADOS has no namespace-scoped purge -- `rados purge` operates on a whole pool -- so honoring `false` would require an unbounded, non-atomic per-object delete.
 
 ```yaml
 spec:
   sharedPools:
     metadataPoolName: rgw-meta-pool
     dataPoolName: rgw-data-pool
-    preserveRadosNamespaceDataOnDelete: true
 ```
 
 To create the pools that will be shared by multiple object stores, create the following CephBlockPool CRs:
