@@ -3587,6 +3587,17 @@ ConditionType
 </tr>
 <tr>
 <td>
+<code>message</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
 <code>info</code><br/>
 <em>
 map[string]string
@@ -3672,6 +3683,17 @@ SnapshotScheduleStatusSpec
 <a href="#ceph.rook.io/v1.ConditionType">
 ConditionType
 </a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>message</code><br/>
+<em>
+string
 </em>
 </td>
 <td>
@@ -4211,6 +4233,17 @@ ConditionType
 </tr>
 <tr>
 <td>
+<code>message</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
 <code>snapshotScheduleStatus</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.FilesystemSnapshotScheduleStatusSpec">
@@ -4471,6 +4504,17 @@ float64
 <a href="#ceph.rook.io/v1.ConditionType">
 ConditionType
 </a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>message</code><br/>
+<em>
+string
 </em>
 </td>
 <td>
@@ -11023,6 +11067,17 @@ LocalCephxStatus
 <td>
 </td>
 </tr>
+<tr>
+<td>
+<code>message</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.NVMeOFGatewayPorts">NVMeOFGatewayPorts
@@ -11322,6 +11377,17 @@ LocalCephxStatus
 </em>
 </td>
 <td>
+</td>
+</tr>
+<tr>
+<td>
+<code>message</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>

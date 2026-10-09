@@ -1221,6 +1221,8 @@ type CephBlockPoolStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
 	Message string `json:"message,omitempty"`
 	// +optional
 	Cephx PeerTokenCephxStatus `json:"cephx,omitempty"`
@@ -1722,6 +1724,8 @@ type CephFilesystemStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
 	Message string `json:"message,omitempty"`
 	// +optional
 	SnapshotScheduleStatus *FilesystemSnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
@@ -3117,6 +3121,8 @@ type NFSStatus struct {
 	Status `json:",inline"`
 	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
 	Message string `json:"message,omitempty"`
 }
 
@@ -4151,6 +4157,8 @@ type CephFilesystemSubVolumeGroupStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
 	Message string `json:"message,omitempty"`
 	// +optional
 	// +nullable
@@ -4243,6 +4251,8 @@ type CephBlockPoolRadosNamespaceStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
 	Message string `json:"message,omitempty"`
 	// +optional
 	// +nullable
@@ -4364,6 +4374,8 @@ type NVMeOFGatewayStatus struct {
 	Status `json:",inline"`
 	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
 	Message string `json:"message,omitempty"`
 }
 
