@@ -1221,6 +1221,8 @@ type CephBlockPoolStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	Message string `json:"message,omitempty"`
+	// +optional
 	Cephx PeerTokenCephxStatus `json:"cephx,omitempty"`
 	// +optional
 	MirroringStatus *MirroringStatusSpec `json:"mirroringStatus,omitempty"`

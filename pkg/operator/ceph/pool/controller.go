@@ -228,7 +228,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	// The CR was just created, initializing status fields
 	if cephBlockPool.Status == nil {
 		// The pool is not available so let's not build the status Info yet
-		err = r.updateStatus(request.NamespacedName, cephv1.ConditionProgressing, k8sutil.ObservedGenerationNotAvailable, &cephv1.CephxStatus{})
+		err = r.updateStatus(request.NamespacedName, cephv1.ConditionProgressing, "Initializing block pool", k8sutil.ObservedGenerationNotAvailable, &cephv1.CephxStatus{})
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrapf(err, "failed to update %q status to %q", request.NamespacedName, cephv1.ConditionProgressing)
 		}
@@ -326,7 +326,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			log.NamedInfo(request.NamespacedName, logger, opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephBlockPool, nil
 		}
-		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionFailure, k8sutil.ObservedGenerationNotAvailable, nil)
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionFailure, "failed to configure block pool", k8sutil.ObservedGenerationNotAvailable, nil)
 		if statusErr != nil {
 			log.NamedError(request.NamespacedName, logger, "failed to update status to %q: %v", cephv1.ConditionFailure, statusErr)
 		}
@@ -345,7 +345,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			return reconcileResult, *cephBlockPool, err
 		}
 	} else {
-		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration, nil)
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, "Block pool configured successfully", observedGeneration, nil)
 	}
 
 	if statusErr != nil {
@@ -379,7 +379,7 @@ func (r *ReconcileCephBlockPool) configurePoolMirroring(request reconcile.Reques
 		// Always create a bootstrap peer token in case another cluster wants to add us as a peer
 		reconcileResponse, err := opcontroller.CreateBootstrapPeerSecret(r.context, clusterInfo, cephBlockPool, k8sutil.NewOwnerInfo(cephBlockPool, r.scheme))
 		if err != nil {
-			statusErr := r.updateStatus(request.NamespacedName, cephv1.ConditionFailure, k8sutil.ObservedGenerationNotAvailable, nil)
+			statusErr := r.updateStatus(request.NamespacedName, cephv1.ConditionFailure, "failed to create rbd-mirror bootstrap peer", k8sutil.ObservedGenerationNotAvailable, nil)
 			if statusErr != nil {
 				return opcontroller.ImmediateRetryResult, statusErr, errors.Wrapf(statusErr, "failed to update %q status to %q", request.NamespacedName, cephv1.ConditionFailure)
 			}
@@ -387,7 +387,7 @@ func (r *ReconcileCephBlockPool) configurePoolMirroring(request reconcile.Reques
 		}
 
 		// update rbdMirror cephXStatus immediately after bootstrapping the peer token
-		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionProgressing, observedGeneration, &cephCluster.Status.Cephx.RBDMirrorPeer)
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionProgressing, "Configuring block pool mirroring", observedGeneration, &cephCluster.Status.Cephx.RBDMirrorPeer)
 		if statusErr != nil {
 			return opcontroller.ImmediateRetryResult, statusErr, errors.Wrapf(statusErr, "failed to update %q status to %q", request.NamespacedName, cephv1.ConditionProgressing)
 		}
@@ -410,7 +410,7 @@ func (r *ReconcileCephBlockPool) configurePoolMirroring(request reconcile.Reques
 
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling
-		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration, nil)
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, "Block pool configured successfully", observedGeneration, nil)
 
 		if cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
 			// Stop monitoring the mirroring status of this pool
@@ -443,7 +443,7 @@ func (r *ReconcileCephBlockPool) configurePoolMirroring(request reconcile.Reques
 		}
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling
-		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration, &cephv1.CephxStatus{})
+		statusErr = r.updateStatus(request.NamespacedName, cephv1.ConditionReady, "Block pool configured successfully", observedGeneration, &cephv1.CephxStatus{})
 
 		// Stop monitoring the mirroring status of this pool
 		if blockPoolMirrorContextsExists && r.blockPoolMirrorContexts[blockPoolChannelKey].started {
