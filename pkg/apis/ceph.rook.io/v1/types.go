@@ -4149,6 +4149,8 @@ type CephFilesystemSubVolumeGroupStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	Message string `json:"message,omitempty"`
+	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
