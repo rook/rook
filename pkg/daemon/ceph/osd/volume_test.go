@@ -304,12 +304,11 @@ var cephVolumeRawPartitionTestResult = `{
     }
 }`
 
-// ceph-volume raw list reports the device via an LVM symlink (/dev/rhel/ceph-data)
-// while the inventory RealPath is /dev/mapper/rhel-ceph--data.
-var cephVolumeRAWLVMSymlinkTestResult = `{
+// ceph-volume raw list <device> reports an LV under the /dev/mapper path it was given.
+var cephVolumeRAWLVMMapperTestResult = `{
     "0": {
         "ceph_fsid": "4bfe8b72-5e69-4330-b6c0-4d914db8ab89",
-        "device": "/dev/rhel/ceph-data",
+        "device": "/dev/mapper/rhel-ceph--data",
         "osd_id": 0,
         "osd_uuid": "c03d7353-96e5-4a41-98de-830dfff97d06",
         "type": "bluestore"
@@ -572,6 +571,9 @@ func TestConfigureCVDevices(t *testing.T) {
 			if command == "lsblk" && (args[0] == "/dev/vdb1") {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="part" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
 			}
+			if command == "lsblk" && args[0] == "--noheadings" {
+				return "/dev/vdb1 part", nil
+			}
 			if args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "list" {
 				return cephVolumeRawPartitionTestResult, nil
 			}
@@ -626,6 +628,9 @@ func TestConfigureCVDevices(t *testing.T) {
 			if command == "lsblk" && (args[0] == "/dev/vdb" || args[0] == "/dev/vdc") {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="disk" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
 			}
+			if command == "lsblk" && args[0] == "--noheadings" {
+				return "/dev/vdb disk\n/dev/vdc disk", nil
+			}
 			if args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "list" {
 				return cephVolumeRAWTestResult, nil
 			}
@@ -674,8 +679,9 @@ func TestConfigureCVDevices(t *testing.T) {
 	}
 
 	{
-		// "ceph-volume raw list" without a device argument can miss freshly prepared OSDs.
-		// The freshly prepared device must be listed individually and the OSD must be returned.
+		// The node-wide listing can miss a freshly prepared OSD (here lsblk enumerates only the
+		// parent disk). The freshly prepared device must be listed individually and the OSD must be
+		// returned.
 		t.Log("Test case for a raw mode OSD missing from the ceph-volume raw list results")
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
@@ -685,6 +691,11 @@ func TestConfigureCVDevices(t *testing.T) {
 			}
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return "{\"key\":\"mysecurekey\"}", nil
+			}
+			// The whole-node scan enumerates only the parent disk, so the freshly prepared
+			// partition is not scanned and its OSD is missed until it is listed individually.
+			if command == "lsblk" && args[0] == "--noheadings" {
+				return "/dev/vdb disk", nil
 			}
 			if args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "list" && args[6] == "/dev/vdb1" {
 				// listing the specific device finds the OSD
@@ -736,6 +747,9 @@ func TestConfigureCVDevices(t *testing.T) {
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
+			if command == "lsblk" && args[0] == "--noheadings" {
+				return "/dev/vdb1 part", nil
+			}
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return "{\"key\":\"mysecurekey\"}", nil
 			}
@@ -2111,6 +2125,11 @@ func TestParseCephVolumeRawResult(t *testing.T) {
 			}
 		}
 
+		// whole-node device enumeration for the per-device "ceph-volume raw list"
+		if command == "lsblk" && args[0] == "--noheadings" {
+			return "/dev/vdb disk\n/dev/vdc disk", nil
+		}
+
 		// get lsblk for disks from cephVolumeRAWTestResult var
 		if command == "lsblk" && (args[0] == "/dev/vdb" || args[0] == "/dev/vdc") {
 			return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="disk" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
@@ -2623,6 +2642,9 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
+		if command == "lsblk" && args[0] == "--noheadings" {
+			return "/dev/vdb disk\n/dev/vdc disk", nil
+		}
 		if slices.Contains(args, "raw") && slices.Contains(args, "list") {
 			return cephVolumeRAWTestResult, nil
 		}
@@ -2672,6 +2694,12 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	// `ceph-volume raw list` returns dmcrypt devices on "vdb" and "vdc" but only "vdb" should be zapped
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
+		if command == "lsblk" && args[1] == "--paths" {
+			return "/dev/vdb disk\n/dev/vdc disk", nil
+		}
+		if command == "lsblk" && args[1] == "--output" && args[2] == "TYPE" {
+			return "crypt", nil
+		}
 		if slices.Contains(args, "raw") && slices.Contains(args, "list") {
 			return cephVolumeRAWEncryptedTestResult, nil
 		}
@@ -2688,18 +2716,51 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
 
+	var zapped []string
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		if command == "wipefs" {
+			zapped = append(zapped, args[1])
+		}
+		if command == "umount" {
+			return "not mounted", errors.New("not mounted")
+		}
+		if command == "dmsetup" || command == "stdbuf" || command == "wipefs" || command == "ceph-bluestore-tool" || command == "dd" {
+			return "", nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
 	context = &clusterd.Context{
 		Devices: []*sys.LocalDisk{{RealPath: "/dev/vdb"}},
 	}
 	context.Executor = executor
 	err = agent.WipeDevicesFromOtherClusters(context)
 	assert.NoError(t, err)
+	assert.Equal(t, []string{"/dev/vdb"}, zapped, "only the desired disk behind the dmcrypt block is zapped")
 
 	// `ceph-volume raw list` returns empty but the expected device still has luks header with cephFSID from another cluster.
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
+		if command == "lsblk" && args[0] == "--noheadings" {
+			return "/dev/vdb disk\n/dev/vdc disk", nil
+		}
 		if slices.Contains(args, "raw") && slices.Contains(args, "list") {
 			return `{}`, nil // return empty
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	zapped = nil
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		if command == cryptsetupBinary && args[0] == "luksDump" {
+			return luksDump, nil
+		}
+		if command == "wipefs" {
+			zapped = append(zapped, args[1])
+		}
+		if command == "umount" {
+			return "not mounted", errors.New("not mounted")
+		}
+		if command == "stdbuf" || command == "wipefs" || command == "ceph-bluestore-tool" || command == "dd" {
+			return "", nil
 		}
 		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
@@ -2709,17 +2770,28 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	context.Executor = executor
 	err = agent.WipeDevicesFromOtherClusters(context)
 	assert.NoError(t, err)
+	assert.Equal(t, []string{"/dev/vdb"}, zapped, "the disk whose LUKS header names another cluster is wiped")
 
-	// `ceph-volume raw list` returns an LVM symlink path (/dev/rhel/ceph-data) while
-	// the device RealPath is /dev/mapper/rhel-ceph--data. The device should still be
-	// matched via DevLinks and zapped.
+	// A raw OSD from another cluster on an LV is listed under the /dev/mapper path lsblk gives
+	// it. That path is not a dmcrypt block, so it must be matched as it is and zapped, never
+	// handed to cryptsetup.
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
+		if command == "lsblk" && args[1] == "--paths" {
+			return "/dev/vdb disk\n/dev/mapper/rhel-ceph--data lvm", nil
+		}
+		if command == "lsblk" && args[1] == "--output" && args[2] == "TYPE" && args[3] == "/dev/mapper/rhel-ceph--data" {
+			return "lvm", nil
+		}
 		if slices.Contains(args, "raw") && slices.Contains(args, "list") {
-			return cephVolumeRAWLVMSymlinkTestResult, nil
+			if args[6] == "/dev/mapper/rhel-ceph--data" {
+				return cephVolumeRAWLVMMapperTestResult, nil
+			}
+			return `{}`, nil
 		}
 		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
+	zapped = nil
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 		devicePath := "/dev/mapper/rhel-ceph--data"
@@ -2738,6 +2810,7 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 			if args[1] != devicePath {
 				return "", errors.Errorf("expected device %s to be zapped but got %v", devicePath, args)
 			}
+			zapped = append(zapped, args[1])
 			return "", nil
 		}
 		if command == "ceph-bluestore-tool" {
@@ -2757,6 +2830,57 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	context.Executor = executor
 	err = agent.WipeDevicesFromOtherClusters(context)
 	assert.NoError(t, err)
+	assert.Equal(t, []string{"/dev/mapper/rhel-ceph--data"}, zapped, "the foreign OSD's LV is zapped")
+}
+
+func TestGetOSDDiskToBeWiped(t *testing.T) {
+	lv := &sys.LocalDisk{
+		RealPath: "/dev/mapper/rhel-ceph--data",
+		DevLinks: "/dev/rhel/ceph-data /dev/disk/by-id/dm-name-rhel-ceph--data /dev/mapper/rhel-ceph--data",
+	}
+	disk := &sys.LocalDisk{RealPath: "/dev/vdb"}
+
+	newContext := func(deviceType string, typeErr error) *clusterd.Context {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "lsblk" && args[1] == "--output" && args[2] == "TYPE" {
+				return deviceType, typeErr
+			}
+			if command == cryptsetupBinary && args[0] == "status" && args[1] == "/dev/mapper/set2-data-0jkntr-block-dmcrypt" {
+				return "type: LUKS1\n  device: /dev/vdb", nil
+			}
+			return "", errors.Errorf("unexpected command %s %v", command, args)
+		}
+		return &clusterd.Context{Executor: executor, Devices: []*sys.LocalDisk{lv, disk}}
+	}
+
+	t.Run("dmcrypt block resolves to the disk behind it", func(t *testing.T) {
+		osdDisk, encryptedBlock, err := getOSDDiskToBeWiped(newContext("crypt", nil), "/dev/mapper/set2-data-0jkntr-block-dmcrypt")
+		require.NoError(t, err)
+		assert.Equal(t, disk, osdDisk)
+		assert.Equal(t, "/dev/mapper/set2-data-0jkntr-block-dmcrypt", encryptedBlock)
+	})
+
+	t.Run("an LV under /dev/mapper is matched as it is, without cryptsetup", func(t *testing.T) {
+		osdDisk, encryptedBlock, err := getOSDDiskToBeWiped(newContext("lvm", nil), "/dev/mapper/rhel-ceph--data")
+		require.NoError(t, err)
+		assert.Equal(t, lv, osdDisk)
+		assert.Empty(t, encryptedBlock)
+	})
+
+	t.Run("an LVM symlink path is matched through DevLinks", func(t *testing.T) {
+		osdDisk, encryptedBlock, err := getOSDDiskToBeWiped(newContext("", nil), "/dev/rhel/ceph-data")
+		require.NoError(t, err)
+		assert.Equal(t, lv, osdDisk)
+		assert.Empty(t, encryptedBlock)
+	})
+
+	t.Run("a mapper device whose type cannot be read is left alone", func(t *testing.T) {
+		osdDisk, encryptedBlock, err := getOSDDiskToBeWiped(newContext("", errors.New("lsblk failed")), "/dev/mapper/rhel-ceph--data")
+		require.NoError(t, err)
+		assert.Nil(t, osdDisk)
+		assert.Empty(t, encryptedBlock)
+	})
 }
 
 func TestFindDeviceClass(t *testing.T) {
@@ -2792,6 +2916,9 @@ func TestGetCephVolumeRawOSDsHonorDeviceClass(t *testing.T) {
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		if command == "stdbuf" && args[4] == "raw" && args[5] == "list" {
 			return cephVolumeRAWTestResult, nil
+		}
+		if command == "lsblk" && args[0] == "--noheadings" {
+			return "/dev/vdb disk\n/dev/vdc disk", nil
 		}
 		if command == "lsblk" && (args[0] == "/dev/vdb" || args[0] == "/dev/vdc") {
 			base := strings.TrimPrefix(args[0], "/dev/")
@@ -2839,4 +2966,113 @@ func TestGetCephVolumeRawOSDsHonorDeviceClass(t *testing.T) {
 			assert.Equal(t, tc.wantPerDev, got)
 		})
 	}
+}
+
+func TestRawListOSDsPerDevice(t *testing.T) {
+	t.Run("scans every OSD-hosting device class, skips crash records, and merges db and wal records", func(t *testing.T) {
+		// lsblk enumerates a mix of device types. Disks, partitions, loop, and the device-mapper
+		// node types a raw OSD presents as (crypt, lvm, mpath) must be scanned; the
+		// network-backed (rbd/nbd/drbd) and volatile-RAM (zram) devices, and a rom, are excluded.
+		lsblkOutput := strings.Join([]string{
+			"/dev/sda disk",
+			"/dev/sda1 part",
+			"/dev/loop0 loop",
+			"/dev/mapper/set1-wal lvm",
+			"/dev/mapper/set1-block-dmcrypt crypt",
+			"/dev/mapper/set1-db lvm",
+			"/dev/mapper/vg-db lvm",
+			"/dev/mapper/mpatha mpath",
+			"/dev/rbd0 disk",
+			"/dev/nbd0 disk",
+			"/dev/zram0 disk",
+			"/dev/drbd0 disk",
+			"/dev/sr0 rom",
+		}, "\n")
+
+		var scanned []string
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "lsblk" && args[0] == "--noheadings" {
+				return lsblkOutput, nil
+			}
+			if command == "stdbuf" && args[4] == "raw" && args[5] == "list" {
+				device := args[6]
+				scanned = append(scanned, device)
+				switch device {
+				case "/dev/sda":
+					// A device that crashes ceph-bluestore-tool's batched show-label (ceph #76354).
+					// ceph-volume swallows the tool's non-zero rc and returns "{}" with exit 0, so
+					// per-device it contributes nothing and does not abort or fail the scan.
+					return `{}`, nil
+				case "/dev/loop0":
+					// A device that genuinely fails to list: logged and skipped, not fatal because
+					// other devices succeed.
+					return "", errors.New("ceph-volume not found for this device")
+				case "/dev/sda1":
+					return `{"uuid-0": {"ceph_fsid": "fsid", "device": "/dev/sda1", "osd_id": 0, "osd_uuid": "uuid-0", "type": "bluestore"}}`, nil
+				case "/dev/mapper/set1-block-dmcrypt":
+					// An encrypted OSD is found only by scanning its opened mapper node; the
+					// underlying disk would report {} because show-label cannot read a LUKS header.
+					return `{"uuid-1": {"ceph_fsid": "fsid", "device": "/dev/mapper/set1-block-dmcrypt", "osd_id": 1, "osd_uuid": "uuid-1", "type": "bluestore"}}`, nil
+				case "/dev/mapper/set1-wal":
+					// The bluefs wal LV of the encrypted OSD, listed before its block entry: a
+					// partial record keyed by the same osd_uuid that must still be merged in.
+					return `{"uuid-1": {"device_wal": "/dev/mapper/set1-wal", "osd_uuid": "uuid-1"}}`, nil
+				case "/dev/mapper/set1-db":
+					// The bluefs db LV of the SAME encrypted OSD, listed after its block entry: a
+					// partial record keyed by the same osd_uuid that must be merged into the real
+					// block record rather than clobber it.
+					return `{"uuid-1": {"device_db": "/dev/mapper/set1-db", "osd_uuid": "uuid-1"}}`, nil
+				case "/dev/mapper/vg-db":
+					// The bluefs db LV of an unrelated OSD: a partial record under its own osd_uuid.
+					// It must not enter the result as a spurious (empty ceph_fsid) OSD.
+					return `{"uuid-2": {"device_db": "/dev/mapper/vg-db", "osd_uuid": "uuid-2"}}`, nil
+				}
+				return `{}`, nil
+			}
+			return "", errors.Errorf("unknown command %s %v", command, args)
+		}
+		ctx := &clusterd.Context{Executor: executor}
+
+		result, err := rawListOSDsPerDevice(ctx)
+		require.NoError(t, err)
+
+		// Every OSD-hosting device class is scanned; rbd/nbd/zram/drbd and the rom are excluded.
+		assert.ElementsMatch(t, []string{
+			"/dev/sda", "/dev/sda1", "/dev/loop0", "/dev/mapper/set1-wal",
+			"/dev/mapper/set1-block-dmcrypt", "/dev/mapper/set1-db", "/dev/mapper/vg-db", "/dev/mapper/mpatha",
+		}, scanned)
+
+		// Only the two real OSDs (plain + encrypted) are reported. The crash device ("{}") and the
+		// failed device contribute nothing; the db and wal partials that share the encrypted OSD's
+		// uuid are merged into its real block record, whichever order they are listed in; and the
+		// unrelated db partial does not enter as a spurious OSD.
+		assert.Len(t, result, 2)
+		assert.Equal(t, "/dev/sda1", result["uuid-0"].Device)
+		assert.Empty(t, result["uuid-0"].DeviceDb)
+		assert.Equal(t, "/dev/mapper/set1-block-dmcrypt", result["uuid-1"].Device)
+		assert.Equal(t, "fsid", result["uuid-1"].CephFsid)
+		assert.Equal(t, "/dev/mapper/set1-db", result["uuid-1"].DeviceDb)
+		assert.Equal(t, "/dev/mapper/set1-wal", result["uuid-1"].DeviceWal)
+		_, hasSpurious := result["uuid-2"]
+		assert.False(t, hasSpurious, "a db/wal record whose main block device was not found must be skipped")
+	})
+
+	t.Run("returns an error when every scanned device fails to list", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			if command == "lsblk" && args[0] == "--noheadings" {
+				return "/dev/sda disk\n/dev/sdb disk", nil
+			}
+			if command == "stdbuf" && args[4] == "raw" && args[5] == "list" {
+				return "", errors.New("ceph-volume not found")
+			}
+			return "", errors.Errorf("unknown command %s %v", command, args)
+		}
+		ctx := &clusterd.Context{Executor: executor}
+
+		_, err := rawListOSDsPerDevice(ctx)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed for all")
+	})
 }
