@@ -3,8 +3,8 @@ module github.com/rook/rook/pkg/apis
 go 1.26.4
 
 replace (
-	// TODO: remove this replace once https://github.com/libopenstorage/secrets/pull/83 is merged
-	github.com/libopenstorage/secrets => github.com/rook/secrets v0.0.0-20240315053144-3195f6906937
+	// TODO: remove this replace once https://github.com/rook/secrets/pull/2 is merged into rook/secrets
+	github.com/libopenstorage/secrets => github.com/OdedViner/secrets v0.0.0-20260826082040-ae877947048e
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
 )
 
