@@ -4367,6 +4367,8 @@ type CephNVMeOFGateway struct {
 type NVMeOFGatewayStatus struct {
 	Status `json:",inline"`
 	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
+	// +optional
+	Message string `json:"message,omitempty"`
 }
 
 // CephNVMeOFGatewayList represents a list of Ceph NVMe-oF Gateways
