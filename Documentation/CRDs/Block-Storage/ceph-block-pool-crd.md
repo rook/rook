@@ -245,6 +245,7 @@ flags are present on RBD volumes.
 * `parameters`: Sets any [parameters](https://docs.ceph.com/docs/master/rados/operations/pools/#setting-pool-values) listed to the given pool
     * `target_size_ratio:` gives a hint (%) to the Ceph PG autoscaler in terms of expected consumption of the total cluster capacity of a given pool, for more info see the [ceph documentation](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size)
     * `compression_mode`: Configures data compression at the OSD level. If left unspecified, no compression is performed. Values supported are [these](https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression):  `none`, `passive`, `aggressive`, and `force`.  In most cases `aggressive` is appropriate.  Specify `force` only if you really know what you're doing.
+    * `pg_num_min`: If it is above the pool's current `pg_num`, Rook raises `pg_num` to match (or to `pg_num`, if also set and larger). This splits PGs and moves data on an existing pool.
 
 * `mirroring`: Configures Ceph `rbd-mirror` replicaton of the pool to a different Ceph cluster.
     * `enabled`: whether mirroring is enabled on that pool (default: false)
