@@ -2781,6 +2781,114 @@ future release.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.AccountQuotaSpec">AccountQuotaSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreAccountSpec">ObjectStoreAccountSpec</a>)
+</p>
+<div>
+<p>AccountQuotaSpec configures the storage quotas and resource limits for an RGW account.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>account</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectStorageQuota">
+ObjectStorageQuota
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Account sets the account-wide storage quota, limiting the total size and number of objects
+across all buckets owned by the account.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>defaultBucket</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectStorageQuota">
+ObjectStorageQuota
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DefaultBucket sets the default storage quota applied to each individual bucket owned by the
+account. It can be overridden on a per-bucket basis outside of Rook.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxBuckets</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxBuckets is the maximum number of buckets the account can own.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxUsers</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxUsers is the maximum number of users the account can own.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxRoles</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxRoles is the maximum number of roles the account can own.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxGroups</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxGroups is the maximum number of groups the account can own.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxAccessKeys</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxAccessKeys is the maximum number of access keys across the whole account, shared by all its users.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.AccountRootUserSpec">AccountRootUserSpec
 </h3>
 <p>
@@ -12141,6 +12249,48 @@ If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metad
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.ObjectStorageQuota">ObjectStorageQuota
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.AccountQuotaSpec">AccountQuotaSpec</a>)
+</p>
+<div>
+<p>ObjectStorageQuota sets a storage quota limiting the total size and number of objects.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>maxSize</code><br/>
+<em>
+k8s.io/apimachinery/pkg/api/resource.Quantity
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxSize is the maximum total size of all objects.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxObjects</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxObjects is the maximum total number of objects.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ObjectStoreAPI">ObjectStoreAPI
 (<code>string</code> alias)</h3>
 <p>
@@ -12213,6 +12363,22 @@ AccountRootUserSpec
 <em>(Optional)</em>
 <p>RootUser configures the root user for the account. The root user is created by default
 and has default permissions across all account resources.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>quotas</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AccountQuotaSpec">
+AccountQuotaSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Quotas sets the storage quotas and resource limits for the account. When this block is omitted,
+Rook does not manage the account&rsquo;s quotas or resource limits, leaving any values configured
+outside Rook (for example through radosgw-admin) untouched.</p>
 </td>
 </tr>
 </tbody>
