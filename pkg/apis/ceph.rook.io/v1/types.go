@@ -3116,6 +3116,8 @@ type CephNFS struct {
 type NFSStatus struct {
 	Status `json:",inline"`
 	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
+	// +optional
+	Message string `json:"message,omitempty"`
 }
 
 // CephNFSList represents a list Ceph NFSes
