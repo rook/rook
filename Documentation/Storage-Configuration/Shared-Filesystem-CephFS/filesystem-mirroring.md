@@ -31,7 +31,7 @@ spec:
   preserveFilesystemOnDelete: true
   metadataServer:
     activeCount: 1
-    activeStandby: true
+    standbyCount: 1
   mirroring:
     enabled: true
     # list of Kubernetes Secrets containing the peer token
