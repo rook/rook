@@ -1221,6 +1221,10 @@ type CephBlockPoolStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
+	Message string `json:"message,omitempty"`
+	// +optional
 	Cephx PeerTokenCephxStatus `json:"cephx,omitempty"`
 	// +optional
 	MirroringStatus *MirroringStatusSpec `json:"mirroringStatus,omitempty"`
@@ -1719,6 +1723,10 @@ type SnapshotScheduleRetentionSpec struct {
 type CephFilesystemStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
+	Message string `json:"message,omitempty"`
 	// +optional
 	SnapshotScheduleStatus *FilesystemSnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
 	// Use only info and put mirroringStatus in it?
@@ -3112,6 +3120,10 @@ type CephNFS struct {
 type NFSStatus struct {
 	Status `json:",inline"`
 	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
+	Message string `json:"message,omitempty"`
 }
 
 // CephNFSList represents a list Ceph NFSes
@@ -4145,6 +4157,10 @@ type CephFilesystemSubVolumeGroupStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
+	Message string `json:"message,omitempty"`
+	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
@@ -4234,6 +4250,10 @@ type CephBlockPoolRadosNamespaceSpec struct {
 type CephBlockPoolRadosNamespaceStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
+	Message string `json:"message,omitempty"`
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
@@ -4353,6 +4373,10 @@ type CephNVMeOFGateway struct {
 type NVMeOFGatewayStatus struct {
 	Status `json:",inline"`
 	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=32768
+	Message string `json:"message,omitempty"`
 }
 
 // CephNVMeOFGatewayList represents a list of Ceph NVMe-oF Gateways

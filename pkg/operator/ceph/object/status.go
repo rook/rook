@@ -38,7 +38,7 @@ const (
 )
 
 func (r *ReconcileCephObjectStore) setFailedStatus(observedGeneration int64, name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
-	statusErr := updateStatus(r.opManagerContext, observedGeneration, replicaCountNotAvailable, r.client, name, cephv1.ConditionFailure, map[string]string{}, nil)
+	statusErr := updateStatus(r.opManagerContext, observedGeneration, replicaCountNotAvailable, r.client, name, cephv1.ConditionFailure, errMessage, map[string]string{}, nil)
 	if statusErr != nil {
 		return reconcile.Result{}, errors.Wrapf(statusErr, "failed to set failed status for object store %q", name)
 	}
@@ -46,7 +46,7 @@ func (r *ReconcileCephObjectStore) setFailedStatus(observedGeneration int64, nam
 }
 
 // updateStatus updates an object with a given status
-func updateStatus(ctx context.Context, observedGeneration int64, replicaCount int32, client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string, cephx *cephv1.CephxStatus) error {
+func updateStatus(ctx context.Context, observedGeneration int64, replicaCount int32, client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, message string, info map[string]string, cephx *cephv1.CephxStatus) error {
 	// Updating the status is important to users, but we can still keep operating if there is a
 	// failure. Retry a few times to give it our best effort attempt.
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -73,6 +73,7 @@ func updateStatus(ctx context.Context, observedGeneration int64, replicaCount in
 		}
 
 		objectStore.Status.Phase = status
+		objectStore.Status.Message = message
 		objectStore.Status.Info = info
 		if replicaCount != replicaCountNotAvailable {
 			objectStore.Status.Replicas = replicaCount

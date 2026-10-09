@@ -31,7 +31,7 @@ import (
 )
 
 // updateStatus updates a fs CR with the given status
-func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string, cephx *cephv1.CephxStatus) (*cephv1.CephFilesystem, error) {
+func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, status cephv1.ConditionType, message string, info map[string]string, cephx *cephv1.CephxStatus) (*cephv1.CephFilesystem, error) {
 	fs := &cephv1.CephFilesystem{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := r.client.Get(r.opManagerContext, namespacedName, fs)
@@ -48,6 +48,7 @@ func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespa
 		}
 
 		fs.Status.Phase = status
+		fs.Status.Message = message
 		fs.Status.Info = info
 		if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 			fs.Status.ObservedGeneration = observedGeneration
@@ -127,5 +128,5 @@ func toCustomResourceStatus(currentStatus *cephv1.CephFilesystemStatus, mirrorSt
 	// Always display the details, typically an error
 	mirrorSnapScheduleStatusSpec.Details = details
 
-	return &cephv1.CephFilesystemStatus{MirroringStatus: mirrorStatusSpec, SnapshotScheduleStatus: mirrorSnapScheduleStatusSpec, Phase: currentStatus.Phase, Info: currentStatus.Info}
+	return &cephv1.CephFilesystemStatus{MirroringStatus: mirrorStatusSpec, SnapshotScheduleStatus: mirrorSnapScheduleStatusSpec, Phase: currentStatus.Phase, Message: currentStatus.Message, Info: currentStatus.Info}
 }

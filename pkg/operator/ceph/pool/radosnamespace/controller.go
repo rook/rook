@@ -251,7 +251,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 
 	// The CR was just created, initializing status fields
 	if radosNamespace.Status == nil {
-		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing)
+		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing, "Initializing rados namespace")
 	}
 
 	poolAndRadosNamespaceName := radosNamespace.Spec.BlockPoolName
@@ -349,7 +349,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 
 	if cephCluster.Spec.External.Enable {
 		log.NamedDebug(namespacedName, logger, "skip creating external radosnamespace in external mode, create it manually, the controller will assume it's there")
-		r.updateStatus(r.client, namespacedName, cephv1.ConditionReady)
+		r.updateStatus(r.client, namespacedName, cephv1.ConditionReady, "Rados namespace configured successfully")
 		err = csi.CreateUpdateClientProfileRadosNamespace(r.clusterInfo.Context, r.client, r.clusterInfo, radosNamespaceName, buildClusterID(radosNamespace))
 		if err != nil {
 			return reconcile.Result{}, radosNamespace, errors.Wrap(err, "failed to create ceph csi-op config CR for RadosNamespace")
@@ -396,7 +396,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 			log.NamedInfo(namespacedName, logger, opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, radosNamespace, nil
 		}
-		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)
+		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure, "failed to configure rados namespace")
 		return reconcile.Result{}, radosNamespace, errors.Wrapf(err, "failed to create or update ceph pool rados namespace %q", radosNamespace.Name)
 	}
 
@@ -405,7 +405,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		return reconcile.Result{}, radosNamespace, err
 	}
 
-	r.updateStatus(r.client, namespacedName, cephv1.ConditionReady)
+	r.updateStatus(r.client, namespacedName, cephv1.ConditionReady, "Rados namespace configured successfully")
 
 	err = csi.CreateUpdateClientProfileRadosNamespace(r.clusterInfo.Context, r.client, r.clusterInfo, radosNamespaceName, buildClusterID(radosNamespace))
 	if err != nil {
@@ -485,7 +485,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) deleteRadosNamespace(radosNamespa
 }
 
 // updateStatus updates an object with a given status
-func (r *ReconcileCephBlockPoolRadosNamespace) updateStatus(client client.Client, name types.NamespacedName, status cephv1.ConditionType) {
+func (r *ReconcileCephBlockPoolRadosNamespace) updateStatus(client client.Client, name types.NamespacedName, status cephv1.ConditionType, message string) {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		cephBlockPoolRadosNamespace := &cephv1.CephBlockPoolRadosNamespace{}
 		if err := client.Get(r.opManagerContext, name, cephBlockPoolRadosNamespace); err != nil {
@@ -500,6 +500,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateStatus(client client.Client
 		}
 
 		cephBlockPoolRadosNamespace.Status.Phase = status
+		cephBlockPoolRadosNamespace.Status.Message = message
 		cephBlockPoolRadosNamespace.Status.Info = map[string]string{"clusterID": buildClusterID(cephBlockPoolRadosNamespace)}
 		if err := reporting.UpdateStatus(client, cephBlockPoolRadosNamespace); err != nil {
 			return errors.Wrapf(err, "failed to set ceph blockpool rados namespace %q status to %q", name, status)

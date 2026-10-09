@@ -149,6 +149,10 @@ spec:
                     type: string
                   nullable: true
                   type: object
+                message:
+                  maxLength: 32768
+                  minLength: 1
+                  type: string
                 mirroringInfo:
                   description: MirroringInfoSpec is the status of the pool/radosnamespace mirroring
                   properties:
@@ -713,6 +717,10 @@ spec:
                     type: string
                   nullable: true
                   type: object
+                message:
+                  maxLength: 32768
+                  minLength: 1
+                  type: string
                 mirroringInfo:
                   description: MirroringInfoSpec is the status of the pool/radosnamespace mirroring
                   properties:
@@ -9522,6 +9530,10 @@ spec:
                   description: Use only info and put mirroringStatus in it?
                   nullable: true
                   type: object
+                message:
+                  maxLength: 32768
+                  minLength: 1
+                  type: string
                 mirroringStatus:
                   description: MirroringStatus is the filesystem mirroring status
                   properties:
@@ -9820,6 +9832,10 @@ spec:
                     type: string
                   nullable: true
                   type: object
+                message:
+                  maxLength: 32768
+                  minLength: 1
+                  type: string
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.
                   format: int64
@@ -12120,6 +12136,10 @@ spec:
                         type: string
                     type: object
                   type: array
+                message:
+                  maxLength: 32768
+                  minLength: 1
+                  type: string
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.
                   format: int64
@@ -13050,6 +13070,10 @@ spec:
                         type: string
                     type: object
                   type: array
+                message:
+                  maxLength: 32768
+                  minLength: 1
+                  type: string
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.
                   format: int64
