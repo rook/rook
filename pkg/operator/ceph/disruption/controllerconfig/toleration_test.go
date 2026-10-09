@@ -165,6 +165,17 @@ func TestTolerationSet(t *testing.T) {
 	uniqueTolerations := uniqueTolerationsMap.ToList()
 
 	assert.Equal(t, len(uniqueTolerationsManualA), len(uniqueTolerations))
+	assert.Equal(t, []string{
+		"key1-Equal-NoExecute-value2",
+		"key1-Equal-NoSchedule-value1",
+		"key1-Equal-NoSchedule-value2",
+		"key1-Exists-NoSchedule-",
+		"key1-Exists-PreferNoSchedule-",
+		"key2-Equal-NoExecute-value2",
+		"key2-Equal-NoSchedule-value1",
+		"key2-Equal-NoSchedule-value2",
+		"key2-Exists-NoSchedule-",
+	}, tolerationKeys(uniqueTolerations))
 	for _, tolerationI := range uniqueTolerationsManualA {
 		found := false
 		for _, tolerationJ := range uniqueTolerations {
@@ -174,4 +185,12 @@ func TestTolerationSet(t *testing.T) {
 		}
 		assert.True(t, found)
 	}
+}
+
+func tolerationKeys(tolerations []corev1.Toleration) []string {
+	keys := make([]string, 0, len(tolerations))
+	for _, toleration := range tolerations {
+		keys = append(keys, getKey(toleration))
+	}
+	return keys
 }
