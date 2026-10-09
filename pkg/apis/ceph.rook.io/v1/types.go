@@ -587,6 +587,7 @@ type DashboardSpec struct {
 }
 
 // MonitoringSpec represents the settings for Prometheus based Ceph monitoring
+// +kubebuilder:validation:XValidation:message="scrapeTimeoutSeconds must not be greater than interval, which defaults to 10s",rule="!has(self.scrapeTimeoutSeconds) || (has(self.interval) ? duration(self.interval).getSeconds() : 10) >= self.scrapeTimeoutSeconds"
 type MonitoringSpec struct {
 	// Enabled determines whether to create the prometheus rules for the ceph cluster. If true, the prometheus
 	// types must exist or the creation will fail. Default is false.
@@ -618,6 +619,13 @@ type MonitoringSpec struct {
 	// Interval determines prometheus scrape interval
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
+
+	// ScrapeTimeoutSeconds determines the timeout of a prometheus scrape, in seconds. It must
+	// not be greater than the scrape interval, which defaults to 10s when unset. Defaults to the
+	// Prometheus global scrape timeout when unset.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	ScrapeTimeoutSeconds int64 `json:"scrapeTimeoutSeconds,omitempty"`
 
 	// MetricsTLS configures native HTTPS for the MGR Prometheus metrics endpoint.
 	// Requires Ceph with prometheus module TLS support: https://github.com/ceph/ceph/pull/70989
