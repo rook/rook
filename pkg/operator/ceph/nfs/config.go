@@ -177,6 +177,19 @@ func (r *ReconcileCephNFS) setRadosConfig(nfs *cephv1.CephNFS) error {
 	return removeKerberosRadosConfig(r.context, r.clusterInfo, nfs)
 }
 
+// cleanupTempFile closes and removes a temporary file created during rados config manipulation.
+// It is intended to be deferred immediately after os.CreateTemp so that temp files do not accumulate
+// in the operator's /tmp directory across reconcile loops (NFS reconcile, export updates, and
+// Kerberos config changes all pass through these paths).
+func cleanupTempFile(f *os.File) {
+	if err := f.Close(); err != nil {
+		logger.Errorf("failed to close temp file %q: %v", f.Name(), err)
+	}
+	if err := os.Remove(f.Name()); err != nil {
+		logger.Errorf("failed to remove temp file %q: %v", f.Name(), err)
+	}
+}
+
 func setKerberosRadosConfig(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, nfs *cephv1.CephNFS) error {
 	radosPool := nfs.Spec.RADOS.Pool
 	radosNs := nfs.Spec.RADOS.Namespace
@@ -190,7 +203,7 @@ func setKerberosRadosConfig(context *clusterd.Context, clusterInfo *cephclient.C
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temp file for ganesha kerberos configuration block for %s", radosInfoStr)
 	}
-	defer krbBlockFile.Close()
+	defer cleanupTempFile(krbBlockFile)
 	_, err = krbBlockFile.WriteString(ganeshaKrbConfigBlock(nfs.Spec.Security.Kerberos))
 	if err != nil {
 		return errors.Wrapf(err, "failed write ganesha kerberos configuration block temp file for %s", radosInfoStr)
@@ -262,7 +275,7 @@ func atomicPrependToConfigObject(
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temp file for %s", objInfoString)
 	}
-	defer tempFile.Close()
+	defer cleanupTempFile(tempFile)
 
 	radosFlags := []string{
 		"--pool", radosPool,
@@ -338,7 +351,7 @@ func atomicRemoveFromConfigObject(context *clusterd.Context, clusterInfo *cephcl
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temp file for %s", objInfoString)
 	}
-	defer tempFile.Close()
+	defer cleanupTempFile(tempFile)
 
 	radosFlags := []string{
 		"--pool", radosPool,
