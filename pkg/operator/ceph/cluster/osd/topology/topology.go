@@ -22,6 +22,7 @@ package topology
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
@@ -150,10 +151,11 @@ func GetDefaultTopologyLabels() string {
 	return strings.Join(Labels, ",")
 }
 
-// CheckTopologyConflicts verifies that:
-// 1. No child domain (e.g. rack) has fewer distinct values than its immediate parent.
-// 2. No topology value is used under more than one label key.
+// CheckTopologyConflicts verifies, for all topology labels other than the hostname label:
+// 1. No label carries an empty value on any node.
+// 2. No topology value is purely numeric (Ceph interprets numeric names as OSD IDs).
 // 3. No label value lives under more than one parent label value.
+// 4. No topology value is used under more than one label key.
 func CheckTopologyConflicts(nodes *[]corev1.Node) error {
 	logger.Debugf("Starting CheckTopologyConflicts with %d nodes", len(*nodes))
 
@@ -195,7 +197,29 @@ func CheckTopologyConflicts(nodes *[]corev1.Node) error {
 		logger.Debugf("Distinct values for key %q: %v", key, vals)
 	}
 
-	// 3. Parent‑consistency: each child‑value only ever under one parent‑value.
+	// 3. Numeric-name check: purely numeric topology values (e.g. "01", "123") are
+	// ambiguous in Ceph's "osd set-group" command, which parses them as OSD IDs
+	// instead of CRUSH bucket names. This causes noout flags to land on the wrong
+	// target during node drains and leaves stale flags that are never cleaned up.
+	for _, node := range *nodes {
+		labels := node.GetLabels()
+		for _, key := range hierarchy {
+			rawValue, ok := labels[key]
+			if !ok || rawValue == "" {
+				continue
+			}
+			crushName := client.NormalizeCrushName(rawValue)
+			if _, err := strconv.Atoi(crushName); err == nil {
+				return fmt.Errorf(
+					"invalid topology: label %q on node %q has a purely numeric value %q which will be "+
+						"misinterpreted as an OSD ID by Ceph",
+					key, node.Name, crushName,
+				)
+			}
+		}
+	}
+
+	// 4. Parent-consistency: each child-value only ever under one parent-value.
 	for levelIndex, key := range hierarchy {
 		if levelIndex == 0 {
 			continue // no parent
@@ -233,7 +257,7 @@ func CheckTopologyConflicts(nodes *[]corev1.Node) error {
 		}
 	}
 
-	// 4. Cross‑key uniqueness (deterministic).
+	// 5. Cross-key uniqueness (deterministic).
 	seenKey := map[string]string{}
 	for _, key := range hierarchy {
 		vs := make([]string, 0, len(values[key]))
