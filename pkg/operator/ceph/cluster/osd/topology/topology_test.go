@@ -554,6 +554,74 @@ func TestCheckTopologyConflicts(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("invalid: purely numeric zone value", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{
+				"topology.kubernetes.io/region": "muc",
+				"topology.kubernetes.io/zone":   "01",
+			}),
+			node("node-b", map[string]string{
+				"topology.kubernetes.io/region": "muc",
+				"topology.kubernetes.io/zone":   "02",
+			}),
+		}
+		err := CheckTopologyConflicts(&nodes)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "purely numeric")
+		assert.Contains(t, err.Error(), "01")
+	})
+
+	t.Run("invalid: purely numeric rack value", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{
+				"topology.rook.io/rack": "123",
+			}),
+		}
+		err := CheckTopologyConflicts(&nodes)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "purely numeric")
+		assert.Contains(t, err.Error(), "123")
+	})
+
+	t.Run("valid: zone value starts with letter but contains numbers", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{
+				"topology.kubernetes.io/region": "muc1",
+				"topology.kubernetes.io/zone":   "muc1-z1",
+			}),
+			node("node-b", map[string]string{
+				"topology.kubernetes.io/region": "muc1",
+				"topology.kubernetes.io/zone":   "muc1-z2",
+			}),
+		}
+		err := CheckTopologyConflicts(&nodes)
+		assert.NoError(t, err)
+	})
+
+	t.Run("valid: zone value with letter prefix z01", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{
+				"topology.kubernetes.io/zone": "z01",
+			}),
+			node("node-b", map[string]string{
+				"topology.kubernetes.io/zone": "z02",
+			}),
+		}
+		err := CheckTopologyConflicts(&nodes)
+		assert.NoError(t, err)
+	})
+
+	t.Run("invalid: negative numeric zone value", func(t *testing.T) {
+		nodes := []corev1.Node{
+			node("node-a", map[string]string{
+				"topology.kubernetes.io/zone": "-1",
+			}),
+		}
+		err := CheckTopologyConflicts(&nodes)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "purely numeric")
+	})
+
 	t.Run("valid: equal datacenters and zones", func(t *testing.T) {
 		nodes := []corev1.Node{
 			node("n1", map[string]string{
