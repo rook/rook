@@ -100,6 +100,8 @@ spec:
     #   # A key/value list of labels to add to the rgw service
     #   labels:
     #     key: value
+    #   # The trafficDistribution to set on the rgw service
+    #   trafficDistribution: PreferSameZone
     resources:
     # The requests and limits set here, allow the object store gateway Pod(s) to use half of one CPU core and 1 gigabyte of memory
     #  limits:
