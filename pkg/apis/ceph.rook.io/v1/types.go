@@ -3002,6 +3002,10 @@ type RGWServiceSpec struct {
 	// The labels-related configuration to add/set on each rgw service.
 	// +optional
 	Labels Labels `json:"labels,omitempty"`
+	// The trafficDistribution to set on each rgw service.
+	// +kubebuilder:validation:Enum=PreferClose;PreferSameZone;PreferSameNode
+	// +optional
+	TrafficDistribution string `json:"trafficDistribution,omitempty"`
 }
 
 // +genclient
