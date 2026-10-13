@@ -74,6 +74,15 @@ const (
 
 	// OperatorNotInitializedMessage is the message we print when the Operator is not ready to reconcile, typically the ceph.conf has not been generated yet
 	OperatorNotInitializedMessage = "skipping reconcile since operator is still initializing"
+
+	// RaiseNofileLimitAnnotationKey is annotation key to raise the nofile soft limit to the hard limit on startup.
+	// This is an experimental feature. This API may be changed or removed without notice.
+	RaiseNofileLimitAnnotationKey = "ceph.rook.io/raise-nofile-limit"
+
+	// RaiseNofileLimitScript is the bash script that raises the nofile soft limit to the hard limit.
+	// Uses && to fail fast if ulimit commands fail.
+	// The trailing space is required to separate it from the daemon command that follows.
+	RaiseNofileLimitScript = `pod_hard_limit="$(ulimit -Hn)" && ulimit -n "$pod_hard_limit" && `
 )
 
 var (
@@ -307,4 +316,22 @@ func RecoverAndLogException() {
 
 func NsName(namespace, name string) types.NamespacedName {
 	return types.NamespacedName{Namespace: namespace, Name: name}
+}
+
+// ShouldRaiseNofileLimit reports whether to raise the nofile limit based on the CR
+// annotation. Defaults to false.
+func ShouldRaiseNofileLimit(annotations map[string]string) bool {
+	if annotations == nil {
+		return false
+	}
+	raw, ok := annotations[RaiseNofileLimitAnnotationKey]
+	if !ok {
+		return false
+	}
+	raise, err := strconv.ParseBool(raw)
+	if err != nil {
+		logger.Warningf("invalid value %q for annotation %q. Not raising the nofile limit", raw, RaiseNofileLimitAnnotationKey)
+		return false
+	}
+	return raise
 }
