@@ -270,16 +270,8 @@ func daemonMapEntry(versions *cephv1.CephDaemonsVersions, daemonType string) (ma
 	switch daemonType {
 	case "mon":
 		return versions.Mon, nil
-	case "mgr":
-		return versions.Mgr, nil
-	case "mds":
-		return versions.Mds, nil
 	case "osd":
 		return versions.Osd, nil
-	case "rgw":
-		return versions.Rgw, nil
-	case "mirror":
-		return versions.RbdMirror, nil
 	}
 
 	return nil, errors.Errorf("invalid daemonType %s", daemonType)
