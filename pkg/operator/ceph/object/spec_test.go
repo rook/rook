@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
@@ -1071,6 +1072,9 @@ func TestRgwCommandFlags(t *testing.T) {
 	assert.NoError(t, err)
 	baseArgs := rgwContainer.Args // args without rgwCommandFlags set
 
+	// by default radosgw is launched directly without the opt-in nofile soft-limit bump.
+	assert.Equal(t, []string{"radosgw"}, rgwContainer.Command)
+
 	t.Run("empty map adds no flags", func(t *testing.T) {
 		c.store.Spec.Gateway.RgwCommandFlags = map[string]string{}
 		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
@@ -1116,6 +1120,70 @@ func TestRgwCommandFlags(t *testing.T) {
 		l := len(rgwContainer.Args)
 		addedArgs := rgwContainer.Args[l-3:]
 		assert.ElementsMatch(t, []string{"--rgw-option=val spaced", "--rgw-option=val-dashed", "--rgw-option=val_underscored"}, addedArgs)
+	})
+}
+
+func TestRgwShouldRaiseNofileLimit(t *testing.T) {
+	context := &clusterd.Context{Clientset: test.New(t, 3)}
+	store := simpleStore()
+	info := clienttest.CreateTestClusterInfo(1)
+	info.CephVersion = cephver.CephVersion{Major: 18, Minor: 2, Extra: 0}
+	info.Namespace = store.Namespace
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
+	executorFunc := func(command string, args ...string) (string, error) {
+		return `{"id":"test-id"}`, nil
+	}
+	executorFuncTimeout := func(timeout time.Duration, command string, args ...string) (string, error) {
+		return `{"id":"test-id"}`, nil
+	}
+	context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput:         executorFunc,
+		MockExecuteCommandWithCombinedOutput: executorFunc,
+		MockExecuteCommandWithTimeout:        executorFuncTimeout,
+	}
+	c := &clusterConfig{
+		clusterInfo: info,
+		store:       store,
+		context:     context,
+		rookVersion: "rook/rook:myversion",
+		clusterSpec: &cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v19.3"},
+		},
+		DataPathMap: data,
+	}
+	rgwConfig := &rgwConfig{
+		ResourceName: fmt.Sprintf("%s-%s", AppName, c.store.Name),
+		DaemonID:     "default",
+	}
+
+	directCommand := []string{"radosgw"}
+	wrappedCommand := []string{"bash", "-c", `pod_hard_limit="$(ulimit -Hn)"; ulimit -n "$pod_hard_limit"; exec radosgw "$@"`, "radosgw"}
+
+	t.Run("disabled by default", func(t *testing.T) {
+		container, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.Equal(t, directCommand, container.Command)
+	})
+
+	t.Run("enabled when annotation is true", func(t *testing.T) {
+		c.store.ObjectMeta.Annotations = map[string]string{controller.RaiseNofileLimitAnnotationKey: "true"}
+		container, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.Equal(t, wrappedCommand, container.Command)
+	})
+
+	t.Run("disabled when annotation is false", func(t *testing.T) {
+		c.store.ObjectMeta.Annotations = map[string]string{controller.RaiseNofileLimitAnnotationKey: "false"}
+		container, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.Equal(t, directCommand, container.Command)
+	})
+
+	t.Run("invalid annotation value falls back to disabled", func(t *testing.T) {
+		c.store.ObjectMeta.Annotations = map[string]string{controller.RaiseNofileLimitAnnotationKey: "notabool"}
+		container, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.Equal(t, directCommand, container.Command)
 	})
 }
 

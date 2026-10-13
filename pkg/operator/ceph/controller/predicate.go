@@ -539,3 +539,17 @@ func WatchPeerTokenSecretPredicate[T *corev1.Secret]() predicate.TypedFuncs[T] {
 		},
 	}
 }
+
+// RaiseNofileLimitPredicate returns a typed predicate that watches for changes to the RaiseNofileLimitAnnotationKey annotation.
+func RaiseNofileLimitPredicate[T client.Object]() predicate.TypedPredicate[T] {
+	return predicate.TypedFuncs[T]{
+		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
+			oldVal := e.ObjectOld.GetAnnotations()[RaiseNofileLimitAnnotationKey]
+			newVal := e.ObjectNew.GetAnnotations()[RaiseNofileLimitAnnotationKey]
+			return oldVal != newVal
+		},
+		CreateFunc:  func(e event.TypedCreateEvent[T]) bool { return false },
+		DeleteFunc:  func(e event.TypedDeleteEvent[T]) bool { return false },
+		GenericFunc: func(e event.TypedGenericEvent[T]) bool { return false },
+	}
+}
