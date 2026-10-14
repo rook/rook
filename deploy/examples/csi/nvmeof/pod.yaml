@@ -19,5 +19,5 @@ spec:
   volumes:
     - name: nvmeof-volume
       persistentVolumeClaim:
-        claimName: nvmeof-external-volume
+        claimName: nvmeof-volume
   restartPolicy: Never
