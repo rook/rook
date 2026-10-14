@@ -1321,3 +1321,27 @@ func getCephCluster(name, namespace string) *cephv1.CephCluster {
 		},
 	}
 }
+
+func TestExternalMonAdvertisingMsgr1KeepsDaemonMsgr1(t *testing.T) {
+	namespace := "ns"
+	context, err := newTestStartCluster(t, namespace)
+	require.NoError(t, err)
+	c := newCluster(context, namespace, true, v1.ResourceRequirements{})
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(3)
+	c.spec.Network.Connections = &cephv1.ConnectionsSpec{RequireMsgr2: true}
+	c.spec.Mon.ExternalMonIDs = []string{"ext"}
+	// every mon deployed by Rook is on the msgr2 port
+	require.Equal(t, []string{"--ms-bind-msgr1=false"}, opcontroller.Msgr1BindingFlags(c.ClusterInfo, &c.spec))
+
+	ext := cephclient.MonMapEntry{Name: "ext", Rank: 3, PublicAddr: "10.0.0.9:6789/0"}
+	ext.PublicAddrs.Addrvec = []cephclient.AddrvecEntry{{Type: "v2", Addr: "10.0.0.9:3300"}, {Type: "v1", Addr: "10.0.0.9:6789"}}
+	status := cephclient.MonStatusResponse{Quorum: []int{3}}
+	status.MonMap.Mons = []cephclient.MonMapEntry{ext}
+	_, err = c.reconcileExternalMons(t.Context(), status)
+	require.NoError(t, err)
+
+	// the external mon is recorded on the msgr2 port although it still advertises msgr1
+	require.Contains(t, c.ClusterInfo.ExternalMons, "ext")
+	assert.Equal(t, "10.0.0.9:3300", c.ClusterInfo.ExternalMons["ext"].Endpoint)
+	assert.Empty(t, opcontroller.Msgr1BindingFlags(c.ClusterInfo, &c.spec))
+}
