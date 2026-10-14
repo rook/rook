@@ -258,5 +258,59 @@ func TestMgrNetwork(t *testing.T) {
 		assert.NotNil(t, d)
 
 		assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
+		assert.NotContains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+	})
+
+	t.Run("requireMsgr2 true keeps msgr1 while a mon advertises v1", func(t *testing.T) {
+		clusterSpec := cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{
+				Connections: &cephv1.ConnectionsSpec{RequireMsgr2: true},
+			},
+		}
+		clusterInfo.InternalMonitors = map[string]*cephclient.MonInfo{
+			"a": cephclient.NewMonInfo("a", "10.0.0.1", 3300),
+			"b": cephclient.NewMonInfo("b", "10.0.0.2", 6789),
+		}
+		c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
+
+		d, err := c.makeDeployment(&mgrTestConfig)
+		assert.NoError(t, err)
+		assert.NotNil(t, d)
+		assert.NotContains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+	})
+
+	clusterInfo.InternalMonitors = map[string]*cephclient.MonInfo{
+		"a": cephclient.NewMonInfo("a", "10.0.0.1", 3300),
+		"b": cephclient.NewMonInfo("b", "10.0.0.2", 3300),
+	}
+
+	t.Run("requireMsgr2 true disables msgr1", func(t *testing.T) {
+		clusterSpec := cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{
+				Connections: &cephv1.ConnectionsSpec{RequireMsgr2: true},
+			},
+		}
+		c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
+
+		d, err := c.makeDeployment(&mgrTestConfig)
+		assert.NoError(t, err)
+		assert.NotNil(t, d)
+		assert.Contains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+	})
+
+	t.Run("encryption enabled disables msgr1", func(t *testing.T) {
+		clusterSpec := cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{
+				Connections: &cephv1.ConnectionsSpec{
+					Encryption: &cephv1.EncryptionSpec{Enabled: true},
+				},
+			},
+		}
+		c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
+
+		d, err := c.makeDeployment(&mgrTestConfig)
+		assert.NoError(t, err)
+		assert.NotNil(t, d)
+		assert.Contains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
 	})
 }

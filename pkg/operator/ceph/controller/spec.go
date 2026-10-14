@@ -33,6 +33,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -409,6 +410,33 @@ func NetworkBindingFlags(cluster *client.ClusterInfo, spec *cephv1.ClusterSpec) 
 	}
 
 	return args
+}
+
+// Msgr1BindingFlags returns the flag that stops a daemon from binding the msgr1 port when msgr2 is
+// required and every mon advertises only the msgr2 endpoint. Mons created before msgr2 was required
+// keep advertising their msgr1 endpoint until they are failed over, so clients may still use msgr1
+// until then and daemons must keep accepting it.
+func Msgr1BindingFlags(cluster *client.ClusterInfo, spec *cephv1.ClusterSpec) []string {
+	if !spec.RequireMsgr2() || !allMonsAdvertiseOnlyMsgr2(cluster, spec) {
+		return []string{}
+	}
+	return []string{opconfig.NewFlag("ms-bind-msgr1", "false")}
+}
+
+func allMonsAdvertiseOnlyMsgr2(cluster *client.ClusterInfo, spec *cephv1.ClusterSpec) bool {
+	// Mons that Rook does not deploy (external cluster, or spec.mon.externalMonIDs) are recorded with
+	// the msgr2 port whenever msgr2 is required, even if they still advertise msgr1, so their
+	// endpoints can't show whether msgr1 is still in use.
+	if spec.External.Enable || len(cluster.ExternalMons) > 0 || len(cluster.InternalMonitors) == 0 {
+		return false
+	}
+	for _, mon := range cluster.InternalMonitors {
+		// a mon on the msgr2 port binds and advertises only v2, see client.PopulateMonHostMembers()
+		if cephutil.GetPortFromEndpoint(mon.Endpoint) != client.Msgr2port {
+			return false
+		}
+	}
+	return true
 }
 
 // ContainerEnvVarReference returns a reference to a Kubernetes container env var of the given name

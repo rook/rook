@@ -143,6 +143,8 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig, fsName string) v1
 			cephconfig.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 	}
 
+	args = append(args, controller.Msgr1BindingFlags(c.clusterInfo, c.clusterSpec)...)
+
 	container := v1.Container{
 		Name: "mds",
 		Command: []string{

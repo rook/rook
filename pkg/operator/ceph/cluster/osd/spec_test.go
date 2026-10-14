@@ -1279,3 +1279,88 @@ func TestMakeDeploymentAllowDeviceClassUpdateFalseLeavesClassAlone(t *testing.T)
 		})
 	}
 }
+
+func TestOSDDeploymentMsgr2Flags(t *testing.T) {
+	msgr2OnlyMonPort := int32(3300)
+	tests := []struct {
+		name               string
+		connections        *cephv1.ConnectionsSpec
+		monPort            int32
+		expectDisableMsgr1 bool
+	}{
+		{
+			name:               "default connections leaves msgr1 untouched",
+			connections:        nil,
+			expectDisableMsgr1: false,
+		},
+		{
+			name:               "requireMsgr2 false leaves msgr1 untouched",
+			connections:        &cephv1.ConnectionsSpec{RequireMsgr2: false},
+			expectDisableMsgr1: false,
+		},
+		{
+			name:               "requireMsgr2 true disables msgr1 when all mons are on v2",
+			connections:        &cephv1.ConnectionsSpec{RequireMsgr2: true},
+			monPort:            msgr2OnlyMonPort,
+			expectDisableMsgr1: true,
+		},
+		{
+			name:               "requireMsgr2 true keeps msgr1 while mons advertise v1",
+			connections:        &cephv1.ConnectionsSpec{RequireMsgr2: true},
+			monPort:            6789,
+			expectDisableMsgr1: false,
+		},
+		{
+			name: "encryption enabled disables msgr1",
+			connections: &cephv1.ConnectionsSpec{
+				Encryption: &cephv1.EncryptionSpec{Enabled: true},
+			},
+			monPort:            msgr2OnlyMonPort,
+			expectDisableMsgr1: true,
+		},
+		{
+			name: "compression enabled disables msgr1",
+			connections: &cephv1.ConnectionsSpec{
+				Compression: &cephv1.CompressionSpec{Enabled: true},
+			},
+			monPort:            msgr2OnlyMonPort,
+			expectDisableMsgr1: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clientset := fake.NewClientset()
+			clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", CephVersion: cephver.Squid}
+			clusterInfo.SetName("testing")
+			clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+			if tc.monPort != 0 {
+				clusterInfo.InternalMonitors = map[string]*cephclient.MonInfo{
+					"a": cephclient.NewMonInfo("a", "10.0.0.1", tc.monPort),
+				}
+			}
+			ctx := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+			spec := cephv1.ClusterSpec{
+				Network: cephv1.NetworkSpec{Connections: tc.connections},
+			}
+			c := New(ctx, clusterInfo, spec, "rook/rook:myversion")
+			osdProps := osdProperties{
+				crushHostname: "node1",
+				devices:       []cephv1.Device{{Name: "vdb"}},
+				storeConfig:   config.StoreConfig{StoreType: "bluestore"},
+			}
+			osd := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vdb", CVMode: "raw", Store: "bluestore"}
+			cfg := &provisionConfig{DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, "/var/lib/rook")}
+
+			d, err := c.makeDeployment(osdProps, osd, cfg)
+			assert.NoError(t, err)
+			cont, err := findOSDContainer(d.Spec.Template.Spec.Containers)
+			assert.NoError(t, err)
+			if tc.expectDisableMsgr1 {
+				assert.Contains(t, cont.Args, "--ms-bind-msgr1=false")
+			} else {
+				assert.NotContains(t, cont.Args, "--ms-bind-msgr1=false")
+			}
+		})
+	}
+}
