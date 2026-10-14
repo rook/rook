@@ -106,7 +106,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephClient{}, &cephv1.CephClusterList{})
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephClient{}, &cephv1.CephClusterList{}, &v1.SecretList{})
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
@@ -152,7 +152,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			},
 		},
 	}
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &v1.SecretList{})
 
 	t.Run("error - no ceph cluster", func(t *testing.T) {
 		// Create pool for updating status
@@ -241,7 +241,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		}
 		c.Executor = executor
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{}, &v1.SecretList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
 			client:                 cl,
@@ -277,7 +277,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		cephCluster.Spec.External.Enable = true
 		csiOpClientProfile := &csiopv1.ClientProfile{}
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &csiopv1.ClientProfile{}, &v1.SecretList{})
 		objects := []runtime.Object{
 			cephBlockPoolRadosNamespace,
 			cephCluster,
@@ -350,7 +350,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		}
 		c.Executor = executor
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &v1.SecretList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
 			client:                 cl,
@@ -400,7 +400,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		}
 		c.Executor = executor
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &v1.SecretList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
 			client:                 cl,
@@ -454,7 +454,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		}
 		c.Executor = executor
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &v1.SecretList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
 			client:                 cl,
@@ -508,7 +508,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		}
 		c.Executor = executor
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &v1.SecretList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
 			client:                 cl,
@@ -564,7 +564,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		}
 		c.Executor = executor
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &v1.SecretList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
 			client:                 cl,
@@ -624,7 +624,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		}
 		c.Executor = executor
 
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &v1.SecretList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
 			client:                 cl,
