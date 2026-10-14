@@ -32,8 +32,11 @@ import (
 
 var (
 	logger         = capnslog.NewPackageLogger("github.com/rook/rook", "inventory")
-	isRBD          = regexp.MustCompile("^rbd[0-9]+p?[0-9]{0,}$")
 	listAllDevices = "all"
+
+	// rbd, nbd, and drbd devices are network-backed, so reading one can block while the storage
+	// behind it is unavailable, and zram is volatile RAM; none of them is offered for an OSD
+	isIgnoredDevice = regexp.MustCompile("^(rbd|nbd|drbd|zram)[0-9]+p?[0-9]{0,}$")
 
 	// We need to allow dm- devices (Kubernetes mountpoints) because dm- device names are used as names for meta devices
 	allowDeviceNamePattern = regexp.MustCompile("dm-")
@@ -56,7 +59,7 @@ func GetDeviceEmpty(device *sys.LocalDisk) bool {
 }
 
 func ignoreDevice(d string) bool {
-	return isRBD.MatchString(d)
+	return isIgnoredDevice.MatchString(d)
 }
 
 func DiscoverDevicesWithFilter(executor exec.Executor, deviceFilter, metaDevice string) ([]*sys.LocalDisk, error) {
@@ -67,10 +70,8 @@ func DiscoverDevicesWithFilter(executor exec.Executor, deviceFilter, metaDevice 
 	}
 
 	for _, d := range devices {
-		// Ignore RBD device
 		if ignoreDevice(d) {
-			// skip device
-			logger.Warningf("skipping rbd device %q", d)
+			logger.Warningf("skipping device %q: OSDs are not provisioned on rbd, nbd, drbd, or zram devices", d)
 			continue
 		}
 

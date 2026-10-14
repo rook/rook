@@ -55,14 +55,23 @@ func TestDeviceMatchWithFilter(t *testing.T) {
 
 func TestIgnoreDevice(t *testing.T) {
 	cases := map[string]bool{
-		"rbd0":    true,
-		"rbd2":    true,
-		"rbd9913": true,
-		"rbd32p1": true,
-		"rbd0a2":  false,
-		"rbd":     false,
-		"arbd0":   false,
-		"rbd0x":   false,
+		"rbd0":     true,
+		"rbd2":     true,
+		"rbd9913":  true,
+		"rbd32p1":  true,
+		"rbd0a2":   false,
+		"rbd":      false,
+		"arbd0":    false,
+		"rbd0x":    false,
+		"nbd0":     true,
+		"nbd15p1":  true,
+		"drbd0":    true,
+		"drbd1000": true,
+		"zram0":    true,
+		"nbd":      false,
+		"zram0x":   false,
+		"sda":      false,
+		"nvme0n1":  false,
 	}
 	for dev, expected := range cases {
 		assert.Equal(t, expected, ignoreDevice(dev), dev)
