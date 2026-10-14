@@ -773,6 +773,10 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 		}
 	}
 
+	if c.store.Spec.Gateway.Service != nil && c.store.Spec.Gateway.Service.TrafficDistribution != "" {
+		svc.Spec.TrafficDistribution = ptr.To(c.store.Spec.Gateway.Service.TrafficDistribution)
+	}
+
 	addPort(svc, "http", cephObjectStore.Spec.Gateway.Port, destPort.IntVal)
 	addPort(svc, "https", cephObjectStore.Spec.Gateway.SecurePort, cephObjectStore.Spec.Gateway.SecurePort)
 
