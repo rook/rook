@@ -1757,6 +1757,32 @@ func TestGenerateServiceLabels(t *testing.T) {
 	assert.Equal(t, "rook-ceph-rgw", svc.ObjectMeta.Labels["app"])
 }
 
+func TestGenerateServiceTrafficDistribution(t *testing.T) {
+	store := simpleStore()
+	c := &clusterConfig{
+		clusterInfo: clienttest.CreateTestClusterInfo(1),
+		store:       store,
+		clusterSpec: &cephv1.ClusterSpec{},
+	}
+
+	t.Run("unset", func(t *testing.T) {
+		svc := c.generateService(store)
+		assert.Nil(t, svc.Spec.TrafficDistribution)
+	})
+
+	t.Run("set", func(t *testing.T) {
+		store.Spec.Gateway.Service = &cephv1.RGWServiceSpec{
+			TrafficDistribution: v1.ServiceTrafficDistributionPreferSameNode,
+		}
+		svc := c.generateService(store)
+		if assert.NotNil(t, svc.Spec.TrafficDistribution) {
+			assert.Equal(t, v1.ServiceTrafficDistributionPreferSameNode, *svc.Spec.TrafficDistribution)
+		}
+		// the selector must survive alongside the traffic distribution
+		assert.Equal(t, "rook-ceph-rgw", svc.Spec.Selector["app"])
+	})
+}
+
 func TestServiceUniqueIDSupported(t *testing.T) {
 	tests := []struct {
 		name     string
