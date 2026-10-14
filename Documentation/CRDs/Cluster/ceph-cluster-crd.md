@@ -248,6 +248,9 @@ Configure the network that will be enabled for the cluster and services.
             set "mounter: rbd-nbd" in the rbd storage class, or "mounter: fuse" in the cephfs storage class.
             The nbd and fuse drivers are **not** recommended in production since restarting the csi driver pod will disconnect the volumes.
             If this setting is enabled, CephFS volumes also require setting `CSI_CEPHFS_KERNEL_MOUNT_OPTIONS` to `"ms_mode=secure"` in operator.yaml.
+            **WARNING**: When encryption is enabled, the mons only accept `secure` connections.
+            If any mons are still listening on the v1 port (6789), or any clients are still connected over msgr v1,
+            those connections and their volumes will be disconnected immediately.
     * `compression`:
         * `enabled`: Whether to compress the data in transit across the wire. The default is false.
             See the kernel requirements above for encryption.
