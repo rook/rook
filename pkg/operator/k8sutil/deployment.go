@@ -228,6 +228,10 @@ func WaitForDeploymentsToUpdate(
 	progressDeadlineSeconds *int32,
 	listFunc func() (*appsv1.DeploymentList, error),
 ) Failures {
+	if len(deploymentsUpdated) == 0 {
+		return Failures{}
+	}
+
 	// do not modify the input!
 	waitingOn := DeploymentsUpdated{}
 	maps.Copy(waitingOn, deploymentsUpdated)
