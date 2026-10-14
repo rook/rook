@@ -329,6 +329,7 @@ func TestWaitForDeploymentsToUpdate(t *testing.T) {
 		}
 		runTest()
 		assert.Len(t, failures, 0)
+		assert.Equal(t, 0, timesCalled)
 	})
 
 	t.Run("wait successful", func(t *testing.T) {

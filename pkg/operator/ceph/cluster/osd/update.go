@@ -218,12 +218,14 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		listIDs = append(listIDs, strconv.Itoa(osdID))
 	}
 
-	// when waiting on deployments to be updated, only list OSDs we intend to update specifically by ID
-	listFunc := c.cluster.getFuncToListDeploymentsWithIDs(listIDs)
+	if len(updatedDeployments) > 0 {
+		// when waiting on deployments to be updated, only list OSDs we intend to update specifically by ID
+		listFunc := c.cluster.getFuncToListDeploymentsWithIDs(listIDs)
 
-	failures := updateMultipleDeploymentsAndWaitFunc(c.cluster.clusterInfo.Context, c.cluster.context.Clientset, updatedDeployments, listFunc)
-	for _, f := range failures {
-		errs.addError("%v", errors.Wrapf(f.Error, "failed to update OSD deployment %q", f.ResourceName))
+		failures := updateMultipleDeploymentsAndWaitFunc(c.cluster.clusterInfo.Context, c.cluster.context.Clientset, updatedDeployments, listFunc)
+		for _, f := range failures {
+			errs.addError("%v", errors.Wrapf(f.Error, "failed to update OSD deployment %q", f.ResourceName))
+		}
 	}
 
 	// If there were failures, don't retry them. If it's a transitory k8s/etcd issue, the next
@@ -375,6 +377,11 @@ func (e *existenceList) Exists(osdID int) bool {
 
 // return a function that will list only OSD deployments with the IDs given
 func (c *Cluster) getFuncToListDeploymentsWithIDs(osdIDs []string) func() (*appsv1.DeploymentList, error) {
+	if len(osdIDs) == 0 {
+		return func() (*appsv1.DeploymentList, error) {
+			return &appsv1.DeploymentList{}, nil
+		}
+	}
 	selector := fmt.Sprintf("ceph-osd-id in (%s)", strings.Join(osdIDs, ", "))
 	listOpts := metav1.ListOptions{
 		LabelSelector: selector, // e.g. 'ceph-osd-id in (1, 3, 5, 7, 9)'

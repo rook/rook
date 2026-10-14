@@ -141,6 +141,8 @@ func Test_updateExistingOSDs(t *testing.T) {
 		deployments []*appsv1.Deployment,
 		listFunc func() (*appsv1.DeploymentList, error),
 	) k8sutil.Failures {
+		_, err := listFunc()
+		assert.NoError(t, err)
 		for _, d := range deployments {
 			deploymentsUpdated = append(deploymentsUpdated, d.Name)
 		}
@@ -1009,5 +1011,39 @@ func TestCluster_rotateCephxKey(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, cephv1.CephxStatus{KeyCephVersion: "19.2.6-0", KeyGeneration: 1}, cephxStatus)
 		assert.Equal(t, rotateCalledForEntity, "osd.2")
+	})
+}
+
+func Test_getFuncToListDeploymentsWithIDs(t *testing.T) {
+	namespace := "rook-ceph"
+	clientset := fake.NewClientset()
+	ctx := &clusterd.Context{
+		Clientset: clientset,
+	}
+	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   namespace,
+		CephVersion: cephver.Squid,
+		Context:     t.Context(),
+	}
+	clusterInfo.SetName("mycluster")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+	c := New(ctx, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+
+	d0 := getDummyDeploymentOnNode(clientset, c, "node0", 0)
+	createDeploymentOrPanic(clientset, d0)
+
+	t.Run("empty OSD IDs returns empty list without invalid selector error", func(t *testing.T) {
+		listFunc := c.getFuncToListDeploymentsWithIDs([]string{})
+		list, err := listFunc()
+		assert.NoError(t, err)
+		assert.Empty(t, list.Items)
+	})
+
+	t.Run("non-empty OSD IDs filters matching deployments", func(t *testing.T) {
+		listFunc := c.getFuncToListDeploymentsWithIDs([]string{"0"})
+		list, err := listFunc()
+		assert.NoError(t, err)
+		assert.Len(t, list.Items, 1)
+		assert.Equal(t, "rook-ceph-osd-0", list.Items[0].Name)
 	})
 }
