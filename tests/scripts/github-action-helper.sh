@@ -415,6 +415,19 @@ function load_rook_image_artifact() {
   done
 }
 
+# Load the prebuilt rook/ceph CI artifact into the nested podman store inside the microshift
+# container. CRI-O must see docker.io/rook/ceph:local-build or the operator ImagePullBackOffs.
+function load_rook_image_into_microshift() {
+  local image="docker.io/rook/ceph:local-build"
+  zstd -dc _output/ci-image/rook-image.tar.zst | docker load
+  docker save "${image}" | docker exec -i microshift podman load
+  if ! docker exec microshift podman image exists "${image}" 2>/dev/null; then
+    docker exec microshift podman tag rook/ceph:local-build "${image}"
+  fi
+  docker exec microshift podman image exists "${image}"
+  docker exec microshift crictl images | grep -F 'rook/ceph'
+}
+
 function add_host_routes_to_cluster() {
   # kind runs the cluster inside a docker network, so route the Service and pod CIDRs to the kind
   # node so host-side tests (the `go test` process runs on the runner; e.g. an S3 PutObject to the
@@ -1106,17 +1119,23 @@ function create_operator_toolbox() {
   kubectl create -f toolbox-operator-image.yaml
 }
 
+# Pass "skip_plugin_restart" to skip deleting the CSI node pod. Use that for rbd-nbd tests only;
+# restarting the node pod is fine when the mounter is krbd.
 function test_csi_rbd_workload {
+  local skip_plugin_restart="${1:-}"
   cd "${REPO_DIR}/deploy/examples/csi/rbd"
   sed -i 's|size: 3|size: 1|g' storageclass.yaml
   sed -i 's|requireSafeReplicaSize: true|requireSafeReplicaSize: false|g' storageclass.yaml
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
+  kubectl wait pvc/rbd-pvc --for=jsonpath='{.status.phase}'=Bound --timeout=90s
   kubectl create -f pod.yaml
   timeout 90 sh -c 'until kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
   kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
   kubectl -n rook-ceph logs ds/rook-ceph.rbd.csi.ceph.com-nodeplugin -c csi-rbdplugin
-  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=rook-ceph.rbd.csi.ceph.com-nodeplugin --field-selector=status.phase=Running -o name)"
+  if [[ "$skip_plugin_restart" != "skip_plugin_restart" ]]; then
+    kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=rook-ceph.rbd.csi.ceph.com-nodeplugin --field-selector=status.phase=Running -o name)"
+  fi
   kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
   kubectl exec -t pod/csirbd-demo-pod -- ls -alh /var/lib/www/html/
 }
@@ -1125,6 +1144,7 @@ function test_csi_cephfs_workload {
   cd "${REPO_DIR}/deploy/examples/csi/cephfs"
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
+  kubectl wait pvc/cephfs-pvc --for=jsonpath='{.status.phase}'=Bound --timeout=90s
   kubectl create -f pod.yaml
   timeout 90 sh -c 'until kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
   kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
@@ -1387,6 +1407,39 @@ EOF
     auth="$(kubectl -n rook-ceph exec "$toolbox" -- ceph auth dump-keys --format=json-pretty)"
     echo "$auth" | jq # show output for debugging
   } || true
+}
+
+# Start MicroShift in docker using MINC's image, but with host /dev and /lib/modules mounted.
+# MINC does not pass those through, and you cannot add volumes to a container after create,
+# so we start it ourselves with the same ports/hostname MINC uses. Tag matches MINC's default image.
+function start_microshift() {
+  local image="quay.io/minc-org/minc:4.19.0-okd-scos.17-amd64"
+  docker pull "$image"
+  docker create \
+    --hostname 127.0.0.1.nip.io \
+    --label "io.x-openshift.microshift.cluster=microshift" \
+    -it --privileged \
+    -p 127.0.0.1:9080:80 \
+    -p 127.0.0.1:9443:443 \
+    -p 127.0.0.1:6443:6443 \
+    --volume /dev:/dev \
+    --volume "/lib/modules:/lib/modules:ro" \
+    --volume minc-container-storage:/host-container \
+    --name microshift \
+    "$image"
+  docker start microshift
+  timeout 360 bash -c 'until docker exec microshift systemctl is-active microshift 2>/dev/null; do sleep 5; done'
+  mkdir -p "$HOME/.kube"
+  timeout 120 bash -c '
+    until docker exec microshift \
+      cat /var/lib/microshift/resources/kubeadmin/127.0.0.1.nip.io/kubeconfig \
+      >"$HOME/.kube/config" 2>/dev/null && [ -s "$HOME/.kube/config" ]; do
+      sleep 5
+    done'
+  chmod 600 "$HOME/.kube/config"
+  kubectl wait --for=condition=Ready node --all --timeout=300s
+  kubectl get nodes -o wide
+  kubectl get pods -A -o wide
 }
 
 FUNCTION="$1"
