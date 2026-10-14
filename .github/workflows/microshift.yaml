@@ -1,0 +1,153 @@
+name: MicroShift integration test
+on:
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  microshift:
+    runs-on: ubuntu-22.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    timeout-minutes: 90
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: true
+          large-packages: false
+          android: false
+          dotnet: false
+          haskell: false
+
+      - name: setup golang
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26"
+
+      # Install OpenShift CLI (oc) and MINC CLI
+      - name: install OpenShift CLI (oc)
+        run: |
+          curl -sLO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
+          tar -xzf openshift-client-linux.tar.gz oc
+          sudo mv oc /usr/local/bin/
+          rm -f openshift-client-linux.tar.gz
+          oc version --client
+
+      - name: install MINC CLI
+        run: |
+          curl -LsSf -o minc https://github.com/minc-org/minc/releases/latest/download/minc_linux_amd64
+          chmod +x minc
+          sudo mv minc /usr/local/bin/
+          minc version || minc --version || true
+
+      # Load rbd kernel module
+      - name: load rbd kernel module
+        run: |
+          sudo apt-get install -y -qq "linux-modules-extra-$(uname -r)" || sudo apt-get install -y -qq linux-modules-extra-azure || true
+          sudo modprobe rbd
+
+      # Create iSCSI disks for OSDs
+      - name: create iSCSI disks for OSDs
+        run: |
+          tests/scripts/github-action-helper.sh create_extra_disk 3
+          sudo lsblk
+
+      # Start MicroShift cluster
+      - name: start MicroShift cluster
+        run: |
+          sudo minc create
+
+          mkdir -p "$HOME/.kube"
+          sudo cp /root/.kube/config "$HOME/.kube/config"
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/.kube"
+
+          oc wait --for=condition=Ready node --all --timeout=300s
+          oc get nodes -o wide
+          oc get pods -A -o wide
+
+      # Build Rook
+      - name: build rook
+        run: |
+          GOPATH=$(go env GOPATH) make clean
+          make -j4 build
+          docker images
+
+      - name: load rook image into MicroShift
+        run: |
+          BUILD_IMAGE="$(docker images --format '{{.Repository}}' | grep 'build-' | head -1)"
+          docker tag "${BUILD_IMAGE}" docker.io/rook/ceph:local-build
+          docker save docker.io/rook/ceph:local-build | \
+            sudo podman exec -i microshift podman load
+
+      # Deploy Rook on MicroShift
+      - name: deploy rook operator
+        run: |
+          cd deploy/examples
+          sed -i 's|image: .*rook/ceph:.*|image: docker.io/rook/ceph:local-build|g' operator-openshift.yaml
+          oc create -f crds.yaml -f common.yaml
+          oc create -f csi-operator.yaml
+          oc create -f operator-openshift.yaml
+
+      - name: wait for operator to be ready
+        run: |
+          oc -n rook-ceph wait --for=condition=available deployment/rook-ceph-operator --timeout=300s
+          oc -n rook-ceph get pods
+
+      - name: install deps
+        run: tests/scripts/github-action-helper.sh install_deps
+
+      - name: deploy ceph cluster
+        run: |
+          oc create -f deploy/examples/cluster-test.yaml
+          tests/scripts/github-action-helper.sh deploy_toolbox
+
+      - name: wait for prepare pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 3
+
+      - name: wait for ceph to be ready
+        env:
+          CSI_POD_MIN_COUNT: "4"
+        run: |
+          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 3
+
+      - name: verify ceph health ok
+        run: |
+          TOOLBOX="$(oc -n rook-ceph get pod -l app=rook-ceph-tools -o jsonpath='{.items[0].metadata.name}')"
+          oc -n rook-ceph exec "${TOOLBOX}" -- ceph status
+          oc -n rook-ceph exec "${TOOLBOX}" -- ceph health | grep -q HEALTH_OK
+
+      # Log collection
+      - name: collect MicroShift logs
+        if: always()
+        run: |
+          mkdir -p test
+          sudo podman logs microshift 2>&1 | tee test/microshift.log || true
+
+      - name: collect common logs
+        if: always()
+        uses: ./.github/workflows/collect-logs
+        with:
+          name: microshift-test
