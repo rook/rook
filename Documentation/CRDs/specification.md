@@ -14553,6 +14553,18 @@ Labels
 <p>The labels-related configuration to add/set on each rgw service.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>trafficDistribution</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The trafficDistribution to set on each rgw service.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.RadosNamespaceMirroring">RadosNamespaceMirroring
