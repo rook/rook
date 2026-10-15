@@ -1197,9 +1197,9 @@ EOF
 
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
-  if ! kubectl wait pvc/nvmeof-external-volume --for=jsonpath='{.status.phase}'=Bound --timeout=300s; then
-    echo "PVC nvmeof-external-volume did not reach Bound; collecting diagnostics..."
-    kubectl describe pvc nvmeof-external-volume || true
+  if ! kubectl wait pvc/nvmeof-volume --for=jsonpath='{.status.phase}'=Bound --timeout=300s; then
+    echo "PVC nvmeof-volume did not reach Bound; collecting diagnostics..."
+    kubectl describe pvc nvmeof-volume || true
     kubectl get events -n default --sort-by=.metadata.creationTimestamp | tail -n 50 || true
     kubectl -n rook-ceph logs -l "app.kubernetes.io/part-of=rook-ceph.nvmeof.csi.ceph.com" --tail=200 || true
     return 1
