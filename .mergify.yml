@@ -222,7 +222,6 @@ pull_request_rules:
       - "check-success=helm-unittests"
       - "check-success=lint"
       - "check-success=lint-test"
-      - "check-success=linux-build-all (1.25)"
       - "check-success=linux-build-all (1.26)"
       - "check-success=misspell"
       - "check-success=modcheck"
