@@ -187,7 +187,9 @@ func CreateUser(c *Context, user ObjectUser, force bool) (*ObjectUser, int, erro
 // It is called from the rgw dashboard setup logic.
 func CreateOrRecreateUserIfExists(c *Context, user ObjectUser, force bool) (*ObjectUser, int, error) {
 	objUser, errCode, err := CreateUser(c, user, force)
-	if err != nil || (errCode != ErrorCodeFileExists && errCode != RGWErrorNone) {
+	// CreateUser reports an existing user as ErrorCodeFileExists along with an error, so the code
+	// has to be checked first or the user is never re-created.
+	if errCode != ErrorCodeFileExists && (err != nil || errCode != RGWErrorNone) {
 		return nil, errCode, err
 	}
 
