@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"unicode"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -1077,6 +1078,26 @@ func GetObjectBucketProvisioner(namespace string) (string, error) {
 	return provName, nil
 }
 
+// isUsableDashboardCredential returns true if value can be used as an RGW access or secret key.
+//
+// The dashboard declares RGW_API_ACCESS_KEY and RGW_API_SECRET_KEY with the allowed types
+// [dict, str], and its own configure_rgw_credentials() replaces them with json.dumps({realm:
+// key}) whenever they are empty and at least one realm exists. Reading a setting back runs it
+// through literal_eval(), so `ceph dashboard get-rgw-api-access-key` then prints a Python dict
+// such as {'store-a': 'VFKF8SSU9L3L2UR03Z8C'}. That map is a per-realm index of the dashboard's
+// own "dashboard" user, not a credential, and RGW rejects it with InvalidAccessKeyId when it is
+// used as one.
+func isUsableDashboardCredential(value string) bool {
+	if value == "" {
+		return false
+	}
+	if strings.HasPrefix(value, "{") {
+		return false
+	}
+	// A credential is a single opaque token, so anything carrying whitespace is not one.
+	return !strings.ContainsFunc(value, unicode.IsSpace)
+}
+
 // checkDashboardUser returns true if the dashboard user exists and has the same credentials as the given user, else returns false
 func checkDashboardUser(context *Context, user ObjectUser) (bool, error) {
 	dUser, errId, err := GetUser(context, DashboardUser)
@@ -1084,6 +1105,13 @@ func checkDashboardUser(context *Context, user ObjectUser) (bool, error) {
 	// If not found or "none" error, all is good to not return the error
 	switch errId {
 	case RGWErrorNone:
+		// Recreate a user whose stored keys are not credentials at all. Operators without the
+		// check in retrieveDashboardAPICredentials copied the dashboard's per-realm credential
+		// map into them, which leaves the store's dashboard permanently returning 403.
+		if !isUsableDashboardCredential(*dUser.AccessKey) || !isUsableDashboardCredential(*dUser.SecretKey) {
+			log.NamedInfo(context.NsName(), logger, "user %q holds keys that are not valid credentials, recreating it", DashboardUser)
+			return false, nil
+		}
 		// If the access key or secret key is not the same as the given user, return false
 		if user.AccessKey != nil && *user.AccessKey != *dUser.AccessKey {
 			return false, nil
@@ -1098,36 +1126,44 @@ func checkDashboardUser(context *Context, user ObjectUser) (bool, error) {
 	return false, err
 }
 
-// retrieveDashboardAPICredentials retrieves the dashboard's access and secret keys and sets them on the given ObjectUser
-func retrieveDashboardAPICredentials(context *Context, user *ObjectUser) error {
+// retrieveDashboardAPICredentials retrieves the dashboard's access and secret keys and sets them
+// on the given ObjectUser. It returns true when the dashboard is publishing a usable credential
+// pair, which the caller reuses so that every object store's dashboard user shares one pair.
+func retrieveDashboardAPICredentials(context *Context, user *ObjectUser) (bool, error) {
 	args := []string{"dashboard", "get-rgw-api-access-key"}
 	cephCmd := cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
 	out, err := cephCmd.Run()
 	if err != nil {
-		return err
+		return false, err
 	}
-
-	if string(out) != "" {
-		accessKey := string(out)
-		user.AccessKey = &accessKey
-	}
+	accessKey := strings.TrimSpace(string(out))
 
 	args = []string{"dashboard", "get-rgw-api-secret-key"}
 	cephCmd = cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
 	out, err = cephCmd.Run()
 	if err != nil {
-		return err
+		return false, err
+	}
+	secretKey := strings.TrimSpace(string(out))
+
+	// Both keys are adopted together or not at all. Creating the user with only one of them
+	// lets RGW generate the other, which would no longer match what the dashboard publishes.
+	if !isUsableDashboardCredential(accessKey) || !isUsableDashboardCredential(secretKey) {
+		if accessKey != "" || secretKey != "" {
+			log.NamedInfo(context.NsName(), logger, "dashboard rgw credentials are not a usable key pair, generating a new one for user %q", DashboardUser)
+		}
+		return false, nil
 	}
 
-	if string(out) != "" {
-		secretKey := string(out)
-		user.SecretKey = &secretKey
-	}
+	user.AccessKey = &accessKey
+	user.SecretKey = &secretKey
 
-	return nil
+	return true, nil
 }
 
-func getDashboardUser(context *Context) (ObjectUser, error) {
+// getDashboardUser returns the dashboard user for this object store, along with whether the
+// dashboard already publishes that user's credentials.
+func getDashboardUser(context *Context) (ObjectUser, bool, error) {
 	user := ObjectUser{
 		UserID:      DashboardUser,
 		DisplayName: &DashboardUser,
@@ -1135,17 +1171,18 @@ func getDashboardUser(context *Context) (ObjectUser, error) {
 	}
 
 	// Retrieve RGW Dashboard credentials if some are already set
-	if err := retrieveDashboardAPICredentials(context, &user); err != nil {
-		return user, errors.Wrapf(err, "failed to retrieve RGW Dashboard credentials for %q user", DashboardUser)
+	credentialsPublished, err := retrieveDashboardAPICredentials(context, &user)
+	if err != nil {
+		return user, false, errors.Wrapf(err, "failed to retrieve RGW Dashboard credentials for %q user", DashboardUser)
 	}
 
-	return user, nil
+	return user, credentialsPublished, nil
 }
 
 func enableRGWDashboard(context *Context) error {
 	log.NamedInfo(context.NsName(), logger, "enabling rgw dashboard")
 
-	user, err := getDashboardUser(context)
+	user, credentialsPublished, err := getDashboardUser(context)
 	if err != nil {
 		log.NamedDebug(context.NsName(), logger, "failed to get current dashboard user")
 		return err
@@ -1156,20 +1193,36 @@ func enableRGWDashboard(context *Context) error {
 		log.NamedDebug(context.NsName(), logger, "Unable to fetch dashboard user key for RGW, hence skipping")
 		return nil
 	}
-	if checkDashboard {
+	// A matching user is only enough once the dashboard publishes that user's credentials. While
+	// it publishes no usable pair the keys are set below, otherwise the dashboard is left to fill
+	// the gap itself with a per-realm map of its own user, which this object store does not own.
+	if checkDashboard && credentialsPublished {
 		log.NamedDebug(context.NsName(), logger, "RGW Dashboard is already enabled")
 		return nil
 	}
 
-	// TODO:
-	// Use admin ops user instead!
-	// It's safe to create the user with the force flag regardless if the cluster's dashboard is
-	// configured as a secondary rgw site. The creation will return the user already exists and we
-	// will just fetch it (it has been created by the primary cluster)
-	u, errCode, err := CreateOrRecreateUserIfExists(context, user, true)
-	if err != nil || errCode != RGWErrorNone {
-		// Handle already exists ErrorCodeFileExists
-		return errors.Wrapf(err, "failed to create/ re-create user %q", DashboardUser)
+	var u *ObjectUser
+	if checkDashboard {
+		// The user is already usable, so publish the keys it has rather than rolling new ones.
+		// Recreating it here would invalidate every other object store sharing this pair.
+		log.NamedInfo(context.NsName(), logger, "publishing the existing %q credentials to the dashboard", DashboardUser)
+		var errCode int
+		u, errCode, err = GetUser(context, DashboardUser)
+		if err != nil || errCode != RGWErrorNone {
+			return errors.Wrapf(err, "failed to get user %q", DashboardUser)
+		}
+	} else {
+		// TODO:
+		// Use admin ops user instead!
+		// It's safe to create the user with the force flag regardless if the cluster's dashboard is
+		// configured as a secondary rgw site. The creation will return the user already exists and we
+		// will just fetch it (it has been created by the primary cluster)
+		var errCode int
+		u, errCode, err = CreateOrRecreateUserIfExists(context, user, true)
+		if err != nil || errCode != RGWErrorNone {
+			// Handle already exists ErrorCodeFileExists
+			return errors.Wrapf(err, "failed to create/ re-create user %q", DashboardUser)
+		}
 	}
 
 	var accessArgs, secretArgs []string
