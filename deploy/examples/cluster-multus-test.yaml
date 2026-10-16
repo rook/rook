@@ -30,7 +30,7 @@ spec:
   network:
     provider: multus
     selectors:
-      public: public-net
+      # public: public-net
       cluster: cluster-net
   crashCollector:
     disable: true
