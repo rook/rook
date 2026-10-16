@@ -19,9 +19,12 @@ package k8sutil
 
 import (
 	"testing"
+	"time"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestGetServiceMonitor(t *testing.T) {
@@ -40,4 +43,48 @@ func TestGetServiceMonitor(t *testing.T) {
 	assert.NotNil(t, servicemonitor.Spec.Endpoints)
 	assert.Equal(t, "cluster", servicemonitor.Spec.Endpoints[0].RelabelConfigs[0].TargetLabel)
 	assert.Equal(t, namespace, *servicemonitor.Spec.Endpoints[0].RelabelConfigs[0].Replacement)
+}
+
+func TestApplyMonitoringTiming(t *testing.T) {
+	newServiceMonitor := func() *monitoringv1.ServiceMonitor {
+		return &monitoringv1.ServiceMonitor{Spec: monitoringv1.ServiceMonitorSpec{
+			Endpoints: []monitoringv1.Endpoint{{}},
+		}}
+	}
+
+	t.Run("both unset leaves Prometheus defaults in place", func(t *testing.T) {
+		sm := newServiceMonitor()
+		ApplyMonitoringTiming(cephv1.MonitoringSpec{}, sm)
+		assert.Empty(t, sm.Spec.Endpoints[0].Interval)
+		assert.Empty(t, sm.Spec.Endpoints[0].ScrapeTimeout)
+	})
+
+	t.Run("interval and scrape timeout are both applied", func(t *testing.T) {
+		monitoring := cephv1.MonitoringSpec{
+			Interval:             &metav1.Duration{Duration: 60 * time.Second},
+			ScrapeTimeoutSeconds: 30,
+		}
+
+		sm := newServiceMonitor()
+		ApplyMonitoringTiming(monitoring, sm)
+		assert.Equal(t, monitoringv1.Duration("1m0s"), sm.Spec.Endpoints[0].Interval)
+		assert.Equal(t, monitoringv1.Duration("30s"), sm.Spec.Endpoints[0].ScrapeTimeout)
+	})
+
+	t.Run("scrape timeout is independent of interval", func(t *testing.T) {
+		monitoring := cephv1.MonitoringSpec{ScrapeTimeoutSeconds: 15}
+
+		sm := newServiceMonitor()
+		ApplyMonitoringTiming(monitoring, sm)
+		assert.Empty(t, sm.Spec.Endpoints[0].Interval)
+		assert.Equal(t, monitoringv1.Duration("15s"), sm.Spec.Endpoints[0].ScrapeTimeout)
+	})
+
+	t.Run("a ServiceMonitor with no endpoints is left alone", func(t *testing.T) {
+		monitoring := cephv1.MonitoringSpec{ScrapeTimeoutSeconds: 15}
+
+		sm := &monitoringv1.ServiceMonitor{}
+		ApplyMonitoringTiming(monitoring, sm)
+		assert.Empty(t, sm.Spec.Endpoints)
+	})
 }
