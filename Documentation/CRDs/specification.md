@@ -5413,7 +5413,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>WipeDevicesFromOtherClusters wipes the OSD disks belonging to other clusters. This is useful in scenarios where ceph cluster
+<p>WipeDevicesFromOtherClusters wipes the OSD disks belonging to other clusters or incomplete/unprovisioned
+encrypted devices missing ceph_fsid on PVC-backed storage. This is useful in scenarios where ceph cluster
 was reinstalled but OSD disk still contains the metadata from previous ceph cluster.</p>
 </td>
 </tr>
