@@ -33,7 +33,7 @@ import (
 )
 
 // updateStatus updates a pool CR with the given status
-func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64, cephx *cephv1.CephxStatus) error {
+func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, message string, observedGeneration int64, cephx *cephv1.CephxStatus) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		pool := &cephv1.CephBlockPool{}
 		err := r.client.Get(r.opManagerContext, poolName, pool)
@@ -56,6 +56,7 @@ func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, sta
 		}
 
 		pool.Status.Phase = status
+		pool.Status.Message = message
 		updateStatusInfo(pool)
 		if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 			pool.Status.ObservedGeneration = observedGeneration
