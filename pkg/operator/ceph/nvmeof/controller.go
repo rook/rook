@@ -188,7 +188,7 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 
 	if cephNVMeOFGateway.Status == nil {
 		cephxUninitialized := keyring.UninitializedCephxStatus()
-		err := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, &cephxUninitialized, k8sutil.EmptyStatus)
+		err := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, &cephxUninitialized, k8sutil.EmptyStatus, "Initializing NVMe-oF gateway")
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, *cephNVMeOFGateway, errors.Wrapf(err, "failed set empty status")
 		}
@@ -284,7 +284,7 @@ func (r *ReconcileCephNVMeOFGateway) reconcile(request reconcile.Request) (recon
 
 	keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
 	cephxStatus := keyring.UpdatedCephxStatus(r.shouldRotateCephxKeys, cephCluster.Spec.Security.CephX.Daemon, r.clusterInfo.CephVersion, cephNVMeOFGateway.Status.Cephx.Daemon, keyType)
-	err = r.updateStatus(observedGeneration, request.NamespacedName, &cephxStatus, k8sutil.ReadyStatus)
+	err = r.updateStatus(observedGeneration, request.NamespacedName, &cephxStatus, k8sutil.ReadyStatus, "NVMe-oF gateway configured successfully")
 	if err != nil {
 		logger.Errorf("failed to update status: %v", err)
 		return opcontroller.ImmediateRetryResult, *cephNVMeOFGateway, errors.Wrapf(err, "failed to update status")
@@ -611,7 +611,7 @@ func (r *ReconcileCephNVMeOFGateway) ensureNVMeOFMetadataPoolReady() error {
 	return nil
 }
 
-func (r *ReconcileCephNVMeOFGateway) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, cephxStatus *cephv1.CephxStatus, status string) error {
+func (r *ReconcileCephNVMeOFGateway) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, cephxStatus *cephv1.CephxStatus, status string, message string) error {
 	nvmeof := &cephv1.CephNVMeOFGateway{}
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -629,6 +629,7 @@ func (r *ReconcileCephNVMeOFGateway) updateStatus(observedGeneration int64, name
 		}
 
 		nvmeof.Status.Phase = status
+		nvmeof.Status.Message = message
 
 		if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 			nvmeof.Status.ObservedGeneration = observedGeneration
