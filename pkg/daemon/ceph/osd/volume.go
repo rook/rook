@@ -18,6 +18,7 @@ package osd
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -234,14 +235,8 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume raw")
 	}
 
-	// "ceph-volume raw list" without a device argument can miss freshly prepared OSDs.
-	// On Ceph v20.2.0/v20.2.1, get_devices() enumerates via udev data under /run/udev/data
-	// and returns nothing when that data is empty or not yet populated
-	// (https://tracker.ceph.com/issues/77968). On every released v20.2.x, a sub-4KiB block
-	// device in the scan (e.g. an MBR extended-partition node) crashes the batched
-	// ceph-bluestore-tool call behind the listing, which ceph-volume reports as an empty
-	// result (https://tracker.ceph.com/issues/76354). Either way the listing comes back
-	// empty or incomplete even though the OSD exists. Without this check the prepare job
+	// The node-wide listing skips any device whose own "ceph-volume raw list" call fails, so a
+	// freshly prepared OSD can still be missing from it. Without this check the prepare job
 	// would silently report fewer OSDs than it just prepared and the operator would never
 	// create the missing OSD deployments.
 	if !isEncrypted {
@@ -256,10 +251,9 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 }
 
 // ensurePreparedDevicesListed verifies that every device that was just prepared in raw mode is
-// represented in the OSD list reported by "ceph-volume raw list". Any prepared device missing
-// from the results is listed individually ("ceph-volume raw list <device>"), which is immune to
-// the failure modes that can blank the no-argument listing. If a prepared device still yields no OSD,
-// an error is returned so the prepare job exits non-zero and Kubernetes restarts it with a
+// represented in the OSD list reported for the node. Any prepared device missing from the results
+// is listed again on its own ("ceph-volume raw list <device>"). If a prepared device still yields
+// no OSD, an error is returned so the prepare job exits non-zero and Kubernetes restarts it with a
 // freshly re-scanned environment, rather than silently under-reporting the OSDs on the node.
 func ensurePreparedDevicesListed(context *clusterd.Context, clusterInfo *client.ClusterInfo, osds []oposd.OSDInfo, preparedDevices []string, devices []DesiredDevice) ([]oposd.OSDInfo, error) {
 	for _, device := range preparedDevices {
@@ -1077,17 +1071,9 @@ func unmountDevice(context *clusterd.Context, devicePath string) error {
 // WipeDevicesFromOtherClusters wipes the OSD backed disks if they have metadata from a different ceph cluster.
 // The wiped disks can then be used to prepare OSDs for the current ceph cluster.
 func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error {
-	args := []string{"raw", "list", "--format", "json"}
-
-	result, err := callCephVolume(context, args...)
+	existingOSDs, err := rawListOSDsPerDevice(context)
 	if err != nil {
 		return errors.Wrapf(err, "failed to retrieve ceph-volume raw list results")
-	}
-
-	var existingOSDs map[string]osdInfoBlock
-	err = json.Unmarshal([]byte(result), &existingOSDs)
-	if err != nil {
-		return errors.Wrapf(err, "failed to unmarshal ceph-volume raw list results")
 	}
 
 	if len(existingOSDs) == 0 {
@@ -1173,8 +1159,18 @@ func wipeEncryptedDevicesFromOtherClusters(context *clusterd.Context, currentClu
 func getOSDDiskToBeWiped(context *clusterd.Context, existingOSDDevice string) (*sys.LocalDisk, string, error) {
 	var err error
 	var encryptedBlock string
-	// encrypted OSDs have /dev/mapper/* entries. Find the real device path in case of encrypted OSDs
+	// encrypted OSDs have /dev/mapper/* entries. Find the real device path in case of encrypted OSDs.
+	// Other device-mapper targets, such as an LV holding a raw OSD, are listed under /dev/mapper too
+	// and are matched as they are.
+	isCrypt := false
 	if strings.Contains(existingOSDDevice, "mapper") {
+		isCrypt, err = sys.IsDeviceEncrypted(context.Executor, existingOSDDevice)
+		if err != nil {
+			logger.Warningf("failed to get the device type of %q: %q", existingOSDDevice, err)
+			return nil, "", nil
+		}
+	}
+	if isCrypt {
 		encryptedBlock = existingOSDDevice
 		existingOSDDevice, err = GetBackingDeviceForEncryptedBlock(context, existingOSDDevice)
 		if err != nil {
@@ -1186,9 +1182,8 @@ func getOSDDiskToBeWiped(context *clusterd.Context, existingOSDDevice string) (*
 
 	var osdDisk *sys.LocalDisk
 	for _, desiredDevice := range context.Devices {
-		// Also check DevLinks since ceph-volume may report a symlink path
-		// (e.g. /dev/rhel/ceph-data) that differs from RealPath
-		// (e.g. /dev/mapper/rhel-ceph--data)
+		// Also check DevLinks so the device matches under any of its aliases (e.g. /dev/rhel/ceph-data
+		// for an LV whose RealPath is /dev/mapper/rhel-ceph--data)
 		if desiredDevice.RealPath == existingOSDDevice || slices.Contains(strings.Split(desiredDevice.DevLinks, " "), existingOSDDevice) {
 			osdDisk = desiredDevice
 			break
@@ -1433,22 +1428,30 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 		}
 	}
 
-	args := []string{cvMode, "list", block, "--format", "json"}
-	if block == "" {
-		setDevicePathFromList = true
-		args = []string{cvMode, "list", "--format", "json"}
-	}
-
-	result, err := callCephVolume(context, args...)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
-	}
-
 	var osds []oposd.OSDInfo
 	var cephVolumeResult map[string]osdInfoBlock
-	err = json.Unmarshal([]byte(result), &cephVolumeResult)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal ceph-volume %s list results", cvMode)
+	var err error
+	if block == "" {
+		// From Ceph v19.2.3, a no-argument "ceph-volume raw list" batches ceph-bluestore-tool
+		// show-label across every block device, and that batched call fails two ways: when it
+		// exits non-zero ceph-volume reports the whole listing as "{}" with a zero exit code (on
+		// Tentacle and Umbrella a sub-4KiB device such as an MBR extended-partition node crashes
+		// it, https://tracker.ceph.com/issues/76354, rook #17992), and on a many-device node its
+		// stderr can overflow the pipe buffer and deadlock ceph-volume. List each device individually
+		// instead: one small call per device avoids both, and one bad device cannot hide the rest.
+		setDevicePathFromList = true
+		cephVolumeResult, err = rawListOSDsPerDevice(context)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
+		}
+	} else {
+		result, err := callCephVolume(context, cvMode, "list", block, "--format", "json")
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
+		}
+		if err := json.Unmarshal([]byte(result), &cephVolumeResult); err != nil {
+			return nil, errors.Wrapf(err, "failed to unmarshal ceph-volume %s list results", cvMode)
+		}
 	}
 
 	for _, osdInfo := range cephVolumeResult {
@@ -1600,6 +1603,127 @@ func redactCephVolumeOutput(output string) string {
 	output = lockboxSecretTagRegex.ReplaceAllString(output, "${1}*****${2}")
 
 	return lockboxSecretLVTagRegex.ReplaceAllString(output, "${1}*****")
+}
+
+// listNodeScanDevices returns the block device paths to scan when listing OSDs across the whole
+// node. It keeps the device types Rook provisions OSDs on: disks, their partitions, loop devices
+// (OSDs on loop devices are supported for CI and local testing), md linear arrays, and the
+// device-mapper types a raw OSD can be reported through once opened: dmcrypt-encrypted OSDs
+// (crypt), OSDs reported through an LVM device path (lvm), and multipath LUNs (mpath). Missing
+// the mapper types would silently drop encrypted and mapped raw OSDs from cluster cleanup
+// (leaving their disks un-sanitized) and from OSD-by-id lookup. It excludes network-backed devices
+// (rbd, nbd, drbd), whose reads can block in uninterruptible sleep while the storage behind them is
+// unavailable, and volatile RAM (zram). An OSD on one of those is therefore not found here; device
+// discovery already refuses rbd, but nothing prevents an OSD on the others.
+func listNodeScanDevices(context *clusterd.Context) ([]string, error) {
+	output, err := context.Executor.ExecuteCommandWithOutput(
+		"lsblk", "--noheadings", "--paths", "--list", "--output", "NAME,TYPE")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list node block devices")
+	}
+
+	scannableTypes := map[string]bool{
+		sys.DiskType:   true,
+		sys.PartType:   true,
+		sys.LoopType:   true,
+		sys.CryptType:  true,
+		sys.LVMType:    true,
+		sys.MultiPath:  true,
+		sys.LinearType: true,
+	}
+	excludedPrefixes := []string{"/dev/rbd", "/dev/nbd", "/dev/zram", "/dev/drbd"}
+	var devices []string
+	for line := range strings.SplitSeq(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		name, deviceType := fields[0], fields[1]
+		if !scannableTypes[deviceType] {
+			continue
+		}
+		if slices.ContainsFunc(excludedPrefixes, func(prefix string) bool { return strings.HasPrefix(name, prefix) }) {
+			continue
+		}
+		devices = append(devices, name)
+	}
+
+	return devices, nil
+}
+
+// rawListOSDsPerDevice runs "ceph-volume raw list <device>" against each block device on the node
+// and merges the results, keyed by OSD UUID as the raw-list output is. From Ceph v19.2.3 the
+// no-argument "ceph-volume raw list" batches ceph-bluestore-tool show-label across every device,
+// which fails two ways: a non-zero exit from the batch is reported as an empty "{}" listing with a
+// zero exit code (on Tentacle and Umbrella a sub-4KiB device crashes it,
+// https://tracker.ceph.com/issues/76354, rook #17992), and a many-device node can overflow the
+// stderr pipe buffer and deadlock ceph-volume. Listing per device is immune to both; a device that
+// fails to list is logged and skipped so one bad device cannot hide the OSDs on the others.
+func rawListOSDsPerDevice(context *clusterd.Context) (map[string]osdInfoBlock, error) {
+	devices, err := listNodeScanDevices(context)
+	if err != nil {
+		return nil, err
+	}
+
+	mergedOSDs := map[string]osdInfoBlock{}
+	metadataDevices := map[string]osdInfoBlock{}
+	failures := 0
+	for _, device := range devices {
+		result, err := callCephVolume(context, "raw", "list", device, "--format", "json")
+		if err != nil {
+			failures++
+			logger.Warningf("skipping device %q that could not be listed with ceph-volume raw list: %v", device, err)
+			continue
+		}
+
+		deviceOSDs := map[string]osdInfoBlock{}
+		if err := json.Unmarshal([]byte(result), &deviceOSDs); err != nil {
+			failures++
+			logger.Warningf("skipping device %q with unparsable ceph-volume raw list output: %v", device, err)
+			continue
+		}
+
+		for osdUUID, osdInfo := range deviceOSDs {
+			// Scanning a bluefs db or wal member (rather than the OSD's main block device) yields
+			// a partial record - osd_uuid plus device_db or device_wal, with an empty device and
+			// ceph_fsid - under the same osd_uuid key as the real block entry. Hold these apart so
+			// a partial record can never overwrite or masquerade as a real OSD (an empty ceph_fsid
+			// would otherwise read as "belongs to another cluster").
+			if osdInfo.Device == "" {
+				metadata := metadataDevices[osdUUID]
+				metadata.DeviceDb = cmp.Or(osdInfo.DeviceDb, metadata.DeviceDb)
+				metadata.DeviceWal = cmp.Or(osdInfo.DeviceWal, metadata.DeviceWal)
+				metadataDevices[osdUUID] = metadata
+				continue
+			}
+			mergedOSDs[osdUUID] = osdInfo
+		}
+	}
+
+	// Fold the db and wal devices into their OSD's record, as the no-argument listing did before
+	// Ceph v19.2.3, so callers such as the cleanup sanitizer still see them. A db or wal member
+	// whose main block device was not found is not an OSD that can be reported.
+	for osdUUID, metadata := range metadataDevices {
+		osdInfo, ok := mergedOSDs[osdUUID]
+		if !ok {
+			continue
+		}
+		osdInfo.DeviceDb = cmp.Or(osdInfo.DeviceDb, metadata.DeviceDb)
+		osdInfo.DeviceWal = cmp.Or(osdInfo.DeviceWal, metadata.DeviceWal)
+		mergedOSDs[osdUUID] = osdInfo
+	}
+
+	// Skipping one unreadable device is the point of listing per device, but if every enumerated
+	// device failed this is a systemic ceph-volume failure (a broken image, a missing binary),
+	// not a node that legitimately reports no OSDs. Surface it so callers that only act on an
+	// error - the cluster-cleanup sanitizer and OSD-by-id lookup - do not read "everything is
+	// broken" as "no OSDs to clean up" and silently do nothing, as the single no-argument call
+	// they replaced would have returned an error here.
+	if len(devices) > 0 && failures == len(devices) {
+		return nil, errors.Errorf("ceph-volume raw list failed for all %d scanned devices", failures)
+	}
+
+	return mergedOSDs, nil
 }
 
 func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
