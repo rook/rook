@@ -441,13 +441,19 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		return v1.Container{}, errors.Wrap(err, "failed to generate default readiness probe")
 	}
 
+	daemonCommand := []string{"radosgw"}
+	if controller.ShouldRaiseNofileLimit(c.store.ObjectMeta.Annotations) {
+		// Wrap radosgw to raise the nofile limit.
+		log.NamedInfo(nsName, logger, "raising nofile soft limit to hard limit in the RGW daemon container")
+		// "dummy" is arg0 (placeholder), which is omitted from "$@", so radosgw args are passed correctly.
+		daemonCommand = []string{"bash", "-c", controller.RaiseNofileLimitScript + `exec radosgw "$@"`, "dummy"}
+	}
+
 	container := v1.Container{
 		Name:            rgwContainerName,
 		Image:           c.clusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
-		Command: []string{
-			"radosgw",
-		},
+		Command:         daemonCommand,
 		Args: append(
 			controller.DaemonFlags(c.clusterInfo, c.clusterSpec,
 				strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
@@ -595,7 +601,14 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			container.Args = append(container.Args, cephconfig.NewFlag(radosReadReplicaPolicy, c.store.Spec.Gateway.ReadAffinity.Type))
 			// set crush location if `balance` and `default` mode are not set.
 			if c.store.Spec.Gateway.ReadAffinity.Type != balanceReadReplicaPolicy && c.store.Spec.Gateway.ReadAffinity.Type != defaultReadReplicaPolicy {
-				container.Command = []string{"bash", "-x", "-c", `exec radosgw --crush-location="host=${NODE_NAME//./-}" "$@"`}
+				crushScript := `exec radosgw --crush-location="host=${NODE_NAME//./-}" "$@"`
+				if controller.ShouldRaiseNofileLimit(c.store.ObjectMeta.Annotations) {
+					log.NamedInfo(nsName, logger, "raising nofile soft limit to hard limit in the RGW daemon container")
+					// "dummy" is arg0 (placeholder), which is omitted from "$@", so radosgw args are passed correctly.
+					container.Command = []string{"bash", "-x", "-c", controller.RaiseNofileLimitScript + crushScript, "dummy"}
+				} else {
+					container.Command = []string{"bash", "-x", "-c", crushScript}
+				}
 				isCrushLocationSet = true
 			}
 		} else {
