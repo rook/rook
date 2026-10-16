@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,6 +38,8 @@ const (
 	reallyConfirmFlag       = "--yes-i-really-really-mean-it"
 	targetSizeRatioProperty = "target_size_ratio"
 	CompressionModeProperty = "compression_mode"
+	pgNumProperty           = "pg_num"
+	pgNumMinProperty        = "pg_num_min"
 )
 
 // crushRuleMutex coordinates crush rule cleanup with pool reconciles. Pool
@@ -356,8 +359,14 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 	}
 
 	// Apply properties
-	for propName, propValue := range pool.Parameters {
-		err := SetPoolProperty(context, clusterInfo, pool.Name, propName, propValue)
+	for _, propName := range orderedPoolProperties(pool.Parameters) {
+		propValue := pool.Parameters[propName]
+		var err error
+		if propName == pgNumMinProperty {
+			err = setPgNumMin(context, clusterInfo, pool.Name, propValue, pool.Parameters[pgNumProperty])
+		} else {
+			err = SetPoolProperty(context, clusterInfo, pool.Name, propName, propValue)
+		}
 		if err != nil {
 			logger.Errorf("failed to set property %q to pool %q to %q. %v", propName, pool.Name, propValue, err)
 		}
@@ -874,6 +883,43 @@ func createReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterI
 	}
 
 	return nil
+}
+
+// orderedPoolProperties puts pg_num_min before pg_num so that lowering both works
+func orderedPoolProperties(params map[string]string) []string {
+	head := []string{}
+	for _, name := range []string{pgNumMinProperty, pgNumProperty} {
+		if _, ok := params[name]; ok {
+			head = append(head, name)
+		}
+	}
+	names := []string{}
+	for name := range params {
+		if name != pgNumProperty && name != pgNumMinProperty {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return append(head, names...)
+}
+
+// setPgNumMin raises pg_num only when Ceph rejects pg_num_min as above it
+func setPgNumMin(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, minValue, pgNumValue string) error {
+	err := SetPoolProperty(context, clusterInfo, poolName, pgNumMinProperty, minValue)
+	if err == nil || !strings.Contains(err.Error(), "specified pg_num_min") {
+		return err
+	}
+	raiseTo := minValue
+	minPgNum, minErr := strconv.Atoi(minValue)
+	pgNum, pgNumErr := strconv.Atoi(pgNumValue)
+	if minErr == nil && pgNumErr == nil && pgNum > minPgNum {
+		raiseTo = pgNumValue
+	}
+	logger.Infof("raising pg_num of pool %q to %s so that pg_num_min %s can be set", poolName, raiseTo, minValue)
+	if err := SetPoolProperty(context, clusterInfo, poolName, pgNumProperty, raiseTo); err != nil {
+		return errors.Wrapf(err, "failed to raise pg_num of pool %q for pg_num_min %s", poolName, minValue)
+	}
+	return SetPoolProperty(context, clusterInfo, poolName, pgNumMinProperty, minValue)
 }
 
 // SetPoolProperty sets a property to a given pool
