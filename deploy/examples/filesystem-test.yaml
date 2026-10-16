@@ -22,7 +22,7 @@ spec:
   preserveFilesystemOnDelete: false
   metadataServer:
     activeCount: 1
-    activeStandby: false
+    standbyCount: 1
 ---
 # create default csi subvolume group
 apiVersion: ceph.rook.io/v1
