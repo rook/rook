@@ -1279,3 +1279,72 @@ func TestMakeDeploymentAllowDeviceClassUpdateFalseLeavesClassAlone(t *testing.T)
 		})
 	}
 }
+
+func TestOSDDeploymentMsgr2Flags(t *testing.T) {
+	tests := []struct {
+		name               string
+		connections        *cephv1.ConnectionsSpec
+		expectDisableMsgr1 bool
+	}{
+		{
+			name:               "default connections leaves msgr1 untouched",
+			connections:        nil,
+			expectDisableMsgr1: false,
+		},
+		{
+			name:               "requireMsgr2 false leaves msgr1 untouched",
+			connections:        &cephv1.ConnectionsSpec{RequireMsgr2: false},
+			expectDisableMsgr1: false,
+		},
+		{
+			name:               "requireMsgr2 true disables msgr1",
+			connections:        &cephv1.ConnectionsSpec{RequireMsgr2: true},
+			expectDisableMsgr1: true,
+		},
+		{
+			name: "encryption enabled disables msgr1",
+			connections: &cephv1.ConnectionsSpec{
+				Encryption: &cephv1.EncryptionSpec{Enabled: true},
+			},
+			expectDisableMsgr1: true,
+		},
+		{
+			name: "compression enabled disables msgr1",
+			connections: &cephv1.ConnectionsSpec{
+				Compression: &cephv1.CompressionSpec{Enabled: true},
+			},
+			expectDisableMsgr1: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clientset := fake.NewClientset()
+			clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", CephVersion: cephver.Squid}
+			clusterInfo.SetName("testing")
+			clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+			ctx := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+			spec := cephv1.ClusterSpec{
+				Network: cephv1.NetworkSpec{Connections: tc.connections},
+			}
+			c := New(ctx, clusterInfo, spec, "rook/rook:myversion")
+			osdProps := osdProperties{
+				crushHostname: "node1",
+				devices:       []cephv1.Device{{Name: "vdb"}},
+				storeConfig:   config.StoreConfig{StoreType: "bluestore"},
+			}
+			osd := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vdb", CVMode: "raw", Store: "bluestore"}
+			cfg := &provisionConfig{DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, "/var/lib/rook")}
+
+			d, err := c.makeDeployment(osdProps, osd, cfg)
+			assert.NoError(t, err)
+			cont, err := findOSDContainer(d.Spec.Template.Spec.Containers)
+			assert.NoError(t, err)
+			if tc.expectDisableMsgr1 {
+				assert.Contains(t, cont.Args, "--ms-bind-msgr1=false")
+			} else {
+				assert.NotContains(t, cont.Args, "--ms-bind-msgr1=false")
+			}
+		})
+	}
+}
