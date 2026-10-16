@@ -38,4 +38,3 @@ spec:
       - name: placement-b
         metadataPoolName: rgw-meta-pool
         dataPoolName: rgw-data-pool
-    preserveRadosNamespaceDataOnDelete: true
