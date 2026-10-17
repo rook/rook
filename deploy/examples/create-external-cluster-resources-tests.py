@@ -165,6 +165,48 @@ class TestRadosJSON(unittest.TestCase):
         except ext.ExecutionFailureException as err:
             print(f"Successfully thrown error: {err}")
 
+    def test_healthchecker_caps_restricted_auth_permission(self):
+        # non-restricted caps keep the broad grants for backward compatibility
+        caps, entity = self.rjObj.get_caps_and_entity("client.healthchecker", 0)
+        self.assertEqual(entity, "client.healthchecker")
+        self.assertEqual(caps["mds"], "allow *")
+        self.assertTrue(
+            caps["osd"].startswith("profile rbd-read-only, allow rwx pool=")
+        )
+
+        # restricted: the osd cap is scoped to the exported rbd data pool
+        self.rjObj._arg_parser.restricted_auth_permission = True
+        caps, _ = self.rjObj.get_caps_and_entity("client.healthchecker", 0)
+        expected_osd = (
+            "profile rbd-read-only pool=abc"
+            ", allow rwx pool=default.rgw.meta"
+            ", allow r pool=.rgw.root"
+            ", allow rw pool=default.rgw.control"
+            ", allow rx pool=default.rgw.log"
+            ", allow x pool=default.rgw.buckets.index"
+        )
+        self.assertEqual(caps["osd"], expected_osd)
+        # no cephfs filesystem requested, so the mds cap must be dropped
+        self.assertNotIn("mds", caps)
+
+        # restricted without rgw endpoint: no rgw pool grants are added
+        self.rjObj._arg_parser.rgw_endpoint = ""
+        caps, _ = self.rjObj.get_caps_and_entity("client.healthchecker", 0)
+        self.assertEqual(caps["osd"], "profile rbd-read-only pool=abc")
+
+        # restricted with cephfs filesystem: the mds cap is granted again
+        self.rjObj._arg_parser.cephfs_filesystem_name = "myfs"
+        caps, _ = self.rjObj.get_caps_and_entity("client.healthchecker", 0)
+        self.assertEqual(caps["mds"], "allow *")
+
+        # restricted without rbd data pool name must fail
+        self.rjObj._arg_parser.rbd_data_pool_name = ""
+        try:
+            self.rjObj.get_caps_and_entity("client.healthchecker", 0)
+            self.fail("An Exception was expected to be thrown")
+        except ext.ExecutionFailureException as err:
+            print(f"Successfully thrown error: {err}")
+
     def test_upgrade_user_permissions(self):
         self.rjObj = ext.RadosJSON(
             [

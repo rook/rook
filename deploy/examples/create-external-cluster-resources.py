@@ -1059,6 +1059,22 @@ class RadosJSON:
             "mds": "allow *",
         }
 
+        if self._arg_parser.restricted_auth_permission:
+            rbd_pool_name = self._arg_parser.rbd_data_pool_name
+            if rbd_pool_name == "":
+                raise ExecutionFailureException(
+                    "mandatory flag not found, please set the '--rbd-data-pool-name' flag"
+                )
+            # scope the read-only profile to the exported pool, like the CSI users
+            if self._arg_parser.rgw_endpoint:
+                caps["osd"] = (
+                    f"profile rbd-read-only pool={rbd_pool_name}, allow rwx pool={self._arg_parser.rgw_pool_prefix}.rgw.meta, allow r pool=.rgw.root, allow rw pool={self._arg_parser.rgw_pool_prefix}.rgw.control, allow rx pool={self._arg_parser.rgw_pool_prefix}.rgw.log, allow x pool={self._arg_parser.rgw_pool_prefix}.rgw.buckets.index"
+                )
+            else:
+                caps["osd"] = f"profile rbd-read-only pool={rbd_pool_name}"
+            if not self._arg_parser.cephfs_filesystem_name:
+                del caps["mds"]
+
         if entity == self.EXTERNAL_USER_NAME:
             if generation != 0:
                 entity = f"{entity}.{generation}"
