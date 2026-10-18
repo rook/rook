@@ -656,6 +656,30 @@ func TestCluster_configurePrometheusModule(t *testing.T) {
 	assert.Equal(t, 1, modulesDisabled)
 	assert.Equal(t, "30002", configSettings["mgr/prometheus/server_port"])
 	assert.Equal(t, "60", configSettings["mgr/prometheus/scrape_interval"])
+
+	// Ceph normalizes float options, so the stored interval is read back as "60.000000".
+	// The module must not be restarted since the interval has not changed.
+	modulesEnabled = 0
+	modulesDisabled = 0
+	c.spec.Monitoring.Port = 0
+	modulesGetOutput = "60.000000"
+	configSettings = make(map[string]string)
+	err = c.configurePrometheusModule()
+	assert.NoError(t, err)
+	assert.Equal(t, 1, modulesEnabled)
+	assert.Equal(t, 0, modulesDisabled)
+	assert.Equal(t, 0, len(configSettings))
+
+	// The module is restarted when the normalized stored interval differs
+	c.spec.Monitoring.Interval = &metav1.Duration{
+		Duration: 90 * time.Second,
+	}
+	modulesEnabled = 0
+	err = c.configurePrometheusModule()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, modulesEnabled)
+	assert.Equal(t, 1, modulesDisabled)
+	assert.Equal(t, "90", configSettings["mgr/prometheus/scrape_interval"])
 }
 
 func TestMgrKeyRotation(t *testing.T) {
