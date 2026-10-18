@@ -386,6 +386,30 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 		assert.ElementsMatch(t, names, svcNames)
 	}
 
+	assertDeploymentsExist := func(t *testing.T, cCtx *clusterd.Context, names ...string) {
+		t.Helper()
+
+		depNames := []string{}
+		deps, err := cCtx.Clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+		assert.NoError(t, err)
+		for _, dep := range deps.Items {
+			depNames = append(depNames, dep.Name)
+		}
+		assert.ElementsMatch(t, names, depNames)
+	}
+
+	assertServicesExist := func(t *testing.T, cCtx *clusterd.Context, names ...string) {
+		t.Helper()
+
+		svcNames := []string{}
+		svcs, err := cCtx.Clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
+		assert.NoError(t, err)
+		for _, svc := range svcs.Items {
+			svcNames = append(svcNames, svc.Name)
+		}
+		assert.ElementsMatch(t, names, svcNames)
+	}
+
 	t.Run("run one nvmeof gateway", func(t *testing.T) {
 		cCtx := newContext(successExecutor(t))
 		cl := newControllerClient(baseCephNVMeOFGateway(), cephClusterReady(cCtx))
@@ -456,7 +480,9 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertCephNVMeOFGatewayReady(t, r)
-			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b")
+			// Deployments should be scaled down, but Services are preserved to keep stable ClusterIPs
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
 		})
 
 		t.Run("scale from 3 to 1 gateway", func(t *testing.T) {
@@ -482,7 +508,63 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertCephNVMeOFGatewayReady(t, r)
-			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a")
+			// Deployments should be scaled down, but Services are preserved to keep stable ClusterIPs
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+		})
+
+		t.Run("scale down then back up preserves service", func(t *testing.T) {
+			cCtx := newContext(successExecutor(t))
+			nvmeof := baseCephNVMeOFGateway()
+			nvmeof.Spec.Instances = 2
+			cl := newControllerClient(nvmeof, cephClusterReady(cCtx))
+			r := newReconcile(cCtx, cl)
+
+			// Initial: create 2 gateways
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.Equal(t, res.RequeueAfter, time.Duration(0))
+			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b")
+
+			// Record the service UID before scale-down to verify it persists
+			svcBefore, getErr := cCtx.Clientset.CoreV1().Services(namespace).Get(ctx, "rook-ceph-nvmeof-my-nvmeof-b", metav1.GetOptions{})
+			assert.NoError(t, getErr)
+			svcUIDBefore := svcBefore.UID
+
+			// Scale down to 1
+			err = cl.Get(ctx, client.ObjectKeyFromObject(nvmeof), nvmeof)
+			assert.NoError(t, err)
+			nvmeof.Spec.Instances = 1
+			err = cl.Update(ctx, nvmeof, &client.UpdateOptions{})
+			assert.NoError(t, err)
+
+			res, err = r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.Equal(t, res.RequeueAfter, time.Duration(0))
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b")
+
+			// Verify Service "b" still exists with same UID (was not deleted and recreated)
+			svcDuring, getErr := cCtx.Clientset.CoreV1().Services(namespace).Get(ctx, "rook-ceph-nvmeof-my-nvmeof-b", metav1.GetOptions{})
+			assert.NoError(t, getErr)
+			assert.Equal(t, svcUIDBefore, svcDuring.UID, "Service should not be recreated on scale-down")
+
+			// Scale back up to 2
+			err = cl.Get(ctx, client.ObjectKeyFromObject(nvmeof), nvmeof)
+			assert.NoError(t, err)
+			nvmeof.Spec.Instances = 2
+			err = cl.Update(ctx, nvmeof, &client.UpdateOptions{})
+			assert.NoError(t, err)
+
+			res, err = r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.Equal(t, res.RequeueAfter, time.Duration(0))
+			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b")
+
+			// Verify Service "b" still has same UID after scale-up (reused, not recreated)
+			svcAfter, getErr := cCtx.Clientset.CoreV1().Services(namespace).Get(ctx, "rook-ceph-nvmeof-my-nvmeof-b", metav1.GetOptions{})
+			assert.NoError(t, getErr)
+			assert.Equal(t, svcUIDBefore, svcAfter.UID, "Service should be reused after scale-up, not recreated")
 		})
 	})
 
@@ -535,8 +617,13 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 
 			assertCephNVMeOFGatewayReady(t, r, "my-nvmeof", "nvmeof2")
-			assertResourcesExist(t, cCtx,
+			// Deployments should be scaled down, but Services are preserved to keep stable ClusterIPs
+			assertDeploymentsExist(t, cCtx,
 				"rook-ceph-nvmeof-my-nvmeof-a",
+				"rook-ceph-nvmeof-nvmeof2-a", "rook-ceph-nvmeof-nvmeof2-b",
+			)
+			assertServicesExist(t, cCtx,
+				"rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c",
 				"rook-ceph-nvmeof-nvmeof2-a", "rook-ceph-nvmeof-nvmeof2-b",
 			)
 		})
