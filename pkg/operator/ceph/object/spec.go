@@ -20,6 +20,7 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"maps"
 	"net/url"
 	"path"
 	"slices"
@@ -607,9 +608,11 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		container.Args = append(container.Args, cephconfig.NewFlag("host", controller.ContainerEnvVarReference(k8sutil.PodNameEnvVar)))
 	}
 
-	// user configs are very last arguments so that they override what Rook might be setting before
-	for flag, val := range c.store.Spec.Gateway.RgwCommandFlags {
-		container.Args = append(container.Args, cephconfig.NewFlag(flag, val))
+	// user configs are very last arguments so that they override what Rook might be setting before.
+	// Sort the keys so the args are emitted in a deterministic order; otherwise the random map
+	// iteration order can change the pod template and roll the RGW pods without a spec change.
+	for _, flag := range slices.Sorted(maps.Keys(c.store.Spec.Gateway.RgwCommandFlags)) {
+		container.Args = append(container.Args, cephconfig.NewFlag(flag, c.store.Spec.Gateway.RgwCommandFlags[flag]))
 	}
 
 	return container, nil
