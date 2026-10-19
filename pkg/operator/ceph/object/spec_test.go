@@ -1110,12 +1110,20 @@ func TestRgwCommandFlags(t *testing.T) {
 		}
 		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
 		assert.NoError(t, err)
-		// ordering of additional args amongst themselves doesn't matter (and is random b/c of
-		// underlying map data type), but it is still important that the additional args are always
-		// after the args Rook normally applies
+		// the additional args must always be after the args Rook normally applies, and they must be
+		// emitted in a deterministic (sorted-by-key) order so that an operator restart does not roll
+		// the RGW pods when the spec is unchanged (see issue #18585)
 		l := len(rgwContainer.Args)
 		addedArgs := rgwContainer.Args[l-3:]
-		assert.ElementsMatch(t, []string{"--rgw-option=val spaced", "--rgw-option=val-dashed", "--rgw-option=val_underscored"}, addedArgs)
+		// keys sorted: "rgw option" < "rgw-option" < "rgw_option"
+		assert.Equal(t, []string{"--rgw-option=val spaced", "--rgw-option=val-dashed", "--rgw-option=val_underscored"}, addedArgs)
+
+		// the same spec must always produce the same args across reconciles
+		for i := 0; i < 5; i++ {
+			again, err := c.makeDaemonContainer(rgwConfig)
+			assert.NoError(t, err)
+			assert.Equal(t, rgwContainer.Args, again.Args)
+		}
 	})
 }
 
