@@ -134,6 +134,19 @@ to configure the CSI driver.
 
 The `rook-ceph-cluster` helm chart upgrade performs a [Ceph upgrade](./ceph-upgrade.md) if the Ceph image is updated.
 
+**Updated Storage Class**
+
+In this release, new CSI secret parameters are added to the block StorageClass created by this chart.
+Since a StorageClass's `parameters` field is immutable, the storage class must be deleted before upgrading.
+
+```console
+kubectl delete storageclass ceph-block
+```
+
+Now proceed with the chart upgrade for Helm to again create the storage class with the new parameters.
+
+Deleting the StorageClass is safe. Existing PersistentVolumes are unaffected because the recreated StorageClass has the same name and only adds new properties.
+
 ## Cluster Health
 
 In order to successfully upgrade a Rook cluster, the following prerequisites must be met:
