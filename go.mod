@@ -10,7 +10,7 @@ replace (
 )
 
 require (
-	github.com/IBM/keyprotect-go-client v0.17.3
+	github.com/IBM/keyprotect-go-client v0.5.1
 	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/aws/aws-sdk-go-v2/config v1.33.9
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.9
@@ -20,7 +20,7 @@ require (
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20261001132947-98eee8980fc6
 	github.com/ceph/ceph-csi/api v0.0.0-20241216133622-88b7e0d6684f
-	github.com/ceph/go-ceph v0.41.0
+	github.com/ceph/go-ceph v0.42.1
 	github.com/coreos/pkg v0.0.0-20240122114842-bbd7aa9bf6fb
 	github.com/csi-addons/kubernetes-csi-addons v0.15.1
 	github.com/gemalto/kmip-go v0.1.0
