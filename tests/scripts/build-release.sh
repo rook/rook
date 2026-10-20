@@ -13,7 +13,9 @@ function  build() {
     $MAKE mod.check
 }
 
-function publish_images_and_docs() {
+# Docs are built and published separately (see tests/scripts/publish-docs.sh);
+# the "docs" flavor is excluded from the default FLAVORS in build/release/Makefile.
+function publish_images() {
     build
     $MAKE -C build/release build BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=${TAG_WITH_SUFFIX} GIT_API_TOKEN=${GIT_API_TOKEN}
     git status &
@@ -34,15 +36,6 @@ function publish_charts() {
 if [ -f .env ]; then
     # shellcheck disable=SC2046
     export $(grep -v '^#' .env | xargs -d '\n')
-fi
-
-# Use Git access token for accessing the docs repo if set
-# shellcheck disable=SC2034
-export DOCS_GIT_REPO="${DOCS_GIT_REPO:-git@github.com:rook/rook.github.io.git}"
-if [ -n "${GIT_API_TOKEN}" ]; then
-    DOCS_GIT_REPO="${DOCS_GIT_REPO//git@/}"
-    DOCS_GIT_REPO="${DOCS_GIT_REPO//:/\/}"
-    export DOCS_GIT_REPO="https://${GIT_API_TOKEN}@${DOCS_GIT_REPO}"
 fi
 
 TAGGED_RELEASE=false
@@ -68,7 +61,7 @@ else
 fi
 
 
-publish_images_and_docs
+publish_images
 
 if [[ "$TAGGED_RELEASE" = true ]]; then
   publish_charts

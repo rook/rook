@@ -51,7 +51,10 @@ PLATFORMS ?= $(ALL_PLATFORMS)
 
 # "helm" flavor is for pushing to s3/https endpoint
 # "charts" flavor is for pushing to oci endpoint
-FLAVORS ?= output images docs helm charts
+# "docs" is intentionally excluded here: docs are built and published separately
+# (see tests/scripts/publish-docs.sh) so the gh-pages deploy runs in its own
+# workflow with a concurrency group, avoiding non-fast-forward push races.
+FLAVORS ?= output images helm charts
 
 DOCKER_REGISTRY ?= docker.io/rook
 QUAY_REGISTRY ?= quay.io/rook

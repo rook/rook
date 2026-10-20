@@ -1,0 +1,82 @@
+name: Publish Docs
+# Run only after the image build/release workflow completes successfully, so the
+# docs deploy is serialized strictly after the build. The docs are deployed to
+# the shared gh-pages branch of rook.github.io; concurrent deploys from
+# different refs race each other and get rejected as non-fast-forward pushes, so
+# the concurrency group below ensures only one docs publish runs at a time and
+# never cancels one in progress.
+on:
+  workflow_run:
+    workflows: ["Push Image Build"]
+    types:
+      - completed
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+permissions: {}
+
+concurrency:
+  group: publish-docs
+  cancel-in-progress: false
+
+jobs:
+  publish-docs:
+    runs-on: ubuntu-22.04
+    if: >-
+      github.repository == 'rook/rook' &&
+      github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # check out the exact commit that was built and released
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: 3.13
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip setuptools wheel
+
+      # Derive the branch/tag of the triggering run. GITHUB_REF in a workflow_run
+      # context points at the default branch and is reserved (it can't be
+      # overridden), so the docs scripts rely on BRANCH_NAME, which we set here.
+      - name: set env
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          echo "BRANCH_NAME=${HEAD_BRANCH}" >> "$GITHUB_ENV"
+          # We checked out a detached SHA to pin the exact built commit. Attach it
+          # to a local branch named after the triggering ref so the docs macros,
+          # which read repo.head.shorthand, generate correct GitHub links instead
+          # of rewriting /master/ to /HEAD/.
+          git checkout -B "${HEAD_BRANCH}"
+
+      - name: Configure git user
+        run: |
+          # Use our Rook "service account"
+          git config user.name Rook
+          git config user.email "cncf-rook-info@lists.cncf.io"
+
+      - name: publish docs
+        env:
+          GIT_API_TOKEN: ${{ secrets.GIT_API_TOKEN }}
+          BRANCH_NAME: ${{ env.BRANCH_NAME }}
+        run: |
+          # Older refs predating the docs-publish split do not contain this
+          # script and still publish docs from their image build; skip them so
+          # this workflow does not fail and does not double-publish.
+          if [ ! -f tests/scripts/publish-docs.sh ]; then
+            echo "tests/scripts/publish-docs.sh not present on ${BRANCH_NAME}; skipping (ref predates docs-publish split)"
+            exit 0
+          fi
+          tests/scripts/publish-docs.sh
