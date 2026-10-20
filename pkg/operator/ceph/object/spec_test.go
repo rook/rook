@@ -50,6 +50,28 @@ func configureSSEWithVaultAgent(c *clusterConfig) {
 	c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_AUTH_METHOD"] = "agent"
 }
 
+func TestVaultPrefixRGWSSES3(t *testing.T) {
+	tests := []struct {
+		name    string
+		details map[string]string
+		want    string
+	}{
+		{"transit mounted at the default path", map[string]string{"VAULT_SECRET_ENGINE": "transit"}, "/v1/transit"},
+		{"transit mounted at a custom path", map[string]string{"VAULT_SECRET_ENGINE": "transit", "VAULT_BACKEND_PATH": "rgw-transit"}, "/v1/rgw-transit"},
+		{"empty backend path falls back to the default", map[string]string{"VAULT_SECRET_ENGINE": "transit", "VAULT_BACKEND_PATH": ""}, "/v1/transit"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &clusterConfig{store: &cephv1.CephObjectStore{Spec: cephv1.ObjectStoreSpec{Security: &cephv1.ObjectStoreSecuritySpec{
+				ServerSideEncryptionS3: cephv1.KeyManagementServiceSpec{ConnectionDetails: tt.details},
+			}}}}
+			assert.Equal(t, tt.want, c.vaultPrefixRGWSSES3())
+			assert.Contains(t, c.sseS3VaultTokenOptions(true), cephconfig.NewFlag("rgw crypt sse s3 vault prefix", tt.want))
+			assert.Contains(t, c.sseS3VaultAgentOptions(true), cephconfig.NewFlag("rgw crypt sse s3 vault prefix", tt.want))
+		})
+	}
+}
+
 func configureSSE(t *testing.T, c *clusterConfig, kms bool, s3 bool) {
 	c.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{}
 	if kms {
