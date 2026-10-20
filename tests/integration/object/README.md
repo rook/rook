@@ -45,6 +45,7 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `user/keys` | `object/user` | explicit S3 key management |
 | `user/opmask` | `object/user` | user op_mask |
 | `user/placement` | `object/user` | user defaultPlacement, including its unmanaged-on-removal semantics |
+| `user/secrettemplate` | `object/user` | user secretTemplate labels and annotations on the generated Secret |
 | `user/storageclass` | `object/user` | user defaultStorageClass, verified on a bucket the user creates |
 | `zonepools` | `object` | zone.json pool fields covered by Rook's shared-pool mapping |
 

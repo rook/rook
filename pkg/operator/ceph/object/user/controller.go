@@ -20,6 +20,7 @@ package objectuser
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"regexp"
 	"slices"
@@ -32,10 +33,13 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -51,6 +55,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	opmask "github.com/rook/rook/pkg/operator/ceph/object/user/opmask"
@@ -375,7 +380,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// validate the user settings
 	err = r.validateUser(cephObjectStoreUser)
 	if err != nil {
-		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "invalid pool CR %q spec", cephObjectStoreUser.Name)
+		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "invalid CephObjectStoreUser %q spec", cephObjectStoreUser.Name)
 	}
 
 	// Resolve account reference if set
@@ -740,17 +745,77 @@ func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectSt
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateCephUserSecretName(u),
 			Namespace: u.Namespace,
-			Labels: map[string]string{
-				"app":               appName,
-				"user":              u.Name,
-				"rook_cluster":      u.Namespace,
-				"rook_object_store": u.Spec.Store,
-			},
+			Labels:    cephUserSecretLabels(u),
 		},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
+	cephv1.Labels(secretTemplateLabels(u.Spec.SecretTemplate)).ApplyToObjectMeta(&secret.ObjectMeta)
+	cephv1.Annotations(secretTemplateAnnotations(u.Spec.SecretTemplate)).ApplyToObjectMeta(&secret.ObjectMeta)
 	return secret
+}
+
+// cephUserSecretLabels returns the labels Rook sets on the user's Secret.
+// secretTemplate cannot override them. The CRD's secretTemplate rules reserve
+// these keys by name, so a label added here must use a rook.io prefix, which
+// those rules already reserve.
+func cephUserSecretLabels(u *cephv1.CephObjectStoreUser) map[string]string {
+	return map[string]string{
+		"app":               appName,
+		"user":              u.Name,
+		"rook_cluster":      u.Namespace,
+		"rook_object_store": u.Spec.Store,
+	}
+}
+
+func secretTemplateLabels(t cephv1.SecretTemplate) map[string]string {
+	labels := make(map[string]string, len(t.Labels))
+	for k, v := range t.Labels {
+		labels[k] = string(v)
+	}
+	return labels
+}
+
+func secretTemplateAnnotations(t cephv1.SecretTemplate) map[string]string {
+	annotations := make(map[string]string, len(t.Annotations))
+	for k, v := range t.Annotations {
+		annotations[k] = string(v)
+	}
+	return annotations
+}
+
+// reservedSecretKeyPrefix matches label and annotation keys in the rook.io
+// namespace, which Rook acts on; for example, the CSI controllers choose their
+// credential Secrets by csi.rook.io annotations.
+var reservedSecretKeyPrefix = regexp.MustCompile(`^([^/]*\.)?rook\.io/`)
+
+// validateSecretTemplate applies the checks that the CephObjectStoreUser CRD's
+// secretTemplate rules make at admission, plus the API server's own Secret
+// metadata validation, so that invalid metadata is caught before the RGW user
+// is changed rather than when the Secret is written afterwards.
+func validateSecretTemplate(u *cephv1.CephObjectStoreUser) error {
+	fldPath := field.NewPath("spec", "secretTemplate")
+	labelsPath := fldPath.Child("labels")
+	annotationsPath := fldPath.Child("annotations")
+	labels := secretTemplateLabels(u.Spec.SecretTemplate)
+	annotations := secretTemplateAnnotations(u.Spec.SecretTemplate)
+
+	errs := metav1validation.ValidateLabels(labels, labelsPath)
+	errs = append(errs, apimachineryvalidation.ValidateAnnotations(annotations, annotationsPath)...)
+
+	rookLabels := cephUserSecretLabels(u)
+	for _, k := range slices.Sorted(maps.Keys(labels)) {
+		_, setByRook := rookLabels[k]
+		if setByRook || k == opcontroller.DoNotReconcileLabelName || reservedSecretKeyPrefix.MatchString(k) {
+			errs = append(errs, field.Forbidden(labelsPath.Key(k), "reserved by Rook"))
+		}
+	}
+	for _, k := range slices.Sorted(maps.Keys(annotations)) {
+		if k == keyring.KeyringAnnotation || reservedSecretKeyPrefix.MatchString(k) {
+			errs = append(errs, field.Forbidden(annotationsPath.Key(k), "reserved by Rook"))
+		}
+	}
+	return errs.ToAggregate()
 }
 
 func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *cephv1.CephObjectStoreUser, userConfig *admin.User, tlsSecretName string) (reconcile.Result, error) {
@@ -839,7 +904,7 @@ func (r *ReconcileObjectStoreUser) validateUser(u *cephv1.CephObjectStoreUser) e
 			return fmt.Errorf("displayName %q is not IAM-compatible (must match [\\w+=,.@-]+) when accountRef is set", displayName)
 		}
 	}
-	return nil
+	return validateSecretTemplate(u)
 }
 
 // waitForRequeueIfRGWAccountNotReady waits for the referenced CephObjectStoreAccount to be ready

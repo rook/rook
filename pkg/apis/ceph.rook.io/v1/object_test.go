@@ -17,9 +17,11 @@ limitations under the License.
 package v1
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -414,5 +416,24 @@ func TestCephObjectStore_GetAdvertiseEndpointUrl(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestSecretTemplateSerialization(t *testing.T) {
+	tests := []struct {
+		name     string
+		template SecretTemplate
+		want     string
+	}{
+		{"unset", SecretTemplate{}, `{"store":"my-store"}`},
+		{"empty maps are omitted", SecretTemplate{Labels: map[string]LabelValue{}, Annotations: map[string]AnnotationValue{}}, `{"store":"my-store"}`},
+		{"an empty map beside a set one is dropped", SecretTemplate{Labels: map[string]LabelValue{"team": "payments"}, Annotations: map[string]AnnotationValue{}}, `{"store":"my-store","secretTemplate":{"labels":{"team":"payments"}}}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec, err := json.Marshal(ObjectStoreUserSpec{Store: "my-store", SecretTemplate: tt.template})
+			require.NoError(t, err)
+			assert.JSONEq(t, tt.want, string(spec))
+		})
 	}
 }

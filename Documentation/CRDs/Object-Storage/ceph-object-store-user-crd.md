@@ -29,6 +29,12 @@ spec:
     - delete
   defaultPlacement: hot-tier
   defaultStorageClass: STANDARD_IA
+  secretTemplate:
+    labels:
+      team: payments
+    annotations:
+      reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+      reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "payments-app"
 ```
 
 ## Object Store User Settings
@@ -83,3 +89,19 @@ spec:
     * `read`
     * `write`
     * `delete`
+* `secretTemplate`: Labels and annotations to add to the Secret that holds the user's credentials,
+    `rook-ceph-object-user-<store>-<name>`. Tools that copy Secrets into other namespaces, such as Reflector,
+    kubernetes-replicator, or a Kyverno generate policy, select the Secrets to copy by label or annotation, so this
+    setting can opt the Secret in to such a tool. Rook writes the Secret's full set of labels and annotations on every
+    reconcile: removing an entry removes it from the Secret, and labels or annotations added to the Secret by other means
+    are removed.
+    * `labels`: 1 to 32 labels. The keys `app`, `user`, `rook_cluster`, `rook_object_store`, and `do_not_reconcile`,
+        and keys with a `rook.io` or `*.rook.io` prefix, are reserved by Rook and rejected.
+    * `annotations`: 1 to 32 annotations, at most 256 KiB in total, the limit Kubernetes sets for a Secret's
+        annotations. The key `cephx-keyring`, and keys with a `rook.io` or `*.rook.io` prefix, are reserved by Rook
+        and rejected.
+
+!!! warning
+    Anyone who can create or edit a CephObjectStoreUser can use `secretTemplate` to hand the user's credentials to any
+    controller that acts on Secret labels or annotations, for example one that copies the Secret into another namespace.
+    Grant write access to CephObjectStoreUsers with this in mind, or restrict `secretTemplate` with an admission policy.
