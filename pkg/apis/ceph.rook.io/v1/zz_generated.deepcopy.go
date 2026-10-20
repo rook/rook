@@ -4065,6 +4065,11 @@ func (in *NVMeOFGatewaySpec) DeepCopyInto(out *NVMeOFGatewaySpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.InterruptMode != nil {
+		in, out := &in.InterruptMode, &out.InterruptMode
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Ports != nil {
 		in, out := &in.Ports, &out.Ports
 		*out = new(NVMeOFGatewayPorts)
