@@ -386,10 +386,13 @@ func (r *ReconcileCephNVMeOFGateway) downCephNVMeOFGateway(cephNVMeOFGateway *ce
 			return errors.Wrapf(err, "failed to delete deployment %q", name)
 		}
 
-		err = r.context.Clientset.CoreV1().Services(cephNVMeOFGateway.Namespace).Delete(r.opManagerContext, name, metav1.DeleteOptions{})
-		if err != nil && !kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "failed to delete service %q", name)
-		}
+		// The Service is intentionally NOT deleted here. Preserving the
+		// Service across scale-down/scale-up keeps its ClusterIP stable so
+		// that NVMe-oF consumers already connected via that address can
+		// reconnect when the gateway is scaled back up. This follows the
+		// same pattern used by mon services. The Service will be garbage-
+		// collected automatically when the owner CephNVMeOFGateway CR is
+		// deleted, since the controller reference is set on creation.
 	}
 
 	return nil
