@@ -1090,17 +1090,6 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 		return errors.Wrapf(err, "failed to unmarshal ceph-volume raw list results")
 	}
 
-	if len(existingOSDs) == 0 {
-		// ceph-volume raw list didn't return any existing OSDs. It's possible that /dev/mapper entries of the encrypted disks were removed.
-		// Check for cephFSID in the luks header of the disk and clean the disk if it does not match the cephFSID of the current cluster.
-		logger.Infof("ceph-volume didn't return any existing OSDs. Checking for cephFSID of a different cluster in the luks header of the disk")
-		err := wipeEncryptedDevicesFromOtherClusters(context, a.clusterInfo.FSID)
-		if err != nil {
-			return errors.Wrapf(err, "failed to clean up encrypted disks from other clusters")
-		}
-		return nil
-	}
-
 	for _, existingOSD := range existingOSDs {
 		// Wipe the devices that will be used for preparing OSD but already have OSD metadata from another ceph cluster
 		if existingOSD.CephFsid != a.clusterInfo.FSID {
@@ -1134,27 +1123,55 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 		}
 	}
 
+	// Partially provisioned encrypted devices may coexist with already discovered OSDs.
+	if err := a.wipeEncryptedDevicesFromOtherClusters(context); err != nil {
+		return errors.Wrapf(err, "failed to clean up encrypted disks from other clusters")
+	}
 	return nil
 }
 
-func wipeEncryptedDevicesFromOtherClusters(context *clusterd.Context, currentClusterFSID string) error {
+func (a *OsdAgent) wipeEncryptedDevicesFromOtherClusters(context *clusterd.Context) error {
 	for _, disk := range context.Devices {
 		if disk.Filesystem == "crypto_LUKS" {
 			metadata, err := dumpLUKS(context, disk.Name)
 			if err != nil {
 				logger.Debugf("failed to determine if the encrypted block %q is from our cluster. %v", disk.Name, err)
-				return nil
+				continue
 			}
 
 			ceph_fsid := luksLabelCephFSID.FindString(metadata)
 			if ceph_fsid == "" {
-				logger.Error("ceph_fsid not found in the LUKS header, the encrypted disk is not from a ceph cluster")
-				return nil
+				// Metadata and WAL PVC devices (pvcMetadataTypeDevice / pvcWalTypeDevice) never carry
+				// a ceph_fsid token because setLUKSLabelAndSubsystem() is only applied to the main data device.
+				// Do not wipe them as missing-token devices.
+				if a.pvcBacked && (disk.Type == pvcMetadataTypeDevice || disk.Type == pvcWalTypeDevice) {
+					logger.Debugf("skipping encrypted metadata/wal disk %q (%q) with no ceph_fsid token", disk.Name, disk.RealPath)
+					continue
+				}
+
+				// Only wipe token-less encrypted devices when running on PVC-backed storage.
+				// On host-based clusters, non-Ceph or admin-managed LUKS volumes may lack ceph_fsid and must not be touched.
+				if !a.pvcBacked {
+					logger.Debugf("skipping encrypted disk %q (%q) with no ceph_fsid because host-based wiping is not PVC-backed", disk.Name, disk.RealPath)
+					continue
+				}
+
+				// No ceph_fsid token means this disk was luksFormat'd by Rook but never
+				// finished OSD provisioning (setLUKSLabelAndSubsystem() only writes the token
+				// after a successful prepare). Since this helper runs when the caller wants
+				// foreign/stray disks cleared for reuse, wipe it so it can be reprovisioned.
+				logger.Infof("no ceph_fsid found in the LUKS header of disk %q (%q), wiping it so it can be reprovisioned", disk.Name, disk.RealPath)
+				if err := ZapDevice(context, disk.RealPath); err != nil {
+					return errors.Wrapf(err, "failed to zap encrypted disk %q with no ceph_fsid in its LUKS header", disk.RealPath)
+				}
+				logger.Infof("completed wiping device %q with no ceph_fsid in its LUKS header", disk.RealPath)
+				disk.Filesystem = ""
+				continue
 			}
 
 			// is it an OSD from our cluster?
 			currentDiskCephFSID := strings.SplitAfter(ceph_fsid, "=")[1]
-			if currentDiskCephFSID != currentClusterFSID {
+			if currentDiskCephFSID != a.clusterInfo.FSID {
 				logger.Infof("cleaning encrypted disk %q (%q) that is part of a different ceph cluster %q", disk.Name, disk.RealPath, currentDiskCephFSID)
 				if err := ZapDevice(context, disk.RealPath); err != nil {
 					return errors.Wrapf(err, "failed to zap encrypted disk with different ceph cluster %q", disk.RealPath)
