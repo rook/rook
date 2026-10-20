@@ -30,6 +30,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -156,35 +157,10 @@ func (c *cephStatusChecker) configureHealthSettings(status cephclient.CephStatus
 	if _, ok := status.Health.Checks["AUTH_INSECURE_GLOBAL_ID_RECLAIM_ALLOWED"]; ok {
 		if _, ok := status.Health.Checks["AUTH_INSECURE_GLOBAL_ID_RECLAIM"]; !ok {
 			log.NamespacedDebug(c.clusterInfo.Namespace, logger, "Disabling the insecure global ID as no legacy clients are currently connected. If you still require the insecure connections, see the CVE to suppress the health warning and re-enable the insecure connections. https://docs.ceph.com/en/latest/security/CVE-2021-20288/")
-			c.mutePolicyIfNotUnmuted("AUTH_INSECURE_GLOBAL_ID_RECLAIM")
+			config.DisableInsecureGlobalID(c.context, c.clusterInfo)
 		} else {
 			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "insecure clients are connected to the cluster, to resolve the AUTH_INSECURE_GLOBAL_ID_RECLAIM health warning please refer to the upgrade guide to ensure all Ceph daemons are updated.")
 		}
-	}
-}
-
-func (c *cephStatusChecker) mutePolicyIfNotUnmuted(warningToMute string) {
-	clusterName := c.clusterInfo.NamespacedName()
-	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(clusterName.Namespace).Get(c.clusterInfo.Context, clusterName.Name, metav1.GetOptions{})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			log.NamespacedDebug(c.clusterInfo.Namespace, logger, "CephCluster resource not found. Ignoring since object must be deleted.")
-			return
-		}
-		log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to retrieve ceph cluster %q to reconcile health warning mutes: %v", clusterName.Name, err)
-		return
-	}
-
-	for warning, spec := range cephCluster.Spec.HealthCheck.MuteHealthWarning {
-		if warning == warningToMute && spec.Policy == "unmute" {
-			log.NamespacedDebug(c.clusterInfo.Namespace, logger, "not muting %q because user has overridden it in healthCheck.muteHealthWarning configs", warningToMute)
-			return
-		}
-	}
-
-	err = cephclient.MuteHealthWarning(c.context, c.clusterInfo, warningToMute, "mute")
-	if err != nil {
-		log.NamespacedError(c.clusterInfo.Namespace, logger, "failed to mute health warning %q. %v", warningToMute, err)
 	}
 }
 
