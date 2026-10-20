@@ -19,6 +19,7 @@ package mgr
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -450,7 +451,7 @@ func (c *Cluster) configurePrometheusModule() error {
 	// scrape interval
 	if c.spec.Monitoring.Interval != nil {
 		interval := c.spec.Monitoring.Interval.Duration.Seconds()
-		intervalHasChanged, err = monStore.SetIfChanged(daemonID, "mgr/prometheus/scrape_interval", fmt.Sprintf("%v", interval))
+		intervalHasChanged, err = setFloatOptionIfChanged(monStore, daemonID, "mgr/prometheus/scrape_interval", interval)
 		if err != nil {
 			return err
 		}
@@ -462,6 +463,30 @@ func (c *Cluster) configurePrometheusModule() error {
 		return c.restartMgrModule(PrometheusModuleName)
 	}
 	return nil
+}
+
+// floatOptionEpsilon is the largest difference at which two float option values are treated as equal.
+// Ceph prints float options with six decimals, so a smaller difference cannot be a real change.
+const floatOptionEpsilon = 1e-6
+
+// setFloatOptionIfChanged sets a float-typed option in the mon config store only if its value has
+// changed. Ceph normalizes float options when storing them (e.g., "60" is read back as
+// "60.000000"), so the values are compared numerically rather than as strings.
+func setFloatOptionIfChanged(monStore *config.MonStore, who, option string, value float64) (bool, error) {
+	currentVal, err := monStore.Get(who, option)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to get value %q", option)
+	}
+	if current, err := strconv.ParseFloat(currentVal, 64); err == nil && math.Abs(current-value) < floatOptionEpsilon {
+		// no need to update the setting
+		return false, nil
+	}
+
+	newVal := fmt.Sprintf("%v", value)
+	if err := monStore.Set(who, option, newVal); err != nil {
+		return false, errors.Wrapf(err, "failed to set value %s=%s", option, newVal)
+	}
+	return true, nil
 }
 
 func (c *Cluster) restartMgrModule(name string) error {
