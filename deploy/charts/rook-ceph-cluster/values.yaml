@@ -91,6 +91,8 @@ monitoring:
   # externalMgrPrometheusPort: <port>
   # Scrape interval for prometheus
   # interval: 10s
+  # Scrape timeout for prometheus, in seconds. Must not be greater than the interval.
+  # scrapeTimeoutSeconds: 5
   # allow adding custom labels and annotations to the prometheus rule
   prometheusRule:
     # -- Labels applied to PrometheusRule

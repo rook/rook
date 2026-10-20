@@ -23,6 +23,7 @@ import (
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -75,7 +76,21 @@ func GetServiceMonitor(name string, namespace string, portName string) *monitori
 	}
 }
 
-// CreateOrUpdateServiceMonitor creates serviceMonitor object or an error
+// ApplyMonitoringTiming sets the scrape interval and timeout on the ServiceMonitor endpoint.
+// An unset interval keeps the 10s from GetServiceMonitor; an unset timeout is left to Prometheus.
+func ApplyMonitoringTiming(monitoring cephv1.MonitoringSpec, serviceMonitor *monitoringv1.ServiceMonitor) {
+	if len(serviceMonitor.Spec.Endpoints) == 0 {
+		return
+	}
+	if monitoring.Interval != nil {
+		serviceMonitor.Spec.Endpoints[0].Interval = monitoringv1.Duration(monitoring.Interval.Duration.String())
+	}
+	if monitoring.ScrapeTimeoutSeconds > 0 {
+		serviceMonitor.Spec.Endpoints[0].ScrapeTimeout = monitoringv1.Duration(fmt.Sprintf("%ds", monitoring.ScrapeTimeoutSeconds))
+	}
+}
+
+// CreateOrUpdateServiceMonitor creates or updates a serviceMonitor object and returns it or an error
 func CreateOrUpdateServiceMonitor(context *clusterd.Context, ctx context.Context, serviceMonitorDefinition *monitoringv1.ServiceMonitor) (*monitoringv1.ServiceMonitor, error) {
 	name := serviceMonitorDefinition.GetName()
 	namespace := serviceMonitorDefinition.GetNamespace()
