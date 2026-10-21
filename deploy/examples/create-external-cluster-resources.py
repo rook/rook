@@ -1051,7 +1051,7 @@ class RadosJSON:
         return caps, entity
 
     def get_defaultUser_caps_and_entity(self, generation):
-        entity = self.run_as_user
+        entity = self.run_as_user or self.EXTERNAL_USER_NAME
         caps = {
             "mon": "allow r, allow command quorum_status, allow command version",
             "mgr": "allow command config",
@@ -1065,19 +1065,34 @@ class RadosJSON:
                 raise ExecutionFailureException(
                     "mandatory flag not found, please set the '--rbd-data-pool-name' flag"
                 )
+            k8s_cluster_name = self._arg_parser.k8s_cluster_name
+            if k8s_cluster_name == "":
+                raise ExecutionFailureException(
+                    "mandatory flag not found, please set the '--k8s-cluster-name' flag"
+                )
+            if entity == self.EXTERNAL_USER_NAME:
+                entity = self.get_entity(
+                    self.EXTERNAL_USER_NAME,
+                    rbd_pool_name,
+                    self._arg_parser.alias_rbd_data_pool_name,
+                    k8s_cluster_name,
+                    self._arg_parser.rados_namespace,
+                )
             # scope the read-only profile to the exported pool, like the CSI users
+            rbd_cap = f"profile rbd-read-only pool={rbd_pool_name}"
+            if self._arg_parser.rados_namespace:
+                rbd_cap += f" namespace={self._arg_parser.rados_namespace}"
             if self._arg_parser.rgw_endpoint:
                 caps["osd"] = (
-                    f"profile rbd-read-only pool={rbd_pool_name}, allow rwx pool={self._arg_parser.rgw_pool_prefix}.rgw.meta, allow r pool=.rgw.root, allow rw pool={self._arg_parser.rgw_pool_prefix}.rgw.control, allow rx pool={self._arg_parser.rgw_pool_prefix}.rgw.log, allow x pool={self._arg_parser.rgw_pool_prefix}.rgw.buckets.index"
+                    f"{rbd_cap}, allow rwx pool={self._arg_parser.rgw_pool_prefix}.rgw.meta, allow r pool=.rgw.root, allow rw pool={self._arg_parser.rgw_pool_prefix}.rgw.control, allow rx pool={self._arg_parser.rgw_pool_prefix}.rgw.log, allow x pool={self._arg_parser.rgw_pool_prefix}.rgw.buckets.index"
                 )
             else:
-                caps["osd"] = f"profile rbd-read-only pool={rbd_pool_name}"
+                caps["osd"] = rbd_cap
             if not self._arg_parser.cephfs_filesystem_name:
                 del caps["mds"]
 
-        if entity == self.EXTERNAL_USER_NAME:
-            if generation != 0:
-                entity = f"{entity}.{generation}"
+        if generation != 0:
+            entity = f"{entity}.{generation}"
 
         return caps, entity
 
@@ -1708,7 +1723,10 @@ class RadosJSON:
         self.out_map["NAMESPACE"] = self._arg_parser.namespace
         self.out_map["K8S_CLUSTER_NAME"] = self._arg_parser.k8s_cluster_name
         self.out_map["ROOK_EXTERNAL_FSID"] = self.get_fsid()
-        self.out_map["ROOK_EXTERNAL_USERNAME"] = self.run_as_user
+        _, external_user = self.get_caps_and_entity(
+            "client.healthchecker", generation
+        )
+        self.out_map["ROOK_EXTERNAL_USERNAME"] = external_user
         self.out_map["ROOK_EXTERNAL_CEPH_MON_DATA"] = self.get_ceph_external_mon_data()
         self.out_map["ROOK_EXTERNAL_USER_SECRET"] = self.create_checkerKey(
             "client.healthchecker", generation
@@ -2157,8 +2175,21 @@ class RadosJSON:
             "client.csi-cephfs-provisioner",
             "client.csi-rbd-node",
             "client.csi-rbd-provisioner",
-            "client.healthchecker",
         ]
+
+        # Restricted healthcheckers are scoped to a consumer and therefore
+        # use a distinct entity. A CephFS-only upgrade has no healthchecker
+        # pool to upgrade, so leave any existing healthchecker untouched.
+        if self._arg_parser.rbd_data_pool_name:
+            if self._arg_parser.restricted_auth_permission:
+                _, healthchecker = self.get_defaultUser_caps_and_entity(generation)
+            else:
+                healthchecker = self.EXTERNAL_USER_NAME
+            users.append(healthchecker)
+        elif self.run_as_user.startswith(self.EXTERNAL_USER_NAME):
+            raise ExecutionFailureException(
+                "mandatory flag not found, please set the '--rbd-data-pool-name' flag"
+            )
 
         if generation != 0:
             users += [
@@ -2166,7 +2197,6 @@ class RadosJSON:
                 f"client.csi-cephfs-provisioner.{generation}",
                 f"client.csi-rbd-node.{generation}",
                 f"client.csi-rbd-provisioner.{generation}",
-                f"client.healthchecker.{generation}",
             ]
 
         if self.run_as_user != "" and self.run_as_user not in users:
@@ -2175,7 +2205,7 @@ class RadosJSON:
             self.upgrade_user_permissions(user, generation)
 
     def get_rgw_pool_name_during_upgrade(self, user, caps):
-        if user == "client.healthchecker":
+        if user.startswith("client.healthchecker"):
             # when admin has not provided rgw pool name during upgrade,
             # get the rgw pool name from client.healthchecker user which was used during connection
             if not self._arg_parser.rgw_pool_prefix:
@@ -2184,7 +2214,7 @@ class RadosJSON:
                 match = re.search(pattern, caps)
                 if match:
                     self._arg_parser.rgw_pool_prefix = match.group(1)
-                else:
+                elif self._arg_parser.rgw_endpoint:
                     raise ExecutionFailureException(
                         "failed to get rgw pool name for upgrade"
                     )

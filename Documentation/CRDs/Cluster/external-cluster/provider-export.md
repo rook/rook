@@ -102,6 +102,15 @@ So you would be running different isolated consumer clusters on top of single `P
     Restricting the csi-users per pool, and per cluster will require creating new csi-users and new secrets for that csi-users.
     So apply these secrets only to new `Consumer cluster` deployment while using the same `Provider cluster`.
 
+    Restricted exports also create a consumer-specific `client.healthchecker-<cluster>-<pool>` user.
+    The generated `ROOK_EXTERNAL_USERNAME` value must be used with its matching secret. Existing
+    broad `client.healthchecker` permissions are not narrowed in place, so create new credentials
+    for each restricted consumer. If a RADOS namespace is specified, it is included in both the
+    healthchecker entity and its pool permission.
+
+    When upgrading a CephFS-only restricted consumer, omit `--rbd-data-pool-name` and provide the
+    existing CephFS user with `--run-as-user`; the healthchecker is not upgraded in that path.
+
 ```console
 python3 create-external-cluster-resources.py --cephfs-filesystem-name <filesystem-name> --rbd-data-pool-name <pool_name> --k8s-cluster-name <k8s-cluster-name> --restricted-auth-permission true --format <bash> --rgw-endpoint <rgw_endpoint> --namespace <rook-ceph>
 ```

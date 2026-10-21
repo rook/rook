@@ -176,7 +176,9 @@ class TestRadosJSON(unittest.TestCase):
 
         # restricted: the osd cap is scoped to the exported rbd data pool
         self.rjObj._arg_parser.restricted_auth_permission = True
-        caps, _ = self.rjObj.get_caps_and_entity("client.healthchecker", 0)
+        self.rjObj._arg_parser.k8s_cluster_name = "consumer-a"
+        caps, entity = self.rjObj.get_caps_and_entity("client.healthchecker", 0)
+        self.assertEqual(entity, "client.healthchecker-consumer-a-abc")
         expected_osd = (
             "profile rbd-read-only pool=abc"
             ", allow rwx pool=default.rgw.meta"
@@ -199,6 +201,13 @@ class TestRadosJSON(unittest.TestCase):
         caps, _ = self.rjObj.get_caps_and_entity("client.healthchecker", 0)
         self.assertEqual(caps["mds"], "allow *")
 
+        # restricted consumers using a RADOS namespace must be isolated in
+        # both the entity name and the OSD capability.
+        self.rjObj._arg_parser.rados_namespace = "tenant"
+        caps, entity = self.rjObj.get_caps_and_entity("client.healthchecker", 0)
+        self.assertEqual(entity, "client.healthchecker-consumer-a-abc-tenant")
+        self.assertEqual(caps["osd"], "profile rbd-read-only pool=abc namespace=tenant")
+
         # restricted without rbd data pool name must fail
         self.rjObj._arg_parser.rbd_data_pool_name = ""
         try:
@@ -206,6 +215,32 @@ class TestRadosJSON(unittest.TestCase):
             self.fail("An Exception was expected to be thrown")
         except ext.ExecutionFailureException as err:
             print(f"Successfully thrown error: {err}")
+
+    def test_restricted_upgrade_without_rgw_caps(self):
+        self.rjObj._arg_parser.restricted_auth_permission = True
+        self.rjObj._arg_parser.rbd_data_pool_name = "abc"
+        self.rjObj._arg_parser.k8s_cluster_name = "consumer-a"
+        self.rjObj._arg_parser.rgw_endpoint = ""
+        self.rjObj._arg_parser.rgw_pool_prefix = ""
+        self.rjObj.get_rgw_pool_name_during_upgrade(
+            "client.healthchecker-consumer-a-abc", "profile rbd-read-only pool=abc"
+        )
+
+    def test_cephfs_only_upgrade_skips_healthchecker(self):
+        self.rjObj._arg_parser.restricted_auth_permission = True
+        self.rjObj._arg_parser.rbd_data_pool_name = ""
+        self.rjObj._arg_parser.cephfs_filesystem_name = "myfs"
+        self.rjObj._arg_parser.k8s_cluster_name = "consumer-a"
+        self.rjObj.run_as_user = "client.csi-cephfs-node-consumer-a-myfs"
+        upgraded_users = []
+        self.rjObj.upgrade_user_permissions = (
+            lambda user, generation: upgraded_users.append(user)
+        )
+
+        self.rjObj.upgrade_users_permissions(0)
+
+        self.assertNotIn("client.healthchecker", upgraded_users)
+        self.assertIn("client.csi-cephfs-node-consumer-a-myfs", upgraded_users)
 
     def test_upgrade_user_permissions(self):
         self.rjObj = ext.RadosJSON(
