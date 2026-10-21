@@ -4510,6 +4510,14 @@ type NVMeOFGatewaySpec struct {
 	// +optional
 	HostNetwork *bool `json:"hostNetwork,omitempty"`
 
+	// InterruptMode controls whether SPDK runs in interrupt mode (true) or poll mode (false).
+	// In interrupt mode, SPDK reactors only consume CPU when processing I/O, dramatically
+	// reducing idle CPU usage. In poll mode, reactors spin at 100% CPU per core for lowest
+	// latency under heavy I/O workloads.
+	// If not set, defaults to true (interrupt mode).
+	// +optional
+	InterruptMode *bool `json:"interruptMode,omitempty"`
+
 	// Ports configuration for the NVMe-oF gateway
 	// +optional
 	Ports *NVMeOFGatewayPorts `json:"ports,omitempty"`
