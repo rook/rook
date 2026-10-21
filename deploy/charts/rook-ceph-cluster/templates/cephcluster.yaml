@@ -30,6 +30,9 @@ spec:
     {{- with .interval }}
     interval: {{ . }}
     {{- end }}
+    {{- with .scrapeTimeoutSeconds }}
+    scrapeTimeoutSeconds: {{ . }}
+    {{- end }}
   {{- end }}
   {{- with .Values.cephImage }}
   cephVersion:
