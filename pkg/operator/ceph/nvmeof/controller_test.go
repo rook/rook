@@ -844,8 +844,8 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 }
 
 func TestNVMeOFConfigGeneration(t *testing.T) {
-	t.Run("defaults", func(t *testing.T) {
-		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, nil)
+	t.Run("defaults with interrupt mode", func(t *testing.T) {
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, true, nil)
 		assert.NoError(t, err)
 
 		cfg, err := ini.Load([]byte(config))
@@ -859,12 +859,22 @@ func TestNVMeOFConfigGeneration(t *testing.T) {
 		assert.Equal(t, "admin", cfg.Section("ceph").Key("id").String())
 		assert.Equal(t, "pool-a", cfg.Section("ceph").Key("pool").String())
 		assert.Equal(t, "4096", cfg.Section("spdk").Key("mem_size").String())
+		assert.Equal(t, "--interrupt-mode", cfg.Section("spdk").Key("tgt_cmd_extra_args").String())
 		assert.Equal(t, "5499", cfg.Section("monitor").Key("port").String())
 		assert.Equal(t, "", cfg.Section("gateway").Key("override_hostname").String())
 	})
 
+	t.Run("poll mode disables interrupt mode", func(t *testing.T) {
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, false, nil)
+		assert.NoError(t, err)
+
+		cfg, err := ini.Load([]byte(config))
+		assert.NoError(t, err)
+		assert.Equal(t, "", cfg.Section("spdk").Key("tgt_cmd_extra_args").String())
+	})
+
 	t.Run("hostNetwork sets override_hostname", func(t *testing.T) {
-		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", true, nil)
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", true, true, nil)
 		assert.NoError(t, err)
 
 		cfg, err := ini.Load([]byte(config))
@@ -885,7 +895,7 @@ func TestNVMeOFConfigGeneration(t *testing.T) {
 				"foo": "bar",
 			},
 		}
-		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, userConfig)
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, true, userConfig)
 		assert.NoError(t, err)
 
 		cfg, err := ini.Load([]byte(config))
@@ -894,6 +904,20 @@ func TestNVMeOFConfigGeneration(t *testing.T) {
 		assert.Equal(t, "True", cfg.Section("gateway").Key("enable_auth").String())
 		assert.Equal(t, "pool-b", cfg.Section("ceph").Key("pool").String())
 		assert.Equal(t, "bar", cfg.Section("custom").Key("foo").String())
+	})
+
+	t.Run("user can extend tgt_cmd_extra_args in interrupt mode", func(t *testing.T) {
+		userConfig := map[string]map[string]string{
+			"spdk": {
+				"tgt_cmd_extra_args": `--interrupt-mode --env-context="--no-huge -m1024"`,
+			},
+		}
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, true, userConfig)
+		assert.NoError(t, err)
+
+		cfg, err := ini.Load([]byte(config))
+		assert.NoError(t, err)
+		assert.Equal(t, `--interrupt-mode --env-context="--no-huge -m1024"`, cfg.Section("spdk").Key("tgt_cmd_extra_args").String())
 	})
 }
 
@@ -931,4 +955,33 @@ func TestNVMeOFConfigMapGeneration(t *testing.T) {
 	assert.Equal(t, "group-a", cfg.Section("gateway").Key("group").String())
 	assert.Equal(t, "5511", cfg.Section("gateway").Key("port").String())
 	assert.Equal(t, nvmeofPoolName, cfg.Section("ceph").Key("pool").String())
+	// InterruptMode is nil, should default to interrupt mode enabled
+	assert.Equal(t, "--interrupt-mode", cfg.Section("spdk").Key("tgt_cmd_extra_args").String())
+}
+
+func TestNVMeOFConfigMapGenerationPollMode(t *testing.T) {
+	pollMode := false
+	nvmeof := &cephv1.CephNVMeOFGateway{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-nvmeof",
+			Namespace: "rook-ceph",
+		},
+		Spec: cephv1.NVMeOFGatewaySpec{
+			Group:         "group-a",
+			Instances:     1,
+			InterruptMode: &pollMode,
+		},
+		TypeMeta: controllerTypeMeta,
+	}
+
+	r := &ReconcileCephNVMeOFGateway{
+		cephClusterSpec: &cephv1.ClusterSpec{},
+	}
+	configMap, err := r.generateConfigMap(nvmeof, "a")
+	assert.NoError(t, err)
+
+	cfg, err := ini.Load([]byte(configMap.Data["config"]))
+	assert.NoError(t, err)
+	// interruptMode=false should not set tgt_cmd_extra_args
+	assert.Equal(t, "", cfg.Section("spdk").Key("tgt_cmd_extra_args").String())
 }

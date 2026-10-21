@@ -423,7 +423,7 @@ func (r *ReconcileCephNVMeOFGateway) deleteNVMeOFGateway(gatewayName, group stri
 // getNVMeOFGatewayConfig generates a complete nvmeof.conf configuration file
 // with all values filled in (no placeholders). User overrides from nvmeofConfig
 // are merged on top of the default configuration.
-func getNVMeOFGatewayConfig(poolName, daemonName, podIP, anaGroup string, hostNetwork bool, userConfig map[string]map[string]string) (string, error) {
+func getNVMeOFGatewayConfig(poolName, daemonName, podIP, anaGroup string, hostNetwork bool, interruptMode bool, userConfig map[string]map[string]string) (string, error) {
 	cfg := ini.Empty()
 	// Set default [gateway] section
 	gatewaySection, err := cfg.NewSection("gateway")
@@ -489,6 +489,11 @@ func getNVMeOFGatewayConfig(poolName, daemonName, podIP, anaGroup string, hostNe
 	spdkSection.Key("tgt_path").SetValue("/usr/local/bin/nvmf_tgt")
 	spdkSection.Key("timeout").SetValue("60.0")
 	spdkSection.Key("rpc_socket").SetValue("/var/tmp/spdk.sock")
+	// When interrupt mode is enabled, SPDK reactors only consume CPU when
+	// processing I/O instead of spinning at 100% per core in poll mode.
+	if interruptMode {
+		spdkSection.Key("tgt_cmd_extra_args").SetValue("--interrupt-mode")
+	}
 
 	// Set default [monitor] section
 	monitorSection, err := cfg.NewSection("monitor")
@@ -530,8 +535,10 @@ func (r *ReconcileCephNVMeOFGateway) generateConfigMap(nvmeof *cephv1.CephNVMeOF
 	// The init container will replace @@POD_IP@@ with the actual pod IP
 	podIP := "@@POD_IP@@"
 	hostNetwork := nvmeof.IsHostNetwork(r.cephClusterSpec)
+	// Default to interrupt mode (true) when not explicitly set
+	interruptMode := nvmeof.Spec.InterruptMode == nil || *nvmeof.Spec.InterruptMode
 
-	configContent, err := getNVMeOFGatewayConfig(nvmeofPoolName, daemonName, podIP, anaGroup, hostNetwork, nvmeof.Spec.NVMeOFConfig)
+	configContent, err := getNVMeOFGatewayConfig(nvmeofPoolName, daemonName, podIP, anaGroup, hostNetwork, interruptMode, nvmeof.Spec.NVMeOFConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate nvmeof config")
 	}
