@@ -51,7 +51,10 @@ PLATFORMS ?= $(ALL_PLATFORMS)
 
 # "helm" flavor is for pushing to s3/https endpoint
 # "charts" flavor is for pushing to oci endpoint
-FLAVORS ?= output images docs helm charts
+# "docs" is intentionally excluded here: docs are built and published separately
+# (see tests/scripts/publish-docs.sh) so the gh-pages deploy runs in its own
+# workflow with a concurrency group, avoiding non-fast-forward push races.
+FLAVORS ?= output images helm charts
 
 DOCKER_REGISTRY ?= docker.io/rook
 QUAY_REGISTRY ?= quay.io/rook
@@ -93,16 +96,8 @@ build.docs: deps.docs
 
 publish.docs:
 	if ! git remote show docs > /dev/null 2>&1; then git remote add docs $(DOCS_GIT_REPO); fi
-	# a concurrent build can push gh-pages between our fetch and mike's push,
-	# getting the push rejected as non-fast-forward; reset the local branch to
-	# the remote tip and redeploy when that happens
-	cd $(ROOT_DIR) && for attempt in 1 2 3; do \
-		git fetch --force --update-head-ok docs gh-pages:gh-pages && \
-		mike deploy --remote docs --push --branch gh-pages --update-aliases --deploy-prefix $(DOCS_PREFIX) $(DOCS_VERSION) $(DOCS_VERSION_ALIAS) && \
-		exit 0; \
-		echo "docs deploy attempt $$attempt failed"; \
-		sleep 15; \
-	done; exit 1
+	cd $(ROOT_DIR) && git fetch --force --update-head-ok docs gh-pages:gh-pages
+	cd $(ROOT_DIR) && mike deploy --remote docs --push --branch gh-pages --update-aliases --deploy-prefix $(DOCS_PREFIX) $(DOCS_VERSION) $(DOCS_VERSION_ALIAS)
 
 # ====================================================================================
 # helm

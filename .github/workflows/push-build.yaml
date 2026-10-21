@@ -99,7 +99,6 @@ jobs:
 
       - name: build and release
         env:
-          GIT_API_TOKEN: ${{ secrets.GIT_API_TOKEN }}
           BRANCH_NAME: ${{ env.BRANCH_NAME }}
           AWS_USR: ${{ secrets.AWS_USR }}
           AWS_PSW: ${{ secrets.AWS_PSW }}
