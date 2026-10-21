@@ -266,10 +266,7 @@ func MakeCephExporterMetricsService(cephCluster cephv1.CephCluster, servicePortM
 func EnableCephExporterServiceMonitor(context *clusterd.Context, cephCluster cephv1.CephCluster, scheme *runtime.Scheme, opManagerContext context.Context, servicePortMetricName string) error {
 	serviceMonitor := k8sutil.GetServiceMonitor(cephExporterAppName, cephCluster.Namespace, servicePortMetricName)
 
-	if cephCluster.Spec.Monitoring.Interval != nil {
-		duration := cephCluster.Spec.Monitoring.Interval.Duration.String()
-		serviceMonitor.Spec.Endpoints[0].Interval = monitoringv1.Duration(duration)
-	}
+	k8sutil.ApplyMonitoringTiming(cephCluster.Spec.Monitoring, serviceMonitor)
 
 	cephv1.GetCephExporterLabels(cephCluster.Spec.Labels).OverwriteApplyToObjectMeta(&serviceMonitor.ObjectMeta)
 
