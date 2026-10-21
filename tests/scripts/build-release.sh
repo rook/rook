@@ -40,9 +40,22 @@ fi
 # shellcheck disable=SC2034
 export DOCS_GIT_REPO="${DOCS_GIT_REPO:-git@github.com:rook/rook.github.io.git}"
 if [ -n "${GIT_API_TOKEN}" ]; then
+    # Use a plain HTTPS remote with no credentials embedded in the URL.
     DOCS_GIT_REPO="${DOCS_GIT_REPO//git@/}"
     DOCS_GIT_REPO="${DOCS_GIT_REPO//:/\/}"
-    export DOCS_GIT_REPO="https://${GIT_API_TOKEN}@${DOCS_GIT_REPO}"
+    export DOCS_GIT_REPO="https://${DOCS_GIT_REPO}"
+
+    # Authenticate with an http.extraheader rather than embedding the token in
+    # the remote URL. GitHub redirects the gh-pages push endpoint (e.g.
+    # rook.github.io.git -> rook.github.io.git/), and git drops URL-embedded
+    # credentials across that redirect, causing "could not read Username". An
+    # extraheader is matched by host and re-sent to same-host redirect targets,
+    # so it survives the redirect. Disable xtrace so the encoded credential is
+    # not written to the build log (GitHub only masks the raw secret).
+    { set +x; } 2>/dev/null
+    git config --global "http.https://github.com/.extraheader" \
+        "AUTHORIZATION: basic $(printf 'x-access-token:%s' "${GIT_API_TOKEN}" | base64 | tr -d '\n')"
+    { set -x; } 2>/dev/null
 fi
 
 TAGGED_RELEASE=false
