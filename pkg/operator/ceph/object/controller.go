@@ -140,12 +140,16 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the cephObjectStore CRD object
+	// Use predicate.Or to combine the standard watch predicate and the nofile limit annotation predicate
 	err = c.Watch(
 		source.Kind(
 			mgr.GetCache(),
 			&cephv1.CephObjectStore{TypeMeta: controllerTypeMeta},
 			&handler.TypedEnqueueRequestForObject[*cephv1.CephObjectStore]{},
-			opcontroller.WatchControllerPredicate[*cephv1.CephObjectStore](mgr.GetScheme()),
+			predicate.Or(
+				opcontroller.WatchControllerPredicate[*cephv1.CephObjectStore](mgr.GetScheme()),
+				opcontroller.RaiseNofileLimitPredicate[*cephv1.CephObjectStore](),
+			),
 		),
 	)
 	if err != nil {

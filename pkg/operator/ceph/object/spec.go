@@ -442,13 +442,19 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		return v1.Container{}, errors.Wrap(err, "failed to generate default readiness probe")
 	}
 
+	daemonCommand := []string{"radosgw"}
+	if controller.ShouldRaiseNofileLimit(c.store.ObjectMeta.Annotations) {
+		// Wrap radosgw to raise the nofile limit.
+		log.NamedInfo(nsName, logger, "raising nofile soft limit to hard limit in the RGW daemon container")
+		// Must pass arg0 "$0" explicitly since it is left off of "${@}"
+		daemonCommand = []string{"bash", "-c", controller.RaiseNofileLimitScript + `exec radosgw "$0" "$@"`}
+	}
+
 	container := v1.Container{
 		Name:            rgwContainerName,
 		Image:           c.clusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
-		Command: []string{
-			"radosgw",
-		},
+		Command:         daemonCommand,
 		Args: append(
 			controller.DaemonFlags(c.clusterInfo, c.clusterSpec,
 				strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
@@ -596,7 +602,12 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			container.Args = append(container.Args, cephconfig.NewFlag(radosReadReplicaPolicy, c.store.Spec.Gateway.ReadAffinity.Type))
 			// set crush location if `balance` and `default` mode are not set.
 			if c.store.Spec.Gateway.ReadAffinity.Type != balanceReadReplicaPolicy && c.store.Spec.Gateway.ReadAffinity.Type != defaultReadReplicaPolicy {
-				container.Command = []string{"bash", "-x", "-c", `exec radosgw --crush-location="host=${NODE_NAME//./-}" "$@"`}
+				// Must pass arg0 "$0" explicitly since it is left off of "${@}"
+				crushScript := `exec radosgw --crush-location="host=${NODE_NAME//./-}" "$0" "$@"`
+				if controller.ShouldRaiseNofileLimit(c.store.ObjectMeta.Annotations) {
+					crushScript = controller.RaiseNofileLimitScript + crushScript
+				}
+				container.Command = []string{"bash", "-x", "-c", crushScript}
 				isCrushLocationSet = true
 			}
 		} else {
