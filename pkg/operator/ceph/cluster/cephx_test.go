@@ -21,6 +21,7 @@ import (
 	"os"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -1140,4 +1141,91 @@ func Test_adminRotationLock(t *testing.T) {
 	releaseAdminRotationLock("other")
 
 	assert.Equal(t, map[string]struct{}{}, adminRotationInProgress)
+}
+
+func Test_setRotatingServiceKeyType(t *testing.T) {
+	const (
+		v1925 = "ceph version 19.2.5 (abc) squid (stable)"
+		v1926 = "ceph version 19.2.6 (def) squid (stable)"
+	)
+
+	cephVersion := version.CephVersion{Major: 19, Minor: 2, Extra: 6}
+
+	tests := []struct {
+		name          string
+		versions      string
+		versionsErr   error
+		cephVersion   version.CephVersion
+		wantErr       bool
+		wantCipherSet bool
+	}{
+		{
+			name:          "all mons and osds support aes256k",
+			versions:      fmt.Sprintf(`{"mon":{%q:3},"osd":{%q:4}}`, v1926, v1926),
+			cephVersion:   cephVersion,
+			wantCipherSet: true,
+		},
+		{
+			name:          "some osds do not support aes256k",
+			versions:      fmt.Sprintf(`{"mon":{%q:3},"osd":{%q:1,%q:3}}`, v1926, v1925, v1926),
+			cephVersion:   cephVersion,
+			wantCipherSet: false,
+		},
+		{
+			name:          "some mons do not support aes256k",
+			versions:      fmt.Sprintf(`{"mon":{%q:1,%q:2},"osd":{%q:4}}`, v1925, v1926, v1926),
+			cephVersion:   cephVersion,
+			wantCipherSet: false,
+		},
+		{
+			name:          "no osds running",
+			versions:      fmt.Sprintf(`{"mon":{%q:3}}`, v1926),
+			cephVersion:   cephVersion,
+			wantCipherSet: true,
+		},
+		{
+			name:          "ceph image does not support aes256k",
+			versions:      fmt.Sprintf(`{"mon":{%q:3},"osd":{%q:4}}`, v1925, v1925),
+			cephVersion:   version.CephVersion{Major: 19, Minor: 2, Extra: 5},
+			wantCipherSet: false,
+		},
+		{
+			name:          "failure to get ceph versions",
+			versionsErr:   fmt.Errorf("induced error"),
+			cephVersion:   cephVersion,
+			wantErr:       true,
+			wantCipherSet: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cipherSet := false
+			executor := &exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+					if args[0] == "versions" {
+						return tt.versions, tt.versionsErr
+					}
+					return "", fmt.Errorf("unexpected command %q %v", command, args)
+				},
+				MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+					if isCommand(append([]string{command}, args...), "ceph", "mon", "set", "auth_service_cipher") {
+						cipherSet = true
+						return "", nil
+					}
+					return "", fmt.Errorf("unexpected command %q %v", command, args)
+				},
+			}
+			clusterdCtx := &clusterd.Context{Executor: executor}
+			clusterInfo := client.AdminTestClusterInfo("ns")
+
+			err := setRotatingServiceKeyType(clusterdCtx, clusterInfo, &tt.cephVersion, cephv1.ClusterCephxConfig{})
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantCipherSet, cipherSet)
+		})
+	}
 }
