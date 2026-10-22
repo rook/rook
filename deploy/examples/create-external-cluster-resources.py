@@ -1008,6 +1008,12 @@ class RadosJSON:
                 )
             else:
                 caps["osd"] = f"profile rbd pool={rbd_pool_name}"
+            # the RBD images live in the metadata pool when the data pool is
+            # erasure coded, so it has to be granted as well
+            if self._arg_parser.rbd_metadata_ec_pool_name:
+                caps[
+                    "osd"
+                ] += f", profile rbd pool={self._arg_parser.rbd_metadata_ec_pool_name}"
         if generation != 0:
             entity = f"{entity}.{generation}"
 
@@ -1045,6 +1051,12 @@ class RadosJSON:
                 )
             else:
                 caps["osd"] = f"profile rbd pool={rbd_pool_name}"
+            # the RBD images live in the metadata pool when the data pool is
+            # erasure coded, so it has to be granted as well
+            if self._arg_parser.rbd_metadata_ec_pool_name:
+                caps[
+                    "osd"
+                ] += f", profile rbd pool={self._arg_parser.rbd_metadata_ec_pool_name}"
         if generation != 0:
             entity = f"{entity}.{generation}"
 
