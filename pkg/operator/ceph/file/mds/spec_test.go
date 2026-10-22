@@ -130,4 +130,25 @@ func TestHostNetwork(t *testing.T) {
 	// assert --public-addr is not appended to args
 	assert.NotContains(t, d.Spec.Template.Spec.Containers[0].Args,
 		config.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
+	assert.NotContains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+}
+
+func TestRequireMsgr2(t *testing.T) {
+	t.Run("requireMsgr2 true disables msgr1", func(t *testing.T) {
+		d, err := testDeploymentObject(t, cephv1.NetworkSpec{
+			Connections: &cephv1.ConnectionsSpec{RequireMsgr2: true},
+		})
+		assert.NoError(t, err)
+		assert.Contains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+	})
+
+	t.Run("encryption enabled disables msgr1", func(t *testing.T) {
+		d, err := testDeploymentObject(t, cephv1.NetworkSpec{
+			Connections: &cephv1.ConnectionsSpec{
+				Encryption: &cephv1.EncryptionSpec{Enabled: true},
+			},
+		})
+		assert.NoError(t, err)
+		assert.Contains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+	})
 }

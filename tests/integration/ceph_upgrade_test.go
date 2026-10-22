@@ -151,6 +151,14 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	err := s.installer.WaitForToolbox(s.namespace)
 	assert.NoError(s.T(), err)
 
+	if s.settings.RequireMsgr2 {
+		logger.Infof("Recreating filesystem consumer pod %s to remount with msgr2 after enabling requireMsgr2", filePodName)
+		require.NoError(s.T(), s.k8sh.DeletePod(s.namespace, filePodName))
+		require.True(s.T(), s.k8sh.IsPodTerminated(filePodName, s.namespace))
+		require.NoError(s.T(), s.k8sh.ResourceOperation("apply", getFilesystemCSITestPod(s.settings, filePodName, installer.FilesystemSCName)))
+		require.True(s.T(), s.k8sh.IsPodRunning(filePodName, s.namespace))
+	}
+
 	logger.Infof("Done with automatic upgrade from %s to master", baseRookImage)
 	newFile := "post-upgrade-previous-to-master-file"
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)

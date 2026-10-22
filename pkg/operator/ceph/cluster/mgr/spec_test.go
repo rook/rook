@@ -258,5 +258,36 @@ func TestMgrNetwork(t *testing.T) {
 		assert.NotNil(t, d)
 
 		assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
+		assert.NotContains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+	})
+
+	t.Run("requireMsgr2 true disables msgr1", func(t *testing.T) {
+		clusterSpec := cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{
+				Connections: &cephv1.ConnectionsSpec{RequireMsgr2: true},
+			},
+		}
+		c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
+
+		d, err := c.makeDeployment(&mgrTestConfig)
+		assert.NoError(t, err)
+		assert.NotNil(t, d)
+		assert.Contains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+	})
+
+	t.Run("encryption enabled disables msgr1", func(t *testing.T) {
+		clusterSpec := cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{
+				Connections: &cephv1.ConnectionsSpec{
+					Encryption: &cephv1.EncryptionSpec{Enabled: true},
+				},
+			},
+		}
+		c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
+
+		d, err := c.makeDeployment(&mgrTestConfig)
+		assert.NoError(t, err)
+		assert.NotNil(t, d)
+		assert.Contains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
 	})
 }
