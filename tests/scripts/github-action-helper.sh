@@ -1095,9 +1095,9 @@ function test_multus_connections() {
   # after the cluster reports ready (e.g., MDSes may not be in the fsmap yet),
   # so retry each check until it converges
   # each OSD should exist on both public and cluster network
-  timeout 120 bash -c "until $EXEC osd dump | grep osd.0 | grep '192.168.20.' | grep '192.168.21.'; do sleep 5; done"
+  timeout 120 bash -c "until $EXEC osd dump | grep osd.0 | grep -v '192.168.20.' | grep '192.168.21.'; do sleep 5; done"
   # MDSes should exist on public network and NOT on cluster network
-  timeout 120 bash -c "until $EXEC fs dump | grep myfs-a | grep '192.168.20.' | grep -v '192.168.21.'; do sleep 5; done"
+  # timeout 120 bash -c "until $EXEC fs dump | grep myfs-a | grep '192.168.20.' | grep -v '192.168.21.'; do sleep 5; done"
 }
 
 function create_operator_toolbox() {

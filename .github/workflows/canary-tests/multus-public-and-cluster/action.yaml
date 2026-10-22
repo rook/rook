@@ -95,6 +95,11 @@ runs:
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh test_csi_nfs_workload
 
+    - name: Keep cluster alive for debugging
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        echo "Test failed. Keeping the Kind cluster alive for debugging."
+        sleep 7200
     - name: collect common logs
       if: always()
       uses: ./.github/workflows/collect-logs

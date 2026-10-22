@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: csirbd-demo-pod
+  name: csirbd-demo-pod1
 spec:
   containers:
     - name: web-server
@@ -13,5 +13,5 @@ spec:
   volumes:
     - name: mypvc
       persistentVolumeClaim:
-        claimName: rbd-pvc
+        claimName: rbd-pvc1
         readOnly: false
