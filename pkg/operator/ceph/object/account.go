@@ -77,6 +77,21 @@ func ModifyAccount(ctx context.Context, adminOpsContext *AdminOpsContext, accoun
 	return modifiedAccount, nil
 }
 
+// SetAccountQuota sets a storage quota on an RGW account using the admin ops API. The QuotaType
+// selects whether the quota applies to the account as a whole (admin.AccountQuotaTypeAccount) or as
+// the default per-bucket quota for buckets the account owns (admin.AccountQuotaTypeBucket).
+func SetAccountQuota(ctx context.Context, adminOpsContext *AdminOpsContext, quota admin.AccountQuotaSpec) error {
+	if quota.ID == "" {
+		return errors.New("account ID cannot be empty")
+	}
+
+	if err := adminOpsContext.AdminOpsClient.SetAccountQuota(ctx, quota); err != nil {
+		return errors.Wrapf(err, "failed to set %q quota on account %q", quota.QuotaType, quota.ID)
+	}
+
+	return nil
+}
+
 // DeleteAccount removes an RGW account using the admin ops API.
 func DeleteAccount(nsName types.NamespacedName, ctx context.Context, adminOpsContext *AdminOpsContext, accountID string) error {
 	if accountID == "" {

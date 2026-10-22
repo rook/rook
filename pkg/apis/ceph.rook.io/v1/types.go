@@ -3124,6 +3124,48 @@ type ObjectStoreAccountSpec struct {
 	// and has default permissions across all account resources.
 	// +optional
 	RootUser *AccountRootUserSpec `json:"rootUser,omitempty"` //nolint:kubeapilinter // MinProperties cannot be applied to a struct pointer field
+	// Quotas sets the storage quotas and resource limits for the account. When this block is omitted,
+	// Rook does not manage the account's quotas or resource limits, leaving any values configured
+	// outside Rook (for example through radosgw-admin) untouched.
+	// +optional
+	Quotas *AccountQuotaSpec `json:"quotas,omitempty"` //nolint:kubeapilinter // MinProperties cannot be applied to a struct pointer field
+}
+
+// AccountQuotaSpec configures the storage quotas and resource limits for an RGW account.
+type AccountQuotaSpec struct {
+	// MaxSize is the account-wide storage quota, limiting the total size of all objects across all
+	// buckets owned by the account.
+	// +optional
+	MaxSize *resource.Quantity `json:"maxSize,omitempty"`
+	// MaxObjects is the account-wide object quota, limiting the total number of objects across all
+	// buckets owned by the account.
+	// +optional
+	MaxObjects *int64 `json:"maxObjects,omitempty"`
+	// MaxBucketSize is the default storage quota applied to each individual bucket owned by the
+	// account, limiting the total size of its objects. It can be overridden on a per-bucket basis
+	// outside of Rook.
+	// +optional
+	MaxBucketSize *resource.Quantity `json:"maxBucketSize,omitempty"`
+	// MaxBucketObjects is the default object quota applied to each individual bucket owned by the
+	// account, limiting its total number of objects. It can be overridden on a per-bucket basis
+	// outside of Rook.
+	// +optional
+	MaxBucketObjects *int64 `json:"maxBucketObjects,omitempty"`
+	// MaxBuckets is the maximum number of buckets the account can own.
+	// +optional
+	MaxBuckets *int64 `json:"maxBuckets,omitempty"`
+	// MaxUsers is the maximum number of users the account can own.
+	// +optional
+	MaxUsers *int64 `json:"maxUsers,omitempty"`
+	// MaxRoles is the maximum number of roles the account can own.
+	// +optional
+	MaxRoles *int64 `json:"maxRoles,omitempty"`
+	// MaxGroups is the maximum number of groups the account can own.
+	// +optional
+	MaxGroups *int64 `json:"maxGroups,omitempty"`
+	// MaxAccessKeys is the maximum number of access keys across the whole account, shared by all its users.
+	// +optional
+	MaxAccessKeys *int64 `json:"maxAccessKeys,omitempty"`
 }
 
 // AccountRootUserSpec defines the configuration for the account root user
