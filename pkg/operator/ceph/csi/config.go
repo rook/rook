@@ -148,6 +148,20 @@ func getSecretNameByAnnotation(c client.Client, ctx context.Context, namespace, 
 // CreateDefaultClientProfile creates a default client profile for csi-operator to connect the driver
 func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.ClusterInfo) error {
 	logger.Info("Creating ceph-csi clientProfile default CR")
+
+	cephFSProvisionerSecretName, err := getSecretNameByAnnotation(c, clusterInfo.Context, clusterInfo.Namespace, "csi.rook.io/CephFSProvisionerSecret", CsiCephFSProvisionerSecret)
+	if err != nil {
+		return err
+	}
+	rbdProvisionerSecretName, err := getSecretNameByAnnotation(c, clusterInfo.Context, clusterInfo.Namespace, "csi.rook.io/RBDProvisionerSecret", CsiRBDProvisionerSecret)
+	if err != nil {
+		return err
+	}
+	rbdNodeSecretName, err := getSecretNameByAnnotation(c, clusterInfo.Context, clusterInfo.Namespace, "csi.rook.io/RBDNodeSecret", CsiRBDNodeSecret)
+	if err != nil {
+		return err
+	}
+
 	csiOpClientProfile := &csiopv1.ClientProfile{}
 	csiOpClientProfile.Name = clusterInfo.Namespace
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
@@ -166,7 +180,7 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 
 	csiOpClientProfile.Spec.CephFs.CephCsiSecrets = &csiopv1.CephCsiSecretsSpec{
 		ControllerPublishSecret: v1.SecretReference{
-			Name:      CsiCephFSProvisionerSecret,
+			Name:      cephFSProvisionerSecretName,
 			Namespace: clusterInfo.Namespace,
 		},
 	}
@@ -177,11 +191,11 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 	// set RBD ControllerPublish Secret
 	csiOpClientProfile.Spec.Rbd.CephCsiSecrets = &csiopv1.CephCsiSecretsSpec{
 		ControllerPublishSecret: v1.SecretReference{
-			Name:      CsiRBDProvisionerSecret,
+			Name:      rbdProvisionerSecretName,
 			Namespace: clusterInfo.Namespace,
 		},
 		NodePublishSecret: v1.SecretReference{
-			Name:      CsiRBDNodeSecret,
+			Name:      rbdNodeSecretName,
 			Namespace: clusterInfo.Namespace,
 		},
 	}
