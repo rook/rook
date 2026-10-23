@@ -423,6 +423,7 @@ security:
 For RGW, please note the following:
 
 * `VAULT_SECRET_ENGINE`: the secret engine which Vault should use. Currently supports [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit). AWS-SSE:KMS supports `transit` engine and `kv` engine version 2. AWS-SSE:S3 only supports `transit` engine.
+* `VAULT_BACKEND_PATH`: the path where the secret engine is mounted in Vault. For `kv` it is the mount path of the `kv` engine. For `transit` it defaults to `transit` and is only needed when the engine is mounted elsewhere.
 * The Storage administrator needs to create a secret in the Vault server so that S3 clients use that key for encryption for AWS-SSE:KMS
 
 ```console
