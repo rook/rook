@@ -22,8 +22,10 @@ import (
 	"strconv"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -117,22 +119,87 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 		}
 	}
 
-	// Remove the OSD deployment
 	deploymentName := fmt.Sprintf("rook-ceph-osd-%d", osdID)
 	deployment, err := clusterdContext.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Get(clusterInfo.Context, deploymentName, metav1.GetOptions{})
 	if err != nil {
 		logger.Errorf("failed to fetch the deployment %q. %v", deploymentName, err)
-	} else {
+	}
+
+	// Gather PVC, PV, node, and encryption info before any deletion.
+	var pvcName, pvName, nodeName, symlinkPath, dmName string
+	encrypted := false
+	if deployment != nil {
+		pvcName = deployment.GetLabels()[oposd.OSDOverPVCLabelKey]
+	}
+
+	if pvcName != "" && !preservePVC {
+		encrypted = deployment.GetLabels()["encrypted"] == "true"
+		if encrypted {
+			dmName = oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
+		}
+		dataPVC, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Get(clusterInfo.Context, pvcName, metav1.GetOptions{})
+		if err != nil {
+			logger.Errorf("failed to get PVC %q for osd.%d. %v", pvcName, osdID, err)
+		} else {
+			pvName = dataPVC.Spec.VolumeName
+			pv, err := clusterdContext.Clientset.CoreV1().PersistentVolumes().Get(clusterInfo.Context, pvName, metav1.GetOptions{})
+			if err != nil {
+				logger.Errorf("failed to get PV %q for osd.%d. %v", pvName, osdID, err)
+			} else {
+				nodeName = nodeNameFromPV(pv)
+				symlinkPath = pv.Spec.Local.Path
+			}
+		}
+
+		// Fence the deployment: set do-not-reconcile and scale to 0 so the OSD pod stops
+		// before the PVC is deleted. "do_not_reconcile" is controller.DoNotReconcileLabelName.
+		replicas := int32(0)
+		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			latest, err := clusterdContext.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Get(clusterInfo.Context, deploymentName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			latest.Labels["do_not_reconcile"] = "true"
+			latest.Spec.Replicas = &replicas
+			_, err = clusterdContext.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Update(clusterInfo.Context, latest, metav1.UpdateOptions{})
+			return err
+		}); err != nil {
+			logger.Warningf("failed to fence deployment %q. %v", deploymentName, err)
+		}
+	}
+
+	if pvcName != "" {
+		removeOSDPrepareJob(clusterdContext, clusterInfo, pvcName)
+		removePVCs(clusterdContext, clusterInfo, pvcName, preservePVC)
+	} else if deployment != nil {
+		logger.Infof("did not find a pvc name to remove for osd %q", deploymentName)
+	}
+
+	if pvcName != "" && !preservePVC && nodeName != "" {
+		cfg := purgeNodeJobConfig{
+			namespace:   clusterInfo.Namespace,
+			osdID:       osdID,
+			nodeName:    nodeName,
+			symlinkPath: symlinkPath,
+			encrypted:   encrypted,
+			dmName:      dmName,
+			rookImage:   deployment.Spec.Template.Spec.Containers[0].Image,
+		}
+		if err := createAndRunPurgeNodeJob(clusterInfo.Context, clusterdContext.Clientset, cfg); err != nil {
+			logger.Errorf("failed to create purge node job for osd.%d. %v", osdID, err)
+		} else if err := waitForPurgeNodeJob(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.Namespace, osdID); err != nil {
+			logger.Errorf("purge node job for osd.%d did not complete successfully. %v", osdID, err)
+		}
+	}
+
+	if pvName != "" && !preservePVC {
+		removePV(clusterdContext, clusterInfo, pvName)
+	}
+
+	if deployment != nil {
 		logger.Infof("removing the OSD deployment %q", deploymentName)
 		if err := k8sutil.DeleteDeployment(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.Namespace, deploymentName); err != nil {
-			// Continue purging the OSD even if the deployment fails to be deleted
 			logger.Errorf("failed to delete deployment for OSD %d. %v", osdID, err)
-		}
-		if pvcName, ok := deployment.GetLabels()[oposd.OSDOverPVCLabelKey]; ok {
-			removeOSDPrepareJob(clusterdContext, clusterInfo, pvcName)
-			removePVCs(clusterdContext, clusterInfo, pvcName, preservePVC)
-		} else {
-			logger.Infof("did not find a pvc name to remove for osd %q", deploymentName)
 		}
 	}
 
@@ -241,6 +308,29 @@ func archiveCrash(clusterdContext *clusterd.Context, clusterInfo *client.Cluster
 	if !matched {
 		logger.Infof("no ceph crash for osd.%d to silence", osdID)
 	}
+}
+
+func removePV(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, pvName string) {
+	logger.Infof("removing PV %q", pvName)
+	err := clusterdContext.Clientset.CoreV1().PersistentVolumes().Delete(clusterInfo.Context, pvName, metav1.DeleteOptions{})
+	if err != nil && !kerrors.IsNotFound(err) {
+		logger.Errorf("failed to delete PV %q. %v", pvName, err)
+	}
+}
+
+// nodeNameFromPV extracts the kubernetes node name from a local PV's node affinity.
+func nodeNameFromPV(pv *v1.PersistentVolume) string {
+	if pv.Spec.NodeAffinity == nil || pv.Spec.NodeAffinity.Required == nil {
+		return ""
+	}
+	for _, term := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms {
+		for _, expr := range term.MatchExpressions {
+			if expr.Key == v1.LabelHostname && len(expr.Values) > 0 {
+				return expr.Values[0]
+			}
+		}
+	}
+	return ""
 }
 
 // DestroyOSD fetches the OSD to be migrated based on the ID and then destroys that OSD and zaps the backing device

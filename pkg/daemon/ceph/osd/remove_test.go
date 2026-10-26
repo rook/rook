@@ -28,7 +28,9 @@ import (
 	testexec "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8stesting "k8s.io/client-go/testing"
@@ -244,5 +246,76 @@ func TestArchiveCrash(t *testing.T) {
 
 		archiveCrash(context, client.AdminTestClusterInfo("mycluster"), 0)
 		assert.Empty(t, archived)
+	})
+}
+
+func TestRemovePV(t *testing.T) {
+	clusterInfo := client.AdminTestClusterInfo("rook-ceph")
+
+	t.Run("deletes an existing PV", func(t *testing.T) {
+		context := &clusterd.Context{Clientset: testexec.New(t, 0)}
+		_, err := context.Clientset.CoreV1().PersistentVolumes().Create(
+			clusterInfo.Context,
+			&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-test"}},
+			metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		removePV(context, clusterInfo, "pv-test")
+
+		_, err = context.Clientset.CoreV1().PersistentVolumes().Get(clusterInfo.Context, "pv-test", metav1.GetOptions{})
+		assert.True(t, kerrors.IsNotFound(err))
+	})
+
+	t.Run("no error when PV does not exist", func(t *testing.T) {
+		context := &clusterd.Context{Clientset: testexec.New(t, 0)}
+		removePV(context, clusterInfo, "nonexistent-pv")
+	})
+}
+
+func TestNodeNameFromPV(t *testing.T) {
+	makeAffinityPV := func(key string, values []string) *corev1.PersistentVolume {
+		return &corev1.PersistentVolume{
+			Spec: corev1.PersistentVolumeSpec{
+				NodeAffinity: &corev1.VolumeNodeAffinity{
+					Required: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      key,
+										Operator: corev1.NodeSelectorOpIn,
+										Values:   values,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	t.Run("returns node name from hostname affinity", func(t *testing.T) {
+		pv := makeAffinityPV(corev1.LabelHostname, []string{"worker-0"})
+		assert.Equal(t, "worker-0", nodeNameFromPV(pv))
+	})
+
+	t.Run("returns empty string when NodeAffinity is nil", func(t *testing.T) {
+		pv := &corev1.PersistentVolume{}
+		assert.Equal(t, "", nodeNameFromPV(pv))
+	})
+
+	t.Run("returns empty string when Required is nil", func(t *testing.T) {
+		pv := &corev1.PersistentVolume{
+			Spec: corev1.PersistentVolumeSpec{
+				NodeAffinity: &corev1.VolumeNodeAffinity{},
+			},
+		}
+		assert.Equal(t, "", nodeNameFromPV(pv))
+	})
+
+	t.Run("returns empty string when no hostname expression is present", func(t *testing.T) {
+		pv := makeAffinityPV("some-other-label", []string{"value"})
+		assert.Equal(t, "", nodeNameFromPV(pv))
 	})
 }
