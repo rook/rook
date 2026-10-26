@@ -28,7 +28,9 @@ import (
 	testexec "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8stesting "k8s.io/client-go/testing"
@@ -94,13 +96,55 @@ func TestRemovePVCs(t *testing.T) {
 		assert.Equal(t, "mydata-data-0-0", pvcs.Items[0].Name)
 
 		// Remove the PVCs for one of the OSDs
-		removePVCs(context, clusterInfo, "mydata-data-0-0", false)
+		err = removePVCs(context, clusterInfo, "mydata-data-0-0", false)
+		require.NoError(t, err)
 
 		// Verify the PVCs all exist
 		pvcs, err = clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).List(ctx, metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(pvcs.Items))
 		assert.Equal(t, "mydata-data-1-1", pvcs.Items[0].Name)
+	})
+
+	t.Run("returns error when delete PVC fails", func(t *testing.T) {
+		pvcSuffix := 0
+		pvcReactor := func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+			createAction, ok := action.(k8stesting.CreateAction)
+			if !ok {
+				return false, nil, nil
+			}
+			obj := createAction.GetObject()
+			pvc, ok := obj.(*corev1.PersistentVolumeClaim)
+			if !ok {
+				return false, nil, nil
+			}
+			if pvc.Name == "" {
+				pvc.Name = fmt.Sprintf("%s-%d", pvc.GenerateName, pvcSuffix)
+				pvcSuffix++
+			}
+			return false, nil, nil
+		}
+
+		clientset := testexec.New(t, 1)
+		clientset.PrependReactor("create", "persistentvolumeclaims", pvcReactor)
+		clientset.PrependReactor("delete", "persistentvolumeclaims", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, nil, errors.New("delete failed")
+		})
+		context := &clusterd.Context{Clientset: clientset}
+
+		deviceSet := cephv1.StorageClassDeviceSet{
+			Name:                 "mydata",
+			Count:                1,
+			Portable:             true,
+			VolumeClaimTemplates: []cephv1.VolumeClaimTemplate{testVolumeClaim("data")},
+			SchedulerName:        "custom-scheduler",
+		}
+		err := createTestPVCs(context, clusterInfo, deviceSet)
+		require.NoError(t, err)
+
+		err = removePVCs(context, clusterInfo, "mydata-data-0-0", false)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to delete PVC")
 	})
 
 	t.Run("remove osd with metadata and wal pvcs", func(t *testing.T) {
@@ -133,7 +177,8 @@ func TestRemovePVCs(t *testing.T) {
 		assert.Equal(t, 3, len(pvcs.Items))
 
 		// Remove the PVCs for one of the OSDs
-		removePVCs(context, clusterInfo, "mydata-data-0-2", false)
+		err = removePVCs(context, clusterInfo, "mydata-data-0-2", false)
+		require.NoError(t, err)
 
 		// Verify the PVCs all deleted for the given OSD
 		pvcs, err = clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
@@ -244,5 +289,44 @@ func TestArchiveCrash(t *testing.T) {
 
 		archiveCrash(context, client.AdminTestClusterInfo("mycluster"), 0)
 		assert.Empty(t, archived)
+	})
+}
+
+func TestRemovePV(t *testing.T) {
+	clusterInfo := client.AdminTestClusterInfo("rook-ceph")
+
+	t.Run("deletes an existing PV", func(t *testing.T) {
+		context := &clusterd.Context{Clientset: testexec.New(t, 0)}
+		_, err := context.Clientset.CoreV1().PersistentVolumes().Create(
+			clusterInfo.Context,
+			&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-test"}},
+			metav1.CreateOptions{},
+		)
+		require.NoError(t, err)
+
+		err = removePV(context, clusterInfo, "pv-test")
+		require.NoError(t, err)
+
+		_, err = context.Clientset.CoreV1().PersistentVolumes().Get(clusterInfo.Context, "pv-test", metav1.GetOptions{})
+		assert.True(t, kerrors.IsNotFound(err))
+	})
+
+	t.Run("no error when PV does not exist", func(t *testing.T) {
+		context := &clusterd.Context{Clientset: testexec.New(t, 0)}
+		err := removePV(context, clusterInfo, "nonexistent-pv")
+		assert.NoError(t, err)
+	})
+
+	t.Run("returns error when delete fails", func(t *testing.T) {
+		clientset := testexec.New(t, 0)
+		expectedErr := errors.New("delete failed")
+		clientset.PrependReactor("delete", "persistentvolumes", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, nil, expectedErr
+		})
+		context := &clusterd.Context{Clientset: clientset}
+
+		err := removePV(context, clusterInfo, "pv-fail")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to delete PV")
 	})
 }
