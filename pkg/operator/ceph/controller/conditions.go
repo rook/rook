@@ -29,24 +29,37 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 // UpdateCondition function will export each condition into the cluster custom resource
 func UpdateCondition(ctx context.Context, c *clusterd.Context, namespaceName types.NamespacedName, observedGeneration int64, conditionType cephv1.ConditionType, status v1.ConditionStatus, reason cephv1.ConditionReason, message string) {
+<<<<<<< HEAD
 	// use client.Client unit test this more easily with updating statuses which must use the client
 	cluster := &cephv1.CephCluster{}
 	if err := c.Client.Get(ctx, namespaceName, cluster); err != nil {
 		log.NamedError(namespaceName, logger, "failed to get cluster %v to update the conditions. %v", namespaceName, err)
 		return
+=======
+	// use client.Client to unit test this more easily with updating statuses which must use the client
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cluster := &cephv1.CephCluster{}
+		if err := c.Client.Get(ctx, namespaceName, cluster); err != nil {
+			log.NamedError(namespaceName, logger, "failed to get cluster %v to update the conditions. %v", namespaceName, err)
+			return err
+		}
+		return UpdateClusterCondition(c, cluster, namespaceName, observedGeneration, conditionType, status, reason, message, false)
+	})
+	if err != nil {
+		log.NamedError(namespaceName, logger, "failed to update cluster condition after retries. %v", err)
+>>>>>>> 936a5f8 (operator: retry CephCluster status update on conflict)
 	}
-
-	UpdateClusterCondition(c, cluster, namespaceName, observedGeneration, conditionType, status, reason, message, false)
 }
 
 // UpdateClusterCondition function will export each condition into the cluster custom resource
 func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, namespaceName types.NamespacedName, observedGeneration int64, conditionType cephv1.ConditionType, status v1.ConditionStatus,
 	reason cephv1.ConditionReason, message string, preserveAllConditions bool,
-) {
+) error {
 	// Keep the conditions that already existed if they are in the list of long-term conditions,
 	// otherwise discard the temporary conditions
 	var currentCondition *cephv1.Condition
@@ -107,7 +120,9 @@ func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, na
 
 	if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
 		log.NamedError(namespaceName, logger, "failed to update cluster condition to %+v. %v", *currentCondition, err)
+		return err
 	}
+	return nil
 }
 
 // translatePhasetoState convert the Phases to corresponding State

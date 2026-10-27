@@ -400,7 +400,7 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 	var err error
 
 	// Set the deleting status
-	opcontroller.UpdateClusterCondition(r.context, cephCluster, nsName,
+	_ = opcontroller.UpdateClusterCondition(r.context, cephCluster, nsName,
 		k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionDeleting, corev1.ConditionTrue, cephv1.ClusterDeletingReason, "Deleting the CephCluster",
 		true /* keep all other conditions to be safe */)
 
