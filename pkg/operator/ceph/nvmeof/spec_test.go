@@ -446,6 +446,57 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.Equal(t, "quay.io/ceph/nvmeof:1.5", daemonCont.Image)
 	})
 
+	t.Run("daemon container uses image from ROOK_CEPH_NVMEOF_IMAGE env var", func(t *testing.T) {
+		nvmeof := &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				Group:     "group-a",
+				Instances: 1,
+			},
+		}
+
+		r, configHash := newDeploymentSpecTest(t)
+		t.Setenv(NVMeOFImageEnv, "cp.icr.io/cp/ibm-ceph/nvmeof-rhel10:1.7")
+
+		configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
+		d, err := r.makeDeployment(nvmeof, "0", configMapName, configHash)
+		assert.NoError(t, err)
+
+		assert.Len(t, d.Spec.Template.Spec.Containers, 1)
+		daemonCont := d.Spec.Template.Spec.Containers[0]
+		assert.Equal(t, "nvmeof-gateway", daemonCont.Name)
+		assert.Equal(t, "cp.icr.io/cp/ibm-ceph/nvmeof-rhel10:1.7", daemonCont.Image)
+	})
+
+	t.Run("CR spec image takes precedence over ROOK_CEPH_NVMEOF_IMAGE env var", func(t *testing.T) {
+		nvmeof := &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
+				Group:     "group-a",
+				Instances: 1,
+			},
+		}
+
+		r, configHash := newDeploymentSpecTest(t)
+		t.Setenv(NVMeOFImageEnv, "cp.icr.io/cp/ibm-ceph/nvmeof-rhel10:1.7")
+
+		configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
+		d, err := r.makeDeployment(nvmeof, "0", configMapName, configHash)
+		assert.NoError(t, err)
+
+		assert.Len(t, d.Spec.Template.Spec.Containers, 1)
+		daemonCont := d.Spec.Template.Spec.Containers[0]
+		assert.Equal(t, "nvmeof-gateway", daemonCont.Name)
+		assert.Equal(t, "quay.io/ceph/nvmeof:1.5", daemonCont.Image)
+	})
+
 	t.Run("daemon container fails when image not in CR and ceph config is empty", func(t *testing.T) {
 		nvmeof := &cephv1.CephNVMeOFGateway{
 			ObjectMeta: metav1.ObjectMeta{

@@ -498,13 +498,27 @@ func instanceName(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) string {
 	return fmt.Sprintf("%s-%s-%s", AppName, nvmeof.Name, daemonID)
 }
 
+// NVMeOFImageEnv is the environment variable name for overriding the NVMe-oF
+// gateway container image. It is intended to be set in the operator CSV so that
+// bundle generation scripts can inject the correct image for pre-GA builds
+// without requiring changes to the CephNVMeOFGateway CR or manual ceph config
+// overrides. The env var acts as a middle-priority source between the CR spec
+// and the ceph mon config store.
+const NVMeOFImageEnv = "ROOK_CEPH_NVMEOF_IMAGE"
+
 // getNVMeOFImage returns the image to use for the NVMe-oF gateway.
-// Priority: CR spec.image > ceph config (mgr/cephadm/container_image_nvmeof).
-// If neither source provides an image, an error is returned to fail the reconcile.
+// Priority: CR spec.image > ROOK_CEPH_NVMEOF_IMAGE env var > ceph config (mgr/cephadm/container_image_nvmeof).
+// If no source provides an image, an error is returned to fail the reconcile.
 func (r *ReconcileCephNVMeOFGateway) getNVMeOFImage(nvmeof *cephv1.CephNVMeOFGateway) (string, error) {
 	if nvmeof.Spec.Image != "" {
 		logger.Infof("using NVMe-oF gateway image from CR spec: %s", nvmeof.Spec.Image)
 		return nvmeof.Spec.Image, nil
+	}
+
+	envImage := k8sutil.GetOperatorSetting(NVMeOFImageEnv, "")
+	if envImage != "" {
+		logger.Infof("using NVMe-oF gateway image from env var %s: %s", NVMeOFImageEnv, envImage)
+		return envImage, nil
 	}
 
 	monStore := cephconfig.GetMonStore(r.context, r.clusterInfo)
@@ -513,7 +527,7 @@ func (r *ReconcileCephNVMeOFGateway) getNVMeOFImage(nvmeof *cephv1.CephNVMeOFGat
 		return "", errors.Wrap(err, "failed to get NVMe-oF image from ceph config (mgr/cephadm/container_image_nvmeof)")
 	}
 	if image == "" {
-		return "", errors.New("NVMe-oF gateway image not specified in the CR and ceph config key mgr/cephadm/container_image_nvmeof is empty")
+		return "", errors.New("NVMe-oF gateway image not specified in the CR, env var " + NVMeOFImageEnv + ", or ceph config key mgr/cephadm/container_image_nvmeof")
 	}
 
 	logger.Infof("using NVMe-oF gateway image from ceph config: %s", image)

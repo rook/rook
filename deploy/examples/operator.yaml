@@ -267,6 +267,15 @@ spec:
             - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
               value: "5"
 
+            # The NVMe-oF gateway container image to use. When set, this value
+            # takes precedence over the Ceph mon config store default
+            # (mgr/cephadm/container_image_nvmeof). The CephNVMeOFGateway CR
+            # spec.image field, if set, still takes highest precedence.
+            # This is typically overridden by bundle generation scripts for
+            # pre-GA builds where the default cephadm image tag is not yet
+            # published to the production registry.
+            # ROOK_CEPH_NVMEOF_IMAGE: ""
+
             # The name of the node to pass with the downward API
             - name: NODE_NAME
               valueFrom:
