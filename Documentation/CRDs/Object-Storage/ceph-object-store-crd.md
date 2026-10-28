@@ -414,7 +414,6 @@ security:
     connectionDetails:
       KMS_PROVIDER: vault
       VAULT_ADDR: http://vault.default.svc.cluster.local:8200
-      VAULT_BACKEND_PATH: rgw
       VAULT_SECRET_ENGINE: transit
     # name of the k8s secret containing the kms authentication token
     tokenSecretName: rgw-vault-s3-token
@@ -423,6 +422,7 @@ security:
 For RGW, please note the following:
 
 * `VAULT_SECRET_ENGINE`: the secret engine which Vault should use. Currently supports [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit). AWS-SSE:KMS supports `transit` engine and `kv` engine version 2. AWS-SSE:S3 only supports `transit` engine.
+* `VAULT_TRANSIT_BACKEND_PATH`: for AWS-SSE:S3 only, the path where the `transit` engine is mounted in Vault. It defaults to `transit` and is only needed when the engine is mounted elsewhere. `VAULT_BACKEND_PATH` is not used by AWS-SSE:S3.
 * The Storage administrator needs to create a secret in the Vault server so that S3 clients use that key for encryption for AWS-SSE:KMS
 
 ```console
