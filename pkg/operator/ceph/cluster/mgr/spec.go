@@ -222,6 +222,10 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			config.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 	}
 
+	if c.spec.RequireMsgr2() {
+		container.Args = append(container.Args, config.NewFlag("ms-bind-msgr1", "false"))
+	}
+
 	return container
 }
 
