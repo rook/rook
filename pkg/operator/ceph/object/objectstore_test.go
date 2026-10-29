@@ -253,6 +253,99 @@ func TestReconcileRealm(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestConfigureObjectStoreWithCustomEndpoints(t *testing.T) {
+	// zonegroup get returns master zonegroup with master zone
+	zoneGroupJSON := `{
+		"id": "fg8ff110-d3fd-49b4-b24f-f6cd3dddfedf",
+		"name": "zonegroup-a",
+		"api_name": "zonegroup-a",
+		"is_master": true,
+		"endpoints": ["https://custom.endpoint:443"],
+		"master_zone": "6cb39d2c-3005-49da-9be3-c1a92a97d28a",
+		"zones": [
+			{
+				"id": "6cb39d2c-3005-49da-9be3-c1a92a97d28a",
+				"name": "zone-a",
+				"endpoints": ["https://custom.endpoint:443"]
+			}
+		],
+		"realm_id": "237e6250-5f7d-4b85-9359-8cb2b1848507"
+	}`
+	// zone get returns zone whose ID matches master_zone above (so it is master)
+	zoneJSON := `{"id": "6cb39d2c-3005-49da-9be3-c1a92a97d28a", "name": "zone-a"}`
+
+	calledUserInfo := false
+	calledUserCreate := false
+
+	ns := "rook-ceph"
+	realmName := "realm-a"
+
+	ctx := t.Context()
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns,
+			Name:      realmName + "-keys",
+		},
+		//nolint:gosec // only test values
+		Data: map[string][]byte{
+			"access-key": []byte("testAccessKey"),
+			"secret-key": []byte("testSecretKey"),
+		},
+	}
+	clientset := k8sfake.NewClientset(secret)
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			logger.Infof("TestConfigureObjectStoreWithCustomEndpoints: %s %v", command, args)
+			switch args[0] {
+			case "zonegroup":
+				if args[1] == "get" {
+					return zoneGroupJSON, nil
+				}
+			case "zone":
+				if args[1] == "get" {
+					return zoneJSON, nil
+				}
+			case "user":
+				if args[1] == "info" {
+					calledUserInfo = true
+					// EINVAL signals user not found → triggers user create
+					return "", exectest.MockExecCommandReturns(t, "", "", int(syscall.EINVAL))
+				}
+				if args[1] == "create" {
+					calledUserCreate = true
+					return `{"user_id": "realm-a-system-user"}`, nil
+				}
+			}
+			return "", nil
+		},
+	}
+
+	clusterCtx := &clusterd.Context{Executor: executor, Clientset: clientset}
+	clusterInfo := &client.ClusterInfo{Namespace: ns, Context: ctx}
+	objContext := NewContext(clusterCtx, clusterInfo, "my-store")
+	objContext.Realm = realmName
+	objContext.ZoneGroup = "zonegroup-a"
+	objContext.Zone = "zone-a"
+
+	store := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: "my-store"},
+		Spec: cephv1.ObjectStoreSpec{
+			Zone: cephv1.ZoneSpec{Name: "zone-a"},
+		},
+	}
+	zone := &cephv1.CephObjectZone{
+		Spec: cephv1.ObjectZoneSpec{
+			CustomEndpoints: []string{"https://custom.endpoint:443"},
+		},
+	}
+
+	err := configureObjectStore(objContext, store, zone)
+	assert.NoError(t, err)
+	assert.True(t, calledUserInfo, "expected user info to be called for system user")
+	assert.True(t, calledUserCreate, "expected user create to be called for system user")
+}
+
 func TestConfigureStoreWithSharedPools(t *testing.T) {
 	sharedMetaPoolAlreadySet, sharedDataPoolAlreadySet := "", ""
 	zoneGetCalled := false
