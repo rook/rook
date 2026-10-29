@@ -408,6 +408,10 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 		if err != nil {
 			return errors.Wrapf(err, "failed to set max_bytes quota for pool %q", pool.Name)
 		}
+	} else if !strings.HasPrefix(pool.Name, ".") {
+		if err := setPoolQuota(context, clusterInfo, pool.Name, "max_bytes", "0"); err != nil {
+			return errors.Wrapf(err, "failed to clear max_bytes quota for pool %q", pool.Name)
+		}
 	}
 	// set max_objects quota
 	if pool.Quotas.MaxObjects != nil {
@@ -415,6 +419,10 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 		err := setPoolQuota(context, clusterInfo, pool.Name, "max_objects", strconv.FormatUint(*pool.Quotas.MaxObjects, 10))
 		if err != nil {
 			return errors.Wrapf(err, "failed to set max_objects quota for pool %q", pool.Name)
+		}
+	} else if !strings.HasPrefix(pool.Name, ".") {
+		if err := setPoolQuota(context, clusterInfo, pool.Name, "max_objects", "0"); err != nil {
+			return errors.Wrapf(err, "failed to clear max_objects quota for pool %q", pool.Name)
 		}
 	}
 
