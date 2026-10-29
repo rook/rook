@@ -266,15 +266,15 @@ metadata:
   namespace: rook-ceph
 spec:
   store: my-store
-  # [Optional] Quotas for the account
+  # [Optional] Quotas and resource limits for the account.
   quotas:
-    # [Optional] Maximum total size of all objects across all buckets in the account.
+    # [Optional] Maximum total size of all objects across all buckets in the account. Accepts any resource quantity unit (e.g. 10Gi, 500Mi, 2Ti).
     maxSize: 10Gi
     # [Optional] Maximum total number of objects across all buckets in the account.
     maxObjects: 1000000
-    # [Optional] Maximum total size of objects in any individual bucket in the account.
+    # [Optional] Default maximum size of objects in any individual bucket in the account.
     maxBucketSize: 1Gi
-    # [Optional] Maximum number of objects in any individual bucket in the account.
+    # [Optional] Default maximum number of objects in any individual bucket in the account.
     maxBucketObjects: 100000
     # [Optional] Maximum number of buckets the account can own.
     maxBuckets: 100
@@ -284,7 +284,7 @@ spec:
     maxRoles: 50
     # [Optional] Maximum number of groups the account can have.
     maxGroups: 20
-    # [Optional] Maximum number of access keys the account can have.
+    # [Optional] Maximum number of access keys across the whole account (shared by all its users).
     maxAccessKeys: 100
   rootUser:
     displayName: "root-my-account"
@@ -292,13 +292,29 @@ spec:
 
 ### Quota Reconciliation
 
-The account controller reconciles quotas as follows:
+The account controller reconciles the `quotas` as follows:
 
-- **Account quota** (`maxSize`, `maxObjects`): enabled when either field is set, disabled when both are removed.
-- **Bucket quota** (`maxBucketSize`, `maxBucketObjects`): enabled when either field is set, disabled when both are removed.
-- **Resource limits** (`maxBuckets`, `maxUsers`, `maxRoles`, `maxGroups`, `maxAccessKeys`): set via account modify API. Unset fields default to unlimited (-1).
+- **Block omitted** (`spec.quotas` is not set): Rook does not manage quotas or resource limits. So any values set outside Rook, for example directly through `radosgw-admin`, are left untouched. This allows administrator to manage the account quota outside Rook.
+- **Block present**: on every reconcile, Rook applies the fields that are set.
+  - **Storage quotas** (account quota from `maxSize`/`maxObjects`, and the default per-bucket quota from `maxBucketSize`/`maxBucketObjects`): a set field is enforced, an unset field is unlimited. The default per-bucket quota applies to every account-owned bucket that does not have its own per-bucket override.
+  - **Resource limits** (`maxBuckets`, `maxUsers`, `maxRoles`, `maxGroups`, `maxAccessKeys`): a set field is applied, an unset field keeps the Ceph default (1000, or 4 for `maxAccessKeys`).
 
-**Note**: Account and Bucket quota APIs (`Quota`, `BucketQuota` of type `admin.QuotaSpec)`) in `go-ceph` are not implemented yet.
+**NOTE**: Unlimited is `-1` for storage quotas and `0` for resource limits. A `maxSize` of `0` means "allow zero bytes", which blocks all writes.
+
+#### Updating Quotas
+**NOTE**: The quota is enforced at write time. Ceph does not check the current usage before updating quota.
+
+While `spec.quotas` is present, the controller reapplies the configured values on every reconcile, so a quota change in the spec takes effect on the next reconcile.
+
+- **Increasing a quota**: writes that were blocked at the old limit resume once the higher limit is applied.
+- **Reducing a quota above current usage**: accepted. Writes continue until usage reaches the new limit.
+- **Reducing a quota below current usage**: RGW accepts the new value and does not delete or reject existing data. Further writes are blocked until usage drops below the limit or the limit is raised.
+- **Changing the default bucket quota**: a change to `maxBucketSize` or `maxBucketObjects` affects all existing account-owned buckets that do not have a per-bucket override. This gives a single control to adjust the default for every bucket in the account.
+- **Per-bucket overrides**: a quota set directly on an individual bucket (outside Rook) overrides the account default for that bucket. Removing the override falls back to the account default.
+
+#### Disabling Quotas and External Management
+
+To stop Rook enforcing the account quota, remove the entire `spec.quotas` block. Rook then stops reconciling the account's quotas and resource limits and makes no further quota calls to RGW. The quota that was last in effect stays in effect until it is changed and the administrator manages it directly outside Rook.
 
 #### Interaction with User-Level Quotas
 
