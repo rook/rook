@@ -82,7 +82,9 @@ spec:
 2. `namespace`(optional) of the `ObjectBucketClaim`, which is also the namespace of the ConfigMap and Secret.
 3. `bucketName` name of the `bucket`.
 **Not** recommended for new buckets since names must be unique within
-an entire object store.
+an entire object store. If a bucket with this name already exists and is owned
+by another user, the OBC fails to provision and stays `Pending`; the reason is
+reported in the operator log.
 4. `generateBucketName` value becomes the prefix for a randomly generated name, if supplied then `bucketName` must be empty.
 If both `bucketName` and `generateBucketName` are supplied then `BucketName` has precedence and `GenerateBucketName` is ignored.
 If both `bucketName` and `generateBucketName` are blank or omitted then the storage class is expected to contain the name of an _existing_ bucket. It's an error if all three bucket related names are blank or omitted.
@@ -95,7 +97,7 @@ If both `bucketName` and `generateBucketName` are blank or omitted then the stor
     * `bucketMaxSize`: (disabled by default) The maximum size of the bucket as an individual bucket quota.
     * `bucketPolicy`: (disabled by default) A raw JSON format string that defines an AWS S3 format the bucket policy. If set, the policy string will override any existing policy set on the bucket and any default bucket policy that the bucket provisioner potentially would have automatically generated.
     * `bucketLifecycle`: (disabled by default) A raw JSON format string that defines an AWS S3 format bucket lifecycle configuration. Note that the rules must be sorted by `ID` in order to be idempotent.
-    * `bucketOwner`: (disabled by default)  The name of a pre-existing ceph rgw user account that will own the bucket. A `CephObjectStoreUser` resource may be used to create an ceph rgw user account. If the bucket already exists and is owned by a different user, the bucket will be re-linked to the specified user.
+    * `bucketOwner`: (disabled by default)  The name of a pre-existing ceph rgw user account that will own the bucket. A `CephObjectStoreUser` resource may be used to create an ceph rgw user account. If the bucket already exists and is owned by the user this OBC previously used, such as when `bucketOwner` is added to or changed on an existing OBC, the bucket will be re-linked to the specified user; a bucket owned by any other user is not re-linked, and the OBC fails to provision. Allowing this field lets OBC authors obtain the credentials of, and act as, any ceph rgw user they can name, including users that Rook manages internally, so allow it only when every OBC author is trusted with the whole object store, and in a multisite configuration with every object store in its realm.
 
 Several OBC `additionalConfig` fields are disabled by default. Default-disabled additional config
 fields may be risky for administrators to allow users control over, and they should be enabled only
