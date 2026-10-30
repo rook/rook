@@ -604,6 +604,25 @@ func configureObjectStore(objContext *Context, store *cephv1.CephObjectStore, zo
 					return errors.Wrapf(err, "failed join ceph multisite in zone %q", objContext.Zone)
 				}
 			}
+		} else if zone != nil && len(zone.Spec.CustomEndpoints) > 0 {
+			// When custom endpoints are defined the zone's endpoint list is managed by the
+			// CephObjectZone controller, not by this store. However we still need to ensure
+			// the realm system user exists for the master zone in the master zonegroup.
+			zoneIsMaster, err := CheckZoneIsMaster(objContext)
+			if err != nil {
+				return errors.Wrapf(err, "failed to determine if zone %q is master", objContext.Zone)
+			}
+			if zoneIsMaster {
+				zoneGroupIsMaster, err := checkZoneGroupIsMaster(objContext)
+				if err != nil {
+					return errors.Wrapf(err, "failed to determine if zone group %q is master", objContext.ZoneGroup)
+				}
+				if zoneGroupIsMaster {
+					if err := createSystemUser(objContext, store.Namespace); err != nil {
+						return err
+					}
+				}
+			}
 		}
 	} else {
 		var endpointArg string
