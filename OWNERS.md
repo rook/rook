@@ -26,6 +26,7 @@ Maintainers will be added according to the [process for adding a maintainer](GOV
 * Santosh Pillai <sapillai@redhat.com> ([sp98](https://github.com/sp98))
 * Parth Arora <partharora1010@gmail.com> ([parth-gr](https://github.com/parth-gr))
 * Joshua Hoblitt <josh@hoblitt.com> ([jhoblitt](https://github.com/jhoblitt))
+* Artem Torubarov <torubarov.a.a@gmail.com> ([arttor](https://github.com/arttor))
 
 ## Emeritus maintainers
 
