@@ -223,7 +223,10 @@ spec:
     nodePlugin:
       priorityClassName: "system-node-critical"
       kubeletDirPath: /var/lib/kubelet
-      enableSeLinuxHostMount: false
+      # Mount the host's /etc/selinux into the node plugin. On SELinux-enforcing hosts this is
+      # required for `mount` to honor the `context=` option that kubelet passes when SELinuxMount
+      # is enabled; without it, volumes can stay unlabeled and confined pods get EACCES.
+      enableSeLinuxHostMount: true
     controllerPlugin:
       priorityClassName: "system-cluster-critical"
       deploymentStrategy:
