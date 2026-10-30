@@ -30,6 +30,7 @@ import (
 	optest "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -581,4 +582,44 @@ func TestGetGaneshaConfigNFSPort(t *testing.T) {
 	nfs.Spec.Server.Port = 12049
 	cfg = getGaneshaConfig(nfs, cephver.Squid, "a")
 	assert.Contains(t, cfg, "NFS_Port = 12049;")
+}
+
+func TestDeploymentConfigOverrides(t *testing.T) {
+	r, cfg := newDeploymentSpecTest(t)
+	nfs := baseCephNFS("my-nfs", "rook-ceph-test-ns")
+	d, err := r.makeDeployment(nfs, cfg)
+	require.NoError(t, err)
+
+	var overrideVolume *v1.Volume
+	for i := range d.Spec.Template.Spec.Volumes {
+		volume := &d.Spec.Template.Spec.Volumes[i]
+		if volume.Name == k8sutil.ConfigOverrideName {
+			overrideVolume = volume
+		}
+	}
+	require.NotNil(t, overrideVolume)
+	require.NotNil(t, overrideVolume.Projected)
+	require.Len(t, overrideVolume.Projected.Sources, 1)
+	projection := overrideVolume.Projected.Sources[0].ConfigMap
+	require.NotNil(t, projection)
+	require.NotNil(t, projection.Optional)
+	assert.True(t, *projection.Optional)
+	assert.Equal(t, k8sutil.ConfigOverrideName, projection.Name)
+	require.Len(t, projection.Items, 1)
+	assert.Equal(t, k8sutil.ConfigOverrideVal, projection.Items[0].Key)
+	assert.Equal(t, "ceph.conf", projection.Items[0].Path)
+
+	init := d.Spec.Template.Spec.InitContainers[0]
+	assert.Equal(t, "generate-minimal-ceph-conf", init.Name)
+	var overrideMount *v1.VolumeMount
+	for i := range init.VolumeMounts {
+		mount := &init.VolumeMounts[i]
+		if mount.Name == overrideVolume.Name {
+			overrideMount = mount
+		}
+	}
+	require.NotNil(t, overrideMount)
+	assert.True(t, overrideMount.ReadOnly)
+	assert.NotEqual(t, cephclient.DefaultConfigDir, overrideMount.MountPath)
+	optest.NewPodSpecTester(t, &d.Spec.Template.Spec).AssertVolumesAndMountsMatch()
 }

@@ -223,7 +223,9 @@ a number of very advanced settings that cannot be modified easily via the CLI or
 dashboard. In order to set configurations before monitors are available or to set advanced
 configuration settings, the `rook-config-override` ConfigMap exists, and the `config` field can be
 set with the contents of a `ceph.conf` file. The contents will be propagated to all mon, mgr, OSD,
-MDS, and RGW daemons as an `/etc/ceph/ceph.conf` file.
+MDS, and RGW daemons as an `/etc/ceph/ceph.conf` file. CephNFS also includes these settings in its
+generated Ceph client configuration, while retaining the current monitor endpoints and NFS client
+keyring path.
 
 !!! warning
     Rook performs no validation on the config, so the  validity of the settings is the
@@ -240,6 +242,7 @@ has been initialized, each daemon will need to be restarted where you want the s
 between each restart to ensure the cluster goes back to "active/clean" state.
 * RGW: the pods are stateless and can be restarted as needed.
 * MDS: the pods are stateless and can be restarted as needed.
+* NFS: recreate the pods to regenerate the Ceph client configuration with the updated overrides.
 
 After the pod restart, the new settings should be in effect. Note that if the ConfigMap in the Ceph
 cluster's namespace is created before the cluster is created, the daemons will pick up the settings

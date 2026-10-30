@@ -5,6 +5,8 @@ Changes should *not* be included here if they are backported to previous release
 
 ## Breaking Changes
 
+- CephNFS now includes `rook-config-override` settings in its generated Ceph client configuration.
+  Review existing overrides that were previously ignored by NFS-Ganesha.
 
 ## Features
 
