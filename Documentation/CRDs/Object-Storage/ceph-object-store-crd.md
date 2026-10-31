@@ -555,10 +555,8 @@ spec:
     restarting when updates are applied. Restarts are desired behavior for some RGW configs.
 
 !!! note
-    Once an `rgwConfig` or `rgwConfigFromSecret` is set, it will not be removed from Ceph's central config store when removed
-    from the `rgwConfig` or `rgwConfigFromSecret` spec. Be sure to specifically set values back to their defaults once done.
-    With this in mind, `rgwCommandFlags` may be a better choice for temporary config values like
-    debug levels.
+    When a key is removed from `rgwConfig` or `rgwConfigFromSecret`, Rook deletes that option from
+    the RGW client's mon config. Prefer `rgwCommandFlags` for temporary values such as debug levels.
 
 ### Example - debugging
 

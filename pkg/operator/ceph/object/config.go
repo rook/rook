@@ -237,16 +237,43 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 	who := generateCephXUser(rgwConfig.ResourceName)
 
-	configOptions, err := c.generateMonConfigOptions(rgwConfig)
+	desired, err := c.generateMonConfigOptions(rgwConfig)
 	if err != nil {
 		return err
 	}
 
-	if err := monStore.SetAll(who, configOptions); err != nil {
-		return errors.Wrapf(err, "failed to set all RGW configs on %q", who)
+	current, err := monStore.GetDaemon(who)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get mon config for %q", who)
+	}
+	for _, opt := range current {
+		if hasMonConfigKey(desired, opt.Option) {
+			continue
+		}
+		logger.Infof("deleting mon config option %q from %q", opt.Option, who)
+		if err := monStore.Delete(who, opt.Option); err != nil {
+			return errors.Wrapf(err, "failed to delete mon config option %q from %q", opt.Option, who)
+		}
 	}
 
+	if err := monStore.SetAll(who, desired); err != nil {
+		return errors.Wrapf(err, "failed to set all RGW configs on %q", who)
+	}
 	return nil
+}
+
+// hasMonConfigKey reports whether option is present in desired, treating -, _, and spaces as equal.
+func hasMonConfigKey(desired map[string]string, option string) bool {
+	normalize := func(k string) string {
+		return strings.ReplaceAll(strings.ReplaceAll(k, " ", "_"), "-", "_")
+	}
+	want := normalize(option)
+	for key := range desired {
+		if normalize(key) == want {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[string]string, error) {
