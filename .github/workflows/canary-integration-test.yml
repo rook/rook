@@ -603,3 +603,23 @@ jobs:
           kubernetes-version: ${{ matrix.kubernetes-version }}
           rook-image-artifact: ${{ inputs.rook_image_artifact }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}-${{ matrix.kubernetes-version }}
+
+  microshift:
+    runs-on: ubuntu-22.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: consider (pre-job) debugging
+        uses: ./.github/workflows/upterm_debug
+        with:
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
+
+      - name: microshift
+        uses: ./.github/workflows/canary-tests/microshift
+        with:
+          rook-image-artifact: ${{ inputs.rook_image_artifact }}
+          artifact-name: ${{ github.job }}
