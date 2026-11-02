@@ -36,6 +36,7 @@ must not collide with std-lib package names (no `io`, no `http`).
 | `bucket/owner` | `object/bucket` | OBC `bucketOwner` handling |
 | `bucket/policy` | `object/bucket` | OBC bucketPolicy management |
 | `bucket/quota` | `object/bucket` | OBC maxObjects user quota + bucketMaxObjects/bucketMaxSize bucket quota |
+| `bucket/relink` | `object/bucket` | OBC refused an existing bucket owned by another user |
 | `bucket/rw` | `object/bucket` | OBC S3 read/write/delete + OBC-stays-Bound |
 | `cosi` | `object/cosi` | CephCOSIDriver + COSI bucket provisioning |
 | `dependents` | `object` | CephObjectStore deletion blocked by dependents |

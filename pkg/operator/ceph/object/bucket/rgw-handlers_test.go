@@ -26,6 +26,7 @@ import (
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
+	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -210,5 +211,48 @@ func TestIsObcGeneratedUser(t *testing.T) {
 				},
 			},
 		}))
+	})
+}
+
+func TestCheckRelink(t *testing.T) {
+	const (
+		generatedUser = "obc-tenant-a-mine-6e7c4d3f-3494-4dc1-90dc-58527fdf05d7"
+		otherObcUser  = "obc-tenant-b-theirs-0b6b0a4e-6d0b-4d55-8f8e-0f5e1c9b2a17"
+	)
+	alice, bob := "alice", "bob"
+
+	newBucket := func(recordedUser string, bucketOwner *string) *bucket {
+		p := &Provisioner{bucketName: "shared", cephUserName: recordedUser}
+		if bucketOwner != nil {
+			p.cephUserName = *bucketOwner
+		}
+		return &bucket{
+			provisioner:      p,
+			options:          &apibkt.BucketOptions{UserID: recordedUser},
+			additionalConfig: &additionalConfigSpec{bucketOwner: bucketOwner},
+		}
+	}
+
+	t.Run("refuses a bucket owned by another OBC without bucketOwner", func(t *testing.T) {
+		err := newBucket(generatedUser, nil).checkRelink(otherObcUser)
+		assert.ErrorContains(t, err, `owned by user "`+otherObcUser+`" instead of this OBC's user "`+generatedUser+`"`)
+	})
+
+	t.Run("refuses a bucket owned by an unrelated user with bucketOwner", func(t *testing.T) {
+		err := newBucket(generatedUser, &alice).checkRelink(otherObcUser)
+		assert.ErrorContains(t, err, `may only take over a bucket owned by this OBC's previous user "`+generatedUser+`"`)
+	})
+
+	t.Run("refuses a bucket owned by an unrelated user when bucketOwner changes", func(t *testing.T) {
+		err := newBucket("alice", &bob).checkRelink("mallory")
+		assert.ErrorContains(t, err, `owned by user "mallory"`)
+	})
+
+	t.Run("allows bucketOwner to take over from the OBC's generated user", func(t *testing.T) {
+		assert.NoError(t, newBucket(generatedUser, &alice).checkRelink(generatedUser))
+	})
+
+	t.Run("allows bucketOwner to take over from the OBC's previous bucketOwner", func(t *testing.T) {
+		assert.NoError(t, newBucket("alice", &bob).checkRelink("alice"))
 	})
 }
