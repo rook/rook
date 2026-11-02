@@ -202,7 +202,12 @@ func CreateFSMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluster
 	// Unmarshal JSON into Go struct
 	var bootstrapPeerToken BootstrapPeerToken
 	if err := json.Unmarshal(output, &bootstrapPeerToken); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal cephfs-mirror peer token create response. %s", output)
+		// the response carries the peer bootstrap token, and this error reaches the
+		// operator log and a Kubernetes event by way of ReportReconcileResult. A type
+		// error names the offending field, but a syntax error reports only its message,
+		// so report the response size in its place.
+		logger.Tracef("failed to unmarshal cephfs-mirror peer token create response: %s", string(output)) // only trace(insecure) logged, per the TRACE_INSECURE contract
+		return nil, errors.Wrapf(err, "failed to unmarshal cephfs-mirror peer token create response (%d bytes)", len(output))
 	}
 
 	logger.Infof("successfully created cephfs-mirror bootstrap peer token for filesystem %q", fsName)
