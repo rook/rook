@@ -493,7 +493,7 @@ func createNonMultisiteStore(objContext *Context, endpointArg string, store *cep
 	return nil
 }
 
-func JoinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace string) error {
+func JoinMultisite(objContext *Context, endpointArg, zoneEndpoints string) error {
 	log.NamedDebug(objContext.NsName(), logger, "joining zone %v", objContext.Zone)
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
@@ -503,8 +503,6 @@ func JoinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace st
 	if err != nil {
 		return err
 	}
-	zoneGroupIsMaster := false
-
 	if zoneIsMaster {
 		// endpoints that are part of a master zone are supposed to be the endpoints for a zone group
 		_, err := RunAdminCommandNoMultisite(objContext, false, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
@@ -512,12 +510,6 @@ func JoinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace st
 			return errorOrIsNotFound(err, "failed to add object store %q in rgw zone group %q", objContext.Name, objContext.ZoneGroup)
 		}
 		log.NamedDebug(objContext.NsName(), logger, "endpoints for zonegroup %q are now %q", objContext.ZoneGroup, zoneEndpoints)
-
-		// check if zone group is master only if zone is master for creating the system user
-		zoneGroupIsMaster, err = checkZoneGroupIsMaster(objContext)
-		if err != nil {
-			return errors.Wrapf(err, "failed to find out whether zone group %q in is the master zone group", objContext.ZoneGroup)
-		}
 	}
 	_, err = RunAdminCommandNoMultisite(objContext, false, "zone", "modify", realmArg, zoneGroupArg, zoneArg, endpointArg)
 	if err != nil {
@@ -531,15 +523,24 @@ func JoinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace st
 
 	log.NamedInfo(objContext.NsName(), logger, "added object store %q to realm %q, zonegroup %q, zone %q", objContext.Name, objContext.Realm, objContext.ZoneGroup, objContext.Zone)
 
-	// create system user for realm for master zone in master zonegroup for multisite scenario
-	if zoneIsMaster && zoneGroupIsMaster {
-		err = createSystemUser(objContext, namespace)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
+}
+
+// EnsureMultisiteSystemUser creates the realm system user if the zone is the master zone of the
+// master zone group. It is a no-op for any other zone.
+func EnsureMultisiteSystemUser(objContext *Context, namespace string) error {
+	zoneIsMaster, err := CheckZoneIsMaster(objContext)
+	if err != nil {
+		return errors.Wrapf(err, "failed to determine if zone %q is master", objContext.Zone)
+	}
+	zoneGroupIsMaster, err := checkZoneGroupIsMaster(objContext)
+	if err != nil {
+		return errors.Wrapf(err, "failed to determine if zone group %q is master", objContext.ZoneGroup)
+	}
+	if !zoneIsMaster || !zoneGroupIsMaster {
+		return nil
+	}
+	return createSystemUser(objContext, namespace)
 }
 
 func createSystemUser(objContext *Context, namespace string) error {
@@ -599,29 +600,18 @@ func configureObjectStore(objContext *Context, store *cephv1.CephObjectStore, zo
 				log.NamedDebug(objContext.NsName(), logger, "Endpoints for zone %q are: %q", objContext.Zone, zoneEndpoints)
 				endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
 
-				err = JoinMultisite(objContext, endpointArg, zoneEndpoints, store.Namespace)
+				err = JoinMultisite(objContext, endpointArg, zoneEndpoints)
 				if err != nil {
 					return errors.Wrapf(err, "failed join ceph multisite in zone %q", objContext.Zone)
 				}
 			}
-		} else if zone != nil && len(zone.Spec.CustomEndpoints) > 0 {
-			// When custom endpoints are defined the zone's endpoint list is managed by the
-			// CephObjectZone controller, not by this store. However we still need to ensure
-			// the realm system user exists for the master zone in the master zonegroup.
-			zoneIsMaster, err := CheckZoneIsMaster(objContext)
-			if err != nil {
-				return errors.Wrapf(err, "failed to determine if zone %q is master", objContext.Zone)
-			}
-			if zoneIsMaster {
-				zoneGroupIsMaster, err := checkZoneGroupIsMaster(objContext)
-				if err != nil {
-					return errors.Wrapf(err, "failed to determine if zone group %q is master", objContext.ZoneGroup)
-				}
-				if zoneGroupIsMaster {
-					if err := createSystemUser(objContext, store.Namespace); err != nil {
-						return err
-					}
-				}
+		}
+		// When custom endpoints are defined the zone's endpoint list is managed by the
+		// CephObjectZone controller, so the endpoint block above is skipped. The realm system
+		// user must still exist for the master zone in the master zonegroup regardless.
+		if zone != nil {
+			if err := EnsureMultisiteSystemUser(objContext, store.Namespace); err != nil {
+				return err
 			}
 		}
 	} else {
