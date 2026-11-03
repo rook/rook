@@ -50,6 +50,27 @@ func (b *bucket) getUserCreds() (accessKeyID, secretAccessKey string, err error)
 	return
 }
 
+// An existing bucket owned by someone other than the OBC's user may be relinked
+// only when bucketOwner explicitly asks for it, and only away from the user this
+// OBC previously provisioned with. options.UserID is that user: it is recorded on
+// the OBC's ObjectBucket, or is the OBC's generated user before one exists.
+// Bucket names are global to the object store and spec.bucketName is chosen by
+// the OBC's author, so without this check an OBC could take any bucket it can
+// name. The check does not make bucketOwner safe to allow for untrusted OBC
+// authors: bucketOwner already hands the OBC the named user's credentials.
+func (b *bucket) checkRelink(owner string) error {
+	p := b.provisioner
+
+	if b.additionalConfig.bucketOwner == nil {
+		return errors.Errorf("bucket %q already exists and is owned by user %q instead of this OBC's user %q", p.bucketName, owner, p.cephUserName)
+	}
+	if owner != b.options.UserID {
+		return errors.Errorf("bucket %q already exists and is owned by user %q; bucketOwner %q may only take over a bucket owned by this OBC's previous user %q", p.bucketName, owner, p.cephUserName, b.options.UserID)
+	}
+
+	return nil
+}
+
 func (p *Provisioner) bucketExists(name string) (bool, string, error) {
 	bucket, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: name})
 	if err != nil {
