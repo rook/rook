@@ -816,7 +816,7 @@ func CreateObjectStorePools(context *Context, cluster *cephv1.ClusterSpec, metad
 		return errors.Wrap(err, "failed to create metadata pools")
 	}
 
-	if err := createSimilarPools(context, []string{dataPoolName}, cluster, dataPool, cephclient.DefaultPGCount); err != nil {
+	if err := createSimilarPools(context, []string{dataPoolName}, cluster, dataPool, cephclient.DefaultDataPoolPGCount); err != nil {
 		return errors.Wrap(err, "failed to create data pool")
 	}
 
