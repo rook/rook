@@ -294,9 +294,14 @@ Keys of OSDs whose deployment is already gone are not deleted on cluster deletio
 ### Cleanup of devices from other clusters
 
 `wipeDevicesFromOtherClusters` reads the `ceph_fsid=` field of a LUKS2 header as the cluster fsid,
-but host-based `raw` mode OSDs have their OSD fsid there, so closed OSDs of this cluster would be
-wiped after a reboot. The check also keeps a device whose fsid is an OSD in `ceph osd dump`. It reads
-the OSD map only when it finds a LUKS2 header with a fsid other than the cluster fsid.
+which Rook writes there for PVC-based OSDs. For host-based `raw` mode OSDs, `ceph-volume` writes the
+OSD fsid there, which cannot show that a device belongs to another cluster: `ceph osd destroy` clears
+the OSD fsid from the OSD map, so a destroyed OSD waiting for replacement looks the same as a foreign
+one. The prepare job therefore skips the LUKS header check for host-based OSDs, whatever the KMS
+settings. PVC-based OSDs are not changed.
+
+On host-based clusters the check passes the kernel name (`sdb`) to `cryptsetup luksDump`, which
+fails, so today it never wipes a host device. Skipping it keeps host-based OSDs safe if that changes.
 
 ### Code reuse
 
