@@ -38,6 +38,10 @@ import (
 )
 
 func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deployment, error) {
+	return testDeploymentObjectWithMonPort(t, network, 3300)
+}
+
+func testDeploymentObjectWithMonPort(t *testing.T, network cephv1.NetworkSpec, monPort int32) (*apps.Deployment, error) {
 	fs := cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{
@@ -61,6 +65,9 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 	clusterInfo := &cephclient.ClusterInfo{
 		FSID:        "myfsid",
 		CephVersion: cephver.Squid,
+		InternalMonitors: map[string]*cephclient.MonInfo{
+			"a": cephclient.NewMonInfo("a", "10.0.0.1", monPort),
+		},
 	}
 	clientset := testop.New(t, 1)
 
@@ -130,4 +137,33 @@ func TestHostNetwork(t *testing.T) {
 	// assert --public-addr is not appended to args
 	assert.NotContains(t, d.Spec.Template.Spec.Containers[0].Args,
 		config.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
+	assert.NotContains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+}
+
+func TestRequireMsgr2(t *testing.T) {
+	t.Run("requireMsgr2 true disables msgr1", func(t *testing.T) {
+		d, err := testDeploymentObject(t, cephv1.NetworkSpec{
+			Connections: &cephv1.ConnectionsSpec{RequireMsgr2: true},
+		})
+		assert.NoError(t, err)
+		assert.Contains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+	})
+
+	t.Run("encryption enabled disables msgr1", func(t *testing.T) {
+		d, err := testDeploymentObject(t, cephv1.NetworkSpec{
+			Connections: &cephv1.ConnectionsSpec{
+				Encryption: &cephv1.EncryptionSpec{Enabled: true},
+			},
+		})
+		assert.NoError(t, err)
+		assert.Contains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+	})
+
+	t.Run("requireMsgr2 true keeps msgr1 while a mon advertises v1", func(t *testing.T) {
+		d, err := testDeploymentObjectWithMonPort(t, cephv1.NetworkSpec{
+			Connections: &cephv1.ConnectionsSpec{RequireMsgr2: true},
+		}, 6789)
+		assert.NoError(t, err)
+		assert.NotContains(t, d.Spec.Template.Spec.Containers[0].Args, "--ms-bind-msgr1=false")
+	})
 }
