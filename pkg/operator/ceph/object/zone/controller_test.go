@@ -18,6 +18,9 @@ limitations under the License.
 package zone
 
 import (
+	"bytes"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -32,6 +35,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -384,4 +388,79 @@ func TestCephObjectZoneController(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, createPoolsCalled)
 	assert.True(t, commitChangesCalled)
+}
+
+// captureLogsAtLevel redirects the capnslog sink into a buffer at the given level for the
+// duration of the test, restoring the package default afterwards so later tests still log to
+// stderr and never at TRACE.
+func captureLogsAtLevel(t *testing.T, level capnslog.LogLevel) *bytes.Buffer {
+	t.Helper()
+
+	logBuf := bytes.NewBuffer([]byte{})
+	capnslog.SetFormatter(capnslog.NewLogFormatter(logBuf, "", 0))
+	capnslog.SetGlobalLogLevel(level)
+	t.Cleanup(func() {
+		capnslog.SetFormatter(capnslog.NewDefaultFormatter(os.Stderr))
+		capnslog.SetGlobalLogLevel(capnslog.INFO)
+	})
+
+	return logBuf
+}
+
+func TestDeleteZonePoolsOmitsZoneJSONFromError(t *testing.T) {
+	// 'zone get' answers with the realm system user's live S3 credentials, and this error
+	// reaches the CephObjectZone status and a Kubernetes event through reporting, so the
+	// payload is dropped rather than filtered: a document that failed to parse cannot be
+	// filtered at all.
+	const (
+		accessKey = "EXAMPLEZONEACCESSKEY"
+		secretKey = "EXAMPLEZONESYSTEMSECRETKEY00000000000001"
+	)
+	// malformed, so decodePoolPrefixfromZone fails on it; still brace delimited, so it gets
+	// past the json extraction 'zone get' does before returning
+	zoneGetOutput := `{"domain_root": "zone-a.rgw.meta:root", "system_key": {"access_key": "` + accessKey + `", "secret_key": "` + secretKey + `"},}`
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			return zoneGetOutput, nil
+		},
+	}
+
+	r := &ReconcileObjectZone{
+		context:     &clusterd.Context{Executor: executor},
+		clusterInfo: cephclient.AdminTestClusterInfo("rook"),
+	}
+	objectZone := &cephv1.CephObjectZone{
+		ObjectMeta: metav1.ObjectMeta{Name: "zone-a", Namespace: "rook-ceph"},
+		Spec:       cephv1.ObjectZoneSpec{ZoneGroup: "zonegroup-a"},
+	}
+	objContext := object.NewContext(r.context, r.clusterInfo, objectZone.Name)
+	objContext.Realm = "realm-a"
+	objContext.ZoneGroup = objectZone.Spec.ZoneGroup
+	objContext.Zone = objectZone.Name
+
+	t.Run("not in the error nor the debug log", func(t *testing.T) {
+		logBuf := captureLogsAtLevel(t, capnslog.DEBUG)
+
+		err := r.deleteZonePools(objContext, objectZone, "realm-a")
+
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), accessKey)
+		assert.NotContains(t, err.Error(), secretKey)
+		// the response size is the only context a json syntax error leaves
+		assert.Contains(t, err.Error(), fmt.Sprintf("(%d bytes)", len(zoneGetOutput)))
+		assert.NotContains(t, logBuf.String(), accessKey)
+		assert.NotContains(t, logBuf.String(), secretKey)
+	})
+
+	t.Run("raw response only at trace", func(t *testing.T) {
+		// TRACE is unlocked only by ROOK_LOG_LEVEL=TRACE_INSECURE and is the level rook allows
+		// to carry credentials
+		logBuf := captureLogsAtLevel(t, capnslog.TRACE)
+
+		err := r.deleteZonePools(objContext, objectZone, "realm-a")
+
+		require.Error(t, err)
+		assert.Contains(t, logBuf.String(), zoneGetOutput)
+	})
 }

@@ -4,9 +4,15 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -2876,4 +2882,111 @@ func Test_getDefaultPlacementName(t *testing.T) {
 			}
 		})
 	}
+}
+
+// zoneContextForTest returns an object Context whose radosgw-admin calls all answer with
+// response, and whose config file writes land in a directory the test owns.
+func zoneContextForTest(t *testing.T, response string) *Context {
+	t.Helper()
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			return response, nil
+		},
+	}
+	return &Context{
+		Context:     &clusterd.Context{Executor: executor, ConfigDir: t.TempDir()},
+		clusterInfo: client.AdminTestClusterInfo("rook"),
+		Name:        "test",
+		Realm:       "realm-a",
+		ZoneGroup:   "zonegroup-a",
+		Zone:        "test",
+	}
+}
+
+func TestGetZoneJSONFiltersTheLoggedDocument(t *testing.T) {
+	// 'zone get' answers with the realm system user's live S3 credentials, and with whatever
+	// else the running Ceph puts in a zone document. The response stays in the debug log,
+	// filtered to the fields rook reads, because those fields are what the line is for.
+	logBuf := captureLogsAtLevel(t, capnslog.DEBUG)
+
+	zone, err := getZoneJSON(zoneContextForTest(t, testZoneJSON))
+	require.NoError(t, err)
+
+	// the caller still receives the whole document; it feeds it back to 'zone set'
+	systemKey, ok := zone["system_key"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, testZoneAccessKey, systemKey["access_key"])
+
+	logged := logBuf.String()
+	assert.NotContains(t, logged, testZoneAccessKey)
+	assert.NotContains(t, logged, testZoneSecretKey)
+	assert.NotContains(t, logged, testTierSecret)
+	assert.NotContains(t, logged, testUnknownSecret)
+	assert.NotContains(t, logged, testNestedSecret)
+
+	// filtered, not suppressed: the line and the fields rook reads are still there
+	assert.Contains(t, logged, "get zone success")
+	assert.Contains(t, logged, "test.rgw.meta:root")
+	assert.Contains(t, logged, "test.rgw.buckets.index")
+	assert.Contains(t, logged, "29e28253-be54-4581-90dd-206020d2fcdd")
+	// and the line says the document had more in it than the log shows
+	assert.Contains(t, logged, withheldMarker)
+}
+
+func TestUpdateZoneJSONFiltersBothLoggedDocuments(t *testing.T) {
+	// both the document fed to 'zone set' and the document it answers with carry the realm
+	// system user's credentials - the same credentials the config file is written 0600 to
+	// protect
+	const setResponse = `{
+    "id": "f539c2c0-e1ed-4c42-9294-41742352eeae",
+    "name": "test",
+    "domain_root": "test.rgw.meta:root",
+    "system_key": {
+        "access_key": "` + testZoneAccessKey + `",
+        "secret_key": "` + testZoneSecretKey + `"
+    },
+    "placement_pools": [],
+    "realm_id": "11111111-2222-4333-8444-555555555555"
+}`
+
+	logBuf := captureLogsAtLevel(t, capnslog.DEBUG)
+
+	zone := map[string]any{}
+	require.NoError(t, json.Unmarshal([]byte(testZoneJSON), &zone))
+
+	updated, err := updateZoneJSON(zoneContextForTest(t, setResponse), zone)
+	require.NoError(t, err)
+	assert.Equal(t, "test", updated["name"])
+
+	logged := logBuf.String()
+	assert.NotContains(t, logged, testZoneAccessKey)
+	assert.NotContains(t, logged, testZoneSecretKey)
+	assert.NotContains(t, logged, testTierSecret)
+	assert.NotContains(t, logged, testUnknownSecret)
+	assert.NotContains(t, logged, testNestedSecret)
+
+	// filtered, not suppressed, on both sides of the update
+	assert.Contains(t, logged, "json config updated value from")
+	assert.Contains(t, logged, "test.rgw.buckets.index")
+	assert.Contains(t, logged, "11111111-2222-4333-8444-555555555555")
+}
+
+func TestUpdateZoneJSONFiltersUndecodableSetResponse(t *testing.T) {
+	// a truncated 'zone set' response must not reach the log raw on its way to the unmarshal
+	// error the caller reports
+	setResponse := `{"name": "test", "system_key": {"secret_key": "` + testZoneSecretKey
+
+	logBuf := captureLogsAtLevel(t, capnslog.DEBUG)
+
+	zone := map[string]any{}
+	require.NoError(t, json.Unmarshal([]byte(testZoneJSON), &zone))
+
+	_, err := updateZoneJSON(zoneContextForTest(t, setResponse), zone)
+	require.Error(t, err)
+
+	logged := logBuf.String()
+	assert.NotContains(t, logged, testZoneAccessKey)
+	assert.NotContains(t, logged, testZoneSecretKey)
+	assert.NotContains(t, logged, testZoneSecretKey[:10])
 }
