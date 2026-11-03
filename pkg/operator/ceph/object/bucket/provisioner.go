@@ -135,6 +135,11 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 			return nil, errors.Wrapf(err, "error creating bucket %q", p.bucketName)
 		}
 	} else if owner != p.cephUserName {
+		err = bucket.checkRelink(owner)
+		if err != nil {
+			return nil, err
+		}
+
 		log.NamedDebug(nsName, logger, "bucket %q already exists and is owned by user %q instead of user %q, relinking...", p.bucketName, owner, p.cephUserName)
 
 		err = p.adminOpsClient.LinkBucket(p.clusterInfo.Context, admin.BucketLinkInput{Bucket: p.bucketName, UID: p.cephUserName})

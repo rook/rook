@@ -27,6 +27,7 @@ import (
 	bucketowner "github.com/rook/rook/tests/integration/object/bucket/owner"
 	bucketpolicy "github.com/rook/rook/tests/integration/object/bucket/policy"
 	bucketquota "github.com/rook/rook/tests/integration/object/bucket/quota"
+	bucketrelink "github.com/rook/rook/tests/integration/object/bucket/relink"
 	bucketrw "github.com/rook/rook/tests/integration/object/bucket/rw"
 	"github.com/rook/rook/tests/integration/object/cosi"
 	"github.com/rook/rook/tests/integration/object/dependents"
@@ -112,6 +113,8 @@ func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.
 		TLSEnable: tlsEnable,
 		AllowUsersInNamespaces: []string{
 			bucketowner.Namespace,
+			bucketrelink.Namespace,
+			bucketrelink.ThiefNamespace,
 			cosi.Namespace,
 			usercaps.Namespace,
 			userkeys.Namespace,
@@ -126,6 +129,7 @@ func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.
 	zonepools.TestZonePools(t, k8sh, sharedObjectStore)
 	bucketlifecycle.TestObjectBucketClaimLifecycle(t, k8sh, sharedObjectStore)
 	bucketowner.TestObjectBucketClaimBucketOwner(t, k8sh, sharedObjectStore)
+	bucketrelink.TestObjectBucketClaimRelink(t, k8sh, sharedObjectStore)
 	bucketpolicy.TestObjectBucketClaimPolicy(t, k8sh, sharedObjectStore)
 	bucketquota.TestObjectBucketClaimQuota(t, k8sh, sharedObjectStore)
 	bucketrw.TestObjectBucketClaimReadWrite(t, k8sh, sharedObjectStore)
