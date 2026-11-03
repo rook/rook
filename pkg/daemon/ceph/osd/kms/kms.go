@@ -18,10 +18,10 @@ package kms
 
 import (
 	"context"
+	"encoding/base64"
 	"os"
 	"strings"
 
-	kp "github.com/IBM/keyprotect-go-client"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/hashicorp/vault/api"
 	"github.com/libopenstorage/secrets"
@@ -109,14 +109,13 @@ func (c *Config) PutSecret(secretName, secretValue string) error {
 
 		// Create the key if not present
 		keyAlias := []string{secretName}
-		_, err = kpClient.CreateImportedKeyWithAliases(c.ClusterInfo.Context, secretName, nil, secretValue, "", "", true, keyAlias)
+		alreadyExists, err := kpClient.createImportedKeyWithAliases(c.ClusterInfo.Context, secretName, secretValue, keyAlias)
 		if err != nil {
-			if strings.Contains(err.Error(), "KEY_ALIAS_NOT_UNIQUE_ERR") {
-				logger.Debugf("key %q already exists. %v", secretName, err)
-				return nil
-			}
-
 			return errors.Wrap(err, "failed to put secret in ibm key protect")
+		}
+		if alreadyExists {
+			logger.Debugf("key %q already exists", secretName)
+			return nil
 		}
 	}
 	if c.IsKMIP() {
@@ -191,11 +190,16 @@ func (c *Config) GetSecret(secretName string) (string, error) {
 		if err != nil {
 			return "", errors.Wrap(err, "failed to init ibm key protect")
 		}
-		keyObject, err := kpClient.GetKey(c.ClusterInfo.Context, secretName)
+		keyObject, err := kpClient.getKey(c.ClusterInfo.Context, secretName)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to get secret from ibm key protect")
 		}
-		value = string(keyObject.Payload)
+		if keyObject.Payload == nil {
+			return "", errors.Errorf("ibm key protect key %q has no payload", secretName)
+		}
+		// The v2 SDK auto-decodes the base64 payload into bytes; re-encode it to preserve the
+		// base64-encoded value that was originally stored.
+		value = base64.StdEncoding.EncodeToString(*keyObject.Payload)
 		return value, nil
 
 	case c.IsKMIP():
@@ -295,9 +299,12 @@ func (c *Config) DeleteSecret(secretName string) error {
 		ctx := context.TODO()
 
 		// Fetch the key to get the ID
-		key, err := kpClient.GetKey(ctx, secretName)
+		key, err := kpClient.getKey(ctx, secretName)
 		if err != nil {
 			return errors.Wrap(err, "failed to get secret in ibm key protect")
+		}
+		if key.ID == nil {
+			return errors.Errorf("ibm key protect key %q has no ID", secretName)
 		}
 
 		// DeleteKey does not support deleting a secret with the alias name so we must use the ID
@@ -307,7 +314,7 @@ func (c *Config) DeleteSecret(secretName string) error {
 		// be recovered after up to 30 days or their expiration date, whichever is sooner. After 30
 		// days, keys can no longer be recovered, and become eligible to be purged after 90 days, a
 		// process that shreds the key material and makes its metadata inaccessible.
-		_, err = kpClient.DeleteKey(ctx, key.ID, kp.ReturnRepresentation, []kp.CallOpt{kp.ForceOpt{Force: true}}...)
+		err = kpClient.deleteKey(ctx, *key.ID)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete secret in ibm key protect")
 		}

@@ -291,10 +291,10 @@ security:
 
 More options are supported such as:
 
-* `IBM_BASE_URL`: the base URL of the Key Protect instance, depending on your
+* `IBM_KP_BASE_URL`: the base URL of the Key Protect instance, depending on your
     [region](https://cloud.ibm.com/docs/key-protect?topic=key-protect-regions). Defaults to `https://us-south.kms.cloud.ibm.com`.
-* `IBM_TOKEN_URL`: the URL of the Key Protect instance to retrieve the token. Defaults to
-    `https://iam.cloud.ibm.com/oidc/token`. Only needed for private instances.
+* `IBM_KP_TOKEN_URL`: the URL of the Key Protect instance to retrieve the token. Defaults to
+    `https://iam.cloud.ibm.com`. Only needed for private instances.
 
 ## Key Management Interoperability Protocol
 
