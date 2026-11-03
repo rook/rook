@@ -20,9 +20,14 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/go-ini/ini"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
@@ -33,6 +38,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -82,6 +88,44 @@ func TestMountsMatchVolumes(t *testing.T) {
 		},
 	}
 	volsMountsTestDef.TestMountsMatchVolumes(t)
+}
+
+func TestConfigOverrideVolumeIsOptional(t *testing.T) {
+	dataPaths := config.NewDatalessDaemonDataPathMap("rook-ceph-test", "/var/lib/rook")
+	override, _ := ConfigOverrideConfigMapVolumeAndMount()
+
+	for _, tt := range []struct {
+		name    string
+		volumes []v1.Volume
+	}{
+		{name: "direct helper", volumes: []v1.Volume{override}},
+		{name: "OSD volumes", volumes: PodVolumes(dataPaths, "", "", false)},
+		{name: "daemon base volumes", volumes: DaemonVolumesBase(dataPaths, "", "")},
+		{name: "daemon volumes", volumes: DaemonVolumes(dataPaths, "", "")},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			found := false
+			for _, volume := range tt.volumes {
+				if volume.Name != k8sutil.ConfigOverrideName {
+					continue
+				}
+				found = true
+				require.NotNil(t, volume.Projected)
+				require.Len(t, volume.Projected.Sources, 1)
+				projection := volume.Projected.Sources[0].ConfigMap
+				require.NotNil(t, projection)
+				require.NotNil(t, projection.Optional)
+				assert.True(t, *projection.Optional)
+				assert.Equal(t, k8sutil.ConfigOverrideName, projection.Name)
+				require.Len(t, projection.Items, 1)
+				assert.Equal(t, k8sutil.ConfigOverrideVal, projection.Items[0].Key)
+				assert.Equal(t, "ceph.conf", projection.Items[0].Path)
+				require.NotNil(t, projection.Items[0].Mode)
+				assert.Equal(t, int32(0o444), *projection.Items[0].Mode)
+			}
+			assert.True(t, found)
+		})
+	}
 }
 
 func TestCheckPodMemory(t *testing.T) {
@@ -781,6 +825,87 @@ func TestGetDaemonsToSkipReconcile(t *testing.T) {
 				assert.Len(t, result, 0)
 				assert.False(t, result.Has(tt.expectedDaemonID), "expected daemon ID %q NOT to be skipped", tt.expectedDaemonID)
 			}
+		})
+	}
+}
+
+func TestGenerateMinimalCephConfInitContainer(t *testing.T) {
+	const clientID = "client.nfs-ganesha.my-nfs.a"
+	const keyringPath = "/etc/ceph/keyring-store/keyring"
+	const monHost = "[v2:127.0.0.1:3300]"
+
+	for _, tt := range []struct {
+		name            string
+		overrides       string
+		missingOverride bool
+	}{
+		{
+			name: "empty overrides",
+		},
+		{
+			name:      "preserve RDMA settings without trailing newline",
+			overrides: "[global]\nms_public_type = async+rdma\nms_async_rdma_device_name = mlx5_bond_0\nms_async_rdma_gid_idx = 7\nms_async_rdma_roce_ver = 2",
+		},
+		{
+			name:      "generated values override stale client settings",
+			overrides: "[global]\nmon_host = stale-host\n[" + clientID + "]\nkeyring = stale-keyring",
+		},
+		{
+			name:      "generated values override stale global settings",
+			overrides: "[global]\nmon_host = stale-host\nkeyring = stale-keyring\n",
+		},
+		{
+			name:      "preserve literal shell content",
+			overrides: "[global]\nlog_file = $(touch injected) `touch injected` $HOME",
+		},
+		{
+			name:            "missing override file",
+			missingOverride: true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			container := GenerateMinimalCephConfInitContainer(clientID, keyringPath, "ceph", v1.PullIfNotPresent,
+				[]v1.VolumeMount{{Name: "generated-config", MountPath: "/etc/ceph"}}, v1.ResourceRequirements{}, nil)
+			require.Len(t, container.VolumeMounts, 2)
+			overrideMount := container.VolumeMounts[1]
+			assert.Equal(t, k8sutil.ConfigOverrideName, overrideMount.Name)
+			assert.True(t, overrideMount.ReadOnly)
+			assert.NotEqual(t, "/etc/ceph", overrideMount.MountPath)
+
+			dir := t.TempDir()
+			overrideDir := filepath.Join(dir, "overrides")
+			require.NoError(t, os.Mkdir(overrideDir, 0o700))
+			if !tt.missingOverride {
+				require.NoError(t, os.WriteFile(filepath.Join(overrideDir, "ceph.conf"), []byte(tt.overrides), 0o600))
+			}
+			cfgPath := filepath.Join(dir, "ceph.conf")
+			script := strings.ReplaceAll(container.Command[2], cephclient.DefaultConfigFilePath(), cfgPath)
+			script = strings.ReplaceAll(script, overrideMount.MountPath, overrideDir)
+			// Kubernetes expands this reference before starting the container.
+			script = strings.ReplaceAll(script, "$(ROOK_CEPH_MON_HOST)", monHost)
+			cmd := exec.Command("bash", "-c", script)
+			cmd.Dir = dir
+			out, err := cmd.CombinedOutput()
+			require.NoError(t, err, string(out))
+
+			cfg, err := ini.Load(cfgPath)
+			require.NoError(t, err)
+			assert.Equal(t, monHost, cfg.Section("global").Key("mon_host").String())
+			assert.Equal(t, keyringPath, cfg.Section(clientID).Key("keyring").String())
+			if strings.Contains(tt.overrides, "async+rdma") {
+				assert.Equal(t, "async+rdma", cfg.Section("global").Key("ms_public_type").String())
+				assert.Equal(t, "mlx5_bond_0", cfg.Section("global").Key("ms_async_rdma_device_name").String())
+				assert.Equal(t, "7", cfg.Section("global").Key("ms_async_rdma_gid_idx").String())
+				assert.Equal(t, "2", cfg.Section("global").Key("ms_async_rdma_roce_ver").String())
+			}
+			if strings.Contains(tt.overrides, "log_file") {
+				assert.Equal(t, "$(touch injected) `touch injected` $HOME", cfg.Section("global").Key("log_file").String())
+			}
+			info, err := os.Stat(cfgPath)
+			require.NoError(t, err)
+			assert.Equal(t, os.FileMode(0o444), info.Mode().Perm())
+			_, err = os.Stat(filepath.Join(dir, "injected"))
+			assert.True(t, os.IsNotExist(err), "override contents must not be evaluated by the shell")
 		})
 	}
 }

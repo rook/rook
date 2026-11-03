@@ -130,9 +130,9 @@ done
 `
 )
 
-// return the volume and matching volume mount for mounting the config override ConfigMap into
-// containers as "/etc/ceph/ceph.conf".
-func configOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
+// ConfigOverrideConfigMapVolumeAndMount returns the volume and matching mount for the optional
+// override ConfigMap as "/etc/ceph/ceph.conf".
+func ConfigOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	secretAndConfigMapVolumeProjections := []v1.VolumeProjection{}
 	name := k8sutil.ConfigOverrideName // configmap name and name of volume
 	dir := opconfig.EtcCephDir
@@ -148,7 +148,10 @@ func configOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	// won't be able to read the ceph.conf and the container will die, the "restart" count will increase in k8s
 	// This will mislead users into thinking something went wrong, but it's a false positive
 	mode := int32(0o444)
-	projectionConfigMap := &v1.ConfigMapProjection{Items: []v1.KeyToPath{{Key: k8sutil.ConfigOverrideVal, Path: file, Mode: &mode}}}
+	projectionConfigMap := &v1.ConfigMapProjection{
+		Items:    []v1.KeyToPath{{Key: k8sutil.ConfigOverrideVal, Path: file, Mode: &mode}},
+		Optional: ptr.To(true),
+	}
 	projectionConfigMap.Name = name
 	configMapProjection := v1.VolumeProjection{
 		ConfigMap: projectionConfigMap,
@@ -198,7 +201,7 @@ func PodVolumes(dataPaths *opconfig.DataPathMap, dataDirHostPath string, exporte
 	}
 	hostPathType := v1.HostPathDirectoryOrCreate
 	sockDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: path.Join(exporterHostPath, daemonSocketsSubPath), Type: &hostPathType}}
-	configVolume, _ := configOverrideConfigMapVolumeAndMount()
+	configVolume, _ := ConfigOverrideConfigMapVolumeAndMount()
 	if confGeneratedInPod {
 		configVolume, _ = ConfGeneratedInPodVolumeAndMount()
 	}
@@ -216,7 +219,7 @@ func PodVolumes(dataPaths *opconfig.DataPathMap, dataDirHostPath string, exporte
 // CephVolumeMounts returns the common list of Kubernetes volume mounts for Ceph containers.
 // This function is only used for OSDs.
 func CephVolumeMounts(dataPaths *opconfig.DataPathMap, confGeneratedInPod bool) []v1.VolumeMount {
-	_, configMount := configOverrideConfigMapVolumeAndMount()
+	_, configMount := ConfigOverrideConfigMapVolumeAndMount()
 	if confGeneratedInPod {
 		_, configMount = ConfGeneratedInPodVolumeAndMount()
 	}
@@ -240,7 +243,7 @@ func RookVolumeMounts(dataPaths *opconfig.DataPathMap, confGeneratedInPod bool) 
 
 // DaemonVolumesBase returns the common / static set of volumes.
 func DaemonVolumesBase(dataPaths *opconfig.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.Volume {
-	configOverrideVolume, _ := configOverrideConfigMapVolumeAndMount()
+	configOverrideVolume, _ := ConfigOverrideConfigMapVolumeAndMount()
 	vols := []v1.Volume{
 		configOverrideVolume,
 	}
@@ -312,7 +315,7 @@ func DaemonVolumes(dataPaths *opconfig.DataPathMap, keyringResourceName string, 
 // volume mounts are shared by most all Ceph daemon containers, both init and standard. If keyring
 // resource name is empty, there will be no keyring mounted in the container.
 func DaemonVolumeMounts(dataPaths *opconfig.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.VolumeMount {
-	_, configOverrideMount := configOverrideConfigMapVolumeAndMount()
+	_, configOverrideMount := ConfigOverrideConfigMapVolumeAndMount()
 	mounts := []v1.VolumeMount{
 		configOverrideMount,
 	}
@@ -566,8 +569,8 @@ func ChownCephDataDirsInitContainer(
 }
 
 // GenerateMinimalCephConfInitContainer returns an init container that will generate the most basic
-// Ceph config for connecting non-Ceph daemons to a Ceph cluster (e.g., nfs-ganesha). Effectively
-// what this means is that it generates '/etc/ceph/ceph.conf' with 'mon_host' populated and a
+// Ceph config for connecting non-Ceph daemons to a Ceph cluster (e.g., nfs-ganesha). It includes
+// cluster config overrides and generates '/etc/ceph/ceph.conf' with 'mon_host' populated and a
 // keyring path associated with the user given. 'mon_host' is determined by the 'ROOK_CEPH_MON_HOST'
 // env var present in other Ceph daemon pods, and the keyring is expected to be mounted into the
 // container with a Kubernetes pod volume+mount.
@@ -580,12 +583,22 @@ func GenerateMinimalCephConfInitContainer(
 	securityContext *v1.SecurityContext,
 ) v1.Container {
 	cfgPath := client.DefaultConfigFilePath()
+	_, overrideMount := ConfigOverrideConfigMapVolumeAndMount()
+	// Keep the read-only overrides separate from the writable /etc/ceph emptyDir, where the
+	// init container combines them with the generated monitor endpoints and client keyring path.
+	overrideMount.MountPath = "/etc/rook-config-override"
 	// Note that parameters like $(PARAM) will be replaced by Kubernetes with env var content before
 	// container creation.
 	confScript := `
 set -xEeuo pipefail
 
-cat << EOF > ` + cfgPath + `
+if [ -s ` + overrideMount.MountPath + `/ceph.conf ]; then
+  cat ` + overrideMount.MountPath + `/ceph.conf > ` + cfgPath + `
+else
+  : > ` + cfgPath + `
+fi
+cat << EOF >> ` + cfgPath + `
+
 [global]
 mon_host = $(ROOK_CEPH_MON_HOST)
 
@@ -594,8 +607,6 @@ keyring = ` + keyringPath + `
 EOF
 
 chmod 444 ` + cfgPath + `
-
-cat ` + cfgPath + `
 `
 	return v1.Container{
 		Name:            "generate-minimal-ceph-conf",
@@ -603,7 +614,7 @@ cat ` + cfgPath + `
 		Args:            []string{},
 		Image:           containerImage,
 		ImagePullPolicy: containerImagePullPolicy,
-		VolumeMounts:    volumeMounts,
+		VolumeMounts:    append(append([]v1.VolumeMount{}, volumeMounts...), overrideMount),
 		Env:             opconfig.StoredMonHostEnvVars(),
 		Resources:       resources,
 		SecurityContext: securityContext,
