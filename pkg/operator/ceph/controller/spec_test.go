@@ -255,6 +255,44 @@ func TestNetworkBindingFlags(t *testing.T) {
 	}
 }
 
+func TestMsgr1BindingFlags(t *testing.T) {
+	requireMsgr2 := &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{RequireMsgr2: true}}}
+	encryption := &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Encryption: &cephv1.EncryptionSpec{Enabled: true}}}}
+	compression := &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Compression: &cephv1.CompressionSpec{Enabled: true}}}}
+	msgr2Only := map[string]*cephclient.MonInfo{
+		"a": cephclient.NewMonInfo("a", "10.0.0.1", 3300),
+		"b": cephclient.NewMonInfo("b", "10.0.0.2", 3300),
+	}
+	oneMsgr1 := map[string]*cephclient.MonInfo{
+		"a": cephclient.NewMonInfo("a", "10.0.0.1", 3300),
+		"b": cephclient.NewMonInfo("b", "10.0.0.2", 6789),
+	}
+	disable := []string{"--ms-bind-msgr1=false"}
+
+	tests := []struct {
+		name         string
+		spec         *cephv1.ClusterSpec
+		internalMons map[string]*cephclient.MonInfo
+		externalMons map[string]*cephclient.MonInfo
+		want         []string
+	}{
+		{"msgr2 not required", &cephv1.ClusterSpec{}, msgr2Only, nil, []string{}},
+		{"requireMsgr2 with all mons on v2", requireMsgr2, msgr2Only, nil, disable},
+		{"encryption with all mons on v2", encryption, msgr2Only, nil, disable},
+		{"compression with all mons on v2", compression, msgr2Only, nil, disable},
+		{"a mon still advertises v1", requireMsgr2, oneMsgr1, nil, []string{}},
+		{"an external mon is recorded on the v2 port", requireMsgr2, msgr2Only, map[string]*cephclient.MonInfo{"c": cephclient.NewMonInfo("c", "10.0.0.3", 3300)}, []string{}},
+		{"external cluster", &cephv1.ClusterSpec{External: cephv1.ExternalSpec{Enable: true}, Network: requireMsgr2.Network}, msgr2Only, nil, []string{}},
+		{"no mons known", requireMsgr2, map[string]*cephclient.MonInfo{}, nil, []string{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := &cephclient.ClusterInfo{InternalMonitors: tt.internalMons, ExternalMons: tt.externalMons}
+			assert.Equal(t, tt.want, Msgr1BindingFlags(cluster, tt.spec))
+		})
+	}
+}
+
 func TestExtractMgrIP(t *testing.T) {
 	activeMgrRaw := "172.17.0.12:6801/2535462469"
 	ip := extractMgrIP(activeMgrRaw)

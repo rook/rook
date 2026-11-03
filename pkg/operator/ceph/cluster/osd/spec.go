@@ -326,6 +326,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	args = append(args, opconfig.LoggingFlags()...)
 	args = append(args, osdOnSDNFlag(c.spec.Network)...)
 	args = append(args, controller.NetworkBindingFlags(c.clusterInfo, &c.spec)...)
+	args = append(args, controller.Msgr1BindingFlags(c.clusterInfo, &c.spec)...)
 
 	osdDataDirPath := activateOSDMountPath + osdID
 	if osdProps.onPVC() {
