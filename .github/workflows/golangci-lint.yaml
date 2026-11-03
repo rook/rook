@@ -41,17 +41,28 @@ jobs:
     name: govulncheck
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version: "1.26"
-          check-latest: true
       - name: govulncheck
         uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
+        with:
+          # The action does its own checkout and setup-go, so this is the only
+          # place this job's Go version is set. Scan the minor the release build
+          # uses rather than the newest stable Go the action defaults to, so a
+          # vulnerability left unfixed on that line is reported instead of
+          # hidden by a newer release. check-latest is the action's default;
+          # setting it keeps the scan on the newest patch if that ever changes.
+          go-version-input: "1.26"
+          check-latest: true
         env:
           # Required for go-ceph rgw/admin account APIs which are gated behind
           # the ceph_preview build tag. Can be removed when go-ceph promotes
           # the account API out of preview.
           GOFLAGS: "-tags=ceph_preview"
+          # setup-go exports GOTOOLCHAIN=local, under which the action's
+          # unpinned `go install golang.org/x/vuln/...@latest` would hard-fail
+          # once x/vuln's own go directive passes the minor pinned above. The
+          # scan still uses the installed 1.26.x, since rook's directive is
+          # below it.
+          GOTOOLCHAIN: auto
 
   kube-api-lint:
     name: kube-api-lint
