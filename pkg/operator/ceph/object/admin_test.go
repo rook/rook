@@ -18,9 +18,11 @@ package object
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -29,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -123,6 +126,84 @@ this line can't be parsed as json
 		"four": 4
 	}
 ]`, match)
+}
+
+func TestExtractJSONDoesNotLeakOutput(t *testing.T) {
+	// extractJSON is handed raw radosgw-admin output, which is credential-bearing on
+	// several paths: the `zone get` document below carries the realm system user's S3
+	// keys. The error is reported into the CR status and a Kubernetes event.
+	const (
+		accessKey = "EXAMPLEACCESSKEYID01"
+		secretKey = "EXAMPLEZONESECRETKEY0000000000000000000001"
+	)
+
+	tests := []struct {
+		name   string
+		output string
+		// the placeholder credential the output carries, empty when it carries none
+		credential string
+		hint       string
+	}{
+		{
+			// radosgw-admin logs to stderr ahead of the document, which is indented
+			// behind that output and cut short, so neither anchored match succeeds
+			name: "truncated document",
+			output: "failed to decode zone info" + "\n" +
+				`  {"id": "zone-a", "system_key": {"access_key": "` + accessKey + `", "secret_key": "` + secretKey + `"}`,
+			credential: secretKey,
+			hint:       "a json delimiter was found",
+		},
+		{
+			name:   "no json at all",
+			output: "ERROR: failed to load zone: (2) No such file or directory",
+			hint:   "no json delimiter was found",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := extractJSON(tc.output)
+
+			require.Error(t, err)
+			if tc.credential != "" {
+				assert.NotContains(t, err.Error(), tc.credential)
+				assert.NotContains(t, err.Error(), accessKey)
+			}
+			// the size and the delimiter hint are the only context left
+			assert.Contains(t, err.Error(), fmt.Sprintf("(%d bytes)", len(tc.output)))
+			assert.Contains(t, err.Error(), tc.hint)
+		})
+	}
+}
+
+func TestExtractJSONLogsOutputOnlyUnderTrace(t *testing.T) {
+	// the raw output is the only way to tell a truncated response from a schema
+	// change, but it may carry credentials, so it is logged only at the TRACE level
+	// that ROOK_LOG_LEVEL=TRACE_INSECURE unlocks.
+	const secretKey = "EXAMPLEZONESECRETKEY0000000000000000000001"
+	output := `  {"id": "zone-a", "system_key": {"secret_key": "` + secretKey + `"}`
+
+	for _, tc := range []struct {
+		level  capnslog.LogLevel
+		logged bool
+	}{
+		{level: capnslog.DEBUG, logged: false},
+		{level: capnslog.TRACE, logged: true},
+	} {
+		t.Run(tc.level.String(), func(t *testing.T) {
+			logBuf := captureLogsAtLevel(t, tc.level)
+
+			_, err := extractJSON(output)
+
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), secretKey)
+			if tc.logged {
+				assert.Contains(t, logBuf.String(), secretKey)
+			} else {
+				assert.NotContains(t, logBuf.String(), secretKey)
+			}
+		})
+	}
 }
 
 func TestRunAdminCommandNoMultisite(t *testing.T) {
