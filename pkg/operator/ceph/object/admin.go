@@ -205,6 +205,17 @@ func NewMultisiteAdminOpsContext(
 	}, nil
 }
 
+// jsonDelimiterHint says why no json was found without disclosing any of the
+// output: output holding no delimiter at all is a bare error message or empty,
+// while output holding one is a response the line-anchored match missed, such as
+// a truncated document or one indented behind a log prefix.
+func jsonDelimiterHint(output string) string {
+	if strings.ContainsAny(output, "{[") {
+		return "a json delimiter was found but no complete object or array"
+	}
+	return "no json delimiter was found"
+}
+
 func extractJSON(output string) (string, error) {
 	// `radosgw-admin` sometimes leaves logs to stderr even if it succeeds.
 	// So we should skip them if parsing output as json.
@@ -214,7 +225,13 @@ func extractJSON(output string) (string, error) {
 	objRegex := regexp.MustCompile(`(?ms)^{.*}$`)
 	objMatch := objRegex.Find([]byte(output))
 	if arrayMatch == nil && objMatch == nil {
-		return "", errors.Errorf("didn't contain json. %s", output)
+		// the output is a radosgw-admin response, which is credential-bearing on
+		// several paths: a `user info` document carries the user's S3 keys and a
+		// `zone get` document carries the realm system user's. This error is reported
+		// into the CR status and a Kubernetes event, so report the size and whether
+		// any json delimiter was present in place of the response.
+		logger.Tracef("failed to extract json from command output: %s", output) // only trace(insecure) logged because the response may carry credentials
+		return "", errors.Errorf("didn't contain json. %s (%d bytes)", jsonDelimiterHint(output), len(output))
 	}
 	if arrayMatch == nil && objMatch != nil {
 		return string(objMatch), nil
