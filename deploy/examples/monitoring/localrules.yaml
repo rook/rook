@@ -984,3 +984,14 @@ spec:
             oid: "1.3.6.1.4.1.50495.1.2.1.15.2"
             severity: "warning"
             type: "ceph_default"
+    - name: "osd-key-rotation"
+      rules:
+        - alert: "OSDKeyRotationJobFailed"
+          annotations:
+            description: "The OSD encryption key rotation job {{ $labels.job_name }} in namespace {{ $labels.namespace }} has failed. The OSD's disk-encryption (LUKS) key was not rotated. If left unresolved, the stored key can drift out of sync with the on-disk LUKS keyslot and prevent the OSD from starting after a pod or node restart. Inspect the failed job's pod logs and re-run the rotation. This alert keeps firing until the failed job is deleted, even if a later rotation succeeds. After resolving the issue, run 'kubectl -n {{ $labels.namespace }} delete job {{ $labels.job_name }}' to clear it."
+            summary: "OSD encryption key rotation job {{ $labels.job_name }} failed in namespace {{ $labels.namespace }}"
+          expr: "kube_job_status_failed{job_name=~\"rook-ceph-osd-key-rotation.*\"} > 0"
+          for: "5m"
+          labels:
+            severity: "critical"
+            type: "ceph_default"
