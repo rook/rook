@@ -16,11 +16,24 @@ limitations under the License.
 package log
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
 	"k8s.io/apimachinery/pkg/types"
 )
+
+// LogAsJSON logs a value as indented JSON with a descriptive label using logf.
+// Pass a formatted logging function such as logger.Infof or logger.Debugf.
+// It returns an error if the value cannot be marshaled.
+func LogAsJSON(logf func(string, ...any), label string, value any) error {
+	output, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return err
+	}
+	logf("%s:\n%s", label, output)
+	return nil
+}
 
 func NamedInfo(name types.NamespacedName, logger *capnslog.PackageLogger, message string, args ...any) {
 	NamespacedInfo(name.String(), logger, message, args...)
