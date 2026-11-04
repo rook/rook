@@ -78,6 +78,11 @@ type osdInfoBlock struct {
 	Type      string `json:"type"`
 }
 
+// blueStoreLabel describes the OSD identity in ceph-bluestore-tool show-label output.
+type blueStoreLabel struct {
+	OSDUUID string `json:"osd_uuid"`
+}
+
 type osdInfo struct {
 	Name string  `json:"name"`
 	Path string  `json:"path"`
@@ -1091,6 +1096,12 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 	}
 
 	if len(existingOSDs) == 0 {
+		// Interrupted OSD preparation can leave BlueStore labels that ceph-volume raw list does not report.
+		// Inspect non-encrypted devices for these labels and clean up only when the OSD is unregistered or safe to destroy.
+		if err := a.wipeNonEncryptedDevicesFromOtherClusters(context); err != nil {
+			return err
+		}
+
 		// ceph-volume raw list didn't return any existing OSDs. It's possible that /dev/mapper entries of the encrypted disks were removed.
 		// Check for cephFSID in the luks header of the disk and clean the disk if it does not match the cephFSID of the current cluster.
 		logger.Infof("ceph-volume didn't return any existing OSDs. Checking for cephFSID of a different cluster in the luks header of the disk")
@@ -1134,6 +1145,66 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 		}
 	}
 
+	return nil
+}
+
+// wipeNonEncryptedDevicesFromOtherClusters inspects BlueStore labels on non-encrypted devices and wipes a device
+// if its labeled OSD UUID is absent from the current cluster's OSD dump or the matching OSD is safe to destroy.
+func (a *OsdAgent) wipeNonEncryptedDevicesFromOtherClusters(context *clusterd.Context) error {
+	var osdDump *client.OSDDump
+	for _, disk := range context.Devices {
+		if disk.Filesystem == "crypto_LUKS" || disk.RealPath == "" {
+			continue
+		}
+
+		output, err := context.Executor.ExecuteCommandWithOutput("ceph-bluestore-tool", "show-label", "--dev", disk.RealPath)
+		if err != nil {
+			// A device without BlueStore metadata is not a cleanup candidate.
+			logger.Debugf("cannot read BlueStore label for %q: %v", disk.RealPath, err)
+			continue
+		}
+		var labels map[string]blueStoreLabel
+		if err := json.Unmarshal([]byte(output), &labels); err != nil {
+			return errors.Wrapf(err, "failed to unmarshal BlueStore labels for %q", disk.RealPath)
+		}
+		label, ok := labels[disk.RealPath]
+		if !ok || label.OSDUUID == "" {
+			// Missing labels do not establish that the device is safe to wipe.
+			continue
+		}
+
+		if osdDump == nil {
+			osdDump, err = client.GetOSDDump(context, a.clusterInfo)
+			if err != nil {
+				return errors.Wrap(err, "failed to get OSD dump before cleaning BlueStore devices")
+			}
+		}
+		safeToWipe := true
+		for _, osd := range osdDump.OSDs {
+			if osd.UUID != label.OSDUUID {
+				continue
+			}
+			osdID, err := strconv.Atoi(osd.OSD.String())
+			if err != nil || osdID < 0 {
+				return errors.Errorf("invalid OSD ID %q for device %q", osd.OSD, disk.RealPath)
+			}
+			safeToWipe, err = client.OsdSafeToDestroy(context, a.clusterInfo, osdID)
+			if err != nil {
+				return errors.Wrapf(err, "failed to check whether osd.%d on %q is safe to destroy", osdID, disk.RealPath)
+			}
+			break
+		}
+		if !safeToWipe {
+			logger.Infof("skipping device %q: OSD %q is not safe to destroy", disk.RealPath, label.OSDUUID)
+			continue
+		}
+
+		logger.Infof("cleaning device %q with BlueStore OSD UUID %q", disk.RealPath, label.OSDUUID)
+		if err := ZapDevice(context, disk.RealPath); err != nil {
+			return errors.Wrapf(err, "failed to zap disk %q", disk.RealPath)
+		}
+		disk.Filesystem = ""
+	}
 	return nil
 }
 
