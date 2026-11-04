@@ -2757,6 +2757,41 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 	context.Executor = executor
 	err = agent.WipeDevicesFromOtherClusters(context)
 	assert.NoError(t, err)
+
+	// `ceph-volume raw list` returns an entry for the separate metadata device of an
+	// OSD, without "device" and "ceph_fsid". The metadata device (no DevLinks) must
+	// not be zapped.
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		if slices.Contains(args, "raw") && slices.Contains(args, "list") {
+			return `{
+    "c21c3c5e-7a1d-4e5e-9a5d-2f1f6d0c1a11": {
+        "device_db": "/dev/vdc",
+        "osd_uuid": "c21c3c5e-7a1d-4e5e-9a5d-2f1f6d0c1a11"
+    }
+}`, nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		return "", errors.Errorf("no device should be zapped, got %s %v", command, args)
+	}
+	context = &clusterd.Context{
+		Devices: []*sys.LocalDisk{{RealPath: "/dev/vdc"}},
+	}
+	context.Executor = executor
+	err = agent.WipeDevicesFromOtherClusters(context)
+	assert.NoError(t, err)
+}
+
+func TestGetOSDDiskToBeWipedEmptyPath(t *testing.T) {
+	context := &clusterd.Context{
+		Devices: []*sys.LocalDisk{{RealPath: "/dev/vdc"}},
+	}
+	osdDisk, encryptedBlock, err := getOSDDiskToBeWiped(context, "")
+	assert.NoError(t, err)
+	assert.Nil(t, osdDisk)
+	assert.Empty(t, encryptedBlock)
 }
 
 func TestFindDeviceClass(t *testing.T) {
