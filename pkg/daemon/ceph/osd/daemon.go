@@ -206,6 +206,12 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 		logger.Info("checking for OSD disks from a different cluster")
 		err := agent.WipeDevicesFromOtherClusters(context)
 		if err != nil {
+			if errors.Is(err, errOpenEncryptedDevice) {
+				logger.Warningf("stopping OSD preparation without configuring devices: %v", err)
+				status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusCompleted, PvcBackedOSD: agent.pvcBacked}
+				oposd.UpdateNodeOrPVCStatus(agent.clusterInfo.Context, agent.kv, agent.nodeName, status)
+				return nil
+			}
 			return errors.Wrapf(err, "failed to wipe devices from other clusters")
 		}
 	}
