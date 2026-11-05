@@ -4818,7 +4818,8 @@ string
 <p>Image is the container image to use for the NVMe-oF gateway daemon.
 For example, quay.io/ceph/nvmeof:1.5
 If not specified, the image is fetched from the Ceph mon config store
-(mgr/cephadm/container_image_nvmeof).</p>
+(mgr/cephadm/container_image_nvmeof).
+The image runs in a privileged container with access to the Ceph admin keyring.</p>
 </td>
 </tr>
 <tr>
@@ -11395,7 +11396,8 @@ string
 <p>Image is the container image to use for the NVMe-oF gateway daemon.
 For example, quay.io/ceph/nvmeof:1.5
 If not specified, the image is fetched from the Ceph mon config store
-(mgr/cephadm/container_image_nvmeof).</p>
+(mgr/cephadm/container_image_nvmeof).
+The image runs in a privileged container with access to the Ceph admin keyring.</p>
 </td>
 </tr>
 <tr>
