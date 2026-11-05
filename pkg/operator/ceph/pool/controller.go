@@ -247,6 +247,10 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			// don't leak the health checker routine if we are force-deleting
 			r.cancelMirrorMonitoring(cephBlockPool)
 
+			if err := peermap.DeleteClientProfileMapping(r.opManagerContext, r.client, cephBlockPool.Namespace, cephBlockPool.Name); err != nil {
+				return opcontroller.ImmediateRetryResult, *cephBlockPool, err
+			}
+
 			// Remove finalizer
 			err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephBlockPool)
 			if err != nil {
@@ -288,6 +292,10 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// disable RBD stats collection if cephBlockPool was deleted
 		if err := configureRBDStats(r.context, clusterInfo, cephBlockPool.Name); err != nil {
 			log.NamedError(request.NamespacedName, logger, "failed to disable stats collection for pool(s). %v", err)
+		}
+
+		if err := peermap.DeleteClientProfileMapping(r.opManagerContext, r.client, cephBlockPool.Namespace, cephBlockPool.Name); err != nil {
+			return opcontroller.ImmediateRetryResult, *cephBlockPool, err
 		}
 
 		// Remove finalizer
