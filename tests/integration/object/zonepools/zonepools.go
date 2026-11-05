@@ -42,12 +42,14 @@ func TestZonePools(t *testing.T, k8sh *utils.K8sHelper, store *sharedstore.Share
 
 		output, err := store.Installer().Execute("radosgw-admin",
 			[]string{"zone", "get", fmt.Sprintf("--rgw-zone=%s", name), fmt.Sprintf("--rgw-realm=%s", name)}, ns)
-		require.NoError(t, err, "failed to get zone config; output: %s", output)
+		// the zone document carries the realm system user's live S3 credentials, and a failure
+		// here prints into a public CI log
+		require.NoError(t, err, "failed to get zone config; output: %s", rgw.RedactZoneJSON(output))
 		require.NotEmpty(t, output, "zone config is empty")
 
 		var zoneConfig map[string]any
 		err = json.Unmarshal([]byte(output), &zoneConfig)
-		require.NoError(t, err, "failed to parse zone config JSON; output: %s", output)
+		require.NoError(t, err, "failed to parse zone config JSON; output: %s", rgw.RedactZoneJSON(output))
 
 		knownPools := rgw.ZoneJsonPoolKeys()
 		for field, val := range zoneConfig {
