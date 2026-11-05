@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -29,8 +30,12 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -67,6 +72,133 @@ func TestOrchestrationStatus(t *testing.T) {
 	assert.Equal(t, status, *retrievedStatus)
 }
 
+func TestCreateOSDsForStatusMapValidatesRecord(t *testing.T) {
+	const (
+		namespace       = "ns"
+		nodeName        = "node1"
+		pvcName         = "pvc1"
+		fsid            = "c5b8e5d0-4a7e-4a8b-9f0e-6b1d2c3e4f50"
+		dataDirHostPath = "/var/lib/rook"
+		validUUID       = "6e7c4d3f-3494-4dc1-90dc-58527fdf05d7"
+	)
+
+	oldConditionFunc := updateConditionFunc
+	t.Cleanup(func() { updateConditionFunc = oldConditionFunc })
+	updateConditionFunc = func(context.Context, *clusterd.Context, types.NamespacedName, int64, cephv1.ConditionType, corev1.ConditionStatus, cephv1.ConditionReason, string) {
+	}
+
+	newCluster := func(t *testing.T) *Cluster {
+		node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+			Name:   nodeName,
+			Labels: map[string]string{corev1.LabelHostname: nodeName},
+		}}
+		clusterInfo := &cephclient.ClusterInfo{Namespace: namespace, FSID: fsid, CephVersion: cephver.Squid, Context: t.Context()}
+		clusterInfo.SetName("mycluster")
+		clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+		ctx := &clusterd.Context{Clientset: fake.NewClientset(node)}
+		c := New(ctx, clusterInfo, cephv1.ClusterSpec{DataDirHostPath: dataDirHostPath}, "rook/rook:master")
+		c.ValidStorage.Nodes = []cephv1.Node{{Name: nodeName}}
+		c.deviceSets = []deviceSet{{
+			Name:       pvcName,
+			PVCSources: map[string]corev1.PersistentVolumeClaimVolumeSource{bluestorePVCData: {ClaimName: pvcName}},
+			Portable:   true,
+		}}
+		return c
+	}
+
+	// write the status into the status ConfigMap of the node or PVC, then process it the way the
+	// operator does when a prepare job reports completion
+	processStatus := func(t *testing.T, c *Cluster, nodeOrPVC string, status OrchestrationStatus) (*createConfig, *provisionErrors) {
+		cmName := UpdateNodeOrPVCStatus(t.Context(), c.kv, nodeOrPVC, status)
+		cm, err := c.context.Clientset.CoreV1().ConfigMaps(namespace).Get(t.Context(), cmName, metav1.GetOptions{})
+		require.NoError(t, err)
+		createConfig := c.newCreateConfig(c.newProvisionConfig(), sets.New(cmName), newExistenceListWithCapacity(0))
+		errs := newProvisionErrors()
+		c.createOSDsForStatusMap(cm, createConfig, errs)
+		return createConfig, errs
+	}
+
+	// the OSD deployments that exist, each mapped to the host path of its activate volume, or to ""
+	// when it has none
+	activatePathsByDeployment := func(t *testing.T, c *Cluster) map[string]string {
+		deps, err := c.context.Clientset.AppsV1().Deployments(namespace).List(t.Context(), metav1.ListOptions{})
+		require.NoError(t, err)
+		paths := map[string]string{}
+		for _, d := range deps.Items {
+			paths[d.Name] = ""
+			for _, v := range d.Spec.Template.Spec.Volumes {
+				if v.Name == activateOSDVolumeName && v.HostPath != nil {
+					paths[d.Name] = v.HostPath.Path
+				}
+			}
+		}
+		return paths
+	}
+	validActivatePath := filepath.Join(dataDirHostPath, namespace, fsid+"_"+validUUID)
+
+	for _, cvMode := range []string{"lvm", "raw"} {
+		t.Run("node: valid "+cvMode+" record creates the deployment", func(t *testing.T) {
+			c := newCluster(t)
+			createConfig, errs := processStatus(t, c, nodeName, OrchestrationStatus{
+				Status: OrchestrationStatusCompleted,
+				OSDs:   []OSDInfo{{ID: 8, UUID: validUUID, BlockPath: "/dev/sdc", CVMode: cvMode}},
+			})
+			assert.Zero(t, errs.len())
+			assert.True(t, createConfig.doneCreating())
+			assert.Equal(t, map[string]string{deploymentName(8): validActivatePath}, activatePathsByDeployment(t, c))
+		})
+
+		t.Run("pvc: valid "+cvMode+" record creates the deployment", func(t *testing.T) {
+			c := newCluster(t)
+			createConfig, errs := processStatus(t, c, pvcName, OrchestrationStatus{
+				Status:       OrchestrationStatusCompleted,
+				PvcBackedOSD: true,
+				OSDs:         []OSDInfo{{ID: 8, UUID: validUUID, BlockPath: "/mnt/" + pvcName, CVMode: cvMode}},
+			})
+			assert.Zero(t, errs.len())
+			assert.True(t, createConfig.doneCreating())
+			assert.Equal(t, map[string]string{deploymentName(8): ""}, activatePathsByDeployment(t, c))
+		})
+	}
+
+	invalidRecords := []struct{ name, uuid, cvMode, wantErr string }{
+		{"uuid with a path traversal", "x/../../../../../etc", "raw", "is not a UUID in canonical form"},
+		{"uuid with cap string syntax", `x",profile=osd,profile="y`, "raw", "is not a UUID in canonical form"},
+		{"ceph-volume mode with shell syntax", "0b6b0a4e-6d0b-4d55-8f8e-0f5e1c9b2a17", "raw; true", `ceph-volume mode "raw; true" is not "lvm" or "raw"`},
+	}
+	for _, tc := range invalidRecords {
+		t.Run("node: "+tc.name+" is skipped and other OSDs are created", func(t *testing.T) {
+			c := newCluster(t)
+			createConfig, errs := processStatus(t, c, nodeName, OrchestrationStatus{
+				Status: OrchestrationStatusCompleted,
+				OSDs: []OSDInfo{
+					{ID: 7, UUID: tc.uuid, BlockPath: "/dev/sdb", CVMode: tc.cvMode, Encrypted: true},
+					{ID: 8, UUID: validUUID, BlockPath: "/dev/sdc", CVMode: "lvm"},
+				},
+			})
+			assert.Equal(t, 1, errs.len())
+			assert.Contains(t, errs.asMessages(), "failed to create OSD 7")
+			assert.Contains(t, errs.asMessages(), tc.wantErr)
+			assert.True(t, createConfig.doneCreating())
+			assert.Equal(t, map[string]string{deploymentName(8): validActivatePath}, activatePathsByDeployment(t, c))
+		})
+
+		t.Run("pvc: "+tc.name+" is skipped", func(t *testing.T) {
+			c := newCluster(t)
+			createConfig, errs := processStatus(t, c, pvcName, OrchestrationStatus{
+				Status:       OrchestrationStatusCompleted,
+				PvcBackedOSD: true,
+				OSDs:         []OSDInfo{{ID: 7, UUID: tc.uuid, BlockPath: "/mnt/" + pvcName, CVMode: tc.cvMode}},
+			})
+			assert.Equal(t, 1, errs.len())
+			assert.Contains(t, errs.asMessages(), "failed to create OSD 7")
+			assert.Contains(t, errs.asMessages(), tc.wantErr)
+			assert.True(t, createConfig.doneCreating())
+			assert.Empty(t, activatePathsByDeployment(t, c))
+		})
+	}
+}
+
 func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatcher *watch.RaceFreeFakeWatcher) {
 	ctx := context.TODO()
 	// if no valid osd node, don't need to check its status, return immediately
@@ -86,7 +218,7 @@ func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatch
 					OSDs: []OSDInfo{
 						{
 							ID:        1,
-							UUID:      "000000-0000-00000001",
+							UUID:      "00000000-0000-0000-0000-000000000001",
 							Cluster:   "rook",
 							CVMode:    "raw",
 							BlockPath: "/dev/some/path",

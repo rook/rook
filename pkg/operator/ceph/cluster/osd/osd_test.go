@@ -719,9 +719,9 @@ func TestGetOSDInfo(t *testing.T) {
 
 	node := "n1"
 	location := "root=default host=myhost zone=myzone"
-	osd1 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location, TopologyAffinity: "topology.rook.io/rack=rack0"}
-	osd2 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true}
-	osd3 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "raw"}
+	osd1 := &OSDInfo{ID: 3, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location, TopologyAffinity: "topology.rook.io/rack=rack0"}
+	osd2 := &OSDInfo{ID: 3, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true}
+	osd3 := &OSDInfo{ID: 3, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "", CVMode: "raw"}
 	osdProp := osdProperties{
 		crushHostname: node,
 		pvc:           corev1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
@@ -772,8 +772,8 @@ func TestGetOSDInfo(t *testing.T) {
 
 	t.Run("get info from node-based OSDs", func(t *testing.T) {
 		useAllDevices := true
-		osd4 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "lvm", Location: location}
-		osd5 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm"}
+		osd4 := &OSDInfo{ID: 3, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "", CVMode: "lvm", Location: location}
+		osd5 := &OSDInfo{ID: 3, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "vg1/lv1", CVMode: "lvm"}
 		osdProp = osdProperties{
 			crushHostname: node,
 			devices:       []cephv1.Device{},
@@ -800,7 +800,7 @@ func TestGetOSDInfo(t *testing.T) {
 	t.Run("verify the existence of labels if the corresponding fields are set on OSDInfo and OSDProperties", func(t *testing.T) {
 		pvcName := "test-pvc"
 		osdInfo := &OSDInfo{
-			UUID:       "osd-uuid",
+			UUID:       "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 			BlockPath:  "dev/logical-volume-path",
 			CVMode:     "raw",
 			Store:      "bluestore",
@@ -841,7 +841,7 @@ func TestGetOSDInfo(t *testing.T) {
 
 	t.Run("detect encryption from dmcrypt block path when encrypted label is missing", func(t *testing.T) {
 		osdInfo := &OSDInfo{
-			UUID:      "osd-uuid",
+			UUID:      "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 			BlockPath: "/dev/mapper/set1-data-0-abc-block-dmcrypt",
 			CVMode:    "raw",
 		}
@@ -867,7 +867,7 @@ func TestGetOSDInfo(t *testing.T) {
 
 	t.Run("encrypted label is set from OSDInfo when osdProps does not indicate encryption", func(t *testing.T) {
 		osdInfo := &OSDInfo{
-			UUID:      "osd-uuid",
+			UUID:      "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 			BlockPath: "/dev/mapper/set1-data-0-abc-block-dmcrypt",
 			CVMode:    "raw",
 			Encrypted: true,
@@ -890,7 +890,7 @@ func TestGetOSDInfo(t *testing.T) {
 	t.Run("verify the non-existence of labels if the corresponding fields are not set on OSDInfo and OSDProperties", func(t *testing.T) {
 		useAllDevices := true
 		osdInfo := &OSDInfo{
-			UUID:      "osd-uuid",
+			UUID:      "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 			BlockPath: "vg1/lv1",
 			CVMode:    "lvm",
 			// Store and DeviceType are empty (zero values)
@@ -1042,9 +1042,9 @@ func TestGetOSDInfoWithCustomRoot(t *testing.T) {
 
 	node := "n1"
 	location := "root=custom-root host=myhost zone=myzone"
-	osd1 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location}
-	osd2 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true, Location: location}
-	osd3 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "lvm", Location: location}
+	osd1 := &OSDInfo{ID: 3, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location}
+	osd2 := &OSDInfo{ID: 3, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true, Location: location}
+	osd3 := &OSDInfo{ID: 3, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "", CVMode: "lvm", Location: location}
 	osdProp := osdProperties{
 		crushHostname: node,
 		pvc:           corev1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
