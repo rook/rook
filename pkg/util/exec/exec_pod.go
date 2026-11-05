@@ -52,6 +52,17 @@ type ExecOptions struct {
 	PreserveWhitespace bool
 }
 
+// redactedForLogging returns a copy of the options whose Command is safe to log.
+// This path formats the whole struct rather than going through FormatCommand, so
+// it needs its own call into redactArgs; the receiver's own Command is the vector
+// that gets executed and is left untouched.
+func (o ExecOptions) redactedForLogging() ExecOptions {
+	redacted := o
+	redacted.Command = redactArgs(o.Command)
+
+	return redacted
+}
+
 // RemotePodCommandExecutor is an exec.Executor that execs every command in a remote container
 // This is especially useful when the CephCluster networking type is Multus and when the Operator pod
 // does not have the right network annotations.
@@ -66,7 +77,8 @@ type RemotePodCommandExecutor struct {
 func (e *RemotePodCommandExecutor) ExecWithOptions(ctx context.Context, options ExecOptions) (string, string, error) {
 	const tty = false
 
-	logger.Debugf("ExecWithOptions %+v", options)
+	logger.Debugf("ExecWithOptions %+v", options.redactedForLogging())
+	logger.Tracef("ExecWithOptions %+v", options) // only trace(insecure) logged because Command carries the secret flag value verbatim
 
 	req := e.ClientSet.CoreV1().RESTClient().Post().
 		Resource("pods").
@@ -122,14 +134,71 @@ func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutput(ctx cont
 func execute(ctx context.Context, method string, url *url.URL, config *rest.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool) error {
 	exec, err := remotecommand.NewSPDYExecutor(config, method, url)
 	if err != nil {
-		return err
+		return sanitizeRequestError(url, err)
 	}
-	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,
 		Tty:    tty,
 	})
+
+	return sanitizeRequestError(url, err)
+}
+
+// commandQueryParam is the query parameter that v1.PodExecOptions.Command, the
+// command's whole argv, is marshalled into.
+const commandQueryParam = "command"
+
+// sanitizeRequestError keeps the exec request's argv out of err's message.
+//
+// A transport failure is reported by formatting the entire request URL into the
+// error text, and that URL carries the argv in its "command" parameters. The
+// resulting error is not logged at DEBUG but returned: it reaches logger.Errorf
+// and a Warning Event through pkg/operator/ceph/reporting, so a failed
+// 'realm pull' on a Multus cluster would publish the realm's secret key to
+// anyone who can read Events. That is a weaker permission than pods/log.
+//
+// The argv cannot be removed from such an error structurally, because the URL is
+// no longer a value by the time it gets here: k8s.io/client-go/transport/spdy
+// formats the *url.Error with %v, which bakes its text into a plain error with
+// nothing left to unwrap. The message itself has to be rewritten, which replaces
+// the error rather than wrapping it, so that no %+v or errors.Cause can reach
+// past the sanitized text to the original.
+func sanitizeRequestError(u *url.URL, err error) error {
+	if err == nil || u == nil {
+		return err
+	}
+
+	raw := u.String()
+	msg := err.Error()
+	if !strings.Contains(msg, raw) {
+		// nothing to rewrite, so keep the error as it is: callers including
+		// ExtractExitCode depend on its type, and an exit-status error does not
+		// name the URL
+		return err
+	}
+
+	return errors.New(strings.ReplaceAll(msg, raw, redactQueryArgv(u)))
+}
+
+// redactQueryArgv renders u with its "command" parameters put through
+// redactArgs. Those parameters are the argv in order, so the same redaction
+// serves here as in a log line: only a secret flag's value is replaced, and the
+// command that failed stays readable. The rest of the request - host, namespace,
+// pod, container - is left alone, since diagnosing a failed exec needs all of it.
+func redactQueryArgv(u *url.URL) string {
+	query := u.Query()
+	command, ok := query[commandQueryParam]
+	if !ok {
+		return u.String()
+	}
+	query[commandQueryParam] = redactArgs(command)
+
+	redacted := *u
+	redacted.RawQuery = query.Encode()
+
+	return redacted.String()
 }
 
 func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutputWithTimeout(ctx context.Context, appLabel, containerName, namespace string, timeout time.Duration, cmd ...string) (string, string, error) {
