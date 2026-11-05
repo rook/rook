@@ -21,8 +21,13 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -109,6 +114,101 @@ func TestDecodeUserLogsRawResponseOnlyUnderTrace(t *testing.T) {
 			logBuf := captureLogsAtLevel(t, tc.level)
 
 			_, _, err := decodeUser(badJSON)
+
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), secretKey)
+			if tc.logged {
+				assert.Contains(t, logBuf.String(), secretKey)
+			} else {
+				assert.NotContains(t, logBuf.String(), secretKey)
+			}
+		})
+	}
+}
+
+// userInfoContext returns an object store context whose radosgw-admin calls all
+// return response and err, as a `user info` call that printed a document before
+// failing does.
+func userInfoContext(response string, err error) *Context {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			return response, err
+		},
+	}
+
+	return &Context{
+		Context:     &clusterd.Context{Executor: executor},
+		clusterInfo: client.AdminTestClusterInfo("mycluster"),
+		Name:        "my-store",
+	}
+}
+
+func TestGetUserDoesNotLeakResponse(t *testing.T) {
+	// `user info` output carries the user's S3 keys. GetUser provisions the admin ops
+	// user, so its error is reported into the CephObjectStore status and a Kubernetes
+	// event on every reconcile that cannot read the user.
+	const (
+		accessKey = "EXAMPLEACCESSKEYID01"
+		secretKey = "EXAMPLEUSERSECRETKEY0000000000000000000001"
+		uid       = "rgw-admin-ops-user"
+	)
+	keys := `"keys": [{"user": "` + uid + `", "access_key": "` + accessKey + `", "secret_key": "` + secretKey + `"}]`
+
+	t.Run("command failure", func(t *testing.T) {
+		response := `{"user_id": "` + uid + `", ` + keys + `}`
+		// the exit code has to be extractable, or runAdminCommandWithTimeout assumes a
+		// FIFO file I/O error and retries the command
+		c := userInfoContext(response, errors.New("command terminated with exit code 1"))
+
+		_, code, err := GetUser(c, uid)
+
+		require.Error(t, err)
+		assert.Equal(t, RGWErrorUnknown, code)
+		assert.NotContains(t, err.Error(), secretKey)
+		assert.NotContains(t, err.Error(), accessKey)
+		// a failed command returns stdout and stderr joined as "<stdout>. <stderr>",
+		// and the mock leaves stderr empty
+		assert.Contains(t, err.Error(), fmt.Sprintf("(%d bytes)", len(response+". ")))
+	})
+
+	t.Run("unparsable response", func(t *testing.T) {
+		// radosgw-admin succeeded but the document is indented behind other output and
+		// cut short, so extractJSON finds no complete object
+		response := `  {"user_id": "` + uid + `", ` + keys
+		c := userInfoContext(response, nil)
+
+		_, code, err := GetUser(c, uid)
+
+		require.Error(t, err)
+		assert.Equal(t, RGWErrorParse, code)
+		assert.NotContains(t, err.Error(), secretKey)
+		assert.NotContains(t, err.Error(), accessKey)
+		assert.Contains(t, err.Error(), fmt.Sprintf("(%d bytes)", len(response)))
+	})
+}
+
+func TestGetUserLogsFailedResponseOnlyUnderTrace(t *testing.T) {
+	// the response is the only diagnostic a failed `user info` leaves, but it carries
+	// the user's S3 keys, so it is logged only at the TRACE level that
+	// ROOK_LOG_LEVEL=TRACE_INSECURE unlocks.
+	const (
+		secretKey = "EXAMPLEUSERSECRETKEY0000000000000000000001"
+		uid       = "rgw-admin-ops-user"
+	)
+	response := `{"user_id": "` + uid + `", "keys": [{"secret_key": "` + secretKey + `"}]}`
+
+	for _, tc := range []struct {
+		level  capnslog.LogLevel
+		logged bool
+	}{
+		{level: capnslog.DEBUG, logged: false},
+		{level: capnslog.TRACE, logged: true},
+	} {
+		t.Run(tc.level.String(), func(t *testing.T) {
+			logBuf := captureLogsAtLevel(t, tc.level)
+			c := userInfoContext(response, errors.New("command terminated with exit code 1"))
+
+			_, _, err := GetUser(c, uid)
 
 			require.Error(t, err)
 			assert.NotContains(t, err.Error(), secretKey)
