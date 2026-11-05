@@ -6,7 +6,7 @@ release:
 set:
   operatorNamespace: rook-ceph
 tests:
-  - it: limits cmd-reporter ConfigMap access to the result ConfigMaps of its jobs
+  - it: gives cmd-reporter access only to the result ConfigMaps of its jobs
     documentSelector:
       path: $[?(@.kind == "Role")].metadata.name
       value: rook-ceph-cmd-reporter
@@ -14,9 +14,6 @@ tests:
       - equal:
           path: rules
           value:
-            - apiGroups: [""]
-              resources: [pods]
-              verbs: [get, list, watch, create, update, delete]
             - apiGroups: [""]
               resources: [configmaps]
               verbs: [create]

@@ -109,17 +109,6 @@ metadata:
   labels:
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - pods
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - delete
   # cmd-reporter writes its result to a ConfigMap named after its job. RBAC cannot limit create by
   # name, so get and update are limited to the names of the ceph version and network canary jobs.
   - apiGroups:
