@@ -404,7 +404,7 @@ security:
   kms:
     connectionDetails:
       KMS_PROVIDER: vault
-      VAULT_ADDR: http://vault.default.svc.cluster.local:8200
+      VAULT_ADDR: https://vault.default.svc.cluster.local:8200
       VAULT_BACKEND_PATH: rgw
       VAULT_SECRET_ENGINE: kv
       VAULT_BACKEND: v2
@@ -413,11 +413,22 @@ security:
   s3:
     connectionDetails:
       KMS_PROVIDER: vault
-      VAULT_ADDR: http://vault.default.svc.cluster.local:8200
+      VAULT_ADDR: https://vault.default.svc.cluster.local:8200
       VAULT_SECRET_ENGINE: transit
     # name of the k8s secret containing the kms authentication token
     tokenSecretName: rgw-vault-s3-token
 ```
+
+!!! warning
+    While validating these settings, the Rook operator can connect to the Vault server at
+    `VAULT_ADDR` itself with the configured credentials, so permission to edit them is equivalent
+    to the operator's identity. Use an `https://` address for the Vault server and do not set
+    `VAULT_SKIP_VERIFY`. See the
+    [Vault KMS section](../../Storage-Configuration/Advanced/key-management-system.md#vault).
+    (The pod-local Vault Agent address used with `VAULT_AUTH_METHOD: agent`, described
+    [below](#sse-s3-with-vault-agent), stays `http://127.0.0.1:<port>`: RGW reaches the agent
+    inside its own pod, and with the `transit` engine that SSE-S3 requires the operator does not
+    connect to it.)
 
 For RGW, please note the following:
 
