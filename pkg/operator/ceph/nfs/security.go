@@ -27,6 +27,20 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+func validateSecuritySpec(sec *cephv1.NFSSecuritySpec) error {
+	if err := sec.Validate(); err != nil {
+		return err
+	}
+
+	if sec != nil && sec.SSSD != nil && sec.SSSD.Sidecar != nil {
+		if err := sec.SSSD.Sidecar.AdditionalFiles.ValidateSubPaths(); err != nil {
+			return errors.Wrap(err, "invalid security.sssd.sidecar.additionalFiles")
+		}
+	}
+
+	return nil
+}
+
 func (r *ReconcileCephNFS) addSecurityConfigsToPod(nfs *cephv1.CephNFS, pod *v1.PodSpec) error {
 	nsName := controller.NsName(nfs.Namespace, nfs.Name)
 
