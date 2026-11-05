@@ -412,6 +412,27 @@ func TestCreateFilesystem(t *testing.T) {
 		testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 	})
 
+	t.Run("mds with the skip reconcile label is not reconciled", func(t *testing.T) {
+		skipped := fmt.Sprintf("rook-ceph-mds-%s-b", fsName)
+		d, err := clientset.AppsV1().Deployments(fs.Namespace).Get(ctx, skipped, metav1.GetOptions{})
+		assert.NoError(t, err)
+		d.Labels[cephv1.SkipReconcileLabelKey] = "true"
+		_, err = clientset.AppsV1().Deployments(fs.Namespace).Update(ctx, d, metav1.UpdateOptions{})
+		assert.NoError(t, err)
+
+		err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/", false)
+		assert.NoError(t, err)
+		// only the other mds is updated, and the skipped deployment is not removed
+		assert.ElementsMatch(t, []string{fmt.Sprintf("rook-ceph-mds-%s-a", fsName)}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+		_, err = clientset.AppsV1().Deployments(fs.Namespace).Get(ctx, skipped, metav1.GetOptions{})
+		assert.NoError(t, err)
+
+		delete(d.Labels, cephv1.SkipReconcileLabelKey)
+		_, err = clientset.AppsV1().Deployments(fs.Namespace).Update(ctx, d, metav1.UpdateOptions{})
+		assert.NoError(t, err)
+		testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+	})
+
 	t.Run("increasing the number of data pools should be successful.", func(t *testing.T) {
 		context = &clusterd.Context{
 			Executor:  executor,
