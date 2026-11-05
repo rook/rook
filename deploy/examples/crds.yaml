@@ -10506,7 +10506,8 @@ spec:
                                       SubPath defines the sub-path (subdirectory) of the directory root where the volumeSource will
                                       be mounted. All files/keys in the volume source's volume will be mounted to the subdirectory.
                                       This is not the same as the Kubernetes `subPath` volume mount option.
-                                      Each subPath definition must be unique and must not contain ':'.
+                                      Each subPath definition must be unique and must not contain ':'. A subPath with a '..' path
+                                      element is rejected.
                                     minLength: 1
                                     pattern: ^[^:]+$
                                     type: string
@@ -13580,7 +13581,8 @@ spec:
                               SubPath defines the sub-path (subdirectory) of the directory root where the volumeSource will
                               be mounted. All files/keys in the volume source's volume will be mounted to the subdirectory.
                               This is not the same as the Kubernetes `subPath` volume mount option.
-                              Each subPath definition must be unique and must not contain ':'.
+                              Each subPath definition must be unique and must not contain ':'. A subPath with a '..' path
+                              element is rejected.
                             minLength: 1
                             pattern: ^[^:]+$
                             type: string

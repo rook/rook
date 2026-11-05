@@ -2814,7 +2814,8 @@ string
 <p>SubPath defines the sub-path (subdirectory) of the directory root where the volumeSource will
 be mounted. All files/keys in the volume source&rsquo;s volume will be mounted to the subdirectory.
 This is not the same as the Kubernetes <code>subPath</code> volume mount option.
-Each subPath definition must be unique and must not contain &lsquo;:&rsquo;.</p>
+Each subPath definition must be unique and must not contain &lsquo;:&rsquo;. A subPath with a &lsquo;..&rsquo; path
+element is rejected.</p>
 </td>
 </tr>
 <tr>

@@ -204,12 +204,6 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		}
 	}
 
-	if err := cephNFS.Spec.Security.Validate(); err != nil {
-		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, *cephNFS,
-			errors.Wrapf(err, "failed to validate security spec for CephNFS %q",
-				types.NamespacedName{Namespace: cephNFS.Namespace, Name: cephNFS.Name})
-	}
-
 	// Make sure a CephCluster is present otherwise do nothing
 	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
@@ -267,6 +261,12 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, *cephNFS, nil
+	}
+
+	if err := validateSecuritySpec(cephNFS.Spec.Security); err != nil {
+		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, *cephNFS,
+			errors.Wrapf(err, "failed to validate security spec for CephNFS %q",
+				types.NamespacedName{Namespace: cephNFS.Namespace, Name: cephNFS.Name})
 	}
 
 	// Detect desired CephCluster version

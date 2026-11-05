@@ -551,6 +551,41 @@ func TestCephObjectStoreController(t *testing.T) {
 		assert.Equal(t, 19, r.clusterInfo.CephVersion.Major)
 	})
 
+	t.Run("error - additional volume mount outside /var/rgw", func(t *testing.T) {
+		r := setupEnvironmentWithReadyCephCluster()
+		recorder := events.NewFakeRecorder(50)
+		r.recorder = recorder
+
+		objectStore := &cephv1.CephObjectStore{}
+		require.NoError(t, r.client.Get(ctx, req.NamespacedName, objectStore))
+		objectStore.Spec.Gateway.AdditionalVolumeMounts = cephv1.AdditionalVolumeMounts{
+			{
+				SubPath: "../../usr/local/bin",
+				VolumeSource: &cephv1.ConfigFileVolumeSource{
+					ConfigMap: &v1.ConfigMapVolumeSource{LocalObjectReference: v1.LocalObjectReference{Name: "bin"}},
+				},
+			},
+		}
+		require.NoError(t, r.client.Update(ctx, objectStore))
+
+		_, err := r.Reconcile(ctx, req)
+		assert.ErrorContains(t, err, `"../../usr/local/bin"`)
+
+		close(recorder.Events)
+		recorded := []string{}
+		for e := range recorder.Events {
+			recorded = append(recorded, e)
+		}
+		assert.Len(t, recorded, 1)
+		for _, e := range recorded {
+			assert.Contains(t, e, `"../../usr/local/bin"`)
+		}
+
+		deployments, err := r.context.Clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+		require.NoError(t, err)
+		assert.Empty(t, deployments.Items)
+	})
+
 	t.Run("requeue - osds still upgrading", func(t *testing.T) {
 		r := setupEnvironmentWithReadyCephCluster()
 		r.context.Executor = &exectest.MockExecutor{
