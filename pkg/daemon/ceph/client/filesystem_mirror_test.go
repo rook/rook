@@ -17,14 +17,23 @@ limitations under the License.
 package client
 
 import (
+	"bytes"
 	"encoding/base64"
+	"fmt"
+	"os"
 	"testing"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// fake peer bootstrap token, shaped to be recognizable in a log but useless as a
+// credential
+const examplePeerToken = "EXAMPLEPEERTOKEN0000000000000000000000000001"
 
 var (
 	// response of "ceph fs snapshot mirror peer_bootstrap create myfs2 client.mirror test"
@@ -115,6 +124,108 @@ func TestCreateFSMirrorBootstrapPeer(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = base64.StdEncoding.DecodeString(string(token))
 	assert.NoError(t, err)
+}
+
+// mirrorPeerBootstrapExecutor returns an executor whose `fs snapshot mirror
+// peer_bootstrap create` reply is the given response.
+func mirrorPeerBootstrapExecutor(response string) *exectest.MockExecutor {
+	return &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "fs" {
+				return response, nil
+			}
+			return "", errors.New("unknown command")
+		},
+	}
+}
+
+func TestCreateFSMirrorBootstrapPeerDoesNotLeakToken(t *testing.T) {
+	// the response being unmarshalled is the peer bootstrap token, which belongs
+	// only in a Secret. The error reaches the operator log, and through reporting
+	// the CR status and a Kubernetes event, none of which need access to that Secret.
+	tests := []struct {
+		name     string
+		response string
+		// the field a type error names; empty when the error is a syntax error,
+		// which reports only its own message. Qualified with the struct name: the
+		// wrapper text already contains "token", so a bare field name asserts nothing
+		namesField string
+	}{
+		{
+			// Token is a string in BootstrapPeerToken, so an array is the shape a
+			// schema change across Ceph versions would take
+			name:       "type error",
+			response:   `{"token": ["` + examplePeerToken + `"]}`,
+			namesField: "BootstrapPeerToken.token",
+		},
+		{
+			name:     "truncated response",
+			response: `{"token": "` + examplePeerToken + `"`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			context := &clusterd.Context{Executor: mirrorPeerBootstrapExecutor(tc.response)}
+
+			_, err := CreateFSMirrorBootstrapPeer(context, AdminTestClusterInfo("mycluster"), "myfs")
+
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), examplePeerToken)
+			// the response size is the only context a syntax error leaves
+			assert.Contains(t, err.Error(), fmt.Sprintf("(%d bytes)", len(tc.response)))
+			if tc.namesField != "" {
+				assert.Contains(t, err.Error(), tc.namesField)
+			}
+		})
+	}
+}
+
+// captureLogsAtLevel redirects the capnslog sink into a buffer at the given level
+// for the duration of the test, restoring the package default afterwards so later
+// tests still log to stderr and never at TRACE.
+func captureLogsAtLevel(t *testing.T, level capnslog.LogLevel) *bytes.Buffer {
+	t.Helper()
+
+	logBuf := bytes.NewBuffer([]byte{})
+	capnslog.SetFormatter(capnslog.NewLogFormatter(logBuf, "", 0))
+	capnslog.SetGlobalLogLevel(level)
+	t.Cleanup(func() {
+		capnslog.SetFormatter(capnslog.NewDefaultFormatter(os.Stderr))
+		capnslog.SetGlobalLogLevel(capnslog.INFO)
+	})
+
+	return logBuf
+}
+
+func TestCreateFSMirrorBootstrapPeerLogsRawResponseOnlyUnderTrace(t *testing.T) {
+	// the raw response is the only way to tell a truncated document from a schema
+	// change, but it is the peer bootstrap token itself, so it is logged only at the
+	// TRACE level that ROOK_LOG_LEVEL=TRACE_INSECURE unlocks.
+	badResponse := `{"token": "` + examplePeerToken + `"`
+
+	for _, tc := range []struct {
+		level  capnslog.LogLevel
+		logged bool
+	}{
+		{level: capnslog.DEBUG, logged: false},
+		{level: capnslog.TRACE, logged: true},
+	} {
+		t.Run(tc.level.String(), func(t *testing.T) {
+			logBuf := captureLogsAtLevel(t, tc.level)
+			context := &clusterd.Context{Executor: mirrorPeerBootstrapExecutor(badResponse)}
+
+			_, err := CreateFSMirrorBootstrapPeer(context, AdminTestClusterInfo("mycluster"), "myfs")
+
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), examplePeerToken)
+			if tc.logged {
+				assert.Contains(t, logBuf.String(), examplePeerToken)
+			} else {
+				assert.NotContains(t, logBuf.String(), examplePeerToken)
+			}
+		})
+	}
 }
 
 func TestRemoveFilesystemMirrorPeer(t *testing.T) {
