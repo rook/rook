@@ -23,3 +23,45 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  # Dependabot updates only the default branch unless an entry sets
+  # target-branch, which names one branch, so each maintained release branch
+  # needs its own entry — revisit this pair when a minor is cut and the oldest
+  # goes EOL. Security updates always target the default branch, so these
+  # version updates are all a release branch gets: indirect dependencies are
+  # allowed, and batched into one capped pull request to bound the review load.
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "release-1.21"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 1
+    allow:
+      - dependency-type: "all"
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+    ignore:
+      # A major bump is not backport material, and one unwanted entry would
+      # hold up the whole group.
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "release-1.20"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 1
+    allow:
+      - dependency-type: "all"
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
