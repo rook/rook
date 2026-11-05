@@ -1112,6 +1112,12 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 	}
 
 	for _, existingOSD := range existingOSDs {
+		// An entry for a separate metadata (db/wal) device has neither a device nor a
+		// ceph_fsid. That doesn't mean it belongs to another cluster, so leave it alone.
+		if existingOSD.CephFsid == "" || existingOSD.Device == "" {
+			logger.Debugf("skip checking OSD %d with uuid %q for wiping since its device or ceph fsid is unknown", existingOSD.OsdID, existingOSD.OsdUUID)
+			continue
+		}
 		// Wipe the devices that will be used for preparing OSD but already have OSD metadata from another ceph cluster
 		if existingOSD.CephFsid != a.clusterInfo.FSID {
 			osdID := existingOSD.OsdID
@@ -1181,6 +1187,9 @@ func wipeEncryptedDevicesFromOtherClusters(context *clusterd.Context, currentClu
 
 // getOSDDiskToBeWiped returns OSD disk path and the dmcrypt block in case of encrypted OSDs
 func getOSDDiskToBeWiped(context *clusterd.Context, existingOSDDevice string) (*sys.LocalDisk, string, error) {
+	if existingOSDDevice == "" {
+		return nil, "", nil
+	}
 	var err error
 	var encryptedBlock string
 	// encrypted OSDs have /dev/mapper/* entries. Find the real device path in case of encrypted OSDs
