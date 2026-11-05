@@ -1,0 +1,76 @@
+name: CodeQL
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+          - language: go
+            build-mode: manual
+          - language: python
+            build-mode: none
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: matrix.language == 'go'
+        with:
+          go-version: "1.26"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      # The default make target also builds the container image, which
+      # autobuild would run; analysis needs only the Go packages compiled.
+      - name: Build Go packages
+        if: matrix.build-mode == 'manual'
+        env:
+          # Required for go-ceph rgw/admin account APIs which are gated behind
+          # the ceph_preview build tag. Can be removed when go-ceph promotes
+          # the account API out of preview.
+          GOFLAGS: "-tags=ceph_preview"
+        run: CGO_ENABLED=0 go build ./... ./pkg/apis/...
+
+      # GOFLAGS belongs here and not on init, which warns that passing it
+      # there is deprecated.
+      - name: Analyze
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        env:
+          GOFLAGS: "-tags=ceph_preview"
+        with:
+          category: "/language:${{ matrix.language }}"
