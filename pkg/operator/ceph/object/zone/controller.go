@@ -503,7 +503,18 @@ func (r *ReconcileObjectZone) deleteZonePools(objContext *object.Context, zone *
 	}
 	poolPrefix, err := decodePoolPrefixfromZone(zoneOutput)
 	if err != nil {
-		return errors.Wrapf(err, "failed to parse pool prefix for zone json %v", zoneOutput)
+		// the zone document carries the realm system user's live S3 credentials, and this error
+		// reaches the CephObjectZone status and a Kubernetes Event by way of reporting, so it
+		// reports the response size in place of the payload: a json syntax error names no
+		// offset. The raw response is available at the TRACE level
+		// ROOK_LOG_LEVEL=TRACE_INSECURE unlocks.
+		//
+		// This covers the parse failure only. A residual remains on the error return above:
+		// 'zone get' is run with expectJSON, so an exec that succeeds while extractJSON finds
+		// no brace-delimited block still wraps the whole raw document into its "didn't contain
+		// json" text. That site has many callers and is its own change.
+		log.NamedTrace(objContext.NsName(), logger, "failed to parse pool prefix for zone %q json: %s", zone.Name, zoneOutput)
+		return errors.Wrapf(err, "failed to parse pool prefix for zone json (%d bytes)", len(zoneOutput))
 	}
 
 	log.NamedDebug(objContext.NsName(), logger, "deleting pools for ceph zone %q with prefix %q", zone.Name, poolPrefix)
