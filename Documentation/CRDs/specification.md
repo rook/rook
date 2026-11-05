@@ -2806,6 +2806,146 @@ future release.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.AccountQuotaSpec">AccountQuotaSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreAccountSpec">ObjectStoreAccountSpec</a>)
+</p>
+<div>
+<p>AccountQuotaSpec configures the storage quotas and resource limits for an RGW account.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>maxSize</code><br/>
+<em>
+k8s.io/apimachinery/pkg/api/resource.Quantity
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxSize is the account-wide storage quota, limiting the total size of all objects across all
+buckets owned by the account.
+Values:
+- <code>-1</code>: Unlimited data allowed
+- <code>0</code>: No data allowed
+- Positive value <code>N</code>: Maximum of N units of data allowed
+Default: <code>-1</code>.
+Example: <code>100Gi</code> = Maximum 100 gibibytes of data allowed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxObjects</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxObjects is the account-wide object quota, limiting the total number of objects across all
+buckets owned by the account.
+Values:
+- <code>-1</code>: Unlimited objects allowed
+- <code>0</code>: No objects allowed
+- Positive integer <code>N</code>: Maximum of N objects allowed
+Default: <code>-1</code>.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxBuckets</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxBuckets is the maximum number of buckets the account can own.
+Values:
+- <code>-1</code>: Unlimited buckets allowed
+- <code>0</code>: No buckets allowed
+- Positive integer <code>N</code>: Maximum of N buckets allowed
+Default: <code>1000</code>.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxUsers</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxUsers is the maximum number of users the account can own.
+Values:
+- <code>-1</code>: Unlimited users allowed
+- <code>0</code>: No users allowed
+- Positive integer <code>N</code>: Maximum of N users allowed
+Default: <code>1000</code>.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxRoles</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxRoles is the maximum number of IAM roles the account can own.
+Values:
+- <code>-1</code>: Unlimited roles allowed
+- <code>0</code>: No roles allowed
+- Positive integer <code>N</code>: Maximum of N roles allowed
+Default: <code>1000</code>.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxGroups</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxGroups is the maximum number of IAM groups the account can own.
+Values:
+- <code>-1</code>: Unlimited groups allowed
+- <code>0</code>: No groups allowed
+- Positive integer <code>N</code>: Maximum of N groups allowed
+Default: <code>1000</code>.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxAccessKeys</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxAccessKeys is the maximum number of access keys each user in the account can have.
+Values:
+- <code>-1</code>: Unlimited keys allowed
+- <code>0</code>: No keys allowed
+- Positive integer <code>N</code>: Maximum of N keys allowed per user
+Default: <code>4</code>.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.AccountRootUserSpec">AccountRootUserSpec
 </h3>
 <p>
@@ -12376,6 +12516,22 @@ AccountRootUserSpec
 <em>(Optional)</em>
 <p>RootUser configures the root user for the account. The root user is created by default
 and has default permissions across all account resources.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>quotas,omitzero</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AccountQuotaSpec">
+AccountQuotaSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Quotas sets the storage quotas and resource limits for the account.
+Accounts have several default limits. When unspecified, default limits apply.
+It is recommended to set all quotas for each account.</p>
 </td>
 </tr>
 </tbody>

@@ -37,6 +37,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -328,6 +329,13 @@ func TestCephObjectStoreAccountController(t *testing.T) {
 								Body:       io.NopCloser(bytes.NewReader([]byte(newAccountJSON))),
 							}, nil
 						}
+						if req.Method == http.MethodPut && req.URL.Query().Has("quota") {
+							assert.Equal(t, "false", req.URL.Query().Get("enabled"))
+							return &http.Response{
+								StatusCode: 200,
+								Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
+							}, nil
+						}
 					}
 					if isUserAPI {
 						if req.Method == http.MethodGet {
@@ -556,6 +564,12 @@ func TestReconcileAccount(t *testing.T) {
 						Body:       io.NopCloser(bytes.NewReader([]byte(accountJSON))),
 					}, nil
 				}
+				if req.Method == http.MethodPut && req.URL.Query().Has("quota") {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
+					}, nil
+				}
 				return nil, fmt.Errorf("unexpected request: method %q path %q", req.Method, req.URL.Path)
 			},
 		}
@@ -604,6 +618,12 @@ func TestReconcileAccount(t *testing.T) {
 					return &http.Response{
 						StatusCode: 200,
 						Body:       io.NopCloser(bytes.NewReader([]byte(accountCreateJSON))),
+					}, nil
+				}
+				if req.Method == http.MethodPut && req.URL.Query().Has("quota") {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 					}, nil
 				}
 				return nil, fmt.Errorf("unexpected request: method %q path %q", req.Method, req.URL.Path)
@@ -757,6 +777,12 @@ func TestReconcileAccount(t *testing.T) {
 					return &http.Response{
 						StatusCode: 200,
 						Body:       io.NopCloser(bytes.NewReader([]byte(accountJSON))),
+					}, nil
+				}
+				if req.Method == http.MethodPut && req.URL.Query().Has("quota") {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 					}, nil
 				}
 				return nil, fmt.Errorf("unexpected request: method %q path %q", req.Method, req.URL.Path)
@@ -1013,6 +1039,12 @@ func TestReconcileAccount(t *testing.T) {
 					return &http.Response{
 						StatusCode: 200,
 						Body:       io.NopCloser(bytes.NewReader([]byte(accountJSON))),
+					}, nil
+				}
+				if req.Method == http.MethodPut && req.URL.Query().Has("quota") {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 					}, nil
 				}
 				return nil, fmt.Errorf("unexpected request: method %q path %q", req.Method, req.URL.Path)
@@ -1790,5 +1822,71 @@ func TestReconcileRootUser(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, secretName)
 		assert.True(t, modifyCalled, "should always call modify to ensure desired state")
+	})
+}
+
+func TestBuildAccountQuota(t *testing.T) {
+	int64Ptr := func(i int64) *int64 { return &i }
+	quantityPtr := func(s string) *resource.Quantity {
+		q := resource.MustParse(s)
+		return &q
+	}
+
+	t.Run("unset size and objects disable the quota with unlimited sentinels", func(t *testing.T) {
+		q := buildAccountStorageQuota("RGW1", admin.AccountQuotaTypeAccount, nil, nil)
+		assert.Equal(t, "RGW1", q.ID)
+		assert.Equal(t, admin.AccountQuotaTypeAccount, q.QuotaType)
+		assert.False(t, *q.Enabled)
+		assert.Equal(t, int64(-1), *q.MaxSize)
+		assert.Equal(t, int64(-1), *q.MaxObjects)
+	})
+
+	t.Run("size only enables the quota and converts to bytes", func(t *testing.T) {
+		q := buildAccountStorageQuota("RGW1", admin.AccountQuotaTypeAccount, quantityPtr("10Gi"), nil)
+		assert.True(t, *q.Enabled)
+		assert.Equal(t, int64(10*1024*1024*1024), *q.MaxSize)
+		assert.Equal(t, int64(-1), *q.MaxObjects)
+	})
+
+	t.Run("objects only enables the quota", func(t *testing.T) {
+		q := buildAccountStorageQuota("RGW1", admin.AccountQuotaTypeAccount, nil, int64Ptr(1000))
+		assert.Equal(t, admin.AccountQuotaTypeAccount, q.QuotaType)
+		assert.True(t, *q.Enabled)
+		assert.Equal(t, int64(-1), *q.MaxSize)
+		assert.Equal(t, int64(1000), *q.MaxObjects)
+	})
+
+	t.Run("both size and objects set", func(t *testing.T) {
+		q := buildAccountStorageQuota("RGW1", admin.AccountQuotaTypeAccount, quantityPtr("1Ti"), int64Ptr(500))
+		assert.True(t, *q.Enabled)
+		assert.Equal(t, int64(1024*1024*1024*1024), *q.MaxSize)
+		assert.Equal(t, int64(500), *q.MaxObjects)
+	})
+}
+
+func TestApplyAccountResourceLimits(t *testing.T) {
+	int64Ptr := func(i int64) *int64 { return &i }
+
+	t.Run("empty quotas reset every limit to the Ceph default", func(t *testing.T) {
+		account := &admin.Account{ID: "RGW1"}
+		applyAccountResourceLimits(account, cephv1.AccountQuotaSpec{})
+		assert.Equal(t, int64(1000), *account.MaxBuckets)
+		assert.Equal(t, int64(1000), *account.MaxUsers)
+		assert.Equal(t, int64(1000), *account.MaxRoles)
+		assert.Equal(t, int64(1000), *account.MaxGroups)
+		assert.Equal(t, int64(4), *account.MaxAccessKeys)
+	})
+
+	t.Run("set fields are copied and unset fields get the Ceph default", func(t *testing.T) {
+		account := &admin.Account{ID: "RGW1"}
+		applyAccountResourceLimits(account, cephv1.AccountQuotaSpec{
+			MaxBuckets:    int64Ptr(100),
+			MaxAccessKeys: int64Ptr(8),
+		})
+		assert.Equal(t, int64(100), *account.MaxBuckets)
+		assert.Equal(t, int64(8), *account.MaxAccessKeys)
+		assert.Equal(t, int64(1000), *account.MaxUsers)
+		assert.Equal(t, int64(1000), *account.MaxRoles)
+		assert.Equal(t, int64(1000), *account.MaxGroups)
 	})
 }

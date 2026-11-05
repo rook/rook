@@ -3130,6 +3130,81 @@ type ObjectStoreAccountSpec struct {
 	// and has default permissions across all account resources.
 	// +optional
 	RootUser *AccountRootUserSpec `json:"rootUser,omitempty"` //nolint:kubeapilinter // MinProperties cannot be applied to a struct pointer field
+	// Quotas sets the storage quotas and resource limits for the account.
+	// Accounts have several default limits. When unspecified, default limits apply.
+	// It is recommended to set all quotas for each account.
+	// +optional
+	Quotas AccountQuotaSpec `json:"quotas,omitzero"`
+}
+
+// AccountQuotaSpec configures the storage quotas and resource limits for an RGW account.
+// +kubebuilder:validation:MinProperties=1
+type AccountQuotaSpec struct {
+	// MaxSize is the account-wide storage quota, limiting the total size of all objects across all
+	// buckets owned by the account.
+	// Values:
+	//  - `-1`: Unlimited data allowed
+	//  - `0`: No data allowed
+	//  - Positive value `N`: Maximum of N units of data allowed
+	// Default: `-1`.
+	// Example: `100Gi` = Maximum 100 gibibytes of data allowed.
+	// +optional
+	MaxSize *resource.Quantity `json:"maxSize,omitempty"`
+	// MaxObjects is the account-wide object quota, limiting the total number of objects across all
+	// buckets owned by the account.
+	// Values:
+	//  - `-1`: Unlimited objects allowed
+	//  - `0`: No objects allowed
+	//  - Positive integer `N`: Maximum of N objects allowed
+	// Default: `-1`.
+	// +kubebuilder:validation:Minimum=-1
+	// +optional
+	MaxObjects *int64 `json:"maxObjects,omitempty"`
+	// MaxBuckets is the maximum number of buckets the account can own.
+	// Values:
+	//  - `-1`: Unlimited buckets allowed
+	//  - `0`: No buckets allowed
+	//  - Positive integer `N`: Maximum of N buckets allowed
+	// Default: `1000`.
+	// +kubebuilder:validation:Minimum=-1
+	// +optional
+	MaxBuckets *int64 `json:"maxBuckets,omitempty"`
+	// MaxUsers is the maximum number of users the account can own.
+	// Values:
+	//  - `-1`: Unlimited users allowed
+	//  - `0`: No users allowed
+	//  - Positive integer `N`: Maximum of N users allowed
+	// Default: `1000`.
+	// +kubebuilder:validation:Minimum=-1
+	// +optional
+	MaxUsers *int64 `json:"maxUsers,omitempty"`
+	// MaxRoles is the maximum number of IAM roles the account can own.
+	// Values:
+	//  - `-1`: Unlimited roles allowed
+	//  - `0`: No roles allowed
+	//  - Positive integer `N`: Maximum of N roles allowed
+	// Default: `1000`.
+	// +kubebuilder:validation:Minimum=-1
+	// +optional
+	MaxRoles *int64 `json:"maxRoles,omitempty"`
+	// MaxGroups is the maximum number of IAM groups the account can own.
+	// Values:
+	//  - `-1`: Unlimited groups allowed
+	//  - `0`: No groups allowed
+	//  - Positive integer `N`: Maximum of N groups allowed
+	// Default: `1000`.
+	// +kubebuilder:validation:Minimum=-1
+	// +optional
+	MaxGroups *int64 `json:"maxGroups,omitempty"`
+	// MaxAccessKeys is the maximum number of access keys each user in the account can have.
+	// Values:
+	//  - `-1`: Unlimited keys allowed
+	//  - `0`: No keys allowed
+	//  - Positive integer `N`: Maximum of N keys allowed per user
+	// Default: `4`.
+	// +kubebuilder:validation:Minimum=-1
+	// +optional
+	MaxAccessKeys *int64 `json:"maxAccessKeys,omitempty"`
 }
 
 // AccountRootUserSpec defines the configuration for the account root user

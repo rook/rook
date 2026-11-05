@@ -13292,6 +13292,96 @@ spec:
                   minLength: 1
                   pattern: ^[a-zA-Z0-9 ._-]+$
                   type: string
+                quotas:
+                  description: |-
+                    Quotas sets the storage quotas and resource limits for the account.
+                    Accounts have several default limits. When unspecified, default limits apply.
+                    It is recommended to set all quotas for each account.
+                  minProperties: 1
+                  properties:
+                    maxAccessKeys:
+                      description: |-
+                        MaxAccessKeys is the maximum number of access keys each user in the account can have.
+                        Values:
+                         - `-1`: Unlimited keys allowed
+                         - `0`: No keys allowed
+                         - Positive integer `N`: Maximum of N keys allowed per user
+                        Default: `4`.
+                      format: int64
+                      minimum: -1
+                      type: integer
+                    maxBuckets:
+                      description: |-
+                        MaxBuckets is the maximum number of buckets the account can own.
+                        Values:
+                         - `-1`: Unlimited buckets allowed
+                         - `0`: No buckets allowed
+                         - Positive integer `N`: Maximum of N buckets allowed
+                        Default: `1000`.
+                      format: int64
+                      minimum: -1
+                      type: integer
+                    maxGroups:
+                      description: |-
+                        MaxGroups is the maximum number of IAM groups the account can own.
+                        Values:
+                         - `-1`: Unlimited groups allowed
+                         - `0`: No groups allowed
+                         - Positive integer `N`: Maximum of N groups allowed
+                        Default: `1000`.
+                      format: int64
+                      minimum: -1
+                      type: integer
+                    maxObjects:
+                      description: |-
+                        MaxObjects is the account-wide object quota, limiting the total number of objects across all
+                        buckets owned by the account.
+                        Values:
+                         - `-1`: Unlimited objects allowed
+                         - `0`: No objects allowed
+                         - Positive integer `N`: Maximum of N objects allowed
+                        Default: `-1`.
+                      format: int64
+                      minimum: -1
+                      type: integer
+                    maxRoles:
+                      description: |-
+                        MaxRoles is the maximum number of IAM roles the account can own.
+                        Values:
+                         - `-1`: Unlimited roles allowed
+                         - `0`: No roles allowed
+                         - Positive integer `N`: Maximum of N roles allowed
+                        Default: `1000`.
+                      format: int64
+                      minimum: -1
+                      type: integer
+                    maxSize:
+                      anyOf:
+                        - type: integer
+                        - type: string
+                      description: |-
+                        MaxSize is the account-wide storage quota, limiting the total size of all objects across all
+                        buckets owned by the account.
+                        Values:
+                         - `-1`: Unlimited data allowed
+                         - `0`: No data allowed
+                         - Positive value `N`: Maximum of N units of data allowed
+                        Default: `-1`.
+                        Example: `100Gi` = Maximum 100 gibibytes of data allowed.
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    maxUsers:
+                      description: |-
+                        MaxUsers is the maximum number of users the account can own.
+                        Values:
+                         - `-1`: Unlimited users allowed
+                         - `0`: No users allowed
+                         - Positive integer `N`: Maximum of N users allowed
+                        Default: `1000`.
+                      format: int64
+                      minimum: -1
+                      type: integer
+                  type: object
                 rootUser:
                   description: |-
                     RootUser configures the root user for the account. The root user is created by default
