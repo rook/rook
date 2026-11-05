@@ -1,0 +1,35 @@
+suite: rbac
+templates:
+  - rbac.yaml
+release:
+  namespace: rook-ceph-cluster
+set:
+  operatorNamespace: rook-ceph
+tests:
+  - it: limits cmd-reporter ConfigMap access to the result ConfigMaps of its jobs
+    documentSelector:
+      path: $[?(@.kind == "Role")].metadata.name
+      value: rook-ceph-cmd-reporter
+    asserts:
+      - equal:
+          path: rules
+          value:
+            - apiGroups: [""]
+              resources: [pods]
+              verbs: [get, list, watch, create, update, delete]
+            - apiGroups: [""]
+              resources: [configmaps]
+              verbs: [create]
+            - apiGroups: [""]
+              resources: [configmaps]
+              resourceNames:
+                - rook-ceph-detect-version
+                - ceph-file-controller-detect-version
+                - ceph-filesystem-mirror-controller-detect-version
+                - ceph-nfs-controller-detect-version
+                - ceph-nvmeof-gateway-controller-detect-version
+                - ceph-object-controller-detect-version
+                - ceph-rbd-mirror-controller-detect-version
+                - rook-ceph-network-public-canary
+                - rook-ceph-network-cluster-canary
+              verbs: [get, update]
