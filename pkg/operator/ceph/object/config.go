@@ -321,6 +321,36 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 	return configOptions, nil
 }
 
+// validateMonConfigOptions runs cephconfig.ValidateSetting on the options that
+// generateMonConfigOptions takes from the object store spec, so that a bad one is reported when the
+// store is validated. Values read from Secrets are checked only when the options are applied.
+func validateMonConfigOptions(spec *cephv1.ObjectStoreSpec) error {
+	for key, val := range spec.Gateway.RgwConfig {
+		if err := cephconfig.ValidateSetting(key, val); err != nil {
+			return errors.Wrap(err, "invalid gateway.rgwConfig")
+		}
+	}
+	for key := range spec.Gateway.RgwConfigFromSecret {
+		if err := cephconfig.ValidateSetting(key, ""); err != nil {
+			return errors.Wrap(err, "invalid gateway.rgwConfigFromSecret")
+		}
+	}
+	if keystone := spec.Auth.Keystone; keystone != nil {
+		if err := cephconfig.ValidateSetting("rgw_keystone_url", keystone.Url); err != nil {
+			return errors.Wrap(err, "invalid auth.keystone.url")
+		}
+		if err := cephconfig.ValidateSetting("rgw_keystone_accepted_roles", strings.Join(keystone.AcceptedRoles, ",")); err != nil {
+			return errors.Wrap(err, "invalid auth.keystone.acceptedRoles")
+		}
+	}
+	if swift := spec.Protocols.Swift; swift != nil && swift.UrlPrefix != nil {
+		if err := cephconfig.ValidateSetting("rgw_swift_url_prefix", *swift.UrlPrefix); err != nil {
+			return errors.Wrap(err, "invalid protocols.swift.urlPrefix")
+		}
+	}
+	return nil
+}
+
 func (c *clusterConfig) configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[string]string) (map[string]string, error) {
 	nsName := controller.NsName(c.clusterInfo.Namespace, c.store.Name)
 	keystone := rgwConfig.Auth.Keystone

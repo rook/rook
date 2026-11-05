@@ -283,7 +283,31 @@ func (m *MonStore) SetAll(who string, settings map[string]string) error {
 	return nil
 }
 
+// ValidateSetting returns an error if a config option cannot be kept within its section of the
+// file given to "ceph config assimilate-conf". Keys, and values without a line feed, are written
+// unquoted, and Ceph's parser ends a line at a carriage return as well as a line feed, so a line
+// break would let the text after it be read as a new line, such as a section heading. A value with
+// a line feed is quoted in a form Ceph cannot parse, which fails the whole file.
+// Keys may not contain square brackets either, since Ceph's parser reads those as heading syntax.
+// The error names the key but never the value, because the value may come from a Secret.
+func ValidateSetting(key, value string) error {
+	if strings.ContainsAny(key, "\r\n[]") {
+		return errors.Errorf("config option %q must not contain a line break or a square bracket", key)
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return errors.Errorf("value of config option %q must not contain a line break", key)
+	}
+	return nil
+}
+
 func (m *MonStore) setAll(who string, settings map[string]string) ([]string, error) {
+	for key, val := range settings {
+		if err := ValidateSetting(key, val); err != nil {
+			logger.Errorf("failed to apply ceph settings for %q. %v", who, err)
+			return []string{}, err
+		}
+	}
+
 	assimilateConfPath, err := os.CreateTemp(m.context.ConfigDir, "")
 	if err != nil {
 		return []string{}, errors.Wrapf(err, "failed to create assimilateConf temp dir for  %s.", who)

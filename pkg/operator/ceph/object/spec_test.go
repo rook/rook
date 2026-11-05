@@ -422,6 +422,19 @@ func TestValidateSpec(t *testing.T) {
 	err = r.validateStore(s)
 	assert.Nil(t, err)
 
+	// config options taken from the spec are validated
+	s.Spec.Gateway.RgwConfig = map[string]string{"rgw_frontends": "beast endpoint=[::]:8080"}
+	err = r.validateStore(s)
+	assert.NoError(t, err)
+	s.Spec.Gateway.RgwConfig = map[string]string{"#\n[global]\nmon_max_pg_per_osd": "1000"}
+	err = r.validateStore(s)
+	assert.ErrorContains(t, err, `invalid gateway.rgwConfig: config option "#\n[global]\nmon_max_pg_per_osd"`)
+	s.Spec.Gateway.RgwConfig = nil
+	s.Spec.Auth.Keystone = &cephv1.KeystoneSpec{Url: "http://keystone\n[global]\nmon_max_pg_per_osd = 1000"}
+	err = r.validateStore(s)
+	assert.ErrorContains(t, err, `invalid auth.keystone.url: value of config option "rgw_keystone_url"`)
+	s.Spec.Auth.Keystone = nil
+
 	// external with endpoints, success
 	s.Spec.Gateway.ExternalRgwEndpoints = []cephv1.EndpointAddress{
 		{
