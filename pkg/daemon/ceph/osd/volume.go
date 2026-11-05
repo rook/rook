@@ -1023,12 +1023,14 @@ func (a *OsdAgent) appendDeviceClassArg(device *DeviceOsdIDEntry, args []string)
 // changes in ceph-volume behavior across Ceph versions.
 func ZapDevice(context *clusterd.Context, devicePath string) error {
 	// First, attempt ceph-volume lvm zap
+	// zap reports the logical volume's lv_tags, which for an encrypted OSD carry the dm-crypt
+	// lockbox secret, so neither branch may log the output as-is
 	output, err := context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", cephVolumeCmd, "lvm", "zap", devicePath)
 	if err != nil {
 		// log and continue with direct cleanup
-		logger.Warningf("ceph-volume lvm zap failed for %q (will continue with direct cleanup): %s. %v", devicePath, output, err)
+		logger.Warningf("ceph-volume lvm zap failed for %q (will continue with direct cleanup): %s. %v", devicePath, redactCephVolumeOutput(output), err)
 	} else {
-		logger.Infof("ceph-volume lvm zap output for %q: %s", devicePath, output)
+		logger.Infof("ceph-volume lvm zap output for %q: %s", devicePath, redactCephVolumeOutput(output))
 	}
 
 	// Follow up with Rook's internal cleanup to ensure all metadata is removed
@@ -1589,11 +1591,14 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	return osds, nil
 }
 
-// the ceph-volume list output reports the cephx lockbox secret of every encrypted OSD, both as a
-// json tag map and as the raw lv_tags string, and none of it belongs in a pod log
+// the ceph-volume list and zap output reports the cephx lockbox secret of every encrypted OSD, both
+// as a json tag map and as the raw lv_tags string, and none of it belongs in a pod log
 var (
-	lockboxSecretTagRegex   = regexp.MustCompile(`("ceph\.cephx_lockbox_secret"\s*:\s*")[^"]*(")`)
-	lockboxSecretLVTagRegex = regexp.MustCompile(`(ceph\.cephx_lockbox_secret=)[^,"]*`)
+	lockboxSecretTagRegex = regexp.MustCompile(`("ceph\.cephx_lockbox_secret"\s*:\s*")[^"]*(")`)
+	// a negated class matches a newline, so the end of the line has to terminate the secret
+	// explicitly: in line-oriented output such as "lvm zap" a secret that ends a line would
+	// otherwise consume everything up to the next comma or quote, taking the diagnostics with it
+	lockboxSecretLVTagRegex = regexp.MustCompile(`(ceph\.cephx_lockbox_secret=)[^,"\n]*`)
 )
 
 func redactCephVolumeOutput(output string) string {
