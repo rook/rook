@@ -146,9 +146,13 @@ func (c *Cluster) Start() error {
 	// Create/update deployments
 	for i := 0; i < int(replicas); i++ {
 		mdsDaemonName := k8sutil.IndexToName(i)
-		if mdsToSkipReconcile.Has(mdsDaemonName) {
-			log.NamedWarning(nsName, logger, "skipping reconcile for mds daemon %q with %q label", mdsDaemonName, cephv1.SkipReconcileLabelKey)
-			return nil
+		// the "mds" label on the deployment holds the full daemon id: <fsname>-<letterID>
+		mdsDaemonID := fmt.Sprintf("%s-%s", c.fs.Name, mdsDaemonName)
+		if mdsToSkipReconcile.Has(mdsDaemonID) {
+			log.NamedWarning(nsName, logger, "skipping reconcile for mds daemon %q with %q label", mdsDaemonID, cephv1.SkipReconcileLabelKey)
+			// keep the deployment from being removed as extraneous
+			desiredDeployments[fmt.Sprintf("%s-%s", AppName, mdsDaemonID)] = true
+			continue
 		}
 
 		deployment, err := c.startDeployment(c.clusterInfo.Context, mdsDaemonName)
