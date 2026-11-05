@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/util/log"
@@ -535,7 +536,11 @@ func getZoneJSON(objContext *Context) (map[string]any, error) {
 		}
 		return nil, errors.Wrap(err, "failed to get rgw zone group")
 	}
-	log.NamedDebug(objContext.NsName(), logger, "get zone success: rgw-realm=%s, rgw-zone=%s, res=%s", objContext.Realm, objContext.Zone, jsonStr)
+	// the response carries the realm system user's live S3 credentials, so the line keeps only
+	// the fields rook reads: the pools and placements it is here to show
+	if logger.LevelAt(capnslog.DEBUG) {
+		log.NamedDebug(objContext.NsName(), logger, "get zone success: rgw-realm=%s, rgw-zone=%s, res=%s", objContext.Realm, objContext.Zone, RedactZoneJSON(jsonStr))
+	}
 	res := map[string]any{}
 	return res, json.Unmarshal([]byte(jsonStr), &res)
 }
@@ -597,7 +602,13 @@ func updateZoneJSON(objContext *Context, zone map[string]any) (map[string]any, e
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set zone config")
 	}
-	log.NamedDebug(objContext.NsName(), logger, "update zone: %s json config updated value from %q to %q", objContext.Zone, string(configBytes), string(updatedBytes))
+	// both documents carry the realm system user's live S3 credentials - the same credentials
+	// the config file above is written 0600 to keep readable only by the uid the operator runs
+	// as, a bar the operator log does not meet - so both keep only the fields rook reads, which
+	// are the fields this update changes
+	if logger.LevelAt(capnslog.DEBUG) {
+		log.NamedDebug(objContext.NsName(), logger, "update zone: %s json config updated value from %q to %q", objContext.Zone, RedactZoneJSON(string(configBytes)), RedactZoneJSON(string(updatedBytes)))
+	}
 	updated := map[string]any{}
 	err = json.Unmarshal([]byte(updatedBytes), &updated)
 	return updated, err
