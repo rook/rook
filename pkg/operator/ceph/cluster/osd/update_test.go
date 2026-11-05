@@ -35,6 +35,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -620,6 +621,51 @@ func Test_updateExistingOSDs(t *testing.T) {
 		assert.Equal(t, 1, errs.len())
 		// OSD 0 on node0 should have been updated successfully
 		assert.Contains(t, deploymentsUpdated, "rook-ceph-osd-0")
+	})
+
+	t.Run("OSDs whose uuid or ceph-volume mode is invalid are skipped and others are updated", func(t *testing.T) {
+		clientset = fake.NewClientset()
+		updateQueue = newUpdateQueueWithIDs(0, 2, 4, 6)
+		existingDeployments = newExistenceListWithIDs(0, 2, 4, 6)
+		forceUpgradeIfUnhealthy = false
+		requiresHealthyPGs = false
+		updateInjectFailures = k8sutil.Failures{}
+		doSetup()
+		addDeploymentOnNode("node0", 0)
+		addDeploymentOnPVC("pvc2", 2)
+		addDeploymentOnNode("node1", 4)
+		addDeploymentOnPVC("pvc6", 6)
+
+		setOSDEnv := func(osdID int, name, value string) {
+			d, err := clientset.AppsV1().Deployments(namespace).Get(t.Context(), deploymentName(osdID), metav1.GetOptions{})
+			require.NoError(t, err)
+			osdContainer, err := findOSDContainer(d.Spec.Template.Spec.Containers)
+			require.NoError(t, err)
+			found := false
+			for i := range osdContainer.Env {
+				if osdContainer.Env[i].Name == name {
+					osdContainer.Env[i].Value = value
+					found = true
+				}
+			}
+			require.True(t, found, "env var %s not found on OSD %d", name, osdID)
+			_, err = clientset.AppsV1().Deployments(namespace).Update(t.Context(), d, metav1.UpdateOptions{})
+			require.NoError(t, err)
+		}
+		setOSDEnv(0, "ROOK_OSD_UUID", "x/../../../../../etc")
+		setOSDEnv(2, "ROOK_OSD_UUID", "x/../../../../../etc")
+		setOSDEnv(6, "ROOK_CV_MODE", "raw; true")
+
+		osdToBeQueried = 0
+		returnOkToStopIDs = []int{0, 2, 4, 6}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Equal(t, 3, errs.len())
+		assert.Contains(t, errs.asMessages(), "is not a UUID in canonical form")
+		assert.Contains(t, errs.asMessages(), `ceph-volume mode "raw; true" is not "lvm" or "raw"`)
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(4)})
+		assert.ElementsMatch(t, osdsOnNodes, []int{0, 4})
+		assert.ElementsMatch(t, osdsOnPVCs, []int{2, 6})
+		assert.Equal(t, 0, updateQueue.Len())
 	})
 }
 
