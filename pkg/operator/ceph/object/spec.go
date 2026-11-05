@@ -909,6 +909,17 @@ func (c *clusterConfig) vaultPrefixRGW() string {
 	return vaultPrefixPath
 }
 
+// vaultPrefixRGWSSES3 returns the Vault path prefix RGW uses for SSE-S3: the transit mount named by
+// VAULT_TRANSIT_BACKEND_PATH, or "transit" when it is not set.
+func (c *clusterConfig) vaultPrefixRGWSSES3() string {
+	connectionDetails := c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails
+	mount := connectionDetails[kms.VaultSecretEngineKey]
+	if transitPath := kms.GetParam(connectionDetails, kms.VaultTransitBackendPathKey); transitPath != "" {
+		mount = transitPath
+	}
+	return path.Join(vaultPrefix, mount)
+}
+
 func (c *clusterConfig) CheckRGWKMS() (bool, error) {
 	nsName := controller.NsName(c.store.Namespace, c.store.Name)
 
@@ -1114,7 +1125,7 @@ func (c *clusterConfig) sseS3VaultTokenOptions(setOptions bool) []string {
 			cephconfig.NewFlag("rgw crypt sse s3 vault token file",
 				path.Join(rgwVaultDirName, sseS3, kms.VaultFileName)),
 			cephconfig.NewFlag("rgw crypt sse s3 vault prefix",
-				path.Join(vaultPrefix, c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey])),
+				c.vaultPrefixRGWSSES3()),
 			cephconfig.NewFlag("rgw crypt sse s3 vault secret engine",
 				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey]),
 		}
@@ -1148,7 +1159,7 @@ func (c *clusterConfig) sseS3VaultAgentOptions(setOptions bool) []string {
 		return []string{
 			cephconfig.NewFlag("rgw crypt sse s3 vault auth", "agent"),
 			cephconfig.NewFlag("rgw crypt sse s3 vault prefix",
-				path.Join(vaultPrefix, c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey])),
+				c.vaultPrefixRGWSSES3()),
 			cephconfig.NewFlag("rgw crypt sse s3 vault secret engine",
 				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey]),
 		}

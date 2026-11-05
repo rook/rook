@@ -36,6 +36,8 @@ const (
 	EtcVaultDir = "/etc/vault"
 	// VaultSecretEngineKey is the type of secret engine used (kv, transit)
 	VaultSecretEngineKey = "VAULT_SECRET_ENGINE"
+	// VaultTransitBackendPathKey is the mount path of the transit secret engine used by RGW SSE-S3
+	VaultTransitBackendPathKey = "VAULT_TRANSIT_BACKEND_PATH"
 	// VaultKVSecretEngineKey is a kv secret engine type
 	VaultKVSecretEngineKey = "kv"
 	// VaultTransitSecretEngineKey is a transit secret engine type
