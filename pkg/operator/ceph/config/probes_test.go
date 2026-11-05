@@ -23,6 +23,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -273,12 +274,87 @@ func TestGetProbeWithDefaults(t *testing.T) {
 			TimeoutSeconds:      4,
 			InitialDelaySeconds: 5,
 		}
-		result := GetProbeWithDefaults(desiredProbe, nil)
+		assert.Nil(t, GetProbeWithDefaults(desiredProbe, nil))
+	})
+	t.Run("nil current probe with a desired exec handler", func(t *testing.T) {
+		assert.Nil(t, GetProbeWithDefaults(crExecProbe(), nil))
+	})
+	t.Run("desired handlers of every type are replaced by the current handler", func(t *testing.T) {
+		currentProbe := &v1.Probe{
+			ProbeHandler: v1.ProbeHandler{
+				TCPSocket: &v1.TCPSocketAction{Port: intstr.FromInt(4420)},
+			},
+			InitialDelaySeconds: 10,
+			TimeoutSeconds:      5,
+			FailureThreshold:    10,
+		}
+		desiredProbe := crExecProbe()
+		desiredProbe.HTTPGet = &v1.HTTPGetAction{Path: "/", Port: intstr.FromInt(8080)}
+		desiredProbe.GRPC = &v1.GRPCAction{Port: 9090}
 
-		assert.Equal(t, result.FailureThreshold, int32(1))
-		assert.Equal(t, result.PeriodSeconds, int32(2))
-		assert.Equal(t, result.SuccessThreshold, int32(3))
-		assert.Equal(t, result.TimeoutSeconds, int32(4))
-		assert.Equal(t, result.InitialDelaySeconds, int32(5))
+		got := GetProbeWithDefaults(desiredProbe, currentProbe)
+
+		require.NotNil(t, got)
+		assert.Equal(t, currentProbe.ProbeHandler, got.ProbeHandler)
+		assert.Equal(t, int32(11), got.InitialDelaySeconds)
+		assert.Equal(t, int32(12), got.TimeoutSeconds)
+		assert.Equal(t, int32(13), got.PeriodSeconds)
+		assert.Equal(t, int32(1), got.SuccessThreshold)
+		assert.Equal(t, int32(15), got.FailureThreshold)
+		assert.Equal(t, new(int64(16)), got.TerminationGracePeriodSeconds)
+	})
+}
+
+// crExecProbe returns a probe as a CR could carry it: an exec handler plus timing values.
+func crExecProbe() *v1.Probe {
+	return &v1.Probe{
+		ProbeHandler: v1.ProbeHandler{
+			Exec: &v1.ExecAction{Command: []string{"sh", "-c", "touch /tmp/cr-handler-ran"}},
+		},
+		InitialDelaySeconds:           11,
+		TimeoutSeconds:                12,
+		PeriodSeconds:                 13,
+		SuccessThreshold:              1,
+		FailureThreshold:              15,
+		TerminationGracePeriodSeconds: new(int64(16)),
+	}
+}
+
+func TestConfigureProbeWithoutRookDefault(t *testing.T) {
+	t.Run("liveness", func(t *testing.T) {
+		got := ConfigureLivenessProbe(v1.Container{Name: "daemon"}, &cephv1.ProbeSpec{Probe: crExecProbe()})
+		assert.Nil(t, got.LivenessProbe)
+	})
+	t.Run("startup", func(t *testing.T) {
+		got := ConfigureStartupProbe(v1.Container{Name: "daemon"}, &cephv1.ProbeSpec{Probe: crExecProbe()})
+		assert.Nil(t, got.StartupProbe)
+	})
+	t.Run("readiness", func(t *testing.T) {
+		got := ConfigureReadinessProbe(v1.Container{Name: "daemon"}, &cephv1.ProbeSpec{Probe: crExecProbe()})
+		assert.Nil(t, got.ReadinessProbe)
+	})
+}
+
+func TestConfigureReadinessProbe(t *testing.T) {
+	rookProbe := func() *v1.Probe {
+		return &v1.Probe{
+			ProbeHandler:  v1.ProbeHandler{Exec: &v1.ExecAction{Command: []string{"rook-check"}}},
+			PeriodSeconds: 10,
+		}
+	}
+
+	t.Run("no CR settings keeps the rook probe", func(t *testing.T) {
+		got := ConfigureReadinessProbe(v1.Container{ReadinessProbe: rookProbe()}, nil)
+		assert.Equal(t, rookProbe(), got.ReadinessProbe)
+	})
+	t.Run("disabled", func(t *testing.T) {
+		got := ConfigureReadinessProbe(v1.Container{ReadinessProbe: rookProbe()}, &cephv1.ProbeSpec{Disabled: true, Probe: crExecProbe()})
+		assert.Nil(t, got.ReadinessProbe)
+	})
+	t.Run("CR handler is replaced by the rook handler", func(t *testing.T) {
+		got := ConfigureReadinessProbe(v1.Container{ReadinessProbe: rookProbe()}, &cephv1.ProbeSpec{Probe: crExecProbe()})
+		require.NotNil(t, got.ReadinessProbe)
+		assert.Equal(t, rookProbe().ProbeHandler, got.ReadinessProbe.ProbeHandler)
+		assert.Equal(t, int32(13), got.ReadinessProbe.PeriodSeconds)
 	})
 }

@@ -36,6 +36,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -183,6 +184,77 @@ func TestPodSpecs(t *testing.T) {
 		assert.Equal(t, int32(1000), deployment.StartupProbe.InitialDelaySeconds) //  ^ and modified
 		assert.NotNil(t, deployment.ReadinessProbe)                               // YES readiness probe
 		assert.Nil(t, deployment.LivenessProbe)                                   // NO liveness probe
+	})
+}
+
+func TestRGWProbeHandlerFromCRIsIgnored(t *testing.T) {
+	crProbe := func() *cephv1.ProbeSpec {
+		return &cephv1.ProbeSpec{Probe: &v1.Probe{
+			ProbeHandler: v1.ProbeHandler{
+				Exec: &v1.ExecAction{Command: []string{"sh", "-c", "touch /tmp/cr-handler-ran"}},
+			},
+			InitialDelaySeconds: 42,
+			FailureThreshold:    7,
+		}}
+	}
+	newConfig := func(protocols cephv1.ProtocolSpec) *clusterConfig {
+		store := simpleStore()
+		store.Spec.Protocols = protocols
+		store.Spec.HealthCheck.StartupProbe = crProbe()
+		store.Spec.HealthCheck.ReadinessProbe = crProbe()
+		info := clienttest.CreateTestClusterInfo(1)
+		info.CephVersion = cephver.Squid
+		return &clusterConfig{
+			context: &clusterd.Context{Executor: &exectest.MockExecutor{
+				MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+					return "", nil
+				},
+			}},
+			clusterInfo: info,
+			store:       store,
+			clusterSpec: &cephv1.ClusterSpec{
+				CephVersion:     cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v19"},
+				DataDirHostPath: "/var/lib/rook",
+			},
+			DataPathMap: cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/"),
+		}
+	}
+	rgwConfig := &rgwConfig{ResourceName: "rook-ceph-rgw-default", DaemonID: "default"}
+
+	t.Run("neither s3 nor swift enabled drops the CR probes", func(t *testing.T) {
+		c := newConfig(cephv1.ProtocolSpec{EnableAPIs: []cephv1.ObjectStoreAPI{"admin"}})
+		container, err := c.makeDaemonContainer(rgwConfig)
+		require.NoError(t, err)
+		assert.Nil(t, container.StartupProbe)
+		assert.Nil(t, container.ReadinessProbe)
+		assert.Nil(t, container.LivenessProbe)
+	})
+
+	t.Run("s3 enabled keeps the rook handler and the CR timing", func(t *testing.T) {
+		c := newConfig(cephv1.ProtocolSpec{})
+		container, err := c.makeDaemonContainer(rgwConfig)
+		require.NoError(t, err)
+		defaultStartup, err := c.defaultStartupProbe()
+		require.NoError(t, err)
+		defaultReadiness, err := c.defaultReadinessProbe()
+		require.NoError(t, err)
+
+		cases := []struct {
+			name      string
+			got, want *v1.Probe
+		}{
+			{"startup", container.StartupProbe, defaultStartup},
+			{"readiness", container.ReadinessProbe, defaultReadiness},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				require.NotNil(t, tc.got)
+				assert.Equal(t, tc.want.ProbeHandler, tc.got.ProbeHandler)
+				assert.Equal(t, int32(42), tc.got.InitialDelaySeconds)
+				assert.Equal(t, int32(7), tc.got.FailureThreshold)
+				assert.Equal(t, tc.want.PeriodSeconds, tc.got.PeriodSeconds)
+			})
+		}
 	})
 }
 
