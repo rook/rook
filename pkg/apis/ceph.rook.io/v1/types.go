@@ -2200,6 +2200,8 @@ type GatewaySpec struct {
 	// The root directory for each additional volume mount is `/var/rgw`.
 	// Example: for an additional mount at subPath `ldap`, mounted from a secret that has key
 	// `bindpass.secret`, the file would reside at `/var/rgw/ldap/bindpass.secret`.
+	// Anyone who can edit this field can mount any host path, or any Secret in the namespace, into
+	// the RGW pod.
 	AdditionalVolumeMounts AdditionalVolumeMounts `json:"additionalVolumeMounts,omitempty"`
 
 	// RgwConfig sets Ceph RGW config values for the gateway clients that serve this object store.
@@ -3406,6 +3408,8 @@ type SSSDSidecar struct {
 	// AdditionalFiles defines any number of additional files that should be mounted into the SSSD
 	// sidecar with a directory root of `/etc/sssd/rook-additional/`.
 	// These files may be referenced by the sssd.conf config file.
+	// Anyone who can edit this field can mount any host path, or any Secret in the namespace, into
+	// the SSSD sidecar.
 	// +optional
 	AdditionalFiles AdditionalVolumeMounts `json:"additionalFiles,omitempty"`
 

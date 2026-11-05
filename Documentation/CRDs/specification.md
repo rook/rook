@@ -8809,7 +8809,9 @@ AdditionalVolumeMounts
 <p>AdditionalVolumeMounts allows additional volumes to be mounted to the RGW pod.
 The root directory for each additional volume mount is <code>/var/rgw</code>.
 Example: for an additional mount at subPath <code>ldap</code>, mounted from a secret that has key
-<code>bindpass.secret</code>, the file would reside at <code>/var/rgw/ldap/bindpass.secret</code>.</p>
+<code>bindpass.secret</code>, the file would reside at <code>/var/rgw/ldap/bindpass.secret</code>.
+Anyone who can edit this field can mount any host path, or any Secret in the namespace, into
+the RGW pod.</p>
 </td>
 </tr>
 <tr>
@@ -15093,7 +15095,9 @@ AdditionalVolumeMounts
 <em>(Optional)</em>
 <p>AdditionalFiles defines any number of additional files that should be mounted into the SSSD
 sidecar with a directory root of <code>/etc/sssd/rook-additional/</code>.
-These files may be referenced by the sssd.conf config file.</p>
+These files may be referenced by the sssd.conf config file.
+Anyone who can edit this field can mount any host path, or any Secret in the namespace, into
+the SSSD sidecar.</p>
 </td>
 </tr>
 <tr>
