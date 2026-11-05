@@ -492,7 +492,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 	// If the startup probe is enabled
 	container = cephconfig.ConfigureStartupProbe(container, c.store.Spec.HealthCheck.StartupProbe)
 	// If the readiness probe is enabled
-	configureReadinessProbe(&container, c.store.Spec.HealthCheck)
+	container = cephconfig.ConfigureReadinessProbe(container, c.store.Spec.HealthCheck.ReadinessProbe)
 	if c.store.Spec.IsTLSEnabled() {
 		// Add a volume mount for the ssl certificate
 		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certDir, ReadOnly: true}
@@ -627,22 +627,6 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 	}
 
 	return container, nil
-}
-
-// configureReadinessProbe returns the desired readiness probe for a given daemon
-func configureReadinessProbe(container *v1.Container, healthCheck cephv1.ObjectHealthCheckSpec) {
-	if ok := healthCheck.ReadinessProbe; ok != nil {
-		if !healthCheck.ReadinessProbe.Disabled {
-			probe := healthCheck.ReadinessProbe.Probe
-			// If the spec value is empty, let's use a default
-			if probe != nil {
-				// Set the readiness probe on the container to overwrite the default probe created by Rook
-				container.ReadinessProbe = cephconfig.GetProbeWithDefaults(probe, container.ReadinessProbe)
-			}
-		} else {
-			container.ReadinessProbe = nil
-		}
-	}
 }
 
 // RGW has internal mechanisms for restarting its processing if it gets stuck. any failures detected
