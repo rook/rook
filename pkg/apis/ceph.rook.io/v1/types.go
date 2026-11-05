@@ -3441,7 +3441,8 @@ type AdditionalVolumeMount struct {
 	// SubPath defines the sub-path (subdirectory) of the directory root where the volumeSource will
 	// be mounted. All files/keys in the volume source's volume will be mounted to the subdirectory.
 	// This is not the same as the Kubernetes `subPath` volume mount option.
-	// Each subPath definition must be unique and must not contain ':'.
+	// Each subPath definition must be unique and must not contain ':'. A subPath with a '..' path
+	// element is rejected.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=`^[^:]+$`

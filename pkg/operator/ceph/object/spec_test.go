@@ -429,6 +429,18 @@ func TestValidateSpec(t *testing.T) {
 	}
 	err = r.validateStore(s)
 	assert.Nil(t, err)
+	s.Spec.Gateway.ExternalRgwEndpoints = nil
+
+	// additional volume mounts must stay inside /var/rgw
+	ldapConfig := &cephv1.ConfigFileVolumeSource{
+		ConfigMap: &v1.ConfigMapVolumeSource{LocalObjectReference: v1.LocalObjectReference{Name: "rgw-ldap"}},
+	}
+	s.Spec.Gateway.AdditionalVolumeMounts = cephv1.AdditionalVolumeMounts{{SubPath: "ldap", VolumeSource: ldapConfig}}
+	err = r.validateStore(s)
+	assert.NoError(t, err)
+	s.Spec.Gateway.AdditionalVolumeMounts = cephv1.AdditionalVolumeMounts{{SubPath: "../../usr/local/bin", VolumeSource: ldapConfig}}
+	err = r.validateStore(s)
+	assert.ErrorContains(t, err, `"../../usr/local/bin"`)
 }
 
 func TestDefaultProbes(t *testing.T) {
