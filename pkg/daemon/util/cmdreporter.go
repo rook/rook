@@ -24,11 +24,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	rookexec "github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -166,7 +166,7 @@ func (r *CmdReporter) runCommand() (stdout, stderr string, retcode int, err erro
 	c.Stdout = stdoutTee
 	c.Stderr = stderrTee
 
-	cmdStr := fmt.Sprintf("%s %s", c.Path, strings.Join(c.Args, " "))
+	cmdStr := rookexec.FormatCommand(c.Path, c.Args[1:]...)
 	logger.Infof("running command: %s", cmdStr)
 
 	if err := c.Run(); err != nil {
