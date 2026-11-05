@@ -30,3 +30,21 @@ tests:
                 - rook-ceph-network-public-canary
                 - rook-ceph-network-cluster-canary
               verbs: [get, update]
+
+  - it: does not let the osd account list, watch or delete ConfigMaps
+    documentSelector:
+      path: $[?(@.kind == "Role")].metadata.name
+      value: rook-ceph-osd
+    asserts:
+      - equal:
+          path: rules
+          value:
+            - apiGroups: [""]
+              resources: [secrets]
+              verbs: [get, update]
+            - apiGroups: [""]
+              resources: [configmaps]
+              verbs: [get, create, update]
+            - apiGroups: [ceph.rook.io]
+              resources: [cephclusters, cephclusters/finalizers]
+              verbs: [get, list, create, update, delete]
