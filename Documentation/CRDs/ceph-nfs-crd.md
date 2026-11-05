@@ -162,8 +162,8 @@ The `security` spec sets security configuration for the NFS cluster.
             be placed into `/etc/sssd/rook-additional/<subPath>` and can be referenced by the SSSD
             config file. For example, CA and/or TLS certificates to authenticate with Kerberos.
             -   `subPath`: the sub-path of `/etc/sssd/rook-additional` to add files into. This can
-                include `/` to create arbitrarily deep sub-paths if desired. If the `volumeSource` is a
-                file, this will refer to a file name.
+                include `/` to create arbitrarily deep sub-paths if desired, but must not contain a
+                `..` path element. If the `volumeSource` is a file, this will refer to a file name.
             -   `volumeSource`: this is a standard Kubernetes VolumeSource for additional files like what is
                 normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or HostPath.
                 The volume may contain multiple files, a single file, or may be a file on its own (e.g., a
@@ -172,6 +172,16 @@ The `security` spec sets security configuration for the NFS cluster.
             this may be a value between 1 and 10. See the
             [SSSD docs](https://sssd.io/troubleshooting/basics.html#sssd-debug-logs) for more info.
         *   `resources`: Kubernetes resource requests and limits to set on NFS server containers
+
+!!! warning
+    Every `volumeSource` under `security`, including those of `sssd.sidecar.additionalFiles`,
+    accepts `hostPath`, `secret`, `configMap`, `projected`, `emptyDir` and `persistentVolumeClaim`
+    sources, including a `hostPath` of any path on the node, which is mounted writable, and any
+    Secret in the CephNFS's namespace, such as the Ceph admin credentials in
+    `rook-ceph-admin-keyring`. The CephNFS spec also sets the images of the NFS server and SSSD
+    sidecar containers that mount these volumes. Treat permission to create or edit a CephNFS as
+    equivalent to root access on the node and to read access to every Secret in its namespace, and
+    grant it only to principals trusted with that access.
 
 ## Scaling the active server count
 
