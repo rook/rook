@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
@@ -143,6 +144,17 @@ func (c *Cluster) updateCephConfigVolume(volumes []v1.Volume, nodeName string) [
 	return updatedVolumes
 }
 
+// The OSD UUID is reported by the OSD prepare job through its status ConfigMap, and it becomes part
+// of a host path and of the cephx caps that the activate script requests. ceph-volume reports it in
+// canonical form, so any other form is rejected before it can reach either.
+func validateOSDUUID(osdUUID string) error {
+	parsed, err := uuid.Parse(osdUUID)
+	if err != nil || parsed.String() != osdUUID {
+		return errors.Errorf("OSD UUID %q is not a UUID in canonical form", osdUUID)
+	}
+	return nil
+}
+
 func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
 	deploymentName := deploymentName(osd.ID)
 	replicaCount := int32(1)
@@ -163,6 +175,14 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 	// This property is used for both PVC and non-PVC use case
 	if osd.CVMode == "" {
 		return nil, errors.Errorf("failed to generate deployment for OSD %d. required CVMode is not specified for this OSD", osd.ID)
+	}
+	if err := validateOSDUUID(osd.UUID); err != nil {
+		return nil, err
+	}
+	// The mode also comes from the status ConfigMap and is passed to the activate script, and the
+	// prepare job only ever reports these two.
+	if osd.CVMode != "lvm" && osd.CVMode != "raw" {
+		return nil, errors.Errorf("ceph-volume mode %q is not \"lvm\" or \"raw\"", osd.CVMode)
 	}
 
 	if c.spec.Storage.AllowDeviceClassUpdate {
