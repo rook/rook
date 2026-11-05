@@ -3154,6 +3154,7 @@ type ObjectStoreAccountStatus struct {
 	// AccountID associated with the RGW user account
 	// +kubebuilder:validation:MinLength=20
 	// +kubebuilder:validation:MaxLength=20
+	// +kubebuilder:validation:Pattern=`^RGW\d{17}$`
 	AccountID string `json:"accountID,omitempty"`
 	// RootAccountSecretName is the name of the Kubernetes secret containing the root user's access credentials
 	// +optional
