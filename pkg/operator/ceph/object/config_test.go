@@ -18,7 +18,9 @@ package object
 
 import (
 	"context"
+	"slices"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -26,7 +28,9 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -414,4 +418,104 @@ func TestRgwConfigFromSecret(t *testing.T) {
 	got, err := c.generateMonConfigOptions(rgwConfig)
 	assert.NoError(t, err)
 	assert.EqualValues(t, "secVal", got["rgw_secret_conf_name"])
+}
+
+func TestSetFlagsMonConfigStoreRejectsLineBreakInSecretValue(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	ranAssimilate := false
+	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
+		if slices.Contains(args, "assimilate-conf") {
+			ranAssimilate = true
+		}
+		return "", nil
+	}
+	clusterInfo := cephclient.AdminTestClusterInfo("rook-ceph")
+	ctx := &clusterd.Context{
+		Clientset: test.New(t, 3),
+		Executor:  executor,
+		ConfigDir: t.TempDir(),
+	}
+
+	s := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: clusterInfo.Namespace},
+		Data: map[string][]byte{
+			"password": []byte("s3cr3t\r[global]\rmon_max_pg_per_osd = 1000"),
+		},
+	}
+	_, err := ctx.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Create(t.Context(), s, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	objectStore := simpleStore()
+	objectStore.Spec.Gateway.RgwConfigFromSecret = map[string]v1.SecretKeySelector{
+		"rgw_keystone_admin_password": {
+			LocalObjectReference: v1.LocalObjectReference{Name: "my-secret"},
+			Key:                  "password",
+		},
+	}
+	c := &clusterConfig{
+		store:       objectStore,
+		context:     ctx,
+		clusterInfo: clusterInfo,
+	}
+
+	err = c.setFlagsMonConfigStore(&rgwConfig{
+		ResourceName: "rook-ceph-rgw-default-a",
+		Zone:         "default",
+		ZoneGroup:    "default",
+	})
+	require.Error(t, err)
+	assert.ErrorContains(t, err, `"rgw_keystone_admin_password"`)
+	assert.NotContains(t, err.Error(), "s3cr3t", "the error must not include the secret value")
+	assert.False(t, ranAssimilate, "no setting may be applied when one is rejected")
+}
+
+func TestValidateMonConfigOptions(t *testing.T) {
+	secretRef := v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "my-secret"}, Key: "key"}
+	tests := []struct {
+		name    string
+		spec    cephv1.ObjectStoreSpec
+		wantErr string // empty when the spec is valid
+	}{
+		{"empty spec", cephv1.ObjectStoreSpec{}, ""},
+		{"brackets in rgwConfig value", cephv1.ObjectStoreSpec{
+			Gateway: cephv1.GatewaySpec{RgwConfig: map[string]string{"rgw_frontends": "beast endpoint=[::]:8080"}},
+		}, ""},
+		{"keystone and swift settings without line breaks", cephv1.ObjectStoreSpec{
+			Auth:      cephv1.AuthSpec{Keystone: &cephv1.KeystoneSpec{Url: "http://keystone:5000", AcceptedRoles: []string{"admin", "member"}}},
+			Protocols: cephv1.ProtocolSpec{Swift: &cephv1.SwiftSpec{UrlPrefix: new("swift")}},
+		}, ""},
+		{"line break in rgwConfig key", cephv1.ObjectStoreSpec{
+			Gateway: cephv1.GatewaySpec{RgwConfig: map[string]string{"#\n[global]\nmon_max_pg_per_osd": "s3cr3t"}},
+		}, `invalid gateway.rgwConfig: config option "#\n[global]\nmon_max_pg_per_osd"`},
+		{"bracket in rgwConfig key", cephv1.ObjectStoreSpec{
+			Gateway: cephv1.GatewaySpec{RgwConfig: map[string]string{"[global] mon_max_pg_per_osd": "s3cr3t"}},
+		}, `invalid gateway.rgwConfig: config option "[global] mon_max_pg_per_osd"`},
+		{"line break in rgwConfig value", cephv1.ObjectStoreSpec{
+			Gateway: cephv1.GatewaySpec{RgwConfig: map[string]string{"rgw_dns_name": "s3cr3t\r[global]\rmon_max_pg_per_osd = 1000"}},
+		}, `invalid gateway.rgwConfig: value of config option "rgw_dns_name"`},
+		{"line break in rgwConfigFromSecret key", cephv1.ObjectStoreSpec{
+			Gateway: cephv1.GatewaySpec{RgwConfigFromSecret: map[string]v1.SecretKeySelector{"#\r[global]\rmon_max_pg_per_osd": secretRef}},
+		}, `invalid gateway.rgwConfigFromSecret: config option "#\r[global]\rmon_max_pg_per_osd"`},
+		{"line break in keystone url", cephv1.ObjectStoreSpec{
+			Auth: cephv1.AuthSpec{Keystone: &cephv1.KeystoneSpec{Url: "s3cr3t\n[global]\nmon_max_pg_per_osd = 1000", AcceptedRoles: []string{"admin"}}},
+		}, `invalid auth.keystone.url: value of config option "rgw_keystone_url"`},
+		{"line break in keystone accepted role", cephv1.ObjectStoreSpec{
+			Auth: cephv1.AuthSpec{Keystone: &cephv1.KeystoneSpec{Url: "http://keystone:5000", AcceptedRoles: []string{"admin", "s3cr3t\r[global]\rmon_max_pg_per_osd = 1000"}}},
+		}, `invalid auth.keystone.acceptedRoles: value of config option "rgw_keystone_accepted_roles"`},
+		{"line break in swift url prefix", cephv1.ObjectStoreSpec{
+			Protocols: cephv1.ProtocolSpec{Swift: &cephv1.SwiftSpec{UrlPrefix: new("s3cr3t\n[global]\nmon_max_pg_per_osd = 1000")}},
+		}, `invalid protocols.swift.urlPrefix: value of config option "rgw_swift_url_prefix"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateMonConfigOptions(&tt.spec)
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.ErrorContains(t, err, tt.wantErr)
+			assert.NotContains(t, err.Error(), "s3cr3t", "the error must not include the value")
+		})
+	}
 }
