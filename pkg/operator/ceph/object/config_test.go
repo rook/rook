@@ -19,6 +19,7 @@ package object
 import (
 	"maps"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -26,6 +27,7 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -411,4 +413,58 @@ func TestRgwConfigFromSecret(t *testing.T) {
 	got, err := c.generateMonConfigOptions(rgwConfig)
 	assert.NoError(t, err)
 	assert.EqualValues(t, "secVal", got["rgw_secret_conf_name"])
+}
+
+func TestHasMonConfigKey(t *testing.T) {
+	desired := map[string]string{"rgw-sts-key": "x", "rgw_zone": "z"}
+	assert.True(t, hasMonConfigKey(desired, "rgw_sts_key"))
+	assert.True(t, hasMonConfigKey(desired, "rgw_zone"))
+	assert.False(t, hasMonConfigKey(desired, "rgw_s3_auth_use_sts"))
+}
+
+func Test_clusterConfig_setFlagsMonConfigStore_deletesKeysNotInDesired(t *testing.T) {
+	who := "client.rgw.my.store.a"
+	var deleted []string
+	assimilateCalled := false
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			if args[0] == "config" && args[1] == "get" && args[2] == who {
+				return `{
+					"rgw_enable_usage_log":{"value":"true","section":"client.rgw.my.store.a","mask":{},"can_update_at_runtime":true},
+					"rgw_log_nonexistent_bucket":{"value":"true","section":"client.rgw.my.store.a","mask":{},"can_update_at_runtime":true},
+					"rgw_log_object_name_utc":{"value":"true","section":"client.rgw.my.store.a","mask":{},"can_update_at_runtime":true},
+					"rgw_run_sync_thread":{"value":"true","section":"client.rgw.my.store.a","mask":{},"can_update_at_runtime":true},
+					"rgw_zone":{"value":"zone","section":"client.rgw.my.store.a","mask":{},"can_update_at_runtime":true},
+					"rgw_zonegroup":{"value":"zone-group","section":"client.rgw.my.store.a","mask":{},"can_update_at_runtime":true},
+					"rgw_sts_key":{"value":"oldsecret","section":"client.rgw.my.store.a","mask":{},"can_update_at_runtime":true}
+				}`, nil
+			}
+			if args[0] == "config" && args[1] == "rm" {
+				deleted = append(deleted, args[3])
+				return "", nil
+			}
+			if args[0] == "config" && args[1] == "assimilate-conf" {
+				assimilateCalled = true
+				return "", nil
+			}
+			return "", nil
+		},
+	}
+	ctx := &clusterd.Context{Clientset: test.New(t, 1), Executor: executor, ConfigDir: t.TempDir()}
+	c := &clusterConfig{
+		store: &cephv1.CephObjectStore{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-store", Namespace: "ns"},
+		},
+		context:     ctx,
+		clusterInfo: cephclient.AdminTestClusterInfo("ns"),
+	}
+
+	err := c.setFlagsMonConfigStore(&rgwConfig{
+		ResourceName: "rook-ceph-rgw-my-store-a",
+		Zone:         "zone",
+		ZoneGroup:    "zone-group",
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"rgw_sts_key"}, deleted)
+	assert.True(t, assimilateCalled)
 }
