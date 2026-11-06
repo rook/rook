@@ -19,7 +19,10 @@ package v1
 import (
 	"path/filepath"
 	"reflect"
+	"slices"
+	"strings"
 
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 )
@@ -52,7 +55,8 @@ func (src *ConfigFileVolumeSource) ToKubernetesVolumeSource() *corev1.VolumeSour
 }
 
 // GenerateVolumesAndMounts converts Rook's AdditionalVolumeMounts type to a list of volumes and
-// corresponding mounts that can be added to Kubernetes pod specs.
+// corresponding mounts that can be added to Kubernetes pod specs. It does not check the subPaths,
+// so callers must first reject any that ValidateSubPaths refuses.
 func (v *AdditionalVolumeMounts) GenerateVolumesAndMounts(rootDir string) ([]v1.Volume, []v1.VolumeMount) {
 	vols := []v1.Volume{}
 	mounts := []v1.VolumeMount{}
@@ -71,6 +75,17 @@ func (v *AdditionalVolumeMounts) GenerateVolumesAndMounts(rootDir string) ([]v1.
 	}
 
 	return vols, mounts
+}
+
+// ValidateSubPaths returns an error if any subPath has a ".." path element, which would let
+// GenerateVolumesAndMounts place the mount outside its rootDir.
+func (v *AdditionalVolumeMounts) ValidateSubPaths() error {
+	for _, addVolMnt := range *v {
+		if slices.Contains(strings.Split(addVolMnt.SubPath, "/"), "..") {
+			return errors.Errorf(`subPath %q must not contain a ".." path element`, addVolMnt.SubPath)
+		}
+	}
+	return nil
 }
 
 func (t *VolumeClaimTemplate) ToPVC() *corev1.PersistentVolumeClaim {

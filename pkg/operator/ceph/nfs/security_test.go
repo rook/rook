@@ -365,6 +365,48 @@ func TestReconcileCephNFS_addSecurityConfigsToPod(t *testing.T) {
 	})
 }
 
+func Test_validateSecuritySpec(t *testing.T) {
+	withAdditionalFile := func(subPath string) *cephv1.NFSSecuritySpec {
+		return &cephv1.NFSSecuritySpec{
+			SSSD: &cephv1.SSSDSpec{
+				Sidecar: &cephv1.SSSDSidecar{
+					Image: "my-image",
+					AdditionalFiles: cephv1.AdditionalVolumeMounts{
+						{
+							SubPath: subPath,
+							VolumeSource: &cephv1.ConfigFileVolumeSource{
+								ConfigMap: &v1.ConfigMapVolumeSource{LocalObjectReference: v1.LocalObjectReference{Name: "sssd-ca-certs"}},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	t.Run("nil security spec", func(t *testing.T) {
+		assert.NoError(t, validateSecuritySpec(nil))
+	})
+
+	t.Run("additional file inside the root", func(t *testing.T) {
+		assert.NoError(t, validateSecuritySpec(withAdditionalFile("ca-certs")))
+	})
+
+	t.Run("additional file at the root", func(t *testing.T) {
+		assert.NoError(t, validateSecuritySpec(withAdditionalFile(".")))
+	})
+
+	t.Run("additional file escaping the root", func(t *testing.T) {
+		err := validateSecuritySpec(withAdditionalFile("../../../usr/bin"))
+		assert.ErrorContains(t, err, `"../../../usr/bin" must not contain a ".." path element`)
+	})
+
+	t.Run("errors from NFSSecuritySpec.Validate are returned", func(t *testing.T) {
+		err := validateSecuritySpec(&cephv1.NFSSecuritySpec{SSSD: &cephv1.SSSDSpec{}})
+		assert.ErrorContains(t, err, "no runtime option is specified")
+	})
+}
+
 func volNames(vs []v1.Volume) []string {
 	names := []string{}
 	for _, vol := range vs {

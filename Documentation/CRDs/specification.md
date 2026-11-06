@@ -2868,7 +2868,8 @@ string
 <p>SubPath defines the sub-path (subdirectory) of the directory root where the volumeSource will
 be mounted. All files/keys in the volume source&rsquo;s volume will be mounted to the subdirectory.
 This is not the same as the Kubernetes <code>subPath</code> volume mount option.
-Each subPath definition must be unique and must not contain &lsquo;:&rsquo;.</p>
+Each subPath definition must be unique and must not contain &lsquo;:&rsquo;. A subPath with a &lsquo;..&rsquo; path
+element is rejected.</p>
 </td>
 </tr>
 <tr>
@@ -8808,7 +8809,9 @@ AdditionalVolumeMounts
 <p>AdditionalVolumeMounts allows additional volumes to be mounted to the RGW pod.
 The root directory for each additional volume mount is <code>/var/rgw</code>.
 Example: for an additional mount at subPath <code>ldap</code>, mounted from a secret that has key
-<code>bindpass.secret</code>, the file would reside at <code>/var/rgw/ldap/bindpass.secret</code>.</p>
+<code>bindpass.secret</code>, the file would reside at <code>/var/rgw/ldap/bindpass.secret</code>.
+Anyone who can edit this field can mount any host path, or any Secret in the namespace, into
+the RGW pod.</p>
 </td>
 </tr>
 <tr>
@@ -15092,7 +15095,9 @@ AdditionalVolumeMounts
 <em>(Optional)</em>
 <p>AdditionalFiles defines any number of additional files that should be mounted into the SSSD
 sidecar with a directory root of <code>/etc/sssd/rook-additional/</code>.
-These files may be referenced by the sssd.conf config file.</p>
+These files may be referenced by the sssd.conf config file.
+Anyone who can edit this field can mount any host path, or any Secret in the namespace, into
+the SSSD sidecar.</p>
 </td>
 </tr>
 <tr>
