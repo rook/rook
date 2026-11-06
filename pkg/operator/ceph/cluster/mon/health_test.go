@@ -326,6 +326,7 @@ func TestEvictMonOnSameNode(t *testing.T) {
 		},
 	}
 
+	assert.NoError(t, v1.AddToScheme(scheme.Scheme))
 	client := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(fakeCluster).Build()
 	context := &clusterd.Context{Clientset: clientset, Client: client, ConfigDir: configDir, Executor: executor}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
@@ -880,6 +881,7 @@ func TestExternalMons_notInSpec_InQuorum(t *testing.T) {
 
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
+	assert.NoError(t, v1.AddToScheme(scheme.Scheme))
 	client := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(fakeCluster).Build()
 	context := &clusterd.Context{
 		Clientset: clientset,
@@ -1297,6 +1299,7 @@ func getClient(t *testing.T, obj ...runtime.Object) client.Client {
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
 	assert.NoError(t, csiopv1.AddToScheme(s))
+	assert.NoError(t, v1.AddToScheme(s))
 	client := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(obj...).Build()
 	return client
 }

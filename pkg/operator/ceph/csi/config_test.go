@@ -240,3 +240,46 @@ func TestParseMountOptions(t *testing.T) {
 		assert.Equal(t, 0, len(result))
 	})
 }
+
+func TestCreateDefaultClientProfile(t *testing.T) {
+	ns := "test"
+	t.Setenv(k8sutil.PodNamespaceEnvVar, ns)
+	c := clienttest.CreateTestClusterInfo(1)
+	c.Namespace = ns
+	c.Context = t.Context()
+
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &csiopv1.ClientProfile{}, &v1.Secret{}, &v1.SecretList{})
+
+	newSecret := func(name, annotation string) *v1.Secret {
+		return &v1.Secret{ObjectMeta: metav1.ObjectMeta{
+			Name: name, Namespace: ns, Annotations: map[string]string{annotation: "true"},
+		}}
+	}
+
+	t.Run("annotated secrets are referenced", func(t *testing.T) {
+		cl := fake.NewClientBuilder().WithScheme(s).WithObjects(
+			newSecret("rook-csi-rbd-provisioner-k8s-pool", "csi.rook.io/RBDProvisionerSecret"),
+			newSecret("rook-csi-rbd-node-k8s-pool", "csi.rook.io/RBDNodeSecret"),
+			newSecret("rook-csi-cephfs-provisioner-k8s-fs", "csi.rook.io/CephFSProvisionerSecret"),
+		).Build()
+		assert.NoError(t, CreateDefaultClientProfile(cl, c))
+
+		profile := &csiopv1.ClientProfile{}
+		assert.NoError(t, cl.Get(t.Context(), types.NamespacedName{Name: ns, Namespace: ns}, profile))
+		assert.Equal(t, "rook-csi-rbd-provisioner-k8s-pool", profile.Spec.Rbd.CephCsiSecrets.ControllerPublishSecret.Name)
+		assert.Equal(t, "rook-csi-rbd-node-k8s-pool", profile.Spec.Rbd.CephCsiSecrets.NodePublishSecret.Name)
+		assert.Equal(t, "rook-csi-cephfs-provisioner-k8s-fs", profile.Spec.CephFs.CephCsiSecrets.ControllerPublishSecret.Name)
+	})
+
+	t.Run("default secret names without annotations", func(t *testing.T) {
+		cl := fake.NewClientBuilder().WithScheme(s).Build()
+		assert.NoError(t, CreateDefaultClientProfile(cl, c))
+
+		profile := &csiopv1.ClientProfile{}
+		assert.NoError(t, cl.Get(t.Context(), types.NamespacedName{Name: ns, Namespace: ns}, profile))
+		assert.Equal(t, CsiRBDProvisionerSecret, profile.Spec.Rbd.CephCsiSecrets.ControllerPublishSecret.Name)
+		assert.Equal(t, CsiRBDNodeSecret, profile.Spec.Rbd.CephCsiSecrets.NodePublishSecret.Name)
+		assert.Equal(t, CsiCephFSProvisionerSecret, profile.Spec.CephFs.CephCsiSecrets.ControllerPublishSecret.Name)
+	})
+}
