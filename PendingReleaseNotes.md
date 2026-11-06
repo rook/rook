@@ -13,3 +13,4 @@ Changes should *not* be included here if they are backported to previous release
   Rook sets or acts on are reserved.
 - RGW SSE-S3 accepts `VAULT_TRANSIT_BACKEND_PATH` in `security.s3.connectionDetails` for a Vault transit engine that is
   not mounted at the default `transit` path.
+- `CephBucketNotification` `spec.filter.metadataFilters` and `spec.filter.tagFilters` are now sent to RGW. They were previously accepted by the CRD and silently dropped, so notifications fired on objects the filters were meant to exclude.
