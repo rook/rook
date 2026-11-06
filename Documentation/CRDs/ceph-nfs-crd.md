@@ -182,6 +182,7 @@ The `security` spec sets security configuration for the NFS cluster.
     sidecar containers that mount these volumes. Treat permission to create or edit a CephNFS as
     equivalent to root access on the node and to read access to every Secret in its namespace, and
     grant it only to principals trusted with that access.
+    [Access Control](../Getting-Started/access-control.md) covers access to the other Rook resources.
 
 ## Scaling the active server count
 

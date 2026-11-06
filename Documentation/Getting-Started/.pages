@@ -6,6 +6,7 @@ nav:
     - storage-architecture.md
     - example-configurations.md
     - ceph-openshift.md
+    - access-control.md
     - ceph-teardown.md
     - maintenance-and-support.md
     - ...
