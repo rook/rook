@@ -90,10 +90,26 @@ func (c *createConfig) createNewOSDsFromStatus(
 		return
 	}
 
+	nodeOrPVC := "node"
+	if status.PvcBackedOSD {
+		nodeOrPVC = "PVC"
+	}
+
 	for i, osd := range status.OSDs {
 		if c.deployments.Exists(osd.ID) {
-			// A reprovisioned replacement is held as a scaled-to-zero marker Deployment; delete it here
-			// so the create flow below rebuilds it fresh from the status CM.
+			// Detect duplicate OSD IDs: a new OSD reports an ID that already belongs to
+			// a different OSD (different UUID). This usually means the disk was not fully
+			// cleaned from a previous install.
+			if existing, ok := c.deployments.Get(osd.ID); ok && existing.UUID != "" && osd.UUID != "" && existing.UUID != osd.UUID {
+				errs.addError("duplicate OSD ID %d detected: the OSD on %s %q has UUID %q, but an existing OSD deployment already uses ID %d with a different UUID %q (on %q). "+
+					"The disk may not have been fully cleaned from a previous install. "+
+					"See https://rook.io/docs/rook/latest-release/Getting-Started/ceph-teardown/#zapping-devices for details on cleaning disks",
+					osd.ID, nodeOrPVC, nodeOrPVCName, osd.UUID, osd.ID, existing.UUID, existing.NodeOrPVCName)
+				continue
+			}
+
+			// A reprovisioned replacement is held as a scaled-to-zero marker Deployment;
+			// delete it here so the create flow below rebuilds it fresh from the status CM.
 			readyToRecreate, err := c.cluster.replacementReadyForSwap(osd.ID)
 			if err != nil {
 				errs.addError("%v", errors.Wrapf(err, "failed to check if replaced OSD %d is ready to recreate", osd.ID))
@@ -108,6 +124,7 @@ func (c *createConfig) createNewOSDsFromStatus(
 				errs.addError("%v", errors.Wrapf(err, "failed to delete the marker deployment for replaced OSD %d", osd.ID))
 				continue
 			}
+			// Fall through to recreate the OSD from the reprovisioned status
 		}
 
 		// osd prepare jobs don't generate cephx status info for OSDs. since this is a new OSD
