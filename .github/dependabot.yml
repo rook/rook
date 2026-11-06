@@ -23,6 +23,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      # Dependabot treats each codeql-action subpath as its own dependency,
+      # but every step in a workflow must run the same codeql-action version.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
 
   # Dependabot updates only the default branch unless an entry sets
   # target-branch, which names one branch, so each maintained release branch
