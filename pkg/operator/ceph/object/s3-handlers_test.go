@@ -17,11 +17,16 @@ limitations under the License.
 package object
 
 import (
+	"context"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewS3Agent(t *testing.T) {
@@ -120,4 +125,148 @@ func TestNewS3Agent(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "https://rook-ceph-rgw-store.test-ns.svc:443", *s3Agent.Client.Options().BaseEndpoint)
 	})
+}
+
+// capturingRoundTripper records the request it is handed and answers with
+// status and respBody, or 200 and an empty body when unset.
+type capturingRoundTripper struct {
+	status   int
+	respBody string
+
+	req  *http.Request
+	body []byte
+}
+
+func (rt *capturingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.req = req
+	if req.Body != nil {
+		rt.body, _ = io.ReadAll(req.Body)
+	}
+	status := rt.status
+	if status == 0 {
+		status = http.StatusOK
+	}
+	return &http.Response{
+		StatusCode: status,
+		Header:     http.Header{},
+		Body:       io.NopCloser(strings.NewReader(rt.respBody)),
+	}, nil
+}
+
+const (
+	bucketAlreadyExistsBody     = `<Error><Code>BucketAlreadyExists</Code><Message>bucket placement differs</Message><BucketName>bkt</BucketName></Error>`
+	bucketAlreadyOwnedByYouBody = `<Error><Code>BucketAlreadyOwnedByYou</Code><BucketName>bkt</BucketName></Error>`
+)
+
+func TestS3AgentCreateBucket(t *testing.T) {
+	newAgent := func(t *testing.T, rt http.RoundTripper) *S3Agent {
+		s3Agent, err := NewS3Agent("accessKey", "secretKey", "endpoint", false, nil, false, &http.Client{Transport: rt})
+		require.NoError(t, err)
+		return s3Agent
+	}
+
+	t.Run("CreateBucket sends no CreateBucketConfiguration", func(t *testing.T) {
+		rt := &capturingRoundTripper{}
+		err := newAgent(t, rt).CreateBucket(context.TODO(), "bkt")
+		assert.NoError(t, err)
+		assert.Equal(t, http.MethodPut, rt.req.Method)
+		assert.Contains(t, rt.req.URL.Path, "/bkt")
+		assert.NotContains(t, string(rt.body), "CreateBucketConfiguration")
+		assert.Empty(t, rt.req.Header.Get("X-Amz-Storage-Class"))
+	})
+
+	t.Run("placement is sent as a location constraint with an empty zonegroup", func(t *testing.T) {
+		rt := &capturingRoundTripper{}
+		err := newAgent(t, rt).CreateBucketWithPlacement(context.TODO(), "bkt", "loc-a", "")
+		assert.NoError(t, err)
+		assert.Equal(t, http.MethodPut, rt.req.Method)
+		assert.Contains(t, rt.req.URL.Path, "/bkt")
+		assert.Contains(t, string(rt.body), "<LocationConstraint>:loc-a</LocationConstraint>")
+		assert.Empty(t, rt.req.Header.Get("X-Amz-Storage-Class"))
+	})
+
+	t.Run("storage class is sent as a signed header", func(t *testing.T) {
+		rt := &capturingRoundTripper{}
+		err := newAgent(t, rt).CreateBucketWithPlacement(context.TODO(), "bkt", "loc-a", "FOO")
+		assert.NoError(t, err)
+		assert.Contains(t, string(rt.body), "<LocationConstraint>:loc-a</LocationConstraint>")
+		assert.Equal(t, "FOO", rt.req.Header.Get("X-Amz-Storage-Class"))
+		// the header must be part of the SigV4 signature or RGW rejects it
+		assert.Contains(t, rt.req.Header.Get("Authorization"), "x-amz-storage-class")
+	})
+
+	t.Run("storage class without a placement", func(t *testing.T) {
+		rt := &capturingRoundTripper{}
+		err := newAgent(t, rt).CreateBucketWithPlacement(context.TODO(), "bkt", "", "FOO")
+		assert.NoError(t, err)
+		assert.NotContains(t, string(rt.body), "CreateBucketConfiguration")
+		assert.Equal(t, "FOO", rt.req.Header.Get("X-Amz-Storage-Class"))
+	})
+
+	t.Run("empty placement and storage class behave like CreateBucket", func(t *testing.T) {
+		rt := &capturingRoundTripper{}
+		err := newAgent(t, rt).CreateBucket(context.TODO(), "bkt")
+		assert.NoError(t, err)
+		assert.NotContains(t, string(rt.body), "CreateBucketConfiguration")
+		assert.Empty(t, rt.req.Header.Get("X-Amz-Storage-Class"))
+	})
+
+	t.Run("BucketAlreadyExists is success without a placement request", func(t *testing.T) {
+		rt := &capturingRoundTripper{status: http.StatusConflict, respBody: bucketAlreadyExistsBody}
+		assert.NoError(t, newAgent(t, rt).CreateBucket(context.TODO(), "bkt"))
+	})
+
+	t.Run("BucketAlreadyExists is an error carrying RGW's message when a placement is requested", func(t *testing.T) {
+		for name, request := range map[string][2]string{
+			"placement":     {"loc-a", ""},
+			"storage class": {"", "FOO"},
+			"both":          {"loc-a", "FOO"},
+		} {
+			t.Run(name, func(t *testing.T) {
+				rt := &capturingRoundTripper{status: http.StatusConflict, respBody: bucketAlreadyExistsBody}
+				err := newAgent(t, rt).CreateBucketWithPlacement(context.TODO(), "bkt", request[0], request[1])
+				require.Error(t, err)
+				var alreadyExists *s3types.BucketAlreadyExists
+				assert.ErrorAs(t, err, &alreadyExists)
+				assert.Contains(t, err.Error(), "bucket placement differs")
+				if request[0] != "" {
+					assert.Contains(t, err.Error(), `placement "loc-a"`)
+				}
+				if request[1] != "" {
+					assert.Contains(t, err.Error(), `storage class "FOO"`)
+				}
+			})
+		}
+	})
+
+	t.Run("BucketAlreadyOwnedByYou is success even with a placement request", func(t *testing.T) {
+		rt := &capturingRoundTripper{status: http.StatusConflict, respBody: bucketAlreadyOwnedByYouBody}
+		assert.NoError(t, newAgent(t, rt).CreateBucketWithPlacement(context.TODO(), "bkt", "loc-a", "FOO"))
+	})
+
+	t.Run("other RGW errors name the requested placement", func(t *testing.T) {
+		rt := &capturingRoundTripper{
+			status:   http.StatusBadRequest,
+			respBody: `<Error><Code>InvalidLocationConstraint</Code><Message>The specified location-constraint is not valid</Message></Error>`,
+		}
+		err := newAgent(t, rt).CreateBucketWithPlacement(context.TODO(), "bkt", "nowhere", "FOO")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `failed to create bucket "bkt" with placement "nowhere" and storage class "FOO"`)
+		assert.Contains(t, err.Error(), "InvalidLocationConstraint")
+		assert.Contains(t, err.Error(), "The specified location-constraint is not valid")
+	})
+}
+
+func TestDescribePlacement(t *testing.T) {
+	tests := []struct {
+		placement, storageClass, want string
+	}{
+		{"", "", ""},
+		{"loc-a", "", ` with placement "loc-a"`},
+		{"", "FOO", ` with storage class "FOO"`},
+		{"loc-a", "FOO", ` with placement "loc-a" and storage class "FOO"`},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, describePlacement(tt.placement, tt.storageClass))
+	}
 }
