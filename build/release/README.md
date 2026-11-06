@@ -87,10 +87,14 @@ Several updates are needed on `master` soon after the new release branch is crea
 1. Update `.mergify.yml`: add the automerge and `backport-release-1.X` rules for the new branch,
    and remove the rules for branches that are no longer supported.
    For example: [#17369](https://github.com/rook/rook/pull/17369)
-2. Update the supported Kubernetes versions for the new release cycle: the range in
+2. Update `.github/dependabot.yml`: add a `gomod` entry with `target-branch` set to the new branch,
+   and remove the entry for the branch that is no longer supported. `target-branch` names a single
+   branch, so a release branch without an entry of its own receives no dependency updates at all.
+   The release branch entries were added in [#18696](https://github.com/rook/rook/pull/18696).
+3. Update the supported Kubernetes versions for the new release cycle: the range in
    `Documentation/Getting-Started/Prerequisites/prerequisites.md` and the workflow test matrices
    (keeping the `.mergify.yml` check names in sync with the matrix versions).
-3. Before tagging the final release, update `Documentation/Upgrade/rook-upgrade.md` to walk
+4. Before tagging the final release, update `Documentation/Upgrade/rook-upgrade.md` to walk
    through the upgrade from the previous minor release to the new one.
 
 ### Tagging a New Release
