@@ -31,6 +31,13 @@ When keys are rotated from AES to AES256K, Ceph daemons and clients will continu
 type internally for two to three hours. This is normal. Ceph refers to these as rotating service
 tokens.
 
+!!! note
+    Rook only switches Ceph's rotating service keys to AES256K once all mon, mgr, OSD, and MDS
+    daemons run a Ceph version that supports AES256K. Upgrades and key rotations are not
+    supported while any of these daemons are not updated, e.g., due to the
+    `ceph.rook.io/do-not-reconcile` label or a cordoned node. After those daemons are updated,
+    restart the Rook operator to trigger a reconcile that applies the AES256K service key type.
+
 ## Key rotation overview
 
 CephX authentication keys can be rotated when desired on a one-off basis. To provide this
