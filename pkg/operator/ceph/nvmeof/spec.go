@@ -475,7 +475,7 @@ func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGa
 		},
 	}
 
-	if nvmeof.Spec.LivenessProbe != nil && !nvmeof.Spec.LivenessProbe.Disabled && nvmeof.Spec.LivenessProbe.Probe == nil {
+	if nvmeof.Spec.LivenessProbe != nil {
 		container.LivenessProbe = r.defaultLivenessProbe(nvmeof)
 	}
 	result := cephconfig.ConfigureLivenessProbe(container, nvmeof.Spec.LivenessProbe)
