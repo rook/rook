@@ -258,8 +258,12 @@ func (c *Cluster) getOSDUpdateInfo(errs *provisionErrors) (*updateQueue, *existe
 			errs.addError("%v. did a user create their own deployment with label %q?", selector, err)
 			continue
 		}
-		// all OSD deployments should be marked as existing
-		existenceList.Add(id)
+		identity := osdIdentity{
+			UUID: getOSDUUIDFromDeployment(&deps.Items[i]),
+		}
+		identity.NodeOrPVCName, _ = getNodeOrPVCName(&deps.Items[i])
+
+		existenceList.AddWithDetail(id, identity)
 		updateQueue.Push(id)
 	}
 
@@ -329,16 +333,22 @@ func (q *updateQueue) Remove(osdIDs []int) {
 	q.q = q.q[:lastIdx]
 }
 
-// An existenceList keeps track of which OSDs already have Deployments created for them. It is
+// osdIdentity stores identifying details about an existing OSD deployment.
+type osdIdentity struct {
+	UUID          string
+	NodeOrPVCName string
+}
+
+// An existenceList keeps track of which OSDs already have Deployments created for them that is
 // queryable in O(1) time.
 type existenceList struct {
-	m map[int]bool
+	m map[int]osdIdentity
 }
 
 // Create a new existenceList with capacity reserved.
 func newExistenceListWithCapacity(cap int) *existenceList {
 	return &existenceList{
-		m: make(map[int]bool, cap),
+		m: make(map[int]osdIdentity, cap),
 	}
 }
 
@@ -355,15 +365,26 @@ func (e *existenceList) Len() int {
 	return len(e.m)
 }
 
-// Add adds an item to the existenceList.
+// Add adds an item to the existenceList with an empty identity.
 func (e *existenceList) Add(osdID int) {
-	e.m[osdID] = true
+	e.m[osdID] = osdIdentity{}
+}
+
+// AddWithDetail adds an item to the existenceList along with its OSD identity.
+func (e *existenceList) AddWithDetail(osdID int, identity osdIdentity) {
+	e.m[osdID] = identity
 }
 
 // Exists returns true if an item is recorded in the existence list or false if it is not.
 func (e *existenceList) Exists(osdID int) bool {
 	_, ok := e.m[osdID]
 	return ok
+}
+
+// Get returns the identity for an existing OSD, or an empty identity and false if the OSD is not found.
+func (e *existenceList) Get(osdID int) (osdIdentity, bool) {
+	d, ok := e.m[osdID]
+	return d, ok
 }
 
 // return a function that will list only OSD deployments with the IDs given
