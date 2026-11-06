@@ -88,6 +88,46 @@ func TestConfigFileVolumeSource_ToVolumeSource(t *testing.T) {
 	}
 }
 
+func TestAdditionalVolumeMounts_ValidateSubPaths(t *testing.T) {
+	tests := []struct {
+		subPath string
+		wantErr bool
+	}{
+		{"ldap", false},
+		{"certs/ca.crt", false},
+		{"/ldap", false},
+		{"./ldap", false},
+		{"ldap/", false},
+		{".", false},
+		{"/", false},
+		{"./", false},
+		{"..ldap", false},
+		{"ldap..", false},
+		{"certs/..ca/ca.crt", false},
+		{"..", true},
+		{"../ldap", true},
+		{"../../usr/local/bin", true},
+		{"ldap/..", true},
+		{"ldap/../../etc", true},
+		{"ldap/../ldap", true},
+		{"/..", true},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%q", tt.subPath), func(t *testing.T) {
+			mounts := AdditionalVolumeMounts{
+				{SubPath: "valid", VolumeSource: &ConfigFileVolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
+				{SubPath: tt.subPath, VolumeSource: &ConfigFileVolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
+			}
+			err := mounts.ValidateSubPaths()
+			if tt.wantErr {
+				assert.ErrorContains(t, err, fmt.Sprintf(`subPath %q must not contain a ".." path element`, tt.subPath))
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func setSomeFields(t reflect.Type, v reflect.Value) {
 	for _, f := range reflect.VisibleFields(t) {
 		fVal := v.FieldByName(f.Name)
