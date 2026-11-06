@@ -2200,6 +2200,8 @@ type GatewaySpec struct {
 	// The root directory for each additional volume mount is `/var/rgw`.
 	// Example: for an additional mount at subPath `ldap`, mounted from a secret that has key
 	// `bindpass.secret`, the file would reside at `/var/rgw/ldap/bindpass.secret`.
+	// Anyone who can edit this field can mount any host path, or any Secret in the namespace, into
+	// the RGW pod.
 	AdditionalVolumeMounts AdditionalVolumeMounts `json:"additionalVolumeMounts,omitempty"`
 
 	// RgwConfig sets Ceph RGW config values for the gateway clients that serve this object store.
@@ -3487,6 +3489,8 @@ type SSSDSidecar struct {
 	// AdditionalFiles defines any number of additional files that should be mounted into the SSSD
 	// sidecar with a directory root of `/etc/sssd/rook-additional/`.
 	// These files may be referenced by the sssd.conf config file.
+	// Anyone who can edit this field can mount any host path, or any Secret in the namespace, into
+	// the SSSD sidecar.
 	// +optional
 	AdditionalFiles AdditionalVolumeMounts `json:"additionalFiles,omitempty"`
 
@@ -3522,7 +3526,8 @@ type AdditionalVolumeMount struct {
 	// SubPath defines the sub-path (subdirectory) of the directory root where the volumeSource will
 	// be mounted. All files/keys in the volume source's volume will be mounted to the subdirectory.
 	// This is not the same as the Kubernetes `subPath` volume mount option.
-	// Each subPath definition must be unique and must not contain ':'.
+	// Each subPath definition must be unique and must not contain ':'. A subPath with a '..' path
+	// element is rejected.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=`^[^:]+$`
