@@ -337,7 +337,11 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 			zoneEndpoints := strings.Join(zone.Spec.CustomEndpoints, ",")
 			log.NamedDebug(objContext.NsName(), logger, "Updating endpoints for zone %q are: %q", objContext.Zone, zoneEndpoints)
 			endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
-			err = object.JoinMultisite(objContext, endpointArg, zoneEndpoints, zone.Namespace)
+			err = object.JoinMultisite(objContext, endpointArg, zoneEndpoints)
+			if err != nil {
+				return err
+			}
+			err = object.EnsureMultisiteSystemUser(objContext, zone.Namespace)
 			if err != nil {
 				return err
 			}
