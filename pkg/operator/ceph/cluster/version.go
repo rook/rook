@@ -195,8 +195,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	if differentImages {
 		// If the image version changed let's make sure we can safely upgrade
 		// check ceph's status, if not healthy we fail
-		cephHealthy := daemonclient.IsCephHealthy(c.context, c.ClusterInfo)
-		if !cephHealthy {
+		if !c.isCephHealthyForUpgrade() {
 			if c.Spec.SkipUpgradeChecks {
 				log.NamespacedWarning(c.Namespace, logger, "ceph is not healthy but SkipUpgradeChecks is set, forcing upgrade.")
 			} else {
@@ -209,4 +208,38 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	}
 
 	return nil
+}
+
+// isCephHealthyForUpgrade verifies Ceph is healthy enough to begin an upgrade. HEALTH_ERR is
+// tolerated only when every error is one that Rook is also allowed to ignore during reconcile.
+// Otherwise, a new Ceph version may raise such an error partway through an upgrade (e.g., after
+// some mons are updated), and the upgrade could never resume if the operator restarts.
+func (c *cluster) isCephHealthyForUpgrade() bool {
+	cephStatus, err := daemonclient.Status(c.context, c.ClusterInfo)
+	if err != nil {
+		log.NamespacedError(c.Namespace, logger, "failed to detect if ceph is healthy. failed to get ceph status. %v", err)
+		return false
+	}
+
+	healthy := isCephStatusHealthyForUpgrade(cephStatus)
+	if healthy && cephStatus.Health.Status == "HEALTH_ERR" {
+		log.NamespacedInfo(c.Namespace, logger, "ignoring ceph health errors that do not block upgrades. %+v", cephStatus.Health.Checks)
+	}
+	return healthy
+}
+
+func isCephStatusHealthyForUpgrade(status daemonclient.CephStatus) bool {
+	switch status.Health.Status {
+	case "HEALTH_OK", "HEALTH_WARN":
+		return true
+	case "HEALTH_ERR":
+		healthErrKeys := []string{}
+		for key, check := range status.Health.Checks {
+			if check.Severity == "HEALTH_ERR" {
+				healthErrKeys = append(healthErrKeys, key)
+			}
+		}
+		return controller.CanIgnoreHealthErrChecks(healthErrKeys)
+	}
+	return false
 }

@@ -204,6 +204,17 @@ func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, control
 		}
 	}
 
+	if CanIgnoreHealthErrChecks(healthErrKeys) {
+		logger.Debugf("%q: ignoring ceph error status (full status is %+v)", controllerName, cephCluster.Status.CephStatus)
+		return true
+	}
+	return false
+}
+
+// CanIgnoreHealthErrChecks determines whether all of the given Ceph health checks with HEALTH_ERR
+// severity are known errors that do not prevent Rook from reconciling safely. Rook must be able to
+// proceed in spite of these errors, and often reconciling is what clears them.
+func CanIgnoreHealthErrChecks(healthErrKeys []string) bool {
 	// If there are no errors, the caller actually expects false to be returned so the absence
 	// of an error doesn't cause the health status to be ignored. In production, if there are no
 	// errors, we would anyway expect the health status to be ok or warning. False in this case
@@ -219,18 +230,12 @@ func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, control
 		"AUTH_INSECURE_ROTATING_SERVICE_KEY_TYPE": {}, // rook can reconcile cephx keys to clear this
 		"AUTH_INSECURE_SERVICE_TICKETS":           {}, // rook can reconcile cephx keys to clear this
 	}
-	allCanBeIgnored := true
 	for _, healthErrKey := range healthErrKeys {
 		if _, ok := allowedErrStatus[healthErrKey]; !ok {
-			allCanBeIgnored = false
-			break
+			return false
 		}
 	}
-	if allCanBeIgnored {
-		logger.Debugf("%q: ignoring ceph error status (full status is %+v)", controllerName, cephCluster.Status.CephStatus)
-		return true
-	}
-	return false
+	return true
 }
 
 // IsReadyToReconcile determines if a controller is ready to reconcile or not
