@@ -246,9 +246,8 @@ Associating users with pre-existing accounts that were created outside of Rook (
 ## Account Quotas
 
 ### Overview
-RGW accounts support two types of quotas that control resource consumption:
+RGW accounts support an account-level storage quota that controls resource consumption:
 - **Account Quota**: Aggregate storage limit across all users and buckets in the account. Tracks total size and total object count at the account level.
-- **Bucket Quota**: Per-bucket storage limit applied to every bucket in the account. Each individual bucket is subject to this limit.
 
 Additionally, accounts have **resource limits** that control the number of entities (users, roles, groups, buckets, access keys) that can be created within the account.
 
@@ -266,39 +265,52 @@ metadata:
   namespace: rook-ceph
 spec:
   store: my-store
-  # [Optional] Quotas for the account
+  # [Optional] Quotas and resource limits for the account. If set, at least one field must be specified.
+  # For every field, -1 means unlimited and 0 means none allowed.
   quotas:
-    # [Optional] Maximum total size of all objects across all buckets in the account.
+    # [Optional] Maximum total size of all objects across all buckets in the account. Accepts any resource quantity unit (e.g. 10Gi, 500Mi, 2Ti). Default: -1.
     maxSize: 10Gi
-    # [Optional] Maximum total number of objects across all buckets in the account.
+    # [Optional] Maximum total number of objects across all buckets in the account. Default: -1.
     maxObjects: 1000000
-    # [Optional] Maximum total size of objects in any individual bucket in the account.
-    maxBucketSize: 1Gi
-    # [Optional] Maximum number of objects in any individual bucket in the account.
-    maxBucketObjects: 100000
-    # [Optional] Maximum number of buckets the account can own.
+    # [Optional] Maximum number of buckets the account can own. Default: 1000.
     maxBuckets: 100
-    # [Optional] Maximum number of users the account can have.
+    # [Optional] Maximum number of users the account can have. Default: 1000.
     maxUsers: 50
-    # [Optional] Maximum number of roles the account can have.
+    # [Optional] Maximum number of IAM roles the account can have. Default: 1000.
     maxRoles: 50
-    # [Optional] Maximum number of groups the account can have.
+    # [Optional] Maximum number of IAM groups the account can have. Default: 1000.
     maxGroups: 20
-    # [Optional] Maximum number of access keys the account can have.
-    maxAccessKeys: 100
+    # [Optional] Maximum number of access keys each user in the account can have. Default: 4.
+    maxAccessKeys: 10
   rootUser:
     displayName: "root-my-account"
 ```
 
 ### Quota Reconciliation
 
-The account controller reconciles quotas as follows:
+The account controller always manages the account's storage quota and resource limits. On every reconcile it applies the following, whether or not `spec.quotas` is set:
 
-- **Account quota** (`maxSize`, `maxObjects`): enabled when either field is set, disabled when both are removed.
-- **Bucket quota** (`maxBucketSize`, `maxBucketObjects`): enabled when either field is set, disabled when both are removed.
-- **Resource limits** (`maxBuckets`, `maxUsers`, `maxRoles`, `maxGroups`, `maxAccessKeys`): set via account modify API. Unset fields default to unlimited (-1).
+- **Storage quota** (`maxSize`, `maxObjects`): applied through the RGW account quota API. The quota is enabled when either field is set. A set field is enforced and an unset field is unlimited. When both are unset, the quota is disabled.
+- **Resource limits** (`maxBuckets`, `maxUsers`, `maxRoles`, `maxGroups`, `maxAccessKeys`): applied through the RGW account create/modify API. A set field is applied. An unset field is reset to the Ceph default (1000, or 4 for `maxAccessKeys`). RGW only updates a limit that is included in the request and has no option to reset a limit, so Rook sends the defaults explicitly. `maxAccessKeys` is a per-user limit.
 
-**Note**: Account and Bucket quota APIs (`Quota`, `BucketQuota` of type `admin.QuotaSpec)`) in `go-ceph` are not implemented yet.
+**NOTE**: For every field, `-1` means unlimited and `0` means none allowed. A `maxSize` of `0` means "allow zero bytes", which blocks all writes.
+
+**NOTE**: Ceph versions without the fix for [tracker 82622](https://tracker.ceph.com/issues/82622) swap the meaning of `-1` and `0` for `maxBuckets`: `-1` blocks bucket creation and `0` means unlimited.
+
+#### Updating Quotas
+**NOTE**: The quota is enforced at write time. Ceph does not check the current usage before updating quota.
+
+The controller reapplies the configured values on every reconcile, so a quota change in the spec takes effect on the next reconcile.
+
+- **Increasing a quota**: writes that were blocked at the old limit resume once the higher limit is applied.
+- **Reducing a quota above current usage**: accepted. Writes continue until usage reaches the new limit.
+- **Reducing a quota below current usage**: RGW accepts the new value and does not delete or reject existing data. Further writes are blocked until usage drops below the limit or the limit is raised.
+
+#### Removing Quotas
+
+Removing a field from `spec.quotas` returns that field to its default: a storage quota field becomes unlimited and a resource limit is reset to the Ceph default (1000, or 4 for `maxAccessKeys`). Removing the whole `spec.quotas` block does this for every field, which also disables the storage quota. To lift a resource limit, set the field to `-1`.
+
+Managing account quotas outside Rook, for example directly through `radosgw-admin`, is not supported. Rook overwrites such changes on the next reconcile.
 
 #### Interaction with User-Level Quotas
 
@@ -311,3 +323,4 @@ The existing `CephObjectStoreUser` quota support continues to work for standalon
 - **Migrating standalone users into accounts**: In the future, all users may need to be associated with an account. This would require allowing `accountRef` to be added to existing standalone `CephObjectStoreUser` CRs as a day-2 operation. The CEL immutability rule would need to be relaxed from `self == oldSelf` to `!has(oldSelf) || self == oldSelf` to permit the transition from unset to set while still preventing changes or removal once set. Additionally, the current `CephObjectStoreUser` CRD has no validation on `displayName` — standalone users can have display names with spaces or special characters. However, account users are referenced by display name in IAM policy ARNs and must match `[\w+=,.@-]+`. Since adding a CRD-level pattern constraint would break existing standalone users, the display name validation must be enforced in the controller only when `accountRef` is set. Users migrating into an account would need to update their `displayName` to be IAM-compatible before or at the same time as setting `accountRef`.
 - **Cross-namespace account references**: Currently, `CephObjectStoreUser` must be in the same namespace as the referenced `CephObjectStoreAccount`. In the future, cross-namespace references could be supported by adding a `namespace` field to `accountRef` along with an opt-in mechanism on the `CephObjectStoreAccount` (e.g., `allowUsersFromNamespaces` list) to let the account owner control which namespaces can create users for their account. This prevents unauthorized cross-namespace association where any user could claim to belong to an account they don't own.
 - **External account binding**: Support for `CephObjectStoreAccount` to adopt pre-existing accounts in external RGW clusters by referencing a raw account ID.
+- **Default bucket quotas**: RGW accounts also support a default per-bucket quota. Rook does not manage it as of today.
