@@ -30,14 +30,17 @@ spec:
   network:
     provider: multus
     selectors:
-      public: public-net
+      # public: public-net
       cluster: cluster-net
   crashCollector:
     disable: true
   storage:
+    # Place one OSD on each node instead of letting every node claim every device. In kind all
+    # node containers share the host's /dev, so useAllDevices would make each node try to claim
+    # every partition. CI fills in the per-node `nodes` list (node name + device) at deploy time.
     useAllNodes: true
     useAllDevices: true
-    #deviceFilter:
+    #nodes:
   cephConfig:
     global:
       osd_pool_default_size: "1"
@@ -45,3 +48,6 @@ spec:
       bdev_flock_retry: "20"
       bluefs_buffered_io: "false"
       mon_data_avail_warn: "10"
+      osd_heartbeat_grace: "20"
+      mon_osd_down_out_interval: "120"
+      mon_osd_report_timeout: "120"

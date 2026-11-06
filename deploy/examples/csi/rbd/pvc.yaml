@@ -2,11 +2,28 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: rbd-pvc
+  name: rbd-pvc1
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
-  storageClassName: rook-ceph-block
+  storageClassName: rook-ceph-block1
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: csirbd-demo-pod1
+spec:
+  containers:
+    - name: web-server
+      image: nginx
+      volumeMounts:
+        - name: mypvc
+          mountPath: /var/lib/www/html
+  volumes:
+    - name: mypvc
+      persistentVolumeClaim:
+        claimName: rbd-pvc1
+        readOnly: false
