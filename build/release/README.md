@@ -65,6 +65,10 @@ git describe
 #> v1.20.0-alpha.0
 ```
 
+After pushing the new branch, add it to the deployment branch policy of the `publish` environment
+(Settings > Environments > publish) and re-run its build. Builds of a branch that the policy does
+not list cannot publish.
+
 The alpha tag only serves to mark the creation of the new branch. It isn't suitable for installing.
 Now we need to update docs, manifests, and the tag version. Generally, an alpha release isn't
 necessary, and we immediately release `...-beta.0`
@@ -86,7 +90,10 @@ Several updates are needed on `master` soon after the new release branch is crea
 
 1. Update `.mergify.yml`: add the automerge and `backport-release-1.X` rules for the new branch,
    and remove the rules for branches that are no longer supported.
-   For example: [#17369](https://github.com/rook/rook/pull/17369)
+   For example: [#17369](https://github.com/rook/rook/pull/17369).
+   Every backport rule must also carry the `base~=^(master|release-[0-9]+\.[0-9]+)$` condition,
+   which that example predates, so that only changes merged into `master` or a release branch
+   are backported.
 2. Update `.github/dependabot.yml`: add a `gomod` entry with `target-branch` set to the new branch,
    and remove the entry for the branch that is no longer supported. `target-branch` names a single
    branch, so a release branch without an entry of its own receives no dependency updates at all.
@@ -151,6 +158,8 @@ To publish a new patch release build, follow these steps:
 1. Reset [PendingReleaseNotes.md](/PendingReleaseNotes.md) on `master` with empty sections for the
    next minor release. For example: [#17661](https://github.com/rook/rook/pull/17661)
 2. Go to [Google Search Console](https://search.google.com/search-console/) and request removal of the previous minor release's versioned documentation paths.
+3. Remove the release branch that is no longer maintained (e.g., `release-1.20` after `v1.22.0`)
+   from the deployment branch policy of the `publish` environment.
 
 ### Authoring Release Notes
 
