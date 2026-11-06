@@ -1109,25 +1109,36 @@ function create_operator_toolbox() {
   kubectl create -f toolbox-operator-image.yaml
 }
 
+# Optional param 1: "skip_plugin_restart" to leave the nodeplugin pod alone. Needed with the
+# rbd-nbd mounter, where the nbd server runs inside the nodeplugin pod: deleting the pod kills
+# the server behind a still-mounted device and the volume healer cannot reattach it, so the pod's
+# filesystem goes read-only. With krbd the client lives in the kernel and a restart is harmless.
 function test_csi_rbd_workload {
+  local skip_plugin_restart="${1:-}"
   cd "${REPO_DIR}/deploy/examples/csi/rbd"
   sed -i 's|size: 3|size: 1|g' storageclass.yaml
   sed -i 's|requireSafeReplicaSize: true|requireSafeReplicaSize: false|g' storageclass.yaml
   kubectl create -f storageclass.yaml
+  wait_for cephblockpool replicapool rook-ceph 300
   kubectl create -f pvc.yaml
+  kubectl wait pvc/rbd-pvc --for=jsonpath='{.status.phase}'=Bound --timeout=300s
   kubectl create -f pod.yaml
   timeout 90 sh -c 'until kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
   kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
   kubectl -n rook-ceph logs ds/rook-ceph.rbd.csi.ceph.com-nodeplugin -c csi-rbdplugin
-  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=rook-ceph.rbd.csi.ceph.com-nodeplugin --field-selector=status.phase=Running -o name)"
+  if [[ "$skip_plugin_restart" != "skip_plugin_restart" ]]; then
+    kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=rook-ceph.rbd.csi.ceph.com-nodeplugin --field-selector=status.phase=Running -o name)"
+  fi
   kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
   kubectl exec -t pod/csirbd-demo-pod -- ls -alh /var/lib/www/html/
 }
 
 function test_csi_cephfs_workload {
   cd "${REPO_DIR}/deploy/examples/csi/cephfs"
+  wait_for cephfilesystem myfs rook-ceph 300
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
+  kubectl wait pvc/cephfs-pvc --for=jsonpath='{.status.phase}'=Bound --timeout=300s
   kubectl create -f pod.yaml
   timeout 90 sh -c 'until kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
   kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
@@ -1390,6 +1401,42 @@ EOF
     auth="$(kubectl -n rook-ceph exec "$toolbox" -- ceph auth dump-keys --format=json-pretty)"
     echo "$auth" | jq # show output for debugging
   } || true
+}
+
+# Run MicroShift as a privileged podman container (image from the MINC project) instead of through
+# the MINC CLI so that the host's /dev and /lib/modules can be bind-mounted. Without /dev the nbd
+# and rbd device nodes created by the host kernel are invisible to pods in the nested CRI-O, which
+# breaks both krbd and rbd-nbd CSI volume attachment.
+function start_microshift() {
+  local image="quay.io/minc-org/minc:4.19.0-okd-scos.17-amd64"
+  local graph_root
+  sudo podman pull "$image"
+  graph_root="$(sudo podman info --format '{{.Store.GraphRoot}}')"
+  sudo podman create \
+    --hostname 127.0.0.1.nip.io \
+    --label "io.x-openshift.microshift.cluster=microshift" \
+    -it --privileged \
+    -p 127.0.0.1:9080:80 \
+    -p 127.0.0.1:9443:443 \
+    -p 127.0.0.1:6443:6443 \
+    --volume /dev:/dev \
+    --volume "/lib/modules:/lib/modules:ro" \
+    --volume "${graph_root}:/host-container:ro,rshared" \
+    --name microshift \
+    "$image"
+  sudo podman start microshift
+  timeout 300 bash -c 'until sudo podman exec microshift systemctl is-active microshift 2>/dev/null; do sleep 5; done'
+  mkdir -p "$HOME/.kube"
+  timeout 120 bash -c '
+    until sudo podman exec microshift \
+      cat /var/lib/microshift/resources/kubeadmin/127.0.0.1.nip.io/kubeconfig \
+      >"$HOME/.kube/config" 2>/dev/null && [ -s "$HOME/.kube/config" ]; do
+      sleep 5
+    done'
+  chmod 600 "$HOME/.kube/config"
+  kubectl wait --for=condition=Ready node --all --timeout=300s
+  kubectl get nodes -o wide
+  kubectl get pods -A -o wide
 }
 
 FUNCTION="$1"
