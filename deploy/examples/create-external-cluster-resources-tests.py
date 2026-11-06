@@ -81,6 +81,34 @@ class TestRadosJSON(unittest.TestCase):
         )
         print(f"cephCSIKeyring for a specific metadata pool and cluster. {csiKeyring}")
 
+    def test_rbd_caps_with_ec_metadata_pool(self):
+        self.rjObj._arg_parser.restricted_auth_permission = True
+        self.rjObj._arg_parser.k8s_cluster_name = "openshift-storage"
+        self.rjObj._arg_parser.rbd_data_pool_name = "rbd-data-ec"
+        self.rjObj._arg_parser.rbd_metadata_ec_pool_name = ""
+
+        builders = {
+            "provisioner": self.rjObj.get_rbd_provisioner_caps_and_entity,
+            "node": self.rjObj.get_rbd_node_caps_and_entity,
+        }
+
+        # without --rbd-metadata-ec-pool-name only the data pool is granted
+        for name, builder in builders.items():
+            with self.subTest(builder=name):
+                caps, _ = builder(0)
+                self.assertEqual(caps["osd"], "profile rbd pool=rbd-data-ec")
+
+        # with it, the pool holding the images has to be granted as well,
+        # otherwise rbd create fails with EPERM
+        self.rjObj._arg_parser.rbd_metadata_ec_pool_name = "rbd-metadata"
+        for name, builder in builders.items():
+            with self.subTest(builder=name):
+                caps, _ = builder(0)
+                self.assertEqual(
+                    caps["osd"],
+                    "profile rbd pool=rbd-data-ec, profile rbd pool=rbd-metadata",
+                )
+
     def test_non_zero_return_and_error(self):
         self.rjObj.cluster.return_val = 1
         self.rjObj.cluster.err_message = "Dummy Error"
