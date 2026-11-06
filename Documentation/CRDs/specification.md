@@ -2760,7 +2760,9 @@ RBDMirrorStatus
 <td>
 <code>uri</code><br/>
 <em>
-string
+<a href="#ceph.rook.io/v1.Sensitive">
+Sensitive
+</a>
 </em>
 </td>
 <td>
@@ -9047,7 +9049,9 @@ Note: Only supported from Ceph Tentacle (v20)</p>
 <td>
 <code>uri</code><br/>
 <em>
-string
+<a href="#ceph.rook.io/v1.Sensitive">
+Sensitive
+</a>
 </em>
 </td>
 <td>
@@ -9243,7 +9247,9 @@ string
 <td>
 <code>uri</code><br/>
 <em>
-string
+<a href="#ceph.rook.io/v1.Sensitive">
+Sensitive
+</a>
 </em>
 </td>
 <td>
@@ -15693,6 +15699,30 @@ string
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.Sensitive">Sensitive
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.AMQPEndpointSpec">AMQPEndpointSpec</a>, <a href="#ceph.rook.io/v1.HTTPEndpointSpec">HTTPEndpointSpec</a>, <a href="#ceph.rook.io/v1.KafkaEndpointSpec">KafkaEndpointSpec</a>)
+</p>
+<div>
+<p>Sensitive is a spec string whose value must not reach a log, an error, a
+condition message or a Kubernetes event. A spec field is readable by whoever
+can read the custom resource; the operator log is readable by whoever holds
+pods/log on the operator deployment, which is a different and generally wider
+set, and a value logged on every change discloses both sides of a rotation
+rather than only the value in force. The type exists to keep the second
+audience from seeing what only the first is entitled to.</p>
+<p>It is a marker, not a container. Nothing here stops a caller writing
+string(s) wherever it likes, and that conversion is deliberately easy,
+because the reconciler has to use the real value. What the type buys is that
+the careless paths become findable: a go-cmp reporter, a lint rule or a test
+can key on the type, which a bare string gives no way to do.</p>
+<p>The validation markers belong on the type rather than on each field that
+uses it: controller-gen resolves a named type&rsquo;s schema separately, so a
+MinLength or MaxLength marker written beside the field is applied before that
+schema exists and is rejected as not textual. LabelValue above carries its
+markers the same way for the same reason.</p>
+</div>
 <h3 id="ceph.rook.io/v1.SnapshotSchedule">SnapshotSchedule
 </h3>
 <p>
