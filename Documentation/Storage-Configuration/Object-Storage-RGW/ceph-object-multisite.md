@@ -56,7 +56,7 @@ When a non-master zone or non-master zone group is created, the zone group or zo
 
 The zone will create the pools for the object-store(s) that are in the zone to use.
 
-When one of the multisite CRs (realm, zone group, zone) is deleted the underlying ceph realm/zone group/zone is not deleted, neither are the pools created by the zone. See the "Multisite Cleanup" section for more information.
+When a realm or zone group CR is deleted the underlying ceph realm/zone group is not deleted. See the "Multisite Cleanup" section for more information.
 
 For more information on the multisite CRDs, see the related CRDs:
 
@@ -243,13 +243,13 @@ spec:
 
 ## Multisite Cleanup
 
-Multisite configuration must be cleaned up by hand. Deleting a realm/zone group/zone CR will not delete the underlying Ceph realm, zone group, zone, or the pools associated with a zone.
+Multisite configuration must be cleaned up by hand. Deleting a realm/zone group CR will not delete the underlying Ceph realm or zone group.
 
 ### Deleting and Reconfiguring the Ceph Object Zone
 
-Changes made to the resource's configuration or deletion of the resource are not reflected on the Ceph cluster.
+When the ceph-object-zone resource is deleted, the zone is deleted from the Ceph cluster. The pools created by the zone are deleted too if `preservePoolsOnDelete` is `false`.
 
-When the ceph-object-zone resource is deleted or modified, the zone is not deleted from the Ceph cluster. Zone deletion must be done through the toolbox.
+Deleting a CephObjectZone is blocked until all CephObjectStores that reference it are deleted. Until then, the zone's `DeletionIsBlocked` status condition lists the object stores that block its deletion.
 
 #### Changing the Master Zone
 
@@ -331,6 +331,8 @@ Changes made to the resource's configuration or deletion of the resource are not
 
 When the ceph-object-zone group resource is deleted or modified, the zone group is not deleted from the Ceph cluster. Zone Group deletion must be done through the toolbox.
 
+Deleting a CephObjectZoneGroup is blocked until all CephObjectZones that reference it are deleted. Until then, the zone group's `DeletionIsBlocked` status condition lists the zones that block its deletion.
+
 #### Deleting a Zone Group
 
 The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command.
@@ -347,6 +349,8 @@ radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zonegro
 Changes made to the resource's configuration or deletion of the resource are not reflected on the Ceph cluster.
 
 When the ceph-object-realm resource is deleted or modified, the realm is not deleted from the Ceph cluster. Realm deletion must be done via the toolbox.
+
+Deleting a CephObjectRealm is blocked until all CephObjectZoneGroups that reference it are deleted. Until then, the realm's `DeletionIsBlocked` status condition lists the zone groups that block its deletion.
 
 #### Deleting a Realm
 
