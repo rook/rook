@@ -64,6 +64,16 @@ rules:
       - create
       - update
       - delete
+  # The NVMe-oF gateway controller restricts access to the gateway gRPC API with a NetworkPolicy
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - get
+      - create
+      - update
+      - delete
 ---
 # The cluster role for managing the Rook CRDs
 # Rook watches for its CRDs in all namespaces, so this should be a cluster-scoped role unless the
