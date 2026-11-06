@@ -22,6 +22,7 @@ import (
 	"math"
 	"slices"
 	"strconv"
+	"sync"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
@@ -72,6 +73,9 @@ type Cluster struct {
 	exitCode              func(err error) (int, bool)
 	spec                  cephv1.ClusterSpec
 	shouldRotateCephxKeys bool
+	// moduleWaitGroup tracks the asynchronous module-configuration goroutines
+	// started by startModuleConfiguration so they can be awaited (used by tests).
+	moduleWaitGroup sync.WaitGroup
 }
 
 // New creates an instance of the mgr
@@ -422,7 +426,9 @@ func (c *Cluster) configureModules(daemonIDs []string) {
 }
 
 func (c *Cluster) startModuleConfiguration(description string, configureModules func() error) {
+	c.moduleWaitGroup.Add(1)
 	go func() {
+		defer c.moduleWaitGroup.Done()
 		err := configureModules()
 		if err != nil {
 			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed modules: %q. %v", description, err)

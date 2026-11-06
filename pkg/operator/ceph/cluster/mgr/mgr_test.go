@@ -125,6 +125,11 @@ func createNewCluster(t *testing.T) *Cluster {
 	c := New(ctx, clusterInfo, clusterSpec, "myversion")
 	defer os.RemoveAll(c.spec.DataDirHostPath)
 
+	// Start() configures mgr modules in background goroutines. Wait for them at
+	// the end of the test so they don't leak into later tests and race on the
+	// shared package globals those goroutines read (e.g. exec.CephCommandsTimeout).
+	t.Cleanup(c.moduleWaitGroup.Wait)
+
 	return c
 }
 
@@ -171,6 +176,11 @@ func TestStartMgr(t *testing.T) {
 }
 
 func validateStart(t *testing.T, c *Cluster) {
+	// Start() configures the mgr modules in background goroutines that read
+	// c.spec. Wait for them to finish before the caller inspects or mutates
+	// c.spec, otherwise those accesses race with the goroutines.
+	c.moduleWaitGroup.Wait()
+
 	mgrNames := []string{"a", "b"}
 	for i := 0; i < c.spec.Mgr.Count; i++ {
 		logger.Infof("Looking for cephmgr replica %d", i)
@@ -464,6 +474,10 @@ func TestConfigureModules(t *testing.T) {
 		{Name: "rook", Enabled: true},
 	}
 	assert.NoError(t, c.configureMgrModules())
+	// Enabling the rook module spawns an asynchronous orchestrator-configuration
+	// goroutine. Wait for it to finish so its mgr commands don't leak into (and
+	// race with) the counter assertions of the next subcase.
+	c.moduleWaitGroup.Wait()
 	assert.GreaterOrEqual(t, modulesEnabled, 1, "rook module should be enabled on Ceph v20.2.5")
 	assert.Equal(t, 0, modulesDisabled)
 	assert.Equal(t, "rook", lastModuleConfigured)
