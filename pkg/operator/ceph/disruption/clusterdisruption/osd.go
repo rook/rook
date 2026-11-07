@@ -342,6 +342,15 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		return reconcile.Result{}, errors.Wrapf(nooutUpdateErr, "failed to update maintenance noout in cluster %q", request)
 	}
 
+	// While a failure domain is draining, nothing the controller watches changes when its OSDs
+	// come back or its PGs become clean, and the noout timeout is only checked here. The cached
+	// read of the default PDB in requeuePDBController can also still return it right after
+	// handleActiveDrains deleted it. Requeue until the drain is over.
+	if pdbStateMap.Data[drainingFailureDomainKey] != "" {
+		logger.Infof("failure domain %q is draining, reconciling osd pdb controller again", pdbStateMap.Data[drainingFailureDomainKey])
+		return reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}, nil
+	}
+
 	return r.requeuePDBController(request)
 }
 
