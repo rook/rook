@@ -212,3 +212,38 @@ func testSpec(t *testing.T) *cluster {
 	}
 	return &cluster{Spec: &cephv1.ClusterSpec{}, context: context}
 }
+
+func TestIsCephStatusHealthyForUpgrade(t *testing.T) {
+	newStatus := func(health string, checks map[string]client.CheckMessage) client.CephStatus {
+		return client.CephStatus{Health: client.HealthStatus{Status: health, Checks: checks}}
+	}
+
+	assert.True(t, isCephStatusHealthyForUpgrade(newStatus("HEALTH_OK", nil)))
+	assert.True(t, isCephStatusHealthyForUpgrade(newStatus("HEALTH_WARN", map[string]client.CheckMessage{
+		"MON_DOWN": {Severity: "HEALTH_WARN"},
+	})))
+	assert.False(t, isCephStatusHealthyForUpgrade(newStatus("", nil)))
+
+	t.Run("ignorable HEALTH_ERR does not block upgrade", func(t *testing.T) {
+		assert.True(t, isCephStatusHealthyForUpgrade(newStatus("HEALTH_ERR", map[string]client.CheckMessage{
+			"AUTH_INSECURE_SERVICE_KEY_TYPE": {Severity: "HEALTH_ERR"},
+			"MON_DOWN":                       {Severity: "HEALTH_WARN"},
+		})))
+		assert.True(t, isCephStatusHealthyForUpgrade(newStatus("HEALTH_ERR", map[string]client.CheckMessage{
+			"MDS_ALL_DOWN":     {Severity: "HEALTH_ERR"},
+			"MGR_MODULE_ERROR": {Severity: "HEALTH_ERR"},
+		})))
+	})
+
+	t.Run("HEALTH_ERR that can't be ignored blocks upgrade", func(t *testing.T) {
+		assert.False(t, isCephStatusHealthyForUpgrade(newStatus("HEALTH_ERR", map[string]client.CheckMessage{
+			"OSD_FULL": {Severity: "HEALTH_ERR"},
+		})))
+		assert.False(t, isCephStatusHealthyForUpgrade(newStatus("HEALTH_ERR", map[string]client.CheckMessage{
+			"AUTH_INSECURE_SERVICE_KEY_TYPE": {Severity: "HEALTH_ERR"},
+			"OSD_FULL":                       {Severity: "HEALTH_ERR"},
+		})))
+		// HEALTH_ERR with no error checks reported is not known to be safe
+		assert.False(t, isCephStatusHealthyForUpgrade(newStatus("HEALTH_ERR", nil)))
+	})
+}
