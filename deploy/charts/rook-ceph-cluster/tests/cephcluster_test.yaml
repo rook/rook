@@ -1,0 +1,19 @@
+suite: cephcluster
+templates:
+  - cephcluster.yaml
+tests:
+  - it: leaves metricsDisabled unset by default
+    asserts:
+      - isKind:
+          of: CephCluster
+      - notExists:
+          path: spec.monitoring.metricsDisabled
+
+  - it: passes monitoring.metricsDisabled to the CephCluster
+    set:
+      monitoring:
+        metricsDisabled: true
+    asserts:
+      - equal:
+          path: spec.monitoring.metricsDisabled
+          value: true
