@@ -16,7 +16,7 @@ metadata:
   name: {{ $blockpool.storageClass.name | quote }}
   {{- with $blockpool.storageClass.labels }}
   labels:
-    {{- . | nindent 4 }}
+    {{- . | toYaml | nindent 4 }}
   {{- end }}
   annotations:
     storageclass.kubernetes.io/is-default-class: "{{ if $blockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
