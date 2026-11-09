@@ -185,8 +185,8 @@ func ObcAdditionalConfigKeyIsAllowed(configField string) bool {
 	return slices.Contains(obcAllowAdditionalConfigFields, configField)
 }
 
-// canIgnoreHealthErrStatusInReconcile determines whether a status of HEALTH_ERR in the CephCluster can be ignored safely.
-func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, controllerName string) bool {
+// CanIgnoreHealthErrStatusInReconcile determines whether a status of HEALTH_ERR in the CephCluster can be ignored safely.
+func CanIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, controllerName string) bool {
 	// Get a list of all the keys causing the HEALTH_ERR status.
 	healthErrKeys := make([]string, 0)
 	for key, health := range cephCluster.Status.CephStatus.Details {
@@ -255,7 +255,7 @@ func IsReadyToReconcile(ctx context.Context, c client.Client, namespacedName typ
 	if cephCluster.Status.CephStatus != nil {
 		operatorDeploymentOk := cephCluster.Status.CephStatus.Health == "HEALTH_OK" || cephCluster.Status.CephStatus.Health == "HEALTH_WARN"
 
-		if operatorDeploymentOk || canIgnoreHealthErrStatusInReconcile(cephCluster, controllerName) {
+		if operatorDeploymentOk || CanIgnoreHealthErrStatusInReconcile(cephCluster, controllerName) {
 			log.NamedDebug(namespacedName, logger, "%q: ceph status is %q, operator is ready to run ceph command, reconciling", controllerName, cephCluster.Status.CephStatus.Health)
 			return cephCluster, true, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 		}

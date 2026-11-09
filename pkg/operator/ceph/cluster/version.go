@@ -197,6 +197,17 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		// check ceph's status, if not healthy we fail
 		cephHealthy := daemonclient.IsCephHealthy(c.context, c.ClusterInfo)
 		if !cephHealthy {
+			// HEALTH_ERR from cephx key type checks is expected mid-upgrade once mons run a
+			// version that supports AES256K keys. It only clears when the upgrade finishes and
+			// keys are rotated, so it must not block the upgrade from resuming.
+			clusterObj := &cephv1.CephCluster{}
+			if err := c.context.Client.Get(c.ClusterInfo.Context, c.namespacedName, clusterObj); err == nil &&
+				controller.CanIgnoreHealthErrStatusInReconcile(*clusterObj, "ceph-cluster-controller") {
+				log.NamespacedWarning(c.Namespace, logger, "ceph is not healthy, but all health errors can be cleared by continuing the upgrade, proceeding")
+				cephHealthy = true
+			}
+		}
+		if !cephHealthy {
 			if c.Spec.SkipUpgradeChecks {
 				log.NamespacedWarning(c.Namespace, logger, "ceph is not healthy but SkipUpgradeChecks is set, forcing upgrade.")
 			} else {
