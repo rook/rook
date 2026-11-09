@@ -125,6 +125,19 @@ func createNewCluster(t *testing.T) *Cluster {
 	c := New(ctx, clusterInfo, clusterSpec, "myversion")
 	defer os.RemoveAll(c.spec.DataDirHostPath)
 
+	// This cluster enables the dashboard with SSL, so the awaited dashboard
+	// goroutine would otherwise sleep for dashboardInitWaitTime (5s). Zero it out
+	// and restore it after the goroutines are awaited (cleanups run LIFO, so the
+	// restore below runs after the Wait registered next).
+	origDashboardInitWaitTime := dashboardInitWaitTime
+	dashboardInitWaitTime = 0
+	t.Cleanup(func() { dashboardInitWaitTime = origDashboardInitWaitTime })
+
+	// Start() configures mgr modules in background goroutines. Wait for them at
+	// the end of the test so they don't leak into later tests and race on the
+	// shared package globals those goroutines read (e.g. exec.CephCommandsTimeout).
+	t.Cleanup(c.moduleWaitGroup.Wait)
+
 	return c
 }
 
@@ -171,6 +184,11 @@ func TestStartMgr(t *testing.T) {
 }
 
 func validateStart(t *testing.T, c *Cluster) {
+	// Start() configures the mgr modules in background goroutines that read
+	// c.spec. Wait for them to finish before the caller inspects or mutates
+	// c.spec, otherwise those accesses race with the goroutines.
+	c.moduleWaitGroup.Wait()
+
 	mgrNames := []string{"a", "b"}
 	for i := 0; i < c.spec.Mgr.Count; i++ {
 		logger.Infof("Looking for cephmgr replica %d", i)
@@ -464,7 +482,11 @@ func TestConfigureModules(t *testing.T) {
 		{Name: "rook", Enabled: true},
 	}
 	assert.NoError(t, c.configureMgrModules())
-	assert.GreaterOrEqual(t, modulesEnabled, 1, "rook module should be enabled on Ceph v20.2.5")
+	// Enabling the rook module spawns an asynchronous orchestrator-configuration
+	// goroutine. Wait for it to finish so its mgr commands don't leak into (and
+	// race with) the counter assertions of the next subcase.
+	c.moduleWaitGroup.Wait()
+	assert.Equal(t, 2, modulesEnabled, "rook module should be enabled by the spec and by the orchestrator configuration on Ceph v20.2.5")
 	assert.Equal(t, 0, modulesDisabled)
 	assert.Equal(t, "rook", lastModuleConfigured)
 
@@ -693,6 +715,10 @@ func TestMgrKeyRotation(t *testing.T) {
 	// verify keyGeneration is set to 1 when the keys are created for the first time.
 	err := c.Start()
 	assert.NoError(t, err)
+	// Wait for this Start()'s async module-configuration goroutines before the
+	// next Start(), so their dashboard goroutines don't overlap on shared package
+	// globals (e.g. removeMgrDaemonConfiguration).
+	c.moduleWaitGroup.Wait()
 	cluster := &cephv1.CephCluster{}
 	err = c.context.Client.Get(t.Context(), c.clusterInfo.NamespacedName(), cluster)
 	assert.NoError(t, err)
@@ -708,6 +734,7 @@ func TestMgrKeyRotation(t *testing.T) {
 
 	err = c.Start()
 	assert.NoError(t, err)
+	c.moduleWaitGroup.Wait()
 	err = c.context.Client.Get(t.Context(), c.clusterInfo.NamespacedName(), cluster)
 	assert.NoError(t, err)
 	assert.Equal(t, uint32(2), cluster.Status.Cephx.Mgr.KeyGeneration)
@@ -720,6 +747,7 @@ func TestMgrKeyRotation(t *testing.T) {
 
 	err = c.Start()
 	assert.NoError(t, err)
+	c.moduleWaitGroup.Wait()
 	err = c.context.Client.Get(t.Context(), c.clusterInfo.NamespacedName(), cluster)
 	assert.NoError(t, err)
 	assert.Equal(t, uint32(3), cluster.Status.Cephx.Mgr.KeyGeneration)
