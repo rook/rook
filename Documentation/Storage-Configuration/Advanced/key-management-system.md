@@ -6,7 +6,10 @@ title: Key Management System
 <!-- allow duplicate headers in this file -->
 
 Rook has the ability to encrypt OSDs of clusters running on PVC via the flag (`encrypted: true`) in your `storageClassDeviceSets` [template](../../CRDs/Cluster/pvc-cluster.md).
-Rook also has the ability to rotate encryption keys of OSDs using a cron job per OSD.
+Host-based OSDs are encrypted with `encryptedDevice: "true"` in the [storage config](../../CRDs/Cluster/ceph-cluster-crd.md#osd-configuration-settings).
+When `security.kms` is set and Ceph is v19.2.1 or later, they are created in `ceph-volume raw` mode and their keys are stored in the KMS.
+Host-based OSDs that need `lvm` mode, with a `metadataDevice` or `osdsPerDevice` greater than 1, keep their keys in the Ceph monitors only.
+Rook also has the ability to rotate encryption keys of OSDs on PVC using a cron job per OSD.
 By default, the Key Encryption Keys (also known as Data Encryption Keys) are stored in a Kubernetes Secret.
 However, if a Key Management System exists Rook is capable of using it.
 
