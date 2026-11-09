@@ -18,6 +18,11 @@ package nvmeof
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +38,8 @@ import (
 	optest "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	ini "gopkg.in/ini.v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -595,6 +602,149 @@ func TestDeploymentSpec(t *testing.T) {
 		assertServicePort(t, svc.Spec.Ports, "monitor", 15499)
 		assertServicePort(t, svc.Spec.Ports, "discovery", 18009)
 	})
+}
+
+func TestCephConfigInitContainerScript(t *testing.T) {
+	const podIP = "10.0.0.1"
+
+	for _, tt := range []struct {
+		name  string
+		group string
+	}{
+		{name: "sed command", group: "x/;e touch pwned;#"},
+		{name: "spaces and quotes", group: `group with spaces "double" 'single'`},
+		{name: "sed replacement and shell syntax", group: `a&b\c\&d\\e/f $(touch pwned) ` + "`touch pwned`"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			r, _ := newDeploymentSpecTest(t)
+			nvmeof := &cephv1.CephNVMeOFGateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nvmeof",
+					Namespace: "rook-ceph-test-ns",
+				},
+				Spec: cephv1.NVMeOFGatewaySpec{
+					Image:     "quay.io/ceph/nvmeof:1.5",
+					Group:     tt.group,
+					Instances: 1,
+				},
+			}
+			gatewayName := instanceName(nvmeof, "0")
+
+			configMap, err := r.generateConfigMap(nvmeof, "0")
+			require.NoError(t, err)
+			rendered := configMap.Data[configKey]
+			cfg, err := ini.Load([]byte(rendered))
+			require.NoError(t, err)
+			assert.Equal(t, tt.group, cfg.Section("gateway").Key("group").String())
+
+			d, err := r.makeDeployment(nvmeof, "0", configMap.Name, "")
+			require.NoError(t, err)
+			require.Len(t, d.Spec.Template.Spec.InitContainers, 1)
+			initContainer := d.Spec.Template.Spec.InitContainers[0]
+
+			for _, cc := range []struct {
+				name   string
+				config string
+				want   string
+			}{
+				{
+					name:   "generated config",
+					config: rendered,
+					want:   strings.ReplaceAll(rendered, "@@POD_IP@@", podIP),
+				},
+				{
+					name:   "configMapRef with placeholders",
+					config: "[gateway]\nname = @@POD_NAME@@\ngroup = @@ANA_GROUP@@\naddr = @@POD_IP@@\n",
+					want:   "[gateway]\nname = " + gatewayName + "\ngroup = " + tt.group + "\naddr = " + podIP + "\n",
+				},
+			} {
+				t.Run(cc.name, func(t *testing.T) {
+					root := runCephConfigInitContainer(t, initContainer, cc.config, podIP)
+
+					assert.NoFileExists(t, filepath.Join(root, "pwned"), "the group must not be evaluated as a command")
+					conf, err := os.ReadFile(filepath.Join(root, "etc/ceph/nvmeof.conf"))
+					require.NoError(t, err)
+					assert.Equal(t, cc.want, string(conf))
+					assert.Equal(t, [][]string{
+						{"nvme-gw", "create", gatewayName, nvmeofPoolName, tt.group},
+						{"nvme-gw", "show", nvmeofPoolName, tt.group},
+					}, nvmeGwCalls(t, root))
+				})
+			}
+		})
+	}
+}
+
+// runCephConfigInitContainer runs the init container's command under bash with
+// gatewayConfig as the mounted nvmeof.conf, and returns the directory the
+// script's absolute paths were moved under. ceph is a stub that records its
+// arguments for nvmeGwCalls.
+func runCephConfigInitContainer(t *testing.T, c v1.Container, gatewayConfig, podIP string) string {
+	t.Helper()
+	require.Len(t, c.Command, 3)
+	require.Equal(t, "-c", c.Command[1])
+
+	root := t.TempDir()
+	for _, dir := range []string{"bin", "config", "etc/ceph", "tmp/ceph"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(root, dir), 0o700))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(root, "config/nvmeof.conf"), []byte(gatewayConfig), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "tmp/ceph/keyring"), []byte("[client.admin]\n"), 0o600))
+	// Each invocation is recorded as its argument count followed by its
+	// arguments, all NUL-terminated.
+	cephStub := "#!/usr/bin/env bash\nprintf '%s\\0' \"$#\" \"$@\" >> \"${CEPH_ARGV_LOG}\"\n"
+	// #nosec G306 -- the stub must be executable to be found on PATH
+	require.NoError(t, os.WriteFile(filepath.Join(root, "bin/ceph"), []byte(cephStub), 0o700))
+
+	script := strings.NewReplacer(
+		"/config/", root+"/config/",
+		"/etc/ceph", root+"/etc/ceph",
+		"/tmp/ceph", root+"/tmp/ceph",
+	).Replace(c.Command[2])
+
+	env := []string{
+		"PATH=" + filepath.Join(root, "bin") + string(os.PathListSeparator) + os.Getenv("PATH"),
+		"CEPH_ARGV_LOG=" + filepath.Join(root, "ceph-argv"),
+		// A pod gets these from the downward API and the mon secret.
+		"POD_IP=" + podIP,
+		"ROOK_CEPH_MON_HOST=[v2:10.0.0.2:3300]",
+	}
+	for _, e := range c.Env {
+		if e.ValueFrom == nil {
+			env = append(env, e.Name+"="+e.Value)
+		}
+	}
+
+	args := append([]string{"-c", script}, c.Args...)
+	cmd := exec.Command("bash", args...)
+	cmd.Dir = root
+	cmd.Env = env
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
+	return root
+}
+
+// nvmeGwCalls returns the arguments of each stub ceph invocation from
+// "nvme-gw" on, leaving out the global flags passed ahead of it.
+func nvmeGwCalls(t *testing.T, root string) [][]string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, "ceph-argv"))
+	require.NoError(t, err)
+
+	var calls [][]string
+	fields := strings.Split(strings.TrimSuffix(string(data), "\x00"), "\x00")
+	for len(fields) > 0 {
+		n, err := strconv.Atoi(fields[0])
+		require.NoError(t, err)
+		require.Less(t, n, len(fields))
+		args := fields[1 : n+1]
+		fields = fields[n+1:]
+
+		i := slices.Index(args, "nvme-gw")
+		require.GreaterOrEqual(t, i, 0, "ceph %q", args)
+		calls = append(calls, args[i:])
+	}
+	return calls
 }
 
 func assertEnvVar(t *testing.T, envVars []v1.EnvVar, name, value string) {
