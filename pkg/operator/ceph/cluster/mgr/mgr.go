@@ -22,6 +22,7 @@ import (
 	"math"
 	"slices"
 	"strconv"
+	"sync"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
@@ -72,6 +73,9 @@ type Cluster struct {
 	exitCode              func(err error) (int, bool)
 	spec                  cephv1.ClusterSpec
 	shouldRotateCephxKeys bool
+	// moduleWaitGroup tracks the asynchronous module-configuration goroutines
+	// started by startModuleConfiguration so they can be awaited (used by tests).
+	moduleWaitGroup sync.WaitGroup
 }
 
 // New creates an instance of the mgr
@@ -422,14 +426,14 @@ func (c *Cluster) configureModules(daemonIDs []string) {
 }
 
 func (c *Cluster) startModuleConfiguration(description string, configureModules func() error) {
-	go func() {
+	c.moduleWaitGroup.Go(func() {
 		err := configureModules()
 		if err != nil {
 			log.NamespacedError(c.clusterInfo.Namespace, logger, "failed modules: %q. %v", description, err)
 		} else {
 			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "successful modules: %s", description)
 		}
-	}()
+	})
 }
 
 // Ceph docs about the prometheus module: http://docs.ceph.com/docs/master/mgr/prometheus/
