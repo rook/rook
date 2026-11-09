@@ -492,6 +492,7 @@ func (c *ClusterController) reconcileCephCluster(clusterObj *cephv1.CephCluster,
 	// Pass down the client to interact with Kubernetes objects
 	// This will be used later down by spec code to create objects like deployment, services etc
 	clustr.context.Client = c.client
+	clustr.recorder = c.recorder
 
 	// Set the spec
 	clustr.Spec = &clusterObj.Spec
@@ -545,7 +546,7 @@ func (c *ClusterController) requestClusterDelete(clusterObj *cephv1.CephCluster)
 
 	if clusterObj.Spec.External.Enable {
 		purgeExternalCluster(c.context.Clientset, clusterObj.Namespace)
-	} else if clusterObj.Spec.Storage.IsOnPVCEncrypted() && clusterObj.Spec.Security.KeyManagementService.IsEnabled() {
+	} else if clusterObj.Spec.Security.KeyManagementService.IsEnabled() && (clusterObj.Spec.Storage.IsOnPVCEncrypted() || clusterObj.Spec.CleanupPolicy.HasDataDirCleanPolicy()) {
 		// If the StorageClass retain policy of an encrypted cluster with KMS is Delete we also delete the keys
 		// Delete keys from KMS
 		err := c.deleteOSDEncryptionKeyFromKMS(clusterObj)
@@ -672,31 +673,31 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 	}
 
 	// Initialize the KMS code
-	kmsConfig := kms.NewConfig(c.context, &currentCluster.Spec, clusterObj.ClusterInfo)
+	kmsConfig, err := kms.NewOperatorConfig(ctx, c.context, &currentCluster.Spec, clusterObj.ClusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to configure the kms to delete the secrets")
+	}
 	kmsConfig.ClusterInfo.Context = ctx
 
-	// If token auth is used by the KMS we set it as an env variable
-	if currentCluster.Spec.Security.KeyManagementService.IsTokenAuthEnabled() && currentCluster.Spec.Security.KeyManagementService.IsVaultKMS() {
-		err := kms.SetTokenToEnvVar(ctx, c.context, currentCluster.Spec.Security.KeyManagementService.TokenSecretName, kmsConfig.Provider, currentCluster.Namespace)
+	// The keys of host-based OSDs open the disks, so they are only deleted when the cleanup
+	// policy says the data is destroyed anyway
+	keyNames := []string{}
+	if currentCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
+		keyNames, err = osd.HostOSDKeyNames(ctx, c.context, currentCluster.Namespace)
 		if err != nil {
-			return errors.Wrapf(err, "failed to fetch kms token secret %q", currentCluster.Spec.Security.KeyManagementService.TokenSecretName)
+			return err
+		}
+	}
+	if currentCluster.Spec.Storage.IsOnPVCEncrypted() {
+		for _, osdPVC := range osdPVCs {
+			keyNames = append(keyNames, osdPVC.Name)
 		}
 	}
 
-	// We need to fetch the IBM_KP_SERVICE_API_KEY value and KMIP kms related values too.
-	if currentCluster.Spec.Security.KeyManagementService.IsIBMKeyProtectKMS() || currentCluster.Spec.Security.KeyManagementService.IsKMIPKMS() {
-		// This will validate the connection details again and will add the IBM_KP_SERVICE_API_KEY to the spec and
-		// token details required for KMIP kms are added too.
-		err = kms.ValidateConnectionDetails(ctx, c.context, &currentCluster.Spec.Security.KeyManagementService, currentCluster.Namespace)
-		if err != nil {
-			return errors.Wrap(err, "failed to validate kms connection details to delete the secret")
-		}
-	}
-
-	// Delete each PV KEK
-	for _, osdPVC := range osdPVCs {
+	// Delete each PV KEK and host OSD key
+	for _, keyName := range keyNames {
 		// Generate and store the encrypted key in whatever KMS is configured
-		err = kmsConfig.DeleteSecret(osdPVC.Name)
+		err = kmsConfig.DeleteSecret(keyName)
 		if err != nil {
 			log.NamespacedError(currentCluster.Namespace, logger, "failed to delete secret. %v", err)
 			continue
