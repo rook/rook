@@ -35,6 +35,8 @@ const (
 	// EncryptedDeviceEnvVarName is used in the pod spec to indicate whether the OSD is encrypted or not
 	EncryptedDeviceEnvVarName = "ROOK_ENCRYPTED_DEVICE"
 	PVCNameEnvVarName         = "ROOK_PVC_NAME"
+	// HostOSDKMSEnvVarName tells the prepare job that encrypted host-based OSDs keep their keys in a KMS
+	HostOSDKMSEnvVarName = "ROOK_HOST_OSD_KMS"
 	// CephVolumeEncryptedKeyEnvVarName is the env variable used by ceph-volume to encrypt the OSD (raw mode)
 	// Hardcoded in ceph-volume do NOT touch
 	CephVolumeEncryptedKeyEnvVarName = "CEPH_VOLUME_DMCRYPT_SECRET"

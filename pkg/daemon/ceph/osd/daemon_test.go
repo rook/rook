@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/sys"
@@ -518,6 +519,23 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
+
+	// encrypted partitions are picked when encrypted host OSDs keep their keys in a KMS
+	t.Setenv(oposd.HostOSDKMSEnvVarName, "true")
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.True(t, mapping.Entries["sdt1"].Config.EncryptedDevice)
+	agent.devices = []DesiredDevice{{Name: "all"}}
+	agent.storeConfig.EncryptedDevice = true
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Contains(t, mapping.Entries, "sdt1")
+	t.Setenv(oposd.HostOSDKMSEnvVarName, "")
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.NotContains(t, mapping.Entries, "sdt1")
+	agent.storeConfig.EncryptedDevice = false
 
 	// logical volume with per-device encryption is rejected
 	agent.devices = []DesiredDevice{{Name: "/dev/mapper/vg1-lv1", EncryptedDevice: true}}

@@ -119,6 +119,14 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 			return nil, errors.Wrap(err, "failed to get osd tree for destroyed slots")
 		}
 		destroyedOSDIds = tree.GetDestroyedIDs()
+
+		if hostKMSEnabled() {
+			clusterOSDs, err := clusterOSDUUIDs(context, a.clusterInfo)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to list the osds of the cluster")
+			}
+			openHostOSDs(context, a.clusterInfo, clusterOSDs)
+		}
 	}
 
 	// Idempotency check, if the device list is empty devices have been prepared already
@@ -506,8 +514,9 @@ func (a *OsdAgent) allowRawMode(context *clusterd.Context) (bool, error) {
 	// by default assume raw mode
 	allowRawMode := true
 
-	// ceph-volume raw mode does not support encryption yet
-	if a.storeConfig.EncryptedDevice {
+	// ceph-volume raw mode needs the encryption key from the caller, so encrypted host-based
+	// OSDs can only use raw mode when the key is kept in a KMS
+	if a.storeConfig.EncryptedDevice && !hostKMSEnabled() {
 		logger.Debug("won't use raw mode since encryption is enabled")
 		allowRawMode = false
 	}
@@ -540,8 +549,8 @@ func isSafeToUseRawMode(device *DeviceOsdIDEntry) bool {
 		return false
 	}
 
-	// ceph-volume raw mode does not support encryption yet
-	if device.Config.EncryptedDevice {
+	// ceph-volume raw mode needs the encryption key from the caller, see allowRawMode()
+	if device.Config.EncryptedDevice && !hostKMSEnabled() {
 		logger.Debugf("won't use raw mode for disk %q since encryption is enabled", device.Config.Name)
 		return false
 	}
@@ -661,8 +670,20 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 			// assign the device class specific to the device
 			immediateExecuteArgs = a.appendDeviceClassArg(device, immediateExecuteArgs)
 
+			encrypted := a.storeConfig.EncryptedDevice || device.Config.EncryptedDevice
+			if encrypted {
+				if err := setNewHostOSDKey(); err != nil {
+					return nil, err
+				}
+				immediateExecuteArgs = append(immediateExecuteArgs, encryptedFlag)
+			}
+
 			// execute ceph-volume with the device
 			op, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, immediateExecuteArgs...)
+			if encrypted {
+				// the OSD listing that follows must not see the key, see GetCephVolumeRawOSDs()
+				_ = os.Unsetenv(oposd.CephVolumeEncryptedKeyEnvVarName)
+			}
 			if err != nil {
 				cvLogFilePath := path.Join(cephLogDir, "ceph-volume.log")
 
@@ -676,7 +697,16 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 				return nil, errors.Wrapf(err, "failed to run ceph-volume raw command. %s", op) // fail return here as validation provided by ceph-volume
 			}
 			logger.Infof("%v", op)
-			preparedDevices = append(preparedDevices, deviceArg)
+			if encrypted {
+				mapper, err := mapperOfPreparedOSD(op)
+				if err != nil {
+					return nil, err
+				}
+				// "ceph-volume raw list" reports an encrypted OSD by its mapper, not by the device
+				preparedDevices = append(preparedDevices, mapper)
+			} else {
+				preparedDevices = append(preparedDevices, deviceArg)
+			}
 		} else {
 			logger.Infof("skipping device %q with osd %d already configured", deviceArg, device.Data)
 		}
