@@ -18,6 +18,9 @@ package osd
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -547,6 +550,7 @@ func TestBuildReplacementPrepareArgs(t *testing.T) {
 }
 
 func TestEncryptedDMNamesForOSD(t *testing.T) {
+	devMapperDir = t.TempDir()
 	// JSON shape mirrors a real `ceph-volume lvm list <id>` for a shared-metadata encrypted OSD: the
 	// dm-crypt mapping name is the LV's lv_uuid (verified on a live cluster), and only entries tagged
 	// ceph.encrypted=1 carry a mapping to close.
@@ -556,6 +560,31 @@ func TestEncryptedDMNamesForOSD(t *testing.T) {
 			{"type": "db", "lv_uuid": "DB-UUID", "vg_name": "ceph-dvg", "lv_name": "osd-db-y", "path": "/dev/ceph-dvg/osd-db-y", "tags": {"ceph.encrypted": "1", "ceph.osd_id": "5"}}
 		]
 	}`
+
+	t.Run("raw mode mapper of the osd is returned", func(t *testing.T) {
+		dir := t.TempDir()
+		defer func(d string) { devMapperDir = d }(devMapperDir)
+		devMapperDir = dir
+		mine := "ceph-8f3d6a1e-2b7c-4e59-9a0d-1c2b3d4e5f60-sdb-block-dmcrypt"
+		other := "ceph-64f279de-45a7-4372-aa11-d52d13db22c6-sdc-block-dmcrypt"
+		for _, name := range []string{mine, other} {
+			require.NoError(t, os.WriteFile(filepath.Join(dir, name), nil, 0o600))
+		}
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if slices.Contains(args, "lvm") {
+					return "{}", nil
+				}
+				if slices.Contains(args, filepath.Join(dir, mine)) {
+					return `{"8f3d6a1e-2b7c-4e59-9a0d-1c2b3d4e5f60": {"osd_id": 5}}`, nil
+				}
+				return `{"64f279de-45a7-4372-aa11-d52d13db22c6": {"osd_id": 6}}`, nil
+			},
+		}
+		names, err := encryptedDMNamesForOSD(&clusterd.Context{Executor: executor}, 5)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{mine}, names)
+	})
 
 	t.Run("encrypted shared-metadata returns block and db dm names", func(t *testing.T) {
 		executor := &exectest.MockExecutor{
@@ -630,6 +659,7 @@ func TestEncryptedDMNamesForOSD(t *testing.T) {
 }
 
 func TestCloseEncryptedDevicesForOSD(t *testing.T) {
+	devMapperDir = t.TempDir()
 	const encryptedOut = `{
 		"5": [
 			{"type": "block", "lv_uuid": "BLOCK-UUID", "tags": {"ceph.encrypted": "1", "ceph.osd_id": "5"}},

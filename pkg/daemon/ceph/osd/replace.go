@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
 )
@@ -84,14 +86,18 @@ func CloseEncryptedDevicesForOSD(context *clusterd.Context, osdID int) error {
 }
 
 // encryptedDMNamesForOSD returns the host dm-crypt mapping names for the OSD with the given id,
-// resolved from `ceph-volume lvm list <id>`. In lvm mode the mapping name is the LV's lv_uuid.
+// resolved from `ceph-volume lvm list <id>`, where the mapping name is the LV's lv_uuid, and from
+// the raw mode mappers that `ceph-volume raw list` reports for the id.
 func encryptedDMNamesForOSD(context *clusterd.Context, osdID int) ([]string, error) {
 	entries, err := cephVolumeLVMList(context, osdID)
 	if err != nil {
 		return nil, err
 	}
 
-	dmNames := []string{}
+	dmNames, err := rawEncryptedDMNamesForOSD(context, osdID)
+	if err != nil {
+		return nil, err
+	}
 	for _, entry := range entries {
 		if entry.Tags.Encrypted != "1" {
 			continue
@@ -103,6 +109,36 @@ func encryptedDMNamesForOSD(context *clusterd.Context, osdID int) ([]string, err
 		dmNames = append(dmNames, entry.LVUUID)
 	}
 
+	return dmNames, nil
+}
+
+var devMapperDir = "/dev/mapper"
+
+// rawEncryptedDMNamesForOSD returns the open raw mode mappers of the OSD with the given id, which
+// "ceph-volume raw prepare" names "ceph-<osd fsid>-<kernel name>-block-dmcrypt"
+func rawEncryptedDMNamesForOSD(context *clusterd.Context, osdID int) ([]string, error) {
+	mappers, err := filepath.Glob(filepath.Join(devMapperDir, "ceph-*-"+oposd.DmcryptBlockType))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list dm-crypt mappers")
+	}
+	dmNames := []string{}
+	for _, mapper := range mappers {
+		result, err := callCephVolume(context, "raw", "list", mapper, "--format", "json")
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list raw osd on %q", mapper)
+		}
+		var listResult map[string]struct {
+			OSDID int `json:"osd_id"`
+		}
+		if err := json.Unmarshal([]byte(result), &listResult); err != nil {
+			return nil, errors.Wrapf(err, "failed to unmarshal ceph-volume raw list result for %q (%d bytes)", mapper, len(result))
+		}
+		for _, osd := range listResult {
+			if osd.OSDID == osdID {
+				dmNames = append(dmNames, filepath.Base(mapper))
+			}
+		}
+	}
 	return dmNames, nil
 }
 
@@ -378,6 +414,13 @@ func (a *OsdAgent) provisionReplacedOSD(context *clusterd.Context, osdID int, en
 		}
 	}
 
+	if useRaw && (a.storeConfig.EncryptedDevice || entry.Config.EncryptedDevice) {
+		if err := setNewHostOSDKey(); err != nil {
+			return err
+		}
+		defer func() { _ = os.Unsetenv(oposd.CephVolumeEncryptedKeyEnvVarName) }()
+	}
+
 	args := a.buildReplacementPrepareArgs(osdID, dataDevice, dbLV, entry, useRaw, logPath)
 
 	logger.Infof("provisioning replacement osd.%d: %s %v", osdID, baseCommand, args)
@@ -416,14 +459,12 @@ func (a *OsdAgent) buildReplacementPrepareArgs(osdID int, dataDevice, dbLV strin
 
 	args := []string{"-oL", cephVolumeCmd, "--log-path", logPath, cvMode, "prepare", storeFlag, "--osd-id", strconv.Itoa(osdID), dataFlag, dataDevice}
 
-	if !useRaw {
-		// Raw mode never has a separate DB device or encryption (those force lvm mode).
-		if dbLV != "" {
-			args = append(args, blockDBFlag, dbLV)
-		}
-		if a.storeConfig.EncryptedDevice || entry.Config.EncryptedDevice {
-			args = append(args, encryptedFlag)
-		}
+	// Raw mode never has a separate DB device (that forces lvm mode), and is encrypted only with a KMS
+	if !useRaw && dbLV != "" {
+		args = append(args, blockDBFlag, dbLV)
+	}
+	if a.storeConfig.EncryptedDevice || entry.Config.EncryptedDevice {
+		args = append(args, encryptedFlag)
 	}
 
 	return a.appendDeviceClassArg(entry, args)
