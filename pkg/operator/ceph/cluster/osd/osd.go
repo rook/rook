@@ -49,6 +49,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -101,6 +102,8 @@ type Cluster struct {
 	migrateOSD     *OSDInfo
 	deprecatedOSDs map[string][]int
 	nodeConfigmaps map[string]struct{}
+	// Recorder records events on the CephCluster, if set
+	Recorder events.EventRecorder
 }
 
 // New creates an instance of the OSD manager

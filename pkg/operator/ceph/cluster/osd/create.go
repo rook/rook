@@ -127,6 +127,15 @@ func (c *createConfig) createNewOSDsFromStatus(
 			// Fall through to recreate the OSD from the reprovisioned status
 		}
 
+		// The OSD is created only once the KMS holds its key, so a failure is retried on the next
+		// reconcile, when the prepare job reports the OSD again
+		if hostOSDUsesKMS(osd, status.PvcBackedOSD) {
+			if err := c.cluster.storeHostOSDKeyInKMS(osd); err != nil {
+				errs.addError("%v", err)
+				continue
+			}
+		}
+
 		// osd prepare jobs don't generate cephx status info for OSDs. since this is a new OSD
 		// deployment, generate a first-deploy cephx status
 		keyType := cephv1.CephxKeyTypeUndefined // daemon key type always takes the default from setDefaultCephxKeyType()
