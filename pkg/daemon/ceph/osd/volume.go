@@ -1131,6 +1131,12 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 	}
 
 	if len(existingOSDs) == 0 {
+		// ceph-volume writes the OSD fsid, not the cluster fsid, to the LUKS header of host-based raw
+		// OSDs, so the header cannot show that a disk is from another cluster
+		if !a.pvcBacked {
+			logger.Info("not checking the luks header of host-based disks")
+			return nil
+		}
 		// ceph-volume raw list didn't return any existing OSDs. It's possible that /dev/mapper entries of the encrypted disks were removed.
 		// Check for cephFSID in the luks header of the disk and clean the disk if it does not match the cephFSID of the current cluster.
 		logger.Infof("ceph-volume didn't return any existing OSDs. Checking for cephFSID of a different cluster in the luks header of the disk")
