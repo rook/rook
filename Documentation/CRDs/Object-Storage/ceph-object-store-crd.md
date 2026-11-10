@@ -336,6 +336,13 @@ The following CRD settings are available:
     * `startupProbe`: Disable, or override timing and threshold values of the object gateway startup probe.
     * `readinessProbe`: Disable, or override timing and threshold values of the object gateway readiness probe.
 
+Only the timing and threshold fields under `probe` are used: `initialDelaySeconds`, `periodSeconds`,
+`timeoutSeconds`, `successThreshold`, `failureThreshold` and `terminationGracePeriodSeconds`,
+subject to Kubernetes' rules for each probe type. The check the probe runs is always the one Rook
+generates, and an `exec`, `httpGet`, `tcpSocket` or `grpc` handler set under `probe` is ignored. If
+neither the `s3` nor the `swift` API is enabled, Rook has no check to run, so the gateway gets no
+startup or readiness probe and these settings are ignored.
+
 Here is a complete example:
 
 ```yaml
@@ -344,8 +351,9 @@ healthCheck:
     disabled: false
   readinessProbe:
     disabled: false
-    periodSeconds: 5
-    failureThreshold: 2
+    probe:
+      periodSeconds: 5
+      failureThreshold: 2
 ```
 
 You can monitor the health of a CephObjectStore by monitoring the gateway deployments it creates.

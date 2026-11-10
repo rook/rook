@@ -1872,8 +1872,12 @@ spec:
                             type: boolean
                           probe:
                             description: |-
-                              Probe describes a health check to be performed against a container to determine whether it is
-                              alive or ready to receive traffic.
+                              Probe overrides the timing and thresholds of the probe Rook configures for the daemon. Only
+                              initialDelaySeconds, periodSeconds, timeoutSeconds, successThreshold, failureThreshold and
+                              terminationGracePeriodSeconds are used, subject to Kubernetes' rules for each probe type. The
+                              check itself is always the one Rook generates for the daemon, and any exec, httpGet, tcpSocket
+                              or grpc handler set here is ignored. If Rook has no check to run for this probe, these
+                              settings are ignored.
                             properties:
                               exec:
                                 description: Exec specifies a command to execute in the container.
@@ -2052,8 +2056,12 @@ spec:
                             type: boolean
                           probe:
                             description: |-
-                              Probe describes a health check to be performed against a container to determine whether it is
-                              alive or ready to receive traffic.
+                              Probe overrides the timing and thresholds of the probe Rook configures for the daemon. Only
+                              initialDelaySeconds, periodSeconds, timeoutSeconds, successThreshold, failureThreshold and
+                              terminationGracePeriodSeconds are used, subject to Kubernetes' rules for each probe type. The
+                              check itself is always the one Rook generates for the daemon, and any exec, httpGet, tcpSocket
+                              or grpc handler set here is ignored. If Rook has no check to run for this probe, these
+                              settings are ignored.
                             properties:
                               exec:
                                 description: Exec specifies a command to execute in the container.
@@ -8513,8 +8521,12 @@ spec:
                           type: boolean
                         probe:
                           description: |-
-                            Probe describes a health check to be performed against a container to determine whether it is
-                            alive or ready to receive traffic.
+                            Probe overrides the timing and thresholds of the probe Rook configures for the daemon. Only
+                            initialDelaySeconds, periodSeconds, timeoutSeconds, successThreshold, failureThreshold and
+                            terminationGracePeriodSeconds are used, subject to Kubernetes' rules for each probe type. The
+                            check itself is always the one Rook generates for the daemon, and any exec, httpGet, tcpSocket
+                            or grpc handler set here is ignored. If Rook has no check to run for this probe, these
+                            settings are ignored.
                           properties:
                             exec:
                               description: Exec specifies a command to execute in the container.
@@ -9238,15 +9250,22 @@ spec:
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
                     startupProbe:
-                      description: ProbeSpec is a wrapper around Probe so it can be enabled or disabled for a Ceph daemon
+                      description: |-
+                        StartupProbe configures a startup probe for the MDS daemons, which have none by default. If
+                        StartupProbe.Probe is set, Rook adds a startup probe that runs the MDS liveness check with the
+                        timing and thresholds given there.
                       properties:
                         disabled:
                           description: Disabled determines whether probe is disable or not
                           type: boolean
                         probe:
                           description: |-
-                            Probe describes a health check to be performed against a container to determine whether it is
-                            alive or ready to receive traffic.
+                            Probe overrides the timing and thresholds of the probe Rook configures for the daemon. Only
+                            initialDelaySeconds, periodSeconds, timeoutSeconds, successThreshold, failureThreshold and
+                            terminationGracePeriodSeconds are used, subject to Kubernetes' rules for each probe type. The
+                            check itself is always the one Rook generates for the daemon, and any exec, httpGet, tcpSocket
+                            or grpc handler set here is ignored. If Rook has no check to run for this probe, these
+                            settings are ignored.
                           properties:
                             exec:
                               description: Exec specifies a command to execute in the container.
@@ -11345,15 +11364,20 @@ spec:
                     livenessProbe:
                       description: |-
                         A liveness-probe to verify that Ganesha server has valid run-time state.
-                        If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.
+                        Unless LivenessProbe.Disabled is true, the default probe is used, with the timing and
+                        thresholds of LivenessProbe.Probe applied to it.
                       properties:
                         disabled:
                           description: Disabled determines whether probe is disable or not
                           type: boolean
                         probe:
                           description: |-
-                            Probe describes a health check to be performed against a container to determine whether it is
-                            alive or ready to receive traffic.
+                            Probe overrides the timing and thresholds of the probe Rook configures for the daemon. Only
+                            initialDelaySeconds, periodSeconds, timeoutSeconds, successThreshold, failureThreshold and
+                            terminationGracePeriodSeconds are used, subject to Kubernetes' rules for each probe type. The
+                            check itself is always the one Rook generates for the daemon, and any exec, httpGet, tcpSocket
+                            or grpc handler set here is ignored. If Rook has no check to run for this probe, these
+                            settings are ignored.
                           properties:
                             exec:
                               description: Exec specifies a command to execute in the container.
@@ -12267,15 +12291,20 @@ spec:
                 livenessProbe:
                   description: |-
                     A liveness-probe to verify that gateway has valid run-time state.
-                    If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.
+                    If LivenessProbe is set and LivenessProbe.Disabled is false, the default probe is used, with
+                    the timing and thresholds of LivenessProbe.Probe applied to it.
                   properties:
                     disabled:
                       description: Disabled determines whether probe is disable or not
                       type: boolean
                     probe:
                       description: |-
-                        Probe describes a health check to be performed against a container to determine whether it is
-                        alive or ready to receive traffic.
+                        Probe overrides the timing and thresholds of the probe Rook configures for the daemon. Only
+                        initialDelaySeconds, periodSeconds, timeoutSeconds, successThreshold, failureThreshold and
+                        terminationGracePeriodSeconds are used, subject to Kubernetes' rules for each probe type. The
+                        check itself is always the one Rook generates for the daemon, and any exec, httpGet, tcpSocket
+                        or grpc handler set here is ignored. If Rook has no check to run for this probe, these
+                        settings are ignored.
                       properties:
                         exec:
                           description: Exec specifies a command to execute in the container.
@@ -14821,8 +14850,12 @@ spec:
                           type: boolean
                         probe:
                           description: |-
-                            Probe describes a health check to be performed against a container to determine whether it is
-                            alive or ready to receive traffic.
+                            Probe overrides the timing and thresholds of the probe Rook configures for the daemon. Only
+                            initialDelaySeconds, periodSeconds, timeoutSeconds, successThreshold, failureThreshold and
+                            terminationGracePeriodSeconds are used, subject to Kubernetes' rules for each probe type. The
+                            check itself is always the one Rook generates for the daemon, and any exec, httpGet, tcpSocket
+                            or grpc handler set here is ignored. If Rook has no check to run for this probe, these
+                            settings are ignored.
                           properties:
                             exec:
                               description: Exec specifies a command to execute in the container.
@@ -14979,8 +15012,12 @@ spec:
                           type: boolean
                         probe:
                           description: |-
-                            Probe describes a health check to be performed against a container to determine whether it is
-                            alive or ready to receive traffic.
+                            Probe overrides the timing and thresholds of the probe Rook configures for the daemon. Only
+                            initialDelaySeconds, periodSeconds, timeoutSeconds, successThreshold, failureThreshold and
+                            terminationGracePeriodSeconds are used, subject to Kubernetes' rules for each probe type. The
+                            check itself is always the one Rook generates for the daemon, and any exec, httpGet, tcpSocket
+                            or grpc handler set here is ignored. If Rook has no check to run for this probe, these
+                            settings are ignored.
                           properties:
                             exec:
                               description: Exec specifies a command to execute in the container.

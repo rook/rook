@@ -33,6 +33,7 @@ import (
 	optest "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -191,6 +192,49 @@ func TestDeploymentSpec(t *testing.T) {
 		assert.Equal(t, nvmeofCont.LivenessProbe.InitialDelaySeconds, int32(10))
 		assert.Equal(t, nvmeofCont.LivenessProbe.FailureThreshold, int32(10))
 		assert.GreaterOrEqual(t, nvmeofCont.LivenessProbe.TimeoutSeconds, int32(5))
+	})
+
+	t.Run("CR liveness-probe handler is replaced by the default handler", func(t *testing.T) {
+		nvmeof := &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
+				Group:     "group-a",
+				Instances: 1,
+				LivenessProbe: &cephv1.ProbeSpec{
+					Probe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							Exec: &v1.ExecAction{Command: []string{"sh", "-c", "touch /tmp/cr-handler-ran"}},
+						},
+						InitialDelaySeconds: 42,
+						PeriodSeconds:       17,
+					},
+				},
+			},
+		}
+
+		r, configHash := newDeploymentSpecTest(t)
+		configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
+		d, err := r.makeDeployment(nvmeof, "0", configMapName, configHash)
+		require.NoError(t, err)
+
+		var nvmeofCont *v1.Container
+		for i := range d.Spec.Template.Spec.Containers {
+			if d.Spec.Template.Spec.Containers[i].Name == "nvmeof-gateway" {
+				nvmeofCont = &d.Spec.Template.Spec.Containers[i]
+				break
+			}
+		}
+		require.NotNil(t, nvmeofCont)
+		require.NotNil(t, nvmeofCont.LivenessProbe)
+		assert.Equal(t, r.defaultLivenessProbe(nvmeof).ProbeHandler, nvmeofCont.LivenessProbe.ProbeHandler)
+		assert.Nil(t, nvmeofCont.LivenessProbe.Exec)
+		assert.Equal(t, int32(42), nvmeofCont.LivenessProbe.InitialDelaySeconds)
+		assert.Equal(t, int32(17), nvmeofCont.LivenessProbe.PeriodSeconds)
+		assert.Equal(t, int32(10), nvmeofCont.LivenessProbe.FailureThreshold)
 	})
 
 	t.Run("applies default placement when not specified", func(t *testing.T) {

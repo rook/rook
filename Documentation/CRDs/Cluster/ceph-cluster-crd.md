@@ -649,6 +649,10 @@ healthCheck:
 ```
 
 The probe's timing values and thresholds (but not the probe itself) can also be overridden.
+Only `initialDelaySeconds`, `periodSeconds`, `timeoutSeconds`, `successThreshold`,
+`failureThreshold` and `terminationGracePeriodSeconds` are used, subject to Kubernetes' rules for
+each probe type. The check the probe runs is always the one Rook generates for the daemon, and an
+`exec`, `httpGet`, `tcpSocket` or `grpc` handler set under `probe` is ignored.
 For more info, refer to the
 [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-a-liveness-command).
 

@@ -4840,7 +4840,8 @@ ProbeSpec
 <td>
 <em>(Optional)</em>
 <p>A liveness-probe to verify that gateway has valid run-time state.
-If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.</p>
+If LivenessProbe is set and LivenessProbe.Disabled is false, the default probe is used, with
+the timing and thresholds of LivenessProbe.Probe applied to it.</p>
 </td>
 </tr>
 </table>
@@ -8530,7 +8531,8 @@ ProbeSpec
 <td>
 <em>(Optional)</em>
 <p>A liveness-probe to verify that Ganesha server has valid run-time state.
-If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.</p>
+Unless LivenessProbe.Disabled is true, the default probe is used, with the timing and
+thresholds of LivenessProbe.Probe applied to it.</p>
 </td>
 </tr>
 <tr>
@@ -9796,6 +9798,9 @@ ProbeSpec
 </td>
 <td>
 <em>(Optional)</em>
+<p>StartupProbe configures a startup probe for the MDS daemons, which have none by default. If
+StartupProbe.Probe is set, Rook adds a startup probe that runs the MDS liveness check with the
+timing and thresholds given there.</p>
 </td>
 </tr>
 <tr>
@@ -11419,7 +11424,8 @@ ProbeSpec
 <td>
 <em>(Optional)</em>
 <p>A liveness-probe to verify that gateway has valid run-time state.
-If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.</p>
+If LivenessProbe is set and LivenessProbe.Disabled is false, the default probe is used, with
+the timing and thresholds of LivenessProbe.Probe applied to it.</p>
 </td>
 </tr>
 </tbody>
@@ -14373,8 +14379,12 @@ Kubernetes core/v1.Probe
 </td>
 <td>
 <em>(Optional)</em>
-<p>Probe describes a health check to be performed against a container to determine whether it is
-alive or ready to receive traffic.</p>
+<p>Probe overrides the timing and thresholds of the probe Rook configures for the daemon. Only
+initialDelaySeconds, periodSeconds, timeoutSeconds, successThreshold, failureThreshold and
+terminationGracePeriodSeconds are used, subject to Kubernetes&rsquo; rules for each probe type. The
+check itself is always the one Rook generates for the daemon, and any exec, httpGet, tcpSocket
+or grpc handler set here is ignored. If Rook has no check to run for this probe, these
+settings are ignored.</p>
 </td>
 </tr>
 </tbody>
