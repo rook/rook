@@ -334,6 +334,10 @@ func (r *ReconcileCephObjectStore) validateStore(s *cephv1.CephObjectStore) erro
 		return errors.Wrap(err, "invalid gateway.additionalVolumeMounts")
 	}
 
+	if err := validateMonConfigOptions(&s.Spec); err != nil {
+		return err
+	}
+
 	// Validate the pool settings, but allow for empty pools specs in case they have already been created
 	// such as by the ceph mgr
 	if !EmptyPool(s.Spec.MetadataPool) {
