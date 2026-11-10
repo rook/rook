@@ -40,6 +40,7 @@ import (
 	"github.com/stretchr/testify/require"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -244,6 +245,34 @@ func TestCephNFSController(t *testing.T) {
 		assert.True(t, res.Requeue)
 	})
 
+	withEscapingAdditionalFile := func(nfs *cephv1.CephNFS) *cephv1.CephNFS {
+		nfs.Spec.Security = &cephv1.NFSSecuritySpec{
+			SSSD: &cephv1.SSSDSpec{
+				Sidecar: &cephv1.SSSDSidecar{
+					Image: "my-image",
+					AdditionalFiles: cephv1.AdditionalVolumeMounts{
+						{
+							SubPath: "../../../usr/bin",
+							VolumeSource: &cephv1.ConfigFileVolumeSource{
+								ConfigMap: &v1.ConfigMapVolumeSource{LocalObjectReference: v1.LocalObjectReference{Name: "bin"}},
+							},
+						},
+					},
+				},
+			},
+		}
+		return nfs
+	}
+
+	recordedEvents := func(recorder *events.FakeRecorder) []string {
+		close(recorder.Events)
+		recorded := []string{}
+		for e := range recorder.Events {
+			recorded = append(recorded, e)
+		}
+		return recorded
+	}
+
 	t.Run("error - security spec invalid", func(t *testing.T) {
 		t.Run("security.sssd empty should error", func(t *testing.T) {
 			cCtx := newContext(baseExecutor())
@@ -251,7 +280,7 @@ func TestCephNFSController(t *testing.T) {
 			nfs.Spec.Security = &cephv1.NFSSecuritySpec{
 				SSSD: &cephv1.SSSDSpec{},
 			}
-			cl := newControllerClient(nfs, cephClusterNotReady())
+			cl := newControllerClient(nfs, cephClusterReady(cCtx))
 			r := newReconcile(cCtx, cl)
 			fakeRecorder := events.NewFakeRecorder(50)
 			r.recorder = fakeRecorder
@@ -260,10 +289,82 @@ func TestCephNFSController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.True(t, res.Requeue)
 
-			assert.Len(t, fakeRecorder.Events, 1)
-			event := <-fakeRecorder.Events
-			assert.Contains(t, event, // verify the security spec calls the Validate() method
-				"System Security Services Daemon (SSSD) is enabled, but no runtime option is specified")
+			recorded := recordedEvents(fakeRecorder)
+			assert.Len(t, recorded, 1)
+			for _, e := range recorded {
+				assert.Contains(t, e, // verify the security spec calls the Validate() method
+					"System Security Services Daemon (SSSD) is enabled, but no runtime option is specified")
+			}
+		})
+
+		t.Run("security.sssd.sidecar.additionalFiles subPath with '..' should error", func(t *testing.T) {
+			cCtx := newContext(baseExecutor())
+			cl := newControllerClient(withEscapingAdditionalFile(baseCephNFS()), cephClusterReady(cCtx))
+			r := newReconcile(cCtx, cl)
+			fakeRecorder := events.NewFakeRecorder(50)
+			r.recorder = fakeRecorder
+
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.True(t, res.Requeue)
+
+			recorded := recordedEvents(fakeRecorder)
+			assert.Len(t, recorded, 1)
+			for _, e := range recorded {
+				assert.Contains(t, e, `"../../../usr/bin"`)
+			}
+		})
+	})
+
+	t.Run("delete - security spec invalid", func(t *testing.T) {
+		// The fake client returns objects without a Kind, so the finalizer the controller adds and
+		// removes is not the one baseCephNFS sets. Start without that one, so that the controller's
+		// own finalizer is the only one that can hold up the deletion.
+		escapingNFSWithoutFinalizer := func() *cephv1.CephNFS {
+			nfs := withEscapingAdditionalFile(baseCephNFS())
+			nfs.Finalizers = nil
+			return nfs
+		}
+
+		reconcileDeleteReconcile := func(t *testing.T, r *ReconcileCephNFS) {
+			t.Helper()
+			_, err := r.Reconcile(ctx, req)
+			require.NoError(t, err)
+			cephNFS := &cephv1.CephNFS{}
+			require.NoError(t, r.client.Get(ctx, req.NamespacedName, cephNFS))
+			require.NotEmpty(t, cephNFS.Finalizers)
+			require.NoError(t, r.client.Delete(ctx, cephNFS))
+
+			_, err = r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			// the fake client removes a deleted object once its last finalizer is gone
+			err = r.client.Get(ctx, req.NamespacedName, cephNFS)
+			assert.True(t, kerrors.IsNotFound(err), "finalizer not removed: %v, finalizers %v", err, cephNFS.Finalizers)
+		}
+
+		t.Run("ceph cluster gone", func(t *testing.T) {
+			cCtx := newContext(baseExecutor())
+			r := newReconcile(cCtx, newControllerClient(escapingNFSWithoutFinalizer()))
+			reconcileDeleteReconcile(t, r)
+		})
+
+		t.Run("ceph cluster ready", func(t *testing.T) {
+			cCtx := newContext(&exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+					if command == "ceph" && args[0] == "versions" {
+						return `{"mon": {"ceph version 19.2.1 (000000000000000000000000000000) squid (stable)": 3}}`, nil
+					}
+					panic(fmt.Sprintf("unhandled command %s %v", command, args))
+				},
+				MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+					if command == "ganesha-rados-grace" && args[4] == "remove" {
+						return "", nil
+					}
+					panic(fmt.Sprintf("unhandled command %s %v", command, args))
+				},
+			})
+			r := newReconcile(cCtx, newControllerClient(escapingNFSWithoutFinalizer(), cephClusterReady(cCtx)))
+			reconcileDeleteReconcile(t, r)
 		})
 	})
 
