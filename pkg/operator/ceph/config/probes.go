@@ -25,74 +25,72 @@ import (
 
 // ConfigureLivenessProbe returns the desired liveness probe for a given daemon
 func ConfigureLivenessProbe(container v1.Container, livenessProbe *cephv1.ProbeSpec) v1.Container {
-	if livenessProbe == nil {
-		return container
-	}
-	if livenessProbe.Disabled {
-		container.LivenessProbe = nil
-	} else {
-		probe := livenessProbe.Probe
-		// If the spec value is not empty, let's apply it along with default when some fields are not specified
-		if probe != nil {
-			// Set the liveness probe on the container to overwrite the default probe created by Rook
-			container.LivenessProbe = GetProbeWithDefaults(probe, container.LivenessProbe)
-		}
-	}
-
+	container.LivenessProbe = probeFromSpec("liveness", container.Name, livenessProbe, container.LivenessProbe)
 	return container
 }
 
 // ConfigureStartupProbe returns the desired startup probe for a given daemon
 func ConfigureStartupProbe(container v1.Container, startupProbe *cephv1.ProbeSpec) v1.Container {
-	if startupProbe == nil {
-		return container
-	}
-	if startupProbe.Disabled {
-		container.StartupProbe = nil
-	} else {
-		probe := startupProbe.Probe
-		// If the spec value is not empty, let's apply it along with default when some fields are not specified
-		if probe != nil {
-			// Set the startup probe on the container to overwrite the default probe created by Rook
-			container.StartupProbe = GetProbeWithDefaults(probe, container.StartupProbe)
-		}
-	}
-
+	container.StartupProbe = probeFromSpec("startup", container.Name, startupProbe, container.StartupProbe)
 	return container
 }
 
-func GetProbeWithDefaults(desiredProbe, currentProbe *v1.Probe) *v1.Probe {
-	newProbe := *desiredProbe
+// ConfigureReadinessProbe returns the desired readiness probe for a given daemon
+func ConfigureReadinessProbe(container v1.Container, readinessProbe *cephv1.ProbeSpec) v1.Container {
+	container.ReadinessProbe = probeFromSpec("readiness", container.Name, readinessProbe, container.ReadinessProbe)
+	return container
+}
 
-	// Do not replace the handler with the previous one!
-	// On the first iteration, the handler appears empty and is then replaced by whatever first daemon value comes in
-	// e.g: [env -i sh -c ceph --admin-daemon /run/ceph/ceph-mon.b.asok mon_status] - meaning mon b was the first picked in the list of mons
-	// On the second iteration the value of mon b remains, since the pointer has been allocated
-	// This means the handler is not empty anymore and not replaced by the current one, which it should be
-	//
-	// Let's always force the default handler, there is no reason to change it anyway since the underlying content is generated based on the daemon's name
-	// so we can not make it generic via the spec
-	if currentProbe != nil {
-		newProbe.ProbeHandler = currentProbe.ProbeHandler
-		// If the user has not specified thresholds and timeouts, set them to the same values as
-		// in the default liveness probe created by Rook.
-		if newProbe.FailureThreshold == 0 {
-			newProbe.FailureThreshold = currentProbe.FailureThreshold
-		}
-		if newProbe.PeriodSeconds == 0 {
-			newProbe.PeriodSeconds = currentProbe.PeriodSeconds
-		}
-		if newProbe.SuccessThreshold == 0 {
-			newProbe.SuccessThreshold = currentProbe.SuccessThreshold
-		}
-		if newProbe.TimeoutSeconds == 0 {
-			newProbe.TimeoutSeconds = currentProbe.TimeoutSeconds
-		}
-		if newProbe.InitialDelaySeconds == 0 {
-			newProbe.InitialDelaySeconds = currentProbe.InitialDelaySeconds
-		}
-	} else {
-		logger.Warning("currentProbe is nil, using only desiredProbe values")
+func probeFromSpec(probeType, containerName string, spec *cephv1.ProbeSpec, rookProbe *v1.Probe) *v1.Probe {
+	if spec == nil {
+		return rookProbe
 	}
-	return &newProbe
+	if spec.Disabled {
+		return nil
+	}
+	if spec.Probe == nil {
+		return rookProbe
+	}
+	if rookProbe == nil {
+		logger.Warningf("ignoring %s probe settings for container %q because rook has no %s probe for it", probeType, containerName, probeType)
+		return nil
+	}
+	if spec.Probe.ProbeHandler != (v1.ProbeHandler{}) {
+		logger.Warningf("ignoring the handler in the %s probe settings for container %q; only timing and threshold settings are applied to rook's %s probe", probeType, containerName, probeType)
+	}
+	return GetProbeWithDefaults(spec.Probe, rookProbe)
+}
+
+// GetProbeWithDefaults returns a copy of currentProbe, the probe Rook generated for a daemon, with
+// the timing and threshold fields that are set in desiredProbe applied to it. The handler always
+// comes from currentProbe, and any handler in desiredProbe is ignored. If currentProbe is nil, Rook
+// has no handler to run and nil is returned.
+func GetProbeWithDefaults(desiredProbe, currentProbe *v1.Probe) *v1.Probe {
+	if currentProbe == nil {
+		return nil
+	}
+	newProbe := currentProbe.DeepCopy()
+	if desiredProbe == nil {
+		return newProbe
+	}
+
+	if desiredProbe.InitialDelaySeconds != 0 {
+		newProbe.InitialDelaySeconds = desiredProbe.InitialDelaySeconds
+	}
+	if desiredProbe.TimeoutSeconds != 0 {
+		newProbe.TimeoutSeconds = desiredProbe.TimeoutSeconds
+	}
+	if desiredProbe.PeriodSeconds != 0 {
+		newProbe.PeriodSeconds = desiredProbe.PeriodSeconds
+	}
+	if desiredProbe.SuccessThreshold != 0 {
+		newProbe.SuccessThreshold = desiredProbe.SuccessThreshold
+	}
+	if desiredProbe.FailureThreshold != 0 {
+		newProbe.FailureThreshold = desiredProbe.FailureThreshold
+	}
+	if desiredProbe.TerminationGracePeriodSeconds != nil {
+		newProbe.TerminationGracePeriodSeconds = new(*desiredProbe.TerminationGracePeriodSeconds)
+	}
+	return newProbe
 }
