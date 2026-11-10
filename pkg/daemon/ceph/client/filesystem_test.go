@@ -605,7 +605,12 @@ func TestWaitForNoStandbys(t *testing.T) {
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
-	err = WaitForNoStandbys(context, AdminTestClusterInfo("mycluster"), fsName, time.Millisecond, 5*time.Millisecond)
+	// Use a generous timeout here: this case must poll at least twice (the first
+	// dump reports a standby, subsequent dumps report none) before it can succeed.
+	// A tight timeout makes the test flaky under CI scheduling jitter. The poll
+	// returns as soon as the condition is met, so a large timeout keeps the test
+	// fast while eliminating the race.
+	err = WaitForNoStandbys(context, AdminTestClusterInfo("mycluster"), fsName, time.Millisecond, 10*time.Second)
 	assert.NoError(t, err)
 }
 
