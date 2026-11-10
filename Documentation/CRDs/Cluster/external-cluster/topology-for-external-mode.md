@@ -1,11 +1,15 @@
+---
+title: Topology-Based Provisioning
+---
+
 # Topology-Based Provisioning
 
 ## Scenario
 Applications like Kafka will have a deployment with multiple running instances. Each service instance will create a new claim and is expected to be located in a different zone. Since the application has its own redundant instances, there is no requirement for redundancy at the data layer. A storage class is created that will provision storage from replica 1 Ceph pools that are located in each of the separate zones.
 
-!!! warning
-    Configuring Ceph replica 1 pools means that the loss of any OSD in a zone will result in the loss of all data in the replica 1 pool and requires manual intervention to re-create the Ceph pool.
-    See the section on [Recovery](#recovery) below.
+> [!WARNING]
+> Configuring Ceph replica 1 pools means that the loss of any OSD in a zone will result in the loss of all data in the replica 1 pool and requires manual intervention to re-create the Ceph pool.
+> See the section on [Recovery](#recovery) below.
 
 ## Configuration Flags
 
@@ -53,8 +57,8 @@ $ ceph osd crush rule create-replicated <rule-name> <root> <failure-domain> <cla
 
 Create replica-1 pools based on each of the CRUSH rules from the previous step. Each pool must be created with a CRUSH rule to limit the pool to OSDs in a specific zone.
 
-!!! note
-    Disable the ceph warning for replica-1 pools: `ceph config set global mon_allow_pool_size_one true`
+> [!NOTE]
+> Disable the ceph warning for replica-1 pools: `ceph config set global mon_allow_pool_size_one true`
 
 Determine the zones in the K8s cluster that correspond to each of the pools in the Ceph pool. The K8s nodes require labels as defined with the [OSD Topology labels](../ceph-cluster-crd.md#osd-topology). Some environments already have nodes labeled in zones. Set the topology labels on the nodes if not already present.
 

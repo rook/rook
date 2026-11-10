@@ -12,8 +12,8 @@ This guide assumes a Rook cluster as explained in the [Quickstart](../../Getting
 
 Before Rook can provision storage, a [`StorageClass`](https://kubernetes.io/docs/concepts/storage/storage-classes) and [`CephBlockPool` CR](../../CRDs/Block-Storage/ceph-block-pool-crd.md) need to be created. This will allow Kubernetes to interoperate with Rook when provisioning persistent volumes.
 
-!!! note
-    This sample requires *at least 1 OSD per node*, with each OSD located on *3 different nodes*.
+> [!NOTE]
+> This sample requires *at least 1 OSD per node*, with each OSD located on *3 different nodes*.
 
 Each OSD must be located on a different node, because the [`failureDomain`](../../CRDs/Block-Storage/ceph-block-pool-crd.md#spec) is set to `host` and the `replicated.size` is set to `3`.
 
@@ -112,8 +112,8 @@ Create the storage class.
 kubectl create -f deploy/examples/csi/rbd/storageclass.yaml
 ```
 
-!!! note
-    As [specified by Kubernetes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#retain), when using the `Retain` reclaim policy, any Ceph RBD image that is backed by a `PersistentVolume` will continue to exist even after the `PersistentVolume` has been deleted. These Ceph RBD images will need to be cleaned up manually using `rbd rm`.
+> [!NOTE]
+> As [specified by Kubernetes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#retain), when using the `Retain` reclaim policy, any Ceph RBD image that is backed by a `PersistentVolume` will continue to exist even after the `PersistentVolume` has been deleted. These Ceph RBD images will need to be cleaned up manually using `rbd rm`.
 
 ## Consume the storage: Wordpress sample
 
@@ -133,12 +133,13 @@ Both of these apps create a block volume and mount it to their respective pod. Y
 kubectl get pvc
 ```
 
-!!! example "Example Output: `kubectl get pvc`"
-    ```console
-    NAME             STATUS    VOLUME                                     CAPACITY   ACCESSMODES   AGE
-    mysql-pv-claim   Bound     pvc-95402dbc-efc0-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
-    wp-pv-claim      Bound     pvc-39e43169-efc1-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
-    ```
+> [!EXAMPLE] Example Output: `kubectl get pvc`
+>
+> ```console
+> NAME             STATUS    VOLUME                                     CAPACITY   ACCESSMODES   AGE
+> mysql-pv-claim   Bound     pvc-95402dbc-efc0-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
+> wp-pv-claim      Bound     pvc-39e43169-efc1-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
+> ```
 
 Once the wordpress and mysql pods are in the `Running` state, get the cluster IP of the wordpress app and enter it in your browser:
 
@@ -146,11 +147,12 @@ Once the wordpress and mysql pods are in the `Running` state, get the cluster IP
 kubectl get svc wordpress
 ```
 
-!!! example "Example Output: `kubectl get svc wordpress`"
-    ```console
-    NAME        CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
-    wordpress   10.3.0.155   <pending>     80:30841/TCP   2m
-    ```
+> [!EXAMPLE] Example Output: `kubectl get svc wordpress`
+>
+> ```console
+> NAME        CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
+> wordpress   10.3.0.155   <pending>     80:30841/TCP   2m
+> ```
 
 You should see the wordpress app running.
 
@@ -160,8 +162,8 @@ If you are using Minikube, the Wordpress URL can be retrieved with this one-line
 echo http://$(minikube ip):$(kubectl get service wordpress -o jsonpath='{.spec.ports[0].nodePort}')
 ```
 
-!!! note
-    When running in a vagrant environment, there will be no external IP address to reach wordpress with.  You will only be able to reach wordpress via the `CLUSTER-IP` from inside the Kubernetes cluster.
+> [!NOTE]
+> When running in a vagrant environment, there will be no external IP address to reach wordpress with.  You will only be able to reach wordpress via the `CLUSTER-IP` from inside the Kubernetes cluster.
 
 ## RBD QoS (Quality of Service)
 
@@ -188,15 +190,15 @@ kubectl delete storageclass rook-ceph-block
 If you want to use erasure coded pool with RBD, your OSDs must use `bluestore` as their `storeType`.
 Additionally the nodes that are going to mount the erasure coded RBD block storage must have Linux kernel >= `4.11`.
 
-!!! attention
-    This example requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+> [!ATTENTION]
+> This example requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
 
 The OSDs must be located on different nodes, because the [`failureDomain`](../../CRDs/Block-Storage/ceph-block-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
 To be able to use an erasure coded pool you need to create two pools (as seen below in the definitions): one erasure coded and one replicated.
 
-!!! attention
-    This example requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+> [!ATTENTION]
+> This example requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
 
 The OSDs must be located on different nodes, because the [`failureDomain`](../../CRDs/Block-Storage/ceph-block-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
@@ -229,8 +231,8 @@ After the taint is added to the node and the fencing feature is properly configu
 * If the node has the `out-of-service` taint, the driver will add the client address to the Ceph blocklist to prevent connections to Ceph from the volume on that node
 * The blocklist entry has an extended duration (approximately 3 years) to ensure the protection persists until the node undergoes a complete power cycle.
 
-!!! warning
-    When a node becomes out of service, its mounts and device mappings will persist until the node undergoes a complete power lifecycle (includes shutdown and startup). To prevent data inconsistency or corruption, administrators **MUST NOT** remove the `node.kubernetes.io/out-of-service` taint until the node has successfully completed a full power cycle. Removing the taint prematurely may leave stale device states, active client sessions, or lingering mounts, which can lead to serious data integrity issues.
+> [!WARNING]
+> When a node becomes out of service, its mounts and device mappings will persist until the node undergoes a complete power lifecycle (includes shutdown and startup). To prevent data inconsistency or corruption, administrators **MUST NOT** remove the `node.kubernetes.io/out-of-service` taint until the node has successfully completed a full power cycle. Removing the taint prematurely may leave stale device states, active client sessions, or lingering mounts, which can lead to serious data integrity issues.
 
 ### Node Recovery
 

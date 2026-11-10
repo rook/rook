@@ -1,3 +1,7 @@
+---
+title: External Cluster Upgrades
+---
+
 # External Cluster Upgrades
 
 When upgrading an external cluster, Ceph and Rook versions will be updated independently. During the Rook update, the external provider cluster connection also needs to be updated with any settings and permissions for new features.
@@ -21,9 +25,9 @@ Upgrading the cluster would be different for restricted caps and non-restricted 
     python3 create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --run-as-user client.csi-rbd-node-rookstorage-replicapool
     ```
 
-    !!! note
-        1) An existing non-restricted user cannot be converted to a restricted user by upgrading.
-        2) The upgrade flag should only be used to append new permissions to users. It shouldn't be used for changing a CSI user already applied permissions. For example, be careful not to change pools(s) that a user has access to.
+    > [!NOTE]
+    > 1) An existing non-restricted user cannot be converted to a restricted user by upgrading.
+    > 2) The upgrade flag should only be used to append new permissions to users. It shouldn't be used for changing a CSI user already applied permissions. For example, be careful not to change pools(s) that a user has access to.
 
 ## Upgrade cluster to utilize a new feature (optional)
 
@@ -54,6 +58,6 @@ Argument that are decided using the Priority: command-line-args has more priorit
 
 6. [Import-the-provider-data](consumer-import.md#import-the-provider-data)
 
-!!! warning
-    If the last-applied config is unavailable, run the current version of the script again using previously-applied config and CLI flags.
-    Failure to reuse the same configuration options when re-invoking the python script can result in unexpected changes when re-running the import script.
+> [!WARNING]
+> If the last-applied config is unavailable, run the current version of the script again using previously-applied config and CLI flags.
+> Failure to reuse the same configuration options when re-invoking the python script can result in unexpected changes when re-running the import script.

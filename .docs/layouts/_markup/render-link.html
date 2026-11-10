@@ -1,0 +1,36 @@
+{{- /*
+  Links between docs are written as relative paths to the Markdown files, as GitHub renders them.
+  They are resolved to the page URLs here, and a link to a missing page or heading fails the build.
+  On release branches, links to files in the rook repo on the master branch point to the release
+  branch instead (see params.githubBranch).
+*/ -}}
+{{- $dest := .Destination -}}
+{{- $u := urls.Parse $dest -}}
+{{- $fragment := cond (ne $u.Fragment "") (printf "#%s" $u.Fragment) "" -}}
+{{- if $u.Scheme -}}
+  {{- $branch := site.Params.githubBranch | default "master" -}}
+  {{- if ne $branch "master" -}}
+    {{- $dest = replaceRE `(github\.com/.+/rook/.+)/master/` (printf "${1}/%s/" $branch) $dest 1 -}}
+  {{- end -}}
+{{- else if and $u.Path (not (hasPrefix $u.Path "/")) -}}
+  {{- if strings.HasSuffix $u.Path ".md" -}}
+    {{- $target := path.Join .PageInner.File.Dir (strings.TrimSuffix ".md" $u.Path) -}}
+    {{- with site.GetPage (printf "/%s" $target) -}}
+      {{- $dest = printf "%s%s" .RelPermalink $fragment -}}
+      {{- with $u.Fragment -}}
+        {{- $id := . -}}
+        {{- $p := site.GetPage (printf "/%s" $target) -}}
+        {{- if not (or ($p.Fragments.Identifiers.Contains $id) (strings.Contains $p.RawContent (printf "id=%q" $id))) -}}
+          {{- warnf "%s: link to missing heading %q in %s" $.PageInner.File.Path $id $u.Path -}}
+        {{- end -}}
+      {{- end -}}
+    {{- else -}}
+      {{- warnf "%s: link to missing page %s" .PageInner.File.Path $u.Path -}}
+    {{- end -}}
+  {{- else -}}
+    {{- /* other files next to the docs; pages are published one directory deeper than their source */ -}}
+    {{- $dest = printf "../%s" $dest -}}
+  {{- end -}}
+{{- end -}}
+<a href="{{ $dest | safeURL }}"{{ with .Title }} title="{{ . }}"{{ end }}>{{ .Text | safeHTML }}</a>
+{{- /* Drop trailing newlines */ -}}

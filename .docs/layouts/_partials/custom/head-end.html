@@ -1,0 +1,4 @@
+{{- /* The site root, used to find versions.json of the published docs in the parent directory. */ -}}
+<meta name="rook-site-root" content="{{ site.Home.Permalink }}" />
+{{- $js := resources.Get "js/rook-versions.js" | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>

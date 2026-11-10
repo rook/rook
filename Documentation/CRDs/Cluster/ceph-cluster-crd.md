@@ -257,10 +257,10 @@ Configure the network that will be enabled for the cluster and services.
         * `enabled`: Whether to compress the data in transit across the wire. The default is false.
             See the kernel requirements above for encryption.
 
-!!! caution
-    Changing networking configuration after a Ceph cluster has been deployed is only supported for
-    the network encryption settings. Changing other network settings is **NOT** supported and will
-    likely result in a non-functioning cluster.
+> [!CAUTION]
+> Changing networking configuration after a Ceph cluster has been deployed is only supported for
+> the network encryption settings. Changing other network settings is **NOT** supported and will
+> likely result in a non-functioning cluster.
 
 #### Provider
 
@@ -535,14 +535,14 @@ If a user configures a limit or request value that is too low, Rook will still r
 * `prepareosd`: no limits (see the note)
 * `exporter`: 128MB limit, 50MB requests
 
-!!! note
-    We recommend not setting memory limits on the OSD prepare job to prevent OSD provisioning failure due to memory constraints.
-    The OSD prepare job bursts memory usage during the OSD provisioning depending on the size of the device, typically
-    1-2Gi for large disks. The OSD prepare job only bursts a single time per OSD.
-    All future runs of the OSD prepare job will detect the OSD is already provisioned and skip the provisioning.
+> [!NOTE]
+> We recommend not setting memory limits on the OSD prepare job to prevent OSD provisioning failure due to memory constraints.
+> The OSD prepare job bursts memory usage during the OSD provisioning depending on the size of the device, typically
+> 1-2Gi for large disks. The OSD prepare job only bursts a single time per OSD.
+> All future runs of the OSD prepare job will detect the OSD is already provisioned and skip the provisioning.
 
-!!! hint
-    The resources for MDS daemons are not configured in the Cluster. Refer to the [Ceph Filesystem CRD](../Shared-Filesystem/ceph-filesystem-crd.md) instead.
+> [!HINT]
+> The resources for MDS daemons are not configured in the Cluster. Refer to the [Ceph Filesystem CRD](../Shared-Filesystem/ceph-filesystem-crd.md) instead.
 
 ### Resource Requirements/Limits
 
@@ -555,8 +555,8 @@ For more information on resource requests/limits see the official Kubernetes doc
     * `cpu`: Limit for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
     * `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
 
-!!! warning
-    Before setting resource requests/limits, please take a look at the Ceph documentation for recommendations for each component: [Ceph - Hardware Recommendations](http://docs.ceph.com/docs/master/start/hardware-recommendations/).
+> [!WARNING]
+> Before setting resource requests/limits, please take a look at the Ceph documentation for recommendations for each component: [Ceph - Hardware Recommendations](http://docs.ceph.com/docs/master/start/hardware-recommendations/).
 
 #### Node Specific Resources for OSDs
 
@@ -689,8 +689,8 @@ healthCheck:
       policy: unmute
 ```
 
-!!! note
-    Removing an entry from `muteHealthWarning`, or removing the field entirely, will not unmute the warning in Ceph. To unmute, set `policy: unmute` for that warning key.
+> [!NOTE]
+> Removing an entry from `muteHealthWarning`, or removing the field entirely, will not unmute the warning in Ceph. To unmute, set `policy: unmute` for that warning key.
 
 ## Status
 
@@ -815,8 +815,8 @@ with the same name that are in different zones. Racks in different zones must be
 Note that the `host` is added automatically to the hierarchy by Rook. The host cannot be specified with a topology label.
 All topology labels are optional.
 
-!!! hint
-    When setting the node labels prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires removing each node from the cluster first and then re-adding it with new configuration to take effect. Do this node by node to keep your data safe! Check the result with `ceph osd tree` from the [Rook Toolbox](../../Troubleshooting/ceph-toolbox.md). The OSD tree should display the hierarchy for the nodes that already have been re-added.
+> [!HINT]
+> When setting the node labels prior to `CephCluster` creation, these settings take immediate effect. However, applying this to an already deployed `CephCluster` requires removing each node from the cluster first and then re-adding it with new configuration to take effect. Do this node by node to keep your data safe! Check the result with `ceph osd tree` from the [Rook Toolbox](../../Troubleshooting/ceph-toolbox.md). The OSD tree should display the hierarchy for the nodes that already have been re-added.
 
 To utilize the `failureDomain` based on the node labels, specify the corresponding option in the [CephBlockPool](../Block-Storage/ceph-block-pool-crd.md)
 
@@ -845,8 +845,8 @@ This can help group nodes of the same performance tier together in one pool.
 
 `allowDeviceClassUpdate: true` must be set in the CephCluster storage spec for the device class to be updated on existing OSDs. Without this setting, the node label will only affect newly provisioned OSDs.
 
-!!! warning
-    Changing an OSD's device class will cause Ceph to rebalance data for any pools whose CRUSH rules target that device class. Plan device class changes of existing nodes and OSDs carefully to avoid unexpected data movement.
+> [!WARNING]
+> Changing an OSD's device class will cause Ceph to rebalance data for any pools whose CRUSH rules target that device class. Plan device class changes of existing nodes and OSDs carefully to avoid unexpected data movement.
 
 ### Resolving device classes
 
@@ -933,9 +933,9 @@ If Ceph settings need to be applied to mons before quorum is initially created, 
 [ceph.conf settings](../../Storage-Configuration/Advanced/ceph-configuration.md#custom-cephconf-settings)
 should be used instead.
 
-!!! warning
-    Rook performs no direct validation on these config options, so the validity of the settings is the
-    user's responsibility.
+> [!WARNING]
+> Rook performs no direct validation on these config options, so the validity of the settings is the
+> user's responsibility.
 
 The operator does not unset any removed config options, it is the user's responsibility to unset or set the default value for each removed option manually using the Ceph CLI.
 
@@ -959,8 +959,8 @@ spec:
 
 If a given config key is defined in both `cephConfigFromSecret` and `cephConfig`, the value from `cephConfig` takes precedence.
 
-!!! warning
-    If a value from `cephConfigFromSecret` cannot be retrieved — for example, if the referenced Secret or key is missing — Rook will return a reconciliation error. This ensures that configuration provided via `cephConfigFromSecret` is applied reliably, as it is treated as a declarative and intentional configuration by the admin.
+> [!WARNING]
+> If a value from `cephConfigFromSecret` cannot be retrieved — for example, if the referenced Secret or key is missing — Rook will return a reconciliation error. This ensures that configuration provided via `cephConfigFromSecret` is applied reliably, as it is treated as a declarative and intentional configuration by the admin.
 
 ## CSI Driver Options
 

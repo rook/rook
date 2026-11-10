@@ -42,9 +42,9 @@ The following Ceph versions are supported in this release of Rook:
     After the upgrade, existing applications must be restarted to fully disable the read affinity in existing volumes.
     See [this issue](https://github.com/rook/rook/issues/16839) for more details.
 
-!!! important
-    When an update is requested, the operator will check Ceph's status,
-    **if it is in `HEALTH_ERR` the operator will refuse to proceed with the upgrade.**
+> [!IMPORTANT]
+> When an update is requested, the operator will check Ceph's status,
+> **if it is in `HEALTH_ERR` the operator will refuse to proceed with the upgrade.**
 
 ### Ceph Images
 

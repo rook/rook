@@ -190,9 +190,9 @@ volumeBindingMode: Immediate
 allowVolumeExpansion: true
 ```
 
-!!! note
-    The provisioner name `rook-ceph.nvmeof.csi.ceph.com` is prefixed
-    with the operator namespace.
+> [!NOTE]
+> The provisioner name `rook-ceph.nvmeof.csi.ceph.com` is prefixed
+> with the operator namespace.
 
 ```console
 kubectl create -f deploy/examples/csi/nvmeof/storageclass.yaml
@@ -388,8 +388,8 @@ sudo chown $(whoami):$(whoami) /mnt/nvmeof
 
 ## Teardown
 
-!!! warning
-    Deleting a PVC will also delete the underlying RBD image and NVMe namespace. Ensure you have backups if needed.
+> [!WARNING]
+> Deleting a PVC will also delete the underlying RBD image and NVMe namespace. Ensure you have backups if needed.
 
 ### In-Cluster Teardown
 

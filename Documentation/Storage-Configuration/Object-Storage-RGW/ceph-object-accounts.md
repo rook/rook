@@ -2,8 +2,8 @@
 title: Object Store Accounts
 ---
 
-!!! attention
-    This feature is experimental and currently only supported with the Ceph main branch image (`quay.ceph.io/ceph-ci/ceph:main`).
+> [!ATTENTION]
+> This feature is experimental and currently only supported with the Ceph main branch image (`quay.ceph.io/ceph-ci/ceph:main`).
 
 ## Overview
 
@@ -82,8 +82,8 @@ To associate a `CephObjectStoreUser` with an account, set the `accountRef` field
 When set, the user is created as an account user with no default permissions, and resources created by this user
 are owned by the account.
 
-!!! note
-    The `accountRef` field is **immutable** once set. The referenced account must be in the same namespace as the user.
+> [!NOTE]
+> The `accountRef` field is **immutable** once set. The referenced account must be in the same namespace as the user.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -115,8 +115,8 @@ kubectl -n rook-ceph get cephobjectstoreuser my-user -o yaml
 Deleting a `CephObjectStoreUser` that references an account will not affect the account itself.
 The account and its other users will continue to function normally.
 
-!!! note
-    Before deleting an account, ensure all `CephObjectStoreUser` resources and buckets associated with the account are removed first. Ceph will block account deletion if the account still has associated users or buckets.
+> [!NOTE]
+> Before deleting an account, ensure all `CephObjectStoreUser` resources and buckets associated with the account are removed first. Ceph will block account deletion if the account still has associated users or buckets.
 
 To delete the account itself:
 

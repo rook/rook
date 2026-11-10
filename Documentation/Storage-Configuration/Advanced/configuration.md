@@ -6,12 +6,12 @@ For most any Ceph cluster, the user will want to--and may need to--change some C
 configurations. These changes often may be warranted in order to alter performance to meet SLAs or
 to update default data resiliency settings.
 
-!!! warning
-    Modify Ceph settings carefully, and review the
-    [Ceph configuration documentation](https://docs.ceph.com/docs/master/rados/configuration/) before
-    making any changes.
-    Changing the settings could result in unhealthy daemons or even data loss if
-    used incorrectly.
+> [!WARNING]
+> Modify Ceph settings carefully, and review the
+> [Ceph configuration documentation](https://docs.ceph.com/docs/master/rados/configuration/) before
+> making any changes.
+> Changing the settings could result in unhealthy daemons or even data loss if
+> used incorrectly.
 
 ## Required configurations
 
@@ -75,7 +75,7 @@ on individual pools.
 
 ## Specifying configuration options
 
-### Toolbox + Ceph CLI
+### Toolbox + Ceph CLI {#toolbox-ceph-cli}
 
 The most recommended way of configuring Ceph is to set Ceph's configuration directly. The first
 method for doing so is to use Ceph's CLI from the Rook toolbox pod. Using the toolbox pod is

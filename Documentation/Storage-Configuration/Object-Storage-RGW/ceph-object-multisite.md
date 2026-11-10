@@ -21,19 +21,19 @@ To review core multisite concepts please read the
 
 This guide assumes a Rook cluster as explained in the [Quickstart](../../Getting-Started/quickstart.md).
 
-!!! warning
-    Ceph v19.2.6 and v20.2.4 harden SigV4 signature validation
-    ([CVE-2026-54330](https://docs.ceph.com/en/latest/security/CVE-2026-54330/)), but the
-    requests RGW's own multisite forwarding generates fail that validation even when every
-    connected cluster runs those versions. S3 operations that a non-master zone must forward
-    to the master zone (bucket creation, for example) fail with `403 AccessDenied`, and
-    `rgw_sigv4_insecure` alone does not restore them. Until a Ceph release fixes the
-    forwarding signatures ([tracker 79698](https://tracker.ceph.com/issues/79698)), set both
-    `rgw_sigv4_insecure: "true"` and `rgw_s3_client_max_sig_ver: "2"` in each multisite
-    object store's
-    [`gateway.rgwConfig`](../../CRDs/Object-Storage/ceph-object-store-crd.md#gateway-settings).
-    Once all connected clusters run fixed versions, set `rgw_sigv4_insecure` back to
-    `"false"` and `rgw_s3_client_max_sig_ver` back to `"-1"`.
+> [!WARNING]
+> Ceph v19.2.6 and v20.2.4 harden SigV4 signature validation
+> ([CVE-2026-54330](https://docs.ceph.com/en/latest/security/CVE-2026-54330/)), but the
+> requests RGW's own multisite forwarding generates fail that validation even when every
+> connected cluster runs those versions. S3 operations that a non-master zone must forward
+> to the master zone (bucket creation, for example) fail with `403 AccessDenied`, and
+> `rgw_sigv4_insecure` alone does not restore them. Until a Ceph release fixes the
+> forwarding signatures ([tracker 79698](https://tracker.ceph.com/issues/79698)), set both
+> `rgw_sigv4_insecure: "true"` and `rgw_s3_client_max_sig_ver: "2"` in each multisite
+> object store's
+> [`gateway.rgwConfig`](../../CRDs/Object-Storage/ceph-object-store-crd.md#gateway-settings).
+> Once all connected clusters run fixed versions, set `rgw_sigv4_insecure` back to
+> `"false"` and `rgw_s3_client_max_sig_ver` back to `"-1"`.
 
 ## Creating Object Multisite
 
@@ -424,5 +424,5 @@ radosgw-admin zone rename --rgw-zone=my-store --zone-new-name=<new-zone-name>  -
 radosgw-admin period update --commit
 ```
 
-!!! important
-    Renaming in the toolbox must be performed **before** creating the multisite CRs
+> [!IMPORTANT]
+> Renaming in the toolbox must be performed **before** creating the multisite CRs

@@ -20,8 +20,8 @@ The `security` section contains settings related to encryption of the cluster.
         * `enabled`: whether key rotation is enabled or not, default is `false`
         * `schedule`: the schedule, written in [cron format](https://en.wikipedia.org/wiki/Cron), with which key rotation [CronJob](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/) is created, default value is `"@weekly"`.
 
-!!! note
-    Currently key rotation is supported when the Key Encryption Keys are stored in a Kubernetes Secret or Vault KMS.
+> [!NOTE]
+> Currently key rotation is supported when the Key Encryption Keys are stored in a Kubernetes Secret or Vault KMS.
 
 Supported KMS providers:
 
@@ -166,8 +166,8 @@ security:
         VAULT_AUTH_KUBERNETES_ROLE: rook-ceph
 ```
 
-!!! note
-    The `VAULT_ADDR` value above assumes that Vault is accessible within the cluster itself on the default port (8200). If running elsewhere, please update the URL accordingly.
+> [!NOTE]
+> The `VAULT_ADDR` value above assumes that Vault is accessible within the cluster itself on the default port (8200). If running elsewhere, please update the URL accordingly.
 
 ### General Vault configuration
 

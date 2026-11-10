@@ -34,13 +34,13 @@ kubectl delete -f csi/cephfs/kube-registry.yaml
 kubectl delete storageclass csi-cephfs
 ```
 
-!!! important
-    After applications have been cleaned up, the Rook cluster can be removed. It is important to delete applications before removing the Rook operator and Ceph cluster. Otherwise, volumes may hang and nodes may require a restart.
+> [!IMPORTANT]
+> After applications have been cleaned up, the Rook cluster can be removed. It is important to delete applications before removing the Rook operator and Ceph cluster. Otherwise, volumes may hang and nodes may require a restart.
 
 ### Delete the CephCluster CRD
 
-!!! warning
-    DATA WILL BE PERMANENTLY DELETED AFTER DELETING THE `CephCluster`
+> [!WARNING]
+> DATA WILL BE PERMANENTLY DELETED AFTER DELETING THE `CephCluster`
 
 1. To instruct Rook to wipe the host paths and volumes, edit the `CephCluster` and add the `cleanupPolicy`:
 
@@ -71,9 +71,9 @@ kubectl delete storageclass csi-cephfs
     * Delete the all files under `dataDirHostPath` on all the nodes
     * Wipe the data on the drives on all the nodes where OSDs were running in this cluster
 
-!!! note
-    The cleanup jobs might not start if the resources created on top of Rook Cluster are not deleted completely.
-    See [deleting block and file artifacts](#delete-the-block-and-file-artifacts)
+> [!NOTE]
+> The cleanup jobs might not start if the resources created on top of Rook Cluster are not deleted completely.
+> See [deleting block and file artifacts](#delete-the-block-and-file-artifacts)
 
 ### Delete the CSI Operator Resources
 
@@ -100,8 +100,8 @@ kubectl delete -f crds.yaml
 
 ### Delete the data on hosts
 
-!!! attention
-    The final cleanup step requires deleting files on each host in the cluster. All files under the `dataDirHostPath` property specified in the cluster CRD will need to be deleted. Otherwise, inconsistent state will remain when a new cluster is started.
+> [!ATTENTION]
+> The final cleanup step requires deleting files on each host in the cluster. All files under the `dataDirHostPath` property specified in the cluster CRD will need to be deleted. Otherwise, inconsistent state will remain when a new cluster is started.
 
 If the `cleanupPolicy` was not added to the CephCluster CR before deleting the cluster, these manual steps are required to tear down the cluster.
 

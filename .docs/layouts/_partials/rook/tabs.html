@@ -1,0 +1,21 @@
+{{- /*
+  The top-level sections of the navigation, shown as tabs.
+  @context {page} the current page
+  @returns {slice} dict "title", "first" (the first page of the tab), "items", "active"
+*/ -}}
+{{- $page := . -}}
+{{- $tabs := slice -}}
+{{- range (partialCached "rook/nav.html" "" "").items -}}
+  {{- $first := partial "rook/first-page.html" . -}}
+  {{- $active := false -}}
+  {{- $name := .name -}}
+  {{- with .page -}}
+    {{- $active = eq . $page -}}
+  {{- else -}}
+    {{- with $page.File -}}
+      {{- $active = hasPrefix (replace .Dir "\\" "/") (printf "%s/" $name) -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $tabs = $tabs | append (dict "title" .title "first" $first "items" .items "active" $active) -}}
+{{- end -}}
+{{- return $tabs -}}

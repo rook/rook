@@ -44,6 +44,7 @@ YAMLLINT_IMAGE_SHA ?= sha256:3e9eb827ab2b12a5ea5f49d4257bb3aca94bba9f1ba427c8bc7
 # where needed
 include build/makelib/common.mk
 include build/makelib/helm.mk
+include build/makelib/docs.mk
 
 
 # Set GOBIN
@@ -351,11 +352,14 @@ helm-docs: $(HELM_DOCS) ## Use helm-docs to generate documentation from helm cha
 		-t ../../../Documentation/Helm-Charts/ceph-cluster-chart.gotmpl.md \
 		-t ../../../Documentation/Helm-Charts/_templates.gotmpl
 
-docs-preview: ## Preview the documentation through mkdocs
-	mkdocs serve
+DOCS_PREVIEW_PORT ?= 1313
+.PHONY: docs-preview
+docs-preview: $(HUGO) ## Preview the documentation at http://localhost:$(DOCS_PREVIEW_PORT)/
+	$(DOCS_HUGO) server --port $(DOCS_PREVIEW_PORT)
 
-docs-build:  ## Build the documentation to the `site/` directory
-	mkdocs build --strict
+.PHONY: docs-build
+docs-build: $(HUGO) ## Build the documentation to the `site/` directory; warnings, like broken links, fail the build
+	$(DOCS_HUGO) --destination $(DOCS_SITE_DIR) --cleanDestinationDir --baseURL $(DOCS_BASE_URL) --panicOnWarning
 
 .PHONY: gen.crd-docs
 gen.crd-docs: generate-docs-crds

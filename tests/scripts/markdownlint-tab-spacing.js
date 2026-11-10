@@ -1,8 +1,8 @@
 // enforce that lines must be indented to a strict number of tab-spaces
 // this lint rule is largely non-contextual and requires nearly all lines to adhere to the rule
-// this is even true for ordered/unordered lists in which mkdocs **usually** allows spacing to match
+// this is even true for ordered/unordered lists in which markdown renderers **usually** allow spacing to match
 // that of the parent line. but this rule is quick and dirty, and it does not harm to enforce
-// indenting to 4-space boundaries to be entirely certain that mkdocs will render as intended.
+// indenting to 4-space boundaries to be entirely certain that the docs will render as intended.
 
 const expected_tab_spaces = 4
 

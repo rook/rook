@@ -2,9 +2,9 @@
 title: CephX Keys and Rotation
 ---
 
-!!! bug
-    Ceph announced security vulnerability CVE-2025-30156 impacting all Ceph clusters, including
-    Rook clusters. See [CVE-2025-30156 Resolution](#cve-2025-30156-resolution) below for more.
+> [!BUG]
+> Ceph announced security vulnerability CVE-2025-30156 impacting all Ceph clusters, including
+> Rook clusters. See [CVE-2025-30156 Resolution](#cve-2025-30156-resolution) below for more.
 
 Ceph supports key rotation and a new, recommended AES256K key type beginning with the following versions:
 
@@ -19,10 +19,10 @@ Rook supports these in the following versions:
 
 When following the documentation below, ensure the Rook cluster uses at least one of the above versions.
 
-!!! important
-    In order to use the new AES256K key type with Ceph CSI Persistent Volume Claims, the Linux
-    kernels on Kubernetes hosts must support the new key type. Kernel versions 7.0 and up.
-    FIPS users have an additional [note](#fips-enforcing).
+> [!IMPORTANT]
+> In order to use the new AES256K key type with Ceph CSI Persistent Volume Claims, the Linux
+> kernels on Kubernetes hosts must support the new key type. Kernel versions 7.0 and up.
+> FIPS users have an additional [note](#fips-enforcing).
 
 Rook autodetects the correct [CephX authentication keys](https://docs.ceph.com/en/latest/dev/cephx/)
 to use for new CephClusters. Rook is also able to rotate CephX authentication keys when requested.
@@ -83,9 +83,9 @@ after rotation.
 AES256K CSI keys require Linux kernel support. Set the CSI `keyType: "aes"` until all Kubernetes
 nodes run Linux kernel 7.0+. FIPS users have an additional [note](#fips-enforcing).
 
-!!! tip
-    Always set the desired `spec.security.cephx.csi.keyType` to guarantee the key type can be
-    supported by kernel mounts.
+> [!TIP]
+> Always set the desired `spec.security.cephx.csi.keyType` to guarantee the key type can be
+> supported by kernel mounts.
 
 #### **CephClient keys**
 
@@ -102,9 +102,9 @@ When initiating rotation, use the `aes256k` key type when:
 
 Otherwise, use the `aes` key type.
 
-!!! tip
-    Always set the desired `spec.security.cephx.keyType` for CephClients to guarantee the key type
-    can be supported by the client.
+> [!TIP]
+> Always set the desired `spec.security.cephx.keyType` for CephClients to guarantee the key type
+> can be supported by the client.
 
 #### **RBD Mirror peer keys**
 
@@ -116,9 +116,9 @@ CephCluster RBD mirror peer key.
 The RBD Mirror peer will need to be specified as type `keyType: aes` if any peer clusters don't yet
 support AES256K.
 
-!!! tip
-    Always set the desired `spec.security.cephx.rbdMirrorPeer.keyType` to guarantee the key type can
-    be supported by peer clusters.
+> [!TIP]
+> Always set the desired `spec.security.cephx.rbdMirrorPeer.keyType` to guarantee the key type can
+> be supported by peer clusters.
 
 ## Rotating keys
 
@@ -226,10 +226,10 @@ status:
       keyGeneration: 2
 ```
 
-!!! note
-    When the admin key rotates, the toolbox pod may need to be restarted to refresh the keyring.
-    The latest toolbox deployments, both the example manifests and the Helm chart, reload the
-    keyring automatically after a few minutes delay.
+> [!NOTE]
+> When the admin key rotates, the toolbox pod may need to be restarted to refresh the keyring.
+> The latest toolbox deployments, both the example manifests and the Helm chart, reload the
+> keyring automatically after a few minutes delay.
 
 ## Key types
 
@@ -298,9 +298,9 @@ This will ensure any accidental AES keys raise visible warnings after full migra
 
 ### Migrating CSI keys to a new key type
 
-!!! important
-    [Ceph-CSI](https://github.com/ceph/ceph-csi) must be updated to at least v3.17.1 to support
-    AES256K keys.
+> [!IMPORTANT]
+> [Ceph-CSI](https://github.com/ceph/ceph-csi) must be updated to at least v3.17.1 to support
+> AES256K keys.
 
 The [rotation example above](#rotation-example) shows how to rotate CSI keys while keeping the older
 `aes` key type for all Linux kernel versions. This section explains how to follow up to migrate the
@@ -384,9 +384,9 @@ are using the latest `aes256k` key type, Ceph can be configured to restrict acce
 running the new key type and prevent creation of older key types. This serves as a security
 hardening mechanism.
 
-!!! warning
-    Modifying this configuration can result in cluster unavailability if any core Ceph daemon key
-    types do not match an allowed cipher. Use this configuration carefully.
+> [!WARNING]
+> Modifying this configuration can result in cluster unavailability if any core Ceph daemon key
+> types do not match an allowed cipher. Use this configuration carefully.
 
 For existing installs, first verify that all CephX keys use the newer key type. Use the command
 below, and ensure all keys report `aes256k` in the output. If any keys report `aes`, do not proceed.
@@ -409,9 +409,9 @@ spec:
 This can also be specified for new CephCluster installations where it's known that all clients and
 kernels support AES256K keys.
 
-!!! hint
-    Use the CephCluster CephX security setting above for new Rook installs in environments with
-    nodes running on Linux kernel 7.0+. FIPS users have an additional [note](#fips-enforcing).
+> [!HINT]
+> Use the CephCluster CephX security setting above for new Rook installs in environments with
+> nodes running on Linux kernel 7.0+. FIPS users have an additional [note](#fips-enforcing).
 
 #### Fixing cluster unavailability with allowedCiphers
 
@@ -507,16 +507,16 @@ CephFilesystem users should check its `status.cephx` as well.
 to elevate the permissions of a CephX key. CephX authentication keys for core Ceph daemons, child
 Ceph daemons (e.g., RGW), and Rook's admin key will have been rotated to the new AES256K cipher.
 
-!!! Note
-    The Rook toolbox has an update to support key rotations, taking about 60 seconds to get updated
-    keys. Update it to the latest manifest, or restart the toolbox to continue using it after rotation.
+> [!NOTE]
+> The Rook toolbox has an update to support key rotations, taking about 60 seconds to get updated
+> keys. Update it to the latest manifest, or restart the toolbox to continue using it after rotation.
 
 #### **Non-urgent follow-up tasks**
 
-!!! Important
-    **Do not rush to perform further steps.** Additional key rotations have prerequisites and
-    caveats that are important to understand before proceeding. As long as the process above is
-    completed, cluster security is not immediately vulnerable. Take your time.
+> [!IMPORTANT]
+> **Do not rush to perform further steps.** Additional key rotations have prerequisites and
+> caveats that are important to understand before proceeding. As long as the process above is
+> completed, cluster security is not immediately vulnerable. Take your time.
 
 Some Ceph health warnings (not errors) are likely to persist after this process.
 [Warnings](#warnings) documentation explains how to interpret, manage, and (if desired) mute them.
@@ -580,10 +580,10 @@ Rook and Ceph anticipate that most users will need to continue using older AES a
 for non-core clients during a transition period in order to avoid storage service outages. This
 transition period may last years for organizations with large or complex environments.
 
-!!! Important
-    CSI keys require Linux kernel version 7.0 or higher for AES256K authentication key support.
-    Older kernels can still use AES authentication keys safely after Ceph is upgraded to issue
-    AES256K service tickets. FIPS users have an additional [note](#fips-enforcing).
+> [!IMPORTANT]
+> CSI keys require Linux kernel version 7.0 or higher for AES256K authentication key support.
+> Older kernels can still use AES authentication keys safely after Ceph is upgraded to issue
+> AES256K service tickets. FIPS users have an additional [note](#fips-enforcing).
 
 
 ### Mitigations

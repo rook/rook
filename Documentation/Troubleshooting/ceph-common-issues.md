@@ -103,7 +103,7 @@ There are two options to resolve these health warnings:
 
 ## Cluster failing to service requests
 
-### Symptoms
+### Symptoms {#symptoms_1}
 
 * Execution of the `ceph` command hangs
 * PersistentVolumes are not being created
@@ -135,7 +135,7 @@ rook-ceph-osd-bg2vj                  1/1       Running   0          2d        19
 rook-ceph-osd-mwxdm                  1/1       Running   0          2d        192.168.123.31   k8-host-0403
 ```
 
-### Solution
+### Solution {#solution_1}
 
 What is happening here is that the MON pods are restarting and one or more of the Ceph daemons are not getting configured with the proper cluster information. This is commonly the result of not specifying a value for `dataDirHostPath` in your Cluster CRD.
 
@@ -143,14 +143,14 @@ The `dataDirHostPath` setting specifies a path on the local host for the Ceph da
 
 ## Monitors are the only pods running
 
-### Symptoms
+### Symptoms {#symptoms_2}
 
 * Rook operator is running
 * Either a single mon starts or the mons start very slowly (at least several minutes apart)
 * The crash-collector pods are crashing
 * No mgr, osd, or other daemons are created except the CSI driver
 
-### Investigation
+### Investigation {#investigation_1}
 
 When the operator is starting a cluster, the operator will start one mon at a time and check that they are healthy before continuing to bring up all three mons.
 If the first mon is not detected healthy, the operator will continue to check until it is healthy. If the first mon fails to start, a second and then a third
@@ -193,7 +193,7 @@ followed by a timeout message five minutes later.
 
 The error would appear to be an authentication error, but it is misleading. The real issue is a timeout.
 
-#### Solution
+#### Solution {#solution_2}
 
 If you see the timeout in the operator log, verify if the mon pod is running (see the next section).
 If the mon pod is running, check the network connectivity between the operator pod and the mon pod.
@@ -240,21 +240,21 @@ $ kubectl -n rook-ceph describe pod -l mon=rook-ceph-mon0
 
 See the solution in the next section regarding cleaning up the `dataDirHostPath` on the nodes.
 
-#### Solution
+#### Solution {#solution_3}
 
 This is a common problem reinitializing the Rook cluster when the local directory used for persistence has **not** been purged.
 This directory is the `dataDirHostPath` setting in the cluster CRD and is typically set to `/var/lib/rook`.
 To fix the issue you will need to delete all components of Rook and then delete the contents of `/var/lib/rook` (or the directory specified by `dataDirHostPath`) on each of the hosts in the cluster.
 Then when the cluster CRD is applied to start a new cluster, the rook-operator should start all the pods as expected.
 
-!!! caution
-    **Deleting the `dataDirHostPath` folder is destructive to the storage. Only delete the folder if you are trying to permanently purge the Rook cluster.**
+> [!CAUTION]
+> **Deleting the `dataDirHostPath` folder is destructive to the storage. Only delete the folder if you are trying to permanently purge the Rook cluster.**
 
 See the [Cleanup Guide](../Storage-Configuration/ceph-teardown.md) for more details.
 
 ## PVCs stay in pending state
 
-### Symptoms
+### Symptoms {#symptoms_3}
 
 * When you create a PVC based on a rook storage class, it stays pending indefinitely
 
@@ -267,7 +267,7 @@ mysql-pv-claim   Pending                                      rook-ceph-block   
 wp-pv-claim      Pending                                      rook-ceph-block   16s
 ```
 
-### Investigation
+### Investigation {#investigation_2}
 
 There are two common causes for the PVCs staying in pending state:
 
@@ -332,7 +332,7 @@ Look in the Operator pod logs around the time when the PVC was created to confir
 If the operator does not show requests to provision the block image, the operator may be stuck on some other operation.
 In this case, restart the operator pod to get things going again.
 
-### Solution
+### Solution {#solution_4}
 
 If the "osd prepare" logs didn't give you enough clues about why the OSDs were not being created,
 please review your [cluster.yaml](../CRDs/Cluster/ceph-cluster-crd.md#storage-selection-settings) configuration.
@@ -345,12 +345,12 @@ The common misconfigurations include:
 
 ## OSD pods are failing to start
 
-### Symptoms
+### Symptoms {#symptoms_4}
 
 * OSD pods are failing to start
 * You have started a cluster after tearing down another cluster
 
-### Investigation
+### Investigation {#investigation_3}
 
 When an OSD starts, the device or directory will be configured for consumption. If there is an error with the configuration, the pod will crash and you will see the CrashLoopBackoff
 status for the pod. Look in the osd pod logs for an indication of the failure.
@@ -374,7 +374,7 @@ $ kubectl -n rook-ceph logs rook-ceph-osd-fl8fs
 2017-10-31 20:13:11.187275 I | mkfs-osd0: 2017-10-31 20:13:11.187121 7f0059d62e00 -1  ** ERROR: error creating empty object store in /var/lib/rook/osd0: (17) File exists
 ```
 
-### Solution
+### Solution {#solution_5}
 
 If the error is from the file that already exists, this is a common problem reinitializing the Rook cluster when the local directory used for persistence has **not** been purged.
 This directory is the `dataDirHostPath` setting in the cluster CRD and is typically set to `/var/lib/rook`.
@@ -383,13 +383,13 @@ Then when the cluster CRD is applied to start a new cluster, the rook-operator s
 
 ## OSD pods are not created on my devices
 
-### Symptoms
+### Symptoms {#symptoms_5}
 
 * No OSD pods are started in the cluster
 * Devices are not configured with OSDs even though specified in the Cluster CRD
 * One OSD pod is started on each node instead of multiple pods for each device
 
-### Investigation
+### Investigation {#investigation_4}
 
 First, ensure that you have specified the devices correctly in the CRD.
 The [Cluster CRD](../CRDs/Cluster/ceph-cluster-crd.md#storage-selection-settings) has several ways to specify the devices that are to be consumed by the Rook storage:
@@ -444,7 +444,7 @@ read-only
 2019-05-30 19:02:59.844677 I |   [data]          /dev/sdc                                                7.00 GB         100%
 ```
 
-### Solution
+### Solution {#solution_6}
 
 Either update the CR with the correct settings, or clean the partitions or filesystem from your devices.
 To clean devices from a previous install see the [cleanup guide](../Storage-Configuration/ceph-teardown.md#zapping-devices).
@@ -463,12 +463,12 @@ $ kubectl -n rook-ceph delete pod -l app=rook-ceph-operator
 
 This issue is fixed in Rook v1.3 or later.
 
-### Symptoms
+### Symptoms {#symptoms_6}
 
 * After issuing a `reboot` command, node never returned online
 * Only a power cycle helps
 
-### Investigation
+### Investigation {#investigation_5}
 
 On a node running a pod with a Ceph persistent volume
 
@@ -487,7 +487,7 @@ Ceph persistent volumes fail with the following error:
 libceph: connect [monitor-ip]:6789 error -101
 ```
 
-### Solution
+### Solution {#solution_7}
 
 The node needs to be [drained](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/) before reboot. After the successful drain, the node can be rebooted as usual.
 
@@ -507,13 +507,13 @@ kubectl uncordon <node-name>
 
 ## Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7
 
-### Symptoms
+### Symptoms {#symptoms_7}
 
 * More than one shared filesystem (CephFS) has been created in the cluster
 * A pod attempts to mount any other shared filesystem besides the **first** one that was created
 * The pod incorrectly gets the first filesystem mounted instead of the intended filesystem
 
-### Solution
+### Solution {#solution_8}
 
 The only solution to this problem is to upgrade your kernel to `4.7` or higher.
 This is due to a mount flag added in the kernel version `4.7` which allows to chose the filesystem by name.
@@ -564,12 +564,12 @@ To disable the logging on file, simply set `log_to_file` to `false`.
 
 ## A worker node using RBD devices hangs up
 
-### Symptoms
+### Symptoms {#symptoms_8}
 
 * There is no progress on I/O from/to one of RBD devices (`/dev/rbd*` or `/dev/nbd*`).
 * After that, the whole worker node hangs up.
 
-### Investigation
+### Investigation {#investigation_6}
 
 This happens when the following conditions are satisfied.
 
@@ -589,7 +589,7 @@ $ dmesg
 
 It's so-called `hung_task` problem and means that there is a deadlock in the kernel. For more detail, please refer to [the corresponding issue comment](https://github.com/rook/rook/issues/3132#issuecomment-580508760).
 
-### Solution
+### Solution {#solution_9}
 
 This problem will be solve by the following two fixes.
 
@@ -600,7 +600,7 @@ You can bypass this problem by using ext4 or any other filesystems rather than X
 
 ## Too few PGs per OSD warning is shown
 
-### Symptoms
+### Symptoms {#symptoms_9}
 
 * `ceph status` shows "too few PGs per OSD" warning as follows.
 
@@ -613,7 +613,7 @@ $ ceph status
 [...]
 ```
 
-### Solution
+### Solution {#solution_10}
 
 The meaning of this warning is written in [the document](https://docs.ceph.com/docs/master/rados/operations/health-checks#too-few-pgs).
 However, in many cases it is benign. For more information, please see [the blog entry](http://ceph.com/community/new-luminous-pg-overdose-protection/).
@@ -621,13 +621,13 @@ Please refer to [Configuring Pools](../Storage-Configuration/Advanced/ceph-confi
 
 ## LVM metadata can be corrupted with OSD on LV-backed PVC
 
-### Symptoms
+### Symptoms {#symptoms_10}
 
 There is a critical flaw in OSD on LV-backed PVC. LVM metadata can be corrupted if both the host and OSD container modify it simultaneously. For example, the administrator might modify it on the host, while the OSD initialization process in a container could modify it too. In addition, if `lvmetad` is running, the possibility of occurrence gets higher. In this case, the change of LVM metadata in OSD container is not reflected to LVM metadata cache in host for a while.
 
 If you still decide to configure an OSD on LVM, please keep the following in mind to reduce the probability of this issue.
 
-### Solution
+### Solution {#solution_11}
 
 * Disable `lvmetad.`
 * Avoid configuration of LVs from the host. In addition, don't touch the VGs and physical volumes that back these LVs.
@@ -652,7 +652,7 @@ Alternatively, you can have a [DaemonSet](https://github.com/rook/rook/issues/62
 
 ## Unexpected partitions created
 
-### Symptoms
+### Symptoms {#symptoms_11}
 
 **Users running Rook versions v1.6.0-v1.6.7 may observe unwanted OSDs on partitions that appear
 unexpectedly and seemingly randomly, which can corrupt existing OSDs.**
@@ -689,7 +689,7 @@ sdd      8:48   0     3T  0 disk
 
 You can see [GitHub rook/rook - Issue 7940 unexpected partition on disks >= 1TB (atari partitions)](https://github.com/rook/rook/issues/7940) for more detailed information and discussion.
 
-### Solution
+### Solution {#solution_12}
 
 #### Recover from corruption (v1.6.0-v1.6.7)
 
@@ -727,12 +727,12 @@ uninstall Rook completely and redeploy with v1.6.8 or higher.
 
 ## Operator environment variables are ignored
 
-### Symptoms
+### Symptoms {#symptoms_12}
 
 Configuration settings passed as environment variables do not take effect as expected. For example,
 the discover daemonset is not created, even though `ROOK_ENABLE_DISCOVERY_DAEMON="true"` is set.
 
-### Investigation
+### Investigation {#investigation_7}
 
 Inspect the `rook-ceph-operator-config` ConfigMap for conflicting settings. The ConfigMap takes
 precedence over the environment. The ConfigMap [must exist](../Storage-Configuration/Advanced/ceph-configuration.md#custom-cephconf-settings),
@@ -748,7 +748,7 @@ rook-ceph-operator-config-controller successfully started
 rook-ceph-operator-config-controller done reconciling
 ```
 
-### Solution
+### Solution {#solution_13}
 
 If it does not exist, create an empty ConfigMap:
 
@@ -765,7 +765,7 @@ If the ConfigMap exists, remove any keys that you wish to configure through the 
 
 ## The cluster is in an unhealthy state or fails to configure when LimitNOFILE=infinity in containerd
 
-### Symptoms
+### Symptoms {#symptoms_13}
 
 When trying to create a new deployment, Ceph mons keep crashing and the cluster fails to configure or remains in an unhealthy state. The nodes' CPUs are stuck at 100%.
 
@@ -774,7 +774,7 @@ NAME        DATADIRHOSTPATH   MONCOUNT   AGE    PHASE   MESSAGE                 
 rook-ceph   /var/lib/rook      3         4m6s   Ready   Failed to configure ceph cluster           HEALTH_ERR
 ```
 
-### Solution
+### Solution {#solution_14}
 
 Before systemd v240, systemd would leave `fs.nr_open` as-is because it had no mechanism to set a safe upper limit for it. The kernel hard-coded value for the default number of max open files is **1048576**. Starting from systemd v240, when `LimitNOFILE=infinity` is specified in the containerd.service configuration, this value will typically be set to **~1073741816** (INT_MAX for x86_64 divided by two).
 

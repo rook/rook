@@ -194,9 +194,9 @@ started. Scaling down the cluster requires that clients be migrated from servers
 eliminated to others. That process is currently a manual one and should be performed before reducing
 the size of the cluster.
 
-!!! warning
-    See the [known issue](#serveractive-count-greater-than-1) below about setting this
-    value greater than one.
+> [!WARNING]
+> See the [known issue](#serveractive-count-greater-than-1) below about setting this
+> value greater than one.
 
 
 ## Known issues

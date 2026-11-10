@@ -10,8 +10,8 @@ Rook allows creation and customization of object stores through the custom resou
 
 Erasure coded pools can only be used with `dataPools`. The `metadataPool` must use a replicated pool.
 
-!!! note
-    This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+> [!NOTE]
+> This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
 
 The OSDs must be located on different nodes, because the [`failureDomain`](../Block-Storage/ceph-block-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
@@ -308,9 +308,9 @@ bucket access. This use case is discussed in more detail in
     Rook automatically adds the known CephObjectStore service DNS name to this list, as well as
     corresponding CephObjectZone `customEndpoints` (if applicable).
 
-!!! Note
-    For DNS names that support wildcards, do not include wildcards.
-    E.g., use `mystore.example.com` instead of `*.mystore.example.com`.
+> [!NOTE]
+> For DNS names that support wildcards, do not include wildcards.
+> E.g., use `mystore.example.com` instead of `*.mystore.example.com`.
 
 ## Runtime settings
 
@@ -530,9 +530,9 @@ spec:
 
 ## Advanced configuration
 
-!!! warning
-    This feature is intended for advanced users. It allows breaking configurations to be easily
-    applied. Use with caution.
+> [!WARNING]
+> This feature is intended for advanced users. It allows breaking configurations to be easily
+> applied. Use with caution.
 
 CephObjectStore allows arbitrary Ceph configurations to be applied to RGW daemons that serve the
 object store. [RGW config reference](https://docs.ceph.com/en/latest/radosgw/config-ref/).
@@ -566,13 +566,13 @@ spec:
 * `rgwCommandFlags` - These configurations are applied as CLI arguments and result in RGW daemons
     restarting when updates are applied. Restarts are desired behavior for some RGW configs.
 
-!!! note
-    Once an `rgwConfig` or `rgwConfigFromSecret` is set, it will not be removed from Ceph's central config store when removed
-    from the `rgwConfig` or `rgwConfigFromSecret` spec. Be sure to specifically set values back to their defaults once done.
-    With this in mind, `rgwCommandFlags` may be a better choice for temporary config values like
-    debug levels.
+> [!NOTE]
+> Once an `rgwConfig` or `rgwConfigFromSecret` is set, it will not be removed from Ceph's central config store when removed
+> from the `rgwConfig` or `rgwConfigFromSecret` spec. Be sure to specifically set values back to their defaults once done.
+> With this in mind, `rgwCommandFlags` may be a better choice for temporary config values like
+> debug levels.
 
-### Example - debugging
+### Example - debugging {#example-debugging}
 
 Users are often asked to provide RGW logs at a high log level when troubleshooting complex issues.
 Apply log levels to RGWs easily using `rgwCommandFlags`.
@@ -591,7 +591,7 @@ spec:
 
 Once RGW debug logging is no longer needed, the values can simply be removed from the spec.
 
-### Example - usage with `additionalVolumeMounts`
+### Example - usage with `additionalVolumeMounts` {#example-usage-with-additionalvolumemounts}
 
 This sample configuration below demonstrates how advanced configuration can be used alongside
 `additionalVolumeMounts`. This hypothetical scenario shows how a Kubernetes secret containing an
@@ -621,7 +621,7 @@ data:
     "bindpass.secret": aGVsbG8ud29ybGQK # hello.world
 ```
 
-### Example - usage with `rgwConfigFromSecret`
+### Example - usage with `rgwConfigFromSecret` {#example-usage-with-rgwconfigfromsecret}
 
 The sample configuration below demonstrates how to securely handle secret configuration parameters when setting up RGW for [Barbican integration](https://docs.ceph.com/en/latest/radosgw/config-ref/#barbican-settings).
 

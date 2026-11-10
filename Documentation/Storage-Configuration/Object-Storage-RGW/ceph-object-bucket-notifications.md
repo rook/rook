@@ -204,20 +204,20 @@ spec:
     * s3:Replication:Delete
     * s3:Replication:DeletionMarkerCreated
 
-!!! warning
-    The CRD does not validate these values. Anything the API server accepts is
-    sent to RGW as written, and RGW rejects a configuration containing an event
-    it does not recognize with `Unknown Event type` — the whole notification,
-    not just the offending entry, so it is never created. A typo surfaces as a
-    failing reconcile rather than a rejected `kubectl apply`.
+> [!WARNING]
+> The CRD does not validate these values. Anything the API server accepts is
+> sent to RGW as written, and RGW rejects a configuration containing an event
+> it does not recognize with `Unknown Event type` — the whole notification,
+> not just the offending entry, so it is never created. A typo surfaces as a
+> failing reconcile rather than a rejected `kubectl apply`.
 
-!!! note
-    The `s3:ObjectRestore:*` events are not implemented in any released Ceph
-    version, so they cannot be used yet. Support was added upstream in
-    [ceph tracker #69203](https://tracker.ceph.com/issues/69203), with the
-    Tentacle backport at
-    [#75180](https://tracker.ceph.com/issues/75180); check those for the
-    release that will carry them.
+> [!NOTE]
+> The `s3:ObjectRestore:*` events are not implemented in any released Ceph
+> version, so they cannot be used yet. Support was added upstream in
+> [ceph tracker #69203](https://tracker.ceph.com/issues/69203), with the
+> Tentacle backport at
+> [#75180](https://tracker.ceph.com/issues/75180); check those for the
+> release that will carry them.
 
 ### OBC Custom Resource
 

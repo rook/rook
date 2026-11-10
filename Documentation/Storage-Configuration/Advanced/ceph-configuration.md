@@ -164,8 +164,8 @@ Node: node2.zbrbdl
 
 ## Separate Storage Groups
 
-!!! attention
-    It is **deprecated to manually need to set this**, the `deviceClass` property can be used on Pool structures in `CephBlockPool`, `CephFilesystem` and `CephObjectStore` CRD objects.
+> [!ATTENTION]
+> It is **deprecated to manually need to set this**, the `deviceClass` property can be used on Pool structures in `CephBlockPool`, `CephFilesystem` and `CephObjectStore` CRD objects.
 
 By default Rook/Ceph puts all storage under one replication rule in the CRUSH
 Map which provides the maximum amount of storage capacity for a cluster.  If you
@@ -180,12 +180,12 @@ a common practice for those looking to target certain workloads onto faster
 
 ### Placement Group Sizing
 
-!!! note
-    Since Ceph Nautilus (v14.x), you can use the Ceph MGR `pg_autoscaler`
-    module to auto scale the PGs as needed. It is highly advisable to configure
-    default pg_num value on per-pool basis, If you want to enable this feature,
-    please refer to [Default PG and PGP
-    counts](configuration.md#default-pg-and-pgp-counts).
+> [!NOTE]
+> Since Ceph Nautilus (v14.x), you can use the Ceph MGR `pg_autoscaler`
+> module to auto scale the PGs as needed. It is highly advisable to configure
+> default pg_num value on per-pool basis, If you want to enable this feature,
+> please refer to [Default PG and PGP
+> counts](configuration.md#default-pg-and-pgp-counts).
 
 The general rules for deciding how many PGs your pool(s) should contain is:
 
@@ -209,13 +209,13 @@ ceph osd pool set rbd pg_num 512
 
 ## Custom `ceph.conf` Settings
 
-!!! info
-    The advised method for controlling Ceph configuration is to use the [`cephConfig`](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-config) and [`cephConfigFromSecret`](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-config-from-secret)
-    in the `CephCluster` CRD.
-    <br><br>It is highly recommended that this only be used when absolutely necessary and that the `config` be
-    reset to an empty string if/when the configurations are no longer necessary. Configurations in the
-    config file will make the Ceph cluster less configurable from the CLI and dashboard and may make
-    future tuning or debugging difficult.
+> [!INFO]
+> The advised method for controlling Ceph configuration is to use the [`cephConfig`](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-config) and [`cephConfigFromSecret`](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-config-from-secret)
+> in the `CephCluster` CRD.
+> <br><br>It is highly recommended that this only be used when absolutely necessary and that the `config` be
+> reset to an empty string if/when the configurations are no longer necessary. Configurations in the
+> config file will make the Ceph cluster less configurable from the CLI and dashboard and may make
+> future tuning or debugging difficult.
 
 Setting configs via Ceph's CLI requires that at least one mon be available for the configs to be
 set, and setting configs via dashboard requires at least one mgr to be available. Ceph also has
@@ -225,9 +225,9 @@ configuration settings, the `rook-config-override` ConfigMap exists, and the `co
 set with the contents of a `ceph.conf` file. The contents will be propagated to all mon, mgr, OSD,
 MDS, RGW, and NFS daemons as an `/etc/ceph/ceph.conf` file.
 
-!!! warning
-    Rook performs no validation on the config, so the  validity of the settings is the
-    user's responsibility.
+> [!WARNING]
+> Rook performs no validation on the config, so the  validity of the settings is the
+> user's responsibility.
 
 If the `rook-config-override` ConfigMap is created before the cluster is started, the Ceph daemons
 will automatically pick up the settings. If you add the settings to the ConfigMap after the cluster
@@ -272,9 +272,9 @@ rook-config-override-<hostname>
 In this example we will set the default pool `size` to two, and tell OSD
 daemons not to change the weight of OSDs on startup.
 
-!!! warning
-    Modify Ceph settings carefully. You are leaving the sandbox tested by Rook.
-    Changing the settings could result in unhealthy daemons or even data loss if used incorrectly.
+> [!WARNING]
+> Modify Ceph settings carefully. You are leaving the sandbox tested by Rook.
+> Changing the settings could result in unhealthy daemons or even data loss if used incorrectly.
 
 When the Rook Operator creates a cluster, a placeholder ConfigMap is created that
 will allow you to override Ceph configuration settings. When the daemon pods are started, the
@@ -322,11 +322,11 @@ data:
 
 ## Custom CSI `ceph.conf` Settings
 
-!!! warning
-    It is highly recommended to use the default setting that comes with
-    CephCSI and this can only be used when absolutely necessary.
-    The `ceph.conf` should be reset back to default values if/when the configurations are no
-    longer necessary.
+> [!WARNING]
+> It is highly recommended to use the default setting that comes with
+> CephCSI and this can only be used when absolutely necessary.
+> The `ceph.conf` should be reset back to default values if/when the configurations are no
+> longer necessary.
 
 If the `csi-ceph-conf-override` ConfigMap is created before the cluster is
 started, the CephCSI pods will automatically pick up the settings. If you
@@ -341,10 +341,10 @@ After the CSI pods are restarted, the new settings should be in effect.
 In this [Example](https://github.com/rook/rook/tree/master/deploy/examples/csi-ceph-conf-override.yaml) we
 will set the `rbd_validate_pool` to `false` to skip rbd pool validation.
 
-!!! warning
-    Modify Ceph settings carefully to avoid modifying the default
-    configuration.
-    Changing the settings could result in unexpected results if used incorrectly.
+> [!WARNING]
+> Modify Ceph settings carefully to avoid modifying the default
+> configuration.
+> Changing the settings could result in unexpected results if used incorrectly.
 
 ```console
 kubectl create -f csi-ceph-conf-override.yaml
@@ -404,9 +404,10 @@ ceph osd primary-affinity osd.0 0
 
 ## OSD Dedicated Network
 
-!!! tip
-    This documentation is left for historical purposes. It is still valid, but Rook offers native
-    support for this feature via the
+> [!TIP]
+> This documentation is left for historical purposes. It is still valid, but Rook offers native
+> support for this feature via the
+
 [CephCluster network configuration](../../CRDs/Cluster/ceph-cluster-crd.md#network-configuration-settings).
 
 It is possible to configure ceph to leverage a dedicated network for the OSDs to
@@ -429,9 +430,9 @@ For example,
     provider: host
 ```
 
-!!! important
-    Changing this setting is not supported in a running Rook cluster. Host networking
-    should be configured when the cluster is first created.
+> [!IMPORTANT]
+> Changing this setting is not supported in a running Rook cluster. Host networking
+> should be configured when the cluster is first created.
 
 ### Define the subnets to use for public and private OSD networks
 
@@ -501,8 +502,8 @@ ceph osd tree
 
 2) Create the Rook [Toolbox](../../Troubleshooting/ceph-toolbox.md).
 
-!!! note
-    [Prometheus Operator](../Monitoring/ceph-monitoring.md#prometheus-operator) and [Prometheus ../Monitoring/ceph-monitoring.mdnitoring.md#prometheus-instances) are Prerequisites that are created by the auto-grow-storage script.
+> [!NOTE]
+> [Prometheus Operator](../Monitoring/ceph-monitoring.md#prometheus-operator) and [Prometheus ../Monitoring/ceph-monitoring.mdnitoring.md#prometheus-instances) are Prerequisites that are created by the auto-grow-storage script.
 
 ### To scale OSDs Vertically
 
