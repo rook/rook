@@ -125,8 +125,8 @@ func createNewCluster(t *testing.T) *Cluster {
 	c := New(ctx, clusterInfo, clusterSpec, "myversion")
 	defer os.RemoveAll(c.spec.DataDirHostPath)
 
-	// This cluster enables the dashboard with SSL, so the awaited dashboard
-	// goroutine would otherwise sleep for dashboardInitWaitTime (5s). Zero it out
+	// This cluster enables the dashboard, so the awaited dashboard goroutine
+	// would otherwise sleep for dashboardInitWaitTime (5s). Zero it out
 	// and restore it after the goroutines are awaited (cleanups run LIFO, so the
 	// restore below runs after the Wait registered next).
 	origDashboardInitWaitTime := dashboardInitWaitTime
