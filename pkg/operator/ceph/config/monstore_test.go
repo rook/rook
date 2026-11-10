@@ -17,17 +17,24 @@ limitations under the License.
 package config
 
 import (
+	"bytes"
+	"os"
 	"reflect"
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMonStore_Set(t *testing.T) {
@@ -242,6 +249,84 @@ func TestMonStore_SetAll(t *testing.T) {
 	assert.Equal(t, 0, len(keys))
 	assert.NoError(t, e)
 	assert.True(t, appliedSettings)
+}
+
+func TestMonStore_SetAllRejectsLineBreaksAndBrackets(t *testing.T) {
+	tests := []struct {
+		name  string
+		key   string
+		value string
+	}{
+		{"newline in key", "#\n[global]\nmon_max_pg_per_osd", "s3cr3t"},
+		{"carriage return in key", "#\r[global]\rmon_max_pg_per_osd", "s3cr3t"},
+		{"newline in value", "rgw_keystone_url", "s3cr3t\n[global]\nmon_max_pg_per_osd = 1000"},
+		{"carriage return in value", "rgw_keystone_url", "s3cr3t\r[global]\rmon_max_pg_per_osd = 1000"},
+		{"opening bracket in key", "[global] mon_max_pg_per_osd", "s3cr3t"},
+		{"closing bracket in key", "mon_max_pg_per_osd]", "s3cr3t"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logBuf := &bytes.Buffer{}
+			capnslog.SetFormatter(capnslog.NewPrettyFormatter(logBuf, false))
+			capnslog.SetGlobalLogLevel(capnslog.TRACE)
+			t.Cleanup(func() {
+				capnslog.SetFormatter(capnslog.NewDefaultFormatter(os.Stderr))
+				capnslog.SetGlobalLogLevel(capnslog.INFO)
+			})
+
+			executor := &exectest.MockExecutor{}
+			ranCommand := false
+			executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
+				ranCommand = true
+				return "", nil
+			}
+			ctx := &clusterd.Context{
+				Clientset: testop.New(t, 1),
+				Executor:  executor,
+				ConfigDir: t.TempDir(),
+			}
+			monStore := GetMonStore(ctx, client.AdminTestClusterInfo("mycluster"))
+
+			err := monStore.SetAll("client.rgw.my.store.a", map[string]string{
+				"rgw_zone": "zone",
+				tt.key:     tt.value,
+			})
+			require.Error(t, err)
+			assert.ErrorContains(t, err, strconv.Quote(tt.key))
+			assert.NotContains(t, err.Error(), "s3cr3t", "the error must not include the value")
+			assert.False(t, ranCommand, "no setting may be applied when one is rejected")
+			assert.Regexp(t, ` E \| op-config: .*`+regexp.QuoteMeta(strconv.Quote(tt.key)), logBuf.String(),
+				"the rejection must be logged at ERROR")
+			assert.NotContains(t, logBuf.String(), "s3cr3t", "the log must not include the value")
+		})
+	}
+}
+
+func TestMonStore_SetAllAcceptsBracketsInValue(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	var assimilated string
+	var readErr error
+	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
+		if i := slices.Index(args, "-i"); i >= 0 && i+1 < len(args) {
+			var b []byte
+			b, readErr = os.ReadFile(args[i+1])
+			assimilated = string(b)
+		}
+		return "", nil
+	}
+	ctx := &clusterd.Context{
+		Clientset: testop.New(t, 1),
+		Executor:  executor,
+		ConfigDir: t.TempDir(),
+	}
+	monStore := GetMonStore(ctx, client.AdminTestClusterInfo("mycluster"))
+
+	err := monStore.SetAll("client.rgw.my.store.a", map[string]string{
+		"rgw_frontends": "beast endpoint=[::]:8080",
+	})
+	assert.NoError(t, err)
+	require.NoError(t, readErr)
+	assert.Equal(t, "[client.rgw.my.store.a]\nrgw_frontends = beast endpoint=[::]:8080\n", assimilated)
 }
 
 func TestFilterSettingsMap(t *testing.T) {
