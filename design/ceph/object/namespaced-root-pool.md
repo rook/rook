@@ -55,8 +55,8 @@ To mitigate this we propose a new `namespacedRootPool` feature.
 - Access control. This feature would control the placement of topology records. It would not change
   what any RGW daemon or client is authorized to read or write. It would, however, arrange the
   layout that namespace-scoped cephx capabilities require (see Motivation).
-- Automated Ceph-side cleanup of multisite realms and dependent-aware deletion. The prerequisite
-  finalizers (see Prerequisite work) only prevent accidental CR deletion.
+- Automated Ceph-side cleanup of multisite realms. The prerequisite finalizers (see Prerequisite
+  work) only order the deletion of the CRs.
 
 ### Constraints and assumptions
 
@@ -200,20 +200,23 @@ In multisite, every consumer controller resolves the root pool location from the
 the CR reference chain, so the realm CR must exist for as long as any consumer does. Kubernetes
 alone does not guarantee that. It enforces no deletion order between resources, a whole-setup
 teardown (`kubectl delete -f`, namespace deletion) removes all CRs at once, and only a finalizer
-makes a CR linger. Today `CephObjectZone` and `CephObjectStore` are deletion-gated by finalizers
-while the `CephObjectRealm` and `CephObjectZoneGroup` CRs are not, so during a multisite teardown
-the realm CR can disappear while consumers still need it to read the root pool location. Single-site is unaffected, since a
+makes a CR linger. Without the prerequisite work below, only `CephObjectZone` and `CephObjectStore`
+are deletion-gated by finalizers, so during a multisite teardown the realm CR can disappear while
+consumers still need it to read the root pool location. Single-site is unaffected, since a
 standalone `CephObjectStore` carries the field itself and no CR chain is involved.
 
-This design therefore requires prerequisite work that lands before the implementation.
-`CephObjectRealm` and `CephObjectZoneGroup` gain finalizers, added at reconcile time. When such a
-CR is deleted, its controller keeps the finalizer, requeues with an error, and emits an event
-telling the administrator to delete the dependent resources first and then remove the finalizer.
-When the whole CephCluster is gone, the finalizer is released, matching the existing behavior of
-every finalizer-gated Rook CR.
+This design therefore requires prerequisite work that lands before the implementation
+([rook#18452](https://github.com/rook/rook/pull/18452)). `CephObjectRealm` and `CephObjectZoneGroup`
+gain finalizers, added at reconcile time. A deleted realm CR keeps its finalizer until no
+`CephObjectZoneGroup` references it, and a deleted zone group CR keeps its finalizer until no
+`CephObjectZone` references it. Zones already wait for their object stores while the zone is part
+of its Ceph zone group, so a whole-setup teardown completes in order without manual steps. While
+the deletion is blocked, the CR's `DeletionIsBlocked` status condition names the dependents that
+block it. When the whole CephCluster is gone, or is deleted with a cleanup policy, the finalizer is
+released, matching the existing behavior of every finalizer-gated Rook CR.
 
-The prework performs no Ceph-side cleanup and no dependent detection (see Non-Goals). It only
-guarantees that the realm and zone group CRs never disappear accidentally. Every consumer can then
+The prework performs no Ceph-side cleanup (see Non-Goals). It only guarantees that the realm and
+zone group CRs are deleted after the CRs that reference them. Every consumer can then
 rely on the realm CR existing for as long as the consumer itself exists, during provisioning and
 during deletion.
 
@@ -282,7 +285,7 @@ sequenceDiagram
 **Example — teardown (multisite).** The following diagram shows a whole-setup teardown under the
 prerequisite finalizers. The realm CR is deleted first, but its finalizer holds it while the zone
 still exists, so the zone controller can resolve the root pool location and run its Ceph-side
-cleanup at the right place. After the dependents are gone, the administrator removes the realm
+cleanup at the right place. After the dependents are gone, the realm controller releases its
 finalizer and the realm CR is deleted. Single-site has no counterpart to this ordering concern since the
 `CephObjectStore` owns the field itself, so the location is always resolvable during the store's
 own teardown.
@@ -295,13 +298,13 @@ sequenceDiagram
     participant Ceph as .rgw.root (RADOS)
     Note over User,Ceph: realm blue provisioned as above
     User->>RealmC: delete CephObjectRealm blue
-    RealmC->>RealmC: finalizer held, error and event, clean up dependents first
+    RealmC->>RealmC: finalizer held, DeletionIsBlocked names the zone group
     User->>ZoneC: delete zone
     ZoneC->>ZoneC: read namespacedRootPool from the still-present realm CR
     ZoneC->>Ceph: Ceph-side zone cleanup against .rgw.root:blue
     ZoneC->>ZoneC: release finalizer, zone CR is gone
     Note over User,ZoneC: CephObjectZoneGroup deleted the same way (zone group controller omitted)
-    User->>RealmC: remove the realm finalizer
+    RealmC->>RealmC: no zone group left, release the finalizer
     RealmC->>RealmC: realm CR is gone, no Ceph-side work, records remain
 ```
 
@@ -461,9 +464,6 @@ Test planning (unit and end-to-end) is deferred to the implementation PR.
   cannot express a per-realm scope, so exactly one root-pool location is addressable and every
   other realm would disappear from the dashboard. Serving multiple realms is the case this feature
   exists for, so the limitation stays and a fix belongs upstream.
-- Deleting a multisite realm or zone group CR requires manual intervention. The prerequisite
-  finalizer blocks the deletion until the administrator removes it after cleaning up the dependent
-  resources (see Prerequisite work).
 - There is no cluster-wide default realm spanning namespaced realms (see Operational notes).
 
 ## Alternatives
@@ -552,7 +552,8 @@ The conditions differ by deployment mode:
 
 - **Single-site**: Rook already deletes the realm records during store deletion.
 - **Multisite**: by convention nothing ever deletes a realm's topology records (the prerequisite
-  finalizer blocks the realm CR's deletion but performs no Ceph-side cleanup), so the namespace
+  finalizer only delays the realm CR's deletion until its zone groups are gone and performs no
+  Ceph-side cleanup), so the namespace
   legitimately outlives every local zone. There is no "realm teardown" event to hang a delete sweep
   on.
 
@@ -596,6 +597,5 @@ while a consumer exists, and the skip path this question asked about no longer e
 zone-group-gone skip is superseded the same way. With the zone group CR finalizer-gated, that path
 is reachable only after a forced removal, and the zone then blocks under the wait rule. The residual
 case of a manually removed finalizer blocks with an explicit error, which matches the strict
-deletion behavior. The prework stays minimum-viable. It performs no Ceph-side realm cleanup and no
-dependent detection, and a whole-namespace teardown stays viable through the existing
-CephCluster-gone finalizer release.
+deletion behavior. The prework performs no Ceph-side realm cleanup. It releases each finalizer once
+no dependent CR remains, so a whole-setup teardown completes in order without manual steps.
