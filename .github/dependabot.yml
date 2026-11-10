@@ -54,6 +54,11 @@ updates:
       - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
+      # kustomize v0.21.3 declares go 1.27 and requires a kube-openapi that
+      # does too; either would raise this branch's go directive. That
+      # kube-openapi also moves to structured-merge-diff/v7, which this
+      # branch's k8s.io/apimachinery does not build against.
+      - dependency-name: "sigs.k8s.io/kustomize/*"
 
   - package-ecosystem: "gomod"
     directory: "/"
@@ -71,3 +76,4 @@ updates:
       - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
+      - dependency-name: "sigs.k8s.io/kustomize/*"
