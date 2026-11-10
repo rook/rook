@@ -19,6 +19,10 @@ package osd
 
 import (
 	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -31,6 +35,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -127,6 +132,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	}
 	osd := &OSDInfo{
 		ID:     0,
+		UUID:   "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 		CVMode: "raw",
 	}
 
@@ -208,6 +214,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	// Not needed when running on PVC
 	osd = &OSDInfo{
 		ID:     0,
+		UUID:   "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 		CVMode: "lvm",
 	}
 
@@ -232,6 +239,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	// Test OSD on PVC with RAW
 	osd = &OSDInfo{
 		ID:     0,
+		UUID:   "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 		CVMode: "raw",
 	}
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
@@ -275,6 +283,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	// // Test OSD on PVC with RAW and metadata device
 	osd = &OSDInfo{
 		ID:     0,
+		UUID:   "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 		CVMode: "raw",
 	}
 	osdProp.metadataPVC = corev1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
@@ -301,6 +310,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	// // Test encrypted OSD on PVC with RAW and metadata device
 	osd = &OSDInfo{
 		ID:     0,
+		UUID:   "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 		CVMode: "raw",
 	}
 	osdProp.encrypted = true
@@ -335,6 +345,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	// // Test OSD on PVC with RAW / metadata and wal device
 	osd = &OSDInfo{
 		ID:     0,
+		UUID:   "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 		CVMode: "raw",
 	}
 	osdProp.metadataPVC = corev1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
@@ -363,6 +374,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	// // Test encrypted OSD on PVC with RAW / metadata and wal device
 	osd = &OSDInfo{
 		ID:     0,
+		UUID:   "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 		CVMode: "raw",
 	}
 	osdProp.encrypted = true
@@ -668,6 +680,7 @@ func TestHostNetwork(t *testing.T) {
 	n := c.spec.Storage.ResolveNode(storageSpec.Nodes[0].Name)
 	osd := &OSDInfo{
 		ID:          0,
+		UUID:        "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 		CVMode:      "raw",
 		DeviceClass: "myclass",
 	}
@@ -777,7 +790,7 @@ func TestClusterGetPVCEncryptionInitContainerActivate(t *testing.T) {
 func getDummyDeploymentOnPVC(clientset *fake.Clientset, c *Cluster, pvcName string, osdID int) *appsv1.Deployment {
 	osd := &OSDInfo{
 		ID:        osdID,
-		UUID:      "some-uuid",
+		UUID:      "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 		BlockPath: "/some/path",
 		CVMode:    "raw",
 		Store:     "bluestore",
@@ -812,7 +825,7 @@ func getDummyDeploymentOnNode(clientset *fake.Clientset, c *Cluster, nodeName st
 
 	osd := &OSDInfo{
 		ID:        osdID,
-		UUID:      "some-uuid",
+		UUID:      "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 		BlockPath: "/dev/vda",
 		CVMode:    "raw",
 		Store:     "bluestore",
@@ -856,7 +869,7 @@ func TestDeploymentOnNode_DeviceClassFromLabel(t *testing.T) {
 	c := New(ctx, clusterInfo, spec, "rook/rook:master")
 	c.ValidStorage.Nodes = []cephv1.Node{{Name: "node0"}}
 
-	osd := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vda", CVMode: "raw", Store: "bluestore"}
+	osd := &OSDInfo{ID: 0, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "/dev/vda", CVMode: "raw", Store: "bluestore"}
 	config := c.newProvisionConfig()
 
 	t.Run("node label device class flows into deployment", func(t *testing.T) {
@@ -900,7 +913,7 @@ func TestDeploymentOnNode_DeviceClassFromLabel(t *testing.T) {
 		c3 := New(ctx, clusterInfo, specNoUpdate, "rook/rook:master")
 		c3.ValidStorage.Nodes = []cephv1.Node{{Name: "node0"}}
 
-		osdWithClass := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vda", CVMode: "raw", Store: "bluestore", DeviceClass: "hdd"}
+		osdWithClass := &OSDInfo{ID: 0, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "/dev/vda", CVMode: "raw", Store: "bluestore", DeviceClass: "hdd"}
 		d, err := deploymentOnNode(c3, osdWithClass, "node0", c3.newProvisionConfig())
 		assert.NoError(t, err)
 		// OSD should keep "hdd" even though node label says "fast"
@@ -1023,6 +1036,7 @@ func TestOSDPlacement(t *testing.T) {
 	c := New(context, clusterInfo, spec, "rook/rook:myversion")
 	osd := &OSDInfo{
 		ID:     0,
+		UUID:   "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53",
 		CVMode: "raw",
 	}
 
@@ -1172,7 +1186,7 @@ func TestMakeDeploymentWithAllowDeviceClassUpdate(t *testing.T) {
 				devices:       devices,
 				storeConfig:   config.StoreConfig{StoreType: "bluestore", DeviceClass: tc.perNodeNew},
 			}
-			osd := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vdb", CVMode: "raw", Store: "bluestore", DeviceClass: tc.currentOSD}
+			osd := &OSDInfo{ID: 0, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "/dev/vdb", CVMode: "raw", Store: "bluestore", DeviceClass: tc.currentOSD}
 			cfg := &provisionConfig{DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, "/var/lib/rook")}
 
 			d, err := c.makeDeployment(osdProps, osd, cfg)
@@ -1220,7 +1234,7 @@ func TestMakeDeploymentAllowDeviceClassUpdateFalseLeavesClassAlone(t *testing.T)
 				devices:       devices,
 				storeConfig:   config.StoreConfig{StoreType: "bluestore", DeviceClass: tc.perNodeNew},
 			}
-			osd := &OSDInfo{ID: 0, UUID: "u", BlockPath: "/dev/vdb", CVMode: "raw", Store: "bluestore", DeviceClass: tc.currentOSD}
+			osd := &OSDInfo{ID: 0, UUID: "8f3a7c2e-5b14-4d6e-9a0b-2c7d1e4f6a53", BlockPath: "/dev/vdb", CVMode: "raw", Store: "bluestore", DeviceClass: tc.currentOSD}
 			cfg := &provisionConfig{DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, "/var/lib/rook")}
 
 			d, err := c.makeDeployment(osdProps, osd, cfg)
@@ -1229,4 +1243,85 @@ func TestMakeDeploymentAllowDeviceClassUpdateFalseLeavesClassAlone(t *testing.T)
 			assert.Equal(t, tc.currentOSD, crushDeviceClassEnvValue(t, d))
 		})
 	}
+}
+
+func TestValidateOSDUUID(t *testing.T) {
+	const canonical = "6e7c4d3f-3494-4dc1-90dc-58527fdf05d7"
+
+	assert.NoError(t, validateOSDUUID(canonical))
+
+	for name, osdUUID := range map[string]string{
+		"empty":             "",
+		"path traversal":    "x/../../../../../etc",
+		"cap string syntax": `x",profile=osd,profile="y`,
+		"braces":            "{" + canonical + "}",
+		"urn":               "urn:uuid:" + canonical,
+		"no hyphens":        strings.ReplaceAll(canonical, "-", ""),
+		"upper case":        strings.ToUpper(canonical),
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.ErrorContains(t, validateOSDUUID(osdUUID), "is not a UUID in canonical form")
+		})
+	}
+}
+
+func TestActivateOSDInitContainerLockboxCaps(t *testing.T) {
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash is required to run the activate script")
+	}
+
+	// Run the script of the activate container for an encrypted lvm OSD, with a ceph stub that
+	// records its arguments, and return them. PATH holds only the stub, so the script stops at its
+	// next external command (mv) instead of acting on the host, and the paths it writes to before
+	// then are rewritten into a temporary directory.
+	lockboxRequestArgs := func(t *testing.T, osdUUID string) []string {
+		c := &Cluster{clusterInfo: &cephclient.ClusterInfo{FSID: "c5b8e5d0-4a7e-4a8b-9f0e-6b1d2c3e4f50"}}
+		osd := OSDInfo{ID: 7, UUID: osdUUID, BlockPath: "/dev/ceph-vg/osd-block", CVMode: "lvm", Encrypted: true}
+		_, container := c.getActivateOSDInitContainer("/var/lib/rook", "ns", "7", osd, osdProperties{storeConfig: config.StoreConfig{EncryptedDevice: true}})
+		require.Len(t, container.Command, 3)
+		require.Equal(t, []string{"/bin/bash", "-c"}, container.Command[:2])
+
+		dir := t.TempDir()
+		argsFile := filepath.Join(dir, "ceph-args")
+		stub := "#!" + bash + "\nprintf '%s\\0' \"$@\" > '" + argsFile + "'\n"
+		// #nosec G306 -- the stub has to be executable to be run from PATH
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "ceph"), []byte(stub), 0o700))
+
+		script := container.Command[2]
+		require.Contains(t, script, "/tmp/lockbox.keyring")
+		script = strings.NewReplacer("/tmp/", dir+"/", "/etc/lvm/", dir+"/").Replace(script)
+
+		cmd := exec.CommandContext(t.Context(), bash, "-c", script)
+		cmd.Env = []string{"PATH=" + dir}
+		for _, e := range container.Env {
+			if e.ValueFrom == nil {
+				cmd.Env = append(cmd.Env, e.Name+"="+e.Value)
+			}
+		}
+		out, err := cmd.CombinedOutput()
+		t.Logf("activate script exited with %v:\n%s", err, out)
+
+		args, err := os.ReadFile(argsFile)
+		require.NoError(t, err, "the activate script did not run ceph")
+		return strings.Split(strings.TrimSuffix(string(args), "\x00"), "\x00")
+	}
+
+	expectedArgs := func(osdUUID string) []string {
+		return []string{
+			"--name", "client.admin", "auth", "get-or-create", "client.osd-lockbox." + osdUUID,
+			"mon", `allow command "config-key get" with key="dm-crypt/osd/` + osdUUID + `/luks"`,
+			"--keyring", "/etc/ceph/admin-keyring-store/keyring",
+		}
+	}
+
+	t.Run("cap argument is intact for a uuid", func(t *testing.T) {
+		const osdUUID = "6e7c4d3f-3494-4dc1-90dc-58527fdf05d7"
+		assert.Equal(t, expectedArgs(osdUUID), lockboxRequestArgs(t, osdUUID))
+	})
+
+	t.Run("cap argument stays one argument when the uuid contains whitespace", func(t *testing.T) {
+		// the uuid is formatted into the script text, where an unescaped space would end its assignment
+		assert.Equal(t, expectedArgs("a b"), lockboxRequestArgs(t, `a\ b`))
+	})
 }
