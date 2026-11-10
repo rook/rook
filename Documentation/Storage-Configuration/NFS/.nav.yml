@@ -3,4 +3,5 @@ nav:
     - nfs-csi-driver.md
     - nfs-security.md
     - nfs-advanced.md
-    - ...
+    - glob: "*"
+      ignore_no_matches: true

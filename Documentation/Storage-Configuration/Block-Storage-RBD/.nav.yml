@@ -5,4 +5,5 @@ nav:
     - rbd-mirroring.md
     - rbd-async-disaster-recovery-failover-failback.md
     - app-migration.md
-    - ...
+    - glob: "*"
+      ignore_no_matches: true

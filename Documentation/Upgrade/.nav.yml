@@ -2,4 +2,5 @@ nav:
     - health-verification.md
     - rook-upgrade.md
     - ceph-upgrade.md
-    - ...
+    - glob: "*"
+      ignore_no_matches: true
