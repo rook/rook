@@ -164,6 +164,23 @@ func TestPodSpecs(t *testing.T) {
 	s, err := c.makeRGWPodSpec(rgwConfig)
 	assert.NoError(t, err)
 
+	// DaemonEnvVars already sets POD_NAME; it must not be declared a second time.
+	var rgwContainer v1.Container
+	for _, container := range s.Spec.Containers {
+		if container.Name == rgwContainerName {
+			rgwContainer = container
+			break
+		}
+	}
+	assert.NotEmpty(t, rgwContainer.Name)
+	podNameCount := 0
+	for _, env := range rgwContainer.Env {
+		if env.Name == "POD_NAME" {
+			podNameCount++
+		}
+	}
+	assert.Equal(t, 1, podNameCount)
+
 	// Check pod anti affinity is well added to be compliant with HostNetwork setting
 	assert.Equal(t,
 		1,
