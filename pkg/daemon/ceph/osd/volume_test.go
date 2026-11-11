@@ -19,6 +19,7 @@ package osd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -2058,16 +2059,18 @@ func TestCephVolumeLVMResultParseFailureDoesNotLeakLockboxSecret(t *testing.T) {
 	tests := []struct {
 		name   string
 		result string
-		// the field a type error names; empty when the error is a syntax error,
-		// which reports only its own message
-		namesField string
+		// the JSON value kind and Go type a type error reports; both empty when the
+		// error is a syntax error, which reports only its own message
+		jsonValue string
+		goType    string
 	}{
 		{
 			// path is a string in osdInfo, so a number is the shape a ceph-volume
 			// schema change would take
-			name:       "type error",
-			result:     `{"0": [{"name": "osd-block-9ee6a1e7", "path": 12345, ` + tags + `, "type": "block"}]}`,
-			namesField: "osdInfo.path of type string",
+			name:      "type error",
+			result:    `{"0": [{"name": "osd-block-9ee6a1e7", "path": 12345, ` + tags + `, "type": "block"}]}`,
+			jsonValue: "number",
+			goType:    "string",
 		},
 		{
 			// callCephVolume warns that stderr contamination breaks the unmarshal, so
@@ -2094,8 +2097,13 @@ func TestCephVolumeLVMResultParseFailureDoesNotLeakLockboxSecret(t *testing.T) {
 			assert.NotContains(t, err.Error(), lockboxSecret)
 			// the response size is the only context a syntax error leaves
 			assert.Contains(t, err.Error(), fmt.Sprintf("(%d bytes)", len(tc.result)))
-			if tc.namesField != "" {
-				assert.Contains(t, err.Error(), tc.namesField)
+			if tc.jsonValue != "" {
+				// match the structured error: the field path encoding/json renders
+				// into the message is not a stable format
+				var typeErr *json.UnmarshalTypeError
+				require.ErrorAs(t, err, &typeErr)
+				assert.Equal(t, tc.jsonValue, typeErr.Value)
+				assert.Equal(t, tc.goType, typeErr.Type.String())
 			}
 		})
 	}

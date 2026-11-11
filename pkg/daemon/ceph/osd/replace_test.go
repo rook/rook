@@ -725,5 +725,11 @@ func TestCephVolumeLVMListParseFailureDoesNotLeakLockboxSecret(t *testing.T) {
 
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), lockboxSecret)
-	assert.Contains(t, err.Error(), "cvLVMListEntry.path of type string")
+	// path is the only number in the response, so the type error it provokes is what
+	// proves the error came from the unmarshal. Match the structured error: the field
+	// path encoding/json renders into the message is not a stable format.
+	var typeErr *json.UnmarshalTypeError
+	require.ErrorAs(t, err, &typeErr)
+	assert.Equal(t, "number", typeErr.Value)
+	assert.Equal(t, "string", typeErr.Type.String())
 }
