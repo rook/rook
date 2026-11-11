@@ -8,6 +8,9 @@ Changes should *not* be included here if they are backported to previous release
 
 ## Features
 
+- Ceph exporters automatically skip fetching monitor configuration at startup when the
+  `rook-config-override` configmap sets `global.ms_public_type` to `async+rdma`.
+
 - `CephObjectStoreUser` gained `spec.secretTemplate`, which adds labels and annotations to the Secret that holds the
   user's credentials, for example to opt the Secret in to a tool that copies Secrets into other namespaces. Keys that
   Rook sets or acts on are reserved.

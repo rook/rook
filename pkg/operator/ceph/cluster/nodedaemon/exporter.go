@@ -20,7 +20,9 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
+	"github.com/go-ini/ini"
 	"github.com/pkg/errors"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -78,6 +80,10 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 	volumes := append(
 		controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "", cephCluster.Spec.DataDirHostPath),
 		keyring.Volume().Exporter())
+	skipMonConfig, err := r.skipMonConfigForExporter(cephCluster.Namespace)
+	if err != nil {
+		return controllerutil.OperationResultNone, err
+	}
 
 	mutateFunc := func() error {
 		// labels for the pod, the deployment, and the deploymentSelector
@@ -131,7 +137,7 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 					getCephExporterChownInitContainer(cephCluster),
 				},
 				Containers: []corev1.Container{
-					getCephExporterDaemonContainer(cephCluster, *cephVersion),
+					getCephExporterDaemonContainer(cephCluster, *cephVersion, skipMonConfig),
 				},
 				Tolerations:                   tolerations,
 				RestartPolicy:                 corev1.RestartPolicyAlways,
@@ -161,6 +167,36 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 	return controllerutil.CreateOrUpdate(r.opManagerContext, r.client, deploy, mutateFunc)
 }
 
+func (r *ReconcileNode) skipMonConfigForExporter(namespace string) (bool, error) {
+	if r.context == nil || r.context.Clientset == nil {
+		return false, nil
+	}
+
+	ctx := r.opManagerContext
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	configMap, err := r.context.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, k8sutil.ConfigOverrideName, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err, "failed to read configmap %q", k8sutil.ConfigOverrideName)
+	}
+
+	configOverride := configMap.Data[k8sutil.ConfigOverrideVal]
+	if configOverride == "" {
+		return false, nil
+	}
+	config, err := ini.Load([]byte(configOverride))
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to parse configmap %q", k8sutil.ConfigOverrideName)
+	}
+
+	publicType := strings.TrimSpace(config.Section("global").Key("ms_public_type").String())
+	return strings.EqualFold(publicType, "async+rdma"), nil
+}
+
 func getCephExporterChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
 	mounts := controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath)
@@ -183,7 +219,7 @@ func getExporterMetricsPort(cephCluster cephv1.CephCluster) int32 {
 	return int32(DefaultMetricsPort)
 }
 
-func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion cephver.CephVersion) corev1.Container {
+func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion cephver.CephVersion, skipMonConfig bool) corev1.Container {
 	cephImage := cephCluster.Spec.CephVersion.Image
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
 	volumeMounts := controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath)
@@ -203,6 +239,10 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 		"--port", strconv.Itoa(int(metricsPort)),
 		"--prio-limit", prioLimit,
 		"--stats-period", statsPeriod,
+	}
+
+	if skipMonConfig {
+		args = append(args, "--no-mon-config")
 	}
 
 	// If DualStack or IPv6 is enabled ensure ceph-exporter binds to both IPv6 and IPv4 interfaces.
