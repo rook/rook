@@ -36,7 +36,9 @@ Related issues: [#16928](https://github.com/rook/rook/issues/16928),
 ### Non-Goals
 
 - Replacing `lvm` mode for host-based OSDs.
-- Moving the keys of existing OSDs into a KMS. Only new OSDs are affected.
+- Moving the keys of existing OSDs into a KMS. Only new OSDs are affected. Existing OSDs stay
+  encrypted with their keys in the monitors. The only way to move an existing OSD to the KMS is to
+  replace it.
 - Removing the copy of the key that `ceph-volume` stores in the monitors (see
   [Keys in the monitors](#keys-in-the-monitors)).
 - Key rotation (`security.keyRotation`) for host-based OSDs. This can follow once this design is
@@ -66,9 +68,12 @@ spec:
       encryptedDevice: "true"
 ```
 
+Host-based OSDs support the same KMS providers as PVC-based OSDs: Vault (KV secret engine, with
+token or Kubernetes authentication), IBM Key Protect, KMIP and Azure Key Vault. The design adds no
+provider-specific code, since the key is stored and fetched through the existing KMS client.
+
 The new path is used only when the KMS settings are valid. Today the operator validates
-`security.kms` only when the cluster has encrypted PVC-based OSDs
-([cluster.go](https://github.com/rook/rook/blob/cdfb3c2fa8dd711e8d3e91bed9f416390f5491d9/pkg/operator/ceph/cluster/cluster.go#L338-L345)).
+`security.kms` only when the cluster has encrypted PVC-based OSDs.
 The same validation runs for clusters with encrypted host-based OSDs, in the OSD reconcile rather
 than in the cluster validation. If it fails, for example for a spec without `KMS_PROVIDER`, which
 would otherwise select the Kubernetes provider, or while the token Secret does not exist yet, the
@@ -85,24 +90,24 @@ stay on `lvm` mode and are reported as described below.
 
 ### Which OSDs are affected
 
-Rook chooses the `ceph-volume` mode at two levels (`pkg/daemon/ceph/osd/volume.go`):
+Rook chooses the `ceph-volume` mode at two levels:
 
-- `allowRawMode()` decides for the whole node. It turns off `raw` mode for every device on the node
+- Per node. It turns off `raw` mode for every device on the node
   when the node-level `encryptedDevice` is set, when `osdsPerDevice` is greater than 1, or when the
   node has a `metadataDevice`.
-- `isSafeToUseRawMode()` decides per device. It turns off `raw` mode when the device is an LVM logical
+- Per device. It turns off `raw` mode when the device is an LVM logical
   volume, or when the device's own `encryptedDevice`, `osdsPerDevice` or `metadataDevice` setting
   requires it.
 
 With this design, encryption no longer turns off `raw` mode at either level when a valid
-`security.kms` is configured, so both functions change. The other reasons still force `lvm` mode,
+`security.kms` is configured. The other reasons still force `lvm` mode,
 because `raw` mode cannot split devices the way `ceph-volume lvm batch` does. Encrypted OSDs in those
 cases keep their keys in the monitors only. This includes every encrypted device on a node with a
 node-level `metadataDevice`.
 
-The OSD replacement flow (`provisionReplacedOSD()` in `pkg/daemon/ceph/osd/replace.go`) is a third
-caller of these predicates. Today it adds `--dmcrypt` only in `lvm` mode, because raw mode was never
-encrypted ([osd-replacement.md](osd-replacement.md) assumes this too). It changes with them:
+The OSD replacement flow uses the same checks. Today it adds `--dmcrypt` only in `lvm` mode,
+because raw mode was never encrypted ([osd-replacement.md](osd-replacement.md) assumes this too).
+It changes with them:
 
 - A replaced OSD that is encrypted and qualifies for `raw` mode is prepared like a new OSD (see
   [Provisioning](#provisioning)), with `--dmcrypt` and a key in `CEPH_VOLUME_DMCRYPT_SECRET`. `raw
@@ -112,12 +117,11 @@ encrypted ([osd-replacement.md](osd-replacement.md) assumes this too). It change
   `ceph-volume lvm list`.
 - The KMS key of the destroyed OSD is left in the KMS, as on OSD removal (see [Cleanup](#cleanup)).
 
-Encrypted partitions are dropped today in `getAvailableDevices()`
-([daemon.go](https://github.com/rook/rook/blob/cdfb3c2fa8dd711e8d3e91bed9f416390f5491d9/pkg/daemon/ceph/osd/daemon.go#L448-L451)),
-before `lvmModeAllowed()` is reached. With a valid KMS, these gates let them through and they are
-created in `raw` mode like whole devices. An earlier attempt to allow encrypted partitions (#12924)
-was reverted in 8e80b2103 because they produced unencrypted OSDs, so the implementation adds a test
-that an encrypted partition gets a dm-crypt mapper. Encrypted logical volumes stay unsupported.
+Encrypted partitions are skipped today during device discovery, before the `ceph-volume` mode is
+chosen. With a valid KMS, they are let through and created in `raw` mode like whole devices. An
+earlier attempt to allow encrypted partitions ([#12924](https://github.com/rook/rook/pull/12924))
+was reverted because they produced unencrypted OSDs, so the implementation adds a test that an
+encrypted partition gets a dm-crypt mapper. Encrypted logical volumes stay unsupported.
 
 ### Reporting
 
@@ -194,7 +198,7 @@ When the operator processes the prepare result of an encrypted `raw` mode host O
 the KMS holds a key under the OSD fsid. If not, it reads the key from the monitors, stores it in the
 KMS and reads it back. It creates the OSD deployment only if the key read back matches. A failure is
 retried on the next reconcile, which finds the OSD without a deployment again. Reading the key back
-also covers IBM Key Protect, whose `PutSecret()` returns no error when the alias already exists.
+also covers IBM Key Protect, which returns no error on a write when the alias already exists.
 
 A prepare job that is killed after `ceph osd new` needs no recovery of its own: the key is in the
 monitors under the OSD fsid, and the operator copies it once the OSD is reported.
@@ -220,9 +224,10 @@ deployment before a reboot.
 ### KMS access
 
 The prepare job does not touch the KMS, so it needs no KMS settings and no RBAC change. The new
-writes (storing the key under the OSD fsid) come from the operator, which already writes PVC keys. The OSD pod reads its key with `rook key-management get`, as PVC-based OSD pods do, so the
-OSD pods get the KMS connection settings and the Vault or KMIP certificate mounts that PVC-based OSD
-pods already get. The key itself is never part of the pod spec.
+writes (storing the key under the OSD fsid) come from the operator, which already writes PVC keys.
+The OSD pod reads its key with `rook key-management get`, as PVC-based OSD pods do, so the OSD pods
+get the KMS connection settings and the certificate mounts that PVC-based OSD pods already get.
+The key itself is never part of the pod spec.
 
 ### Activation
 
@@ -231,11 +236,10 @@ BlueStore label, which can only be read after the device is opened. The OSD pod 
 init container that fetches the key from the KMS and opens the device before
 `ceph-volume raw activate` runs.
 
-The PVC-based init container (`getPVCEncryptionOpenInitContainerActivate()` and
-`open-encrypted-block.sh`) does not fit: it takes the key name, the dm-crypt name and the device from
+The PVC-based init container does not fit: it takes the key name, the dm-crypt name and the device from
 the PVC, and it rewrites the LUKS2 subsystem to the cluster fsid, which erases the OSD fsid that
-`ceph-volume` writes there. Host-based OSDs get their own init container, which shares the KMS fetch
-(`rook key-management get`) and the KMS volumes with the PVC one. It:
+`ceph-volume` writes there. Host-based OSDs get their own init container, which shares the KMS fetch and the
+KMS volumes with the PVC one. It:
 
 1. Does nothing if the mapper the OSD was created with is already open.
 2. Renames a mapper of the same OSD that is open under a different kernel name. The prepare job opens
@@ -265,9 +269,8 @@ monitor copy. Both stay in place, so this works either way.
 The monitor copy of the key (`dm-crypt/osd/<fsid>/luks` and the user `client.osd-lockbox.<fsid>`) is
 kept, as it is for PVC-based OSDs today. Keeping it means:
 
-- cephx daemon key rotation keeps rotating the lockbox user of every encrypted OSD
-  ([update.go](https://github.com/rook/rook/blob/cdfb3c2fa8dd711e8d3e91bed9f416390f5491d9/pkg/operator/ceph/cluster/osd/update.go#L432-L439))
-  without a special case, and `activate-osd.sh` does not change.
+- cephx daemon key rotation keeps rotating the lockbox user of every encrypted OSD without a special
+  case, and the OSD activation script does not change.
 - A disk can still be opened when its KMS key is lost, for example when the KMIP uid Secrets are
   deleted with the namespace, or after a downgrade (see [Upgrades and downgrades](#upgrades-and-downgrades)).
   The operator copies the key into the KMS only before it creates the OSD deployment. If the KMS
@@ -290,9 +293,9 @@ TPM2 path does. Whether the monitor copy is intended for `raw prepare --dmcrypt`
 Keys of host-based OSDs are named by OSD fsid, so the existing PVC-based cleanup does not find them.
 
 - **Cluster deletion.** Today the operator deletes the KMS keys of PVC-based OSDs by listing the OSD
-  PVCs (`pkg/operator/ceph/cluster/controller.go`). The Ceph cluster may already be unreachable at
+  PVCs. The Ceph cluster may already be unreachable at
   this point, so the fsids are not read from Ceph. The operator reads them from the encrypted OSD
-  deployments instead (`ROOK_OSD_UUID` of the OSDs with `ROOK_CV_MODE=raw` that are not on a PVC).
+  deployments instead (the encrypted `raw` mode OSDs that are not on a PVC).
   The keys are deleted only when the cleanup policy destroys the data.
 - **OSD removal and replacement.** Removing or replacing a single OSD leaves its key in the KMS. The
   OSD removal job is started from a manifest that users apply (`osd-purge.yaml`) and has no KMS
@@ -315,10 +318,10 @@ fails, so today it never wipes a host device. Skipping it keeps host-based OSDs 
 
 ### Code reuse
 
-The existing KMS code (`kms.NewConfig()`, `PutSecret()`, `GetSecret()`, `ConfigToEnvVar()`,
-`rook key-management get`) is reused with the key name as a parameter. The operator's KMS setup for
-Vault tokens, IBM Key Protect and KMIP moves into one helper shared by cluster deletion and the copy
-of the key into the KMS, and one helper builds the KMS volumes of the OSD pods.
+The existing KMS client, and the `rook key-management get` command that OSD pods run, are reused
+with the key name as a parameter. The operator's KMS setup for Vault tokens, IBM Key Protect and KMIP
+moves into one helper shared by cluster deletion and the copy of the key into the KMS, and one
+helper builds the KMS volumes of the OSD pods.
 
 ### Upgrades and downgrades
 
