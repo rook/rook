@@ -31,6 +31,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -258,5 +259,82 @@ func waitForOrchestrationCompletion(c *Cluster, nodeName string, startCompleted 
 			}
 		}
 		<-time.After(50 * time.Millisecond)
+	}
+}
+
+func TestPrepareStatusRetry(t *testing.T) {
+	for _, pvcBacked := range []bool{false, true} {
+		for _, succeeds := range []bool{false, true} {
+			t.Run(fmt.Sprintf("pvc=%t/succeeds=%t", pvcBacked, succeeds), func(t *testing.T) {
+				ctx := context.Background()
+				clientset := fake.NewClientset()
+				clusterInfo := &cephclient.ClusterInfo{
+					Context: ctx, Namespace: "ns", CephVersion: cephver.Squid,
+					OwnerInfo: cephclient.NewMinimumOwnerInfoWithOwnerRef(),
+				}
+				c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+				name := "retry-device"
+				cmName := statusConfigMapName(name)
+				config := c.newCreateConfig(c.newProvisionConfig(), sets.New(cmName), newExistenceListWithCapacity(1))
+				errs := newProvisionErrors()
+				job, err := clientset.BatchV1().Jobs("ns").Create(ctx, &batchv1.Job{
+					ObjectMeta: metav1.ObjectMeta{Name: provisionJobName(name), Namespace: "ns"},
+					Status:     batchv1.JobStatus{Active: 1},
+				}, metav1.CreateOptions{})
+				require.NoError(t, err)
+
+				creates := 0
+				oldNode, oldPVC := createDaemonOnNodeFunc, createDaemonOnPVCFunc
+				t.Cleanup(func() { createDaemonOnNodeFunc, createDaemonOnPVCFunc = oldNode, oldPVC })
+				create := func(_ *Cluster, osd *OSDInfo, nodeOrPVC string, _ *provisionConfig) error {
+					creates++
+					assert.Equal(t, 12, osd.ID)
+					assert.Equal(t, name, nodeOrPVC)
+					return nil
+				}
+				createDaemonOnNodeFunc, createDaemonOnPVCFunc = create, create
+
+				process := func(status OrchestrationStatus) {
+					UpdateNodeOrPVCStatus(ctx, c.kv, name, status)
+					cm, err := clientset.CoreV1().ConfigMaps("ns").Get(ctx, cmName, metav1.GetOptions{})
+					require.NoError(t, err)
+					c.createOSDsForStatusMap(cm, config, errs)
+				}
+				process(OrchestrationStatus{Status: OrchestrationStatusFailed, PvcBackedOSD: pvcBacked, Message: "attempt interrupted"})
+				assert.False(t, config.doneCreating(), "an attempt failure must not finish provisioning")
+				assert.Zero(t, errs.len())
+				_, err = clientset.CoreV1().ConfigMaps("ns").Get(ctx, cmName, metav1.GetOptions{})
+				require.NoError(t, err, "retain the status while the Job can retry")
+
+				// Backoff between attempts can have no active pod without being terminal.
+				job.Status.Active = 0
+				job.Status.Failed = 1
+				job, err = clientset.BatchV1().Jobs("ns").UpdateStatus(ctx, job, metav1.UpdateOptions{})
+				require.NoError(t, err)
+				require.NoError(t, c.recheckPendingOSDStatuses(config, errs))
+				assert.False(t, config.doneCreating())
+
+				if succeeds {
+					// A successful retry must be accepted even without an intermediate status event.
+					completed := OrchestrationStatus{Status: OrchestrationStatusCompleted, PvcBackedOSD: pvcBacked, OSDs: []OSDInfo{{ID: 12}}}
+					process(completed)
+					assert.Equal(t, 1, creates)
+					assert.Zero(t, errs.len())
+					process(completed)
+					assert.Equal(t, 1, creates, "duplicate success must not create OSDs again")
+				} else {
+					// Only the Job changes when retries are exhausted; no ConfigMap event arrives.
+					job.Status.Conditions = []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue}}
+					_, err = clientset.BatchV1().Jobs("ns").UpdateStatus(ctx, job, metav1.UpdateOptions{})
+					require.NoError(t, err)
+					require.NoError(t, c.recheckPendingOSDStatuses(config, errs))
+					assert.Equal(t, 1, errs.len())
+					assert.Zero(t, creates)
+				}
+				assert.True(t, config.doneCreating())
+				_, err = clientset.CoreV1().ConfigMaps("ns").Get(ctx, cmName, metav1.GetOptions{})
+				assert.True(t, errors.IsNotFound(err), "processed terminal results should be cleaned up")
+			})
+		}
 	}
 }

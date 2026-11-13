@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -273,6 +274,11 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 			updateConfig.updateExistingOSDs(errs)
 
 		case <-minuteTicker.C:
+			// A failed attempt can be retried without changing its status ConfigMap until
+			// the next attempt starts. Recheck pending results to notice terminal Job failures.
+			if err := c.recheckPendingOSDStatuses(createConfig, errs); err != nil {
+				return false, err
+			}
 			// Log progress
 			c, cExp := createConfig.progress()
 			u, uExp := updateConfig.progress()
@@ -350,11 +356,49 @@ func (c *Cluster) createOSDsForStatusMap(
 	}
 
 	if status.Status == OrchestrationStatusFailed {
+		cmName := statusConfigMapName(nodeOrPVCName)
+		if !createConfig.awaitingStatusConfigMaps.Has(cmName) || createConfig.finishedStatusConfigMaps.Has(cmName) {
+			return
+		}
+		job, err := c.context.Clientset.BatchV1().Jobs(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, provisionJobName(nodeOrPVCName), metav1.GetOptions{})
+		if err != nil {
+			log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to get OSD prepare job for %s %s: %v", nodeOrPVC, nodeOrPVCName, err)
+			return
+		}
+		failed := false
+		for _, condition := range job.Status.Conditions {
+			if condition.Type == batchv1.JobFailed && condition.Status == corev1.ConditionTrue {
+				failed = true
+				break
+			}
+		}
+		if !failed {
+			// The provision process reports individual attempt failures. Kubernetes may
+			// still retry the Job, so do not discard a later successful result.
+			return
+		}
 		createConfig.doneWithStatus(nodeOrPVCName)
 		errs.addError("failed to provision OSD(s) on %s %s. %+v", nodeOrPVC, nodeOrPVCName, status)
 		c.deleteStatusConfigMap(nodeOrPVCName) // remove the provisioning status configmap
 		return
 	}
+}
+
+// Recheck status even when only the Job's status changed, which does not trigger our ConfigMap watch.
+func (c *Cluster) recheckPendingOSDStatuses(createConfig *createConfig, errs *provisionErrors) error {
+	cms, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).List(c.clusterInfo.Context, metav1.ListOptions{
+		LabelSelector: statusConfigMapSelector(),
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to recheck OSD provisioning status ConfigMaps")
+	}
+	for i := range cms.Items {
+		name := cms.Items[i].Name
+		if createConfig.awaitingStatusConfigMaps.Has(name) && !createConfig.finishedStatusConfigMaps.Has(name) {
+			c.createOSDsForStatusMap(&cms.Items[i], createConfig, errs)
+		}
+	}
+	return nil
 }
 
 func statusConfigMapName(nodeOrPVCName string) string {
