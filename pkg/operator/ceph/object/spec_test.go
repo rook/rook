@@ -78,6 +78,30 @@ func TestVaultPrefixRGWSSES3(t *testing.T) {
 	}
 }
 
+func TestVaultPrefixRGWSSEKMS(t *testing.T) {
+	tests := []struct {
+		name    string
+		details map[string]string
+		want    string
+	}{
+		{"transit mounted at the default path", map[string]string{"VAULT_SECRET_ENGINE": "transit"}, "/v1/transit"},
+		{"transit mounted at a custom path", map[string]string{"VAULT_SECRET_ENGINE": "transit", "VAULT_TRANSIT_BACKEND_PATH": "rgw-transit"}, "/v1/rgw-transit"},
+		{"blank transit path falls back to the default", map[string]string{"VAULT_SECRET_ENGINE": "transit", "VAULT_TRANSIT_BACKEND_PATH": "  "}, "/v1/transit"},
+		{"transit path with spaces and slashes", map[string]string{"VAULT_SECRET_ENGINE": "transit", "VAULT_TRANSIT_BACKEND_PATH": " /rgw/transit/ "}, "/v1/rgw/transit"},
+		{"VAULT_BACKEND_PATH is ignored for transit", map[string]string{"VAULT_SECRET_ENGINE": "transit", "VAULT_BACKEND_PATH": "rook"}, "/v1/transit"},
+		{"transit path wins over VAULT_BACKEND_PATH", map[string]string{"VAULT_SECRET_ENGINE": "transit", "VAULT_BACKEND_PATH": "rook", "VAULT_TRANSIT_BACKEND_PATH": "rgw-transit"}, "/v1/rgw-transit"},
+		{"kv keeps VAULT_BACKEND_PATH and ignores the transit path", map[string]string{"VAULT_SECRET_ENGINE": "kv", "VAULT_BACKEND_PATH": "rook", "VAULT_TRANSIT_BACKEND_PATH": "rgw-transit"}, "/v1/rook/data"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &clusterConfig{store: &cephv1.CephObjectStore{Spec: cephv1.ObjectStoreSpec{Security: &cephv1.ObjectStoreSecuritySpec{}}}}
+			c.store.Spec.Security.KeyManagementService = cephv1.KeyManagementServiceSpec{ConnectionDetails: tt.details}
+			assert.Equal(t, tt.want, c.vaultPrefixRGW())
+			assert.Contains(t, c.sseKMSVaultTokenOptions(true), cephconfig.NewFlag("rgw crypt vault prefix", tt.want))
+		})
+	}
+}
+
 func configureSSE(t *testing.T, c *clusterConfig, kms bool, s3 bool) {
 	c.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{}
 	if kms {

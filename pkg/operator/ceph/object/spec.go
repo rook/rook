@@ -915,21 +915,26 @@ func (c *clusterConfig) vaultPrefixRGW() string {
 		vaultPrefixPath = path.Join(vaultPrefix,
 			c.store.Spec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendPathKey], "/data")
 	case kms.VaultTransitSecretEngineKey:
-		vaultPrefixPath = path.Join(vaultPrefix, secretEngine)
+		vaultPrefixPath = vaultTransitPrefix(c.store.Spec.Security.KeyManagementService.ConnectionDetails)
 	}
 
 	return vaultPrefixPath
 }
 
-// vaultPrefixRGWSSES3 returns the Vault path prefix RGW uses for SSE-S3: the transit mount named by
-// VAULT_TRANSIT_BACKEND_PATH, or "transit" when it is not set.
-func (c *clusterConfig) vaultPrefixRGWSSES3() string {
-	connectionDetails := c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails
+// vaultTransitPrefix returns the Vault path prefix of a transit engine: the mount named by
+// VAULT_TRANSIT_BACKEND_PATH, or the secret engine name (transit) when it is not set.
+func vaultTransitPrefix(connectionDetails map[string]string) string {
 	mount := connectionDetails[kms.VaultSecretEngineKey]
 	if transitPath := kms.GetParam(connectionDetails, kms.VaultTransitBackendPathKey); transitPath != "" {
 		mount = transitPath
 	}
 	return path.Join(vaultPrefix, mount)
+}
+
+// vaultPrefixRGWSSES3 returns the Vault path prefix RGW uses for SSE-S3: the transit mount named by
+// VAULT_TRANSIT_BACKEND_PATH, or "transit" when it is not set.
+func (c *clusterConfig) vaultPrefixRGWSSES3() string {
+	return vaultTransitPrefix(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails)
 }
 
 func (c *clusterConfig) CheckRGWKMS() (bool, error) {
