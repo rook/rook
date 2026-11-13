@@ -978,8 +978,13 @@ func (c *Cluster) assignMons(mons []*monConfig, monsToSkipReconcile sets.Set[str
 		if c.ClusterInfo.Context.Err() != nil {
 			return c.ClusterInfo.Context.Err()
 		}
-		// scheduling for this monitor has already been completed
-		if _, ok := c.mapping.Schedule[mon.DaemonName]; ok {
+		// scheduling for this monitor has already been completed. Guard the read
+		// with resultLock since previously-spawned goroutines write to the map
+		// concurrently below.
+		resultLock.Lock()
+		_, alreadyScheduled := c.mapping.Schedule[mon.DaemonName]
+		resultLock.Unlock()
+		if alreadyScheduled {
 			log.NamespacedDebug(c.Namespace, logger, "mon %s already scheduled", mon.DaemonName)
 			continue
 		}
