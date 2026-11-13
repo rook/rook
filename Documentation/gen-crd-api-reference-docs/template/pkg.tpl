@@ -1,4 +1,7 @@
 {{ define "packages" }}
+---
+title: Specification
+---
 
 {{ with .packages}}
 <p>Packages:</p>

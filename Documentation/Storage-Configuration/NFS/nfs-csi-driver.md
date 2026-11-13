@@ -2,8 +2,8 @@
 title: CSI provisioner and driver
 ---
 
-!!! attention
-    This feature is experimental and will not support upgrades to future versions.
+> [!ATTENTION]
+> This feature is experimental and will not support upgrades to future versions.
 
 For this section, we will refer to Rook's deployment examples in the
 [deploy/examples](https://github.com/rook/rook/tree/master/deploy/examples) directory.

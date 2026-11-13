@@ -2,8 +2,8 @@
 title: FilesystemSubVolumeGroup CRD
 ---
 
-!!! info
-    This guide assumes you have created a Rook cluster as explained in the main [Quickstart guide](../../Getting-Started/quickstart.md)
+> [!INFO]
+> This guide assumes you have created a Rook cluster as explained in the main [Quickstart guide](../../Getting-Started/quickstart.md)
 
 Rook allows creation of Ceph Filesystem [SubVolumeGroups](https://docs.ceph.com/en/latest/cephfs/fs-volumes/#fs-subvolume-groups) through the custom resource definitions (CRDs).
 Filesystem subvolume groups are an abstraction for a directory level higher than Filesystem subvolumes to effect policies (e.g., File layouts) across a set of subvolumes.
@@ -61,9 +61,9 @@ If any setting is unspecified, a suitable default will be used automatically.
     * `export`: Range: <0-256>, for disabling it set to -1
     * `random`: Range: [0.0, 1.0], for disabling it set to 0.0
 
-!!! note
-    Only one out of (export, distributed, random) can be set at a time.
-    By default pinning is set with value: `distributed=1`.
+> [!NOTE]
+> Only one out of (export, distributed, random) can be set at a time.
+> By default pinning is set with value: `distributed=1`.
 
 ## Create a storage class for the subvolume group
 

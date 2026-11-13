@@ -38,8 +38,8 @@ To orchestrate the storage platform, Rook requires the following access in the c
 
 Before starting the Rook operator or cluster, create the security context constraints needed by the Rook pods. The following yaml is found in `operator-openshift.yaml` under `/deploy/examples`.
 
-!!! hint
-    Older versions of OpenShift may require `apiVersion: v1`.
+> [!HINT]
+> Older versions of OpenShift may require `apiVersion: v1`.
 
 Important to note is that if you plan on running Rook in namespaces other than the default `rook-ceph`, the example scc will need to be modified to accommodate for your namespaces where the Rook pods are running.
 

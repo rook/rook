@@ -48,14 +48,14 @@ After the cluster is running, applications can consume [block, object, or file](
 
 The first step is to deploy the Rook operator.
 
-!!! important
-    The [Rook Helm Chart](../Helm-Charts/operator-chart.md) is available to deploy the operator instead of creating the below manifests.
+> [!IMPORTANT]
+> The [Rook Helm Chart](../Helm-Charts/operator-chart.md) is available to deploy the operator instead of creating the below manifests.
 
-!!! note
-    Check that the [example yaml files](https://github.com/rook/rook/blob/master/deploy/examples) are from a tagged release of Rook.
+> [!NOTE]
+> Check that the [example yaml files](https://github.com/rook/rook/blob/master/deploy/examples) are from a tagged release of Rook.
 
-!!! note
-    These steps are for a standard production Rook deployment in Kubernetes. For Openshift, testing, or more options, see the [example configurations documentation](example-configurations.md).
+> [!NOTE]
+> These steps are for a standard production Rook deployment in Kubernetes. For Openshift, testing, or more options, see the [example configurations documentation](example-configurations.md).
 
 ```console
 cd deploy/examples
@@ -86,11 +86,11 @@ See the [Ceph example configurations](example-configurations.md) for more detail
 
 Now that the Rook operator is running we can create the Ceph cluster.
 
-!!! important
-    The [Rook Cluster Helm Chart](../Helm-Charts/ceph-cluster-chart.md) is available to deploy the operator instead of creating the below manifests.
+> [!IMPORTANT]
+> The [Rook Cluster Helm Chart](../Helm-Charts/ceph-cluster-chart.md) is available to deploy the operator instead of creating the below manifests.
 
-!!! important
-    For the cluster to survive reboots, set the `dataDirHostPath` property that is valid for the hosts. For more settings, see the documentation on [configuring the cluster](../CRDs/Cluster/ceph-cluster-crd.md).
+> [!IMPORTANT]
+> For the cluster to survive reboots, set the `dataDirHostPath` property that is valid for the hosts. For more settings, see the documentation on [configuring the cluster](../CRDs/Cluster/ceph-cluster-crd.md).
 
 Create the cluster:
 
@@ -103,9 +103,9 @@ Verify the cluster is running by viewing the pods in the `rook-ceph` namespace.
 The number of osd pods will depend on the number of nodes in the cluster and the number of devices configured.
 For the default `cluster.yaml` above, one OSD will be created for each available device found on each node.
 
-!!! hint
-    If the `rook-ceph-mon`, `rook-ceph-mgr`, or `rook-ceph-osd` pods are not created, please refer to the
-    [Ceph common issues](../Troubleshooting/ceph-common-issues.md) for more details and potential solutions.
+> [!HINT]
+> If the `rook-ceph-mon`, `rook-ceph-mgr`, or `rook-ceph-osd` pods are not created, please refer to the
+> [Ceph common issues](../Troubleshooting/ceph-common-issues.md) for more details and potential solutions.
 
 ```console
 $ kubectl -n rook-ceph get pod
@@ -152,8 +152,8 @@ $ ceph status
 []...]
 ```
 
-!!! hint
-    If the cluster is not healthy, please refer to the [Ceph common issues](../Troubleshooting/ceph-common-issues.md) for potential solutions.
+> [!HINT]
+> If the cluster is not healthy, please refer to the [Ceph common issues](../Troubleshooting/ceph-common-issues.md) for potential solutions.
 
 ## Storage
 

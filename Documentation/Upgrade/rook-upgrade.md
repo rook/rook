@@ -28,12 +28,12 @@ those releases.
 * [Upgrade 1.16 to 1.17](https://rook.io/docs/rook/v1.17/Upgrade/rook-upgrade/)
 * [Upgrades to 1.16 or earlier](https://rook.io/docs/rook/v1.16/Upgrade/rook-upgrade/#supported-versions)
 
-!!! important
-    **Rook releases from master are expressly unsupported.** It is strongly recommended to use
-    [official releases](https://github.com/rook/rook/releases) of Rook. Unreleased versions from the
-    master branch are subject to changes and incompatibilities that will not be supported in the
-    official releases. Builds from the master branch can have functionality changed or removed at any
-    time without compatibility support and without prior notice.
+> [!IMPORTANT]
+> **Rook releases from master are expressly unsupported.** It is strongly recommended to use
+> [official releases](https://github.com/rook/rook/releases) of Rook. Unreleased versions from the
+> master branch are subject to changes and incompatibilities that will not be supported in the
+> official releases. Builds from the master branch can have functionality changed or removed at any
+> time without compatibility support and without prior notice.
 
 ## Breaking changes in v1.21
 
@@ -93,10 +93,10 @@ Also update optional resources like Prometheus monitoring noted more fully in th
 If Rook is installed via the Helm chart, Helm will handle some details of the upgrade itself.
 The upgrade steps in this guide will clarify what Helm handles automatically.
 
-!!! important
-    Before upgrading to v1.20, ensure the cluster is already on at least v1.19.5.
-    There was a critical update in [v1.19.5](https://github.com/rook/rook/releases/tag/v1.19.5)
-    that will enable the helm upgrades to v1.20.
+> [!IMPORTANT]
+> Before upgrading to v1.20, ensure the cluster is already on at least v1.19.5.
+> There was a critical update in [v1.19.5](https://github.com/rook/rook/releases/tag/v1.19.5)
+> that will enable the helm upgrades to v1.20.
 
 Upgrade charts in this order:
 
@@ -104,8 +104,8 @@ Upgrade charts in this order:
 2. `ceph-csi-drivers` (**new requirement in v1.20**)
 3. `rook-ceph-cluster`
 
-!!! note
-    Be sure to update to a [supported Helm version](https://helm.sh/docs/topics/version_skew/#supported-version-skew)
+> [!NOTE]
+> Be sure to update to a [supported Helm version](https://helm.sh/docs/topics/version_skew/#supported-version-skew)
 
 ### `rook-ceph` Chart
 
@@ -180,8 +180,8 @@ export ROOK_CLUSTER_NAMESPACE=rook-ceph
 
 ### **1. Update common resources and CRDs**
 
-!!! hint
-    Common resources and CRDs are automatically updated when using Helm charts.
+> [!HINT]
+> Common resources and CRDs are automatically updated when using Helm charts.
 
 First, apply updates to Rook common resources. This includes modified privileges (RBAC) needed
 by the Operator. Also update the Custom Resource Definitions (CRDs).
@@ -224,8 +224,8 @@ kubectl apply -f deploy/examples/monitoring/rbac.yaml
 
 ### **2. Update the Rook Operator**
 
-!!! hint
-    The operator is automatically updated when using Helm charts.
+> [!HINT]
+> The operator is automatically updated when using Helm charts.
 
 The largest portion of the upgrade is triggered when the operator's image is updated to `v1.21.x`.
 When the operator is updated, it will proceed to update all of the Ceph daemons.
@@ -236,8 +236,8 @@ kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-cep
 
 ### **3. Update Ceph CSI Custom Images**
 
-!!! hint
-    This is automatically updated if custom CSI image versions are not set.
+> [!HINT]
+> This is automatically updated if custom CSI image versions are not set.
 
 Users with customized CSI images should update the configmap `rook-csi-operator-image-set-configmap`
 with updated CSI images for the release.

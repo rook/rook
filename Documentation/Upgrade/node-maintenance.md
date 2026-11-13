@@ -51,8 +51,8 @@ ceph osd set noout
 # Optionally, set other flags as needed (e.g., norebalance, nodown)
 ```
 
-!!! tip
-    The ordering of Ceph flags is not critical. You may set them in any order during shutdown and unset them in reverse order during startup.
+> [!TIP]
+> The ordering of Ceph flags is not critical. You may set them in any order during shutdown and unset them in reverse order during startup.
 
 ### **3. Scale Down the Operator**
 
@@ -138,8 +138,8 @@ Once the Ceph components are stable and healthy, scale the operator back up to a
 kubectl -n $ROOK_OPERATOR_NAMESPACE scale deployment rook-ceph-operator --replicas=1
 ```
 
-!!! tip
-    Bringing the operator up after the core components ensures a smoother reconciliation process.
+> [!TIP]
+> Bringing the operator up after the core components ensures a smoother reconciliation process.
 
 ### **3. Unset Ceph Flags**
 

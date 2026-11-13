@@ -14,12 +14,12 @@ If the tests fail in a PR, [access](development-flow.md#ssh-session) the CI runn
 This document will outline the steps to run the integration tests locally in a minikube environment, should the CI
 not be sufficient to troubleshoot.
 
-!!! hint
-    The CI is generally much simpler to troubleshoot than running these tests locally. Running the tests locally is rarely necessary.
+> [!HINT]
+> The CI is generally much simpler to troubleshoot than running these tests locally. Running the tests locally is rarely necessary.
 
-!!! warning
-    A risk of running the tests locally is that a local disk is required during the tests. If not running
-    in a VM, your laptop or other test machine could be destroyed.
+> [!WARNING]
+> A risk of running the tests locally is that a local disk is required during the tests. If not running
+> in a VM, your laptop or other test machine could be destroyed.
 
 ## Install Minikube
 
@@ -66,11 +66,11 @@ otherwise, it should be set to the non-standard location of the  `helm` binary.
 
 Set `TEST_SCRATCH_DEVICE` to the correct block device name based on the driver that's being used.
 
-!!! hint
-    If using the `virtualbox` minikube driver, the device should be `/dev/sdb`
+> [!HINT]
+> If using the `virtualbox` minikube driver, the device should be `/dev/sdb`
 
-!!! warning
-    The integration tests erase the contents of `TEST_SCRATCH_DEVICE` when the test is completed
+> [!WARNING]
+> The integration tests erase the contents of `TEST_SCRATCH_DEVICE` when the test is completed
 
 To run a specific suite, specify the suite name:
 
@@ -86,8 +86,8 @@ To run specific tests inside a suite:
 go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration -testify.m TestARookClusterInstallation_SmokeTest
 ```
 
-!!! info
-    Only the golang test suites are documented to run locally. Canary and other tests have only ever been supported in the CI.
+> [!INFO]
+> Only the golang test suites are documented to run locally. Canary and other tests have only ever been supported in the CI.
 
 ## Assertions
 
@@ -108,9 +108,9 @@ there defeats the retry, and testify's `Eventually` runs the closure on another 
 `require` cannot safely stop the test. Have the closure return false while the condition is unmet,
 capture the value once it is met, and assert on it after the wait returns.
 
-!!! note
-    `FailNow`, and therefore `require`, only aborts the test goroutine it is called on. A `require`
-    inside a `t.Run` closure stops that subtest, not its siblings or its parent.
+> [!NOTE]
+> `FailNow`, and therefore `require`, only aborts the test goroutine it is called on. A `require`
+> inside a `t.Run` closure stops that subtest, not its siblings or its parent.
 
 ## Running tests on OpenShift
 

@@ -52,14 +52,14 @@ kubectl get pv pvc-2dc3e161-bda2-4b42-956a-42a69a717979 -o yaml | egrep -v " uid
 
 Now the PV can be created in another cluster when the application needs to be migrated.
 
-!!! tip
-    The PV could be backed up with tools such as Velero. This doc is only attempting to show
-    how the application can be migrated without external tools.
+> [!TIP]
+> The PV could be backed up with tools such as Velero. This doc is only attempting to show
+> how the application can be migrated without external tools.
 
-!!! tip
-    Consider provisioning volmes from a storage class with `reclaimPolicy: Retain` to prevent
-    accidental deletion of a volume in one cluster while the other cluster is still consuming
-    the volume.
+> [!TIP]
+> Consider provisioning volmes from a storage class with `reclaimPolicy: Retain` to prevent
+> accidental deletion of a volume in one cluster while the other cluster is still consuming
+> the volume.
 
 ### Migrating an Application
 

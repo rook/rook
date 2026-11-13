@@ -40,8 +40,8 @@ Of note, it is possible to pre-populate the NFS configuration and export objects
 CephNFS server clusters.
 
 ## Creating NFS export over RGW
-!!! warning
-    RGW NFS export is experimental for the moment. It is not recommended for scenario of modifying existing content.
+> [!WARNING]
+> RGW NFS export is experimental for the moment. It is not recommended for scenario of modifying existing content.
 
 For creating an NFS export over RGW(CephObjectStore) storage backend, the below command
 can be used. This creates an export for the `/testrgw` pseudo path on an existing bucket bkt4exp as an example. You could use `/testrgw` pseudo for nfs mount operation afterwards.

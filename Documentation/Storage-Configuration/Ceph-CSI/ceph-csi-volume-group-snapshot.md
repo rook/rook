@@ -33,9 +33,9 @@ defined in [the kubernetes
 documentation](https://kubernetes.io/blog/2024/12/18/kubernetes-1-32-volume-group-snapshot-beta/).
 In short, as the documentation describes it:
 
-!!! info
-    Created by cluster administrators to describe how volume group snapshots
-    should be created. including the driver information, the deletion policy, etc.
+> [!INFO]
+> Created by cluster administrators to describe how volume group snapshots
+> should be created. including the driver information, the deletion policy, etc.
 
 ## Volume Group Snapshots
 

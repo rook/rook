@@ -12,8 +12,8 @@ resource definitions (CRDs). Settings and options are detailed below.
 For optimal performance, while also adding redundancy, this example configures
 a Ceph RBD pool with three full copies of user data, each on three different nodes.
 
-!!! note
-    This sample requires at least one OSD on each of at least three nodes.
+> [!NOTE]
+> This sample requires at least one OSD on each of at least three nodes.
 
 Each Placement Group (PG) belonging to the specified pool will be placed on three
 different OSDs, each a different node, because the [`failureDomain`](ceph-block-pool-crd.md#spec)
@@ -48,8 +48,8 @@ the above replicated pool.  This additionally manifests in longer recovery
 time from component failures and thus increased risk of data unavailability or
 loss when a server or OSD drive fails.
 
-!!! note
-    This example requires *at least* six OSDs and six hosts.
+> [!NOTE]
+> This example requires *at least* six OSDs and six hosts.
 
 The OSDs are spread across multiple nodes
 because the [`failureDomain`](ceph-block-pool-crd.md#spec) is set to `host`.
@@ -158,9 +158,9 @@ external-cluster-console # rbd mirror pool peer bootstrap import <token file pat
 
 See the official `rbd-mirror` documentation on [how to add a bootstrap peer](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#bootstrap-peers).
 
-!!! note
-    Disabling mirroring for the CephBlockPool requires disabling mirroring on all the
-    CephBlockPoolRadosNamespaces present underneath.
+> [!NOTE]
+> Disabling mirroring for the CephBlockPool requires disabling mirroring on all the
+> CephBlockPoolRadosNamespaces present underneath.
 
 ### Data spread across subdomains
 
@@ -223,8 +223,9 @@ then you will have two replicas per `datacenter` where each replica ends up on a
 
     If erasure coding is used, data and coding chunks are spread across the configured failure domains.
 
-    !!! caution
-        Neither Rook nor Ceph prevents the creation of a cluster or pool where replicated data (or Erasure Coded chunks) cannot be written safely. By design, Ceph will delay checking for suitable OSDs until a write request is made and this write can hang if there are not sufficient OSDs to satisfy the request.
+    > [!CAUTION]
+    > Neither Rook nor Ceph prevents the creation of a cluster or pool where replicated data (or Erasure Coded chunks) cannot be written safely. By design, Ceph will delay checking for suitable OSDs until a write request is made and this write can hang if there are not sufficient OSDs to satisfy the request.
+
 * `deviceClass`: Configure the CRUSH rule for this pool to distribute data only on OSDs of the specified device class. If left empty or unspecified, the pool will use the cluster's default CRUSH root, which usually distributes data over all OSDs, regardless of their class. If `deviceClass` is specified on any pool, ensure that it is added to *every* pool in the cluster, otherwise Ceph will warn about pools with overlapping roots. Additionally, the PG autoscaler and the Ceph Balancer may be confounded.  Be careful to examine the `.mgr` pool's CRUSH rule too.
 * `crushRoot`: The root in the CRUSH topology to be used by the pool. If left empty or unspecified, the default root will be used. Creating a custom CRUSH root for OSDs currently requires the Rook toolbox to run the Ceph tools described [here](http://docs.ceph.com/docs/master/rados/operations/crush-map/#modifying-the-crush-map).
 * `enableCrushUpdates`: Enables Rook to update the pool's CRUSH rule using Pool Spec. Can cause data remapping if the CRUSH rule is changed, Defaults to `false`.
@@ -264,8 +265,8 @@ flags are present on RBD volumes.
     * `maxSize`: quota in bytes as a string with quantity suffixes (e.g. "10Gi")
     * `maxObjects`: quota in objects as an integer
 
-    !!! note
-        A value of 0 disables the quota.
+    > [!NOTE]
+    > A value of 0 disables the quota.
 
 ### Add specific pool properties
 
@@ -323,8 +324,8 @@ If you do not have a sufficient number of hosts or OSDs for unique placement the
 
 Rook currently only configures two levels in the CRUSH map. It is also possible to configure other levels such as `rack` with by adding [topology labels](../Cluster/ceph-cluster-crd.md#osd-topology) to the nodes.
 
-!!! tip
-    Ceph Tentacle v20 has optimizations that need to be explicitly enabled.
-    Set the following parameter in the pool spec of erasure coded pools:
-    parameters:
-        allow_ec_optimizations: "true"
+> [!TIP]
+> Ceph Tentacle v20 has optimizations that need to be explicitly enabled.
+> Set the following parameter in the pool spec of erasure coded pools:
+> parameters:
+>     allow_ec_optimizations: "true"

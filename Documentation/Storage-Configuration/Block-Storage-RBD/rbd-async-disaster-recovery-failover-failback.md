@@ -8,15 +8,15 @@ Rook comes with the volume replication support, which allows users to perform di
 
 The following document will help to track the procedure for failover and failback in case of a Disaster recovery or Planned migration use cases.
 
-!!! note
-    The document assumes that RBD Mirroring is set up between the peer clusters.
-    For information on rbd mirroring and how to set it up using rook, please refer to
-    the [rbd-mirroring guide](rbd-mirroring.md).
+> [!NOTE]
+> The document assumes that RBD Mirroring is set up between the peer clusters.
+> For information on rbd mirroring and how to set it up using rook, please refer to
+> the [rbd-mirroring guide](rbd-mirroring.md).
 
 ## Planned Migration
 
-!!! info
-    Use cases: Datacenter maintenance, technology refresh, disaster avoidance, etc.
+> [!INFO]
+> Use cases: Datacenter maintenance, technology refresh, disaster avoidance, etc.
 
 ### Relocation
 
@@ -26,9 +26,9 @@ access to the image on the primary site should be stopped.
 The image should now be made *primary* on the secondary cluster so that
 the access can be resumed there.
 
-!!! note
-    :memo: Periodic or one-time backup of
-    the application should be available for restore on the secondary site (cluster-2).
+> [!NOTE]
+> :memo: Periodic or one-time backup of
+> the application should be available for restore on the secondary site (cluster-2).
 
 Follow the below steps for planned migration of workload from the primary
 cluster to the secondary cluster:
@@ -53,18 +53,19 @@ cluster to the secondary cluster:
 * Once the Image is marked as `primary`, the PVC is now ready
     to be used. Now, we can scale up the applications to use the PVC.
 
-!!! warning
-    :memo: In Async Disaster recovery use case, we don't get
-    the complete data.
-    We will only get the crash-consistent data based on the snapshot interval time.
+> [!WARNING]
+> :memo: In Async Disaster recovery use case, we don't get
+> the complete data.
+> We will only get the crash-consistent data based on the snapshot interval time.
 
 ## Disaster Recovery
 
-!!! info
-    Use cases: Natural disasters, Power failures, System failures, and crashes, etc.
+> [!INFO]
+> Use cases: Natural disasters, Power failures, System failures, and crashes, etc.
 
-!!! note
-    To effectively resume operations after a failover/relocation,
+> [!NOTE]
+> To effectively resume operations after a failover/relocation,
+
 backup of the kubernetes artifacts like deployment, PVC, PV, etc need to be created beforehand by the admin; so that the application can be restored on the peer cluster. For more information, see [backup and restore](rbd-mirroring.md#backup-restore).
 
 ### Failover (abrupt shutdown)
