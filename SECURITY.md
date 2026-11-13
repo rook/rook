@@ -46,6 +46,9 @@ issue. **Do not** create a GitHub issue. Instead, send your report privately to
 [cncf-rook-security@lists.cncf.io](mailto:cncf-rook-security@lists.cncf.io). Security reports are greatly appreciated and we will
 publicly thank you for it.
 
+Before sending a report, see [Access Control for Rook Resources](design/ceph/access-control.md) for
+which inputs Rook treats as administrative, such as creating or editing most Rook custom resources.
+
 Please provide as much information as possible, so we can react quickly. For instance, that could
 include:
 

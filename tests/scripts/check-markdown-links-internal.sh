@@ -17,9 +17,10 @@ fi
 MLC="${MLC_BASE_CMD} --config ${script_dir}/mlc_config.json --quiet"
 
 EXIT_CODE=0
-# AGENTS.md consists almost entirely of links into Documentation/. A stale link there silently
-# misdirects the reader, so check it alongside the documentation it points at.
-FILES=$(cd "$base_dir" && find Documentation/ -name '*.md' && echo AGENTS.md)
+# AGENTS.md and the access control design document consist largely of links into
+# Documentation/. A stale link there silently misdirects the reader, so check them alongside the
+# documentation they point at.
+FILES=$(cd "$base_dir" && find Documentation/ -name '*.md' && echo AGENTS.md design/ceph/access-control.md)
 BAD_FILES=""
 NUM_CHECKED_FILES=0
 NUM_BAD_FILES=0

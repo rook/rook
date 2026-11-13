@@ -5,6 +5,25 @@ title: Prerequisites
 Rook can be installed on any existing Kubernetes cluster as long as it meets the minimum version
 and Rook is granted the required privileges (see below for more information).
 
+## Admin Access
+
+Rook requires admin access to the Kubernetes cluster.
+
+Creating or editing Rook custom resources, such as a CephCluster or CephObjectStore, is an
+administrative operation. These resources configure the Ceph cluster and the privileged daemons
+that run it, and some of their settings can, by design, damage the cluster or run code as root on
+the storage nodes. Grant permission to create or edit them only to trusted administrators, not to
+ordinary users of the storage. The exception is ObjectBucketClaims, which application users may
+create in their own namespaces, outside the Rook operator and cluster namespaces (see
+[Bucket Claim](../../Storage-Configuration/Object-Storage-RGW/ceph-object-bucket-claim.md)).
+
+Permission to create pods, to read or write Secrets, or to write ConfigMaps in the Rook operator and
+cluster namespaces, which the built-in `admin` and `edit` roles grant there, is administrative as
+well.
+
+The [access control design document](https://github.com/rook/rook/blob/master/design/ceph/access-control.md)
+describes the access that each Rook custom resource and related permission grants.
+
 ## Kubernetes Version
 
 Kubernetes versions **v1.32** through **v1.37** are supported.
