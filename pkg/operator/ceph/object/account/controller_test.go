@@ -30,11 +30,14 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephobject "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -440,6 +443,17 @@ func TestGenerateDeterministicAccountID(t *testing.T) {
 		_, err := generateDeterministicAccountID("zzzzzzzzzzzzzz")
 		assert.Error(t, err)
 	})
+
+	for _, uid := range []types.UID{
+		"00000000-0000-0000-0000-000000000000",
+		"ffffffff-ffff-ffff-ffff-ffffffffffff",
+	} {
+		t.Run("matches the account ID format the CRD enforces for UID "+string(uid), func(t *testing.T) {
+			id, err := generateDeterministicAccountID(uid)
+			require.NoError(t, err)
+			assert.NoError(t, cephobject.ValidateAccountID(id))
+		})
+	}
 }
 
 func TestGetAccountID(t *testing.T) {
@@ -1304,6 +1318,82 @@ func TestDeleteAccount(t *testing.T) {
 		_, err = r.deleteAccount(account)
 		assert.NoError(t, err)
 		assert.False(t, deleteCalled, "should not call RGW delete for a foreign account")
+	})
+
+	const malformedAccountID = "x;touch injected;#xx"
+
+	countingAdminClient := func(t *testing.T, requests *int) *admin.API {
+		mockClient := &cephobject.MockClient{
+			MockDo: func(req *http.Request) (*http.Response, error) {
+				*requests++
+				return &http.Response{
+					StatusCode: 200,
+					Body:       io.NopCloser(bytes.NewReader([]byte(""))),
+				}, nil
+			},
+		}
+		adminClient, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "access", "secret", mockClient)
+		require.NoError(t, err)
+		return adminClient
+	}
+
+	t.Run("refuses a malformed status account ID without contacting RGW", func(t *testing.T) {
+		requests := 0
+		r := &ReconcileObjectStoreAccount{
+			objContext: &cephobject.AdminOpsContext{
+				AdminOpsClient: countingAdminClient(t, &requests),
+			},
+			opManagerContext: ctx,
+		}
+		account := &cephv1.CephObjectStoreAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+				UID:       "test-uid",
+			},
+			Status: &cephv1.ObjectStoreAccountStatus{
+				AccountID: malformedAccountID,
+			},
+		}
+
+		_, err := r.deleteAccount(account)
+		assert.ErrorContains(t, err, "invalid account ID")
+		assert.Zero(t, requests, "should not call RGW for a malformed account ID")
+	})
+
+	t.Run("refuses a malformed status account ID before creating a purge job", func(t *testing.T) {
+		requests := 0
+		clientset := test.New(t, 1)
+		objContext := cephobject.NewContext(&clusterd.Context{Clientset: clientset}, cephclient.AdminTestClusterInfo(namespace), store)
+		r := &ReconcileObjectStoreAccount{
+			objContext: &cephobject.AdminOpsContext{
+				Context:        *objContext,
+				AdminOpsClient: countingAdminClient(t, &requests),
+			},
+			cephClusterSpec: &cephv1.ClusterSpec{
+				DataDirHostPath: "/var/lib/rook",
+				CephVersion:     cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v19"},
+			},
+			opManagerContext: ctx,
+		}
+		account := &cephv1.CephObjectStoreAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        name,
+				Namespace:   namespace,
+				UID:         "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
+				Annotations: map[string]string{opcontroller.RESOURCE_CLEANUP_ANNOTATION: "true"},
+			},
+			Status: &cephv1.ObjectStoreAccountStatus{
+				AccountID: malformedAccountID,
+			},
+		}
+
+		_, err := r.deleteAccount(account)
+		assert.ErrorContains(t, err, "invalid account ID")
+		assert.Zero(t, requests, "should not call RGW for a malformed account ID")
+		jobs, err := clientset.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{})
+		require.NoError(t, err)
+		assert.Empty(t, jobs.Items)
 	})
 }
 
