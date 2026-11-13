@@ -209,7 +209,34 @@ func GetDeviceProperties(device string, executor exec.Executor) (map[string]stri
 
 // GetDevicePropertiesFromPath gets the device properties from a path
 func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map[string]string, error) {
-	output, err := executor.ExecuteCommandWithOutput("lsblk", devicePath,
+	// lsblk reads filesystem information from the udev database, which may not yet
+	// reflect recently added or modified devices. Run udevadm settle before lsblk
+	// to wait for pending udev events to finish.
+	// See https://man7.org/linux/man-pages/man8/lsblk.8.html
+
+	output, err := executor.ExecuteCommandWithOutput(
+		"lsblk", "--nodeps", "--noheadings", "--raw", "--output", "KNAME", devicePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get kernel name for %q: %w", devicePath, err)
+	}
+
+	kernelName := strings.TrimSpace(output)
+	if kernelName == "" {
+		return nil, fmt.Errorf("empty kernel name for %q", devicePath)
+	}
+
+	output, err = executor.ExecuteCommandWithOutput(
+		"udevadm", "trigger", "--action=change", "/sys/class/block/"+kernelName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to trigger udev for %q: %s: %w", devicePath, output, err)
+	}
+
+	output, err = executor.ExecuteCommandWithOutput("udevadm", "settle")
+	if err != nil {
+		return nil, fmt.Errorf("failed to settle udev for %q: %s: %w", devicePath, output, err)
+	}
+
+	output, err = executor.ExecuteCommandWithOutput("lsblk", devicePath,
 		"--bytes", "--nodeps", "--pairs", "--paths", "--output", "SIZE,ROTA,RO,TYPE,PKNAME,NAME,KNAME,MOUNTPOINT,FSTYPE")
 	if err != nil {
 		logger.Errorf("failed to execute lsblk. output: %s", output)

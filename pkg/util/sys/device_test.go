@@ -21,6 +21,7 @@ import (
 
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -247,4 +248,71 @@ func TestGetDiskDeviceClass(t *testing.T) {
 	assert.Equal(t, "test1", GetDiskDeviceClass("ROOK_OSD_CRUSH_DEVICE_CLASS", "hdd"))
 	t.Setenv("ROOK_OSD_CRUSH_DEVICE_CLASS", "")
 	assert.Equal(t, "nvme", GetDiskDeviceClass("ROOK_OSD_CRUSH_DEVICE_CLASS", "nvme"))
+}
+
+func TestGetDevicePropertiesFromPath(t *testing.T) {
+	for _, devicePath := range []string{"/dev/nvme6n1", "/mnt/data-pvc"} {
+		t.Run(devicePath, func(t *testing.T) {
+			tests := []struct {
+				name            string
+				failStep        int
+				emptyKernelName bool
+				wantError       string
+			}{
+				{name: "refresh before reading properties", failStep: -1},
+				{name: "kernel lookup fails", failStep: 0, wantError: "failed to get kernel name"},
+				{name: "empty kernel name", failStep: -1, emptyKernelName: true, wantError: "empty kernel name"},
+				{name: "trigger fails", failStep: 1, wantError: "failed to trigger udev"},
+				{name: "settle fails", failStep: 2, wantError: "failed to settle udev"},
+				{name: "properties fail", failStep: 3, wantError: "command failed"},
+			}
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					commands := [][]string{
+						{"lsblk", "--nodeps", "--noheadings", "--raw", "--output", "KNAME", devicePath},
+						{"udevadm", "trigger", "--action=change", "/sys/class/block/nvme6n1"},
+						{"udevadm", "settle"},
+						{"lsblk", devicePath, "--bytes", "--nodeps", "--pairs", "--paths", "--output", "SIZE,ROTA,RO,TYPE,PKNAME,NAME,KNAME,MOUNTPOINT,FSTYPE"},
+					}
+					calls := 0
+					commandErr := fmt.Errorf("command failed")
+					executor := &exectest.MockExecutor{MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+						step := calls
+						calls++
+						require.Less(t, step, len(commands))
+						assert.Equal(t, commands[step], append([]string{command}, args...))
+						if step == tt.failStep {
+							return "diagnostic output", commandErr
+						}
+						if step == 0 {
+							if tt.emptyKernelName {
+								return " \n", nil
+							}
+							return "nvme6n1\n", nil
+						}
+						if step == 3 {
+							return `NAME="/dev/nvme6n1" KNAME="/dev/nvme6n1" FSTYPE="ceph_bluestore"`, nil
+						}
+						return "", nil
+					}}
+					props, err := GetDevicePropertiesFromPath(devicePath, executor)
+					if tt.wantError != "" {
+						require.ErrorContains(t, err, tt.wantError)
+						assert.Nil(t, props)
+						if tt.emptyKernelName {
+							assert.Equal(t, 1, calls)
+						} else {
+							assert.ErrorIs(t, err, commandErr)
+							assert.Equal(t, tt.failStep+1, calls)
+						}
+						return
+					}
+					require.NoError(t, err)
+					assert.Equal(t, len(commands), calls)
+					assert.Equal(t, "ceph_bluestore", props["FSTYPE"])
+					assert.Equal(t, "/dev/nvme6n1", props["KNAME"])
+				})
+			}
+		})
+	}
 }

@@ -17,6 +17,8 @@ package osd
 
 import (
 	"os"
+	"path"
+	"slices"
 	"strings"
 	"testing"
 
@@ -293,6 +295,12 @@ func TestAvailableDevices(t *testing.T) {
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("OUTPUT for %s %v", command, args)
 
+			if command == "lsblk" && len(args) == 6 && slices.Equal(args[:5], []string{"--nodeps", "--noheadings", "--raw", "--output", "KNAME"}) {
+				return path.Base(args[5]), nil
+			}
+			if command == "udevadm" && (args[0] == "trigger" || args[0] == "settle") {
+				return "", nil
+			}
 			if command == "lsblk" {
 				if strings.Contains(args[3], "sdb") {
 					// /dev/sdb has a partition
