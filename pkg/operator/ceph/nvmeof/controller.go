@@ -90,7 +90,7 @@ type ReconcileCephNVMeOFGateway struct {
 
 // Add creates a new CephNVMeOFGateway Controller and adds it to the Manager.
 func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
-	return add(mgr, newReconciler(mgr, context, opManagerContext, opConfig))
+	return add(opManagerContext, mgr, newReconciler(mgr, context, opManagerContext, opConfig), opConfig.OperatorNamespace)
 }
 
 func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
@@ -119,7 +119,7 @@ func watchOwnedCoreObject[T client.Object](c controller.Controller, mgr manager.
 	)
 }
 
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
+func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reconciler, operatorNamespace string) error {
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return errors.Wrap(err, "failed to create controller")
@@ -153,6 +153,30 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to watch resource type %s", t.GetObjectKind().GroupVersionKind().String())
 		}
+	}
+
+	// The gateway network policy depends on the NVMe-oF CSI controller plugins,
+	// which pods it admits and whether any uses host networking, and they can
+	// change after the gateway was last reconciled.
+	csiControllerPluginHandler, err := opcontroller.ObjectToCRMapper[*cephv1.CephNVMeOFGatewayList, *appsv1.Deployment](
+		opManagerContext,
+		mgr.GetClient(),
+		&cephv1.CephNVMeOFGatewayList{},
+		mgr.GetScheme(),
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to create CSI controller plugin handler")
+	}
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
+			handler.TypedEnqueueRequestsFromMapFunc(csiControllerPluginHandler),
+			csiControllerPluginPredicate(operatorNamespace),
+		),
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to watch the CSI controller plugin deployments")
 	}
 
 	return nil
@@ -331,6 +355,10 @@ func (r *ReconcileCephNVMeOFGateway) reconcileCreateCephNVMeOFGateway(cephNVMeOF
 }
 
 func (r *ReconcileCephNVMeOFGateway) upCephNVMeOFGateway(cephNVMeOFGateway *cephv1.CephNVMeOFGateway) error {
+	if err := r.reconcileNetworkPolicy(cephNVMeOFGateway); err != nil {
+		return errors.Wrap(err, "failed to reconcile network policy")
+	}
+
 	for i := 0; i < cephNVMeOFGateway.Spec.Instances; i++ {
 		daemonID := k8sutil.IndexToName(i)
 
