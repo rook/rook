@@ -1,0 +1,44 @@
+suite: cephblockpool
+templates:
+  - cephblockpool.yaml
+tests:
+  - it: renders the storage class labels
+    set:
+      cephBlockPools:
+        - name: ceph-blockpool
+          spec:
+            replicated:
+              size: 3
+          storageClass:
+            enabled: true
+            name: ceph-block
+            labels:
+              team: storage
+              tier: fast
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: StorageClass
+        documentIndex: 1
+      - equal:
+          path: metadata.labels
+          value:
+            team: storage
+            tier: fast
+        documentIndex: 1
+
+  - it: omits the storage class labels when none are set
+    set:
+      cephBlockPools:
+        - name: ceph-blockpool
+          spec:
+            replicated:
+              size: 3
+          storageClass:
+            enabled: true
+            name: ceph-block
+    asserts:
+      - notExists:
+          path: metadata.labels
+        documentIndex: 1
