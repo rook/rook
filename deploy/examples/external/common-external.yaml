@@ -54,15 +54,28 @@ metadata:
   name: rook-ceph-cmd-reporter
   namespace: rook-ceph # namespace:cluster
 rules:
+  # cmd-reporter writes its result to a ConfigMap named after its job. RBAC cannot limit create by
+  # name, so get and update are limited to the names of the ceph version and network canary jobs.
   - apiGroups:
       - ""
     resources:
-      - pods
       - configmaps
     verbs:
-      - get
-      - list
-      - watch
       - create
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      - rook-ceph-detect-version
+      - ceph-file-controller-detect-version
+      - ceph-filesystem-mirror-controller-detect-version
+      - ceph-nfs-controller-detect-version
+      - ceph-nvmeof-gateway-controller-detect-version
+      - ceph-object-controller-detect-version
+      - ceph-rbd-mirror-controller-detect-version
+      - rook-ceph-network-public-canary
+      - rook-ceph-network-cluster-canary
+    verbs:
+      - get
       - update
-      - delete
