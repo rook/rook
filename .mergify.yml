@@ -7,6 +7,12 @@ defaults:
         - "{{ author }}"
         - "{{ merged_by }}"
 
+# Suppress the merge queue checkbox comment ("Tick the box to add this pull
+# request to the merge queue") and queue status comments, which add noise.
+merge_queue:
+  queue_controls_comment: false
+  status_comments: none
+
 pull_request_rules:
   # if there is a conflict in a backport PR, ping the author to send a proper backport PR
   - name: ping author on conflicts
