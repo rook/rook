@@ -219,16 +219,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 		if osdProps.encrypted && osd.CVMode == "raw" {
 			encryptedVol, _ := c.getEncryptionVolume(osdProps)
 			volumes = append(volumes, encryptedVol)
-			// We don't need to pass the Volume with projection for TLS when TLS is not enabled
-			// Somehow when this happens and we try to update a deployment spec it fails with:
-			//  ValidationError(Pod.spec.volumes[7].projected): missing required field "sources"
-			if c.spec.Security.KeyManagementService.IsEnabled() && c.spec.Security.KeyManagementService.IsTLSEnabled() {
-				encryptedVol, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
-				volumes = append(volumes, encryptedVol)
-			}
-			if c.spec.Security.KeyManagementService.IsEnabled() && c.spec.Security.KeyManagementService.IsKMIPKMS() {
-				encryptedVol, _ := kms.KMIPVolumeAndMount(c.spec.Security.KeyManagementService.TokenSecretName)
-				volumes = append(volumes, encryptedVol)
+			if c.spec.Security.KeyManagementService.IsEnabled() {
+				volumes = append(volumes, c.kmsVolumes()...)
 			}
 		}
 	}
@@ -482,6 +474,12 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 		// so that it can pick the already mounted/activated osd metadata path
 		// This container will activate the OSD and place the activated files into an empty dir
 		// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
+		// An encrypted OSD with its key in the KMS must be opened before ceph-volume can activate it
+		if hostOSDUsesKMS(*osd, osdProps.onPVC()) {
+			openVolumes, openContainer := c.getHostEncryptionOpenInitContainer(*osd, osdProps)
+			volumes = append(volumes, openVolumes...)
+			initContainers = append(initContainers, openContainer)
+		}
 		activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, *osd, osdProps)
 		volumes = append(volumes, activateOSDVolume...)
 		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])

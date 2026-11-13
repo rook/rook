@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/log"
 	batch "k8s.io/api/batch/v1"
@@ -120,14 +121,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		if osdProps.encrypted {
 			// If a KMS is configured we populate
 			if c.spec.Security.KeyManagementService.IsEnabled() {
-				if c.spec.Security.KeyManagementService.IsVaultKMS() {
-					volumeTLS, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
-					volumes = append(volumes, volumeTLS)
-				}
-				if c.spec.Security.KeyManagementService.IsKMIPKMS() {
-					volumeKMIP, _ := kms.KMIPVolumeAndMount(c.spec.Security.KeyManagementService.TokenSecretName)
-					volumes = append(volumes, volumeKMIP)
-				}
+				volumes = append(volumes, c.kmsVolumes()...)
 			}
 		}
 	} else {
@@ -297,20 +291,18 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		if osdProps.encrypted {
 			// If a KMS is configured we populate volume mounts and env variables
 			if c.spec.Security.KeyManagementService.IsEnabled() {
-				if c.spec.Security.KeyManagementService.IsVaultKMS() {
-					_, volumeMountsTLS := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
-					volumeMounts = append(volumeMounts, volumeMountsTLS)
-				}
+				volumeMounts = append(volumeMounts, c.kmsVolumeMounts()...)
 				envVars = append(envVars, kms.ConfigToEnvVar(c.spec)...)
-				if c.spec.Security.KeyManagementService.IsKMIPKMS() {
-					_, volmeMountsKMIP := kms.KMIPVolumeAndMount(c.spec.Security.KeyManagementService.TokenSecretName)
-					volumeMounts = append(volumeMounts, volmeMountsKMIP)
-				}
 			}
 		}
 	} else {
 		// If not running on PVC we mount the rootfs of the host to validate the presence of the LVM package
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: "rootfs", MountPath: "/rootfs", ReadOnly: true})
+		// the operator copies the keys of encrypted host-based OSDs into the KMS, the prepare pod only
+		// needs to know to use raw mode for them
+		if c.hostOSDsUseKMS(osdProps) {
+			envVars = append(envVars, v1.EnvVar{Name: HostOSDKMSEnvVarName, Value: "true"})
+		}
 	}
 
 	// Add OSD ID as environment variables.
@@ -411,4 +403,54 @@ func provisionJobLabels(namespace string) map[string]string {
 		k8sutil.AppAttr:     prepareAppName,
 		k8sutil.ClusterAttr: namespace,
 	}
+}
+
+// hostOSDsUseKMS reports whether encrypted host-based OSDs keep their keys in the KMS. The KMS
+// settings are validated with the cluster spec. Ceph v19.2.0 does not write the OSD fsid to the
+// LUKS2 header, which is how a closed OSD is found.
+func (c *Cluster) hostOSDsUseKMS(osdProps osdProperties) bool {
+	if osdProps.onPVC() || !c.spec.Security.KeyManagementService.IsEnabled() ||
+		!c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 19, Minor: 2, Extra: 1}) {
+		return false
+	}
+	if osdProps.storeConfig.EncryptedDevice {
+		return true
+	}
+	for _, device := range osdProps.devices {
+		if device.Config[config.EncryptedDeviceKey] == "true" {
+			return true
+		}
+	}
+	return false
+}
+
+// kmsVolumes returns the volumes for the TLS files of Vault and KMIP. A Vault volume without TLS
+// files would have no sources, which the API server may reject.
+func (c *Cluster) kmsVolumes() []v1.Volume {
+	kmsSpec := c.spec.Security.KeyManagementService
+	volumes := []v1.Volume{}
+	if kmsSpec.IsVaultKMS() && kmsSpec.IsTLSEnabled() {
+		volume, _ := kms.VaultVolumeAndMount(kmsSpec.ConnectionDetails, "")
+		volumes = append(volumes, volume)
+	}
+	if kmsSpec.IsKMIPKMS() {
+		volume, _ := kms.KMIPVolumeAndMount(kmsSpec.TokenSecretName)
+		volumes = append(volumes, volume)
+	}
+	return volumes
+}
+
+// kmsVolumeMounts returns the mounts for the volumes of kmsVolumes()
+func (c *Cluster) kmsVolumeMounts() []v1.VolumeMount {
+	kmsSpec := c.spec.Security.KeyManagementService
+	mounts := []v1.VolumeMount{}
+	if kmsSpec.IsVaultKMS() && kmsSpec.IsTLSEnabled() {
+		_, mount := kms.VaultVolumeAndMount(kmsSpec.ConnectionDetails, "")
+		mounts = append(mounts, mount)
+	}
+	if kmsSpec.IsKMIPKMS() {
+		_, mount := kms.KMIPVolumeAndMount(kmsSpec.TokenSecretName)
+		mounts = append(mounts, mount)
+	}
+	return mounts
 }

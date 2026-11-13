@@ -25,6 +25,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclientfake "github.com/rook/rook/pkg/daemon/ceph/client/fake"
@@ -43,6 +44,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/events"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func Test_updateExistingOSDs(t *testing.T) {
@@ -528,6 +531,45 @@ func Test_updateExistingOSDs(t *testing.T) {
 		assert.ElementsMatch(t, osdsOnPVCs, []int{})
 
 		assert.Equal(t, 0, updateQueue.Len()) // should be done with updates
+	})
+
+	t.Run("do not update encrypted raw host OSDs without security.kms", func(t *testing.T) {
+		clientset = fake.NewClientset()
+		updateQueue = newUpdateQueueWithIDs(0, 1)
+		existingDeployments = newExistenceListWithIDs(0, 1)
+		forceUpgradeIfUnhealthy = false
+		updateInjectFailures = k8sutil.Failures{}
+		doSetup()
+		addDeploymentOnNode("node0", 0)
+		addDeploymentOnNode("node1", 1)
+		d, err := clientset.AppsV1().Deployments(namespace).Get(t.Context(), deploymentName(0), metav1.GetOptions{})
+		assert.NoError(t, err)
+		d.Labels[encrypted] = "true"
+		_, err = clientset.AppsV1().Deployments(namespace).Update(t.Context(), d, metav1.UpdateOptions{})
+		assert.NoError(t, err)
+		cephCluster := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: "mycluster", Namespace: namespace}}
+		ctx.Client = clientfake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(cephCluster).Build()
+		recorder := events.NewFakeRecorder(5)
+		c.Recorder = recorder
+
+		osdToBeQueried = 0
+		returnOkToStopIDs = []int{0, 1}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(1)})
+		assert.ElementsMatch(t, osdsOnNodes, []int{1})
+		assert.Equal(t, 0, updateQueue.Len())
+		assert.Equal(t, "Warning OSDKMSNotConfigured not updating encrypted OSDs [0]: their keys are kept in a KMS, but security.kms is not configured", <-recorder.Events)
+		assert.Empty(t, recorder.Events)
+
+		// with security.kms the encrypted OSD is updated
+		c.spec.Security.KeyManagementService.ConnectionDetails = map[string]string{"KMS_PROVIDER": "vault"}
+		updateConfig = c.newUpdateConfig(c.newProvisionConfig(), newUpdateQueueWithIDs(0), newExistenceListWithIDs(0), sets.New[string]())
+		deploymentsUpdated = []string{}
+		returnOkToStopIDs = []int{0}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(0)})
 	})
 
 	t.Run("skip osd reconcile", func(t *testing.T) {

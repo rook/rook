@@ -445,7 +445,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		}
 		logger.Infof("device %q is available.", device.Name)
 
-		if device.Type == sys.PartType && agent.storeConfig.EncryptedDevice {
+		if device.Type == sys.PartType && agent.storeConfig.EncryptedDevice && !hostKMSEnabled() {
 			logger.Infof("partition %q is not picked because encrypted OSD on partition is not allowed", device.Name)
 			continue
 		}
@@ -515,7 +515,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 					} else if strings.HasPrefix(desiredDevice.Name, "/dev/") {
 						matched = matchDevLinks(device.DevLinks, desiredDevice.Name)
 					}
-					if matched && device.Type == sys.PartType && desiredDevice.EncryptedDevice {
+					if matched && device.Type == sys.PartType && desiredDevice.EncryptedDevice && !hostKMSEnabled() {
 						logger.Infof("partition %q is not picked because encrypted OSD on partition is not allowed", device.Name)
 						matched = false
 						continue

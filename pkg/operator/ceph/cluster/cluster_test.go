@@ -888,3 +888,13 @@ func TestConfigureHealthMute(t *testing.T) {
 		})
 	}
 }
+
+func TestHostDevicesEncrypted(t *testing.T) {
+	encrypted := map[string]string{"encryptedDevice": "true"}
+	assert.False(t, hostDevicesEncrypted(&cephv1.StorageScopeSpec{}))
+	assert.False(t, hostDevicesEncrypted(&cephv1.StorageScopeSpec{Config: map[string]string{"encryptedDevice": "false"}}))
+	assert.True(t, hostDevicesEncrypted(&cephv1.StorageScopeSpec{Config: encrypted}))
+	assert.True(t, hostDevicesEncrypted(&cephv1.StorageScopeSpec{Selection: cephv1.Selection{Devices: []cephv1.Device{{Name: "sdb", Config: encrypted}}}}))
+	assert.True(t, hostDevicesEncrypted(&cephv1.StorageScopeSpec{Nodes: []cephv1.Node{{Name: "a", Config: encrypted}}}))
+	assert.True(t, hostDevicesEncrypted(&cephv1.StorageScopeSpec{Nodes: []cephv1.Node{{Name: "a", Selection: cephv1.Selection{Devices: []cephv1.Device{{Name: "sdb", Config: encrypted}}}}}}))
+}

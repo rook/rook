@@ -53,9 +53,10 @@ type OSDNodeUsage struct {
 
 type OSDDump struct {
 	OSDs []struct {
-		OSD json.Number `json:"osd"`
-		Up  json.Number `json:"up"`
-		In  json.Number `json:"in"`
+		OSD  json.Number `json:"osd"`
+		UUID string      `json:"uuid"`
+		Up   json.Number `json:"up"`
+		In   json.Number `json:"in"`
 	} `json:"osds"`
 	Flags             string              `json:"flags"`
 	CrushNodeFlags    map[string][]string `json:"crush_node_flags"`

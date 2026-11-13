@@ -53,6 +53,7 @@ type updateConfig struct {
 	deployments         *existenceList   // these OSDs have existing deployments
 	osdsToSkipReconcile sets.Set[string] // these OSDs should not be updated during reconcile
 	osdDesiredState     map[int]*OSDInfo // the desired state of the OSDs determined during the reconcile
+	kmsSkipped          []int            // encrypted OSDs not updated since their KMS settings were removed
 }
 
 func (c *Cluster) newUpdateConfig(
@@ -69,6 +70,7 @@ func (c *Cluster) newUpdateConfig(
 		deployments,
 		osdsToSkipReconcile,
 		map[int]*OSDInfo{},
+		nil,
 	}
 }
 
@@ -158,6 +160,13 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 			continue
 		}
 
+		// without its KMS settings, the deployment would not open the OSD after its mapper closes
+		if hostOSDUsesKMS(osdInfo, osdIsOnPVC(dep)) && !c.cluster.spec.Security.KeyManagementService.IsEnabled() {
+			log.NamespacedError(c.cluster.clusterInfo.Namespace, logger, "not updating encrypted OSD %d: its key is kept in a KMS, but security.kms is not configured", osdID)
+			c.kmsSkipped = append(c.kmsSkipped, osdID)
+			continue
+		}
+
 		// backward compatibility for old deployments
 		// Checking DeviceClass with None too, because ceph-volume lvm list returns crush device class as None
 		// Tracker https://tracker.ceph.com/issues/53425
@@ -232,6 +241,25 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 	// If there were failures, don't retry them. If it's a transitory k8s/etcd issue, the next
 	// reconcile should succeed. If it's a different issue, it will always error.
 	c.queue.Remove(osdIDs)
+
+	if c.doneUpdating() && len(c.kmsSkipped) > 0 {
+		c.cluster.recordKMSNotConfigured(c.kmsSkipped)
+	}
+}
+
+// recordKMSNotConfigured records one warning event on the CephCluster for all the OSDs not updated
+// since their KMS settings were removed
+func (c *Cluster) recordKMSNotConfigured(osdIDs []int) {
+	if c.Recorder == nil {
+		return
+	}
+	cephCluster := &cephv1.CephCluster{}
+	if err := c.context.Client.Get(c.clusterInfo.Context, c.clusterInfo.NamespacedName(), cephCluster); err != nil {
+		log.NamespacedWarning(c.clusterInfo.Namespace, logger, "failed to get the CephCluster to record an event. %v", err)
+		return
+	}
+	c.Recorder.Eventf(cephCluster, nil, v1.EventTypeWarning, "OSDKMSNotConfigured", "Reconcile",
+		"not updating encrypted OSDs %v: their keys are kept in a KMS, but security.kms is not configured", osdIDs)
 }
 
 // getOSDUpdateInfo returns an update queue of OSDs which need to be updated and an existence list of OSD

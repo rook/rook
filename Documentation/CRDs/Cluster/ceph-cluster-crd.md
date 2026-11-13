@@ -388,7 +388,7 @@ Supported configurations are:
 | block device type | host-based cluster                                                                                | PVC-based cluster                                                               |
 | :---------------- | :------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------ |
 | disk              | supported                                                                                         | supported                                                                         |
-| part              | `encryptedDevice` must be `false`                                                                 | `encrypted` must be `false`                                                     |
+| part              | `encryptedDevice` must be `false`, unless `security.kms` is set (Ceph v19.2.1 or later)          | `encrypted` must be `false`                                                     |
 | lvm               | `osdsPerDevice` must be `1` and `encryptedDevice` must be `false` | `metadata.name` must not be `metadata` or `wal` and `encrypted` must be `false` |
 | crypt             | not supported                                                                                     | supported                                                                         |
 | mpath             | supported                                                                                         | supported                                                                         |

@@ -2726,11 +2726,9 @@ func TestLVMModeAllowed(t *testing.T) {
 }
 
 func TestWipeDevicesFromOtherClusters(t *testing.T) {
-	agent := &OsdAgent{
-		clusterInfo: &cephclient.ClusterInfo{
-			FSID: "c03d7353-96e5-4a41-98de-830dfff97d06",
-		},
-	}
+	clusterInfo := cephclient.AdminTestClusterInfo("ns")
+	clusterInfo.FSID = "c03d7353-96e5-4a41-98de-830dfff97d06"
+	agent := &OsdAgent{clusterInfo: clusterInfo}
 
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
@@ -2819,8 +2817,27 @@ func TestWipeDevicesFromOtherClusters(t *testing.T) {
 		Devices: []*sys.LocalDisk{{RealPath: "/dev/vdb", Filesystem: "crypto_LUKS"}},
 	}
 	context.Executor = executor
+	zapped := false
+	combined := executor.MockExecuteCommandWithCombinedOutput
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		if command == "stdbuf" || command == "wipefs" {
+			zapped = true
+		}
+		return combined(command, args...)
+	}
+	agent.pvcBacked = true
 	err = agent.WipeDevicesFromOtherClusters(context)
 	assert.NoError(t, err)
+	assert.True(t, zapped)
+
+	// the LUKS header of a host-based raw OSD has its OSD fsid, so a closed one is never wiped, even if
+	// the OSD is destroyed and its fsid is no longer in the OSD map
+	agent.pvcBacked = false
+	zapped = false
+	err = agent.WipeDevicesFromOtherClusters(context)
+	assert.NoError(t, err)
+	assert.False(t, zapped)
+	executor.MockExecuteCommandWithCombinedOutput = combined
 
 	// `ceph-volume raw list` returns an LVM symlink path (/dev/rhel/ceph-data) while
 	// the device RealPath is /dev/mapper/rhel-ceph--data. The device should still be
