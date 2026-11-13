@@ -4,4 +4,5 @@ nav:
     - ceph-object-realm-crd.md
     - ceph-object-zonegroup-crd.md
     - ceph-object-zone-crd.md
-    - ...
+    - glob: "*"
+      ignore_no_matches: true

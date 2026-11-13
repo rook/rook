@@ -6,8 +6,13 @@
     <td>
         <code>{{ fieldName . }}</code><br/>
         <em>
-            {{ if linkForType .Type }}
-                <a href="{{ linkForType .Type}}">
+            {{/* the generator only dereferences one level, so link e.g. map[K]*T or *[]T to T directly */}}
+            {{ $link := linkForType .Type }}
+            {{ if and .Type.Elem .Type.Elem.Elem }}
+                {{ $link = linkForType .Type.Elem }}
+            {{ end }}
+            {{ if $link }}
+                <a href="{{ $link }}">
                     {{ typeDisplayName .Type }}
                 </a>
             {{ else }}
