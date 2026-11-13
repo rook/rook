@@ -18,6 +18,8 @@ package bucket
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
@@ -42,7 +44,29 @@ const (
 	ObjectStoreName      = "objectStoreName"
 	ObjectStoreNamespace = "objectStoreNamespace"
 	objectStoreEndpoint  = "endpoint"
+
+	bucketPlacementKey    = "bucketPlacement"
+	bucketStorageClassKey = "bucketStorageClass"
+
+	// standardStorageClass is what RGW records for a bucket created without
+	// a storage class, and omits from the bucket's placement_rule
+	standardStorageClass = "STANDARD"
 )
+
+// Reasons of the Warning Events recorded on an ObjectBucketClaim whose
+// bucketPlacement or bucketStorageClass request cannot be honored.
+const (
+	EventReasonInvalidBucketPlacement  = "InvalidBucketPlacement"
+	EventReasonBucketPlacementRejected = "BucketPlacementRejected"
+	EventReasonBucketPlacementMismatch = "BucketPlacementMismatch"
+)
+
+// placementValuePattern bounds both keys to a bare token: it excludes "/"
+// and ":", RGW's separators in the "<placement>/<storage-class>" placement
+// rule and the "<zonegroup>:<placement>" location constraint, and the
+// whitespace that the storage-class header would be sent without — a value
+// created as one string and compared back as another.
+var placementValuePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 func NewBucketController(cfg *rest.Config, p *Provisioner) (*provisioner.Provisioner, error) {
 	const allNamespaces = ""
@@ -158,7 +182,72 @@ func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpe
 		spec.bucketOwner = &bucketOwner
 	}
 
+	if _, ok := config[bucketPlacementKey]; ok {
+		if !opcontroller.ObcAdditionalConfigKeyIsAllowed(bucketPlacementKey) {
+			return nil, errors.Errorf("OBC config %q is not allowed", bucketPlacementKey)
+		}
+		if err := validatePlacementValue(bucketPlacementKey, config[bucketPlacementKey]); err != nil {
+			return nil, err
+		}
+		spec.bucketPlacement = config[bucketPlacementKey]
+	}
+
+	if _, ok := config[bucketStorageClassKey]; ok {
+		if !opcontroller.ObcAdditionalConfigKeyIsAllowed(bucketStorageClassKey) {
+			return nil, errors.Errorf("OBC config %q is not allowed", bucketStorageClassKey)
+		}
+		if err := validatePlacementValue(bucketStorageClassKey, config[bucketStorageClassKey]); err != nil {
+			return nil, err
+		}
+		spec.bucketStorageClass = config[bucketStorageClassKey]
+	}
+
 	return &spec, nil
+}
+
+// errInvalidPlacementValue marks a bucketPlacement or bucketStorageClass
+// value the provisioner rejects, as distinct from a key the allowlist
+// rejects; only the former is reported on the OBC.
+var errInvalidPlacementValue = errors.New("invalid placement value")
+
+// validatePlacementValue rejects a bucketPlacement or bucketStorageClass
+// value that is not a bare placement-target or storage-class name; an empty
+// value requests nothing and is valid.
+func validatePlacementValue(key, value string) error {
+	if value == "" || placementValuePattern.MatchString(value) {
+		return nil
+	}
+	return errors.Wrapf(errInvalidPlacementValue, "%s %q is not a valid name: must match %s", key, value, placementValuePattern)
+}
+
+// parsePlacementRule splits an RGW bucket placement_rule, reported as
+// "<placement>" or "<placement>/<storage-class>", the way RGW's
+// rgw_placement_rule::from_str does; an absent class is STANDARD.
+func parsePlacementRule(rule string) (placement, storageClass string) {
+	placement, storageClass, _ = strings.Cut(rule, "/")
+	if storageClass == "" {
+		storageClass = standardStorageClass
+	}
+	return placement, storageClass
+}
+
+// checkPlacementRule reports whether an existing bucket's placement_rule
+// satisfies the requested placement and storage class. An empty request is
+// unmanaged and not compared. RGW cannot change either after creation, so a
+// mismatch is a claim the bucket can never satisfy.
+func checkPlacementRule(rule, requestedPlacement, requestedStorageClass string) error {
+	placement, storageClass := parsePlacementRule(rule)
+	var mismatches []string
+	if requestedPlacement != "" && requestedPlacement != placement {
+		mismatches = append(mismatches, fmt.Sprintf("%s %q was requested but the bucket is on placement %q", bucketPlacementKey, requestedPlacement, placement))
+	}
+	if requestedStorageClass != "" && requestedStorageClass != storageClass {
+		mismatches = append(mismatches, fmt.Sprintf("%s %q was requested but the bucket has storage class %q", bucketStorageClassKey, requestedStorageClass, storageClass))
+	}
+	if len(mismatches) == 0 {
+		return nil
+	}
+	return errors.New(strings.Join(mismatches, "; "))
 }
 
 func GetObjectStoreNameFromBucket(ob *bktv1alpha1.ObjectBucket) (types.NamespacedName, error) {
