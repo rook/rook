@@ -208,7 +208,7 @@ func createOrUpdatePools(f *Filesystem, context *clusterd.Context, clusterInfo *
 		dataPool := spec.DataPools[i]
 		dataPool.Name = dataPoolNames[i]
 		dataPool.Application = cephfsApplication
-		err := cephclient.CreatePool(context, clusterInfo, clusterSpec, &dataPool)
+		err := cephclient.CreatePoolWithPGs(context, clusterInfo, clusterSpec, &dataPool, cephclient.DefaultDataPoolPGCount)
 		if err != nil {
 			return errors.Wrapf(err, "failed to update datapool  %q", dataPool.Name)
 		}
@@ -284,7 +284,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 		dataPool.Name = dataPoolNames[i]
 		dataPool.Application = cephfsApplication
 		if _, poolFound := reversedPoolMap[dataPool.Name]; !poolFound {
-			err = cephclient.CreatePool(context, clusterInfo, clusterSpec, &dataPool)
+			err = cephclient.CreatePoolWithPGs(context, clusterInfo, clusterSpec, &dataPool, cephclient.DefaultDataPoolPGCount)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create data pool %q", dataPool.Name)
 			}
