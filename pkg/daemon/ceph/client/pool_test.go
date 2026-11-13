@@ -776,3 +776,80 @@ func hasCrushtool() bool {
 	_, err := exec.LookPath("crushtool")
 	return err == nil
 }
+
+func TestOrderedPoolProperties(t *testing.T) {
+	params := map[string]string{"pg_num_min": "64", "compression_mode": "none", "pg_num": "128", "bulk": "true"}
+	assert.Equal(t, []string{"pg_num_min", "pg_num", "bulk", "compression_mode"}, orderedPoolProperties(params))
+
+	params = map[string]string{"pg_num": "64", "bulk": "true"}
+	assert.Equal(t, []string{"pg_num", "bulk"}, orderedPoolProperties(params))
+}
+
+func TestSetCommonPoolPropertiesPgNumMin(t *testing.T) {
+	for _, tc := range []struct {
+		name                string
+		target, min         int
+		params              map[string]string
+		wantSets            []string
+		wantTarget, wantMin int
+	}{
+		{
+			name: "raise pg_num_min above target", target: 32,
+			params:   map[string]string{"pg_num_min": "64"},
+			wantSets: []string{"pg_num_min=64 EINVAL", "pg_num=64", "pg_num_min=64"}, wantTarget: 64, wantMin: 64,
+		},
+		{
+			name: "raise both, pg_num above pg_num_min", target: 32,
+			params:   map[string]string{"pg_num_min": "64", "pg_num": "128"},
+			wantSets: []string{"pg_num_min=64 EINVAL", "pg_num=128", "pg_num_min=64", "pg_num=128"}, wantTarget: 128, wantMin: 64,
+		},
+		{
+			name: "target already higher, e.g. split in progress", target: 128,
+			params:   map[string]string{"pg_num_min": "64"},
+			wantSets: []string{"pg_num_min=64"}, wantTarget: 128, wantMin: 64,
+		},
+		{
+			name: "lower both", target: 64, min: 64,
+			params:   map[string]string{"pg_num_min": "32", "pg_num": "32"},
+			wantSets: []string{"pg_num_min=32", "pg_num=32"}, wantTarget: 32, wantMin: 32,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			target, minPg := tc.target, tc.min
+			var sets []string
+			executor := &exectest.MockExecutor{}
+			// Mimics the OSDMonitor checks on pg_num and pg_num_min.
+			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+				if len(args) < 6 || args[1] != "pool" || args[2] != "set" {
+					return "", errors.Errorf("unexpected ceph command %q", args)
+				}
+				v, err := strconv.Atoi(args[5])
+				assert.NoError(t, err)
+				switch args[4] {
+				case "pg_num_min":
+					if v > target {
+						sets = append(sets, fmt.Sprintf("pg_num_min=%d EINVAL", v))
+						return fmt.Sprintf("Error EINVAL: specified pg_num_min %d > pg_num %d", v, target), errors.New("exit status 22")
+					}
+					minPg = v
+				case "pg_num":
+					if minPg > 0 && v < minPg {
+						sets = append(sets, fmt.Sprintf("pg_num=%d EINVAL", v))
+						return fmt.Sprintf("Error EINVAL: specified pg_num %d < pg_num_min %d", v, minPg), errors.New("exit status 22")
+					}
+					target = v
+				}
+				sets = append(sets, fmt.Sprintf("%s=%d", args[4], v))
+				return "", nil
+			}
+			context := &clusterd.Context{Executor: executor}
+			pool := cephv1.NamedPoolSpec{Name: "mypool", PoolSpec: cephv1.PoolSpec{Parameters: tc.params}}
+
+			err := setCommonPoolProperties(context, AdminTestClusterInfo("mycluster"), pool)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.wantSets, sets)
+			assert.Equal(t, tc.wantTarget, target)
+			assert.Equal(t, tc.wantMin, minPg)
+		})
+	}
+}
