@@ -758,7 +758,10 @@ class RadosJSON:
                 ip_addr = q_leader_addrvec[0]["addr"]
             elif len(q_leader_addrvec) > 1 and q_leader_addrvec[1]["type"] == "v2":
                 ip_addr = q_leader_addrvec[1]["addr"]
-
+            else:
+                sys.stderr.write(
+                    "'v2' address type not present. Please ensure your Ceph cluster is deployed with v2 (msgr2) port support"
+                )
         return f"{str(q_leader_name)}={ip_addr}"
 
     def _convert_hostname_to_ip(self, host_name, port, ip_type):

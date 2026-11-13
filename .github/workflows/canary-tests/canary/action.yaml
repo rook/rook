@@ -300,17 +300,52 @@ runs:
           echo "script failed because topology-failure-domain-label is missing"
         fi
 
-    - name: test enable v2 mon port
+    - name: test v2 port in mon data output with v2-port-enable flag
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-        kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --v2-port-enable
+        output=$(kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --v2-port-enable --format json)
+        echo "$output"
+        if echo "$output" | grep -q ":3300"; then
+          echo "v2 port (3300) present in mon data"
+        else
+          echo "v2 port (3300) not found in mon data"
+          exit 1
+        fi
 
-    - name: test enable v1 mon port
+    - name: test v1 port in mon data output with v1-port-enable flag
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-        kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --v1-port-enable
+        output=$(kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --v1-port-enable --format json 2>&1)
+        echo "$output"
+        if echo "$output" | grep -q ":6789"; then
+          echo "v1 port (6789) present in mon data"
+        elif echo "$output" | grep -q ":3300"; then
+          echo "v1 not present in cluster, mon data defaulted to v2 port (3300)"
+        else
+          echo "neither v1 nor v2 port found in mon data"
+          exit 1
+        fi
+
+    - name: test v1 takes precedence when both v1 and v2 flags are enabled
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+        output=$(kubectl -n rook-ceph exec "$toolbox" -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --v1-port-enable --v2-port-enable --format json 2>&1)
+        echo "$output"
+        if echo "$output" | grep -q ":6789"; then
+          echo "v1 port (6789) present in mon data"
+        elif echo "$output" | grep -q ":3300"; then
+          if echo "$output" | grep -q "v2.*address type not present"; then
+            echo "v2 branch ran instead of v1 branch"
+            exit 1
+          fi
+          echo "v1 not present in cluster, mon data defaulted to v2 port (3300)"
+        else
+          echo "neither v1 nor v2 port found in mon data"
+          exit 1
+        fi
 
     - name: test config file flag
       shell: bash --noprofile --norc -eo pipefail -x {0}
