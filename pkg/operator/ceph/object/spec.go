@@ -120,6 +120,23 @@ var (
 	opsLogAbsFilename = path.Join(cephconfig.VarLogCephDir, opsLogFilename)
 )
 
+// appendEnvVarsIfMissing appends env vars whose names are not already present.
+// DaemonEnvVars already includes POD_NAME, so callers must not add it twice.
+func appendEnvVarsIfMissing(env []v1.EnvVar, extras ...v1.EnvVar) []v1.EnvVar {
+	have := make(map[string]struct{}, len(env))
+	for _, e := range env {
+		have[e.Name] = struct{}{}
+	}
+	for _, e := range extras {
+		if _, ok := have[e.Name]; ok {
+			continue
+		}
+		env = append(env, e)
+		have[e.Name] = struct{}{}
+	}
+	return env
+}
+
 type (
 	ProbeType    string
 	ProtocolType string
@@ -463,7 +480,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolumeMount(),
 		),
-		Env:             append(controller.DaemonEnvVars(c.clusterSpec), k8sutil.NameEnvVar()),
+		Env:             controller.DaemonEnvVars(c.clusterSpec),
 		Resources:       c.store.Spec.Gateway.Resources,
 		StartupProbe:    startupProbe,
 		LivenessProbe:   noLivenessProbe(),
@@ -529,7 +546,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		}
 	}
 	if c.store.Spec.Gateway.OpsLogSidecar != nil {
-		container.Env = append(container.Env, podNameEnvVars...)
+		container.Env = appendEnvVarsIfMissing(container.Env, podNameEnvVars...)
 		container.Args = append(
 			container.Args,
 			cephconfig.NewFlag("rgw_enable_ops_log", "true"),
