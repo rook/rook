@@ -615,7 +615,7 @@ func TestHasNodeDrained(t *testing.T) {
 	assert.True(t, expected)
 }
 
-func TestSetPDBConfig(t *testing.T) {
+func TestPickDrainingDomain(t *testing.T) {
 	testcases := []struct {
 		name                          string
 		pdbConfig                     *corev1.ConfigMap
@@ -677,7 +677,9 @@ func TestSetPDBConfig(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			setPDBConfig(tc.pdbConfig, tc.osdDownFailureDomains, tc.drainingFailureDomains)
+			next := pickDrainingDomain(loadDrainState(namespace, tc.pdbConfig.Data),
+				observations{osdDownDomains: tc.osdDownFailureDomains, nodeDrainDomains: tc.drainingFailureDomains})
+			next.save(tc.pdbConfig)
 			assert.Equal(t, tc.expectedFailureDomainKeyValue, tc.pdbConfig.Data[drainingFailureDomainKey])
 			assert.Equal(t, tc.expecteNoOutSetting, tc.pdbConfig.Data[setNoOut])
 		})
