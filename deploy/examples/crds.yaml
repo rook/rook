@@ -13439,6 +13439,7 @@ spec:
                   description: AccountID associated with the RGW user account
                   maxLength: 20
                   minLength: 20
+                  pattern: ^RGW\d{17}$
                   type: string
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.

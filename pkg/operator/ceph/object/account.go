@@ -19,7 +19,7 @@ package object
 import (
 	"context"
 	"fmt"
-	"strings"
+	"regexp"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/pkg/errors"
@@ -33,6 +33,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
+
+var accountIDPattern = regexp.MustCompile(`^RGW\d{17}$`)
+
+// ValidateAccountID returns an error unless id has the RGW account ID format,
+// "RGW" followed by 17 digits, which the CRD also enforces on spec.accountID
+// and status.accountID.
+func ValidateAccountID(id string) error {
+	if !accountIDPattern.MatchString(id) {
+		return errors.Errorf("invalid account ID %q: must be \"RGW\" followed by 17 digits", id)
+	}
+	return nil
+}
 
 // GetAccount retrieves account information from RGW using the admin ops API.
 func GetAccount(ctx context.Context, adminOpsContext *AdminOpsContext, accountID string) (admin.Account, error) {
@@ -101,8 +113,8 @@ func DeleteAccount(nsName types.NamespacedName, ctx context.Context, adminOpsCon
 // amounts of data can far exceed the operator's 15-second command timeout.
 // The Job retries on failure until the purge completes or the account no longer exists.
 func ForceDeleteAccount(uid types.UID, nsName types.NamespacedName, adminOpsContext *AdminOpsContext, accountID string, cephClusterSpec *cephv1.ClusterSpec) (bool, error) {
-	if accountID == "" {
-		return false, errors.New("account ID cannot be empty")
+	if err := ValidateAccountID(accountID); err != nil {
+		return false, err
 	}
 	if adminOpsContext == nil {
 		return false, errors.New("adminOpsContext cannot be nil")
@@ -148,6 +160,22 @@ func ForceDeleteAccount(uid types.UID, nsName types.NamespacedName, adminOpsCont
 	return false, errors.Wrapf(err, "failed to verify account %q was purged", accountID)
 }
 
+// accountPurgeScript runs radosgw-admin with the script's positional
+// parameters and treats exit code 2 (ENOENT, the account is already gone) as
+// success. Values must reach radosgw-admin as arguments, never as script text.
+const accountPurgeScript = `radosgw-admin "$@"
+rc=$?
+if [ $rc -eq 0 ]; then
+	echo 'account purge succeeded'
+elif [ $rc -eq 2 ]; then
+	echo 'account not found, nothing to purge'
+	exit 0
+else
+	echo "account purge failed with exit code $rc"
+fi
+exit $rc
+`
+
 func makeAccountPurgeJob(uid types.UID, nsName types.NamespacedName, adminOpsContext *AdminOpsContext, accountID string, clusterInfo *cephclient.ClusterInfo, cephClusterSpec *cephv1.ClusterSpec) *batch.Job {
 	// Build the radosgw-admin command args
 	args := []string{
@@ -175,22 +203,6 @@ func makeAccountPurgeJob(uid types.UID, nsName types.NamespacedName, adminOpsCon
 		fmt.Sprintf("--name=%s", clusterInfo.CephCred.Username),
 	)
 
-	// Wrap in a shell to treat ENOENT (exit code 2) as success
-	shellCmd := fmt.Sprintf(`
-		radosgw-admin %s;
-		rc=$?;
-		if [ $rc -eq 0 ]; then
-    		echo 'account purge succeeded';
-  		elif [ $rc -eq 2 ]; then
-    		echo 'account not found, nothing to purge';
-    		exit 0;
-  		else
-    		echo "account purge failed with exit code $rc";
-  		fi;
-  		exit $rc
-		`, strings.Join(args, " "),
-	)
-
 	volumes := []corev1.Volume{{Name: "account-cleanup", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: cephClusterSpec.DataDirHostPath}}}}
 	volumeMounts := []corev1.VolumeMount{{Name: "account-cleanup", MountPath: cephClusterSpec.DataDirHostPath}}
 	jobName := k8sutil.TruncateNodeNameForJob("rgw-account-purge-%s", fmt.Sprintf("%s-%s-%s", nsName.Name, nsName.Namespace, uid))
@@ -201,13 +213,13 @@ func makeAccountPurgeJob(uid types.UID, nsName types.NamespacedName, adminOpsCon
 	}
 	timeToLive := int32(86400) // 24 hours
 
-	job := getJobTemplate(jobName, nsName.Namespace, labels, volumes, volumeMounts, shellCmd, cephClusterSpec, timeToLive)
+	job := getJobTemplate(jobName, nsName.Namespace, labels, volumes, volumeMounts, args, cephClusterSpec, timeToLive)
 
 	k8sutil.AddRookVersionLabelToJob(job)
 	return job
 }
 
-func getJobTemplate(jobName, namespace string, labels map[string]string, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, shellCmd string, cephClusterSpec *cephv1.ClusterSpec, timeToLive int32) *batch.Job {
+func getJobTemplate(jobName, namespace string, labels map[string]string, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, radosgwAdminArgs []string, cephClusterSpec *cephv1.ClusterSpec, timeToLive int32) *batch.Job {
 	return &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -226,8 +238,10 @@ func getJobTemplate(jobName, namespace string, labels map[string]string, volumes
 							Name:            "rgw-account-purge",
 							Image:           cephClusterSpec.CephVersion.Image,
 							ImagePullPolicy: opcontroller.GetContainerImagePullPolicy(cephClusterSpec.CephVersion.ImagePullPolicy),
-							Command:         []string{"/bin/sh", "-c"},
-							Args:            []string{shellCmd},
+							// sh -c takes $0 from the first argument after the script,
+							// so "$@" in the script is exactly Args.
+							Command:         []string{"/bin/sh", "-c", accountPurgeScript, "rgw-account-purge"},
+							Args:            radosgwAdminArgs,
 							VolumeMounts:    volumeMounts,
 							SecurityContext: opcontroller.PrivilegedContext(true),
 						},

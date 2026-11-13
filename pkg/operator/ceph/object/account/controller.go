@@ -514,6 +514,9 @@ func (r *ReconcileObjectStoreAccount) deleteAccount(cephObjectStoreAccount *ceph
 		log.NamedInfo(nsName, logger, "no account ID found, skipping deletion")
 		return false, nil
 	}
+	if err := object.ValidateAccountID(accountID); err != nil {
+		return false, err
+	}
 
 	// Only delete the account if we have ownership proof (status contains the account ID).
 	// If the account ID is only in spec but was never successfully reconciled,
