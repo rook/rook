@@ -42,7 +42,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -589,6 +591,75 @@ func TestReconcilePDBForOSDNooutUnsetFailure(t *testing.T) {
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pdbStateMapName, Namespace: namespace}, existingConfigMap)
 	require.NoError(t, err)
 	assert.Equal(t, "", existingConfigMap.Data[drainingFailureDomainKey])
+}
+
+func TestReconcilePDBForOSDRequeuesWhileDraining(t *testing.T) {
+	testcases := []struct {
+		name                  string
+		fakeCephStatus        string
+		configMap             *corev1.ConfigMap
+		osdDownFailureDomains []string
+		activeNodeDrains      []string
+		downOSDs              []int
+	}{
+		{
+			name:                  "zone-1 is draining and pgs are unhealthy",
+			fakeCephStatus:        unHealthyCephStatus,
+			configMap:             fakePDBConfigMap(""),
+			osdDownFailureDomains: []string{"zone-1"},
+			activeNodeDrains:      []string{"zone-1"},
+			downOSDs:              []int{1},
+		},
+		{
+			name:                  "zone-1 is back online but pgs are still unhealthy",
+			fakeCephStatus:        unHealthyCephStatus,
+			configMap:             fakePDBConfigMap("zone-1"),
+			osdDownFailureDomains: []string{},
+			activeNodeDrains:      []string{},
+			downOSDs:              []int{},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := getFakeReconciler(t, cephCluster, tc.configMap)
+			// The cached client can still return the default PDB right after it was
+			// deleted, with the disruptions it allowed before the drain.
+			r.client = interceptor.NewClient(r.client.(ctrlclient.WithWatch), interceptor.Funcs{
+				Get: func(ctx context.Context, c ctrlclient.WithWatch, key ctrlclient.ObjectKey, obj ctrlclient.Object, opts ...ctrlclient.GetOption) error {
+					if pdb, ok := obj.(*policyv1.PodDisruptionBudget); ok && key.Name == osdPDBAppName {
+						pdb.Name = osdPDBAppName
+						pdb.Namespace = key.Namespace
+						pdb.Status.DisruptionsAllowed = 1
+						return nil
+					}
+					return c.Get(ctx, key, obj, opts...)
+				},
+			})
+			clusterInfo := getFakeClusterInfo()
+			clusterInfo.Context = t.Context()
+			request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
+			executor := &exectest.MockExecutor{}
+			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+				if args[0] == "status" {
+					return tc.fakeCephStatus, nil
+				}
+				if args[0] == "osd" && args[1] == "dump" {
+					return `{"OSDs": [{"OSD": 3, "Up": 3, "In": 3}]}`, nil
+				}
+				return "", errors.Errorf("unexpected ceph command '%v'", args)
+			}
+			clientset := test.New(t, 3)
+			test.SetFakeKubernetesVersion(clientset, "v1.21.0")
+			r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor, Clientset: clientset}}
+
+			result, err := r.reconcilePDBsForOSDs(clusterInfo, request, tc.configMap, "zone",
+				[]string{"zone-1", "zone-2", "zone-3"}, tc.osdDownFailureDomains, tc.activeNodeDrains, tc.downOSDs, "")
+			require.NoError(t, err)
+			assert.Equal(t, "zone-1", tc.configMap.Data[drainingFailureDomainKey])
+			assert.NotZero(t, result.RequeueAfter, "the controller must reconcile again while a failure domain is draining")
+		})
+	}
 }
 
 func TestHasNodeDrained(t *testing.T) {
