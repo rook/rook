@@ -379,6 +379,12 @@ func TestConfigureCVDevices(t *testing.T) {
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
+			if command == "lsblk" && len(args) == 6 && slices.Equal(args[:5], []string{"--nodeps", "--noheadings", "--raw", "--output", "KNAME"}) {
+				return "dm-1", nil
+			}
+			if command == "udevadm" && (args[0] == "trigger" || args[0] == "settle") {
+				return "", nil
+			}
 			if command == "lsblk" && args[0] == mountedDev {
 				return `SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="/mnt/set1-data-0-rpf2k" KNAME="/dev/dm-1, a ...interface{})`, nil
 			}
@@ -444,6 +450,12 @@ func TestConfigureCVDevices(t *testing.T) {
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
+			if command == "lsblk" && len(args) == 6 && slices.Equal(args[:5], []string{"--nodeps", "--noheadings", "--raw", "--output", "KNAME"}) {
+				return "dm-1", nil
+			}
+			if command == "udevadm" && (args[0] == "trigger" || args[0] == "settle") {
+				return "", nil
+			}
 			if command == "lsblk" && args[0] == mountedDev {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="%s" KNAME="/dev/dm-1, a ...interface{})`, mapperDev), nil
 			}
@@ -499,6 +511,12 @@ func TestConfigureCVDevices(t *testing.T) {
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
+			if command == "lsblk" && len(args) == 6 && slices.Equal(args[:5], []string{"--nodeps", "--noheadings", "--raw", "--output", "KNAME"}) {
+				return "dm-1", nil
+			}
+			if command == "udevadm" && (args[0] == "trigger" || args[0] == "settle") {
+				return "", nil
+			}
 			if command == "lsblk" && args[0] == mountedDev {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="%s" KNAME="/dev/dm-1"
 	`, mapperDev), nil
@@ -570,6 +588,12 @@ func TestConfigureCVDevices(t *testing.T) {
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
 			// get lsblk for disks from cephVolumeRAWTestResult var
+			if command == "lsblk" && len(args) == 6 && slices.Equal(args[:5], []string{"--nodeps", "--noheadings", "--raw", "--output", "KNAME"}) {
+				return path.Base(args[5]), nil
+			}
+			if command == "udevadm" && (args[0] == "trigger" || args[0] == "settle") {
+				return "", nil
+			}
 			if command == "lsblk" && (args[0] == "/dev/vdb1") {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="part" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
 			}
@@ -624,6 +648,12 @@ func TestConfigureCVDevices(t *testing.T) {
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
 			// get lsblk for disks from cephVolumeRAWTestResult var
+			if command == "lsblk" && len(args) == 6 && slices.Equal(args[:5], []string{"--nodeps", "--noheadings", "--raw", "--output", "KNAME"}) {
+				return path.Base(args[5]), nil
+			}
+			if command == "udevadm" && (args[0] == "trigger" || args[0] == "settle") {
+				return "", nil
+			}
 			if command == "lsblk" && (args[0] == "/dev/vdb" || args[0] == "/dev/vdc") {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="disk" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
 			}
@@ -681,6 +711,12 @@ func TestConfigureCVDevices(t *testing.T) {
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
+			if command == "lsblk" && len(args) == 6 && slices.Equal(args[:5], []string{"--nodeps", "--noheadings", "--raw", "--output", "KNAME"}) {
+				return path.Base(args[5]), nil
+			}
+			if command == "udevadm" && (args[0] == "trigger" || args[0] == "settle") {
+				return "", nil
+			}
 			if command == "lsblk" && (args[0] == "/dev/vdb1") {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="part" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
 			}
@@ -2224,6 +2260,12 @@ func TestParseCephVolumeRawResult(t *testing.T) {
 		}
 
 		// get lsblk for disks from cephVolumeRAWTestResult var
+		if command == "lsblk" && len(args) == 6 && slices.Equal(args[:5], []string{"--nodeps", "--noheadings", "--raw", "--output", "KNAME"}) {
+			return path.Base(args[5]), nil
+		}
+		if command == "udevadm" && (args[0] == "trigger" || args[0] == "settle") {
+			return "", nil
+		}
 		if command == "lsblk" && (args[0] == "/dev/vdb" || args[0] == "/dev/vdc") {
 			return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="disk" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
 		}
@@ -2939,6 +2981,12 @@ func TestGetCephVolumeRawOSDsHonorDeviceClass(t *testing.T) {
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		if command == "stdbuf" && args[4] == "raw" && args[5] == "list" {
 			return cephVolumeRAWTestResult, nil
+		}
+		if command == "lsblk" && len(args) == 6 && slices.Equal(args[:5], []string{"--nodeps", "--noheadings", "--raw", "--output", "KNAME"}) {
+			return path.Base(args[5]), nil
+		}
+		if command == "udevadm" && (args[0] == "trigger" || args[0] == "settle") {
+			return "", nil
 		}
 		if command == "lsblk" && (args[0] == "/dev/vdb" || args[0] == "/dev/vdc") {
 			base := strings.TrimPrefix(args[0], "/dev/")

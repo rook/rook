@@ -19,6 +19,7 @@ package discover
 
 import (
 	"fmt"
+	"path"
 	"reflect"
 	"testing"
 
@@ -136,6 +137,12 @@ USEC_INITIALIZED=15981915740802
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("RUN Command %s  %v", command, args)
+		if command == "lsblk" && len(args) == 6 && reflect.DeepEqual(args[:5], []string{"--nodeps", "--noheadings", "--raw", "--output", "KNAME"}) {
+			return path.Base(args[5]), nil
+		}
+		if command == "udevadm" && (args[0] == "trigger" || args[0] == "settle") {
+			return "", nil
+		}
 		output := ""
 		if reflect.DeepEqual(args, listDevicesArgs) {
 			output = listDevicesOutput

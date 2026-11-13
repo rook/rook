@@ -37,7 +37,9 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -379,6 +381,16 @@ func testOSDIntegration(t *testing.T) {
 				setStatusConfigMapToCompleted(t, cpy, osdsPerNode)
 			} else {
 				setStatusConfigMapToFailed(t, cpy) // fail on node0 and node2
+				// The starting ConfigMap is written before the prepare Job is created.
+				var job *batchv1.Job
+				require.Eventually(t, func() bool {
+					var err error
+					job, err = clientset.BatchV1().Jobs(namespace).Get(context.TODO(), provisionJobName(cpy.Labels[nodeLabelKey]), metav1.GetOptions{})
+					return err == nil
+				}, time.Second, time.Millisecond)
+				job.Status.Conditions = []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue}}
+				_, err := clientset.BatchV1().Jobs(namespace).UpdateStatus(context.TODO(), job, metav1.UpdateOptions{})
+				require.NoError(t, err)
 			}
 			updateStatusConfigmap(clientset, statusMapWatcher, cpy)
 		}
