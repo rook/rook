@@ -226,6 +226,20 @@ func (z *CephObjectZone) GetStatusConditions() *[]Condition {
 	return &z.Status.Conditions
 }
 
+func (r *CephObjectRealm) GetStatusConditions() *[]Condition {
+	if r.Status == nil {
+		r.Status = &Status{}
+	}
+	return &r.Status.Conditions
+}
+
+func (z *CephObjectZoneGroup) GetStatusConditions() *[]Condition {
+	if z.Status == nil {
+		z.Status = &Status{}
+	}
+	return &z.Status.Conditions
+}
+
 // String returns an addressable string representation of the EndpointAddress.
 func (e *EndpointAddress) String() string {
 	// hostname is easier to read, and it is probably less likely to change, so prefer it over IP
