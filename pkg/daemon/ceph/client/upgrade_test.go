@@ -128,14 +128,18 @@ func TestFindFSName(t *testing.T) {
 func TestDaemonMapEntry(t *testing.T) {
 	dummyVersions := cephv1.CephDaemonsVersions{
 		Mon: map[string]int{"mon": 1},
+		Mgr: map[string]int{"mgr": 1},
 		Osd: map[string]int{"osd": 1},
+		Mds: map[string]int{"mds": 1},
 	}
 	tests := []struct {
 		daemonType string
 		expected   map[string]int
 	}{
 		{"mon", dummyVersions.Mon},
+		{"mgr", dummyVersions.Mgr},
 		{"osd", dummyVersions.Osd},
+		{"mds", dummyVersions.Mds},
 	}
 	for _, tt := range tests {
 		t.Run(tt.daemonType, func(t *testing.T) {
@@ -397,7 +401,7 @@ func TestLeastUptodateDaemonVersion(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Zero(t, got)
 
-	got, err = LeastUptodateDaemonVersion(clusterCtx, &clusterInfo, "mgr")
+	got, err = LeastUptodateDaemonVersion(clusterCtx, &clusterInfo, "rgw")
 	assert.Error(t, err)
 	assert.Equal(t, cephver.CephVersion{}, got)
 }
