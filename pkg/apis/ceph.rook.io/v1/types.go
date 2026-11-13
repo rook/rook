@@ -4557,6 +4557,7 @@ type NVMeOFGatewaySpec struct {
 	// For example, quay.io/ceph/nvmeof:1.5
 	// If not specified, the image is fetched from the Ceph mon config store
 	// (mgr/cephadm/container_image_nvmeof).
+	// The image runs in a privileged container with access to the Ceph admin keyring.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=1024
