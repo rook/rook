@@ -13,6 +13,7 @@
 
 ## Features
 
+<<<<<<< HEAD
 - Ceph Umbrella (v21) is now a supported version of Ceph.
 - RBD QoS (Quality of Service) support via `VolumeAttributesClass` using the krbd mounter with cgroup v2 `io.max` enforcement. See the [RBD QoS documentation](Documentation/Storage-Configuration/Block-Storage-RBD/rbd-qos.md) for details.
 - Automated OSD replacement. OSD deployment can be annotated to mark it for replacement. Rook will drain and destroy it with preserving its CRUSH position to later reuse it when new device will be available on the same node. All types of OSDs supported for host-based cluster included OSDs sharing metadata device. PVC-based OSDs are not supported. See [OSD replacement design document](./design/ceph/osd-replacement.md) for details.
@@ -26,3 +27,11 @@
   on the RGW user, except that changing `defaultPlacement` without a `defaultStorageClass` resets the storage class to
   the new placement target's default.
 - Default CSI container images are no longer set by Rook. The `rook-csi-operator-image-set-configmap` configmap now ships with empty values, allowing the ceph-csi-operator to use its built-in defaults. Users with custom CSI images should ensure their overrides are present in the configmap after upgrade.
+=======
+- `CephObjectStoreUser` gained `spec.secretTemplate`, which adds labels and annotations to the Secret that holds the
+  user's credentials, for example to opt the Secret in to a tool that copies Secrets into other namespaces. Keys that
+  Rook sets or acts on are reserved.
+- RGW SSE-S3 accepts `VAULT_TRANSIT_BACKEND_PATH` in `security.s3.connectionDetails` for a Vault transit engine that is
+  not mounted at the default `transit` path. RGW SSE-KMS with the `transit` engine accepts it in
+  `security.kms.connectionDetails` too.
+>>>>>>> d66ab52 (object: honor VAULT_TRANSIT_BACKEND_PATH for RGW SSE-KMS transit)
