@@ -42,3 +42,36 @@ tests:
       - notExists:
           path: metadata.labels
         documentIndex: 1
+
+  - it: keeps allowVolumeExpansion false on the storage class
+    set:
+      cephBlockPools:
+        - name: ceph-blockpool
+          spec:
+            replicated:
+              size: 3
+          storageClass:
+            enabled: true
+            name: ceph-block
+            allowVolumeExpansion: false
+    asserts:
+      - equal:
+          path: allowVolumeExpansion
+          value: false
+        documentIndex: 1
+
+  - it: allows volume expansion when allowVolumeExpansion is not set
+    set:
+      cephBlockPools:
+        - name: ceph-blockpool
+          spec:
+            replicated:
+              size: 3
+          storageClass:
+            enabled: true
+            name: ceph-block
+    asserts:
+      - equal:
+          path: allowVolumeExpansion
+          value: true
+        documentIndex: 1
