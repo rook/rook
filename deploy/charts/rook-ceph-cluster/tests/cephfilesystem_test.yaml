@@ -1,0 +1,55 @@
+suite: cephfilesystem
+templates:
+  - cephfilesystem.yaml
+tests:
+  - it: keeps allowVolumeExpansion false on the storage class
+    set:
+      cephFileSystems:
+        - name: ceph-filesystem
+          spec:
+            metadataPool:
+              replicated:
+                size: 3
+            dataPools:
+              - name: data0
+                replicated:
+                  size: 3
+            metadataServer:
+              activeCount: 1
+          storageClass:
+            enabled: true
+            name: ceph-filesystem
+            allowVolumeExpansion: false
+    asserts:
+      - hasDocuments:
+          count: 3
+      - isKind:
+          of: StorageClass
+        documentIndex: 2
+      - equal:
+          path: allowVolumeExpansion
+          value: false
+        documentIndex: 2
+
+  - it: allows volume expansion when allowVolumeExpansion is not set
+    set:
+      cephFileSystems:
+        - name: ceph-filesystem
+          spec:
+            metadataPool:
+              replicated:
+                size: 3
+            dataPools:
+              - name: data0
+                replicated:
+                  size: 3
+            metadataServer:
+              activeCount: 1
+          storageClass:
+            enabled: true
+            name: ceph-filesystem
+    asserts:
+      - equal:
+          path: allowVolumeExpansion
+          value: true
+        documentIndex: 2
