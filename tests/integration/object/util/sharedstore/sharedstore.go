@@ -21,6 +21,7 @@ limitations under the License.
 package sharedstore
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -115,7 +117,8 @@ type Config struct {
 	// StoreName names the CephObjectStore and everything derived from it.
 	StoreName string
 
-	// Instances is the RGW gateway count.
+	// Instances is the RGW gateway count. It must be at least 1: Create waits
+	// for exactly this many gateways to become ready.
 	Instances int32
 
 	// TLSEnable serves the store over https with a generated certificate
@@ -133,10 +136,13 @@ type Config struct {
 
 // Create creates the CephObjectStore cfg describes, along with its Service and
 // — for a Zoned store — its realm, zone, and pools, waits for it to become
-// Ready, and returns a Sharedstore whose Destroy method tears it all down;
-// Destroy should be deferred by the caller.
+// Ready and for all of its gateways to be ready, and returns a Sharedstore
+// whose Destroy method tears it all down; Destroy should be deferred by the
+// caller.
 func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, cfg Config) *Sharedstore {
 	t.Helper()
+
+	require.Positive(t, cfg.Instances, "Config.Instances must be at least 1")
 
 	ctx := t.Context()
 	ns := cfg.Namespace
@@ -377,6 +383,16 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 	assert.NotEmpty(t, live.Status.Info["endpoint"],
 		"CephObjectStore %q became Ready without publishing an endpoint", storeName)
 
+	// The operator reports Ready as soon as it has created the rgw deployment,
+	// without waiting for the gateways to come up, and it serves every instance
+	// from one deployment scaled to Gateway.Instances. The timeout is bespoke
+	// rather than a shared tier because it has to cover rgw start up: the
+	// operator's own startup probe allows a gateway ~340s before restarting it,
+	// and the readiness probe then wants 3 consecutive successes.
+	wait4.RequireCondition(ctx, t, k8sh.Clientset.AppsV1().Deployments(ns), rgwServiceName+"-a",
+		func(d *appsv1.Deployment) bool { return d.Status.ReadyReplicas == cfg.Instances },
+		7*time.Minute, "rgw gateways for %q did not all become ready", storeName)
+
 	{
 		_, err := k8sh.Clientset.CoreV1().Services(ns).Create(ctx, svc, metav1.CreateOptions{})
 		require.NoError(t, err)
@@ -390,13 +406,24 @@ func Create(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstal
 		// CephObjectStore's deletion later
 		wait4.AssertDelete(ctx, t, ceph.CephObjectStoreUsers(ns), canaryUser.Name, time.Minute)
 
-		// the canary user becoming ready tells us the rgw admin api is ready
-		var err error
-		s.adminClient, err = client.NewAdminClient(objectStore, installer, k8sh, tlsEnable)
-		require.NoError(t, err)
+		// The canary user shows that rgw is up, not that the Service just
+		// created above routes to it: a connection opened before kube-proxy has
+		// programmed the ClusterIP is pinned by conntrack to the unrouted
+		// address and hangs until the dial times out. Bound each attempt so a
+		// retry opens a fresh connection.
+		wait4.RequireEventually(ctx, t, 2*time.Minute, "rgw admin api reachable through its Service",
+			utils.AttemptTimeout(10*time.Second, func(ctx context.Context) error {
+				var err error
+				s.adminClient, err = client.NewAdminClient(ctx, objectStore, installer, k8sh, tlsEnable)
+				return err
+			}))
 
-		s.snsClient, err = client.NewSNSClient(objectStore, k8sh, installer, tlsEnable)
-		require.NoError(t, err)
+		wait4.RequireEventually(ctx, t, 2*time.Minute, "rgw sns api reachable through its Service",
+			utils.AttemptTimeout(10*time.Second, func(ctx context.Context) error {
+				var err error
+				s.snsClient, err = client.NewSNSClient(ctx, objectStore, k8sh, installer, tlsEnable)
+				return err
+			}))
 	})
 
 	s.objectStore = objectStore
