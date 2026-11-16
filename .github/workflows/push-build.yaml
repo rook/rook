@@ -16,6 +16,10 @@ permissions: {}
 
 jobs:
   push-image-to-container-registry:
+    # The publishing credentials are environment secrets. Release tags run in
+    # "release" and branch pushes in "publish", which admits only master and
+    # the maintained release branches, listed by name.
+    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || 'publish' }}
     runs-on: ubuntu-22.04
     if: github.repository == 'rook/rook'
     permissions:
