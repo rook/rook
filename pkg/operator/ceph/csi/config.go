@@ -24,6 +24,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
@@ -53,6 +54,11 @@ const (
 )
 
 func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephBlockPoolRadosNamespaceName, clusterID string) error {
+	if !opcontroller.CSIOperatorResourcesEnabled() {
+		logger.Debug("csi operator resources are disabled, skipping ceph-csi clientProfile CR for rados namespace")
+		return nil
+	}
+
 	logger.Info("creating ceph-csi clientProfile CR for rados namespace")
 
 	rbdProvisionerSecretName, err := getSecretNameByAnnotation(c, ctx, clusterInfo.Namespace, "csi.rook.io/RBDProvisionerSecret", CsiRBDProvisionerSecret)
@@ -91,6 +97,11 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 }
 
 func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephFilesystemSubVolumeGroupName, clusterID string, csiMetadataRadosNamespace string) error {
+	if !opcontroller.CSIOperatorResourcesEnabled() {
+		logger.Debug("csi operator resources are disabled, skipping ceph-csi clientProfile CR for subvolume group")
+		return nil
+	}
+
 	logger.Info("Creating ceph-csi clientProfile CR for subvolume group")
 
 	csiOpClientProfile, err := generateProfileSubVolumeGroupSpec(c, clusterInfo, cephFilesystemSubVolumeGroupName, clusterID, csiMetadataRadosNamespace)
