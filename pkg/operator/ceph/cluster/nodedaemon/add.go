@@ -94,6 +94,47 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return errors.Wrap(err, "failed to watch for node changes")
 	}
 
+	// Watch the config override since its RDMA setting controls the exporter arguments.
+	logger.Debugf("watch for changes to the ceph config override")
+	configOverridePredicate := predicate.TypedFuncs[*corev1.ConfigMap]{
+		CreateFunc: func(e event.TypedCreateEvent[*corev1.ConfigMap]) bool {
+			return e.Object.Name == k8sutil.ConfigOverrideName
+		},
+		UpdateFunc: func(e event.TypedUpdateEvent[*corev1.ConfigMap]) bool {
+			oldConfigMap := (*corev1.ConfigMap)(e.ObjectOld)
+			newConfigMap := (*corev1.ConfigMap)(e.ObjectNew)
+			return newConfigMap.Name == k8sutil.ConfigOverrideName && !reflect.DeepEqual(oldConfigMap.Data, newConfigMap.Data)
+		},
+		DeleteFunc: func(e event.TypedDeleteEvent[*corev1.ConfigMap]) bool {
+			return e.Object.Name == k8sutil.ConfigOverrideName
+		},
+	}
+	err = c.Watch(
+		source.Kind(
+			mgr.GetCache(),
+			&corev1.ConfigMap{},
+			handler.TypedEnqueueRequestsFromMapFunc(func(ctx context.Context, configMap *corev1.ConfigMap) []reconcile.Request {
+				if configMap.Name != k8sutil.ConfigOverrideName {
+					return []reconcile.Request{}
+				}
+				nodes := &corev1.NodeList{}
+				if err := mgr.GetClient().List(ctx, nodes); err != nil {
+					logger.Errorf("failed to list nodes after config override %q changed. %v", configMap.Namespace, err)
+					return []reconcile.Request{}
+				}
+				requests := make([]reconcile.Request, 0, len(nodes.Items))
+				for _, node := range nodes.Items {
+					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: node.Name}})
+				}
+				return requests
+			}),
+			configOverridePredicate,
+		),
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to watch for ceph config override changes")
+	}
+
 	// Watch for changes to the ceph-crash deployments
 	logger.Debugf("watch for changes to the ceph-crash deployments")
 	err = c.Watch(
