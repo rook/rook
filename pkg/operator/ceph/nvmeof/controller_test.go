@@ -845,7 +845,7 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 
 func TestNVMeOFConfigGeneration(t *testing.T) {
 	t.Run("defaults with interrupt mode", func(t *testing.T) {
-		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, true, nil)
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, true, 5500, 5499, 8009, nil)
 		assert.NoError(t, err)
 
 		cfg, err := ini.Load([]byte(config))
@@ -865,7 +865,7 @@ func TestNVMeOFConfigGeneration(t *testing.T) {
 	})
 
 	t.Run("poll mode disables interrupt mode", func(t *testing.T) {
-		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, false, nil)
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, false, 5500, 5499, 8009, nil)
 		assert.NoError(t, err)
 
 		cfg, err := ini.Load([]byte(config))
@@ -874,7 +874,7 @@ func TestNVMeOFConfigGeneration(t *testing.T) {
 	})
 
 	t.Run("hostNetwork sets override_hostname", func(t *testing.T) {
-		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", true, true, nil)
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", true, true, 5500, 5499, 8009, nil)
 		assert.NoError(t, err)
 
 		cfg, err := ini.Load([]byte(config))
@@ -895,7 +895,7 @@ func TestNVMeOFConfigGeneration(t *testing.T) {
 				"foo": "bar",
 			},
 		}
-		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, true, userConfig)
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, true, 5500, 5499, 8009, userConfig)
 		assert.NoError(t, err)
 
 		cfg, err := ini.Load([]byte(config))
@@ -912,7 +912,7 @@ func TestNVMeOFConfigGeneration(t *testing.T) {
 				"tgt_cmd_extra_args": `--interrupt-mode --env-context="--no-huge -m1024"`,
 			},
 		}
-		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, true, userConfig)
+		config, err := getNVMeOFGatewayConfig("pool-a", "pod-a", "10.0.0.1", "ana-a", false, true, 5500, 5499, 8009, userConfig)
 		assert.NoError(t, err)
 
 		cfg, err := ini.Load([]byte(config))
@@ -984,4 +984,54 @@ func TestNVMeOFConfigMapGenerationPollMode(t *testing.T) {
 	assert.NoError(t, err)
 	// interruptMode=false should not set tgt_cmd_extra_args
 	assert.Equal(t, "", cfg.Section("spdk").Key("tgt_cmd_extra_args").String())
+}
+
+func TestNVMeOFConfigMapGenerationCustomPorts(t *testing.T) {
+	newGateway := func(userConfig map[string]map[string]string) *cephv1.CephNVMeOFGateway {
+		return &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				Group:     "group-a",
+				Instances: 1,
+				Ports: &cephv1.NVMeOFGatewayPorts{
+					IOPort:        14420,
+					GatewayPort:   15500,
+					MonitorPort:   15499,
+					DiscoveryPort: 18009,
+				},
+				NVMeOFConfig: userConfig,
+			},
+			TypeMeta: controllerTypeMeta,
+		}
+	}
+	r := &ReconcileCephNVMeOFGateway{
+		cephClusterSpec: &cephv1.ClusterSpec{},
+	}
+
+	t.Run("spec.ports is reflected in nvmeof.conf", func(t *testing.T) {
+		configMap, err := r.generateConfigMap(newGateway(nil), "a")
+		assert.NoError(t, err)
+
+		cfg, err := ini.Load([]byte(configMap.Data["config"]))
+		assert.NoError(t, err)
+		assert.Equal(t, "15500", cfg.Section("gateway").Key("port").String())
+		assert.Equal(t, "18009", cfg.Section("discovery").Key("port").String())
+		assert.Equal(t, "15499", cfg.Section("monitor").Key("port").String())
+	})
+
+	t.Run("nvmeofConfig still overrides spec.ports", func(t *testing.T) {
+		userConfig := map[string]map[string]string{
+			"gateway": {"port": "6600"},
+		}
+		configMap, err := r.generateConfigMap(newGateway(userConfig), "a")
+		assert.NoError(t, err)
+
+		cfg, err := ini.Load([]byte(configMap.Data["config"]))
+		assert.NoError(t, err)
+		assert.Equal(t, "6600", cfg.Section("gateway").Key("port").String())
+		assert.Equal(t, "18009", cfg.Section("discovery").Key("port").String())
+	})
 }
