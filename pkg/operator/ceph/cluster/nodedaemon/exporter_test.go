@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -244,7 +245,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = true
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, false)
 	})
 
@@ -257,7 +258,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = true
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, true)
 	})
 
@@ -270,7 +271,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = true
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, true)
 	})
 
@@ -283,7 +284,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = false
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, false)
 	})
 
@@ -296,7 +297,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = false
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, true)
 	})
 
@@ -309,7 +310,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = false
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, true)
 	})
 
@@ -327,7 +328,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = true
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, false)
 	})
 
@@ -345,7 +346,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = true
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, true)
 	})
 	t.Run("IPv6 via IPFamily and exporterHostNetwork=false and cephCluster.Spec.Network.HostNetwork=true", func(t *testing.T) {
@@ -362,7 +363,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = true
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, true)
 	})
 
@@ -380,7 +381,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = false
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, false)
 	})
 
@@ -398,7 +399,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = false
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, true)
 	})
 	t.Run("IPv6 via IPFamily and HostNetwork=false and cephCluster.Spec.Network.HostNetwork=false", func(t *testing.T) {
@@ -415,7 +416,7 @@ func TestCephExporterBindAddress(t *testing.T) {
 
 		cephCluster.Spec.Network.HostNetwork = false
 
-		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion, false)
 		assertCephExporterArgs(t, exporterContainer.Args, true)
 	})
 }
@@ -628,4 +629,58 @@ func TestDeleteOrphanedNodeDaemonDeployments(t *testing.T) {
 		remainingNames := []string{remaining.Items[0].Name, remaining.Items[1].Name}
 		assert.ElementsMatch(t, []string{"crashcollector-healthy", "exporter-healthy"}, remainingNames)
 	})
+}
+
+func TestCephExporterRDMAConfig(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		config        string
+		wantSkip      bool
+		wantConfigMap bool
+	}{
+		{name: "no override"},
+		{name: "non-RDMA override", config: "[global]\nms_public_type = async+posix\n", wantConfigMap: true},
+		{name: "RDMA override", config: "[global]\nms_public_type = async+rdma\n", wantSkip: true, wantConfigMap: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cluster := cephv1.CephCluster{
+				ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"},
+			}
+			clientset := test.New(t, 1)
+			if tc.wantConfigMap {
+				_, err := clientset.CoreV1().ConfigMaps(cluster.Namespace).Create(t.Context(), &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{Name: k8sutil.ConfigOverrideName, Namespace: cluster.Namespace},
+					Data:       map[string]string{k8sutil.ConfigOverrideVal: tc.config},
+				}, metav1.CreateOptions{})
+				require.NoError(t, err)
+			}
+			s := scheme.Scheme
+			require.NoError(t, appsv1.AddToScheme(s))
+			r := &ReconcileNode{
+				scheme:           s,
+				client:           fake.NewClientBuilder().WithScheme(s).Build(),
+				opManagerContext: t.Context(),
+				context: &clusterd.Context{
+					Clientset:     clientset,
+					RookClientset: rookclient.NewSimpleClientset(),
+				},
+			}
+			node := corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{corev1.LabelHostname: "testnode"}}}
+			version := &cephver.CephVersion{Major: 20, Minor: 2, Extra: 4}
+			_, err := r.createOrUpdateCephExporter(node, nil, cluster, version)
+			require.NoError(t, err)
+			deployment := &appsv1.Deployment{}
+			require.NoError(t, r.client.Get(t.Context(), types.NamespacedName{
+				Namespace: cluster.Namespace, Name: "rook-ceph-exporter-testnode",
+			}, deployment))
+			args := deployment.Spec.Template.Spec.Containers[0].Args
+			hasSkip := false
+			for _, arg := range args {
+				if arg == "--no-mon-config" {
+					hasSkip = true
+				}
+			}
+			assert.Equal(t, tc.wantSkip, hasSkip)
+		})
+	}
 }
