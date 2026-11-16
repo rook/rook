@@ -189,6 +189,7 @@ func isLastOSDMigrationComplete(c *Cluster) (bool, error) {
 			log.NamespacedInfo(c.clusterInfo.Namespace, logger, "deployment for the last migrated OSD with ID - %d is not found.", migratedOSDId)
 			return false, nil
 		}
+		return false, errors.Wrapf(err, "failed to get deployment %q for the last migrated OSD", deploymentName)
 	}
 
 	log.NamespacedInfo(c.clusterInfo.Namespace, logger, "migration of OSD.%d was successful", migratedOSDId)
@@ -202,6 +203,7 @@ func getLastMigratedOSDId(context *clusterd.Context, clusterInfo *cephclient.Clu
 		if kerrors.IsNotFound(err) {
 			return -1, nil
 		}
+		return -1, errors.Wrapf(err, "failed to get %q configMap", OSDMigrationConfigName)
 	}
 
 	osdID, ok := cm.Data[OSDIdKey]

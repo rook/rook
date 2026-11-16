@@ -31,8 +31,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 func TestMigrateForEncryption(t *testing.T) {
@@ -313,6 +315,56 @@ func TestIsLastOSDMigrationComplete(t *testing.T) {
 		result, err := isLastOSDMigrationComplete(c)
 		assert.NoError(t, err)
 		assert.Equal(t, true, result)
+	})
+}
+
+func TestIsLastOSDMigrationCompletePropagatesAPIErrors(t *testing.T) {
+	namespace := "rook-ceph"
+
+	// A transient API error (not a NotFound) while checking migration progress must be
+	// surfaced to the caller. If it is swallowed, the OSD reconciler treats the previous
+	// migration as finished and proceeds to migrate the next OSD before the recreated OSD
+	// is confirmed healthy.
+	t.Run("error getting the migration config map", func(t *testing.T) {
+		clientset := fake.NewClientset()
+		clientset.PrependReactor("get", "configmaps", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, kerrors.NewServiceUnavailable("induced API error")
+		})
+		clusterInfo := &cephclient.ClusterInfo{
+			Namespace: namespace,
+			Context:   t.Context(),
+		}
+		clusterInfo.SetName("mycluster")
+		clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+		c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+
+		result, err := isLastOSDMigrationComplete(c)
+		assert.Error(t, err)
+		assert.False(t, result)
+	})
+
+	// Same guarantee for the error path that checks whether the migrated OSD's deployment
+	// has been recreated.
+	t.Run("error getting the migrated OSD deployment", func(t *testing.T) {
+		clientset := fake.NewClientset()
+		clusterInfo := &cephclient.ClusterInfo{
+			Namespace: namespace,
+			Context:   t.Context(),
+		}
+		clusterInfo.SetName("mycluster")
+		clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+		c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, cephv1.ClusterSpec{}, "rook/rook:master")
+
+		// a migration is recorded for osd.1, so the deployment lookup is reached
+		err := createMigrationConfigmap("1", namespace, clientset)
+		assert.NoError(t, err)
+		clientset.PrependReactor("get", "deployments", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, kerrors.NewServiceUnavailable("induced API error")
+		})
+
+		result, err := isLastOSDMigrationComplete(c)
+		assert.Error(t, err)
+		assert.False(t, result)
 	})
 }
 
