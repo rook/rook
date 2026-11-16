@@ -21,6 +21,10 @@ updates:
   # Dependencies listed in .github/workflows/*.yml
   - package-ecosystem: "github-actions"
     directory: "/"
+    # gh aw compile generates these pins from the agentic workflow's source;
+    # a bump made here would be lost on the next compile.
+    exclude-paths:
+      - ".github/workflows/*.lock.yml"
     schedule:
       interval: "weekly"
     groups:
