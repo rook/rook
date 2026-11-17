@@ -1664,10 +1664,15 @@ func TestFloatingMonLabelsAndSchedulingSkip(t *testing.T) {
 	assert.Equal(t, FloatingMonAppName, floatingDeploy.Spec.Selector.MatchLabels["app"])
 	assert.Equal(t, AppName, normalDeploy.Labels["app"])
 
-	// assignMons must skip the floating mon during canary scheduling
+	// assignMons must skip the floating mon during canary scheduling.
+	// assignMons schedules each mon in its own goroutine, so the mock is called
+	// concurrently; guard the shared slice with a mutex to avoid a data race.
+	var scheduledMu sync.Mutex
 	var scheduled []string
 	waitForMonitorScheduling = func(c *Cluster, d *apps.Deployment) (SchedulingResult, error) {
+		scheduledMu.Lock()
 		scheduled = append(scheduled, d.Labels[opcontroller.DaemonIDLabel])
+		scheduledMu.Unlock()
 		node, _ := c.context.Clientset.CoreV1().Nodes().Get(c.ClusterInfo.Context, "node0", metav1.GetOptions{})
 		return SchedulingResult{Node: node}, nil
 	}
