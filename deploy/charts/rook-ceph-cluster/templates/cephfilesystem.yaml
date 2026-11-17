@@ -55,7 +55,7 @@ parameters:
   {{- tpl (. | toYaml) $ | nindent 2 }}
   {{- end }}
 reclaimPolicy: {{ $filesystem.storageClass.reclaimPolicy | default "Delete" }}
-allowVolumeExpansion: {{ $filesystem.storageClass.allowVolumeExpansion | default "true" }}
+allowVolumeExpansion: {{ dig "allowVolumeExpansion" true $filesystem.storageClass }}
 volumeBindingMode: {{ $filesystem.storageClass.volumeBindingMode | default "Immediate" }}
 {{- with $filesystem.storageClass.mountOptions }}
 mountOptions:

@@ -35,7 +35,7 @@ parameters:
   {{- tpl (. | toYaml) $ | nindent 2 }}
   {{- end }}
 reclaimPolicy: {{ $blockpool.storageClass.reclaimPolicy | default "Delete" }}
-allowVolumeExpansion: {{ $blockpool.storageClass.allowVolumeExpansion | default "true" }}
+allowVolumeExpansion: {{ dig "allowVolumeExpansion" true $blockpool.storageClass }}
 volumeBindingMode: {{ $blockpool.storageClass.volumeBindingMode | default "Immediate" }}
 {{- with $blockpool.storageClass.mountOptions }}
 mountOptions:
