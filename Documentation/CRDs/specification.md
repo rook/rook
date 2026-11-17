@@ -16635,6 +16635,22 @@ uint32
 <p>The maximum number of OSDs to update in parallel.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>osdUpdateFailureDomain</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The CRUSH bucket type (e.g. &ldquo;host&rdquo; or &ldquo;rack&rdquo;) that OSDs updated in parallel must share.
+Ceph may report OSDs outside the failure domain of the OSD being updated as ok-to-stop;
+setting this restricts each batch of updates to OSDs within a single bucket of this type.
+If an OSD has no bucket of this type above it in the CRUSH tree, it is updated on its own.
+If unset, all OSDs reported as ok-to-stop are updated together.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.StoreType">StoreType
