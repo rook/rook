@@ -14,3 +14,10 @@ Changes should *not* be included here if they are backported to previous release
 - RGW SSE-S3 accepts `VAULT_TRANSIT_BACKEND_PATH` in `security.s3.connectionDetails` for a Vault transit engine that is
   not mounted at the default `transit` path. RGW SSE-KMS with the `transit` engine accepts it in
   `security.kms.connectionDetails` too.
+
+## Bug Fixes
+
+- The log collector sidecar is now granted the KILL capability so that the logrotate postrotate
+  script can signal the Ceph daemons to reopen their log files after rotation. Without the
+  capability, daemons like the OSD kept writing to the rotated, deleted files until they were
+  restarted, losing logs and leaking space on the log volume.

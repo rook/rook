@@ -691,6 +691,68 @@ func TestLogCollectorContainer(t *testing.T) {
 		want := fmt.Sprintf(cronLogRotate, daemonId, "daily", "1M", "7", additionalLogFile)
 		assert.Equal(t, want, got.Command[5])
 	})
+
+	t.Run("security context allows signaling daemons to reopen log files", func(t *testing.T) {
+		c := cephv1.ClusterSpec{LogCollector: cephv1.LogCollectorSpec{Enabled: true}}
+		got := LogCollectorContainer(daemonId, ns, c, nil)
+
+		assert.NotNil(t, got.SecurityContext)
+		assert.NotNil(t, got.SecurityContext.Capabilities)
+		assert.Contains(t, got.SecurityContext.Capabilities.Add, v1.Capability("KILL"))
+		assert.Contains(t, got.SecurityContext.Capabilities.Drop, v1.Capability("NET_RAW"))
+	})
+
+	t.Run("TTY is enabled for the bash job control of the -m flag", func(t *testing.T) {
+		c := cephv1.ClusterSpec{LogCollector: cephv1.LogCollectorSpec{Enabled: true}}
+		got := LogCollectorContainer(daemonId, ns, c, nil)
+
+		assert.True(t, got.TTY)
+	})
+
+	t.Run("the container image follows the cluster spec", func(t *testing.T) {
+		c := cephv1.ClusterSpec{
+			LogCollector: cephv1.LogCollectorSpec{Enabled: true},
+			CephVersion:  cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v20"},
+		}
+		got := LogCollectorContainer(daemonId, ns, c, nil)
+
+		assert.Equal(t, "quay.io/ceph/ceph:v20", got.Image)
+	})
+}
+
+func TestLogCollectorSecurityContext(t *testing.T) {
+	t.Run("the log collector can signal daemons to reopen their log files", func(t *testing.T) {
+		sc := logCollectorSecurityContext()
+
+		assert.Contains(t, sc.Capabilities.Add, v1.Capability("KILL"))
+		assert.NotContains(t, sc.Capabilities.Drop, v1.Capability("KILL"))
+	})
+
+	t.Run("the log collector keeps the default capability drops", func(t *testing.T) {
+		sc := logCollectorSecurityContext()
+
+		assert.Contains(t, sc.Capabilities.Drop, v1.Capability("NET_RAW"))
+		assert.NotContains(t, sc.Capabilities.Add, v1.Capability("NET_RAW"))
+	})
+
+	t.Run("the log collector privilege follows the host path requirement", func(t *testing.T) {
+		t.Setenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED", "false")
+		sc := logCollectorSecurityContext()
+		assert.False(t, *sc.Privileged)
+
+		t.Setenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED", "true")
+		sc = logCollectorSecurityContext()
+		assert.True(t, *sc.Privileged)
+	})
+
+	t.Run("the log collector runs with the default user of the Ceph image", func(t *testing.T) {
+		sc := logCollectorSecurityContext()
+
+		// no RunAsUser override: the sidecar runs as the non-root user of the Ceph
+		// image, which is why signaling the root-owned daemons requires KILL
+		assert.Nil(t, sc.RunAsUser)
+		assert.Nil(t, sc.RunAsGroup)
+	})
 }
 
 func TestGetContainerImagePullPolicy(t *testing.T) {
