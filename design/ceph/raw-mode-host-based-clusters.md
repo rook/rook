@@ -84,10 +84,6 @@ cluster keeps reconciling, unless it also has encrypted PVC-based OSDs, whose va
 reconcile as today. A KMS that passes validation but fails at runtime, such as a wrong token, has
 the same effect on new OSDs (see [Provisioning](#provisioning)).
 
-The new path also requires Ceph v19.2.1 or later, because Ceph v19.2.0 does not write the OSD fsid
-into the LUKS2 header (see [Existing OSDs](#existing-osds)). On v19.2.0, encrypted host-based OSDs
-stay on `lvm` mode and are reported as described below.
-
 ### Which OSDs are affected
 
 Rook chooses the `ceph-volume` mode at two levels:
@@ -120,8 +116,8 @@ It changes with them:
 Encrypted partitions are skipped today during device discovery, before the `ceph-volume` mode is
 chosen. With a valid KMS, they are let through and created in `raw` mode like whole devices. An
 earlier attempt to allow encrypted partitions ([#12924](https://github.com/rook/rook/pull/12924))
-was reverted because they produced unencrypted OSDs, so the implementation adds a test that an
-encrypted partition gets a dm-crypt mapper. Encrypted logical volumes stay unsupported.
+was reverted because they produced unencrypted OSDs, so an encrypted partition must be checked to
+get a dm-crypt mapper. Encrypted logical volumes stay unsupported.
 
 ### Reporting
 
@@ -138,7 +134,7 @@ status:
 ```
 
 `lvmMode` lists the other encrypted `lvm` mode OSDs, such as those created before the upgrade,
-before `security.kms` was set, or on Ceph v19.2.0. Every reason is derived from the OSD deployments
+or before `security.kms` was set. Every reason is derived from the OSD deployments
 on each reconcile. The map is set only when `security.kms` is configured, and an OSD leaves it when
 it is removed or replaced.
 
@@ -211,8 +207,8 @@ monitor copy is kept.
 
 Before it prepares any device, the prepare job looks for the encrypted `raw` mode OSDs on its node:
 
-- A closed OSD is found by its LUKS2 header. From Ceph v19.2.1, `ceph-volume` writes the OSD fsid
-  into the subsystem field as `ceph_fsid=<osd fsid>`.
+- A closed OSD is found by its LUKS2 header. `ceph-volume` writes the OSD fsid into the subsystem
+  field as `ceph_fsid=<osd fsid>`.
 - An open OSD is found by its mapper. Device discovery skips a disk that has a child, and an open
   OSD is a child of its disk.
 
@@ -313,16 +309,6 @@ the OSD fsid from the OSD map, so a destroyed OSD waiting for replacement looks 
 one. The prepare job therefore skips the LUKS header check for host-based OSDs, whatever the KMS
 settings. PVC-based OSDs are not changed.
 
-On host-based clusters the check passes the kernel name (`sdb`) to `cryptsetup luksDump`, which
-fails, so today it never wipes a host device. Skipping it keeps host-based OSDs safe if that changes.
-
-### Code reuse
-
-The existing KMS client, and the `rook key-management get` command that OSD pods run, are reused
-with the key name as a parameter. The operator's KMS setup for Vault tokens, IBM Key Protect and KMIP
-moves into one helper shared by cluster deletion and the copy of the key into the KMS, and one
-helper builds the KMS volumes of the OSD pods.
-
 ### Upgrades and downgrades
 
 - **Upgrades.** Existing OSDs are not changed. On a cluster that already has a valid `security.kms`,
@@ -350,45 +336,12 @@ helper builds the KMS volumes of the OSD pods.
   instead of ignoring `security.kms` silently. Encrypted OSDs on logical volumes remain unsupported.
 - **The key stays in the monitors.** This is the same as for PVC-based OSDs.
   [CVE-2026-50152](https://docs.ceph.com/en/latest/security/CVE-2026-50152/) made the config-key
-  store, dm-crypt keys included, readable by any identity with `mon r`. It is fixed in Ceph v19.2.6
-  and v20.2.4.
+  store, dm-crypt keys included, readable by any identity with `mon r`. It is fixed in Ceph v20.2.4.
 - **KMS outage.** An encrypted `raw` mode host OSD fetches its key from the KMS when its pod starts,
   so it does not start while the KMS is unreachable, as for PVC-based OSDs.
 - **`ceph-volume` versions.** The OSD fsid is read from the mapper name `ceph-volume` gives an
-  encrypted `raw` OSD, and from the `ceph_fsid=` it writes to the LUKS2 subsystem from v19.2.1.
-  The mapper name is the same from v19.2.0 to v21.3.0. `ceph-volume raw list <mapper>` reports the
+  encrypted `raw` OSD, and from the `ceph_fsid=` it writes to the LUKS2 subsystem.
+  The mapper name is the same from v20.2.0 to v21.3.0. `ceph-volume raw list <mapper>` reports the
   fsid without relying on the mapper name, and can replace the parsing if a later version differs.
 - **Load on the KMS.** The operator reads the key of an encrypted `raw` mode host OSD only while the
   OSD has no deployment, once per reconcile until the deployment is created.
-
-## Prototype
-
-The implementation is on
-[`ideepika:kms-host-osd`](https://github.com/ideepika/rook/tree/kms-host-osd). It implements the
-design above except the `osdsWithoutKMS` status and deleting the key on OSD removal. It also
-validates `security.kms` with the cluster spec rather than in the OSD reconcile, so an invalid
-`security.kms` stops the whole reconcile. The operator tells the prepare job to use `raw` mode for
-encrypted devices with one environment variable; the prepare job gets no KMS settings.
-
-It was tested end to end on a single-node k3s cluster with Ceph v20.2.4, Vault in dev mode without
-TLS, and encrypted and plain OSDs on loop devices:
-
-- A new encrypted OSD is created on the first prepare run. The operator stores its key in Vault
-  under the OSD fsid before it creates the deployment, and the key in Vault matches the monitor copy.
-- After its mapper is closed, as after a reboot, the OSD pod opens the device with the key from
-  Vault.
-- When the key is deleted from Vault and the deployment is deleted, the next reconcile copies the
-  key from the monitors again and recreates the OSD.
-- Encrypted and plain OSD replacement keep the OSD id. The encrypted replacement gets a new key in
-  Vault, and the LUKS header check leaves the destroyed disk alone while it waits for the swap.
-- Without `security.kms`, no new encrypted host OSD is created. The deployments of the existing ones
-  are not changed and warning events are recorded. Once `security.kms` is restored, the OSDs reconcile
-  as before.
-
-An earlier revision of this design deleted the monitor copy. Its test showed why the copy is kept:
-the dev-mode Vault restarted and lost its keys, and an OSD created by that revision could no longer
-be opened once its mapper was closed. With this revision, the key can be copied from the monitors
-again (third test above).
-
-Not tested yet: real disks, multipath, partitions, the KMIP and IBM Key Protect providers, Vault
-with TLS, Ceph v19.2, cephx daemon key rotation, and cluster deletion.
