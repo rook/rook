@@ -142,28 +142,35 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 		return err
 	}
 
-	// Build handler to map events to CephBlockPoolRadosNamespace reconcile requests
-	clientProfileHandler, err := opcontroller.ObjectToCRMapper[*cephv1.CephBlockPoolRadosNamespaceList, *csiopv1.ClientProfile](
-		opManagerContext,
-		mgr.GetClient(),
-		&cephv1.CephBlockPoolRadosNamespaceList{},
-		mgr.GetScheme(),
-	)
-	if err != nil {
-		return err
-	}
+	// The ClientProfile CRD is only installed along with the ceph-csi-operator. If Rook is not
+	// creating the csi operator resources, the CRD may not exist and watching it would prevent
+	// the cache from ever syncing, which causes the operator to exit.
+	if opcontroller.CSIOperatorResourcesEnabled() {
+		// Build handler to map events to CephBlockPoolRadosNamespace reconcile requests
+		clientProfileHandler, err := opcontroller.ObjectToCRMapper[*cephv1.CephBlockPoolRadosNamespaceList, *csiopv1.ClientProfile](
+			opManagerContext,
+			mgr.GetClient(),
+			&cephv1.CephBlockPoolRadosNamespaceList{},
+			mgr.GetScheme(),
+		)
+		if err != nil {
+			return err
+		}
 
-	// Watch for ClientProfile changes
-	err = c.Watch(
-		source.Kind(
-			mgr.GetCache(),
-			&csiopv1.ClientProfile{TypeMeta: metav1.TypeMeta{Kind: "ClientProfile", APIVersion: fmt.Sprintf("%s/%s", csiopv1.GroupVersion.Group, csiopv1.GroupVersion.Version)}},
-			handler.TypedEnqueueRequestsFromMapFunc(clientProfileHandler),
-			opcontroller.WatchControllerPredicate[*csiopv1.ClientProfile](mgr.GetScheme()),
-		),
-	)
-	if err != nil {
-		return err
+		// Watch for ClientProfile changes
+		err = c.Watch(
+			source.Kind(
+				mgr.GetCache(),
+				&csiopv1.ClientProfile{TypeMeta: metav1.TypeMeta{Kind: "ClientProfile", APIVersion: fmt.Sprintf("%s/%s", csiopv1.GroupVersion.Group, csiopv1.GroupVersion.Version)}},
+				handler.TypedEnqueueRequestsFromMapFunc(clientProfileHandler),
+				opcontroller.WatchControllerPredicate[*csiopv1.ClientProfile](mgr.GetScheme()),
+			),
+		)
+		if err != nil {
+			return err
+		}
+	} else {
+		logger.Debug("csi operator resources are disabled, not watching ClientProfile")
 	}
 
 	// Build handler to map Secret events to CephBlockPoolRadosNamespace reconcile requests
