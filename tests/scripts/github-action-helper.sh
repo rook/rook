@@ -944,10 +944,13 @@ function nudge_multisite_secondary() {
 # sync state machine wedged in "init" without ever erroring. Restarting the gateways once the
 # join has settled makes sync initialize from the final period, mirroring ceph's own multisite
 # QA, which restarts zone gateways after committing period changes.
+#
+# Restart the master first and wait for it: if the secondary starts while the master is down, its
+# metadata sync fails once at startup and never retries.
 function restart_multisite_rgws() {
   kubectl -n rook-ceph rollout restart deploy/rook-ceph-rgw-multisite-store-a
-  kubectl -n rook-ceph-secondary rollout restart deploy/rook-ceph-rgw-zone-b-multisite-store-a
   kubectl -n rook-ceph rollout status deploy/rook-ceph-rgw-multisite-store-a --timeout=120s
+  kubectl -n rook-ceph-secondary rollout restart deploy/rook-ceph-rgw-zone-b-multisite-store-a
   kubectl -n rook-ceph-secondary rollout status deploy/rook-ceph-rgw-zone-b-multisite-store-a --timeout=120s
 }
 
