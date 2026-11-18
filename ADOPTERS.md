@@ -76,6 +76,9 @@ If submitting a description, the addition will be at the end of first part of th
   to the customer’s Kubernetes. Data stays in their VPC while we deliver S3-compatible, 
   analytics-optimized storage with dashboards, quotas, encryption, lifecycle policies, 
   metering, billing, and a SaaS control plane for policy, monitoring, and updates.
+* [Cybozu, Inc.](https://cybozu.co.jp/en/company/) develops and provides groupware services.
+  They use Rook to operate multiple Ceph clusters on their on-premises Kubernetes
+  infrastructure, providing both block and object storage for their cloud services.
 * [CyCore Systems](https://www.cycoresys.com/)
 * [Datacom](http://datacom.co.nz/Home.aspx)
 * [Turtle Network (BLACK TURTLE BVBA)](https://www.turtlenetwork.eu/#home)
