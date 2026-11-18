@@ -148,3 +148,32 @@ spec:
       kubeletDirPath: /var/lib/kubelet
       enableSeLinuxHostMount: true
 ```
+
+## Node plugin custom volumes and volume mounts
+
+Previously: `CSI_CEPHFS_PLUGIN_VOLUME`, `CSI_CEPHFS_PLUGIN_VOLUME_MOUNT`, `CSI_RBD_PLUGIN_VOLUME`, and `CSI_RBD_PLUGIN_VOLUME_MOUNT` in `rook-ceph-operator-config`.
+Now use `nodePlugin.volumes` in `OperatorConfig` or per-driver `Driver` CR (or in the `ceph-csi-drivers` Helm chart values).
+
+```yaml
+# OperatorConfig (manifest)
+spec:
+  driverSpecDefaults:
+    nodePlugin:
+      volumes:
+        - mount:
+            name: host-nix
+            mountPath: /nix
+            readOnly: true
+          volume:
+            name: host-nix
+            hostPath:
+              path: /nix
+        - mount:
+            name: lib-modules
+            mountPath: /lib/modules
+            readOnly: true
+          volume:
+            name: lib-modules
+            hostPath:
+              path: /run/current-system/kernel-modules/lib/modules
+```

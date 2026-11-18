@@ -113,3 +113,30 @@ operatorConfig:
 ```
 
 See: [Node plugin kubelet path and SELinux host mount](../Storage-Configuration/Ceph-CSI/csi-configuration.md#node-plugin-kubelet-path-and-selinux-host-mount)
+
+### Node plugin custom volumes
+
+```yaml
+operatorConfig:
+  driverSpecDefaults:
+    nodePlugin:
+      volumes:
+        - mount:
+            name: host-nix
+            mountPath: /nix
+            readOnly: true
+          volume:
+            name: host-nix
+            hostPath:
+              path: /nix
+        - mount:
+            name: lib-modules
+            mountPath: /lib/modules
+            readOnly: true
+          volume:
+            name: lib-modules
+            hostPath:
+              path: /run/current-system/kernel-modules/lib/modules
+```
+
+See: [Node plugin custom volumes and volume mounts](../Storage-Configuration/Ceph-CSI/csi-configuration.md#node-plugin-custom-volumes-and-volume-mounts)
