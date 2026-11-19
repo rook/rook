@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -72,6 +73,14 @@ func checkIfRookClusterIsHealthy(s *suite.Suite, testClient *clients.TestClient,
 	}
 
 	require.Nil(s.T(), err)
+}
+
+func checkRookClusterCephxStatus(s *suite.Suite, k8sh *utils.K8sHelper, clusterNamespace, clusterName string) {
+	logger.Infof("testing CephCluster %s CephX status", clusterNamespace)
+	cluster, err := k8sh.RookClientset.CephV1().CephClusters(clusterNamespace).Get(s.T().Context(), clusterName, v1.GetOptions{})
+	require.NoError(s.T(), err)
+
+	assert.ElementsMatch(s.T(), []string{"aes", "aes256k"}, cluster.Status.Cephx.AllowedCiphers)
 }
 
 func checkIfRookClusterHasHealthyIngress(s *suite.Suite, k8sh *utils.K8sHelper, clusterNamespace string) {

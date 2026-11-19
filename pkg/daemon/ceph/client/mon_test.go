@@ -150,6 +150,30 @@ func TestMonDump(t *testing.T) {
 	assert.Equal(t, 1, dump.Mons[1].Rank)
 	assert.Equal(t, 3, len(dump.Mons))
 	assert.Equal(t, 3, len(dump.Quorum))
+	assert.Len(t, dump.AuthAllowedCiphers, 0)
+
+	t.Run("allowed ciphers present", func(t *testing.T) {
+		outputWithCipherInfo := `{"epoch":2,"auth_epoch":0,"auth_service_cipher":{"name":"aes256k","value":2},"auth_allowed_ciphers":[{"name":"aes","value":1},{"name":"aes256k","value":2}],"auth_preferred_cipher":{"name":"aes256k","value":2},"fsid":"6d834875-8367-41da-a938-3c96e3c86c12","modified":"2026-11-19T19:16:42.000903Z","created":"2026-11-19T19:16:40.979220Z","min_mon_release":20,"min_mon_release_name":"tentacle","election_strategy":1,"disallowed_leaders":"","stretch_mode":false,"tiebreaker_mon":"","removed_ranks":"","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus","pacific","elector-pinging","quincy","reef","squid","tentacle","cephx_auth_aes256k","nvmeof_beacon_diff"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"10.111.106.124:3300","nonce":0}]},"addr":"10.111.106.124:3300/0","public_addr":"10.111.106.124:3300/0","priority":0,"weight":0,"time_added":"2026-11-19T19:16:40:979211+0000","crush_location":[]}],"quorum":[0]}`
+
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			switch {
+			case args[0] == "mon" && args[1] == "dump":
+				return outputWithCipherInfo, nil
+			}
+			panic("should not reach")
+		}
+		context := &clusterd.Context{Executor: executor}
+		clusterInfo := AdminTestClusterInfo("mycluster")
+
+		dump, err := GetMonDump(context, clusterInfo)
+		assert.NoError(t, err)
+
+		assert.Len(t, dump.AuthAllowedCiphers, 2)
+		assert.Contains(t, dump.AuthAllowedCiphers, CipherEntry{Name: "aes"})
+		assert.Contains(t, dump.AuthAllowedCiphers, CipherEntry{Name: "aes256k"})
+	})
 }
 
 // TestMonDumpArrayCrushLocation verifies GetMonDump() still works against newer Ceph
