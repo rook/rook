@@ -88,6 +88,60 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 	assert.Equal(t, *csiOpClientProfile.Spec.CephFs.RadosNamespace, cephSubVolGrpRadosNamespaceNamespacedName.Name)
 }
 
+func TestCreateDefaultClientProfile(t *testing.T) {
+	ns := "test"
+	c := clienttest.CreateTestClusterInfo(1)
+	c.Namespace = ns
+	t.Setenv(k8sutil.PodNamespaceEnvVar, ns)
+
+	s := runtime.NewScheme()
+	assert.NoError(t, v1.AddToScheme(s))
+	assert.NoError(t, csiopv1.AddToScheme(s))
+
+	t.Run("uses default secret names when no secrets are annotated", func(t *testing.T) {
+		cl := fake.NewClientBuilder().WithScheme(s).Build()
+
+		err := CreateDefaultClientProfile(cl, c)
+		assert.NoError(t, err)
+
+		profile := &csiopv1.ClientProfile{}
+		err = cl.Get(t.Context(), types.NamespacedName{Name: ns, Namespace: ns}, profile)
+		assert.NoError(t, err)
+		assert.Equal(t, CsiCephFSProvisionerSecret, profile.Spec.CephFs.CephCsiSecrets.ControllerPublishSecret.Name)
+		assert.Equal(t, CsiRBDProvisionerSecret, profile.Spec.Rbd.CephCsiSecrets.ControllerPublishSecret.Name)
+	})
+
+	t.Run("uses annotated secret names from a restricted external import", func(t *testing.T) {
+		annotated := func(name, annotationKey string) *v1.Secret {
+			return &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        name,
+					Namespace:   ns,
+					Annotations: map[string]string{annotationKey: "true"},
+				},
+			}
+		}
+		existing := &csiopv1.ClientProfile{ObjectMeta: metav1.ObjectMeta{Name: ns, Namespace: ns}}
+		cl := fake.NewClientBuilder().WithScheme(s).WithObjects(
+			annotated("rook-csi-cephfs-provisioner-k8s-myfs", cephFSProvisionerSecretAnnotation),
+			annotated("rook-csi-rbd-provisioner-k8s-pool", rbdProvisionerSecretAnnotation),
+			annotated("rook-csi-rbd-node-k8s-pool", rbdNodeSecretAnnotation),
+			existing,
+		).Build()
+
+		// an existing default profile with the default names must be updated too
+		err := CreateDefaultClientProfile(cl, c)
+		assert.NoError(t, err)
+
+		profile := &csiopv1.ClientProfile{}
+		err = cl.Get(t.Context(), types.NamespacedName{Name: ns, Namespace: ns}, profile)
+		assert.NoError(t, err)
+		assert.Equal(t, "rook-csi-cephfs-provisioner-k8s-myfs", profile.Spec.CephFs.CephCsiSecrets.ControllerPublishSecret.Name)
+		assert.Equal(t, ns, profile.Spec.CephFs.CephCsiSecrets.ControllerPublishSecret.Namespace)
+		assert.Equal(t, "rook-csi-rbd-provisioner-k8s-pool", profile.Spec.Rbd.CephCsiSecrets.ControllerPublishSecret.Name)
+	})
+}
+
 func TestDeleteCSIOperatorResources(t *testing.T) {
 	ns := "test"
 	c := clienttest.CreateTestClusterInfo(1)

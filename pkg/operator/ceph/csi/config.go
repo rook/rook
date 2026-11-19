@@ -55,6 +55,16 @@ const (
 	nfsDriverSuffix    = "nfs.csi.ceph.com"
 )
 
+// Annotations that import-external-cluster.sh sets on the CSI secrets, so that the
+// client profiles can find them when their names differ from the defaults.
+//
+//nolint:gosec // because of the word `Secret`
+const (
+	rbdProvisionerSecretAnnotation    = "csi.rook.io/RBDProvisionerSecret"
+	rbdNodeSecretAnnotation           = "csi.rook.io/RBDNodeSecret"
+	cephFSProvisionerSecretAnnotation = "csi.rook.io/CephFSProvisionerSecret"
+)
+
 func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephBlockPoolRadosNamespaceName, clusterID string) error {
 	if !opcontroller.CSIOperatorResourcesEnabled() {
 		logger.Debug("csi operator resources are disabled, skipping ceph-csi clientProfile CR for rados namespace")
@@ -63,7 +73,7 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 
 	logger.Info("creating ceph-csi clientProfile CR for rados namespace")
 
-	rbdSecretName, err := getSecretNameByAnnotation(c, ctx, clusterInfo.Namespace, "csi.rook.io/RBDProvisionerSecret", CsiRBDProvisionerSecret)
+	rbdProvisionerSecretName, err := getSecretNameByAnnotation(c, ctx, clusterInfo.Namespace, rbdProvisionerSecretAnnotation, CsiRBDProvisionerSecret)
 	if err != nil {
 		return err
 	}
@@ -79,7 +89,7 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 			RadosNamespace: cephBlockPoolRadosNamespaceName,
 			CephCsiSecrets: &csiopv1.CephCsiSecretsSpec{
 				ControllerPublishSecret: v1.SecretReference{
-					Name:      rbdSecretName,
+					Name:      rbdProvisionerSecretName,
 					Namespace: clusterInfo.Namespace,
 				},
 			},
@@ -106,7 +116,7 @@ func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Clien
 }
 
 func generateProfileSubVolumeGroupSpec(c client.Client, clusterInfo *cephclient.ClusterInfo, cephFilesystemSubVolumeGroupName, clusterID string, csiMetadataRadosNamespace string) (*csiopv1.ClientProfile, error) {
-	cephFSSecretName, err := getSecretNameByAnnotation(c, clusterInfo.Context, clusterInfo.Namespace, "csi.rook.io/CephFSProvisionerSecret", CsiCephFSProvisionerSecret)
+	cephFSSecretName, err := getSecretNameByAnnotation(c, clusterInfo.Context, clusterInfo.Namespace, cephFSProvisionerSecretAnnotation, CsiCephFSProvisionerSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -152,6 +162,20 @@ func getSecretNameByAnnotation(c client.Client, ctx context.Context, namespace, 
 // CreateDefaultClientProfile creates a default client profile for csi-operator to connect driver
 func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.ClusterInfo) error {
 	logger.Info("Creating ceph-csi clientProfile default CR")
+
+	// External clusters imported with restricted auth permissions use secret names that differ
+	// from the defaults. The import script annotates them, so look them up the same way as the
+	// rados namespace and subvolume group client profiles do.
+	cephFSProvisionerSecretName, err := getSecretNameByAnnotation(c, clusterInfo.Context, clusterInfo.Namespace, cephFSProvisionerSecretAnnotation, CsiCephFSProvisionerSecret)
+	if err != nil {
+		return err
+	}
+
+	rbdProvisionerSecretName, err := getSecretNameByAnnotation(c, clusterInfo.Context, clusterInfo.Namespace, rbdProvisionerSecretAnnotation, CsiRBDProvisionerSecret)
+	if err != nil {
+		return err
+	}
+
 	csiOpClientProfile := &csiopv1.ClientProfile{}
 	csiOpClientProfile.Name = clusterInfo.Namespace
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
@@ -170,7 +194,7 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 
 	csiOpClientProfile.Spec.CephFs.CephCsiSecrets = &csiopv1.CephCsiSecretsSpec{
 		ControllerPublishSecret: v1.SecretReference{
-			Name:      CsiCephFSProvisionerSecret,
+			Name:      cephFSProvisionerSecretName,
 			Namespace: clusterInfo.Namespace,
 		},
 	}
@@ -181,7 +205,7 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 	// set RBD ControllerPublish Secret
 	csiOpClientProfile.Spec.Rbd.CephCsiSecrets = &csiopv1.CephCsiSecretsSpec{
 		ControllerPublishSecret: v1.SecretReference{
-			Name:      CsiRBDProvisionerSecret,
+			Name:      rbdProvisionerSecretName,
 			Namespace: clusterInfo.Namespace,
 		},
 	}
