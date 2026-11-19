@@ -2061,7 +2061,7 @@ type PoolPlacementSpec struct {
 	// StorageClasses can be selected by user to override dataPoolName during object creation.
 	// Each placement has default STANDARD StorageClass pointing to dataPoolName.
 	// This list allows defining additional StorageClasses on top of default STANDARD storage class.
-	// +kubebuilder:validation:MaxItems=10
+	// +kubebuilder:validation:MaxItems=32
 	// +optional
 	StorageClasses []PlacementStorageClassSpec `json:"storageClasses,omitempty"`
 }
@@ -2070,7 +2070,7 @@ type PlacementStorageClassSpec struct {
 	// Name is the StorageClass name. Ceph allows arbitrary name for StorageClasses,
 	// however most clients/libs insist on AWS names so it is recommended to use
 	// one of the valid x-amz-storage-class values for better compatibility:
-	// REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | OUTPOSTS | GLACIER_IR | SNOW | EXPRESS_ONEZONE
+	// REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | OUTPOSTS | GLACIER_IR | SNOW | EXPRESS_ONEZONE | FSX_OPENZFS | FSX_ONTAP | AWS_BACKUP_WARM | AWS_BACKUP_LOW_COST_WARM
 	// See AWS docs: https://aws.amazon.com/de/s3/storage-classes/
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
