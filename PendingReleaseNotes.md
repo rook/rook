@@ -1,7 +1,13 @@
 # v1.22 Pending Release Notes
 
 Notes for the v1.22.0 release, including breaking changes and new features.
-Changes should *not* be included here if they are backported to previous releases.
+
+> **Do not update this file by default.** Most Rook pull requests are backported to previous
+> releases, and backported changes must *not* be listed here. Only add a note when a change targets
+> **this minor release only** (it is not backported) **and** is a breaking change or a notable new
+> feature. Bug fixes, refactors, test changes, documentation, dependency bumps, and anything
+> backported do not belong here. If you are unsure whether your change will be backported, leave this
+> file unchanged — a maintainer will add a note if one is needed.
 
 ## Breaking Changes
 

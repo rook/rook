@@ -36,6 +36,9 @@ API, because those comments become the CRD descriptions.
 * Opening a pull request non-interactively, such as by passing a body to `gh pr create`, skips the
     template that GitHub would otherwise supply. Read
     [the template](.github/PULL_REQUEST_TEMPLATE.md) and fill in its checklist regardless.
+* Leave `PendingReleaseNotes.md` unchanged unless the change targets the next minor release *only*
+    (not backported) and is a breaking change or a notable new feature. Most PRs are backported and
+    must not update it; if unsure, do not touch the file. See the note at the top of that file.
 * Disclose in the pull request description how AI tools assisted with the change.
 * Commit messages and review comments are the contributor's own reasoning to explain and own. Do
     not submit raw model output as either.
