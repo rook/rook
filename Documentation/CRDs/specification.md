@@ -7550,6 +7550,21 @@ If absent, defaults to the plugin specified in osd_pool_default_erasure_code_pro
 </tr>
 <tr>
 <td>
+<code>technique</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The erasure code technique. isa supports reed_sol_van and cauchy; jerasure supports the rest.
+If absent, the technique of the cluster&rsquo;s default erasure code profile is used.
+Ceph can&rsquo;t change the technique of an existing pool, so choose it when you create the pool.
+Changing it later leaves the pool as it is, and Rook reports an error until it&rsquo;s changed back.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>stripeUnit</code><br/>
 <em>
 k8s.io/apimachinery/pkg/api/resource.Quantity

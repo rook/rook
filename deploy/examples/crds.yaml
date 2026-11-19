@@ -512,6 +512,22 @@ spec:
                         - 1Mi
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
+                    technique:
+                      description: |-
+                        The erasure code technique. isa supports reed_sol_van and cauchy; jerasure supports the rest.
+                        If absent, the technique of the cluster's default erasure code profile is used.
+                        Ceph can't change the technique of an existing pool, so choose it when you create the pool.
+                        Changing it later leaves the pool as it is, and Rook reports an error until it's changed back.
+                      enum:
+                        - reed_sol_van
+                        - cauchy
+                        - reed_sol_r6_op
+                        - cauchy_orig
+                        - cauchy_good
+                        - liberation
+                        - blaum_roth
+                        - liber8tion
+                      type: string
                   required:
                     - codingChunks
                     - dataChunks
@@ -8110,6 +8126,22 @@ spec:
                               - 1Mi
                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                             x-kubernetes-int-or-string: true
+                          technique:
+                            description: |-
+                              The erasure code technique. isa supports reed_sol_van and cauchy; jerasure supports the rest.
+                              If absent, the technique of the cluster's default erasure code profile is used.
+                              Ceph can't change the technique of an existing pool, so choose it when you create the pool.
+                              Changing it later leaves the pool as it is, and Rook reports an error until it's changed back.
+                            enum:
+                              - reed_sol_van
+                              - cauchy
+                              - reed_sol_r6_op
+                              - cauchy_orig
+                              - cauchy_good
+                              - liberation
+                              - blaum_roth
+                              - liber8tion
+                            type: string
                         required:
                           - codingChunks
                           - dataChunks
@@ -8339,6 +8371,22 @@ spec:
                             - 1Mi
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
+                        technique:
+                          description: |-
+                            The erasure code technique. isa supports reed_sol_van and cauchy; jerasure supports the rest.
+                            If absent, the technique of the cluster's default erasure code profile is used.
+                            Ceph can't change the technique of an existing pool, so choose it when you create the pool.
+                            Changing it later leaves the pool as it is, and Rook reports an error until it's changed back.
+                          enum:
+                            - reed_sol_van
+                            - cauchy
+                            - reed_sol_r6_op
+                            - cauchy_orig
+                            - cauchy_good
+                            - liberation
+                            - blaum_roth
+                            - liber8tion
+                          type: string
                       required:
                         - codingChunks
                         - dataChunks
@@ -13653,6 +13701,22 @@ spec:
                             - 1Mi
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
+                        technique:
+                          description: |-
+                            The erasure code technique. isa supports reed_sol_van and cauchy; jerasure supports the rest.
+                            If absent, the technique of the cluster's default erasure code profile is used.
+                            Ceph can't change the technique of an existing pool, so choose it when you create the pool.
+                            Changing it later leaves the pool as it is, and Rook reports an error until it's changed back.
+                          enum:
+                            - reed_sol_van
+                            - cauchy
+                            - reed_sol_r6_op
+                            - cauchy_orig
+                            - cauchy_good
+                            - liberation
+                            - blaum_roth
+                            - liber8tion
+                          type: string
                       required:
                         - codingChunks
                         - dataChunks
@@ -15407,6 +15471,22 @@ spec:
                             - 1Mi
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
+                        technique:
+                          description: |-
+                            The erasure code technique. isa supports reed_sol_van and cauchy; jerasure supports the rest.
+                            If absent, the technique of the cluster's default erasure code profile is used.
+                            Ceph can't change the technique of an existing pool, so choose it when you create the pool.
+                            Changing it later leaves the pool as it is, and Rook reports an error until it's changed back.
+                          enum:
+                            - reed_sol_van
+                            - cauchy
+                            - reed_sol_r6_op
+                            - cauchy_orig
+                            - cauchy_good
+                            - liberation
+                            - blaum_roth
+                            - liber8tion
+                          type: string
                       required:
                         - codingChunks
                         - dataChunks
@@ -16635,6 +16715,22 @@ spec:
                             - 1Mi
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
+                        technique:
+                          description: |-
+                            The erasure code technique. isa supports reed_sol_van and cauchy; jerasure supports the rest.
+                            If absent, the technique of the cluster's default erasure code profile is used.
+                            Ceph can't change the technique of an existing pool, so choose it when you create the pool.
+                            Changing it later leaves the pool as it is, and Rook reports an error until it's changed back.
+                          enum:
+                            - reed_sol_van
+                            - cauchy
+                            - reed_sol_r6_op
+                            - cauchy_orig
+                            - cauchy_good
+                            - liberation
+                            - blaum_roth
+                            - liber8tion
+                          type: string
                       required:
                         - codingChunks
                         - dataChunks
@@ -16859,6 +16955,22 @@ spec:
                             - 1Mi
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
+                        technique:
+                          description: |-
+                            The erasure code technique. isa supports reed_sol_van and cauchy; jerasure supports the rest.
+                            If absent, the technique of the cluster's default erasure code profile is used.
+                            Ceph can't change the technique of an existing pool, so choose it when you create the pool.
+                            Changing it later leaves the pool as it is, and Rook reports an error until it's changed back.
+                          enum:
+                            - reed_sol_van
+                            - cauchy
+                            - reed_sol_r6_op
+                            - cauchy_orig
+                            - cauchy_good
+                            - liberation
+                            - blaum_roth
+                            - liber8tion
+                          type: string
                       required:
                         - codingChunks
                         - dataChunks

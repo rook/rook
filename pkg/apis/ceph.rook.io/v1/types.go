@@ -1548,6 +1548,14 @@ type ErasureCodedSpec struct {
 	// +optional
 	Algorithm string `json:"algorithm,omitempty"`
 
+	// The erasure code technique. isa supports reed_sol_van and cauchy; jerasure supports the rest.
+	// If absent, the technique of the cluster's default erasure code profile is used.
+	// Ceph can't change the technique of an existing pool, so choose it when you create the pool.
+	// Changing it later leaves the pool as it is, and Rook reports an error until it's changed back.
+	// +kubebuilder:validation:Enum=reed_sol_van;cauchy;reed_sol_r6_op;cauchy_orig;cauchy_good;liberation;blaum_roth;liber8tion
+	// +optional
+	Technique string `json:"technique,omitempty"`
+
 	// Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
 	// Value must be a multiple of 4096 (4Ki).
 	// +kubebuilder:validation:Enum={"4Ki","16Ki","64Ki","256Ki","1Mi"}

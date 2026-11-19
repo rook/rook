@@ -218,6 +218,8 @@ then you will have two replicas per `datacenter` where each replica ends up on a
 * `erasureCoded`: Settings for an erasure-coded pool. If specified, `replicated` settings cannot be specified. See below for more details on [erasure coding](#erasure-coding).
     * `dataChunks`: Number of chunks to divide the original object into
     * `codingChunks`: Number of coding chunks to generate
+    * `algorithm`: The erasure code plugin, `isa` or `jerasure`. If not set, the plugin of the cluster's `default` erasure code profile is used.
+    * `technique`: The erasure code technique for the plugin, for example `reed_sol_van` or `cauchy` for `isa`. If not set, the technique of the cluster's `default` erasure code profile is used. See [choosing a technique](#erasure-code-technique).
 * `failureDomain`: The failure domain across which the data will be spread. This can be set to a value of either `osd` or `host`, with `host` being the default setting. A failure domain can also be set to a different type (e.g. `rack`), if the OSDs are created on nodes with the supported [topology labels](../Cluster/ceph-cluster-crd.md#osd-topology). If the `failureDomain` is changed on the pool, the operator will create a new CRUSH rule and update the pool.
     If a `replicated` pool of size `3` is configured and the `failureDomain` is set to `host`, each copy of data will be placed on OSDs located on three different Ceph hosts. This case is guaranteed to tolerate a failure of two hosts without a loss of data. Similarly, a failure domain set to `osd`, can tolerate a loss of two OSD devices.  Setting the `failureDomain` to `osd` for valuable production data is strongly not recommended.
 
@@ -328,3 +330,23 @@ Rook currently only configures two levels in the CRUSH map. It is also possible 
     Set the following parameter in the pool spec of erasure coded pools:
     parameters:
         allow_ec_optimizations: "true"
+
+#### Erasure code technique
+
+Rook creates an erasure code profile for each erasure coded pool, copying the plugin and technique
+from the cluster's `default` profile unless the pool sets `algorithm` or `technique`.
+
+Example to take advantage of cauchy's ability to do more than 4 coding chunks:
+
+```yaml
+spec:
+  erasureCoded:
+    dataChunks: 8
+    codingChunks: 6
+    algorithm: isa
+    technique: cauchy
+```
+
+Like the chunk counts, choose the technique when you create the pool, because Ceph can't change the
+technique of an existing pool. Changing it later leaves the pool as it is, and Rook reports an error
+until it's changed back.
