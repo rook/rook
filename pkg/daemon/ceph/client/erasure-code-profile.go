@@ -75,6 +75,9 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterInfo *ClusterInf
 	if pool.ErasureCoded.Algorithm != "" {
 		defaultProfile.Plugin = pool.ErasureCoded.Algorithm
 	}
+	if pool.ErasureCoded.Technique != "" {
+		defaultProfile.Technique = pool.ErasureCoded.Technique
+	}
 
 	// define the profile with a set of key/value pairs
 	profilePairs := []string{

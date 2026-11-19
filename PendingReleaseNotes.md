@@ -14,3 +14,5 @@ Changes should *not* be included here if they are backported to previous release
 - RGW SSE-S3 accepts `VAULT_TRANSIT_BACKEND_PATH` in `security.s3.connectionDetails` for a Vault transit engine that is
   not mounted at the default `transit` path. RGW SSE-KMS with the `transit` engine accepts it in
   `security.kms.connectionDetails` too.
+- Erasure coded pools can set the erasure code technique with `erasureCoded.technique`, for example `technique: cauchy`
+  with `algorithm: isa`. When unset, the technique is still taken from the cluster's `default` erasure code profile.
