@@ -1297,6 +1297,7 @@ func getClient(t *testing.T, obj ...runtime.Object) client.Client {
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
 	assert.NoError(t, csiopv1.AddToScheme(s))
+	assert.NoError(t, v1.AddToScheme(s))
 	client := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(obj...).Build()
 	return client
 }
