@@ -1548,6 +1548,17 @@ type ErasureCodedSpec struct {
 	// +optional
 	Algorithm string `json:"algorithm,omitempty"`
 
+	// The erasure code technique to use with the algorithm (plugin).
+	// Valid values depend on the plugin: reed_sol_van or cauchy for isa, and reed_sol_van,
+	// reed_sol_r6_op, cauchy_orig, cauchy_good, liberation, blaum_roth or liber8tion for jerasure.
+	// If absent, defaults to the technique of the cluster's default erasure code profile.
+	// The technique is part of the pool's erasure code profile, which Ceph does not allow to
+	// change once the pool is created. Changing it on an existing pool makes the reconcile fail
+	// until the original value is restored.
+	// +kubebuilder:validation:Enum=reed_sol_van;cauchy;reed_sol_r6_op;cauchy_orig;cauchy_good;liberation;blaum_roth;liber8tion
+	// +optional
+	Technique string `json:"technique,omitempty"`
+
 	// Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
 	// Value must be a multiple of 4096 (4Ki).
 	// +kubebuilder:validation:Enum={"4Ki","16Ki","64Ki","256Ki","1Mi"}

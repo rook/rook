@@ -43,6 +43,12 @@ func TestValidatePoolSpec(t *testing.T) {
 	p.Spec.ErasureCoded.DataChunks = 1
 	err = validatePoolSpec(p.ToNamedPoolSpec())
 	assert.Error(t, err)
+
+	// an erasure code technique can't be combined with a replicated pool
+	p.Spec.ErasureCoded = ErasureCodedSpec{Technique: "cauchy"}
+	p.Spec.Replicated = ReplicatedSpec{Size: 3}
+	err = validatePoolSpec(p.ToNamedPoolSpec())
+	assert.EqualError(t, err, "invalid pool spec: both erasurecoded and replicated fields cannot be set at the same time")
 }
 
 func TestValidateCephBlockPoolBuiltInPool(t *testing.T) {

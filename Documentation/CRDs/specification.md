@@ -7550,6 +7550,24 @@ If absent, defaults to the plugin specified in osd_pool_default_erasure_code_pro
 </tr>
 <tr>
 <td>
+<code>technique</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The erasure code technique to use with the algorithm (plugin).
+Valid values depend on the plugin: reed_sol_van or cauchy for isa, and reed_sol_van,
+reed_sol_r6_op, cauchy_orig, cauchy_good, liberation, blaum_roth or liber8tion for jerasure.
+If absent, defaults to the technique of the cluster&rsquo;s default erasure code profile.
+The technique is part of the pool&rsquo;s erasure code profile, which Ceph does not allow to
+change once the pool is created. Changing it on an existing pool makes the reconcile fail
+until the original value is restored.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>stripeUnit</code><br/>
 <em>
 k8s.io/apimachinery/pkg/api/resource.Quantity
