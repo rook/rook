@@ -22,6 +22,12 @@ Architectures released are `amd64 / x86_64` and `arm64`.
 
 To check if a Kubernetes cluster is ready for `Rook`, see the [prerequisites](Prerequisites/prerequisites.md).
 
+!!! important
+    Rook requires admin access to the Kubernetes cluster. Creating or editing Rook custom resources,
+    other than ObjectBucketClaims in application namespaces, is an administrative operation, and so
+    is creating pods, reading or writing Secrets, or writing ConfigMaps in the Rook namespaces. See
+    [Admin Access](Prerequisites/prerequisites.md#admin-access).
+
 To configure the Ceph storage cluster, at least one of these local storage options is required:
 
 * Raw devices (no partitions or formatted filesystem)
