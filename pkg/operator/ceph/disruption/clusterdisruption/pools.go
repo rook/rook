@@ -28,81 +28,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*cephv1.CephObjectStoreList, *cephv1.CephFilesystemList, string, int, error) {
-	namespaceListOpt := client.InNamespace(request.Namespace)
-	poolSpecs := make([]cephv1.PoolSpec, 0)
-	poolCount := 0
-	cephBlockPoolList := &cephv1.CephBlockPoolList{}
-	err := r.client.List(r.context.OpManagerContext, cephBlockPoolList, namespaceListOpt)
+	poolCRs, err := topology.ListPoolCRs(r.context.OpManagerContext, r.client, request.Namespace)
 	if err != nil {
-		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephBlockpools %v", request.NamespacedName)
+		return nil, nil, "", 0, errors.Wrapf(err, "failed to list the pools for %v", request.NamespacedName)
 	}
-	poolCount += len(cephBlockPoolList.Items)
-	for _, cephBlockPool := range cephBlockPoolList.Items {
-		poolSpecs = append(poolSpecs, cephBlockPool.Spec.PoolSpec)
-	}
+	minFailureDomain := topology.GetMinimumFailureDomain(poolCRs.PoolSpecs())
 
-	cephFilesystemList := &cephv1.CephFilesystemList{}
-	err = r.client.List(r.context.OpManagerContext, cephFilesystemList, namespaceListOpt)
-	if err != nil {
-		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephFilesystems %v", request.NamespacedName)
-	}
-	poolCount += len(cephFilesystemList.Items)
-	for _, cephFilesystem := range cephFilesystemList.Items {
-		poolSpecs = append(poolSpecs, cephFilesystem.Spec.MetadataPool.PoolSpec)
-		for _, pool := range cephFilesystem.Spec.DataPools {
-			poolSpecs = append(poolSpecs, pool.PoolSpec)
-		}
-
-	}
-
-	cephObjectStoreList := &cephv1.CephObjectStoreList{}
-	err = r.client.List(r.context.OpManagerContext, cephObjectStoreList, namespaceListOpt)
-	if err != nil {
-		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephObjectStores %v", request.NamespacedName)
-	}
-	poolCount += len(cephObjectStoreList.Items)
-	for _, cephObjectStore := range cephObjectStoreList.Items {
-		poolSpecs = append(poolSpecs, cephObjectStore.Spec.MetadataPool)
-		poolSpecs = append(poolSpecs, cephObjectStore.Spec.DataPool)
-
-	}
-	minFailureDomain := getMinimumFailureDomain(poolSpecs)
-
-	return cephObjectStoreList, cephFilesystemList, minFailureDomain, poolCount, nil
-}
-
-func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
-	if len(poolList) == 0 {
-		return cephv1.DefaultFailureDomain
-	}
-
-	// start with max as the min
-	minfailureDomainIndex := len(topology.CRUSHMapLevelsOrdered) - 1
-	matched := false
-
-	for _, pool := range poolList {
-		for index, failureDomain := range topology.CRUSHMapLevelsOrdered {
-			if index > minfailureDomainIndex {
-				// index is higher than the min
-				break
-			}
-			if pool.FailureDomain == failureDomain {
-				// new min found
-				matched = true
-				minfailureDomainIndex = index
-			}
-		}
-	}
-	if !matched {
-		logger.Debugf("could not match failure domain. defaulting to %q", cephv1.DefaultFailureDomain)
-		return cephv1.DefaultFailureDomain
-	}
-	return topology.CRUSHMapLevelsOrdered[minfailureDomainIndex]
+	return poolCRs.ObjectStores, poolCRs.Filesystems, minFailureDomain, poolCRs.Count(), nil
 }
 
 // Setting naive minAvailable for RGW at: n - 1
