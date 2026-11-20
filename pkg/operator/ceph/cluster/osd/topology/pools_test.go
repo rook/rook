@@ -29,35 +29,33 @@ import (
 )
 
 func TestGetMinimumFailureDomain(t *testing.T) {
-	poolList := []cephv1.PoolSpec{
-		{FailureDomain: "region"},
-		{FailureDomain: "zone"},
+	replicated := func(failureDomain string) cephv1.PoolSpec {
+		return cephv1.PoolSpec{FailureDomain: failureDomain, Replicated: cephv1.ReplicatedSpec{Size: 3}}
+	}
+	erasureCoded := func(failureDomain string) cephv1.PoolSpec {
+		return cephv1.PoolSpec{FailureDomain: failureDomain, ErasureCoded: cephv1.ErasureCodedSpec{DataChunks: 2, CodingChunks: 1}}
 	}
 
-	assert.Equal(t, "zone", GetMinimumFailureDomain(poolList))
-
-	poolList = []cephv1.PoolSpec{
-		{FailureDomain: "region"},
-		{FailureDomain: "zone"},
-		{FailureDomain: "host"},
+	tests := []struct {
+		name  string
+		pools []cephv1.PoolSpec
+		want  string
+	}{
+		{"no pools", nil, "host"},
+		{"zone is narrower than region", []cephv1.PoolSpec{replicated("region"), replicated("zone")}, "zone"},
+		{"host is the narrowest", []cephv1.PoolSpec{replicated("region"), replicated("zone"), replicated("host")}, "host"},
+		{"single pool", []cephv1.PoolSpec{replicated("region")}, "region"},
+		{"erasure coded pool", []cephv1.PoolSpec{replicated("region"), erasureCoded("rack")}, "rack"},
+		{"unknown failure domains", []cephv1.PoolSpec{replicated("aaa"), replicated("bbb")}, "host"},
+		{"empty failure domain is host", []cephv1.PoolSpec{replicated("zone"), replicated("")}, "host"},
+		{"osd failure domain is host", []cephv1.PoolSpec{replicated("zone"), replicated("osd")}, "host"},
+		{"undefined pools are ignored", []cephv1.PoolSpec{replicated("zone"), {}}, "zone"},
 	}
-
-	assert.Equal(t, "host", GetMinimumFailureDomain(poolList))
-
-	poolList = []cephv1.PoolSpec{
-		{FailureDomain: "region"},
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, GetMinimumFailureDomain(tt.pools))
+		})
 	}
-
-	assert.Equal(t, "region", GetMinimumFailureDomain(poolList))
-
-	// test default
-	poolList = []cephv1.PoolSpec{
-		{FailureDomain: "aaa"},
-		{FailureDomain: "bbb"},
-		{FailureDomain: "ccc"},
-	}
-
-	assert.Equal(t, "host", GetMinimumFailureDomain(poolList))
 }
 
 func TestListPoolCRs(t *testing.T) {
@@ -65,27 +63,27 @@ func TestListPoolCRs(t *testing.T) {
 	objects := []runtime.Object{
 		&cephv1.CephBlockPool{
 			ObjectMeta: metav1.ObjectMeta{Name: "pool", Namespace: ns},
-			Spec:       cephv1.NamedBlockPoolSpec{PoolSpec: cephv1.PoolSpec{FailureDomain: "rack"}},
+			Spec:       cephv1.NamedBlockPoolSpec{PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 3}, FailureDomain: "rack"}},
 		},
 		&cephv1.CephBlockPool{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns-pool", Namespace: "other"},
-			Spec:       cephv1.NamedBlockPoolSpec{PoolSpec: cephv1.PoolSpec{FailureDomain: "osd"}},
+			Spec:       cephv1.NamedBlockPoolSpec{PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 3}, FailureDomain: "osd"}},
 		},
 		&cephv1.CephFilesystem{
 			ObjectMeta: metav1.ObjectMeta{Name: "fs", Namespace: ns},
 			Spec: cephv1.FilesystemSpec{
-				MetadataPool: cephv1.NamedPoolSpec{PoolSpec: cephv1.PoolSpec{FailureDomain: "zone"}},
+				MetadataPool: cephv1.NamedPoolSpec{PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 3}, FailureDomain: "zone"}},
 				DataPools: []cephv1.NamedPoolSpec{
-					{PoolSpec: cephv1.PoolSpec{FailureDomain: "zone"}},
-					{PoolSpec: cephv1.PoolSpec{FailureDomain: "region"}},
+					{PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 3}, FailureDomain: "zone"}},
+					{PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 3}, FailureDomain: "region"}},
 				},
 			},
 		},
 		&cephv1.CephObjectStore{
 			ObjectMeta: metav1.ObjectMeta{Name: "store", Namespace: ns},
 			Spec: cephv1.ObjectStoreSpec{
-				MetadataPool: cephv1.PoolSpec{FailureDomain: "row"},
-				DataPool:     cephv1.PoolSpec{FailureDomain: "datacenter"},
+				MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 3}, FailureDomain: "row"},
+				DataPool:     cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 3}, FailureDomain: "datacenter"},
 			},
 		},
 	}
