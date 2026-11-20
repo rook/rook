@@ -53,6 +53,8 @@ type updateConfig struct {
 	deployments         *existenceList   // these OSDs have existing deployments
 	osdsToSkipReconcile sets.Set[string] // these OSDs should not be updated during reconcile
 	osdDesiredState     map[int]*OSDInfo // the desired state of the OSDs determined during the reconcile
+	crushTree           *crushTree       // CRUSH tree used to restrict updates to a failure domain, fetched when first needed
+	osdsNotInCrushTree  sets.Set[int]    // these OSDs were missing from the CRUSH tree even after fetching it again
 }
 
 func (c *Cluster) newUpdateConfig(
@@ -62,13 +64,14 @@ func (c *Cluster) newUpdateConfig(
 	osdsToSkipReconcile sets.Set[string],
 ) *updateConfig {
 	return &updateConfig{
-		c,
-		provisionConfig,
-		queue,
-		queue.Len(),
-		deployments,
-		osdsToSkipReconcile,
-		map[int]*OSDInfo{},
+		cluster:             c,
+		provisionConfig:     provisionConfig,
+		queue:               queue,
+		numUpdatesNeeded:    queue.Len(),
+		deployments:         deployments,
+		osdsToSkipReconcile: osdsToSkipReconcile,
+		osdDesiredState:     map[int]*OSDInfo{},
+		osdsNotInCrushTree:  sets.New[int](),
 	}
 }
 
@@ -121,6 +124,8 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 				c.queue.Push(osdIDQuery) // push back onto queue to make sure we retry it later
 				return
 			}
+		} else if failureDomain := c.cluster.spec.Storage.OSDUpdateFailureDomain; failureDomain != "" {
+			osdIDs = c.restrictToFailureDomain(osdIDQuery, osdIDs, failureDomain)
 		}
 	}
 
@@ -232,6 +237,139 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 	// If there were failures, don't retry them. If it's a transitory k8s/etcd issue, the next
 	// reconcile should succeed. If it's a different issue, it will always error.
 	c.queue.Remove(osdIDs)
+}
+
+// restrictToFailureDomain drops the OSDs in osdIDs that are not in the same CRUSH bucket of type
+// failureDomain as osdIDQuery. 'osd ok-to-stop --max' fills its result from the queried OSD's
+// failure domain first, but then moves up the CRUSH tree and adds OSDs from other buckets when the
+// pools can tolerate it, which would make a batch of updates span more than one failure domain.
+// If the failure domain of osdIDQuery cannot be determined, for example because the CRUSH tree has
+// no bucket of that type above it, only osdIDQuery is returned. Updates then proceed one OSD at a
+// time, which makes a wrong setting noticeable without blocking the reconcile.
+func (c *updateConfig) restrictToFailureDomain(osdIDQuery int, osdIDs []int, failureDomain string) []int {
+	namespace := c.cluster.clusterInfo.Namespace
+	if len(osdIDs) <= 1 {
+		return osdIDs
+	}
+
+	tree, err := c.getCrushTree(osdIDQuery)
+	if err != nil {
+		log.NamespacedError(namespace, logger, "failed to get CRUSH tree to restrict OSD updates to %q failure domain; updating only OSD %d. %v", failureDomain, osdIDQuery, err)
+		return []int{osdIDQuery}
+	}
+	inDomain, err := tree.osdsInSameBucket(osdIDQuery, failureDomain)
+	if err != nil {
+		log.NamespacedError(namespace, logger, "failed to determine the %q failure domain of OSD %d; updating only that OSD. %v", failureDomain, osdIDQuery, err)
+		return []int{osdIDQuery}
+	}
+
+	restricted := make([]int, 0, len(osdIDs))
+	dropped := []int{}
+	for _, id := range osdIDs {
+		if inDomain.Has(id) { // always true for osdIDQuery, which is in its own failure domain
+			restricted = append(restricted, id)
+		} else {
+			dropped = append(dropped, id)
+		}
+	}
+	if len(dropped) > 0 {
+		log.NamespacedInfo(namespace, logger, "not updating OSDs %v together with OSD %d since they are outside its %s failure domain", dropped, osdIDQuery, failureDomain)
+	}
+	return restricted
+}
+
+// getCrushTree returns the CRUSH tree, fetching it the first time it is needed during this
+// reconcile so that it is not fetched again for every batch of OSD updates. The CRUSH tree is
+// fetched again if osdID is not in it, since the tree may have changed while OSDs were updated,
+// but only once per OSD, so that an OSD that is not in CRUSH at all (a stray OSD) does not cause
+// the tree to be fetched for every batch.
+func (c *updateConfig) getCrushTree(osdID int) (*crushTree, error) {
+	if c.crushTree != nil && (c.crushTree.has(osdID) || c.osdsNotInCrushTree.Has(osdID)) {
+		return c.crushTree, nil
+	}
+	tree, err := cephclient.HostTree(c.cluster.context, c.cluster.clusterInfo)
+	if err != nil {
+		return nil, err
+	}
+	c.crushTree = newCrushTree(tree)
+	if !c.crushTree.has(osdID) {
+		c.osdsNotInCrushTree.Insert(osdID)
+	}
+	return c.crushTree, nil
+}
+
+// crushTree indexes the output of 'ceph osd tree' to look up the failure domain of OSDs.
+type crushTree struct {
+	tree    cephclient.OsdTree
+	nodes   map[int]int   // CRUSH ID -> index in tree.Nodes
+	parents map[int][]int // CRUSH ID -> IDs of the buckets it is linked under
+}
+
+func newCrushTree(tree cephclient.OsdTree) *crushTree {
+	t := &crushTree{tree: tree, nodes: map[int]int{}, parents: map[int][]int{}}
+	for i, node := range tree.Nodes {
+		if _, ok := t.nodes[node.ID]; ok {
+			// 'ceph osd tree' dumps a bucket linked under more than one bucket, and the items below
+			// it, once for each of them
+			continue
+		}
+		t.nodes[node.ID] = i
+		for _, child := range node.Children {
+			t.parents[child] = append(t.parents[child], node.ID)
+		}
+	}
+	return t
+}
+
+// has returns true if the CRUSH item with the given ID is in the tree.
+func (t *crushTree) has(id int) bool {
+	_, ok := t.nodes[id]
+	return ok
+}
+
+// osdsInSameBucket returns the IDs of all OSDs under the CRUSH item of type bucketType that
+// contains osdID, which may be the OSD itself if bucketType is "osd". It returns an error if osdID
+// is not in the CRUSH tree, has no such item above it, or if the path to that item is ambiguous
+// because an item on it is linked under more than one bucket.
+func (t *crushTree) osdsInSameBucket(osdID int, bucketType string) (sets.Set[int], error) {
+	bucketID := osdID
+	for {
+		i, ok := t.nodes[bucketID]
+		if !ok {
+			return nil, errors.Errorf("CRUSH item %d is not in the CRUSH tree", bucketID)
+		}
+		if t.tree.Nodes[i].Type == bucketType {
+			break
+		}
+		switch p := t.parents[bucketID]; len(p) {
+		case 0:
+			return nil, errors.Errorf("OSD %d has no ancestor of CRUSH type %q; check that storage.osdUpdateFailureDomain names a CRUSH bucket type that contains the OSDs", osdID, bucketType)
+		case 1:
+			bucketID = p[0]
+		default:
+			return nil, errors.Errorf("CRUSH item %d is linked under more than one bucket (%v), so the %q failure domain of OSD %d is ambiguous", bucketID, p, bucketType, osdID)
+		}
+	}
+
+	osds := sets.New[int]()
+	toVisit := []int{bucketID}
+	for len(toVisit) > 0 {
+		id := toVisit[len(toVisit)-1]
+		toVisit = toVisit[:len(toVisit)-1]
+		if id >= 0 {
+			osds.Insert(id) // non-negative CRUSH IDs are OSDs
+			continue
+		}
+		if i, ok := t.nodes[id]; ok {
+			for _, child := range t.tree.Nodes[i].Children {
+				// an item also linked under another bucket is in more than one failure domain
+				if len(t.parents[child]) == 1 {
+					toVisit = append(toVisit, child)
+				}
+			}
+		}
+	}
+	return osds, nil
 }
 
 // getOSDUpdateInfo returns an update queue of OSDs which need to be updated and an existence list of OSD
