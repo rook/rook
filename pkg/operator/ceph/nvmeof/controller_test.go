@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -35,6 +36,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	ini "gopkg.in/ini.v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,6 +63,7 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 	testScheme := scheme.Scheme
 	testScheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephNVMeOFGateway{})
 	testScheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+	require.NoError(t, csiopv1.AddToScheme(testScheme))
 
 	baseExecutor := func() *exectest.MockExecutor {
 		return &exectest.MockExecutor{
@@ -432,6 +435,20 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 		})
 	})
 
+	t.Run("reconcile creates the gateway network policy", func(t *testing.T) {
+		cCtx := newContext(successExecutor(t))
+		cl := newControllerClient(baseCephNVMeOFGateway(), cephClusterReady(cCtx))
+		r := newReconcile(cCtx, cl)
+
+		_, err := r.Reconcile(ctx, req)
+		require.NoError(t, err)
+
+		np, err := cCtx.Clientset.NetworkingV1().NetworkPolicies(namespace).Get(ctx, "rook-ceph-nvmeof-my-nvmeof", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"app": AppName, "app.kubernetes.io/part-of": name}, np.Spec.PodSelector.MatchLabels)
+		assert.Len(t, np.OwnerReferences, 1)
+	})
+
 	t.Run("run multiple nvmeof gateways", func(t *testing.T) {
 		cCtx := newContext(successExecutor(t))
 		nvmeof := baseCephNVMeOFGateway()
@@ -685,6 +702,7 @@ func TestNVMeOFKeyRotation(t *testing.T) {
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephNVMeOFGateway{})
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+	require.NoError(t, csiopv1.AddToScheme(s))
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {

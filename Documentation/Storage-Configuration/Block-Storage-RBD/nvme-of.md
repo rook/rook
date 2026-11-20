@@ -43,6 +43,7 @@ The `CephNVMeOFGateway` CRD manages the NVMe-oF gateway infrastructure. The oper
 
 - **Service**: One per gateway instance for service discovery
 - **Deployment**: One per gateway instance running the NVMe-oF gateway daemon
+- **NetworkPolicy**: One per gateway, restricting access to the gateway's gRPC API (see [Gateway Network Access](#gateway-network-access))
 
 NVMe-oF uses two separate pools:
 
@@ -382,6 +383,77 @@ sudo mkfs.ext4 /dev/nvme1n1
 sudo mkdir -p /mnt/nvmeof
 sudo mount /dev/nvme1n1 /mnt/nvmeof
 sudo chown $(whoami):$(whoami) /mnt/nvmeof
+```
+
+---
+
+## Gateway Network Access
+
+The gateway's gRPC API manages subsystems, hosts, listeners and namespaces, and it does not
+authenticate its callers. The operator therefore creates a NetworkPolicy named
+`rook-ceph-nvmeof-<gateway-name>` in the gateway's namespace. It selects the gateway's pods and
+permits:
+
+- the gRPC API port (5500, or `[gateway] port` from `nvmeofConfig`) only from the NVMe-oF CSI controller plugin pods in the operator namespace and from the gateway's own pods;
+- the monitor port, which the gateway always binds one below the gRPC API port, only from the gateway's own pods;
+- the I/O port (`spec.ports.ioPort`, default 4420), the discovery port (8009, or `[discovery] port` from `nvmeofConfig`) and the Prometheus exporter port (10008, or `[gateway] prometheus_port` from `nvmeofConfig`) from any source, inside or outside the cluster.
+
+The `spec.ports` values are covered as well, because the gateway's Services publish them. Every
+other port of the gateway pods is blocked, including NVMe/TCP listeners created on a port other
+than the I/O port. When the gateway uses a configuration from `configMapRef`, ports that are set
+only in that configuration are not covered and need an additional NetworkPolicy.
+
+!!! note
+    A NetworkPolicy only takes effect if the cluster's network plugin (CNI) enforces NetworkPolicy.
+
+To find the CSI controller plugin, the operator looks in its own namespace for `csi.ceph.io`
+`Driver` CRs named `nvmeof.csi.ceph.com` or `<prefix>.nvmeof.csi.ceph.com`, such as the one in
+`deploy/examples/csi/nvmeof/driver.yaml`. For each one it admits the pods of the controller plugin
+Deployment `<driver-name>-ctrlplugin`, selected by their `app` label. If no such `Driver` exists,
+the policy admits only the gateway's own pods to the gRPC API, the operator logs a warning, and
+NVMe-oF volumes cannot be provisioned until the `Driver` is created.
+
+Where the cluster source-NATs pod-to-Service traffic to the node address, for example with
+kube-proxy `--masquerade-all`, the CSI controller plugin's connections may not match the policy,
+and an additional NetworkPolicy that admits the node CIDRs on the gRPC API port is needed.
+
+The operator does not create the policy, and removes one it created earlier, when:
+
+- the gateway uses host networking (`hostNetwork: true` on the `CephNVMeOFGateway`, or host networking inherited from the `CephCluster`), because a NetworkPolicy does not apply to host network pods;
+- a CSI controller plugin Deployment runs with host networking (for example with `controllerPlugin.hostNetwork: true` in the `Driver` CR). Its connections then come from node addresses, which a pod selector cannot match. The operator logs a warning in this case.
+
+### Allowing Other Clients
+
+NetworkPolicies are additive: a connection is allowed when any policy that selects the gateway pod
+allows it. To let another client reach the gateway, such as `nvmeof-cli` running in another pod,
+create an additional NetworkPolicy in the gateway's namespace rather than editing the operator's
+policy, which the operator overwrites on its next reconcile. For example, to let pods labeled
+`app: nvmeof-admin` in the `nvmeof-admin` namespace use the gRPC API of the gateway `nvmeof`:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nvmeof-admin-grpc
+  namespace: rook-ceph
+spec:
+  podSelector:
+    matchLabels:
+      app: rook-ceph-nvmeof
+      app.kubernetes.io/part-of: nvmeof
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nvmeof-admin
+          podSelector:
+            matchLabels:
+              app: nvmeof-admin
+      ports:
+        - protocol: TCP
+          port: 5500
 ```
 
 ---
