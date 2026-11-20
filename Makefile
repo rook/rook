@@ -118,8 +118,9 @@ ifneq ($(filter $(PLATFORM),$(SERVER_PLATFORMS)),)
 GO_STATIC_PACKAGES += $(SERVER_PACKAGES)
 endif
 
-# build holds the toolbox manifest generator, so it belongs in the test and vet sweeps
-GO_SUBDIRS=cmd pkg build
+# build holds the toolbox manifest generator, and tests/framework the unit-tested parts of the
+# integration test framework, so both belong in the test and vet sweeps
+GO_SUBDIRS=cmd pkg build tests/framework
 
 GO_BUILDFLAGS=$(BUILDFLAGS)
 GO_LDFLAGS=$(LDFLAGS)

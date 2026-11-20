@@ -26,6 +26,7 @@ package fixture
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -34,6 +35,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/rook/rook/tests/framework/leakguard"
 	"github.com/rook/rook/tests/framework/utils"
 )
 
@@ -41,12 +43,27 @@ import (
 // caller: cleanup runs after the test finishes, when a test-scoped context
 // (e.g. t.Context()) has already been canceled.
 
-// RequireNamespace creates ns and registers its deletion via t.Cleanup.
-// Deletion is issued without waiting for it to complete; namespace teardown is
-// asynchronous and nothing in these tests depends on it finishing.
+// leakGuard is package state because RequireNamespace, which every package
+// creates its namespace with, has no handle that reaches the suite's
+// installer.
+var leakGuard atomic.Pointer[leakguard.Guard]
+
+// GuardNamespaces makes RequireNamespace add each namespace it creates to
+// guard, or to no guard when guard is nil.
+func GuardNamespaces(guard *leakguard.Guard) {
+	leakGuard.Store(guard)
+}
+
+// RequireNamespace creates ns, adding it first to the guard GuardNamespaces
+// set, and registers its deletion via t.Cleanup. Deletion is issued without
+// waiting for it to complete; namespace teardown is asynchronous and nothing
+// in these tests depends on it finishing.
 func RequireNamespace(t *testing.T, k8sh *utils.K8sHelper, ns *corev1.Namespace) {
 	t.Helper()
 
+	if guard := leakGuard.Load(); guard != nil {
+		guard.AddNamespace(ns.Name)
+	}
 	_, err := k8sh.Clientset.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
 	require.NoError(t, err)
 
