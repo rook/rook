@@ -49,6 +49,8 @@ const (
 	GaneshaRadosGraceTool = "ganesha-rados-grace"
 	// DefaultPGCount will cause Ceph to use the internal default PG count
 	DefaultPGCount = "0"
+	// DefaultDataPoolPGCount is the initial PG count for data pools to avoid starting at 1
+	DefaultDataPoolPGCount = "32"
 	// CommandProxyInitContainerName is the name of the init container for proxying ceph command when multus is used
 	CommandProxyInitContainerName = "cmd-proxy"
 	// ProxyAppLabel is the label used to identify the proxy container
