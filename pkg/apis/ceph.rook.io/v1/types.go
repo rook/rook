@@ -2938,8 +2938,8 @@ type TopicEndpointSpec struct {
 // HTTPEndpointSpec represents the spec of an HTTP endpoint of a Bucket Topic
 type HTTPEndpointSpec struct {
 	// The URI of the HTTP endpoint to push notification to
-	// +kubebuilder:validation:MinLength=1
-	URI string `json:"uri"`
+	// +required
+	URI Sensitive `json:"uri,omitempty"`
 	// Indicate whether the server certificate is validated by the client or not
 	// +optional
 	DisableVerifySSL bool `json:"disableVerifySSL,omitempty"`
@@ -2951,8 +2951,8 @@ type HTTPEndpointSpec struct {
 // AMQPEndpointSpec represents the spec of an AMQP endpoint of a Bucket Topic
 type AMQPEndpointSpec struct {
 	// The URI of the AMQP endpoint to push notification to
-	// +kubebuilder:validation:MinLength=1
-	URI string `json:"uri"`
+	// +required
+	URI Sensitive `json:"uri,omitempty"`
 	// Name of the exchange that is used to route messages based on topics
 	// +kubebuilder:validation:MinLength=1
 	Exchange string `json:"exchange"`
@@ -2971,8 +2971,8 @@ type AMQPEndpointSpec struct {
 // KafkaEndpointSpec represents the spec of a Kafka endpoint of a Bucket Topic
 type KafkaEndpointSpec struct {
 	// The URI of the Kafka endpoint to push notification to
-	// +kubebuilder:validation:MinLength=1
-	URI string `json:"uri"`
+	// +required
+	URI Sensitive `json:"uri,omitempty"`
 	// Indicate whether to use SSL when communicating with the broker
 	// +optional
 	UseSSL bool `json:"useSSL,omitempty"`

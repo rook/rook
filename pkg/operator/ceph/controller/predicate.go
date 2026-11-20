@@ -94,8 +94,8 @@ func WatchControllerPredicate[T client.Object](scheme *runtime.Scheme) predicate
 			// resource.Quantity has non-exportable fields, so we use its comparator method
 			resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
 
-			diff := cmp.Diff(GetSpec(objOld), GetSpec(objNew), resourceQtyComparer)
-			if diff != "" {
+			changed, diff := SpecChanged(GetSpec(objOld), GetSpec(objNew), resourceQtyComparer)
+			if changed {
 				logger.Infof("resource %q: %q spec has changed. diff=%s", kind, nsName, diff)
 				return true
 			} else if objectToBeDeleted(objOld, objNew) {

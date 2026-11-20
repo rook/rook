@@ -1178,6 +1178,7 @@ spec:
                           type: string
                         uri:
                           description: The URI of the AMQP endpoint to push notification to
+                          maxLength: 2048
                           minLength: 1
                           type: string
                       required:
@@ -1195,6 +1196,7 @@ spec:
                           type: boolean
                         uri:
                           description: The URI of the HTTP endpoint to push notification to
+                          maxLength: 2048
                           minLength: 1
                           type: string
                       required:
@@ -1247,6 +1249,7 @@ spec:
                           x-kubernetes-map-type: atomic
                         uri:
                           description: The URI of the Kafka endpoint to push notification to
+                          maxLength: 2048
                           minLength: 1
                           type: string
                         useSSL:

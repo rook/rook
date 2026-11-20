@@ -141,8 +141,8 @@ func amqpAckLevel(nsName types.NamespacedName, ackLevel string) string {
 // logTopicEndpoint reports the push endpoint a CephBucketTopic is being provisioned
 // with. The URI can carry a password in its userinfo, so it is logged redacted; one
 // that does not parse cannot be redacted and is reported by length instead.
-func logTopicEndpoint(nsName types.NamespacedName, rawURI string) {
-	uri, err := url.Parse(rawURI)
+func logTopicEndpoint(nsName types.NamespacedName, rawURI cephv1.Sensitive) {
+	uri, err := url.Parse(string(rawURI))
 	if err != nil {
 		log.NamedWarning(nsName, logger, "creating CephBucketTopic %q with an endpoint that is not a valid URI (%d bytes): %s", nsName, len(rawURI), urlParseReason(err))
 		return
@@ -173,21 +173,21 @@ func createTopicAttributes(p provisioner, topic *cephv1.CephBucketTopic) (map[st
 	attr["persistent"] = strconv.FormatBool(topic.Spec.Persistent)
 	if topic.Spec.Endpoint.AMQP != nil {
 		logTopicEndpoint(nsName, topic.Spec.Endpoint.AMQP.URI)
-		attr["push-endpoint"] = topic.Spec.Endpoint.AMQP.URI
+		attr["push-endpoint"] = string(topic.Spec.Endpoint.AMQP.URI)
 		attr["amqp-exchange"] = topic.Spec.Endpoint.AMQP.Exchange
 		attr["amqp-ack-level"] = amqpAckLevel(nsName, topic.Spec.Endpoint.AMQP.AckLevel)
 		attr["verify-ssl"] = strconv.FormatBool(!topic.Spec.Endpoint.AMQP.DisableVerifySSL)
 	}
 	if topic.Spec.Endpoint.HTTP != nil {
 		logTopicEndpoint(nsName, topic.Spec.Endpoint.HTTP.URI)
-		attr["push-endpoint"] = topic.Spec.Endpoint.HTTP.URI
+		attr["push-endpoint"] = string(topic.Spec.Endpoint.HTTP.URI)
 		attr["verify-ssl"] = strconv.FormatBool(!topic.Spec.Endpoint.HTTP.DisableVerifySSL)
 		attr["cloudevents"] = strconv.FormatBool(topic.Spec.Endpoint.HTTP.SendCloudEvents)
 	}
 	if topic.Spec.Endpoint.Kafka != nil {
 		kafka := topic.Spec.Endpoint.Kafka
 
-		uri, err := url.Parse(kafka.URI)
+		uri, err := url.Parse(string(kafka.URI))
 		if err != nil {
 			// the URI could contain a passphrase, and so could url.Parse's own message,
 			// which formats the URI it was given. this error reaches the operator log and
