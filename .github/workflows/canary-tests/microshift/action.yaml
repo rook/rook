@@ -1,0 +1,147 @@
+name: microshift
+description: Deploy Rook on MicroShift (via podman) and validate Ceph cluster with RBD and CephFS workloads
+inputs:
+  ceph-image:
+    description: Ceph image to create the cluster with
+    required: true
+  rook-image-artifact:
+    description: name of a prebuilt rook image artifact to import
+    required: true
+  artifact-name:
+    description: name to publish collected logs under
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+      with:
+        tool-cache: true # removes old golang version but saves ~6GB
+        large-packages: false # takes a long time to run b/c package mgr
+        android: false # takes a long time to run b/c package mgr
+        dotnet: false # takes a long time to run b/c package mgr
+        haskell: false # takes a long time to run b/c package mgr
+
+    - name: load kernel modules
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        sudo apt-get install -y -qq "linux-modules-extra-$(uname -r)" || sudo apt-get install -y -qq linux-modules-extra-azure || true
+        sudo modprobe rbd nbd
+
+    - name: create iSCSI disks for OSDs
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh create_extra_disk 3
+        sudo lsblk
+
+    - name: start MicroShift cluster
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh start_microshift
+
+    - name: install deps
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh install_deps
+
+    - name: download prebuilt rook image
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: ${{ inputs.rook-image-artifact }}
+        path: _output/ci-image
+
+    - name: load rook image into MicroShift
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        zstd -dc _output/ci-image/rook-image.tar.zst | docker load
+        docker save docker.io/rook/ceph:local-build | \
+          sudo podman exec -i microshift podman load
+
+    - name: set Ceph version in CephCluster manifest
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh replace_ceph_image "deploy/examples/cluster-test.yaml" "${{ inputs.ceph-image }}"
+
+    - name: deploy rook operator
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh create_cluster_prerequisites
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator-openshift.yaml
+
+    - name: patch RBD Driver CR for kernel module access
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        # The ceph-csi node plugin must be able to run "modprobe nbd" so that
+        # its hasNBD flag is true and rbd-nbd is used instead of silently
+        # falling back to krbd. Mount /lib/modules from the host (which in
+        # turn is the CI runner's /lib/modules via the podman bind-mount).
+        kubectl -n rook-ceph patch driver rook-ceph.rbd.csi.ceph.com --type=merge -p '
+        spec:
+          nodePlugin:
+            volumes:
+              - mount:
+                  name: lib-modules
+                  mountPath: /lib/modules
+                  readOnly: true
+                volume:
+                  name: lib-modules
+                  hostPath:
+                    path: /lib/modules
+                    type: Directory'
+
+    - name: deploy ceph cluster
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        kubectl create -f deploy/examples/cluster-test.yaml
+        tests/scripts/github-action-helper.sh deploy_toolbox
+
+    - name: wait for prepare pod
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 3
+
+    - name: wait for ceph to be ready
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      env:
+        CSI_POD_MIN_COUNT: "4"
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 3
+
+    - name: verify ceph health ok
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        kubectl -n rook-ceph exec deploy/rook-ceph-tools -- ceph status
+        kubectl -n rook-ceph exec deploy/rook-ceph-tools -- ceph health | grep -q HEALTH_OK
+
+    - name: test rbd volume with rbd-nbd mounter
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        # test_csi_rbd_workload creates deploy/examples/csi/rbd/storageclass.yaml
+        sed -i 's|#mounter: rbd-nbd|  mounter: rbd-nbd|g' deploy/examples/csi/rbd/storageclass.yaml
+        # the rbd-nbd server runs in the nodeplugin pod, so deleting that pod breaks the mounted volume
+        tests/scripts/github-action-helper.sh test_csi_rbd_workload skip_plugin_restart
+
+    - name: deploy CephFilesystem
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: kubectl create -f deploy/examples/filesystem-test.yaml
+
+    - name: wait for CephFS MDS to be ready
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      env:
+        CSI_POD_MIN_COUNT: "4"
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready mds 3
+
+    - name: test cephfs volume
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh test_csi_cephfs_workload
+
+    - name: collect MicroShift container log
+      if: always()
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        mkdir -p test
+        sudo podman logs microshift > test/microshift.log 2>&1 || true
+
+    - name: collect common logs
+      if: always()
+      uses: ./.github/workflows/collect-logs
+      with:
+        name: ${{ inputs.artifact-name }}
+        # the csi demo pods are created in the default namespace
+        additional-namespace: default
