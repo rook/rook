@@ -18,8 +18,12 @@ package osd
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"slices"
 	"testing"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -732,4 +736,60 @@ func TestCephVolumeLVMListParseFailureDoesNotLeakLockboxSecret(t *testing.T) {
 	require.ErrorAs(t, err, &typeErr)
 	assert.Equal(t, "number", typeErr.Value)
 	assert.Equal(t, "string", typeErr.Type.String())
+}
+
+func TestProvisionReplacedOSDDoesNotLogSecrets(t *testing.T) {
+	// the replacement prints the ceph-volume log on success as well as on failure, so a
+	// routine replacement of an encrypted OSD logged its new lockbox secret and cephx key
+	lockboxSecret := fakeCephxKey(2, 32, 0x33)
+	osdKey := fakeCephxKey(2, 32, 0x44)
+
+	tests := []struct {
+		name       string
+		prepareErr error
+	}{
+		{name: "success"},
+		{name: "failure", prepareErr: errors.New("exit status 1")},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			origLogDir := cephVolumeTmpLogDir
+			cephVolumeTmpLogDir = t.TempDir()
+			t.Cleanup(func() { cephVolumeTmpLogDir = origLogDir })
+
+			executor := &exectest.MockExecutor{}
+			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+				if command == "stdbuf" && slices.Contains(args, "list") {
+					return "{}", nil
+				}
+				return "", errors.Errorf("unknown command %s %v", command, args)
+			}
+			executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+				if command == "stdbuf" && slices.Contains(args, "prepare") {
+					logDir := args[slices.Index(args, "--log-path")+1]
+					require.NoError(t, os.WriteFile(filepath.Join(logDir, "ceph-volume.log"), []byte(cephVolumeLogWithSecrets(lockboxSecret, osdKey)), 0o600))
+					return "--> ceph-volume raw prepare successful for: /dev/sdf", tc.prepareErr
+				}
+				return "", errors.Errorf("unknown command %s %v", command, args)
+			}
+			agent := &OsdAgent{}
+			entry := &DeviceOsdIDEntry{DeviceInfo: &sys.LocalDisk{Name: "sdf"}}
+			logBuf := captureLogsAtLevel(t, capnslog.INFO)
+
+			err := agent.provisionReplacedOSD(&clusterd.Context{Executor: executor}, 1, entry)
+
+			if tc.prepareErr != nil {
+				require.Error(t, err)
+				assert.NotContains(t, err.Error(), lockboxSecret)
+				assert.NotContains(t, err.Error(), osdKey)
+			} else {
+				require.NoError(t, err)
+			}
+			logOutput := logBuf.String()
+			assert.NotContains(t, logOutput, lockboxSecret)
+			assert.NotContains(t, logOutput, osdKey)
+			// the log is still printed, masked rather than withheld
+			assert.Contains(t, logOutput, "--name osd.1 --add-key *****")
+		})
+	}
 }

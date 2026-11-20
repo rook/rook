@@ -1346,7 +1346,8 @@ func readCVLogContent(cvLogFilePath string) string {
 		return ""
 	}
 
-	return string(b)
+	// every caller prints the log, and it holds whatever secrets ceph-volume put on a command line
+	return redactCephVolumeOutput(string(b))
 }
 
 // GetCephVolumeRawOSDs lists OSDs prepared with raw mode.
@@ -1609,19 +1610,25 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 }
 
 // the ceph-volume list and zap output reports the cephx lockbox secret of every encrypted OSD, both
-// as a json tag map and as the raw lv_tags string, and none of it belongs in a pod log
+// as a json tag map and as the raw lv_tags string, and ceph-volume before v22 logs every command it
+// runs at INFO, among them the lvchange that sets that tag and the ceph-authtool that writes an OSD
+// keyring. None of it belongs in a pod log.
 var (
 	lockboxSecretTagRegex = regexp.MustCompile(`("ceph\.cephx_lockbox_secret"\s*:\s*")[^"]*(")`)
-	// a negated class matches a newline, so the end of the line has to terminate the secret
-	// explicitly: in line-oriented output such as "lvm zap" a secret that ends a line would
-	// otherwise consume everything up to the next comma or quote, taking the diagnostics with it
-	lockboxSecretLVTagRegex = regexp.MustCompile(`(ceph\.cephx_lockbox_secret=)[^,"\n]*`)
+	// a negated class matches whitespace, so whitespace has to terminate the secret explicitly: a
+	// secret that ends a line of "lvm zap" output, or that a logged lvchange follows with its next
+	// --addtag, would otherwise consume everything up to the next comma or quote
+	lockboxSecretLVTagRegex = regexp.MustCompile(`(ceph\.cephx_lockbox_secret=)[^,"\s]*`)
+	// a cephx key wherever it appears: base64 of a key type, a creation time, a length and the
+	// secret, 40 characters for an AES key (type 1) and 60 for an AES-256 key (type 2)
+	cephxKeyRegex = regexp.MustCompile(`\bAQ[A-Za-z0-9+/]{36}==|\bAg[A-Za-z0-9+/]{57}=`)
 )
 
 func redactCephVolumeOutput(output string) string {
 	output = lockboxSecretTagRegex.ReplaceAllString(output, "${1}*****${2}")
+	output = lockboxSecretLVTagRegex.ReplaceAllString(output, "${1}*****")
 
-	return lockboxSecretLVTagRegex.ReplaceAllString(output, "${1}*****")
+	return cephxKeyRegex.ReplaceAllString(output, "*****")
 }
 
 func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
@@ -1647,7 +1654,7 @@ func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
 		cvLog := readCVLogContent(filepath.Join(cephVolumeTmpLogDir, "ceph-volume.log"))
 		logger.Errorf("%s", redactCephVolumeOutput(co))
 		if cvLog != "" {
-			logger.Errorf("%s", redactCephVolumeOutput(cvLog))
+			logger.Errorf("%s", cvLog)
 		}
 
 		return "", errors.Wrapf(err, "failed ceph-volume call (see ceph-volume log above for more details)")

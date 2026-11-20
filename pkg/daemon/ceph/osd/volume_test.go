@@ -19,10 +19,13 @@ package osd
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -2138,6 +2141,65 @@ func TestRedactCephVolumeOutputKeepsFollowingLines(t *testing.T) {
 
 	assert.NotContains(t, redacted, lockboxSecret)
 	assert.Equal(t, "ceph.cephx_lockbox_secret=*****\n--> Zapping successful for: <Raw Device: /dev/vdb>\n", redacted)
+}
+
+// fakeCephxKey renders a key the way ceph-authtool --gen-print-key does: base64 of a little-endian
+// key type, an 8-byte creation time, a little-endian secret length, and the secret
+func fakeCephxKey(keyType, secretLen uint16, fill byte) string {
+	raw := binary.LittleEndian.AppendUint16(nil, keyType)
+	raw = append(raw, bytes.Repeat([]byte{fill}, 8)...)
+	raw = binary.LittleEndian.AppendUint16(raw, secretLen)
+	raw = append(raw, bytes.Repeat([]byte{fill}, int(secretLen))...)
+	return base64.StdEncoding.EncodeToString(raw)
+}
+
+// cephVolumeLogWithSecrets is what ceph-volume v20 writes to its log while preparing an encrypted
+// OSD: it logs every command it runs at INFO, so the lvchange that tags the block LV carries the
+// lockbox secret and the ceph-authtool that writes the OSD keyring carries the OSD's cephx key
+func cephVolumeLogWithSecrets(lockboxSecret, osdKey string) string {
+	return "[2026-11-12 17:48:14,050][ceph_volume.process][INFO  ] Running command: /sbin/lvchange --addtag ceph.osd_id=1 --addtag ceph.cephx_lockbox_secret=" + lockboxSecret + " --addtag ceph.encrypted=1 /dev/ceph-2bd5a361/osd-block-04a967e3\n" +
+		"[2026-11-12 17:48:25,431][ceph_volume.process][INFO  ] Running command: /usr/bin/ceph-authtool /var/lib/ceph/osd/ceph-1/keyring --create-keyring --name osd.1 --add-key " + osdKey + "\n"
+}
+
+func TestRedactCephVolumeOutputMasksCephxKeys(t *testing.T) {
+	tests := []struct {
+		name       string
+		key        string
+		wantPrefix string
+		wantLen    int
+	}{
+		{name: "aes", key: fakeCephxKey(1, 16, 0x5a), wantPrefix: "AQ", wantLen: 40},
+		{name: "aes-256", key: fakeCephxKey(2, 32, 0x5a), wantPrefix: "Ag", wantLen: 60},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.True(t, strings.HasPrefix(tc.key, tc.wantPrefix))
+			require.Len(t, tc.key, tc.wantLen)
+			output := "Running command: /usr/bin/ceph-authtool /var/lib/ceph/osd/ceph-1/keyring --create-keyring --name osd.1 --add-key " + tc.key + "\n" +
+				"[osd.1]\n\tkey = " + tc.key + "\n"
+
+			redacted := redactCephVolumeOutput(output)
+
+			assert.Equal(t, "Running command: /usr/bin/ceph-authtool /var/lib/ceph/osd/ceph-1/keyring --create-keyring --name osd.1 --add-key *****\n"+
+				"[osd.1]\n\tkey = *****\n", redacted)
+		})
+	}
+}
+
+func TestReadCVLogContentRedactsSecrets(t *testing.T) {
+	// every caller prints the log it reads
+	lockboxSecret := fakeCephxKey(2, 32, 0x11)
+	osdKey := fakeCephxKey(2, 32, 0x22)
+	logPath := filepath.Join(t.TempDir(), "ceph-volume.log")
+	require.NoError(t, os.WriteFile(logPath, []byte(cephVolumeLogWithSecrets(lockboxSecret, osdKey)), 0o600))
+
+	cvLog := readCVLogContent(logPath)
+
+	assert.NotContains(t, cvLog, lockboxSecret)
+	assert.NotContains(t, cvLog, osdKey)
+	// only the secrets are masked: the tags after the lockbox secret survive
+	assert.Contains(t, cvLog, "--addtag ceph.cephx_lockbox_secret=***** --addtag ceph.encrypted=1 /dev/ceph-2bd5a361/osd-block-04a967e3\n")
+	assert.Contains(t, cvLog, "--name osd.1 --add-key *****\n")
 }
 
 func TestZapDeviceDoesNotLogLockboxSecret(t *testing.T) {
