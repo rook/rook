@@ -18,7 +18,12 @@ package integration
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -28,12 +33,14 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
+	"github.com/rook/rook/tests/framework/leakguard"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -427,6 +434,98 @@ func (s *SmokeSuite) TestCreateRBDMirrorClient() {
 
 	err = s.helper.RBDMirrorClient.Delete(s.settings.Namespace, rbdMirrorName)
 	require.NoError(s.T(), err)
+}
+
+// TestLeakGuardSelfTest leaks a registered secret and an unregistered
+// cephx-shaped key into a pod's log on purpose, and requires the leak guard to
+// find the first by exact match and the second by pattern there. It then
+// expects the exact-match finding so that the check at teardown does not fail
+// the suite on it; pattern findings never fail.
+func (s *SmokeSuite) TestLeakGuardSelfTest() {
+	const (
+		name         = "leakguard-self-test"
+		container    = "echo"
+		cephxKeyRule = "rook-cephx-key"
+	)
+	ctx := s.T().Context()
+	namespace := s.settings.Namespace
+	guard := s.installer.LeakGuard()
+	require.NotNil(s.T(), guard, "the leak guard is not running")
+
+	raw := make([]byte, 32)
+	_, err := rand.Read(raw)
+	require.NoError(s.T(), err)
+	value := hex.EncodeToString(raw)
+	guard.Register(name, value)
+	defer guard.Expect(name)
+	cephxKey, err := cephxShapedKey()
+	require.NoError(s.T(), err)
+
+	pods := s.k8sh.Clientset.CoreV1().Pods(namespace)
+	_, err = pods.Create(ctx, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: v1.PodSpec{
+			RestartPolicy: v1.RestartPolicyNever,
+			Containers: []v1.Container{{
+				Name: container,
+				// pulled by InstallRook, so the test needs no other image
+				Image:           s.settings.CephVersion.Image,
+				ImagePullPolicy: v1.PullIfNotPresent,
+				Command:         []string{"echo", value, cephxKey},
+			}},
+		},
+	}, metav1.CreateOptions{})
+	require.NoError(s.T(), err)
+	defer func() {
+		assert.NoError(s.T(), pods.Delete(ctx, name, metav1.DeleteOptions{GracePeriodSeconds: new(int64(0))}))
+	}()
+
+	err = utils.Eventually(ctx, s.T(), 3*time.Minute, "the self-test pod to complete", func(ctx context.Context) error {
+		pod, err := pods.Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if pod.Status.Phase != v1.PodSucceeded {
+			return fmt.Errorf("pod phase is %q", pod.Status.Phase)
+		}
+		return nil
+	})
+	require.NoError(s.T(), err)
+
+	// The pod completing does not mean its log has been followed yet.
+	what := "registered/" + name
+	logPrefix := fmt.Sprintf("logs/%s_%s_%s_", namespace, name, container)
+	found := func(findings []leakguard.Finding, want string) bool {
+		return slices.ContainsFunc(findings, func(f leakguard.Finding) bool {
+			return f.What == want && strings.HasPrefix(f.Location.File, logPrefix)
+		})
+	}
+	err = utils.Eventually(ctx, s.T(), 2*time.Minute, "the leak guard to find the self-test secrets", func(ctx context.Context) error {
+		r := s.installer.CheckLeaksNow(ctx, namespace)
+		foundExact, foundPattern := found(r.Exact, what), found(r.Pattern, cephxKeyRule)
+		if foundExact && foundPattern {
+			return nil
+		}
+		return fmt.Errorf("in %s*, found %s: %t, found %s: %t, of %d exact-match and %d pattern findings; %d container logs followed, liveness failures: %q, errors: %v",
+			logPrefix, what, foundExact, cephxKeyRule, foundPattern, len(r.Exact), len(r.Pattern), r.Followers, r.LivenessFailures(), r.Err)
+	})
+	require.NoError(s.T(), err)
+}
+
+// cephxShapedKey returns a random key in the layout of a cephx AES key, which
+// is the key type, the creation time, the secret's length and the secret, so
+// that it encodes to the AQ…== form of a real key.
+func cephxShapedKey() (string, error) {
+	const aesKeyType, aesSecretLen = 1, 16
+	random := make([]byte, 8+aesSecretLen)
+	if _, err := rand.Read(random); err != nil {
+		return "", err
+	}
+	key := binary.LittleEndian.AppendUint16(nil, aesKeyType)
+	key = append(key, random[:8]...)
+	key = binary.LittleEndian.AppendUint16(key, aesSecretLen)
+	key = append(key, random[8:]...)
+	return base64.StdEncoding.EncodeToString(key), nil
 }
 
 // reconcileCluster patches the CephCluster spec and waits for the operator to finish the
