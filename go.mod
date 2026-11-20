@@ -31,7 +31,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/vault/api v1.23.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
-	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20260420161730-5164e3746489
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20260917153727-be094b8c7ee9 // TODO: pin the merge commit of kube-object-storage/lib-bucket-provisioner#238
 	github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.95.1
