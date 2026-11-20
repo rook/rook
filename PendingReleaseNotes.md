@@ -20,3 +20,5 @@ Notes for the v1.22.0 release, including breaking changes and new features.
 - RGW SSE-S3 accepts `VAULT_TRANSIT_BACKEND_PATH` in `security.s3.connectionDetails` for a Vault transit engine that is
   not mounted at the default `transit` path. RGW SSE-KMS with the `transit` engine accepts it in
   `security.kms.connectionDetails` too.
+- The OSD PDBs now count pools without a `failureDomain` or with the `osd` failure domain as `host`. In clusters where
+  all other pools have a wider failure domain, the PDBs allow fewer OSDs to be disrupted at the same time.
