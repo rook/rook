@@ -124,20 +124,60 @@ and they'll be symlinked inside the also non-standard path `/nix`.
 Rook containers require read access to those locations to be able to load the required modules.
 They have to be bind-mounted as volumes in the CephFS and RBD plugin pods.
 
-If installing Rook with Helm, uncomment these example settings in `values.yaml`:
+If installing with the `ceph-csi-drivers` Helm chart, configure `nodePlugin.volumes` in your `values.yaml`:
 
-* `csi.csiCephFSPluginVolume`
-* `csi.csiCephFSPluginVolumeMount`
-* `csi.csiRBDPluginVolume`
-* `csi.csiRBDPluginVolumeMount`
+```yaml
+operatorConfig:
+  driverSpecDefaults:
+    nodePlugin:
+      volumes:
+        - mount:
+            name: host-nix
+            mountPath: /nix
+            readOnly: true
+          volume:
+            name: host-nix
+            hostPath:
+              path: /nix
+        - mount:
+            name: lib-modules
+            mountPath: /lib/modules
+            readOnly: true
+          volume:
+            name: lib-modules
+            hostPath:
+              path: /run/current-system/kernel-modules/lib/modules
+```
 
-If deploying without Helm, add those same values to the settings in the `rook-ceph-operator-config`
-ConfigMap found in operator.yaml:
+If deploying without Helm, add the same volume configuration to `spec.driverSpecDefaults.nodePlugin.volumes` in the `OperatorConfig` CR (`ceph-csi-operator-config`) found in `operator.yaml`:
 
-* `CSI_CEPHFS_PLUGIN_VOLUME`
-* `CSI_CEPHFS_PLUGIN_VOLUME_MOUNT`
-* `CSI_RBD_PLUGIN_VOLUME`
-* `CSI_RBD_PLUGIN_VOLUME_MOUNT`
+```yaml
+apiVersion: csi.ceph.io/v1
+kind: OperatorConfig
+metadata:
+  name: ceph-csi-operator-config
+  namespace: rook-ceph
+spec:
+  driverSpecDefaults:
+    nodePlugin:
+      volumes:
+        - mount:
+            name: host-nix
+            mountPath: /nix
+            readOnly: true
+          volume:
+            name: host-nix
+            hostPath:
+              path: /nix
+        - mount:
+            name: lib-modules
+            mountPath: /lib/modules
+            readOnly: true
+          volume:
+            name: lib-modules
+            hostPath:
+              path: /run/current-system/kernel-modules/lib/modules
+```
 
 If using containerd, remove `LimitNOFILE` from containerd service config to avoid issues like slow ceph commands or mons falling out of quorum.
 
