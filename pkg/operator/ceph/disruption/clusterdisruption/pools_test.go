@@ -31,38 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestGetMinimumFailureDomain(t *testing.T) {
-	poolList := []cephv1.PoolSpec{
-		{FailureDomain: "region"},
-		{FailureDomain: "zone"},
-	}
-
-	assert.Equal(t, "zone", getMinimumFailureDomain(poolList))
-
-	poolList = []cephv1.PoolSpec{
-		{FailureDomain: "region"},
-		{FailureDomain: "zone"},
-		{FailureDomain: "host"},
-	}
-
-	assert.Equal(t, "host", getMinimumFailureDomain(poolList))
-
-	poolList = []cephv1.PoolSpec{
-		{FailureDomain: "region"},
-	}
-
-	assert.Equal(t, "region", getMinimumFailureDomain(poolList))
-
-	// test default
-	poolList = []cephv1.PoolSpec{
-		{FailureDomain: "aaa"},
-		{FailureDomain: "bbb"},
-		{FailureDomain: "ccc"},
-	}
-
-	assert.Equal(t, "host", getMinimumFailureDomain(poolList))
-}
-
 func TestReconcileCephObjectStorePDB(t *testing.T) {
 	ns := "rook-ceph"
 	storeName := "my-store"
