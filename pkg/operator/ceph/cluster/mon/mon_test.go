@@ -105,6 +105,7 @@ func newTestStartClusterWithQuorumResponse(t *testing.T, namespace string, monRe
 	}
 	s := scheme.Scheme
 	assert.NoError(t, csiopv1.AddToScheme(s))
+	assert.NoError(t, v1.AddToScheme(s))
 	cl := fake.NewClientBuilder().WithScheme(s).Build()
 	return &clusterd.Context{
 		Clientset: clientset,
@@ -452,6 +453,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	s := scheme.Scheme
 	assert.NoError(t, csiopv1.AddToScheme(s))
+	assert.NoError(t, v1.AddToScheme(s))
 	cl := fake.NewClientBuilder().WithScheme(s).Build()
 	c := New(ctx, &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Client: cl}, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
@@ -502,6 +504,7 @@ func TestMaxMonID(t *testing.T) {
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	s := scheme.Scheme
 	assert.NoError(t, csiopv1.AddToScheme(s))
+	assert.NoError(t, v1.AddToScheme(s))
 	cl := fake.NewClientBuilder().WithScheme(s).Build()
 	c := New(context.TODO(), &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Client: cl}, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
@@ -1366,6 +1369,7 @@ func TestRotateMonCephxKeys(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
 	s.AddKnownTypes(v1.SchemeGroupVersion, &v1.Secret{})
 	assert.NoError(t, csiopv1.AddToScheme(s))
+	assert.NoError(t, v1.AddToScheme(s))
 
 	object := []runtime.Object{
 		cluster,
