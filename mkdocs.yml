@@ -21,6 +21,8 @@ copyright: |
   </p>
 theme:
   name: material
+  # keep the Material for MkDocs look instead of Zensical's "modern" default
+  variant: classic
   custom_dir: .docs/overrides/
   font: false
   favicon: https://rook.io/images/favicon_192x192.png
@@ -61,9 +63,7 @@ plugins:
         - README.md
         - "*.gotmpl"
         - "*.gotmpl.md"
-  - awesome-pages
-  - macros:
-      module_name: .docs/macros/includes/main
+  - awesome-nav
   - minify:
       minify_html: true
       minify_js: true
@@ -74,14 +74,6 @@ plugins:
       redirect_maps:
         README.md: Getting-Started/intro.md
         Getting-Started/release-cycle.md: Getting-Started/maintenance-and-support.md
-  - mike:
-      # these fields are all optional; the defaults are as below...
-      version_selector: true # set to false to leave out the version selector
-      css_dir: css # the directory to put the version selector's CSS
-      javascript_dir: js # the directory to put the version selector's JS
-      canonical_version:
-        null # the version for <link rel="canonical">; `null`
-        # uses the version specified via `mike deploy`
 markdown_extensions:
   - admonition
   - attr_list

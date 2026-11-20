@@ -1,0 +1,4 @@
+nav:
+    - prerequisites.md
+    - glob: "*"
+      ignore_no_matches: true

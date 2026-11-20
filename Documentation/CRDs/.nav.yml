@@ -7,4 +7,5 @@ nav:
     - ceph-client-crd.md
     - ceph-nfs-crd.md
     - specification.md
-    - ...
+    - glob: "*"
+      ignore_no_matches: true

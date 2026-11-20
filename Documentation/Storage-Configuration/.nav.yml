@@ -7,4 +7,5 @@ nav:
     - Ceph-CSI
     - ceph-teardown.md
     - Advanced
-    - ...
+    - glob: "*"
+      ignore_no_matches: true

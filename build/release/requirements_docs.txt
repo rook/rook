@@ -1,10 +1,1 @@
-mike
-mkdocs
-mkdocs-awesome-pages-plugin
-mkdocs-exclude
-mkdocs-macros-plugin
-mkdocs-material
-mkdocs-material-extensions
-mkdocs-minify-plugin
-mkdocs-redirects
-pygit2
+zensical==0.0.74

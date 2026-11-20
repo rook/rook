@@ -1098,7 +1098,9 @@ map[string]map[string]string
 <td>
 <code>cephConfigFromSecret</code><br/>
 <em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
 map[string]map[string]k8s.io/api/core/v1.SecretKeySelector
+</a>
 </em>
 </td>
 <td>
@@ -2227,7 +2229,7 @@ string
 <td>
 <code>opMask</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.[]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ObjectUserOpMask">
+<a href="#ceph.rook.io/v1.ObjectUserOpMask">
 []github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ObjectUserOpMask
 </a>
 </em>
@@ -3371,6 +3373,14 @@ int64
 <p>This naive kubebuilder regex provides immediate feedback for some typos and for a common problem
 case where the range spec is forgotten (e.g., /24). Rook does in-depth validation in code.</p>
 </div>
+<h3 id="ceph.rook.io/v1.CIDRList">CIDRList
+(<code>[]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.CIDR</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.AddressRangesSpec">AddressRangesSpec</a>)
+</p>
+<div>
+<p>A list of CIDRs.</p>
+</div>
 <h3 id="ceph.rook.io/v1.COSIDeploymentStrategy">COSIDeploymentStrategy
 (<code>string</code> alias)</h3>
 <p>
@@ -4168,7 +4178,7 @@ DaemonHealthSpec
 <td>
 <code>livenessProbe</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.*github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ProbeSpec">
+<a href="#ceph.rook.io/v1.ProbeSpec">
 map[github.com/rook/rook/pkg/apis/ceph.rook.io/v1.KeyType]*github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ProbeSpec
 </a>
 </em>
@@ -4182,7 +4192,7 @@ map[github.com/rook/rook/pkg/apis/ceph.rook.io/v1.KeyType]*github.com/rook/rook/
 <td>
 <code>startupProbe</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.*github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ProbeSpec">
+<a href="#ceph.rook.io/v1.ProbeSpec">
 map[github.com/rook/rook/pkg/apis/ceph.rook.io/v1.KeyType]*github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ProbeSpec
 </a>
 </em>
@@ -6429,7 +6439,9 @@ map[string]map[string]string
 <td>
 <code>cephConfigFromSecret</code><br/>
 <em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
 map[string]map[string]k8s.io/api/core/v1.SecretKeySelector
+</a>
 </em>
 </td>
 <td>
@@ -13224,7 +13236,7 @@ string
 <td>
 <code>opMask</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.[]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ObjectUserOpMask">
+<a href="#ceph.rook.io/v1.ObjectUserOpMask">
 []github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ObjectUserOpMask
 </a>
 </em>

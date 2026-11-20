@@ -4,18 +4,18 @@ module.exports = {
     "extends": null, // no default rules enabled
     "list-indent": true, // all list items must be indented at the same level
     "ul-indent": {
-      "indent": 4, // mkdocs requires 4 spaces for tabs
+      "indent": 4, // Zensical requires 4 spaces for tabs
     },
     "no-hard-tabs": {
-      "spaces_per_tab": 4, // mkdocs requires 4 spaces for tabs
+      "spaces_per_tab": 4, // Zensical requires 4 spaces for tabs
     },
     "ol-prefix": {
       // require fully-numbered lists. this rule helps ensure that code blocks in between ordered
       // list items (which require surrounding spaces) don't break lists
       "style": "ordered",
     },
-    "blanks-around-lists": true, // mkdocs requires blank lines around lists
-    "blanks-around-fences": { // mkdocs requires blank lines around code blocks (fences)
+    "blanks-around-lists": true, // Zensical requires blank lines around lists
+    "blanks-around-fences": { // Zensical requires blank lines around code blocks (fences)
       "list_items": true, /// ... including in lists
     },
     "code-block-style": {
@@ -37,8 +37,8 @@ module.exports = {
     },
 
     // custom rules for Rook!
-    "mkdocs-admonitions": true, // checking mkdocs admonitions format
-    "strict-tab-spacing": true, // enforce strict 4-space tabs for mkdocs
+    "mkdocs-admonitions": true, // checking Zensical admonitions format
+    "strict-tab-spacing": true, // enforce strict 4-space tabs for Zensical
 
   },
  "customRules": [

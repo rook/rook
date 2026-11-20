@@ -7,4 +7,5 @@ nav:
     - openshift-common-issues.md
     - disaster-recovery.md
     - direct-tools.md
-    - ...
+    - glob: "*"
+      ignore_no_matches: true

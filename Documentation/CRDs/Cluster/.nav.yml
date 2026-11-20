@@ -5,4 +5,5 @@ nav:
     - pvc-cluster.md
     - stretch-cluster.md
     - external-cluster
-    - ...
+    - glob: "*"
+      ignore_no_matches: true
