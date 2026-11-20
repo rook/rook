@@ -350,6 +350,24 @@ func (c *Config) DeleteSecret(secretName string) error {
 	return nil
 }
 
+// NewOperatorConfig returns the KMS config for the operator, with the Vault token, and the
+// connection details that IBM Key Protect and KMIP read from their token secret
+func NewOperatorConfig(ctx context.Context, clusterdContext *clusterd.Context, clusterSpec *cephv1.ClusterSpec, clusterInfo *cephclient.ClusterInfo) (*Config, error) {
+	kmsSpec := &clusterSpec.Security.KeyManagementService
+	config := NewConfig(clusterdContext, clusterSpec, clusterInfo)
+	if kmsSpec.IsTokenAuthEnabled() && kmsSpec.IsVaultKMS() {
+		if err := SetTokenToEnvVar(ctx, clusterdContext, kmsSpec.TokenSecretName, config.Provider, clusterInfo.Namespace); err != nil {
+			return nil, errors.Wrapf(err, "failed to fetch kms token secret %q", kmsSpec.TokenSecretName)
+		}
+	}
+	if kmsSpec.IsIBMKeyProtectKMS() || kmsSpec.IsKMIPKMS() {
+		if err := ValidateConnectionDetails(ctx, clusterdContext, kmsSpec, clusterInfo.Namespace); err != nil {
+			return nil, errors.Wrap(err, "failed to validate kms connection details")
+		}
+	}
+	return config, nil
+}
+
 // GetParam returns the value of the KMS config option
 func GetParam(kmsConfig map[string]string, param string) string {
 	if val, ok := kmsConfig[param]; ok && val != "" {
