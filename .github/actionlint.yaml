@@ -8,3 +8,11 @@ paths:
   "**/action.{yml,yaml}":
     ignore:
       - ".*"
+  # gh aw compile generates these from their .md sources using syntax GitHub
+  # accepts but actionlint does not know yet: the concurrency `queue` key, the
+  # `job.workflow_ref` context property, and the `copilot-requests` permission.
+  ".github/workflows/*.lock.yml":
+    ignore:
+      - 'unexpected key "queue" for "concurrency" section'
+      - 'property "workflow_ref" is not defined'
+      - 'unknown permission scope "copilot-requests"'
