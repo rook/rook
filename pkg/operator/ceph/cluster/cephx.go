@@ -143,6 +143,24 @@ func setRotatingServiceKeyType(clusterdCtx *clusterd.Context, clusterInfo *cephc
 		return nil
 	}
 
+	// Skip setting auth_service_cipher to AES256K if any daemon that uses rotating service keys
+	// (mon, mgr, OSD, MDS) doesn't support it yet (e.g., a daemon on a cordoned node or with the
+	// ceph.rook.io/do-not-reconcile label). Such daemons can't use AES256K service keys and become
+	// unreachable once their old keys expire.
+	for _, daemonType := range []string{config.MonType, config.MgrType, config.OsdType, config.MdsType} {
+		leastVer, err := cephclient.LeastUptodateDaemonVersion(clusterdCtx, clusterInfo, daemonType)
+		if err != nil {
+			return errors.Wrapf(err, "failed to determine the least-versioned %s before setting service cephx key type (auth_service_cipher)", daemonType)
+		}
+		if version.IsIdentical(leastVer, version.CephVersion{}) {
+			continue // no daemons of this type are running
+		}
+		if !cephclient.Aes256kKeysSupported(leastVer) {
+			logger.Warningf("not setting service cephx key type (auth_service_cipher) for cluster in namespace %q because at least one %s (low version %q) does not support AES256K keys. once all mon, mgr, osd, and mds daemons are updated, trigger a CephCluster reconcile (e.g., restart the Rook operator) to apply it", clusterInfo.Namespace, daemonType, &leastVer)
+			return nil
+		}
+	}
+
 	keyType := cephv1.PreferredCephxKeyType()
 	if cephxConfig.Daemon.KeyType != "" {
 		logger.Infof("cluster in namespace %q will use the user-specified %q cephx key type (auth_service_cipher) by default instead of the Rook default %q key type", clusterInfo.Namespace, cephxConfig.Daemon.KeyType, keyType)
