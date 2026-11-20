@@ -27,6 +27,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclientfake "github.com/rook/rook/pkg/daemon/ceph/client/fake"
@@ -41,10 +42,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func Test_updateExistingOSDs(t *testing.T) {
@@ -81,9 +84,10 @@ func Test_updateExistingOSDs(t *testing.T) {
 		forceUpgradeIfUnhealthy bool
 		requiresHealthyPGs      bool
 		cephStatus              string
-		updateFailureDomain     string // spec.storage.osdUpdateFailureDomain
-		osdTreeOutput           string // output of 'ceph osd tree' (or an error if empty)
-		osdTreeCalls            int    // number of times 'ceph osd tree' was called
+		updateFailureDomain     string           // spec.storage.osdUpdateFailureDomain
+		osdTreeOutput           string           // output of 'ceph osd tree' (or an error if empty)
+		osdTreeCalls            int              // number of times 'ceph osd tree' was called
+		poolCRs                 []runtime.Object // CRs that define pools
 	)
 
 	// intermediates (created from inputs)
@@ -107,6 +111,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 		ctx = &clusterd.Context{
 			Clientset: clientset,
 			Executor:  executor,
+			Client:    clientfake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(poolCRs...).Build(),
 		}
 		clusterInfo := &cephclient.ClusterInfo{
 			Namespace:   namespace,
@@ -493,6 +498,172 @@ func Test_updateExistingOSDs(t *testing.T) {
 		}
 	})
 
+	t.Run("ok to stop OSDs restricted to the minimum failure domain of the pools by default", func(t *testing.T) {
+		clientset = fake.NewClientset()
+		// node0 holds OSDs 0, 3 and 6; node1 holds OSDs 1, 4 and 7
+		osdTreeOutput = cephclientfake.OsdTreeOutput(2, 3)
+		poolCRs = []runtime.Object{
+			&cephv1.CephBlockPool{
+				ObjectMeta: metav1.ObjectMeta{Name: "replicapool", Namespace: namespace},
+				Spec: cephv1.NamedBlockPoolSpec{PoolSpec: cephv1.PoolSpec{
+					FailureDomain: "host", Replicated: cephv1.ReplicatedSpec{Size: 3},
+				}},
+			},
+		}
+		defer func() { osdTreeOutput, poolCRs = "", nil }()
+		updateQueue = newUpdateQueueWithIDs(0, 1, 3)
+		existingDeployments = newExistenceListWithIDs(0, 1, 3)
+		forceUpgradeIfUnhealthy = false
+		updateInjectFailures = k8sutil.Failures{}
+		doSetup()
+		addDeploymentOnNode("node0", 0)
+		addDeploymentOnNode("node1", 1)
+		addDeploymentOnNode("node0", 3)
+
+		osdToBeQueried = 0
+		returnOkToStopIDs = []int{0, 3, 1}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(0), deploymentName(3)})
+		assert.Equal(t, 1, updateQueue.Len()) // OSD 1 is on another host and should remain queued
+		require.NotNil(t, updateConfig.failureDomain)
+		assert.Equal(t, "host", *updateConfig.failureDomain)
+
+		deploymentsUpdated = []string{}
+		osdToBeQueried = 1
+		returnOkToStopIDs = []int{1, 0}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(1)})
+		assert.Equal(t, 0, updateQueue.Len())
+	})
+
+	t.Run("OSDs without a bucket of the minimum failure domain of the pools are restricted to their host", func(t *testing.T) {
+		clientset = fake.NewClientset()
+		osdTreeOutput = cephclientfake.OsdTreeOutput(2, 3) // the tree has no racks
+		poolCRs = []runtime.Object{
+			&cephv1.CephBlockPool{
+				ObjectMeta: metav1.ObjectMeta{Name: "replicapool", Namespace: namespace},
+				Spec: cephv1.NamedBlockPoolSpec{PoolSpec: cephv1.PoolSpec{
+					FailureDomain: "rack", Replicated: cephv1.ReplicatedSpec{Size: 3},
+				}},
+			},
+		}
+		defer func() { osdTreeOutput, poolCRs = "", nil }()
+		updateQueue = newUpdateQueueWithIDs(0, 1, 3)
+		existingDeployments = newExistenceListWithIDs(0, 1, 3)
+		forceUpgradeIfUnhealthy = false
+		updateInjectFailures = k8sutil.Failures{}
+		doSetup()
+		addDeploymentOnNode("node0", 0)
+		addDeploymentOnNode("node1", 1)
+		addDeploymentOnNode("node0", 3)
+
+		osdToBeQueried = 0
+		returnOkToStopIDs = []int{0, 3, 1}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(0), deploymentName(3)})
+		assert.Equal(t, 1, updateQueue.Len()) // OSD 1 on node1 should remain queued
+	})
+
+	t.Run("OSDs that cannot be placed in a bucket of the minimum failure domain of the pools are restricted to their host", func(t *testing.T) {
+		clientset = fake.NewClientset()
+		// rack-a holds host-a (OSDs 0 and 3), rack-b holds host-b (OSD 2), host-c (OSDs 1 and 5) is
+		// not in a rack, and host-d (OSD 4) is linked under both racks, so that 'ceph osd tree'
+		// dumps it and OSD 4 under each of them
+		osdTreeOutput = `{"nodes": [
+			{"id": -1, "name": "default", "type": "root", "type_id": 11, "children": [-2, -3, -6]},
+			{"id": -2, "name": "rack-a", "type": "rack", "type_id": 3, "children": [-4, -7]},
+			{"id": -3, "name": "rack-b", "type": "rack", "type_id": 3, "children": [-5, -7]},
+			{"id": -4, "name": "host-a", "type": "host", "type_id": 1, "children": [0, 3]},
+			{"id": -5, "name": "host-b", "type": "host", "type_id": 1, "children": [2]},
+			{"id": -6, "name": "host-c", "type": "host", "type_id": 1, "children": [1, 5]},
+			{"id": -7, "name": "host-d", "type": "host", "type_id": 1, "children": [4]},
+			{"id": -7, "name": "host-d", "type": "host", "type_id": 1, "children": [4]},
+			{"id": 4, "name": "osd.4", "type": "osd", "type_id": 0},
+			{"id": 0, "name": "osd.0", "type": "osd", "type_id": 0},
+			{"id": 1, "name": "osd.1", "type": "osd", "type_id": 0},
+			{"id": 2, "name": "osd.2", "type": "osd", "type_id": 0},
+			{"id": 3, "name": "osd.3", "type": "osd", "type_id": 0},
+			{"id": 4, "name": "osd.4", "type": "osd", "type_id": 0},
+			{"id": 5, "name": "osd.5", "type": "osd", "type_id": 0}
+		], "stray": []}`
+		poolCRs = []runtime.Object{
+			&cephv1.CephBlockPool{
+				ObjectMeta: metav1.ObjectMeta{Name: "replicapool", Namespace: namespace},
+				Spec: cephv1.NamedBlockPoolSpec{PoolSpec: cephv1.PoolSpec{
+					FailureDomain: "rack", Replicated: cephv1.ReplicatedSpec{Size: 3},
+				}},
+			},
+		}
+		defer func() { osdTreeOutput, poolCRs = "", nil }()
+		updateQueue = newUpdateQueueWithIDs(1, 4, 0, 2, 3, 5)
+		existingDeployments = newExistenceListWithIDs(0, 1, 2, 3, 4, 5)
+		forceUpgradeIfUnhealthy = false
+		updateInjectFailures = k8sutil.Failures{}
+		doSetup()
+		for id := range 6 {
+			addDeploymentOnNode(fmt.Sprintf("node%d", id), id)
+		}
+
+		// OSD 1 is not in a rack, so it is only updated with OSD 5 on the same host
+		osdToBeQueried = 1
+		returnOkToStopIDs = []int{1, 0, 2, 3, 4, 5}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(1), deploymentName(5)})
+
+		// OSD 4 is in two racks, so it is updated alone, the only OSD on its host
+		deploymentsUpdated = []string{}
+		osdToBeQueried = 4
+		returnOkToStopIDs = []int{4, 0, 2}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(4)})
+
+		// OSD 0 is in rack-a, so it is only updated with OSD 3, and not with OSD 4 in both racks
+		updateQueue.Push(4)
+		deploymentsUpdated = []string{}
+		osdToBeQueried = 0
+		returnOkToStopIDs = []int{0, 2, 3, 4}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(0), deploymentName(3)})
+		assert.Equal(t, 2, updateQueue.Len()) // OSD 2 in rack-b and OSD 4 should remain queued
+	})
+
+	t.Run("explicit failure domain overrides the minimum failure domain of the pools", func(t *testing.T) {
+		clientset = fake.NewClientset()
+		osdTreeOutput = cephclientfake.OsdTreeOutput(2, 3)
+		poolCRs = []runtime.Object{
+			&cephv1.CephBlockPool{
+				ObjectMeta: metav1.ObjectMeta{Name: "replicapool", Namespace: namespace},
+				Spec: cephv1.NamedBlockPoolSpec{PoolSpec: cephv1.PoolSpec{
+					FailureDomain: "host", Replicated: cephv1.ReplicatedSpec{Size: 3},
+				}},
+			},
+		}
+		updateFailureDomain = "root"
+		defer func() { updateFailureDomain, osdTreeOutput, poolCRs = "", "", nil }()
+		updateQueue = newUpdateQueueWithIDs(0, 1, 3)
+		existingDeployments = newExistenceListWithIDs(0, 1, 3)
+		forceUpgradeIfUnhealthy = false
+		updateInjectFailures = k8sutil.Failures{}
+		doSetup()
+		addDeploymentOnNode("node0", 0)
+		addDeploymentOnNode("node1", 1)
+		addDeploymentOnNode("node0", 3)
+
+		osdToBeQueried = 0
+		returnOkToStopIDs = []int{0, 3, 1}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(0), deploymentName(1), deploymentName(3)})
+		assert.Equal(t, 0, updateQueue.Len())
+		assert.Nil(t, updateConfig.failureDomain) // the pools are not looked up
+	})
+
 	t.Run("not ok to stop OSD", func(t *testing.T) {
 		clientset = fake.NewClientset()
 		updateQueue = newUpdateQueueWithIDs(2)
@@ -729,6 +900,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 		ctx = &clusterd.Context{
 			Clientset: clientset,
 			Executor:  executor,
+			Client:    clientfake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(poolCRs...).Build(),
 		}
 		clusterInfo := &cephclient.ClusterInfo{
 			Namespace:   namespace,
@@ -1259,7 +1431,9 @@ func Test_osdsInSameBucket(t *testing.T) {
 	assert.ElementsMatch(t, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}, sets.List(osds))
 
 	_, err = tree.osdsInSameBucket(4, "rack")
-	assert.Error(t, err)
+	var noBucket *noBucketOfTypeError
+	assert.ErrorAs(t, err, &noBucket)
+	assert.True(t, isUnplaceable(err))
 
 	osds, err = tree.osdsInSameBucket(4, "osd")
 	assert.NoError(t, err)
@@ -1267,6 +1441,7 @@ func Test_osdsInSameBucket(t *testing.T) {
 
 	_, err = tree.osdsInSameBucket(42, "host") // not in the tree
 	assert.Error(t, err)
+	assert.False(t, isUnplaceable(err))
 
 	// link node1 (ID -4) under a second root, making the path from OSD 4 to its root ambiguous;
 	// 'ceph osd tree' then dumps node1 and its OSDs a second time, under the second root
@@ -1284,7 +1459,9 @@ func Test_osdsInSameBucket(t *testing.T) {
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []int{1, 4, 7}, sets.List(osds))
 	_, err = tree.osdsInSameBucket(4, "root")
-	assert.Error(t, err)
+	var ambiguous *ambiguousBucketError
+	assert.ErrorAs(t, err, &ambiguous)
+	assert.True(t, isUnplaceable(err))
 	// the OSDs of node1 are not in the default root alone, so they are left out of it
 	osds, err = tree.osdsInSameBucket(3, "root")
 	assert.NoError(t, err)
