@@ -596,7 +596,7 @@ func (c *cluster) postMonStartupActions(imageCephVersion cephver.CephVersion) er
 	return nil
 }
 
-// configureHealthSettings mutes the health warnings configured in the cluster spec and
+// configureHealthWarnings mutes the health warnings configured in the cluster spec and
 // disables the insecure global ID reclaim when there are no legacy clients connected.
 func (c *cluster) configureHealthWarnings() {
 	for warning, spec := range c.Spec.HealthCheck.MuteHealthWarning {
@@ -1018,7 +1018,8 @@ func (c *cluster) setIsSafeToRotateCephxKeys(imageCephVersion cephver.CephVersio
 		// leastOsdVer==0.0.0 means no OSDs running, meaning no workaround needed
 		logger.Infof(
 			"for cluster in namespace %q, enabling cephx key rotation because no OSDs were detected requiring workaround",
-			c.Namespace)
+			c.Namespace,
+		)
 		keyring.SetAllowCephxKeyRotationForCluster(c.Namespace, true)
 		return nil
 	}
@@ -1026,12 +1027,14 @@ func (c *cluster) setIsSafeToRotateCephxKeys(imageCephVersion cephver.CephVersio
 	if imageSupports && !leastOsdSupports {
 		logger.Infof(
 			"for cluster in namespace %q, disabling cephx key rotation because desired ceph image version %q supports AES256K keys, but at least one OSD (low version %q) does not",
-			c.Namespace, &imageCephVersion, &leastOsdVer)
+			c.Namespace, &imageCephVersion, &leastOsdVer,
+		)
 		keyring.SetAllowCephxKeyRotationForCluster(c.Namespace, false)
 	} else {
 		logger.Infof(
 			"for cluster in namespace %q, enabling cephx key rotation because desired ceph image version %q (supports AES256K %t) and least OSD version %q (supports AES256K %t) are compatible",
-			c.Namespace, &imageCephVersion, imageSupports, &leastOsdVer, leastOsdSupports)
+			c.Namespace, &imageCephVersion, imageSupports, &leastOsdVer, leastOsdSupports,
+		)
 		keyring.SetAllowCephxKeyRotationForCluster(c.Namespace, true)
 	}
 
