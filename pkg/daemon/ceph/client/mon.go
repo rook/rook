@@ -57,14 +57,20 @@ type AddrvecEntry struct {
 	Nonce int    `json:"nonce"`
 }
 
+// CipherEntry represents an entry that represents a cipher type
+type CipherEntry struct {
+	Name string `json:"name"`
+}
+
 // MonDump represents the response from a mon dump
 type MonDump struct {
-	StretchMode      bool           `json:"stretch_mode"`
-	ElectionStrategy int            `json:"election_strategy"`
-	FSID             string         `json:"fsid"`
-	Mons             []MonDumpEntry `json:"mons"`
-	Quorum           []int          `json:"quorum"`
-	TiebreakerMon    string         `json:"tiebreaker_mon"`
+	StretchMode        bool           `json:"stretch_mode"`
+	ElectionStrategy   int            `json:"election_strategy"`
+	FSID               string         `json:"fsid"`
+	Mons               []MonDumpEntry `json:"mons"`
+	Quorum             []int          `json:"quorum"`
+	TiebreakerMon      string         `json:"tiebreaker_mon"`
+	AuthAllowedCiphers []CipherEntry  `json:"auth_allowed_ciphers"`
 }
 
 type MonDumpEntry struct {

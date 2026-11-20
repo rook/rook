@@ -139,6 +139,7 @@ func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
 // Test to make sure all rook components are installed and Running
 func (s *SmokeSuite) TestARookClusterInstallation_SmokeTest() {
 	checkIfRookClusterIsInstalled(&s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 3)
+	checkRookClusterCephxStatus(&s.Suite, s.k8sh, s.settings.Namespace, s.settings.ClusterName)
 }
 
 // Smoke Test for Mon failover - Test checks the following operations for the Mon failover in order

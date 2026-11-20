@@ -925,6 +925,19 @@ type LocalCephxStatus struct {
 
 // ClusterCephxStatus defines the cephx key rotation status of various daemons on the cephCluster resource
 type ClusterCephxStatus struct {
+	// AllowedCiphers reports the CephX ciphers that Ceph is configured to support.
+	// Output type is a string rather than CephxKeyType so that Rook can output Ceph's reported
+	// support even when the reported type is unknown to Rook.
+	// An empty value means the allowed ciphers are unknown, likely a Ceph cluster that does not
+	// support the AES256K cipher/type.
+	// +kubebuilder:validation:items:MinLength=1
+	// +kubebuilder:validation:items:MaxLength=32
+	// +kubebuilder:validation:MinItems=0
+	// +kubebuilder:validation:MaxItems=8
+	// +listType=set
+	// +optional
+	AllowedCiphers []string `json:"allowedCiphers,omitempty"`
+
 	// Admin shows the CephX key status for the client.admin key
 	Admin CephxStatus `json:"admin,omitempty"`
 	// Mon represents the CephX key status of the Monitor daemons

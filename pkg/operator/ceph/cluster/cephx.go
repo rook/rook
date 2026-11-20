@@ -202,7 +202,8 @@ func rotateAdminCephxKey(
 	desiredCephVersion := clusterInfo.CephVersion // TODO: update this when/if WithCephVersionUpdate is implemented
 	// ignore key type daemon keys
 	shouldRotate, err := keyring.ShouldRotateCephxKeys(
-		cephCluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, desiredCephVersion, cephCluster.Status.Cephx.Admin, true, clusterInfo.Namespace)
+		cephCluster.Spec.Security.CephX.Daemon, clusterInfo.CephVersion, desiredCephVersion, cephCluster.Status.Cephx.Admin, true, clusterInfo.Namespace,
+	)
 	if err != nil {
 		return errors.Wrap(err, "failed to determine if admin cephx key should be rotated")
 	}

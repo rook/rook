@@ -5873,6 +5873,22 @@ CSI key rotation can affect existing PV connections, so take care when exercisin
 <tbody>
 <tr>
 <td>
+<code>allowedCiphers</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AllowedCiphers reports the CephX ciphers that Ceph is configured to support.
+Output type is a string rather than CephxKeyType so that Rook can output Ceph&rsquo;s reported
+support even when the reported type is unknown to Rook.
+An empty value means the allowed ciphers are unknown, likely a Ceph cluster that does not
+support the AES256K cipher/type.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>admin</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.CephxStatus">

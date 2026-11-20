@@ -6336,6 +6336,21 @@ spec:
                           minLength: 3
                           type: string
                       type: object
+                    allowedCiphers:
+                      description: |-
+                        AllowedCiphers reports the CephX ciphers that Ceph is configured to support.
+                        Output type is a string rather than CephxKeyType so that Rook can output Ceph's reported
+                        support even when the reported type is unknown to Rook.
+                        An empty value means the allowed ciphers are unknown, likely a Ceph cluster that does not
+                        support the AES256K cipher/type.
+                      items:
+                        maxLength: 32
+                        minLength: 1
+                        type: string
+                      maxItems: 8
+                      minItems: 0
+                      type: array
+                      x-kubernetes-list-type: set
                     cephExporter:
                       description: Ceph Exporter represents the cephx key rotation status of the ceph exporter daemon
                       properties:

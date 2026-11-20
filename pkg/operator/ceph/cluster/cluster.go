@@ -515,6 +515,14 @@ func (c *cluster) postMonStartupActions(imageCephVersion cephver.CephVersion) er
 		return err
 	}
 
+	monDump, err := client.GetMonDump(c.context, c.ClusterInfo)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get mon dump for determining allowed cephx ciphers")
+	}
+	if err := c.setCephxAllowedCiphersStatus(monDump.AuthAllowedCiphers); err != nil {
+		return err
+	}
+
 	// rotate admin key first thing after mons are updated
 	err = rotateAdminCephxKey(c.context, c.ClusterInfo, c.ownerInfo, clusterObj) // TODO: rename?
 	if err != nil {
@@ -1018,7 +1026,8 @@ func (c *cluster) setIsSafeToRotateCephxKeys(imageCephVersion cephver.CephVersio
 		// leastOsdVer==0.0.0 means no OSDs running, meaning no workaround needed
 		logger.Infof(
 			"for cluster in namespace %q, enabling cephx key rotation because no OSDs were detected requiring workaround",
-			c.Namespace)
+			c.Namespace,
+		)
 		keyring.SetAllowCephxKeyRotationForCluster(c.Namespace, true)
 		return nil
 	}
@@ -1026,12 +1035,14 @@ func (c *cluster) setIsSafeToRotateCephxKeys(imageCephVersion cephver.CephVersio
 	if imageSupports && !leastOsdSupports {
 		logger.Infof(
 			"for cluster in namespace %q, disabling cephx key rotation because desired ceph image version %q supports AES256K keys, but at least one OSD (low version %q) does not",
-			c.Namespace, &imageCephVersion, &leastOsdVer)
+			c.Namespace, &imageCephVersion, &leastOsdVer,
+		)
 		keyring.SetAllowCephxKeyRotationForCluster(c.Namespace, false)
 	} else {
 		logger.Infof(
 			"for cluster in namespace %q, enabling cephx key rotation because desired ceph image version %q (supports AES256K %t) and least OSD version %q (supports AES256K %t) are compatible",
-			c.Namespace, &imageCephVersion, imageSupports, &leastOsdVer, leastOsdSupports)
+			c.Namespace, &imageCephVersion, imageSupports, &leastOsdVer, leastOsdSupports,
+		)
 		keyring.SetAllowCephxKeyRotationForCluster(c.Namespace, true)
 	}
 
@@ -1049,6 +1060,35 @@ func (c *cluster) setIsSafeToRotateCephxKeys(imageCephVersion cephver.CephVersio
 		logger.Infof("upgrade: restarting rook operator after cephx key rotation is re-enabled for cluster in namespace %q", c.Namespace)
 		reloadManagerFunc()
 		return errors.Wrapf(errOsdUpgradeCephxRotationWorkaroundRestart, "upgrade") // context cancel will error anyway, so return err now
+	}
+
+	return nil
+}
+
+// setCephxAllowedCiphersStatus sets the CephCluster status that reports the allowed CephX key types/ciphers
+func (c *cluster) setCephxAllowedCiphersStatus(allowed []client.CipherEntry) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cluster := &cephv1.CephCluster{}
+		if err := c.context.Client.Get(c.ClusterInfo.Context, c.ClusterInfo.NamespacedName(), cluster); err != nil {
+			return errors.Wrapf(err, "failed to get clusterto update allowed ciphers cephx status")
+		}
+
+		s := make([]string, 0, len(allowed))
+		for _, a := range allowed {
+			s = append(s, a.Name)
+		}
+		cluster.Status.Cephx.AllowedCiphers = s
+
+		log.NamespacedDebug(c.Namespace, logger, "updating allowed ciphers cephx status to %+v", cluster.Status.Cephx.AllowedCiphers)
+		if err := reporting.UpdateStatus(c.context.Client, cluster); err != nil {
+			return errors.Wrapf(err, "failed to update allowed ciphers cephx status")
+		}
+		log.NamespacedInfo(c.Namespace, logger, "successfully updated allowed ciphers cephx status")
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil
