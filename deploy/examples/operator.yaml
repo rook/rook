@@ -245,6 +245,14 @@ spec:
             # For more context, see https://github.com/rook/rook/issues/15564
             - name: ROOK_CEPH_MON_RUN_AS_ROOT
               value: "false"
+
+            # The name of the Kubernetes cluster where Rook runs. When set, every metric
+            # scraped by Rook's ServiceMonitors gets a "k8s_cluster" relabel target with
+            # this value, which allows Ceph metrics from multiple Kubernetes clusters to
+            # be distinguished in centralized monitoring backends (e.g. Thanos, Mimir or
+            # VictoriaMetrics). When empty, the "k8s_cluster" label is not set.
+            - name: ROOK_K8S_CLUSTER_NAME
+              value: ""
             # Provide customised regex as the values using comma. For eg. regex for rbd based volume, value will be like "(?i)rbd[0-9]+".
             # In case of more than one regex, use comma to separate between them.
             # Default regex will be "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"

@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 func getMonitoringClient(context *clusterd.Context) (*monitoringclient.Clientset, error) {
@@ -35,6 +36,47 @@ func getMonitoringClient(context *clusterd.Context) (*monitoringclient.Clientset
 		return nil, fmt.Errorf("failed to get monitoring client. %v", err)
 	}
 	return client, nil
+}
+
+// K8sClusterNameEnvVar is the operator setting used to advertise the name of the
+// Kubernetes cluster where Rook runs. When set, the value is applied to every
+// metric scraped by Rook's ServiceMonitors as the "k8s_cluster" relabel target.
+// The setting can be provided as an environment variable of the operator pod or
+// as a key of the rook-ceph-operator-config ConfigMap.
+const K8sClusterNameEnvVar = "ROOK_K8S_CLUSTER_NAME"
+
+// monitoringRelabelConfigs returns the relabel configs applied to every metric
+// scraped by Rook's ServiceMonitors:
+//   - "cluster" holds the Ceph cluster namespace. Ceph's Prometheus alert rules
+//     and dashboards reference this label, and Rook has already released with
+//     the namespace as its value, so the existing behavior is kept.
+//   - "ceph_cluster" always holds the Ceph cluster namespace, as an unambiguous
+//     alias for the overloaded "cluster" label.
+//   - "k8s_cluster" holds the user-supplied Kubernetes cluster name when
+//     ROOK_K8S_CLUSTER_NAME is set. Prometheus applies externalLabels only to
+//     samples that do not already carry the label, so the "cluster" label above
+//     shadows the external label of the same name in multi-site monitoring
+//     setups (Thanos, Mimir, VictoriaMetrics, ...). Grouping and filtering on
+//     the explicit "k8s_cluster" label allows metrics from different Kubernetes
+//     clusters to be told apart in a centralized monitoring backend.
+func monitoringRelabelConfigs(namespace string) []monitoringv1.RelabelConfig {
+	configs := []monitoringv1.RelabelConfig{
+		{
+			TargetLabel: "cluster",
+			Replacement: ptr.To(namespace),
+		},
+		{
+			TargetLabel: "ceph_cluster",
+			Replacement: ptr.To(namespace),
+		},
+	}
+	if k8sClusterName := GetOperatorSetting(K8sClusterNameEnvVar, ""); k8sClusterName != "" {
+		configs = append(configs, monitoringv1.RelabelConfig{
+			TargetLabel: "k8s_cluster",
+			Replacement: ptr.To(k8sClusterName),
+		})
+	}
+	return configs
 }
 
 // GetServiceMonitor creates a serviceMonitor object template
@@ -61,14 +103,11 @@ func GetServiceMonitor(name string, namespace string, portName string) *monitori
 			},
 			Endpoints: []monitoringv1.Endpoint{
 				{
-					Port:        portName,
-					Path:        "/metrics",
-					Interval:    "10s",
-					HonorLabels: true,
-					RelabelConfigs: []monitoringv1.RelabelConfig{{
-						TargetLabel: "cluster",
-						Replacement: new(namespace),
-					}},
+					Port:           portName,
+					Path:           "/metrics",
+					Interval:       "10s",
+					HonorLabels:    true,
+					RelabelConfigs: monitoringRelabelConfigs(namespace),
 				},
 			},
 		},
