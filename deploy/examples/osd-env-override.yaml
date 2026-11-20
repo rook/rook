@@ -2,6 +2,15 @@
 # The `rook-ceph-osd-env-override` ConfigMap is a development feature
 # that allows to inject arbitrary environment variables to OSD-related
 # containers created by the operator.
+#
+# Containers in every OSD pod, OSD prepare job and key rotation job created by
+# the operator load this ConfigMap with `envFrom`. This includes the privileged
+# `cephx-keyring-update` init container and, for OSDs on host devices, the
+# `activate` init container, which run bash as root with the Ceph admin keyring
+# mounted, and the prepare job, which reads `ROOK_*` variables as its
+# command-line flags. Write access to this ConfigMap, which any principal that
+# can write ConfigMaps in the cluster namespace has, is therefore equivalent to
+# root on the storage nodes.
 # ###############################################################################################################
 
 apiVersion: v1

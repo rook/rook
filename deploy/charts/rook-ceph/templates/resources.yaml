@@ -12283,6 +12283,7 @@ spec:
                     For example, quay.io/ceph/nvmeof:1.5
                     If not specified, the image is fetched from the Ceph mon config store
                     (mgr/cephadm/container_image_nvmeof).
+                    The image runs in a privileged container with access to the Ceph admin keyring.
                   maxLength: 1024
                   minLength: 1
                   type: string
