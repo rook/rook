@@ -9,20 +9,20 @@ Kubernetes or might not yet support PVCs. Rook NFS storage can provide access to
 filesystem storage from within the Kubernetes cluster via PVC while simultaneously providing access
 via direct client connection from within or outside of the Kubernetes cluster.
 
-!!! warning
-    Simultaneous access to NFS storage from Pods and from external clients complicates NFS user
-    ID mapping significantly. Client IDs mapped from external clients will not be the same as the
-    IDs associated with the NFS CSI driver, which mount exports for Kubernetes pods.
+> [!WARNING]
+> Simultaneous access to NFS storage from Pods and from external clients complicates NFS user
+> ID mapping significantly. Client IDs mapped from external clients will not be the same as the
+> IDs associated with the NFS CSI driver, which mount exports for Kubernetes pods.
 
-!!! warning
-    Due to a number of Ceph issues and changes, Rook officially only supports Ceph
-    v16.2.7 or higher for CephNFS. If you are using an earlier version, upgrade your Ceph version
-    following the advice given in Rook's
-    [v1.9 NFS docs](https://rook.github.io/docs/rook/latest/CRDs/ceph-nfs-crd/).
+> [!WARNING]
+> Due to a number of Ceph issues and changes, Rook officially only supports Ceph
+> v16.2.7 or higher for CephNFS. If you are using an earlier version, upgrade your Ceph version
+> following the advice given in Rook's
+> [v1.9 NFS docs](https://rook.github.io/docs/rook/latest/CRDs/ceph-nfs-crd/).
 
-!!! note
-    CephNFSes support NFSv4.1+ access only. Serving earlier protocols inhibits responsiveness after
-    a server restart.
+> [!NOTE]
+> CephNFSes support NFSv4.1+ access only. Serving earlier protocols inhibits responsiveness after
+> a server restart.
 
 
 ## Prerequisites
@@ -147,9 +147,9 @@ the export path and leaving the directory as just `/`.
 mount -t nfs4 -o proto=tcp <nfs-service-address>:/<export-path> <mount-location>
 ```
 
-!!! note
-    If `spec.server.port` is set to a non-default value, clients must mount using that port 
-    (for example `-o proto=tcp,port=<port>`).
+> [!NOTE]
+> If `spec.server.port` is set to a non-default value, clients must mount using that port 
+> (for example `-o proto=tcp,port=<port>`).
 
 
 ## Exposing the NFS server outside of the Kubernetes cluster

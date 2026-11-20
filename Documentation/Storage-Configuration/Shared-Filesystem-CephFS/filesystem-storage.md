@@ -115,8 +115,8 @@ kubectl create -f deploy/examples/csi/cephfs/storageclass.yaml
 
 ## Quotas
 
-!!! attention
-    The CephFS CSI driver uses quotas to enforce the PVC size requested.
+> [!ATTENTION]
+> The CephFS CSI driver uses quotas to enforce the PVC size requested.
 
 Only newer kernels support CephFS quotas (kernel version of at least 4.17).
 If you require quotas to be enforced and the kernel driver does not support it, you can disable the kernel driver
@@ -386,8 +386,8 @@ kubectl delete -f kube-registry.yaml
 
 To delete the filesystem components and backing data, delete the Filesystem CRD.
 
-!!! warning
-    Data will be deleted if **preserveFilesystemOnDelete=false**.
+> [!WARNING]
+> Data will be deleted if **preserveFilesystemOnDelete=false**.
 
 ```console
 kubectl -n rook-ceph delete cephfilesystem myfs

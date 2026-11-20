@@ -1,0 +1,12 @@
+{{- /* Logo and community links, shown above the copyright. */ -}}
+<div class="rook-footer">
+  <a class="rook-footer-logo" href="https://rook.io/"><img src="https://rook.io/images/rook-logo-small.svg" alt="rook.io logo" height="32" /></a>
+  <div class="rook-footer-social">
+    {{- range site.Params.communityLinks }}
+      <a href="{{ .link }}" title="{{ .name }}" rel="noreferrer">
+        {{- partial "utils/icon.html" (dict "name" .icon "attributes" "height=20") -}}
+        <span class="hx:sr-only">{{ .name }}</span>
+      </a>
+    {{- end }}
+  </div>
+</div>

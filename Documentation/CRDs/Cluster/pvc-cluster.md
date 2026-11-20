@@ -193,8 +193,8 @@ An example of the `storage` section when specifying the metadata device is:
             - ReadWriteOnce
 ```
 
-!!! note
-    Note that Rook only supports three naming convention for a given template:
+> [!NOTE]
+> Note that Rook only supports three naming convention for a given template:
 
 * "data": represents the main OSD block device, where your data is being stored.
 * "metadata": represents the metadata (including block.db and block.wal) device used to store the Ceph Bluestore database for an OSD.

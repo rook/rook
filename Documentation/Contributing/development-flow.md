@@ -57,11 +57,11 @@ git fetch -a
 make build
 ```
 
-!!! tip
-    If in a Linux environment and `make build` command throws an error like `unknown revision` for some imports, add `export GOPROXY=https://proxy.golang.org,direct` to `~/.bashrc`. Reload your environment and confirm with `go env` that `GOPROXY` is set.
+> [!TIP]
+> If in a Linux environment and `make build` command throws an error like `unknown revision` for some imports, add `export GOPROXY=https://proxy.golang.org,direct` to `~/.bashrc`. Reload your environment and confirm with `go env` that `GOPROXY` is set.
 
-!!! hint
-    Make will automatically pick up `podman` if `docker` packages are not available on your machine.
+> [!HINT]
+> Make will automatically pick up `podman` if `docker` packages are not available on your machine.
 
 ### Development Settings
 
@@ -74,9 +74,9 @@ the following settings in your IDE:
 
 #### VS Code
 
-!!! tip
-    VS Code will prompt you automatically with some recommended extensions to install, such as
-    Markdown, Go, YAML validator, and ShellCheck.
+> [!TIP]
+> VS Code will prompt you automatically with some recommended extensions to install, such as
+> Markdown, Go, YAML validator, and ShellCheck.
 
 VS Code will automatically use the recommended settings in the `.vscode/settings.json` file.
 
@@ -157,8 +157,8 @@ Authoring a design document has many advantages:
 * Obtain agreement amongst the community before code is written to avoid wasted effort in the wrong direction
 * Newcomers may more quickly understand the feature
 
-!!! note
-    Writing code to prototype the feature while working on the design may be very useful to help flesh out the approach.
+> [!NOTE]
+> Writing code to prototype the feature while working on the design may be very useful to help flesh out the approach.
 
 A design document should be written as a markdown file in the [design folder](https://github.com/rook/rook/tree/master/design).
 Follow the process outlined in the [design template](https://github.com/rook/rook/tree/master/design/design_template.md).
@@ -239,15 +239,15 @@ Every one of them can be run locally, and doing so before pushing saves a full C
 | Commit message format | `make lint.commits` | every commit |
 | Markdown formatting | `make lint.markdown` | any change under `Documentation/` |
 
-!!! tip
-    Build and test through `make` rather than invoking `go` directly. The `make` targets set the
-    build flags and tags that Rook needs, so an ad-hoc `go build` or `go test` may not match what CI
-    runs. Run `make help` to see all targets.
+> [!TIP]
+> Build and test through `make` rather than invoking `go` directly. The `make` targets set the
+> build flags and tags that Rook needs, so an ad-hoc `go build` or `go test` may not match what CI
+> runs. Run `make help` to see all targets.
 
-!!! note
-    `make test` only runs the unit tests under `cmd/` and `pkg/` (the `GO_SUBDIRS`). Test files
-    elsewhere, such as under `tests/framework/`, are compiled by the linters but are never run by
-    the unit test CI.
+> [!NOTE]
+> `make test` only runs the unit tests under `cmd/` and `pkg/` (the `GO_SUBDIRS`). Test files
+> elsewhere, such as under `tests/framework/`, are compiled by the linters but are never run by
+> the unit test CI.
 
 ## Unit Tests
 
@@ -304,8 +304,8 @@ for many Linux distributions. It can also be installed into the system
 or a python virtual environment (venv) with `pip`.
 Refer to the respective project website for more installation instructions.
 
-!!! tip
-    Run `make help` to see a list of all possible make targets
+> [!TIP]
+> Run `make help` to see a list of all possible make targets
 
 ## Generated Code and CRDs
 
@@ -478,8 +478,8 @@ Make modifications directly in the manager module and reload:
 
 3. Make the modifications needed in the required manager module. The manager module source code is found in `/usr/share/ceph/mgr/`.
 
-    !!! Note
-        If the manager pod is restarted, all modifications made in the mgr container will be lost
+    > [!NOTE]
+    > If the manager pod is restarted, all modifications made in the mgr container will be lost
 
 4. Restart the modified manager module to test the modifications:
 

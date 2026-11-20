@@ -52,9 +52,9 @@ drivers:
     enableFencing: true
 ```
 
-!!! important
-    The Network Fencing feature requires the CSI-Addons controller to be deployed separately for auto-unfencing. See
-    [Deploying the controller](../Storage-Configuration/Ceph-CSI/ceph-csi-drivers.md#deploying-the-controller).
+> [!IMPORTANT]
+> The Network Fencing feature requires the CSI-Addons controller to be deployed separately for auto-unfencing. See
+> [Deploying the controller](../Storage-Configuration/Ceph-CSI/ceph-csi-drivers.md#deploying-the-controller).
 
 See: [Network Fencing](../Storage-Configuration/Ceph-CSI/csi-configuration.md#network-fencing)
 

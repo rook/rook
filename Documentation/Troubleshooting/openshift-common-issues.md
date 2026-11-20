@@ -29,8 +29,8 @@ OpenShift Console uses OpenShift Prometheus for monitoring and populating data i
 
 ## Troubleshoot Monitoring Issues
 
-!!! attention
-    Switch to `rook-ceph` namespace using `oc project rook-ceph`.
+> [!ATTENTION]
+> Switch to `rook-ceph` namespace using `oc project rook-ceph`.
 
 1. Ensure ceph-mgr pod is Running
 

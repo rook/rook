@@ -98,8 +98,8 @@ The setup script configures DRBD, performs initial sync, and creates the auto-st
 
 `./deploy/examples/drbd-setup-experimental.sh -h`
 
-!!! note
-    Network connectivity on DRBD replication port (default: 7794) between nodes, we can customise this in the script.
+> [!NOTE]
+> Network connectivity on DRBD replication port (default: 7794) between nodes, we can customise this in the script.
 
 ### Step 4: Verify DRBD Setup
 

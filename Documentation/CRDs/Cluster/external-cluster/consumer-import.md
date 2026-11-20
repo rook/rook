@@ -1,3 +1,7 @@
+---
+title: Import Ceph configuration to the Rook consumer cluster
+---
+
 # Import Ceph configuration to the Rook consumer cluster
 
 ## Installation types
@@ -56,9 +60,9 @@ kubectl create -f operator.yaml -f common-external.yaml -f cluster-external.yaml
 
 4. Run the import script.
 
-    !!! note
-        If your Rook cluster nodes are running a kernel earlier than or equivalent to 5.4, remove
-        `fast-diff, object-map, deep-flatten,exclusive-lock` from the `imageFeatures` line.
+    > [!NOTE]
+    > If your Rook cluster nodes are running a kernel earlier than or equivalent to 5.4, remove
+    > `fast-diff, object-map, deep-flatten,exclusive-lock` from the `imageFeatures` line.
 
     ```console
     . import-external-cluster.sh

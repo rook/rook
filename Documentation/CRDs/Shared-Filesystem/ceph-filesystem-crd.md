@@ -8,8 +8,8 @@ Rook allows creation and customization of shared filesystems through the custom 
 
 ### Replicated
 
-!!! note
-    This sample requires *at least 1 OSD per node*, with each OSD located on *3 different nodes*.
+> [!NOTE]
+> This sample requires *at least 1 OSD per node*, with each OSD located on *3 different nodes*.
 
 Each OSD must be located on a different node, because both of the defined pools set the [`failureDomain`](../Block-Storage/ceph-block-pool-crd.md#spec) to `host` and the `replicated.size` to `3`.
 
@@ -66,8 +66,8 @@ spec:
 ### Erasure Coded
 
 Erasure coded pools require the OSDs to use `bluestore` for the configured [`storeType`](../Cluster/ceph-cluster-crd.md#osd-configuration-settings). Additionally, erasure coded pools can only be used with `dataPools`. The `metadataPool` must use a replicated pool.
-!!! note
-    This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+> [!NOTE]
+> This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
 
 The OSDs must be located on different nodes, because the [`failureDomain`](../Block-Storage/ceph-block-pool-crd.md#spec) will be set to `host` by default, and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 

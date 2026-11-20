@@ -1,0 +1,10 @@
+{{- /* @context {dict} a navigation entry from rook/nav.html. @returns the first page in it. */ -}}
+{{- $first := false -}}
+{{- with .page -}}
+  {{- $first = . -}}
+{{- else -}}
+  {{- range .items -}}
+    {{- if not $first -}}{{- $first = partial "rook/first-page.html" . -}}{{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- return $first -}}

@@ -63,9 +63,9 @@ and it is safe to proceed. If an OSD is failing, the PGs will not be perfectly c
 Update your CephCluster CR. Depending on your CR settings, you may need to remove the device from the list or update the device filter.
 If you are using `useAllDevices: true`, no change to the CR is necessary.
 
-!!! important
-    **On host-based clusters, you may need to stop the Rook Operator while performing OSD
-    removal steps in order to prevent Rook from detecting the old OSD and trying to re-create it before the disk is wiped or removed.**
+> [!IMPORTANT]
+> **On host-based clusters, you may need to stop the Rook Operator while performing OSD
+> removal steps in order to prevent Rook from detecting the old OSD and trying to re-create it before the disk is wiped or removed.**
 
 To stop the Rook Operator, run:
 
@@ -114,8 +114,8 @@ $ ceph osd down osd.<ID>
 
 ### Purge the OSD with kubectl
 
-!!! note
-    The `rook-ceph` kubectl plugin must be [installed](https://github.com/rook/kubectl-rook-ceph#install)
+> [!NOTE]
+> The `rook-ceph` kubectl plugin must be [installed](https://github.com/rook/kubectl-rook-ceph#install)
 
 ```bash
 kubectl rook-ceph rook purge-osd 0 --force
@@ -180,8 +180,8 @@ wipe a disk on the [Cleaning up a Cluster](../ceph-teardown.md#delete-the-data-o
 
 This procedure replaces a failed disk while the OSD keeps its original ID and its place in the CRUSH map, so Ceph backfills only the data that was on the failed disk rather than rebalancing the whole cluster. The replacement is triggered by an annotation on the OSD deployment.
 
-!!! note
-    This applies to **host-based OSDs** only. To replace a disk backing a PVC-based OSD, follow [Remove an OSD](#remove-an-osd) instead and let the operator re-create it.
+> [!NOTE]
+> This applies to **host-based OSDs** only. To replace a disk backing a PVC-based OSD, follow [Remove an OSD](#remove-an-osd) instead and let the operator re-create it.
 
 ### How it works
 
@@ -264,8 +264,8 @@ Rook marks the OSD back `in` and brings it up again within a minute, and Ceph ba
 
 ### Step 3: Swap the disk
 
-!!! important
-    Pull the disk only **after** the `osd.rook.io/replace-ready-for-swap` annotation appears. Until the swap, the failed disk still carries its Ceph signature, which is both what reserves the OSD ID for the new disk and how Rook detects the swap. Swapping before the annotation appears causes the new disk to be provisioned as a brand-new OSD with a **different** ID.
+> [!IMPORTANT]
+> Pull the disk only **after** the `osd.rook.io/replace-ready-for-swap` annotation appears. Until the swap, the failed disk still carries its Ceph signature, which is both what reserves the OSD ID for the new disk and how Rook detects the swap. Swapping before the annotation appears causes the new disk to be provisioned as a brand-new OSD with a **different** ID.
 
 Physically remove the failed disk and insert the replacement. You can do this at any time after the annotation appears, minutes or days later. The new disk must go into the **same host**. It does not have to be the same physical slot unless you select devices by a stable path (see [Before you begin](#before-you-begin)).
 
@@ -322,5 +322,5 @@ storage:
 
 Details about the migration status can be found under the cephCluster `status.storage.osd.migrationStatus.pending` field which shows the total number of OSDs that are pending migration.
 
-!!! note
-    Performance of the cluster might be impacted during data rebalancing while OSDs are being migrated.
+> [!NOTE]
+> Performance of the cluster might be impacted during data rebalancing while OSDs are being migrated.

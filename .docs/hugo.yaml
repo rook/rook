@@ -1,0 +1,136 @@
+baseURL: /
+title: Rook Ceph Documentation
+locale: en-us
+enableGitInfo: false
+enableEmoji: true
+# keep the upper case directory names of the Documentation/ tree in the URLs
+disablePathToLower: true
+# The published site sets the base URL to https://rook.io/docs/rook/<version>/ when building
+# (HUGO_BASEURL), see build/release/Makefile.
+disableKinds:
+  - taxonomy
+  - term
+  - rss
+# directories have no index page in the published site; sections exist only to build the navigation
+cascade:
+  - type: docs
+  - target:
+      kind: section
+    build:
+      render: never
+      list: always
+outputs:
+  home: [html]
+  page: [html]
+
+module:
+  imports:
+    - path: github.com/imfing/hextra
+  mounts:
+    - source: ../Documentation
+      target: content
+      files:
+        - "! README.md"
+        - "! **.gotmpl"
+        - "! **.gotmpl.md"
+        - "! gen-crd-api-reference-docs/**"
+    # Hugo does not follow symlinked files, so mount the targets of the symlinks in Documentation/
+    - source: ../Documentation/README.md
+      target: content/Getting-Started/intro.md
+    - source: ../Documentation/Storage-Configuration/ceph-teardown.md
+      target: content/Getting-Started/ceph-teardown.md
+    - source: content
+      target: content
+    # images and other files next to the docs are published at the same paths
+    - source: ../Documentation
+      target: static
+      files:
+        - "! **.md"
+        - "! **.gotmpl"
+        - "! .pages"
+        - "! **/.pages"
+    # the .pages files define the navigation order
+    - source: ../Documentation
+      target: assets/nav
+      files:
+        - "**/.pages"
+    - source: layouts
+      target: layouts
+    - source: assets
+      target: assets
+    - source: static
+      target: static
+    - source: i18n
+      target: i18n
+
+markup:
+  goldmark:
+    renderer:
+      # CRDs/specification.md and some docs embed raw HTML
+      unsafe: true
+    extensions:
+      # not enabled with MkDocs; it would also change the heading ids
+      typographer: false
+      linkify: true
+      footnote: true
+      definitionList: true
+      table: true
+      taskList: true
+      strikethrough: false
+    parser:
+      # mostly matches the MkDocs heading ids; the headings where it differs, such as duplicates,
+      # have explicit ids ({#id}) to keep links to them working
+      autoHeadingIDType: github-ascii
+      attribute:
+        title: true
+        block: false
+  highlight:
+    noClasses: false
+    lineNos: true
+    lineNumbersInTable: true
+  tableOfContents:
+    startLevel: 2
+    endLevel: 3
+
+params:
+  repoURL: https://github.com/rook/rook
+  # links to the rook repo on the master branch are changed to point to this branch
+  # (HUGO_PARAMS_GITHUBBRANCH, set by the Makefile)
+  githubBranch: master
+  navbar:
+    logo:
+      path: https://rook.io/images/rook-logo.svg
+      height: 24
+  communityLinks:
+    - name: Slack
+      icon: slack
+      link: https://slack.rook.io/
+    - name: Twitter
+      icon: twitter
+      link: https://twitter.com/rook_io
+    - name: Mailing list
+      icon: mail
+      link: https://groups.google.com/forum/#!forum/rook-dev
+    - name: Blog
+      icon: rss
+      link: https://blog.rook.io/
+  page:
+    width: wide
+    displayPagination: false
+  theme:
+    default: system
+    displayToggle: true
+  footer:
+    enable: true
+    displayCopyright: true
+    displayPoweredBy: false
+  editURL:
+    enable: true
+    base: https://github.com/rook/rook/edit/master/Documentation
+  search:
+    enable: true
+    type: flexsearch
+    flexsearch:
+      index: content
+      tokenize: forward
+  displayUpdatedDate: false

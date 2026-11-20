@@ -1,0 +1,21 @@
+{{- /*
+  Alerts are written as `> [!TYPE] optional title`. Besides the GitHub alert types, the admonition
+  types used with MkDocs are accepted and mapped to the closest style. Without a title, the type
+  name is the title.
+*/ -}}
+{{- $styles := dict
+  "note" "note" "info" "note" "example" "note" "advanced" "note"
+  "tip" "tip" "hint" "tip"
+  "important" "important"
+  "warning" "warning" "warn" "warning" "attention" "warning"
+  "caution" "caution" "bug" "caution"
+-}}
+{{- $style := index $styles .AlertType -}}
+{{- if not $style -}}
+  {{- warnf "%s: alert type %q is not supported" .Page.File.Path .AlertType -}}
+  {{- $style = "note" -}}
+{{- end -}}
+{{- $title := .AlertTitle | default (strings.FirstUpper .AlertType) | htmlEscape -}}
+{{- /* inline code is the only markup used in titles */ -}}
+{{- $title = replaceRE "`([^`]+)`" "<code>$1</code>" $title | safeHTML -}}
+{{- partial "components/github-style-alert.html" (dict "content" .Text "alertType" $style "alertTitle" $title "alertSign" .AlertSign) -}}

@@ -32,10 +32,6 @@ jobs:
         with:
           go-version: "1.26"
 
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: 3.9
-
       - uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25.0.0
         with:
           globs: |
@@ -46,8 +42,6 @@ jobs:
         run: |
           make gen.docs
           tests/scripts/validate_modified_files.sh docs
-      - name: Install mkdocs and dependencies
-        run: cd build/release/ && make deps.docs
 
       - name: Check documentation for CRDs
         run: |
@@ -58,5 +52,5 @@ jobs:
           fi
           git diff --ignore-matching-lines='on git commit' --exit-code
 
-      - name: Build documentation using mkdocs
+      - name: Build documentation
         run: make docs-build

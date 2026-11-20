@@ -80,10 +80,10 @@ When the prefix is set, the driver names will be:
 * CephFS: `my-prefix.cephfs.csi.ceph.com`
 * NFS: `my-prefix.nfs.csi.ceph.com`
 
-!!! note
-    Please be careful when setting the `CSI_DRIVER_NAME_PREFIX`
-    environment variable. It should be done only in fresh deployments because
-    changing the prefix in an existing cluster will result in unexpected behavior.
+> [!NOTE]
+> Please be careful when setting the `CSI_DRIVER_NAME_PREFIX`
+> environment variable. It should be done only in fresh deployments because
+> changing the prefix in an existing cluster will result in unexpected behavior.
 
 To find the provisioner name in the example storageclasses and
 volumesnapshotclass, search for: `# csi-provisioner-name`
@@ -235,12 +235,12 @@ which includes a full list of supported encryption configurations.
 More details on encrypting CephFS PVCs can be found [here](https://github.com/ceph/ceph-csi/blob/devel/docs/cephfs/deploy.md#cephfs-volume-encryption).
 A sample KMS configmap can be found [here](https://github.com/ceph/ceph-csi/blob/devel/examples/kms/vault/kms-config.yaml).
 
-!!! note
-    Not all KMS are compatible with fscrypt. Generally, KMS that either store secrets to use directly (like Vault)
-    or allow access to the plain password (like Kubernetes Secrets) are compatible.
+> [!NOTE]
+> Not all KMS are compatible with fscrypt. Generally, KMS that either store secrets to use directly (like Vault)
+> or allow access to the plain password (like Kubernetes Secrets) are compatible.
 
-!!! note
-    Rook also supports OSD-level encryption (see `encryptedDevice` option [here](../../CRDs/Cluster/ceph-cluster-crd.md#osd-configuration-settings)).
+> [!NOTE]
+> Rook also supports OSD-level encryption (see `encryptedDevice` option [here](../../CRDs/Cluster/ceph-cluster-crd.md#osd-configuration-settings)).
 
 Using both RBD PVC encryption and OSD encryption at the same time will lead to double encryption and may reduce read/write performance.
 
@@ -306,8 +306,8 @@ parameters:
 
 * PVCs created using the new storageclass will be encrypted.
 
-!!! note
-    CephFS encryption requires fscrypt support in Linux kernel, kernel version 6.6 or higher.
+> [!NOTE]
+> CephFS encryption requires fscrypt support in Linux kernel, kernel version 6.6 or higher.
 
 ## Enable Read affinity for RBD and CephFS volumes
 
@@ -339,5 +339,5 @@ kubectl patch cephclusters.ceph.rook.io <cluster-name> -n rook-ceph -p '{"spec":
 Ceph CSI will extract the CRUSH location from the topology labels found on the node
 and pass it though krbd options during mapping RBD volumes.
 
-!!! note
-    This requires Linux kernel version 5.8 or higher.
+> [!NOTE]
+> This requires Linux kernel version 5.8 or higher.

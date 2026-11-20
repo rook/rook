@@ -1,0 +1,8 @@
+{{- /* The id is set on the heading itself, as MkDocs did. */ -}}
+<h{{ .Level }} id="{{ .Anchor | safeURL }}" data-hextra-search-id="{{ .Anchor | safeURL }}" {{- with .Attributes.class }} class="{{ . }}" {{- end }}>
+  {{- .Text | safeHTML -}}
+  {{- if gt .Level 1 -}}
+    <a href="#{{ .Anchor | safeURL }}" class="subheading-anchor" aria-label="{{ (T "permalinkLabel") | default "Permalink for this section" }}"></a>
+  {{- end -}}
+</h{{ .Level }}>
+{{- /* Drop trailing newlines */ -}}

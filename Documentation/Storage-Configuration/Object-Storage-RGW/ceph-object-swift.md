@@ -2,13 +2,13 @@
 title: Object Store with Keystone and Swift
 ---
 
-!!! note
-    The Object Store with Keystone and Swift is currently in experimental mode.
+> [!NOTE]
+> The Object Store with Keystone and Swift is currently in experimental mode.
 
 Ceph RGW can integrate natively with the Swift API and Keystone via the CephObjectStore CRD. This allows native integration of Rook-operated Ceph RGWs into [OpenStack](https://www.openstack.org/) clouds.
 
-!!! note
-    Authentication via the OBC and COSI features is not affected by this configuration.
+> [!NOTE]
+> Authentication via the OBC and COSI features is not affected by this configuration.
 
 ## Create a Local Object Store with Keystone and Swift
 
@@ -26,9 +26,9 @@ Prior to using keystone as authentication provider an admin user for rook to acc
 The user credentials for this admin user are provided by a secret in the same namespace which is referenced via the `serviceUserSecretName` property.
 The secret contains the credentials with names analogue to the environment variables used in an OpenStack `openrc` file.
 
-!!! note
-    This example requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
-    This example assumes an existing OpenStack Keystone instance ready to use for authentication.
+> [!NOTE]
+> This example requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+> This example assumes an existing OpenStack Keystone instance ready to use for authentication.
 
 ```yaml
 apiVersion: v1
