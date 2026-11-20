@@ -50,26 +50,32 @@ func ListPoolCRs(ctx context.Context, c client.Client, namespace string) (*PoolC
 	return p, nil
 }
 
-// Count returns the number of CRs that define pools.
+// Count returns the number of CRs that may define pools.
 func (p *PoolCRs) Count() int {
 	return len(p.BlockPools.Items) + len(p.Filesystems.Items) + len(p.ObjectStores.Items)
 }
 
-// PoolSpecs returns the specs of all pools defined by the CRs.
+// PoolSpecs returns the specs of all pools defined by the CRs, leaving out unset pool specs such
+// as those of an object store using shared pools.
 func (p *PoolCRs) PoolSpecs() []cephv1.PoolSpec {
 	poolSpecs := make([]cephv1.PoolSpec, 0)
+	appendDefined := func(pool cephv1.PoolSpec) {
+		if pool.IsReplicated() || pool.IsErasureCoded() {
+			poolSpecs = append(poolSpecs, pool)
+		}
+	}
 	for _, cephBlockPool := range p.BlockPools.Items {
-		poolSpecs = append(poolSpecs, cephBlockPool.Spec.PoolSpec)
+		appendDefined(cephBlockPool.Spec.PoolSpec)
 	}
 	for _, cephFilesystem := range p.Filesystems.Items {
-		poolSpecs = append(poolSpecs, cephFilesystem.Spec.MetadataPool.PoolSpec)
+		appendDefined(cephFilesystem.Spec.MetadataPool.PoolSpec)
 		for _, pool := range cephFilesystem.Spec.DataPools {
-			poolSpecs = append(poolSpecs, pool.PoolSpec)
+			appendDefined(pool.PoolSpec)
 		}
 	}
 	for _, cephObjectStore := range p.ObjectStores.Items {
-		poolSpecs = append(poolSpecs, cephObjectStore.Spec.MetadataPool)
-		poolSpecs = append(poolSpecs, cephObjectStore.Spec.DataPool)
+		appendDefined(cephObjectStore.Spec.MetadataPool)
+		appendDefined(cephObjectStore.Spec.DataPool)
 	}
 	return poolSpecs
 }

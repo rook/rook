@@ -105,13 +105,19 @@ func TestListPoolCRs(t *testing.T) {
 				DataPool:     cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 3}, FailureDomain: "datacenter"},
 			},
 		},
+		&cephv1.CephObjectStore{
+			ObjectMeta: metav1.ObjectMeta{Name: "shared-pools-store", Namespace: ns},
+			Spec: cephv1.ObjectStoreSpec{
+				SharedPools: cephv1.ObjectSharedPoolsSpec{MetadataPoolName: "meta", DataPoolName: "data"},
+			},
+		},
 	}
 	s := scheme.Scheme
 	c := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
 
 	poolCRs, err := ListPoolCRs(context.TODO(), c, ns)
 	assert.NoError(t, err)
-	assert.Equal(t, 3, poolCRs.Count())
+	assert.Equal(t, 4, poolCRs.Count())
 	failureDomains := []string{}
 	for _, spec := range poolCRs.PoolSpecs() {
 		failureDomains = append(failureDomains, spec.FailureDomain)
