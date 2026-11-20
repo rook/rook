@@ -577,6 +577,19 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		assert.NoError(t, err)
 		shareProcessNamespace := *deployment.Spec.Template.Spec.ShareProcessNamespace
 		assert.True(t, shareProcessNamespace)
+
+		// The logrotate postrotate script signals the daemons to reopen their log files.
+		// The OSD runs as root, so the log collector sidecar needs the KILL capability
+		// to signal it through the shared process namespace.
+		var logCollector *corev1.Container
+		for i := range deployment.Spec.Template.Spec.Containers {
+			if deployment.Spec.Template.Spec.Containers[i].Name == "log-collector" {
+				logCollector = &deployment.Spec.Template.Spec.Containers[i]
+			}
+		}
+		assert.NotNil(t, logCollector)
+		assert.NotNil(t, logCollector.SecurityContext)
+		assert.Contains(t, logCollector.SecurityContext.Capabilities.Add, corev1.Capability("KILL"))
 	})
 
 	t.Run(("check osd ConfigureProbe"), func(t *testing.T) {

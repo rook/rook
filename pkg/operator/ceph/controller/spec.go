@@ -851,6 +851,22 @@ func GetLogRotateConfig(c cephv1.ClusterSpec) (resource.Quantity, string) {
 	return maxLogSize, periodicity
 }
 
+// logCollectorSecurityContext returns the security context of the log collector
+// sidecar. The logrotate configuration shipped in the Ceph image reopens the log
+// files of the Ceph daemons by signaling them in its postrotate script
+// (`killall -1` / `pkill -1`). Daemons like ceph-osd run as root while the log
+// collector runs as the default (non-root) user of the Ceph image, so signaling
+// the daemons through the shared process namespace of the pod requires the KILL
+// capability. Without it, logrotate rotates the log files, but the daemons keep
+// writing to the rotated (deleted) files until they are restarted, losing all
+// logs written in the meantime and leaking space on the log volume.
+// See https://github.com/rook/rook/issues/18429
+func logCollectorSecurityContext() *v1.SecurityContext {
+	securityContext := DefaultContainerSecurityContext()
+	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "KILL")
+	return securityContext
+}
+
 // LogCollectorContainer rotates logs
 func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, env []v1.EnvVar, additionalLogFiles ...string) *v1.Container {
 	maxLogSize, periodicity := GetLogRotateConfig(c)
@@ -878,7 +894,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, env []v1.E
 		Image:           c.CephVersion.Image,
 		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),
 		VolumeMounts:    DaemonVolumeMounts(opconfig.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), "", c.DataDirHostPath),
-		SecurityContext: DefaultContainerSecurityContext(),
+		SecurityContext: logCollectorSecurityContext(),
 		Resources:       cephv1.GetLogCollectorResources(c.Resources),
 		// We need a TTY for the bash job control (enabled by -m)
 		TTY: true,

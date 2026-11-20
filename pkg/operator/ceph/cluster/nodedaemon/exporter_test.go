@@ -227,6 +227,10 @@ func TestCephExporterLogrotateContainer(t *testing.T) {
 	// Verify logrotate container configuration
 	assert.NotNil(t, logrotateContainer)
 	assert.Contains(t, logrotateContainer.Command[5], "ceph-client.ceph-exporter")
+	// The logrotate postrotate script signals the daemons to reopen their log files,
+	// which requires the KILL capability since the sidecar does not run as root.
+	assert.NotNil(t, logrotateContainer.SecurityContext)
+	assert.Contains(t, logrotateContainer.SecurityContext.Capabilities.Add, corev1.Capability("KILL"))
 }
 
 func TestCephExporterBindAddress(t *testing.T) {
