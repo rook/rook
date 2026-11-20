@@ -75,35 +75,28 @@ func (p *PoolCRs) PoolSpecs() []cephv1.PoolSpec {
 }
 
 // GetMinimumFailureDomain returns the narrowest failure domain of the given pools, among the
-// CRUSH levels in CRUSHMapLevelsOrdered. Pools without a failure domain or with the "osd" failure
-// domain are counted as "host". Pools that are neither replicated nor erasure coded, such as the
-// unset pools of an object store using shared pools, are ignored. It returns the default failure
-// domain if there are no pools or none of their failure domains match.
+// CRUSH levels in CRUSHMapLevelsOrdered. For replicated pools with more than one replica per
+// failure domain, this includes their sub-failure domain. Failure domains that are unset or "osd"
+// are counted as "host". Pools that are neither replicated nor erasure coded, such as the unset
+// pools of an object store using shared pools, are ignored. It returns the default failure domain
+// if there are no pools or none of their failure domains match.
 func GetMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
 	// start with max as the min
 	minfailureDomainIndex := len(CRUSHMapLevelsOrdered) - 1
 	matched := false
 
 	for _, pool := range poolList {
-		if !pool.IsReplicated() && !pool.IsErasureCoded() {
-			continue // the pool is not defined
-		}
-		poolFailureDomain := pool.FailureDomain
-		switch poolFailureDomain {
-		case "":
-			poolFailureDomain = cephv1.DefaultFailureDomain // Rook creates the pool's CRUSH rule with this failure domain
-		case "osd":
-			poolFailureDomain = "host" // the narrowest failure domain the PDBs can allow to be disrupted
-		}
-		for index, failureDomain := range CRUSHMapLevelsOrdered {
-			if index > minfailureDomainIndex {
-				// index is higher than the min
-				break
-			}
-			if poolFailureDomain == failureDomain {
-				// new min found
-				matched = true
-				minfailureDomainIndex = index
+		for _, poolFailureDomain := range poolFailureDomains(pool) {
+			for index, failureDomain := range CRUSHMapLevelsOrdered {
+				if index > minfailureDomainIndex {
+					// index is higher than the min
+					break
+				}
+				if poolFailureDomain == failureDomain {
+					// new min found
+					matched = true
+					minfailureDomainIndex = index
+				}
 			}
 		}
 	}
@@ -112,4 +105,28 @@ func GetMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
 		return cephv1.DefaultFailureDomain
 	}
 	return CRUSHMapLevelsOrdered[minfailureDomainIndex]
+}
+
+// poolFailureDomains returns the failure domains that Rook creates the CRUSH rule of the pool with,
+// with "osd" counted as "host".
+func poolFailureDomains(pool cephv1.PoolSpec) []string {
+	if !pool.IsReplicated() && !pool.IsErasureCoded() {
+		return nil // the pool is not defined
+	}
+	withDefault := func(failureDomain string) string {
+		switch failureDomain {
+		case "":
+			return cephv1.DefaultFailureDomain // Rook creates the pool's CRUSH rule with this failure domain
+		case "osd":
+			return "host" // the narrowest failure domain the PDBs can allow to be disrupted
+		}
+		return failureDomain
+	}
+	failureDomains := []string{withDefault(pool.FailureDomain)}
+	if pool.IsReplicated() && pool.Replicated.ReplicasPerFailureDomain > 1 {
+		// the CRUSH rule chooses the replicas within each failure domain from different
+		// sub-failure domains
+		failureDomains = append(failureDomains, withDefault(pool.Replicated.SubFailureDomain))
+	}
+	return failureDomains
 }

@@ -36,6 +36,21 @@ func TestGetMinimumFailureDomain(t *testing.T) {
 		return cephv1.PoolSpec{FailureDomain: failureDomain, ErasureCoded: cephv1.ErasureCodedSpec{DataChunks: 2, CodingChunks: 1}}
 	}
 
+	withSubFailureDomain := func(failureDomain, subFailureDomain string, replicasPerFailureDomain uint) cephv1.PoolSpec {
+		pool := replicated(failureDomain)
+		pool.Replicated.Size = 4
+		pool.Replicated.SubFailureDomain = subFailureDomain
+		pool.Replicated.ReplicasPerFailureDomain = replicasPerFailureDomain
+		return pool
+	}
+
+	withSubFailureDomainEC := func(failureDomain, subFailureDomain string, replicasPerFailureDomain uint) cephv1.PoolSpec {
+		pool := erasureCoded(failureDomain)
+		pool.Replicated.SubFailureDomain = subFailureDomain
+		pool.Replicated.ReplicasPerFailureDomain = replicasPerFailureDomain
+		return pool
+	}
+
 	tests := []struct {
 		name  string
 		pools []cephv1.PoolSpec
@@ -50,6 +65,10 @@ func TestGetMinimumFailureDomain(t *testing.T) {
 		{"empty failure domain is host", []cephv1.PoolSpec{replicated("zone"), replicated("")}, "host"},
 		{"osd failure domain is host", []cephv1.PoolSpec{replicated("zone"), replicated("osd")}, "host"},
 		{"undefined pools are ignored", []cephv1.PoolSpec{replicated("zone"), {}}, "zone"},
+		{"sub-failure domain", []cephv1.PoolSpec{withSubFailureDomain("region", "rack", 2)}, "rack"},
+		{"empty sub-failure domain is host", []cephv1.PoolSpec{withSubFailureDomain("zone", "", 2)}, "host"},
+		{"sub-failure domain needs more than one replica per failure domain", []cephv1.PoolSpec{withSubFailureDomain("zone", "rack", 1)}, "zone"},
+		{"sub-failure domain of erasure coded pool is ignored", []cephv1.PoolSpec{withSubFailureDomainEC("zone", "rack", 2)}, "zone"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
