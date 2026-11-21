@@ -64,7 +64,7 @@ jobs:
           # the ceph_preview build tag. Can be removed when go-ceph promotes
           # the account API out of preview.
           GOFLAGS: "-tags=ceph_preview"
-        run: CGO_ENABLED=0 go build ./... ./pkg/apis/...
+        run: CGO_ENABLED=0 go build ./... ./pkg/apis/... ./tests/...
 
       # GOFLAGS belongs here and not on init, which warns that passing it
       # there is deprecated.

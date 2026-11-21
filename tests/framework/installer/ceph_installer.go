@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	"github.com/rook/rook/tests/framework/leakguard"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -91,6 +92,8 @@ type CephInstaller struct {
 	k8sVersion       string
 	changeHostnames  bool
 	T                func() *testing.T
+	leakGuard        *leakguard.Guard
+	leakGuardCancel  context.CancelFunc
 }
 
 func ReturnCephVersion() cephv1.CephVersionSpec {
@@ -354,6 +357,9 @@ func (h *CephInstaller) waitForCluster() error {
 func (h *CephInstaller) CreateRookExternalCluster(externalManifests CephManifests) error {
 	var err error
 	externalSettings := externalManifests.Settings()
+	if h.leakGuard != nil {
+		h.leakGuard.AddNamespace(externalSettings.Namespace)
+	}
 	externalSettings.DataDirHostPath, err = h.initTestDir(externalSettings.Namespace)
 	if err != nil {
 		return errors.Errorf("failed to create test dir. %+v", err)
@@ -604,6 +610,8 @@ func (h *CephInstaller) InstallRook() (bool, error) {
 
 	k8sversion := h.k8shelper.GetK8sServerVersion()
 
+	h.startLeakGuard()
+
 	logger.Infof("Installing rook on K8s %s", k8sversion)
 	success, err := h.installRookOperator()
 	if err != nil {
@@ -693,6 +701,12 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 		h.k8shelper.GetPodRestartsFromNamespace(manifest.Settings().Namespace, h.T().Name(), utils.TestEnvName())
 
 	}
+
+	// The toolbox and the resources the leak guard snapshots do not survive
+	// the teardown, but the logs and Secrets of the teardown are guarded too,
+	// so the check runs on every return, once the teardown is done.
+	checkLeaks := h.prepareLeakCheck(clusterNamespaces)
+	defer checkLeaks()
 
 	// Gather logs after status checks
 	h.GatherAllRookLogs(h.T().Name(), append([]string{h.settings.OperatorNamespace}, clusterNamespaces...)...)

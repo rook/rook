@@ -61,7 +61,9 @@ Shared utilities live under `util/`:
   pod's log stream, the readiness predicates (`ObjectStoreUser`, `BucketTopic`,
   `OBCBound`, ...), and the shared timeout tiers.
 - `fixture` — create-with-`t.Cleanup` helpers for pure-cleanup resources
-  (namespaces, StorageClasses).
+  (namespaces, StorageClasses). `RequireNamespace` also adds the namespace to
+  the leak guard the dispatcher registers with `GuardNamespaces`, so the
+  credentials the operator writes there are searched for.
 - `obc` — ObjectBucketClaim helpers: the provisioner `StorageClass`
   constructor, the create/bound and delete/absent lifecycle waiters, and a
   per-OBC S3 client.

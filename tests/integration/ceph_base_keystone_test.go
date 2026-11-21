@@ -29,7 +29,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const testProjectName = "testproject"
+const (
+	testProjectName = "testproject"
+
+	// keystoneUserPasswordSecret names the Secret holding each test user's
+	// password under the user's name.
+	keystoneUserPasswordSecret = "keystone-user-passwords"
+)
 
 var testuserdata = map[string]map[string]string{
 	"admin": {
@@ -171,7 +177,23 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) er
 		return err
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneDeployment(namespace, testuserdata["admin"]["password"])); err != nil {
+	userPasswords := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      keystoneUserPasswordSecret,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{},
+	}
+	for _, userdata := range testuserdata {
+		userPasswords.Data[userdata["username"]] = []byte(userdata["password"])
+	}
+
+	if _, err := shelper.Clientset.CoreV1().Secrets(namespace).Create(ctx, userPasswords, metav1.CreateOptions{}); err != nil {
+		logger.Errorf("Could not create keystone user password secret in namespace %s", namespace)
+		return err
+	}
+
+	if err := shelper.ResourceOperation("apply", keystoneDeployment(namespace)); err != nil {
 		logger.Errorf("Could not create keystone deployment in namespace %s", namespace)
 		return err
 	}
@@ -192,7 +214,7 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) er
 	}
 
 	for _, userdata := range testuserdata {
-		if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, userdata["project"], userdata["username"], userdata["password"])); err != nil {
+		if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, userdata["project"], userdata["username"])); err != nil {
 			logger.Errorf("Could not create openstack client deployment in namespace %s", namespace)
 			return err
 		}
@@ -218,7 +240,7 @@ func initializePasswords() error {
 	return nil
 }
 
-func createOpenStackClient(namespace string, project string, username string, password string) string {
+func createOpenStackClient(namespace string, project string, username string) string {
 	return `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -262,7 +284,10 @@ spec:
         - name: OS_USERNAME
           value: ` + username + `
         - name: OS_PASSWORD
-          value: "` + password + `"
+          valueFrom:
+            secretKeyRef:
+              name: ` + keystoneUserPasswordSecret + `
+              key: ` + username + `
         imagePullPolicy: IfNotPresent
         name: openstackclient
         resources: {}
@@ -414,7 +439,7 @@ spec:
 `
 }
 
-func keystoneDeployment(namespace string, adminpassword string) string {
+func keystoneDeployment(namespace string) string {
 	return `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -459,7 +484,7 @@ spec:
           runAsUser: 2500001
       - name: init-keystone-endpoint
         image: registry.yaook.cloud/yaook/keystone-yoga:3.0.30
-        command: [ 'sh', '-c', 'keystone-manage bootstrap --bootstrap-password ` + adminpassword + ` --bootstrap-username admin --bootstrap-project-name admin --bootstrap-role-name admin --bootstrap-service-name keystone --bootstrap-region-id RegionOne --bootstrap-admin-url https://keystone.` + namespace + `.svc --bootstrap-internal-url https://keystone.` + namespace + `.svc']
+        command: [ 'sh', '-c', 'keystone-manage bootstrap --bootstrap-password "$ADMIN_PASSWORD" --bootstrap-username admin --bootstrap-project-name admin --bootstrap-role-name admin --bootstrap-service-name keystone --bootstrap-region-id RegionOne --bootstrap-admin-url https://keystone.` + namespace + `.svc --bootstrap-internal-url https://keystone.` + namespace + `.svc']
         volumeMounts:
         - mountPath: /etc/keystone/keystone.conf
           name: keystone-config-vol
@@ -468,6 +493,12 @@ spec:
           name: keystonefernet
         - mountPath: /var/keystone
           name: dbdir
+        env:
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ` + keystoneUserPasswordSecret + `
+              key: admin
       containers:
       - env:
         - name: REQUESTS_CA_BUNDLE
@@ -638,6 +669,11 @@ func CleanUpKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 	err = shelper.DeleteResource("-n", namespace, "deployment", "keystone-api")
 	if err != nil {
 		logger.Warningf("Could not delete deployment keystone-api in namespace %s", namespace)
+	}
+
+	err = shelper.DeleteResource("-n", namespace, "secret", keystoneUserPasswordSecret)
+	if err != nil {
+		logger.Warningf("Could not delete secret %s in namespace %s", keystoneUserPasswordSecret, namespace)
 	}
 
 	//cert-manager related resources (including certificates and secrets) are not removed here

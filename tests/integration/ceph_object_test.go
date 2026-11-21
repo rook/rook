@@ -40,6 +40,7 @@ import (
 	userplacement "github.com/rook/rook/tests/integration/object/user/placement"
 	usersecrettemplate "github.com/rook/rook/tests/integration/object/user/secrettemplate"
 	userstorageclass "github.com/rook/rook/tests/integration/object/user/storageclass"
+	"github.com/rook/rook/tests/integration/object/util/fixture"
 	"github.com/rook/rook/tests/integration/object/util/sharedstore"
 	"github.com/rook/rook/tests/integration/object/zone"
 	"github.com/rook/rook/tests/integration/object/zonegroup"
@@ -106,6 +107,11 @@ func (s *ObjectSuite) TestWithoutTLS() {
 }
 
 func runObjectE2ETest(t *testing.T, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace string, tlsEnable bool) {
+	// the operator writes the packages' user and bucket credentials into the
+	// namespaces they create
+	fixture.GuardNamespaces(installer.LeakGuard())
+	defer fixture.GuardNamespaces(nil)
+
 	// only the packages that create CephObjectStoreUsers in their own namespace
 	// need to be allowed; the rest reach the store through OBCs, which this does
 	// not gate

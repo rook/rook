@@ -1,7 +1,8 @@
 version: 2
 enable-beta-ecosystems: true
 updates:
-  # Dependencies listed in go.mod
+  # Dependencies listed in go.mod. go.work makes this entry update every module it lists, so
+  # pkg/apis and tests need no entries of their own.
   - package-ecosystem: "gomod"
     directory: "/" # Location of package manifests
     schedule:
