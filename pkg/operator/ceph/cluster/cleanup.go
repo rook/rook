@@ -45,6 +45,9 @@ const (
 	clusterCleanUpPolicyRetryInterval = 5 // seconds
 	// CleanupAppName is the cluster clean up job name
 	CleanupAppName = "rook-ceph-cleanup"
+	// cleanupSecretName holds the mon secret for the cleanup Jobs. They cannot read it from the
+	// rook-ceph-mon Secret, which is garbage collected with the CephCluster before they start.
+	cleanupSecretName = CleanupAppName
 )
 
 var (
@@ -71,18 +74,25 @@ func (c *ClusterController) startClusterCleanUp(context context.Context, cluster
 }
 
 func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHosts []string, monSecret, clusterFSID string) {
+	if len(cephHosts) == 0 {
+		return
+	}
+	// The Jobs' pods cannot start until the Secret they reference exists.
+	if err := c.saveCleanupSecret(cluster, monSecret); err != nil {
+		log.NamespacedError(cluster.Namespace, logger, "failed to save the mon secret for the clean up jobs. skip cluster cleanup. %v", err)
+		return
+	}
+
 	for _, hostName := range cephHosts {
 		log.NamespacedInfo(cluster.Namespace, logger, "starting clean up job on node %q", hostName)
 		jobName := k8sutil.TruncateNodeNameForJob("cluster-cleanup-job-%s", hostName)
-		podSpec := c.cleanUpJobTemplateSpec(cluster, monSecret, clusterFSID)
+		podSpec := c.cleanUpJobTemplateSpec(cluster, clusterFSID)
 		podSpec.Spec.NodeSelector = map[string]string{k8sutil.LabelHostname(): hostName}
-		labels := opcontroller.AppLabels(CleanupAppName, cluster.Namespace)
-		labels[CleanupAppName] = "true"
 		job := &batch.Job{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      jobName,
 				Namespace: cluster.Namespace,
-				Labels:    labels,
+				Labels:    cleanupLabels(cluster.Namespace),
 			},
 			Spec: batch.JobSpec{
 				Template: podSpec,
@@ -99,7 +109,32 @@ func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHo
 	}
 }
 
-func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, monSecret, cephFSID string) v1.Container {
+func cleanupLabels(namespace string) map[string]string {
+	labels := opcontroller.AppLabels(CleanupAppName, namespace)
+	labels[CleanupAppName] = "true"
+	return labels
+}
+
+// saveCleanupSecret stores the mon secret for the cleanup Jobs to read. Like the Jobs, it has no
+// owner, so it outlives the CephCluster whose deletion starts the cleanup.
+func (c *ClusterController) saveCleanupSecret(cluster *cephv1.CephCluster, monSecret string) error {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cleanupSecretName,
+			Namespace: cluster.Namespace,
+			// Not the CephCluster's labels or annotations, which could opt the key into Secret replication.
+			Labels: cleanupLabels(cluster.Namespace),
+		},
+		Data: map[string][]byte{opcontroller.MonSecretNameKey: []byte(monSecret)},
+		Type: k8sutil.RookType,
+	}
+	if _, err := k8sutil.CreateOrUpdateSecret(c.OpManagerCtx, c.context.Clientset, secret); err != nil {
+		return errors.Wrapf(err, "failed to save secret %q", cleanupSecretName)
+	}
+	return nil
+}
+
+func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, cephFSID string) v1.Container {
 	volumeMounts := []v1.VolumeMount{}
 	envVars := []v1.EnvVar{}
 	if cluster.Spec.DataDirHostPath != "" {
@@ -115,7 +150,10 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 		envVars = append(envVars, []v1.EnvVar{
 			{Name: dataDirHostPath, Value: cluster.Spec.DataDirHostPath},
 			{Name: namespaceDir, Value: cluster.Namespace},
-			{Name: monitorSecret, Value: monSecret},
+			{Name: monitorSecret, ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{Name: cleanupSecretName},
+				Key:                  opcontroller.MonSecretNameKey,
+			}}},
 			{Name: clusterFSID, Value: cephFSID},
 			{Name: "ROOK_LOG_LEVEL", Value: "DEBUG"},
 			mon.PodNamespaceEnvVar(cluster.Namespace),
@@ -146,7 +184,7 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 	}
 }
 
-func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, monSecret, clusterFSID string) v1.PodTemplateSpec {
+func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, clusterFSID string) v1.PodTemplateSpec {
 	volumes := []v1.Volume{}
 	hostPathVolume := v1.Volume{Name: volumeName, VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: cluster.Spec.DataDirHostPath}}}
 	devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
@@ -160,7 +198,7 @@ func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, 
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
-				c.cleanUpJobContainer(cluster, monSecret, clusterFSID),
+				c.cleanUpJobContainer(cluster, clusterFSID),
 			},
 			Volumes:            volumes,
 			RestartPolicy:      v1.RestartPolicyOnFailure,
