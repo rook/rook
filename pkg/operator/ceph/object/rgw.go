@@ -259,6 +259,10 @@ func (c *clusterConfig) deleteStore() {
 	log.NamedInfo(nsName, logger, "deleting object store")
 
 	if !c.store.Spec.IsExternal() {
+		// Stop the gateways first. Once their keys and pools are gone they can't run, and would keep
+		// crashing until the deployments are garbage collected after the finalizer is removed.
+		c.deleteRgwDeployments()
+
 		// Delete rgw CephX keys and configuration in centralized mon database
 		for i := 0; i < int(c.store.Spec.Gateway.Instances); i++ {
 			daemonLetterID := k8sutil.IndexToName(i)
@@ -296,6 +300,21 @@ func (c *clusterConfig) deleteStore() {
 	}
 
 	log.NamedInfo(nsName, logger, "done deleting object store")
+}
+
+// deleteRgwDeployments deletes the store's rgw deployments and waits for their pods to be gone.
+func (c *clusterConfig) deleteRgwDeployments() {
+	nsName := controller.NsName(c.store.Namespace, c.store.Name)
+	deps, err := k8sutil.GetDeployments(c.clusterInfo.Context, c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
+	if err != nil {
+		log.NamedWarning(nsName, logger, "failed to list rgw deployments to delete. %v", err)
+		return
+	}
+	for _, d := range deps.Items {
+		if err := k8sutil.DeleteDeployment(c.clusterInfo.Context, c.context.Clientset, c.store.Namespace, d.Name); err != nil {
+			log.NamedWarning(nsName, logger, "failed to delete rgw deployment %q. %v", d.Name, err)
+		}
+	}
 }
 
 func (c *clusterConfig) deleteRgwCephObjects(depNameToRemove string) error {

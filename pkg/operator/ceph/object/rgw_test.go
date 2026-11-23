@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
@@ -32,6 +33,8 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -224,6 +227,62 @@ func TestGenerateSecretName(t *testing.T) {
 	}
 	secret := c.generateSecretName("a")
 	assert.Equal(t, "rook-ceph-rgw-default-a-keyring", secret)
+}
+
+func TestDeleteStoreDeletesGatewaysFirst(t *testing.T) {
+	ctx := t.Context()
+	namespace := "rook-ceph"
+	clientset := test.New(t, 1)
+
+	for _, store := range []string{"my-store", "other-store"} {
+		d := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{
+			Name:      instanceName(store) + "-a",
+			Namespace: namespace,
+			Labels:    map[string]string{"app": AppName, "rook_object_store": store},
+		}}
+		_, err := clientset.AppsV1().Deployments(namespace).Create(ctx, d, metav1.CreateOptions{})
+		require.NoError(t, err)
+	}
+
+	var authDeleted []string
+	gatewaysLeftAtAuthDelete := -1
+	mockCeph := func(command string, args ...string) (string, error) {
+		if len(args) >= 2 && args[0] == "config" && args[1] == "get" {
+			return "{}", nil
+		}
+		if len(args) >= 3 && args[0] == "auth" && args[1] == "del" {
+			authDeleted = append(authDeleted, args[2])
+			deps, err := clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{LabelSelector: "rook_object_store=my-store"})
+			if err != nil {
+				return "", err
+			}
+			gatewaysLeftAtAuthDelete = len(deps.Items)
+			return "", nil
+		}
+		return "", errors.Errorf("unexpected command %q %q", command, args)
+	}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: mockCeph,
+		MockExecuteCommandWithTimeout: func(_ time.Duration, command string, args ...string) (string, error) {
+			return mockCeph(command, args...)
+		},
+	}
+
+	c := &clusterConfig{
+		context:     &clusterd.Context{Clientset: clientset, Executor: executor},
+		clusterInfo: client.AdminTestClusterInfo(namespace),
+		store: &cephv1.CephObjectStore{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-store", Namespace: namespace},
+			Spec:       cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Instances: 1}},
+		},
+		clusterSpec: &cephv1.ClusterSpec{},
+	}
+	c.deleteStore()
+
+	assert.Equal(t, []string{"client.rgw.my.store.a"}, authDeleted)
+	assert.Equal(t, 0, gatewaysLeftAtAuthDelete, "the store's gateways should be gone before their keys are deleted")
+	_, err := clientset.AppsV1().Deployments(namespace).Get(ctx, instanceName("other-store")+"-a", metav1.GetOptions{})
+	assert.NoError(t, err, "another store's gateway should not be deleted")
 }
 
 func TestEmptyPoolSpec(t *testing.T) {
