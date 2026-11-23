@@ -427,6 +427,33 @@ rules:
       - get
       - list
 ---
+# Aspects of ceph osd purge job that require access to the cluster namespace
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-purge-osd
+  labels:
+    operator: rook
+    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/part-of: rook-ceph-operator
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "update", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "update", "delete", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get"]
+---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -558,6 +585,25 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-osd
+    namespace: rook-ceph # namespace:cluster
+---
+# Allow the osd purge job to run in this namespace
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-purge-osd
+  labels:
+    operator: rook
+    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/part-of: rook-ceph-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-purge-osd
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-purge-osd
     namespace: rook-ceph # namespace:cluster
 ---
 kind: ClusterRoleBinding
@@ -705,31 +751,6 @@ rules:
   - apiGroups: ["ceph.rook.io"]
     resources: ["cephclusters", "cephclusters/finalizers"]
     verbs: ["get", "list", "create", "update", "delete"]
----
-# Aspects of ceph osd purge job that require access to the cluster namespace
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-purge-osd
-  namespace: rook-ceph # namespace:cluster
-  labels:
-    operator: rook
-    storage-backend: ceph
-    app.kubernetes.io/name: rook-ceph
-    app.kubernetes.io/part-of: rook-ceph-operator
-rules:
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get"]
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    verbs: ["get", "delete"]
-  - apiGroups: ["batch"]
-    resources: ["jobs"]
-    verbs: ["get", "list", "delete"]
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims"]
-    verbs: ["get", "update", "delete", "list"]
 ---
 # Allow the operator to manage resources in its own namespace
 kind: Role
@@ -892,26 +913,6 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-osd
-    namespace: rook-ceph # namespace:cluster
----
-# Allow the osd purge job to run in this namespace
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-purge-osd
-  namespace: rook-ceph # namespace:cluster
-  labels:
-    operator: rook
-    storage-backend: ceph
-    app.kubernetes.io/name: rook-ceph
-    app.kubernetes.io/part-of: rook-ceph-operator
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-purge-osd
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-purge-osd
     namespace: rook-ceph # namespace:cluster
 ---
 # Grant the operator, agent, and discovery agents access to resources in the rook-ceph-system namespace

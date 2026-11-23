@@ -17,20 +17,42 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/ptr"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
+
+const (
+	osdPodTerminationTimeout = 5 * time.Minute
+	pvcDeletionTimeout       = 5 * time.Minute
+)
+
+type pvcDeviceCleanup struct {
+	pvcName    string
+	pvName     string
+	nodeName   string
+	devicePath string
+	dmName     string
+	encrypted  bool
+}
 
 // RemoveOSDs purges a list of OSDs from the cluster
 func RemoveOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdsToRemove []string, preservePVC, forceOSDRemoval bool) error {
@@ -44,6 +66,7 @@ func RemoveOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, osds
 		return errors.Wrap(err, "failed to get osd dump")
 	}
 
+	var errs []string
 	for _, osdIDStr := range osdsToRemove {
 		osdID, err := strconv.Atoi(osdIDStr)
 		if err != nil {
@@ -58,6 +81,7 @@ func RemoveOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, osds
 		const upStatus int64 = 1
 		if status == upStatus {
 			logger.Infof("osd.%d is healthy. It cannot be removed unless it is 'down'", osdID)
+			errs = append(errs, fmt.Sprintf("osd.%d: OSD is healthy. It cannot be removed unless it is 'down'", osdID))
 			continue
 		} else {
 			logger.Infof("osd.%d is marked 'DOWN'", osdID)
@@ -66,6 +90,9 @@ func RemoveOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, osds
 		removeOSD(context, clusterInfo, osdID, preservePVC, forceOSDRemoval)
 	}
 
+	if len(errs) > 0 {
+		return errors.Errorf("OSD removal failed for %d OSD(s):\n%s", len(errs), strings.Join(errs, "\n"))
+	}
 	return nil
 }
 
@@ -117,31 +144,73 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 		}
 	}
 
-	// Remove the OSD deployment
 	deploymentName := fmt.Sprintf("rook-ceph-osd-%d", osdID)
 	deployment, err := clusterdContext.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Get(clusterInfo.Context, deploymentName, metav1.GetOptions{})
 	if err != nil {
-		logger.Errorf("failed to fetch the deployment %q. %v", deploymentName, err)
-	} else {
+		logger.Errorf("failed to fetch deployment %q for osd.%d. %v", deploymentName, osdID, err)
+	}
+
+	// Gather cleanup metadata for all PVCs (data, metadata, WAL) before any deletion.
+	var pvcName string
+	encrypted := false
+	if deployment != nil {
+		pvcName = deployment.GetLabels()[oposd.OSDOverPVCLabelKey]
+	}
+
+	var cleanupDevices []pvcDeviceCleanup
+	if pvcName != "" {
+		encrypted = deployment.GetLabels()["encrypted"] == "true"
+		cleanupDevices = gatherCleanupMetadata(clusterdContext, clusterInfo, osdID, pvcName, encrypted)
+		fenceDeployment(clusterdContext, clusterInfo, clusterInfo.Namespace, deploymentName, osdID)
+		removeOSDPrepareJob(clusterdContext, clusterInfo, pvcName)
+		removePVCs(clusterdContext, clusterInfo, cleanupDevices, preservePVC)
+	} else if deployment != nil {
+		logger.Infof("did not find a pvc name to remove for osd %q", deploymentName)
+	}
+
+	if len(cleanupDevices) > 0 && !preservePVC {
+		// Wait for pod and PVCs to actually be deleted
+		waitForOSDPodTermination(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.Namespace, deploymentName)
+		// Wait for all PVCs to be deleted
+		for _, device := range cleanupDevices {
+			waitForPVCDeletion(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.Namespace, device.pvcName)
+		}
+
+		// Create purge job for each device
+		for _, device := range cleanupDevices {
+			if device.nodeName != "" {
+				cfg := purgeNodeJobConfig{
+					namespace:   clusterInfo.Namespace,
+					osdID:       osdID,
+					nodeName:    device.nodeName,
+					devicePath:  device.devicePath,
+					hostPathDir: filepath.Dir(device.devicePath),
+					encrypted:   device.encrypted,
+					dmName:      device.dmName,
+					rookImage:   deployment.Spec.Template.Spec.Containers[0].Image,
+					tolerations: deployment.Spec.Template.Spec.Tolerations,
+				}
+				if err := createAndRunPurgeNodeJob(clusterInfo.Context, clusterdContext.Clientset, cfg); err != nil {
+					logger.Errorf("skipping purge node job for osd.%d on node %q: %v", osdID, device.nodeName, err)
+					continue
+				}
+				waitForPurgeNodeJob(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.Namespace, osdID)
+			}
+		}
+	}
+
+	if deployment != nil {
 		logger.Infof("removing the OSD deployment %q", deploymentName)
 		if err := k8sutil.DeleteDeployment(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.Namespace, deploymentName); err != nil {
-			// Continue purging the OSD even if the deployment fails to be deleted
-			logger.Errorf("failed to delete deployment for OSD %d. %v", osdID, err)
-		}
-		if pvcName, ok := deployment.GetLabels()[oposd.OSDOverPVCLabelKey]; ok {
-			removeOSDPrepareJob(clusterdContext, clusterInfo, pvcName)
-			removePVCs(clusterdContext, clusterInfo, pvcName, preservePVC)
-		} else {
-			logger.Infof("did not find a pvc name to remove for osd %q", deploymentName)
+			logger.Errorf("failed to delete deployment %q for osd.%d; check operator logs for details. %v", deploymentName, osdID, err)
 		}
 	}
 
 	// purge the osd
 	logger.Infof("purging osd.%d", osdID)
 	purgeOSDArgs := []string{"osd", "purge", fmt.Sprintf("osd.%d", osdID), "--force", "--yes-i-really-mean-it"}
-	_, err = client.NewCephCommand(clusterdContext, clusterInfo, purgeOSDArgs).Run()
-	if err != nil {
-		logger.Errorf("failed to purge osd.%d. %v", osdID, err)
+	if _, err = client.NewCephCommand(clusterdContext, clusterInfo, purgeOSDArgs).Run(); err != nil {
+		logger.Errorf("failed to purge osd.%d from ceph; check operator logs for details. %v", osdID, err)
 	}
 
 	// Attempting to remove the parent host. Errors can be ignored if there are other OSDs on the same host
@@ -160,6 +229,83 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 	logger.Infof("completed removal of OSD %d", osdID)
 }
 
+// gatherCleanupMetadata collects device information from all PVCs (data, metadata, WAL) for an OSD.
+func gatherCleanupMetadata(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int, pvcName string, encrypted bool) []pvcDeviceCleanup {
+	var cleanupDevices []pvcDeviceCleanup
+
+	dataPVC, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Get(clusterInfo.Context, pvcName, metav1.GetOptions{})
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			logger.Errorf("failed to get PVC %q for osd.%d. %v", pvcName, osdID, err)
+		} else {
+			logger.Infof("PVC %q for osd.%d not found; continuing", pvcName, osdID)
+		}
+		return cleanupDevices
+	}
+
+	labels := dataPVC.GetLabels()
+	deviceSet := labels[oposd.CephDeviceSetLabelKey]
+	setIndex := labels[oposd.CephSetIndexLabelKey]
+
+	// List all PVCs (data, metadata, WAL) using the same deviceSet/setIndex labels
+	labelSelector := fmt.Sprintf("%s=%s,%s=%s", oposd.CephDeviceSetLabelKey, deviceSet, oposd.CephSetIndexLabelKey, setIndex)
+	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
+	pvcs, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).List(clusterInfo.Context, listOptions)
+	if err != nil {
+		logger.Errorf("failed to list PVCs for OSD %q. %v", pvcName, err)
+		return cleanupDevices
+	}
+
+	// Collect cleanup metadata for each PVC
+	for _, pvc := range pvcs.Items {
+		pv, err := clusterdContext.Clientset.CoreV1().PersistentVolumes().Get(clusterInfo.Context, pvc.Spec.VolumeName, metav1.GetOptions{})
+		if err != nil {
+			logger.Errorf("failed to get PV %q for osd.%d. %v", pvc.Spec.VolumeName, osdID, err)
+			continue
+		}
+
+		device := pvcDeviceCleanup{
+			pvcName:   pvc.Name,
+			pvName:    pvc.Spec.VolumeName,
+			encrypted: encrypted,
+		}
+
+		if pv.Spec.Local != nil {
+			device.nodeName = nodeNameFromPV(pv)
+			device.devicePath = pv.Spec.Local.Path
+			if encrypted {
+				dmcryptType := oposd.DmcryptBlockType
+				if strings.Contains(pvc.Name, "metadata") {
+					dmcryptType = oposd.DmcryptMetadataType
+				} else if strings.Contains(pvc.Name, "wal") {
+					dmcryptType = oposd.DmcryptWalType
+				}
+				device.dmName = oposd.EncryptionDMName(pvc.Name, dmcryptType)
+			}
+		}
+
+		cleanupDevices = append(cleanupDevices, device)
+	}
+
+	return cleanupDevices
+}
+
+// fenceDeployment sets do-not-reconcile label and scales deployment to 0 so the OSD pod stops before PVC deletion.
+func fenceDeployment(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, namespace, deploymentName string, osdID int) {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := clusterdContext.Clientset.AppsV1().Deployments(namespace).Get(clusterInfo.Context, deploymentName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		latest.Labels[cephv1.SkipReconcileLabelKey] = "true"
+		latest.Spec.Replicas = ptr.To(int32(0))
+		_, err = clusterdContext.Clientset.AppsV1().Deployments(namespace).Update(clusterInfo.Context, latest, metav1.UpdateOptions{})
+		return err
+	}); err != nil {
+		logger.Errorf("failed to fence deployment %q for osd.%d. %v", deploymentName, osdID, err)
+	}
+}
+
 func removeOSDPrepareJob(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, pvcName string) {
 	labelSelector := fmt.Sprintf("%s=%s", oposd.OSDOverPVCLabelKey, pvcName)
 	prepareJobList, err := clusterdContext.Clientset.BatchV1().Jobs(clusterInfo.Namespace).List(clusterInfo.Context, metav1.ListOptions{LabelSelector: labelSelector})
@@ -176,40 +322,28 @@ func removeOSDPrepareJob(clusterdContext *clusterd.Context, clusterInfo *client.
 	}
 }
 
-func removePVCs(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, dataPVCName string, preservePVC bool) {
-	dataPVC, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Get(clusterInfo.Context, dataPVCName, metav1.GetOptions{})
-	if err != nil {
-		logger.Errorf("failed to get pvc for OSD %q. %v", dataPVCName, err)
-		return
-	}
-	labels := dataPVC.GetLabels()
-	deviceSet := labels[oposd.CephDeviceSetLabelKey]
-	setIndex := labels[oposd.CephSetIndexLabelKey]
-
-	labelSelector := fmt.Sprintf("%s=%s,%s=%s", oposd.CephDeviceSetLabelKey, deviceSet, oposd.CephSetIndexLabelKey, setIndex)
-	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
-	pvcs, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).List(clusterInfo.Context, listOptions)
-	if err != nil {
-		logger.Errorf("failed to get pvcs for OSD %q. %v", dataPVCName, err)
-		return
-	}
-
-	// Delete each of the data, wal, and db PVCs that belonged to the OSD
-	for i, pvc := range pvcs.Items {
+// removePVCs deletes or detaches the PVCs for an OSD.
+func removePVCs(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, devices []pvcDeviceCleanup, preservePVC bool) {
+	for _, device := range devices {
 		if preservePVC {
-			// Detach the OSD PVC from Rook. We will continue OSD deletion even if failed to remove PVC label
-			logger.Infof("detach the OSD PVC %q from Rook", pvc.Name)
+			// Detach the OSD PVC from Rook by removing the device set ID label
+			logger.Infof("detaching OSD PVC %q from Rook", device.pvcName)
+			pvc, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Get(clusterInfo.Context, device.pvcName, metav1.GetOptions{})
+			if err != nil {
+				logger.Errorf("failed to get PVC %q for detachment: %v", device.pvcName, err)
+				continue
+			}
+			labels := pvc.GetLabels()
 			delete(labels, oposd.CephDeviceSetPVCIDLabelKey)
 			pvc.SetLabels(labels)
-			if _, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Update(clusterInfo.Context, &pvcs.Items[i], metav1.UpdateOptions{}); err != nil {
-				logger.Errorf("failed to remove label %q from pvc for OSD %q. %v", oposd.CephDeviceSetPVCIDLabelKey, pvc.Name, err)
+			if _, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Update(clusterInfo.Context, pvc, metav1.UpdateOptions{}); err != nil {
+				logger.Errorf("failed to remove label %q from PVC %q: %v", oposd.CephDeviceSetPVCIDLabelKey, device.pvcName, err)
 			}
 		} else {
-			// Remove the OSD PVC
-			logger.Infof("removing the OSD PVC %q", pvc.Name)
-			if err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Delete(clusterInfo.Context, pvc.Name, metav1.DeleteOptions{}); err != nil {
-				// Continue deleting the OSD PVC even if PVC deletion fails
-				logger.Errorf("failed to delete pvc %q for OSD. %v", pvc.Name, err)
+			// Delete the OSD PVC
+			logger.Infof("removing OSD PVC %q", device.pvcName)
+			if err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Delete(clusterInfo.Context, device.pvcName, metav1.DeleteOptions{}); err != nil {
+				logger.Errorf("failed to delete PVC %q. %v", device.pvcName, err)
 			}
 		}
 	}
@@ -241,6 +375,57 @@ func archiveCrash(clusterdContext *clusterd.Context, clusterInfo *client.Cluster
 	if !matched {
 		logger.Infof("no ceph crash for osd.%d to silence", osdID)
 	}
+}
+
+func waitForOSDPodTermination(ctx context.Context, clientset kubernetes.Interface, namespace, deploymentName string) {
+	deadline := time.Now().Add(osdPodTerminationTimeout)
+	for time.Now().Before(deadline) {
+		deployment, err := clientset.AppsV1().Deployments(namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+		if err != nil {
+			logger.Errorf("failed to get deployment %q. %v", deploymentName, err)
+			return
+		}
+		if deployment.Status.Replicas == 0 {
+			logger.Infof("OSD pod for deployment %q has terminated", deploymentName)
+			return
+		}
+		logger.Infof("waiting for OSD pod in deployment %q to terminate (current replicas: %d)", deploymentName, deployment.Status.Replicas)
+		time.Sleep(5 * time.Second)
+	}
+	logger.Errorf("timed out waiting for OSD pod in deployment %q to terminate", deploymentName)
+}
+
+func waitForPVCDeletion(ctx context.Context, clientset kubernetes.Interface, namespace, pvcName string) {
+	deadline := time.Now().Add(pvcDeletionTimeout)
+	for time.Now().Before(deadline) {
+		_, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Infof("PVC %q has been deleted", pvcName)
+				return
+			}
+			logger.Errorf("failed to check PVC %q deletion status. %v", pvcName, err)
+			return
+		}
+		logger.Infof("waiting for PVC %q to be deleted", pvcName)
+		time.Sleep(5 * time.Second)
+	}
+	logger.Errorf("timed out waiting for PVC %q to be deleted", pvcName)
+}
+
+// nodeNameFromPV extracts the kubernetes node name from a local PV's node affinity.
+func nodeNameFromPV(pv *v1.PersistentVolume) string {
+	if pv.Spec.NodeAffinity == nil || pv.Spec.NodeAffinity.Required == nil {
+		return ""
+	}
+	for _, term := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms {
+		for _, expr := range term.MatchExpressions {
+			if expr.Key == v1.LabelHostname && len(expr.Values) > 0 {
+				return expr.Values[0]
+			}
+		}
+	}
+	return ""
 }
 
 // DestroyOSD fetches the OSD to be migrated based on the ID and then destroys that OSD and zaps the backing device
