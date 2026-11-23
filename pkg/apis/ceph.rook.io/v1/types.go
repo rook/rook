@@ -4076,6 +4076,15 @@ type StorageScopeSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	OSDMaxUpdatesInParallel uint32 `json:"osdMaxUpdatesInParallel,omitempty"`
+	// The CRUSH bucket type (e.g. "host" or "rack") that OSDs updated in parallel must share.
+	// Ceph may report OSDs outside the failure domain of the OSD being updated as ok-to-stop;
+	// setting this restricts each batch of updates to OSDs within a single bucket of this type.
+	// If an OSD has no bucket of this type above it in the CRUSH tree, it is updated on its own.
+	// If unset, all OSDs reported as ok-to-stop are updated together.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +optional
+	OSDUpdateFailureDomain string `json:"osdUpdateFailureDomain,omitempty"`
 }
 
 // Migration handles the OSD migration
