@@ -168,7 +168,8 @@ go.fmt-fix: $(GOLANGCI_LINT)
 
 .PHONY: go.golangci-lint
 go.golangci-lint: $(GOLANGCI_LINT)
-	@$(GOLANGCI_LINT) run
+	@# ./... stops at a nested module, so the tests module is named explicitly
+	@$(GOLANGCI_LINT) run ./... ./tests/...
 
 .PHONY: go.kube-api-lint
 # When KAL was added, 1310 errors were reported in Rook's APIs. Show all by default.
@@ -184,6 +185,8 @@ go.mod.update:
 	@$(GOHOST) get -u ./...
 	@echo === updating APIs modules
 	@(cd pkg/apis/; $(GOHOST) get -u ./...)
+	@echo === updating tests modules
+	@(cd tests/; $(GOHOST) get -u ./...)
 	@echo === syncing workspace modules
 	@$(GOHOST) work sync
 
@@ -193,6 +196,8 @@ go.mod.check:
 	@(cd pkg/apis/; $(GOHOST) mod tidy -compat=$(GO_VERSION))
 	@echo === ensuring root modules are tidied
 	@$(GOHOST) mod tidy -compat=$(GO_VERSION)
+	@echo === ensuring tests modules are tidied
+	@(cd tests/; $(GOHOST) mod tidy -compat=$(GO_VERSION))
 	@echo === syncing workspace modules
 	@$(GOHOST) work sync
 
