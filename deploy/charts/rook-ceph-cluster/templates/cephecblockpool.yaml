@@ -43,6 +43,12 @@ parameters:
   dataPool: {{ $ecblockpool.name }}
   imageFormat: "{{ $ecblockpool.parameters.imageFormat }}"
   imageFeatures: {{ $ecblockpool.parameters.imageFeatures }}
+  {{- with $ecblockpool.parameters.mapOptions }}
+  mapOptions: {{ . | quote }}
+  {{- end }}
+  {{- with $ecblockpool.parameters.unmapOptions }}
+  unmapOptions: {{ . | quote }}
+  {{- end }}
 
   # The secrets contain Ceph admin credentials. These are generated automatically by the operator
   # in the same namespace as the cluster.
