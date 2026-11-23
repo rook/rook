@@ -18,7 +18,9 @@ package osd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -79,6 +81,9 @@ func Test_updateExistingOSDs(t *testing.T) {
 		forceUpgradeIfUnhealthy bool
 		requiresHealthyPGs      bool
 		cephStatus              string
+		updateFailureDomain     string // spec.storage.osdUpdateFailureDomain
+		osdTreeOutput           string // output of 'ceph osd tree' (or an error if empty)
+		osdTreeCalls            int    // number of times 'ceph osd tree' was called
 	)
 
 	// intermediates (created from inputs)
@@ -113,6 +118,9 @@ func Test_updateExistingOSDs(t *testing.T) {
 		spec := cephv1.ClusterSpec{
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: forceUpgradeIfUnhealthy,
 			UpgradeOSDRequiresHealthyPGs:               requiresHealthyPGs,
+			Storage: cephv1.StorageScopeSpec{
+				OSDUpdateFailureDomain: updateFailureDomain,
+			},
 		}
 		c = New(ctx, clusterInfo, spec, "rook/rook:master")
 		config := c.newProvisionConfig()
@@ -165,6 +173,13 @@ func Test_updateExistingOSDs(t *testing.T) {
 						return cephclientfake.OsdOkToStopOutput(osdToBeQueried, returnOkToStopIDs), nil
 					}
 					return cephclientfake.OsdOkToStopOutput(osdToBeQueried, []int{}), errors.Errorf("induced error")
+				}
+				if args[1] == "tree" {
+					osdTreeCalls++
+					if osdTreeOutput == "" {
+						return "", errors.Errorf("induced error getting osd tree")
+					}
+					return osdTreeOutput, nil
 				}
 				if args[1] == "crush" && args[2] == "get-device-class" {
 					return cephclientfake.OSDDeviceClassOutput(args[3]), nil
@@ -341,6 +356,141 @@ func Test_updateExistingOSDs(t *testing.T) {
 		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(0)})
 
 		assert.Equal(t, 0, updateQueue.Len()) // should be done with updates
+	})
+
+	t.Run("ok to stop OSDs restricted to the failure domain", func(t *testing.T) {
+		clientset = fake.NewClientset()
+		// node0 holds OSDs 0, 3 and 6; node1 holds OSDs 1, 4 and 7
+		osdTreeOutput = cephclientfake.OsdTreeOutput(2, 3)
+		updateFailureDomain = "host"
+		defer func() { updateFailureDomain, osdTreeOutput = "", "" }()
+		updateQueue = newUpdateQueueWithIDs(0, 1, 3)
+		existingDeployments = newExistenceListWithIDs(0, 1, 3)
+		forceUpgradeIfUnhealthy = false
+		updateInjectFailures = k8sutil.Failures{}
+		doSetup()
+		addDeploymentOnNode("node0", 0)
+		addDeploymentOnNode("node1", 1)
+		addDeploymentOnNode("node0", 3)
+
+		osdToBeQueried = 0
+		returnOkToStopIDs = []int{0, 3, 1}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(0), deploymentName(3)})
+		assert.Equal(t, 1, updateQueue.Len()) // OSD 1 is on another host and should remain queued
+
+		deploymentsUpdated = []string{}
+		osdToBeQueried = 1
+		returnOkToStopIDs = []int{1, 0}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(1)})
+		assert.Equal(t, 0, updateQueue.Len())
+	})
+
+	t.Run("failure domain not found in CRUSH tree updates only the queried OSD", func(t *testing.T) {
+		clientset = fake.NewClientset()
+		osdTreeOutput = cephclientfake.OsdTreeOutput(2, 3)
+		updateFailureDomain = "rack" // the tree has no racks
+		defer func() { updateFailureDomain, osdTreeOutput = "", "" }()
+		updateQueue = newUpdateQueueWithIDs(0, 1)
+		existingDeployments = newExistenceListWithIDs(0, 1)
+		forceUpgradeIfUnhealthy = false
+		updateInjectFailures = k8sutil.Failures{}
+		doSetup()
+		addDeploymentOnNode("node0", 0)
+		addDeploymentOnNode("node1", 1)
+
+		osdToBeQueried = 0
+		returnOkToStopIDs = []int{0, 1}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(0)})
+		assert.Equal(t, 1, updateQueue.Len()) // OSD 1 should remain queued
+
+		deploymentsUpdated = []string{}
+		osdToBeQueried = 1
+		returnOkToStopIDs = []int{1, 0}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(1)})
+		assert.Equal(t, 0, updateQueue.Len())
+	})
+
+	t.Run("failure getting CRUSH tree updates only the queried OSD", func(t *testing.T) {
+		clientset = fake.NewClientset()
+		osdTreeOutput = "" // induce an error
+		updateFailureDomain = "host"
+		defer func() { updateFailureDomain, osdTreeOutput = "", "" }()
+		updateQueue = newUpdateQueueWithIDs(0, 3)
+		existingDeployments = newExistenceListWithIDs(0, 3)
+		forceUpgradeIfUnhealthy = false
+		updateInjectFailures = k8sutil.Failures{}
+		doSetup()
+		addDeploymentOnNode("node0", 0)
+		addDeploymentOnNode("node0", 3)
+
+		osdToBeQueried = 0
+		returnOkToStopIDs = []int{0, 3}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(0)})
+		assert.Equal(t, 1, updateQueue.Len()) // OSD 3 should remain queued
+	})
+
+	t.Run("CRUSH tree is fetched once and again only if the queried OSD is missing from it", func(t *testing.T) {
+		clientset = fake.NewClientset()
+		// node0 holds OSDs 0, 3 and 6; node1 holds OSDs 1, 4 and 7
+		osdTreeOutput = cephclientfake.OsdTreeOutput(2, 3)
+		osdTreeCalls = 0
+		updateFailureDomain = "host"
+		defer func() { updateFailureDomain, osdTreeOutput = "", "" }()
+		updateQueue = newUpdateQueueWithIDs(0, 1, 2, 9)
+		existingDeployments = newExistenceListWithIDs(0, 1, 2, 3, 4, 9)
+		forceUpgradeIfUnhealthy = false
+		updateInjectFailures = k8sutil.Failures{}
+		doSetup()
+		addDeploymentOnNode("node0", 0)
+		addDeploymentOnNode("node1", 1)
+		addDeploymentOnNode("node2", 2)
+		addDeploymentOnNode("node0", 9)
+
+		osdToBeQueried = 0
+		returnOkToStopIDs = []int{0, 3, 1}
+		updateConfig.updateExistingOSDs(errs)
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(0)})
+		assert.Equal(t, 1, osdTreeCalls)
+
+		deploymentsUpdated = []string{}
+		osdToBeQueried = 1
+		returnOkToStopIDs = []int{1, 4, 0}
+		updateConfig.updateExistingOSDs(errs)
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(1)})
+		assert.Equal(t, 1, osdTreeCalls) // the cached tree is reused
+
+		// OSD 2 is on node2, which was not in the CRUSH tree when it was fetched
+		osdTreeOutput = cephclientfake.OsdTreeOutput(3, 3)
+		deploymentsUpdated = []string{}
+		osdToBeQueried = 2
+		returnOkToStopIDs = []int{2, 0}
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(2)})
+		assert.Equal(t, 2, osdTreeCalls) // the tree is fetched again
+		assert.Equal(t, 1, updateQueue.Len())
+
+		// OSD 9 is not in CRUSH at all, so the tree is fetched again only the first time
+		for range 2 {
+			deploymentsUpdated = []string{}
+			osdToBeQueried = 9
+			returnOkToStopIDs = []int{9, 0}
+			updateConfig.updateExistingOSDs(errs)
+			assert.Zero(t, errs.len())
+			assert.ElementsMatch(t, deploymentsUpdated, []string{deploymentName(9)})
+			assert.Equal(t, 3, osdTreeCalls)
+			updateQueue.Push(9) // query OSD 9 again
+		}
 	})
 
 	t.Run("not ok to stop OSD", func(t *testing.T) {
@@ -1092,4 +1242,51 @@ func Test_getFuncToListDeploymentsWithIDs(t *testing.T) {
 		assert.Len(t, list.Items, 1)
 		assert.Equal(t, "rook-ceph-osd-0", list.Items[0].Name)
 	})
+}
+
+func Test_osdsInSameBucket(t *testing.T) {
+	// node0 holds OSDs 0, 3 and 6; node1 holds OSDs 1, 4 and 7; node2 holds OSDs 2, 5 and 8
+	var osdTree cephclient.OsdTree
+	assert.NoError(t, json.Unmarshal([]byte(cephclientfake.OsdTreeOutput(3, 3)), &osdTree))
+	tree := newCrushTree(osdTree)
+
+	osds, err := tree.osdsInSameBucket(4, "host")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []int{1, 4, 7}, sets.List(osds))
+
+	osds, err = tree.osdsInSameBucket(4, "root")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}, sets.List(osds))
+
+	_, err = tree.osdsInSameBucket(4, "rack")
+	assert.Error(t, err)
+
+	osds, err = tree.osdsInSameBucket(4, "osd")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []int{4}, sets.List(osds))
+
+	_, err = tree.osdsInSameBucket(42, "host") // not in the tree
+	assert.Error(t, err)
+
+	// link node1 (ID -4) under a second root, making the path from OSD 4 to its root ambiguous;
+	// 'ceph osd tree' then dumps node1 and its OSDs a second time, under the second root
+	secondRoot := osdTree.Nodes[0]
+	secondRoot.ID = -100
+	secondRoot.Children = []int{-4}
+	osdTree.Nodes = append(osdTree.Nodes, secondRoot)
+	for _, node := range slices.Clone(osdTree.Nodes) {
+		if node.ID == -4 || node.ID == 1 || node.ID == 4 || node.ID == 7 {
+			osdTree.Nodes = append(osdTree.Nodes, node)
+		}
+	}
+	tree = newCrushTree(osdTree)
+	osds, err = tree.osdsInSameBucket(4, "host") // host is reached before the ambiguity
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []int{1, 4, 7}, sets.List(osds))
+	_, err = tree.osdsInSameBucket(4, "root")
+	assert.Error(t, err)
+	// the OSDs of node1 are not in the default root alone, so they are left out of it
+	osds, err = tree.osdsInSameBucket(3, "root")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []int{0, 2, 3, 5, 6, 8}, sets.List(osds))
 }
