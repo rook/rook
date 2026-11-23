@@ -427,7 +427,7 @@ rules:
       - get
       - list
 ---
-# Aspects of ceph osd purge job that require access to the cluster namespace
+# Aspects of the ceph osd purge job that require access to cluster-wide resources
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -587,7 +587,7 @@ subjects:
     name: rook-ceph-osd
     namespace: rook-ceph # namespace:cluster
 ---
-# Allow the osd purge job to run in this namespace
+# Allow the osd purge job to run and clean up cluster-wide resources
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:

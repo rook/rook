@@ -34,4 +34,20 @@ subjects:
   - kind: ServiceAccount
     name: rook-ceph-osd
     namespace: {{ .Release.Namespace }} # namespace:cluster
+---
+# Allow the osd purge job to run and clean up cluster-wide resources
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-purge-osd{{ include "library.suffix-cluster-namespace" . }}
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-purge-osd
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-purge-osd
+    namespace: {{ .Release.Namespace }} # namespace:cluster
 {{- end }}
