@@ -1,0 +1,72 @@
+suite: cephecblockpool
+templates:
+  - cephecblockpool.yaml
+tests:
+  - it: passes mapOptions and unmapOptions to the storage class
+    set:
+      cephECBlockPools:
+        - name: ec-pool
+          spec:
+            metadataPool:
+              replicated:
+                size: 2
+            dataPool:
+              failureDomain: osd
+              erasureCoded:
+                dataChunks: 2
+                codingChunks: 1
+          parameters:
+            clusterID: rook-ceph
+            mapOptions: lock_on_read,queue_depth=1024
+            unmapOptions: force
+            imageFormat: "2"
+            imageFeatures: layering
+          storageClass:
+            enabled: true
+            name: rook-ceph-block-ec
+            allowVolumeExpansion: true
+            reclaimPolicy: Delete
+    asserts:
+      - hasDocuments:
+          count: 3
+      - isKind:
+          of: StorageClass
+        documentIndex: 2
+      - equal:
+          path: parameters.mapOptions
+          value: lock_on_read,queue_depth=1024
+        documentIndex: 2
+      - equal:
+          path: parameters.unmapOptions
+          value: force
+        documentIndex: 2
+
+  - it: omits mapOptions and unmapOptions when they are not set
+    set:
+      cephECBlockPools:
+        - name: ec-pool
+          spec:
+            metadataPool:
+              replicated:
+                size: 2
+            dataPool:
+              failureDomain: osd
+              erasureCoded:
+                dataChunks: 2
+                codingChunks: 1
+          parameters:
+            clusterID: rook-ceph
+            imageFormat: "2"
+            imageFeatures: layering
+          storageClass:
+            enabled: true
+            name: rook-ceph-block-ec
+            allowVolumeExpansion: true
+            reclaimPolicy: Delete
+    asserts:
+      - notExists:
+          path: parameters.mapOptions
+        documentIndex: 2
+      - notExists:
+          path: parameters.unmapOptions
+        documentIndex: 2
