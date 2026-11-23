@@ -86,20 +86,4 @@ subjects:
   - kind: ServiceAccount
     name: rook-ceph-cmd-reporter
     namespace: {{ .Release.Namespace }} # namespace:cluster
----
-# Allow the osd purge job to run in this namespace
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-purge-osd
-  labels:
-    {{- include "library.rook-ceph.labels" . | nindent 4 }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-purge-osd
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-purge-osd
-    namespace: {{ .Release.Namespace }} # namespace:cluster
 {{- end }}
