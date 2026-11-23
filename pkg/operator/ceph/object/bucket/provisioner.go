@@ -317,8 +317,10 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			return err
 		}
 
-		p.accessKeyID = user.Keys[0].AccessKey
-		p.secretAccessKey = user.Keys[0].SecretKey
+		p.accessKeyID, p.secretAccessKey, err = getUserCredentials(user, bucket.Owner)
+		if err != nil {
+			return err
+		}
 
 		err = p.setS3Agent()
 		if err != nil {
