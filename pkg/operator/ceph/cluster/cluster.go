@@ -38,6 +38,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
@@ -51,6 +52,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -77,6 +79,7 @@ type cluster struct {
 	isUpgrade          bool
 	monitoringRoutines sync.Map
 	observedGeneration int64
+	recorder           events.EventRecorder
 }
 
 func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Context, ownerInfo *k8sutil.OwnerInfo, rookImage string) *cluster {
@@ -162,6 +165,7 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 	// Start the OSDs
 	controller.UpdateCondition(c.ClusterInfo.Context, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph OSDs")
 	osds := osd.New(c.context, c.ClusterInfo, *c.Spec, rookImage)
+	osds.Recorder = c.recorder
 	err = osds.Start()
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph osds")
@@ -335,8 +339,8 @@ func preClusterStartValidation(cluster *cluster) error {
 		return errors.Wrapf(err, "failed to validate network spec for cluster in namespace %q", cluster.Namespace)
 	}
 
-	// Validate on-PVC cluster encryption KMS settings
-	if cluster.Spec.Storage.IsOnPVCEncrypted() && cluster.Spec.Security.KeyManagementService.IsEnabled() {
+	// Validate the KMS settings of clusters with encrypted OSDs, on PVC or on host devices
+	if (cluster.Spec.Storage.IsOnPVCEncrypted() || hostDevicesEncrypted(&cluster.Spec.Storage)) && cluster.Spec.Security.KeyManagementService.IsEnabled() {
 		// Validate the KMS details
 		err := kms.ValidateConnectionDetails(cluster.ClusterInfo.Context, cluster.context, &cluster.Spec.Security.KeyManagementService, cluster.Namespace)
 		if err != nil {
@@ -346,6 +350,30 @@ func preClusterStartValidation(cluster *cluster) error {
 
 	log.NamespacedDebug(cluster.Namespace, logger, "cluster spec successfully validated")
 	return nil
+}
+
+// hostDevicesEncrypted reports whether any host-based OSD is configured with encryptedDevice
+func hostDevicesEncrypted(storage *cephv1.StorageScopeSpec) bool {
+	encrypted := func(c map[string]string) bool { return c[osdconfig.EncryptedDeviceKey] == "true" }
+	if encrypted(storage.Config) {
+		return true
+	}
+	for _, device := range storage.Devices {
+		if encrypted(device.Config) {
+			return true
+		}
+	}
+	for _, node := range storage.Nodes {
+		if encrypted(node.Config) {
+			return true
+		}
+		for _, device := range node.Devices {
+			if encrypted(device.Config) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func validateStretchCluster(cluster *cluster) error {
