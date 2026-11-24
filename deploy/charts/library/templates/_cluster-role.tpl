@@ -121,4 +121,26 @@ rules:
       - create
       - update
       - delete
+---
+# Aspects of the ceph osd purge job that work within the cluster namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-purge-osd
+  namespace: {{ .Release.Namespace }} # namespace:cluster
+  labels:
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "update", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "update", "delete", "list"]
 {{- end }}
