@@ -158,6 +158,20 @@ metadata:
   name: rook-ceph-osd
   namespace: rook-ceph-secondary # namespace:cluster
 ---
+# Allow the osd purge job to run and clean up cluster-wide resources
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-purge-osd-rook-ceph-secondary
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-purge-osd
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-purge-osd
+    namespace: rook-ceph-secondary # namespace:cluster
+---
 # Aspects of ceph osd purge job that require access to the operator/cluster namespace
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -170,10 +184,10 @@ rules:
     verbs: ["get"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
-    verbs: ["get", "delete"]
+    verbs: ["get", "update", "delete"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    verbs: ["get", "list", "delete"]
+    verbs: ["get", "list", "create", "delete"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "update", "delete", "list"]

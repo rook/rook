@@ -421,18 +421,6 @@ metadata:
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get"]
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    verbs: ["get", "update", "delete"]
-  - apiGroups: ["batch"]
-    resources: ["jobs"]
-    verbs: ["get", "list", "create", "delete"]
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims"]
-    verbs: ["get", "update", "delete", "list"]
-  - apiGroups: [""]
     resources: ["persistentvolumes"]
     verbs: ["get"]
 ---
