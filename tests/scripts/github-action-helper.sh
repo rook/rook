@@ -1201,6 +1201,7 @@ EOF
   local pod_cidr
   pod_cidr="$(kubectl get nodes -o jsonpath='{.items[0].spec.podCIDR}')"
   sed -i "s|NETWORK_MASK_PLACEHOLDER|${pod_cidr}|" storageclass.yaml
+  cat storageclass.yaml
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
   if ! kubectl wait pvc/nvmeof-volume --for=jsonpath='{.status.phase}'=Bound --timeout=300s; then
@@ -1212,7 +1213,14 @@ EOF
   fi
 
   kubectl create -f pod.yaml
-  kubectl wait pod/nvmeof-test-pod --for=condition=Ready --timeout=300s
+  if ! kubectl wait pod/nvmeof-test-pod --for=condition=Ready --timeout=300s; then
+    echo "Pod nvmeof-test-pod did not reach Ready; collecting diagnostics..."
+    kubectl describe pod nvmeof-test-pod || true
+    kubectl describe storageclass ceph-nvmeof || true
+    kubectl get events -n default --sort-by=.metadata.creationTimestamp | tail -n 50 || true
+    kubectl -n rook-ceph logs -l "app.kubernetes.io/part-of=rook-ceph.nvmeof.csi.ceph.com" --tail=200 || true
+    return 1
+  fi
 
   kubectl -n default exec pod/nvmeof-test-pod -- sh -c "echo 'abcd' > /mnt/nvmeof/test.txt && cat /mnt/nvmeof/test.txt"
   kubectl -n default exec pod/nvmeof-test-pod -- sh -c "grep -qx 'abcd' /mnt/nvmeof/test.txt"
@@ -1233,7 +1241,14 @@ EOF
   kubectl wait --for=delete pod/nvmeof-test-pod --timeout=180s
 
   kubectl create -f pod.yaml
-  kubectl wait pod/nvmeof-test-pod --for=condition=Ready --timeout=300s
+  if ! kubectl wait pod/nvmeof-test-pod --for=condition=Ready --timeout=300s; then
+    echo "Pod nvmeof-test-pod did not reach Ready after recreation; collecting diagnostics..."
+    kubectl describe pod nvmeof-test-pod || true
+    kubectl describe storageclass ceph-nvmeof || true
+    kubectl get events -n default --sort-by=.metadata.creationTimestamp | tail -n 50 || true
+    kubectl -n rook-ceph logs -l "app.kubernetes.io/part-of=rook-ceph.nvmeof.csi.ceph.com" --tail=200 || true
+    return 1
+  fi
   kubectl -n default exec pod/nvmeof-test-pod -- sh -c "grep -qx 'abcd efg' /mnt/nvmeof/test.txt"
   kubectl -n default exec pod/nvmeof-test-pod -- sh -c "echo 'abcd efg hij' > /mnt/nvmeof/test.txt && grep -qx 'abcd efg hij' /mnt/nvmeof/test.txt"
 }
